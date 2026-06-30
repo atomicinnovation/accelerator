@@ -129,22 +129,18 @@ directory names. See `/configure help` for the full reference.
 
 ## Skill reference
 
-### `/configure`
+### `/configure [view | create | help | templates ...]`
 
-**What it does** — View, create, or edit Accelerator plugin configuration.
+View, create, or edit Accelerator plugin configuration.
 
-**How to use it** — `/configure [view | create | help | templates ...]`
-
-**Advice & guidelines** — `configure help` prints the full configuration-key
-reference; the `templates` subcommands manage document templates (see [Template
-Management](#template-management)).
+*`configure help` prints the full configuration-key reference; the `templates`
+subcommands manage document templates (see [Template
+Management](#template-management)).*
 
 ### `/init`
 
-**What it does** — Prepare a repository with the directories and gitignore
-entries that Accelerator skills expect.
+Prepare a repository with the directories and gitignore entries that Accelerator
+skills expect. Takes no arguments and is safe to run repeatedly.
 
-**How to use it** — `/init` (no arguments — safe to run repeatedly)
-
-**Advice & guidelines** — Idempotent: it creates the `meta/` directories up
-front, but skills also create them on first use, so running `init` is optional.
+*Idempotent: it creates the `meta/` directories up front, but skills also create
+them on first use, so running `init` is optional.*

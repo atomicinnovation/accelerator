@@ -32,11 +32,8 @@ haven't run migration `0003` yet, the hook reads the legacy
 
 ### `/migrate`
 
-**What it does** — Apply pending Accelerator meta-directory migrations to bring a
-repo into line with the latest plugin schema.
+Apply pending Accelerator meta-directory migrations to bring a repo into line
+with the latest plugin schema.
 
-**How to use it** — `/migrate`
-
-**Advice & guidelines** — Destructive but guarded: it refuses to run on a dirty
-working tree and previews each pending migration before applying. Recovery is
-via VCS revert.
+*Destructive but guarded: it refuses to run on a dirty working tree and previews
+each pending migration before applying. Recovery is via VCS revert.*

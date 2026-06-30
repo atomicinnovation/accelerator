@@ -15,40 +15,31 @@ meta/research/codebase/ meta/plans/
   review-adr → accepted ADRs inform future research & planning
 ```
 
-### `/create-adr`
+### `/create-adr [topic or description]`
 
-**What it does** — Interactively create an architecture decision record (ADR).
-Walks through context gathering, options analysis, and consequence
-documentation.
+Interactively create an architecture decision record (ADR). Walks through context
+gathering, options analysis, and consequence documentation.
 
-**How to use it** — `/create-adr [topic or description] [--supersedes ADR-NNNN]`
+*Pass `--supersedes ADR-NNNN` when the new decision replaces an accepted one —
+the superseded ADR stays immutable and is marked, rather than edited.*
 
-**Advice & guidelines** — Pass `--supersedes ADR-NNNN` when the new decision
-replaces an accepted one — the superseded ADR stays immutable and is marked,
-rather than edited.
+### `/extract-adrs [research doc paths...]`
 
-### `/extract-adrs`
+Extract architecture decision records from existing meta documents (research,
+plans).
 
-**What it does** — Extract architecture decision records from existing meta
-documents (research, plans).
+*Leave the paths empty to scan all. Use when decisions are buried in research or
+planning documents and need to be captured formally; it proposes candidates for
+you to select before writing.*
 
-**How to use it** — `/extract-adrs [research doc paths...]` (leave
-empty to scan all)
+### `/review-adr [path to ADR]`
 
-**Advice & guidelines** — Use when decisions are buried in research or planning
-documents and need to be captured formally; it proposes candidates for you to
-select before writing.
+Review an architecture decision record for quality and completeness, then accept,
+reject, or suggest revisions.
 
-### `/review-adr`
-
-**What it does** — Review an architecture decision record for quality and
-completeness, then accept, reject, or suggest revisions.
-
-**How to use it** — `/review-adr [path to ADR] [--deprecate reason]`
-
-**Advice & guidelines** — Enforces ADR immutability: only *proposed* ADRs can be
-modified, and an accepted ADR can only transition to superseded or deprecated
-(use `--deprecate`).
+*Enforces ADR immutability: only **proposed** ADRs can be modified, and an
+accepted ADR can only transition to superseded or deprecated (use
+`--deprecate reason`).*
 
 ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
 immutable. To revise a decision, create a new ADR that supersedes the original.

@@ -85,11 +85,9 @@ and refuses to start if the attestation is missing or invalid. Requires
 
 ## Skill reference
 
-### `/visualise`
+### `/visualise [stop | status]`
 
-**What it does** — Open the accelerator meta visualiser.
+Open the accelerator meta visualiser.
 
-**How to use it** — `/visualise [stop | status]`
-
-**Advice & guidelines** — Bare `visualise` starts (or re-attaches to) the server;
-`status` reports its state and `stop` shuts it down. See [Lifecycle](#lifecycle).
+*Bare `visualise` starts (or re-attaches to) the server; `status` reports its
+state and `stop` shuts it down. See [Lifecycle](#lifecycle).*

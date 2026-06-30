@@ -13,7 +13,7 @@
 #       enumeration/exclusion regression);
 #   (d) every index deep link <page>.md#<name> resolves to a real
 #       `### `/<name>`` heading on its target page;
-#   (e) each skill's index gloss AND its home-page "What it does" reproduce the
+#   (e) each skill's index gloss AND its home-page description reproduce the
 #       first sentence of its SKILL.md description verbatim (whitespace-
 #       normalised), so a reworded description can't drift past the docs.
 #
@@ -87,10 +87,13 @@ compute_first() {
 # Collapse all whitespace runs to single spaces; trim ends.
 norm() { tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//'; }
 
-# Text of a `### `/<name>`` subsection on a docs page (up to the next ###/## or EOF).
+# Text of a `### `/<name>`` subsection on a docs page (up to the next ###/## or
+# EOF). The heading may carry an inline argument hint — `### `/<name> [args]`` —
+# so match the `/<name>` prefix up to the space or closing backtick that follows.
 section_text() {
-  awk -v h="### \`/$2\`" '
-    $0 == h { grab = 1; next }
+  awk -v name="$2" '
+    BEGIN { pat = "^### `/" name "[ `]" }
+    $0 ~ pat { grab = 1; next }
     grab && (/^### / || /^## /) { exit }
     grab { print }
   ' "$1"
@@ -182,11 +185,11 @@ while IFS=$'\t' read -r name first; do
   assert_eq "deep-link anchor for $name equals its name" "$name" "$anchor"
   resolved="$DOCS_SKILLS_DIR/$page"
   if [ -f "$resolved" ]; then
-    assert_contains "anchor #$name resolves to a ### heading on $page" \
-      "$(cat "$resolved")" "### \`/$name\`"
+    assert_matches_regex "anchor #$name resolves to a ### heading on $page" \
+      "^### \`/${name}[ \`]" "$(cat "$resolved")"
     sect="$(section_text "$resolved" "$name" | norm)"
     nfirst="$(printf '%s' "$first" | norm)"
-    assert_contains "home-page 'What it does' for $name matches SKILL.md" \
+    assert_contains "home-page description for $name matches SKILL.md" \
       "$sect" "$nfirst"
     assert_contains "index gloss for $name matches SKILL.md" \
       "$IDX_NORM" "$nfirst"

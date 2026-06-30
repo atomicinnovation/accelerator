@@ -26,86 +26,68 @@ existing docs (specs, PRDs, notes)
                               └── sync-work-items ⇄ remote tracker (Jira/Linear)
 ```
 
-### `/create-work-item`
+### `/create-work-item [topic or existing work item path/number]`
 
-**What it does** — Interactively create a well-formed work item. Can also enrich
-an existing one when given its path or number.
+Interactively create a well-formed work item. Can also enrich an existing one
+when given its path or number.
 
-**How to use it** — `/create-work-item [topic or existing work item path/number]`
+*Pair with `refine-work-item` to decompose and sharpen the draft before planning
+begins.*
 
-**Advice & guidelines** — Pair with `refine-work-item` to decompose and sharpen
-the draft before planning begins.
+### `/extract-work-items [document paths...]`
 
-### `/extract-work-items`
+Extract work items in batch from existing documents (specs, PRDs, research,
+plans, meeting notes, design docs).
 
-**What it does** — Extract work items in batch from existing documents (specs,
-PRDs, research, plans, meeting notes, design docs).
+*Leave the paths empty to scan all documents.*
 
-**How to use it** — `/extract-work-items [document paths...]` (leave
-empty to scan all)
+### `/refine-work-item [work item number or path]`
 
-### `/refine-work-item`
+Interactively refine a work item by decomposing it into children, enriching it
+with codebase context, sharpening its acceptance criteria, sizing it, or linking
+it to dependencies.
 
-**What it does** — Interactively refine a work item by decomposing it into
-children, enriching it with codebase context, sharpening its acceptance
-criteria, sizing it, or linking it to dependencies.
+*Use after a work item is drafted and before planning begins.*
 
-**How to use it** — `/refine-work-item [work item number or path]`
+### `/review-work-item [path to work item file]`
 
-**Advice & guidelines** — Use after a work item is drafted and before planning
-begins.
+Review a work item through multiple quality lenses and collaboratively iterate
+based on findings.
 
-### `/review-work-item`
+*Runs the multi-lens [Review System](review-system.md) (completeness,
+testability, clarity); see that page for the lens catalogue.*
 
-**What it does** — Review a work item through multiple quality lenses and
-collaboratively iterate based on findings.
+### `/stress-test-work-item [work item number or path]`
 
-**How to use it** — `/review-work-item [path to work item file]`
+Interactively stress-test a work item by grilling the user on scope, assumptions,
+acceptance criteria, edge cases, and dependencies to surface issues, gaps, and
+flawed assumptions before implementation is planned.
 
-**Advice & guidelines** — Runs the multi-lens [Review System](review-system.md)
-(completeness, testability, clarity); see that page for the lens catalogue.
+*Complements `review-work-item`: review applies fixed quality lenses, stress-test
+interrogates **your** assumptions interactively.*
 
-### `/stress-test-work-item`
+### `/update-work-item [work-item-ref] [field-op...]`
 
-**What it does** — Interactively stress-test a work item by grilling the user on
-scope, assumptions, acceptance criteria, edge cases, and dependencies to surface
-issues, gaps, and flawed assumptions before implementation is planned.
+Update fields (status, priority, tags, parent, etc.) of an existing work item.
 
-**How to use it** — `/stress-test-work-item [work item number or path]`
+*Shows a diff preview and asks for confirmation. There is no transition
+enforcement — arbitrary field changes are allowed.*
 
-**Advice & guidelines** — Complements `review-work-item`: review applies fixed
-quality lenses, stress-test interrogates *your* assumptions interactively.
+### `/list-work-items [filter description]`
 
-### `/update-work-item`
+List and filter work items from the configured work directory.
 
-**What it does** — Update fields (status, priority, tags, parent, etc.) of an
-existing work item.
+*Filters by status, type, priority, tag, parent, or title; shows a colour-coded
+Sync column when a remote integration is configured.*
 
-**How to use it** — `/update-work-item [work-item-ref] [field-op...]`
+### `/sync-work-items [options]`
 
-**Advice & guidelines** — Shows a diff preview and asks for confirmation. There
-is no transition enforcement — arbitrary field changes are allowed.
+Reconcile local work items in meta/work/ with the active remote tracker named by
+work.integration.
 
-### `/list-work-items`
-
-**What it does** — List and filter work items from the configured work
-directory.
-
-**How to use it** — `/list-work-items [filter description]`
-
-**Advice & guidelines** — Filters by status, type, priority, tag, parent, or
-title; shows a colour-coded Sync column when a remote integration is configured.
-
-### `/sync-work-items`
-
-**What it does** — Reconcile local work items in meta/work/ with the active
-remote tracker named by work.integration.
-
-**How to use it** — `/sync-work-items [--push-only|--pull-only] [--preview] [--all] [filter-flags…]`
-
-**Advice & guidelines** — Run `--preview` first to see what a sync would change
-before any write reaches the tracker.
-| **review-work-item**   | `/review-work-item [work-item-ref]`                                               | Review a work item through completeness, testability, and clarity lenses                                                                              |
+*Run with `--preview` first to see what a sync would change before any write
+reaches the tracker. Flags: `--push-only`, `--pull-only`, `--preview`, `--all`,
+plus filter flags.*
 
 Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 `type`, `status`, `priority`, `parent`, `tags`) and structured body sections

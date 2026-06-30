@@ -14,30 +14,25 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-### `/inventory-design`
+### `/inventory-design [source-id] [location] [options]`
 
-**What it does** — Generate a structured design inventory for a frontend
-source — tokens, components, screens, and features — by crawling it with code
-analysis, live Playwright inspection, or both.
+Generate a structured design inventory for a frontend source — tokens,
+components, screens, and features — by crawling it with code analysis, live
+Playwright inspection, or both.
 
-**How to use it** — `/inventory-design [source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]`
+*Pick the crawler mode to match the source: `code` for a local repo, `runtime`
+for a hosted prototype, `hybrid` (default for code repos) for both. See
+[Requirements](#requirements) before using `runtime`/`hybrid`. Flags:
+`--crawler code|runtime|hybrid`, `--allow-internal`, `--allow-insecure-scheme`.*
 
-**Advice & guidelines** — Pick the crawler mode to match the source: `code` for
-a local repo, `runtime` for a hosted prototype, `hybrid` (default for code
-repos) for both. See [Requirements](#requirements) before using
-`runtime`/`hybrid`.
+### `/analyse-design-gaps [current-source-id] [target-source-id]`
 
-### `/analyse-design-gaps`
+Compare two design inventories produced by inventory-design and emit a structured
+gap artifact whose prose paragraphs satisfy the extract-work-items cue-phrase
+contract.
 
-**What it does** — Compare two design inventories produced by inventory-design
-and emit a structured gap artifact whose prose paragraphs satisfy the
-extract-work-items cue-phrase contract.
-
-**How to use it** — `/analyse-design-gaps [current-source-id] [target-source-id]`
-
-**Advice & guidelines** — The gap artifact feeds straight into
-`/extract-work-items`, so run both inventories first, then this, then
-extract.
+*The gap artifact feeds straight into `/extract-work-items`, so run both
+inventories first, then this, then extract.*
 
 Three-step example:
 

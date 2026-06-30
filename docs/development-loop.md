@@ -27,32 +27,25 @@ and plan-review companions.
 
 ## Skill reference
 
-### `/research-codebase`
+### `/research-codebase [research question]`
 
-**What it does** — Conduct comprehensive codebase research by spawning parallel
-sub-agents and synthesising findings into a research document.
+Conduct comprehensive codebase research by spawning parallel sub-agents and
+synthesising findings into a research document.
 
-**How to use it** — `/research-codebase [research question]`
+*Writes a structured document to `meta/research/codebase/`; run it first so the
+plan can cite concrete findings.*
 
-**Advice & guidelines** — Writes a structured document to
-`meta/research/codebase/`; run it first so the plan can cite concrete findings.
+### `/create-plan [work item reference or description]`
 
-### `/create-plan`
+Create detailed implementation plans through interactive, iterative
+collaboration.
 
-**What it does** — Create detailed implementation plans through interactive,
-iterative collaboration.
+*Produces a phased plan in `meta/plans/` with success criteria; review it
+(optionally via `review-plan`) before implementing.*
 
-**How to use it** — `/create-plan [work item reference or description]`
+### `/implement-plan [path to plan file]`
 
-**Advice & guidelines** — Produces a phased plan in `meta/plans/` with success
-criteria; review it (optionally via `review-plan`) before implementing.
+Execute an approved implementation plan from the configured plans directory.
 
-### `/implement-plan`
-
-**What it does** — Execute an approved implementation plan from the configured
-plans directory.
-
-**How to use it** — `/implement-plan [path to plan file]`
-
-**Advice & guidelines** — Works phase by phase, checking off success criteria in
-the plan file as each phase completes.
+*Works phase by phase, checking off success criteria in the plan file as each
+phase completes.*
