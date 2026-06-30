@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Drift guard for the master skill index (docs/skills/index.md) and the
+# Drift guard for the master skill index (docs/skills/README.md) and the
 # per-skill subsections it deep-links to. Derives the user-invokable skill set
 # from SKILL.md frontmatter (the canonical source) and asserts the docs track
 # it. Auto-discovered by tasks/test/helpers.py (executable scripts/test-*.sh)
 # and run under `mise run test:integration:config`.
 #
 # Guards five invariants:
-#   (a) every user-invokable skill is referenced in index.md via its
+#   (a) every user-invokable skill is referenced in README.md via its
 #       /<name> invocation;
 #   (b) no internal (user-invocable: false) skill is referenced there;
 #   (c) the invokable set numbers exactly 46 (liveness — fails loudly on an
@@ -27,7 +27,7 @@ source "$SCRIPT_DIR/test-helpers.sh"
 
 SKILLS_DIR="$PLUGIN_ROOT/skills"
 DOCS_SKILLS_DIR="$PLUGIN_ROOT/docs/skills"
-INDEX="$DOCS_SKILLS_DIR/index.md"
+INDEX="$DOCS_SKILLS_DIR/README.md"
 EXPECTED_INVOKABLE_COUNT=46
 
 WORK_DIR="$(mktemp -d)"
@@ -131,7 +131,7 @@ assert_empty "no SKILL.md with empty/absent frontmatter name" "$EMPTY_NAME_FILES
 assert_eq "invokable set is exactly $EXPECTED_INVOKABLE_COUNT skills" \
   "$EXPECTED_INVOKABLE_COUNT" "$INVOKABLE_COUNT"
 
-assert_file_exists "master index docs/skills/index.md exists" "$INDEX"
+assert_file_exists "master index docs/skills/README.md exists" "$INDEX"
 
 # Membership check shared with the negative self-test. Returns 1 if any
 # invokable token is missing or any internal token leaks into the index.

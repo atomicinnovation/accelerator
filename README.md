@@ -62,7 +62,7 @@ Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibili
 
 **Skills**
 
-- [All Skills](docs/skills/index.md) — the full index of every skill, grouped by
+- [All Skills](docs/skills/README.md) — the full index of every skill, grouped by
   family.
 - [Planning](docs/skills/planning.md) — research, issue investigation, and plan
   review companions.
