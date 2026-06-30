@@ -14,41 +14,41 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-### inventory-design
+### `/inventory-design`
 
 **What it does** — Generate a structured design inventory for a frontend
 source — tokens, components, screens, and features — by crawling it with code
 analysis, live Playwright inspection, or both.
 
-**How to use it** — `/accelerator:inventory-design [source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]`
+**How to use it** — `/inventory-design [source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]`
 
 **Advice & guidelines** — Pick the crawler mode to match the source: `code` for
 a local repo, `runtime` for a hosted prototype, `hybrid` (default for code
 repos) for both. See [Requirements](#requirements) before using
 `runtime`/`hybrid`.
 
-### analyse-design-gaps
+### `/analyse-design-gaps`
 
 **What it does** — Compare two design inventories produced by inventory-design
 and emit a structured gap artifact whose prose paragraphs satisfy the
 extract-work-items cue-phrase contract.
 
-**How to use it** — `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]`
+**How to use it** — `/analyse-design-gaps [current-source-id] [target-source-id]`
 
 **Advice & guidelines** — The gap artifact feeds straight into
-`/accelerator:extract-work-items`, so run both inventories first, then this, then
+`/extract-work-items`, so run both inventories first, then this, then
 extract.
 
 Three-step example:
 
 ```
-/accelerator:inventory-design current ./apps/webapp
-/accelerator:inventory-design prototype https://prototype.example.com
-/accelerator:analyse-design-gaps current prototype
+/inventory-design current ./apps/webapp
+/inventory-design prototype https://prototype.example.com
+/analyse-design-gaps current prototype
 ```
 
 The resulting gap artifact under `meta/research/design-gaps/` feeds straight into
-`/accelerator:extract-work-items <gap-file>`.
+`/extract-work-items <gap-file>`.
 
 `inventory-design` supports three crawler modes: `code` (static analysis only,
 no Playwright needed), `runtime` (Playwright executor only), and `hybrid`
@@ -108,7 +108,7 @@ rm -rf ~/.cache/accelerator/playwright .accelerator/tmp/inventory-design-playwri
 
 ## Authenticated browser crawls
 
-`/accelerator:inventory-design` reads the following environment variables when
+`/inventory-design` reads the following environment variables when
 the location is a hosted prototype or running app and authentication is
 required. They are also read by any future skill that uses the `browser-*`
 agents.

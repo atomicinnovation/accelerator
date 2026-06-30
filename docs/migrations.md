@@ -1,11 +1,11 @@
 # Migrations
 
 When a new plugin version renames directories, config keys, or file formats, a
-migration script handles the upgrade. Run `/accelerator:migrate` after updating
+migration script handles the upgrade. Run `/migrate` after updating
 the plugin to apply any pending migrations.
 
 ```
-/accelerator:migrate
+/migrate
 ```
 
 Safety guards: the skill refuses to run on a dirty working tree, prints a
@@ -24,18 +24,18 @@ for migrations whose preconditions (e.g. a `{project}` pattern in
 `work.id_pattern`) aren't yet configured.
 
 A `SessionStart` hook fires automatically when the bundled migrations have not
-all been applied, reminding you to run `/accelerator:migrate`. (On repos that
+all been applied, reminding you to run `/migrate`. (On repos that
 haven't run migration `0003` yet, the hook reads the legacy
 `meta/.migrations-applied` file as a fallback.)
 
 ## Skill reference
 
-### migrate
+### `/migrate`
 
 **What it does** — Apply pending Accelerator meta-directory migrations to bring a
 repo into line with the latest plugin schema.
 
-**How to use it** — `/accelerator:migrate`
+**How to use it** — `/migrate`
 
 **Advice & guidelines** — Destructive but guarded: it refuses to run on a dirty
 working tree and previews each pending migration before applying. Recovery is

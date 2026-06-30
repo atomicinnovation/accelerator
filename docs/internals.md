@@ -5,7 +5,7 @@
 Every project using Accelerator gets a `meta/` directory (by default) that
 serves as persistent state for the development workflow. Each skill reads from
 and writes to predictable paths within it. Run
-[`/accelerator:init`](configuration.md#init) to create all directories up
+[`/init`](configuration.md#init) to create all directories up
 front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 

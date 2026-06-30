@@ -7,12 +7,12 @@
 #
 # Guards five invariants:
 #   (a) every user-invokable skill is referenced in index.md via its
-#       /accelerator:<name> invocation;
+#       /<name> invocation;
 #   (b) no internal (user-invocable: false) skill is referenced there;
 #   (c) the invokable set numbers exactly 46 (liveness — fails loudly on an
 #       enumeration/exclusion regression);
-#   (d) every index deep link <page>.md#<name> resolves to a real `### <name>`
-#       heading on its target page;
+#   (d) every index deep link <page>.md#<name> resolves to a real
+#       `### `/<name>`` heading on its target page;
 #   (e) each skill's index gloss AND its home-page "What it does" reproduce the
 #       first sentence of its SKILL.md description verbatim (whitespace-
 #       normalised), so a reworded description can't drift past the docs.
@@ -87,9 +87,9 @@ compute_first() {
 # Collapse all whitespace runs to single spaces; trim ends.
 norm() { tr '\n' ' ' | tr -s ' ' | sed 's/^ //; s/ $//'; }
 
-# Text of a `### <name>` subsection on a docs page (up to the next ###/## or EOF).
+# Text of a `### `/<name>`` subsection on a docs page (up to the next ###/## or EOF).
 section_text() {
-  awk -v h="### $2" '
+  awk -v h="### \`/$2\`" '
     $0 == h { grab = 1; next }
     grab && (/^### / || /^## /) { exit }
     grab { print }
@@ -139,10 +139,10 @@ NAME_BOUNDARY='([^A-Za-z0-9-]|$)'
 check_membership() {
   local idx="$1" v=0 n
   for n in $INVOKABLE_NAMES; do
-    grep -Eq "accelerator:${n}${NAME_BOUNDARY}" "$idx" || v=$((v + 1))
+    grep -Eq "/${n}${NAME_BOUNDARY}" "$idx" || v=$((v + 1))
   done
   for n in $INTERNAL_NAMES; do
-    grep -Eq "accelerator:${n}${NAME_BOUNDARY}" "$idx" && v=$((v + 1))
+    grep -Eq "/${n}${NAME_BOUNDARY}" "$idx" && v=$((v + 1))
   done
   return $((v > 0 ? 1 : 0))
 }
@@ -158,12 +158,12 @@ fi
 echo ""
 echo "=== Index membership (all invokable present, no internal leaked) ==="
 for n in $INVOKABLE_NAMES; do
-  assert_matches_regex "index references /accelerator:$n" \
-    "accelerator:${n}${NAME_BOUNDARY}" "$IDX_CONTENT"
+  assert_matches_regex "index references /$n" \
+    "/${n}${NAME_BOUNDARY}" "$IDX_CONTENT"
 done
 for n in $INTERNAL_NAMES; do
   assert_not_matches_regex "index omits internal skill $n" \
-    "accelerator:${n}${NAME_BOUNDARY}" "$IDX_CONTENT"
+    "/${n}${NAME_BOUNDARY}" "$IDX_CONTENT"
 done
 
 echo ""
@@ -183,7 +183,7 @@ while IFS=$'\t' read -r name first; do
   resolved="$DOCS_SKILLS_DIR/$page"
   if [ -f "$resolved" ]; then
     assert_contains "anchor #$name resolves to a ### heading on $page" \
-      "$(cat "$resolved")" "### $name"
+      "$(cat "$resolved")" "### \`/$name\`"
     sect="$(section_text "$resolved" "$name" | norm)"
     nfirst="$(printf '%s' "$first" | norm)"
     assert_contains "home-page 'What it does' for $name matches SKILL.md" \
@@ -207,12 +207,12 @@ DROP_NAME="${drop_tmp%% *}"
 leak_tmp="${INTERNAL_NAMES# }"
 LEAK_NAME="${leak_tmp%% *}"
 if [ -f "$INDEX" ]; then
-  grep -vE "accelerator:${DROP_NAME}${NAME_BOUNDARY}" "$INDEX" >"$BROKEN" || true
+  grep -vE "/${DROP_NAME}${NAME_BOUNDARY}" "$INDEX" >"$BROKEN" || true
 else
   : >"$BROKEN"
 fi
 # shellcheck disable=SC2016 # literal backticks are intentional markdown, not command substitution
-printf -- '- [`/accelerator:%s`](review-system.md#%s) — leaked.\n' \
+printf -- '- [`/%s`](review-system.md#%s) — leaked.\n' \
   "$LEAK_NAME" "$LEAK_NAME" >>"$BROKEN"
 if check_membership "$BROKEN"; then
   assert_eq "mutated index is reported FAIL by check_membership" "fail" "pass"

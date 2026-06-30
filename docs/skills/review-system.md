@@ -34,6 +34,6 @@ Lenses are automatically selected based on scope, or you can specify focus
 areas:
 
 ```
-/accelerator:review-pr 123 focus on security and architecture
-/accelerator:review-work-item 0042 focus on testability
+/review-pr 123 focus on security and architecture
+/review-work-item 0042 focus on testability
 ```

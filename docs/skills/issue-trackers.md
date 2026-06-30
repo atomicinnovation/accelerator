@@ -7,7 +7,7 @@ preview that you must explicitly confirm before any change reaches the tracker.
 Each integration keeps a team-shared catalogue (committed) alongside gitignored
 per-developer credentials, and treats the presence of an `external_id` on a work
 item as the signal that it is synced to the remote. Building on that signal,
-`/accelerator:sync-work-items` reconciles `meta/work/` against the tracker in
+`/sync-work-items` reconciles `meta/work/` against the tracker in
 batch — pushing never-synced items, pulling untracked remote issues, and
 resolving per-item divergence. Select the active tracker with the
 `work.integration` key (`jira` or `linear`); when unset, the work-management
@@ -20,7 +20,7 @@ skills stay local with no external API calls.
 Accelerator includes a full set of skills for interacting with a Jira Cloud
 tenant — searching for and reading issues, creating and updating them,
 commenting, transitioning through workflows, and uploading attachments. Run
-`/accelerator:init-jira` once to verify credentials and persist the
+`/init-jira` once to verify credentials and persist the
 team-shared field and project catalogue before using the other skills.
 
 ### Jira Configuration
@@ -47,88 +47,88 @@ jira:
 
 The default project key reuses `work.default_project_code`; set
 `work.integration: jira` to enable auto-scoping. See
-`/accelerator:configure help` for the full credential resolution chain and
+`/configure help` for the full credential resolution chain and
 `token_cmd` examples (1Password, `pass`, macOS Keychain, AWS Secrets Manager).
 
 ### Jira Skills
 
 | Skill                     | Usage                                              | Description                                                                                                                                       |
 |---------------------------|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| **init-jira**             | `/accelerator:init-jira`                           | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/`             |
-| **search-jira-issues**    | `/accelerator:search-jira-issues [flags]`          | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
-| **show-jira-issue**       | `/accelerator:show-jira-issue <KEY>`               | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions                                                       |
-| **create-jira-issue**     | `/accelerator:create-jira-issue [flags]`           | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR`                                                               |
-| **update-jira-issue**     | `/accelerator:update-jira-issue <KEY> [flags]`     | Edit summary, description, assignee, priority, labels, components, parent, and custom fields                                                      |
-| **comment-jira-issue**    | `/accelerator:comment-jira-issue <sub> <KEY>`      | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions)                                                                 |
-| **transition-jira-issue** | `/accelerator:transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment                                  |
-| **attach-jira-issue**     | `/accelerator:attach-jira-issue <KEY> <file...>`   | Upload one or more files as issue attachments                                                                                                     |
+| **init-jira**             | `/init-jira`                           | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/`             |
+| **search-jira-issues**    | `/search-jira-issues [flags]`          | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
+| **show-jira-issue**       | `/show-jira-issue <KEY>`               | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions                                                       |
+| **create-jira-issue**     | `/create-jira-issue [flags]`           | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR`                                                               |
+| **update-jira-issue**     | `/update-jira-issue <KEY> [flags]`     | Edit summary, description, assignee, priority, labels, components, parent, and custom fields                                                      |
+| **comment-jira-issue**    | `/comment-jira-issue <sub> <KEY>`      | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions)                                                                 |
+| **transition-jira-issue** | `/transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment                                  |
+| **attach-jira-issue**     | `/attach-jira-issue <KEY> <file...>`   | Upload one or more files as issue attachments                                                                                                     |
 
 Read skills (`search-jira-issues`, `show-jira-issue`) trigger automatically on
 natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
 the tenant. Each skill's reference subsection follows.
 
-### init-jira
+### `/init-jira`
 
 **What it does** — Set up the Jira Cloud integration for this project.
 
-**How to use it** — `/accelerator:init-jira [--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]`
+**How to use it** — `/init-jira [--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]`
 
 **Advice & guidelines** — Run once before the other Jira skills: it verifies
 credentials and persists the team-shared field and project catalogue.
 
-### search-jira-issues
+### `/search-jira-issues`
 
 **What it does** — Use this skill whenever the user wants to search, list, or
 filter Jira tickets — by assignee, status, label, project, type, component,
 reporter, parent, or free text — even if they say 'find', 'show me', 'what's
 open', 'list my tickets', or similar phrasing rather than 'search Jira'.
 
-**How to use it** — `/accelerator:search-jira-issues [flags] [free-text]`
+**How to use it** — `/search-jira-issues [flags] [free-text]`
 
-### show-jira-issue
+### `/show-jira-issue`
 
 **What it does** — Use this skill when the user asks about a specific Jira issue
 by key (e.g. PROJ-123, ENG-456) — for viewing the description, status, comments,
 transitions, or any other field.
 
-**How to use it** — `/accelerator:show-jira-issue <ISSUE-KEY> [flags]`
+**How to use it** — `/show-jira-issue <ISSUE-KEY> [flags]`
 
-### create-jira-issue
+### `/create-jira-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /create-jira-issue to create a new Jira issue.
 
-**How to use it** — `/accelerator:create-jira-issue --type NAME --summary TEXT [flags]`
+**How to use it** — `/create-jira-issue --type NAME --summary TEXT [flags]`
 
-### update-jira-issue
+### `/update-jira-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /update-jira-issue to modify an existing Jira issue.
 
-**How to use it** — `/accelerator:update-jira-issue ISSUE-KEY [flags]`
+**How to use it** — `/update-jira-issue ISSUE-KEY [flags]`
 
-### comment-jira-issue
+### `/comment-jira-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /comment-jira-issue to add, list, edit, or delete comments on a Jira issue.
 
-**How to use it** — `/accelerator:comment-jira-issue <add|list|edit|delete> ISSUE-KEY [flags]`
+**How to use it** — `/comment-jira-issue <add|list|edit|delete> ISSUE-KEY [flags]`
 
-### transition-jira-issue
+### `/transition-jira-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /transition-jira-issue to move a Jira issue through its workflow by state name.
 
-**How to use it** — `/accelerator:transition-jira-issue ISSUE-KEY (STATE-NAME | --transition-id ID) [flags]`
+**How to use it** — `/transition-jira-issue ISSUE-KEY (STATE-NAME | --transition-id ID) [flags]`
 
-### attach-jira-issue
+### `/attach-jira-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /attach-jira-issue to upload one or more local files as attachments to a Jira
 issue.
 
-**How to use it** — `/accelerator:attach-jira-issue ISSUE-KEY FILE [FILE...] [--quiet]`
+**How to use it** — `/attach-jira-issue ISSUE-KEY FILE [FILE...] [--quiet]`
 
 ### Jira ADF / Markdown
 
@@ -161,7 +161,7 @@ credentials live in `.accelerator/config.local.md` and env vars only.
 Accelerator includes the same shape of skills for a Linear workspace — searching
 and reading issues, creating and updating them, commenting, transitioning by
 workflow state, and attaching links or files. It talks to the Linear GraphQL API
-directly (Markdown-native — no ADF conversion). Run `/accelerator:init-linear`
+directly (Markdown-native — no ADF conversion). Run `/init-linear`
 once to verify the token and cache the team and workflow-state catalogue before
 using the other skills.
 
@@ -190,80 +190,80 @@ team-shared, while `viewer.json` is gitignored and per-developer. Set
 
 | Skill                       | Usage                                                              | Description                                                              |
 |-----------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------|
-| **init-linear**             | `/accelerator:init-linear`                                         | Verify the token, cache the team and workflow-state catalogue            |
-| **search-linear-issues**    | `/accelerator:search-linear-issues [flags]`                        | Search issues by state, assignee, label, or text (cursor-paginated)      |
-| **show-linear-issue**       | `/accelerator:show-linear-issue <IDENTIFIER>`                      | Read a single issue, with an optional comment slice                      |
-| **create-linear-issue**     | `/accelerator:create-linear-issue <work-item-file>`                | Create an issue from a work-item file (payload preview, then confirm)    |
-| **update-linear-issue**     | `/accelerator:update-linear-issue <IDENTIFIER> [flags]`            | Edit title, description, state, assignee, or priority on an issue        |
-| **comment-linear-issue**    | `/accelerator:comment-linear-issue <IDENTIFIER> --body …`          | Add a comment (`--body` text or `--body-file`)                           |
-| **transition-linear-issue** | `/accelerator:transition-linear-issue <IDENTIFIER> <STATE-NAME>`   | Move an issue through its workflow by state name                         |
-| **attach-linear-issue**     | `/accelerator:attach-linear-issue <IDENTIFIER> (--url \| --file)`  | Attach a URL or file to an issue                                         |
+| **init-linear**             | `/init-linear`                                         | Verify the token, cache the team and workflow-state catalogue            |
+| **search-linear-issues**    | `/search-linear-issues [flags]`                        | Search issues by state, assignee, label, or text (cursor-paginated)      |
+| **show-linear-issue**       | `/show-linear-issue <IDENTIFIER>`                      | Read a single issue, with an optional comment slice                      |
+| **create-linear-issue**     | `/create-linear-issue <work-item-file>`                | Create an issue from a work-item file (payload preview, then confirm)    |
+| **update-linear-issue**     | `/update-linear-issue <IDENTIFIER> [flags]`            | Edit title, description, state, assignee, or priority on an issue        |
+| **comment-linear-issue**    | `/comment-linear-issue <IDENTIFIER> --body …`          | Add a comment (`--body` text or `--body-file`)                           |
+| **transition-linear-issue** | `/transition-linear-issue <IDENTIFIER> <STATE-NAME>`   | Move an issue through its workflow by state name                         |
+| **attach-linear-issue**     | `/attach-linear-issue <IDENTIFIER> (--url \| --file)`  | Attach a URL or file to an issue                                         |
 
 Read skills (`search-linear-issues`, `show-linear-issue`) trigger automatically
 on natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
 the workspace. Each skill's reference subsection follows.
 
-### init-linear
+### `/init-linear`
 
 **What it does** — Set up the Linear integration for this project.
 
-**How to use it** — `/accelerator:init-linear [--team-id <uuid>]`
+**How to use it** — `/init-linear [--team-id <uuid>]`
 
 **Advice & guidelines** — Run once before the other Linear skills: it verifies
 the token and caches the team and workflow-state catalogue.
 
-### search-linear-issues
+### `/search-linear-issues`
 
 **What it does** — Use this skill whenever the user wants to search, list, or
 filter Linear issues — by state, assignee, label, or free text — even if they
 say 'find', 'show me', 'what's open', 'list my issues', or similar phrasing
 rather than 'search Linear'.
 
-**How to use it** — `/accelerator:search-linear-issues [flags]`
+**How to use it** — `/search-linear-issues [flags]`
 
-### show-linear-issue
+### `/show-linear-issue`
 
 **What it does** — Use this skill when the user asks about a specific Linear
 issue by identifier (e.g. BLA-123, ENG-456) — for viewing the description,
 state, assignee, or comments.
 
-**How to use it** — `/accelerator:show-linear-issue <IDENTIFIER> [--comments N]`
+**How to use it** — `/show-linear-issue <IDENTIFIER> [--comments N]`
 
-### create-linear-issue
+### `/create-linear-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /create-linear-issue to create a new Linear issue from a local work-item file.
 
-**How to use it** — `/accelerator:create-linear-issue <work-item-file> [flags]`
+**How to use it** — `/create-linear-issue <work-item-file> [flags]`
 
-### update-linear-issue
+### `/update-linear-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /update-linear-issue to change fields on an existing Linear issue (title,
 description, state, assignee, priority).
 
-**How to use it** — `/accelerator:update-linear-issue <IDENTIFIER> [flags]`
+**How to use it** — `/update-linear-issue <IDENTIFIER> [flags]`
 
-### comment-linear-issue
+### `/comment-linear-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /comment-linear-issue to add a Markdown comment to an existing Linear issue.
 
-**How to use it** — `/accelerator:comment-linear-issue <IDENTIFIER> --body TEXT | --body-file PATH`
+**How to use it** — `/comment-linear-issue <IDENTIFIER> --body TEXT | --body-file PATH`
 
-### transition-linear-issue
+### `/transition-linear-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /transition-linear-issue to move an existing Linear issue to a different
 workflow state.
 
-**How to use it** — `/accelerator:transition-linear-issue <IDENTIFIER> <STATE-NAME> [flags]`
+**How to use it** — `/transition-linear-issue <IDENTIFIER> <STATE-NAME> [flags]`
 
-### attach-linear-issue
+### `/attach-linear-issue`
 
 **What it does** — Use this skill only when the user explicitly invokes
 /attach-linear-issue to attach a link or a binary file to an existing Linear
 issue.
 
-**How to use it** — `/accelerator:attach-linear-issue <IDENTIFIER> (--url URL | --file PATH) [flags]`
+**How to use it** — `/attach-linear-issue <IDENTIFIER> (--url URL | --file PATH) [flags]`

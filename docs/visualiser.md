@@ -1,6 +1,6 @@
 # Visualiser
 
-`/accelerator:visualise` opens a browser-based companion view of your project's
+`/visualise` opens a browser-based companion view of your project's
 `meta/` directory. Three views cover the breadth of the directory:
 
 | View          | What it shows                                                              |
@@ -20,7 +20,7 @@ load-error pages.
 ## Launching
 
 ```bash
-/accelerator:visualise            # from inside a Claude Code session
+/visualise            # from inside a Claude Code session
 accelerator-visualiser            # CLI wrapper — optionally symlink onto $PATH
 ```
 
@@ -31,8 +31,8 @@ returns the same URL.
 ## Lifecycle
 
 ```bash
-/accelerator:visualise status     # JSON: running | stale | not_running
-/accelerator:visualise stop       # SIGTERM, escalating to SIGKILL after 2s
+/visualise status     # JSON: running | stale | not_running
+/visualise stop       # SIGTERM, escalating to SIGKILL after 2s
 ```
 
 Both subcommands also work via the `accelerator-visualiser` CLI wrapper.
@@ -85,11 +85,11 @@ and refuses to start if the attestation is missing or invalid. Requires
 
 ## Skill reference
 
-### visualise
+### `/visualise`
 
 **What it does** — Open the accelerator meta visualiser.
 
-**How to use it** — `/accelerator:visualise [stop | status]`
+**How to use it** — `/visualise [stop | status]`
 
 **Advice & guidelines** — Bare `visualise` starts (or re-attaches to) the server;
 `status` reports its state and `stop` shuts it down. See [Lifecycle](#lifecycle).
