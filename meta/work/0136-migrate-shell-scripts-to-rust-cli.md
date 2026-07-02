@@ -5,7 +5,7 @@ title: "Migrate Shell Scripts into a Rust CLI"
 date: "2026-06-22T23:41:03+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: in-progress
 kind: epic
 priority: medium
 source: "note:2026-06-22-ideas-backlog"
