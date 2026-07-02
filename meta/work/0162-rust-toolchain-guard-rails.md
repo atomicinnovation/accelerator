@@ -12,7 +12,7 @@ parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0163"]
 tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
-last_updated: "2026-06-29T00:12:32+00:00"
+last_updated: "2026-07-02T15:05:42+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-183"
@@ -51,9 +51,13 @@ silently as the workspace grows.
 
 ## Requirements
 
-- Add per-crate `<crate>:check` components (rustfmt `--check` + clippy
-  `-D warnings`, pedantic + nursery + cherry-picked restriction lints) scoped via
-  `cargo … -p <crate>` for every workspace member.
+- Add a workspace-wide `cli:check` (rustfmt `--check` + clippy `-D warnings`,
+  pedantic + nursery + cherry-picked restriction lints) running one
+  `cargo clippy --workspace` pass that covers every member; per-crate
+  `<crate>:check` tasks (scoped `-p <crate>`) may be added for ad-hoc use but
+  stay out of the aggregate. The lint set is configured at the workspace via
+  `[workspace.lints.clippy]` (members opt in with `[lints] workspace = true`) —
+  see the concrete block in Technical Notes.
 - Add testing via cargo-nextest with coverage folded into the test run
   (`cargo llvm-cov nextest`), wired into the `test` roll-up (not `check`), running
   on every test OS.
@@ -66,30 +70,40 @@ silently as the workspace grows.
   build (ADR-0046).
 - Add cargo-pup as a blocking check on a **pinned-nightly lane** (nightly pinned in
   `mise.toml`) enforcing intra-crate module-import (inward-dependency) rules, while
-  the product build and all other checks stay on stable.
+  the product build and all other checks stay on stable. Pins: cargo-pup `0.1.8`
+  on `nightly-2026-01-22`.
 - Pin cargo-nextest / cargo-llvm-cov / cargo-deny / cargo-pup and the nightly in
-  `mise.toml`; create `rustfmt.toml`, `clippy.toml`, `deny.toml` (80-col width
-  duplicated by hand into `rustfmt.toml`, consistent with the other components).
+  `mise.toml`; create `rustfmt.toml`, `deny.toml` (80-col width duplicated by
+  hand into `rustfmt.toml`, consistent with the other components). Clippy lint
+  *levels* live in the workspace manifest (`[workspace.lints.clippy]`); a
+  `clippy.toml` is only needed if a configurable-lint *threshold* is later
+  required, so it is optional at this stage.
 - Revisit `tasks/shared/paths.py`, which currently hard-codes a single
-  `Cargo.toml`, for the multi-crate workspace.
+  `Cargo.toml`, for the multi-crate workspace. The version is kept at workspace
+  level (`[workspace.package].version` in the root `cli/Cargo.toml`), members
+  inheriting via `version.workspace = true`; `paths.py` must still enumerate
+  every member `Cargo.toml` so a member that hardcodes its own
+  `[package].version` instead of inheriting is detected.
 
 ## Acceptance Criteria
 
-The green-build and per-crate criteria below presuppose that Rust code and the
+The green-build criteria below presuppose that Rust code and the
 `cli/` workspace exist; they are **co-verified with the paired scaffold story
 0163** (this story wires the gates, 0163 supplies the code they run against). At
-0162's own close the workspace may be a single crate — the per-crate criteria are
-satisfied for whatever members `cli/Cargo.toml` declares at that point, with the
-generation mechanism demonstrated to extend to further members. See Dependencies.
+0162's own close the workspace may be a single crate — the workspace-wide
+`cli:check` covers whatever members `cli/Cargo.toml` declares at that point and
+extends to further members with no per-member wiring. See Dependencies.
 
-- [ ] `mise run check` includes per-crate format-check + clippy `-D warnings`
-      for every member listed in `cli/Cargo.toml` `[workspace].members` (each via
-      a `<crate>:check` task), plus workspace-scope `cargo deny check` and the
-      cargo-pup architecture check, and exits 0; `check` stays read-only and
-      test-free.
-- [ ] The bare `mise run` default runs all per-crate Rust checks plus the
-      workspace-scope deny/pup checks and the tests-with-coverage run, and exits 0
-      end-to-end.
+- [ ] `mise run check` includes a workspace-wide format-check + clippy
+      `-D warnings` pass (a single `cli:check` covering every member listed in
+      `cli/Cargo.toml` `[workspace].members`), plus workspace-scope `cargo deny
+      check` and the cargo-pup architecture check, and exits 0; `check` stays
+      read-only and test-free. Per-crate `<crate>:check` tasks may be provided
+      for ad-hoc use but are deliberately excluded from the aggregate, which
+      covers all members in the single workspace-wide pass.
+- [ ] The bare `mise run` default runs the workspace-wide `cli:check` (format +
+      clippy) plus the workspace-scope deny/pup checks and the tests-with-coverage
+      run, and exits 0 end-to-end.
 - [ ] The `test` roll-up emits a `cargo llvm-cov` coverage report; coverage is
       collected but not gated at this Phase 0 stage (no minimum threshold fails
       the run).
@@ -114,14 +128,17 @@ generation mechanism demonstrated to extend to further members. See Dependencies
       lane fails — a nightly/cargo-pup break gates the architecture check alone,
       not the product.
 - [ ] `tasks/shared/paths.py` resolves every workspace member `Cargo.toml` (not a
-      single hard-coded path), so version-coherence detects a version mismatch in
-      any member crate.
+      single hard-coded path). With the version held at workspace level, members
+      normally inherit (`version.workspace = true`) and carry no version of their
+      own; the coherence check therefore asserts each member either inherits or,
+      if it pins its own `[package].version`, matches the workspace version — so a
+      member that opts out of inheritance and drifts is detected.
 
 ## Open Questions
 
-- Which restriction lints are cherry-picked, and which nightly version pins the
-  cargo-pup lane? (Both decided at implementation, per the source research — see
-  References.)
+- None outstanding. The restriction-lint set, the cargo-pup nightly/version
+  pins, and the workspace-level version decision are now resolved (recorded in
+  Requirements and Technical Notes).
 
 ## Dependencies
 
@@ -166,6 +183,30 @@ generation mechanism demonstrated to extend to further members. See Dependencies
 - The cross-crate ban-lists are largely inert until the workspace splits into
   multiple crates; they first bite at the `config`/`config-adapters` split (0166).
 - Component task naming follows the existing `<component>:check` convention.
+- Clippy lint set, configured at the workspace and inherited by each member via
+  `[lints] workspace = true`. `pedantic`/`nursery` carry `priority = -1` so the
+  individual restriction opt-ins and allows below override them; the workspace-wide
+  `cli:check` clippy pass retains `-D warnings`, promoting every `warn` to a hard
+  CI failure:
+
+  ```toml
+  [workspace.lints.clippy]
+  pedantic = { level = "warn", priority = -1 }
+  nursery  = { level = "warn", priority = -1 }
+  # restriction is allow-by-default; these are the cherry-picked opt-ins.
+  unwrap_used   = "warn"
+  expect_used   = "warn"
+  panic         = "warn"
+  dbg_macro     = "warn"
+  todo          = "warn"
+  unimplemented = "warn"
+  module_name_repetitions = "allow"
+  must_use_candidate      = "allow"
+  ```
+- cargo-pup is pinned to `0.1.8` and runs on `nightly-2026-01-22` (both in
+  `mise.toml`); the nightly drives only the isolated cargo-pup lane.
+- Version coherence: the workspace version lives in `[workspace.package].version`
+  (single write site); members inherit via `version.workspace = true`.
 
 ## Drafting Notes
 
