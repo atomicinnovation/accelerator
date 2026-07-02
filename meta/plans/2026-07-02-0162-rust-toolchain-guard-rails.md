@@ -5,7 +5,7 @@ title: "Rust Toolchain Guard Rails in mise + CI Implementation Plan"
 date: "2026-07-02T01:23:10+00:00"
 author: Toby Clemson
 producer: create-plan
-status: draft
+status: done
 work_item_id: "work-item:0162"
 parent: "work-item:0162"
 derived_from: ["codebase-research:2026-06-29-0162-rust-toolchain-guard-rails-wiring"]
