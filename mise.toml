@@ -20,6 +20,12 @@ jq = "1.7.1"
 # schema is version-sensitive, so a floating patch could change ban/advisory
 # evaluation between runners.
 "aqua:EmbarkStudios/cargo-deny" = "0.19.8"
+# The /cargo-nextest sub-tool-path is required: nextest-rs/nextest publishes its
+# binary as `cargo-nextest`, and without the path the aqua backend cannot
+# resolve the asset. Exact pins so coverage tooling behaves identically across
+# runners.
+"aqua:nextest-rs/nextest/cargo-nextest" = "0.9.138"
+"aqua:taiki-e/cargo-llvm-cov" = "0.8.7"
 
 [settings]
 experimental = true
@@ -129,6 +135,11 @@ description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/tasks -v"
 
+[tasks."test:unit:cli"]
+description = "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)"
+depends = ["deps:install:rust-components"]
+run = "invoke test.cli.run"
+
 [tasks."test:unit:templates"]
 description = "Run template / SKILL / metadata-helper schema tests"
 run = "invoke test.unit.templates"
@@ -140,7 +151,7 @@ run = "uv run pytest tests/integration/tasks -v"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates", "test:unit:cli"]
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"

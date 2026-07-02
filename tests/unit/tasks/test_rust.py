@@ -6,6 +6,7 @@ from invoke import Context, Exit
 from tasks import pup
 from tasks.shared import rust
 from tasks.shared.rust import PUP_NIGHTLY
+from tasks.test import cli as test_cli
 
 
 @pytest.fixture
@@ -93,3 +94,44 @@ class TestPupCheck:
         ctx.run.return_value = MagicMock(exited=1)
         pup.check(ctx)
         assert "WARNING" in capsys.readouterr().out
+
+
+# ── test:unit:cli leaf branches ───────────────────────────────────────
+
+
+class TestTestUnitCli:
+    def _command(self, ctx: MagicMock) -> str:
+        return ctx.run.call_args.args[0]
+
+    def test_instrumented_by_default(
+        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
+        test_cli.run(ctx)
+        command = self._command(ctx)
+        assert command.startswith("cargo llvm-cov nextest")
+        assert "--summary-only" in command
+
+    def test_plain_nextest_when_coverage_off(
+        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("ACCELERATOR_COVERAGE", "off")
+        test_cli.run(ctx)
+        command = self._command(ctx)
+        assert command.startswith("cargo nextest run")
+        assert "llvm-cov" not in command
+
+    def test_carries_no_coverage_threshold(
+        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
+        test_cli.run(ctx)
+        assert "--fail-under" not in self._command(ctx)
+
+    def test_raises_when_inner_tests_fail(
+        self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("ACCELERATOR_COVERAGE", raising=False)
+        ctx.run.return_value = MagicMock(exited=1)
+        with pytest.raises(Exit):
+            test_cli.run(ctx)

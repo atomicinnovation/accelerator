@@ -24,12 +24,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      # test:unit:cli compiles Rust on BOTH matrix legs (previously only the
+      # ubuntu server-check compiled Rust), so the toolchain-cache race applies
+      # here too: route rustup into the cached mise data dir before install.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         uses: jdx/mise-action@v4.1.0
         with:
           install: true
           cache: true
+          # OS-disambiguated so the ubuntu/macos legs never share a
+          # toolchain-cache namespace.
+          cache_key_prefix: mise-test-unit-${{ matrix.os }}-v1
           experimental: true
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
 
       - name: Run unit tests
         run: mise run test:unit
@@ -46,12 +58,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      # test:integration:deny (and the visualiser cargo tests) run cargo on
+      # BOTH matrix legs, so route rustup into the cached mise data dir before
+      # install to avoid the toolchain-cache race.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         uses: jdx/mise-action@v4.1.0
         with:
           install: true
           cache: true
+          cache_key_prefix: mise-test-integration-${{ matrix.os }}-v1
           experimental: true
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
 
       - name: Run integration tests
         run: mise run test:integration

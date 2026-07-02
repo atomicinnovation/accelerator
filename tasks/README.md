@@ -137,6 +137,7 @@ the env var.
 | Variable                 | Default | Effect                                    |
 | ------------------------ | ------- | ----------------------------------------- |
 | `ACCELERATOR_PUP_MODE`   | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`. |
+| `ACCELERATOR_COVERAGE`   | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
 
 ## CI job → local command
 

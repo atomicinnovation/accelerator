@@ -16,6 +16,22 @@ url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.8/carg
 checksum = "sha256:dcd997dd8b7039015cd6f72d4feff64a21f5a6ec905e463751df80e70d82886c"
 url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.8/cargo-deny-0.19.8-x86_64-apple-darwin.tar.gz"
 
+[[tools."aqua:nextest-rs/nextest/cargo-nextest"]]
+version = "0.9.138"
+backend = "aqua:nextest-rs/nextest/cargo-nextest"
+
+[tools."aqua:nextest-rs/nextest/cargo-nextest"."platforms.linux-x64"]
+checksum = "sha256:8e4183e39b857350b928e053b40ffc7180c01e7cbf4d13146e5d8a12ec210f4f"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.138/cargo-nextest-0.9.138-x86_64-unknown-linux-musl.tar.gz"
+
+[tools."aqua:nextest-rs/nextest/cargo-nextest"."platforms.macos-arm64"]
+checksum = "sha256:124baa34d160355fa8a8bed053856270cfcf132659e76a0bc8bbcdfc093266b7"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.138/cargo-nextest-0.9.138-universal-apple-darwin.tar.gz"
+
+[tools."aqua:nextest-rs/nextest/cargo-nextest"."platforms.macos-x64"]
+checksum = "sha256:124baa34d160355fa8a8bed053856270cfcf132659e76a0bc8bbcdfc093266b7"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.138/cargo-nextest-0.9.138-universal-apple-darwin.tar.gz"
+
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"
@@ -34,6 +50,22 @@ provenance = "github-attestations"
 checksum = "sha256:5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644"
 url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_amd64.tar.gz"
 provenance = "github-attestations"
+
+[[tools."aqua:taiki-e/cargo-llvm-cov"]]
+version = "0.8.7"
+backend = "aqua:taiki-e/cargo-llvm-cov"
+
+[tools."aqua:taiki-e/cargo-llvm-cov"."platforms.linux-x64"]
+checksum = "sha256:967b5cc996c29d8baa52bbb4595ef1f53af35255af8e2036ddbc6468d7b523c7"
+url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz"
+
+[tools."aqua:taiki-e/cargo-llvm-cov"."platforms.macos-arm64"]
+checksum = "sha256:3efee732ed7e9a653e20d96c930e0ec799901289cce90f46bb20f627e2c0d2e9"
+url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-llvm-cov-aarch64-apple-darwin.tar.gz"
+
+[tools."aqua:taiki-e/cargo-llvm-cov"."platforms.macos-x64"]
+checksum = "sha256:288ce0cb976207a9a1ad5af4d7ec9a06c9af116727066fb2287df8d9d1026be9"
+url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-llvm-cov-x86_64-apple-darwin.tar.gz"
 
 [[tools.gh]]
 version = "2.89.0"
