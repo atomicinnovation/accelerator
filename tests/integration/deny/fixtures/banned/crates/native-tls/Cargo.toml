@@ -1,0 +1,11 @@
+# Local stand-in for the crates.io `native-tls`, named identically so the ban
+# matches. Depends on a local `openssl` so the regression also exercises the
+# transitive openssl ban.
+[package]
+name = "native-tls"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+openssl = { path = "../openssl", version = "0.10.0" }

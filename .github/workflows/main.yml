@@ -197,6 +197,33 @@ jobs:
       - name: Run cli checks
         run: mise run cli:check
 
+  check-supply-chain:
+    name: Check supply chain
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # cargo-deny shells `cargo metadata`, so the toolchain-cache race applies
+      # here too: route rustup into the cached mise data dir before install.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4.1.0
+        with:
+          install: true
+          cache: true
+          cache_key_prefix: mise-supply-chain-v1
+          experimental: true
+
+      # The RustSec advisory DB is fetched fresh each run (never cached stale)
+      # so newly-disclosed advisories are caught; cargo-deny fails, not warns,
+      # if the DB is unavailable.
+      - name: Run supply-chain checks
+        run: mise run deny:check
+
   check-visualiser-frontend:
     name: Check visualiser frontend
     runs-on: ubuntu-latest
@@ -228,6 +255,7 @@ jobs:
       - check-visualiser-server
       - check-visualiser-frontend
       - check-cli
+      - check-supply-chain
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued

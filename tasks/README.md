@@ -100,3 +100,4 @@ locally with the mapped command:
 | CI job (`.github/workflows/main.yml`) | Local command          |
 | ------------------------------------- | ---------------------- |
 | `check-cli`                           | `mise run cli:check`   |
+| `check-supply-chain`                  | `mise run deny:check`  |

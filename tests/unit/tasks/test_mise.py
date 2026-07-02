@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
 # Gates that MUST be reachable from the aggregate `check` task.
-_CHECK_GATES = ["cli:check"]
+_CHECK_GATES = ["cli:check", "deny:check"]
 
 
 def _task_depends(mise: dict, task: str) -> list[str]:

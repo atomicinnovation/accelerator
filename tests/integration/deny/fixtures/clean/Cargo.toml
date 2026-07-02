@@ -1,0 +1,17 @@
+# Positive control: a permitted dependency IS present and allowed, so a passing
+# `check bans` means "evaluated and allowed", not "evaluated nothing". Isolated
+# with its own empty [workspace] like the banned fixture.
+[workspace]
+
+[package]
+name = "clean-probe"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+rustls = { path = "crates/rustls", version = "0.23.0" }
+
+[[bin]]
+name = "clean-probe"
+path = "src/main.rs"

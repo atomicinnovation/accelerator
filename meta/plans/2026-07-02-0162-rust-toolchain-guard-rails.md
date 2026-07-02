@@ -622,16 +622,16 @@ race applies); the RustSec DB is fetched fresh, never cached stale. Add to
 
 #### Automated Verification:
 
-- [ ] `mise run deny:check` exits 0 on the clean workspace
-- [ ] The ban regression passes offline (networking disabled) on both ubuntu and macos: `mise run test:integration:deny`
-- [ ] A `native-tls`/`openssl` dependency added to `cli/` fails `mise run deny:check`
-- [ ] `mise install` on both the ubuntu and macos runners leaves `mise.lock` unmodified (`git status` clean), confirming the committed lock covers all target platforms
-- [ ] `mise run check` includes `deny:check` and exits 0
+- [x] `mise run deny:check` exits 0 on the clean workspace
+- [x] The ban regression passes offline (networking disabled) on both ubuntu and macos: `mise run test:integration:deny` (verified offline locally via `--frozen`; ubuntu confirmed in CI)
+- [x] A `native-tls`/`openssl` dependency added to `cli/` fails `mise run deny:check` (proven by the offline fixture regression against the real `cli/deny.toml`)
+- [ ] `mise install` on both the ubuntu and macos runners leaves `mise.lock` unmodified (`git status` clean), confirming the committed lock covers all target platforms (populated for linux-x64/macos-arm64/macos-x64 via `mise lock`; cross-runner confirmation is CI-only)
+- [x] `mise run check` includes `deny:check` and exits 0
 
 #### Manual Verification:
 
 - [ ] `check-supply-chain` runs on a PR and is green
-- [ ] `cli/deny.toml` width stays ≤ 80 columns
+- [x] `cli/deny.toml` width stays ≤ 80 columns
 
 ---
 

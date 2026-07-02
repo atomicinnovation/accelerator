@@ -60,6 +60,12 @@ def dev(context: Context) -> None:
 
 
 @task
+def deny(context: Context) -> None:
+    """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""
+    context.run("uv run pytest tests/integration/deny -v")
+
+
+@task
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
     suites = run_shell_suites(context, "scripts")

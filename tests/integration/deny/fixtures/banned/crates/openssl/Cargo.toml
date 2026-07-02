@@ -1,0 +1,7 @@
+# Local stand-in for the crates.io `openssl`, named identically so the
+# transitive ban matches.
+[package]
+name = "openssl"
+version = "0.10.0"
+edition = "2021"
+license = "MIT"

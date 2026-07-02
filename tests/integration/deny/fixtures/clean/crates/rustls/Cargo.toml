@@ -1,0 +1,7 @@
+# Local stand-in for a permitted dependency (rustls is the sanctioned TLS
+# stack): its presence is allowed, so `check bans` exits zero.
+[package]
+name = "rustls"
+version = "0.23.0"
+edition = "2021"
+license = "MIT"

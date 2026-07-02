@@ -16,9 +16,18 @@ jq = "1.7.1"
 # `concurrency.queue` sub-key on one runner but not another. See
 # tasks/lint/workflows.py for why that sub-key is suppressed.
 "aqua:rhysd/actionlint" = "1.7.12"
+# Exact pin (aligned to the luminosity-validated version); cargo-deny's rule
+# schema is version-sensitive, so a floating patch could change ban/advisory
+# evaluation between runners.
+"aqua:EmbarkStudios/cargo-deny" = "0.19.8"
 
 [settings]
 experimental = true
+# Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
+# + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
+# aqua:rhysd/actionlint. Does NOT cover the from-source cargo-pup build or the
+# rustup-managed nightly (an accepted unverified surface for the isolated lane).
+lockfile = true
 
 [hooks]
 postinstall = "uv sync --only-group build --frozen"
@@ -143,6 +152,11 @@ run = "invoke test.integration.dev"
 description = "Run config integration tests"
 run = "invoke test.integration.config"
 
+[tasks."test:integration:deny"]
+description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
+depends = ["deps:install:python"]
+run = "invoke test.integration.deny"
+
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
 run = "invoke test.integration.decisions"
@@ -178,6 +192,7 @@ depends = [
     "test:integration:visualiser",
     "test:integration:dev",
     "test:integration:config",
+    "test:integration:deny",
     "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:binary-acquisition",
@@ -334,6 +349,10 @@ run = "invoke lint.cli.fix"
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy; read-only, no tests)"
 depends = ["format:cli:check", "lint:cli:check"]
 
+[tasks."deny:check"]
+description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
+run = "invoke deny.check"
+
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
 depends = ["deps:install:node"]
@@ -381,11 +400,11 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "cli:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "deny:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
-description = "Full local CI mirror: build, format-fix, lint, type-check, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "test"]
+description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

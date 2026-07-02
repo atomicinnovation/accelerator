@@ -1,0 +1,68 @@
+# cargo-deny configuration for the cli/ workspace. Width kept <= 80 columns per
+# the hand-duplication convention. Run via `mise run deny:check`.
+
+[graph]
+# The four shipped release triples PLUS x86_64-unknown-linux-gnu (the ubuntu CI
+# dev graph), named explicitly rather than as ambiguous "dev triples", so the
+# ubuntu graph a banned edge could hide in is always evaluated. The cli/
+# workspace does not yet cross-compile these triples, so the ban guards a
+# not-yet-built graph — necessary but not sufficient for the musl-static
+# guarantee until the cli cross-compile build lands.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+]
+
+[advisories]
+version = 2
+# Set the policy explicitly rather than leaning on version-sensitive defaults:
+# any unmaintained advisory and any yanked crate fail the check, and a
+# security-vulnerability advisory fails it (deny) rather than warning.
+unmaintained = "all"
+yanked = "deny"
+
+[licenses]
+version = 2
+# Permissive allow-list covering the licenses a rustls-based stack and its
+# closure require. Any future copyleft / MPL / *GPL license must be justified
+# per-crate via [[licenses.exceptions]], never added to this blanket allow.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Exempt local path deps; registry wildcards stay denied.
+allow-wildcard-paths = true
+# rustls only — no transitive dep may re-enable default-tls and break the
+# musl-static build. This covers the TLS vector only.
+deny = [
+    { crate = "native-tls" },
+    { crate = "openssl" },
+    { crate = "openssl-sys" },
+]
+# The architectural infra-out-of-domain ban is scaffolded, not yet active. The
+# mechanism is: globally deny the infra crate here, then list its permitted
+# dependents in `wrappers = [...]`, so any unlisted (domain) dependent
+# violates. Both lists stay empty until the config/config-adapters split makes
+# the rule bite.
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

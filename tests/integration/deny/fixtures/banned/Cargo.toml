@@ -1,0 +1,19 @@
+# Isolated with its own empty [workspace] so cargo/cargo-deny do not walk
+# upward and absorb the real cli/ workspace or its Cargo.lock. The dependency
+# `native-tls` is a LOCAL path crate (not the crates.io crate) so the ban
+# regression runs fully offline — the ban matches on crate NAME, so a local
+# crate named native-tls trips it exactly as the real one would.
+[workspace]
+
+[package]
+name = "ban-probe"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+native-tls = { path = "crates/native-tls", version = "0.2.0" }
+
+[[bin]]
+name = "ban-probe"
+path = "src/main.rs"
