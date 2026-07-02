@@ -12,6 +12,7 @@ from tasks.build import validate_version_coherence
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SERVER_DIR = REPO_ROOT / "skills/visualisation/visualise/server"
+CLI_DIR = REPO_ROOT / "cli"
 
 
 @pytest.fixture
@@ -264,3 +265,12 @@ class TestLintsTemplating:
         cargo = tomllib.loads((SERVER_DIR / "Cargo.toml").read_text())
         rustfmt = tomllib.loads((SERVER_DIR / "rustfmt.toml").read_text())
         assert cargo["package"]["edition"] == rustfmt["edition"]
+
+    def test_cli_cargo_and_rustfmt_editions_match(self):
+        # The workspace edition and the rustfmt edition are two hand-duplicated
+        # literals; same drift hazard as the server pair above (a direct-rustfmt
+        # caller silently falling back to edition 2015), guarded here now both
+        # operands exist.
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        rustfmt = tomllib.loads((CLI_DIR / "rustfmt.toml").read_text())
+        assert cargo["workspace"]["package"]["edition"] == rustfmt["edition"]

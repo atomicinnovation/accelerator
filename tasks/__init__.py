@@ -64,6 +64,9 @@ ns_format.add_collection(
 ns_format.add_collection(
     Collection.from_module(format_.frontend)
 )  # format.frontend.check / .fix
+ns_format.add_collection(
+    Collection.from_module(format_.cli)
+)  # format.cli.check / .fix
 ns.add_collection(ns_format)
 
 ns_lint = Collection("lint")
@@ -79,6 +82,9 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.frontend)
 )  # lint.frontend.check / .fix
+ns_lint.add_collection(
+    Collection.from_module(lint.cli)
+)  # lint.cli.check / .fix
 ns_lint.add_collection(
     Collection.from_module(lint.workflows)
 )  # lint.workflows.actionlint

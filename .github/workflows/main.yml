@@ -163,6 +163,40 @@ jobs:
       - name: Run visualiser server checks
         run: mise run server:check
 
+  check-cli:
+    name: Check cli
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # Route the rustup toolchain inside the mise data dir (which mise-action
+      # caches in full) so the rustfmt/clippy components persist across runs.
+      # By default rust lives in ~/.rustup (outside the cache), so a cache hit
+      # makes `mise install` no-op while the toolchain is absent and parallel
+      # cargo passes race to auto-install it. Must be set before mise install.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4.1.0
+        with:
+          install: true
+          cache: true
+          # Own toolchain-cache namespace, distinct from every other cargo job
+          # so jobs never share a toolchain-cache namespace.
+          cache_key_prefix: mise-cli-v1
+          experimental: true
+
+      # Complementary to the RUSTUP_HOME routing above: that isolates the
+      # toolchain, this caches target/.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run cli checks
+        run: mise run cli:check
+
   check-visualiser-frontend:
     name: Check visualiser frontend
     runs-on: ubuntu-latest
@@ -193,6 +227,7 @@ jobs:
       - check-build-system
       - check-visualiser-server
       - check-visualiser-frontend
+      - check-cli
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued

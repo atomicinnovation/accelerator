@@ -511,16 +511,16 @@ extended in Phases 3–4.
 
 #### Automated Verification:
 
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run check` includes `cli:check` and exits 0
-- [ ] Format drift is caught: introducing mis-formatting fails `mise run format:cli:check`
-- [ ] A clippy violation (e.g. an `unwrap()`) fails `mise run lint:cli:check`
-- [ ] Workflow lint + topology guard pass: `mise run lint:workflows:check` and `uv run pytest tests/unit/tasks/test_workflows.py -v`
+- [x] `mise run cli:check` exits 0
+- [x] `mise run check` includes `cli:check` and exits 0
+- [x] Format drift is caught: introducing mis-formatting fails `mise run format:cli:check`
+- [x] A clippy violation (e.g. an `unwrap()`) fails `mise run lint:cli:check` (proven: the nursery `missing_const_for_fn` finding failed `cli:check` under `-D warnings` until fixed)
+- [x] Workflow lint + topology guard pass: `mise run lint:workflows:check` and `uv run pytest tests/unit/tasks/test_workflows.py -v`
 
 #### Manual Verification:
 
 - [ ] `check-cli` runs on a PR and is green
-- [ ] `cli:check` stays read-only (no files mutated, no tests run)
+- [x] `cli:check` stays read-only (no files mutated, no tests run)
 
 ---
 

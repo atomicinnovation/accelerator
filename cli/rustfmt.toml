@@ -1,0 +1,9 @@
+# max_width mirrors .editorconfig (max_line_length = 80); rustfmt does not read
+# .editorconfig, so the value is duplicated here. Keep in sync by hand.
+max_width = 80
+# Match the workspace edition so direct `rustfmt` calls (editors/tools that
+# bypass cargo) do not fall back to edition 2015; `cargo fmt` reads it from the
+# manifest. Duplicates cli/Cargo.toml's [workspace.package].edition (two
+# unsynchronised literals) — the guard test in test_version.py asserts they
+# match.
+edition = "2021"

@@ -1,4 +1,4 @@
-pub fn crate_name() -> &'static str {
+pub const fn crate_name() -> &'static str {
     "launcher"
 }
 

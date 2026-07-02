@@ -30,10 +30,12 @@ Two faster entry points exist and should be your inner loop:
 - `mise run fix` — apply every formatter + safe lint fix (mechanical only; **no
   type-checks**, and shell has no autofixer).
 - `mise run <component>:check` — fast single-component loop. Components:
-  `frontend`, `server`, `build-system` (the Python `tasks/` toolchain — *not*
+  `frontend`, `server`, `cli` (the `cli/` Rust workspace — workspace-wide
+  rustfmt + clippy), `build-system` (the Python `tasks/` toolchain — *not*
   the `build:*` artifact namespace), `scripts` (shell). There is **no
   `<component>:fix`** roll-up — fix a component via its `format:<c>:fix` +
-  `lint:<c>:fix` tasks.
+  `lint:<c>:fix` tasks. Rust enforcement beyond `cli:check` (cargo-deny,
+  cargo-pup) is documented in `tasks/README.md`.
 
 Enforcement is **CI-only — there are no pre-commit hooks.** Run `mise run fix &&
 mise run check` yourself before pushing.

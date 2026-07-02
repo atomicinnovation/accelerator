@@ -31,6 +31,10 @@ run = "invoke deps.install-python"
 description = "Install Rust cross-compile targets required for release builds"
 run = "invoke deps.install-rust-targets"
 
+[tasks."deps:install:rust-components"]
+description = "Install the rustfmt + clippy + llvm-tools-preview rustup components the cli checks need (mise [tools] `components` is not honoured for an already-present toolchain)"
+run = "invoke deps.install-rust-components"
+
 [tasks."deps:install:node"]
 description = "Install Node.js dependencies for the visualiser frontend"
 run = "invoke deps.install-node"
@@ -217,11 +221,11 @@ run = "invoke format.scripts.fix"
 
 [tasks."format:check"]
 description = "Run all format checks (read-only)"
-depends = ["format:frontend:check", "format:server:check", "format:build-system:check", "format:scripts:check"]
+depends = ["format:frontend:check", "format:server:check", "format:cli:check", "format:build-system:check", "format:scripts:check"]
 
 [tasks."format:fix"]
 description = "Apply all formatters in place"
-depends = ["format:frontend:fix", "format:server:fix", "format:build-system:fix", "format:scripts:fix"]
+depends = ["format:frontend:fix", "format:server:fix", "format:cli:fix", "format:build-system:fix", "format:scripts:fix"]
 
 [tasks."lint:scripts:shellcheck:check"]
 description = "Lint shell scripts with ShellCheck (config in .shellcheckrc)"
@@ -288,6 +292,16 @@ run = "invoke format.server.check"
 description = "Format Rust in place (cargo fmt)"
 run = "invoke format.server.fix"
 
+[tasks."format:cli:check"]
+description = "Check cli/ workspace Rust formatting with rustfmt (read-only; fails on drift)"
+depends = ["deps:install:rust-components"]
+run = "invoke format.cli.check"
+
+[tasks."format:cli:fix"]
+description = "Format the cli/ workspace in place with rustfmt"
+depends = ["deps:install:rust-components"]
+run = "invoke format.cli.fix"
+
 [tasks."build:frontend:stub"]
 description = "Write a placeholder frontend/dist/index.html if absent (satisfies embed-dist build.rs for lint-only compiles; not a real build; real build:frontend overwrites it)"
 run = "invoke build.frontend-stub"
@@ -305,6 +319,20 @@ run = "invoke lint.server.fix"
 [tasks."server:check"]
 description = "Run all Rust format and lint checks (rustfmt + clippy)"
 depends = ["format:server:check", "lint:server:check"]
+
+[tasks."lint:cli:check"]
+description = "Lint the cli/ workspace with clippy (one workspace-wide pass covering every member, -D warnings)"
+depends = ["deps:install:rust-components"]
+run = "invoke lint.cli.check"
+
+[tasks."lint:cli:fix"]
+description = "Apply clippy's machine-applicable fixes to the cli/ workspace (machine-rewritable subset only — run lint:cli:check for the rest)"
+depends = ["deps:install:rust-components"]
+run = "invoke lint.cli.fix"
+
+[tasks."cli:check"]
+description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy; read-only, no tests)"
+depends = ["format:cli:check", "lint:cli:check"]
 
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
@@ -337,11 +365,11 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:build-system:check", "lint:scripts:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"
-depends = ["lint:frontend:fix", "lint:server:fix", "lint:build-system:fix"]
+depends = ["lint:frontend:fix", "lint:server:fix", "lint:cli:fix", "lint:build-system:fix"]
 
 [tasks."types:check"]
 description = "Run all type checks (tsc + pyrefly)"
@@ -353,7 +381,7 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"

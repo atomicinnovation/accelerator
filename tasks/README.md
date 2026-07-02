@@ -14,12 +14,26 @@ format + lint (+ type-check where applicable):
 | -------------- | -------------------- | -------------------------------------------- |
 | Frontend       | `frontend:check`     | format + lint + types (Biome, tsc)           |
 | Rust server    | `server:check`       | format + lint (rustfmt, clippy)              |
+| Rust cli       | `cli:check`          | format + lint (rustfmt, workspace-wide clippy) |
 | Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly)        |
 | Shell          | `scripts:check`      | format + lint (shfmt, ShellCheck + bashisms) |
 
 `build-system` is the repo-root Python automation toolchain (this `tasks/`
 package + its tests) — unrelated to the `build:*` artifact namespace. Its task
 descriptions name Python/ruff/pyrefly so `mise tasks | grep -i python` finds it.
+
+`cli:check` runs **one workspace-wide** `cargo clippy --workspace` pass that
+covers every member declared in `cli/Cargo.toml` `[workspace].members`, so new
+members join enforcement with no per-member wiring. `format:cli:*` and
+`lint:cli:*` each depend on `deps:install:rust-components` — mise's `[tools]`
+rust `components` field is silently skipped for an already-present toolchain, so
+rustfmt/clippy are provisioned explicitly. `lint:cli:fix` applies only clippy's
+machine-rewritable subset (lints such as `unwrap_used` cannot be auto-fixed), so
+`cli:check` must still be run for the remainder. Beyond `cli:check`, Rust
+enforcement also spans standalone entity tasks wired directly into the top-level
+`check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
+`github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
+architecture, on an isolated nightly lane).
 
 ## Family aggregates
 
@@ -77,3 +91,12 @@ is no longer enumerated.
   mode and assumes an exec-bit-preserving filesystem — acceptable given the
   macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
   dev is macOS via jj workspaces).
+
+## CI job → local command
+
+Each CI check job mirrors a single `mise run` task, so a red job is reproducible
+locally with the mapped command:
+
+| CI job (`.github/workflows/main.yml`) | Local command          |
+| ------------------------------------- | ---------------------- |
+| `check-cli`                           | `mise run cli:check`   |

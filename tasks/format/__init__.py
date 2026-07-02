@@ -1,3 +1,3 @@
-from . import build_system, frontend, scripts, server
+from . import build_system, cli, frontend, scripts, server
 
-__all__ = ["build_system", "frontend", "scripts", "server"]
+__all__ = ["build_system", "cli", "frontend", "scripts", "server"]
