@@ -1,5 +1,7 @@
 from invoke import Context, Exit, task
 
+from tasks.shared.paths import CARGO_TOML
+
 from .helpers import repo_root, run_shell_suites
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
@@ -44,9 +46,8 @@ def visualiser(context: Context) -> None:
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
     feature, so the cargo invocation enables that feature to include it.
     """
-    manifest = repo_root() / "skills/visualisation/visualise/server/Cargo.toml"
     context.run(
-        f"cargo test --manifest-path {manifest} --tests "
+        f"cargo test --manifest-path {CARGO_TOML} --tests "
         f"--no-default-features --features dev-frontend"
     )
     run_shell_suites(context, "skills/visualisation/visualise")

@@ -1,7 +1,6 @@
 import json
 import shutil
 import tarfile
-import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -14,12 +13,15 @@ from tasks.shared.paths import (
     BIN_DIR,
     CARGO_TOML,
     CHECKSUMS,
+    CLI_WORKSPACE_CARGO_TOML,
     FRONTEND,
     PLUGIN_JSON,
     REPO_ROOT,
     SERVER,
     binary_path,
+    cli_member_manifests,
     debug_archive_path,
+    load_toml,
 )
 from tasks.shared.targets import TARGETS
 
@@ -28,6 +30,9 @@ class VersionCoherenceError(Exception): ...
 
 
 _CARGO_TOML_RELATIVE = CARGO_TOML.relative_to(REPO_ROOT)
+_CLI_WORKSPACE_CARGO_TOML_RELATIVE = CLI_WORKSPACE_CARGO_TOML.relative_to(
+    REPO_ROOT
+)
 _PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
 _CHECKSUMS_RELATIVE = CHECKSUMS.relative_to(REPO_ROOT)
 
@@ -47,14 +52,53 @@ def _read_plugin_json_version(root: Path) -> str:
 
 
 def _read_cargo_toml_version(root: Path) -> str:
-    with (root / _CARGO_TOML_RELATIVE).open("rb") as f:
-        data = tomllib.load(f)
-    return data["package"]["version"]
+    return load_toml(root / _CARGO_TOML_RELATIVE)["package"]["version"]
 
 
 def _read_checksums_json_version(root: Path) -> str:
     data = json.loads((root / _CHECKSUMS_RELATIVE).read_text())
     return data["version"]
+
+
+def _read_workspace_version(root: Path) -> str:
+    data = load_toml(root / _CLI_WORKSPACE_CARGO_TOML_RELATIVE)
+    try:
+        return data["workspace"]["package"]["version"]
+    except KeyError as exc:
+        raise VersionCoherenceError(
+            f"{_CLI_WORKSPACE_CARGO_TOML_RELATIVE.as_posix()}: "
+            "missing [workspace.package].version"
+        ) from exc
+
+
+def _pinned_member_versions(root: Path) -> dict[str, str]:
+    """Map each member that pins its own [package].version to that literal.
+
+    A member that inherits (version.workspace = true) parses as a table, not a
+    string, so it contributes no entry and can never be a mismatch; only a
+    member that opts out of inheritance and hardcodes a version string is named.
+    """
+    manifest = root / _CLI_WORKSPACE_CARGO_TOML_RELATIVE
+    try:
+        members = cli_member_manifests(manifest)
+    except KeyError as exc:
+        raise VersionCoherenceError(
+            f"{_CLI_WORKSPACE_CARGO_TOML_RELATIVE.as_posix()}: "
+            "missing [workspace].members"
+        ) from exc
+    pinned = {}
+    for member in members:
+        try:
+            data = load_toml(member)
+        except FileNotFoundError as exc:
+            raise VersionCoherenceError(
+                f"{member.relative_to(root).as_posix()}: listed in "
+                "[workspace].members but the manifest is absent"
+            ) from exc
+        version = data.get("package", {}).get("version")
+        if isinstance(version, str):
+            pinned[member.relative_to(root).as_posix()] = version
+    return pinned
 
 
 def _assert_magic_bytes(path: Path, triple: str) -> None:
@@ -95,6 +139,10 @@ def validate_version_coherence(
         "plugin.json": _read_plugin_json_version(root),
         "Cargo.toml": _read_cargo_toml_version(root),
         "checksums.json": _read_checksums_json_version(root),
+        _CLI_WORKSPACE_CARGO_TOML_RELATIVE.as_posix(): _read_workspace_version(
+            root
+        ),
+        **_pinned_member_versions(root),
     }
     mismatches = {k: v for k, v in found.items() if v != expected_version}
     if mismatches:

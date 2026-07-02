@@ -1,0 +1,11 @@
+[package]
+name = "launcher"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator"
+path = "src/main.rs"

@@ -391,17 +391,17 @@ is unchanged and covered by the existing server test leaves.
 
 #### Automated Verification:
 
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Task unit tests pass: `uv run pytest tests/unit/tasks/test_build.py tests/unit/tasks/test_version.py -v`
-- [ ] The workspace compiles: `cargo build --manifest-path cli/Cargo.toml`
-- [ ] Version coherence holds at the current version: `mise run version:read` then `uv run pytest tests/unit/tasks/test_build.py -k coherence -v`
-- [ ] After the manifest-literal consolidation, the server test leaves still resolve their manifest: `mise run test:unit` and `mise run test:integration` (server portions) pass
-- [ ] `mise run check` still exits 0 (no new gates yet)
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Task unit tests pass: `uv run pytest tests/unit/tasks/test_build.py tests/unit/tasks/test_version.py -v`
+- [x] The workspace compiles: `cargo build --manifest-path cli/Cargo.toml`
+- [x] Version coherence holds at the current version: `mise run version:read` then `uv run pytest tests/unit/tasks/test_build.py -k coherence -v`
+- [x] After the manifest-literal consolidation, the server test leaves still resolve their manifest: `mise run test:unit` and `mise run test:integration` (server portions) pass
+- [x] `mise run check` still exits 0 (no new gates yet)
 
 #### Manual Verification:
 
-- [ ] `cli/Cargo.toml` version equals `.claude-plugin/plugin.json` version
-- [ ] Editing `launcher`'s `[package].version` to a different value makes coherence fail and names `cli/launcher/Cargo.toml`
+- [x] `cli/Cargo.toml` version equals `.claude-plugin/plugin.json` version
+- [x] Editing `launcher`'s `[package].version` to a different value makes coherence fail and names `cli/launcher/Cargo.toml` (covered by `test_member_pinning_drifting_version_is_named`)
 
 ---
 

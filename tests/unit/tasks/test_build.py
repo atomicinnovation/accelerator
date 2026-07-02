@@ -202,3 +202,99 @@ class TestValidateVersionCoherence:
     ):
         with pytest.raises(InvalidVersionError):
             validate_version_coherence("", repo_root=fake_repo_tree)
+
+
+# ── cli/ workspace coherence ──────────────────────────────────────────
+
+
+class TestCliWorkspaceCoherence:
+    def _cli_cargo(self, root: Path) -> Path:
+        return root / "cli/Cargo.toml"
+
+    def _launcher_cargo(self, root: Path) -> Path:
+        return root / "cli/launcher/Cargo.toml"
+
+    def test_workspace_match_and_member_inherits_passes(
+        self, fake_repo_tree: Path
+    ):
+        # The launcher member inherits (version.workspace = true), so it
+        # contributes no entry and can never be a mismatch.
+        result = validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert result is None
+
+    def test_workspace_version_mismatch_names_cli_cargo_toml(
+        self, fake_repo_tree: Path
+    ):
+        self._cli_cargo(fake_repo_tree).write_text(
+            "[workspace]\n"
+            'members = ["launcher"]\n\n'
+            "[workspace.package]\n"
+            'version = "0.9.0"\n'
+        )
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "cli/Cargo.toml" in str(exc_info.value)
+        assert "0.9.0" in str(exc_info.value)
+
+    def test_member_pinning_drifting_version_is_named(
+        self, fake_repo_tree: Path
+    ):
+        self._launcher_cargo(fake_repo_tree).write_text(
+            '[package]\nname = "launcher"\nversion = "0.9.0"\n'
+        )
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "cli/launcher/Cargo.toml" in str(exc_info.value)
+        assert "0.9.0" in str(exc_info.value)
+
+    def test_member_pinning_matching_version_passes(self, fake_repo_tree: Path):
+        # A member may opt out of inheritance and still be coherent if it pins
+        # the same version.
+        self._launcher_cargo(fake_repo_tree).write_text(
+            '[package]\nname = "launcher"\nversion = "1.20.0"\n'
+        )
+        assert (
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+            is None
+        )
+
+    def test_empty_members_is_a_no_op(self, fake_repo_tree: Path):
+        # No members to enumerate, but the workspace version is still checked;
+        # this must not silently pass while masking absent coverage.
+        self._cli_cargo(fake_repo_tree).write_text(
+            "[workspace]\n"
+            "members = []\n\n"
+            "[workspace.package]\n"
+            'version = "1.20.0"\n'
+        )
+        assert (
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+            is None
+        )
+
+    def test_missing_workspace_package_version_raises(
+        self, fake_repo_tree: Path
+    ):
+        self._cli_cargo(fake_repo_tree).write_text(
+            "[workspace]\nmembers = []\n"
+        )
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "cli/Cargo.toml" in str(exc_info.value)
+        assert "[workspace.package].version" in str(exc_info.value)
+
+    def test_missing_workspace_members_key_raises(self, fake_repo_tree: Path):
+        self._cli_cargo(fake_repo_tree).write_text(
+            '[workspace]\n\n[workspace.package]\nversion = "1.20.0"\n'
+        )
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "[workspace].members" in str(exc_info.value)
+
+    def test_listed_but_absent_member_manifest_raises(
+        self, fake_repo_tree: Path
+    ):
+        self._launcher_cargo(fake_repo_tree).unlink()
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "cli/launcher/Cargo.toml" in str(exc_info.value)

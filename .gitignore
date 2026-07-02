@@ -17,6 +17,7 @@
 .pytest_cache/
 __pycache__/
 meta/eval-workspaces/
+cli/target/
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json

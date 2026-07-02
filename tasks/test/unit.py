@@ -1,5 +1,7 @@
 from invoke import Context, Exit, task
 
+from tasks.shared.paths import CARGO_TOML
+
 from .helpers import repo_root
 
 
@@ -16,12 +18,11 @@ def visualiser(context: Context) -> None:
          rust-embed reads the folder at compile time; when invoked via
          `mise run test:unit:visualiser`, `build:frontend` runs first.
     """
-    manifest = repo_root() / "skills/visualisation/visualise/server/Cargo.toml"
     context.run(
-        f"cargo test --manifest-path {manifest} --lib "
+        f"cargo test --manifest-path {CARGO_TOML} --lib "
         f"--no-default-features --features dev-frontend"
     )
-    context.run(f"cargo test --manifest-path {manifest} --lib")
+    context.run(f"cargo test --manifest-path {CARGO_TOML} --lib")
 
 
 @task

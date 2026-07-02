@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["launcher"]
+
+[workspace.package]
+version = "1.24.0-pre.2"
+edition = "2021"
+
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# restriction is allow-by-default; these are the cherry-picked opt-ins.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"

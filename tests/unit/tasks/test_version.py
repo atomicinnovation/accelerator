@@ -28,6 +28,7 @@ def _patch_paths(mocker, base: Path) -> None:
         "CARGO_TOML",
         base / "skills/visualisation/visualise/server/Cargo.toml",
     )
+    mocker.patch.object(tv, "CLI_WORKSPACE_CARGO_TOML", base / "cli/Cargo.toml")
     mocker.patch.object(
         tv,
         "CHECKSUMS",
@@ -130,6 +131,47 @@ class TestWrite:
         mocker.patch.object(tb, "REPO_ROOT", fake_repo_tree)
         tv.write(ctx, "1.21.0")
         validate_version_coherence("1.21.0", repo_root=fake_repo_tree)
+
+    def test_updates_cli_workspace_version(self, ctx, mocker, fake_repo_tree):
+        _patch_paths(mocker, fake_repo_tree)
+        tv.write(ctx, "1.21.0")
+        workspace = tomllib.loads(
+            (fake_repo_tree / "cli/Cargo.toml").read_text()
+        )
+        assert workspace["workspace"]["package"]["version"] == "1.21.0"
+
+
+# ── cli/ workspace manifest render ────────────────────────────────────
+
+
+class TestWorkspaceCargoRender:
+    """Guard the tomlkit round-trip preserving the [workspace.lints.clippy]
+    table and its comments (the property the justification-comment policy and
+    the cherry-picked restriction lints depend on)."""
+
+    def test_round_trip_preserves_lints_table_and_comments(
+        self, mocker, fake_repo_tree
+    ):
+        cargo_path = fake_repo_tree / "cli/Cargo.toml"
+        cargo_path.write_text(
+            "[workspace]\n"
+            'members = ["launcher"]\n\n'
+            "[workspace.package]\n"
+            'version = "1.20.0"\n'
+            'edition = "2021"\n\n'
+            "[workspace.lints.clippy]\n"
+            "# restriction is allow-by-default; cherry-picked opt-ins.\n"
+            'unwrap_used = "warn"\n'
+            'pedantic = { level = "warn", priority = -1 }\n'
+        )
+        mocker.patch.object(tv, "CLI_WORKSPACE_CARGO_TOML", cargo_path)
+        result = tv._render_workspace_cargo_toml("1.21.0")
+        assert 'version = "1.21.0"' in result
+        assert "[workspace.lints.clippy]" in result
+        assert 'unwrap_used = "warn"' in result
+        assert 'pedantic = { level = "warn", priority = -1 }' in result
+        # The load-bearing assertion: a plain dict-based writer would drop this.
+        assert "# restriction is allow-by-default" in result
 
 
 # ── bump() ────────────────────────────────────────────────────────────
