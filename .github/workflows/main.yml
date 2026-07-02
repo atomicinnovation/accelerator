@@ -224,6 +224,39 @@ jobs:
       - name: Run supply-chain checks
         run: mise run deny:check
 
+  check-architecture:
+    name: Check architecture
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@v4.1.0
+        with:
+          install: true
+          cache: true
+          cache_key_prefix: mise-architecture-v1
+          experimental: true
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      # This is the ONLY nightly consumer. pup:check self-provisions the
+      # nightly + cargo-pup (rebuilt from source each run — no trustworthy
+      # per-OS prebuilt checksum) via its deps:install:pup dependency. It sets
+      # no ACCELERATOR_PUP_MODE, so CI runs the fail-closed `deny` default —
+      # `warn` can never be the CI default.
+      - name: Run architecture check (self-provisions the nightly lane)
+        run: mise run pup:check
+
+      - name: Run cargo-pup behavioural regression
+        run: mise run test:integration:pup
+
   check-visualiser-frontend:
     name: Check visualiser frontend
     runs-on: ubuntu-latest
@@ -256,6 +289,7 @@ jobs:
       - check-visualiser-frontend
       - check-cli
       - check-supply-chain
+      - check-architecture
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued

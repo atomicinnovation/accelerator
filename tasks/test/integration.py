@@ -66,6 +66,12 @@ def deny(context: Context) -> None:
 
 
 @task
+def pup(context: Context) -> None:
+    """cargo-pup architecture regression (needs the nightly lane)."""
+    context.run("uv run pytest tests/integration/pup -v")
+
+
+@task
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
     suites = run_shell_suites(context, "scripts")

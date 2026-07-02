@@ -92,12 +92,59 @@ is no longer enumerated.
   macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
   dev is macOS via jj workspaces).
 
+### Rust nightly lane (cargo-pup)
+
+Architecture enforcement (the ADR-0053 inward-dependency rule) runs via
+**cargo-pup**, a compiler plugin that needs a **second, pinned nightly**
+toolchain (`PUP_NIGHTLY` / `PUP_VERSION` in `tasks/shared/rust.py`, a matched
+pair). Everything else — the product build and every other check — stays on the
+mise-pinned stable `1.90.0`.
+
+- **Isolated by construction.** The nightly is provisioned only by
+  `deps:install:pup` (rustup-managed, deliberately *not* a mise `[tool]`: mise
+  cannot pin two rust toolchains, and a `cargo:` backend would build cargo-pup
+  against stable and fail to load). Only `pup:check` and `test:integration:pup`
+  consume it, and only the `check-architecture` CI job runs them. A nightly
+  break (or a GC'd pinned nightly) therefore reddens `check-architecture` alone;
+  every stable-lane check and the product build stay green. `pup:check` is
+  wired into the top-level `check`, so a local `mise run check` still exercises
+  it. The isolation is guarded by `tests/unit/tasks/test_workflows.py`.
+- **First run is slow.** `deps:install:pup` builds cargo-pup from source
+  (multi-minute) the first time; a presence probe skips the rebuild in steady
+  state, so subsequent `pup:check` runs are fast.
+- **Bumping the pin.** `PUP_NIGHTLY` and `PUP_VERSION` are a matched pair —
+  cargo-pup's `rustc_private` driver only loads under the nightly it was built
+  against — so bump them **together**. Dated nightlies are GC'd from
+  `static.rust-lang.org` after a window; when the pinned one disappears,
+  `deps:install:pup` fails with an actionable message naming the pin. Before
+  committing a bump, verify the upstream release's published
+  checksum/attestation (mirroring the SHA-256/SLSA discipline the visualiser
+  binary gets via `checksums.json`).
+- **`mise.lock` refresh.** The committed `mise.lock` hash-pins the aqua-backed
+  tools. On **any** `[tools]` edit (or aqua pin bump), regenerate it — `mise
+  lock --platform linux-x64,macos-arm64,macos-x64` (all matrix platforms) — and
+  commit the result, so a lock authored on one arch does not force a fetch or
+  dirty the tree on another. It does **not** cover the from-source cargo-pup
+  build or the rustup nightly (an accepted unverified surface for the isolated
+  lane).
+
+### Contributor environment variables
+
+Local-only toolchain escape hatches. **CI ignores both** (it runs the
+fail-closed defaults), so the fix for a red job is the underlying finding, not
+the env var.
+
+| Variable                 | Default | Effect                                    |
+| ------------------------ | ------- | ----------------------------------------- |
+| `ACCELERATOR_PUP_MODE`   | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`. |
+
 ## CI job → local command
 
 Each CI check job mirrors a single `mise run` task, so a red job is reproducible
 locally with the mapped command:
 
-| CI job (`.github/workflows/main.yml`) | Local command          |
-| ------------------------------------- | ---------------------- |
-| `check-cli`                           | `mise run cli:check`   |
-| `check-supply-chain`                  | `mise run deny:check`  |
+| CI job (`.github/workflows/main.yml`) | Local command                             |
+| ------------------------------------- | ----------------------------------------- |
+| `check-cli`                           | `mise run cli:check`                      |
+| `check-supply-chain`                  | `mise run deny:check`                     |
+| `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`) |

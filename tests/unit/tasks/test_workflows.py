@@ -151,3 +151,86 @@ def test_invariants_reject_known_bad_shapes(wf, mutate):
     mutate(bad["jobs"])
     with pytest.raises(AssertionError):
         _invariants(bad)
+
+
+# --- Nightly-lane isolation: cargo-pup runs on a pinned nightly, and that
+#     toolchain must stay confined to a single job so a nightly break gates the
+#     architecture check alone, never a stable-lane check or the product build.
+
+# A job consumes the nightly iff its steps run any of these (name-agnostic
+# detection, so renaming the job cannot smuggle a second consumer past the
+# guard).
+_NIGHTLY_MARKERS = ("pup:check", "deps:install:pup", "+nightly")
+_NIGHTLY_JOB = "check-architecture"
+# The release-pipeline aggregators MAY gate on check-architecture (you should
+# not ship with a red required check); everything else must not couple to it.
+_RELEASE_JOBS = {"prerelease", "approve-release", "release"}
+
+
+def _job_run_text(job):
+    return "\n".join(step.get("run", "") for step in job.get("steps") or [])
+
+
+def _nightly_consumers(jobs):
+    return {
+        name
+        for name, job in jobs.items()
+        if any(marker in _job_run_text(job) for marker in _NIGHTLY_MARKERS)
+    }
+
+
+def _isolation_invariants(wf):
+    jobs = wf["jobs"]
+
+    # Exactly one nightly consumer, and it is check-architecture.
+    consumers = _nightly_consumers(jobs)
+    assert consumers == {_NIGHTLY_JOB}, (
+        f"nightly consumers must be exactly {{{_NIGHTLY_JOB}}}, got {consumers}"
+    )
+
+    # The sole regression cannot be silently dropped: the one host job invokes
+    # BOTH pup:check and its behavioural regression.
+    text = _job_run_text(jobs[_NIGHTLY_JOB])
+    assert "pup:check" in text, "check-architecture must run pup:check"
+    assert "test:integration:pup" in text, (
+        "check-architecture must run the pup regression"
+    )
+
+    # No stable-lane / product job couples to the nightly lane via needs.
+    for name, job in jobs.items():
+        if name == _NIGHTLY_JOB or name in _RELEASE_JOBS:
+            continue
+        assert _NIGHTLY_JOB not in _needs(job), (
+            f"{name} needs {_NIGHTLY_JOB} — couples a stable job to the "
+            f"nightly lane"
+        )
+
+
+def test_nightly_lane_isolation_holds(wf):
+    _isolation_invariants(wf)
+
+
+def _needs_edge_into_stable_job(jobs):
+    # A stable check job made to depend on the nightly lane.
+    jobs["check-cli"]["needs"] = [_NIGHTLY_JOB]
+
+
+def _nightly_step_in_another_job(jobs):
+    # A +nightly step smuggled into a stable job.
+    jobs["check-cli"].setdefault("steps", []).append(
+        {"name": "sneaky", "run": "cargo +nightly-2026-01-22 build"}
+    )
+
+
+_BAD_ISOLATION_MUTATIONS = [
+    _needs_edge_into_stable_job,
+    _nightly_step_in_another_job,
+]
+
+
+@pytest.mark.parametrize("mutate", _BAD_ISOLATION_MUTATIONS)
+def test_isolation_rejects_known_bad_shapes(wf, mutate):
+    bad = copy.deepcopy(wf)
+    mutate(bad["jobs"])
+    with pytest.raises(AssertionError):
+        _isolation_invariants(bad)

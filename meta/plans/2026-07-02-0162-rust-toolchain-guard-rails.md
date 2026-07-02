@@ -800,20 +800,20 @@ SHA-256/SLSA discipline the repo already applies to the visualiser binary via
 
 #### Automated Verification:
 
-- [ ] `mise run deps:install:pup` provisions the nightly + cargo-pup idempotently
-- [ ] cargo-pup is absent from mise `[tools]`; `mise run pup:check` uses the `deps:install:pup`-provisioned nightly binary
-- [ ] `mise run pup:check` exits 0 on the clean workspace
-- [ ] The architecture regression passes: `mise run test:integration:pup`
-- [ ] A domain-imports-adapter fixture fails `cargo +nightly pup` on the confirmed exit-code + message contract
-- [ ] Mode + leaf-branch unit tests pass: `uv run pytest tests/unit/tasks/test_rust.py -v`
-- [ ] `mise run check` includes `pup:check` and exits 0
-- [ ] Isolation guard passes: `uv run pytest tests/unit/tasks/test_workflows.py -v`
+- [x] `mise run deps:install:pup` provisions the nightly + cargo-pup idempotently (second run skipped the rebuild via the presence probe)
+- [x] cargo-pup is absent from mise `[tools]`; `mise run pup:check` uses the `deps:install:pup`-provisioned nightly binary
+- [x] `mise run pup:check` exits 0 on the clean workspace
+- [x] The architecture regression passes: `mise run test:integration:pup`
+- [x] A domain-imports-adapter fixture fails `cargo +nightly pup` on the confirmed exit-code + message contract (exit 101, "is not allowed", rule named)
+- [x] Mode + leaf-branch unit tests pass: `uv run pytest tests/unit/tasks/test_rust.py -v`
+- [x] `mise run check` includes `pup:check` and exits 0
+- [x] Isolation guard passes: `uv run pytest tests/unit/tasks/test_workflows.py -v`
 
 #### Manual Verification:
 
-- [ ] `check-architecture` runs on a PR and is green; it is the only nightly consumer
-- [ ] With the nightly made unavailable, only `check-architecture` fails — every stable job and the product build stay green
-- [ ] `ACCELERATOR_PUP_MODE=warn mise run pup:check` downgrades a violation to advisory
+- [ ] `check-architecture` runs on a PR and is green; it is the only nightly consumer (structurally guarded by `test_workflows.py`; runtime confirmation is CI-only)
+- [ ] With the nightly made unavailable, only `check-architecture` fails — every stable job and the product build stay green (CI-only)
+- [x] `ACCELERATOR_PUP_MODE=warn mise run pup:check` downgrades a violation to advisory (covered by `test_rust.py::TestPupCheck::test_warn_mode_logs_and_returns_cleanly`)
 
 ---
 

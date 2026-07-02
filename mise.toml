@@ -44,6 +44,10 @@ run = "invoke deps.install-rust-targets"
 description = "Install the rustfmt + clippy + llvm-tools-preview rustup components the cli checks need (mise [tools] `components` is not honoured for an already-present toolchain)"
 run = "invoke deps.install-rust-components"
 
+[tasks."deps:install:pup"]
+description = "Provision the cargo-pup nightly toolchain + pinned cargo-pup (rustup-managed, not a mise [tool])"
+run = "invoke deps.install-pup"
+
 [tasks."deps:install:node"]
 description = "Install Node.js dependencies for the visualiser frontend"
 run = "invoke deps.install-node"
@@ -156,6 +160,11 @@ run = "invoke test.integration.config"
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python"]
 run = "invoke test.integration.deny"
+
+[tasks."test:integration:pup"]
+description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
+depends = ["deps:install:python", "deps:install:pup"]
+run = "invoke test.integration.pup"
 
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
@@ -353,6 +362,11 @@ depends = ["format:cli:check", "lint:cli:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
 run = "invoke deny.check"
 
+[tasks."pup:check"]
+description = "Enforce intra-crate module-import rules with cargo-pup (blocking nightly lane; ACCELERATOR_PUP_MODE=warn downgrades to advisory)"
+depends = ["deps:install:pup"]
+run = "invoke pup.check"
+
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
 depends = ["deps:install:node"]
@@ -400,11 +414,11 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "cli:check", "deny:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "test"]
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"
