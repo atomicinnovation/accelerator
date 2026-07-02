@@ -5,15 +5,15 @@ title: "Scaffold the cli/ Hexagonal Workspace with a version Subcommand"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: draft
+status: ready
 kind: story
 priority: high
 parent: "work-item:0136"
 blocks: ["work-item:0164", "work-item:0165", "work-item:0166"]
+blocked_by: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-relates_to: ["work-item:0162"]
 tags: [rust, cli, hexagonal, scaffold, workspace]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-07-02T22:27:38+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-184"
@@ -22,7 +22,7 @@ external_id: "PP-184"
 # 0163: Scaffold the cli/ Hexagonal Workspace with a version Subcommand
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Ready
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -49,46 +49,78 @@ path. The crate still produces the `accelerator` binary.
 ## Requirements
 
 - Create the `cli/` workspace per ADR-0053/0054: subdomain-first, a thin `kernel`
-  crate (cross-cutting error taxonomy, config-access + dispatch contracts,
-  logging) and the `launcher` binary crate, each hexagon starting as a single crate
-  with domain/application (ports as traits) and inbound/outbound adapters as
-  modules; split into separate crates only under pressure.
+  crate and the `launcher` binary crate. Per the ADRs a hexagon eventually becomes
+  its own crate with domain/application (ports as traits) and inbound/outbound
+  adapters as modules, but in this scaffold the only hexagon — `version` — starts
+  as a module tree *within* `launcher` (not its own crate); crates split out only
+  under pressure.
+- Start with two crates — `launcher` (binary crate that hosts the `version`
+  hexagon) and a thin `kernel`. In this scaffold only the cross-cutting
+  error-taxonomy and logging pieces of `kernel` are populated (they are the
+  cross-cutting concerns the `version` slice exercises); `kernel` config-access is
+  deferred to the shared-config work (0166/0167), and the dispatch contract named
+  in ADR-0053/0054 is deferred to 0164 alongside the rest of dispatch.
 - Implement `accelerator version` built test-first, printing the CLI version
-  (single source of truth = crate version) plus build metadata (commit SHA, build
-  date, target triple) injected at build time. `version` is a built-in subcommand
-  compiled into the launcher (ADR-0054).
+  (single source of truth = the `launcher` crate's version) plus build metadata (commit SHA, build
+  date, target triple) injected at build time via a **vergen-gitcl build script**.
+  The build script must **not** fail on error, so git-less or shallow builds degrade
+  to a placeholder rather than failing to compile. `version` is a built-in
+  subcommand compiled into the launcher (ADR-0054).
 - Keep dispatch in-process (a plain clap subcommand); the git-style
-  external-subcommand launcher is 0164's concern, not this story's.
+  external-subcommand dispatch/resolution pipeline is 0164's concern, not this
+  story's. ("launcher" elsewhere in this story means the `launcher` crate created
+  here, not that deferred dispatch mechanism.)
 - Wire the new crates into the component-based `mise` task tree established by 0162.
 
 ## Acceptance Criteria
 
-- [ ] Given a built CLI, when `accelerator version` runs, it prints version, commit
-      SHA, build date, and target triple; covered by a test written test-first.
-- [ ] The workspace follows the subdomain-first hexagonal layout, with the domain
-      layer depending on no adapter or I/O crate — a violation fails to compile
-      and/or trips cargo-deny/cargo-pup.
-- [ ] The version value has a single source of truth (crate version) and build
-      metadata is injected at build time, not hard-coded.
+- [ ] Given a built CLI, when `accelerator version` runs, it prints the four named
+      fields — version, commit SHA, build date, and target triple — one per line;
+      covered by an automated test (written test-first) that asserts each of the
+      four fields is present, one per line.
+- [ ] When built without git history (or from a shallow clone), the build still
+      succeeds and `accelerator version` prints the literal placeholder `unknown`
+      for the git-derived field(s) rather than failing to compile; covered by a
+      test.
+- [ ] The `version` hexagon exists as the module tree
+      `version/{core, inbound/cli, outbound/build_metadata}` within `launcher`,
+      with the inbound CLI adapter delegating to a `core` inbound port and the
+      build-metadata outbound adapter behind an outbound port — verifiable by
+      inspecting the module tree.
+- [ ] The domain (`core`) layer depends on no adapter or I/O crate. This is
+      enforced at compile time by the crate/module boundary graph and,
+      defence-in-depth, by cargo-pup on the architecture lane; introducing a
+      `core`→adapter dependency causes the cargo-pup check to fail.
+- [ ] The `version` slice wires through `kernel`: its errors are expressed via the
+      `kernel` error taxonomy and it initialises logging through the `kernel`
+      logging facility — verifiable by the error type used in the slice and by an
+      emitted log line at a defined level.
+- [ ] The version value has a single source of truth — the `launcher` crate's
+      version in its `Cargo.toml` — and build metadata is injected at build time,
+      not hard-coded; verified by bumping the `launcher` crate version and
+      observing `accelerator version` output change with no other edit.
 - [ ] Only the in-process `version` subcommand is exposed; no external-subcommand
-      dispatch is wired in this story.
+      dispatch path is compiled in this story — invoking `accelerator <unknown>`
+      exits non-zero with clap's unknown-subcommand error (0164 owns any
+      fetch/exec surface).
 - [ ] The crates' checks run under `mise run check` and the bare `mise run`, both
       exiting 0.
 
-## Open Questions
-
-- The concrete starting crate set for a version-only scaffold (likely just
-  `launcher` + `kernel`) is settled during implementation.
-- Build-metadata injection mechanism (build script vs a vergen-style crate) is an
-  implementation choice.
-
 ## Dependencies
 
-- Paired with: 0162 (guard rails) — provides the per-crate checks and architecture
-  enforcement.
+- Blocked by: 0162 (guard rails) — provides the per-crate checks, the cargo-deny /
+  cargo-pup enforcement lanes, and the component-based `mise` task tree that this
+  story's Acceptance Criteria (architecture enforcement, `mise run check` /
+  `mise run` exiting 0) consume. Developed in tandem, but 0162's task tree and
+  enforcement lanes must land before this story's checks can pass. (0162 is
+  complete as of this writing.)
 - Blocks: 0164 (launcher/dispatch), 0165 (distribution), 0166 (shared crates), and
   transitively the subdomain stories.
 - Parent: epic 0136.
+- External input: the luminosity 0007 reference implementation (see References) is
+  the source of truth this story mirrors for the crate layout, the `build.rs`
+  approach, and the `vergen` `=9.0.6` pin; its availability at implementation time
+  is assumed.
 
 ## Assumptions
 
@@ -97,19 +129,29 @@ path. The crate still produces the `accelerator` binary.
 
 ## Technical Notes
 
-- Git-style dispatch (clap `external_subcommand`) and the on-demand launcher are
-  0164's concern; this story needs only the in-process `version` subcommand over
-  the hexagonal skeleton.
+- Git-style dispatch (clap `external_subcommand`) and the on-demand external-binary
+  resolution are 0164's concern; this story needs only the in-process `version`
+  subcommand over the hexagonal skeleton.
 - Test-first is non-negotiable per the project's TDD convention.
+- Starting crate set is `launcher` + `kernel`; the `version` hexagon is laid out as
+  `version/{core, inbound/cli, outbound/build_metadata}` within `launcher`
+  (mirrors luminosity).
+- Build metadata via `vergen` + `vergen-gitcl` in `launcher/build.rs` (mirror
+  luminosity): emit build timestamp, target triple, and commit SHA through
+  `Emitter`; deliberately omit `fail_on_error()` so git-less or shallow builds
+  degrade to a placeholder rather than breaking the build. Pin `vergen` exactly
+  (luminosity uses `=9.0.6`) — its transitive `vergen-lib` bumps are incompatible
+  across minor versions.
 
 ## Drafting Notes
 
 - Treated as the Phase 0 scaffold story mirroring luminosity 0007, carrying the
   resolved `cli/`-directory + `launcher`-crate-rename decision from the research.
-
-> Extracted from source documents without interactive enrichment.
-> Acceptance criteria, dependencies, and kind may need refinement before
-> promoting from `draft` to `ready`.
+- The two former Open Questions (starting crate set; build-metadata injection
+  mechanism) were resolved during interactive enrichment against luminosity's
+  implementation: crate set is `launcher` + `kernel`, and metadata is injected via
+  a `vergen-gitcl` build script that does not fail on error. Both are recorded as
+  Requirements / Technical Notes rather than open unknowns.
 
 ## References
 
