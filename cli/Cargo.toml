@@ -1,10 +1,24 @@
 [workspace]
 resolver = "2"
-members = ["launcher"]
+members = ["launcher", "kernel"]
 
 [workspace.package]
 version = "1.24.0-pre.2"
 edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+clap = { version = "4.6", features = ["derive"] }
+# vergen and vergen-gitcl are a matched pair pinned exactly: vergen 9.1.0's
+# transitive vergen-lib bump breaks the Emitter, and a vergen-gitcl minor/patch
+# can float that same vergen-lib independently, so both are pinned.
+vergen = { version = "=9.0.6", default-features = false }
+vergen-gitcl = { version = "=1.0.8", features = ["build", "cargo"] }
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+time = { version = "0.3", features = ["parsing"] }
 
 [workspace.lints.rust]
 warnings = "deny"
