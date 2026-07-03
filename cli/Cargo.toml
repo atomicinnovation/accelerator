@@ -15,7 +15,7 @@ clap = { version = "4.6", features = ["derive"] }
 # can float that same vergen-lib independently, so both are pinned.
 vergen = { version = "=9.0.6", default-features = false }
 vergen-gitcl = { version = "=1.0.8", features = ["build", "cargo"] }
-thiserror = "1"
+thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 time = { version = "0.3", features = ["parsing"] }

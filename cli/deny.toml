@@ -26,19 +26,16 @@ yanked = "deny"
 
 [licenses]
 version = 2
-# Permissive allow-list covering the licenses a rustls-based stack and its
-# closure require. Any future copyleft / MPL / *GPL license must be justified
-# per-crate via [[licenses.exceptions]], never added to this blanket allow.
+# Permissive allow-list pruned to exactly the licenses the current dependency
+# closure carries — cargo-deny warns on an unused allowance, so new permissive
+# licenses are added here as crates that carry them enter the closure (e.g. the
+# rustls/HTTP stack will re-introduce ISC/BSD/Zlib). Any copyleft / MPL / *GPL
+# license must be justified per-crate via [[licenses.exceptions]], never added
+# to this blanket allow.
 allow = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "ISC",
-    "Zlib",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
 ]
 confidence-threshold = 0.8
 
