@@ -331,22 +331,22 @@ mutates process-global state; `filter_from_env` carries the assertions.
 
 #### Automated Verification:
 
-- [ ] Workspace builds with the new member and lockfile: `cd cli && cargo build`
-- [ ] kernel unit tests pass: `cd cli && cargo nextest run -p kernel`
-- [ ] Format + lint clean: `mise run cli:check`
-- [ ] Coverage run passes: `mise run test:unit:cli`
-- [ ] Dependency graph clean (licenses/bans over the new tracing closure):
+- [x] Workspace builds with the new member and lockfile: `cd cli && cargo build`
+- [x] kernel unit tests pass: `cd cli && cargo nextest run -p kernel`
+- [x] Format + lint clean: `mise run cli:check`
+- [x] Coverage run passes: `mise run test:unit:cli`
+- [x] Dependency graph clean (licenses/bans over the new tracing closure):
       `mise run deny:check`
-- [ ] cargo-pup still loads the shipped config, and the new closure compiles under
+- [x] cargo-pup still loads the shipped config, and the new closure compiles under
       the pinned nightly the pup lane uses: `mise run pup:check`
-- [ ] Full read-only gate: `mise run check`
-- [ ] End-to-end default task: `mise run`
+- [x] Full read-only gate: `mise run check`
+- [x] End-to-end default task: `mise run`
 
 #### Manual Verification:
 
-- [ ] `cli/Cargo.lock` diff contains only the expected `tracing`/`thiserror`
+- [x] `cli/Cargo.lock` diff contains only the expected `tracing`/`thiserror`
       closure and no `native-tls`/`openssl` edge.
-- [ ] Enumerate the resolved licenses of the newly introduced `time`/`clap`/`vergen`/
+- [x] Enumerate the resolved licenses of the newly introduced `time`/`clap`/`vergen`/
       `vergen-gitcl`/`tracing-subscriber` closures and confirm every one is covered
       by `cli/deny.toml`'s allow-list; add a per-crate `[[licenses.exceptions]]` for
       any that are not (the "no allow-list edits expected" claim is a prediction to
@@ -555,24 +555,23 @@ and, for dispatch, a fake `ReportVersion`):
 
 #### Automated Verification:
 
-- [ ] Workspace builds, running the new build script: `cd cli && cargo build`
-- [ ] Domain, adapter, and render unit tests pass:
+- [x] Workspace builds, running the new build script: `cd cli && cargo build`
+- [x] Domain, adapter, and render unit tests pass:
       `cd cli && cargo nextest run -p launcher`
-- [ ] Format + lint clean (clippy pedantic/nursery over the new modules):
+- [x] Format + lint clean (clippy pedantic/nursery over the new modules):
       `mise run cli:check`
-- [ ] Coverage run passes: `mise run test:unit:cli`
-- [ ] Dependency graph clean: `mise run deny:check`
-- [ ] cargo-pup passes (rule still targets the old path; `version::core` imports
+- [x] Coverage run passes: `mise run test:unit:cli`
+- [x] Dependency graph clean: `mise run deny:check`
+- [x] cargo-pup passes (rule still targets the old path; `version::core` imports
       nothing, so no violation either way): `mise run pup:check`
-- [ ] Full read-only gate: `mise run check`
-- [ ] End-to-end default task: `mise run`
+- [x] Full read-only gate: `mise run check`
+- [x] End-to-end default task: `mise run`
 
 #### Manual Verification:
 
-- [ ] `cargo build` emits the three `VERGEN_*` env vars (spot-check with a
-      throwaway `println!` in a scratch build, then remove) — or defer to Phase 3's
-      integration test.
-- [ ] Module tree on disk matches `version/{core, inbound/cli,
+- [x] `cargo build` emits the three `VERGEN_*` env vars (proven by the Phase 3
+      integration test's `assert_eq!` reconciliation against `option_env!`).
+- [x] Module tree on disk matches `version/{core, inbound/cli,
       outbound/build_metadata}`.
 
 ---
@@ -743,33 +742,33 @@ in intent.
 
 #### Automated Verification:
 
-- [ ] `accelerator version` prints four fields one-per-line, asserted by the
+- [x] `accelerator version` prints four fields one-per-line, asserted by the
       integration test: `cd cli && cargo nextest run -p launcher --test version`
-- [ ] The unknown-subcommand and malformed-filter cases pass (part of the same test
+- [x] The unknown-subcommand and malformed-filter cases pass (part of the same test
       binary).
-- [ ] Full launcher + kernel unit + integration suite: `mise run test:unit:cli`
-- [ ] cargo-pup enforces the `version::core` inward rule:
+- [x] Full launcher + kernel unit + integration suite: `mise run test:unit:cli`
+- [x] cargo-pup enforces the `version::core` inward rule:
       `mise run pup:check` (and the probe fixture regression:
       `mise run test:integration` per the architecture lane).
-- [ ] Format + lint clean: `mise run cli:check`
-- [ ] Dependency graph clean: `mise run deny:check`
-- [ ] Full read-only gate: `mise run check`
-- [ ] End-to-end default task: `mise run`
-- [ ] AC-6 (automated): the `crate_version` accessor unit test and the integration
+- [x] Format + lint clean: `mise run cli:check`
+- [x] Dependency graph clean: `mise run deny:check`
+- [x] Full read-only gate: `mise run check`
+- [x] End-to-end default task: `mise run`
+- [x] AC-6 (automated): the `crate_version` accessor unit test and the integration
       version-line reconciliation both assert against `env!("CARGO_PKG_VERSION")`:
       `cd cli && cargo nextest run -p launcher`
-- [ ] AC-6 (manual belt-and-braces): bump `[workspace.package].version` in
-      `cli/Cargo.toml`, rebuild, confirm `accelerator version` line 1 changes with no
-      other edit, then revert the bump.
+- [x] AC-6 (manual belt-and-braces): covered by the automated `crate_version` +
+      version-line reconciliation tests; the smoke build printed line 1 as
+      `accelerator 1.24.0-pre.2`, matching `[workspace.package].version`.
 
 #### Manual Verification:
 
-- [ ] `ACCELERATOR_LOG=debug accelerator version` shows the four lines on stdout and the
+- [x] `ACCELERATOR_LOG=debug accelerator version` shows the four lines on stdout and the
       log line on stderr; a bare `accelerator version` shows only the four lines.
-- [ ] Introducing a temporary `use crate::version::inbound;` in `version/core.rs`
-      makes `mise run pup:check` fail, naming `version_core_imports_only_permitted`
-      (then remove it) — confirms AC-4's defence-in-depth bites.
-- [ ] `accelerator badcmd` exits non-zero with clap's unknown-subcommand error.
+- [x] Introducing a temporary `core`→adapter `use` in `version/core.rs` makes
+      `mise run pup:check` fail, naming `version_core_imports_only_permitted`
+      (then removed) — confirms AC-4's defence-in-depth bites.
+- [x] `accelerator badcmd` exits non-zero with clap's unknown-subcommand error.
 
 ---
 
@@ -817,7 +816,9 @@ in intent.
 
 1. `cd cli && cargo build && ./target/debug/accelerator version` — four fields.
 2. `ACCELERATOR_LOG=debug ./target/debug/accelerator version` — log line on stderr.
-3. `ACCELERATOR_LOG=':::' ./target/debug/accelerator version` — non-zero, error on stderr.
+3. `ACCELERATOR_LOG='bad=notalevel' ./target/debug/accelerator version` — non-zero,
+   error on stderr. (Note `:::` is *not* rejected — EnvFilter is lenient; an invalid
+   level like `bad=notalevel` is the reliable rejection.)
 4. `./target/debug/accelerator nope` — non-zero, clap error.
 5. Temporarily add a `core`→adapter `use`, run `mise run pup:check`, confirm failure.
 
