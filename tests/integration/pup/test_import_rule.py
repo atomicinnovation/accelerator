@@ -3,9 +3,9 @@
 Needs the nightly lane, so it lives in its own directory and runs only in
 check-architecture (never the test roll-up). Proves the inward-dependency
 rule's discriminating power against a probe workspace laid out like the real
-cli/ (pup.ron at the workspace root, domain/adapters modules in a member
-crate), since the shipped cli/pup.ron rule matches `launcher::domain` — a
-module the minimal scaffold does not yet contain.
+cli/ (pup.ron at the workspace root, a version::core domain module plus an
+adapters module and a shared kernel crate in member crates), mirroring the
+shape of the shipped cli/pup.ron rule that matches `launcher::version::core`.
 
 Contract confirmed against cargo-pup 0.1.8 on the pinned nightly: a
 `severity: Error` RestrictImports violation compiles-errors and exits 101,
@@ -36,7 +36,7 @@ _CARGO_PUP = shutil.which("cargo-pup")
 _WORKSPACE_MANIFEST = """\
 [workspace]
 resolver = "2"
-members = ["probe"]
+members = ["probe", "kernel"]
 """
 
 _PROBE_MANIFEST = """\
@@ -48,29 +48,62 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+kernel = { path = "../kernel" }
 """
 
-_PROBE_LIB = "pub mod adapters;\npub mod domain;\n"
+_KERNEL_MANIFEST = """\
+[package]
+name = "kernel"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+# A two-module kernel: the shared error taxonomy plus one infrastructure module,
+# so the probe can exercise both sides of the narrowed allowance.
+_KERNEL_LIB = "pub mod logging;\n\npub struct Error;\n"
+_KERNEL_LOGGING = "pub fn noop() -> u8 {\n    0\n}\n"
+
+_PROBE_LIB = "pub mod adapters;\npub mod version;\n"
 _PROBE_ADAPTERS = "pub struct Client;\n"
-# domain importing an adapter — the inward-dependency violation.
-_DOMAIN_VIOLATION = (
+_VERSION_MOD = "pub mod core;\n"
+
+# core importing an adapter — the inward-dependency violation.
+_CORE_ADAPTER_VIOLATION = (
     "use crate::adapters::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
 )
-# domain importing only its own subtree — compliant (positive control).
-_DOMAIN_COMPLIANT = "pub fn make() -> u8 {\n    0\n}\n"
+# core importing only its own subtree — compliant (positive control).
+_CORE_COMPLIANT = "pub fn make() -> u8 {\n    0\n}\n"
+# core importing the shared kernel error taxonomy — permitted by the narrowed
+# allowance.
+_CORE_KERNEL_ERROR = (
+    "use kernel::Error;\n\npub fn make() -> Option<Error> {\n    None\n}\n"
+)
+# core importing a kernel infrastructure module — rejected: the allowance is
+# narrowed to kernel::Error, not the whole kernel crate.
+_CORE_KERNEL_INFRA = (
+    "use kernel::logging;\n\npub fn make() -> u8 {\n    logging::noop()\n}\n"
+)
 
-# Same rule SHAPE as the shipped cli/pup.ron, retargeted at the probe's module.
+# Same rule SHAPE as the shipped cli/pup.ron, retargeted at the probe's module,
+# including the narrowed kernel::Error allowance.
 _PROBE_PUP_RON = """\
 (
     lints: [
         Module((
-            name: "domain_imports_only_permitted",
-            matches: Module("^pup_probe::domain($|::)"),
+            name: "version_core_imports_only_permitted",
+            matches: Module("^pup_probe::version::core($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
-                        "^crate::domain(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate::version::core(::|$)",
                     ]),
                     denied: None,
                     severity: Error,
@@ -110,43 +143,70 @@ def _pup(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _write_probe(root: Path, domain_body: str) -> None:
+def _write_probe(root: Path, core_body: str) -> None:
     (root / "Cargo.toml").write_text(_WORKSPACE_MANIFEST)
     (root / "pup.ron").write_text(_PROBE_PUP_RON)
-    src = root / "probe/src"
-    src.mkdir(parents=True, exist_ok=True)
+
+    probe_src = root / "probe/src"
+    (probe_src / "version").mkdir(parents=True, exist_ok=True)
     (root / "probe/Cargo.toml").write_text(_PROBE_MANIFEST)
-    (src / "lib.rs").write_text(_PROBE_LIB)
-    (src / "adapters.rs").write_text(_PROBE_ADAPTERS)
-    (src / "domain.rs").write_text(domain_body)
+    (probe_src / "lib.rs").write_text(_PROBE_LIB)
+    (probe_src / "adapters.rs").write_text(_PROBE_ADAPTERS)
+    (probe_src / "version/mod.rs").write_text(_VERSION_MOD)
+    (probe_src / "version/core.rs").write_text(core_body)
+
+    kernel_src = root / "kernel/src"
+    kernel_src.mkdir(parents=True, exist_ok=True)
+    (root / "kernel/Cargo.toml").write_text(_KERNEL_MANIFEST)
+    (kernel_src / "lib.rs").write_text(_KERNEL_LIB)
+    (kernel_src / "logging.rs").write_text(_KERNEL_LOGGING)
 
 
-def test_domain_importing_adapter_is_rejected(tmp_path: Path) -> None:
+def test_core_importing_adapter_is_rejected(tmp_path: Path) -> None:
     _require_tools()
-    _write_probe(tmp_path, _DOMAIN_VIOLATION)
+    _write_probe(tmp_path, _CORE_ADAPTER_VIOLATION)
     result = _pup(cwd=tmp_path)
     output = _ANSI.sub("", result.stdout + result.stderr)
     # The confirmed contract: non-zero exit AND a message naming the rule, so a
     # tool that logged-but-exited-zero would fail this test rather than pass it.
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
-    assert "domain_imports_only_permitted" in output, output
+    assert "version_core_imports_only_permitted" in output, output
 
 
-def test_compliant_domain_passes(tmp_path: Path) -> None:
+def test_compliant_core_passes(tmp_path: Path) -> None:
     # Positive control: a permitted layout evaluates and passes, so a green run
     # means "evaluated and allowed", not "evaluated nothing" (a rule whose
     # module scope silently matched nothing).
     _require_tools()
-    _write_probe(tmp_path, _DOMAIN_COMPLIANT)
+    _write_probe(tmp_path, _CORE_COMPLIANT)
     result = _pup(cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+def test_core_importing_kernel_error_passes(tmp_path: Path) -> None:
+    # The narrowed allowance permits the shared error taxonomy.
+    _require_tools()
+    _write_probe(tmp_path, _CORE_KERNEL_ERROR)
+    result = _pup(cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_core_importing_kernel_infra_is_rejected(tmp_path: Path) -> None:
+    # The narrowing bites: kernel::logging is infrastructure, not the taxonomy.
+    # A whole-kernel allowance would pass this; the scoped one rejects it.
+    _require_tools()
+    _write_probe(tmp_path, _CORE_KERNEL_INFRA)
+    result = _pup(cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "version_core_imports_only_permitted" in output, output
+
+
 def test_real_cli_pup_ron_loads() -> None:
     # Guards the shipped config: print-modules parses cli/pup.ron and exits 0,
-    # so a malformed RON edit fails here even though the near-vacuous rule
-    # matches no module in the current scaffold.
+    # so a malformed RON edit fails here.
     _require_tools()
     result = _pup("print-modules", cwd=CLI_DIR)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)

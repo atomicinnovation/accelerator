@@ -1,24 +1,21 @@
-// cargo-pup inward-dependency rule (ADR-0053): a domain module may import only
-// std / its own subtree — never an adapter/infrastructure module. Width kept
-// <= 80 columns per the hand-duplication convention.
-//
-// The accelerator hexagon (domain / adapters modules) lands with the scaffold
-// story; until then `launcher::domain` matches no module, so this pass is
-// near-vacuous. The rule's discriminating power is proven by the fixture
-// regression in tests/integration/pup/, not by the minimal scaffold.
+// cargo-pup inward-dependency rule: the version domain core may import only
+// std / its own subtree / the shared kernel error taxonomy — never an
+// adapter/infrastructure module. Width kept <= 80 columns per the
+// hand-duplication convention.
 //
 // Note `matches` is the RESOLVED module path; `allowed_only` is LITERAL
 // use-path.
 (
     lints: [
         Module((
-            name: "domain_imports_only_permitted",
-            matches: Module("^launcher::domain($|::)"),
+            name: "version_core_imports_only_permitted",
+            matches: Module("^launcher::version::core($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
-                        "^crate::domain(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate::version::core(::|$)",
                     ]),
                     denied: None,
                     severity: Error,
