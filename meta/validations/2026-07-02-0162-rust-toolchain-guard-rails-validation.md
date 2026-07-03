@@ -9,7 +9,6 @@ status: complete
 result: pass
 parent: "plan:2026-07-02-0162-rust-toolchain-guard-rails"
 target: "plan:2026-07-02-0162-rust-toolchain-guard-rails"
-relates_to: []
 tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
 last_updated: "2026-07-02T20:52:50+00:00"
 last_updated_by: Toby Clemson
