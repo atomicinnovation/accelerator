@@ -5,7 +5,7 @@ title: "Scaffold the cli/ Hexagonal Workspace with a version Subcommand Implemen
 date: "2026-07-02T23:00:23+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0163"
 parent: "work-item:0163"
 derived_from: ["codebase-research:2026-07-02-0163-cli-workspace-version-subcommand-scaffold"]
