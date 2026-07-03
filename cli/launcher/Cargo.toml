@@ -2,7 +2,9 @@
 name = "launcher"
 version.workspace = true
 edition.workspace = true
-license = "MIT"
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
 
 [lints]
 workspace = true
@@ -10,3 +12,15 @@ workspace = true
 [[bin]]
 name = "accelerator"
 path = "src/main.rs"
+
+[dependencies]
+kernel = { path = "../kernel" }
+clap = { workspace = true }
+tracing = { workspace = true }
+
+[build-dependencies]
+vergen = { workspace = true }
+vergen-gitcl = { workspace = true }
+
+[dev-dependencies]
+time = { workspace = true }
