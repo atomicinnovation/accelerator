@@ -5,7 +5,7 @@ title: "Scaffold the cli/ Hexagonal Workspace with a version Subcommand"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: in-progress
 kind: story
 priority: high
 parent: "work-item:0136"
@@ -22,7 +22,7 @@ external_id: "PP-184"
 # 0163: Scaffold the cli/ Hexagonal Workspace with a version Subcommand
 
 **Kind**: Story
-**Status**: Ready
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 
