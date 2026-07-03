@@ -13,6 +13,7 @@ tags: []
 last_updated: "2026-06-29T13:04:00+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
+external_id: PP-697
 ---
 
 # 0175: Slim the README and split content into a docs/ tree

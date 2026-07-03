@@ -13,6 +13,7 @@ tags: []
 last_updated: "2026-06-29T10:28:21+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-698
 ---
 
 # 0176: Author per-skill-family reference docs under docs/
