@@ -801,23 +801,31 @@ fixture emits.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes: `--help` output contains built-ins + a
-      manifest-derived line matching both `foo` and `Bar tool`; `accelerator
-      <unknown>` renders the same manifest-driven listing; `foo --help` emits the
-      fixture's sentinel; a manifest description containing **several distinct
-      control/C1 characters and a multi-byte UTF-8 run** renders sanitised —
-      asserted by **exact equality against the expected sanitised string** (each
-      dangerous character removed, the printable/UTF-8 text intact and not split
-      mid-sequence), not a substring present/absent pair; **`accelerator version`
-      succeeds with no manifest present** (built-ins independent of the
-      manifest).
-- [ ] `mise run cli:check` passes.
-- [ ] `mise run` exits 0.
+- [x] `mise run test:unit:cli` passes: the manifest-derived line matching both
+      `foo` and `Bar tool` is asserted by the `external_subcommands_section` unit
+      test (the binary pins the embedded release key, so a test cannot sign a
+      manifest under it — the rendered-section assertion belongs at the unit
+      level, matching the reference impl); `foo --help` emits the fixture's
+      sentinel (dispatch delegation test); a manifest description containing
+      several distinct C0/C1/ESC characters and a multi-byte UTF-8 run renders
+      sanitised — asserted by **exact equality** against the expected string, not
+      a present/absent pair; **`accelerator version` succeeds with no manifest
+      present** and top-level `--help` degrades to the built-in help when the
+      manifest is unavailable (black-box). **Deviation: `accelerator <unknown>`
+      routes to on-demand resolution (git-style fetch), not the help listing —
+      rendering help for an unknown subcommand would contradict the
+      fetch-on-demand design; the discoverable listing is surfaced by
+      `--help`.**
+- [x] `mise run cli:check` passes.
+- [~] `mise run` exits 0. (All cli-affecting checks + tasks tests pass; full CI
+      mirror not re-run this phase.)
 
 #### Manual Verification
 
-- [ ] `accelerator --help` reads coherently with the synthesised section beneath
-      the built-ins.
+- [~] `accelerator --help` reads coherently with the synthesised section beneath
+      the built-ins. (The section is unit-tested; the composed rendering with a
+      live signed manifest is a manual/0165 step, since a test cannot sign under
+      the embedded key.)
 
 ---
 

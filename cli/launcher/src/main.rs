@@ -6,14 +6,17 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::Parser as _;
+use clap::error::ErrorKind;
+use clap::{CommandFactory as _, Parser as _};
 
 use launcher::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
 use launcher::launch::dispatch;
+use launcher::launch::help::external_subcommands_section;
 use launcher::launch::inbound::cli::Cli;
 use launcher::launch::outbound::exec::UnixExec;
 use launcher::launch::outbound::override_path;
 use launcher::launch::outbound::resolve::cache_root::{self, CacheRootConfig};
+use launcher::launch::outbound::resolve::fetcher::Fetcher;
 use launcher::launch::outbound::resolve::keys::TrustedKeys;
 use launcher::launch::outbound::resolve::{
     FetchVerifyCacheResolver, ResolverConfig,
@@ -57,6 +60,31 @@ impl ResolveBinary for LazyProductionResolver {
     }
 }
 
+/// Load the manifest and build the external-subcommands help section.
+///
+/// Best-effort and offline-tolerant: any failure (no network, no manifest, a
+/// bad key) yields `None`, so `--help` still prints the built-in help rather
+/// than erroring. No cache root is touched — help only reads the manifest.
+fn help_section() -> Option<String> {
+    let keys = TrustedKeys::embedded().ok()?;
+    let fetcher = Fetcher::new().ok()?;
+    let config = ResolverConfig::production(release_base_url(), PathBuf::new());
+    let resolver =
+        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher);
+    let manifest = resolver.load_manifest().ok()?;
+    external_subcommands_section(&manifest)
+}
+
+fn render_augmented_help() -> ExitCode {
+    let mut command = Cli::command();
+    if let Some(section) = help_section() {
+        command = command.after_help(section);
+    }
+    let _ = command.print_help();
+    println!();
+    ExitCode::SUCCESS
+}
+
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
     let reporter = VersionReporter::new(VergenBuildMetadata);
@@ -70,7 +98,18 @@ fn main() -> ExitCode {
         eprintln!("{error}");
         return ExitCode::FAILURE;
     }
-    let cli = Cli::parse();
+
+    // try_parse (not parse) so top-level `--help` can be intercepted and
+    // augmented with the manifest-driven external-subcommands section; a
+    // `foo --help` routes to External and is delegated to the child instead.
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) if error.kind() == ErrorKind::DisplayHelp => {
+            return render_augmented_help();
+        }
+        Err(error) => error.exit(),
+    };
+
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

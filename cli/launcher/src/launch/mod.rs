@@ -2,6 +2,7 @@
 //! or to external resolution + exec.
 
 pub mod core;
+pub mod help;
 pub mod inbound;
 pub mod outbound;
 
