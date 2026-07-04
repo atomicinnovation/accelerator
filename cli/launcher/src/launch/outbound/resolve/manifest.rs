@@ -145,6 +145,29 @@ mod tests {
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+    /// The shared golden contract fixture (Decisions §6), also validated
+    /// structurally by the Python contract test — the two readers of the
+    /// publisher↔launcher contract cannot silently diverge.
+    const GOLDEN: &str =
+        include_str!("../../../../tests/fixtures/manifest.example.json");
+
+    #[test]
+    fn parses_the_shared_golden_contract_fixture() -> Result<(), Box<dyn Error>>
+    {
+        // Parse with the fixture's OWN declared version so a plugin version bump
+        // (which does not touch this contract fixture) cannot drift it into the
+        // anti-rollback mismatch path — the fixture is a shape contract.
+        let value: serde_json::Value = serde_json::from_str(GOLDEN)?;
+        let version = value["version"].as_str().ok_or("no version")?;
+        let manifest =
+            Manifest::parse_and_validate(GOLDEN.as_bytes(), version)?;
+        let entry = manifest
+            .platform_entry("accelerator-visualiser", "darwin-arm64")
+            .ok_or("missing entry")?;
+        assert_eq!(entry.bare_sha256("accelerator-visualiser")?.len(), 64);
+        Ok(())
+    }
+
     fn manifest_json(version: &str, sha256: &str) -> String {
         format!(
             "{{\"schema_version\":1,\"version\":\"{version}\",\"binaries\":{{\

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "version": "1.24.0-pre.7",
+  "binaries": {
+    "accelerator-visualiser": {
+      "description": "Launch the interactive meta-directory visualiser",
+      "platforms": {
+        "darwin-arm64": {
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: accelerator-visualiser darwin-arm64\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n"
+        },
+        "darwin-x64": {
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: accelerator-visualiser darwin-x64\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n"
+        },
+        "linux-arm64": {
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: accelerator-visualiser linux-arm64\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n"
+        },
+        "linux-x64": {
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: accelerator-visualiser linux-x64\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n"
+        }
+      }
+    }
+  }
+}
