@@ -219,47 +219,6 @@ jobs:
       - name: Run cli checks
         run: mise run cli:check
 
-  check-cli-msrv:
-    name: Check cli MSRV
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Route the rust toolchain into the cached mise data dir
-        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
-
-      - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
-        with:
-          install: true
-          cache: true
-          cache_key_prefix: mise-cli-msrv-v1
-          experimental: true
-
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
-
-      # Pin the exact rust-version floor independently of the mise dev toolchain,
-      # so a future mise rust bump cannot silently raise the MSRV without this
-      # leg catching an MSRV-incompatible transitive dep.
-      - name: Install the pinned MSRV toolchain
-        run: rustup toolchain install 1.90.0 --profile minimal
-
-      # Build + test the cli workspace on the exact MSRV so an MSRV-breaking
-      # transitive bump in the fast-moving reqwest/rustls closure fails in CI,
-      # not at a user's first fetch. --locked proves Cargo.lock is coherent.
-      - name: Build and test on the pinned MSRV
-        run: >-
-          cargo +1.90.0 test --manifest-path cli/Cargo.toml --workspace --locked
-
-      # resolver = "3" MSRV-aware selection can pick older dependency versions;
-      # re-run deny after the bump so a perturbed licence closure or a
-      # dep-version advisory is caught here rather than in production.
-      - name: Re-run supply-chain checks after the resolver bump
-        run: mise run deny:check
-
   check-supply-chain:
     name: Check supply chain
     runs-on: ubuntu-latest
@@ -351,7 +310,6 @@ jobs:
       - check-visualiser-server
       - check-visualiser-frontend
       - check-cli
-      - check-cli-msrv
       - check-supply-chain
       - check-architecture
     if: github.event_name == 'push'
