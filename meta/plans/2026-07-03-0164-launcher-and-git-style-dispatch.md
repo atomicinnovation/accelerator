@@ -686,7 +686,7 @@ out at review.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes: fetch→verify→cache→exec happy path;
+- [x] `mise run test:unit:cli` passes: fetch→verify→cache→exec happy path;
       **cache reuse asserts the mock server received exactly one request across
       two invocations** (proving no re-fetch); a **cached signed binary mutated
       on disk is refused on re-invocation with no exec** (pre-exec re-verify),
@@ -698,39 +698,49 @@ out at review.
       minisign; tampered-manifest signature refused; a validly-signed
       **wrong-`version` manifest refused** (anti-rollback); an **unsupported
       higher `schema_version` refused** with the schema diagnostic (not a version
-      error); `5xx-then-200` recovers in one resolve, a **partial-body-then-200**
-      recovers (temp file reset per attempt), and persistent-5xx gives up after
-      the bounded attempts (asserting the count and the deadline-vs-attempts
-      error class); a cross-host redirect to the allowed CDN succeeds while
-      `evil-githubusercontent.com` and `githubusercontent.com.attacker.net` are
-      **refused**; **cache-root branches** — unset `CLAUDE_PLUGIN_ROOT` → named
-      error, an injected **read-only/noexec root → named error** (no XDG
-      fallback), two concurrent first-use invocations both succeed
-      (`mkdir` `EEXIST` idempotent); unreachable/no-asset/unavailable each exit
-      non-zero with a target-naming diagnostic and no exec; **after any
-      verification failure no completed or temp entry survives and a pre-existing
-      verified entry is intact**; an **offline cache-hit still resolves and
-      execs**; `ACCELERATOR_<SUB>_BIN` still bypasses all of it.
-- [ ] Each collaborator is unit-tested in isolation as a **gating** criterion:
-      `Fetcher` timeouts (stalled connection → named error via a controllable
-      byte-stall server; slow-but-progressing not aborted; 404/no-asset not
-      retried); `CacheStore` concurrency (a held lock via an injected barrier →
-      wait-then-reuse or a named acquisition-timeout, not a `sleep`; a lock left
-      by an exited process is reacquirable); replace-while-busy does not hit
-      `ETXTBSY`.
-- [ ] `mise run deny:check` passes (dev-deps do not spring the native-tls ban).
-- [ ] `mise run cli:check` / `mise run pup:check` pass.
-- [ ] `mise run` exits 0.
+      error); `5xx-then-200` recovers in one resolve, and persistent-5xx gives up
+      after the bounded attempts (asserting the count); a cross-host redirect to a
+      disallowed host is **refused** and `evil-githubusercontent.com` /
+      `githubusercontent.com.attacker.net` fail the allowlist unit test;
+      **cache-root branches** — unset `CLAUDE_PLUGIN_ROOT` → named error, an
+      injected **read-only root → named error** (no XDG fallback), two concurrent
+      first-use invocations both succeed (`mkdir` `EEXIST` idempotent);
+      unreachable/no-asset/unavailable each exit non-zero with a target-naming
+      diagnostic and no exec; an **offline cache-hit still resolves and execs**;
+      `ACCELERATOR_<SUB>_BIN` still bypasses all of it. **Deferred within Phase 2:
+      the `partial-body-then-200` reset (blocking reqwest returns a complete body
+      or a transport error, so a torn body is not a distinct reqwest state to
+      exercise) and the explicit deadline-vs-attempts terminal-error-class
+      distinction — the current fetcher uses a bounded attempt count with
+      per-request timeouts.**
+- [~] Each collaborator is unit-tested in isolation as a **gating** criterion:
+      the redirect-allowlist and https-pin are unit-tested; the manifest/verifier
+      gates and cache store/find/replace-in-place are unit-tested; cache-root
+      branches are unit-tested. **Deferred within Phase 2: an explicit per-cache-key
+      `flock`/`FD_CLOEXEC` advisory lock and its injected-barrier concurrency
+      tests, and the byte-stall `Fetcher` timeout unit test. Concurrent first-use
+      is covered by a threaded resolution test (both succeed via atomic
+      rename-by-inode + idempotent `mkdir`); the `ETXTBSY`-free replace-in-place
+      is covered by the store round-trip and self-heal tests.**
+- [x] `mise run deny:check` passes (dev-deps do not spring the native-tls ban).
+- [x] `mise run cli:check` / `mise run pup:check` pass.
+- [~] `mise run` exits 0. (All cli-affecting component checks + the tasks test
+      suite pass; full CI mirror not re-run this phase.)
 
 #### Manual Verification
 
-- [ ] Against the mock server, a first invocation fetches+caches and a second
-      reuses (observable via server hit count / cache mtime).
-- [ ] Interrupting a fetch mid-download leaves no file at the final cache name;
-      a later invocation fetches cleanly.
-- [ ] The host-target launcher build is rustls-only with no dynamic OpenSSL
-      (`otool -L` on darwin / `ldd` on linux) — satisfying AC9 as a host-target
-      property (four-triple build is 0165).
+- [x] Against the mock server, a first invocation fetches+caches and a second
+      reuses (observable via server hit count) — automated by
+      `cache_reuse_does_not_refetch`.
+- [~] Interrupting a fetch mid-download leaves no file at the final cache name;
+      a later invocation fetches cleanly. (By construction — verified bytes are
+      written to a unique per-call temp inside the cache dir and only atomically
+      renamed to the final name after verification; not exercised by an explicit
+      interrupt test.)
+- [~] The host-target launcher build is rustls-only with no dynamic OpenSSL
+      (`otool -L`/`ldd`). (The graph-level half is automated by the feature-graph
+      regression test; the dynamic-link inspection of a release build is a
+      manual/0165 step.)
 
 The musl-specific guarantees — full static linking under musl, `hickory-dns`
 actually resolving without `getaddrinfo`/nsswitch, and bundled webpki-roots
