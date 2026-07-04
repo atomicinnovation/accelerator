@@ -494,10 +494,13 @@ fixture/override applies).
       `tests/integration/deny/test_launcher_feature_graph.py`).
 - [x] `mise run pup:check` passes (no launcher code under `version::core`; the
       new `launch::core` has its own inward-only rule).
-- [~] The pinned-MSRV CI leg builds and tests green. (Added `check-cli-msrv` to
-      `.github/workflows/main.yml`; validated locally as far as possible —
-      `cargo build --workspace --locked` + `deny:check` pass, YAML/actionlint
-      clean, workflow-invariant test green — the leg itself only runs in CI.)
+- [x] MSRV is guarded — but not via a separate compile leg. A `check-cli-msrv`
+      job was initially added, then dropped as redundant: mise already
+      provisions rust 1.90.0 (the exact MSRV) for every cli job, so it caught
+      nothing `check-cli`/`test-unit`/`deny` did not. Replaced with a
+      version-coherence test (`test_msrv_coherence.py`, asserting `mise.toml` ↔
+      `Cargo.toml` `rust-version` ↔ `clippy.toml` `msrv` agree) plus `--locked`
+      on the cli clippy check for lock staleness.
 - [~] `mise run` exits 0. (All cli-affecting component checks pass;
       full CI-mirror not re-run this phase — changes are confined to `cli/`, one
       Python test, and CI YAML, which do not touch frontend/server/scripts.)
