@@ -160,16 +160,23 @@ fn a_malformed_filter_exits_non_zero() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn an_unknown_subcommand_exits_non_zero() -> Result<(), Box<dyn Error>> {
+fn an_unresolvable_subcommand_exits_non_zero_naming_it(
+) -> Result<(), Box<dyn Error>> {
+    // With `external_subcommand`, an unknown subcommand no longer trips clap's
+    // hard rejection — it routes to resolution. With no override set and no
+    // network (Phase 1), it is unresolvable, so the launcher exits non-zero with
+    // a diagnostic naming the subcommand and the failed resolution step (never a
+    // panic or silent success).
     let output = run(&["definitely-not-a-command"], &[])?;
     assert!(
         !output.status.success(),
-        "expected a non-zero exit for an unknown subcommand"
+        "expected a non-zero exit for an unresolvable subcommand"
     );
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        stderr.contains("unrecognized subcommand"),
-        "stderr missing clap's rejection: {stderr:?}"
+        stderr.contains("definitely-not-a-command")
+            && stderr.contains("resolve"),
+        "stderr missing the resolution diagnostic: {stderr:?}"
     );
     Ok(())
 }

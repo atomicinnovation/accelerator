@@ -23,6 +23,17 @@ version = 2
 # security-vulnerability advisory fails it (deny) rather than warning.
 unmaintained = "all"
 yanked = "deny"
+# hickory-proto 0.25 DNS-parsing DoS advisories. No upgrade path yet: reqwest
+# 0.12 pins hickory-resolver 0.25, which requires hickory-proto 0.25
+# (semver-incompatible with the fixed 0.26.1). The exposure is bounded — the
+# launcher resolves only the GitHub release/CDN hostnames via the host's
+# configured resolvers, and the attacks require a malicious/compromised DNS
+# responder, which can already deny resolution. Remove both when reqwest adopts
+# hickory 0.26.
+ignore = [
+    "RUSTSEC-2026-0118",  # NSEC3 closest-encloser proof unbounded loop
+    "RUSTSEC-2026-0119",  # O(n^2) name-compression CPU exhaustion on encode
+]
 
 [licenses]
 version = 2
@@ -35,7 +46,16 @@ version = 2
 allow = [
     "MIT",
     "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
     "Unicode-3.0",
+    "Unicode-DFS-2016",
+    # The Mozilla root-certificate bundle embedded by webpki-roots ships under
+    # this permissive data license.
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
 

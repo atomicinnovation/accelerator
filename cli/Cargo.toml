@@ -1,15 +1,26 @@
+# resolver = "3" so `rust-version` drives MSRV-aware version selection (a
+# resolver = "2" workspace ignores rust-version at resolution). Cargo 1.84+. A
+# pinned-MSRV CI leg builds/tests on the exact rust-version floor so an
+# MSRV-breaking transitive bump in the fast-moving reqwest/rustls closure fails
+# in CI, not at a user's first fetch.
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["launcher", "kernel"]
 
 [workspace.package]
 version = "1.24.0-pre.2"
 edition = "2021"
+# The MSRV floor, hand-synced with the mise.toml rust pin and cli/clippy.toml.
+rust-version = "1.90.0"
 license = "MIT"
 publish = false
 
 [workspace.dependencies]
-clap = { version = "4.6", features = ["derive"] }
+# clap is exact-pinned: the `external_subcommand` capture and the top-level
+# `--help` / `ErrorKind::DisplayHelp` interception ordering are load-bearing, so
+# a `cargo update` must not silently shift dispatch/help behaviour under the
+# ordering tests. Any bump is then a deliberate, reviewed change.
+clap = { version = "=4.6.1", features = ["derive"] }
 # vergen and vergen-gitcl are a matched pair pinned exactly: vergen 9.1.0's
 # transitive vergen-lib bump breaks the Emitter, and a vergen-gitcl minor/patch
 # can float that same vergen-lib independently, so both are pinned.
@@ -19,6 +30,25 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 time = { version = "0.3", features = ["parsing"] }
+# The launcher HTTP/verification stack (kernel stays std + tracing only).
+# reqwest MUST be default-features = false: its default native-tls feature pulls
+# openssl-sys and trips deny.toml's ban. Bundled webpki-roots means the static
+# binary carries its own roots and never reads the host cert store; the
+# `-no-provider` variant plus a direct rustls `ring` dep keeps the crypto
+# provider off aws-lc-rs (C + per-arch asm, hostile to the 0165 cross-build).
+# hickory-dns makes name resolution bypass the host getaddrinfo/nsswitch — the
+# load-bearing musl fix. reqwest and rustls are exact-pinned so a future patch
+# cannot silently re-scope the DNS feature back onto getaddrinfo.
+reqwest = { version = "=0.12.28", default-features = false, features = [
+    "blocking",
+    "rustls-tls-webpki-roots-no-provider",
+    "hickory-dns",
+] }
+rustls = { version = "=0.23.41", default-features = false, features = ["ring"] }
+minisign-verify = "=0.2.5"
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [workspace.lints.rust]
 warnings = "deny"

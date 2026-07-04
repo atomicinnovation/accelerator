@@ -2,6 +2,7 @@
 name = "launcher"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 build = "build.rs"
@@ -13,10 +14,24 @@ workspace = true
 name = "accelerator"
 path = "src/main.rs"
 
+# Arg-driven test fixture, located from black-box tests via
+# CARGO_BIN_EXE_accelerator-fixture (cargo only sets that var for bins in this
+# package, so the fixture cannot be a separate crate). The release staging
+# (0165) copies only `accelerator`, so it never enters a shipped asset.
+[[bin]]
+name = "accelerator-fixture"
+path = "tests/fixtures/accelerator_fixture.rs"
+
 [dependencies]
 kernel = { path = "../kernel" }
 clap = { workspace = true }
 tracing = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+minisign-verify = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 vergen = { workspace = true }

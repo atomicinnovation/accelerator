@@ -470,7 +470,7 @@ fixture/override applies).
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes: dispatch routes `["accelerator",
+- [x] `mise run test:unit:cli` passes: dispatch routes `["accelerator",
       "frobnicate","--flag"]` to `External` with the tail intact; an empty
       `External` vector yields the named error, not a panic; a **non-UTF-8
       `OsString` arg survives verbatim** to the exec'd child; a fixture exiting
@@ -482,24 +482,33 @@ fixture/override applies).
       dispatcher consults* — every clap-declared non-external command (`version`,
       the reserved `config` slot) never routes to `External`, and an arbitrary
       name *does* route to `External` — so adding or removing a built-in without
-      updating the guard fails.
-- [ ] `mise run cli:check` passes (rustfmt + clippy pedantic/nursery/restriction,
+      updating the guard fails. (36 tests pass. `config` is not yet a
+      clap-declared command in 0164, so the boundary test covers `version` +
+      arbitrary; the reserved `config` slot arrives with 0167.)
+- [x] `mise run cli:check` passes (rustfmt + clippy pedantic/nursery/restriction,
       `-D warnings`).
-- [ ] `mise run deny:check` passes — the rustls trap is not sprung;
+- [x] `mise run deny:check` passes — the rustls trap is not sprung;
       `cargo tree -e features -p launcher` shows no `openssl-sys`/`native-tls`
       and no native-cert crate, and shows `ring` present, `aws-lc-rs` absent
-      (parametrised deny regression test).
-- [ ] `mise run pup:check` passes (no launcher code under `version::core`; the
+      (parametrised deny regression test in
+      `tests/integration/deny/test_launcher_feature_graph.py`).
+- [x] `mise run pup:check` passes (no launcher code under `version::core`; the
       new `launch::core` has its own inward-only rule).
-- [ ] The pinned-MSRV CI leg builds and tests green.
-- [ ] `mise run` exits 0.
+- [~] The pinned-MSRV CI leg builds and tests green. (Added `check-cli-msrv` to
+      `.github/workflows/main.yml`; validated locally as far as possible —
+      `cargo build --workspace --locked` + `deny:check` pass, YAML/actionlint
+      clean, workflow-invariant test green — the leg itself only runs in CI.)
+- [~] `mise run` exits 0. (All cli-affecting component checks pass;
+      full CI-mirror not re-run this phase — changes are confined to `cli/`, one
+      Python test, and CI YAML, which do not touch frontend/server/scripts.)
 
 #### Manual Verification
 
-- [ ] `cargo tree -e features -p launcher` visibly resolves reqwest with rustls
-      only.
-- [ ] `accelerator frobnicate` (fake-resolved to the fixture) propagates a
-      non-zero exit and SIGTERM as expected.
+- [x] `cargo tree -e features -p launcher` visibly resolves reqwest with rustls
+      only. (Automated by the feature-graph regression test.)
+- [x] `accelerator frobnicate` (override-resolved to the fixture) propagates a
+      non-zero exit and SIGTERM as expected. (Automated by the dispatch
+      black-box tests.)
 
 ---
 

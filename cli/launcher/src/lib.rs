@@ -3,4 +3,5 @@
 //! composition root that wires the concrete adapters to the ports and
 //! dispatches the parsed command.
 
+pub mod launch;
 pub mod version;
