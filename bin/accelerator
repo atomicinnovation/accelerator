@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+#
+# bin/accelerator — the plugin's entry point.
+#
+# A thin bootstrap named for the command it fronts: consumers invoke
+# "${CLAUDE_PLUGIN_ROOT}/bin/accelerator <args>". On first use it fetches the
+# real accelerator launcher, verifies its minisign signature against the
+# plugin-committed public key using the vendored per-triple verify shim (the
+# root of trust — a binary cannot verify itself), caches it, and execs it,
+# forwarding all arguments. Thereafter it re-verifies the cached launcher before
+# every exec and reuses it.
+#
+# Fail-closed throughout: any missing prerequisite, fetch failure, or
+# verification failure exits non-zero with a named diagnostic and never execs an
+# unverified binary. Held to the bash 3.2 floor (macOS's system bash): no
+# associative arrays, ${var,,}, or mapfile.
+#
+# Test seams (never set in production): ACCELERATOR_UNAME_S / ACCELERATOR_UNAME_M
+# override host detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER names a stub
+# `downloader <url> <dest>`; ACCELERATOR_RELEASE_BASE_URL / ACCELERATOR_CACHE_DIR
+# are the same overrides the launcher honours.
+set -uo pipefail
+
+fail() {
+	printf 'accelerator: %s\n' "$1" >&2
+	exit 1
+}
+
+# --- Plugin root -----------------------------------------------------------
+[[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] || fail "CLAUDE_PLUGIN_ROOT is not set"
+[[ -d "${CLAUDE_PLUGIN_ROOT}" ]] ||
+	fail "CLAUDE_PLUGIN_ROOT is not a directory: ${CLAUDE_PLUGIN_ROOT}"
+
+# --- Host platform alias ---------------------------------------------------
+# The (uname -s, uname -m) normalisation is single-sourced with the launcher and
+# tasks/shared/targets.py; the cross-language coherence test asserts these arms
+# agree with that oracle so an unnormalised amd64/aarch64 fails a test, not a
+# user's fetch.
+host_arch="${ACCELERATOR_UNAME_M:-$(uname -m)}"
+host_os="${ACCELERATOR_UNAME_S:-$(uname -s)}"
+case "${host_arch}" in
+arm64 | aarch64) arch_alias=arm64 ;;
+x86_64 | amd64) arch_alias=x64 ;;
+*) fail "unsupported architecture: ${host_arch}" ;;
+esac
+case "${host_os}" in
+Darwin) os_alias=darwin ;;
+Linux) os_alias=linux ;;
+*) fail "unsupported operating system: ${host_os}" ;;
+esac
+platform="${os_alias}-${arch_alias}"
+
+# --- Plugin version (pins the release tag) ---------------------------------
+plugin_json="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+[[ -f "${plugin_json}" ]] || fail "plugin.json not found: ${plugin_json}"
+version=$(sed -n \
+	's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${plugin_json}")
+version=${version%%$'\n'*}
+[[ -n "${version}" ]] || fail "could not read version from plugin.json"
+
+# --- Prerequisite fetcher (certificate-verified https; never -k) -----------
+# This is the outermost root-of-trust fetch (it downloads the launcher before any
+# Rust verification exists), so the transport is hardened: https pinned, bounded
+# redirects/size/time, and the certificate check is NEVER disabled. A stub
+# downloader may be injected for hermetic tests.
+if [[ -n "${ACCELERATOR_BOOTSTRAP_DOWNLOADER:-}" ]]; then
+	fetch() { "${ACCELERATOR_BOOTSTRAP_DOWNLOADER}" "$1" "$2"; }
+elif command -v curl >/dev/null 2>&1; then
+	fetch() {
+		curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+			--location --max-redirs 10 --max-filesize 268435456 \
+			--connect-timeout 30 --max-time 300 "$1" -o "$2"
+	}
+elif command -v wget >/dev/null 2>&1; then
+	fetch() {
+		wget --https-only --quiet --max-redirect 10 --timeout 300 \
+			"$1" -O "$2"
+	}
+else
+	fail "need curl or wget on PATH to fetch the launcher"
+fi
+
+# --- Root-of-trust artifacts (shipped in the plugin package) ---------------
+# The per-triple shims are a 0165 deliverable; 0164 builds the host shim only.
+shim_source="${CLAUDE_PLUGIN_ROOT}/bin/accelerator-verify-${platform}"
+[[ -x "${shim_source}" ]] ||
+	fail "verify shim missing for ${platform}: ${shim_source}"
+public_key="${CLAUDE_PLUGIN_ROOT}/keys/accelerator-release.pub"
+[[ -f "${public_key}" ]] || fail "release public key missing: ${public_key}"
+
+# --- Resolve a writable, exec-capable cache directory ----------------------
+# Probes write AND exec (a noexec mount passes a write-only check but breaks
+# exec). No XDG fallback: an XDG-resident binary would break the plugin-root
+# allowed-tools glob match, so the only alternate terminus is
+# ACCELERATOR_CACHE_DIR — mirroring the launcher's cache-root resolution.
+probe_dir() {
+	mkdir -p "$1" 2>/dev/null || return 1
+	probe="$1/.accelerator-probe-$$"
+	printf '#!/bin/sh\nexit 0\n' >"${probe}" 2>/dev/null || return 1
+	chmod +x "${probe}" 2>/dev/null || {
+		rm -f "${probe}"
+		return 1
+	}
+	if "${probe}" >/dev/null 2>&1; then
+		rm -f "${probe}"
+		return 0
+	fi
+	rm -f "${probe}"
+	return 1
+}
+
+resolve_cache_dir() {
+	if [[ -n "${ACCELERATOR_CACHE_DIR:-}" ]]; then
+		probe_dir "${ACCELERATOR_CACHE_DIR}" || return 1
+		printf '%s\n' "${ACCELERATOR_CACHE_DIR}"
+		return 0
+	fi
+	primary="${CLAUDE_PLUGIN_ROOT}/bin"
+	probe_dir "${primary}" || return 1
+	printf '%s\n' "${primary}"
+}
+
+cache_dir=$(resolve_cache_dir) ||
+	fail "no writable, exec-capable cache directory: ${CLAUDE_PLUGIN_ROOT}/bin \
+is not usable and no ACCELERATOR_CACHE_DIR override was given (no XDG fallback)"
+
+# Copy the shim into the exec-capable cache dir — the plugin root may be
+# noexec/read-only, and the shim must run. Its bytes arrive over the trusted
+# marketplace channel, so copying is trust-preserving. Invoked by ABSOLUTE path
+# so a PATH-planted decoy cannot stand in for the root verifier.
+shim="${cache_dir}/accelerator-verify"
+cp "${shim_source}" "${shim}" 2>/dev/null ||
+	fail "could not stage the verify shim into ${cache_dir}"
+chmod +x "${shim}" 2>/dev/null ||
+	fail "could not make the verify shim executable"
+
+# --- Per-target advisory lock (mkdir-based, bash-3.2 safe) -----------------
+# Serialises fetch/verify/rename so two concurrent first-use sessions do not
+# interleave. Released via a trap; a lock orphaned by a SIGKILL'd bootstrap is
+# reclaimed by a PID-owner staleness check so it cannot permanently wedge.
+lock_dir="${cache_dir}/.accelerator-lock-${platform}"
+lock_held=""
+
+release_lock() {
+	[[ -n "${lock_held}" ]] || return 0
+	rm -f "${lock_dir}/pid" 2>/dev/null
+	rmdir "${lock_dir}" 2>/dev/null
+	lock_held=""
+}
+
+acquire_lock() {
+	waited=0
+	while true; do
+		if mkdir "${lock_dir}" 2>/dev/null; then
+			printf '%s\n' "$$" >"${lock_dir}/pid" 2>/dev/null
+			lock_held=1
+			trap release_lock EXIT INT TERM
+			return 0
+		fi
+		# Reclaim a stale lock whose owner is gone (SIGKILL leaves no trap).
+		owner=$(cat "${lock_dir}/pid" 2>/dev/null)
+		if [[ -n "${owner}" ]] && ! kill -0 "${owner}" 2>/dev/null; then
+			rm -f "${lock_dir}/pid" 2>/dev/null
+			rmdir "${lock_dir}" 2>/dev/null
+			continue
+		fi
+		waited=$((waited + 1))
+		if [[ "${waited}" -gt 300 ]]; then
+			fail "timed out acquiring the launcher cache lock: ${lock_dir}"
+		fi
+		sleep 0.1
+	done
+}
+
+# --- Launcher cache (keyed by version + platform) --------------------------
+launcher="${cache_dir}/accelerator-launcher-${version}-${platform}"
+launcher_sig="${launcher}.minisig"
+base_url="${ACCELERATOR_RELEASE_BASE_URL:-https://github.com/atomicinnovation/accelerator/releases/download/v${version}}"
+
+verify_launcher() {
+	# Fail-closed: a non-zero shim exit (bad signature) OR an unrunnable shim
+	# both mean "not verified".
+	"${shim}" "${public_key}" "${launcher_sig}" "${launcher}" >/dev/null 2>&1
+}
+
+# Replace-in-place self-heal: fetch + verify into temp files, and only rename a
+# verified successor over any corrupt entry — a working launcher is never evicted
+# before a verified replacement exists.
+fetch_and_verify() {
+	tmp_bin="${cache_dir}/.tmp-launcher-$$"
+	tmp_sig="${tmp_bin}.minisig"
+	if ! fetch "${base_url}/accelerator-${platform}" "${tmp_bin}"; then
+		rm -f "${tmp_bin}"
+		return 1
+	fi
+	if ! fetch "${base_url}/accelerator-${platform}.minisig" "${tmp_sig}"; then
+		rm -f "${tmp_bin}" "${tmp_sig}"
+		return 1
+	fi
+	chmod +x "${tmp_bin}" 2>/dev/null
+	# The minisign signature is the integrity AND authenticity check — a
+	# corrupted or tampered download fails it. Verified in temp files; only
+	# fully-verified bytes are atomically renamed into the final cache name.
+	if ! "${shim}" "${public_key}" "${tmp_sig}" "${tmp_bin}" \
+		>/dev/null 2>&1; then
+		rm -f "${tmp_bin}" "${tmp_sig}"
+		return 1
+	fi
+	mv "${tmp_sig}" "${launcher_sig}" && mv "${tmp_bin}" "${launcher}"
+}
+
+if [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] && verify_launcher; then
+	: # cache hit, re-verified — reuse without a lock or fetch
+else
+	acquire_lock
+	# Re-check under the lock: another session may have populated the cache
+	# while we waited.
+	if ! { [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] &&
+		verify_launcher; }; then
+		fetch_and_verify ||
+			fail "could not fetch and verify the accelerator launcher for \
+${platform}"
+	fi
+	release_lock
+fi
+
+# exec (process-replacing) with an argv list — no derived value is interpolated
+# into a shell command. CLAUDE_PLUGIN_ROOT stays in the environment so the
+# launcher resolves the same cache root for its sub-binaries.
+exec "${launcher}" "$@"

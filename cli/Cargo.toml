@@ -5,7 +5,7 @@
 # in CI, not at a user's first fetch.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel"]
+members = ["launcher", "kernel", "verify"]
 
 [workspace.package]
 # Kept coherent with plugin.json / server Cargo.toml / checksums.json by

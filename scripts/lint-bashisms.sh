@@ -29,6 +29,10 @@ else
     esac
     [ -f "$REPO_ROOT/$f" ] && files+=("$REPO_ROOT/$f")
   done < <(cd "$REPO_ROOT" && git ls-files '*.sh')
+  # Extensionless shell entrypoints the `*.sh` glob never matches. bin/accelerator
+  # is the most platform-sensitive script in the tree (the bootstrap), so it must
+  # not silently escape the bash-3.2 floor.
+  [ -f "$REPO_ROOT/bin/accelerator" ] && files+=("$REPO_ROOT/bin/accelerator")
 fi
 
 [ "${#files[@]}" -eq 0 ] && exit 0

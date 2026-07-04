@@ -966,46 +966,56 @@ rather than reaching users.
 
 #### Automated Verification
 
-- [ ] `mise run scripts:check` passes (shfmt + ShellCheck + bashisms) with
+- [x] `mise run scripts:check` passes (shfmt + ShellCheck + bashisms) with
       `bin/accelerator` added to **both** discovery mechanisms
       (`_EXTRA_SHELL_SOURCES` and `lint-bashisms.sh`'s own file list) — a test
       asserts it is covered by all three tools independently.
-- [ ] `bash scripts/test-accelerator-entrypoint.sh` (new standalone suite)
-      passes **hermetically** (fetch stubbed via an overridable downloader or a
-      pre-seeded cache; no network): host-triple detection driven by **injected
-      `uname -m`/`uname -s` covering all four alias combinations** (`arm64`,
-      `aarch64`, `x86_64`, `amd64` × darwin, linux), so the `case` normalisation
-      is validated without the hardware; cache-present short-circuit (no fetch);
-      a pre-seeded **tampered** cached launcher refused fail-closed (cache-hit
-      re-verify, not exec'd); a launcher-signature failure → fail-closed named
-      error; a **validly-signed-but-stale launcher** (valid `.minisig`, wrong
-      version/sha256 vs the verified manifest) refused fail-closed (anti-replay,
-      mirroring the Rust anti-rollback test); the **verify shim unrunnable →
-      fail-closed named error** (no silent TLS-only downgrade); a read-only/noexec
-      plugin root **with `ACCELERATOR_CACHE_DIR` set** → shim+launcher copied to
-      that writable+exec root and run, and **without an override → named error**
-      (no XDG fallback); a **`PATH`-planted decoy named like the shim is not
-      used** (absolute-path invocation); **two concurrent bootstraps** do not
-      corrupt the cache (deterministically interleaved via a blocking stub
-      downloader that holds inside the critical section until the second process
-      is confirmed waiting on the lock — not a `sleep`); a **lock orphaned by an
-      exited process is reacquirable** (stale-lock reclaim, not a permanent
-      wedge); a **stalled fetch** yields a bounded named error (not a hang) and a
-      **non-https redirect is refused**; unset/invalid `CLAUDE_PLUGIN_ROOT` →
-      named error; argument/exit-code forwarding.
-- [ ] `mise run test:unit:cli` passes: the **shim black-box tests** run against
+- [x] `bash scripts/test-accelerator-entrypoint.sh` (new standalone suite,
+      auto-discovered by `test:integration:config`) passes **hermetically**
+      (fetch stubbed via an overridable downloader; no network): host-triple
+      detection driven by **injected `uname -m`/`uname -s` covering all four alias
+      combinations**; cache-present short-circuit (no fetch); a **tampered**
+      cached launcher refused fail-closed and healed; a launcher-signature failure
+      → fail-closed named error; the **verify shim unrunnable → fail-closed named
+      error** (no silent TLS-only downgrade); a read-only plugin root **with
+      `ACCELERATOR_CACHE_DIR`** → shim+launcher run from that root, and **without
+      an override → named error** (no XDG); a **lock orphaned by an exited process
+      is reclaimed**; unset `CLAUDE_PLUGIN_ROOT` → named error;
+      argument/exit-code forwarding. **Deferred within Phase 4: the
+      `PATH`-planted-decoy assertion (mitigated by construction — the shim is
+      invoked by absolute path from the resolved cache root), the
+      validly-signed-but-stale anti-replay (the bootstrap verifies the launcher
+      signature against the committed key but does not yet bind manifest
+      freshness — that needs a launcher entry in the manifest and JSON parsing in
+      bash; tracked as a follow-on), the injected-barrier concurrent-bootstraps
+      test, and the stalled-fetch/non-https-redirect assertions (the hardened
+      `curl`/`wget` flags pin https + bounded time, but are not exercised by an
+      explicit stub).**
+- [x] `mise run test:unit:cli` passes: the **shim black-box tests** run against
       the real compiled shim (valid → 0, tampered → non-zero, non-release-key →
       non-zero).
-- [ ] `mise run cli:check` / `mise run deny:check` / `mise run pup:check` pass
+- [x] `mise run cli:check` / `mise run deny:check` / `mise run pup:check` pass
       (the shim crate does not trip layering/ban rules).
-- [ ] `mise run` exits 0.
+- [~] `mise run` exits 0. (All cli/scripts/build-system component checks + the
+      affected test suites pass; full CI mirror not re-run this phase.)
 
 #### Manual Verification
 
-- [ ] On a clean machine with no cached binary, invoking
-      `${CLAUDE_PLUGIN_ROOT}/bin/accelerator version` (against a host-built,
-      fixture-signed launcher) fetches, verifies, caches, and runs the launcher's
-      `version` output.
+- [~] On a clean machine with no cached binary, invoking
+      `${CLAUDE_PLUGIN_ROOT}/bin/accelerator version` fetches, verifies, caches,
+      and runs the launcher — the hermetic suite exercises this end-to-end
+      (fetch→verify→cache→exec with a fixture-signed launcher and the real shim);
+      a genuinely clean machine against a live release is a 0165 step.
+
+**Deviation from Decisions §5 (embedded fixture key + test-only feature):** the
+hermetic resolution/bootstrap tests **inject** freshly-generated keys via config
+rather than relying on an embedded fixture key, so no fixture-key cargo feature
+is needed — the launcher always embeds the single committed release key
+(`keys/accelerator-release.pub`, a placeholder 0165 replaces), and a fixture key
+can never reach a release build **by construction**. The Phase 4 byte-identity
+guard (launcher-embedded key ≡ bootstrap-shipped key) holds because `build.rs`
+single-sources that one committed file. The per-triple shims and their
+reproducible byte-identity remain a 0165 deliverable (0164 builds the host shim).
 
 ---
 

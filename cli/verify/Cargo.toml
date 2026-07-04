@@ -1,0 +1,22 @@
+[package]
+# The bootstrap's root-of-trust verifier: a tiny, statically-linked CLI wrapping
+# minisign-verify. Tooling, not a subdomain — it stays out of the pup layering
+# rules and does not activate the deny cross-crate ban-lists. It inherits the
+# workspace version so the version-coherence guard stays green (its own version
+# carries no meaning — the launcher crate is version-bearing).
+name = "accelerator-verify"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-verify"
+path = "src/main.rs"
+
+[dependencies]
+minisign-verify = { workspace = true }
