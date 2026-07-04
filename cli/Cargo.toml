@@ -8,7 +8,11 @@ resolver = "3"
 members = ["launcher", "kernel"]
 
 [workspace.package]
-version = "1.24.0-pre.2"
+# Kept coherent with plugin.json / server Cargo.toml / checksums.json by
+# tasks/version.py; the launcher's anti-rollback check compares the signed
+# manifest's version against this compiled CARGO_PKG_VERSION, so a drift here
+# would make production refuse every legitimately-signed manifest.
+version = "1.24.0-pre.7"
 edition = "2021"
 # The MSRV floor, hand-synced with the mise.toml rust pin and cli/clippy.toml.
 rust-version = "1.90.0"

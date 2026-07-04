@@ -192,6 +192,13 @@ url = "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_darwi
 checksum = "sha256:6feedafc72915794163114f512348e2437d080d0047ef8b8fa2ec63b575f12af"
 url = "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_darwin_amd64"
 
+[[tools."ubi:jedisct1/minisign"]]
+version = "0.12"
+backend = "ubi:jedisct1/minisign"
+
+[tools."ubi:jedisct1/minisign".options]
+exe = "minisign"
+
 [[tools.uv]]
 version = "0.11.6"
 backend = "aqua:astral-sh/uv"

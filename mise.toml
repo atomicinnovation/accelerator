@@ -26,6 +26,10 @@ jq = "1.7.1"
 # runners.
 "aqua:nextest-rs/nextest/cargo-nextest" = "0.9.138"
 "aqua:taiki-e/cargo-llvm-cov" = "0.8.7"
+# minisign via ubi (direct GitHub-release binary): the launcher's hermetic
+# resolution tests sign fixtures with it, and the release keypair is generated
+# with it. Exact pin, matching the tool-pin discipline above.
+"ubi:jedisct1/minisign[exe=minisign]" = "0.12"
 
 [settings]
 experimental = true

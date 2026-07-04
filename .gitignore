@@ -27,3 +27,8 @@ skills/visualisation/visualise/frontend/node_modules/
 skills/visualisation/visualise/server/target/
 workspaces/
 node_modules/
+
+# minisign secret keys must never be committed — the release secret lives in
+# the GitHub release environment; only public keys are tracked.
+*.key
+/keys/*.sec

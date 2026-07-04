@@ -1,7 +1,7 @@
 //! Outbound (driven) adapters for the launcher shell.
 
 pub mod exec;
-pub mod resolver;
+pub mod resolve;
 pub mod tls;
 
 use std::ffi::{OsStr, OsString};
