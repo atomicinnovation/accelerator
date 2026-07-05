@@ -167,6 +167,11 @@ description = "Run unified dev task integration tests (real circusd + Python fak
 depends = ["deps:install:python"]
 run = "invoke test.integration.dev"
 
+[tasks."test:integration:entrypoint"]
+description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisign + verify shim)"
+depends = ["deps:install:python"]
+run = "invoke test.integration.entrypoint"
+
 [tasks."test:integration:config"]
 description = "Run config integration tests"
 run = "invoke test.integration.config"
@@ -215,6 +220,7 @@ description = "Run all integration tests in parallel"
 depends = [
     "test:integration:visualiser",
     "test:integration:dev",
+    "test:integration:entrypoint",
     "test:integration:config",
     "test:integration:deny",
     "test:integration:decisions",

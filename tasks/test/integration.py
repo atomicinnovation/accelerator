@@ -60,6 +60,16 @@ def dev(context: Context) -> None:
 
 
 @task
+def entrypoint(context: Context) -> None:
+    """Hermetic tests for the bin/accelerator plugin entry point.
+
+    Exercises the bootstrap end-to-end against a stubbed downloader and real
+    minisign signatures verified by the real accelerator-verify shim.
+    """
+    context.run("uv run pytest tests/integration/entrypoint -v")
+
+
+@task
 def deny(context: Context) -> None:
     """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""
     context.run("uv run pytest tests/integration/deny -v")
