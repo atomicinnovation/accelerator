@@ -18,11 +18,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use common::{MockServer, Route};
 
-use launcher::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
-use launcher::launch::outbound::resolve::fetcher::Fetcher;
-use launcher::launch::outbound::resolve::keys::TrustedKeys;
-use launcher::launch::outbound::resolve::verifier::sha256_hex;
-use launcher::launch::outbound::resolve::{
+use accelerator::launch::core::{
+    ExternalCommand, ResolutionError, ResolveBinary,
+};
+use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::verifier::sha256_hex;
+use accelerator::launch::outbound::resolve::{
     FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
 

@@ -47,7 +47,7 @@ def _feature_tree() -> str:
     if _CARGO is None:
         pytest.skip("cargo not on PATH")
     result = subprocess.run(
-        ["cargo", "tree", "-e", "features", "-p", "launcher"],
+        ["cargo", "tree", "-e", "features", "-p", "accelerator"],
         cwd=_CLI,
         capture_output=True,
         text=True,

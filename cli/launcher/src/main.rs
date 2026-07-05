@@ -9,21 +9,25 @@ use std::process::ExitCode;
 use clap::error::ErrorKind;
 use clap::{CommandFactory as _, Parser as _};
 
-use launcher::launch::core::{ExternalCommand, ResolutionError, ResolveBinary};
-use launcher::launch::dispatch;
-use launcher::launch::help::external_subcommands_section;
-use launcher::launch::inbound::cli::Cli;
-use launcher::launch::outbound::exec::UnixExec;
-use launcher::launch::outbound::override_path;
-use launcher::launch::outbound::resolve::cache_root::{self, CacheRootConfig};
-use launcher::launch::outbound::resolve::fetcher::Fetcher;
-use launcher::launch::outbound::resolve::keys::TrustedKeys;
-use launcher::launch::outbound::resolve::{
+use accelerator::launch::core::{
+    ExternalCommand, ResolutionError, ResolveBinary,
+};
+use accelerator::launch::dispatch;
+use accelerator::launch::help::external_subcommands_section;
+use accelerator::launch::inbound::cli::Cli;
+use accelerator::launch::outbound::exec::UnixExec;
+use accelerator::launch::outbound::override_path;
+use accelerator::launch::outbound::resolve::cache_root::{
+    self, CacheRootConfig,
+};
+use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::{
     FetchVerifyCacheResolver, ResolverConfig,
 };
-use launcher::launch::outbound::tls::install_crypto_provider;
-use launcher::version::core::VersionReporter;
-use launcher::version::outbound::build_metadata::VergenBuildMetadata;
+use accelerator::launch::outbound::tls::install_crypto_provider;
+use accelerator::version::core::VersionReporter;
+use accelerator::version::outbound::build_metadata::VergenBuildMetadata;
 
 /// The release-download base URL the real resolver fetches from, pinned to the
 /// plugin's own `v{version}` tag. Overridable by `ACCELERATOR_RELEASE_BASE_URL`

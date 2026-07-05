@@ -9,7 +9,7 @@
     lints: [
         Module((
             name: "version_core_imports_only_permitted",
-            matches: Module("^launcher::version::core($|::)"),
+            matches: Module("^accelerator::version::core($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: Some([
@@ -24,7 +24,7 @@
         )),
         Module((
             name: "launch_core_imports_only_permitted",
-            matches: Module("^launcher::launch::core($|::)"),
+            matches: Module("^accelerator::launch::core($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: Some([

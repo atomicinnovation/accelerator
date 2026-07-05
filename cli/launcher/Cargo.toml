@@ -1,5 +1,8 @@
 [package]
-name = "launcher"
+# The crate/package is `accelerator` (the product name); it lives in the
+# `launcher/` directory (the workspace member path stays `launcher`, mirroring
+# the reference layout). The lib crate and the `accelerator` bin share the name.
+name = "accelerator"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
