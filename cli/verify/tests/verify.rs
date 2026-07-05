@@ -1,11 +1,6 @@
-//! Black-box tests of the compiled `accelerator-verify` shim — the most
-//! trust-critical node, so it is tested directly against the real minisign CLI.
-//!
-//! Skips cleanly when `minisign` is not on PATH (present under
-//! `mise run test:unit:cli`).
+//! Black-box tests of the compiled `accelerator-verify` shim against the real
+//! minisign CLI. Skips cleanly when `minisign` is not on PATH.
 
-// Test harness: expect/unwrap in the keygen/signing helpers is the bounded
-// test-scaffolding exemption; test bodies return Result + assert.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::error::Error;
@@ -122,7 +117,6 @@ fn exits_nonzero_on_a_non_release_key() -> Result<(), Box<dyn Error>> {
     std::fs::write(&target, b"launcher bytes")?;
     let signature = sign(&minisign, &attacker_secret, &target);
 
-    // Signed by attacker, verified against the release key → refused.
     let status = Command::new(SHIM)
         .arg(&release_public)
         .arg(&signature)

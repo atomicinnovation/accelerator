@@ -1,5 +1,1 @@
-# lint levels live in [workspace.lints] in Cargo.toml; this file is config only.
-# msrv is a hand-synced mirror of the mise.toml rust pin and the
-# [workspace.package].rust-version in Cargo.toml — keep all three in lockstep on
-# any rust bump, so clippy never suggests an API newer than the MSRV floor.
 msrv = "1.90.0"

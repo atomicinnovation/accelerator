@@ -1,11 +1,8 @@
-"""The 0164/0165 manifest contract and cross-language alias coherence.
+"""The manifest contract and cross-language platform-alias coherence.
 
-The signed `manifest.json` is the distribution contract both the launcher (Rust
-reader) and the 0165 signer (Python writer) depend on. These tests pin the
-shared golden fixture + JSON schema and assert the platform-alias tables agree
-across `tasks/shared/targets.py`, the launcher's `HOST_PLATFORM` cfg block, and
-the schema — so cross-language drift is a failing test here, not a
-first-production-release failure.
+Pins the shared golden fixture + JSON schema and asserts the platform-alias
+tables agree across targets.py, the launcher's HOST_PLATFORM cfg, and the
+schema.
 """
 
 import json
@@ -62,16 +59,13 @@ def test_golden_schema_version_matches_the_launcher() -> None:
 
 def test_uname_table_covers_exactly_the_alias_set() -> None:
     assert set(UNAME_TO_ALIAS.values()) == set(ALIASES)
-    # Both machine spellings for each arch, both OSes.
     for os_name in ("darwin", "linux"):
         for machine in ("arm64", "aarch64", "x86_64", "amd64"):
             assert (os_name, machine) in UNAME_TO_ALIAS
 
 
 def test_launcher_host_platform_literals_match_the_alias_set() -> None:
-    # The launcher's HOST_PLATFORM is a compile-time cfg with one arm per alias;
-    # grep the four string literals and assert they equal the oracle, so a hand
-    # edit that drops or renames an arm fails here.
+    # HOST_PLATFORM is a compile-time cfg; grep its string literals.
     literals = set(
         re.findall(
             r'HOST_PLATFORM:\s*&str\s*=\s*"([^"]+)"', _RESOLVE_RS.read_text()

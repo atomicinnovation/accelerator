@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/atomicinnovation/accelerator/contracts/manifest.schema.json",
   "title": "Accelerator release manifest",
-  "description": "The signed distribution contract between the 0165 signer (emits manifest.json + manifest.minisig) and the launcher/bootstrap readers. schema_version gates breaking shape changes; version is checked for exact equality against the launcher's own CARGO_PKG_VERSION (anti-rollback). Additive unknown fields are tolerated by the reader.",
+  "description": "The signed distribution contract between the release signer (emitting manifest.json + manifest.minisig) and the launcher/bootstrap readers. schema_version gates breaking shape changes; version is checked for exact equality against the launcher's own CARGO_PKG_VERSION (anti-rollback). Additive unknown fields are tolerated by the reader.",
   "type": "object",
   "required": ["schema_version", "version", "binaries"],
   "properties": {

@@ -10,12 +10,7 @@ _BASE = (
 
 @task
 def check(context: Context) -> None:
-    """Lint the cli/ workspace with clippy (workspace-wide, -D warnings).
-
-    `--locked` asserts Cargo.lock is coherent (no stale/absent entries) on every
-    read-only check, so a lock left out of sync with the manifests fails here
-    rather than at a downstream `--locked` build.
-    """
+    """Lint the cli/ workspace with clippy (-D warnings, --locked)."""
     result = context.run(
         f"{_BASE} --locked -- -D warnings", warn=True, pty=False
     )

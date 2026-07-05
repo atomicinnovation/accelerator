@@ -1,13 +1,6 @@
-"""The Rust MSRV must be one number, declared coherently in three places.
-
-The cli workspace's MSRV floor is hand-duplicated across `mise.toml` (the
-toolchain every CI job provisions), `cli/Cargo.toml` (`rust-version`, which
-drives resolver-3 MSRV-aware selection), and `cli/clippy.toml` (`msrv`, which
-stops clippy suggesting newer-than-MSRV APIs). If they drift — e.g. a mise rust
-bump not mirrored into the declared MSRV — CI would silently move off the
-floor and a user on the declared MSRV could hit a break. This test catches that
-divergence directly, which is why the redundant full `check-cli-msrv` compile
-leg was dropped in favour of it.
+"""The Rust MSRV, hand-duplicated across mise.toml, cli/Cargo.toml, and
+cli/clippy.toml, must agree — a bump to one that misses the others would move CI
+off the floor a user still builds against.
 """
 
 import tomllib

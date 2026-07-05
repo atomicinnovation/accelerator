@@ -1,10 +1,6 @@
-//! A minimal hand-rolled HTTP/1.1 mock server for the resolution tests.
-//!
-//! Std-only (no async runtime, no HTTP dev-dep — keeping cargo-deny's dev-dep
-//! scan TLS-free). Serves fixed per-path responses, counts hits, and supports
-//! 404/5xx/redirect shapes.
+//! A minimal std-only HTTP/1.1 mock server for the resolution tests: fixed
+//! per-path responses, hit counts, and 404/5xx/redirect/stall shapes.
 
-// Test-infrastructure module: expect/unwrap and format!-into-String are allowed.
 #![allow(
     dead_code,
     clippy::expect_used,

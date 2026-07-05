@@ -9,29 +9,20 @@ use std::path::PathBuf;
 
 use crate::launch::core::{derive_override_var, ResolutionError};
 
-/// Resolve the `ACCELERATOR_<SUB>_BIN` offline/air-gapped override for a
-/// subcommand, if one is set — reading the real process environment.
+/// The `ACCELERATOR_<SUB>_BIN` offline override for a subcommand, if set.
 ///
-/// This is the escape hatch honoured by every resolver *before* any fetch: for
-/// subcommand `<sub>`, if the derived variable names a non-empty path, that path
-/// is returned verbatim with no fetch and no checksum. Trusted-as-the-invoking
-/// user by design — anyone who can set the launcher's environment can already run
-/// arbitrary code as that user — so an active override is logged at `info`.
-///
-/// A non-UTF-8 subcommand name cannot derive a variable, so it yields `None`
-/// (and normal resolution then reports it unresolved).
+/// Honoured before any fetch, returning the path unverified (trusted as the
+/// invoking user). A non-UTF-8 name yields `None`.
 ///
 /// # Errors
 ///
-/// [`ResolutionError::InvalidOverrideName`] if the name cannot derive a valid,
-/// collision-free variable.
+/// [`ResolutionError::InvalidOverrideName`] if the name cannot derive a valid
+/// variable.
 pub fn override_path(name: &OsStr) -> Result<Option<PathBuf>, ResolutionError> {
     override_path_from(name, |var| std::env::var_os(var))
 }
 
-/// The pure core of [`override_path`], with the environment lookup injected so
-/// the derivation + selection is unit-testable in-process (no real env, no
-/// races under threaded test runners).
+/// [`override_path`] with the environment lookup injected for in-process tests.
 fn override_path_from(
     name: &OsStr,
     lookup: impl Fn(&str) -> Option<OsString>,
@@ -91,8 +82,6 @@ mod tests {
 
     #[test]
     fn an_ineligible_name_is_a_named_error_even_with_a_set_lookup() {
-        // A lookup that would return a path is ignored: the eligibility guard
-        // fails closed before the variable is ever consulted.
         let resolved = override_path_from(OsStr::new("9lives"), |_| {
             Some(OsString::from("/should/not/be/used"))
         });

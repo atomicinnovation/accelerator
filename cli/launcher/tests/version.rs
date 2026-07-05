@@ -18,8 +18,7 @@ const UNKNOWN: &str = "unknown";
 fn run(args: &[&str], env: &[(&str, &str)]) -> Result<Output, Box<dyn Error>> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.env_remove("ACCELERATOR_LOG");
-    // Make external-dispatch tests hermetic w.r.t. the host: no inherited plugin
-    // root, cache override, or release base URL leaks into resolution.
+    // Hermetic: no inherited plugin root, cache override, or release URL.
     command.env_remove("CLAUDE_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
@@ -167,12 +166,9 @@ fn a_malformed_filter_exits_non_zero() -> Result<(), Box<dyn Error>> {
 #[test]
 fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
 ) -> Result<(), Box<dyn Error>> {
-    // With `external_subcommand`, an unknown subcommand no longer trips clap's
-    // hard rejection — it routes to resolution. With no override and no plugin
-    // root, resolution fails closed at the cache-root step (before any network)
-    // and the launcher exits non-zero with that named diagnostic — never a panic
-    // or silent success. The subcommand-naming failure modes (asset-not-found,
-    // release-unavailable) are covered hermetically in `resolution.rs`.
+    // With no override and no plugin root, resolution fails closed at the
+    // cache-root step (before any network); the subcommand-naming failure modes
+    // are covered in resolution.rs.
     let output = run(&["definitely-not-a-command"], &[])?;
     assert!(
         !output.status.success(),

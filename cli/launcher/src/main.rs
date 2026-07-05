@@ -29,9 +29,8 @@ use accelerator::launch::outbound::tls::install_crypto_provider;
 use accelerator::version::core::VersionReporter;
 use accelerator::version::outbound::build_metadata::VergenBuildMetadata;
 
-/// The release-download base URL the real resolver fetches from, pinned to the
-/// plugin's own `v{version}` tag. Overridable by `ACCELERATOR_RELEASE_BASE_URL`
-/// (the hermetic tests point it at a local mock server).
+/// The release-download base URL, pinned to the `v{version}` tag and overridable
+/// by `ACCELERATOR_RELEASE_BASE_URL`.
 fn release_base_url() -> String {
     if let Some(override_url) = std::env::var_os("ACCELERATOR_RELEASE_BASE_URL")
     {
@@ -43,10 +42,8 @@ fn release_base_url() -> String {
     )
 }
 
-/// Resolves external subcommands: the `ACCELERATOR_<SUB>_BIN` override first
-/// (air-gapped escape hatch, no cache root or network needed), else the real
-/// fetch → verify → cache resolver, built lazily so a built-in like `version`
-/// never touches the cache root, TLS, or the network.
+/// The override first, else the real resolver built lazily so built-ins never
+/// touch the cache root, TLS, or the network.
 struct LazyProductionResolver;
 
 impl ResolveBinary for LazyProductionResolver {
@@ -64,11 +61,8 @@ impl ResolveBinary for LazyProductionResolver {
     }
 }
 
-/// Load the manifest and build the external-subcommands help section.
-///
-/// Best-effort and offline-tolerant: any failure (no network, no manifest, a
-/// bad key) yields `None`, so `--help` still prints the built-in help rather
-/// than erroring. No cache root is touched — help only reads the manifest.
+/// The external-subcommands help section, or `None` on any failure so `--help`
+/// still prints the built-in help. Reads only the manifest, no cache root.
 fn help_section() -> Option<String> {
     let keys = TrustedKeys::embedded().ok()?;
     let fetcher = Fetcher::new().ok()?;
@@ -103,9 +97,8 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    // try_parse (not parse) so top-level `--help` can be intercepted and
-    // augmented with the manifest-driven external-subcommands section; a
-    // `foo --help` routes to External and is delegated to the child instead.
+    // try_parse so top-level `--help` can be intercepted and augmented; a
+    // `foo --help` routes to External and is delegated to the child.
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) if error.kind() == ErrorKind::DisplayHelp => {

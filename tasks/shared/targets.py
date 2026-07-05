@@ -5,16 +5,10 @@ TARGETS = (
     ("x86_64-unknown-linux-musl", "linux-x64"),
 )
 
-# The four platform aliases, single-sourced from TARGETS.
 ALIASES = tuple(alias for _triple, alias in TARGETS)
 
-# Canonical `uname`-input → platform-alias mapping. `targets.py`'s TARGETS maps
-# Rust triples → aliases; this maps the (uname -s, uname -m) spellings the
-# launcher (HOST_PLATFORM cfg) and the bootstrap (`case` arms) must both
-# normalise. It is the oracle the cross-language coherence test asserts those
-# two tables against, so a bootstrap arm that fails to normalise amd64/aarch64
-# fails the test rather than 404-ing on a user's host. Keys are (os, machine)
-# with `os` lowercased from `uname -s` and `machine` the raw `uname -m`.
+# (uname -s lowercased, uname -m) -> platform alias. The launcher and bootstrap
+# normalise the same spellings; the coherence test asserts all three agree.
 UNAME_TO_ALIAS = {
     ("darwin", "arm64"): "darwin-arm64",
     ("darwin", "aarch64"): "darwin-arm64",

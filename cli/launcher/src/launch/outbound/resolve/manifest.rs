@@ -1,11 +1,6 @@
-//! The release manifest — the launcher's signed read contract.
-//!
-//! Deserialised leniently (unknown additive fields ignored) under "no launcher
-//! self-update", but the `schema_version` is gated *first* via a minimal,
-//! version-stable envelope so a breaking future schema yields a clear
-//! "unsupported `schema_version`" diagnostic rather than a misleading parse
-//! error,
-//! and the `version` is checked for exact equality (anti-rollback).
+//! The launcher's signed read contract. Unknown additive fields are ignored,
+//! but `schema_version` is gated first (via a minimal envelope) and `version` is
+//! checked for exact equality (anti-rollback).
 
 use std::collections::BTreeMap;
 
@@ -13,20 +8,16 @@ use serde::Deserialize;
 
 use crate::launch::core::ResolutionError;
 
-/// The manifest schema the launcher understands. Bumped only on a breaking
-/// shape change; kept coherent with the shared contract artifact and the 0165
-/// signer.
+/// The manifest schema the launcher understands; bumped only on a breaking shape
+/// change.
 pub const SUPPORTED_SCHEMA_VERSION: u64 = 1;
 
-/// The all-zeros sentinel meaning "no binary published for this version". Pinned
-/// as bare 64-char zero hex in the shared contract; a `sha256:`-prefixed form is
-/// also treated as the sentinel (matching the strip-if-present tolerance).
+/// The all-zeros digest meaning "no binary published for this version".
 const SENTINEL_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
-/// The minimal, version-stable outer envelope: only the fields that must be
-/// readable across *every* schema version, so the schema gate can run before the
-/// rest of the (possibly reshaped) document is parsed.
+/// The version-stable subset readable across every schema, so the schema gate
+/// can run before the rest of the document is parsed.
 #[derive(Debug, Deserialize)]
 struct SchemaEnvelope {
     schema_version: u64,
@@ -55,15 +46,12 @@ pub struct PlatformEntry {
 }
 
 impl PlatformEntry {
-    /// The bare lowercase-hex sha256, tolerating a `sha256:` prefix — the shared
-    /// Python hashing path returns bare hex while the legacy `checksums.json`
-    /// writer prefixes it, so the reader accepts both rather than silently
-    /// failing verification on a prefixed digest.
+    /// The bare lowercase-hex sha256, tolerating an optional `sha256:` prefix.
     ///
     /// # Errors
     ///
     /// [`ResolutionError::AssetNotFound`] if the digest is the all-zeros
-    /// "no binary for this version" sentinel (never a real hash).
+    /// sentinel.
     pub fn bare_sha256(&self, asset: &str) -> Result<&str, ResolutionError> {
         let bare = self.sha256.strip_prefix("sha256:").unwrap_or(&self.sha256);
         if bare == SENTINEL_SHA256 {
@@ -78,9 +66,8 @@ impl PlatformEntry {
 }
 
 impl Manifest {
-    /// Parse the schema envelope and gate the schema version, then parse the
-    /// full document and gate the version. The caller MUST have verified the
-    /// manifest signature over the raw bytes before calling.
+    /// Gate the schema version (via the envelope) then the version. The caller
+    /// must have verified the manifest signature over the raw bytes first.
     ///
     /// # Errors
     ///
@@ -91,9 +78,7 @@ impl Manifest {
         bytes: &[u8],
         expected_version: &str,
     ) -> Result<Self, ResolutionError> {
-        // Gate the schema version FIRST, from the minimal envelope, so an
-        // unrecognised higher major yields a clear diagnostic even if the rest
-        // of the document reshaped under it.
+        // Gate the schema version before parsing the (possibly reshaped) rest.
         let envelope: SchemaEnvelope =
             serde_json::from_slice(bytes).map_err(|error| {
                 ResolutionError::Cache {
@@ -145,18 +130,14 @@ mod tests {
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    /// The shared golden contract fixture (Decisions §6), also validated
-    /// structurally by the Python contract test — the two readers of the
-    /// publisher↔launcher contract cannot silently diverge.
+    // The shared golden contract fixture, also validated by the Python test.
     const GOLDEN: &str =
         include_str!("../../../../tests/fixtures/manifest.example.json");
 
     #[test]
     fn parses_the_shared_golden_contract_fixture() -> Result<(), Box<dyn Error>>
     {
-        // Parse with the fixture's OWN declared version so a plugin version bump
-        // (which does not touch this contract fixture) cannot drift it into the
-        // anti-rollback mismatch path — the fixture is a shape contract.
+        // Parse with the fixture's own version so a plugin bump can't drift it.
         let value: serde_json::Value = serde_json::from_str(GOLDEN)?;
         let version = value["version"].as_str().ok_or("no version")?;
         let manifest =

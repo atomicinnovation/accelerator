@@ -1,8 +1,4 @@
-//! The inbound (driving) adapter for `version` — renders the [`VersionReport`]
-//! and drives the inbound port.
-//!
-//! No domain logic, and no CLI parsing: the command tree lives in
-//! `launch::inbound::cli`; this owns only `version`.
+//! The inbound adapter for `version`: renders the report, drives the port.
 
 use crate::version::core::{ReportVersion, VersionReport};
 

@@ -1,22 +1,10 @@
 """Regression: the launcher's resolved feature graph is rustls/ring-only.
 
-`cli/deny.toml` bans native-tls/openssl by crate name, but that alone does not
-prove the launcher selected the *right* TLS + crypto + DNS features. This
-asserts the shape of the real `cli/launcher` dependency graph via
-`cargo tree -e features`:
-
-- `ring` is present and `aws-lc-rs` is absent — the crypto provider is the
-  pure-Rust one the cross-build (0165) needs, not the C/asm one.
-- `hickory-resolver` is present *by crate name* (not the reqwest feature label),
-  so a silent feature rename that dropped back to `getaddrinfo` is caught
-  structurally.
-- no native-tls/openssl(-sys) and no host-cert-store crate
-  (`rustls-native-certs`/`security-framework`) enters the tree — the static
-  binary carries bundled webpki-roots and reads no host state.
-
-This proves the crates are *selected* in the graph, not that they link
-statically or resolve DNS on musl — the four-triple build (0165) is the sole
-authority for that.
+deny.toml bans native-tls/openssl by name; this asserts the *feature* graph via
+`cargo tree`: ring present / aws-lc-rs absent, hickory-resolver present by crate
+name (so a feature rename back to getaddrinfo is caught), and no
+native-tls/openssl or host-cert-store crate. Selection only — the four-triple
+build is the authority for static linking and musl DNS.
 """
 
 import re
@@ -58,9 +46,8 @@ def _feature_tree() -> str:
 
 
 def _node_present(tree: str, crate: str) -> bool:
-    # A crate node renders as "<drawing chars> <crate> v<version>"; the
-    # negative lookbehind stops `ring` matching inside another name and
-    # `openssl` matching `openssl-probe`, etc.
+    # A node renders as "<crate> v<version>"; the lookbehind stops `openssl`
+    # matching `openssl-probe`, etc.
     return re.search(rf"(?<![\w-]){re.escape(crate)} v\d", tree) is not None
 
 

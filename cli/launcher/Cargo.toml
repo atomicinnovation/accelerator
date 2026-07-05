@@ -1,7 +1,4 @@
 [package]
-# The crate/package is `accelerator` (the product name); it lives in the
-# `launcher/` directory (the workspace member path stays `launcher`, mirroring
-# the reference layout). The lib crate and the `accelerator` bin share the name.
 name = "accelerator"
 version.workspace = true
 edition.workspace = true
@@ -17,10 +14,8 @@ workspace = true
 name = "accelerator"
 path = "src/main.rs"
 
-# Arg-driven test fixture, located from black-box tests via
-# CARGO_BIN_EXE_accelerator-fixture (cargo only sets that var for bins in this
-# package, so the fixture cannot be a separate crate). The release staging
-# (0165) copies only `accelerator`, so it never enters a shipped asset.
+# Test fixture: must live in this package so black-box tests can locate it via
+# CARGO_BIN_EXE_accelerator-fixture (cargo sets that only for the package's bins).
 [[bin]]
 name = "accelerator-fixture"
 path = "tests/fixtures/accelerator_fixture.rs"

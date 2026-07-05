@@ -1,12 +1,5 @@
-//! The real fetch → verify → cache resolver, composed from a [`Fetcher`], a
-//! [`verifier`], a [`cache`] store, and a resolved cache root behind the
-//! `ResolveBinary` port.
-//!
-//! The state machine is a thin sequence of guard clauses: cache-hit-verify →
-//! (on failure) replace-in-place → else miss-fetch-verify-cache. A working entry
-//! is never evicted before a verified successor exists (the fresh inode is
-//! renamed over the corrupt one), and an offline re-verify failure is reported
-//! as a distinct "corrupt AND re-fetch failed" diagnostic, not a plain miss.
+//! The fetch → verify → cache resolver behind the `ResolveBinary` port,
+//! composed from a fetcher, verifier, cache store, and resolved cache root.
 
 pub mod cache;
 pub mod cache_root;
@@ -24,9 +17,7 @@ use self::fetcher::{FetchError, Fetcher};
 use self::keys::TrustedKeys;
 use self::manifest::Manifest;
 
-/// The host platform alias this launcher was built for — the single Rust source
-/// of the triple→alias map, asserted equal to `tasks/shared/targets.py` by a
-/// cross-language coherence test.
+/// The platform alias this launcher was built for.
 #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
 pub const HOST_PLATFORM: &str = "darwin-arm64";
 #[cfg(all(target_arch = "x86_64", target_os = "macos"))]
@@ -36,22 +27,15 @@ pub const HOST_PLATFORM: &str = "linux-arm64";
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 pub const HOST_PLATFORM: &str = "linux-x64";
 
-/// Configuration for the resolver — injected so tests point it at a mock server
-/// and a temp cache root.
+/// Injectable resolver configuration.
 pub struct ResolverConfig {
-    /// The launcher's own version; the manifest must match it (anti-rollback).
     pub expected_version: String,
-    /// The host platform alias (`HOST_PLATFORM` in production).
     pub platform: String,
-    /// The release-download base URL (no trailing slash), pinned to the
-    /// plugin's own `v{version}` tag in production.
     pub base_url: String,
-    /// Where cached binaries live (resolved via `cache_root` in production).
     pub cache_root: PathBuf,
 }
 
 impl ResolverConfig {
-    /// Build the production config from the base URL and resolved cache root.
     #[must_use]
     pub fn production(base_url: String, cache_root: PathBuf) -> Self {
         Self {
@@ -63,8 +47,8 @@ impl ResolverConfig {
     }
 }
 
-/// The real `ResolveBinary` adapter: cache-hit re-verify (with replace-in-place
-/// self-heal), else fetch → verify → cache.
+/// Cache-hit re-verify (with replace-in-place self-heal), else fetch → verify →
+/// cache.
 pub struct FetchVerifyCacheResolver {
     config: ResolverConfig,
     keys: TrustedKeys,
@@ -89,7 +73,7 @@ impl FetchVerifyCacheResolver {
         })
     }
 
-    /// Construct with a caller-supplied fetcher (tests inject a tiny backoff).
+    /// Construct with a caller-supplied fetcher.
     #[must_use]
     pub const fn with_fetcher(
         config: ResolverConfig,
@@ -124,8 +108,7 @@ impl FetchVerifyCacheResolver {
         )
     }
 
-    /// Fetch, signature-verify, and version/schema-validate the release
-    /// manifest — the shared front half of resolution and help synthesis.
+    /// Fetch, signature-verify, and version/schema-validate the manifest.
     ///
     /// # Errors
     ///
@@ -143,7 +126,7 @@ impl FetchVerifyCacheResolver {
                 fetch_error(&error, &self.config.platform, &signature_url, true)
             })?;
         let signature = String::from_utf8_lossy(&signature_bytes);
-        // Signature over the RAW bytes first; only then parse + gate.
+        // Verify the signature over the raw bytes before parsing anything.
         verifier::verify_manifest(&manifest_bytes, &signature, &self.keys)?;
         Manifest::parse_and_validate(
             &manifest_bytes,
@@ -206,13 +189,8 @@ impl ResolveBinary for FetchVerifyCacheResolver {
             name,
             &self.config.expected_version,
         ) {
-            // Re-verify before every exec, including cache hits: the cache dir
-            // is user-writable, so a poisoned entry (binary + matching sha) must
-            // still be caught by the signature. On failure, self-heal by
-            // replacing in place — fetch+verify a clean copy and rename it over
-            // the corrupt entry (never evicting before a verified successor
-            // exists). If the re-fetch fails (e.g. offline), report the distinct
-            // "corrupt AND re-fetch failed" diagnostic, not a plain miss.
+            // The cache dir is user-writable, so re-verify the signature even on
+            // a hit; on failure self-heal by fetching a verified replacement.
             match self.reverify(&cached) {
                 Ok(()) => return Ok(cached.path),
                 Err(_) => {

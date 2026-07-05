@@ -1,8 +1,4 @@
-//! The clap inbound (driving) adapter for the whole launcher surface — the
-//! top-level command tree.
-//!
-//! Built-in commands and the external-subcommand growth mechanism live together
-//! here; the per-command logic lives in its subdomain.
+//! The clap inbound adapter: the top-level `accelerator` command tree.
 
 use std::ffi::OsString;
 
@@ -16,15 +12,11 @@ pub struct Cli {
     pub command: Command,
 }
 
-/// The launcher's command tree: compiled-in built-ins plus the
-/// `external_subcommand` catch-all that grows the CLI with on-demand
-/// sub-binaries.
 #[derive(Subcommand)]
 pub enum Command {
     /// Print the version, commit SHA, build date, and target triple.
     Version,
-    /// Any unknown subcommand + its args, forwarded verbatim. `Vec<OsString>`
-    /// (not `Vec<String>`) preserves non-UTF-8 arguments through to the child.
+    /// Any unknown subcommand and its args, forwarded to the resolved binary.
     #[command(external_subcommand)]
     External(Vec<OsString>),
 }
@@ -55,10 +47,6 @@ mod tests {
     #[test]
     fn a_known_subcommand_routes_to_its_builtin() -> Result<(), Box<dyn Error>>
     {
-        // The built-in/external boundary: `version` is matched by clap to its
-        // built-in variant and never captured by the external catch-all, so a
-        // fetched sub-binary named `version` can never shadow it. Adding or
-        // removing a built-in without updating this guard fails the test.
         let cli = Cli::try_parse_from(["accelerator", "version"])?;
         assert!(matches!(cli.command, Command::Version));
         Ok(())

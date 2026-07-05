@@ -1,21 +1,15 @@
-//! Manifest-driven help synthesis.
-//!
-//! clap cannot enumerate external subcommands (they are fetched on demand), so
-//! `accelerator --help` augments clap's built-in help with a section built from
-//! the signed manifest's per-binary `description`. This runs on the LAZY path —
-//! only when `--help` is actually requested — so offline built-ins never pay a
-//! manifest read+verify.
+//! Manifest-driven help synthesis for external subcommands (which clap cannot
+//! enumerate, as they are fetched on demand).
 
 use std::fmt::Write as _;
 
 use crate::launch::outbound::resolve::manifest::Manifest;
 
-/// Build the "External subcommands" help section from the manifest.
+/// Build the "External subcommands" help section from the manifest, or `None`
+/// when it lists no binaries.
 ///
-/// Returns `None` when the manifest lists no binaries. Descriptions are
-/// key-authenticated (the manifest is signature-verified) but still
-/// terminal-rendered, so they are sanitised at this trust boundary to defend
-/// against terminal-escape injection.
+/// Descriptions are signature-verified but still terminal-rendered, so they are
+/// sanitised at this boundary against terminal-escape injection.
 #[must_use]
 pub fn external_subcommands_section(manifest: &Manifest) -> Option<String> {
     if manifest.binaries.is_empty() {
@@ -31,17 +25,13 @@ pub fn external_subcommands_section(manifest: &Manifest) -> Option<String> {
     for (name, entry) in &manifest.binaries {
         let name = sanitize(name);
         let description = sanitize(&entry.description);
-        // write! into a String is infallible; the result is discarded.
         let _ = write!(section, "\n  {name:<width$}  {description}");
     }
     Some(section)
 }
 
-/// Strip C0/C1 control characters (including the ESC/CSI introducer).
-///
-/// Preserves printable and space scalars, so a manifest description cannot
-/// smuggle terminal escapes. Operates over decoded Unicode scalar values, so a
-/// multi-byte UTF-8 run is never split mid-sequence.
+/// Strip C0/C1 control characters (including the ESC/CSI introducer), operating
+/// over Unicode scalars so a multi-byte UTF-8 run is never split.
 #[must_use]
 pub fn sanitize(text: &str) -> String {
     text.chars().filter(|c| !c.is_control()).collect()
@@ -86,9 +76,7 @@ mod tests {
 
     #[test]
     fn sanitize_strips_controls_exactly_and_keeps_utf8() {
-        // A description carrying an ANSI CSI escape, a bell (C0), a NEL (C1), a
-        // tab (C0), and a multi-byte UTF-8 run must render with every dangerous
-        // scalar removed and the printable/UTF-8 text intact and unsplit.
+        // CSI escape, bell (C0), NEL (C1), tab, and a multi-byte UTF-8 run.
         let dirty = "a\u{1b}[31mb\u{07}\tc\u{0085}—é日";
         assert_eq!(sanitize(dirty), "a[31mbc—é日");
     }

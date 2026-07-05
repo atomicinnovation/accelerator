@@ -1,8 +1,5 @@
-//! Verification: sha256 (corruption check) + minisign (the security boundary).
-//!
-//! The signature is what proves "signed by our key, not merely served over
-//! TLS"; sha256 is only a corruption guard. Both the manifest signature and
-//! each binary signature are checked against the trusted keys.
+//! sha256 (corruption check) plus minisign (the security boundary: proves
+//! signed-by-our-key, not merely served over TLS).
 
 use std::fmt::Write as _;
 
@@ -18,7 +15,6 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut hex = String::with_capacity(digest.len() * 2);
     for byte in digest {
-        // write! into a String is infallible; the result is discarded.
         let _ = write!(hex, "{byte:02x}");
     }
     hex

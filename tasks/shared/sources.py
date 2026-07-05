@@ -54,9 +54,6 @@ def _ignore_spec(repo: Path) -> pathspec.GitIgnoreSpec:
 # other script; shfmt/shellcheck detect bash from its `#!/usr/bin/env bash`.
 _EXTRA_SHELL_SOURCES = (
     "skills/visualisation/visualise/cli/accelerator-visualiser",
-    # The plugin's bootstrap entry point: extensionless (consumers invoke the
-    # bare path ${CLAUDE_PLUGIN_ROOT}/bin/accelerator), so the `.sh` walk never
-    # matches it. It must be formatted + linted like any other script.
     "bin/accelerator",
 )
 

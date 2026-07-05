@@ -1,10 +1,6 @@
-//! Blocking reqwest fetch with timeouts, a redirect host-allowlist, and retry.
-//!
-//! GitHub 302-redirects assets to rotating `*.githubusercontent.com` hosts, so
-//! redirects are followed only within that suffix (plus the release origin), at
-//! a dotted-label boundary so `evil-githubusercontent.com` and
-//! `githubusercontent.com.attacker.net` are refused. Bounded retry-with-backoff
-//! is safe: resolution is idempotent.
+//! Blocking reqwest fetch with timeouts, retry, and a redirect host-allowlist
+//! matched at a dotted-label boundary (so `evil-githubusercontent.com` and
+//! `githubusercontent.com.attacker.net` are refused).
 
 use std::time::Duration;
 
@@ -18,26 +14,22 @@ const MAX_REDIRECTS: usize = 10;
 const CDN_HOST_SUFFIX: &str = ".githubusercontent.com";
 const RELEASE_ORIGIN_HOST: &str = "github.com";
 
-/// Why a fetch did not yield bytes — the resolver names it by context (manifest
-/// vs asset) into the right `ResolutionError`.
+/// Why a fetch did not yield bytes. A definitive 404 is not retried; a transport
+/// error or exhausted 5xx retries is `Unreachable`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum FetchError {
-    /// A definitive 404 — the asset/release is absent (not retried).
     NotFound,
-    /// A transport error or exhausted 5xx retries — the endpoint is unreachable
-    /// or persistently failing.
     Unreachable(String),
 }
 
-/// Whether a redirect target host is permitted (the CDN suffix or the origin),
-/// matched at a dotted-label boundary.
+/// Whether a redirect target host is permitted, matched at a dotted-label
+/// boundary.
 #[must_use]
 pub fn is_allowed_redirect_host(host: &str) -> bool {
     host == RELEASE_ORIGIN_HOST || host.ends_with(CDN_HOST_SUFFIX)
 }
 
-/// Whether a URL uses the required `https` scheme (the production pin; tests
-/// point the resolver at an `http` mock and bypass this).
+/// Whether a URL uses the required `https` scheme.
 #[must_use]
 pub fn is_https(url: &str) -> bool {
     url.starts_with("https://")
@@ -64,7 +56,7 @@ pub struct Fetcher {
 }
 
 impl Fetcher {
-    /// Build the production fetcher (real timeouts + backoff, https pinned).
+    /// Build the production fetcher (https pinned).
     ///
     /// # Errors
     ///
@@ -73,11 +65,8 @@ impl Fetcher {
         Self::build(Duration::from_millis(250), true)
     }
 
-    /// Build a fetcher with a caller-chosen backoff, permitting `http`.
-    ///
-    /// This is the test path: it points at a local `http` mock server, so the
-    /// production https-scheme pin is relaxed. Production code must use
-    /// [`Fetcher::new`].
+    /// Build a test fetcher with a caller-chosen backoff, permitting `http` for
+    /// a local mock server.
     ///
     /// # Errors
     ///
@@ -87,9 +76,8 @@ impl Fetcher {
     }
 
     fn build(backoff: Duration, require_https: bool) -> Result<Self, String> {
-        // Ensure the ring crypto provider is installed before building a TLS
-        // client (idempotent: an already-installed provider is fine). This makes
-        // the Fetcher self-sufficient for both main and the in-process tests.
+        // The ring provider must be installed before building a TLS client
+        // (idempotent), keeping the Fetcher self-sufficient in tests.
         let _ = rustls::crypto::ring::default_provider().install_default();
         let client = Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
@@ -105,9 +93,8 @@ impl Fetcher {
         })
     }
 
-    /// GET `url`, returning its body bytes. Retries transient/5xx failures with
-    /// backoff up to the attempt cap; a 404 returns [`FetchError::NotFound`]
-    /// immediately. A production fetcher refuses a non-https URL up front.
+    /// GET `url`, retrying transient/5xx failures up to the attempt cap; a 404
+    /// returns immediately and a production fetcher refuses non-https up front.
     ///
     /// # Errors
     ///
@@ -168,10 +155,6 @@ mod tests {
 
     #[test]
     fn production_fetcher_refuses_non_https_urls() {
-        // The production constructor pins the scheme, so an http URL is rejected
-        // before any connection is attempted (defence in depth on top of the
-        // signature gate). The test constructor keeps http for the local mock
-        // server, so this behaviour is unique to `new()`.
         let Ok(fetcher) = Fetcher::new() else {
             return;
         };

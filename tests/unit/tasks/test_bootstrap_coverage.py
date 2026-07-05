@@ -19,14 +19,11 @@ _BOOTSTRAP_SRC = _REPO_ROOT / "bin/accelerator"
 
 
 def test_bootstrap_is_in_the_shfmt_and_shellcheck_discovery() -> None:
-    # shfmt and shellcheck both consume shell_sources(); the extensionless
-    # bootstrap is appended via _EXTRA_SHELL_SOURCES.
     assert _BOOTSTRAP in shell_sources()
 
 
 def test_bootstrap_is_in_the_bashisms_discovery() -> None:
-    # lint-bashisms.sh discovers via `git ls-files '*.sh'`, which never matches
-    # an extensionless file, so it must add bin/accelerator explicitly.
+    # lint-bashisms.sh globs `*.sh`, which never matches an extensionless file.
     assert _BOOTSTRAP in _BASHISMS.read_text()
 
 
@@ -40,9 +37,7 @@ def test_bootstrap_is_an_executable_entrypoint() -> None:
 
 
 def test_launcher_and_bootstrap_reference_the_same_committed_key() -> None:
-    # The launcher embeds the key via build.rs and the bootstrap reads it at
-    # runtime; both must point at the ONE committed file, so the two in-repo
-    # trust anchors cannot drift.
+    # Both trust anchors must point at the one committed key file.
     assert _KEY.rsplit("/", 1)[-1] in _BUILD_RS.read_text()
     assert _KEY in _BOOTSTRAP_SRC.read_text()
     assert (_REPO_ROOT / _KEY).is_file()

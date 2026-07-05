@@ -1,27 +1,22 @@
 //! Resolves the runtime cache directory.
 //!
-//! `${CLAUDE_PLUGIN_ROOT}/bin` when writable and exec-capable (so the bare-path
-//! invocation contract keeps matching `allowed-tools` globs and Claude Code
-//! reclaims the cache on upgrade), else the `ACCELERATOR_CACHE_DIR` override,
-//! else a named error. There is deliberately **no XDG fallback**: an
-//! XDG-resident binary would break the plugin-root `allowed-tools` glob match
-//! that motivates the location (0136 resolved constraint). Read-only installs
-//! and `noexec` mounts are probed, not inferred.
+//! `${CLAUDE_PLUGIN_ROOT}/bin` when writable and exec-capable, else the
+//! `ACCELERATOR_CACHE_DIR` override, else a named error. No XDG fallback — an
+//! XDG-resident binary would break the plugin-root `allowed-tools` glob match.
+//! Read-only/noexec roots are probed.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::launch::core::ResolutionError;
 
-/// The environment inputs the resolution needs — injected so tests supply temp
-/// dirs instead of reading the real process environment.
+/// Injected environment inputs, so tests supply temp dirs.
 pub struct CacheRootConfig {
     pub cache_dir_override: Option<PathBuf>,
     pub plugin_root: Option<PathBuf>,
 }
 
 impl CacheRootConfig {
-    /// Read the config from the process environment.
     #[must_use]
     pub fn from_env() -> Self {
         Self {
@@ -44,8 +39,6 @@ impl CacheRootConfig {
 /// write+exec probe (with no XDG fallback).
 pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     if let Some(override_dir) = &config.cache_dir_override {
-        // An active override changes only the location, never disabling
-        // re-verification of what is fetched into it.
         tracing::info!(
             path = %override_dir.display(),
             "using ACCELERATOR_CACHE_DIR override for the cache root"
@@ -82,9 +75,8 @@ pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     })
 }
 
-/// Probe a directory for both writability and exec-capability by writing a
-/// trivial script and executing it — catching `noexec` mounts, which a
-/// write-only probe would miss.
+/// Probe writability and exec-capability by writing then running a script —
+/// catching `noexec` mounts, which a write-only probe would miss.
 fn probe_writable_and_executable(dir: &Path) -> bool {
     if std::fs::create_dir_all(dir).is_err() {
         return false;

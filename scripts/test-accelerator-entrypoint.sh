@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 #
-# test-accelerator-entrypoint.sh — hermetic tests for bin/accelerator.
-#
-# No network: fetches are stubbed via ACCELERATOR_BOOTSTRAP_DOWNLOADER serving a
-# local "server" dir, and host detection is driven by injected uname. Signatures
-# are real (minisign) and verified by the real compiled accelerator-verify shim,
-# so the fail-closed root-of-trust path is exercised end-to-end.
-#
+# test-accelerator-entrypoint.sh — hermetic tests for bin/accelerator: fetches
+# stubbed via ACCELERATOR_BOOTSTRAP_DOWNLOADER, host detection via injected
+# uname, real minisign signatures verified by the real accelerator-verify shim.
 # Skips cleanly when minisign or cargo is unavailable.
 set -uo pipefail
 
@@ -15,7 +11,6 @@ BOOTSTRAP="${REPO_ROOT}/bin/accelerator"
 
 pass=0
 fail=0
-note() { printf '  %s\n' "$1"; }
 ok() {
   pass=$((pass + 1))
   printf 'ok   - %s\n' "$1"
@@ -34,7 +29,6 @@ command -v cargo >/dev/null 2>&1 || {
   exit 0
 }
 
-# Build + locate the real verify shim.
 (cd "${REPO_ROOT}/cli" && cargo build --quiet -p accelerator-verify) || {
   echo "skipping: could not build accelerator-verify"
   exit 0
@@ -45,7 +39,6 @@ SHIM_BIN="${REPO_ROOT}/cli/target/debug/accelerator-verify"
   exit 0
 }
 
-# Host platform alias (same normalisation the bootstrap uses).
 case "$(uname -m)" in
   arm64 | aarch64) HOST_ARCH=arm64 ;;
   x86_64 | amd64) HOST_ARCH=x64 ;;
@@ -67,13 +60,12 @@ PLATFORM="${HOST_OS}-${HOST_ARCH}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
-# A committed-style release keypair.
 minisign -G -W -f -p "${WORK}/release.pub" -s "${WORK}/release.key" \
   >/dev/null 2>&1
 minisign -G -W -f -p "${WORK}/attacker.pub" -s "${WORK}/attacker.key" \
   >/dev/null 2>&1
 
-# A fake launcher: records its argv and exits with an env-chosen code.
+# Records its argv and exits with an env-chosen code.
 make_launcher() {
   cat >"$1" <<'LAUNCHER'
 #!/bin/sh
@@ -85,8 +77,7 @@ LAUNCHER
   chmod +x "$1"
 }
 
-# A stub downloader: copies "${SERVER_DIR}/<basename>" to the destination,
-# appending each requested URL to "${DL_LOG}".
+# Copies "${SERVER_DIR}/<basename>" to the destination, logging URLs to $DL_LOG.
 make_downloader() {
   cat >"$1" <<'DL'
 #!/bin/sh
@@ -104,7 +95,7 @@ DL
 DOWNLOADER="${WORK}/downloader.sh"
 make_downloader "${DOWNLOADER}"
 
-# Build a fresh plugin root + server for one scenario. Args: <secret-key-for-sig>
+# new_harness <secret-key> -> prints the plugin root then the server dir.
 new_harness() {
   local secret="$1"
   local root
@@ -124,8 +115,8 @@ new_harness() {
   printf '%s\n%s\n' "${root}" "${server}"
 }
 
+# run_bootstrap <root> <server> [env assignments...] -- [args...]
 run_bootstrap() {
-  # Usage: run_bootstrap <root> <server> [extra env assignments...] -- [args...]
   local root="$1" server="$2"
   shift 2
   local -a envs=()
@@ -143,7 +134,6 @@ run_bootstrap() {
     bash "${root}/bin/accelerator" "$@"
 }
 
-# --- unset CLAUDE_PLUGIN_ROOT ----------------------------------------------
 out=$(env -i PATH="${PATH}" bash "${BOOTSTRAP}" 2>&1)
 status=$?
 if [ "${status}" -ne 0 ] && printf '%s' "${out}" | grep -q "CLAUDE_PLUGIN_ROOT"; then
@@ -152,18 +142,15 @@ else
   bad "unset CLAUDE_PLUGIN_ROOT: ${out}"
 fi
 
-# --- host detection: injected uname over all four alias combos -------------
 for combo in "Darwin arm64 darwin-arm64" "Darwin aarch64 darwin-arm64" \
   "Linux x86_64 linux-x64" "Linux amd64 linux-x64"; do
-  # Deliberate word-split of the space-separated combo into three positionals.
-  # shellcheck disable=SC2086
+  # shellcheck disable=SC2086 # deliberate split into three positionals
   set -- $combo
   u_s="$1" u_m="$2" want="$3"
   h=$(new_harness "${WORK}/release.key")
   root=$(printf '%s' "${h}" | sed -n '1p')
   server=$(printf '%s' "${h}" | sed -n '2p')
-  # Serve the launcher under the EXPECTED alias so a correct normalisation
-  # fetches it; a wrong alias 404s. Also stage the shim under that alias.
+  # Serve the launcher under the expected alias; a wrong normalisation 404s.
   cp "${SHIM_BIN}" "${root}/bin/accelerator-verify-${want}"
   make_launcher "${server}/accelerator-${want}"
   minisign -S -s "${WORK}/release.key" \
@@ -178,7 +165,6 @@ for combo in "Darwin arm64 darwin-arm64" "Darwin aarch64 darwin-arm64" \
   fi
 done
 
-# --- happy path: fetch, verify, cache, exec with arg + exit forwarding ------
 h=$(new_harness "${WORK}/release.key")
 root=$(printf '%s' "${h}" | sed -n '1p')
 server=$(printf '%s' "${h}" | sed -n '2p')
@@ -193,7 +179,6 @@ else
   bad "happy path: code=${code} args=$(cat "${args_out}" 2>/dev/null)"
 fi
 
-# --- cache short-circuit: a second run performs no fetch -------------------
 run_bootstrap "${root}" "${server}" -- >/dev/null 2>&1
 first=$(wc -l <"${server}/dl.log")
 run_bootstrap "${root}" "${server}" -- >/dev/null 2>&1
@@ -204,7 +189,6 @@ else
   bad "cache hit refetched: ${first} -> ${second}"
 fi
 
-# --- tampered cached launcher is refused and re-fetched --------------------
 launcher_path="${root}/bin/accelerator-launcher-9.9.9-test-${PLATFORM}"
 printf 'poisoned' >"${launcher_path}"
 run_bootstrap "${root}" "${server}" LAUNCHER_EXIT=0 -- >/dev/null 2>&1
@@ -215,7 +199,6 @@ else
   bad "tampered cache not healed"
 fi
 
-# --- a non-release-key signature is refused, fail-closed -------------------
 h=$(new_harness "${WORK}/attacker.key")
 root=$(printf '%s' "${h}" | sed -n '1p')
 server=$(printf '%s' "${h}" | sed -n '2p')
@@ -227,7 +210,6 @@ else
   bad "non-release-key not refused: ${out}"
 fi
 
-# --- an unrunnable verify shim fails closed --------------------------------
 h=$(new_harness "${WORK}/release.key")
 root=$(printf '%s' "${h}" | sed -n '1p')
 server=$(printf '%s' "${h}" | sed -n '2p')
@@ -241,7 +223,6 @@ else
   bad "unrunnable shim did not fail closed: ${out}"
 fi
 
-# --- read-only plugin root: override works, absence errors -----------------
 h=$(new_harness "${WORK}/release.key")
 root=$(printf '%s' "${h}" | sed -n '1p')
 server=$(printf '%s' "${h}" | sed -n '2p')
@@ -264,7 +245,6 @@ else
 fi
 chmod -R u+w "${root}/bin" 2>/dev/null
 
-# --- a stale lock (owner PID gone) is reclaimed ----------------------------
 h=$(new_harness "${WORK}/release.key")
 root=$(printf '%s' "${h}" | sed -n '1p')
 server=$(printf '%s' "${h}" | sed -n '2p')

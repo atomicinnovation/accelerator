@@ -1,7 +1,4 @@
 //! The launcher's dispatch/resolution core and the ports it speaks through.
-//!
-//! Depends on std + `kernel::Error` only; the concrete adapters live under
-//! `launch::outbound`. cargo-pup enforces that inward direction.
 
 use std::ffi::OsString;
 use std::fmt;
@@ -10,12 +7,9 @@ use std::fmt::Formatter;
 use std::path::Path;
 use std::path::PathBuf;
 
-/// A parsed external subcommand: the sub-binary name plus the args to forward.
+/// A parsed external subcommand: the sub-binary name and the args to forward.
 ///
-/// Git-style — `accelerator foo a b` resolves the binary named `foo` and
-/// forwards `[a, b]` to it; the name is consumed for resolution, not passed on.
-/// Both are [`OsString`] so a non-UTF-8 argument survives verbatim to the exec'd
-/// child.
+/// `OsString` (not `String`) so a non-UTF-8 argument survives to the child.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalCommand {
     pub name: OsString,
@@ -27,8 +21,7 @@ impl ExternalCommand {
     ///
     /// # Errors
     ///
-    /// [`ResolutionError::EmptyCommand`] if the vector is empty (clap should
-    /// never hand us one, but the core refuses it rather than index blindly).
+    /// [`ResolutionError::EmptyCommand`] if the vector is empty.
     pub fn from_raw(raw: Vec<OsString>) -> Result<Self, ResolutionError> {
         let mut parts = raw.into_iter();
         let name = parts.next().ok_or(ResolutionError::EmptyCommand)?;
@@ -39,52 +32,58 @@ impl ExternalCommand {
     }
 }
 
-/// The launcher's rich, local failure taxonomy — each variant carries the
-/// payload its diagnostic needs.
-///
-/// Maps into the small shared [`kernel::Error`] at the dispatch boundary
-/// (`kernel` is the lower crate and cannot name this type), so subdomains never
-/// compile against variants they cannot produce. Phase 1 constructs only the
-/// dispatch/override/exec variants; the fetch/verify/cache variants are added as
-/// the real resolver lands.
+/// The launcher's failure taxonomy, mapped into [`kernel::Error`] at the
+/// dispatch boundary (`kernel` is the lower crate and cannot name this type).
 #[derive(Debug)]
 pub enum ResolutionError {
-    /// clap handed dispatch an empty external-subcommand vector.
     EmptyCommand,
-    /// A subcommand name cannot derive a valid `ACCELERATOR_<SUB>_BIN` override
-    /// variable (empty, a leading digit, or a character that would collide).
-    InvalidOverrideName { name: String, detail: String },
-    /// The requested sub-binary could not be resolved to a path.
-    Unresolved { name: OsString },
-    /// The host-triple asset could not be fetched (network/transport error).
-    Fetch { target: String, url: String },
-    /// The release has no asset for this binary+platform.
-    AssetNotFound { target: String, url: String },
-    /// The release itself is missing/unavailable.
-    ReleaseUnavailable { target: String, url: String },
-    /// A fetched/cached binary's sha256 did not match the manifest.
+    InvalidOverrideName {
+        name: String,
+        detail: String,
+    },
+    Unresolved {
+        name: OsString,
+    },
+    Fetch {
+        target: String,
+        url: String,
+    },
+    AssetNotFound {
+        target: String,
+        url: String,
+    },
+    ReleaseUnavailable {
+        target: String,
+        url: String,
+    },
     ChecksumMismatch {
         asset: String,
         expected: String,
         actual: String,
     },
-    /// A binary's minisign signature did not verify against a trusted key.
-    SignatureMismatch { asset: String },
-    /// The manifest's own signature did not verify against a trusted key.
+    SignatureMismatch {
+        asset: String,
+    },
     ManifestSignature,
-    /// The signed manifest's version did not equal the launcher's own
-    /// (anti-rollback: a valid signature proves authenticity, not freshness).
-    ManifestVersionMismatch { expected: String, actual: String },
-    /// The manifest declares a schema version the launcher does not support.
-    UnsupportedSchema { found: u64, supported: u64 },
-    /// A cached entry failed verification and a clean copy could not be
-    /// re-fetched (distinct from a plain miss so the diagnostic is honest).
-    CorruptCacheAndRefetchFailed { asset: String, detail: String },
-    /// A cache read/write/lock operation failed.
-    Cache { path: PathBuf, detail: String },
-    /// No writable, exec-capable cache directory could be resolved.
-    CacheRootUnavailable { detail: String },
-    /// `exec` of a resolved binary failed (it only returns on failure).
+    ManifestVersionMismatch {
+        expected: String,
+        actual: String,
+    },
+    UnsupportedSchema {
+        found: u64,
+        supported: u64,
+    },
+    CorruptCacheAndRefetchFailed {
+        asset: String,
+        detail: String,
+    },
+    Cache {
+        path: PathBuf,
+        detail: String,
+    },
+    CacheRootUnavailable {
+        detail: String,
+    },
     Exec {
         program: PathBuf,
         source: std::io::Error,
@@ -171,7 +170,7 @@ impl From<ResolutionError> for kernel::Error {
     }
 }
 
-/// Resolves a sub-binary name to an executable path — a driven/outbound port.
+/// Resolves a sub-binary name to an executable path — a driven port.
 pub trait ResolveBinary {
     /// # Errors
     ///
@@ -182,21 +181,15 @@ pub trait ResolveBinary {
     ) -> Result<PathBuf, ResolutionError>;
 }
 
-/// Replaces the current process with a resolved binary — a driven/outbound port.
-///
-/// Modelled as a port so dispatch's resolve→exec wiring is unit-testable with a
-/// recording fake; the real Unix `exec` cannot be tested in-process (it would
-/// replace the test runner), so its behaviour is proven by black-box tests.
+/// Replaces the current process with a resolved binary — a driven port.
 pub trait ExecBinary {
-    /// Returns only on failure (a successful `exec` replaces the process), so
-    /// the return type is the error that prevented replacement.
+    /// Returns the error that prevented replacement; a successful `exec` never
+    /// returns.
     fn exec(&self, program: &Path, args: &[OsString]) -> ResolutionError;
 }
 
-/// Resolve the sub-binary and exec it, forwarding its args.
-///
-/// Only ever returns an error: a successful `exec` replaces this process, so
-/// control returns here solely when resolution or exec failed.
+/// Resolve the sub-binary and exec it. Only ever returns an error — a
+/// successful `exec` replaces this process.
 pub fn run_external(
     resolver: &impl ResolveBinary,
     executor: &impl ExecBinary,
@@ -208,25 +201,17 @@ pub fn run_external(
     }
 }
 
-/// Derive the `ACCELERATOR_<SUB>_BIN` override variable name for a subcommand.
+/// Derive the `ACCELERATOR_<SUB>_BIN` override variable: uppercase, mapping `-`
+/// to `_`.
 ///
-/// The single shared, total normalisation both the Phase 1 and the real
-/// resolver call, so the derivation cannot diverge: uppercase the name and map
-/// every `-` to `_`, giving `frobnicate-thing` → `ACCELERATOR_FROBNICATE_THING_BIN`.
-///
-/// The mapping is not injective in general (`frobnicate_thing` would collide with
-/// `frobnicate-thing`, and a leading digit is not a valid identifier), so a name
-/// is admitted only if it is a valid, collision-free source: it must start with
-/// an ASCII letter and contain only ASCII letters, digits, and hyphens. A name
-/// containing `_` is refused precisely because it would collide with its
-/// hyphenated form; the shipped sub-binary names are a curated, hyphenated,
-/// non-colliding set, so this guards a future name choice rather than a live
-/// case.
+/// Admits only names that map injectively — start with an ASCII letter, then
+/// ASCII letters/digits/hyphens. A name containing `_` is refused because it
+/// would collide with its hyphenated form.
 ///
 /// # Errors
 ///
-/// [`ResolutionError::InvalidOverrideName`] for an empty name, a leading
-/// non-letter (including a digit), or a colliding/invalid character.
+/// [`ResolutionError::InvalidOverrideName`] for an empty, leading-digit, or
+/// colliding name.
 pub fn derive_override_var(name: &str) -> Result<String, ResolutionError> {
     let mut chars = name.chars();
     let starts_with_letter =
@@ -308,8 +293,6 @@ mod tests {
         fn exec(&self, program: &Path, args: &[OsString]) -> ResolutionError {
             *self.seen.borrow_mut() =
                 Some((program.to_path_buf(), args.to_vec()));
-            // A real exec never returns on success; the fake reports "attempted"
-            // so the plumbing is observable without replacing the test runner.
             ResolutionError::Exec {
                 program: program.to_path_buf(),
                 source: std::io::Error::other("fake exec"),
@@ -394,7 +377,6 @@ mod tests {
 
     #[test]
     fn derive_override_var_rejects_a_colliding_underscore_name() {
-        // `frobnicate_thing` would collide with `frobnicate-thing`; refuse it.
         assert!(matches!(
             derive_override_var("frobnicate_thing"),
             Err(ResolutionError::InvalidOverrideName { .. })

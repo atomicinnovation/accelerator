@@ -1,23 +1,16 @@
-//! The on-disk binary cache, keyed by name + version + checksum.
+//! The on-disk binary cache, keyed by `{name}-{version}-{sha256}` with a
+//! `.minisig` sibling; the checksum in the name lets a hit resolve offline.
 //!
-//! Entries are `"{name}-{version}-{sha256}"` with a `.minisig` sibling; the
-//! checksum is in the name, so a cache hit is a prefix scan needing no manifest,
-//! and an already-resolved binary resolves offline. Writes are atomic (a temp
-//! file in the same dir, then rename), so only fully-written bytes appear under
-//! the final path. A replacement renames a fresh verified inode over any corrupt
-//! entry rather than truncating in place, so a process mid-`exec` keeps the
-//! verified inode and never hits `ETXTBSY`. The version-scoped
-//! `${CLAUDE_PLUGIN_ROOT}` cache is naturally bounded (a new plugin version
-//! yields a fresh cache), so no retained-versions cap or `mtime` eviction is
-//! needed.
+//! Writes are atomic (temp-in-dir then rename), and a replacement renames a
+//! fresh inode over any corrupt entry so a process mid-`exec` never hits
+//! `ETXTBSY`. The version-scoped cache needs no eviction.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::launch::core::ResolutionError;
 
-/// Monotonic counter making each temp file name unique even for concurrent
-/// stores within one process (the PID alone collides across threads).
+// Per-process temp uniqueness; the PID alone collides across threads.
 static TEMP_SEQ: AtomicU64 = AtomicU64::new(0);
 
 /// A located cache entry: the binary and its detached signature.
@@ -73,12 +66,8 @@ pub fn find(root: &Path, name: &str, version: &str) -> Option<CachedBinary> {
     None
 }
 
-/// Atomically store a verified binary + its signature, returning the entry.
-///
-/// The caller MUST have verified `bytes` against `sha256` and `signature`
-/// BEFORE calling — only fully-verified bytes reach the cache. Because the key
-/// includes the checksum, a re-store of the same verified content renames over
-/// any corrupt entry at the same path (replace-in-place, by inode).
+/// Atomically store an already-verified binary + its signature. The caller must
+/// have verified `bytes` before calling — only verified bytes reach the cache.
 ///
 /// # Errors
 ///
@@ -91,16 +80,12 @@ pub fn store(
     bytes: &[u8],
     signature: &str,
 ) -> Result<CachedBinary, ResolutionError> {
-    // Idempotent mkdir -p (EEXIST is success, so two concurrent first-use
-    // invocations both succeed).
     std::fs::create_dir_all(root).map_err(|e| cache_error(root, &e))?;
     let stem = stem(name, version, sha256);
     let final_path = root.join(&stem);
     let signature_path = root.join(signature_name(&stem));
 
-    // Temp files live INSIDE the cache dir so the rename is intra-filesystem (a
-    // cross-mount temp would fail EXDEV and force a torn copy-fallback). Unique
-    // per-process so concurrent stores do not share a temp.
+    // Temp inside the cache dir so the rename is intra-filesystem (no EXDEV).
     let unique = format!(
         "{}-{}",
         std::process::id(),
@@ -130,8 +115,7 @@ fn write_then_rename(
     bytes: &[u8],
     executable: bool,
 ) -> Result<(), ResolutionError> {
-    // Create the temp 0600 first so unverified bytes are never other-readable;
-    // the exec bit is set only just before the rename publishes the entry.
+    // 0600 so bytes are never other-readable before the entry is published.
     write_private(temp, bytes)?;
     if executable {
         set_executable(temp)?;
@@ -221,9 +205,7 @@ mod tests {
         let root = tempdir()?;
         store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
         let path = find(&root, "foo", "1.0.0").ok_or("not found")?.path;
-        // Simulate a poisoned entry: same path, garbage content.
         std::fs::write(&path, b"poisoned")?;
-        // Re-storing the verified content renames a fresh inode over it.
         store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
         assert_eq!(std::fs::read(&path)?, b"binary");
         Ok(())

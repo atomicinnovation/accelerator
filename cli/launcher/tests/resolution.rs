@@ -1,11 +1,7 @@
-//! Hermetic tests of the real fetch → verify → cache resolver.
-//!
-//! In-process against a local mock server: the resolver takes its trusted keys
-//! as config, so tests sign fixtures with a freshly-generated key and inject its
-//! public key (a fixture key never reaches the embedded release trust root).
-//! Requires the `minisign` CLI; skips cleanly if it is absent.
+//! Hermetic tests of the fetch → verify → cache resolver, in-process against a
+//! local mock server with an injected, freshly-generated signing key. Requires
+//! the `minisign` CLI; skips cleanly if it is absent.
 
-// expect/unwrap allowed in the setup helpers (keygen, signing, temp dirs).
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 mod common;
@@ -29,9 +25,7 @@ use accelerator::launch::outbound::resolve::{
 };
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
-// The manifest must match the launcher's own version (anti-rollback); deriving
-// it from CARGO_PKG_VERSION means a routine version bump cannot drift the
-// fixture into the mismatch path.
+// Matches the launcher's own version (anti-rollback) regardless of version bump.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BINARY: &str = "frobnicate";
 
@@ -97,9 +91,7 @@ fn sign(minisign: &Path, secret: &Path, dir: &Path, bytes: &[u8]) -> String {
 }
 
 fn manifest_json(version: &str, sha256: &str, signature: &str) -> String {
-    // The signature's minisign trusted comment carries newlines AND tabs; both
-    // are control characters that must be JSON-escaped (production uses
-    // json.dumps, which does this). A raw tab would make serde reject the JSON.
+    // The .minisig contents carry newlines and tabs; JSON-escape both.
     let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
     format!(
         "{{\"schema_version\":1,\"version\":\"{version}\",\"binaries\":{{\
@@ -208,7 +200,6 @@ fn happy_path_fetches_verifies_caches_and_returns_a_runnable_binary(
     let path = harness.resolve()?;
     assert!(path.exists(), "cached binary missing");
     assert_eq!(std::fs::read(&path)?, harness.fixture_bytes);
-    // The cached path is the real, runnable fixture: exit code propagates.
     let status = Command::new(&path).arg("exit-42").status()?;
     assert_eq!(status.code(), Some(42));
     Ok(())
@@ -230,7 +221,7 @@ fn cache_reuse_does_not_refetch() -> Result<(), Box<dyn Error>> {
 #[test]
 fn a_checksum_mismatch_is_refused() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // Re-publish a manifest whose sha256 is wrong (still validly signed).
+    // sha256 wrong, but the manifest is still validly signed.
     let wrong_sha = "a".repeat(64);
     let asset_sig = sign(
         &harness.minisign,
@@ -262,8 +253,7 @@ fn a_checksum_mismatch_is_refused() -> Result<(), Box<dyn Error>> {
 #[test]
 fn a_non_release_key_signature_is_refused() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // Sign the asset with an attacker key the resolver does NOT trust; the
-    // sha256 is correct, proving verification is key-bound, not TLS-bound.
+    // Attacker-signed asset with a correct sha256: verification is key-bound.
     let (_attacker_pub, attacker_secret) =
         generate_keypair(&harness.minisign, &harness.workdir, "attacker");
     let sha = sha256_hex(&harness.fixture_bytes);
@@ -273,7 +263,7 @@ fn a_non_release_key_signature_is_refused() -> Result<(), Box<dyn Error>> {
         &harness.workdir,
         &harness.fixture_bytes,
     );
-    // The MANIFEST stays signed by the trusted key so it passes first.
+    // The manifest stays trusted-signed so it passes before the asset check.
     let manifest = manifest_json(VERSION, &sha, &asset_sig);
     let manifest_sig = sign(
         &harness.minisign,
@@ -298,7 +288,7 @@ fn a_non_release_key_signature_is_refused() -> Result<(), Box<dyn Error>> {
 #[test]
 fn a_tampered_manifest_signature_is_refused() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // Serve a manifest whose bytes differ from what manifest.minisig signs.
+    // Manifest bytes differ from what manifest.minisig signs.
     let tampered = manifest_json(VERSION, &"a".repeat(64), "junk");
     harness
         .server
@@ -345,9 +335,8 @@ fn a_wrong_version_manifest_is_refused() -> Result<(), Box<dyn Error>> {
 fn an_unsupported_higher_schema_is_refused_with_the_schema_error(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // A validly-signed manifest declaring schema_version 2: the schema gate
-    // fires before the version check, so the error names the schema, not a
-    // version mismatch.
+    // schema_version 2 is gated before the version check, so the error names
+    // the schema, not a version mismatch.
     let sha = sha256_hex(&harness.fixture_bytes);
     let asset_sig = sign(
         &harness.minisign,
@@ -410,8 +399,7 @@ fn a_persistent_server_error_gives_up_after_bounded_retries(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     harness.server.route("/manifest.json", Route::Status(500));
-    // A persistent 5xx exhausts the retry budget → transport-unreachable, which
-    // maps to Fetch (a 404 would be the definitive ReleaseUnavailable).
+    // Exhausted 5xx retries map to Fetch (a 404 would be ReleaseUnavailable).
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::Fetch { .. })
@@ -424,8 +412,7 @@ fn a_persistent_server_error_gives_up_after_bounded_retries(
 fn a_transient_5xx_recovers_within_the_retry_budget(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // Make the asset fetch fail twice then succeed (its signature is inline in
-    // the already-signed manifest, so no re-signing is needed).
+    // Fail the asset fetch twice then succeed; its signature is already inline.
     harness.server.route(
         &asset_path(),
         Route::FlakyThenOk {
@@ -442,14 +429,12 @@ fn a_transient_5xx_recovers_within_the_retry_budget(
 #[test]
 fn a_redirect_to_a_disallowed_host_is_refused() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    // 127.0.0.1 is not on the *.githubusercontent.com allowlist, so the policy
-    // refuses to follow; the unfollowed 302 surfaces as a release failure.
+    // 127.0.0.1 is off the redirect allowlist; the unfollowed 302 is a transport
+    // failure (Fetch), not a 404 (ReleaseUnavailable).
     harness.server.route(
         "/manifest.json",
         Route::Redirect(format!("{}/elsewhere", harness.server.base_url())),
     );
-    // The unfollowed 302 is a transport failure, not a 404, so it surfaces as
-    // Fetch rather than the definitive ReleaseUnavailable.
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::Fetch { .. })
@@ -462,7 +447,6 @@ fn an_already_cached_binary_resolves_offline() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     let first = harness.resolve()?;
     assert!(first.exists());
-    // A second resolver whose server is dead still resolves from the cache.
     let offline = FetchVerifyCacheResolver::with_fetcher(
         harness.config("http://127.0.0.1:1".to_owned()),
         harness.keys(),
@@ -481,8 +465,6 @@ fn a_poisoned_cache_entry_is_replaced_in_place_and_reexecs(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     let path = harness.resolve()?;
-    // Poison the cached binary in place: re-verify must reject and self-heal by
-    // fetching + verifying a clean copy and renaming it over the corrupt entry.
     std::fs::write(&path, b"poisoned")?;
     let healed = harness.resolve()?;
     assert_eq!(healed, path, "the same cache path is replaced in place");
@@ -500,8 +482,7 @@ fn a_poisoned_cache_entry_offline_is_a_distinct_diagnostic(
     let harness = skip_if_no_minisign!(happy_harness());
     let path = harness.resolve()?;
     std::fs::write(&path, b"poisoned")?;
-    // The re-fetch has no server to reach, so the failure is the distinct
-    // "corrupt AND re-fetch failed" diagnostic, not a plain miss.
+    // No server to re-fetch from → the distinct corrupt-and-refetch diagnostic.
     let offline = FetchVerifyCacheResolver::with_fetcher(
         harness.config("http://127.0.0.1:1".to_owned()),
         harness.keys(),
@@ -529,8 +510,6 @@ fn two_concurrent_first_use_resolves_both_succeed() -> Result<(), Box<dyn Error>
         assert!(first.is_ok(), "concurrent resolve A failed: {first:?}");
         assert!(second.is_ok(), "concurrent resolve B failed: {second:?}");
     });
-    // The mkdir is idempotent (EEXIST is success), so both first-use invocations
-    // complete and land the same verified entry.
     let path = harness.resolve()?;
     assert_eq!(std::fs::read(&path)?, harness.fixture_bytes);
     Ok(())
