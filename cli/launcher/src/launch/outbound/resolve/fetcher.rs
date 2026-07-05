@@ -9,7 +9,10 @@ use reqwest::redirect::{Attempt, Policy};
 
 const MAX_ATTEMPTS: u32 = 3;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-const TOTAL_TIMEOUT: Duration = Duration::from_secs(120);
+// Whole-request deadline per attempt: blocking reqwest has no idle/read-stall
+// timeout, so this is the only bound on a slow-but-progressing transfer. Sized
+// for a multi-MB release binary over a slow link.
+const TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
 const MAX_REDIRECTS: usize = 10;
 const CDN_HOST_SUFFIX: &str = ".githubusercontent.com";
 const RELEASE_ORIGIN_HOST: &str = "github.com";
@@ -79,10 +82,14 @@ impl Fetcher {
         // The ring provider must be installed before building a TLS client
         // (idempotent), keeping the Fetcher self-sufficient in tests.
         let _ = rustls::crypto::ring::default_provider().install_default();
+        // `https_only` re-enforces the scheme on the post-redirect URL too, not
+        // just the initial request the `get()` guard checks. Off for the test
+        // fetcher so it can reach a local `http` mock.
         let client = Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(TOTAL_TIMEOUT)
             .redirect(redirect_policy())
+            .https_only(require_https)
             .build()
             .map_err(|error| error.to_string())?;
         Ok(Self {

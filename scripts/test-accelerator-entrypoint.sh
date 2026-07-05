@@ -259,5 +259,37 @@ else
   bad "stale lock wedged the bootstrap: ${out}"
 fi
 
+notdir="${WORK}/not-a-dir"
+: >"${notdir}"
+out=$(env -i PATH="${PATH}" CLAUDE_PLUGIN_ROOT="${notdir}" \
+  bash "${BOOTSTRAP}" 2>&1)
+status=$?
+if [ "${status}" -ne 0 ] && printf '%s' "${out}" | grep -q "not a directory"; then
+  ok "a non-directory CLAUDE_PLUGIN_ROOT is a named error"
+else
+  bad "non-directory plugin root: ${out}"
+fi
+
+# A permissive shim planted earlier on PATH must never stand in for the real
+# shim, which the bootstrap runs by absolute path from its own cache dir. Signed
+# by the attacker key so a PATH lookup would falsely pass; the absolute-path
+# invocation must still refuse.
+h=$(new_harness "${WORK}/attacker.key")
+root=$(printf '%s' "${h}" | sed -n '1p')
+server=$(printf '%s' "${h}" | sed -n '2p')
+decoy_dir="$(mktemp -d "${WORK}/decoy.XXXXXX")"
+cat >"${decoy_dir}/accelerator-verify" <<'DECOY'
+#!/bin/sh
+exit 0
+DECOY
+chmod +x "${decoy_dir}/accelerator-verify"
+out=$(run_bootstrap "${root}" "${server}" PATH="${decoy_dir}:${PATH}" -- 2>&1)
+status=$?
+if [ "${status}" -ne 0 ] && printf '%s' "${out}" | grep -q "verify"; then
+  ok "a PATH-planted decoy shim is not used"
+else
+  bad "PATH decoy shim was consulted: ${out}"
+fi
+
 printf '\n%s passed, %s failed\n' "${pass}" "${fail}"
 [ "${fail}" -eq 0 ]
