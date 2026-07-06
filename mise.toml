@@ -485,8 +485,12 @@ description = "CI prerelease halve 1: bump version, build binaries, compute chec
 depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease.prepare"
 
+[tasks."prerelease:sign"]
+description = "CI prerelease step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)"
+run = "invoke prerelease.sign"
+
 [tasks."prerelease:finalise"]
-description = "CI prerelease halve 2: commit, tag, push, create release, upload, publish"
+description = "CI prerelease step 3: commit, tag, push, create release, upload, publish"
 run = "invoke prerelease.finalise"
 
 [tasks."release:prepare"]
@@ -494,8 +498,12 @@ description = "CI stable release halve 1: finalise version, update marketplace a
 depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke release.prepare"
 
+[tasks."release:sign"]
+description = "CI stable release step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)"
+run = "invoke release.sign"
+
 [tasks."release:finalise"]
-description = "CI stable release halve 2: commit, tag, push, create release, upload, publish"
+description = "CI stable release step 3: commit, tag, push, create release, upload, publish"
 run = "invoke release.finalise"
 
 [tasks."prerelease"]

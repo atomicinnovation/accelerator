@@ -354,6 +354,25 @@ def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
     return hasher.hexdigest()
 
 
+def assert_staged_launcher_versions(version: str) -> None:
+    """Confirm each staged launcher embeds the release version.
+
+    The launcher bakes `CARGO_PKG_VERSION` in as the manifest anti-rollback
+    check, so a stale cross-compile would later reject its own manifest. The
+    three foreign-arch launchers cannot be executed on the host runner, so the
+    version string is grepped out of the binary bytes rather than read via
+    `--version`.
+    """
+    needle = version.encode()
+    for _triple, platform in TARGETS:
+        binary = cli_binary_path("accelerator", platform)
+        if needle not in binary.read_bytes():
+            raise RuntimeError(
+                f"staged launcher {binary.name} does not embed the release "
+                f"version {version}"
+            )
+
+
 @task
 def vendor_verify_shims(context: Context) -> None:
     """Copy the cross-compiled verify shims into the committed bin/ tree.
