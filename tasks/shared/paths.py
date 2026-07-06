@@ -12,6 +12,8 @@ FRONTEND = VISUALISER / "frontend"
 CLI_DIR = REPO_ROOT / "cli"
 CLI_WORKSPACE_CARGO_TOML = CLI_DIR / "Cargo.toml"
 RELEASE_STAGING = REPO_ROOT / "dist" / "release"
+RELEASE_MANIFEST = RELEASE_STAGING / "manifest.json"
+RELEASE_MANIFEST_SIG = RELEASE_STAGING / "manifest.minisig"
 VENDORED_SHIM_DIR = REPO_ROOT / "bin"
 VENDOR_SHIM_MARKER = VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256"
 # The crates whose binaries the manifest lists (empty at HEAD; 0168 appends the
