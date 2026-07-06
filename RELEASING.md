@@ -278,8 +278,8 @@ gh attestation verify accelerator-visualiser-<os>-<arch> \
     --repo atomicinnovation/accelerator
 ```
 
-Requires `gh >= 2.49.0`. The same command runs inside `launch-server.sh` when
-`ACCELERATOR_VISUALISER_VERIFY_PROVENANCE=1` is set.
+Requires `gh >= 2.49.0`. This is a manual, out-of-band check — there is no
+runtime provenance hook in `launch-server.sh`.
 
 ## Debug archives and crash symbolication
 
