@@ -184,6 +184,8 @@ def update_checksums_json(
 def validate_version_coherence(
     expected_version: str,
     repo_root: Path | None = None,
+    *,
+    manifest_path: Path | None = None,
 ) -> None:
     if not expected_version:
         raise InvalidVersionError("expected_version must not be empty")
@@ -197,6 +199,10 @@ def validate_version_coherence(
         ),
         **_pinned_member_versions(root),
     }
+    if manifest_path is not None:
+        found["manifest.json"] = json.loads(manifest_path.read_text())[
+            "version"
+        ]
     mismatches = {k: v for k, v in found.items() if v != expected_version}
     if mismatches:
         raise VersionCoherenceError(

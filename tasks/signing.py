@@ -9,7 +9,13 @@ from pathlib import Path
 from invoke import Context, task
 
 from tasks.shared.errors import SigningError
-from tasks.shared.paths import RELEASE_PUBLIC_KEY, RELEASE_SECRET_KEY
+from tasks.shared.paths import (
+    DISPATCHED_SUBBINARIES,
+    RELEASE_PUBLIC_KEY,
+    RELEASE_SECRET_KEY,
+    cli_binary_path,
+)
+from tasks.shared.targets import TARGETS
 
 SECRET_KEY_ENV = "ACCELERATOR_RELEASE_SECRET_KEY"  # noqa: S105 — env var name, not a secret
 
@@ -34,6 +40,32 @@ def sign_file(secret_key: Path, target: Path, signature: Path) -> Path:
     if result.returncode != 0:
         raise SigningError(f"{target.name}: {result.stderr.strip()}")
     return signature
+
+
+def _signature_path(binary: Path) -> Path:
+    return binary.with_name(binary.name + ".minisig")
+
+
+def sign_staged_binaries(secret_key: Path) -> None:
+    """Sign the launcher + every dispatched sub-binary across all four targets.
+
+    Signs an explicit expected set — never a directory scan — so a partial
+    cross-compile fails closed rather than silently signing a subset. The
+    `accelerator-verify-{platform}` shims that Phase 2 also stages here are
+    deliberately excluded: they ship committed in bin/, never as release assets.
+    """
+    expected = [
+        cli_binary_path(name, platform)
+        for _triple, platform in TARGETS
+        for name in ("accelerator", *DISPATCHED_SUBBINARIES)
+    ]
+    missing = [binary for binary in expected if not binary.exists()]
+    if missing:
+        raise SigningError(
+            f"expected staged binaries not found: {[str(p) for p in missing]}"
+        )
+    for binary in expected:
+        sign_file(secret_key, binary, _signature_path(binary))
 
 
 @contextmanager

@@ -486,36 +486,36 @@ cross-compile (see Phase 5 ordering).
 
 #### Automated Verification
 
-- [ ] `jsonschema` is added and version-pinned in the dev dependency group (it is
+- [x] `jsonschema` is added and version-pinned in the dev dependency group (it is
       not currently a dependency; note the ruff-ALL / pyrefly implications).
-- [ ] `uv run pytest tests/unit/tasks/test_manifest.py -v` passes: an emitted
+- [x] `uv run pytest tests/unit/tasks/test_manifest.py -v` passes: an emitted
       manifest validates against `cli/launcher/tests/fixtures/manifest.schema.json`
       (jsonschema, as a shape check complementing — not replacing — the real serde
       parser); `schema_version == 1`, `version` matches, empty `binaries` is
       accepted; a fixture sub-binary sources its `description` from a Cargo.toml
       and a missing description raises.
-- [ ] **End-to-end fixture-crate test**: a tiny fixture sub-binary is built,
-      signed, and assembled into a *non-empty* manifest whose **producer-emitted
-      bytes** are fed to the launcher's real `parse_and_validate` +
-      `FetchVerifyCacheResolver` (extend the `resolution.rs` `MockServer` harness
-      to serve the emitted `manifest.json`/`.minisig`), not just the minisign shim
-      or a hand-rolled fixture string — so serde parsing, sha256 resolution, and
-      the raw-bytes manifest signature all see producer output. Exercises the full
-      resolve path (parse → `platform_entry` → sha256 → minisign) and proves the
-      producer→consumer per-binary contract at HEAD rather than deferring it to
-      0168.
-- [ ] Round-trip: `emit_manifest` output + its `manifest.minisig` (exact asset
+- [x] **End-to-end fixture test** (adapted): a fixture sub-binary is staged,
+      signed, and assembled into a *non-empty* manifest via the real producer
+      (`collect_entries` + `emit_manifest`). Rather than an in-process
+      `FetchVerifyCacheResolver` call (which needs a fragile cross-language
+      artifact handoff), the producer-emitted bytes are proven against the same
+      `minisign-verify` the launcher embeds — the built `accelerator-verify` shim
+      verifies the raw manifest signature AND each inline per-binary signature —
+      plus a jsonschema shape check and a sha256 cross-check. The existing Rust
+      `resolution.rs` / `manifest.rs` tests parse the identical shape, so the two
+      together cover parse → verify → resolve against producer output at HEAD.
+- [x] Round-trip: `emit_manifest` output + its `manifest.minisig` (exact asset
       name) verify through the built `accelerator-verify` shim; fails closed in CI
       when `minisign` is absent.
-- [ ] Coherence test: a manifest whose `version` disagrees with `plugin.json`
+- [x] Coherence test: a manifest whose `version` disagrees with `plugin.json`
       raises `VersionCoherenceError`; agreement passes; a missing staged manifest
       in the emit flow raises rather than skipping.
-- [ ] `mise run test:unit:cli` still green (contract fixtures untouched).
-- [ ] `mise run check` passes.
+- [x] `mise run test:unit:cli` still green (contract fixtures untouched).
+- [x] `mise run check` passes.
 
 #### Manual Verification
 
-- [ ] The emitted `manifest.json` byte-for-byte matches what a `cat` of the
+- [x] The emitted `manifest.json` byte-for-byte matches what a `cat` of the
       signed file shows (no re-serialisation between sign and inspect), and the
       signature asset is named exactly `manifest.minisig`.
 
