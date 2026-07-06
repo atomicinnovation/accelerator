@@ -4,12 +4,12 @@ title: "Work Management Integration"
 date: "2026-05-04T23:56:41+00:00"
 author: Toby Clemson
 kind: epic
-status: in-progress
+status: done
 priority: high
-tags: [work-management, integrations, jira, linear, trello, github-issues, sync]
+tags: [work-management, integrations, jira, linear, sync]
 type: work-item
 schema_version: 1
-last_updated: "2026-05-04T23:56:41+00:00"
+last_updated: "2026-07-06T13:29:26+00:00"
 last_updated_by: Toby Clemson
 derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-27-create-work-item-open-from-existing", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-29-jira-cloud-integration-skills"]
 external_id: PP-67
@@ -18,23 +18,26 @@ external_id: PP-67
 # 0045: Work Management Integration
 
 **Kind**: Epic
-**Status**: In-Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
 ## Summary
 
 As a developer using the Accelerator plugin, I want a complete local-first work
-management system that can synchronise with popular remote issue trackers (Jira,
-Linear, Trello, GitHub Issues with Projects), so that I can manage work items
-locally in my repository while keeping them in sync with my team's chosen
-tracking tool.
+management system that can synchronise with popular remote issue trackers (Jira
+and Linear), so that I can manage work items locally in my repository while
+keeping them in sync with my team's chosen tracking tool.
 
 The initiative covers three layers: (1) a local work item lifecycle implemented
-as Accelerator skills, (2) per-system integrations for Jira, Linear, Trello, and
-GitHub Issues, and (3) a bidirectional sync skill that reconciles local work
-items with remote issues on demand. The first three major streams — local skills,
-configurable ID patterns, and Jira integration — are complete.
+as Accelerator skills, (2) per-system integrations for Jira and Linear, and
+(3) a bidirectional sync skill that reconciles local work items with remote
+issues on demand. All streams are complete.
+
+> **Scope note**: The remaining Trello and GitHub Issues + Projects integrations
+> were split out into a separate epic, **0178 (Work Management Additional
+> Integrations)**, and are tracked there. This epic covers the shipped Jira and
+> Linear integrations plus the shared foundation.
 
 ## Context
 
@@ -94,7 +97,7 @@ the migration framework.
 `jira-adf-to-md.sh`. Auth via `ACCELERATOR_JIRA_TOKEN_CMD` indirection. Field
 and project catalogues cached in `meta/integrations/jira/`.
 
-### Planned
+### Delivered
 
 **Work management system configuration** — A `work.integration` config key
 (values: `jira`, `linear`, `trello`, `github-issues`) that declares the active
@@ -122,25 +125,6 @@ require resolving team-scoped `WorkflowState` UUIDs. Linear issue identifiers
 helper handles GraphQL query/mutation construction, cursor-based pagination, and
 the `400 RATELIMITED` response code.
 
-**Trello integration** — REST-based. Eight skills under
-`skills/integrations/trello/`: `init-trello`, `search-trello-cards`,
-`show-trello-card`, `create-trello-card`, `update-trello-card`,
-`move-trello-card`, `comment-trello-card`, `attach-trello-card`. Workflow is
-list-position rather than a state machine; a configurable list-name → local
-status mapping is persisted by `init-trello` to
-`meta/integrations/trello/status-map.json`. Trello card `shortLink` (the short
-alphanumeric in the card URL, e.g. `AbCd1234`) is used as `work_item_id`.
-
-**GitHub Issues + Projects integration** — REST-based for issues; REST (GitHub
-September 2025 GA) and GraphQL for Projects v2. Eight skills under
-`skills/integrations/github-issues/`: `init-github-issues`,
-`search-github-issues`, `show-github-issue`, `create-github-issue`,
-`update-github-issue`, `comment-github-issue`, `close-github-issue`, plus
-Projects v2 status field management. GitHub issue identifiers stored as
-`{owner}/{repo}#{number}` (e.g. `atomic-innovation/accelerator#42`) to ensure
-global uniqueness. Delegates to the `gh` CLI where available; direct REST/
-GraphQL as fallback.
-
 **`sync-work-items` skill** — Bidirectional, on-demand. Reads `work.integration`
 to identify the active system. For each local work item whose `work_item_id`
 matches the remote key format (i.e. has been pushed), compares local and remote
@@ -157,34 +141,38 @@ side-by-side diff and must confirm or override before any local write occurs.
 - — Work management system configuration (`work.integration` key)
 - — Core skills sync integration (`/list-work-items` sync status; `/create-work-item` push offer)
 - — Linear integration
-- — Trello integration
-- — GitHub Issues + Projects integration
 - — `sync-work-items` skill
+
+Split into epic 0178 (Work Management Additional Integrations):
+
+- 0049 — Trello integration
+- 0050 — GitHub Issues + Projects integration
 
 ## Acceptance Criteria
 
-- [ ] Given no `work.integration` is configured, when a developer uses any work management skill, then all skills function against `meta/work/` with no external API calls
-- [ ] Given `work.integration: jira | linear | trello | github-issues` is configured, when a developer uses a read or write integration skill, then the skill scopes automatically to `work.default_project_code` without requiring `--project`
-- [ ] Given `work.integration` is configured and `/list-work-items` is invoked, then each work item row shows a sync status indicator: synced (remote-format `work_item_id`), unsynced (numeric `work_item_id`), or conflict
-- [ ] Given `work.integration` is configured and `/create-work-item` completes, then the skill offers to push to the remote system; on acceptance, the remote allocates the issue ID, and the local file is written with the remote-allocated key as `work_item_id`; on decline, the local file is written with a numeric ID
-- [ ] Given a developer runs `/init-jira`, `/init-linear`, `/init-trello`, or `/init-github-issues`, when auth is verified, then project and field catalogues are persisted to `meta/integrations/<system>/` and the integration supports the full CRUD lifecycle (read, create, update, transition or move, comment, attach)
-- [ ] Given a work item has been pushed to a remote system, then its `work_item_id` frontmatter field exactly matches the remote issue key (e.g. `"PROJ-0042"` for Jira, `"BLA-123"` for Linear, `"AbCd1234"` for Trello, `"atomic-innovation/accelerator#42"` for GitHub Issues)
-- [ ] Given a developer runs `/sync-work-items` with no conflicts, when the sync completes, then all locally tracked work items with remote-format IDs are updated to reflect the remote state, all untracked remote issues within the configured project are created as local work items with the remote ID as `work_item_id`, and `last-sync.json` is updated
-- [ ] Given a conflict exists (local and remote both changed since last sync), when `/sync-work-items` encounters it, then the remote version is the default, a side-by-side diff is shown, and the local file is only overwritten after explicit user confirmation
-- [ ] Given the GitHub Issues integration is configured, when a developer manages a project item's status field, then multi-state status tracking via a Projects v2 `single_select` field is supported alongside basic issue CRUD
+- [x] Given no `work.integration` is configured, when a developer uses any work management skill, then all skills function against `meta/work/` with no external API calls
+- [x] Given `work.integration: jira | linear` is configured, when a developer uses a read or write integration skill, then the skill scopes automatically to `work.default_project_code` without requiring `--project`
+- [x] Given `work.integration` is configured and `/list-work-items` is invoked, then each work item row shows a sync status indicator: synced (remote-format `work_item_id`), unsynced (numeric `work_item_id`), or conflict
+- [x] Given `work.integration` is configured and `/create-work-item` completes, then the skill offers to push to the remote system; on acceptance, the remote allocates the issue ID, and the local file is written with the remote-allocated key as `work_item_id`; on decline, the local file is written with a numeric ID
+- [x] Given a developer runs `/init-jira` or `/init-linear`, when auth is verified, then project and field catalogues are persisted to `meta/integrations/<system>/` and the integration supports the full CRUD lifecycle (read, create, update, transition, comment, attach)
+- [x] Given a work item has been pushed to a remote system, then its `work_item_id` frontmatter field exactly matches the remote issue key (e.g. `"PROJ-0042"` for Jira, `"BLA-123"` for Linear)
+- [x] Given a developer runs `/sync-work-items` with no conflicts, when the sync completes, then all locally tracked work items with remote-format IDs are updated to reflect the remote state, all untracked remote issues within the configured project are created as local work items with the remote ID as `work_item_id`, and `last-sync.json` is updated
+- [x] Given a conflict exists (local and remote both changed since last sync), when `/sync-work-items` encounters it, then the remote version is the default, a side-by-side diff is shown, and the local file is only overwritten after explicit user confirmation
 
 ## Open Questions
 
-- For GitHub Issues: the epic assumes `{owner}/{repo}#{number}` as the `work_item_id` format for global uniqueness. Should single-repo teams be able to configure a shorter form (e.g. just `#42`) to reduce verbosity in frontmatter?
+- None. The open question about GitHub Issues identifier format moved to epic
+  0178 with the GitHub integration.
 
 ## Dependencies
 
 - Blocked by: —
-- Blocks: `sync-work-items` skill (depends on at least one integration being complete; Linear, Trello, and GitHub integrations can be developed in parallel)
+- Blocks: —
+- Relates to: 0178 (Work Management Additional Integrations) — carries the
+  remaining Trello and GitHub Issues + Projects integrations
 
 ## Assumptions
 
-- **GitHub Issues integration includes Projects v2** for multi-state workflow tracking. This makes the GitHub integration the most complex of the four — comparable to, or exceeding, Jira.
 - **One active integration at a time** — `work.integration` is a single string, not an array. Multi-system mirroring is out of scope for this epic.
 - **Remote system allocates the ID on first push** — there is no intermediate numeric-then-remote ID transition. When a user accepts the push offer in `/create-work-item`, the remote creates the issue first, returns its key, and the local file is written once with that key as `work_item_id`. Work items saved without pushing carry a local numeric ID and are treated as unsynced.
 - **Sync is last-modified timestamp-based** — conflict detection compares file modification times against a stored last-sync timestamp. SHA-based diffing and three-way merge are out of scope.
@@ -192,17 +180,16 @@ side-by-side diff and must confirm or override before any local write occurs.
 ## Technical Notes
 
 - Linear's GraphQL API uses a single endpoint (`https://api.linear.app/graphql`), cursor-based pagination, and returns rate-limit errors as `400` with `"code": "RATELIMITED"` in GraphQL error extensions — not `429`. A dedicated `linear-graphql.sh` helper is required; `jira-request.sh` cannot be reused.
-- Trello's workflow model (list-position) means the sync skill must translate between named lists and local status values. The `status-map.json` file generated by `init-trello` is the configuration surface for this mapping and can be hand-edited after init.
-- GitHub Projects v2 gained a REST API in September 2025 for most operations. For operations not yet available via REST, fall back to GraphQL. The `gh` CLI covers both layers and is the recommended primary path.
 - The `schpet/linear-cli` (TypeScript, April 2026, actively maintained) is worth reviewing for Linear auth patterns and agent-friendly UX before designing `init-linear`.
+
+Technical notes specific to the Trello and GitHub Issues integrations moved to
+epic 0178.
 
 ## Drafting Notes
 
-- Status set to `in-progress` rather than `draft` — three major streams (local skills, configurable ID pattern, Jira integration) are confirmed complete at time of writing.
+- Status set to `done` — all in-scope streams (local skills, configurable ID pattern, Jira and Linear integrations, and the `sync-work-items` skill) are complete. The remaining Trello and GitHub Issues integrations were split into epic 0178, so they no longer gate this epic's completion.
 - "Remote allocates ID on first push" means the push is a prerequisite for writing the local file with a permanent ID. The implementing plan for the "offer to push" feature in `/create-work-item` must decide what happens on push failure: leave the draft in memory and re-offer, or write locally with a numeric ID and sync later.
-- Trello `shortLink` chosen over the full 24-char hex card ID as `work_item_id` for readability (shortLinks appear in card URLs and are recognisable to users). The Trello integration's implementing plan should confirm this choice.
 - "Offer to push" UX for `/create-work-item` is intentionally left to the implementing plan — the epic captures the intent (remote allocates first, then write); the plan decides whether this is a confirmation prompt, an explicit `--push` flag, or automatic with a confirmation gate.
-- The `gh` CLI is an existing dependency in `skills/github/`. Using it for the GitHub Issues integration is consistent with that precedent and substantially reduces the implementation surface area for both issues and Projects v2.
 - The numeric-ID-as-unsynced convention (a numeric `work_item_id` means "not yet pushed") is a new semantic for an existing field. The sync status indicators in `/list-work-items` depend on this convention; it should be documented in the configure skill's `work` section.
 
 ## References
