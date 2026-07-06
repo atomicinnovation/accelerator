@@ -29,6 +29,11 @@ dev = [
     # exactly below). Test-only — the tests/ tree is excluded from pyrefly, so
     # PyYAML being untyped needs no replace-imports-with-any entry.
     "pyyaml>=6",
+    # Validates emitted manifest.json against the frozen manifest.schema.json in
+    # test_manifest.py — a shape check complementing the real serde parser.
+    # Test-only (tests/ is pyrefly-excluded), so a `>=` floor suffices; the
+    # Draft 2020-12 validator API it uses is stable.
+    "jsonschema>=4",
     # Exact pins (not `>=`): ruff's `select = ["ALL"]` and pyrefly's strict
     # preset are version-sensitive — a patch bump can add or alter rules — so a
     # relock must not silently move them off the audited rule sets. uv.lock +
