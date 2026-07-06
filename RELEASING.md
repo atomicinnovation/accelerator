@@ -75,6 +75,63 @@ the top of each wrapper in `tasks/release.py` raises `RuntimeError` if
 After the stable release publishes, the job reuses `prerelease_prepare` /
 `prerelease_finalise` to cut `1.(Y+1).0-pre.0` immediately.
 
+## Release signing key lifecycle
+
+Every distributed binary — the `accelerator` launcher (fetched by the bootstrap)
+and every manifest-listed sub-binary (fetched by the launcher) — is signed with
+minisign. The launcher and bootstrap embed the committed public key
+(`keys/accelerator-release.pub`) at build time and refuse anything it does not
+verify. The matching secret must never be committed (`/keys/*.sec` is
+gitignored).
+
+**The currently-committed public key is of unknown secret provenance** and must
+be treated as untrusted. Before any real (non-empty) sub-binary ships, an admin
+must generate a fresh `-W` keypair whose secret has never left their control and
+replace the committed public half.
+
+### Generating and provisioning the keypair
+
+```bash
+mise run keys:generate            # writes keys/accelerator-release.{pub,sec}
+gh secret set ACCELERATOR_RELEASE_SECRET_KEY < keys/accelerator-release.sec
+```
+
+`keys:generate` runs `minisign -G -W -f` non-interactively and never prints the
+secret; provision it straight from the written `.sec` (piped, never echoed) so
+it never lands in scrollback or shell history. Delete the local `.sec` once the
+GitHub secret is set.
+
+The `ACCELERATOR_RELEASE_SECRET_KEY` secret is materialised to a mode-`0600`
+temp file only inside the dedicated signing step (`*:sign`), never during
+compilation.
+
+### Strict rollout sequence
+
+The order is load-bearing — a launcher only trusts the key it was built with:
+
+1. Commit the new `keys/accelerator-release.pub`. `cli/launcher/build.rs`
+   re-embeds it, so a launcher built from that HEAD trusts the new key.
+2. Cut and distribute the launcher built from that HEAD.
+3. Only then sign any release with the matching secret.
+
+Signing a release before a launcher that embeds the new public key exists in the
+field would produce assets no deployed launcher can verify.
+
+### Compromise detection and response
+
+- **Access** — only the release admin and the `ACCELERATOR_RELEASE_SECRET_KEY`
+  GitHub secret (readable by the release jobs) hold the secret. It is never
+  written to disk outside the ephemeral signing step.
+- **Detection** — an unexpected release, a signature that verifies under a key
+  that was never provisioned, or a maintainer report of an unrecognised
+  published asset.
+- **Response** — rotate on compromise only, by embedding a new public key in the
+  next launcher release (steps 1–3 above). Because launchers are version-pinned
+  (each trusts only its own release's manifest), the blast radius is bounded to
+  versions cut with the compromised secret. The launcher's verify-any-of keyring
+  (`keys.rs`) leaves headroom to embed both the old and new keys for an overlap
+  window if a staged rotation is ever needed.
+
 ## Source files
 
 | File                   | Responsibility                                                                                  |
