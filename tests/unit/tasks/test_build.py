@@ -11,6 +11,7 @@ from tasks.build import (
     VersionCoherenceError,
     _assert_static_elf,
     _is_statically_linked,
+    assert_staged_launcher_versions,
     create_checksums,
     update_checksums_json,
     validate_version_coherence,
@@ -95,6 +96,41 @@ class TestAssertStaticElf:
         target.write_bytes(b"\x7fELF")
         with pytest.raises(RuntimeError, match="not on PATH"):
             _assert_static_elf(target)
+
+
+# ── assert_staged_launcher_versions() ─────────────────────────────────
+
+
+class TestAssertStagedLauncherVersions:
+    def _stage(self, mocker, tmp_path):
+        mocker.patch.object(
+            tb,
+            "cli_binary_path",
+            side_effect=lambda n, p: tmp_path / f"{n}-{p}",
+        )
+
+    def test_passes_when_every_launcher_embeds_the_version(
+        self, mocker, tmp_path
+    ):
+        self._stage(mocker, tmp_path)
+        for _, platform in TARGETS:
+            (tmp_path / f"accelerator-{platform}").write_bytes(
+                b"prefix 1.21.0-pre.4 suffix"
+            )
+        assert_staged_launcher_versions("1.21.0-pre.4")
+
+    def test_raises_when_a_launcher_embeds_the_wrong_version(
+        self, mocker, tmp_path
+    ):
+        self._stage(mocker, tmp_path)
+        for _, platform in TARGETS:
+            (tmp_path / f"accelerator-{platform}").write_bytes(
+                b"prefix 1.21.0-pre.4 suffix"
+            )
+        # One stale binary embeds an older version.
+        (tmp_path / "accelerator-linux-x64").write_bytes(b"1.21.0-pre.3")
+        with pytest.raises(RuntimeError, match="does not embed"):
+            assert_staged_launcher_versions("1.21.0-pre.4")
 
 
 # ── cli path helpers ──────────────────────────────────────────────────

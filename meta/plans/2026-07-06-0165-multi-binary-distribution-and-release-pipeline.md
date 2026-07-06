@@ -689,18 +689,19 @@ visualiser — so the sequencing is load-bearing, not advisory.
 
 #### Automated Verification
 
-- [ ] `uv run pytest tests/unit/tasks/test_workflows.py -v` passes: the signing
+- [x] `uv run pytest tests/unit/tasks/test_workflows.py -v` passes: the signing
       secret is referenced **only** in the `Sign*` step (not `Prepare*`), and the
       attest globs include the launcher binaries.
-- [ ] `uv run pytest tests/integration/tasks/test_release.py -v` passes: `*_prepare`
+- [x] `uv run pytest tests/integration/tasks/test_release.py -v` passes: `*_prepare`
       runs `cli_cross_compile` after the version bump; `*_sign` runs
       `sign_staged_binaries` + `emit_manifest` under `resolve_secret_key` and
       raises with the preflight message when the secret is absent; `_publish` calls
       `upload_and_verify_release`; the staged-launcher embedded version equals the
-      release version; the artifact-cleanliness guard fires if a build artifact is
-      outside `dist/release/` before `commit_version`.
-- [ ] `mise run lint:workflows:check` (actionlint) passes.
-- [ ] `mise run check` passes.
+      release version (tested in test_build.py); the artifact-cleanliness guard
+      fires if a build artifact/secret is outside `dist/release/` before
+      `commit_version`.
+- [x] `mise run lint:workflows:check` (actionlint) passes.
+- [x] `mise run check` passes.
 
 #### Manual Verification
 

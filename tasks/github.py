@@ -59,8 +59,8 @@ def create_release(context: Context, target_version: str | None = None) -> None:
     """Create a draft GitHub release for the current version.
 
     Passes --prerelease for pre-release versions (X.Y.Z-suffix) and
-    --draft unconditionally so no assets are visible until upload_and_verify
-    has verified every binary and published the release.
+    --draft unconditionally so no assets are visible until
+    upload_and_verify_release has verified every asset and published it.
     """
     from tasks import version
 
@@ -146,52 +146,6 @@ def download_and_verify(
         verify_release_asset(context, tmp_path, expected_hex)
     finally:
         tmp_path.unlink(missing_ok=True)
-
-
-@task
-def upload_and_verify(context: Context, version: str) -> None:
-    """Upload release artefacts, verify SHA-256, then publish the draft."""
-    tag = f"v{version}"
-    checksums = json.loads(CHECKSUMS.read_text())
-    hashes = {
-        platform: digest.removeprefix("sha256:")
-        for platform, digest in checksums["binaries"].items()
-    }
-    binaries = {platform: binary_path(platform) for _, platform in TARGETS}
-    archives = {
-        platform: debug_archive_path(platform) for _, platform in TARGETS
-    }
-    missing = [
-        p
-        for p in list(binaries.values()) + list(archives.values())
-        if not p.exists()
-    ]
-    if missing:
-        raise FileNotFoundError(
-            f"Expected release artefacts not found: {[str(p) for p in missing]}"
-        )
-    try:
-        for platform, path in binaries.items():
-            upload_release_asset(context, tag, path)
-            upload_release_asset(context, tag, archives[platform])
-        for platform, asset_path in binaries.items():
-            download_and_verify(context, tag, asset_path.name, hashes[platform])
-        context.run(f"gh release edit {tag} --draft=false", pty=True)
-    except AssetVerificationError:
-        _emit_forensic_alert(
-            context,
-            tag,
-            "Visualiser",
-            "AssetVerificationError — draft + tag PRESERVED for triage",
-        )
-        raise
-    except Exception:
-        context.run(
-            f"gh release delete {tag} --cleanup-tag --yes",
-            warn=True,
-            timeout=120,
-        )
-        raise
 
 
 # ── unified launcher + manifest + visualiser publish ──────────────────

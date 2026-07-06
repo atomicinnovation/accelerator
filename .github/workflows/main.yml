@@ -349,10 +349,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run prerelease:prepare
 
+      # Only this step carries the signing secret — the Prepare step above runs
+      # cargo zigbuild over untrusted transitive build scripts, so the secret is
+      # never in the environment during compilation.
+      - name: Sign prerelease
+        env:
+          ACCELERATOR_RELEASE_SECRET_KEY: ${{ secrets.ACCELERATOR_RELEASE_SECRET_KEY }}
+        run: mise run prerelease:sign
+
       - name: Attest binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
+            dist/release/accelerator-*
 
       - name: Finalise prerelease
         env:
@@ -434,10 +444,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run release:prepare
 
+      - name: Sign stable release
+        env:
+          ACCELERATOR_RELEASE_SECRET_KEY: ${{ secrets.ACCELERATOR_RELEASE_SECRET_KEY }}
+        run: mise run release:sign
+
       - name: Attest stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
+            dist/release/accelerator-*
 
       - name: Finalise stable release
         env:
@@ -449,10 +466,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run prerelease:prepare
 
+      - name: Sign post-stable prerelease
+        env:
+          ACCELERATOR_RELEASE_SECRET_KEY: ${{ secrets.ACCELERATOR_RELEASE_SECRET_KEY }}
+        run: mise run prerelease:sign
+
       - name: Attest post-stable binary provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "skills/visualisation/visualise/bin/accelerator-visualiser-*"
+          subject-path: |
+            skills/visualisation/visualise/bin/accelerator-visualiser-*
+            dist/release/accelerator-*
 
       - name: Finalise post-stable prerelease
         env:
