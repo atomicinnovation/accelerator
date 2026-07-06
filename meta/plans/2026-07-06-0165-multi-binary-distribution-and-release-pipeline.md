@@ -594,7 +594,7 @@ tautologically. The shim is resolved to the **runner host arch** via the
 
 #### Automated Verification
 
-- [ ] `uv run pytest tests/integration/tasks/test_github.py -v` passes (extending
+- [x] `uv run pytest tests/integration/tasks/test_github.py -v` passes (extending
       the existing draft-preserve fixtures): the upload set equals visualiser
       assets + launcher binaries + their `.minisig` + `manifest.json` +
       `manifest.minisig` (+ sub-binary assets + `.minisig` when present); a
@@ -602,12 +602,12 @@ tautologically. The shim is resolved to the **runner host arch** via the
       `AssetVerificationError`, the release is **not** published and **not**
       deleted; an unrelated error deletes it; `--draft=false` is flipped exactly
       once and only after all re-verifies pass.
-- [ ] A binary/manifest signed by a non-committed key fails re-verify and
+- [x] A binary/manifest signed by a non-committed key fails re-verify and
       preserves the draft (guards the committed-key pinning).
-- [ ] A re-run after a preserved draft succeeds (uploads are `--clobber`
+- [x] A re-run after a preserved draft succeeds (uploads are `--clobber`
       idempotent); the forensic alert names the failing track.
-- [ ] The existing visualiser upload/verify tests remain green (additive).
-- [ ] `mise run check` passes.
+- [x] The existing visualiser upload/verify tests remain green (additive).
+- [x] `mise run check` passes.
 
 #### Manual Verification
 

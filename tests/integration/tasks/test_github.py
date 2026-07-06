@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -14,6 +16,7 @@ from tasks.github import (
     download_release_asset,
     is_prerelease_version,
     upload_and_verify,
+    upload_and_verify_release,
     upload_release_asset,
     verify_release_asset,
 )
@@ -21,6 +24,7 @@ from tasks.shared.errors import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture
@@ -421,3 +425,285 @@ class TestIsPreReleaseVersion:
     def test_none_raises(self):
         with pytest.raises(InvalidVersionError):
             is_prerelease_version(None)
+
+
+# ── upload_and_verify_release() (unified single-gate publish) ─────────
+
+
+def _in_ci() -> bool:
+    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
+
+
+def _require(name: str) -> None:
+    if shutil.which(name):
+        return
+    if _in_ci():
+        pytest.fail(f"{name} not on PATH — provisioning regression in CI")
+    pytest.skip(f"{name} not on PATH")
+
+
+def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
+    checksums = tmp_path / "checksums.json"
+    checksums.write_text(
+        json.dumps(
+            {
+                "version": "1.20.0",
+                "binaries": dict.fromkeys(_PLATFORMS, f"sha256:{'a' * 64}"),
+            }
+        )
+    )
+    mocker.patch.object(gh, "CHECKSUMS", checksums)
+    mocker.patch.object(
+        gh,
+        "binary_path",
+        side_effect=lambda p: tmp_path / f"accelerator-visualiser-{p}",
+    )
+    mocker.patch.object(
+        gh,
+        "debug_archive_path",
+        side_effect=lambda p: (
+            tmp_path / f"accelerator-visualiser-{p}.debug.tar.gz"
+        ),
+    )
+    mocker.patch.object(
+        gh,
+        "cli_binary_path",
+        side_effect=lambda name, p: tmp_path / f"{name}-{p}",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest_sig = tmp_path / "manifest.minisig"
+    mocker.patch.object(gh, "RELEASE_MANIFEST", manifest)
+    mocker.patch.object(gh, "RELEASE_MANIFEST_SIG", manifest_sig)
+    if create:
+        for platform in _PLATFORMS:
+            (tmp_path / f"accelerator-visualiser-{platform}").write_bytes(
+                b"\x00" * 4
+            )
+            (
+                tmp_path / f"accelerator-visualiser-{platform}.debug.tar.gz"
+            ).write_bytes(b"\x00" * 8)
+            (tmp_path / f"accelerator-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-{platform}.minisig").write_text("sig")
+        manifest.write_text(
+            json.dumps(
+                {"schema_version": 1, "version": "1.20.0", "binaries": {}}
+            )
+        )
+        manifest_sig.write_text("sig")
+
+
+class TestUploadAndVerifyRelease:
+    def _pass_reverify(self, mocker):
+        mocker.patch.object(gh, "download_and_verify")
+        mocker.patch.object(gh, "_reverify_via_shim")
+
+    def test_uploads_every_asset_with_clobber(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path)
+        self._pass_reverify(mocker)
+        upload_and_verify_release(ctx, "1.20.0")
+        uploads = [
+            c for c in ctx.run.call_args_list if "gh release upload" in str(c)
+        ]
+        # 4x(visualiser + debug + launcher + launcher.minisig) + manifest + sig
+        assert len(uploads) == 18
+        assert all("--clobber" in str(c) for c in uploads)
+
+    def test_publishes_once_after_all_reverify(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path)
+        self._pass_reverify(mocker)
+        upload_and_verify_release(ctx, "1.20.0")
+        flips = [c for c in ctx.run.call_args_list if "--draft=false" in str(c)]
+        assert len(flips) == 1
+
+    def test_missing_asset_raises_before_upload(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path, create=False)
+        with pytest.raises(FileNotFoundError):
+            upload_and_verify_release(ctx, "1.20.0")
+        ctx.run.assert_not_called()
+
+    def test_launcher_reverify_failure_preserves_draft(
+        self, ctx, mocker, tmp_path, capsys
+    ):
+        _setup_release(mocker, tmp_path)
+        mocker.patch.object(gh, "download_and_verify")
+        mocker.patch.object(
+            gh,
+            "_reverify_via_shim",
+            side_effect=AssetVerificationError("bad"),
+        )
+        with pytest.raises(AssetVerificationError):
+            upload_and_verify_release(ctx, "1.20.0")
+        cmds = "".join(str(c.args[0]) for c in ctx.run.call_args_list)
+        assert "gh release delete" not in cmds
+        assert "--draft=false" not in cmds
+        out = capsys.readouterr().out
+        assert "Launcher/manifest release" in out
+        assert "PRESERVED" in out
+
+    def test_visualiser_reverify_failure_preserves_draft(
+        self, ctx, mocker, tmp_path, capsys
+    ):
+        _setup_release(mocker, tmp_path)
+        mocker.patch.object(
+            gh,
+            "download_and_verify",
+            side_effect=AssetVerificationError("bad"),
+        )
+        mocker.patch.object(gh, "_reverify_via_shim")
+        with pytest.raises(AssetVerificationError):
+            upload_and_verify_release(ctx, "1.20.0")
+        cmds = "".join(str(c.args[0]) for c in ctx.run.call_args_list)
+        assert "gh release delete" not in cmds
+        assert "--draft=false" not in cmds
+        assert "Visualiser release" in capsys.readouterr().out
+
+    def test_generic_error_deletes_release(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path)
+        mocker.patch.object(
+            gh, "download_and_verify", side_effect=RuntimeError("transient")
+        )
+        mocker.patch.object(gh, "_reverify_via_shim")
+        with pytest.raises(RuntimeError):
+            upload_and_verify_release(ctx, "1.20.0")
+        deletes = [
+            c for c in ctx.run.call_args_list if "gh release delete" in str(c)
+        ]
+        assert len(deletes) == 1
+
+    def test_rerun_after_preserved_draft_succeeds(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path)
+        self._pass_reverify(mocker)
+        upload_and_verify_release(ctx, "1.20.0")
+        upload_and_verify_release(ctx, "1.20.0")
+        flips = [c for c in ctx.run.call_args_list if "--draft=false" in str(c)]
+        assert len(flips) == 2
+
+    def test_includes_subbinary_assets_when_present(
+        self, ctx, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path)
+        for platform in _PLATFORMS:
+            (tmp_path / f"foo-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"foo-{platform}.minisig").write_text("sig")
+        (tmp_path / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "version": "1.20.0",
+                    "binaries": {
+                        "foo": {
+                            "description": "Foo",
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        }
+                    },
+                }
+            )
+        )
+        mocker.patch.object(gh, "DISPATCHED_SUBBINARIES", ("foo",))
+        self._pass_reverify(mocker)
+        mocker.patch.object(gh, "_reverify_subbinary")
+        upload_and_verify_release(ctx, "1.20.0")
+        uploads = "".join(str(c) for c in ctx.run.call_args_list)
+        assert "foo-darwin-arm64 --clobber" in uploads
+        assert "foo-darwin-arm64.minisig --clobber" in uploads
+
+
+class TestReverifyViaShim:
+    @pytest.fixture(scope="class")
+    def shim_bin(self) -> Path:
+        _require("cargo")
+        subprocess.run(
+            [
+                "cargo",
+                "build",
+                "--quiet",
+                "-p",
+                "accelerator-verify",
+                "--manifest-path",
+                str(_REPO_ROOT / "cli/Cargo.toml"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        shim = _REPO_ROOT / "cli/target/debug/accelerator-verify"
+        if not (shim.exists() and os.access(shim, os.X_OK)):
+            pytest.fail(f"shim not built: {shim}")
+        return shim
+
+    def _keypair(self, tmp_path: Path, name: str) -> tuple[Path, Path]:
+        _require("minisign")
+        pub = tmp_path / f"{name}.pub"
+        sec = tmp_path / f"{name}.sec"
+        subprocess.run(
+            ["minisign", "-G", "-W", "-f", "-p", str(pub), "-s", str(sec)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return pub, sec
+
+    def _sign(self, sec: Path, target: Path) -> Path:
+        sig = target.with_name(target.name + ".minisig")
+        subprocess.run(
+            [
+                "minisign",
+                "-S",
+                "-s",
+                str(sec),
+                "-x",
+                str(sig),
+                "-m",
+                str(target),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return sig
+
+    def _serve(self, mocker, payload: Path, sig: Path) -> None:
+        def fake(_ctx, _tag, asset, out):
+            src = sig if asset.endswith(".minisig") else payload
+            shutil.copy(src, out)
+
+        mocker.patch.object(gh, "download_release_asset", side_effect=fake)
+
+    def test_accepts_a_committed_key_signature(
+        self, ctx, mocker, tmp_path, shim_bin
+    ):
+        pub, sec = self._keypair(tmp_path, "release")
+        payload = tmp_path / "accelerator-darwin-arm64"
+        payload.write_bytes(b"launcher bytes")
+        sig = self._sign(sec, payload)
+        self._serve(mocker, payload, sig)
+        mocker.patch.object(gh, "vendored_shim_path", return_value=shim_bin)
+        mocker.patch.object(gh, "host_platform", return_value="darwin-arm64")
+        mocker.patch.object(gh, "RELEASE_PUBLIC_KEY", pub)
+
+        gh._reverify_via_shim(
+            ctx, "v1", payload.name, payload.name + ".minisig"
+        )
+
+    def test_rejects_a_non_committed_key_signature(
+        self, ctx, mocker, tmp_path, shim_bin
+    ):
+        release_pub, _release_sec = self._keypair(tmp_path, "release")
+        _attacker_pub, attacker_sec = self._keypair(tmp_path, "attacker")
+        payload = tmp_path / "accelerator-darwin-arm64"
+        payload.write_bytes(b"launcher bytes")
+        sig = self._sign(attacker_sec, payload)
+        self._serve(mocker, payload, sig)
+        mocker.patch.object(gh, "vendored_shim_path", return_value=shim_bin)
+        mocker.patch.object(gh, "host_platform", return_value="darwin-arm64")
+        # Verified against the committed key, not the (attacker) signing key —
+        # so the pinning is guarded and cannot pass tautologically.
+        mocker.patch.object(gh, "RELEASE_PUBLIC_KEY", release_pub)
+
+        with pytest.raises(AssetVerificationError, match="verification failed"):
+            gh._reverify_via_shim(
+                ctx, "v1", payload.name, payload.name + ".minisig"
+            )

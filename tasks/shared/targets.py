@@ -1,3 +1,5 @@
+import platform as _platform
+
 TARGETS = (
     ("aarch64-apple-darwin", "darwin-arm64"),
     ("x86_64-apple-darwin", "darwin-x64"),
@@ -19,3 +21,17 @@ UNAME_TO_ALIAS = {
     ("linux", "x86_64"): "linux-x64",
     ("linux", "amd64"): "linux-x64",
 }
+
+
+def host_platform() -> str:
+    """Return the platform alias of the host running this process.
+
+    Used to pick the runner-arch verify shim for the release re-verify step
+    (macos-latest is darwin-arm64). Raises on an unsupported host rather than
+    guessing.
+    """
+    key = (_platform.system().lower(), _platform.machine().lower())
+    try:
+        return UNAME_TO_ALIAS[key]
+    except KeyError:
+        raise RuntimeError(f"unsupported host platform: {key}") from None
