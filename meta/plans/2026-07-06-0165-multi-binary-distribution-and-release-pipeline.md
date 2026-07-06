@@ -735,13 +735,13 @@ Remove the stale runtime `gh attestation verify` claim; keep CI-side SLSA.
 
 #### Automated Verification
 
-- [ ] `grep -rn ACCELERATOR_VISUALISER_VERIFY_PROVENANCE README.md RELEASING.md`
+- [x] `grep -rn ACCELERATOR_VISUALISER_VERIFY_PROVENANCE README.md RELEASING.md`
       returns nothing.
-- [ ] `mise run check` passes.
+- [x] `mise run check` passes.
 
 #### Manual Verification
 
-- [ ] `RELEASING.md` still documents CI SLSA attestation and the user-run
+- [x] `RELEASING.md` still documents CI SLSA attestation and the user-run
       out-of-band verification.
 
 ---
