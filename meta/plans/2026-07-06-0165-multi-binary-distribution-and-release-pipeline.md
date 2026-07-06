@@ -5,7 +5,7 @@ title: "Multi-Binary Static Distribution and Release Pipeline with minisign Impl
 date: "2026-07-06T00:32:26+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0165"
 parent: "work-item:0165"
 derived_from: ["codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline"]
