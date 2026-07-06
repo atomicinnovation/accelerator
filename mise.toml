@@ -114,6 +114,16 @@ description = "Cross-compile the visualiser server for all four release targets"
 depends = ["deps:install:rust-targets", "build:frontend"]
 run = "invoke build.server-cross-compile"
 
+[tasks."build:cli:cross-compile"]
+description = "Cross-compile the cli launcher + verify shim for all four release targets (stages into dist/release/)"
+depends = ["deps:install:rust-targets"]
+run = "invoke build.cli-cross-compile"
+
+[tasks."build:vendor-verify-shims"]
+description = "Copy the cross-compiled verify shims into the committed bin/ tree and record the drift marker"
+depends = ["build:cli:cross-compile"]
+run = "invoke build.vendor-verify-shims"
+
 [tasks."build:debug-archives"]
 description = "Create .debug.tar.gz archives for all cross-compiled release binaries"
 depends = ["build:server:cross-compile"]
@@ -375,9 +385,14 @@ description = "Apply clippy's machine-applicable fixes to the cli/ workspace (ma
 depends = ["deps:install:rust-components"]
 run = "invoke lint.cli.fix"
 
+[tasks."lint:vendor-shims:check"]
+description = "Guard the committed verify shims against their cli/verify build inputs (drift marker + per-platform magic bytes)"
+depends = ["deps:install:python"]
+run = "invoke lint.vendor-shims.check"
+
 [tasks."cli:check"]
-description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check"]
+description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"

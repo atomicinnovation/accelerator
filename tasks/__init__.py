@@ -97,6 +97,9 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.workflows)
 )  # lint.workflows.actionlint
+ns_lint.add_collection(
+    Collection.from_module(lint.vendor_shims)
+)  # lint.vendor-shims.check
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")

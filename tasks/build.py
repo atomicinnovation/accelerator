@@ -1,5 +1,7 @@
+import hashlib
 import json
 import shutil
+import subprocess
 import tarfile
 from collections.abc import Mapping
 from pathlib import Path
@@ -13,17 +15,24 @@ from tasks.shared.paths import (
     BIN_DIR,
     CARGO_TOML,
     CHECKSUMS,
+    CLI_DIR,
     CLI_WORKSPACE_CARGO_TOML,
     FRONTEND,
     PLUGIN_JSON,
+    RELEASE_STAGING,
     REPO_ROOT,
     SERVER,
+    VENDOR_SHIM_MARKER,
     binary_path,
+    cli_binary_path,
     cli_member_manifests,
     debug_archive_path,
     load_toml,
+    vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS
+
+_CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
 
 
 class VersionCoherenceError(Exception): ...
@@ -112,6 +121,50 @@ def _assert_magic_bytes(path: Path, triple: str) -> None:
     elif magic != _ELF_MAGIC:
         raise RuntimeError(
             f"unexpected magic bytes for linux binary {path.name}: {magic!r}"
+        )
+
+
+def _is_statically_linked(file_output: str) -> bool:
+    """Whether `file`'s output describes a fully-static ELF.
+
+    Accepts the plain-static, static-PIE, and no-interpreter phrasings that
+    `file` emits for a musl static binary; a dynamically-linked ELF names its
+    interpreter and is rejected.
+    """
+    return (
+        "statically linked" in file_output
+        or "static-pie linked" in file_output
+        or "not a dynamic executable" in file_output
+    )
+
+
+def _assert_static_elf(path: Path) -> None:
+    """Fail closed unless `path` is a fully-static ELF (no interpreter/NEEDED).
+
+    Uses `file`, which reads foreign-arch ELF headers without executing them, so
+    all four cross-compiled musl binaries can be checked on the single host
+    runner. Raises rather than skipping if `file` is unavailable, so a broken
+    cross-compile can never slip through by silently disabling the check.
+    """
+    reader = shutil.which("file")
+    if reader is None:
+        raise RuntimeError(
+            f"cannot assert static linking for {path.name}: `file` not on PATH"
+        )
+    result = subprocess.run(
+        [reader, "-b", str(path)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"`file` failed for {path.name}: {result.stderr.strip()}"
+        )
+    if not _is_statically_linked(result.stdout):
+        raise RuntimeError(
+            f"{path.name} is not statically linked: {result.stdout.strip()}"
         )
 
 
@@ -213,6 +266,103 @@ def server_cross_compile(context: Context) -> None:
         src = SERVER / "target" / triple / "release" / "accelerator-visualiser"
         _assert_magic_bytes(src, triple)
         shutil.copy2(src, binary_path(platform))
+
+
+@task
+def cli_cross_compile(context: Context) -> None:
+    """Cross-compile the cli launcher + verify shim for all four targets.
+
+    Stages each `accelerator-{platform}` and `accelerator-verify-{platform}`
+    into dist/release/ after magic-byte and (musl) static-linking assertions.
+    """
+    RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
+    for triple, platform in TARGETS:
+        context.run(
+            f"cargo zigbuild --release --target {triple} "
+            f"--manifest-path {CLI_WORKSPACE_CARGO_TOML}",
+            pty=True,
+        )
+        for name in _CLI_RELEASE_BINARIES:
+            src = CLI_DIR / "target" / triple / "release" / name
+            _assert_magic_bytes(src, triple)
+            if "musl" in triple:
+                _assert_static_elf(src)
+            shutil.copy2(src, cli_binary_path(name, platform))
+
+
+def _minisign_verify_pin(cargo_toml_text: str) -> str:
+    for line in cargo_toml_text.splitlines():
+        if line.strip().startswith("minisign-verify"):
+            return line.strip()
+    raise RuntimeError("minisign-verify pin not found in cli/Cargo.toml")
+
+
+def _cargo_lock_package_block(
+    lock_text: str, name: str, *, drop_version: bool = False
+) -> str:
+    for block in lock_text.split("[[package]]"):
+        if f'name = "{name}"' in block:
+            lines = block.strip().splitlines()
+            if drop_version:
+                lines = [
+                    line
+                    for line in lines
+                    if not line.strip().startswith("version = ")
+                ]
+            return "\n".join(lines)
+    raise RuntimeError(f"package {name!r} not found in cli/Cargo.lock")
+
+
+def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
+    """SHA-256 over the verify shim's build inputs.
+
+    Covers `cli/verify` source (excluding the crate's own tests, which do not
+    build into the shim) plus the `minisign-verify` pin and its resolved
+    lockfile closure, so a dependency bump that never touches `cli/verify/**`
+    still trips the drift guard. The `accelerator-verify` lock block's own
+    version line is dropped so a routine release version bump is not drift.
+    """
+    hasher = hashlib.sha256()
+    verify_dir = root / "cli" / "verify"
+    tests_dir = verify_dir / "tests"
+    for path in sorted(p for p in verify_dir.rglob("*") if p.is_file()):
+        if tests_dir in path.parents:
+            continue
+        hasher.update(path.relative_to(verify_dir).as_posix().encode())
+        hasher.update(b"\0")
+        hasher.update(path.read_bytes())
+        hasher.update(b"\0")
+    cargo_toml = (root / "cli" / "Cargo.toml").read_text()
+    hasher.update(_minisign_verify_pin(cargo_toml).encode())
+    hasher.update(b"\0")
+    lock_text = (root / "cli" / "Cargo.lock").read_text()
+    hasher.update(
+        _cargo_lock_package_block(
+            lock_text, "accelerator-verify", drop_version=True
+        ).encode()
+    )
+    hasher.update(b"\0")
+    hasher.update(
+        _cargo_lock_package_block(lock_text, "minisign-verify").encode()
+    )
+    return hasher.hexdigest()
+
+
+@task
+def vendor_verify_shims(context: Context) -> None:
+    """Copy the cross-compiled verify shims into the committed bin/ tree.
+
+    The shims are the bootstrap's root of trust; they ship inside the plugin
+    package (a different lifecycle from the uploaded, gitignored binaries) and
+    are refreshed on demand, never in the release hot path. Records a marker
+    over the shims' build inputs so the drift guard can flag a stale vendor.
+    """
+    for _triple, platform in TARGETS:
+        source = cli_binary_path("accelerator-verify", platform)
+        destination = vendored_shim_path(platform)
+        shutil.copy2(source, destination)
+        destination.chmod(0o755)
+    atomic_write_text(VENDOR_SHIM_MARKER, vendor_shim_marker_digest() + "\n")
 
 
 @task
