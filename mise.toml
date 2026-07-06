@@ -457,6 +457,10 @@ run = "invoke version.bump"
 description = "Verify the GitHub CLI is authenticated"
 run = "invoke github.check-auth"
 
+[tasks."keys:generate"]
+description = "Generate a -W release signing keypair (writes keys/accelerator-release.{pub,sec}; does not print the secret)"
+run = "invoke keys.generate"
+
 [tasks."git:check-clean"]
 description = "Abort if the working tree has any uncommitted changes"
 run = "invoke git.check-clean"

@@ -12,6 +12,7 @@ from . import (
     marketplace,
     pup,
     release,
+    signing,
     test,
     types,
     version,
@@ -33,6 +34,10 @@ ns_release.add_task(release.release_finalise, name="finalise")
 ns.add_collection(ns_release)
 
 ns.add_collection(Collection.from_module(build))
+
+ns_keys = Collection("keys")
+ns_keys.add_task(signing.generate, name="generate")
+ns.add_collection(ns_keys)
 
 # Manual dev collection so a bare `invoke dev` maps to `up` (the unified
 # supervised stack), while the manual two-terminal tasks remain available.

@@ -250,23 +250,23 @@ headroom for an overlap window if ever needed).
 
 #### Automated Verification
 
-- [ ] `uv run pytest tests/unit/tasks/test_signing.py -v` passes: an ephemeral
+- [x] `uv run pytest tests/unit/tasks/test_signing.py -v` passes: an ephemeral
       `-W` key signs a temp file and the `.minisig` verifies through the built
       `accelerator-verify` shim. The round-trip **fails closed in CI** — when a
       CI env marker is set it fails (or `xfail(strict=True)`) rather than skipping
       if `minisign` is absent, so this security-critical assertion cannot silently
       no-op; only a local dev run skips (mirroring `verify.rs:60-70`).
-- [ ] A single `with resolve_secret_key(...) as key:` block signs **multiple**
+- [x] A single `with resolve_secret_key(...) as key:` block signs **multiple**
       files, and the temp key is gone (and mode `0600` while live) after the
       block, including on the exception path.
-- [ ] `sign_file` writes to the exact signature path it is given (a manifest signs
+- [x] `sign_file` writes to the exact signature path it is given (a manifest signs
       to `manifest.minisig`), and a forced non-zero minisign exit raises
       `SigningError` carrying the captured stderr.
-- [ ] The signature file has the four-line untrusted/base64/trusted/base64 shape.
-- [ ] `keys.generate` directed at `tmp_path` produces a public key that parses
-      (round-tripped via `minisign -V` against a file it signed) without touching
-      the tracked `keys/accelerator-release.pub`.
-- [ ] `mise run check` passes (ruff ALL + pyrefly strict on the new module).
+- [x] The signature file has the four-line untrusted/base64/trusted/base64 shape.
+- [x] `keys.generate` directed at `tmp_path` produces a public key that parses
+      (round-tripped via the built `accelerator-verify` shim against a file it
+      signed) without touching the tracked `keys/accelerator-release.pub`.
+- [x] `mise run check` passes (ruff ALL + pyrefly strict on the new module).
 
 #### Manual Verification
 
