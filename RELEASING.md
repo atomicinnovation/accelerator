@@ -132,6 +132,29 @@ field would produce assets no deployed launcher can verify.
   (`keys.rs`) leaves headroom to embed both the old and new keys for an overlap
   window if a staged rotation is ever needed.
 
+## Vendored verify shims
+
+`bin/accelerator-verify-{platform}` are committed, cross-compiled copies of the
+`accelerator-verify` root-of-trust binary — the bootstrap runs the per-platform
+shim to verify the launcher it fetches. They ship inside the plugin package
+(unlike the uploaded launcher/manifest assets) and are key-agnostic (the public
+key is passed as an argument), so they are refreshed **on demand**, never in the
+release hot path.
+
+Regenerate them when `lint:vendor-shims:check` fails (a `cli/verify` source
+change, a `minisign-verify` bump, or a lockfile change):
+
+```bash
+mise run build:vendor-verify-shims   # cross-compile + copy + refresh the marker
+```
+
+This needs the cross-compile toolchain: the four `rustup` targets
+(`deps:install:rust-targets`), `cargo-zigbuild`, and `ziglang` (both
+uv-provisioned). Commit the refreshed `bin/accelerator-verify-*` binaries and
+`bin/accelerator-verify.vendored.sha256` together. Cross-compiled binaries are
+not byte-reproducible, so the marker — a hash over `cli/verify`'s build inputs,
+not the shim bytes — is what the drift guard compares.
+
 ## Source files
 
 | File                   | Responsibility                                                                                  |

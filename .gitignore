@@ -19,6 +19,7 @@ __pycache__/
 meta/eval-workspaces/
 cli/target/
 cli/.pup/
+/dist/
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json

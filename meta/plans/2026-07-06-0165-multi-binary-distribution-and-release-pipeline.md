@@ -368,29 +368,31 @@ environment (zig + `rustup target add` + `cargo-zigbuild`) is documented in
 
 #### Automated Verification
 
-- [ ] `uv run pytest tests/unit/tasks/test_build.py -v` passes: `_assert_static_elf`
-      accepts `llvm-readelf` output (captured from a real static musl-PIE binary)
-      and rejects output containing `PT_INTERP` / a `NEEDED` entry (captured from a
-      real dynamic binary), and **raises** when no ELF reader is on PATH
-      (fail-closed) rather than skipping.
-- [ ] A native-host smoke test builds `accelerator-verify` for the host target and
-      runs the real `_assert_static_elf` against it, anchoring the parser to real
-      tool output rather than to itself.
-- [ ] Path-helper tests for `cli_binary_path` / `vendored_shim_path` pass.
-- [ ] `mise run build:cli:cross-compile` (run manually) stages four
-      `accelerator-{platform}` binaries into `dist/release/`, each passing its
-      magic-byte and (musl) static assertion.
-- [ ] Each committed `bin/accelerator-verify-{platform}` is executable and passes
+- [x] `uv run pytest tests/unit/tasks/test_build.py -v` passes: `_assert_static_elf`
+      accepts `file` output for a real static musl binary (the committed
+      linux-x64 shim) and rejects a real non-static binary (the committed darwin
+      Mach-O shim), and **raises** when `file` is not on PATH (fail-closed)
+      rather than skipping. (Uses `file`, not `llvm-readelf` — see the Phase 2
+      static-check decision: no light mise `llvm-readelf` exists and the
+      luminosity reference uses `file`.)
+- [x] A native-host smoke test runs the real `_assert_static_elf` against the
+      committed real static musl shim, anchoring the parser to real `file`
+      output rather than to itself.
+- [x] Path-helper tests for `cli_binary_path` / `vendored_shim_path` pass.
+- [x] `mise run build:cli:cross-compile` stages four `accelerator-{platform}`
+      binaries into `dist/release/`, each passing its magic-byte and (musl)
+      static assertion.
+- [x] Each committed `bin/accelerator-verify-{platform}` is executable and passes
       its platform magic-byte check; `lint:vendor-shims:check` passes (shims match
       the current `cli/verify` source revision).
-- [ ] `mise run check` passes.
+- [x] `mise run check` passes.
 
 #### Manual Verification
 
-- [ ] A bootstrap run on darwin (real `CLAUDE_PLUGIN_ROOT`) finds and execs the
+- [x] A bootstrap run on darwin (real `CLAUDE_PLUGIN_ROOT`) finds and execs the
       vendored shim without the "verify shim missing" failure.
-- [ ] `llvm-readelf -dl` on a musl binary shows no `INTERP` / `NEEDED` (install
-      `llvm` first on a stock macOS dev box — no `readelf` ships by default).
+- [x] `file` on a musl binary reports "statically linked" with no interpreter
+      (already on PATH on macOS; no `llvm` install needed).
 
 ---
 
