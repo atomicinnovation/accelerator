@@ -995,9 +995,9 @@ under `env!("CARGO_TARGET_TMPDIR")` seeded with a `.git` marker, and assert:
 
 #### Automated Verification:
 
-- [ ] The bin builds and is clippy-clean (`--all-targets`): `mise run cli:check`
-- [ ] Black-box guard tests pass: `cd cli && cargo test -p config-adapters --test config_reader`
-- [ ] Legacy layout exits 1 with `/accelerator:migrate` on stderr, still exits 1
+- [x] The bin builds and is clippy-clean (`--all-targets`): `mise run cli:check`
+- [x] Black-box guard tests pass: `cd cli && cargo test -p config-adapters --test config_reader`
+- [x] Legacy layout exits 1 with `/accelerator:migrate` on stderr, still exits 1
       under `ACCELERATOR_MIGRATION_MODE=1`, and still exits 1 when run from a
       nested subdirectory (both a `.git`-rooted and a `.jj`-only root); a normal
       layout (with `paths.work` set) exits 0.
@@ -1005,7 +1005,7 @@ under `env!("CARGO_TARGET_TMPDIR")` seeded with a `.git` marker, and assert:
 
 #### Manual Verification:
 
-- [ ] Running `config-adapters-fixture` by hand in a legacy-layout repo prints the
+- [x] Running `config-adapters-fixture` by hand in a legacy-layout repo prints the
       two-line directive and exits 1 (including from a subdirectory); in a normal
       repo it resolves and prints a value.
 

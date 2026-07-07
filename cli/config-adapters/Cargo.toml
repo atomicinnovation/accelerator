@@ -9,6 +9,13 @@ publish.workspace = true
 [lints]
 workspace = true
 
+# Composition-root demonstration and black-box test entry point — not a shipped
+# artifact. Lives under tests/fixtures/ so it stays off the crate's normal build
+# surface; black-box tests locate it via CARGO_BIN_EXE_config-adapters-fixture.
+[[bin]]
+name = "config-adapters-fixture"
+path = "tests/fixtures/config_adapters_fixture.rs"
+
 [dependencies]
 config = { path = "../config" }
 serde = { workspace = true }
