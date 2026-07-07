@@ -422,29 +422,29 @@ pub const fn is_blocked(team_present: bool, legacy_present: bool) -> bool {
 
 #### Automated Verification:
 
-- [ ] Crate compiles workspace-wide: `cd cli && cargo build --workspace`
-- [ ] Domain unit tests pass (ported luminosity suites + `Found(Value::Sequence)`
+- [x] Crate compiles workspace-wide: `cd cli && cargo build --workspace`
+- [x] Domain unit tests pass (ported luminosity suites + `Found(Value::Sequence)`
       resolution and single-arm precedence + non-scalar-node found-empty resolution
       + catalogue-count + catalogue drift + `is_blocked` truth table):
       `cd cli && cargo test -p config`
-- [ ] Format + clippy clean: `mise run cli:check`
-- [ ] Catalogue count is exactly 42 keys across the five groups plus the two
+- [x] Format + clippy clean: `mise run cli:check`
+- [x] Catalogue count is exactly 42 keys across the five groups plus the two
       13-entry doc-type arrays, asserted by a domain test iterating the tables.
-- [ ] Catalogue drift test passes: the Rust key set and per-key defaults are
+- [x] Catalogue drift test passes: the Rust key set and per-key defaults are
       identical to the bash `config-defaults.sh`/`config-dump.sh` arrays **and** the
       three `config-read-review.sh` defaults, sourced not restated (drift in either
       reader fails the test).
-- [ ] `default_for` returns a typed `Value`; an array-key default resolves to the
+- [x] `default_for` returns a typed `Value`; an array-key default resolves to the
       same `Value::Sequence` shape as its present value (present/absent shape parity).
-- [ ] A personal-sequence-over-team precedence test passes (a locally-set
+- [x] A personal-sequence-over-team precedence test passes (a locally-set
       `review.core_lenses` shadows the team list via the single `Found(_)` arm), and
       a personal non-scalar-node shadows a team scalar (found-empty).
-- [ ] `mise run deny:check` still green (no new dependency introduced yet).
+- [x] `mise run deny:check` still green (no new dependency introduced yet).
 - [ ] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
-- [ ] The catalogue tables read row-for-row against `config-defaults.sh` and
+- [x] The catalogue tables read row-for-row against `config-defaults.sh` and
       `config-dump.sh` (keys, defaults, doc-type pairings) with no drift.
 
 ---
