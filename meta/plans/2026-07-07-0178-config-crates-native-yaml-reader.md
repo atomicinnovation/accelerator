@@ -817,37 +817,37 @@ silently green in CI — with the mechanism Rust actually supports.
 
 #### Automated Verification:
 
-- [ ] Adapters compile: `cd cli && cargo build --workspace`
-- [ ] Adapter unit tests pass (ported frontmatter/document/store suites):
+- [x] Adapters compile: `cd cli && cargo build --workspace`
+- [x] Adapter unit tests pass (ported frontmatter/document/store suites):
       `cd cli && cargo test -p config-adapters`
-- [ ] Resolution parity holds at depth ≤2 over every recognised scalar key —
+- [x] Resolution parity holds at depth ≤2 over every recognised scalar key —
       precedence, presence-not-value shadowing, the non-scalar-node found-empty
       case, and the sentinel-default miss — with `render_resolved` equal to the bash
       oracle, **each key asserted against a fixture where it is genuinely set** (the
       harness fails if a key's check only hit the sentinel-miss branch):
       `cd cli && cargo test -p config-adapters --test parity`
-- [ ] `render_resolved` is a single exported function called by both `parity.rs`
+- [x] `render_resolved` is a single exported function called by both `parity.rs`
       and the Phase 3 bin (a wrong projection fails a typed fixture), and
       array-valued keys are verified as typed sequences, not via the string loop.
-- [ ] The store discovery test covers marker precedence, a `.jj`-only root, and the
+- [x] The store discovery test covers marker precedence, a `.jj`-only root, and the
       no-marker `$PWD` fallback: `cd cli && cargo test -p config-adapters`
-- [ ] Depth-≥3 scalars (3- and 4-level), the nested inline-array, the typed
+- [x] Depth-≥3 scalars (3- and 4-level), the nested inline-array, the typed
       sequences, and the value-encoding cases (`{number:04d}` present, quoted
       scalar/element, null tokens, bool case, non-canonical numbers, trailing
       comment) resolve to their declared expected values (same test binary).
-- [ ] The malformed-frontmatter fixture asserts **both sides** of the fail-loud
+- [x] The malformed-frontmatter fixture asserts **both sides** of the fail-loud
       divergence (Rust `Err(MalformedFrontmatter)`; bash resolves the local value),
       and the adversarial fixtures assert their characterised outcomes under a hard
       no-panic/no-abort floor.
-- [ ] Format + clippy clean: `mise run cli:check`
-- [ ] `mise run deny:check` green with `serde-saphyr` in the graph — its
+- [x] Format + clippy clean: `mise run cli:check`
+- [x] `mise run deny:check` green with `serde-saphyr` in the graph — its
       transitive licence closure verified and any missing permissive licence added
       to the allow-list this phase (ban not yet added).
 - [ ] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
-- [ ] The fixture suite visibly covers every recognised key (spot-check the
+- [x] The fixture suite visibly covers every recognised key (spot-check the
       manifest against the catalogue), and the bash oracle is genuinely exercised
       (a deliberately-wrong expected value fails the parity test).
 - [ ] Running the parity test in a shell with `bash` removed from `PATH` while

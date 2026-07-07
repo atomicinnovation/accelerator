@@ -1,0 +1,15 @@
+[package]
+name = "config-adapters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+config = { path = "../config" }
+serde = { workspace = true }
+serde-saphyr = { workspace = true }
