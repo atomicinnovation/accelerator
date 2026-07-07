@@ -22,14 +22,16 @@ schema_version: 1
 ## Overview
 
 Build a two-crate hexagon in the `cli/` workspace — `config` (serde-free domain +
-application + ports) and `config-adapters` (native serde/YAML frontmatter reader
-+ filesystem store) — that replaces the bash 2-level awk reader with a native
-reader supporting arbitrary YAML nesting, and is the first-mover activation of
-the workspace's cargo-deny infra-out-of-domain ban and cargo-pup domain-import
-rule.
+application + ports) and `config-adapters` (native serde/YAML frontmatter 
+reader + filesystem store) — that replaces the bash 2-level awk reader with a 
+native reader supporting arbitrary YAML nesting, and is the first-mover 
+activation of the workspace's cargo-deny infra-out-of-domain ban and cargo-pup 
+domain-import rule.
 
 The design mirrors the near-complete reference implementation at
-`../luminosity/cli/config` + `cli/config-adapters` almost directly, with three
+[`cli/config`](https://github.com/atomicinnovation/luminosity/tree/main/cli/config) + 
+[`cli/config-adapters`](https://github.com/atomicinnovation/luminosity/tree/main/cli/config-adapters)
+almost directly, with three
 accelerator-specific additions luminosity lacks: the recognised-key catalogue +
 defaults modelled as domain concepts, a fail-closed legacy-layout guard, and a
 committed cargo-deny canary that confirms the ban bites.
@@ -78,9 +80,9 @@ committed cargo-deny canary that confirms the ban bites.
   error,service}.rs` and `config-adapters/src/{frontmatter,document,store}.rs` can
   be lifted with accelerator naming. It resolves the YAML Open Question with
   **`serde-saphyr 0.0.29`** (pure-Rust, order-preserving), consumed only by
-  `config-adapters` (`../luminosity/cli/config-adapters/Cargo.toml:12-15`).
+  `config-adapters` ([`cli/config-adapters/Cargo.toml:12-15`](https://github.com/atomicinnovation/luminosity/blob/main/cli/config-adapters/Cargo.toml#L12-L15)).
 - Luminosity already carries the same `serde-saphyr` +
-  `wrappers = ["config-adapters"]` ban semantics (`../luminosity/cli/deny.toml`) —
+  `wrappers = ["config-adapters"]` ban semantics ([`cli/deny.toml`](https://github.com/atomicinnovation/luminosity/blob/main/cli/deny.toml)) —
   though accelerator's `deny.toml` expresses bans as an inline array, so the ban is
   appended as an inline table there, not as a `[[bans.deny]]` block (Phase 4 §2).
   And luminosity commits **no violating canary** — AC-8 is stricter and requires one.
@@ -315,9 +317,17 @@ test below is the non-rotting form of "index-aligned with the bash arrays".
 ```rust
 pub const AGENT_PREFIX: &str = "accelerator:";
 
-pub const PATH_KEYS: &[(&str, &str)] = &[
-    ("paths.plans", "meta/plans"),
-    ("paths.research_codebase", "meta/research/codebase"),
+/// A catalogue default: a scalar or a sequence of scalars. Each maps directly
+/// to the `Value` shape the YAML parser yields for the corresponding present
+/// value — no YAML source fragment is stored or re-parsed.
+pub enum Default {
+    Scalar(&'static str),
+    Seq(&'static [&'static str]),
+}
+
+pub const PATH_KEYS: &[(&str, Default)] = &[
+    ("paths.plans", Default::Scalar("meta/plans")),
+    ("paths.research_codebase", Default::Scalar("meta/research/codebase")),
     // … remaining path keys
 ];
 
@@ -329,17 +339,19 @@ pub const DOC_TYPES: &[(&str, &str)] = &[
 
 pub const TEMPLATE_KEYS: &[&str] = &[ "templates.plan", /* … */ ];
 
-pub const WORK_KEYS: &[(&str, &str)] = &[
-    ("work.integration", ""),
-    ("work.id_pattern", "{number:04d}"),
-    ("work.default_project_code", ""),
+pub const WORK_KEYS: &[(&str, Default)] = &[
+    ("work.integration", Default::Scalar("")),
+    ("work.id_pattern", Default::Scalar("{number:04d}")),
+    ("work.default_project_code", Default::Scalar("")),
 ];
 
-pub const REVIEW_KEYS: &[(&str, &str)] = &[
+pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.core_lenses",
-     "[architecture, code-quality, test-coverage, correctness]"),
-    ("review.disabled_lenses", "[]"),
-    // … remaining scalar review keys
+     Default::Seq(&["architecture", "code-quality",
+                    "test-coverage", "correctness"])),
+    ("review.disabled_lenses", Default::Seq(&[])),
+    // … remaining scalar review keys, e.g.
+    // ("review.min_lenses", Default::Scalar("4")),
 ];
 
 pub const AGENT_KEYS: &[&str] = &[ "reviewer", /* … prefixed at read */ ];
@@ -347,13 +359,14 @@ pub const AGENT_KEYS: &[&str] = &[ "reviewer", /* … prefixed at read */ ];
 
 A `default_for(key: &str) -> Option<Value>` helper resolves a key to its catalogue
 default (applying `AGENT_PREFIX` for agent keys), giving production resolution and
-the tests a single source of the defaults. It returns a typed `Value`, **not a raw
-string**: the two inline-array defaults (`review.core_lenses`, `review.disabled_lenses`)
-resolve to `Value::Sequence([...])` / an empty sequence — the *same shape a present
-inline array resolves to* — so a consumer sees one type across the presence
+the tests a single source of the defaults. It maps each `Default` variant to a typed
+`Value` — `Default::Scalar` → `Value::Scalar(_)`, and `Default::Seq` →
+`Value::Sequence([...])` (an empty sequence for `review.disabled_lenses`) — the *same
+shape a present value resolves to*, so a consumer sees one type across the presence
 boundary rather than a typed sequence when set and a bracketed string when unset.
-Scalar defaults resolve to `Value::Scalar(_)`. This also removes the string-splitting
-the catalogue would otherwise re-introduce for array defaults.
+Modelling the array defaults as an actual sequence of strings — not a YAML source
+fragment re-parsed at read — keeps them compile-checked and removes the
+string-splitting the catalogue would otherwise re-introduce for array defaults.
 
 **Where defaults apply is explicit.** `ConfigService::get` returns `Resolved`
 (`Found`/`Absent`) and does **not** apply catalogue defaults — resolution and
@@ -1241,8 +1254,10 @@ accidental.
 - Original work item: `meta/work/0178-config-crates-native-yaml-reader.md`
 - Related research:
   `meta/research/codebase/2026-07-07-0178-config-crates-native-yaml-reader.md`
-- Reference implementation: `../luminosity/cli/config`,
-  `../luminosity/cli/config-adapters`, `../luminosity/cli/deny.toml`
+- Reference implementation:
+  [`cli/config`](https://github.com/atomicinnovation/luminosity/tree/main/cli/config),
+  [`cli/config-adapters`](https://github.com/atomicinnovation/luminosity/tree/main/cli/config-adapters),
+  [`cli/deny.toml`](https://github.com/atomicinnovation/luminosity/blob/main/cli/deny.toml)
 - Hexagon template: `cli/launcher/src/version/core.rs`,
   `cli/launcher/src/main.rs:88-92`,
   `cli/launcher/src/launch/core.rs:167-171`
