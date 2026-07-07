@@ -58,19 +58,15 @@ wildcards = "deny"
 # Exempt local path deps; registry wildcards stay denied.
 allow-wildcard-paths = true
 # rustls only — no transitive dep may re-enable default-tls and break the
-# musl-static build. This covers the TLS vector only.
+# musl-static build. This covers the TLS vector only. serde-saphyr is the
+# infra-out-of-domain ban: the YAML crate is reachable only through the
+# config-adapters wrapper, so a direct config-domain import violates.
 deny = [
     { crate = "native-tls" },
     { crate = "openssl" },
     { crate = "openssl-sys" },
+    { crate = "serde-saphyr", wrappers = ["config-adapters"] },
 ]
-# The architectural infra-out-of-domain ban is scaffolded, not yet active. The
-# mechanism is: globally deny the infra crate here, then list its permitted
-# dependents in `wrappers = [...]`, so any unlisted (domain) dependent
-# violates. Both lists stay empty until the config/config-adapters split makes
-# the rule bite.
-skip = []
-skip-tree = []
 
 [sources]
 unknown-registry = "deny"

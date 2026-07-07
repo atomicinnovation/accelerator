@@ -1,6 +1,7 @@
 //! The configuration error taxonomy and its boundary mapping.
 
-use std::fmt::{self, Display, Formatter};
+use std::fmt::Display;
+use std::fmt::Formatter;
 
 use crate::key::Key;
 use crate::level::Level;
@@ -23,7 +24,7 @@ impl Existing {
 }
 
 impl Display for Existing {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Value => write!(formatter, "value"),
             Self::Section => write!(formatter, "section"),
@@ -59,7 +60,7 @@ pub enum ConfigError {
 }
 
 impl Display for ConfigError {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotFound { key, level: None } => {
                 write!(formatter, "config key '{key}' is not set")

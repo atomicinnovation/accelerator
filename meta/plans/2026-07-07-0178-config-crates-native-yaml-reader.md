@@ -1106,19 +1106,19 @@ subject; no `core` module is required or created.)
 
 #### Automated Verification:
 
-- [ ] The `config` domain stays serde-free and the crate-rooted rule loads on the
+- [x] The `config` domain stays serde-free and the crate-rooted rule loads on the
       real graph: `mise run pup:check`
-- [ ] The wrappers ban bites — the committed canary makes cargo-deny exit
+- [x] The wrappers ban bites — the committed canary makes cargo-deny exit
       non-zero and the clean control passes: `mise run test:integration:deny`
-- [ ] The crate-rooted pup rule discriminates (violation rejected, compliant
+- [x] The crate-rooted pup rule discriminates (violation rejected, compliant
       passes): `mise run test:integration:pup`
-- [ ] The real gates stay green on the real graph: `mise run deny:check`
-- [ ] Format + clippy clean: `mise run cli:check`
+- [x] The real gates stay green on the real graph: `mise run deny:check`
+- [x] Format + clippy clean: `mise run cli:check`
 - [ ] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Temporarily reverting the `deny.toml` ban makes `test:integration:deny`
+- [x] Temporarily reverting the `deny.toml` ban makes `test:integration:deny`
       fail (the test guards the rule, not just its presence), and reverting the
       `pup.ron` rule makes `test:integration:pup` fail.
 

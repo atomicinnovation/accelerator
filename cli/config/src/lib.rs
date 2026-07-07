@@ -13,11 +13,16 @@ pub mod level;
 pub mod node;
 pub mod service;
 
-pub use error::{ConfigError, Existing};
-pub use key::Key;
-pub use level::Level;
-pub use node::{Mapping, Node, Scalar};
-pub use service::{
-    ConfigAccess, ConfigService, ReadConfigLevel, Resolved, Value,
-    WriteConfigLevel,
-};
+pub use crate::error::ConfigError;
+pub use crate::error::Existing;
+pub use crate::key::Key;
+pub use crate::level::Level;
+pub use crate::node::Mapping;
+pub use crate::node::Node;
+pub use crate::node::Scalar;
+pub use crate::service::ConfigAccess;
+pub use crate::service::ConfigService;
+pub use crate::service::ReadConfigLevel;
+pub use crate::service::Resolved;
+pub use crate::service::Value;
+pub use crate::service::WriteConfigLevel;

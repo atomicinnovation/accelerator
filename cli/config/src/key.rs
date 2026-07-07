@@ -1,6 +1,7 @@
 //! The dotted configuration key and its only constructor.
 
-use std::fmt::{self, Display, Formatter};
+use std::fmt::Display;
+use std::fmt::Formatter;
 
 use crate::error::ConfigError;
 
@@ -31,7 +32,7 @@ impl Key {
 }
 
 impl Display for Key {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}", self.0.join("."))
     }
 }

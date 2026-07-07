@@ -1,10 +1,13 @@
 //! The driven and driving ports and the application service that performs
 //! precedence resolution and the nested-path walk and insert.
 
-use crate::error::{ConfigError, Existing};
+use crate::error::ConfigError;
+use crate::error::Existing;
 use crate::key::Key;
 use crate::level::Level;
-use crate::node::{Mapping, Node, Scalar};
+use crate::node::Mapping;
+use crate::node::Node;
+use crate::node::Scalar;
 
 /// A resolved configuration value: a scalar leaf or a sequence of scalars.
 #[non_exhaustive]
