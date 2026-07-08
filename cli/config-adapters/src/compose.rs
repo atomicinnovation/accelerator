@@ -1,6 +1,6 @@
-//! The Model-1 wiring protocol as a single tested helper: discover the root
-//! once, run the legacy guard against it, then build the store and service
-//! rooted at the same directory.
+//! The wiring protocol as a single tested helper: discover the root once, run
+//! the legacy guard against it, then build the store and service rooted at the
+//! same directory.
 
 use std::path::Path;
 

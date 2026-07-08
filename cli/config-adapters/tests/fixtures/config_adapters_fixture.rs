@@ -1,6 +1,6 @@
 //! Composition-root demonstration and black-box test entry point. Constructs
-//! its own adapters (Model-1 wiring) via `compose`, enforces the fail-closed
-//! legacy guard, and resolves `paths.work`. Not a shipped artifact.
+//! its own adapters via `compose`, enforces the fail-closed legacy guard, and
+//! resolves `paths.work`. Not a shipped artifact.
 
 #![allow(
     clippy::exit,
