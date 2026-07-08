@@ -9,14 +9,20 @@ from invoke import Context
 import tasks.build as tb
 from tasks.build import (
     VersionCoherenceError,
+    _assert_static_elf,
+    _is_statically_linked,
+    assert_staged_launcher_versions,
     create_checksums,
     update_checksums_json,
     validate_version_coherence,
+    vendor_shim_marker_digest,
 )
 from tasks.shared.errors import InvalidVersionError
+from tasks.shared.paths import cli_binary_path, vendored_shim_path
 from tasks.shared.targets import TARGETS
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
 
@@ -42,6 +48,155 @@ def _patch_paths(mocker, base: Path) -> None:
     bin_dir = base / "skills/visualisation/visualise/bin"
     mocker.patch.object(tb, "BIN_DIR", bin_dir)
     mocker.patch.object(tb, "CHECKSUMS", bin_dir / "checksums.json")
+
+
+_VENDORED_SHIM_DIR = _REPO_ROOT / "bin"
+
+
+# ── static-linking assertion ──────────────────────────────────────────
+
+
+class TestIsStaticallyLinked:
+    @pytest.mark.parametrize(
+        "output",
+        [
+            "ELF 64-bit LSB executable, x86-64, statically linked, stripped",
+            "ELF 64-bit LSB pie executable, aarch64, static-pie linked",
+            "ELF 64-bit LSB executable, not a dynamic executable",
+        ],
+    )
+    def test_accepts_static_phrasings(self, output):
+        assert _is_statically_linked(output) is True
+
+    def test_rejects_dynamic_phrasing(self):
+        dynamic = (
+            "ELF 64-bit LSB pie executable, x86-64, ..., dynamically linked, "
+            "interpreter /lib64/ld-linux-x86-64.so.2, ..., stripped"
+        )
+        assert _is_statically_linked(dynamic) is False
+
+
+class TestAssertStaticElf:
+    def test_accepts_a_real_static_musl_binary(self):
+        # The committed linux-x64 shim is a real static musl ELF; anchors the
+        # parser to real `file` output rather than to itself.
+        _assert_static_elf(_VENDORED_SHIM_DIR / "accelerator-verify-linux-x64")
+
+    def test_rejects_a_real_non_static_binary(self):
+        # The committed darwin shim is a Mach-O — real `file` output that is not
+        # "statically linked", so the assertion must reject it.
+        with pytest.raises(RuntimeError, match="not statically linked"):
+            _assert_static_elf(
+                _VENDORED_SHIM_DIR / "accelerator-verify-darwin-arm64"
+            )
+
+    def test_fails_closed_when_file_reader_absent(self, tmp_path, mocker):
+        mocker.patch.object(tb.shutil, "which", return_value=None)
+        target = tmp_path / "binary"
+        target.write_bytes(b"\x7fELF")
+        with pytest.raises(RuntimeError, match="not on PATH"):
+            _assert_static_elf(target)
+
+
+# ── assert_staged_launcher_versions() ─────────────────────────────────
+
+
+class TestAssertStagedLauncherVersions:
+    def _stage(self, mocker, tmp_path):
+        mocker.patch.object(
+            tb,
+            "cli_binary_path",
+            side_effect=lambda n, p: tmp_path / f"{n}-{p}",
+        )
+
+    def test_passes_when_every_launcher_embeds_the_version(
+        self, mocker, tmp_path
+    ):
+        self._stage(mocker, tmp_path)
+        for _, platform in TARGETS:
+            (tmp_path / f"accelerator-{platform}").write_bytes(
+                b"prefix 1.21.0-pre.4 suffix"
+            )
+        assert_staged_launcher_versions("1.21.0-pre.4")
+
+    def test_raises_when_a_launcher_embeds_the_wrong_version(
+        self, mocker, tmp_path
+    ):
+        self._stage(mocker, tmp_path)
+        for _, platform in TARGETS:
+            (tmp_path / f"accelerator-{platform}").write_bytes(
+                b"prefix 1.21.0-pre.4 suffix"
+            )
+        # One stale binary embeds an older version.
+        (tmp_path / "accelerator-linux-x64").write_bytes(b"1.21.0-pre.3")
+        with pytest.raises(RuntimeError, match="does not embed"):
+            assert_staged_launcher_versions("1.21.0-pre.4")
+
+
+# ── cli path helpers ──────────────────────────────────────────────────
+
+
+class TestCliPathHelpers:
+    def test_cli_binary_path_default_staging(self):
+        path = cli_binary_path("accelerator", "linux-x64")
+        assert path.name == "accelerator-linux-x64"
+        assert path.parent == _REPO_ROOT / "dist" / "release"
+
+    def test_cli_binary_path_custom_dir(self, tmp_path):
+        path = cli_binary_path("accelerator-verify", "darwin-arm64", tmp_path)
+        assert path == tmp_path / "accelerator-verify-darwin-arm64"
+
+    def test_vendored_shim_path(self):
+        path = vendored_shim_path("linux-arm64")
+        assert path == _REPO_ROOT / "bin/accelerator-verify-linux-arm64"
+
+
+# ── vendor_shim_marker_digest() ───────────────────────────────────────
+
+
+class TestVendorShimMarkerDigest:
+    def test_matches_committed_marker(self):
+        recorded = (
+            (_VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256")
+            .read_text()
+            .strip()
+        )
+        assert vendor_shim_marker_digest() == recorded
+
+    def test_ignores_a_release_version_bump(self, tmp_path, mocker):
+        # Copy the cli tree, bump the accelerator-verify lock version, and
+        # assert the digest is unchanged: a version bump is not shim drift.
+        baseline = vendor_shim_marker_digest()
+        cli_src = _REPO_ROOT / "cli"
+        cli_dst = tmp_path / "cli"
+        shutil.copytree(
+            cli_src, cli_dst, ignore=shutil.ignore_patterns("target")
+        )
+        lock = cli_dst / "Cargo.lock"
+        lock.write_text(
+            lock.read_text().replace(
+                'name = "accelerator-verify"\nversion = "',
+                'name = "accelerator-verify"\nversion = "99.',
+                1,
+            )
+        )
+        assert vendor_shim_marker_digest(root=tmp_path) == baseline
+
+    def test_detects_a_minisign_verify_bump(self, tmp_path):
+        baseline = vendor_shim_marker_digest()
+        cli_dst = tmp_path / "cli"
+        shutil.copytree(
+            _REPO_ROOT / "cli",
+            cli_dst,
+            ignore=shutil.ignore_patterns("target"),
+        )
+        cargo = cli_dst / "Cargo.toml"
+        cargo.write_text(
+            cargo.read_text().replace(
+                'minisign-verify = "=0.2.5"', 'minisign-verify = "=0.2.6"'
+            )
+        )
+        assert vendor_shim_marker_digest(root=tmp_path) != baseline
 
 
 # ── create_checksums() ────────────────────────────────────────────────

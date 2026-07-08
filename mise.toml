@@ -114,6 +114,16 @@ description = "Cross-compile the visualiser server for all four release targets"
 depends = ["deps:install:rust-targets", "build:frontend"]
 run = "invoke build.server-cross-compile"
 
+[tasks."build:cli:cross-compile"]
+description = "Cross-compile the cli launcher + verify shim for all four release targets (stages into dist/release/)"
+depends = ["deps:install:rust-targets"]
+run = "invoke build.cli-cross-compile"
+
+[tasks."build:vendor-verify-shims"]
+description = "Copy the cross-compiled verify shims into the committed bin/ tree and record the drift marker"
+depends = ["build:cli:cross-compile"]
+run = "invoke build.vendor-verify-shims"
+
 [tasks."build:debug-archives"]
 description = "Create .debug.tar.gz archives for all cross-compiled release binaries"
 depends = ["build:server:cross-compile"]
@@ -375,9 +385,14 @@ description = "Apply clippy's machine-applicable fixes to the cli/ workspace (ma
 depends = ["deps:install:rust-components"]
 run = "invoke lint.cli.fix"
 
+[tasks."lint:vendor-shims:check"]
+description = "Guard the committed verify shims against their cli/verify build inputs (drift marker + per-platform magic bytes)"
+depends = ["deps:install:python"]
+run = "invoke lint.vendor-shims.check"
+
 [tasks."cli:check"]
-description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check"]
+description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -457,6 +472,10 @@ run = "invoke version.bump"
 description = "Verify the GitHub CLI is authenticated"
 run = "invoke github.check-auth"
 
+[tasks."keys:generate"]
+description = "Generate a -W release signing keypair (writes keys/accelerator-release.{pub,sec}; does not print the secret)"
+run = "invoke keys.generate"
+
 [tasks."git:check-clean"]
 description = "Abort if the working tree has any uncommitted changes"
 run = "invoke git.check-clean"
@@ -466,8 +485,12 @@ description = "CI prerelease halve 1: bump version, build binaries, compute chec
 depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke prerelease.prepare"
 
+[tasks."prerelease:sign"]
+description = "CI prerelease step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)"
+run = "invoke prerelease.sign"
+
 [tasks."prerelease:finalise"]
-description = "CI prerelease halve 2: commit, tag, push, create release, upload, publish"
+description = "CI prerelease step 3: commit, tag, push, create release, upload, publish"
 run = "invoke prerelease.finalise"
 
 [tasks."release:prepare"]
@@ -475,8 +498,12 @@ description = "CI stable release halve 1: finalise version, update marketplace a
 depends = ["deps:install:rust-targets", "deps:install:node", "github:check-auth", "git:check-clean"]
 run = "invoke release.prepare"
 
+[tasks."release:sign"]
+description = "CI stable release step 2: sign the staged binaries and emit the signed manifest (needs ACCELERATOR_RELEASE_SECRET_KEY)"
+run = "invoke release.sign"
+
 [tasks."release:finalise"]
-description = "CI stable release halve 2: commit, tag, push, create release, upload, publish"
+description = "CI stable release step 3: commit, tag, push, create release, upload, publish"
 run = "invoke release.finalise"
 
 [tasks."prerelease"]

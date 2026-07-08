@@ -614,7 +614,6 @@ pre-release version.
 | `visualiser.editor_project` config key     | JetBrains project name for the editor deep-link (defaults to the project directory basename)              |
 | `ACCELERATOR_VISUALISER_EDITOR_PROJECT`    | One-shot override of `visualiser.editor_project`                                                          |
 | `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs                                           |
-| `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE` | Set to `1` to verify SLSA build-provenance after the SHA-256 check                                        |
 
 The `ACCELERATOR_VISUALISER_RELEASES_URL` mirror must be HTTPS. A localhost
 exemption (`127.0.0.1`, `::1`, `localhost`) accepts HTTP for integration
@@ -625,10 +624,9 @@ testing; any other plaintext URL is rejected by the launcher.
 Every released binary carries a SLSA build-provenance attestation
 (sigstore-keyless, GitHub Actions OIDC, transparency-log-backed). The default
 SHA-256 check proves the cached binary matches what the build runner produced.
-Setting `ACCELERATOR_VISUALISER_VERIFY_PROVENANCE=1` adds a second layer: the
-launcher calls `gh attestation verify --repo atomicinnovation/accelerator`
-and refuses to start if the attestation is missing or invalid. Requires
-`gh >= 2.49.0` and network reachability to `api.github.com`.
+For an independent, out-of-band check you can run `gh attestation verify
+<binary> --repo atomicinnovation/accelerator` yourself (requires
+`gh >= 2.49.0` and network reachability to `api.github.com`).
 
 ## Review System
 

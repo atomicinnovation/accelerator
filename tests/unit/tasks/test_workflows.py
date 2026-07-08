@@ -90,9 +90,73 @@ def _invariants(wf):
         assert c.get("cancel-in-progress") is False, "must stay false"
 
 
+SIGN_SECRET = "ACCELERATOR_RELEASE_SECRET_KEY"
+
+
+def _all_steps(jobs):
+    for job_name, job in jobs.items():
+        for step in job.get("steps") or []:
+            yield job_name, step
+
+
+def _references_secret(step):
+    env = step.get("env") or {}
+    return any(SIGN_SECRET in str(value) for value in env.values())
+
+
 @pytest.fixture
 def wf():
     return yaml.safe_load(WORKFLOW.read_text())
+
+
+# --- Release signing secret scope + attestation coverage ---------------
+
+
+def test_signing_secret_only_in_sign_steps(wf):
+    # The secret is scoped to the dedicated Sign* step so it is never in the
+    # environment during the cargo-zigbuild compile (untrusted build scripts).
+    for job_name, step in _all_steps(wf["jobs"]):
+        if _references_secret(step):
+            name = step.get("name", "")
+            assert name.startswith("Sign"), (
+                f"{name!r} in {job_name} carries the signing secret but is "
+                "not a Sign step"
+            )
+
+
+def test_every_sign_step_carries_the_secret(wf):
+    sign_steps = [
+        step
+        for _job, step in _all_steps(wf["jobs"])
+        if step.get("name", "").startswith("Sign")
+    ]
+    assert sign_steps, "no Sign* steps found"
+    for step in sign_steps:
+        assert _references_secret(step), (
+            f"{step.get('name')!r} is a Sign step but does not reference "
+            "the signing secret"
+        )
+
+
+def test_prepare_steps_never_carry_the_secret(wf):
+    for _job, step in _all_steps(wf["jobs"]):
+        if step.get("name", "").startswith("Prepare"):
+            assert not _references_secret(step)
+
+
+def test_attest_globs_include_the_launcher_binaries(wf):
+    attest_steps = [
+        step
+        for _job, step in _all_steps(wf["jobs"])
+        if str(step.get("uses", "")).startswith(
+            "actions/attest-build-provenance"
+        )
+    ]
+    assert attest_steps
+    for step in attest_steps:
+        subject = step.get("with", {}).get("subject-path", "")
+        assert "dist/release/accelerator-*" in subject
+        assert "accelerator-visualiser-*" in subject
 
 
 def test_workflow_topology_invariants_hold(wf):
