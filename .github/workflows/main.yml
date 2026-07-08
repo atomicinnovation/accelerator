@@ -17,12 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       # test:unit:cli compiles Rust on BOTH matrix legs (previously only the
       # ubuntu server-check compiled Rust), so the toolchain-cache race applies
@@ -31,7 +31,7 @@ jobs:
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -41,7 +41,13 @@ jobs:
           experimental: true
 
       - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          # Both Cargo workspaces live OFF the repo root, so rust-cache's
+          # default (./target) caches no build artifacts — the workspace root(s)
+          # each job compiles must be named explicitly. test:unit:cli builds the
+          # cli workspace.
+          workspaces: cli
 
       - name: Run unit tests
         run: mise run test:unit
@@ -51,12 +57,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       # test:integration:deny (and the visualiser cargo tests) run cargo on
       # BOTH matrix legs, so route rustup into the cached mise data dir before
@@ -65,7 +71,7 @@ jobs:
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -73,7 +79,12 @@ jobs:
           experimental: true
 
       - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          # test:integration:visualiser compiles the server workspace;
+          # test:integration:deny only reads cli metadata (no build), and its
+          # crate downloads are covered by the always-cached cargo registry.
+          workspaces: skills/visualisation/visualise/server
 
       - name: Run integration tests
         run: mise run test:integration
@@ -83,19 +94,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
           experimental: true
+
+      # test:e2e builds the dev server (build:server:dev) on the host before the
+      # Playwright run, so cache the server workspace's target/ across runs.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: skills/visualisation/visualise/server
 
       - name: Run E2E tests
         run: mise run test:e2e
@@ -106,14 +124,21 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
           experimental: true
+
+      # The build:server:dev dependency compiles the server on the host (only
+      # the Playwright compare step runs in Docker), so cache its target/.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: skills/visualisation/visualise/server
 
       - name: Run visual regression tests
         run: mise run test:e2e:visualiser:docker
@@ -124,10 +149,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -142,10 +167,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -160,7 +185,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       # Route the rustup toolchain inside the mise data dir, which mise-action
       # caches in full, so the rustfmt/clippy components persist across runs.
@@ -172,7 +197,7 @@ jobs:
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -181,6 +206,15 @@ jobs:
           # this change to repopulate it under the relocated RUSTUP_HOME.
           cache_key_prefix: mise-server-v1
           experimental: true
+
+      # server:check runs clippy over two feature passes (two cold compiles),
+      # so cache the server workspace's target/. Complementary to the
+      # RUSTUP_HOME routing above: that isolates the toolchain, this caches
+      # build artifacts.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: skills/visualisation/visualise/server
 
       - name: Run visualiser server checks
         run: mise run server:check
@@ -191,7 +225,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       # Route the rustup toolchain inside the mise data dir (which mise-action
       # caches in full) so the rustfmt/clippy components persist across runs.
@@ -202,7 +236,7 @@ jobs:
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -212,9 +246,11 @@ jobs:
           experimental: true
 
       # Complementary to the RUSTUP_HOME routing above: that isolates the
-      # toolchain, this caches target/.
+      # toolchain, this caches the cli workspace's target/.
       - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: cli
 
       - name: Run cli checks
         run: mise run cli:check
@@ -225,7 +261,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       # cargo-deny shells `cargo metadata`, so the toolchain-cache race applies
       # here too: route rustup into the cached mise data dir before install.
@@ -233,7 +269,7 @@ jobs:
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -252,13 +288,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Route the rust toolchain into the cached mise data dir
         run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -266,7 +302,11 @@ jobs:
           experimental: true
 
       - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          # pup:check and test:integration:pup both build the cli workspace
+          # (under the nightly toolchain).
+          workspaces: cli
 
       # This is the ONLY nightly consumer. pup:check self-provisions the
       # nightly + cargo-pup (rebuilt from source each run — no trustworthy
@@ -285,10 +325,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
@@ -334,15 +374,35 @@ jobs:
       attestations: write
 
     steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        name: Get releaser token
+        id: app-token
+        with:
+          client-id: ${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}
+          private-key: ${{ secrets.ACCELERATOR_RELEASER_SECRET }}
+
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
           experimental: true
+
+      # prerelease:prepare cross-compiles server + cli for all four targets, so
+      # cache both workspaces' target/ (each triple's artifacts live under the
+      # workspace's own target/). The signing secret is scoped to the Sign step
+      # below, never present during this cached compile.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: |
+            cli
+            skills/visualisation/visualise/server
 
       - name: Prepare prerelease
         env:
@@ -358,7 +418,7 @@ jobs:
         run: mise run prerelease:sign
 
       - name: Attest binary provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373
         with:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
@@ -423,15 +483,35 @@ jobs:
       attestations: write
 
     steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        name: Get releaser token
+        id: app-token
+        with:
+          client-id: ${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}
+          private-key: ${{ secrets.ACCELERATOR_RELEASER_SECRET }}
+
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install dependencies
-        uses: jdx/mise-action@v4.1.0
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
         with:
           install: true
           cache: true
           experimental: true
+
+      # release:prepare (and the post-stable prerelease:prepare below)
+      # cross-compile server + cli for all four targets, so cache both
+      # workspaces' target/. The signing secret is scoped to the Sign steps,
+      # never present during this cached compile.
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: |
+            cli
+            skills/visualisation/visualise/server
 
       # The steps below stay INSIDE this locked, approved job on purpose: the
       # post-stable prerelease re-cut (prepare/attest/finalise, last three
@@ -450,7 +530,7 @@ jobs:
         run: mise run release:sign
 
       - name: Attest stable binary provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373
         with:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
@@ -472,7 +552,7 @@ jobs:
         run: mise run prerelease:sign
 
       - name: Attest post-stable binary provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373
         with:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*

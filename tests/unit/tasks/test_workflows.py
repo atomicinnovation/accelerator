@@ -163,6 +163,73 @@ def test_workflow_topology_invariants_hold(wf):
     _invariants(wf)
 
 
+# --- Releaser app-token wiring -----------------------------------------
+#
+# The publishing jobs push commits + tags (release.py:_publish). A push made
+# with the default GITHUB_TOKEN neither re-triggers Main CI nor satisfies
+# branch protection, so each publishing job mints a GitHub App token via
+# actions/create-github-app-token and checks the repo out WITH that token.
+# Both jobs push, so both must be wired — the guard forbids the "only wired
+# one job" asymmetry that shipped before this test existed.
+
+APP_TOKEN_ACTION = "actions/create-github-app-token"
+APP_TOKEN_OUTPUT = "steps.app-token.outputs.token"
+# Jobs that call release.py:_publish (commit + tag + push) and therefore need
+# an app-token-authenticated checkout.
+PUBLISHING_JOBS = ("prerelease", "release")
+
+
+def _step_action(step):
+    return str(step.get("uses", "")).split("@", 1)[0]
+
+
+def _app_token_step(job):
+    for step in job.get("steps") or []:
+        if _step_action(step) == APP_TOKEN_ACTION:
+            return step
+    return None
+
+
+def _checkout_step(job):
+    for step in job.get("steps") or []:
+        if _step_action(step) == "actions/checkout":
+            return step
+    return None
+
+
+@pytest.mark.parametrize("job_name", PUBLISHING_JOBS)
+def test_publishing_job_mints_releaser_app_token(wf, job_name):
+    job = wf["jobs"][job_name]
+    step = _app_token_step(job)
+    assert step is not None, (
+        f"{job_name} pushes commits/tags but has no {APP_TOKEN_ACTION} step"
+    )
+    assert step.get("id") == "app-token", (
+        f"{job_name}'s app-token step must have id: app-token so the "
+        "checkout can consume its output"
+    )
+    with_ = step.get("with") or {}
+    # Identify the app by client-id (the app-id input is deprecated upstream).
+    assert "${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}" in str(
+        with_.get("client-id", "")
+    ), f"{job_name}'s app-token step must pass the releaser client-id"
+    assert "${{ secrets.ACCELERATOR_RELEASER_SECRET }}" in str(
+        with_.get("private-key", "")
+    ), f"{job_name}'s app-token step must pass the releaser private-key secret"
+
+
+@pytest.mark.parametrize("job_name", PUBLISHING_JOBS)
+def test_publishing_job_checks_out_with_app_token(wf, job_name):
+    job = wf["jobs"][job_name]
+    checkout = _checkout_step(job)
+    assert checkout is not None, f"{job_name} has no checkout step"
+    token = str((checkout.get("with") or {}).get("token", ""))
+    assert APP_TOKEN_OUTPUT in token, (
+        f"{job_name} must check out with the releaser app token "
+        f"({APP_TOKEN_OUTPUT}), not the default GITHUB_TOKEN"
+    )
+
+
 # --- Encoded negative tests: each mutation breaks exactly one invariant, so
 #     the guard's own discriminating power is under test and cannot rot. ---
 
