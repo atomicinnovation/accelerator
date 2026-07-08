@@ -440,7 +440,7 @@ pub const fn is_blocked(team_present: bool, legacy_present: bool) -> bool {
       `review.core_lenses` shadows the team list via the single `Found(_)` arm), and
       a personal non-scalar-node shadows a team scalar (found-empty).
 - [x] `mise run deny:check` still green (no new dependency introduced yet).
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
@@ -843,14 +843,14 @@ silently green in CI — with the mechanism Rust actually supports.
 - [x] `mise run deny:check` green with `serde-saphyr` in the graph — its
       transitive licence closure verified and any missing permissive licence added
       to the allow-list this phase (ban not yet added).
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
 - [x] The fixture suite visibly covers every recognised key (spot-check the
       manifest against the catalogue), and the bash oracle is genuinely exercised
       (a deliberately-wrong expected value fails the parity test).
-- [ ] Running the parity test in a shell with `bash` removed from `PATH` while
+- [x] Running the parity test in a shell with `bash` removed from `PATH` while
       `CI=1` is set fails (not silently passes), confirming the availability guard.
 
 ---
@@ -1001,7 +1001,7 @@ under `env!("CARGO_TARGET_TMPDIR")` seeded with a `.git` marker, and assert:
       under `ACCELERATOR_MIGRATION_MODE=1`, and still exits 1 when run from a
       nested subdirectory (both a `.git`-rooted and a `.jj`-only root); a normal
       layout (with `paths.work` set) exits 0.
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
@@ -1114,7 +1114,7 @@ subject; no `core` module is required or created.)
       passes): `mise run test:integration:pup`
 - [x] The real gates stay green on the real graph: `mise run deny:check`
 - [x] Format + clippy clean: `mise run cli:check`
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification:
 
