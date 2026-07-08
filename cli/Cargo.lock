@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.8"
+version = "1.24.0-pre.9"
 dependencies = [
  "clap",
  "kernel",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.8"
+version = "1.24.0-pre.9"
 dependencies = [
  "minisign-verify",
 ]
@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.8"
+version = "1.24.0-pre.9"
 dependencies = [
  "thiserror",
  "tracing",
