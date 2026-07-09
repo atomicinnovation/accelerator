@@ -3,7 +3,7 @@
 Accelerator structures development into discrete phases — research, plan,
 implement — where each phase runs with minimal context and communicates with
 the next through the filesystem. This design is intentional: by writing
-research findings, plans, and other artifacts to disk rather than holding them
+research findings, plans, and other artefacts to disk rather than holding them
 in the conversation, each step stays focused and avoids the quality degradation
 that comes with large, cluttered context windows.
 
