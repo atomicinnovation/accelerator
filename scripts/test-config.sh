@@ -2573,6 +2573,54 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: Integration/tool sections are surfaced and credentials are masked"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
+---
+jira:
+  site: atomic-innovation
+  token: super-secret-token-value
+linear:
+  token_cmd: op read op://Work/Linear/token
+visualiser:
+  editor: code -g
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+# Non-secret keys are shown verbatim.
+if grep -q 'jira.site.*atomic-innovation.*team' <<<"$OUTPUT" &&
+  grep -q 'visualiser.editor.*code -g.*team' <<<"$OUTPUT"; then
+  echo "  PASS: non-secret integration keys surfaced with source"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: non-secret integration keys surfaced with source"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+# Secret values must be masked and must NEVER appear in the output.
+if grep -q 'jira.token.*set — hidden.*team' <<<"$OUTPUT" &&
+  grep -q 'linear.token_cmd.*set — hidden.*team' <<<"$OUTPUT" &&
+  ! grep -q 'super-secret-token-value' <<<"$OUTPUT" &&
+  ! grep -q 'op://Work/Linear/token' <<<"$OUTPUT"; then
+  echo "  PASS: credential values masked, never printed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: credential values masked, never printed"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+# An unset integration key still appears (as not set), so the surface is complete.
+if grep -q 'linear.token.*(not set)' <<<"$OUTPUT" &&
+  grep -q 'visualiser.binary.*(not set)' <<<"$OUTPUT"; then
+  echo "  PASS: unset integration keys still listed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unset integration keys still listed"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
 echo "Test: Merged config -> overridden key shows local source"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"

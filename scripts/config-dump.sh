@@ -226,3 +226,40 @@ for i in "${!WORK_KEYS[@]}"; do
     echo "| \`$key\` | *(not set)* | $source |"
   fi
 done
+
+# Integration and tool sections. These are read ad-hoc by their own consumers
+# (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through
+# the five-group catalogue, so they carry no catalogue defaults — an unset key
+# means "the consumer's own default applies". Listed here so the effective-
+# configuration surface is complete. Credential values (`*.token`,
+# `*.token_cmd`) are never printed: only presence and source are shown.
+EXTRA_KEYS=(
+  "jira.site"
+  "jira.email"
+  "jira.token"
+  "jira.token_cmd"
+  "linear.token"
+  "linear.token_cmd"
+  "visualiser.kanban_columns"
+  "visualiser.idle_timeout"
+  "visualiser.editor"
+  "visualiser.editor_project"
+  "visualiser.binary"
+)
+
+for key in "${EXTRA_KEYS[@]}"; do
+  value=$("$READ_VALUE" "$key" "")
+  if [ -z "$value" ]; then
+    echo "| \`$key\` | *(not set)* | default |"
+    continue
+  fi
+  source=$(get_source "$key")
+  case "$key" in
+    *.token | *.token_cmd)
+      echo "| \`$key\` | *(set — hidden)* | $source |"
+      ;;
+    *)
+      echo "| \`$key\` | \`$value\` | $source |"
+      ;;
+  esac
+done
