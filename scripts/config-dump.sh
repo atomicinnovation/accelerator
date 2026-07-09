@@ -116,6 +116,8 @@ REVIEW_KEYS=(
   "review.pr_request_changes_severity"
   "review.plan_revise_severity"
   "review.plan_revise_major_count"
+  "review.work_item_revise_severity"
+  "review.work_item_revise_major_count"
 )
 
 REVIEW_DEFAULTS=(
@@ -128,6 +130,8 @@ REVIEW_DEFAULTS=(
   "critical"
   "critical"
   "3"
+  "critical"
+  "2"
 )
 
 # Agent keys

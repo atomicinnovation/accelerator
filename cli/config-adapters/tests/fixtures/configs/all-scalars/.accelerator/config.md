@@ -24,6 +24,13 @@ templates:
   validation: tpl/validation.md
   pr-description: tpl/pr-description.md
   work-item: tpl/work-item.md
+  rca: tpl/rca.md
+  design-inventory: tpl/design-inventory.md
+  design-gap: tpl/design-gap.md
+  plan-review: tpl/plan-review.md
+  work-item-review: tpl/work-item-review.md
+  pr-review: tpl/pr-review.md
+  note: tpl/note.md
 work:
   integration: linear
   id_pattern: PROJ-{number}

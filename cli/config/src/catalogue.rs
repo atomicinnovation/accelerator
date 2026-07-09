@@ -122,11 +122,6 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ),
     ("review.plan_revise_severity", Default::Scalar("critical")),
     ("review.plan_revise_major_count", Default::Scalar("3")),
-];
-
-/// Review keys read by `config-read-review.sh` outside `REVIEW_KEYS`. Recognised
-/// and defaulted, but excluded from the five-group catalogue count.
-pub const REVIEW_EXTRA_KEYS: &[(&str, Default)] = &[
     (
         "review.work_item_revise_severity",
         Default::Scalar("critical"),
@@ -149,7 +144,7 @@ pub const AGENT_KEYS: &[&str] = &[
 /// (which carries no default).
 #[must_use]
 pub fn default_for(key: &str) -> Option<Value> {
-    for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS, REVIEW_EXTRA_KEYS] {
+    for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS] {
         if let Some((_, default)) = group.iter().find(|(name, _)| *name == key)
         {
             return Some(default.to_value());
@@ -172,20 +167,20 @@ mod tests {
     use std::process::Command;
 
     use super::{
-        default_for, Default, AGENT_KEYS, DOC_TYPES, PATH_KEYS,
-        REVIEW_EXTRA_KEYS, REVIEW_KEYS, TEMPLATE_KEYS, WORK_KEYS,
+        default_for, Default, AGENT_KEYS, DOC_TYPES, PATH_KEYS, REVIEW_KEYS,
+        TEMPLATE_KEYS, WORK_KEYS,
     };
     use crate::node::Scalar;
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_forty_nine_keys_across_five_groups() {
+    fn the_catalogue_holds_fifty_one_keys_across_five_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
             + AGENT_KEYS.len();
-        assert_eq!(count, 49);
+        assert_eq!(count, 51);
         assert_eq!(DOC_TYPES.len(), 13);
     }
 
@@ -251,7 +246,7 @@ mod tests {
 
     fn rust_defaults() -> BTreeMap<String, String> {
         let mut map = BTreeMap::new();
-        for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS, REVIEW_EXTRA_KEYS] {
+        for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS] {
             for (key, default) in group {
                 map.insert((*key).to_owned(), render_default(default));
             }
@@ -293,11 +288,15 @@ for i in "${!DOC_TYPE_NAMES[@]}"; do
   printf 'D\t%s\t%s\n' "${DOC_TYPE_NAMES[$i]}" "${DOC_TYPE_PATH_KEYS[$i]}"
 done
 for k in "${TEMPLATE_KEYS[@]}"; do printf 'T\t%s\n' "$k"; done
+# Runtime cross-checks against config-read-review.sh: these keys are also in
+# config-dump's REVIEW_KEYS, so the M lines (map-overwriting the loop emission)
+# assert the catalogue default matches the live runtime default, mirroring the
+# min_lenses guard below.
 pr=$("$scripts/config-read-review.sh" pr 2>/dev/null || true)
 wi=$("$scripts/config-read-review.sh" work-item 2>/dev/null || true)
-printf 'K\treview.work_item_revise_severity\t%s\n' \
+printf 'M\treview.work_item_revise_severity\t%s\n' \
   "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise severity\*\*: //p')"
-printf 'K\treview.work_item_revise_major_count\t%s\n' \
+printf 'M\treview.work_item_revise_major_count\t%s\n' \
   "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise major count\*\*: //p')"
 printf 'M\treview.min_lenses\t%s\n' \
   "$(printf '%s\n' "$pr" | sed -n 's/^- \*\*min lenses\*\*: //p')"
