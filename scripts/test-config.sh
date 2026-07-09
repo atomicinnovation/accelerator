@@ -2458,9 +2458,9 @@ ACTUAL_PATH_DEFAULTS=$(source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}")
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
 echo "Test: TEMPLATE_KEYS has expected length and order"
-EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item"
+EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item templates.rca templates.design-inventory templates.design-gap templates.plan-review templates.work-item-review templates.pr-review templates.note"
 ACTUAL_TEMPLATE_KEYS_LEN=$(source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}")
-assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
+assert_eq "TEMPLATE_KEYS length" "13" "$ACTUAL_TEMPLATE_KEYS_LEN"
 ACTUAL_TEMPLATE_KEYS=$(source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}")
 assert_eq "TEMPLATE_KEYS contents" "$EXPECTED_TEMPLATE_KEYS" "$ACTUAL_TEMPLATE_KEYS"
 

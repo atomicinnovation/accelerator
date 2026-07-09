@@ -89,6 +89,13 @@ TEMPLATE_KEYS=(
   "templates.validation"
   "templates.pr-description"
   "templates.work-item"
+  "templates.rca"
+  "templates.design-inventory"
+  "templates.design-gap"
+  "templates.plan-review"
+  "templates.work-item-review"
+  "templates.pr-review"
+  "templates.note"
 )
 
 WORK_KEYS=(

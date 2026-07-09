@@ -86,6 +86,13 @@ pub const TEMPLATE_KEYS: &[&str] = &[
     "templates.validation",
     "templates.pr-description",
     "templates.work-item",
+    "templates.rca",
+    "templates.design-inventory",
+    "templates.design-gap",
+    "templates.plan-review",
+    "templates.work-item-review",
+    "templates.pr-review",
+    "templates.note",
 ];
 
 pub const WORK_KEYS: &[(&str, Default)] = &[
@@ -172,13 +179,13 @@ mod tests {
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_forty_two_keys_across_five_groups() {
+    fn the_catalogue_holds_forty_nine_keys_across_five_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
             + AGENT_KEYS.len();
-        assert_eq!(count, 42);
+        assert_eq!(count, 49);
         assert_eq!(DOC_TYPES.len(), 13);
     }
 
