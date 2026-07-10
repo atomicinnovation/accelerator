@@ -20,6 +20,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Accelerator',
+      customCss: ['./src/styles/custom.css'],
       plugins: [starlightLinksValidator({ errorOnRelativeLinks: false })],
       sidebar: [
         'philosophy',
