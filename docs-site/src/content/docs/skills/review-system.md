@@ -2,9 +2,13 @@
 title: Review System
 ---
 
-The `review-pr`, `review-plan`, and `review-work-item` skills use a multi-lens
-review system. Each lens is a specialised subagent that evaluates the artefact
-through a specific quality perspective.
+[`review-pr`](../reference/skills/github/review-pr.md),
+[`review-plan`](../reference/skills/planning/review-plan.md), and
+[`review-work-item`](../reference/skills/work/review-work-item.md) share
+a multi-lens review system. Each lens is a specialised subagent (the
+[reviewer agent](../reference/agents.md#reviewer)) that evaluates the
+artefact through a specific quality perspective; the orchestrating skill
+compiles the lens outputs into one analysis.
 
 **Code review lenses** (used by `review-pr` and `review-plan`):
 
@@ -32,10 +36,13 @@ through a specific quality perspective.
 | **Testability**  | Measurable criteria, verifiable outcomes, verification framing |
 | **Clarity**      | Unambiguous referents, internal consistency, jargon handling   |
 
-Lenses are automatically selected based on scope, or you can specify focus
-areas:
+Lenses are automatically selected based on scope, or you can specify
+focus areas:
 
 ```
 /review-pr 123 focus on security and architecture
 /review-work-item 0042 focus on testability
 ```
+
+See the [Configuration](../configuration.md) page for enabling,
+disabling, or adding custom lenses.

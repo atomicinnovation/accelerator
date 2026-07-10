@@ -1,68 +1,47 @@
 ---
 title: Development Loop
-description: 'Per-skill reference for the research → plan → implement skills: invocation, arguments, and what each writes to meta/.'
+description: 'How the research → plan → implement skills fit together, and
+  when to reach for each.'
 ---
 
-The research → plan → implement spine, plus the review companions that harden a
-plan before any code is written. For the narrative — how the phases hand off
-through the `meta/` directory — see the [Development Loop](../development-loop.md).
+The research → plan → implement spine, plus the review companions that
+harden a plan before any code is written. For the narrative — how the
+phases hand off through the `meta/` directory — see the
+[Development Loop](../development-loop.md) overview.
 
-<a id="research-codebase"></a>
+## The spine
 
-### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/research-codebase [research question]`
+Run these in order for any non-trivial change:
 
-Conduct comprehensive codebase research by spawning parallel subagents and
-synthesising findings into a research document.
+1. [`research-codebase`](../reference/skills/research/research-codebase.md)
+   spawns parallel subagents and synthesises what it finds into a
+   research document in `meta/research/codebase/`. Run it first so the
+   plan can cite concrete findings rather than guesses.
+2. [`create-plan`](../reference/skills/planning/create-plan.md) builds a
+   phased implementation plan in `meta/plans/` through interactive
+   collaboration, with success criteria per phase.
+3. [`implement-plan`](../reference/skills/planning/implement-plan.md)
+   executes an approved plan phase by phase, checking off success
+   criteria in the plan file as each phase completes.
 
-*Writes a structured document to `meta/research/codebase/`; run it first so the
-plan can cite concrete findings.*
+## Hardening a plan
 
-<a id="create-plan"></a>
+Two complementary skills sit between plan and implementation:
 
-### <img src="https://api.iconify.design/ph/clipboard-text-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/create-plan [work item reference or description]`
+- [`review-plan`](../reference/skills/planning/review-plan.md) applies
+  the fixed quality lenses of the [Review System](review-system.md) and
+  iterates on the findings.
+- [`stress-test-plan`](../reference/skills/planning/stress-test-plan.md)
+  interrogates **your** reasoning interactively — decisions, edge
+  cases, and assumptions — to find gaps before implementation begins.
 
-Create detailed implementation plans through interactive, iterative
-collaboration.
+Use review for systematic coverage, stress-test when the plan rests on
+judgement calls you want challenged. They compose: many changes warrant
+both.
 
-*Produces a phased plan in `meta/plans/` with success criteria; review it
-(optionally via `review-plan`) before implementing.*
+## Closing the loop
 
-<a id="implement-plan"></a>
-
-### <img src="https://api.iconify.design/ph/hammer-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/implement-plan [path to plan file]`
-
-Execute an approved implementation plan from the configured plans directory.
-
-*Works phase by phase, checking off success criteria in the plan file as each
-phase completes.*
-
-<a id="review-plan"></a>
-
-### <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/review-plan [path to plan file]`
-
-Review an implementation plan through multiple quality lenses and
-collaboratively iterate based on findings.
-
-*Runs the multi-lens [Review System](review-system.md); see that page for
-the lens catalogue. Use before implementation begins.*
-
-<a id="stress-test-plan"></a>
-
-### <img src="https://api.iconify.design/ph/barbell-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/stress-test-plan [path to plan file]`
-
-Interactively stress-test an implementation plan by grilling the user on
-decisions, edge cases, and assumptions to find issues, inconsistencies, and gaps
-before implementation begins.
-
-*Complements `review-plan`: review applies fixed quality lenses, stress-test
-interrogates **your** reasoning interactively.*
-
-<a id="validate-plan"></a>
-
-### <img src="https://api.iconify.design/ph/seal-check-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/validate-plan [path to plan file]`
-
-Validate that an implementation plan was correctly executed by verifying success
-criteria and identifying deviations.
-
-*Run after `implement-plan` to confirm the code matches the plan and to surface
-anything that drifted.*
+[`validate-plan`](../reference/skills/planning/validate-plan.md) runs
+after implementation. It verifies each success criterion against the
+actual code, records a validation report in `meta/validations/`, and
+surfaces anything that drifted from the plan.

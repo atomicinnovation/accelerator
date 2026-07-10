@@ -3,33 +3,27 @@ title: 'Investigation & Notes'
 ---
 
 These skills feed into the core [development loop](../development-loop.md):
-companions for issue investigation, time-boxed spikes, and short-form note
-capture. They run before or alongside planning to reduce uncertainty and record
-what you learn.
+companions for issue investigation, time-boxed spikes, and short-form
+note capture. They run before or alongside planning to reduce
+uncertainty and record what you learn.
 
-<a id="research-issue"></a>
+- [`research-issue`](../reference/skills/research/research-issue.md)
+  investigates production issues and bugs through hypothesis-driven
+  debugging. It accepts stacktraces, logs, or vague behavioural
+  descriptions and produces a root-cause analysis in
+  `meta/research/issues/`. Reach for it when something is broken and
+  you don't yet know why.
+- [`conduct-spike`](../reference/skills/research/conduct-spike.md) runs
+  a time-boxed spike — discussion mixed with agent-driven research and
+  small throwaway prototypes where a question is empirical — then
+  records the outcome on the spike's work item. Reach for it when a
+  work item poses open questions that must be resolved before planning
+  can proceed with confidence.
+- [`create-note`](../reference/skills/notes/create-note.md) captures a
+  short-form observation, insight, or snippet to `meta/notes/`, where
+  later research can rediscover it.
 
-### <img src="https://api.iconify.design/ph/bug-bold.svg?color=%23f59e0b" width="18" align="center" alt=""> `/research-issue [issue description, stacktrace, or error]`
-
-Investigate production issues and bugs through hypothesis-driven debugging.
-Accepts stacktraces, logs, or behavioural descriptions and produces a root-cause
-analysis in `meta/research/issues/`.
-
-<a id="create-note"></a>
-
-### <img src="https://api.iconify.design/ph/note-pencil-bold.svg?color=%23f59e0b" width="18" align="center" alt=""> `/create-note [note topic]`
-
-Interactively capture a short-form note. Writes an observation, insight, or
-snippet to `meta/notes/`.
-
-<a id="conduct-spike"></a>
-
-### <img src="https://api.iconify.design/ph/flask-bold.svg?color=%23f59e0b" width="18" align="center" alt=""> `/conduct-spike [path to spike work item or brief, or number]`
-
-Interactively conduct a time-boxed spike — collaboratively reduce uncertainty
-through discussion mixed with agent-driven research (and small throwaway
-prototypes where a question is empirical), then record the outcome on the
-spike's work item.
-
-*Reach for it when a work item poses open questions that must be resolved before
-planning or implementation can proceed with confidence.*
+The ordering is need-driven rather than sequential: an RCA from
+`research-issue` often becomes a bug work item; a spike resolves a work
+item's open questions so `create-plan` can start; a note is the cheapest
+way to make today's insight available to next month's research.

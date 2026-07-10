@@ -3,32 +3,40 @@ title: 'Issue Trackers (Jira & Linear)'
 ---
 
 Accelerator integrates with two remote issue trackers — **Jira** and
-**Linear** — through one shared pattern. Read skills (search, show) auto-trigger
-on natural-language phrasing; write skills are slash-only and display a payload
-preview that you must explicitly confirm before any change reaches the tracker.
-Each integration keeps a team-shared catalogue (committed) alongside gitignored
-per-developer credentials, and treats the presence of an `external_id` on a work
-item as the signal that it is synced to the remote. Building on that signal,
-`/sync-work-items` reconciles `meta/work/` against the tracker in
-batch — pushing never-synced items, pulling untracked remote issues, and
-resolving per-item divergence. Select the active tracker with the
-`work.integration` key (`jira` or `linear`); when unset, the work-management
-skills stay local with no external API calls.
+**Linear** — through one shared pattern. Read skills (search, show)
+auto-trigger on natural-language phrasing; write skills are slash-only
+and display a payload preview that you must explicitly confirm before
+any change reaches the tracker. Each integration keeps a team-shared
+catalogue (committed) alongside gitignored per-developer credentials,
+and treats the presence of an `external_id` on a work item as the signal
+that it is synced to the remote. Building on that signal,
+[`sync-work-items`](../reference/skills/work/sync-work-items.md)
+reconciles `meta/work/` against the tracker in batch. Select the active
+tracker with the `work.integration` key (`jira` or `linear`); when
+unset, the work-management skills stay local with no external API calls.
 
-<a id="jira-integration"></a>
+Both integrations ship the same eight skill shapes:
+
+| Shape      | Jira                                                                                  | Linear                                                                                        |
+|------------|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| Initialise | [`init-jira`](../reference/skills/integrations/jira/init-jira.md)                       | [`init-linear`](../reference/skills/integrations/linear/init-linear.md)                           |
+| Search     | [`search-jira-issues`](../reference/skills/integrations/jira/search-jira-issues.md)     | [`search-linear-issues`](../reference/skills/integrations/linear/search-linear-issues.md)         |
+| Show       | [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md)           | [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)               |
+| Create     | [`create-jira-issue`](../reference/skills/integrations/jira/create-jira-issue.md)       | [`create-linear-issue`](../reference/skills/integrations/linear/create-linear-issue.md)           |
+| Update     | [`update-jira-issue`](../reference/skills/integrations/jira/update-jira-issue.md)       | [`update-linear-issue`](../reference/skills/integrations/linear/update-linear-issue.md)           |
+| Comment    | [`comment-jira-issue`](../reference/skills/integrations/jira/comment-jira-issue.md)     | [`comment-linear-issue`](../reference/skills/integrations/linear/comment-linear-issue.md)         |
+| Transition | [`transition-jira-issue`](../reference/skills/integrations/jira/transition-jira-issue.md) | [`transition-linear-issue`](../reference/skills/integrations/linear/transition-linear-issue.md) |
+| Attach     | [`attach-jira-issue`](../reference/skills/integrations/jira/attach-jira-issue.md)       | [`attach-linear-issue`](../reference/skills/integrations/linear/attach-linear-issue.md)           |
+
+Run the init skill once per project before the others: it verifies
+credentials and persists the team-shared catalogue under
+`.accelerator/state/integrations/`.
 
 ## Jira
 
-Accelerator includes a full set of skills for interacting with a Jira Cloud
-tenant — searching for and reading issues, creating and updating them,
-commenting, transitioning through workflows, and uploading attachments. Run
-`/init-jira` once to verify credentials and persist the
-team-shared field and project catalogue before using the other skills.
-
-### Jira Configuration
-
-Add the shared site setting to `.accelerator/config.md` and personal
-credentials to `.accelerator/config.local.md` (gitignored):
+The Jira skills target a Jira Cloud tenant. Add the shared site setting
+to `.accelerator/config.md` and personal credentials to the gitignored
+`.accelerator/config.local.md`:
 
 ```yaml
 # .accelerator/config.md — commit this
@@ -48,137 +56,23 @@ jira:
 ```
 
 The default project key reuses `work.default_project_code`; set
-`work.integration: jira` to enable auto-scoping. See
-`/configure help` for the full credential resolution chain and
-`token_cmd` examples (1Password, `pass`, macOS Keychain, AWS Secrets Manager).
+`work.integration: jira` to enable auto-scoping. See `/configure help`
+for the full credential resolution chain and `token_cmd` examples.
 
-### Jira Skills
-
-| Skill                     | Usage                                              | Description                                                                                                                                       |
-|---------------------------|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| **init-jira**             | `/init-jira`                           | Verify credentials, discover projects and custom fields, persist the team-shared catalogue to `.accelerator/state/integrations/jira/`             |
-| **search-jira-issues**    | `/search-jira-issues [flags]`          | Search via structured flags (assignee, status, label, type, component, reporter, parent, watching); composes safe JQL with a `--jql` escape hatch |
-| **show-jira-issue**       | `/show-jira-issue <KEY>`               | Fetch a single issue with optional comment slice and Markdown rendering of ADF descriptions                                                       |
-| **create-jira-issue**     | `/create-jira-issue [flags]`           | Create a new issue; body accepted inline, from a file, from stdin, or via `$EDITOR`                                                               |
-| **update-jira-issue**     | `/update-jira-issue <KEY> [flags]`     | Edit summary, description, assignee, priority, labels, components, parent, and custom fields                                                      |
-| **comment-jira-issue**    | `/comment-jira-issue <sub> <KEY>`      | Add, list, edit, or delete comments (`add`, `list`, `edit`, `delete` sub-actions)                                                                 |
-| **transition-jira-issue** | `/transition-jira-issue <KEY> <state>` | Move an issue through its workflow by state name (case-insensitive lookup), with optional resolution and comment                                  |
-| **attach-jira-issue**     | `/attach-jira-issue <KEY> <file...>`   | Upload one or more files as issue attachments                                                                                                     |
-
-Read skills (`search-jira-issues`, `show-jira-issue`) trigger automatically on
-natural-language phrasing. Write skills are slash-only — they display a
-payload preview and require explicit confirmation before making any change to
-the tenant. Each skill's reference subsection follows.
-
-<a id="init-jira"></a>
-
-### <img src="https://api.iconify.design/ph/plug-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/init-jira [options]`
-
-Set up the Jira Cloud integration for this project.
-
-*Run once before the other Jira skills: it verifies credentials and persists the
-team-shared field and project catalogue. Flags: `--site <subdomain>`, `--email
-<addr>`, `--refresh-fields`, `--list-projects`, `--list-fields`.*
-
-<a id="search-jira-issues"></a>
-
-### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/search-jira-issues [flags] [free-text]`
-
-Use this skill whenever the user wants to search, list, or filter Jira tickets —
-by assignee, status, label, project, type, component, reporter, parent, or free
-text — even if they say 'find', 'show me', 'what's open', 'list my tickets', or
-similar phrasing rather than 'search Jira'.
-
-<a id="show-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/eye-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/show-jira-issue <ISSUE-KEY> [flags]`
-
-Use this skill when the user asks about a specific Jira issue by key (e.g.
-PROJ-123, ENG-456) — for viewing the description, status, comments, transitions,
-or any other field.
-
-<a id="create-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/plus-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/create-jira-issue [options]`
-
-Use this skill only when the user explicitly invokes /create-jira-issue to
-create a new Jira issue.
-
-*Requires `--type NAME` and `--summary TEXT`; the body is accepted inline, from a
-file, from stdin, or via `$EDITOR`.*
-
-<a id="update-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/pencil-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/update-jira-issue <ISSUE-KEY> [flags]`
-
-Use this skill only when the user explicitly invokes /update-jira-issue to
-modify an existing Jira issue.
-
-<a id="comment-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/chat-text-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/comment-jira-issue <add|list|edit|delete> <ISSUE-KEY>`
-
-Use this skill only when the user explicitly invokes /comment-jira-issue to
-add, list, edit, or delete comments on a Jira issue.
-
-<a id="transition-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/arrows-left-right-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/transition-jira-issue <ISSUE-KEY> <STATE-NAME>`
-
-Use this skill only when the user explicitly invokes /transition-jira-issue to
-move a Jira issue through its workflow by state name.
-
-*Pass `--transition-id ID` instead of a state name to target a transition
-directly.*
-
-<a id="attach-jira-issue"></a>
-
-### <img src="https://api.iconify.design/ph/paperclip-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/attach-jira-issue <ISSUE-KEY> <file...>`
-
-Use this skill only when the user explicitly invokes /attach-jira-issue to
-upload one or more local files as attachments to a Jira issue.
-
-*Pass `--quiet` to suppress per-file progress output.*
-
-### Jira ADF / Markdown
-
-Jira Cloud v3 stores rich-text fields in Atlassian Document Format (ADF).
-Accelerator converts bidirectionally using pure bash + awk + jq with no
-additional dependencies:
-
-- **Reading** — ADF is rendered to Markdown by default on `show-jira-issue`
-  (pass `--no-render-adf` for raw JSON) and on `comment-jira-issue list`.
-  `search-jira-issues` defaults render-off; pass `--render-adf` for bulk
-  results with description text.
-- **Writing** — `create-jira-issue`, `update-jira-issue`, and
-  `comment-jira-issue add`/`edit` convert Markdown input to ADF before
-  sending.
-
-Supported Markdown: paragraphs, headings (`#`–`######`), fenced code blocks
-with language, single-level bullet/ordered lists, GitHub-style checklists
-(`- [ ]` / `- [x]`), inline bold/italic/code/links, and hard breaks.
-
-### Jira state cache
-
-`/init-jira` persists the field catalogue, project list, and site metadata to
-`.accelerator/state/integrations/jira/`. This directory is version-controlled
-and team-shared — instance-specific custom field IDs are not secrets and are
-worth committing so teammates don't need to re-run init. Per-developer
-credentials live in `.accelerator/config.local.md` and env vars only.
+Jira Cloud stores rich text as Atlassian Document Format (ADF);
+Accelerator converts bidirectionally — reading skills render ADF to
+Markdown, writing skills convert your Markdown to ADF. The
+[`init-jira`](../reference/skills/integrations/jira/init-jira.md) state
+cache (field catalogue, project list, site metadata) is
+version-controlled and team-shared, so teammates don't need to re-run
+init.
 
 ## Linear
 
-Accelerator includes the same shape of skills for a Linear workspace — searching
-and reading issues, creating and updating them, commenting, transitioning by
-workflow state, and attaching links or files. It talks to the Linear GraphQL API
-directly (Markdown-native — no ADF conversion). Run `/init-linear`
-once to verify the token and cache the team and workflow-state catalogue before
-using the other skills.
-
-### Linear Configuration
-
-Linear uses **token-only** auth — no site or email. Put a Linear personal API
-key in the gitignored `.accelerator/config.local.md`:
+The Linear skills talk to the Linear GraphQL API directly
+(Markdown-native — no ADF conversion). Auth is **token-only** — no site
+or email. Put a Linear personal API key in the gitignored
+`.accelerator/config.local.md`:
 
 ```yaml
 # .accelerator/config.local.md — do not commit
@@ -188,93 +82,12 @@ linear:
 ---
 ```
 
-The token is resolved env → `config.local.md` → `config.md` (token only);
-`.accelerator/config.local.md` must be mode `0600` or stricter. `init-linear`
-fixes the workspace to a single team and caches that team along with its
-workflow states (the statuses issues move through) under
-`.accelerator/state/integrations/linear/` — `catalogue.json` is committed and
-team-shared, while `viewer.json` is gitignored and per-developer. Set
+`.accelerator/config.local.md` must be mode `0600` or stricter.
+[`init-linear`](../reference/skills/integrations/linear/init-linear.md)
+fixes the workspace to a single team and caches that team with its
+workflow states — `catalogue.json` is committed and team-shared,
+`viewer.json` is gitignored and per-developer. Set
 `work.integration: linear` to enable auto-scoping.
 
-### Linear Skills
-
-| Skill                       | Usage                                                              | Description                                                              |
-|-----------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------|
-| **init-linear**             | `/init-linear`                                         | Verify the token, cache the team and workflow-state catalogue            |
-| **search-linear-issues**    | `/search-linear-issues [flags]`                        | Search issues by state, assignee, label, or text (cursor-paginated)      |
-| **show-linear-issue**       | `/show-linear-issue <IDENTIFIER>`                      | Read a single issue, with an optional comment slice                      |
-| **create-linear-issue**     | `/create-linear-issue <work-item-file>`                | Create an issue from a work-item file (payload preview, then confirm)    |
-| **update-linear-issue**     | `/update-linear-issue <IDENTIFIER> [flags]`            | Edit title, description, state, assignee, or priority on an issue        |
-| **comment-linear-issue**    | `/comment-linear-issue <IDENTIFIER> --body …`          | Add a comment (`--body` text or `--body-file`)                           |
-| **transition-linear-issue** | `/transition-linear-issue <IDENTIFIER> <STATE-NAME>`   | Move an issue through its workflow by state name                         |
-| **attach-linear-issue**     | `/attach-linear-issue <IDENTIFIER> (--url \| --file)`  | Attach a URL or file to an issue                                         |
-
-Read skills (`search-linear-issues`, `show-linear-issue`) trigger automatically
-on natural-language phrasing. Write skills are slash-only — they display a
-payload preview and require explicit confirmation before making any change to
-the workspace. Each skill's reference subsection follows.
-
-<a id="init-linear"></a>
-
-### <img src="https://api.iconify.design/ph/plug-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/init-linear [--team-id <uuid>]`
-
-Set up the Linear integration for this project.
-
-*Run once before the other Linear skills: it verifies the token and caches the
-team and workflow-state catalogue.*
-
-<a id="search-linear-issues"></a>
-
-### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/search-linear-issues [flags]`
-
-Use this skill whenever the user wants to search, list, or filter Linear issues —
-by state, assignee, label, or free text — even if they say 'find', 'show me',
-'what's open', 'list my issues', or similar phrasing rather than 'search Linear'.
-
-<a id="show-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/eye-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/show-linear-issue <IDENTIFIER> [--comments N]`
-
-Use this skill when the user asks about a specific Linear issue by identifier
-(e.g. BLA-123, ENG-456) — for viewing the description, state, assignee, or
-comments.
-
-<a id="create-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/plus-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/create-linear-issue <work-item-file> [flags]`
-
-Use this skill only when the user explicitly invokes /create-linear-issue to
-create a new Linear issue from a local work-item file.
-
-<a id="update-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/pencil-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/update-linear-issue <IDENTIFIER> [flags]`
-
-Use this skill only when the user explicitly invokes /update-linear-issue to
-change fields on an existing Linear issue (title, description, state, assignee,
-priority).
-
-<a id="comment-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/chat-text-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/comment-linear-issue <IDENTIFIER> [options]`
-
-Use this skill only when the user explicitly invokes /comment-linear-issue to
-add a Markdown comment to an existing Linear issue.
-
-*Provide the comment via `--body TEXT` or `--body-file PATH`.*
-
-<a id="transition-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/arrows-left-right-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/transition-linear-issue <IDENTIFIER> <STATE-NAME>`
-
-Use this skill only when the user explicitly invokes /transition-linear-issue
-to move an existing Linear issue to a different workflow state.
-
-<a id="attach-linear-issue"></a>
-
-### <img src="https://api.iconify.design/ph/paperclip-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/attach-linear-issue <IDENTIFIER> [options]`
-
-Use this skill only when the user explicitly invokes /attach-linear-issue to
-attach a link or a binary file to an existing Linear issue.
-
-*Provide the target via `--url URL` or `--file PATH`.*
+Per-skill flags, sub-actions, and behaviours are documented on each
+generated skill page linked in the table above.

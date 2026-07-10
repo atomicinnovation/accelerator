@@ -42,7 +42,7 @@ the loop after the change lands on a branch.
 
 ## The full map
 
-Each box below is a skill family from [All Skills](skills/index.md).
+Each box below is a skill family from [All skills](reference/skills/index.md).
 
 ```mermaid
 flowchart LR
@@ -82,7 +82,7 @@ flowchart LR
 
 ## How the families fit together
 
-Each heading below is a skill family from [All Skills](skills/index.md). They
+Each heading below is a skill family from [All skills](reference/skills/index.md). They
 are ordered by where they sit relative to the spine — what feeds work in, the
 loop itself, and what lands the result.
 
@@ -92,43 +92,43 @@ locally, or synced both ways with a remote
 [issue tracker](skills/issue-trackers.md) (Jira or Linear).
 [Design convergence](skills/design-convergence.md) feeds the funnel from the
 other side: it inventories a frontend, analyses gaps, and emits a document that
-[`extract-work-items`](skills/work-items.md#extract-work-items) turns into work
+[`extract-work-items`](reference/skills/work/extract-work-items.md) turns into work
 items.
 
 **Investigation & Notes — understand before planning.**
 Two skills feed the loop ahead of research when needed:
-[`research-issue`](skills/investigation.md#research-issue) for hypothesis-driven
+[`research-issue`](reference/skills/research/research-issue.md) for hypothesis-driven
 bug investigation, and
-[`conduct-spike`](skills/investigation.md#conduct-spike) for time-boxed
-uncertainty reduction. [`create-note`](skills/investigation.md#create-note)
+[`conduct-spike`](reference/skills/research/conduct-spike.md) for time-boxed
+uncertainty reduction. [`create-note`](reference/skills/notes/create-note.md)
 captures observations at any point.
 
 **Development Loop — the spine.**
 The loop opens with
-[`research-codebase`](skills/development-loop.md#research-codebase), which
+[`research-codebase`](reference/skills/research/research-codebase.md), which
 investigates the code and writes a structured findings document.
-[`create-plan`](skills/development-loop.md#create-plan) builds a phased plan from
-that research; [`review-plan`](skills/development-loop.md#review-plan) and
-[`stress-test-plan`](skills/development-loop.md#stress-test-plan) iterate on its
+[`create-plan`](reference/skills/planning/create-plan.md) builds a phased plan from
+that research; [`review-plan`](reference/skills/planning/review-plan.md) and
+[`stress-test-plan`](reference/skills/planning/stress-test-plan.md) iterate on its
 quality before any code is written;
-[`implement-plan`](skills/development-loop.md#implement-plan) executes it phase by
-phase; [`validate-plan`](skills/development-loop.md#validate-plan) confirms the
+[`implement-plan`](reference/skills/planning/implement-plan.md) executes it phase by
+phase; [`validate-plan`](reference/skills/planning/validate-plan.md) confirms the
 result matches the plan. See the [Development Loop](development-loop.md) for
 detail.
 
 **Architecture Decision Records — captured as you go.**
 [ADRs](skills/adrs.md) record architectural decisions made during planning or
-implementation; [`extract-adrs`](skills/adrs.md#extract-adrs) pulls them out of
+implementation; [`extract-adrs`](reference/skills/decisions/extract-adrs.md) pulls them out of
 existing research and plan documents.
 
 **VCS & PR — land the change.**
 The [VCS & PR workflow](skills/vcs-and-pr.md) closes the loop:
-[`commit`](skills/vcs-and-pr.md#commit) through implementation, then
-[`describe-pr`](skills/vcs-and-pr.md#describe-pr),
-[`review-pr`](skills/vcs-and-pr.md#review-pr), and
-[`respond-to-pr`](skills/vcs-and-pr.md#respond-to-pr) to get the change reviewed
+[`commit`](reference/skills/vcs/commit.md) through implementation, then
+[`describe-pr`](reference/skills/github/describe-pr.md),
+[`review-pr`](reference/skills/github/review-pr.md), and
+[`respond-to-pr`](reference/skills/github/respond-to-pr.md) to get the change reviewed
 and merged.
 
 Every skill reads and writes the shared [`meta/`](philosophy.md) directory, so
 phases hand off through the filesystem rather than the conversation. For the
-complete catalogue, see [All Skills](skills/index.md).
+complete catalogue, see [All skills](reference/skills/index.md).

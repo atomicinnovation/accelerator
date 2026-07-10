@@ -88,7 +88,6 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
-            'skills',
             {
               slug: 'skills/development-loop',
               label: 'Development Loop (skills)',
@@ -105,6 +104,8 @@ export default defineConfig({
               collapsed: true,
               items: [{ autogenerate: { directory: 'reference/skills' } }],
             },
+            'reference/agents',
+            'reference/meta-directory',
             'internals',
           ],
         },
