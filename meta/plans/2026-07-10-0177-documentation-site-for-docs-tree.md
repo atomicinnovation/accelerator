@@ -398,15 +398,15 @@ side effect as compilation caches in other checks; acceptable.
 
 #### Automated Verification:
 
-- [ ] `uv run pytest tests/unit/tasks/test_mise.py -v` passes (was red
+- [x] `uv run pytest tests/unit/tasks/test_mise.py -v` passes (was red
       before wiring)
-- [ ] `uv run pytest tests/unit/tasks/test_python_coverage.py -v` passes
+- [x] `uv run pytest tests/unit/tasks/test_python_coverage.py -v` passes
       (new `tasks/docs.py` picked up)
-- [ ] `mise run docs:build` exits 0 from a clean checkout
-- [ ] `mise run docs:check` exits 0
-- [ ] `mise run build-system:check` passes (pyrefly strict + ruff ALL on
+- [x] `mise run docs:build` exits 0 from a clean checkout
+- [x] `mise run docs:check` exits 0
+- [x] `mise run build-system:check` passes (pyrefly strict + ruff ALL on
       the new module)
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 

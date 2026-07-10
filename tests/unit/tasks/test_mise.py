@@ -15,7 +15,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
 # Gates that MUST be reachable from the aggregate `check` task.
-_CHECK_GATES = ["cli:check", "deny:check", "pup:check"]
+_CHECK_GATES = ["cli:check", "deny:check", "pup:check", "docs:check"]
+
+
+def test_docs_build_wired_into_default(mise):
+    assert "docs:build" in _task_depends(mise, "default"), (
+        "docs:build is not in default.depends — the docs site is not built "
+        "by the full local CI mirror"
+    )
 
 
 def _task_depends(mise: dict, task: str) -> list[str]:

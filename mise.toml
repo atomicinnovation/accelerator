@@ -67,6 +67,29 @@ description = "Install Playwright browser binaries (Chromium + OS-level deps)"
 depends = ["deps:install:node"]
 run = "invoke deps.install-playwright"
 
+[tasks."deps:install:docs"]
+description = "Install Node.js dependencies for the documentation site"
+run = "invoke deps.install-docs"
+
+[tasks."deps:install:docs-playwright"]
+description = "Install the Chromium binary the docs mermaid render needs"
+depends = ["deps:install:docs"]
+run = "invoke deps.install-docs-playwright"
+
+[tasks."docs:build"]
+description = "Build the documentation site (strict: broken links fail the build)"
+depends = ["deps:install:docs-playwright"]
+run = "invoke docs.build"
+
+[tasks."docs:check"]
+description = "Read-only docs gate: the strict site build incl. link validation"
+depends = ["docs:build"]
+
+[tasks."docs:serve"]
+description = "Serve the documentation site locally with live reload"
+depends = ["deps:install:docs-playwright"]
+run = "invoke docs.serve"
+
 [tasks."dev"]
 description = "Start + supervise the visualiser server + frontend, detached in the background (use dev:stop to tear down; dev:server/dev:frontend for the manual two-terminal flow)"
 depends = ["build:server:dev", "deps:install:node"]
@@ -450,11 +473,11 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "build-system:check", "scripts:check", "docs:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "test"]
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "docs:build", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"
