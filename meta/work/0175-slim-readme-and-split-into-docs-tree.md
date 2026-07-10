@@ -3,14 +3,14 @@ type: work-item
 id: "0175"
 title: "Slim the README and split content into a docs/ tree"
 date: "2026-06-29T10:28:21+00:00"
-author: Toby Clemson
+author: Phil Helm
 producer: refine-work-item
-status: in-progress
+status: done
 kind: story
 priority: medium
 parent: "work-item:0145"
 tags: []
-last_updated: "2026-06-29T13:04:00+00:00"
+last_updated: "2026-06-29T14:46:59+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 external_id: PP-697
@@ -19,9 +19,9 @@ external_id: PP-697
 # 0175: Slim the README and split content into a docs/ tree
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: Medium
-**Author**: Toby Clemson
+**Author**: Phil Helm
 
 ## Summary
 

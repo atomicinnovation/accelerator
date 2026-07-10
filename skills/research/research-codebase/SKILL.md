@@ -1,7 +1,7 @@
 ---
 name: research-codebase
 description: Conduct comprehensive codebase research by spawning parallel
-  sub-agents and synthesising findings into a research document. Use when the
+  subagents and synthesising findings into a research document. Use when the
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
 allowed-tools:
