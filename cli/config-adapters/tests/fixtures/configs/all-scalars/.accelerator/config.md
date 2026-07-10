@@ -35,6 +35,8 @@ work:
   integration: linear
   id_pattern: PROJ-{number}
   default_project_code: PROJ
+visualiser:
+  idle_timeout: 30m
 review:
   max_inline_comments: 20
   min_lenses: 5

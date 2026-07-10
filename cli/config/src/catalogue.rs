@@ -141,12 +141,36 @@ pub const AGENT_KEYS: &[&str] = &[
     "web-search-researcher",
 ];
 
+/// Visualiser keys that carry a catalogue default.
+///
+/// The remaining visualiser keys (`editor`, `editor_project`, `binary`) are
+/// absent-means-disabled and stay in the bash `EXTRA_KEYS` registry with no
+/// default. The visualiser server keeps a matching runtime fallback in its own
+/// crate (`server/src/config.rs`) because it cannot depend on this one; this
+/// catalogue is the authoritative declaration and the bash mirror is
+/// drift-tested against it.
+pub const VISUALISER_KEYS: &[(&str, Default)] = &[
+    (
+        "visualiser.kanban_columns",
+        Default::Seq(&[
+            "draft",
+            "ready",
+            "in-progress",
+            "review",
+            "done",
+            "blocked",
+            "abandoned",
+        ]),
+    ),
+    ("visualiser.idle_timeout", Default::Scalar("8h")),
+];
+
 /// Resolves a recognised key to its catalogue default, applying [`AGENT_PREFIX`]
 /// for agent keys. Returns `None` for an unrecognised key or a template key
 /// (which carries no default).
 #[must_use]
 pub fn default_for(key: &str) -> Option<Value> {
-    for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS] {
+    for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS, VISUALISER_KEYS] {
         if let Some((_, default)) = group.iter().find(|(name, _)| *name == key)
         {
             return Some(default.to_value());
@@ -170,19 +194,20 @@ mod tests {
 
     use super::{
         default_for, Default, AGENT_KEYS, DOC_TYPES, PATH_KEYS, REVIEW_KEYS,
-        TEMPLATE_KEYS, WORK_KEYS,
+        TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
     };
     use crate::node::Scalar;
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_fifty_three_keys_across_five_groups() {
+    fn the_catalogue_holds_fifty_five_keys_across_six_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
-            + AGENT_KEYS.len();
-        assert_eq!(count, 53);
+            + AGENT_KEYS.len()
+            + VISUALISER_KEYS.len();
+        assert_eq!(count, 55);
         assert_eq!(DOC_TYPES.len(), 13);
     }
 
@@ -248,7 +273,7 @@ mod tests {
 
     fn rust_defaults() -> BTreeMap<String, String> {
         let mut map = BTreeMap::new();
-        for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS] {
+        for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS, VISUALISER_KEYS] {
             for (key, default) in group {
                 map.insert((*key).to_owned(), render_default(default));
             }
@@ -285,6 +310,9 @@ for i in "${!REVIEW_KEYS[@]}"; do
 done
 for i in "${!AGENT_KEYS[@]}"; do
   printf 'K\t%s\t%s\n' "${AGENT_KEYS[$i]}" "${AGENT_DEFAULTS[$i]}"
+done
+for i in "${!VISUALISER_KEYS[@]}"; do
+  printf 'K\t%s\t%s\n' "${VISUALISER_KEYS[$i]}" "${VISUALISER_DEFAULTS[$i]}"
 done
 for i in "${!DOC_TYPE_NAMES[@]}"; do
   printf 'D\t%s\t%s\n' "${DOC_TYPE_NAMES[$i]}" "${DOC_TYPE_PATH_KEYS[$i]}"

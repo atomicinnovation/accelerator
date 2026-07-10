@@ -231,6 +231,16 @@ for i in "${!WORK_KEYS[@]}"; do
   fi
 done
 
+# Visualiser keys that carry catalogue defaults (VISUALISER_KEYS, defined in
+# config-defaults.sh and mirrored in the Rust catalogue).
+for i in "${!VISUALISER_KEYS[@]}"; do
+  key="${VISUALISER_KEYS[$i]}"
+  default="${VISUALISER_DEFAULTS[$i]}"
+  value=$("$READ_VALUE" "$key" "$default")
+  source=$(get_source "$key")
+  echo "| \`$key\` | \`$value\` | $source |"
+done
+
 # Integration and tool sections (EXTRA_KEYS, defined in config-defaults.sh).
 # Read ad-hoc by their own consumers rather than through the five-group
 # catalogue, so they carry no catalogue defaults — an unset key means "the

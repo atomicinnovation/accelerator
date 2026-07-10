@@ -2523,29 +2523,35 @@ else
 fi
 
 echo "Test: config-defaults.sh is the only definition site for the arrays"
-DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES|EXTRA_KEYS)(\+)?='
+DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES|VISUALISER_KEYS|VISUALISER_DEFAULTS|EXTRA_KEYS)(\+)?='
 MATCHES=$(cd "$PLUGIN_ROOT" && grep -rlnE --include='*.sh' \
   --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   "$DEFINITION_PATTERN" . | sort -u)
 EXPECTED="./scripts/config-defaults.sh"
-assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS/WORK_KEYS/WORK_DEFAULTS/WORK_INTEGRATION_VALUES/EXTRA_KEYS" \
+assert_eq "only config-defaults.sh defines the catalogue key arrays" \
   "$EXPECTED" "$MATCHES"
 
 echo ""
 
-# EXTRA_KEYS is the registry for the jira/linear/visualiser sections that live
-# outside the five-group catalogue and are read ad-hoc by their consumers. This
-# guards the exact drift the config-key audit surfaced: a key a consumer reads
-# but nobody registered (so it never reaches config-dump or the docs). Two
-# directions are checked robustly:
+# The jira/linear/visualiser sections live outside the catalogue's core groups
+# and are read ad-hoc by their consumers. The registered set is EXTRA_KEYS (no
+# catalogue default) plus VISUALISER_KEYS (kanban_columns/idle_timeout, which DO
+# carry a catalogue default). This guards the exact drift the config-key audit
+# surfaced: a key a consumer reads but nobody registered (so it never reaches
+# config-dump or the docs). Two directions are checked robustly:
 #   (A) every registered key is documented in the configure reference, and
 #   (B) every jira/linear/visualiser key read via config-read-value.sh in
 #       shipped (non-test) code is registered.
 # The jira/linear bare-subkey reads (site/email via *_read_field_from_file) are
 # a small, stable surface already covered by (A); (B) catches the full-key reads
 # the audit missed for visualiser.* and the token keys.
-echo "Test: EXTRA_KEYS registry stays in sync with docs and consumer reads"
-EXTRA=$(source "$DEFAULTS_FILE" && printf '%s\n' "${EXTRA_KEYS[@]}" | sort -u)
+echo "Test: jira/linear/visualiser registry stays in sync with docs and reads"
+REGISTERED=$(source "$DEFAULTS_FILE" &&
+  {
+    printf '%s\n' "${EXTRA_KEYS[@]}"
+    printf '%s\n' "${VISUALISER_KEYS[@]}"
+  } |
+  sort -u)
 CONFIGURE_SKILL="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
 
 # (A) registry ⊆ docs: every registered key appears (backticked) in the reference.
@@ -2553,8 +2559,8 @@ UNDOCUMENTED=""
 while IFS= read -r key; do
   [ -z "$key" ] && continue
   grep -qF "\`$key\`" "$CONFIGURE_SKILL" || UNDOCUMENTED="$UNDOCUMENTED $key"
-done <<<"$EXTRA"
-assert_eq "every EXTRA_KEYS key is documented in configure SKILL.md" \
+done <<<"$REGISTERED"
+assert_eq "every registered jira/linear/visualiser key is documented in configure SKILL.md" \
   "" "$UNDOCUMENTED"
 
 # (B) consumer full-key reads ⊆ registry.
@@ -2566,9 +2572,9 @@ READS=$(cd "$PLUGIN_ROOT" && grep -rhoE --include='*.sh' --exclude='test-*.sh' \
 UNREGISTERED=""
 while IFS= read -r key; do
   [ -z "$key" ] && continue
-  printf '%s\n' "$EXTRA" | grep -qxF "$key" || UNREGISTERED="$UNREGISTERED $key"
+  printf '%s\n' "$REGISTERED" | grep -qxF "$key" || UNREGISTERED="$UNREGISTERED $key"
 done <<<"$READS"
-assert_eq "every jira/linear/visualiser config-read-value.sh key is in EXTRA_KEYS" \
+assert_eq "every jira/linear/visualiser config-read-value.sh key is registered" \
   "" "$UNREGISTERED"
 
 echo ""

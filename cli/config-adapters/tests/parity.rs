@@ -13,7 +13,8 @@ use std::thread;
 use std::time::Duration;
 
 use config::catalogue::{
-    Default, AGENT_KEYS, PATH_KEYS, REVIEW_KEYS, TEMPLATE_KEYS, WORK_KEYS,
+    Default, AGENT_KEYS, PATH_KEYS, REVIEW_KEYS, TEMPLATE_KEYS,
+    VISUALISER_KEYS, WORK_KEYS,
 };
 use config::{ConfigAccess, ConfigError, ConfigService, Key, Resolved, Value};
 use config_adapters::{render_resolved, FileConfigStore, ABSENT_SENTINEL};
@@ -142,6 +143,11 @@ fn scalar_keys() -> Vec<String> {
         keys.push((*key).to_owned());
     }
     for (key, default) in REVIEW_KEYS {
+        if matches!(default, Default::Scalar(_)) {
+            keys.push((*key).to_owned());
+        }
+    }
+    for (key, default) in VISUALISER_KEYS {
         if matches!(default, Default::Scalar(_)) {
             keys.push((*key).to_owned());
         }

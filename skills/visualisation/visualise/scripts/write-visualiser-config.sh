@@ -167,9 +167,21 @@ else
 fi
 
 # Kanban columns config. Read from `visualiser.kanban_columns`; default to the
-# seven statuses from templates/work-item.md. Validates inline-array syntax and
-# rejects empty lists (a misconfiguration, not a safe default).
-KANBAN_DEFAULT="[draft, ready, in-progress, review, done, blocked, abandoned]"
+# seven statuses from templates/work-item.md. The default is sourced from the
+# config catalogue (VISUALISER_DEFAULTS in config-defaults.sh) so it has a single
+# source of truth. Validates inline-array syntax and rejects empty lists (a
+# misconfiguration, not a safe default).
+KANBAN_DEFAULT=""
+# VISUALISER_KEYS / VISUALISER_DEFAULTS are defined in config-defaults.sh, sourced
+# transitively via config-common.sh above through a $PLUGIN_ROOT path ShellCheck
+# cannot follow.
+# shellcheck disable=SC2154
+for _i in "${!VISUALISER_KEYS[@]}"; do
+  if [ "${VISUALISER_KEYS[$_i]}" = "visualiser.kanban_columns" ]; then
+    KANBAN_DEFAULT="${VISUALISER_DEFAULTS[$_i]}"
+    break
+  fi
+done
 KANBAN_RAW="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.kanban_columns" "$KANBAN_DEFAULT" 2>/dev/null || echo "$KANBAN_DEFAULT")"
 
 # Detect unclosed inline-array bracket (starts with [ but doesn't end with ])
