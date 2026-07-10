@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.11"
+version = "1.24.0-pre.12"
 dependencies = [
  "clap",
  "kernel",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.11"
+version = "1.24.0-pre.12"
 dependencies = [
  "minisign-verify",
 ]
@@ -274,14 +274,14 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "config"
-version = "1.24.0-pre.11"
+version = "1.24.0-pre.12"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "config-adapters"
-version = "1.24.0-pre.11"
+version = "1.24.0-pre.12"
 dependencies = [
  "config",
  "serde",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.11"
+version = "1.24.0-pre.12"
 dependencies = [
  "thiserror",
  "tracing",
