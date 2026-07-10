@@ -137,6 +137,8 @@ REVIEW_DEFAULTS=(
 # Agent keys
 AGENT_KEYS=(
   "agents.reviewer"
+  "agents.browser-analyser"
+  "agents.browser-locator"
   "agents.codebase-locator"
   "agents.codebase-analyser"
   "agents.codebase-pattern-finder"
@@ -147,6 +149,8 @@ AGENT_KEYS=(
 
 AGENT_DEFAULTS=(
   "${AGENT_PREFIX}reviewer"
+  "${AGENT_PREFIX}browser-analyser"
+  "${AGENT_PREFIX}browser-locator"
   "${AGENT_PREFIX}codebase-locator"
   "${AGENT_PREFIX}codebase-analyser"
   "${AGENT_PREFIX}codebase-pattern-finder"

@@ -1016,6 +1016,13 @@ AGENT_DIR="$SCRIPT_DIR/../agents"
 FILE_KEYS=$(for f in "$AGENT_DIR"/*.md; do [ -e "$f" ] && basename "$f" .md; done | sort)
 assert_eq "AGENT_KEYS matches agent files" "$FILE_KEYS" "$SCRIPT_KEYS"
 
+# The catalogue's AGENT_KEYS (config-dump.sh, mirrored in the Rust catalogue and
+# pinned to it by the Rust drift test) is a SEPARATE list from the one above; it
+# drifted behind the agent files until browser-analyser/browser-locator were
+# added. Pin it to the same file-derived set so the whole chain stays coherent.
+DUMP_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$CONFIG_DUMP" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -oE 'agents\.[a-z-]+' | sed 's/^agents\.//' | sort)
+assert_eq "config-dump.sh catalogue AGENT_KEYS matches agent files" "$FILE_KEYS" "$DUMP_KEYS"
+
 echo ""
 
 # ============================================================

@@ -47,6 +47,8 @@ review:
   work_item_revise_major_count: 8
 agents:
   reviewer: custom:reviewer
+  browser-analyser: custom:browser-analyser
+  browser-locator: custom:browser-locator
   codebase-locator: custom:codebase-locator
   codebase-analyser: custom:codebase-analyser
   codebase-pattern-finder: custom:codebase-pattern-finder

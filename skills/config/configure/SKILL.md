@@ -130,6 +130,8 @@ Available agents and their roles:
 | Config Key                | Default Role                                               |
 |---------------------------|------------------------------------------------------------|
 | `reviewer`                | Reviews plans, PRs, and work items using configured lenses |
+| `browser-analyser`        | Analyses screen state and behaviour in a running web app   |
+| `browser-locator`         | Finds routes, screens, and components in a running web app |
 | `codebase-locator`        | Finds relevant source files for a given task               |
 | `codebase-analyser`       | Analyses implementation details of components              |
 | `codebase-pattern-finder` | Finds similar implementations and usage examples           |

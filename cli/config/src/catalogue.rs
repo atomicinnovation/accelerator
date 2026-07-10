@@ -131,6 +131,8 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
 
 pub const AGENT_KEYS: &[&str] = &[
     "reviewer",
+    "browser-analyser",
+    "browser-locator",
     "codebase-locator",
     "codebase-analyser",
     "codebase-pattern-finder",
@@ -174,13 +176,13 @@ mod tests {
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_fifty_one_keys_across_five_groups() {
+    fn the_catalogue_holds_fifty_three_keys_across_five_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
             + AGENT_KEYS.len();
-        assert_eq!(count, 51);
+        assert_eq!(count, 53);
         assert_eq!(DOC_TYPES.len(), 13);
     }
 
