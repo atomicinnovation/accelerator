@@ -11,6 +11,37 @@ The spine is the [Development Loop](development-loop.md) — **research → plan
 implement**. The other families attach to it: some feed work in before research,
 others capture decisions along the way and land the change after.
 
+## The spine, end to end
+
+Taken end to end, a full pass runs research → plan → implement → review
+→ commit → PR. Each solid arrow is a hand-off through a document in
+[`meta/`](philosophy.md), not through the conversation:
+
+```mermaid
+flowchart LR
+  research["research-codebase"]
+  plan["create-plan"]
+  planreview["review-plan /<br/>stress-test-plan"]
+  implement["implement-plan"]
+  review["code review"]
+  commit["commit"]
+  pr["describe-pr →<br/>review-pr"]
+
+  research -->|"research doc"| plan
+  plan -->|"plan doc"| planreview
+  planreview -->|"revised plan"| implement
+  implement -->|"working tree"| review
+  review --> commit
+  commit --> pr
+  planreview -.->|"findings"| plan
+```
+
+The review boxes are deliberate pauses: plan review happens before any
+code exists (the cheapest point to change course), and PR review closes
+the loop after the change lands on a branch.
+
+## The full map
+
 Each box below is a skill family from [All Skills](skills/index.md).
 
 ```mermaid

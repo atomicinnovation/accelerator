@@ -3,7 +3,10 @@ title: Visualiser
 ---
 
 `/visualise` opens a browser-based companion view of your project's
-`meta/` directory. Three views cover the breadth of the directory:
+`meta/` directory. Because every Accelerator artefact is a Markdown
+file with structured frontmatter (see [Internals](internals.md)), the
+directory is effectively a small database of your project's history —
+the visualiser is its reader. Three views cover the breadth of it:
 
 | View          | What it shows                                                              |
 |---------------|----------------------------------------------------------------------------|
@@ -11,13 +14,65 @@ title: Visualiser
 | **Lifecycle** | Typed-linkage-clustered timelines grouping related documents across phases |
 | **Kanban**    | Work-item board driven by `status:` frontmatter; drag-and-drop to update   |
 
-Beyond the three core views, the sidebar's **META** section browses
-auto-discovered **templates** (each showing its active resolution tier and
-content), and root-cause analyses from `meta/research/issues/` are browsable as
-a first-class document type under an **Operate** category. The reader also
-supports global search (focus the sidebar box with `/`) and recovers gracefully
-from missing or unreadable documents with not-found ("Did you mean…") and
-load-error pages.
+## The three views
+
+### Library
+
+The Library is a rendered-Markdown reader over every document type in
+`meta/` — plans, research, ADRs, work items, reviews, validations, PR
+descriptions, and notes — organised in a sidebar by category. Each
+document's frontmatter is rendered as a structured header (status,
+dates, authorship, links to related documents), and code blocks,
+tables, and mermaid diagrams render as they would on a docs site
+rather than as raw text. A detail-page **"Open in editor"** action
+deep-links the file into your editor (configurable — see
+[Customisation](#customisation)).
+
+### Lifecycle
+
+Documents in `meta/` link to each other through typed frontmatter
+fields (`parent`, `derived_from`, `relates_to`). The Lifecycle view
+follows those links to cluster related documents — a work item, the
+research it prompted, the plan derived from that research, the
+decisions and reviews along the way — and lays each cluster out as a
+timeline across the workflow's phases. It answers "what is the full
+story of this piece of work?" in one screen; the
+[case study](case-study.md) walks through one such cluster in prose.
+
+### Kanban
+
+The Kanban view reads the `status:` frontmatter of every work item in
+`meta/work/` and presents them as a board. Dragging a card between
+columns writes the new status back to the file's frontmatter — the
+board is a UI over the files, not a separate store, so changes made by
+skills (or by hand) and changes made on the board are the same kind of
+change.
+
+## Beyond the core views
+
+The sidebar's **META** section browses auto-discovered **templates**
+(each showing its active resolution tier and content), and root-cause
+analyses from `meta/research/issues/` are browsable as a first-class
+document type under an **Operate** category. The reader also supports
+global search (focus the sidebar box with `/`) and recovers gracefully
+from missing or unreadable documents with not-found ("Did you mean…")
+and load-error pages.
+
+## Live reload
+
+The server watches `meta/` for changes and pushes updates to the
+browser, so the visualiser works as a passive second screen during a
+session: as `research-codebase` writes its findings or `implement-plan`
+ticks success criteria, the open document updates in place without a
+refresh. This is the easiest way to follow a long-running skill's
+progress without touching the conversation.
+
+## Under the hood
+
+The visualiser is a single native binary: a Rust (axum) HTTP server
+with the React frontend embedded in it at build time. It reads `meta/`
+directly from disk on request — there is no index to build, no
+database, and nothing to keep in sync.
 
 ## Launching
 

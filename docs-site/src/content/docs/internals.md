@@ -2,6 +2,61 @@
 title: Internals
 ---
 
+## Anatomy of a skill invocation
+
+Every skill is a `SKILL.md` prompt with YAML frontmatter. The
+non-obvious mechanism is the **`!` preprocessor**: lines of the form
+``!`command` `` in the skill body are executed by Claude Code *at
+invocation time*, and their output is injected into the prompt before
+the model sees it. That is how a skill like `commit` starts with live
+VCS status, recent log, and project configuration already in context —
+without spending any conversation turns gathering them.
+
+Once running, a skill that needs exploratory work fans out to
+subagents, each in an isolated context, and finishes by writing its
+artefact to `meta/`:
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant CC as Claude Code
+  participant Shell as "! preprocessor (shell)"
+  participant Skill as Skill (main context)
+  participant Loc as Locator agents
+  participant Ana as Analyser agents
+  participant FS as meta/ (filesystem)
+
+  User->>CC: /accelerator:research-codebase "…"
+  CC->>Shell: run !`…` commands in SKILL.md
+  Shell-->>CC: config, paths, VCS context
+  CC->>Skill: prompt + injected context
+  par fan-out
+    Skill->>Loc: "where does X live?"
+    Loc-->>Skill: organised file paths
+  and
+    Skill->>Ana: "how do these files work?"
+    Ana-->>Skill: focused summary
+  end
+  Skill->>FS: write artefact (research doc, plan, …)
+  Skill-->>User: summary + path to artefact
+```
+
+Three properties of this sequence matter:
+
+- **Context is injected, not gathered.** The preprocessor output
+  arrives as part of the prompt, so the skill never burns turns (or
+  context) running orientation commands.
+- **Exploration is quarantined.** Locators and analysers do the
+  broad searching and deep reading in their own context windows; only
+  summaries return (see [Agents](#agents) below).
+- **The output is a file, not a message.** The durable result lands
+  in `meta/`, where the next skill — possibly in a different session —
+  picks it up.
+
+Scripts referenced by skills are addressed via `${CLAUDE_PLUGIN_ROOT}`,
+so they resolve from the installed plugin location rather than the
+project being worked on.
+
 ## The `meta/` Directory
 
 Every project using Accelerator gets a `meta/` directory (by default) that
