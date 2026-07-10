@@ -227,26 +227,12 @@ for i in "${!WORK_KEYS[@]}"; do
   fi
 done
 
-# Integration and tool sections. These are read ad-hoc by their own consumers
-# (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through
-# the five-group catalogue, so they carry no catalogue defaults — an unset key
-# means "the consumer's own default applies". Listed here so the effective-
-# configuration surface is complete. Credential values (`*.token`,
-# `*.token_cmd`) are never printed: only presence and source are shown.
-EXTRA_KEYS=(
-  "jira.site"
-  "jira.email"
-  "jira.token"
-  "jira.token_cmd"
-  "linear.token"
-  "linear.token_cmd"
-  "visualiser.kanban_columns"
-  "visualiser.idle_timeout"
-  "visualiser.editor"
-  "visualiser.editor_project"
-  "visualiser.binary"
-)
-
+# Integration and tool sections (EXTRA_KEYS, defined in config-defaults.sh).
+# Read ad-hoc by their own consumers rather than through the five-group
+# catalogue, so they carry no catalogue defaults — an unset key means "the
+# consumer's own default applies". Listed here so the effective-configuration
+# surface is complete. Credential values (`*.token`, `*.token_cmd`) are never
+# printed: only presence and source are shown.
 for key in "${EXTRA_KEYS[@]}"; do
   value=$("$READ_VALUE" "$key" "")
   if [ -z "$value" ]; then

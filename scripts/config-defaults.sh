@@ -120,3 +120,25 @@ WORK_INTEGRATION_VALUES=(
   "trello"
   "github-issues"
 )
+
+# Integration and tool config keys read ad-hoc by their own consumers
+# (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through
+# the five-group catalogue. They carry no catalogue defaults — an unset key
+# means "the consumer's own default applies" — so they live here as a plain
+# registry, NOT in the Rust catalogue or the drift-tested five-group count.
+# config-dump.sh iterates this to surface them; test-config.sh pins it to the
+# consumers (every key here is read) and to the docs (every key is documented).
+# Adding a key a consumer reads means adding it here, or the drift test fails.
+EXTRA_KEYS=(
+  "jira.site"
+  "jira.email"
+  "jira.token"
+  "jira.token_cmd"
+  "linear.token"
+  "linear.token_cmd"
+  "visualiser.kanban_columns"
+  "visualiser.idle_timeout"
+  "visualiser.editor"
+  "visualiser.editor_project"
+  "visualiser.binary"
+)
