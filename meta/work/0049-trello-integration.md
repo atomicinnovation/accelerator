@@ -6,7 +6,7 @@ author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: "work-item:0178"
+parent: "work-item:0181"
 tags: [work-management, integrations, trello]
 type: work-item
 schema_version: 1

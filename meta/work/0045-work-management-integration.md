@@ -35,7 +35,7 @@ as Accelerator skills, (2) per-system integrations for Jira and Linear, and
 issues on demand. All streams are complete.
 
 > **Scope note**: The remaining Trello and GitHub Issues + Projects integrations
-> were split out into a separate epic, **0178 (Work Management Additional
+> were split out into a separate epic, **0181 (Work Management Additional
 > Integrations)**, and are tracked there. This epic covers the shipped Jira and
 > Linear integrations plus the shared foundation.
 
@@ -143,7 +143,7 @@ side-by-side diff and must confirm or override before any local write occurs.
 - — Linear integration
 - — `sync-work-items` skill
 
-Split into epic 0178 (Work Management Additional Integrations):
+Split into epic 0181 (Work Management Additional Integrations):
 
 - 0049 — Trello integration
 - 0050 — GitHub Issues + Projects integration
@@ -162,13 +162,13 @@ Split into epic 0178 (Work Management Additional Integrations):
 ## Open Questions
 
 - None. The open question about GitHub Issues identifier format moved to epic
-  0178 with the GitHub integration.
+  0181 with the GitHub integration.
 
 ## Dependencies
 
 - Blocked by: —
 - Blocks: —
-- Relates to: 0178 (Work Management Additional Integrations) — carries the
+- Relates to: 0181 (Work Management Additional Integrations) — carries the
   remaining Trello and GitHub Issues + Projects integrations
 
 ## Assumptions
@@ -183,11 +183,11 @@ Split into epic 0178 (Work Management Additional Integrations):
 - The `schpet/linear-cli` (TypeScript, April 2026, actively maintained) is worth reviewing for Linear auth patterns and agent-friendly UX before designing `init-linear`.
 
 Technical notes specific to the Trello and GitHub Issues integrations moved to
-epic 0178.
+epic 0181.
 
 ## Drafting Notes
 
-- Status set to `done` — all in-scope streams (local skills, configurable ID pattern, Jira and Linear integrations, and the `sync-work-items` skill) are complete. The remaining Trello and GitHub Issues integrations were split into epic 0178, so they no longer gate this epic's completion.
+- Status set to `done` — all in-scope streams (local skills, configurable ID pattern, Jira and Linear integrations, and the `sync-work-items` skill) are complete. The remaining Trello and GitHub Issues integrations were split into epic 0181, so they no longer gate this epic's completion.
 - "Remote allocates ID on first push" means the push is a prerequisite for writing the local file with a permanent ID. The implementing plan for the "offer to push" feature in `/create-work-item` must decide what happens on push failure: leave the draft in memory and re-offer, or write locally with a numeric ID and sync later.
 - "Offer to push" UX for `/create-work-item` is intentionally left to the implementing plan — the epic captures the intent (remote allocates first, then write); the plan decides whether this is a confirmation prompt, an explicit `--push` flag, or automatic with a confirmation gate.
 - The numeric-ID-as-unsynced convention (a numeric `work_item_id` means "not yet pushed") is a new semantic for an existing field. The sync status indicators in `/list-work-items` depend on this convention; it should be documented in the configure skill's `work` section.
