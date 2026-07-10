@@ -9,6 +9,7 @@ status: done
 kind: task
 priority: high
 parent: "work-item:0166"
+external_id: PP-702
 tags: [rust, config, corpus, store, crates, dedup]
 last_updated: "2026-07-06T23:08:57+00:00"
 last_updated_by: Toby Clemson
