@@ -354,7 +354,9 @@ def test_nightly_lane_isolation_holds(wf):
 DOCS_CHECK_JOB = "check-docs"
 DOCS_DEPLOY_JOB = "deploy-docs"
 DOCS_FORCE_BRANCH = "force-deploy-docs"
-MAIN_PUSH_GATE = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+MAIN_PUSH_GATE = (
+    "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+)
 
 
 def _job_run_text_workflows(job):
