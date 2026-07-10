@@ -1,6 +1,6 @@
 # Visualiser
 
-`/accelerator:visualise` opens a browser-based companion view of your project's
+`/visualise` opens a browser-based companion view of your project's
 `meta/` directory. Three views cover the breadth of the directory:
 
 | View          | What it shows                                                              |
@@ -20,7 +20,7 @@ load-error pages.
 ## Launching
 
 ```bash
-/accelerator:visualise            # from inside a Claude Code session
+/visualise            # from inside a Claude Code session
 accelerator-visualiser            # CLI wrapper — optionally symlink onto $PATH
 ```
 
@@ -31,8 +31,8 @@ returns the same URL.
 ## Lifecycle
 
 ```bash
-/accelerator:visualise status     # JSON: running | stale | not_running
-/accelerator:visualise stop       # SIGTERM, escalating to SIGKILL after 2s
+/visualise status     # JSON: running | stale | not_running
+/visualise stop       # SIGTERM, escalating to SIGKILL after 2s
 ```
 
 Both subcommands also work via the `accelerator-visualiser` CLI wrapper.
@@ -80,3 +80,16 @@ SHA-256 check proves the cached binary matches what the build runner produced.
 For an independent, out-of-band check you can run `gh attestation verify
 <binary> --repo atomicinnovation/accelerator` yourself (requires
 `gh >= 2.49.0` and network reachability to `api.github.com`).
+
+## Skill reference
+
+### <img src="https://api.iconify.design/ph/presentation-chart-bold.svg?color=%23ea580c" width="18" align="center" alt=""> `/visualise [stop | status]`
+
+Open the accelerator meta visualiser.
+
+*Bare `visualise` starts (or re-attaches to) the server; `status` reports its
+state and `stop` shuts it down. See [Lifecycle](#lifecycle).*
+
+---
+
+[← Development Loop](development-loop.md) · [Docs home](../README.md#documentation) · [Internals →](internals.md)

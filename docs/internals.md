@@ -4,8 +4,9 @@
 
 Every project using Accelerator gets a `meta/` directory (by default) that
 serves as persistent state for the development workflow. Each skill reads from
-and writes to predictable paths within it. Run `/accelerator:init` to
-create all directories up front, or let skills create them on first use.
+and writes to predictable paths within it. Run
+[`/init`](configuration.md#init) to create all directories up
+front, or let skills create them on first use.
 These paths can be overridden via the `paths` configuration section:
 
 `research/` is itself subdivided into four subcategories — codebase
@@ -17,7 +18,7 @@ research, issue/RCA research, design inventories, and design gaps:
 | `  ├─ codebase/`                | Codebase research findings with YAML frontmatter               | `research-codebase`                                          |
 | `  ├─ issues/`                  | Issue / RCA research findings                                  | `research-issue`                                             |
 | `  ├─ design-inventories/`      | Per-source design inventory snapshots (markdown + screenshots) | `inventory-design`                                           |
-| `  └─ design-gaps/`             | Design-gap analysis artifacts                                  | `analyse-design-gaps`                                        |
+| `  └─ design-gaps/`             | Design-gap analysis artefacts                                  | `analyse-design-gaps`                                        |
 | `plans/`                        | Implementation plans with phased changes                       | `create-plan`                                                |
 | `decisions/`                    | Architecture decision records (ADRs)                           | `create-adr`, `extract-adrs`, `review-adr`                   |
 | `reviews/`                      | Review summaries and per-lens results                          | `review-pr`, `review-plan`                                   |
@@ -32,7 +33,7 @@ This approach means:
 - Work survives session boundaries and context compaction
 - Plans can be resumed after interruption (implement-plan picks up from the
   first unchecked item)
-- Artifacts are structured and machine-parseable (YAML frontmatter, JSON
+- Artefacts are structured and machine-parseable (YAML frontmatter, JSON
   schemas)
 
 ## Agents
@@ -83,3 +84,7 @@ detection covers three modes:
 | **git**            | `.git/` only       | `git`             |
 | **jj (colocated)** | `.jj/` and `.git/` | `jj`              |
 | **jj (pure)**      | `.jj/` only        | `jj`              |
+
+---
+
+[← Visualiser](visualiser.md) · [Docs home](../README.md#documentation) · [Configuration →](configuration.md)

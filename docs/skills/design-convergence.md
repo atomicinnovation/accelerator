@@ -1,8 +1,8 @@
 # Design Convergence
 
 Design convergence skills capture two design surfaces — a current frontend and a
-target prototype — as structured inventory artifacts, then compute a structured
-gap between them. The gap artifact's prose paragraphs satisfy the cue-phrase
+target prototype — as structured inventory artefacts, then compute a structured
+gap between them. The gap artefact's prose paragraphs satisfy the cue-phrase
 contract that `extract-work-items` consumes, so the workflow plugs straight into
 the existing work-item lifecycle. Each inventory snapshot is self-contained
 (markdown plus screenshots in a dated directory); re-running for the same source
@@ -14,21 +14,36 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
-| Skill                   | Usage                                                                     | Description                                                                               |
-|-------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| **inventory-design**    | `/accelerator:inventory-design [source-id] [location] [--crawler MODE]`   | Generate a design inventory (tokens, components, screens, features) for a frontend source |
-| **analyse-design-gaps** | `/accelerator:analyse-design-gaps [current-source-id] [target-source-id]` | Compute a structured gap between two inventories as actionable prose                      |
+### <img src="https://api.iconify.design/ph/swatches-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/inventory-design [source-id] [location] [options]`
+
+Generate a structured design inventory for a frontend source — tokens,
+components, screens, and features — by crawling it with code analysis, live
+Playwright inspection, or both.
+
+*Pick the crawler mode to match the source: `code` for a local repo, `runtime`
+for a hosted prototype, `hybrid` (default for code repos) for both. See
+[Requirements](#requirements) before using `runtime`/`hybrid`. Flags:
+`--crawler code|runtime|hybrid`, `--allow-internal`, `--allow-insecure-scheme`.*
+
+### <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/analyse-design-gaps [current-source-id] [target-source-id]`
+
+Compare two design inventories produced by inventory-design and emit a structured
+gap artefact whose prose paragraphs satisfy the extract-work-items cue-phrase
+contract.
+
+*The gap artefact feeds straight into `/extract-work-items`, so run both
+inventories first, then this, then extract.*
 
 Three-step example:
 
 ```
-/accelerator:inventory-design current ./apps/webapp
-/accelerator:inventory-design prototype https://prototype.example.com
-/accelerator:analyse-design-gaps current prototype
+/inventory-design current ./apps/webapp
+/inventory-design prototype https://prototype.example.com
+/analyse-design-gaps current prototype
 ```
 
-The resulting gap artifact under `meta/research/design-gaps/` feeds straight into
-`/accelerator:extract-work-items <gap-file>`.
+The resulting gap artefact under `meta/research/design-gaps/` feeds straight into
+`/extract-work-items <gap-file>`.
 
 `inventory-design` supports three crawler modes: `code` (static analysis only,
 no Playwright needed), `runtime` (Playwright executor only), and `hybrid`
@@ -88,7 +103,7 @@ rm -rf ~/.cache/accelerator/playwright .accelerator/tmp/inventory-design-playwri
 
 ## Authenticated browser crawls
 
-`/accelerator:inventory-design` reads the following environment variables when
+`/inventory-design` reads the following environment variables when
 the location is a hosted prototype or running app and authentication is
 required. They are also read by any future skill that uses the `browser-*`
 agents.
@@ -126,3 +141,7 @@ inventory if any env-var literal appears in the generated body.
   `127.0.0.1` only. It never binds to an external interface. Screenshots mask
   `[type=password]`, `[autocomplete*=token]`, and `[data-secret]` fields
   automatically.
+
+---
+
+[← Review System](review-system.md) · [Docs home](../../README.md#documentation)

@@ -5,12 +5,12 @@ title: "Author per-skill-family reference docs under docs/"
 date: "2026-06-29T10:28:21+00:00"
 author: Phil Helm
 producer: refine-work-item
-status: draft
+status: done
 kind: story
 priority: medium
 parent: "work-item:0145"
 tags: []
-last_updated: "2026-06-29T14:46:59+00:00"
+last_updated: "2026-07-10T10:29:38+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 external_id: PP-698
@@ -19,15 +19,21 @@ external_id: PP-698
 # 0176: Author per-skill-family reference docs under docs/
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Phil Helm
 
 ## Summary
 
-Replace the idea of one monolithic skill-reference section with a per-family
-documentation layer: relocate the heavy feature/skill-family sections out of
-the README into one focused reference doc per family under `docs/skills/`.
+Establish a per-skill-family documentation layer under `docs/skills/`: one
+focused reference page per family, relocated from the README. Beyond the
+relocation, this story adds (a) a **master index** listing every user-invokable
+skill, and (b) a consistent **per-skill subsection** within each family page
+(what it does / how to use it / advice & guidelines). The grouping keeps the
+existing **skill family** framing — pages are *not* renamed to "workflows"
+(that term is reserved for the phase process and the existing "VCS & PR
+Workflow" page) — and there is **no** standalone page per skill; per-skill
+detail lives within the family pages.
 
 ## Context
 
@@ -42,6 +48,13 @@ individual skill families discoverable for users navigating the docs. The
 heaviest families are Remote Work Item Management (~143 lines) and Design
 Convergence (~128 lines); the source-section mapping is pinned in Technical
 Notes. (Requirements is authoritative; figures here are illustrative.)
+
+**Current state (as of the docs branch):** the seven family pages already exist
+on disk under `docs/skills/`, created alongside the 0175 split, and the README
+already links to them under its **Skills** heading. The relocation criteria
+(AC1–AC5) are therefore largely met; this story's active work is the two
+additions in Requirements — the master index and the per-skill subsections —
+plus a verification pass over the relocation.
 
 ## Requirements
 
@@ -67,6 +80,25 @@ corresponding README content:
 Each page is linked from the root `README.md`, with link text matching the
 page title.
 
+Beyond the relocation, this story also delivers:
+
+- **Master skill index** — a `docs/skills/index.md` page (H1 "All Skills")
+  listing **every user-invokable skill** (46 at the time of writing), grouped by
+  the same skill families, each entry linking to its family page (and, where
+  practical, to the per-skill subsection anchor). This is the skills landing
+  page the 0177 documentation site will navigate to. "User-invokable" means a
+  skill not carrying `user-invocable: false` — this excludes the 18 review
+  lenses, the 3 review output-formats, and the `browser-executor` / `paths`
+  internal config skills.
+- **Per-skill subsections** — within each family page, present each skill with a
+  consistent, anchored subsection covering: *what it does*, *how to use it*
+  (including its `argument-hint`), and *advice & guidelines* specific to that
+  skill. Skill name, description, and argument-hint must stay faithful to the
+  skill's `SKILL.md` frontmatter (the canonical source) to avoid drift. **No
+  standalone per-skill page is created** — the heaviest families already have
+  their own family page (e.g. issue-trackers, design-convergence), so per-skill
+  detail stays inside the family pages.
+
 ## Acceptance Criteria
 
 - [ ] Each skill family in the source→page mapping in Technical Notes has its
@@ -80,6 +112,19 @@ page title.
       text matching the page H1 title in the Technical Notes mapping.
 - [ ] No skill described in the original README is dropped: every per-family
       skills table survives in exactly one `docs/skills/` page.
+- [ ] A master index page `docs/skills/index.md` (H1 "All Skills") lists every
+      user-invokable skill grouped by family, each linking to its family page;
+      it is reachable from the README's **Skills** section.
+- [ ] No user-invokable skill is missing from the master index, and no
+      non-invokable skill (review lenses, output-formats, `browser-executor`,
+      `paths`) is listed in it.
+- [ ] Each family page presents its skills with a consistent, anchored
+      per-skill subsection (what it does / how to use it / advice & guidelines),
+      with name + description + argument-hint matching the skill's `SKILL.md`.
+- [ ] No standalone per-skill page exists under `docs/skills/`; the only pages
+      are the seven family pages plus `index.md`.
+- [ ] Pages retain the "skill family" framing and are not renamed to
+      "workflows".
 
 ## Open Questions
 
@@ -87,6 +132,16 @@ page title.
   seventh family page), consistent with the other families. The loop narrative
   remains in 0175's `docs/development-loop.md`; this page takes the
   skill-catalogue portion of the Development Loop section.
+- _(Resolved)_ Keep the **skill family** framing; do not rename the pages to
+  "workflows" ("workflow" is already the process term in the docs).
+- _(Resolved)_ Provide a single master index of every user-invokable skill at
+  `docs/skills/index.md`, rather than scattering the catalogue or omitting it.
+- _(Resolved)_ Do **not** create a page per skill; per-skill detail lives as
+  anchored subsections within the family pages.
+- Should the master index (and per-skill subsections) be **generated** from
+  `SKILL.md` frontmatter by a `tasks/` invoke task with a CI consistency check,
+  rather than hand-maintained? There is no automated drift check today. (Defer
+  to 0177 if it standardises a site build.)
 
 ## Dependencies
 
