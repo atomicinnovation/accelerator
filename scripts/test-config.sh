@@ -6060,12 +6060,13 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: docs/skills/work-items.md mentions work.integration"
-if grep -q "work\.integration" "$PLUGIN_ROOT/docs/skills/work-items.md"; then
-  echo "  PASS: docs/skills/work-items.md mentions work.integration"
+echo "Test: docs-site skills/work-items.md mentions work.integration"
+if grep -q "work\.integration" \
+  "$PLUGIN_ROOT/docs-site/src/content/docs/skills/work-items.md"; then
+  echo "  PASS: docs-site skills/work-items.md mentions work.integration"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: docs/skills/work-items.md mentions work.integration"
+  echo "  FAIL: docs-site skills/work-items.md mentions work.integration"
   FAIL=$((FAIL + 1))
 fi
 
