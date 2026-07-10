@@ -84,7 +84,7 @@ _jira_verify() {
     if $_JIRA_NON_INTERACTIVE; then
       cat "$_cred_err_file" >&2
       rm -f "$_cred_err_file"
-      echo "E_INIT_NEEDS_CONFIG: required Jira config is missing; set jira.site and jira.email in accelerator.md" >&2
+      echo "E_INIT_NEEDS_CONFIG: required Jira config is missing; set jira.site and jira.email in config.md" >&2
       return 60
     fi
     cat "$_cred_err_file" >&2
@@ -193,7 +193,7 @@ _jira_prompt_default() {
     echo "E_INIT_NEEDS_CONFIG: no default project key provided" >&2
     return 60
   fi
-  echo "Note: add 'work: {default_project_code: $key}' to accelerator.md" >&2
+  echo "Note: add 'work: {default_project_code: $key}' to config.md" >&2
 }
 
 # ---------------------------------------------------------------------------

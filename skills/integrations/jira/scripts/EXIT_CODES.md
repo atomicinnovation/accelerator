@@ -25,10 +25,10 @@ table. Gaps within ranges are reserved.
 | 23   | `E_TEST_HOOK_REJECTED`           | `jira-request.sh`   | `JIRA_RETRY_SLEEP_FN` hook refused (gate: `ACCELERATOR_TEST_MODE=1`)                     |
 | 24   | `E_NO_TOKEN`                     | `jira-auth.sh`      | No token found in any source                                                             |
 | 25   | `E_TOKEN_CMD_FAILED`             | `jira-auth.sh`      | `token_cmd` exited non-zero                                                              |
-| 26   | `E_TOKEN_CMD_FROM_SHARED_CONFIG` | `jira-auth.sh`      | `jira.token_cmd` in `accelerator.md` ignored (stderr prefix only; not a fatal exit code) |
+| 26   | `E_TOKEN_CMD_FROM_SHARED_CONFIG` | `jira-auth.sh`      | `jira.token_cmd` in `config.md` ignored (stderr prefix only; not a fatal exit code) |
 | 27   | `E_AUTH_NO_SITE`                 | `jira-auth.sh`      | `jira.site` not configured                                                               |
 | 28   | `E_AUTH_NO_EMAIL`                | `jira-auth.sh`      | `jira.email` not configured                                                              |
-| 29   | `E_LOCAL_PERMS_INSECURE`         | `jira-auth.sh`      | `accelerator.local.md` mode > 0600                                                       |
+| 29   | `E_LOCAL_PERMS_INSECURE`         | `jira-auth.sh`      | `config.local.md` mode > 0600                                                       |
 | 30   | `E_JQL_NO_PROJECT`               | `jira-jql.sh`       | `compose` called without `--project` or `--all-projects`                                 |
 | 31   | `E_JQL_UNSAFE_VALUE`             | `jira-jql.sh`       | Value contains a control character                                                       |
 | 32   | `E_JQL_BAD_FLAG`                 | `jira-jql.sh`       | Unrecognised flag                                                                        |

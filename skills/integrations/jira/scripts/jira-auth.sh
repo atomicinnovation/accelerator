@@ -15,17 +15,17 @@
 # On failure, returns non-zero with E_* prefix on stderr:
 #   E_NO_TOKEN (24)                  — no token found in any source
 #   E_TOKEN_CMD_FAILED (25)          — token_cmd exited non-zero
-#   E_TOKEN_CMD_FROM_SHARED_CONFIG   — token_cmd in accelerator.md ignored
+#   E_TOKEN_CMD_FROM_SHARED_CONFIG   — token_cmd in config.md ignored
 #   E_AUTH_NO_SITE (27)              — jira.site not configured
 #   E_AUTH_NO_EMAIL (28)             — jira.email not configured
-#   E_LOCAL_PERMS_INSECURE (29)      — accelerator.local.md mode > 0600
+#   E_LOCAL_PERMS_INSECURE (29)      — config.local.md mode > 0600
 #
 # Token security:
-#   token_cmd from accelerator.md (shared/team config) is NEVER executed;
-#   only accelerator.local.md may supply token_cmd. This prevents shared
+#   token_cmd from config.md (shared/team config) is NEVER executed;
+#   only config.local.md may supply token_cmd. This prevents shared
 #   config from injecting credential-access commands.
 #
-#   accelerator.local.md must have mode ≤ 0600. Looser modes cause a
+#   config.local.md must have mode ≤ 0600. Looser modes cause a
 #   fail-closed exit (29) unless ACCELERATOR_ALLOW_INSECURE_LOCAL=1 AND
 #   a VCS-tracked .claude/insecure-local-ok marker is present.
 #
@@ -180,14 +180,14 @@ jira_resolve_credentials() {
     JIRA_RESOLUTION_SOURCE_TOKEN="env_cmd"
   fi
 
-  # 3. accelerator.local.md — permissions check, then token / token_cmd
+  # 3. config.local.md — permissions check, then token / token_cmd
   if [ -z "$JIRA_TOKEN" ] && [ -f "$local_cfg" ]; then
     local _mode
     _mode=$(_jira_file_mode "$local_cfg")
 
     # Symlink → reject outright (can't verify the target's permissions)
     if [ -L "$local_cfg" ]; then
-      echo "E_LOCAL_PERMS_INSECURE: accelerator.local.md is a symlink; chmod 600 to allow credential read, or set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 to override (set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 AND commit .claude/insecure-local-ok to override)" >&2
+      echo "E_LOCAL_PERMS_INSECURE: config.local.md is a symlink; chmod 600 to allow credential read, or set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 to override (set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 AND commit .claude/insecure-local-ok to override)" >&2
       return 29
     fi
 
@@ -198,11 +198,11 @@ jira_resolve_credentials() {
         # Marker must be a regular non-symlink file that is VCS-tracked
         if [ ! -L "$_marker" ] && [ -f "$_marker" ] && _jira_is_vcs_tracked "$_marker"; then
           _insecure_ok=1
-          echo "Warning: accelerator.local.md is mode ${_mode}; honouring ACCELERATOR_ALLOW_INSECURE_LOCAL because .claude/insecure-local-ok is present" >&2
+          echo "Warning: config.local.md is mode ${_mode}; honouring ACCELERATOR_ALLOW_INSECURE_LOCAL because .claude/insecure-local-ok is present" >&2
         fi
       fi
       if [ "$_insecure_ok" -eq 0 ]; then
-        echo "E_LOCAL_PERMS_INSECURE: accelerator.local.md is mode ${_mode}; chmod 600 to allow credential read, or set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 to override (set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 AND commit .claude/insecure-local-ok to override)" >&2
+        echo "E_LOCAL_PERMS_INSECURE: config.local.md is mode ${_mode}; chmod 600 to allow credential read, or set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 to override (set ACCELERATOR_ALLOW_INSECURE_LOCAL=1 AND commit .claude/insecure-local-ok to override)" >&2
         return 29
       fi
     fi
@@ -218,11 +218,11 @@ jira_resolve_credentials() {
     fi
   fi
 
-  # 4. accelerator.md — token only, and only when accelerator.local.md is absent.
+  # 4. config.md — token only, and only when config.local.md is absent.
   # (token_cmd is never honoured from shared config.)
   if [ -z "$JIRA_TOKEN" ] && [ ! -f "$local_cfg" ]; then
     if _v=$(_jira_read_field_from_file "$team_cfg" "token_cmd") && [ -n "$_v" ]; then
-      echo "E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in accelerator.md ignored — move to accelerator.local.md" >&2
+      echo "E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in config.md ignored — move to config.local.md" >&2
     fi
     local _shared_token
     _shared_token=$("$_JIRA_AUTH_PLUGIN_ROOT/scripts/config-read-value.sh" jira.token "")

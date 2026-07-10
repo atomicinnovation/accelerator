@@ -78,27 +78,27 @@ write_team_config "$REPO"
 OUTPUT=$(cd "$REPO" && ACCELERATOR_JIRA_TOKEN_CMD='printf "tok-cmd\r\n\n\n  "' bash "$AUTH_CLI")
 assert_eq "token=tok-cmd (stripped)" "token=tok-cmd" "$(printf '%s\n' "$OUTPUT" | grep '^token=')"
 
-echo "Test 3: accelerator.local.md jira.token wins over accelerator.md jira.token"
+echo "Test 3: config.local.md jira.token wins over config.md jira.token"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: team-token"
 write_local_config "$REPO" "  token: local-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
 assert_contains "local token wins" "$OUTPUT" "token=local-token"
 
-echo "Test 4: accelerator.local.md jira.token_cmd wins over accelerator.md jira.token"
+echo "Test 4: config.local.md jira.token_cmd wins over config.md jira.token"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: team-token"
 write_local_config "$REPO" "  token_cmd: echo cmd-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
 assert_contains "local token_cmd wins" "$OUTPUT" "token=cmd-token"
 
-echo "Test 5: accelerator.md jira.token used when nothing else is set"
+echo "Test 5: config.md jira.token used when nothing else is set"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: shared-token"
 OUTPUT=$(cd "$REPO" && bash "$AUTH_CLI")
 assert_contains "shared token" "$OUTPUT" "token=shared-token"
 
-echo "Test 5a: accelerator.md jira.token blocked when accelerator.local.md exists but has no token"
+echo "Test 5a: config.md jira.token blocked when config.local.md exists but has no token"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token: shared-token"
 write_local_config "$REPO" # local.md exists but contains no jira.token entry
@@ -115,7 +115,7 @@ else
 fi
 assert_eq "stdout is empty" "" "$STDOUT"
 
-echo "Test 6: accelerator.md jira.token_cmd is ignored — E_TOKEN_CMD_FROM_SHARED_CONFIG + E_NO_TOKEN"
+echo "Test 6: config.md jira.token_cmd is ignored — E_TOKEN_CMD_FROM_SHARED_CONFIG + E_NO_TOKEN"
 REPO=$(setup_repo)
 write_team_config "$REPO" "https://team.atlassian.net" "team@example.com" "  token_cmd: echo ignored"
 EXIT_CODE=0
@@ -197,7 +197,7 @@ assert_eq "token stripped to tok" "token=tok" "$(printf '%s\n' "$OUTPUT" | grep 
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "=== accelerator.local.md permissions — fail-closed ==="
+echo "=== config.local.md permissions — fail-closed ==="
 echo ""
 
 echo "Test 13: mode 0644 — exits 29 with E_LOCAL_PERMS_INSECURE, no token on stdout"

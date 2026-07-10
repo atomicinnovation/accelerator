@@ -646,16 +646,22 @@ absolute or project-relative and **must be executable** (a non-executable path
 fails the launch loudly). Precedence is **`ACCELERATOR_VISUALISER_BIN` env var >
 `visualiser.binary` > bundled binary**.
 
+#### Recognised keys
+
+Only `visualiser.kanban_columns`, `visualiser.idle_timeout`,
+`visualiser.editor`, `visualiser.editor_project`, and `visualiser.binary` are
+recognised. Other `visualiser.*` keys are not consumed by any plugin script.
+
 ### jira
 
 Configure access to a Jira Cloud tenant. One key belongs in team-shared
-`accelerator.md`:
+`config.md`:
 
 | Key    | Default | Description                                |
 |--------|---------|--------------------------------------------|
 | `site` | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
 
-Example shared configuration in `accelerator.md`:
+Example shared configuration in `config.md`:
 
 \```yaml
 ---
@@ -667,7 +673,7 @@ jira:
 #### Personal settings (do not commit)
 
 Three keys are personal and **must live exclusively in
-`accelerator.local.md`**, which is gitignored:
+`config.local.md`**, which is gitignored:
 
 | Key         | Default | Description                                            |
 |-------------|---------|--------------------------------------------------------|
@@ -675,17 +681,17 @@ Three keys are personal and **must live exclusively in
 | `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
 | `token_cmd` | (empty) | Shell command whose stdout is the token                |
 
-`token_cmd` from the team-shared `accelerator.md` is **never** honoured: a
+`token_cmd` from the team-shared `config.md` is **never** honoured: a
 committed `token_cmd` is a supply-chain command-injection sink (a single PR
 could land arbitrary shell that runs on every contributor's machine). When
 detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
-in accelerator.md ignored — move to accelerator.local.md` to stderr.
+in config.md ignored — move to config.local.md` to stderr.
 
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
-password manager. The resolver checks `accelerator.local.md` permissions and
+password manager. The resolver checks `config.local.md` permissions and
 warns if looser than `0600`.
 
-Example `accelerator.local.md` (preferred form, using a password manager):
+Example `config.local.md` (preferred form, using a password manager):
 
 \```yaml
 ---
@@ -699,16 +705,16 @@ Authentication resolves through this chain (first non-empty wins):
 
 1. `ACCELERATOR_JIRA_TOKEN` env var.
 2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
-3. `accelerator.local.md` `jira.token`.
-4. `accelerator.local.md` `jira.token_cmd`.
-5. `accelerator.md` `jira.token` *(only when `accelerator.local.md` does not
+3. `config.local.md` `jira.token`.
+4. `config.local.md` `jira.token_cmd`.
+5. `config.md` `jira.token` *(only when `config.local.md` does not
    exist; emits a runtime warning)*.
 
-`jira.token_cmd` is **never** consumed from the team-shared `accelerator.md`
-file. Only the four sources above (env vars and `accelerator.local.md`) are
-honoured. A `jira.token_cmd` value found in `accelerator.md` is ignored; a
+`jira.token_cmd` is **never** consumed from the team-shared `config.md`
+file. Only the four sources above (env vars and `config.local.md`) are
+honoured. A `jira.token_cmd` value found in `config.md` is ignored; a
 runtime warning prints `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in
-accelerator.md ignored — move to accelerator.local.md` to stderr. Rationale:
+config.md ignored — move to config.local.md` to stderr. Rationale:
 a committed `token_cmd` is a supply-chain command-injection sink — a single PR
 could land `jira.token_cmd: "<arbitrary shell>"` and that command would execute
 on every contributor's machine the next time any Jira helper or `/init-jira`
