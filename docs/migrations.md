@@ -37,3 +37,7 @@ with the latest plugin schema.
 
 *Destructive but guarded: it refuses to run on a dirty working tree and previews
 each pending migration before applying. Recovery is via VCS revert.*
+
+---
+
+[← Configuration](configuration.md) · [Docs home](../README.md#documentation) · [Releases & Compatibility →](releases-and-compatibility.md)

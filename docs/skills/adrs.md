@@ -43,3 +43,7 @@ accepted ADR can only transition to superseded or deprecated (use
 
 ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
 immutable. To revise a decision, create a new ADR that supersedes the original.
+
+---
+
+[← Issue Trackers](issue-trackers.md) · [Docs home](../../README.md#documentation) · [VCS & PR Workflow →](vcs-and-pr.md)

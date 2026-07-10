@@ -20,3 +20,7 @@ The result is a development workflow where:
 For example, a research phase might read 50 files across a codebase, but only
 a structured summary is written to disk and passed to the planning phase —
 keeping the planner focused and accurate.
+
+---
+
+[Docs home](../README.md#documentation) · [Full Workflow →](workflow.md)

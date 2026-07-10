@@ -141,3 +141,7 @@ inventory if any env-var literal appears in the generated body.
   `127.0.0.1` only. It never binds to an external interface. Screenshots mask
   `[type=password]`, `[autocomplete*=token]`, and `[data-secret]` fields
   automatically.
+
+---
+
+[← Review System](review-system.md) · [Docs home](../../README.md#documentation)

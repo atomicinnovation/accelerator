@@ -32,3 +32,7 @@ with verification and code changes.
 
 *Pairs with `review-pr`: review surfaces the feedback, respond-to-pr works
 through each thread and pushes the fixes.*
+
+---
+
+[← ADRs](adrs.md) · [Docs home](../../README.md#documentation) · [Review System →](review-system.md)

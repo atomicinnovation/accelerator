@@ -37,3 +37,7 @@ areas:
 /review-pr 123 focus on security and architecture
 /review-work-item 0042 focus on testability
 ```
+
+---
+
+[← VCS & PR Workflow](vcs-and-pr.md) · [Docs home](../../README.md#documentation) · [Design Convergence →](design-convergence.md)

@@ -51,3 +51,7 @@ criteria and identifying deviations.
 
 *Run after `implement-plan` to confirm the code matches the plan and to surface
 anything that drifted.*
+
+---
+
+[← All Skills](README.md) · [Docs home](../../README.md#documentation) · [Investigation & Notes →](investigation.md)

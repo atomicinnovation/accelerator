@@ -25,3 +25,7 @@ spike's work item.
 
 *Reach for it when a work item poses open questions that must be resolved before
 planning or implementation can proceed with confidence.*
+
+---
+
+[← Development Loop (skills)](development-loop.md) · [Docs home](../../README.md#documentation) · [Work Items →](work-items.md)

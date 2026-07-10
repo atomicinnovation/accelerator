@@ -244,3 +244,7 @@ Use this skill only when the user explicitly invokes /attach-linear-issue to
 attach a link or a binary file to an existing Linear issue.
 
 *Provide the target via `--url URL` or `--file PATH`.*
+
+---
+
+[← Work Items](work-items.md) · [Docs home](../../README.md#documentation) · [ADRs →](adrs.md)

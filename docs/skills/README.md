@@ -96,3 +96,7 @@ Note: `review-pr`, `review-plan`, and `review-work-item` run the multi-lens
 |  |  |
 | --- | --- |
 | <img src="https://api.iconify.design/ph/presentation-chart-bold.svg?color=%23ea580c" width="20" align="center" alt=""> [`/visualise`](../visualiser.md#visualise) | Open the accelerator meta visualiser. |
+
+---
+
+[← Releases & Compatibility](../releases-and-compatibility.md) · [Docs home](../../README.md#documentation) · [Development Loop (skills) →](development-loop.md)

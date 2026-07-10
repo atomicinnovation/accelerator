@@ -99,3 +99,7 @@ and merged.
 Every skill reads and writes the shared [`meta/`](philosophy.md) directory, so
 phases hand off through the filesystem rather than the conversation. For the
 complete catalogue, see [All Skills](skills/README.md).
+
+---
+
+[← Philosophy](philosophy.md) · [Docs home](../README.md#documentation) · [Development Loop →](development-loop.md)

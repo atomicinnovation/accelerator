@@ -144,3 +144,7 @@ skills expect. Takes no arguments and is safe to run repeatedly.
 
 *Idempotent: it creates the `meta/` directories up front, but skills also create
 them on first use, so running `init` is optional.*
+
+---
+
+[← Internals](internals.md) · [Docs home](../README.md#documentation) · [Migrations →](migrations.md)

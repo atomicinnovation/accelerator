@@ -89,3 +89,7 @@ Open the accelerator meta visualiser.
 
 *Bare `visualise` starts (or re-attaches to) the server; `status` reports its
 state and `stop` shuts it down. See [Lifecycle](#lifecycle).*
+
+---
+
+[← Development Loop](development-loop.md) · [Docs home](../README.md#documentation) · [Internals →](internals.md)

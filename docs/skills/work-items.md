@@ -95,3 +95,7 @@ Work items use a shared template with YAML frontmatter (`work_item_id`, `title`,
 Dependencies, Assumptions, Technical Notes, Drafting Notes, References).
 The template is customisable via
 `/configure templates eject work-item`.
+
+---
+
+[← Investigation & Notes](investigation.md) · [Docs home](../../README.md#documentation) · [Issue Trackers →](issue-trackers.md)
