@@ -5,7 +5,7 @@ title: "Astro Starlight for the Documentation Site"
 date: "2026-07-10T13:05:52+00:00"
 author: Phil Helm
 producer: create-adr
-status: proposed
+status: accepted
 parent: "work-item:0177"
 tags: [documentation, tooling]
 last_updated: "2026-07-10T13:05:52+00:00"
@@ -16,7 +16,7 @@ schema_version: 1
 # ADR-0056: Astro Starlight for the Documentation Site
 
 **Date**: 2026-07-10
-**Status**: Proposed
+**Status**: Accepted
 **Author**: Phil Helm
 
 ## Context
@@ -53,7 +53,7 @@ link-checking exists anywhere in the repo today.
 ## Decision
 
 We will use **Astro Starlight**, deployed to GitHub Pages on push to
-`main` via the official Astro GitHub Action.
+`main` via GitHub Actions.
 
 Starlight satisfies the React + MDX driver through `@astrojs/react`
 islands while keeping plain `.md` pages as real CommonMark (raw inline
@@ -90,7 +90,8 @@ plugin `mdbook-linkcheck` is semi-dormant (last release October 2024).
   cross-link check for `docs/`.
 - Search (Pagefind), dark mode, and sidebar navigation work with no
   external services or heavy theming.
-- Official GitHub Pages action keeps CI plumbing thin.
+- Static output deploys with GitHub's standard Pages actions, keeping
+  CI plumbing thin.
 
 ### Negative
 
