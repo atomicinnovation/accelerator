@@ -9,6 +9,13 @@ Accelerator is a Claude Code plugin that structures development into discrete
 phases — research, plan, implement — that communicate through the filesystem
 rather than the conversation.
 
+<img src="/accelerator/visualiser_plan_light.png"
+  alt="The Accelerator visualiser rendering a plan document"
+  class="dark:sr-only" width="760">
+<img src="/accelerator/visualiser_plan_dark.png"
+  alt="The Accelerator visualiser rendering a plan document"
+  class="light:sr-only" width="760">
+
 ## Start here
 
 - [Philosophy](philosophy.md) — why the workflow is split into filesystem-linked
