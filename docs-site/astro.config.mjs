@@ -21,19 +21,64 @@ export default defineConfig({
     starlight({
       title: 'Accelerator',
       customCss: ['./src/styles/custom.css'],
+      lastUpdated: true,
+      editLink: {
+        baseUrl:
+          'https://github.com/atomicinnovation/accelerator/edit/main/docs-site/',
+      },
+      favicon: '/accelerator_logo_light_bg.png',
+      logo: {
+        light: './src/assets/accelerator_logo_light_bg.png',
+        dark: './src/assets/accelerator_logo_dark_bg.png',
+        replacesTitle: true,
+      },
+      social: [
+        {
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/atomicinnovation/accelerator',
+        },
+      ],
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image',
+            content:
+              'https://atomicinnovation.github.io/accelerator/accelerator_logo_light_bg.png',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:image',
+            content:
+              'https://atomicinnovation.github.io/accelerator/accelerator_logo_light_bg.png',
+          },
+        },
+      ],
       plugins: [starlightLinksValidator({ errorOnRelativeLinks: false })],
       sidebar: [
-        'philosophy',
-        'workflow',
-        'case-study',
-        { slug: 'development-loop', label: 'Development Loop' },
-        'visualiser',
-        'internals',
-        'configuration',
-        'migrations',
-        'releases-and-compatibility',
         {
-          label: 'Skills Reference',
+          label: 'Start Here',
+          items: [
+            'philosophy',
+            'workflow',
+            'case-study',
+            { slug: 'development-loop', label: 'Development Loop' },
+          ],
+        },
+        {
+          label: 'Guides',
+          items: [
+            'configuration',
+            'migrations',
+            'releases-and-compatibility',
+            'visualiser',
+          ],
+        },
+        {
+          label: 'Reference',
           items: [
             'skills',
             {
@@ -47,12 +92,13 @@ export default defineConfig({
             'skills/vcs-and-pr',
             'skills/review-system',
             'skills/design-convergence',
+            {
+              label: 'Skills',
+              collapsed: true,
+              items: [{ autogenerate: { directory: 'reference/skills' } }],
+            },
+            'internals',
           ],
-        },
-        {
-          label: 'Skills',
-          collapsed: true,
-          items: [{ autogenerate: { directory: 'reference/skills' } }],
         },
       ],
     }),

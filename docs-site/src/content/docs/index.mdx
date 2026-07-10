@@ -1,0 +1,82 @@
+---
+slug: ''
+title: Accelerator
+description: A Claude Code plugin that structures development into research,
+  plan, and implement phases communicating through the filesystem.
+template: splash
+hero:
+  tagline: A Claude Code plugin that structures development into discrete
+    phases — research, plan, implement — that communicate through the
+    filesystem rather than the conversation.
+  image:
+    alt: Accelerator
+    light: ../../assets/accelerator_logo_light_bg.png
+    dark: ../../assets/accelerator_logo_dark_bg.png
+  actions:
+    - text: Get Started
+      link: /accelerator/workflow/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/atomicinnovation/accelerator
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+<CardGrid stagger>
+  <Card title="Filesystem phases" icon="document">
+    Research, plan, and implement phases hand off through documents in
+    `meta/`, not through a single ever-growing conversation — each phase
+    starts with a fresh, focused context.
+  </Card>
+  <Card title="Bounded contexts" icon="rocket">
+    Subagents do exploratory work in isolated contexts and return only
+    summaries, keeping the main conversation lean and on-task.
+  </Card>
+  <Card title="Generated skill reference" icon="open-book">
+    Every skill's reference page is generated from its `SKILL.md` source
+    at build time, so the documentation can never drift from the plugin.
+  </Card>
+  <Card title="Visualiser" icon="laptop">
+    A browser-based companion view renders your `meta/` documents — plans,
+    research, work items — as a live, navigable site.
+  </Card>
+</CardGrid>
+
+<img src="/accelerator/visualiser_plan_light.png"
+  alt="The Accelerator visualiser rendering a plan document"
+  class="light-only centred-image" width="760" />
+<img src="/accelerator/visualiser_plan_dark.png"
+  alt="The Accelerator visualiser rendering a plan document"
+  class="dark-only centred-image" width="760" />
+
+## Explore the docs
+
+<CardGrid>
+  <LinkCard
+    title="Start Here"
+    href="/accelerator/philosophy/"
+    description="Why the workflow is split into filesystem-linked phases,
+      how the pieces fit together end to end, and a worked case study."
+  />
+  <LinkCard
+    title="Guides"
+    href="/accelerator/configuration/"
+    description="Configuration, migrations, releases and compatibility,
+      and the visualiser."
+  />
+  <LinkCard
+    title="Reference"
+    href="/accelerator/skills/"
+    description="Every skill grouped by family, plus the internals of the
+      meta/ directory, agents, and VCS detection."
+  />
+  <LinkCard
+    title="Source on GitHub"
+    href="https://github.com/atomicinnovation/accelerator"
+    description="The plugin source: skills, agents, hooks, templates, and
+      the visualiser."
+  />
+</CardGrid>
