@@ -1,4 +1,6 @@
-# Migrations
+---
+title: Migrations
+---
 
 When a new plugin version renames directories, config keys, or file formats, a
 migration script handles the upgrade. Run `/migrate` after updating
@@ -30,6 +32,8 @@ haven't run migration `0003` yet, the hook reads the legacy
 
 ## Skill reference
 
+<a id="migrate"></a>
+
 ### <img src="https://api.iconify.design/ph/wrench-bold.svg?color=%23475569" width="18" align="center" alt=""> `/migrate`
 
 Apply pending Accelerator meta-directory migrations to bring a repo into line
@@ -37,7 +41,3 @@ with the latest plugin schema.
 
 *Destructive but guarded: it refuses to run on a dirty working tree and previews
 each pending migration before applying. Recovery is via VCS revert.*
-
----
-
-[← Configuration](configuration.md) · [Docs home](../README.md#documentation) · [Releases & Compatibility →](releases-and-compatibility.md)

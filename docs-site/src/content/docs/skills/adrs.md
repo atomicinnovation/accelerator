@@ -1,4 +1,6 @@
-# Architecture Decision Records (ADRs)
+---
+title: Architecture Decision Records (ADRs)
+---
 
 ADR skills capture architectural decisions that emerge from research and
 planning:
@@ -15,6 +17,8 @@ meta/research/codebase/ meta/plans/
   review-adr → accepted ADRs inform future research & planning
 ```
 
+<a id="create-adr"></a>
+
 ### <img src="https://api.iconify.design/ph/scroll-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/create-adr [topic or description]`
 
 Interactively create an architecture decision record (ADR). Walks through context
@@ -22,6 +26,8 @@ gathering, options analysis, and consequence documentation.
 
 *Pass `--supersedes ADR-NNNN` when the new decision replaces an accepted one —
 the superseded ADR stays immutable and is marked, rather than edited.*
+
+<a id="extract-adrs"></a>
 
 ### <img src="https://api.iconify.design/ph/export-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/extract-adrs [research doc paths...]`
 
@@ -31,6 +37,8 @@ plans).
 *Leave the paths empty to scan all. Use when decisions are buried in research or
 planning documents and need to be captured formally; it proposes candidates for
 you to select before writing.*
+
+<a id="review-adr"></a>
 
 ### <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%237c3aed" width="18" align="center" alt=""> `/review-adr [path to ADR]`
 
@@ -43,7 +51,3 @@ accepted ADR can only transition to superseded or deprecated (use
 
 ADRs follow an append-only lifecycle: once accepted, an ADR's content becomes
 immutable. To revise a decision, create a new ADR that supersedes the original.
-
----
-
-[← Issue Trackers](issue-trackers.md) · [Docs home](../../README.md#documentation) · [VCS & PR Workflow →](vcs-and-pr.md)

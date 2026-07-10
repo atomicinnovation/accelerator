@@ -1,4 +1,6 @@
-# Issue Trackers (Jira & Linear)
+---
+title: 'Issue Trackers (Jira & Linear)'
+---
 
 Accelerator integrates with two remote issue trackers — **Jira** and
 **Linear** — through one shared pattern. Read skills (search, show) auto-trigger
@@ -68,6 +70,8 @@ natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
 the tenant. Each skill's reference subsection follows.
 
+<a id="init-jira"></a>
+
 ### <img src="https://api.iconify.design/ph/plug-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/init-jira [options]`
 
 Set up the Jira Cloud integration for this project.
@@ -76,6 +80,8 @@ Set up the Jira Cloud integration for this project.
 team-shared field and project catalogue. Flags: `--site <subdomain>`, `--email
 <addr>`, `--refresh-fields`, `--list-projects`, `--list-fields`.*
 
+<a id="search-jira-issues"></a>
+
 ### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/search-jira-issues [flags] [free-text]`
 
 Use this skill whenever the user wants to search, list, or filter Jira tickets —
@@ -83,11 +89,15 @@ by assignee, status, label, project, type, component, reporter, parent, or free
 text — even if they say 'find', 'show me', 'what's open', 'list my tickets', or
 similar phrasing rather than 'search Jira'.
 
+<a id="show-jira-issue"></a>
+
 ### <img src="https://api.iconify.design/ph/eye-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/show-jira-issue <ISSUE-KEY> [flags]`
 
 Use this skill when the user asks about a specific Jira issue by key (e.g.
 PROJ-123, ENG-456) — for viewing the description, status, comments, transitions,
 or any other field.
+
+<a id="create-jira-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/plus-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/create-jira-issue [options]`
 
@@ -97,15 +107,21 @@ create a new Jira issue.
 *Requires `--type NAME` and `--summary TEXT`; the body is accepted inline, from a
 file, from stdin, or via `$EDITOR`.*
 
+<a id="update-jira-issue"></a>
+
 ### <img src="https://api.iconify.design/ph/pencil-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/update-jira-issue <ISSUE-KEY> [flags]`
 
 Use this skill only when the user explicitly invokes /update-jira-issue to
 modify an existing Jira issue.
 
+<a id="comment-jira-issue"></a>
+
 ### <img src="https://api.iconify.design/ph/chat-text-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/comment-jira-issue <add|list|edit|delete> <ISSUE-KEY>`
 
 Use this skill only when the user explicitly invokes /comment-jira-issue to
 add, list, edit, or delete comments on a Jira issue.
+
+<a id="transition-jira-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/arrows-left-right-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/transition-jira-issue <ISSUE-KEY> <STATE-NAME>`
 
@@ -114,6 +130,8 @@ move a Jira issue through its workflow by state name.
 
 *Pass `--transition-id ID` instead of a state name to target a transition
 directly.*
+
+<a id="attach-jira-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/paperclip-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/attach-jira-issue <ISSUE-KEY> <file...>`
 
@@ -196,6 +214,8 @@ on natural-language phrasing. Write skills are slash-only — they display a
 payload preview and require explicit confirmation before making any change to
 the workspace. Each skill's reference subsection follows.
 
+<a id="init-linear"></a>
+
 ### <img src="https://api.iconify.design/ph/plug-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/init-linear [--team-id <uuid>]`
 
 Set up the Linear integration for this project.
@@ -203,11 +223,15 @@ Set up the Linear integration for this project.
 *Run once before the other Linear skills: it verifies the token and caches the
 team and workflow-state catalogue.*
 
+<a id="search-linear-issues"></a>
+
 ### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/search-linear-issues [flags]`
 
 Use this skill whenever the user wants to search, list, or filter Linear issues —
 by state, assignee, label, or free text — even if they say 'find', 'show me',
 'what's open', 'list my issues', or similar phrasing rather than 'search Linear'.
+
+<a id="show-linear-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/eye-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/show-linear-issue <IDENTIFIER> [--comments N]`
 
@@ -215,16 +239,22 @@ Use this skill when the user asks about a specific Linear issue by identifier
 (e.g. BLA-123, ENG-456) — for viewing the description, state, assignee, or
 comments.
 
+<a id="create-linear-issue"></a>
+
 ### <img src="https://api.iconify.design/ph/plus-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/create-linear-issue <work-item-file> [flags]`
 
 Use this skill only when the user explicitly invokes /create-linear-issue to
 create a new Linear issue from a local work-item file.
+
+<a id="update-linear-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/pencil-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/update-linear-issue <IDENTIFIER> [flags]`
 
 Use this skill only when the user explicitly invokes /update-linear-issue to
 change fields on an existing Linear issue (title, description, state, assignee,
 priority).
+
+<a id="comment-linear-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/chat-text-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/comment-linear-issue <IDENTIFIER> [options]`
 
@@ -233,10 +263,14 @@ add a Markdown comment to an existing Linear issue.
 
 *Provide the comment via `--body TEXT` or `--body-file PATH`.*
 
+<a id="transition-linear-issue"></a>
+
 ### <img src="https://api.iconify.design/ph/arrows-left-right-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/transition-linear-issue <IDENTIFIER> <STATE-NAME>`
 
 Use this skill only when the user explicitly invokes /transition-linear-issue
 to move an existing Linear issue to a different workflow state.
+
+<a id="attach-linear-issue"></a>
 
 ### <img src="https://api.iconify.design/ph/paperclip-bold.svg?color=%232563eb" width="18" align="center" alt=""> `/attach-linear-issue <IDENTIFIER> [options]`
 
@@ -244,7 +278,3 @@ Use this skill only when the user explicitly invokes /attach-linear-issue to
 attach a link or a binary file to an existing Linear issue.
 
 *Provide the target via `--url URL` or `--file PATH`.*
-
----
-
-[← Work Items](work-items.md) · [Docs home](../../README.md#documentation) · [ADRs →](adrs.md)

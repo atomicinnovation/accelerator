@@ -264,12 +264,12 @@ brief orientation + links into the tree, link back to the GitHub repo.
 
 #### Automated Verification:
 
-- [ ] `npm --prefix docs-site ci` succeeds
-- [ ] `npx --prefix docs-site playwright install --with-deps chromium` succeeds
-- [ ] `npm --prefix docs-site run build` exits 0 with zero
+- [x] `npm --prefix docs-site ci` succeeds
+- [x] `npx --prefix docs-site playwright install --with-deps chromium` succeeds
+- [x] `npm --prefix docs-site run build` exits 0 with zero
       `starlight-links-validator` findings
-- [ ] `git ls-files docs/` is empty (tree fully relocated)
-- [ ] `rg -n 'Docs home|README.md#documentation' docs-site/src/content/docs/` finds nothing
+- [x] `git ls-files docs/` is empty (tree fully relocated)
+- [x] `rg -n 'Docs home|README.md#documentation' docs-site/src/content/docs/` finds nothing
 
 #### Manual Verification:
 
@@ -280,7 +280,7 @@ brief orientation + links into the tree, link back to the GitHub repo.
 - [ ] Iconify `<img>` icons and the skills index table render correctly
 - [ ] Prev/next pagination footer appears and follows sidebar order
 - [ ] Pagefind search returns results (in `preview`, not `dev`)
-- [ ] ADR-0056 status is `accepted`
+- [x] ADR-0056 status is `accepted`
 
 ---
 

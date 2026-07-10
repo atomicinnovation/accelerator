@@ -1,4 +1,6 @@
-# Design Convergence
+---
+title: Design Convergence
+---
 
 Design convergence skills capture two design surfaces — a current frontend and a
 target prototype — as structured inventory artefacts, then compute a structured
@@ -14,6 +16,8 @@ inventory-design (current)  ─┐
 inventory-design (target)   ─┘
 ```
 
+<a id="inventory-design"></a>
+
 ### <img src="https://api.iconify.design/ph/swatches-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/inventory-design [source-id] [location] [options]`
 
 Generate a structured design inventory for a frontend source — tokens,
@@ -24,6 +28,8 @@ Playwright inspection, or both.
 for a hosted prototype, `hybrid` (default for code repos) for both. See
 [Requirements](#requirements) before using `runtime`/`hybrid`. Flags:
 `--crawler code|runtime|hybrid`, `--allow-internal`, `--allow-insecure-scheme`.*
+
+<a id="analyse-design-gaps"></a>
 
 ### <img src="https://api.iconify.design/ph/git-diff-bold.svg?color=%23db2777" width="18" align="center" alt=""> `/analyse-design-gaps [current-source-id] [target-source-id]`
 
@@ -76,7 +82,7 @@ Cache root: `~/.cache/accelerator/playwright/<sha8>/` (namespace keyed on the
 skill-shipped `package-lock.json` hash).
 
 For the executor wire protocol see
-[`skills/design/inventory-design/PROTOCOL.md`](../../skills/design/inventory-design/PROTOCOL.md).
+[`skills/design/inventory-design/PROTOCOL.md`](https://github.com/atomicinnovation/accelerator/blob/main/skills/design/inventory-design/PROTOCOL.md).
 
 ## Cache & cleanup
 
@@ -141,7 +147,3 @@ inventory if any env-var literal appears in the generated body.
   `127.0.0.1` only. It never binds to an external interface. Screenshots mask
   `[type=password]`, `[autocomplete*=token]`, and `[data-secret]` fields
   automatically.
-
----
-
-[← Review System](review-system.md) · [Docs home](../../README.md#documentation)

@@ -1,4 +1,6 @@
-# Review System
+---
+title: Review System
+---
 
 The `review-pr`, `review-plan`, and `review-work-item` skills use a multi-lens
 review system. Each lens is a specialised subagent that evaluates the artefact
@@ -37,7 +39,3 @@ areas:
 /review-pr 123 focus on security and architecture
 /review-work-item 0042 focus on testability
 ```
-
----
-
-[← VCS & PR Workflow](vcs-and-pr.md) · [Docs home](../../README.md#documentation) · [Design Convergence →](design-convergence.md)

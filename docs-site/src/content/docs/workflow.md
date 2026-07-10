@@ -1,4 +1,6 @@
-# Full Workflow
+---
+title: Full Workflow
+---
 
 Accelerator is a toolkit, not a fixed pipeline. The skills are designed to fit
 together end to end — from capturing work through to shipping a PR — but you
@@ -9,7 +11,7 @@ The spine is the [Development Loop](development-loop.md) — **research → plan
 implement**. The other families attach to it: some feed work in before research,
 others capture decisions along the way and land the change after.
 
-Each box below is a skill family from [All Skills](skills/README.md).
+Each box below is a skill family from [All Skills](skills/index.md).
 
 ```mermaid
 flowchart LR
@@ -49,7 +51,7 @@ flowchart LR
 
 ## How the families fit together
 
-Each heading below is a skill family from [All Skills](skills/README.md). They
+Each heading below is a skill family from [All Skills](skills/index.md). They
 are ordered by where they sit relative to the spine — what feeds work in, the
 loop itself, and what lands the result.
 
@@ -98,8 +100,4 @@ and merged.
 
 Every skill reads and writes the shared [`meta/`](philosophy.md) directory, so
 phases hand off through the filesystem rather than the conversation. For the
-complete catalogue, see [All Skills](skills/README.md).
-
----
-
-[← Philosophy](philosophy.md) · [Docs home](../README.md#documentation) · [Development Loop →](development-loop.md)
+complete catalogue, see [All Skills](skills/index.md).

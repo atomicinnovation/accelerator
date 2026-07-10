@@ -1,4 +1,6 @@
-# Internals
+---
+title: Internals
+---
 
 ## The `meta/` Directory
 
@@ -84,7 +86,3 @@ detection covers three modes:
 | **git**            | `.git/` only       | `git`             |
 | **jj (colocated)** | `.jj/` and `.git/` | `jj`              |
 | **jj (pure)**      | `.jj/` only        | `jj`              |
-
----
-
-[← Visualiser](visualiser.md) · [Docs home](../README.md#documentation) · [Configuration →](configuration.md)

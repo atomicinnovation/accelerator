@@ -1,6 +1,8 @@
-# Releases & Compatibility
+---
+title: 'Releases & Compatibility'
+---
 
-The stable install is covered in the [README](../README.md). This page covers
+The stable install is covered in the [README](https://github.com/atomicinnovation/accelerator/blob/main/README.md). This page covers
 the prerelease channel (where the newest features land first) and Claude Code
 compatibility.
 
@@ -37,7 +39,3 @@ into the `documents-*` agents, `browser-executor` into the
 Earlier releases may not support the mechanism; later releases that
 change subagent skill-preloading semantics will surface the failure via
 the agents' Preload guards.
-
----
-
-[← Migrations](migrations.md) · [Docs home](../README.md#documentation) · [All Skills →](skills/README.md)

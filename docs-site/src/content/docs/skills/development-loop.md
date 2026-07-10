@@ -1,8 +1,13 @@
-# Development Loop
+---
+title: Development Loop
+description: 'Per-skill reference for the research → plan → implement skills: invocation, arguments, and what each writes to meta/.'
+---
 
 The research → plan → implement spine, plus the review companions that harden a
 plan before any code is written. For the narrative — how the phases hand off
 through the `meta/` directory — see the [Development Loop](../development-loop.md).
+
+<a id="research-codebase"></a>
 
 ### <img src="https://api.iconify.design/ph/magnifying-glass-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/research-codebase [research question]`
 
@@ -12,6 +17,8 @@ synthesising findings into a research document.
 *Writes a structured document to `meta/research/codebase/`; run it first so the
 plan can cite concrete findings.*
 
+<a id="create-plan"></a>
+
 ### <img src="https://api.iconify.design/ph/clipboard-text-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/create-plan [work item reference or description]`
 
 Create detailed implementation plans through interactive, iterative
@@ -20,12 +27,16 @@ collaboration.
 *Produces a phased plan in `meta/plans/` with success criteria; review it
 (optionally via `review-plan`) before implementing.*
 
+<a id="implement-plan"></a>
+
 ### <img src="https://api.iconify.design/ph/hammer-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/implement-plan [path to plan file]`
 
 Execute an approved implementation plan from the configured plans directory.
 
 *Works phase by phase, checking off success criteria in the plan file as each
 phase completes.*
+
+<a id="review-plan"></a>
 
 ### <img src="https://api.iconify.design/ph/binoculars-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/review-plan [path to plan file]`
 
@@ -34,6 +45,8 @@ collaboratively iterate based on findings.
 
 *Runs the multi-lens [Review System](review-system.md); see that page for
 the lens catalogue. Use before implementation begins.*
+
+<a id="stress-test-plan"></a>
 
 ### <img src="https://api.iconify.design/ph/barbell-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/stress-test-plan [path to plan file]`
 
@@ -44,6 +57,8 @@ before implementation begins.
 *Complements `review-plan`: review applies fixed quality lenses, stress-test
 interrogates **your** reasoning interactively.*
 
+<a id="validate-plan"></a>
+
 ### <img src="https://api.iconify.design/ph/seal-check-bold.svg?color=%236366f1" width="18" align="center" alt=""> `/validate-plan [path to plan file]`
 
 Validate that an implementation plan was correctly executed by verifying success
@@ -51,7 +66,3 @@ criteria and identifying deviations.
 
 *Run after `implement-plan` to confirm the code matches the plan and to surface
 anything that drifted.*
-
----
-
-[← All Skills](README.md) · [Docs home](../../README.md#documentation) · [Investigation & Notes →](investigation.md)

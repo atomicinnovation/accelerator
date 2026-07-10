@@ -1,4 +1,7 @@
-# Development Loop
+---
+title: Development Loop
+description: The three-phase research → plan → implement loop and its review companions, explained as a workflow.
+---
 
 The primary workflow is a three-phase loop:
 
@@ -42,7 +45,3 @@ per-skill reference — invocation, arguments, and what each writes to `meta/` �
 see [Development Loop skills](skills/development-loop.md). For the investigative
 and note-capture companions that feed into it, see
 [Investigation & Notes](skills/investigation.md).
-
----
-
-[← Full Workflow](workflow.md) · [Docs home](../README.md#documentation) · [Visualiser →](visualiser.md)

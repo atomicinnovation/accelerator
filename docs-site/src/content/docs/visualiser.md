@@ -1,4 +1,6 @@
-# Visualiser
+---
+title: Visualiser
+---
 
 `/visualise` opens a browser-based companion view of your project's
 `meta/` directory. Three views cover the breadth of the directory:
@@ -83,13 +85,11 @@ For an independent, out-of-band check you can run `gh attestation verify
 
 ## Skill reference
 
+<a id="visualise"></a>
+
 ### <img src="https://api.iconify.design/ph/presentation-chart-bold.svg?color=%23ea580c" width="18" align="center" alt=""> `/visualise [stop | status]`
 
 Open the accelerator meta visualiser.
 
 *Bare `visualise` starts (or re-attaches to) the server; `status` reports its
 state and `stop` shuts it down. See [Lifecycle](#lifecycle).*
-
----
-
-[← Development Loop](development-loop.md) · [Docs home](../README.md#documentation) · [Internals →](internals.md)
