@@ -1,0 +1,177 @@
+---
+title: Getting Started
+description: Install the Accelerator plugin and complete your first
+  research → plan → implement loop on a real change.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components'
+
+This tutorial installs Accelerator and walks you through your first
+full loop — research → plan → implement — on a small change in one of
+your own repositories. By the end you will have a research document, a
+reviewed plan, and an implemented change, each captured as a file under
+`meta/` rather than lost in a conversation.
+
+## Prerequisites
+
+- **Claude Code v2.1.144 or later** — earlier versions lack the
+  subagent skill-preload mechanism the plugin relies on.
+- **macOS or Linux.** The shell tooling and the visualiser binary
+  target both; `jq` is required by the session hooks and integrations.
+- **A git (or jj) repository** to work in — any project will do.
+
+## Install and initialise
+
+<Steps>
+
+1. **Add the marketplace and install the plugin.** In Claude Code:
+
+   ```
+   /plugin marketplace add atomicinnovation/accelerator
+   /plugin install accelerator@atomic-innovation
+   ```
+
+   Restart the session so the plugin's hooks and skills load.
+
+2. **Prepare the repository.** From a session in your repo:
+
+   ```
+   /accelerator:init
+   ```
+
+   This creates the `meta/` directory tree the skills write to
+   (plans, research, work items, decisions, reviews, …) plus an
+   `.accelerator/` scaffold for configuration, and gitignores the
+   personal config file. It is idempotent — and optional, since skills
+   also create directories on first use.
+
+3. **(Optional) Add project context.** Run
+   `/accelerator:configure create` to record your stack, conventions,
+   and build commands in `.accelerator/config.md`; every skill reads it
+   at invocation time. The
+   [configuration cookbook](guides/configuration-cookbook.md) has
+   ready-made recipes.
+
+</Steps>
+
+## Your first loop
+
+Pick a small, real change — the example below adds input validation to
+a signup form. The point of the exercise is watching each phase hand
+off to the next through a file, not the change itself.
+
+<Steps>
+
+1. **Research.** Ask a question about the code the change will touch:
+
+   ```
+   /accelerator:research-codebase how is the signup form validated today?
+   ```
+
+   Claude decomposes the question and spawns parallel subagents —
+   locators to find the relevant files, analysers to read them — then
+   synthesises what they return. You will see something like:
+
+   > Research complete. Findings written to
+   > `meta/research/codebase/2026-07-10-signup-form-validation.md`.
+   > Key findings: validation is client-side only in
+   > `SignupForm.tsx:42`; no server-side checks exist…
+
+   Open the document: it contains the findings with file-and-line
+   references. Ask follow-up questions now if anything is unclear —
+   they are appended to the same file.
+
+2. **Plan.** Start a plan from that research:
+
+   ```
+   /accelerator:create-plan add server-side signup validation
+   ```
+
+   This is a conversation, not a one-shot generation. Expect the skill
+   to push back and ask before it writes anything:
+
+   > Before drafting the plan I need to resolve a few things the
+   > research couldn't answer:
+   > 1. Should validation errors reuse the existing client-side
+   >    message copy, or is new copy acceptable?
+   > 2. …
+
+   Once you have agreed the approach and phase structure, the plan is
+   written to `meta/plans/2026-07-10-add-server-side-signup-validation.md`
+   with `status: draft` — phases, specific file changes, and success
+   criteria split into automated and manual verification.
+
+3. **Review the plan (recommended).** Before any code exists is the
+   cheapest moment to change course:
+
+   ```
+   /accelerator:review-plan @meta/plans/2026-07-10-add-server-side-signup-validation.md
+   ```
+
+   Parallel reviewer agents examine the plan through quality lenses
+   (architecture, correctness, test coverage, code quality) and record
+   a verdict — APPROVE, REVISE, or COMMENT — in `meta/reviews/plans/`.
+   Address the findings and re-run until it earns APPROVE.
+
+4. **Implement.** You can do this in a brand-new session — the plan
+   file carries all the context:
+
+   ```
+   /accelerator:implement-plan @meta/plans/2026-07-10-add-server-side-signup-validation.md
+   ```
+
+   The skill works phase by phase, pausing after each one for your
+   review and ticking success criteria off in the plan file itself:
+
+   ```markdown
+   #### Automated Verification:
+   - [x] Unit tests pass: `npm test`
+   - [x] Type check green: `npm run typecheck`
+   ```
+
+   If it is interrupted, re-running resumes from the first unchecked
+   item.
+
+5. **Commit and finish.** Run `/accelerator:commit` to turn the
+   session's changes into well-formed atomic commits, then optionally
+   `/accelerator:validate-plan` to verify the code matches the plan (a
+   pass marks the plan `done`), and `/accelerator:describe-pr` when
+   you raise the PR.
+
+</Steps>
+
+## Watch it as a website
+
+Your `meta/` documents are plain markdown, but the plugin ships a
+visualiser that renders them as a live local site — plans, research,
+and a work-item kanban board:
+
+```
+/accelerator:visualise
+```
+
+<Aside type="note">
+  On first use the visualiser downloads its pre-compiled server binary
+  (~8 MB) from GitHub Releases, verified against a SHA-256 checksum
+  shipped with the plugin. Subsequent launches are offline. See the
+  [FAQ](guides/faq.md) if the download fails or your network is
+  restricted.
+</Aside>
+
+<Aside type="caution" title="Extending the shell scripts?">
+  The plugin's shell tooling targets bash 3.2 — the version macOS
+  ships. If you ever see a shell failure only on macOS, suspect a
+  bash-4-only construct first. See the
+  [FAQ](guides/faq.md#a-script-works-in-ci-but-fails-on-my-mac).
+</Aside>
+
+## Where next
+
+- [Which skill do I need?](guides/which-skill.md) — map any intent to
+  a skill.
+- [Development Loop](development-loop.md) — the ideas behind the
+  three-phase loop you just ran.
+- [Plan a feature](guides/plan-a-feature.md) — the loop above as a
+  repeatable how-to, including work items.
+- [Philosophy](philosophy.md) — why phases communicate through the
+  filesystem at all.

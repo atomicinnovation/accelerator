@@ -1,0 +1,110 @@
+---
+title: Sync Work Items with Jira or Linear
+description: How to connect a repository to Jira or Linear and keep
+  local work items and remote issues reconciled.
+---
+
+This guide connects a repository to a remote tracker and keeps the work
+items in `meta/work/` reconciled with it. Work items function fully
+offline — the tracker is optional — but once connected, changes flow in
+both directions.
+
+## Prerequisites
+
+- `jq` installed (and `sha256sum` or `shasum` on the PATH).
+- A Jira Cloud API token (from id.atlassian.com) or a Linear personal
+  API key (`lin_api_…`).
+
+## Steps
+
+1. **Initialise the integration once per repository.** For Jira, run
+   [`init-jira`](../reference/skills/integrations/jira/init-jira.md):
+
+   ```
+   /accelerator:init-jira --site your-subdomain --email you@example.com
+   ```
+
+   It verifies your credentials and writes two kinds of state under
+   `.accelerator/state/integrations/jira/`: per-developer files
+   (gitignored) and team-shared catalogues (`projects.json`,
+   `fields.json`, committed). For Linear, run
+   [`init-linear`](../reference/skills/integrations/linear/init-linear.md)
+   and pick the single team the repo is scoped to.
+
+2. **Store credentials in the local config file.** Tokens belong in
+   `.accelerator/config.local.md` (gitignored), never the shared
+   config — ideally via a command rather than a literal value:
+
+   ```yaml
+   ---
+   jira:
+     token_cmd: "op read op://Private/jira/token"
+   ---
+   ```
+
+   See the [configuration cookbook](configuration-cookbook.md#connect-a-work-item-tracker)
+   for the full recipe including the team-shared side.
+
+3. **Declare the active tracker.** In the shared
+   `.accelerator/config.md`:
+
+   ```yaml
+   ---
+   work:
+     integration: jira
+     id_pattern: "{project}-{number:04d}"
+     default_project_code: "PROJ"
+   ---
+   ```
+
+   (`linear` for Linear.) Without `work.integration`, `sync-work-items`
+   stops with an error telling you what to set.
+
+4. **Preview before the first sync.** Run
+   [`sync-work-items`](../reference/skills/work/sync-work-items.md)
+   with `--preview` to see every intended push, pull, and conflict with
+   zero writes on either side:
+
+   ```
+   /accelerator:sync-work-items --preview
+   ```
+
+5. **Sync.** The default mode is bidirectional:
+
+   ```
+   /accelerator:sync-work-items
+   ```
+
+   - Local items changed since the last sync are pushed; remote
+     changes are pulled.
+   - Remote issues with no local counterpart become new local work
+     items with allocated IDs and an `external_id`.
+   - Conflicts (both sides changed) prompt you to type `remote`,
+     `local`, or `skip` per item.
+   - Work items with local uncommitted edits are never overwritten.
+
+   Use `--push-only` or `--pull-only` for one-directional syncs (they
+   report conflicts without prompting), and `--all` to pull beyond the
+   default project scope on Jira.
+
+6. **Read the summary.** The skill ends with an ID-by-ID summary —
+   pushed, pulled, newly created, conflicts skipped — so nothing
+   changes silently. Large operations (more than 25 pulls or
+   creations) ask for confirmation first.
+
+## Day-to-day usage
+
+- [`create-work-item`](../reference/skills/work/create-work-item.md)
+  offers to push each new item to the tracker as it is created.
+- [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md) /
+  [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)
+  and their search counterparts read the tracker directly without
+  touching local state.
+
+## See also
+
+- [Issue Trackers](../skills/issue-trackers.md) — the integration
+  family overview.
+- [Work Items](../skills/work-items.md) — the local work-item
+  lifecycle.
+- [Which skill do I need?](which-skill.md)

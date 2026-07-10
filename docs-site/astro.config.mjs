@@ -62,6 +62,7 @@ export default defineConfig({
         {
           label: 'Start Here',
           items: [
+            'getting-started',
             'philosophy',
             'workflow',
             'case-study',
@@ -71,6 +72,13 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
+            'guides/which-skill',
+            'guides/plan-a-feature',
+            'guides/review-a-pr',
+            'guides/capture-a-decision',
+            'guides/sync-work-items',
+            'guides/configuration-cookbook',
+            'guides/faq',
             'configuration',
             'migrations',
             'releases-and-compatibility',

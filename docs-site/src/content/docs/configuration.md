@@ -4,7 +4,9 @@ title: Configuration
 
 Accelerator supports project-specific configuration through markdown files with
 YAML frontmatter. Configuration allows you to provide project context, customise
-agent behaviour, and tune review settings.
+agent behaviour, and tune review settings. This page is the reference;
+for paste-able examples of common customisations, see the
+[Configuration cookbook](guides/configuration-cookbook.md).
 
 ## Config Files
 
