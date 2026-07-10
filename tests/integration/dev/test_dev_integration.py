@@ -352,8 +352,16 @@ def test_status_exit_codes(workspace):
     os.kill(
         state["frontend_pid"], signal.SIGKILL
     )  # respawn=false -> stays stopped
-    time.sleep(0.7)
-    assert run_driver(workspace, "status").returncode == 3  # one
+    # Poll rather than a fixed sleep: SIGKILL leaves a zombie until circus (the
+    # parent) reaps it, and under parallel-suite load that reap can outlast any
+    # fixed wait, so status momentarily still reports both up. respawn=false
+    # means once it reads "one" it stays there, so this converges without flap.
+    deadline = time.time() + 5.0
+    rc = run_driver(workspace, "status").returncode
+    while rc != 3 and time.time() < deadline:
+        time.sleep(0.1)
+        rc = run_driver(workspace, "status").returncode
+    assert rc == 3  # one
 
 
 def test_sigterm_ignoring_frontend_is_sigkilled(workspace):
