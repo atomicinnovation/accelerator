@@ -25,6 +25,7 @@ export default defineConfig({
       sidebar: [
         'philosophy',
         'workflow',
+        'case-study',
         { slug: 'development-loop', label: 'Development Loop' },
         'visualiser',
         'internals',
@@ -47,6 +48,11 @@ export default defineConfig({
             'skills/review-system',
             'skills/design-convergence',
           ],
+        },
+        {
+          label: 'Skills',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'reference/skills' } }],
         },
       ],
     }),

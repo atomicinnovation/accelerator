@@ -76,9 +76,14 @@ description = "Install the Chromium binary the docs mermaid render needs"
 depends = ["deps:install:docs"]
 run = "invoke deps.install-docs-playwright"
 
+[tasks."docs:generate"]
+description = "Generate per-skill reference pages from SKILL.md sources"
+depends = ["deps:install:python"]
+run = "invoke docs.generate"
+
 [tasks."docs:build"]
 description = "Build the documentation site (strict: broken links fail the build)"
-depends = ["deps:install:docs-playwright"]
+depends = ["deps:install:docs-playwright", "docs:generate"]
 run = "invoke docs.build"
 
 [tasks."docs:check"]
@@ -87,7 +92,7 @@ depends = ["docs:build"]
 
 [tasks."docs:serve"]
 description = "Serve the documentation site locally with live reload"
-depends = ["deps:install:docs-playwright"]
+depends = ["deps:install:docs-playwright", "docs:generate"]
 run = "invoke docs.serve"
 
 [tasks."dev"]

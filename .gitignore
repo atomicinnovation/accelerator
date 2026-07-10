@@ -22,6 +22,7 @@ cli/.pup/
 /dist/
 docs-site/dist/
 docs-site/.astro/
+docs-site/src/content/docs/reference/skills/
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 skills/visualisation/visualise/frontend/.e2e-port
 skills/visualisation/visualise/frontend/.e2e-fixture-snapshot.json
