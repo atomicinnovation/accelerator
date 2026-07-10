@@ -24,25 +24,13 @@ with large, cluttered context windows.
 
 ## Getting Started
 
-Add the marketplace and install the stable plugin:
-
 ```bash
-/plugin marketplace add atomicinnovation/accelerator
 /plugin install accelerator@atomic-innovation
 ```
 
-Then initialise your project and run the research → plan → implement loop:
-
-```bash
-/accelerator:init
-/accelerator:research-codebase "how does auth work?"   # 1. research
-/accelerator:create-plan                               # 2. plan (optionally pass a work-item key)
-/accelerator:implement-plan                            # 3. implement
-```
-
-For the prerelease channel (where the newest features land first) and Claude
-Code compatibility, see [Releases &
-Compatibility](https://atomicinnovation.github.io/accelerator/releases-and-compatibility/).
+For the full walkthrough — adding the marketplace, initialising your project,
+and running the research → plan → implement loop — see [Getting
+Started](https://atomicinnovation.github.io/accelerator/getting-started/).
 
 ## Documentation
 
