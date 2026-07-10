@@ -38,33 +38,35 @@ docs-publishing job in `.github/workflows/main.yml`. This story adds the build
 readers of the documentation — primarily new users and contributors browsing
 the published `docs/` tree rather than reading raw Markdown in the repo.
 
-The tooling-selection, hosting, and publishing-trigger decisions are
-deliberately left open here: they are research-shaped and will be scoped when
-the work item is picked up (see Open Questions). At that point the selection may
-be recorded as an Architecture Decision Record (ADR) or split into a dedicated
-spike, and the story re-kinded if the investigation needs a time-box.
+The tooling-selection, hosting, and publishing-trigger decisions were resolved
+at pickup (2026-07-10): Astro Starlight, recorded in ADR-0056, publishing to
+GitHub Pages on push to `main`. See Technical Notes for the candidate
+comparison and integration details.
 
 ## Requirements
 
-- Choose a documentation-site generator appropriate for a markdown `docs/`
-  tree (candidates: mkdocs / mkdocs-material, Docusaurus, VitePress, mdBook).
-- Add the generator's configuration and any required dependencies.
-- Wire a publishing pipeline (e.g. a GitHub Actions job publishing to GitHub
-  Pages) that builds the `docs/` tree on the trigger chosen during pickup-time
-  scoping (see Open Questions).
+- Build the site with Astro Starlight, per ADR-0056 (candidates evaluated:
+  Starlight, Docusaurus, Nextra, VitePress, mkdocs-material, mdBook).
+- Add the Starlight configuration and any required dependencies, including
+  `starlight-links-validator` for build-time link checking.
+- Adapt the `docs/` tree to Starlight: `title:` frontmatter on every page,
+  remove the hand-rolled prev/next footers, rework links that escape `docs/`
+  to the root README (see Technical Notes).
+- Wire a GitHub Actions job publishing the built site to GitHub Pages on
+  push to `main`.
 - Ensure the site's navigation reflects the `docs/` tree structure (including
   the `docs/skills/` reference layer).
 
 ## Acceptance Criteria
 
-- [ ] A documentation-site generator is selected and its choice is recorded in
-      an Architecture Decision Record (ADR) or work-item note, with rationale
-      that weighs the named candidates against the project's constraints (the
-      `mise` Rust/Python/TS/shell toolchain).
-- [ ] The generator's config exists in the repo and builds the `docs/` tree
-      locally with no errors and no broken-link or missing-page warnings.
-- [ ] A CI job publishes the built site on the trigger chosen during pickup-time
-      scoping, and the published site is reachable at a documented URL.
+- [ ] The generator selection (Astro Starlight) is recorded in an accepted
+      ADR whose rationale weighs Starlight against Docusaurus, Nextra,
+      VitePress, mkdocs-material, and mdBook under the project's constraints.
+- [ ] `mise run docs:build` builds the site from the `docs/` tree with zero
+      errors and zero broken-link findings (via `starlight-links-validator`).
+- [ ] A CI job in `.github/workflows/main.yml` publishes the built site to
+      GitHub Pages on push to `main`, and the published URL is documented in
+      the README.
 - [ ] The site navigation exposes every page produced by 0175 (its narrative
       pages and any sections it relocates) and 0176 (the `docs/skills/` reference
       pages), grouped to reflect the `docs/` tree structure — verified against
@@ -72,18 +74,12 @@ spike, and the story re-kinded if the investigation needs a time-box.
 
 ## Open Questions
 
-These are deliberately deferred and will be scoped when the work item is picked
-up; they do not block promoting it from draft. Each chosen answer should be
-captured — the generator and host as an ADR/note per AC1, and recorded in
-Dependencies if it introduces an external coupling.
+All resolved at pickup (2026-07-10):
 
-- Which generator best fits the project's constraints (build toolchain already
-  spans Rust/Python/TS/shell via `mise`)?
-- Where should the site be hosted — GitHub Pages, or elsewhere — and on what
-  trigger should it publish (push to the default branch, a release tag, or
-  manual dispatch)?
-- Should tooling selection be split out as a dedicated spike (re-kinding this
-  item) before the build work begins?
+- Generator: Astro Starlight — rationale in Technical Notes and the
+  accompanying ADR (per AC1).
+- Hosting/trigger: GitHub Pages, publishing on push to `main`.
+- No spike needed — selection was resolved by research during refinement.
 
 ## Dependencies
 
@@ -91,10 +87,9 @@ Dependencies if it introduces an external coupling.
   navigation scope tracks the *final* page set those siblings produce —
   including the resolution of 0175's two unassigned README sections — not merely
   the tree's existence.
-- External: a publishing host and CI deploy permissions. The default candidate
-  is GitHub Pages via GitHub Actions, which needs a one-time Pages-enablement
-  repo setting and deploy permissions; the actual external coupling is confirmed
-  once the host is chosen during pickup (see Open Questions).
+- External: GitHub Pages via GitHub Actions (confirmed per ADR-0056) — needs
+  a one-time Pages-enablement repo setting and `pages: write` +
+  `id-token: write` deploy permissions in the workflow.
 - Related: 0145.
 
 ## Assumptions
@@ -103,6 +98,71 @@ Dependencies if it introduces an external coupling.
   dynamic/server-rendered docs platform is required.
 
 ## Technical Notes
+
+### Generator decision: Astro Starlight (2026-07-10)
+
+Candidates evaluated: Starlight, Docusaurus, Nextra, VitePress,
+mkdocs-material, mdBook. Starlight selected because the team values
+React + MDX authoring (React already in use for the visualiser
+frontend) and accepts the frontmatter cost:
+
+- **VitePress** — best plain-Markdown fit but Vue-based; custom work
+  would sit oddly beside a React codebase.
+- **mkdocs-material** — in maintenance mode since Nov 2025 (team moved
+  to Zensical); poor bet for fresh adoption.
+- **Docusaurus** — natively React but heaviest toolchain, no built-in
+  search (Algolia/plugin), v4 migration imminent; full-React advantage
+  buys little for ~17 pages.
+- **Nextra 4** — React + MDX but couples to Next.js majors, has an open
+  Pagefind-under-static-export bug (shuding/nextra#3987), no build-time
+  link checking, and MDX-strict parsing of `.md` (raw `<img>`/`<br>`
+  would break). Effectively single-maintainer.
+- **mdBook** — hand-written SUMMARY.md nav, stale link-check plugin.
+
+Starlight gives Pagefind search, dark mode, and an official GitHub
+Pages action out of the box; React components embed in `.mdx` pages via
+`@astrojs/react` islands. Accepted risks: pre-1.0 (breaking changes
+between minors), link validation via third-party
+`starlight-links-validator`, content conventionally under
+`src/content/docs/`.
+
+### Adaptation work on the docs/ tree
+
+- Add `title:` frontmatter to all 17 pages (docs/*.md, docs/skills/*.md)
+  — currently none have frontmatter; H1 is the title.
+- Footer prev/next lines (added in 79bfc108) duplicate Starlight's
+  built-in prev/next links — remove them and drop the `---` rule.
+- Links escaping docs/ to `../README.md#documentation` (every footer,
+  plus body links) must be rewritten: the site needs its own index page
+  since there is no docs/index.md today.
+- Sidebar order is defined by the existing footer-nav chain: philosophy
+  → workflow → development-loop → visualiser → internals →
+  configuration → migrations → releases-and-compatibility → skills/*
+  (README first). `docs/skills/README.md` name-collides with Starlight
+  index conventions — likely becomes skills/index.md.
+- `docs/skills/development-loop.md` duplicates the name of
+  `docs/development-loop.md` — fine for slugs, but nav labels must
+  disambiguate.
+
+### Build-system integration
+
+- Site scaffold location TBD at planning (e.g. `docs-site/` alongside
+  the tree, pointing a content loader at `docs/`, or relocating pages).
+- mise tasks follow the wrapper pattern (mise.toml, e.g.
+  `build:frontend` at mise.toml:98) — add `docs:build` / `docs:serve`;
+  invoke module `tasks/docs.py` wired in `tasks/__init__.py` (strict
+  pyrefly + ruff `ALL` apply; untyped deps need a
+  `replace-imports-with-any` entry, pyproject.toml:154).
+- A read-only `docs:check` (strict build incl. link validation) joins
+  the `check` roll-up depends (mise.toml:451) and CI.
+- CI: single workflow `.github/workflows/main.yml`; jobs follow
+  checkout → jdx/mise-action → `mise run <task>` (main.yml:104). A
+  Pages deploy needs `pages: write` + `id-token: write` and
+  actions/deploy-pages — new plumbing; must pass actionlint
+  (`lint:workflows:check`) and the workflow-topology test
+  (`tests/unit/tasks/test_workflows.py`).
+- No markdown lint/link checking exists anywhere today — the strict
+  site build becomes the first.
 
 ## Drafting Notes
 
@@ -114,3 +174,5 @@ Dependencies if it introduces an external coupling.
 
 - Parent: 0145 — Documentation Improvements
 - Related: 0175, 0176
+- Decision: `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md`
+  — generator selection (Astro Starlight)
