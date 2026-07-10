@@ -1,0 +1,18 @@
+# Positive control: the sanctioned wrapper `config-adapters` IS the dependent, so
+# the wrapper ban permits serde-saphyr and `check bans` exits zero — a passing
+# run means "evaluated and allowed", not "evaluated nothing". Isolated with its
+# own empty [workspace] like the banned fixture.
+[workspace]
+
+[package]
+name = "config-adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+serde-saphyr = { path = "crates/serde-saphyr", version = "0.0.29" }
+
+[[bin]]
+name = "config-adapters"
+path = "src/main.rs"

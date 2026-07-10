@@ -142,7 +142,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh prompt-
 
 If `work.default_project_code` is already set, this is a no-op. Otherwise the
 helper prints the available projects and prompts for a selection. Offer to
-write the chosen key to `accelerator.md`.
+write the chosen key to `config.md`.
 
 ## Step 7: Confirm completion
 

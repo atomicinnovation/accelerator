@@ -25,6 +25,7 @@ from tasks.shared.rust import PUP_NIGHTLY
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLI_DIR = REPO_ROOT / "cli"
+CLI_PUP_RON = CLI_DIR / "pup.ron"
 
 # cargo-pup colours its output even when piped; strip SGR escapes before
 # asserting on the text.
@@ -209,4 +210,91 @@ def test_real_cli_pup_ron_loads() -> None:
     # so a malformed RON edit fails here.
     _require_tools()
     result = _pup("print-modules", cwd=CLI_DIR)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The real config rule, driven against a probe crate named `config` ---
+#
+# Unlike the version/launch probes above (which retarget a rule of the same
+# SHAPE at a synthetic module), these drive the SHIPPED cli/pup.ron via
+# --pup-config against a workspace whose crate is literally named `config`, so
+# the whole-crate `^config($|::)` regex is exercised directly: a typo in the
+# shipped rule (or its deletion) makes these fail, where a self-contained probe
+# RON would not.
+
+_CONFIG_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["config", "adapters"]
+"""
+
+_CONFIG_MANIFEST = """\
+[package]
+name = "config"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+adapters = { path = "../adapters" }
+"""
+
+_ADAPTERS_MANIFEST = """\
+[package]
+name = "adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_CONFIG_LIB = "pub mod service;\n"
+_ADAPTERS_LIB = "pub struct Client;\n"
+
+# config::service importing an adapter crate — the outbound violation.
+_CONFIG_SERVICE_VIOLATION = (
+    "use adapters::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
+)
+# config::service importing only std — compliant (positive control).
+_CONFIG_SERVICE_COMPLIANT = "pub fn make() -> u8 {\n    0\n}\n"
+
+
+def _write_config_probe(root: Path, service_body: str) -> None:
+    (root / "Cargo.toml").write_text(_CONFIG_WORKSPACE)
+
+    config_src = root / "config/src"
+    config_src.mkdir(parents=True, exist_ok=True)
+    (root / "config/Cargo.toml").write_text(_CONFIG_MANIFEST)
+    (config_src / "lib.rs").write_text(_CONFIG_LIB)
+    (config_src / "service.rs").write_text(service_body)
+
+    adapters_src = root / "adapters/src"
+    adapters_src.mkdir(parents=True, exist_ok=True)
+    (root / "adapters/Cargo.toml").write_text(_ADAPTERS_MANIFEST)
+    (adapters_src / "lib.rs").write_text(_ADAPTERS_LIB)
+
+
+def test_real_config_rule_rejects_a_service_importing_an_adapter(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_config_probe(tmp_path, _CONFIG_SERVICE_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "config_domain_imports_only_permitted" in output, output
+
+
+def test_real_config_rule_passes_a_compliant_service(tmp_path: Path) -> None:
+    # Positive control: a compliant config::service evaluates and passes under
+    # the shipped rule, so a green run means "evaluated and allowed".
+    _require_tools()
+    _write_config_probe(tmp_path, _CONFIG_SERVICE_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)

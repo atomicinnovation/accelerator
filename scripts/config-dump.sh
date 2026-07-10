@@ -116,6 +116,8 @@ REVIEW_KEYS=(
   "review.pr_request_changes_severity"
   "review.plan_revise_severity"
   "review.plan_revise_major_count"
+  "review.work_item_revise_severity"
+  "review.work_item_revise_major_count"
 )
 
 REVIEW_DEFAULTS=(
@@ -128,11 +130,15 @@ REVIEW_DEFAULTS=(
   "critical"
   "critical"
   "3"
+  "critical"
+  "2"
 )
 
 # Agent keys
 AGENT_KEYS=(
   "agents.reviewer"
+  "agents.browser-analyser"
+  "agents.browser-locator"
   "agents.codebase-locator"
   "agents.codebase-analyser"
   "agents.codebase-pattern-finder"
@@ -143,6 +149,8 @@ AGENT_KEYS=(
 
 AGENT_DEFAULTS=(
   "${AGENT_PREFIX}reviewer"
+  "${AGENT_PREFIX}browser-analyser"
+  "${AGENT_PREFIX}browser-locator"
   "${AGENT_PREFIX}codebase-locator"
   "${AGENT_PREFIX}codebase-analyser"
   "${AGENT_PREFIX}codebase-pattern-finder"
@@ -221,4 +229,37 @@ for i in "${!WORK_KEYS[@]}"; do
   else
     echo "| \`$key\` | *(not set)* | $source |"
   fi
+done
+
+# Visualiser keys that carry catalogue defaults (VISUALISER_KEYS, defined in
+# config-defaults.sh and mirrored in the Rust catalogue).
+for i in "${!VISUALISER_KEYS[@]}"; do
+  key="${VISUALISER_KEYS[$i]}"
+  default="${VISUALISER_DEFAULTS[$i]}"
+  value=$("$READ_VALUE" "$key" "$default")
+  source=$(get_source "$key")
+  echo "| \`$key\` | \`$value\` | $source |"
+done
+
+# Integration and tool sections (EXTRA_KEYS, defined in config-defaults.sh).
+# Read ad-hoc by their own consumers rather than through the five-group
+# catalogue, so they carry no catalogue defaults — an unset key means "the
+# consumer's own default applies". Listed here so the effective-configuration
+# surface is complete. Credential values (`*.token`, `*.token_cmd`) are never
+# printed: only presence and source are shown.
+for key in "${EXTRA_KEYS[@]}"; do
+  value=$("$READ_VALUE" "$key" "")
+  if [ -z "$value" ]; then
+    echo "| \`$key\` | *(not set)* | default |"
+    continue
+  fi
+  source=$(get_source "$key")
+  case "$key" in
+    *.token | *.token_cmd)
+      echo "| \`$key\` | *(set — hidden)* | $source |"
+      ;;
+    *)
+      echo "| \`$key\` | \`$value\` | $source |"
+      ;;
+  esac
 done

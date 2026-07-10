@@ -89,6 +89,13 @@ TEMPLATE_KEYS=(
   "templates.validation"
   "templates.pr-description"
   "templates.work-item"
+  "templates.rca"
+  "templates.design-inventory"
+  "templates.design-gap"
+  "templates.plan-review"
+  "templates.work-item-review"
+  "templates.pr-review"
+  "templates.note"
 )
 
 WORK_KEYS=(
@@ -112,4 +119,42 @@ WORK_INTEGRATION_VALUES=(
   "linear"
   "trello"
   "github-issues"
+)
+
+# Visualiser keys that DO carry a catalogue default. These mirror VISUALISER_KEYS
+# in the Rust catalogue (cli/config) and are drift-tested against it key-for-key;
+# config-dump.sh renders them with their defaults. The visualiser server keeps a
+# matching runtime fallback in its own crate (server/src/config.rs) because it
+# cannot depend on the config crate — this catalogue is the authoritative
+# declaration and write-visualiser-config.sh sources the kanban default from
+# here. VISUALISER_DEFAULTS is index-aligned (bash 3.2 has no associative arrays).
+VISUALISER_KEYS=(
+  "visualiser.kanban_columns"
+  "visualiser.idle_timeout"
+)
+
+VISUALISER_DEFAULTS=(
+  "[draft, ready, in-progress, review, done, blocked, abandoned]"
+  "8h"
+)
+
+# Integration and tool config keys read ad-hoc by their own consumers
+# (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through the
+# catalogue. Unlike VISUALISER_KEYS above, these carry NO catalogue default — an
+# unset key means "the consumer's own default applies" — so they live here as a
+# plain registry, NOT in the Rust catalogue or the drift-tested key count.
+# config-dump.sh iterates this to surface them; test-config.sh pins it to the
+# consumers (every key here is read) and to the docs (every key is documented).
+# Adding a key a consumer reads means adding it here — or to VISUALISER_KEYS if it
+# has a default — or the drift test fails.
+EXTRA_KEYS=(
+  "jira.site"
+  "jira.email"
+  "jira.token"
+  "jira.token_cmd"
+  "linear.token"
+  "linear.token_cmd"
+  "visualiser.editor"
+  "visualiser.editor_project"
+  "visualiser.binary"
 )

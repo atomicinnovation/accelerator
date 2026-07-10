@@ -1,0 +1,3 @@
+---
+paths:
+  work: local-work

@@ -291,6 +291,9 @@ impl Config {
     }
 }
 
+// Runtime fallback for the kanban columns when config omits them. The
+// authoritative declaration is `visualiser.kanban_columns` in the config
+// catalogue (`cli/config`); this crate can't depend on it, so keep them in sync.
 const DEFAULT_KANBAN_COLUMN_KEYS: &[&str] = &[
     "draft",
     "ready",
@@ -343,8 +346,9 @@ impl Config {
     }
 }
 
-/// Canonical default idle window, expressed in the same duration-string
-/// form accepted from config so there is a single parse path.
+/// Runtime fallback for the idle window when config omits it. The authoritative
+/// declaration is `visualiser.idle_timeout` in the config catalogue
+/// (`cli/config`); this crate can't depend on it, so keep the two in sync.
 const DEFAULT_IDLE_TIMEOUT: &str = "8h";
 
 /// Sentinel meaning "idle auto-shutdown disabled". Inert against the

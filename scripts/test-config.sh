@@ -1016,6 +1016,13 @@ AGENT_DIR="$SCRIPT_DIR/../agents"
 FILE_KEYS=$(for f in "$AGENT_DIR"/*.md; do [ -e "$f" ] && basename "$f" .md; done | sort)
 assert_eq "AGENT_KEYS matches agent files" "$FILE_KEYS" "$SCRIPT_KEYS"
 
+# The catalogue's AGENT_KEYS (config-dump.sh, mirrored in the Rust catalogue and
+# pinned to it by the Rust drift test) is a SEPARATE list from the one above; it
+# drifted behind the agent files until browser-analyser/browser-locator were
+# added. Pin it to the same file-derived set so the whole chain stays coherent.
+DUMP_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$CONFIG_DUMP" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -oE 'agents\.[a-z-]+' | sed 's/^agents\.//' | sort)
+assert_eq "config-dump.sh catalogue AGENT_KEYS matches agent files" "$FILE_KEYS" "$DUMP_KEYS"
+
 echo ""
 
 # ============================================================
@@ -2458,9 +2465,9 @@ ACTUAL_PATH_DEFAULTS=$(source "$DEFAULTS_FILE" && echo "${PATH_DEFAULTS[*]}")
 assert_eq "PATH_DEFAULTS contents" "$EXPECTED_PATH_DEFAULTS" "$ACTUAL_PATH_DEFAULTS"
 
 echo "Test: TEMPLATE_KEYS has expected length and order"
-EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item"
+EXPECTED_TEMPLATE_KEYS="templates.plan templates.codebase-research templates.adr templates.validation templates.pr-description templates.work-item templates.rca templates.design-inventory templates.design-gap templates.plan-review templates.work-item-review templates.pr-review templates.note"
 ACTUAL_TEMPLATE_KEYS_LEN=$(source "$DEFAULTS_FILE" && echo "${#TEMPLATE_KEYS[@]}")
-assert_eq "TEMPLATE_KEYS length" "6" "$ACTUAL_TEMPLATE_KEYS_LEN"
+assert_eq "TEMPLATE_KEYS length" "13" "$ACTUAL_TEMPLATE_KEYS_LEN"
 ACTUAL_TEMPLATE_KEYS=$(source "$DEFAULTS_FILE" && echo "${TEMPLATE_KEYS[*]}")
 assert_eq "TEMPLATE_KEYS contents" "$EXPECTED_TEMPLATE_KEYS" "$ACTUAL_TEMPLATE_KEYS"
 
@@ -2516,13 +2523,59 @@ else
 fi
 
 echo "Test: config-defaults.sh is the only definition site for the arrays"
-DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES)(\+)?='
+DEFINITION_PATTERN='^[[:space:]]*((declare|typeset)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)?|readonly[[:space:]]+|export[[:space:]]+|local[[:space:]]+)?(PATH_KEYS|PATH_DEFAULTS|TEMPLATE_KEYS|WORK_KEYS|WORK_DEFAULTS|WORK_INTEGRATION_VALUES|VISUALISER_KEYS|VISUALISER_DEFAULTS|EXTRA_KEYS)(\+)?='
 MATCHES=$(cd "$PLUGIN_ROOT" && grep -rlnE --include='*.sh' \
   --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
   "$DEFINITION_PATTERN" . | sort -u)
 EXPECTED="./scripts/config-defaults.sh"
-assert_eq "only config-defaults.sh defines PATH_KEYS/PATH_DEFAULTS/TEMPLATE_KEYS/WORK_KEYS/WORK_DEFAULTS/WORK_INTEGRATION_VALUES" \
+assert_eq "only config-defaults.sh defines the catalogue key arrays" \
   "$EXPECTED" "$MATCHES"
+
+echo ""
+
+# The jira/linear/visualiser sections live outside the catalogue's core groups
+# and are read ad-hoc by their consumers. The registered set is EXTRA_KEYS (no
+# catalogue default) plus VISUALISER_KEYS (kanban_columns/idle_timeout, which DO
+# carry a catalogue default). This guards the exact drift the config-key audit
+# surfaced: a key a consumer reads but nobody registered (so it never reaches
+# config-dump or the docs). Two directions are checked robustly:
+#   (A) every registered key is documented in the configure reference, and
+#   (B) every jira/linear/visualiser key read via config-read-value.sh in
+#       shipped (non-test) code is registered.
+# The jira/linear bare-subkey reads (site/email via *_read_field_from_file) are
+# a small, stable surface already covered by (A); (B) catches the full-key reads
+# the audit missed for visualiser.* and the token keys.
+echo "Test: jira/linear/visualiser registry stays in sync with docs and reads"
+REGISTERED=$(source "$DEFAULTS_FILE" &&
+  {
+    printf '%s\n' "${EXTRA_KEYS[@]}"
+    printf '%s\n' "${VISUALISER_KEYS[@]}"
+  } |
+  sort -u)
+CONFIGURE_SKILL="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
+
+# (A) registry ⊆ docs: every registered key appears (backticked) in the reference.
+UNDOCUMENTED=""
+while IFS= read -r key; do
+  [ -z "$key" ] && continue
+  grep -qF "\`$key\`" "$CONFIGURE_SKILL" || UNDOCUMENTED="$UNDOCUMENTED $key"
+done <<<"$REGISTERED"
+assert_eq "every registered jira/linear/visualiser key is documented in configure SKILL.md" \
+  "" "$UNDOCUMENTED"
+
+# (B) consumer full-key reads ⊆ registry.
+READS=$(cd "$PLUGIN_ROOT" && grep -rhoE --include='*.sh' --exclude='test-*.sh' \
+  --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
+  'config-read-value\.sh"?[[:space:]]+"?(jira|linear|visualiser)\.[a-z_-]+' \
+  scripts skills hooks 2>/dev/null |
+  grep -oE '(jira|linear|visualiser)\.[a-z_-]+' | sort -u)
+UNREGISTERED=""
+while IFS= read -r key; do
+  [ -z "$key" ] && continue
+  printf '%s\n' "$REGISTERED" | grep -qxF "$key" || UNREGISTERED="$UNREGISTERED $key"
+done <<<"$READS"
+assert_eq "every jira/linear/visualiser config-read-value.sh key is registered" \
+  "" "$UNREGISTERED"
 
 echo ""
 
@@ -2569,6 +2622,54 @@ if grep -q "review.max_inline_comments.*20.*local" <<<"$OUTPUT"; then
   PASS=$((PASS + 1))
 else
   echo "  FAIL: local source attribution correct"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "Test: Integration/tool sections are surfaced and credentials are masked"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator"
+cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
+---
+jira:
+  site: atomic-innovation
+  token: super-secret-token-value
+linear:
+  token_cmd: op read op://Work/Linear/token
+visualiser:
+  editor: code -g
+---
+FIXTURE
+OUTPUT=$(cd "$REPO" && bash "$CONFIG_DUMP")
+# Non-secret keys are shown verbatim.
+if grep -q 'jira.site.*atomic-innovation.*team' <<<"$OUTPUT" &&
+  grep -q 'visualiser.editor.*code -g.*team' <<<"$OUTPUT"; then
+  echo "  PASS: non-secret integration keys surfaced with source"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: non-secret integration keys surfaced with source"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+# Secret values must be masked and must NEVER appear in the output.
+if grep -q 'jira.token.*set — hidden.*team' <<<"$OUTPUT" &&
+  grep -q 'linear.token_cmd.*set — hidden.*team' <<<"$OUTPUT" &&
+  ! grep -q 'super-secret-token-value' <<<"$OUTPUT" &&
+  ! grep -q 'op://Work/Linear/token' <<<"$OUTPUT"; then
+  echo "  PASS: credential values masked, never printed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: credential values masked, never printed"
+  echo "    Output: $(printf '%q' "$OUTPUT")"
+  FAIL=$((FAIL + 1))
+fi
+# An unset integration key still appears (as not set), so the surface is complete.
+if grep -q 'linear.token.*(not set)' <<<"$OUTPUT" &&
+  grep -q 'visualiser.binary.*(not set)' <<<"$OUTPUT"; then
+  echo "  PASS: unset integration keys still listed"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: unset integration keys still listed"
   echo "    Output: $(printf '%q' "$OUTPUT")"
   FAIL=$((FAIL + 1))
 fi

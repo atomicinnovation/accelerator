@@ -1,0 +1,3 @@
+---
+paths:
+  work: team-work

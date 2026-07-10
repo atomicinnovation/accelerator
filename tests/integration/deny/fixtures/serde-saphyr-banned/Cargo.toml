@@ -1,0 +1,21 @@
+# Isolated with its own empty [workspace] so cargo/cargo-deny do not walk upward
+# and absorb the real cli/ workspace or its Cargo.lock. The dependency
+# serde-saphyr is a LOCAL path crate (not the crates.io crate) so the ban
+# regression runs fully offline — the ban matches on crate NAME, so a local
+# crate named serde-saphyr trips it exactly as the real one would. The package
+# is named `config` (a domain crate, NOT the config-adapters wrapper), so the
+# direct dependency bypasses the sole permitted wrapper and violates the ban.
+[workspace]
+
+[package]
+name = "config"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+serde-saphyr = { path = "crates/serde-saphyr", version = "0.0.29" }
+
+[[bin]]
+name = "config"
+path = "src/main.rs"

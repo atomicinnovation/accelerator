@@ -130,6 +130,8 @@ Available agents and their roles:
 | Config Key                | Default Role                                               |
 |---------------------------|------------------------------------------------------------|
 | `reviewer`                | Reviews plans, PRs, and work items using configured lenses |
+| `browser-analyser`        | Analyses screen state and behaviour in a running web app   |
+| `browser-locator`         | Finds routes, screens, and components in a running web app |
 | `codebase-locator`        | Finds relevant source files for a given task               |
 | `codebase-analyser`       | Analyses implementation details of components              |
 | `codebase-pattern-finder` | Finds similar implementations and usage examples           |
@@ -568,6 +570,9 @@ Configure the visualiser plugin.
 |-------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------|
 | `kanban_columns`  | `[draft, ready, in-progress, review, done, blocked, abandoned]` | Ordered list of kanban column keys                                           |
 | `idle_timeout`    | `8h`                                                            | Idle auto-shutdown window (humantime duration; `never`/`0` to disable)       |
+| `editor`          | (empty)                                                         | Editor deep-link command; absent disables the "open in editor" button        |
+| `editor_project`  | (empty)                                                         | Companion project argument passed alongside `editor`                         |
+| `binary`          | (bundled)                                                       | Override visualiser binary path (absolute or project-relative; must be executable) |
 
 Example configuration for a project using a reduced column set:
 
@@ -629,16 +634,36 @@ file edit followed by VCS revert.
 
 See ADR-0024 for full rationale.
 
+#### Editor deep-link and binary override
+
+`visualiser.editor` and `visualiser.editor_project` are free-form passthrough
+strings that drive the doc "open in editor" deep-link; when both are absent the
+button is disabled. Precedence is **env var
+(`ACCELERATOR_VISUALISER_EDITOR` / `_EDITOR_PROJECT`) > config key > omitted**;
+a whitespace-only value collapses to absent.
+
+`visualiser.binary` points the launcher at an alternative server binary instead
+of the bundled/downloaded one — useful for local development. The path may be
+absolute or project-relative and **must be executable** (a non-executable path
+fails the launch loudly). Precedence is **`ACCELERATOR_VISUALISER_BIN` env var >
+`visualiser.binary` > bundled binary**.
+
+#### Recognised keys
+
+Only `visualiser.kanban_columns`, `visualiser.idle_timeout`,
+`visualiser.editor`, `visualiser.editor_project`, and `visualiser.binary` are
+recognised. Other `visualiser.*` keys are not consumed by any plugin script.
+
 ### jira
 
 Configure access to a Jira Cloud tenant. One key belongs in team-shared
-`accelerator.md`:
+`config.md`:
 
 | Key    | Default | Description                                |
 |--------|---------|--------------------------------------------|
 | `site` | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
 
-Example shared configuration in `accelerator.md`:
+Example shared configuration in `config.md`:
 
 \```yaml
 ---
@@ -650,7 +675,7 @@ jira:
 #### Personal settings (do not commit)
 
 Three keys are personal and **must live exclusively in
-`accelerator.local.md`**, which is gitignored:
+`config.local.md`**, which is gitignored:
 
 | Key         | Default | Description                                            |
 |-------------|---------|--------------------------------------------------------|
@@ -658,17 +683,17 @@ Three keys are personal and **must live exclusively in
 | `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
 | `token_cmd` | (empty) | Shell command whose stdout is the token                |
 
-`token_cmd` from the team-shared `accelerator.md` is **never** honoured: a
+`token_cmd` from the team-shared `config.md` is **never** honoured: a
 committed `token_cmd` is a supply-chain command-injection sink (a single PR
 could land arbitrary shell that runs on every contributor's machine). When
 detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
-in accelerator.md ignored — move to accelerator.local.md` to stderr.
+in config.md ignored — move to config.local.md` to stderr.
 
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
-password manager. The resolver checks `accelerator.local.md` permissions and
+password manager. The resolver checks `config.local.md` permissions and
 warns if looser than `0600`.
 
-Example `accelerator.local.md` (preferred form, using a password manager):
+Example `config.local.md` (preferred form, using a password manager):
 
 \```yaml
 ---
@@ -682,16 +707,16 @@ Authentication resolves through this chain (first non-empty wins):
 
 1. `ACCELERATOR_JIRA_TOKEN` env var.
 2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
-3. `accelerator.local.md` `jira.token`.
-4. `accelerator.local.md` `jira.token_cmd`.
-5. `accelerator.md` `jira.token` *(only when `accelerator.local.md` does not
+3. `config.local.md` `jira.token`.
+4. `config.local.md` `jira.token_cmd`.
+5. `config.md` `jira.token` *(only when `config.local.md` does not
    exist; emits a runtime warning)*.
 
-`jira.token_cmd` is **never** consumed from the team-shared `accelerator.md`
-file. Only the four sources above (env vars and `accelerator.local.md`) are
-honoured. A `jira.token_cmd` value found in `accelerator.md` is ignored; a
+`jira.token_cmd` is **never** consumed from the team-shared `config.md`
+file. Only the four sources above (env vars and `config.local.md`) are
+honoured. A `jira.token_cmd` value found in `config.md` is ignored; a
 runtime warning prints `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in
-accelerator.md ignored — move to accelerator.local.md` to stderr. Rationale:
+config.md ignored — move to config.local.md` to stderr. Rationale:
 a committed `token_cmd` is a supply-chain command-injection sink — a single PR
 could land `jira.token_cmd: "<arbitrary shell>"` and that command would execute
 on every contributor's machine the next time any Jira helper or `/init-jira`
@@ -724,6 +749,56 @@ alphabetically.
 
 Only `jira.site`, `jira.email`, `jira.token`, and `jira.token_cmd` are
 recognised. Other `jira.*` keys are not consumed by any plugin script.
+
+### linear
+
+Configure access to Linear. Linear is single-tenant SaaS, so there is no
+site/subdomain key — authentication is a personal API token only.
+
+#### Personal settings (do not commit)
+
+Both keys are personal and **must live exclusively in `config.local.md`**,
+which is gitignored:
+
+| Key         | Default | Description                                            |
+|-------------|---------|--------------------------------------------------------|
+| `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
+| `token_cmd` | (empty) | Shell command whose stdout is the token                |
+
+Authentication resolves through this chain (first non-empty wins):
+
+1. `ACCELERATOR_LINEAR_TOKEN` env var.
+2. `ACCELERATOR_LINEAR_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
+3. `config.local.md` `linear.token`.
+4. `config.local.md` `linear.token_cmd`.
+5. `config.md` `linear.token` *(only when `config.local.md` does not exist)*.
+
+`linear.token_cmd` is **never** consumed from the team-shared `config.md` file:
+a committed `token_cmd` is a supply-chain command-injection sink. A
+`linear.token_cmd` found in `config.md` is ignored, emitting
+`E_TOKEN_CMD_FROM_SHARED_CONFIG: linear.token_cmd in config.md ignored — move to
+config.local.md` to stderr. The resolver also refuses to read credentials from a
+`config.local.md` looser than `0600` (override with
+`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed `.claude/insecure-local-ok`
+marker), mirroring the Jira integration.
+
+Example `config.local.md` (preferred form, using a password manager):
+
+\```yaml
+---
+linear:
+  token_cmd: "op read op://Work/Linear/token"
+---
+\```
+
+`token_cmd` is the supported integration point for password managers and
+keychains (1Password CLI, `pass`, macOS Keychain, Secret Service), exactly as
+for Jira.
+
+#### Recognised keys
+
+Only `linear.token` and `linear.token_cmd` are recognised. Other `linear.*`
+keys are not consumed by any plugin script.
 
 ### templates
 
