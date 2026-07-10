@@ -344,12 +344,17 @@ def test_nightly_lane_isolation_holds(wf):
 # --- Documentation-site publishing lane --------------------------------
 #
 # check-docs runs the strict Starlight build on every PR and push; deploy-docs
-# publishes to GitHub Pages, gated to pushes only. deploy-docs must NOT carry
-# the accelerator-release lock (the exactly-2-lock-members invariant above must
+# publishes to GitHub Pages, gated to pushes only (main plus the manual
+# force-deploy-docs branch). Because the push trigger now covers a second
+# branch, the release lane must be ref-gated to main — otherwise a push to
+# force-deploy-docs would cut a prerelease. deploy-docs must NOT carry the
+# accelerator-release lock (the exactly-2-lock-members invariant above must
 # keep holding), and its permission set must stay minimal.
 
 DOCS_CHECK_JOB = "check-docs"
 DOCS_DEPLOY_JOB = "deploy-docs"
+DOCS_FORCE_BRANCH = "force-deploy-docs"
+MAIN_PUSH_GATE = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 
 
 def _job_run_text_workflows(job):
@@ -408,6 +413,22 @@ def test_deploy_docs_does_not_hold_the_release_lock(wf):
         if _conc(j).get("group") == LOCK_GROUP
     ]
     assert len(blocks) == 2, f"expected 2 lock members, got {len(blocks)}"
+
+
+def test_push_trigger_covers_force_deploy_docs_branch(wf):
+    branches = wf[True]["push"]["branches"]
+    assert branches == ["main", DOCS_FORCE_BRANCH], (
+        "push trigger must cover exactly main and the docs force branch"
+    )
+
+
+def test_release_lane_is_gated_to_main_pushes(wf):
+    # With force-deploy-docs in the push trigger, an event-only gate would
+    # let a docs force-push start the release lane.
+    for name in sorted(_RELEASE_JOBS):
+        assert wf["jobs"][name].get("if") == MAIN_PUSH_GATE, (
+            f"{name} must be gated to pushes on main only"
+        )
 
 
 def test_deploy_docs_not_in_prerelease_needs(wf):

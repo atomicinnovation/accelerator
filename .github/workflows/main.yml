@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      # Manual escape hatch: pushing this branch redeploys the docs site
+      # without cutting a release (the release lane is ref-gated to main).
+      - force-deploy-docs
   pull_request:
     types:
       - opened
@@ -409,7 +412,7 @@ jobs:
       - check-cli
       - check-supply-chain
       - check-architecture
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued
     # pipeline cannot start its prepare until the running one has pushed — which
@@ -492,7 +495,7 @@ jobs:
     # no toolchain (macOS is only required for the cross-compile/attest steps on
     # the prerelease/release work jobs).
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: prerelease
     # The approval gate lives HERE and carries NO concurrency group — on
     # purpose. GitHub Actions acquires a concurrency group at queue time, so a
@@ -519,7 +522,7 @@ jobs:
   release:
     name: Create release
     runs-on: macos-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: approve-release
     # The release lock lives HERE, deliberately WITHOUT `environment`. This
     # group must never enclose the approval gate (see approve-release) — a
