@@ -522,11 +522,11 @@ e.g. `.../accelerator/skills/work-items/`); fix `README.md:44`
 
 #### Automated Verification:
 
-- [ ] `uv run pytest tests/unit/tasks/test_workflows.py -v` passes (was
+- [x] `uv run pytest tests/unit/tasks/test_workflows.py -v` passes (was
       red before the workflow change)
-- [ ] `mise run lint:workflows:check` (actionlint) passes
-- [ ] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run lint:workflows:check` (actionlint) passes
+- [x] `mise run check` exits 0
+- [x] `mise run` (bare default) exits 0 end-to-end
 
 #### Manual Verification:
 

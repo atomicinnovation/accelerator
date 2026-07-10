@@ -341,6 +341,81 @@ def test_nightly_lane_isolation_holds(wf):
     _isolation_invariants(wf)
 
 
+# --- Documentation-site publishing lane --------------------------------
+#
+# check-docs runs the strict Starlight build on every PR and push; deploy-docs
+# publishes to GitHub Pages, gated to pushes only. deploy-docs must NOT carry
+# the accelerator-release lock (the exactly-2-lock-members invariant above must
+# keep holding), and its permission set must stay minimal.
+
+DOCS_CHECK_JOB = "check-docs"
+DOCS_DEPLOY_JOB = "deploy-docs"
+
+
+def _job_run_text_workflows(job):
+    return "\n".join(step.get("run", "") for step in job.get("steps") or [])
+
+
+def test_check_docs_runs_docs_check(wf):
+    job = wf["jobs"][DOCS_CHECK_JOB]
+    assert "mise run docs:check" in _job_run_text_workflows(job), (
+        "check-docs must run the strict docs gate (mise run docs:check)"
+    )
+
+
+def test_deploy_docs_is_push_gated(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    assert job.get("if") == "github.event_name == 'push'", (
+        "deploy-docs must be gated to pushes only"
+    )
+
+
+def test_deploy_docs_targets_github_pages_environment(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    environment = job.get("environment")
+    name = environment.get("name") if isinstance(environment, dict) else None
+    assert name == "github-pages", (
+        "deploy-docs must target the github-pages environment"
+    )
+
+
+def test_deploy_docs_needs_check_docs(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    assert DOCS_CHECK_JOB in _needs(job), "deploy-docs must wait on check-docs"
+
+
+def test_deploy_docs_has_minimal_pages_permissions(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    permissions = job.get("permissions") or {}
+    assert permissions == {
+        "contents": "read",
+        "pages": "write",
+        "id-token": "write",
+    }, "deploy-docs must hold exactly the minimal Pages deploy permissions"
+
+
+def test_deploy_docs_does_not_hold_the_release_lock(wf):
+    # The exactly-2-lock-members invariant must keep holding: adding the docs
+    # lane must not put a third job on the accelerator-release group.
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    assert _conc(job).get("group") != LOCK_GROUP, (
+        "deploy-docs must not carry the accelerator-release lock"
+    )
+    # And the release lock still has exactly its two members.
+    blocks = [
+        _conc(j)
+        for j in wf["jobs"].values()
+        if _conc(j).get("group") == LOCK_GROUP
+    ]
+    assert len(blocks) == 2, f"expected 2 lock members, got {len(blocks)}"
+
+
+def test_deploy_docs_not_in_prerelease_needs(wf):
+    # The docs lane is deliberately decoupled from the release lane.
+    assert DOCS_DEPLOY_JOB not in _needs(wf["jobs"]["prerelease"])
+    assert DOCS_CHECK_JOB not in _needs(wf["jobs"]["prerelease"])
+
+
 def _needs_edge_into_stable_job(jobs):
     # A stable check job made to depend on the nightly lane.
     jobs["check-cli"]["needs"] = [_NIGHTLY_JOB]
