@@ -6,11 +6,11 @@ author: Toby Clemson
 kind: story
 status: draft
 priority: medium
-parent: "work-item:0045"
+parent: "work-item:0181"
 tags: [work-management, integrations, trello]
 type: work-item
 schema_version: 1
-last_updated: "2026-05-06T17:49:44+00:00"
+last_updated: "2026-07-06T13:29:26+00:00"
 last_updated_by: Toby Clemson
 blocked_by: ["work-item:0046"]
 blocks: ["work-item:0051"]

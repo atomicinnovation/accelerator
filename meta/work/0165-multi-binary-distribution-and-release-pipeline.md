@@ -5,7 +5,7 @@ title: "Multi-Binary Static Distribution and Release Pipeline with minisign"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: in-progress
+status: done
 kind: story
 priority: high
 parent: "work-item:0136"

@@ -177,7 +177,7 @@ assert_exit_code "accepts https URL" 0 "$VALIDATE" "https://prototype.example.co
 assert_exit_code "rejects file:// scheme" 1 "$VALIDATE" "file:///etc/passwd"
 assert_exit_code "rejects javascript: scheme" 1 "$VALIDATE" "javascript:alert(1)"
 assert_exit_code "rejects data: scheme" 1 "$VALIDATE" "data:text/html,<script>"
-assert_exit_code "accepts code-repo path inside project root" 0 "$VALIDATE" "./examples/design-test-app"
+assert_exit_code "accepts code-repo path inside project root" 0 "$VALIDATE" "./skills/design/inventory-design/evals/fixtures/design-test-app"
 assert_exit_code "rejects path with .. escape" 1 "$VALIDATE" "../../etc/passwd"
 
 # Default-allow cases (localhost / 127.0.0.1)

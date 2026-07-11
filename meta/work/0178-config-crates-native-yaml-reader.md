@@ -5,10 +5,11 @@ title: "config and config-adapters Crates with Native YAML Reader"
 date: "2026-07-06T22:27:35+00:00"
 author: Toby Clemson
 producer: refine-work-item
-status: ready
+status: done
 kind: task
 priority: high
 parent: "work-item:0166"
+external_id: PP-702
 tags: [rust, config, corpus, store, crates, dedup]
 last_updated: "2026-07-06T23:08:57+00:00"
 last_updated_by: Toby Clemson
