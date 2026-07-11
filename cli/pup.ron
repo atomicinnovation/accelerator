@@ -54,5 +54,21 @@
                 ),
             ],
         )),
+        // The whole corpus crate is domain (no adapter modules live in it).
+        Module((
+            name: "corpus_domain_imports_only_permitted",
+            matches: Module("^corpus($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
     ],
 )

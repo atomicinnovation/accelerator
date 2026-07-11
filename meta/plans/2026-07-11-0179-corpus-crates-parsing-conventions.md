@@ -13,7 +13,7 @@ derived_from: ["codebase-research:2026-07-11-0179-corpus-crates-parsing-conventi
 tags: [rust, corpus, config, crates, document, frontmatter, serde-saphyr, doc-type, typed-linkage, slug, work-item-id, vcs, artifact-metadata]
 revision: "83707a5ed6c23eaf40f7d1f39f5847dc1801c43f"
 repository: "accelerator"
-last_updated: "2026-07-11T23:22:37+00:00"
+last_updated: "2026-07-12T00:05:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -531,6 +531,14 @@ Pure over domain types — no I/O — so it belongs in the domain, not the adapt
 *cross-document* cluster walker (store-coupled, `IndexEntry`-bound) stays
 server-side and out of scope.
 
+**Implementation timing (deviation)**: `linkage.rs` is a `corpus`-domain module,
+but bash `linkage-parser.sh` is a ~300-line body-section prose extractor (keyword
+detection, template-path blocklist, ADR-0038 two-band model, per-reference anchors)
+whose correctness is only validated against the oracle in Phase 3. It is therefore
+*implemented* in Phase 3 alongside its parity suite — its domain placement is
+unchanged; only the build timing co-locates with the oracle. Phase 2 ships the
+other six domain modules.
+
 #### 5. Work-item-ID predicate + scanner port
 
 **File**: `cli/corpus/src/work_item_id.rs`
@@ -646,23 +654,24 @@ lower crate depend on `corpus`. The composition that fills `ArtifactMetadata` fr
 
 #### Automated Verification
 
-- [ ] `corpus` compiles `kernel`-only and imports no serde/serde_json/serde-saphyr
+- [x] `corpus` compiles `kernel`-only and imports no serde/serde_json/serde-saphyr
       symbol: `mise run cli:check` and `mise run deny:check`
-- [ ] The new `corpus` pup rule passes and forbids adapter imports:
+- [x] The new `corpus` pup rule passes and forbids adapter imports:
       `mise run pup:check` and `mise run test:integration:pup`
-- [ ] Ported unit tables pass (value model, `DocTypeKey` + doc-type inference
-      matcher, typed-ref + single-doc linkage resolver, work-item predicate, slug):
-      `mise run test:unit:cli`
-- [ ] A single canonical `canonical_digit_width` exists in `corpus`, with unit
+- [x] Ported unit tables pass (value model, `DocTypeKey` + doc-type inference
+      matcher, typed-ref, work-item predicate, slug): `mise run test:unit:cli`
+      (219 passed). The single-doc **linkage resolver** is deferred to Phase 3 with
+      its parity oracle (see §4).
+- [x] A single canonical `canonical_digit_width` exists in `corpus`, with unit
       cases pinning the missing-width and `{number:0d}` defaults (the server-side
       twin retires in 0168); one canonical title-caser in `corpus` (the two
       server-side copies retire in 0168).
 
 #### Manual Verification
 
-- [ ] `corpus` names no `regex` dependency; `extract_id`/`derive_work_item` take a
+- [x] `corpus` names no `regex` dependency; `extract_id`/`derive_work_item` take a
       scanner.
-- [ ] `DocTypeKey` wire round-trip (`wire_str`/`from_wire_str`) covers all 14
+- [x] `DocTypeKey` wire round-trip (`wire_str`/`from_wire_str`) covers all 14
       variants including `Templates` (virtual, no config key).
 
 ---
