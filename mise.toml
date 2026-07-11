@@ -107,9 +107,14 @@ sources = [
 ]
 outputs = ["docs-site/dist/**/*"]
 
+[tasks."docs:generate:check"]
+description = "Verify every plugin.json skill has a generated docs page"
+depends = ["docs:generate"]
+run = "invoke docs.generate-check"
+
 [tasks."docs:check"]
 description = "Read-only docs gate: the strict site build incl. link validation"
-depends = ["docs:build"]
+depends = ["docs:build", "docs:generate:check"]
 
 [tasks."docs:serve"]
 description = "Serve the documentation site locally with live reload"

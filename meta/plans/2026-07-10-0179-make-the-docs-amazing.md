@@ -377,10 +377,10 @@ command.
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `uv run pytest tests/unit/tasks/test_docs_generate_check.py -v`
-- [ ] `mise run docs:check` runs the guard and is green
-- [ ] `mise run check` green
-- [ ] Deleting one generated page then running
+- [x] Unit tests pass: `uv run pytest tests/unit/tasks/test_docs_generate_check.py -v`
+- [x] `mise run docs:check` runs the guard and is green
+- [x] `mise run check` green
+- [x] Deleting one generated page then running
       `invoke docs.generate-check` fails with the skill named
 
 #### Manual Verification:
