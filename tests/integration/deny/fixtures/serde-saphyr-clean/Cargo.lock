@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "config-adapters"
+name = "document"
 version = "0.0.0"
 dependencies = [
  "serde-saphyr",

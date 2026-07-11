@@ -7,9 +7,9 @@ serde-saphyr (the ban matches on crate name), with a committed `Cargo.lock`, so
 `cargo deny` runs `--frozen` (locked + offline) against a fixed graph. The
 banned fixture is a package named `config` (a domain crate, not the permitted
 wrapper) depending directly on serde-saphyr — it must exit non-zero and name
-serde-saphyr. The clean fixture is a package named `config-adapters` (the
-permitted wrapper) depending on the same stub — it must exit zero, so a pass
-means "evaluated and allowed", not "evaluated nothing".
+serde-saphyr. The clean fixture is a package named `document` (the permitted
+wrapper) depending on the same stub — it must exit zero, so a pass means
+"evaluated and allowed", not "evaluated nothing".
 """
 
 import os
@@ -77,7 +77,7 @@ def test_direct_serde_saphyr_dependency_fails_the_bans_check() -> None:
     assert "serde-saphyr" in output, output
 
 
-def test_config_adapters_wrapper_passes_the_bans_check() -> None:
+def test_document_wrapper_passes_the_bans_check() -> None:
     _require_tools()
     result = _run_bans(_CLEAN)
     assert result.returncode == 0, result.stdout + result.stderr

@@ -284,8 +284,7 @@ name = "config-adapters"
 version = "1.24.0-pre.13"
 dependencies = [
  "config",
- "serde",
- "serde-saphyr",
+ "document",
 ]
 
 [[package]]
@@ -434,6 +433,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "document"
+version = "1.24.0-pre.12"
+dependencies = [
+ "serde",
+ "serde-saphyr",
 ]
 
 [[package]]

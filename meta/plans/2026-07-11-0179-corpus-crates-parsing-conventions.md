@@ -5,7 +5,7 @@ title: "corpus and corpus-adapters Crates for Parsing and Conventions Implementa
 date: "2026-07-11T12:40:21+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: in-progress
 reviewer: Toby Clemson
 work_item_id: "work-item:0179"
 parent: "work-item:0179"
@@ -13,7 +13,7 @@ derived_from: ["codebase-research:2026-07-11-0179-corpus-crates-parsing-conventi
 tags: [rust, corpus, config, crates, document, frontmatter, serde-saphyr, doc-type, typed-linkage, slug, work-item-id, vcs, artifact-metadata]
 revision: "83707a5ed6c23eaf40f7d1f39f5847dc1801c43f"
 repository: "accelerator"
-last_updated: "2026-07-11T21:25:45+00:00"
+last_updated: "2026-07-11T23:22:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -378,7 +378,10 @@ asserting no panic / no abort / no hang. Fixtures: deeply-nested YAML, an
 **anchor/alias-expansion (billion-laughs) input** that actually exercises the
 timeout guard, structurally-malformed YAML (characterise), **plus** the
 visualiser's trailing-whitespace quoted-flow-scalar input (`frontmatter.rs:416-429`)
-— which must now return a clean parse error, no `catch_unwind`.
+— which now **parses cleanly** (it is valid YAML; only libyml's memory-safety bug
+made it crash, which `catch_unwind` masked as `Malformed`). The real guarantee is
+bounded, no-panic/no-abort/no-hang; the deeply-nested / alias-bomb /
+structurally-malformed inputs are bounded *rejections*.
 
 Removing `catch_unwind` rests per-document fault isolation on serde-saphyr's
 panic-freedom (a `catch_unwind` cannot catch a stack-overflow abort anyway). The
@@ -393,33 +396,34 @@ walk — so one poison file cannot abort the scan. Not re-introduced speculative
 
 #### Automated Verification
 
-- [ ] Workspace builds and lints: `mise run cli:check`
-- [ ] All cli unit tests pass, including existing `config`/`config-adapters`
-      suites unchanged: `mise run test:unit:cli`
-- [ ] `document` is the only serde-saphyr wrapper and the ban still evaluates:
+- [x] Workspace builds and lints: `mise run cli:check`
+- [x] All cli unit tests pass, including existing `config`/`config-adapters`
+      suites unchanged: `mise run test:unit:cli` (187 passed)
+- [x] `document` is the only serde-saphyr wrapper and the ban still evaluates:
       `mise run deny:check` and `mise run test:integration:deny`
-- [ ] Import rules hold: `mise run pup:check`
-- [ ] Adversarial fixtures (incl. the alias-expansion input) return bounded,
-      no-panic/no-abort/no-hang errors: `cd cli && cargo test -p document adversarial`
-- [ ] `document::render` returns `Err` and emits no output on a
+- [x] Adversarial fixtures (incl. the alias-expansion input) return bounded,
+      no-panic/no-abort/no-hang outcomes — the trailing-whitespace input now parses
+      cleanly, the others are bounded rejections:
+      `cd cli && cargo test -p document adversarial`
+- [x] Import rules hold: `mise run pup:check`
+- [x] `document::render` returns `Err` and emits no output on a
       fence-valid-but-invalid-YAML existing input: `cd cli && cargo test -p document`
-- [ ] The relocated `split` tests are ported into `document` (not dropped), and
+- [x] The relocated `split` tests are ported into `document` (not dropped), and
       `document::render` preserves an arbitrary body — CRLF, trailing-newline, and a
       body opening with a blank line — byte-for-byte: `cd cli && cargo test -p document`
-- [ ] End-to-end fail-closed pins: `config-adapters`'
+- [x] End-to-end fail-closed pins: `config-adapters`'
       `a_write_against_a_malformed_file_fails_closed` (unterminated fence) stays green;
-      a **new** store-level test seeds a fence-valid-but-invalid-YAML config (e.g.
-      `---\nkey: : :\n---\nbody\n`) and asserts `MalformedFrontmatter` with the target
-      byte-identical (the re-parse branch); and an over-cap (`> MAX_SCAN`) config
-      resolves as `MalformedFrontmatter` not an I/O error:
-      `cd cli && cargo test -p config-adapters`
+      a new store-level test seeds a fence-valid-but-invalid-YAML config and asserts
+      `MalformedFrontmatter` with the target byte-identical (the re-parse branch); and
+      an over-cap (`> MAX_SCAN`) config resolves as `MalformedFrontmatter` not an I/O
+      error: `cd cli && cargo test -p config-adapters`
 
 #### Manual Verification
 
-- [ ] `config-adapters/Cargo.toml` names no serde-saphyr; `document` is the sole
+- [x] `config-adapters/Cargo.toml` names no serde-saphyr; `document` is the sole
       importer.
-- [ ] A round-trip through the retrofitted `config-adapters` preserves an existing
-      config file's body byte-for-byte (spot-check `a_write_preserves_the_body`).
+- [x] A round-trip through the retrofitted `config-adapters` preserves an existing
+      config file's body byte-for-byte (covered by `render_preserves_the_body_byte_for_byte`).
 
 ---
 
@@ -820,9 +824,11 @@ pure-Rust unit tables run, so `cargo test` stays runnable on a bare machine.
 
 **Ported-assertion note**: porting the visualiser's test tables is *not* verbatim
 where the rewrite changes behaviour — the number-widening cases become
-String-preservation assertions, and the `Tagged`/trailing-whitespace cases become
-clean-parse-error assertions. Those are deliberate rewrites, called out so the
-oracle stays honest.
+String-preservation assertions; the `Tagged` cases become `Malformed` assertions
+(per the YAML-tag rule); and the trailing-whitespace quoted-scalar case, which the
+visualiser reported `Malformed` only because libyml *crashed*, now asserts a **clean
+parse** (it is valid YAML — confirmed against serde-saphyr in Phase 1). Those are
+deliberate rewrites, called out so the oracle stays honest.
 
 ### Success Criteria
 
@@ -1106,9 +1112,10 @@ ambient-host assertion would be vacuous. The test also asserts the offset resolv
 - Port the visualiser's own test tables as the starting oracle (`typed_ref`,
   `slug`, `docs`/`DocTypeKey`, `WorkItemConfig`, `patcher`, `frontmatter`) into the
   new crates and hold the rewrite to them — *except* the cases the rewrite
-  deliberately changes (number-widening → String-preservation; `Tagged`/
-  trailing-whitespace → clean-parse-error), which are rewritten rather than copied
-  (see Phase 3 §7).
+  deliberately changes (number-widening → String-preservation; `Tagged` →
+  `Malformed`; trailing-whitespace → clean parse, since serde-saphyr accepts the
+  valid YAML libyml crashed on), which are rewritten rather than copied (see
+  Phase 3 §7).
 - Value-model round-trip: `document::Yaml` → `FrontmatterValue` → `Node` and back,
   asserting equality per variant and the three number boundaries (`i64`-range →
   `Int`; beyond-`i64`-within-`u64` → `String`; beyond-`u64` → `Float`).

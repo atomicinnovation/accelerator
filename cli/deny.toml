@@ -60,12 +60,12 @@ allow-wildcard-paths = true
 # rustls only — no transitive dep may re-enable default-tls and break the
 # musl-static build. This covers the TLS vector only. serde-saphyr is the
 # infra-out-of-domain ban: the YAML crate is reachable only through the
-# config-adapters wrapper, so a direct config-domain import violates.
+# document wrapper, so a direct domain import violates.
 deny = [
     { crate = "native-tls" },
     { crate = "openssl" },
     { crate = "openssl-sys" },
-    { crate = "serde-saphyr", wrappers = ["config-adapters"] },
+    { crate = "serde-saphyr", wrappers = ["document"] },
 ]
 
 [sources]
