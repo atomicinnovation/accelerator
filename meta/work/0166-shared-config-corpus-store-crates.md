@@ -14,7 +14,7 @@ blocked_by: ["work-item:0163"]
 relates_to: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, config, corpus, store, crates, dedup]
-last_updated: "2026-07-06T22:16:29+00:00"
+last_updated: "2026-07-11T11:03:21+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-187"
@@ -29,11 +29,13 @@ external_id: "PP-187"
 
 ## Summary
 
-Build the shared library crates the subdomains depend on — `config`/`config-adapters`
-(native YAML configuration reader), `corpus`/`corpus-adapters` (frontmatter,
-doc-type inference, typed-linkage, slug/path conventions, work-item-ID,
-artifact-metadata, plus the atomic-store JSONL/locking primitives) — collapsing the
-bash↔Rust duplication ADR-0045 names.
+Build the shared library crates the subdomains depend on — a shared
+document-format crate (markdown + YAML-frontmatter protocol, consumed by both
+`config-adapters` and `corpus-adapters`), `config`/`config-adapters` (native YAML
+configuration reader), `corpus`/`corpus-adapters` (frontmatter, doc-type
+inference, typed-linkage, slug/path conventions, work-item-ID, artifact-metadata,
+plus the atomic-store JSONL/locking primitives) — collapsing the bash↔Rust
+duplication ADR-0045 names.
 
 ## Context
 
@@ -48,6 +50,13 @@ beneath the built-in `config` command (0167).
 
 ## Requirements
 
+- **Shared document-format crate** (naming TBD): a utility crate for the
+  markdown-with-YAML-frontmatter protocol (fence split in byte-offset and
+  owned-halves forms, serde-saphyr parse, round-trip render), consumed by both
+  `config-adapters` and `corpus-adapters`, with serde-saphyr confined to it. This
+  is a **fifth crate** beyond the original four; it is created and consumed under
+  **0179**, which also retrofits the already-shipped 0178 `config-adapters` onto
+  it so there is a single document-protocol implementation.
 - `config` (domain + application + ports) and `config-adapters` (outbound: native
   YAML/`serde` frontmatter reader, filesystem). Implement team→local
   last-writer-wins precedence; arbitrary YAML structure (no 2-level cap); the full
@@ -134,8 +143,9 @@ beneath the built-in `config` command (0167).
 
 ## Technical Notes
 
-**Size**: L — four new crates (`config`, `config-adapters`, `corpus`,
-`corpus-adapters`) plus their cargo-deny/cargo-pup rule activation; a
+**Size**: L — five new crates (a shared document-format crate, `config`,
+`config-adapters`, `corpus`, `corpus-adapters`) plus their cargo-deny/cargo-pup
+rule activation; a
 from-scratch native YAML reader (the bash 2-level reader and the visualiser's
 JSON-reading `config.rs` are both non-reusable); extraction of six visualiser
 twins spanning trivial (`typed_ref.rs`) to highest-effort (`cluster_key.rs`,
@@ -195,6 +205,11 @@ canonical JSONL) whose bash semantics must be reasoned through for Rust.
 - Boundary with 0173: the frontmatter/doc-type/typed-linkage *parsing* logic lands
   only in this story's `corpus`/`corpus-adapters` crates; 0173's `accelerator-corpus`
   binary merely *calls* them, so the two must not re-implement or diverge.
+- Fifth crate added (via the 0179 review): a shared markdown+frontmatter
+  document-format utility crate, consumed by both `config-adapters` and
+  `corpus-adapters`, was not in the original four-crate plan. It is created under
+  0179, which also retrofits the shipped 0178 `config-adapters` onto it;
+  serde-saphyr moves behind this crate's wrapper.
 
 ## References
 
