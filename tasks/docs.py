@@ -21,6 +21,12 @@ def serve(context: Context) -> None:
 
 
 @task
+def preview(context: Context) -> None:
+    """Serve the built documentation site from docs-site/dist/."""
+    context.run(f"npm --prefix {DOCS_SITE} run preview", pty=True)
+
+
+@task
 def generate(context: Context, repo_root: str | None = None) -> None:
     """Generate per-skill reference pages from SKILL.md sources."""
     root = Path(repo_root) if repo_root else REPO_ROOT

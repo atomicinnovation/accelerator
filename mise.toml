@@ -70,21 +70,42 @@ run = "invoke deps.install-playwright"
 [tasks."deps:install:docs"]
 description = "Install Node.js dependencies for the documentation site"
 run = "invoke deps.install-docs"
+sources = ["docs-site/package.json", "docs-site/package-lock.json"]
+outputs = ["docs-site/node_modules/.package-lock.json"]
 
 [tasks."deps:install:docs-playwright"]
 description = "Install the Chromium binary the docs mermaid render needs"
 depends = ["deps:install:docs"]
 run = "invoke deps.install-docs-playwright"
+sources = ["docs-site/package-lock.json"]
+outputs = { auto = true }
 
 [tasks."docs:generate"]
 description = "Generate per-skill reference pages from SKILL.md sources"
 depends = ["deps:install:python"]
 run = "invoke docs.generate"
+sources = [
+  "skills/**/SKILL.md",
+  ".claude-plugin/plugin.json",
+  "tasks/docs.py",
+  "tasks/shared/skill_pages.py",
+  "tasks/shared/files.py",
+  "tasks/shared/paths.py",
+]
+outputs = ["docs-site/src/content/docs/reference/skills/**/*.md"]
 
 [tasks."docs:build"]
 description = "Build the documentation site (strict: broken links fail the build)"
 depends = ["deps:install:docs-playwright", "docs:generate"]
 run = "invoke docs.build"
+sources = [
+  "docs-site/src/**/*",
+  "docs-site/public/**/*",
+  "docs-site/astro.config.mjs",
+  "docs-site/package.json",
+  "docs-site/package-lock.json",
+]
+outputs = ["docs-site/dist/**/*"]
 
 [tasks."docs:check"]
 description = "Read-only docs gate: the strict site build incl. link validation"
@@ -94,6 +115,11 @@ depends = ["docs:build"]
 description = "Serve the documentation site locally with live reload"
 depends = ["deps:install:docs-playwright", "docs:generate"]
 run = "invoke docs.serve"
+
+[tasks."docs:preview"]
+description = "Serve the built documentation site from docs-site/dist (run docs:build first)"
+depends = ["docs:build"]
+run = "invoke docs.preview"
 
 [tasks."dev"]
 description = "Start + supervise the visualiser server + frontend, detached in the background (use dev:stop to tear down; dev:server/dev:frontend for the manual two-terminal flow)"
