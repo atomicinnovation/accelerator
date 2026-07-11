@@ -4,6 +4,8 @@ description: How to take a feature from an idea to an approved,
   implementation-ready plan using the research and planning skills.
 ---
 
+import { Steps } from '@astrojs/starlight/components'
+
 This guide takes a feature from an idea to an approved implementation
 plan. It assumes the plugin is installed (see
 [Getting started](../getting-started.md)) and that you are working in a
@@ -13,7 +15,7 @@ Every artefact lands in `meta/` (paths are
 [configurable](configuration-cookbook.md#move-where-documents-are-written)),
 so each step can start a fresh conversation without losing context.
 
-## Steps
+<Steps>
 
 1. **Capture the feature as a work item** (optional but recommended).
    Run [`create-work-item`](../reference/skills/work/create-work-item.md)
@@ -83,6 +85,8 @@ so each step can start a fresh conversation without losing context.
    [`validate-plan`](../reference/skills/planning/validate-plan.md) to
    verify the code matches the plan; a passing validation marks the
    plan `status: done`.
+
+</Steps>
 
 ## See also
 

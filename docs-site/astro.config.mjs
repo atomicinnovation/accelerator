@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 import starlightLinksValidator from 'starlight-links-validator'
+import starlightImageZoom from 'starlight-image-zoom'
 import rehypeMermaid from 'rehype-mermaid'
 import rehypeAstroRelativeMarkdownLinks from 'astro-rehype-relative-markdown-links'
 
@@ -57,7 +58,10 @@ export default defineConfig({
           },
         },
       ],
-      plugins: [starlightLinksValidator({ errorOnRelativeLinks: false })],
+      plugins: [
+        starlightImageZoom(),
+        starlightLinksValidator({ errorOnRelativeLinks: false }),
+      ],
       sidebar: [
         {
           label: 'Start Here',

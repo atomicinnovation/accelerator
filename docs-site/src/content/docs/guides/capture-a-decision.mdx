@@ -4,12 +4,14 @@ description: How to record an architectural decision as an ADR, get it
   reviewed, and manage its lifecycle.
 ---
 
+import { Steps } from '@astrojs/starlight/components'
+
 This guide records an architectural decision — a technology choice, a
 design trade-off, a convention — as an architecture decision record
 (ADR) in `meta/decisions/`, and takes it through review to an accepted,
 immutable record.
 
-## Steps
+<Steps>
 
 1. **Create the ADR.** Run
    [`create-adr`](../reference/skills/decisions/create-adr.md) with the
@@ -56,6 +58,8 @@ immutable record.
    the new one starts life as `proposed` and goes through review as
    normal. To retire a decision without replacing it, run
    `review-adr` with `--deprecate <reason>`.
+
+</Steps>
 
 ## The lifecycle at a glance
 

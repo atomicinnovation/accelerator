@@ -4,7 +4,7 @@ description: Install the Accelerator plugin and complete your first
   research → plan → implement loop on a real change.
 ---
 
-import { Steps, Aside } from '@astrojs/starlight/components'
+import { Steps, Aside, FileTree } from '@astrojs/starlight/components'
 
 This tutorial installs Accelerator and walks you through your first
 full loop — research → plan → implement — on a small change in one of
@@ -44,6 +44,31 @@ reviewed plan, and an implemented change, each captured as a file under
    `.accelerator/` scaffold for configuration, and gitignores the
    personal config file. It is idempotent — and optional, since skills
    also create directories on first use.
+
+   <FileTree>
+
+   - meta/
+     - work/ work items
+     - plans/ phased plans
+     - research/
+       - codebase/ codebase research
+       - issues/ root-cause analyses
+       - design-inventories/ design snapshots
+       - design-gaps/ design gap artefacts
+     - decisions/ architecture decision records
+     - notes/ short-form notes
+     - prs/ PR descriptions
+     - validations/ plan validation reports
+     - reviews/
+       - plans/ plan reviews
+       - prs/ PR reviews
+       - work/ work-item reviews
+     - global/ cross-repo context
+   - .accelerator/
+     - config.md project config
+     - config.local.md personal config (gitignored)
+
+   </FileTree>
 
 3. **(Optional) Add project context.** Run
    `/accelerator:configure create` to record your stack, conventions,

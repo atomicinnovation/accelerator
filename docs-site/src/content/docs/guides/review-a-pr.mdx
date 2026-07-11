@@ -4,6 +4,8 @@ description: How to run a multi-lens PR review, post it to GitHub, and
   work through the resulting feedback.
 ---
 
+import { Steps } from '@astrojs/starlight/components'
+
 This guide runs a pull request through Accelerator's multi-lens review
 and, optionally, works through the feedback afterwards. It assumes the
 plugin is installed.
@@ -15,7 +17,7 @@ plugin is installed.
 - A default remote set for the repo (`gh repo set-default`) so PR
   numbers resolve.
 
-## Steps
+<Steps>
 
 1. **Start the review.** Run
    [`review-pr`](../reference/skills/github/review-pr.md) with a PR
@@ -63,6 +65,8 @@ plugin is installed.
    through each item with you: verify the claim against the code,
    change the code, commit, reply in-thread, and resolve. Re-running it
    later resumes where you left off.
+
+</Steps>
 
 ## See also
 

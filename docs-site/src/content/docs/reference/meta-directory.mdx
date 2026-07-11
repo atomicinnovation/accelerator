@@ -4,12 +4,38 @@ description: What lives in each meta/ subdirectory, which skills read and
   write each path, and the lifecycle of the artefacts stored there.
 ---
 
+import { FileTree } from '@astrojs/starlight/components'
+
 The `meta/` directory is the persistent shared memory that lets skills
 communicate through the filesystem instead of the conversation. Each
 skill reads and writes predictable paths within it. Every path below is
 the plugin default; all are configurable via `/configure` (see
 [Configuration](../configuration.md)) — the `paths.*` keys map one-to-one
 onto these directories.
+
+## At a glance
+
+<FileTree>
+
+- meta/
+  - work/ work items (`NNNN-title.md`)
+  - plans/ phased implementation plans
+  - research/
+    - codebase/ codebase research documents
+    - issues/ root-cause analyses (RCAs)
+    - design-inventories/ design inventory snapshots
+    - design-gaps/ design gap artefacts
+  - decisions/ architecture decision records
+  - notes/ short-form notes
+  - prs/ PR descriptions
+  - validations/ plan validation reports
+  - reviews/
+    - plans/ plan review artefacts
+    - prs/ PR review artefacts
+    - work/ work-item review artefacts
+  - global/ cross-repo / org-wide context
+
+</FileTree>
 
 ## Directory map
 
