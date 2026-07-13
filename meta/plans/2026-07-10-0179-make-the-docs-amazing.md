@@ -8,12 +8,17 @@ producer: create-plan
 status: ready
 work_item_id: "work-item:0179"
 parent: "work-item:0179"
-derived_from: ["codebase-research:2026-07-10-0179-make-the-docs-amazing"]
-tags: [docs, docs-site, starlight, generation, ci]
+derived_from:
+  [
+    "codebase-research:2026-07-10-0179-make-the-docs-amazing",
+    "codebase-research:2026-07-13-docs-site-visualiser-design-alignment",
+  ]
+tags: [docs, docs-site, starlight, generation, ci, design-tokens, theming]
 revision: "150f34d0b4e921942076d43ba726b137607ace1b"
 repository: "barcelona"
-last_updated: "2026-07-10T20:11:20+00:00"
+last_updated: "2026-07-13T15:50:27+00:00"
 last_updated_by: Phil Helm
+last_updated_note: "Added phases 8-10: docs-site alignment with visualiser design system"
 schema_version: 1
 ---
 
@@ -126,6 +131,11 @@ acceptance criteria in work item 0179 ticked.
 - Live-reload GIF/video for the visualiser page is optional; ship
   screenshots first and treat the GIF as a follow-up if capture is
   awkward.
+- Recolouring mermaid diagram output to brand colours (rendered to
+  static SVG by `rehype-mermaid`; separate follow-up if wanted).
+- Starlight `components:` slot overrides — theming stays CSS-only.
+- A supplementary ADR for the docs site as a brand-token consumer —
+  drift guard only (decided in the 2026-07-13 research follow-up).
 
 ## Implementation Approach
 
@@ -158,9 +168,12 @@ flowchart LR
   P3 --> P4[4 Newcomer and practitioner content]
   P4 --> P7[7 README alignment]
   P6[6 Explanation content]
+  P8[8 Brand theme foundation] --> P9[9 Code-block palette]
+  P8 --> P10[10 Component polish]
 ```
 
-- Parallel start set: **1, 3, 6**.
+- Parallel start set: **1, 3, 6, 8**.
+- 9 and 10 depend on 8 (theme sheet + drift-test file exist).
 - 2 depends on 1 (guards the generator's output).
 - 4 depends on 3 (new pages slot into the Guides/Start Here sidebar
   groups phase 3 creates).
@@ -700,6 +713,249 @@ canonical or vice versa — pick docs-canonical, README summarises).
 
 ---
 
+## Phase 8: Brand theme foundation — tokens + fonts
+
+**Depends on**: none (parallel with all other phases)
+
+### Overview
+
+Retheme Starlight to the visualiser design system's colour and type
+layer: self-hosted brand fonts, the `--atomic-*` brand palette, and a
+mapping of visualiser semantic values onto Starlight's `--sl-*` custom
+properties for both themes. Guarded by a drift test (written first)
+asserting the duplicated values match the visualiser's canonical
+sources.
+
+Starlight styles live in `starlight.*` cascade layers and user
+`customCss` is imported first and unlayered
+(`node_modules/@astrojs/starlight/components/Page.astro:3`), so plain
+`:root` / `[data-theme='light']` declarations override the stock theme
+with no `!important`. Starlight is dark-by-default on `:root` with
+light overrides under `:root[data-theme='light']` — the new sheet
+mirrors that structure. Fonts are applied by setting `--sl-font` /
+`--sl-font-mono` (consumed via the `--__sl-font` indirection,
+`style/props.css:97-98`).
+
+### Changes Required:
+
+#### 1. Font assets
+
+**Files**: `docs-site/public/fonts/` — copy from
+`skills/visualisation/visualise/frontend/public/fonts/`:
+`Inter-Regular.woff2`, `Inter-SemiBold.woff2`, `Inter-Bold.woff2`,
+`Sora-SemiBold.woff2`, `Sora-Bold.woff2`, `FiraCode-Regular.woff2`,
+plus `LICENSE-fonts.md`.
+**Changes**: Byte-identical copies, committed. The trimmed set (no
+Inter 300/500, no Fira Code 500) keeps docs page weight down; the
+drift test pins each copy to its frontend source so the sets cannot
+diverge silently.
+
+#### 2. Theme sheet
+
+**File**: `docs-site/src/styles/theme.css` (new; listed in `customCss`
+before `custom.css` in `docs-site/astro.config.mjs:24`)
+**Changes**:
+
+1. `@font-face` rules for the six files (weights 400/600/700 Inter,
+   600/700 Sora, 400 Fira Code; `font-display: swap`), URLs prefixed
+   `/accelerator/fonts/` (public assets are served under the base
+   path).
+2. `--atomic-*` brand block on `:root`, values verbatim from
+   `frontend/src/styles/global.css:256-292` (subset actually consumed
+   is acceptable; every declared value must match the fixture).
+3. Dark mapping on `:root` and light mapping on
+   `:root[data-theme='light']`, assigning `--sl-*` from brand/semantic
+   values per the research mapping table
+   (`meta/research/codebase/2026-07-13-docs-site-visualiser-design-alignment.md`):
+   accent triple (light accent `--atomic-indigo`, dark `#8a90e8`),
+   `--sl-color-bg` (bone / night-2), `--sl-color-bg-nav`,
+   `--sl-color-bg-sidebar` (#f7f8fb / #0b121c), `--sl-color-text`
+   (#14161f / #e7e9f2), gray scale, and hairlines (ink rgba
+   0.06/0.10/0.18 light, white rgba 0.04/0.08/0.16 dark).
+4. `--sl-font: 'Inter'`, `--sl-font-mono: 'Fira Code'`, and a heading
+   rule applying `'Sora', system-ui, sans-serif` with weight 600/700
+   to `.sl-markdown-content` headings and the site title.
+
+#### 3. Config wiring
+
+**File**: `docs-site/astro.config.mjs`
+**Changes**: `customCss: ['./src/styles/theme.css',
+'./src/styles/custom.css']`.
+
+#### 4. Drift guard tests (written first — TDD)
+
+**File**: `tests/unit/tasks/test_docs_theme_drift.py`
+**Changes**:
+
+- Parse `docs-site/src/styles/theme.css` custom-property declarations
+  (simple regex over `--name: value;` pairs is sufficient); assert
+  every `--atomic-*` value matches
+  `frontend/src/styles/fixtures/prototype-tokens.json` (normalise
+  whitespace/case).
+- Assert each font file in `docs-site/public/fonts/` is byte-identical
+  to its counterpart in `frontend/public/fonts/`.
+- Failure messages name the diverged token/file and the canonical
+  source, per the `tasks/lint/vendor_shims.py:8-42` convention.
+- Runs in the existing pytest suite — no new mise task needed.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] Drift tests pass: `uv run pytest tests/unit/tasks/test_docs_theme_drift.py -v`
+- [x] `mise run docs:check` green
+- [x] `mise run check` green
+- [x] Mutating one hex in `theme.css` fails the drift test naming the
+      token
+
+#### Manual Verification:
+
+- [ ] Both themes render with brand colours (indigo accent, bone/night
+      backgrounds) — check via `npm run preview` under the
+      `/accelerator` base, not just dev
+- [ ] Inter body, Sora headings, Fira Code inline code visible in both
+      themes; no FOUC or fallback-font flash on hard reload
+- [ ] Logo, hero, and mermaid diagrams remain legible on the new
+      backgrounds in both themes
+- [ ] Text contrast spot-check (sidebar, muted text, links) in both
+      themes
+
+---
+
+## Phase 9: Code-block palette
+
+**Depends on**: Phase 8 (inline-code/backdrop values build on the
+theme sheet)
+
+### Overview
+
+Match docs code blocks to the visualiser's theme-invariant code
+surface: always-dark `--code-bg #0e1320` with the `--tk-*` syntax
+palette. Shiki inlines colours at build time, so this is a custom
+Shiki theme object rather than CSS variables. One theme serves both
+modes because the visualiser's code surface is identical in light and
+dark.
+
+### Changes Required:
+
+#### 1. Shiki theme
+
+**File**: `docs-site/shiki-atomic.mjs` (new; a textmate-style theme
+object)
+**Changes**: `name: 'atomic-code'`, `type: 'dark'`, `bg: '#0e1320'`,
+`fg: '#d7dcec'`, and `tokenColors` scopes mapped from the `--tk-*`
+palette (`frontend/src/styles/global.css:317-344`): comments #6f7796,
+strings #6be58b, numbers #f9de6f, keywords #c1c5ff, literals #f9a66b,
+types #73e4e2, functions #ffc1a8, attributes/meta #c18cf0, variables
+#72cbf5, punctuation #8990b0, tags #df5758, diff add/del
+#6be58b/#e56b7e. Colours exported as a named map so the drift test can
+import-free parse them.
+
+#### 2. Config wiring
+
+**File**: `docs-site/astro.config.mjs`
+**Changes**: In `markdown`: `shikiConfig: { theme: atomicCodeTheme }`
+alongside the existing `syntaxHighlight`/`excludeLangs` settings.
+
+#### 3. Code-surface CSS
+
+**File**: `docs-site/src/styles/theme.css`
+**Changes**: In both theme blocks set `--sl-color-bg-inline-code` so
+inline code sits on the dark code surface with `--code-fg` text (or,
+if that reads too heavy in light prose, a light `--ac-bg-sunken`-style
+tint — decide at implementation against the visualiser's inline-code
+treatment in `code-syntax.global.css`); style `pre` borders with the
+`--code-stroke` rgba(255,255,255,0.07) value.
+
+#### 4. Drift guard extension (written first — TDD)
+
+**File**: `tests/unit/tasks/test_docs_theme_drift.py`
+**Changes**: Parse the hex colours out of `shiki-atomic.mjs` and
+assert `bg`/`fg` and every token colour appears in, and matches,
+`prototype-tokens.json`'s `--code-*`/`--tk-*` entries.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] Drift tests pass: `uv run pytest tests/unit/tasks/test_docs_theme_drift.py -v`
+- [x] `mise run docs:check` green (strict build re-highlights every
+      generated skill page with the new theme)
+- [x] `mise run check` green
+
+#### Manual Verification:
+
+- [ ] Code blocks are dark `#0e1320` in both light and dark themes and
+      visually match a visualiser code block side by side
+- [ ] Spot-check highlighting across the site's main languages (bash,
+      python, rust, js/ts, yaml, json, diff, toml)
+- [ ] Inline code readable in prose in both themes
+
+---
+
+## Phase 10: Component polish
+
+**Depends on**: Phase 8 (consumes the theme sheet's brand values)
+
+### Overview
+
+Refine Starlight's chrome to visualiser component conventions with
+unlayered CSS only — sidebar, asides, cards, focus rings, radii,
+shadows. No `components:` slot overrides: selector-level styling of
+stock Starlight markup is accepted upgrade-sensitive surface, kept
+small and behind the pinned ^0.40 version.
+
+### Changes Required:
+
+#### 1. Sidebar and nav
+
+**File**: `docs-site/src/styles/theme.css`
+**Changes**: Sidebar group headings in Fira Code, uppercase, 0.12em
+tracking, faint colour (per
+`frontend/src/components/Sidebar/Sidebar.module.css:165-177`); active
+link accent-tinted background (rgba(89,95,200,0.06-0.12) light /
+rgba(138,144,232,0.08-0.18) dark) with accent text; header bottom
+border to the hairline stroke.
+
+#### 2. Asides, cards, and controls
+
+**File**: `docs-site/src/styles/theme.css`
+**Changes**: Asides and Starlight cards get 1px hairline borders,
+4-8px radii, and `--ac-shadow-soft`-style shadows (0 1px 2px + 0 8px
+28px rgba(10,17,27,...) light, deeper rgba(0,0,0,...) dark); search
+modal and pagination cards aligned to the same border/radius family;
+global `:focus-visible` 2px accent outline matching
+`frontend/src/styles/global.css:502-505`.
+
+#### 3. Splash hero
+
+**File**: `docs-site/src/styles/theme.css`
+**Changes**: Hero title in Sora; primary action button uses
+`--ac-accent` with hover per the visualiser button family (background
+tint shift, no translate); card grid cards get the card border/shadow
+treatment.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [x] `mise run docs:check` green
+- [x] `mise run check` green
+
+#### Manual Verification:
+
+- [ ] Sidebar, asides, cards, search, and pagination read as the same
+      design family as the visualiser (side-by-side check, both
+      themes)
+- [ ] Keyboard focus ring visible and accent-coloured on links,
+      buttons, search, sidebar
+- [ ] No layout breakage at mobile widths (Starlight's responsive
+      drawer unaffected)
+- [ ] Splash page hero and cards match the brand treatment in both
+      themes
+
+---
+
 ## Testing Strategy
 
 ### Unit Tests (phases 1–2, TDD):
@@ -755,6 +1011,9 @@ canonical or vice versa — pick docs-canonical, README summarises).
 
 - Original work item: `meta/work/0179-make-the-docs-amazing.md`
 - Research: `meta/research/codebase/2026-07-10-0179-make-the-docs-amazing.md`
+- Theming research: `meta/research/codebase/2026-07-13-docs-site-visualiser-design-alignment.md`
+- Canonical token sheet: `skills/visualisation/visualise/frontend/src/styles/global.css`
+- Token fixture: `skills/visualisation/visualise/frontend/src/styles/fixtures/prototype-tokens.json`
 - 0177 plan: `meta/plans/2026-07-10-0177-documentation-site-for-docs-tree.md`
 - ADR: `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md`
 - Drift-guard template: `tasks/build.py:184-210`
