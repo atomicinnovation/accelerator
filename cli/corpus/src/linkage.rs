@@ -54,7 +54,10 @@ pub const SECTIONS: [&str; 5] = [
 ];
 
 /// The valid `(source_type, key, target_type)` pairings.
-const TYPE_PAIRS: [(&str, &str, &str); 14] = [
+///
+/// Mirrors `scripts/linkage-type-pairs.tsv`, which the bash parser reads at
+/// runtime. A `corpus-adapters` suite asserts the two agree row for row.
+pub const TYPE_PAIRS: [(&str, &str, &str); 16] = [
     ("work-item", "parent", "work-item"),
     ("plan", "parent", "work-item"),
     ("adr", "supersedes", "adr"),
@@ -69,6 +72,8 @@ const TYPE_PAIRS: [(&str, &str, &str); 14] = [
     ("adr", "relates_to", "adr"),
     ("design-gap", "relates_to", "design-inventory"),
     ("work-item", "source", "note"),
+    ("work-item", "relates_to", "pr-description"),
+    ("plan", "relates_to", "pr-description"),
 ];
 
 /// True when a token is a documentation placeholder rather than a real link.
@@ -229,6 +234,9 @@ pub fn resolve_path_target(
             .and_then(|(dir, _)| dir.rsplit('/').next())
             .unwrap_or_default()
             .to_owned(),
+        DocTypeKey::PrDescriptions => {
+            pr_number(stem).unwrap_or_else(|| stem.to_owned())
+        }
         _ => stem.to_owned(),
     };
 
@@ -237,6 +245,60 @@ pub fn resolve_path_target(
     } else {
         Some((name, id))
     }
+}
+
+/// The PR number a stem carries.
+///
+/// The digits of a genuine `pr-`/`PR-` *segment* — at the start, or preceded by a
+/// hyphen, so a `pr` inside a word like `expr-3` does not match — else a leading
+/// number on a stem that is not date-prefixed. A date-prefixed stem with no `pr`
+/// token has no derivable PR number: its leading digits are a year.
+#[must_use]
+pub fn pr_number(stem: &str) -> Option<String> {
+    let bytes = stem.as_bytes();
+    for index in 0..bytes.len().saturating_sub(1) {
+        let at_segment_start = index == 0 || bytes[index - 1] == b'-';
+        if !at_segment_start
+            || !bytes[index].eq_ignore_ascii_case(&b'p')
+            || !bytes[index + 1].eq_ignore_ascii_case(&b'r')
+        {
+            continue;
+        }
+
+        let mut rest = index + 2;
+        if bytes.get(rest) == Some(&b'-') {
+            rest += 1;
+        }
+        let digits: String = stem
+            .get(rest..)?
+            .chars()
+            .take_while(char::is_ascii_digit)
+            .collect();
+        if !digits.is_empty() {
+            return Some(digits);
+        }
+    }
+
+    if is_date_prefixed(stem) {
+        return None;
+    }
+    let digits: String =
+        stem.chars().take_while(char::is_ascii_digit).collect();
+    if digits.is_empty() {
+        None
+    } else {
+        Some(digits)
+    }
+}
+
+fn is_date_prefixed(stem: &str) -> bool {
+    let bytes = stem.as_bytes();
+    bytes.len() >= 10
+        && bytes[0..4].iter().all(u8::is_ascii_digit)
+        && bytes[4] == b'-'
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[7] == b'-'
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
 }
 
 fn canonical_key(key: &str) -> &str {
@@ -558,6 +620,39 @@ mod tests {
 
     fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
         super::parse_document(source, content, &table())
+    }
+
+    #[test]
+    fn a_pr_number_comes_from_a_genuine_pr_segment() {
+        assert_eq!(
+            super::pr_number("pr-42-description").as_deref(),
+            Some("42")
+        );
+        assert_eq!(
+            super::pr_number("PR-42-description").as_deref(),
+            Some("42")
+        );
+        assert_eq!(
+            super::pr_number("2026-06-17-pr-430").as_deref(),
+            Some("430")
+        );
+    }
+
+    #[test]
+    fn a_pr_token_inside_a_word_is_not_a_pr_segment() {
+        // `expr-3` and `improve-2` carry a `pr` that is not a segment.
+        assert_eq!(super::pr_number("expr-3-notes"), None);
+        assert_eq!(super::pr_number("improve-2-thing"), None);
+    }
+
+    #[test]
+    fn a_leading_number_is_the_pr_number_unless_the_stem_is_a_date() {
+        assert_eq!(super::pr_number("240-description").as_deref(), Some("240"));
+        assert_eq!(
+            super::pr_number("2026-06-17-summary"),
+            None,
+            "a date-prefixed stem's leading digits are a year, not a PR number"
+        );
     }
 
     fn find<'a>(

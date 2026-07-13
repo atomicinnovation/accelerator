@@ -81,11 +81,75 @@ The crate's behaviour matches what the migration awk already does (the
 path resolves to `pr-description`), so bash linkage looks like the outlier
 rather than the intent.
 
-**Open question**: should `pr-description` be a legal linkage `target_type`? It
-is absent from `linkage-type-pairs.tsv`, which is why the reference stays
-ambiguous in both implementations. If PR descriptions are meant to be linkable
-targets, the pairs table needs a row; if they are not, the migration awk should
-arguably not be typifying them either.
+**Resolved** — `pr-description` is now a legal linkage `target_type`:
+`linkage-type-pairs.tsv` gained `work-item relates_to pr-description` and `plan
+relates_to pr-description`. Landing that row *first* would have been a mistake,
+though — see §2a, which had to be fixed before the row was safe.
+
+## 2a. The pr-description id: the PR number, or the filename stem? **[FIXED]**
+
+Adding the pairs row promotes a `meta/prs` reference from `ambiguous` to
+`resolved` — which asserts the reference points at a real document. It did not.
+
+A pr-description is identified by its **PR number**. `templates/pr-description.md`
+says so outright (`id: "{pr_number}"` — "PR number as a quoted YAML string"),
+`describe-pr` writes it that way, and every pr-description in the corpus carries a
+bare-number id (`12`, `14`, `16`, `18`).
+
+Two surfaces disagreed:
+
+- `path_to_typed` derived a reference's id from the **filename stem** —
+  `meta/prs/12-description.md` → `pr-description:12-description`, an id no
+  document has.
+- the migration's `derive_stem` did the same, so a *backfilled* pr-description
+  would have been written `id: "12-description"`, in defiance of its own template.
+
+So a resolved reference would have pointed at nothing, and a backfilled document
+would have contradicted the template it was backfilled from. Resolved-and-dangling
+is worse than ambiguous: ambiguous at least reports itself as unverified.
+
+**Fixed** — the *stem* and the *identity* are now separate concepts. `derive_stem`
+stays the human-readable stem that title/date/`extra_default` read; a new
+`derive_id` supplies the identity, and for a pr-description it takes the number
+from `extra_default`'s `pr_number` rule rather than a second copy of it — so the
+id and the `pr_number` field cannot disagree. `path_to_typed` mirrors that rule.
+Both now handle `pr-42-description.md` → `42` (a genuine `pr-` segment) as well as
+`12-description.md` → `12`, and neither mistakes a date-prefixed stem's year for a
+PR number.
+
+Conflating the two is what made the first attempt fail: `extra_default pr_number`
+derives *from the stem*, so shortening the stem to `12` starved it and stamped
+`pr_number: unknown`.
+
+Because a reference is resolved from the path alone, the document's id must equal
+what the path predicts. The migration therefore now **coerces** a pre-existing
+stem-shaped id (`416-summary` → `416`) via a new `canonical_id` channel to the
+rewrite awk, with a `0007-DIVERGE[id-canonicalised]` breadcrumb so the rewrite is
+auditable rather than silent.
+
+`pr-review` is untouched throughout: `meta/reviews/prs` is the longer configured
+directory, so most-specific match still wins and PR reviews keep their full-stem
+ids.
+
+## 3a. `normalize_paths` corrupted every reference whose type ran `match()` **[FIXED]**
+
+Found while fixing §2a, and **entirely pre-existing** — nothing above caused it.
+
+`normalize_paths` rewrites a path token in place, using awk's `RSTART`/`RLENGTH` to
+splice around it. But `RSTART`/`RLENGTH` are **globals**, and `path_to_typed` runs
+`match()` itself. So the splice read offsets left behind by the *inner* match:
+
+```
+["meta/decisions/ADR-0026-old.md"]  →  ["adr:ADR-0026"ecisions/ADR-0026-old.md"]
+```
+
+Any ADR path reference inside a linkage value was mangled into malformed YAML.
+`work-item` and `plan` escaped only by accident — their arms use `sub()`, which
+does not set `RSTART`. No fixture had an ADR path reference in a linkage value, so
+196 assertions passed straight over a live data-corruption bug.
+
+**Fixed** — the token's offsets are saved before the call. A probe now pins every
+arm, including a multi-token value and the unmapped-path passthrough.
 
 ## 3. The design-inventory id: parent directory, or the basename `inventory`? **[FIXED]**
 
@@ -159,12 +223,40 @@ carried over verbatim:
 Roughly in order of how much they can actually bite:
 
 1. ~~Add the nested-manifest arm to `path_to_typed`~~ — **done**, see §3.
-2. Decide whether `pr-description` is a linkage `target_type`; add the
-   `linkage-type-pairs.tsv` row, or stop the awk typifying `meta/prs` paths.
-   The two surfaces currently contradict each other, and which is wrong is a
-   design decision rather than a bug fix.
+2. ~~Decide whether `pr-description` is a linkage `target_type`~~ — **done**, see
+   §2 and §2a. It is, via `work-item relates_to pr-description` and `plan
+   relates_to pr-description`; the id derivation was fixed first so the newly
+   resolvable references point at documents that exist.
 3. Retire `lp_type_from_path` in favour of the config-driven
    `infer_type_from_path`, so bash linkage stops being blind to a re-pathed
-   corpus. (The crates already are; this is about keeping the bash surface
-   honest for as long as it survives.)
+   corpus — and so it stops missing `meta/prs` entirely, which is now a
+   resolvable target everywhere *except* there. (The crates are already
+   config-driven; this is about keeping the bash surface honest for as long as it
+   survives.) **This is now the highest-value item left.**
 4. Consider collapsing the four doc-type vocabularies toward one.
+
+## A pattern worth naming
+
+Most of these findings are one mistake wearing different clothes: **a fact about a
+doc type, written down once per surface that needs it, and then allowed to drift.**
+The dir→type map (§1), the design-inventory id (§3), and the pr-description id
+(§2a) each had two or three encodings that disagreed — and in every case the
+*reference* side disagreed with the *definition* side, so documents got correct ids
+and then links to them pointed somewhere else.
+
+The lesson from §2a is sharper than "don't duplicate": **an id that references are
+resolved from must be derivable from the path.** `path_to_typed` sees only a path,
+so any identity convention it cannot predict guarantees dangling references. That
+is *why* the id has to be single-sourced, not merely tidier.
+
+§3a is a different animal — a plain latent bug (awk globals clobbered across a call)
+that only surfaced because the corrected id changed a string's length. It had been
+corrupting ADR path references for as long as that arm has existed.
+
+What every one of them has in common is that **the test suite was green**. Each bug
+lived in an arm no fixture exercised. The crates now single-source these facts on
+`DocTypeKey`, and four suites keep the bash surfaces honest against it: the doc-type
+registry, the rewrite awk's `path_to_typed`, `normalize_paths`' splicing, and
+`linkage-type-pairs.tsv` versus `corpus::linkage::TYPE_PAIRS`. Every fact still
+written twice wants a test like those, or it will drift again — silently, and with
+the suite still green.

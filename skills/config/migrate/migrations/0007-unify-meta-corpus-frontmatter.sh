@@ -142,10 +142,37 @@ stem_of() {
 # whose manifest is always `inventory.md` under a dated directory) take the
 # PARENT DIRECTORY name as their stem — mirroring the indexer's slug source —
 # so distinct inventories don't all collapse to the id "inventory".
+#
+# This is the HUMAN-READABLE stem, and stays the input the title, date, and
+# extra_default derivations read. It is NOT always the document's identity — see
+# derive_id.
 derive_stem() { # $1=file $2=type
   case "$2" in
     design-inventory) basename "$(dirname "$1")" ;;
     *) stem_of "$1" ;;
+  esac
+}
+
+# The document's IDENTITY, which is not always its stem: a pr-description is
+# identified by its PR NUMBER, per templates/pr-description.md (`id:
+# "{pr_number}"`), so meta/prs/12-description.md is id "12" and
+# meta/prs/pr-42-description.md is id "42".
+#
+# The number comes from extra_default's pr_number rule rather than a second copy
+# of it, so the id and the pr_number field cannot disagree. A pr-description with
+# no derivable number falls back to its stem rather than becoming empty.
+#
+# MUST stay in step with the rewrite awk's path_to_typed, which derives the same
+# ids for REFERENCES to these documents: a reference resolved to a different id
+# than the target derives for itself would point at nothing.
+derive_id() { # $1=file $2=type $3=stem
+  local n
+  case "$2" in
+    pr-description)
+      n="$(extra_default pr_number "$1" "$3" "")"
+      printf '%s' "${n:-$3}"
+      ;;
+    *) printf '%s' "$3" ;;
   esac
 }
 
@@ -330,7 +357,7 @@ precondition_prepass() {
       *) id="" ;;
     esac
     [ -n "$id" ] || id="$(fm_inner "$(fm_get id "$f")")"
-    [ -n "$id" ] || id="$(derive_stem "$f" "$type")"
+    [ -n "$id" ] || id="$(derive_id "$f" "$type" "$(derive_stem "$f" "$type")")"
     local typed_id="${type}:${id}"
     case "$seen_ids" in
       *"|${typed_id}|"*)
@@ -378,7 +405,7 @@ backfill_file() {
   {
     printf -- '---\n'
     printf 'type: %s\n' "$type"
-    printf 'id: "%s"\n' "$stem"
+    printf 'id: "%s"\n' "$(derive_id "$f" "$type" "$stem")"
     printf 'title: "%s"\n' "$title"
     [ -n "$iso" ] && printf 'date: "%s"\n' "$iso"
     printf 'author: %s\n' "$author"
@@ -445,7 +472,16 @@ rewrite_file() {
   stem="$(derive_stem "$f" "$type")"
   case "$type" in
     work-item) idstem="$(printf '%s' "$stem" | grep -oE '^[0-9]+' || echo "$stem")" ;;
-    *) idstem="$stem" ;;
+    *) idstem="$(derive_id "$f" "$type" "$stem")" ;;
+  esac
+  # A pr-description's id is its PR number, and that id must be derivable from the
+  # PATH — the rewrite awk resolves REFERENCES to this document from its path
+  # alone, so an id: the path does not predict would leave every reference to it
+  # dangling. A pre-existing stem-shaped id (the pre-0007 convention) is therefore
+  # coerced, with a breadcrumb, rather than preserved.
+  local canonical_id=""
+  case "$type" in
+    pr-description) canonical_id="$idstem" ;;
   esac
   repo="$(basename "$PROJECT_ROOT")"
 
@@ -529,7 +565,7 @@ rewrite_file() {
   tmp_err="$(mktemp)"
   awk -f "$FRAG_AWK" -f "$BODY_AWK" \
     -v file="$f" -v type="$type" -v anchored="$anchored" -v own_id_key="$own" \
-    -v doc_type_table="$DOC_TYPE_TSV" \
+    -v doc_type_table="$DOC_TYPE_TSV" -v canonical_id="$canonical_id" \
     -v forbidden="$forbidden" -v backfill_extras="$backfill_extras" \
     -v id_from_stem="$idstem" -v repo_name="$repo" \
     -v statusvocab="$vocab" -v statusmap="$smap" \
@@ -599,10 +635,14 @@ build_corpus_index() {
     [ -n "$type" ] || continue
     case "$type" in
       work-item | adr) id="$(fm_inner "$(fm_get "$(own_id_key_for_type "$type")" "$f")")" ;;
+      # Path-derived, not id:-derived — references to a pr-description resolve
+      # from its path, so the index must key it the same way the references do,
+      # whether or not the rewrite has canonicalised its id: yet.
+      pr-description) id="$(derive_id "$f" "$type" "$(derive_stem "$f" "$type")")" ;;
       *) id="" ;;
     esac
     [ -n "$id" ] || id="$(fm_inner "$(fm_get id "$f")")"
-    [ -n "$id" ] || id="$(derive_stem "$f" "$type")"
+    [ -n "$id" ] || id="$(derive_id "$f" "$type" "$(derive_stem "$f" "$type")")"
     CORPUS_INDEX="${CORPUS_INDEX}${type}:${id}"$'\n'
   done < <(corpus_files)
 }

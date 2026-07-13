@@ -23,13 +23,14 @@ const RECORD_SEPARATOR: char = '\u{1e}';
 static PROBES_WRITTEN: AtomicU64 = AtomicU64::new(0);
 
 /// A representative filename per type, exercising each id-derivation arm: the
-/// numeric-prefix arm, the ADR arm, the nested-manifest arm, and the whole-stem
-/// default.
+/// work-item numeric prefix, the ADR prefix, the design-inventory nested
+/// manifest, the pr-description PR number, and the whole-stem default.
 const fn probe_filename(kind: DocTypeKey) -> &'static str {
     match kind {
         DocTypeKey::WorkItems => "0030-target.md",
         DocTypeKey::Decisions => "ADR-0050-some-decision.md",
         DocTypeKey::DesignInventories => "2026-01-01-buttons/inventory.md",
+        DocTypeKey::PrDescriptions => "240-description.md",
         _ => "2026-05-13-0055-feature.md",
     }
 }
@@ -181,10 +182,52 @@ fn the_rewrite_awk_agrees_on_the_directory_to_type_mapping(
     Ok(())
 }
 
+/// `corpus::linkage::TYPE_PAIRS` and `scripts/linkage-type-pairs.tsv` are the
+/// same table written twice — bash reads the file at runtime, the crate compiles
+/// it in. Nothing but this test stops them drifting apart.
+#[test]
+fn the_type_pair_table_matches_the_tsv() -> Result<(), TestError> {
+    let tsv = require_script("scripts/linkage-type-pairs.tsv")?;
+    let raw = fs::read_to_string(&tsv)?;
+
+    let mut rows: Vec<(String, String, String)> = Vec::new();
+    for line in raw.lines().skip(1) {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let fields: Vec<&str> = line.split('\t').collect();
+        let [source, key, target] = fields.as_slice() else {
+            return Err(format!("malformed pair row: {line:?}").into());
+        };
+        rows.push((
+            (*source).to_owned(),
+            (*key).to_owned(),
+            (*target).to_owned(),
+        ));
+    }
+
+    let compiled: Vec<(String, String, String)> = corpus::linkage::TYPE_PAIRS
+        .iter()
+        .map(|(source, key, target)| {
+            (
+                (*source).to_owned(),
+                (*key).to_owned(),
+                (*target).to_owned(),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        compiled, rows,
+        "the crate's TYPE_PAIRS and linkage-type-pairs.tsv have drifted apart"
+    );
+    Ok(())
+}
+
 /// Every id-derivation arm, across every configured directory: the work-item
 /// numeric prefix, the ADR prefix, the design-inventory parent directory (a
-/// nested manifest, whose basename is always `inventory`), and the whole-stem
-/// default.
+/// nested manifest, whose basename is always `inventory`), the pr-description PR
+/// number, and the whole-stem default.
 #[test]
 fn the_rewrite_awk_agrees_on_every_id_arm() -> Result<(), TestError> {
     let table = doc_type_table()?;

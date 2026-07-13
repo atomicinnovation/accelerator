@@ -484,8 +484,8 @@ assert_contains "Phase 1 typeless pr -> pr-description" \
   "$(fm_line "$P1/meta/prs/240-description.md" type)" "type: pr-description"
 assert_eq "Phase 1 pr type line is unique (no duplicate)" "1" \
   "$(grep -c '^type:' "$P1/meta/prs/240-description.md")"
-assert_contains "Phase 1 pr relates_to path -> pr-description:<stem>" \
-  "$(fm_line "$P1/meta/prs/240-description.md" relates_to)" 'relates_to: ["pr-description:416-summary"]'
+assert_contains "Phase 1 pr relates_to path -> pr-description:<pr-number>" \
+  "$(fm_line "$P1/meta/prs/240-description.md" relates_to)" 'relates_to: ["pr-description:416"]'
 assert_eq "Phase 1 meta/docs/ byte-unchanged" "$DOCS_BEFORE" \
   "$(cat "$P1/meta/docs/logging-guide.md")"
 
@@ -538,8 +538,39 @@ pt_out="$(awk -v doc_type_table="$DEFAULT_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PRO
 # manifest basename is always `inventory`, so a basename-derived id would collapse
 # them onto each other and point every inventory reference at the same document.
 assert_eq "path_to_typed id derivation per arm (incl. prs, nested inventories, most-specific match)" \
-  "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo\ndesign-inventory:2026-02-02-buttons\ndesign-inventory:2026-03-03-forms')" \
+  "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240\ncodebase-research:2026-01-01-foo\ndesign-inventory:2026-02-02-buttons\ndesign-inventory:2026-03-03-forms')" \
   "$pt_out"
+
+# A pr-description is identified by its PR NUMBER, from a genuine pr-/PR- segment
+# or a leading number — never a date-prefixed stem's year, and never a `pr` buried
+# inside a word. Pinned literally, in step with extra_default's pr_number rule.
+PT_PR_PROBE="$TMP/pt-pr-probe.awk"
+cat >"$PT_PR_PROBE" <<'AWK'
+BEGIN {
+  print path_to_typed("meta/prs/pr-42-description.md")
+  print path_to_typed("meta/prs/12-description.md")
+}
+AWK
+assert_eq "path_to_typed pr-description id is the PR number (pr- segment and leading number)" \
+  "$(printf 'pr-description:42\npr-description:12')" \
+  "$(awk -v doc_type_table="$DEFAULT_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PR_PROBE" </dev/null 2>/dev/null)"
+
+# normalize_paths rewrites the token IN PLACE, and path_to_typed runs match()
+# internally (adr, pr-description) — which clobbers the awk-global RSTART/RLENGTH
+# the splice depends on. A regression there mangles the value into invalid YAML
+# rather than failing outright, so pin every arm, including a multi-token value.
+NP_PROBE="$TMP/np-probe.awk"
+cat >"$NP_PROBE" <<'AWK'
+BEGIN {
+  print normalize_paths("[\"meta/decisions/ADR-0026-old.md\"]")
+  print normalize_paths("[\"meta/prs/416-summary.md\"]")
+  print normalize_paths("[\"meta/decisions/ADR-0026-old.md\", \"meta/prs/12-description.md\", \"meta/work/0030-x.md\"]")
+  print normalize_paths("[\"meta/docs/guide.md\"]")
+}
+AWK
+assert_eq "normalize_paths splices every arm correctly (match()-clobbered RSTART guard)" \
+  "$(printf '["adr:ADR-0026"]\n["pr-description:416"]\n["adr:ADR-0026", "pr-description:12", "work-item:0030"]\n["meta/docs/guide.md"]')" \
+  "$(awk -v doc_type_table="$DEFAULT_TBL" -f "$FRAG" -f "$BODY" -f "$NP_PROBE" </dev/null 2>/dev/null)"
 
 # Non-default-path probe: a CUSTOM table resolves paths under custom configured
 # dirs to the right type:id (and a path under a now-unconfigured default dir is
@@ -557,7 +588,7 @@ BEGIN {
 AWK
 pt2_out="$(awk -v doc_type_table="$CUSTOM_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PROBE2" </dev/null 2>/dev/null)"
 assert_eq "path_to_typed config-aware lookup + id derivation (custom dirs)" \
-  "$(printf 'work-item:0001\npr-description:240-desc\nplan:2026-01-01-x\n[]')" \
+  "$(printf 'work-item:0001\npr-description:240\nplan:2026-01-01-x\n[]')" \
   "$pt2_out"
 
 # ── Phase 2: schema-driven forbidden own-id key drop + pr_title fold ─────────

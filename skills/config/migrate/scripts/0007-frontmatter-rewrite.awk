@@ -14,6 +14,10 @@
 #                   / ""); renamed to id. Foreign refs (own_id_key="") are kept.
 #   id_from_stem    filename-stem id, used only when neither id: nor an own-id
 #                   key is present
+#   canonical_id    path-derived id that OVERRIDES an existing id: (empty = keep
+#                   the file's own). Set for types whose references are resolved
+#                   from the path alone (pr-description), where an id: the path
+#                   cannot predict would leave every reference to it dangling.
 #   repo_name       repository name for the provenance bundle (may be empty)
 #   statusvocab     pipe-joined canonical status vocabulary for this type
 #   statusmap       space-joined legacy=canonical pairs for this type
@@ -103,23 +107,52 @@ function path_to_typed(p,   i, dir, blen, btype, base, id) {
     sub(/\/[^\/]*$/, "", id)
     sub(/.*\//, "", id)
   }
+  else if (btype == "pr-description") {
+    # Identified by its PR NUMBER (templates/pr-description.md: id: "{pr_number}"),
+    # not its stem — `meta/prs/12-description.md` is `pr-description:12`.
+    id = pr_number_of(base)
+    if (id == "") id = base
+  }
   else id = base
   return btype ":" id
+}
+
+# The PR number of a stem: digits of a genuine pr-/PR- SEGMENT (start-of-stem or
+# hyphen-preceded, so a `pr` inside a word like expr-3 does not match), else a
+# leading number on a stem that is not date-prefixed. Empty when neither applies.
+# Mirrors the migration's extra_default pr_number — the id and the pr_number field
+# must not disagree.
+function pr_number_of(s,   t) {
+  if (match(s, /(^|-)[Pp][Rr]-?[0-9]+/)) {
+    t = substr(s, RSTART, RLENGTH)
+    sub(/^-/, "", t)
+    sub(/^[Pp][Rr]-?/, "", t)
+    return t
+  }
+  if (s ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/) return ""
+  if (match(s, /^[0-9]+/)) return substr(s, RSTART, RLENGTH)
+  return ""
 }
 
 # Rewrite every quoted meta-path token inside a linkage value to its typed form;
 # tokens already typed (or pointing at an unmapped directory) are left as-is, the
 # latter setting UNMAPPED_PATH for the caller to DIVERGE.
-function normalize_paths(val,   out, rest, pre, tok, path, typed) {
+#
+# RSTART/RLENGTH are awk GLOBALS, and path_to_typed runs match() itself (the adr
+# and pr-description arms), so the token's offsets MUST be saved before the call —
+# reading them afterwards splices the replacement at whatever offsets the inner
+# match left behind, corrupting the value.
+function normalize_paths(val,   out, rest, pre, tok, path, typed, start, len) {
   out = ""; rest = val
   while (match(rest, /"meta\/[^"]*\.md"/)) {
-    pre = substr(rest, 1, RSTART - 1)
-    tok = substr(rest, RSTART, RLENGTH)
+    start = RSTART; len = RLENGTH
+    pre = substr(rest, 1, start - 1)
+    tok = substr(rest, start, len)
     path = tok; gsub(/"/, "", path)
     typed = path_to_typed(path)
     if (typed != "") out = out pre "\"" typed "\""
     else { out = out pre tok; UNMAPPED_PATH = 1 }
-    rest = substr(rest, RSTART + RLENGTH)
+    rest = substr(rest, start + len)
   }
   return out rest
 }
@@ -361,6 +394,15 @@ in_fm && /^[A-Za-z_][A-Za-z0-9_]*:/ {
   }
   if (key == "id") {
     if (fm_refuses(val)) { print $0; print "0007-REFUSE: " file " — refused id (unsafe value shape)" > "/dev/stderr"; next }
+    # A canonical_id is injected for types whose id MUST be derivable from their
+    # path, because references to them are resolved from the path alone (see
+    # path_to_typed). A pre-existing id that the path does not predict is coerced,
+    # not preserved — otherwise every reference to this document would dangle.
+    if (canonical_id != "") {
+      if (fm_normalise_value(val) != "\"" canonical_id "\"")
+        print "0007-DIVERGE[id-canonicalised]: " file " — id " val " → \"" canonical_id "\"" > "/dev/stderr"
+      print "id: \"" canonical_id "\""; emitted_id = 1; next
+    }
     print "id: " fm_normalise_value(val); emitted_id = 1; next
   }
 

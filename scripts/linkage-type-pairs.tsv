@@ -13,3 +13,5 @@ work-item	derived_from	work-item
 adr	relates_to	adr
 design-gap	relates_to	design-inventory
 work-item	source	note
+work-item	relates_to	pr-description
+plan	relates_to	pr-description
