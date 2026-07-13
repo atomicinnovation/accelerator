@@ -77,7 +77,10 @@ function is_linkage_key(k) {
 # linkage value, not the current file), so it cannot consume the file-level
 # `-v type` channel. It MUST stay aligned with the shared helper — a
 # test-migrate-0007.sh fixture asserts representative arms in step with it.
-# The id-derivation halves (work-item stem trim, ADR prefix) are preserved here.
+# The id-derivation halves (work-item stem trim, ADR prefix, design-inventory
+# parent-directory stem) are preserved here, and MUST stay in step with the
+# shell-side derive_stem — a reference rewritten to a different id than the
+# target document derives for itself would point at nothing.
 function path_to_typed(p,   i, dir, blen, btype, base, id) {
   blen = -1; btype = ""
   for (i = 1; i <= DT_COUNT; i++) {
@@ -93,6 +96,13 @@ function path_to_typed(p,   i, dir, blen, btype, base, id) {
   base = p; sub(/.*\//, "", base); sub(/\.md$/, "", base)
   if (btype == "work-item") { id = base; sub(/-.*/, "", id) }
   else if (btype == "adr") { if (match(base, /^ADR-[0-9]+/)) id = substr(base, RSTART, RLENGTH); else id = base }
+  else if (btype == "design-inventory") {
+    # A nested manifest, always `<dated-dir>/inventory.md`: the id is the parent
+    # DIRECTORY, or every inventory would collapse to the id `inventory`.
+    id = p
+    sub(/\/[^\/]*$/, "", id)
+    sub(/.*\//, "", id)
+  }
   else id = base
   return btype ":" id
 }

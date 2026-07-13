@@ -529,11 +529,16 @@ BEGIN {
   print path_to_typed("meta/reviews/prs/2026-06-17-pr-430-review.md")
   print path_to_typed("meta/prs/240-description.md")
   print path_to_typed("meta/research/codebase/2026-01-01-foo.md")
+  print path_to_typed("meta/research/design-inventories/2026-02-02-buttons/inventory.md")
+  print path_to_typed("meta/research/design-inventories/2026-03-03-forms/inventory.md")
 }
 AWK
 pt_out="$(awk -v doc_type_table="$DEFAULT_TBL" -f "$FRAG" -f "$BODY" -f "$PT_PROBE" </dev/null 2>/dev/null)"
-assert_eq "path_to_typed id derivation per arm (incl. prs, most-specific match)" \
-  "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo')" \
+# The two inventories must derive DISTINCT ids from their parent directories: the
+# manifest basename is always `inventory`, so a basename-derived id would collapse
+# them onto each other and point every inventory reference at the same document.
+assert_eq "path_to_typed id derivation per arm (incl. prs, nested inventories, most-specific match)" \
+  "$(printf 'work-item:0030\nplan:2026-05-13-0055-feature\nadr:ADR-0050\npr-review:2026-06-17-pr-430-review\npr-description:240-description\ncodebase-research:2026-01-01-foo\ndesign-inventory:2026-02-02-buttons\ndesign-inventory:2026-03-03-forms')" \
   "$pt_out"
 
 # Non-default-path probe: a CUSTOM table resolves paths under custom configured

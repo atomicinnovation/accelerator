@@ -181,19 +181,14 @@ fn the_rewrite_awk_agrees_on_the_directory_to_type_mapping(
     Ok(())
 }
 
-/// The awk encodes three id-derivation arms: the work-item numeric prefix, the
-/// ADR prefix, and the whole-stem default. It has no nested-manifest arm, so a
-/// design-inventory manifest resolves there to the basename `inventory` where
-/// `linkage-parser.sh` — and this crate, which the parity suite pins to it —
-/// resolve the parent directory. That divergence is the migration's, not the
-/// crate's; this test covers the arms the awk does encode.
+/// Every id-derivation arm, across every configured directory: the work-item
+/// numeric prefix, the ADR prefix, the design-inventory parent directory (a
+/// nested manifest, whose basename is always `inventory`), and the whole-stem
+/// default.
 #[test]
-fn the_rewrite_awk_agrees_on_the_id_arms_it_encodes() -> Result<(), TestError> {
+fn the_rewrite_awk_agrees_on_every_id_arm() -> Result<(), TestError> {
     let table = doc_type_table()?;
-    let probes: Vec<(DocTypeKey, String)> = probes(&table)
-        .into_iter()
-        .filter(|(kind, _)| *kind != DocTypeKey::DesignInventories)
-        .collect();
+    let probes = probes(&table);
     let paths: Vec<String> =
         probes.iter().map(|(_, path)| path.clone()).collect();
 

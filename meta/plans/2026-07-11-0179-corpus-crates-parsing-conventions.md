@@ -839,17 +839,18 @@ visualiser reported `Malformed` only because libyml *crashed*, now asserts a **c
 parse** (it is valid YAML — confirmed against serde-saphyr in Phase 1). Those are
 deliberate rewrites, called out so the oracle stays honest.
 
-**Design-inventory id divergence (found by AC-6, deviation)**: the single-source
-suite surfaced a *pre-existing* disagreement between the two bash surfaces.
-`linkage-parser.sh` derives a design-inventory id from the **parent directory**
-(its comment: "not the manifest basename `inventory`"), but the 0007 rewrite awk's
-`path_to_typed` has no nested-manifest arm and falls through to the whole-stem
-default, yielding `design-inventory:inventory`. The crate follows
-`linkage-parser.sh`, which is what the parity suite pins it to. AC-6 asks for the
-**dir→type** mapping, and the awk agrees with the crate on that for all 13
-directories; the id-derivation test therefore covers the three arms the awk does
-encode (work-item, ADR, whole-stem default) and names the design-inventory
-exclusion. Fixing the awk is a migration-side change, out of scope here.
+**Design-inventory id bug (found by AC-6, fixed)**: the single-source suite
+surfaced a *pre-existing* bug in the 0007 migration. `linkage-parser.sh` and the
+migration's own shell-side `derive_stem` both derive a design-inventory id from the
+**parent directory** (a nested manifest's basename is always `inventory`), but the
+rewrite awk's `path_to_typed` had no nested-manifest arm and fell through to the
+whole-stem default. Since the awk rewrites *references* to an inventory while
+`derive_stem` sets an inventory's *own* id, the migration wrote every inventory
+reference as `design-inventory:inventory` — an id no document has. The awk now
+takes the parent directory, matching the other two surfaces; `test-migrate-0007.sh`
+gained a two-inventory probe that a basename-derived id would collapse; and the
+single-source suite asserts `type:id` agreement across all 13 directories with no
+exclusions.
 
 ### Success Criteria
 

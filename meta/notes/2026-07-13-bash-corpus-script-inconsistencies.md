@@ -87,31 +87,40 @@ ambiguous in both implementations. If PR descriptions are meant to be linkable
 targets, the pairs table needs a row; if they are not, the migration awk should
 arguably not be typifying them either.
 
-## 3. The design-inventory id: parent directory, or the basename `inventory`?
+## 3. The design-inventory id: parent directory, or the basename `inventory`? **[FIXED]**
 
-Design inventories are nested manifests — `<dir>/<slug>/inventory.md`. The id
-derivation disagrees:
+Design inventories are nested manifests — `<dir>/<slug>/inventory.md`, where the
+manifest basename is always `inventory`. Three surfaces derived the id; two
+agreed and one did not:
 
-- `scripts/linkage-parser.sh` derives the id from the **parent directory**, with
-  an explicit comment: "the id is the parent directory name (matching the
+- `scripts/linkage-parser.sh` derives it from the **parent directory**, with an
+  explicit comment: "the id is the parent directory name (matching the
   migration's derive_stem), not the manifest basename `inventory`".
-- `0007-frontmatter-rewrite.awk`'s `path_to_typed` has **no nested-manifest
-  arm**. It falls through to the whole-stem default and yields
+- The 0007 migration's own shell-side `derive_stem` **also** takes the parent
+  directory, with a comment saying "so distinct inventories don't all collapse
+  to the id `inventory`".
+- `0007-frontmatter-rewrite.awk`'s `path_to_typed` had **no nested-manifest
+  arm**. It fell through to the whole-stem default and yielded
   `design-inventory:inventory`.
 
-So the awk's comment-stated intent and its behaviour disagree, and the two bash
-surfaces disagree with each other. The crate follows `linkage-parser.sh` (which
-is what the parity suite pins it to).
+The awk is the surface that rewrites *references* to an inventory inside another
+document's linkage, while `derive_stem` sets the inventory's **own** id. So the
+migration derived each inventory's id correctly from its directory, and then
+wrote every reference to an inventory as `design-inventory:inventory` — pointing
+at an id no document has. Every inventory reference in a migrated repository
+collapsed onto the same dangling target.
 
-This means a repository with nested design-inventory manifests that runs
-migration 0007 gets `design-inventory:inventory` written into its linkage —
-every inventory collapsing to the same id. That looks like a live bug in the
-migration, not just an inconsistency. It is one arm in `path_to_typed`, but it
-is a migration-side change with its own snapshot suite, so 0179 left it alone
-and excluded that arm from the single-source assertion instead.
+`test-migrate-0007.sh` passed its full suite without catching it: the
+`path_to_typed` probe covered the work-item, ADR, PR and research arms, but no
+design-inventory path.
 
-`test-migrate-0007.sh` passes (196 assertions) without catching this — the arm
-is simply not covered.
+**Fixed** — `path_to_typed` now takes the parent directory for
+`design-inventory`, matching `derive_stem` and `linkage-parser.sh`. The probe in
+`test-migrate-0007.sh` gained two nested inventories under different dated
+directories, so an id derived from the basename would collapse them together and
+fail. The crate's single-source suite no longer excludes the arm: all 13
+configured directories now assert `type:id` agreement between the awk and
+`corpus`.
 
 ## 4. Four names for every doc type
 
@@ -149,11 +158,11 @@ carried over verbatim:
 
 Roughly in order of how much they can actually bite:
 
-1. Add the nested-manifest arm to `path_to_typed` so migration 0007 stops
-   collapsing every design inventory to `design-inventory:inventory`, and add
-   the covering fixture to `test-migrate-0007.sh`.
+1. ~~Add the nested-manifest arm to `path_to_typed`~~ — **done**, see §3.
 2. Decide whether `pr-description` is a linkage `target_type`; add the
    `linkage-type-pairs.tsv` row, or stop the awk typifying `meta/prs` paths.
+   The two surfaces currently contradict each other, and which is wrong is a
+   design decision rather than a bug fix.
 3. Retire `lp_type_from_path` in favour of the config-driven
    `infer_type_from_path`, so bash linkage stops being blind to a re-pathed
    corpus. (The crates already are; this is about keeping the bash surface
