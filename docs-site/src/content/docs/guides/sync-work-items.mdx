@@ -4,6 +4,8 @@ description: How to connect a repository to Jira or Linear and keep
   local work items and remote issues reconciled.
 ---
 
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components'
+
 This guide connects a repository to a remote tracker and keeps the work
 items in `meta/work/` reconciled with it. Work items function fully
 offline — the tracker is optional — but once connected, changes flow in
@@ -15,10 +17,15 @@ both directions.
 - A Jira Cloud API token (from id.atlassian.com) or a Linear personal
   API key (`lin_api_…`).
 
-## Steps
+<Steps>
 
-1. **Initialise the integration once per repository.** For Jira, run
-   [`init-jira`](../reference/skills/integrations/jira/init-jira.md):
+1. **Initialise the integration once per repository.**
+
+   <Tabs syncKey="tracker">
+
+   <TabItem label="Jira">
+
+   Run [`init-jira`](../reference/skills/integrations/jira/init-jira.md):
 
    ```
    /accelerator:init-jira --site your-subdomain --email you@example.com
@@ -27,13 +34,27 @@ both directions.
    It verifies your credentials and writes two kinds of state under
    `.accelerator/state/integrations/jira/`: per-developer files
    (gitignored) and team-shared catalogues (`projects.json`,
-   `fields.json`, committed). For Linear, run
+   `fields.json`, committed).
+
+   </TabItem>
+
+   <TabItem label="Linear">
+
+   Run
    [`init-linear`](../reference/skills/integrations/linear/init-linear.md)
    and pick the single team the repo is scoped to.
+
+   </TabItem>
+
+   </Tabs>
 
 2. **Store credentials in the local config file.** Tokens belong in
    `.accelerator/config.local.md` (gitignored), never the shared
    config — ideally via a command rather than a literal value:
+
+   <Tabs syncKey="tracker">
+
+   <TabItem label="Jira">
 
    ```yaml
    ---
@@ -42,11 +63,30 @@ both directions.
    ---
    ```
 
+   </TabItem>
+
+   <TabItem label="Linear">
+
+   ```yaml
+   ---
+   linear:
+     token_cmd: "op read op://Private/linear/token"
+   ---
+   ```
+
+   </TabItem>
+
+   </Tabs>
+
    See the [configuration cookbook](configuration-cookbook.md#connect-a-work-item-tracker)
    for the full recipe including the team-shared side.
 
 3. **Declare the active tracker.** In the shared
    `.accelerator/config.md`:
+
+   <Tabs syncKey="tracker">
+
+   <TabItem label="Jira">
 
    ```yaml
    ---
@@ -57,7 +97,24 @@ both directions.
    ---
    ```
 
-   (`linear` for Linear.) Without `work.integration`, `sync-work-items`
+   </TabItem>
+
+   <TabItem label="Linear">
+
+   ```yaml
+   ---
+   work:
+     integration: linear
+     id_pattern: "{project}-{number:04d}"
+     default_project_code: "PROJ"
+   ---
+   ```
+
+   </TabItem>
+
+   </Tabs>
+
+   Without `work.integration`, `sync-work-items`
    stops with an error telling you what to set.
 
 4. **Preview before the first sync.** Run
@@ -91,6 +148,8 @@ both directions.
    pushed, pulled, newly created, conflicts skipped — so nothing
    changes silently. Large operations (more than 25 pulls or
    creations) ask for confirmation first.
+
+</Steps>
 
 ## Day-to-day usage
 
