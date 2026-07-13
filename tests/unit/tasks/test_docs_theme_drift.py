@@ -1,0 +1,133 @@
+"""Drift guards for docs-site theme values duplicated from the visualiser.
+
+The docs site is a separate npm build from the visualiser frontend, so it
+duplicates the brand palette (``--atomic-*``) and the self-hosted font
+files. These tests pin every duplicated value to its canonical source so
+the copies cannot diverge silently.
+"""
+
+import json
+import re
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_THEME_CSS = _REPO_ROOT / "docs-site/src/styles/theme.css"
+_DOCS_FONTS = _REPO_ROOT / "docs-site/public/fonts"
+_FRONTEND = _REPO_ROOT / "skills/visualisation/visualise/frontend"
+_FIXTURE = _FRONTEND / "src/styles/fixtures/prototype-tokens.json"
+_FRONTEND_FONTS = _FRONTEND / "public/fonts"
+
+_SHIKI_THEME = _REPO_ROOT / "docs-site/shiki-atomic.mjs"
+
+_DECLARATION = re.compile(r"(--[\w-]+)\s*:\s*([^;{}]+);")
+_SHIKI_COLOUR = re.compile(r"(\w+)\s*:\s*'(#[0-9a-fA-F]{6})'")
+
+_SHIKI_TOKEN_SOURCES = {
+    "bg": "--code-bg",
+    "fg": "--code-fg",
+    "comment": "--tk-com",
+    "string": "--tk-str",
+    "number": "--tk-num",
+    "keyword": "--tk-kw",
+    "literal": "--tk-lit",
+    "type": "--tk-typ",
+    "function": "--tk-fn",
+    "attribute": "--tk-attr",
+    "variable": "--tk-var",
+    "punctuation": "--tk-pun",
+    "tag": "--tk-tag",
+    "diffInserted": "--tk-dadd",
+    "diffDeleted": "--tk-ddel",
+}
+
+
+def _normalise(value: str) -> str:
+    return re.sub(r"\s+", "", value).lower()
+
+
+def _theme_declarations() -> dict[str, str]:
+    assert _THEME_CSS.is_file(), (
+        f"docs theme sheet missing: {_THEME_CSS} — the docs site brand "
+        "theme must exist and declare its --atomic-* tokens"
+    )
+    return dict(_DECLARATION.findall(_THEME_CSS.read_text()))
+
+
+def test_atomic_tokens_match_canonical_fixture():
+    fixture = json.loads(_FIXTURE.read_text())
+    declared = {
+        name: value
+        for name, value in _theme_declarations().items()
+        if name.startswith("--atomic-")
+    }
+    assert declared, (
+        f"no --atomic-* tokens declared in {_THEME_CSS} — the docs theme "
+        "must consume the brand palette via --atomic-* declarations"
+    )
+    for name, value in declared.items():
+        assert name in fixture, (
+            f"docs theme token {name} does not exist in the canonical "
+            f"brand palette fixture {_FIXTURE} — remove it from "
+            f"{_THEME_CSS} or use a canonical token name"
+        )
+        assert _normalise(value) == _normalise(fixture[name]), (
+            f"docs theme token {name} diverged from the canonical brand "
+            f"palette: {_THEME_CSS} has {value.strip()!r} but "
+            f"{_FIXTURE} has {fixture[name]!r} — update theme.css to "
+            "match the canonical value"
+        )
+
+
+def test_shiki_theme_colours_match_canonical_fixture():
+    assert _SHIKI_THEME.is_file(), (
+        f"docs Shiki theme missing: {_SHIKI_THEME} — the docs site code "
+        "blocks must use the atomic-code Shiki theme"
+    )
+    fixture = json.loads(_FIXTURE.read_text())
+    declared = dict(_SHIKI_COLOUR.findall(_SHIKI_THEME.read_text()))
+    assert declared, (
+        f"no colour entries parsed from {_SHIKI_THEME} — the theme must "
+        "export a named map of key: '#hex' pairs for drift guarding"
+    )
+    for key in declared:
+        assert key in _SHIKI_TOKEN_SOURCES, (
+            f"Shiki theme colour {key!r} in {_SHIKI_THEME} has no "
+            "canonical --code-*/--tk-* source registered in "
+            "_SHIKI_TOKEN_SOURCES — map it to its fixture token or "
+            "remove it"
+        )
+    for key, token in _SHIKI_TOKEN_SOURCES.items():
+        assert key in declared, (
+            f"Shiki theme colour {key!r} missing from {_SHIKI_THEME} — "
+            f"it must carry the canonical {token} value from {_FIXTURE}"
+        )
+        assert _normalise(declared[key]) == _normalise(fixture[token]), (
+            f"Shiki theme colour {key!r} diverged from the canonical "
+            f"palette: {_SHIKI_THEME} has {declared[key]!r} but {token} "
+            f"in {_FIXTURE} is {fixture[token]!r} — update the theme to "
+            "match the canonical value"
+        )
+
+
+def test_docs_fonts_are_byte_identical_to_frontend_sources():
+    assert _DOCS_FONTS.is_dir(), (
+        f"docs fonts directory missing: {_DOCS_FONTS} — copy the brand "
+        f"woff2 files from {_FRONTEND_FONTS}"
+    )
+    docs_fonts = sorted(_DOCS_FONTS.glob("*.woff2"))
+    assert docs_fonts, (
+        f"no .woff2 files in {_DOCS_FONTS} — copy the brand fonts from "
+        f"{_FRONTEND_FONTS}"
+    )
+    for font in docs_fonts:
+        source = _FRONTEND_FONTS / font.name
+        assert source.is_file(), (
+            f"docs font {font.name} has no counterpart in "
+            f"{_FRONTEND_FONTS} — docs fonts must be copies of the "
+            f"visualiser's; remove {font} or add the canonical source"
+        )
+        assert font.read_bytes() == source.read_bytes(), (
+            f"docs font {font.name} diverged from its canonical source: "
+            f"{font} is not byte-identical to {source} — re-copy the "
+            "file from the frontend fonts directory"
+        )

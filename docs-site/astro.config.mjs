@@ -4,12 +4,14 @@ import starlightLinksValidator from 'starlight-links-validator'
 import starlightImageZoom from 'starlight-image-zoom'
 import rehypeMermaid from 'rehype-mermaid'
 import rehypeAstroRelativeMarkdownLinks from 'astro-rehype-relative-markdown-links'
+import { atomicCodeTheme } from './shiki-atomic.mjs'
 
 export default defineConfig({
   site: 'https://atomicinnovation.github.io',
   base: '/accelerator',
   markdown: {
     syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
+    shikiConfig: { theme: atomicCodeTheme },
     rehypePlugins: [
       [rehypeMermaid, { strategy: 'img-svg', dark: true }],
       [
@@ -21,7 +23,12 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Accelerator',
-      customCss: ['./src/styles/custom.css'],
+      expressiveCode: {
+        themes: [atomicCodeTheme],
+        minSyntaxHighlightingColorContrast: 0,
+        styleOverrides: { borderColor: 'rgba(255, 255, 255, 0.07)' },
+      },
+      customCss: ['./src/styles/theme.css', './src/styles/custom.css'],
       lastUpdated: true,
       editLink: {
         baseUrl:
