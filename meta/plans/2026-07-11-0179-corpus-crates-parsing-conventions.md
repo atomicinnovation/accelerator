@@ -5,7 +5,7 @@ title: "corpus and corpus-adapters Crates for Parsing and Conventions Implementa
 date: "2026-07-11T12:40:21+00:00"
 author: Toby Clemson
 producer: create-plan
-status: complete
+status: done
 reviewer: Toby Clemson
 work_item_id: "work-item:0179"
 parent: "work-item:0179"
@@ -831,6 +831,15 @@ live behind a `bash-parity` cargo feature (enabled in CI). With the feature on, 
 absent `bash`/`awk`/`jj`/`git` **hard-fails** (no silent skip); with it off, only the
 pure-Rust unit tables run, so `cargo test` stays runnable on a bare machine.
 
+**Gating granularity (deviation, landed in validation)**: the feature is declared on
+both `corpus-adapters` and `vcs-adapters`, and CI enables it via `--all-features` in
+`tasks/test/cli.py`. `parity.rs`, `doc_type_single_source.rs`, and `detection.rs` are
+gated whole-file; in `metadata.rs` only the live-helper test is gated, so the
+deterministic fake-port assertions keep running bare. `vcs-adapters`' marker-walk
+no-facts case moved from `detection.rs` into a crate unit test for the same reason —
+it needs no VCS binary, so gating it away would have been a needless loss of
+bare-machine coverage. Counts: 295 tests with the feature off, 311 with it on.
+
 **Ported-assertion note**: porting the visualiser's test tables is *not* verbatim
 where the rewrite changes behaviour — the number-widening cases become
 String-preservation assertions; the `Tagged` cases become `Malformed` assertions
@@ -1148,6 +1157,17 @@ parsing), and the host offset comes from the subprocess the plan already mandate
 — `local-offset` would only have added `current_local_offset()`, which is exactly
 the multithread-unsafe call the subprocess exists to avoid. The pin stays at
 `features = ["parsing"]`.
+
+**The offset subprocess is `date +%z` (deviation, clarified in validation)**: §1
+justified the `time` dependency as keeping the binary self-contained with "no
+shell-out to `date`". That holds for the *rendering* — `time` formats every
+timestamp, and no shell-out is involved — but **not** for acquiring the host
+offset, which `SystemClock::try_new` reads from a short-lived `date +%z`
+subprocess. That satisfies §2's "short-lived single-threaded subprocess" literally
+(and sidesteps `time`'s multithread refusal), but `date` is a runtime prerequisite
+alongside tzdata/`TZ`. POSIX `date` is present across the supported macOS + Linux
+matrix, so this is a documented coupling, not a portability gap. Recorded rather
+than reworked: a self-re-exec would trade a POSIX utility for a hidden subcommand.
 
 **Filename-line label and ordering**: the three helpers disagree on both, so the
 crate had to pick. `gap-metadata.sh` labels its line `Date For Filename` (it is
