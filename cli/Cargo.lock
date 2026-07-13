@@ -301,6 +301,9 @@ dependencies = [
  "corpus",
  "document",
  "regex",
+ "time",
+ "vcs",
+ "vcs-adapters",
 ]
 
 [[package]]

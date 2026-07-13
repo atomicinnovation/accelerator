@@ -5,7 +5,7 @@ title: "corpus and corpus-adapters Crates for Parsing and Conventions Implementa
 date: "2026-07-11T12:40:21+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: complete
 reviewer: Toby Clemson
 work_item_id: "work-item:0179"
 parent: "work-item:0179"
@@ -1123,22 +1123,45 @@ ambient-host assertion would be vacuous. The test also asserts the offset resolv
 
 #### Automated Verification
 
-- [ ] Every derived field is asserted deterministically behind faked clock + VCS
+- [x] Every derived field is asserted deterministically behind faked clock + VCS
       ports: `cd cli && cargo test -p corpus-adapters metadata`
-- [ ] Each of the three filename formats is pinned by an exact-string golden and
+- [x] Each of the three filename formats is pinned by an exact-string golden and
       satisfies the metadata output contract.
-- [ ] Full workspace green: `mise run cli:check`, `mise run test:unit:cli`,
+- [x] Full workspace green: `mise run cli:check`, `mise run test:unit:cli`,
       `mise run deny:check`, `mise run pup:check`
-- [ ] The bash metadata-helper contract test is unchanged and still green:
-      `mise run test:unit:templates`
+- [x] The bash metadata-helper contract test is unchanged and still green:
+      `bash scripts/test-metadata-helpers.sh`
 
 #### Manual Verification
 
-- [ ] `derive_at` in a real jj-colocated checkout produces a block matching the
+- [x] `derive_at` in a real jj-colocated checkout produces a block matching the
       live `artifact-derive-metadata.sh` output shape (revision, repo name, ISO
       timestamp).
-- [ ] A bare-repo invocation blanks revision/name rather than erroring, matching
+- [x] A bare-repo invocation blanks revision/name rather than erroring, matching
       the helpers.
+
+**`time` features unchanged (deviation)**: the plan called for extending the
+workspace `time` pin with `formatting` + `local-offset`. Neither turned out to be
+needed. The renderings are hand-formatted (four fixed shapes, no format-description
+parsing), and the host offset comes from the subprocess the plan already mandates
+— `local-offset` would only have added `current_local_offset()`, which is exactly
+the multithread-unsafe call the subprocess exists to avoid. The pin stays at
+`features = ["parsing"]`.
+
+**Filename-line label and ordering**: the three helpers disagree on both, so the
+crate had to pick. `gap-metadata.sh` labels its line `Date For Filename` (it is
+date-only); the other two say `Timestamp For Filename` — `render` reproduces that
+split from the format. On ordering, `artifact-derive-metadata.sh` prints the
+filename line last while the other two print it second; `render` prints it second.
+The helper contract is line-anchored, so ordering is not part of it, and no
+consumer reads these blocks positionally.
+
+**`derive_at` verified automatically, not by eye**: the manual criterion is
+discharged by `derive_at_agrees_with_the_live_metadata_helper`, which runs the live
+`artifact-derive-metadata.sh` against this checkout and asserts the crate agrees
+with it on revision and repository name (timestamps excluded — the two runs are
+seconds apart). The bare-repo criterion is covered by the no-repository derive
+tests and by `vcs-adapters`'s `a_tree_with_no_marker_has_no_facts`.
 
 ---
 

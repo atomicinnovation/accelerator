@@ -12,4 +12,7 @@ workspace = true
 [dependencies]
 corpus = { path = "../corpus" }
 document = { path = "../document" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
 regex = { workspace = true }
+time = { workspace = true }
