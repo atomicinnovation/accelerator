@@ -4,6 +4,7 @@
 //! The bash script is the oracle. An absent script or bash hard-fails rather
 //! than skipping: Rust's harness has no skip primitive, so a silent early
 //! return would register as a green PASS.
+#![cfg(feature = "bash-parity")]
 
 mod common;
 
@@ -12,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use common::{doc_type_table, require_script, TestError};
+use common::{doc_type_table, require_file, require_script, TestError};
 use corpus::DocTypeKey;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -197,6 +198,137 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
         )
         .as_deref(),
         Some("legacy")
+    );
+    Ok(())
+}
+
+/// Drives the live bash matcher over an *injected* table, so the corpus can
+/// carry shapes the repo's own config does not have — a configured directory
+/// nested under another, and two types tied on the same directory. Without
+/// those, longest-dir-wins and first-entry-tie pass vacuously on both sides.
+fn bash_infer(
+    table: &[(DocTypeKey, &str)],
+    paths: &[&str],
+) -> Result<Vec<String>, TestError> {
+    let inference = require_file("scripts/doc-type-inference.sh")?;
+
+    let names = table
+        .iter()
+        .map(|(kind, _)| {
+            format!("'{}'", kind.linkage_type_name().unwrap_or_default())
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let dirs = table
+        .iter()
+        .map(|(_, dir)| format!("'{dir}'"))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    // doc-type-inference.sh is a sourced library, not an entry point: it reads
+    // the injected table from globals the caller must populate.
+    let driver = format!(
+        "#!/usr/bin/env bash\n\
+         set -euo pipefail\n\
+         . '{}'\n\
+         DOC_TYPE_INJECTED_NAMES=({names})\n\
+         DOC_TYPE_INJECTED_DIRS=({dirs})\n\
+         DOC_TYPE_TABLE_INJECTED=1\n\
+         for path in \"$@\"; do infer_type_from_path \"$path\"; done\n",
+        inference.display()
+    );
+
+    let root = tempdir()?;
+    let script = root.join("drive-inference.sh");
+    fs::write(&script, driver)?;
+
+    let output = Command::new("bash")
+        .arg(&script)
+        .args(paths)
+        .output()
+        .map_err(|error| {
+            format!("could not run the inference driver (is bash present?): {error}")
+        })?;
+    if !output.status.success() {
+        return Err(format!(
+            "doc-type-inference.sh driver failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    fs::remove_dir_all(&root)?;
+
+    Ok(String::from_utf8(output.stdout)?
+        .lines()
+        .map(str::to_owned)
+        .collect())
+}
+
+#[test]
+fn doc_type_inference_matches_the_bash_matcher() -> Result<(), TestError> {
+    // `meta/design` is a prefix of `meta/design/inventories`, and the two review
+    // types are tied on the same directory — neither shape exists in the repo's
+    // own config, so only an injected table can exercise them.
+    let table: [(DocTypeKey, &str); 5] = [
+        (DocTypeKey::Plans, "meta/plans"),
+        (DocTypeKey::DesignGaps, "meta/design"),
+        (DocTypeKey::DesignInventories, "meta/design/inventories"),
+        (DocTypeKey::PlanReviews, "meta/reviews"),
+        (DocTypeKey::PrReviews, "meta/reviews"),
+    ];
+
+    let paths = [
+        // Plain match.
+        "meta/plans/2026-01-01-0001-a.md",
+        // The shallower configured dir, where the deeper one does not apply.
+        "meta/design/2026-01-01-gap.md",
+        // Nested under BOTH configured dirs: the longest must win.
+        "meta/design/inventories/2026-01-01-buttons/inventory.md",
+        // Same, reached as an interior segment of an absolute path.
+        "/tmp/checkout/meta/design/inventories/2026-02-02-forms/inventory.md",
+        // Exact-length tie: the first table entry wins, deterministically.
+        "meta/reviews/2026-01-01-x-review-1.md",
+        // A prefix of a configured dir, but not on a segment boundary.
+        "meta/plans-archive/2026-01-01-0001-a.md",
+        // Configured nowhere.
+        "meta/unconfigured/x.md",
+    ];
+
+    let expected = bash_infer(&table, &paths)?;
+
+    let rust_table: Vec<(DocTypeKey, PathBuf)> = table
+        .iter()
+        .map(|(kind, dir)| (*kind, PathBuf::from(dir)))
+        .collect();
+    let actual: Vec<String> = paths
+        .iter()
+        .map(|path| {
+            corpus::doc_type::infer(Path::new(path), &rust_table)
+                .and_then(DocTypeKey::linkage_type_name)
+                .unwrap_or_default()
+                .to_owned()
+        })
+        .collect();
+
+    assert_eq!(
+        actual, expected,
+        "doc-type inference drift\n  rust: {actual:#?}\n  bash: {expected:#?}"
+    );
+
+    // Guard the oracle itself: if bash resolved nothing anywhere, the diff above
+    // would agree vacuously.
+    assert_eq!(
+        expected,
+        [
+            "plan",
+            "design-gap",
+            "design-inventory",
+            "design-inventory",
+            "plan-review",
+            "",
+            "",
+        ],
+        "the bash matcher did not resolve the shapes this suite exists to pin"
     );
     Ok(())
 }

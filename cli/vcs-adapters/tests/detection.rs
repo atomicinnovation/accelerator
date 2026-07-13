@@ -1,10 +1,12 @@
 //! Detection against real repository shapes: colocated, jj-secondary workspace,
-//! a `.git`-file worktree, a git repo with no commits, and a tree with no
-//! repository at all.
+//! a `.git`-file worktree, a git repo with no commits, a bare repo, and a tree
+//! with no repository at all.
 //!
 //! These need real `jj` and `git` binaries and hard-fail when one is absent —
 //! Rust's harness has no skip primitive, so an early return would register as a
-//! green PASS.
+//! green PASS. The marker-walk cases that need no binary are unit tests in the
+//! crate, so they still run with the feature off.
+#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -235,12 +237,29 @@ fn a_worktree_whose_git_marker_is_a_file_is_recognised() -> Result<(), TestError
 }
 
 #[test]
-fn a_tree_with_no_marker_has_no_facts() -> Result<(), TestError> {
-    let loose = tempdir("loose")?;
+fn a_bare_repository_has_no_facts() -> Result<(), TestError> {
+    require("git")?;
+
+    // A bare repo keeps HEAD/objects/refs at its top level and has no `.git`
+    // marker at all, so the marker walk finds nothing. This is the shape the
+    // bash helpers fall through on, and the reason `facts` is an Option rather
+    // than a fabricated empty root.
+    let bare = tempdir("bare")?;
+    run(
+        "git",
+        &["init", "--bare", "--initial-branch=main", "."],
+        &bare,
+    )?;
+    assert!(bare.join("HEAD").is_file(), "expected a bare layout");
+    assert!(
+        !bare.join(".git").exists(),
+        "a bare repo has no .git marker"
+    );
+
     assert_eq!(
-        facts(&loose),
+        facts(&bare),
         None,
-        "a tree with no .jj or .git must be representable as absent"
+        "a bare repository must resolve to no facts, not an empty root"
     );
     Ok(())
 }

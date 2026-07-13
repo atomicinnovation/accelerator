@@ -207,7 +207,26 @@ mod tests {
     use std::process::Command;
     use std::time::Duration;
 
-    use super::{capped_stdout, scrub_environment};
+    use super::{capped_stdout, facts, scrub_environment};
+
+    #[test]
+    fn a_tree_with_no_marker_has_no_facts(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // The marker walk needs no VCS binary, so this stays outside the
+        // `bash-parity` detection fixtures and runs on a bare machine.
+        let loose = std::env::temp_dir()
+            .join(format!("vcs-loose-{}", std::process::id()));
+        std::fs::create_dir_all(&loose)?;
+
+        assert_eq!(
+            facts(&loose),
+            None,
+            "a tree with no .jj or .git must be representable as absent"
+        );
+
+        std::fs::remove_dir_all(&loose)?;
+        Ok(())
+    }
 
     #[test]
     fn a_probe_that_outlives_its_cap_reports_no_revision() {

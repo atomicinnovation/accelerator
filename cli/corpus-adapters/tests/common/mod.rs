@@ -18,18 +18,44 @@ pub fn repo_root() -> Result<PathBuf, TestError> {
         .canonicalize()?)
 }
 
-/// Asserts `path` exists and is executable, hard-failing with a naming
-/// diagnostic rather than letting an absent tool surface as a mismatch.
-pub fn require_script(relative: &str) -> Result<PathBuf, TestError> {
-    let script = repo_root()?.join(relative);
-    if !script.is_file() {
+/// Asserts a file the harness *reads* is present — a sourced bash library, an
+/// awk program, a TSV table. Per the repo's exec-bit invariant these are not
+/// executable, so no mode is asserted.
+pub fn require_file(relative: &str) -> Result<PathBuf, TestError> {
+    let path = repo_root()?.join(relative);
+    if !path.is_file() {
         return Err(format!(
             "{relative} not found at {} — the differential harness has drifted \
-             from the scripts it shells to",
-            script.display()
+             from the files it reads",
+            path.display()
         )
         .into());
     }
+    Ok(path)
+}
+
+/// Asserts an *entry-point* script is present **and executable**, hard-failing
+/// with a naming diagnostic rather than letting an absent or unrunnable tool
+/// surface as a mismatch. The exec bit is part of the contract here: the harness
+/// spawns these directly, so a cleared bit would otherwise appear as an opaque
+/// spawn failure rather than the invariant it breaks.
+pub fn require_script(relative: &str) -> Result<PathBuf, TestError> {
+    let script = require_file(relative)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = script.metadata()?.permissions().mode();
+        if mode & 0o111 == 0 {
+            return Err(format!(
+                "{relative} is not executable (mode {mode:o}) — the harness \
+                 spawns it directly; files that are only read go through \
+                 require_file"
+            )
+            .into());
+        }
+    }
+
     Ok(script)
 }
 

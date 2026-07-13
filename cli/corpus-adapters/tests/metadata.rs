@@ -5,11 +5,16 @@
 mod common;
 
 use std::path::PathBuf;
+#[cfg(feature = "bash-parity")]
 use std::process::Command;
 
-use common::{repo_root, require_script, TestError};
+use common::TestError;
+#[cfg(feature = "bash-parity")]
+use common::{repo_root, require_script};
 use corpus::{ArtifactMetadata, Clock, FilenameTimestampFormat};
-use corpus_adapters::metadata::{derive, derive_at, render, SystemClock};
+#[cfg(feature = "bash-parity")]
+use corpus_adapters::metadata::derive_at;
+use corpus_adapters::metadata::{derive, render, SystemClock};
 use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
 use vcs::{RepoFacts, VcsKind};
 
@@ -241,6 +246,7 @@ fn now_is_not_the_unix_epoch() -> Result<(), TestError> {
     Ok(())
 }
 
+#[cfg(feature = "bash-parity")]
 fn labelled(block: &str, label: &str) -> Option<String> {
     block
         .lines()
@@ -251,6 +257,10 @@ fn labelled(block: &str, label: &str) -> Option<String> {
 /// The live helper is the oracle: run against this very repository, the crate
 /// must agree with it on the facts (revision, repository name) and on the shape
 /// of the lines. The timestamps are excluded — the two runs are seconds apart.
+///
+/// Shells to bash and the repo's own VCS, so it is gated with the other
+/// differential suites; the deterministic fake-port tests above are not.
+#[cfg(feature = "bash-parity")]
 #[test]
 fn derive_at_agrees_with_the_live_metadata_helper() -> Result<(), TestError> {
     let helper = require_script("scripts/artifact-derive-metadata.sh")?;

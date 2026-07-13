@@ -9,6 +9,12 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The detection fixtures build real jj and git repositories. Same contract as
+# corpus-adapters: on, an absent binary hard-fails; off, only the pure tables
+# run. CI enables it (tasks/test/cli.py).
+bash-parity = []
+
 [dependencies]
 vcs = { path = "../vcs" }
 tracing = { workspace = true }

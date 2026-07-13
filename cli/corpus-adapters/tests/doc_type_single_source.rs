@@ -6,6 +6,7 @@
 //! bash and awk are asserted present and hard-fail with a naming diagnostic;
 //! Rust's harness has no skip primitive, so a silent early return would register
 //! as a green PASS.
+#![cfg(feature = "bash-parity")]
 
 mod common;
 
@@ -15,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use common::{doc_type_table, require_script, TestError};
+use common::{doc_type_table, require_file, TestError};
 use corpus::DocTypeKey;
 
 const RECORD_SEPARATOR: char = '\u{1e}';
@@ -56,8 +57,8 @@ fn awk_typed_refs(
     paths: &[String],
 ) -> Result<Vec<String>, TestError> {
     let frag =
-        require_script("skills/config/migrate/scripts/frontmatter-frag.awk")?;
-    let body = require_script(
+        require_file("skills/config/migrate/scripts/frontmatter-frag.awk")?;
+    let body = require_file(
         "skills/config/migrate/scripts/0007-frontmatter-rewrite.awk",
     )?;
 
@@ -191,7 +192,7 @@ fn the_rewrite_awk_agrees_on_the_directory_to_type_mapping(
 #[test]
 fn every_config_path_key_exists_in_the_config_schema() -> Result<(), TestError>
 {
-    let defaults = require_script("scripts/config-defaults.sh")?;
+    let defaults = require_file("scripts/config-defaults.sh")?;
     let output = Command::new("bash")
         .arg("-c")
         .arg(format!(
@@ -238,7 +239,7 @@ fn every_config_path_key_exists_in_the_config_schema() -> Result<(), TestError>
 /// it in. Nothing but this test stops them drifting apart.
 #[test]
 fn the_type_pair_table_matches_the_tsv() -> Result<(), TestError> {
-    let tsv = require_script("scripts/linkage-type-pairs.tsv")?;
+    let tsv = require_file("scripts/linkage-type-pairs.tsv")?;
     let raw = fs::read_to_string(&tsv)?;
 
     let mut rows: Vec<(String, String, String)> = Vec::new();
