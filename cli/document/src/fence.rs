@@ -164,6 +164,16 @@ mod tests {
     }
 
     #[test]
+    fn a_body_without_a_trailing_newline_is_preserved(
+    ) -> Result<(), super::DocumentError> {
+        // Pins the value directly. The render round-trip compares one `split`
+        // against another, which would still agree if the body were dropped.
+        let result = split("---\nkey: value\n---\nno newline")?;
+        assert_eq!(result.body, "no newline");
+        Ok(())
+    }
+
+    #[test]
     fn accepts_a_closing_fence_with_no_trailing_newline(
     ) -> Result<(), super::DocumentError> {
         let result = split("---\nkey: value\n---")?;

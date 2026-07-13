@@ -1,7 +1,7 @@
 """Regression: the serde-saphyr infra-out-of-domain ban must FAIL the build.
 
 Exercises the REAL `cli/deny.toml` (via `--config`) against committed offline
-fixtures, so a future edit loosening the `wrappers = ["config-adapters"]` ban is
+fixtures, so a future edit loosening the `wrappers = ["document"]` ban is
 caught automatically. Each fixture depends on a LOCAL path crate named
 serde-saphyr (the ban matches on crate name), with a committed `Cargo.lock`, so
 `cargo deny` runs `--frozen` (locked + offline) against a fixed graph. The

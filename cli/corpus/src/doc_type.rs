@@ -260,6 +260,17 @@ mod tests {
     }
 
     #[test]
+    fn pr_descriptions_carries_three_genuinely_different_names() {
+        // The one type whose config key, wire form, and linkage type name all
+        // differ. Collapsing any two into one "name" would silently break the
+        // other surface, so each is pinned.
+        let prs = DocTypeKey::PrDescriptions;
+        assert_eq!(prs.config_path_key(), Some("prs"));
+        assert_eq!(prs.wire_str(), "pr-descriptions");
+        assert_eq!(prs.linkage_type_name(), Some("pr-description"));
+    }
+
+    #[test]
     fn root_cause_analyses_is_an_out_of_lifecycle_peer() {
         let rca = DocTypeKey::RootCauseAnalyses;
         assert_eq!(rca.config_path_key(), Some("research_issues"));

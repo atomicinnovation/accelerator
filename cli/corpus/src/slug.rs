@@ -166,7 +166,9 @@ pub fn humanise_slug(stem: &str) -> String {
         .join(" ")
 }
 
-fn strip_humanise_prefix(stem: &str) -> &str {
+/// Strips one leading date or work-item-ID prefix from a stem.
+#[must_use]
+pub fn strip_humanise_prefix(stem: &str) -> &str {
     if let Some(rest) = strip_prefix_date_str(stem) {
         if !rest.is_empty() {
             return rest;
@@ -181,7 +183,14 @@ fn strip_humanise_prefix(stem: &str) -> &str {
     stem
 }
 
-fn title_case_segment(segment: &str) -> String {
+/// The canonical title-caser.
+///
+/// The server's `config::label_from_key` and `api::library::humanise_status` are
+/// byte-identical copies that retire onto this one when 0168 folds the server
+/// into the workspace, so it is public rather than crate-private: they cannot
+/// import what they cannot see.
+#[must_use]
+pub fn title_case_segment(segment: &str) -> String {
     let mut chars = segment.chars();
     chars.next().map_or_else(String::new, |first| {
         first.to_uppercase().collect::<String>() + chars.as_str()
@@ -339,6 +348,36 @@ mod tests {
             derive(
                 DocTypeKey::PlanReviews,
                 "2026-04-18-no-suffix.md",
+                &scheme,
+                &NumericScanner
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn the_review_suffix_rule_holds_at_its_edges() {
+        let scheme = numeric();
+
+        // Only the *trailing* -review-N is a suffix; an internal one is part of
+        // the slug and survives.
+        assert_eq!(
+            derive(
+                DocTypeKey::PlanReviews,
+                "2026-03-28-review-pr-review-2-review-1.md",
+                &scheme,
+                &NumericScanner
+            )
+            .as_deref(),
+            Some("review-pr-review-2")
+        );
+
+        // A non-numeric tail is not a review suffix at all, so there is no
+        // review to name and the slug is absent rather than silently truncated.
+        assert_eq!(
+            derive(
+                DocTypeKey::PlanReviews,
+                "2026-03-28-plan-review-final.md",
                 &scheme,
                 &NumericScanner
             ),
