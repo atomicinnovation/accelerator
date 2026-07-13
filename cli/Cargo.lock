@@ -289,14 +289,14 @@ dependencies = [
 
 [[package]]
 name = "corpus"
-version = "1.24.0-pre.12"
+version = "1.24.0-pre.13"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "corpus-adapters"
-version = "1.24.0-pre.12"
+version = "1.24.0-pre.13"
 dependencies = [
  "corpus",
  "document",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "document"
-version = "1.24.0-pre.12"
+version = "1.24.0-pre.13"
 dependencies = [
  "serde",
  "serde-saphyr",

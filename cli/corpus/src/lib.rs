@@ -7,6 +7,7 @@
 //! doc-type table, a parsed frontmatter value) by injection.
 
 pub mod doc_type;
+pub mod linkage;
 pub mod metadata;
 pub mod slug;
 pub mod typed_ref;
@@ -14,6 +15,8 @@ pub mod value;
 pub mod work_item_id;
 
 pub use crate::doc_type::DocTypeKey;
+pub use crate::linkage::Band;
+pub use crate::linkage::LinkageRecord;
 pub use crate::metadata::ArtifactMetadata;
 pub use crate::metadata::Clock;
 pub use crate::metadata::FilenameTimestampFormat;
