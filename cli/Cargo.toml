@@ -1,7 +1,7 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters"]
 
 [workspace.package]
 version = "1.24.0-pre.13"

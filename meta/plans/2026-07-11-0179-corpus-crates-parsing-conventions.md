@@ -1007,20 +1007,36 @@ timeout branch (a probe that exceeds the wall-clock cap) and asserts it resolves
 
 #### Automated Verification
 
-- [ ] `vcs` compiles `kernel`-only; `vcs-adapters` depends only on `vcs` + std +
+- [x] `vcs` compiles `kernel`-only; `vcs-adapters` depends only on `vcs` + std +
       `tracing`: `mise run cli:check`
-- [ ] Import rules hold for the new `vcs` rule: `mise run pup:check`
-- [ ] Detection fixtures pass for jj-secondary, colocated, and bare shapes:
+- [x] Import rules hold for the new `vcs` rule: `mise run pup:check`
+- [x] Detection fixtures pass for jj-secondary, colocated, and bare shapes:
       `cd cli && cargo test -p vcs-adapters detection`
-- [ ] Deny clean: `mise run deny:check`
+- [x] Deny clean: `mise run deny:check`
 
 #### Manual Verification
 
-- [ ] Root resolution matches `config-adapters::discover_root` **on an input where
+- [x] Root resolution matches `config-adapters::discover_root` **on an input where
       a `.jj`/`.git` marker exists with no shallower `.accelerator`** (the two
       diverge on `.accelerator`-only and marker-less trees by design).
-- [ ] Revision is the full working-copy id in both a jj-colocated and a plain git
+- [x] Revision is the full working-copy id in both a jj-colocated and a plain git
       temp repo, and blanks (not errors) on a no-commit and a bare repo.
+
+**Warn-log assertion (deviation)**: the failure branches (spawn failure, non-zero
+exit, empty stdout, killed-at-cap) are each `warn`-logged as specified and each is
+unit-tested to resolve to `revision: None` — but the tests assert the `None`, not
+the presence of the log line. Capturing `tracing` output would need a custom
+subscriber and a `tracing-subscriber` dev-dependency in `vcs-adapters`; the log is
+an operator aid rather than behaviour a consumer branches on, so the assertion was
+left at the return value.
+
+**Root-equivalence check (method)**: verified by construction and by the two suites
+asserting the same shape from each side — `vcs-adapters`'s
+`the_walk_finds_the_root_from_a_nested_directory` and `config-adapters`'s
+`discover_roots_at_a_jj_only_checkout` both pin a nested start to the marker
+directory. The crates are not coupled to cross-check each other directly. The two
+walks differ only where the plan says they should: the `.accelerator` stop, the
+start-fallback, and whether the filesystem root itself is tested.
 
 ---
 
