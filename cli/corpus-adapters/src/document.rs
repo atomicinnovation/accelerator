@@ -155,4 +155,40 @@ mod tests {
         let document = parse(b"---\njust a string\n---\nbody\n");
         assert_eq!(document.state, FrontmatterState::Malformed);
     }
+
+    #[test]
+    fn a_tagged_node_is_malformed() {
+        // Fail closed on every shape a tag can take. Without the guard
+        // serde-saphyr resolves the tag away and the node parses as its base
+        // value, silently losing what the document actually said.
+        for raw in [
+            b"---\nkey: !custom value\n---\nbody\n".as_slice(),
+            b"---\nkey: !!str 123\n---\nbody\n",
+            b"---\nkey: !!int 7\n---\nbody\n",
+            b"---\nouter:\n  inner: !custom v\n---\nbody\n",
+            b"---\nkey:\n  - !custom v\n---\nbody\n",
+            b"---\n!custom {a: 1}\n---\nbody\n",
+        ] {
+            let document = parse(raw);
+            assert_eq!(
+                document.state,
+                FrontmatterState::Malformed,
+                "expected Malformed for {}",
+                String::from_utf8_lossy(raw)
+            );
+        }
+    }
+
+    #[test]
+    fn a_tag_inside_a_quoted_scalar_still_parses() {
+        let document = parse(b"---\nnote: \"see !!important\"\n---\nbody\n");
+        assert!(matches!(
+            document.state,
+            FrontmatterState::Parsed(ref mapping)
+                if mapping.get("note")
+                    == Some(&FrontmatterValue::Scalar(Scalar::String(
+                        "see !!important".to_owned()
+                    )))
+        ));
+    }
 }

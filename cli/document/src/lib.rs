@@ -8,6 +8,7 @@ pub mod error;
 pub mod fence;
 pub mod parse;
 pub mod render;
+mod tags;
 pub mod value;
 
 pub use crate::error::DocumentError;

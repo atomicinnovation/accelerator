@@ -10,6 +10,12 @@ pub enum DocumentError {
     Unterminated,
     /// The frontmatter is not valid YAML.
     InvalidYaml(String),
+    /// A frontmatter node carries an explicit YAML tag.
+    ///
+    /// Tags are rejected rather than resolved: serde-saphyr would hand back the
+    /// tag's base value, silently discarding the tag, so a document could not
+    /// round-trip through the value tree unchanged.
+    Tagged(String),
     /// A frontmatter tree could not be serialised back to YAML.
     Emit(String),
 }
@@ -22,6 +28,9 @@ impl Display for DocumentError {
             }
             Self::InvalidYaml(detail) => {
                 write!(formatter, "invalid frontmatter YAML: {detail}")
+            }
+            Self::Tagged(tag) => {
+                write!(formatter, "frontmatter carries a YAML tag: {tag}")
             }
             Self::Emit(detail) => {
                 write!(formatter, "could not render frontmatter: {detail}")
