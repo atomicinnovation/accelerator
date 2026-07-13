@@ -53,10 +53,18 @@ load_doc_type_table "$PROJECT_ROOT" || DOC_TYPE_TABLE_OK=0
 # value; 0x1E cannot occur in a type name or a path).
 DOC_TYPE_RS=$'\x1e'
 DOC_TYPE_TSV=""
+# The same snapshot, newline-joined, handed to the linkage parser subprocess so it
+# reuses this run's table instead of re-resolving. The parser is invoked once per
+# corpus file, so re-resolving there would spawn the resolver per file and break
+# the resolve-once invariant.
+DOC_TYPE_TABLE_TSV=""
+DOC_TYPE_NL=$'\n'
 for _dti in "${!DOC_TYPE_INJECTED_NAMES[@]}"; do
   _dt_rec="$(printf '%s\t%s' "${DOC_TYPE_INJECTED_NAMES[$_dti]}" "${DOC_TYPE_INJECTED_DIRS[$_dti]}")"
   DOC_TYPE_TSV="${DOC_TYPE_TSV:+$DOC_TYPE_TSV$DOC_TYPE_RS}$_dt_rec"
+  DOC_TYPE_TABLE_TSV="${DOC_TYPE_TABLE_TSV:+$DOC_TYPE_TABLE_TSV$DOC_TYPE_NL}$_dt_rec"
 done
+export DOC_TYPE_TABLE_TSV
 
 # Overridable (test-only seam, mirrors the validator's) so a fixture can prove
 # the forbidden-key drop and required-extras backfill are schema-driven.
@@ -674,7 +682,9 @@ migration_emit_transformations() {
     out_of_scope "$f" && continue
     has_strict_fence "$f" || continue
     rel="${f#"$PROJECT_ROOT"/}"
-    recs="$(bash "$PARSER" "$f" 2>/dev/null || true)"
+    # The parser resolves the doc-type table through config, and the migration's
+    # CWD is not necessarily the corpus root — point it at the tree being migrated.
+    recs="$(LP_PROJECT_ROOT="$PROJECT_ROOT" bash "$PARSER" "$f" 2>/dev/null || true)"
     [ -n "$recs" ] || continue
     # shellcheck disable=SC2034  # `src` is the leading TSV column, read past but unused here
     while IFS=$'\t' read -r src key target anchor band; do

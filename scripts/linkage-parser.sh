@@ -26,6 +26,28 @@ export LC_ALL=C
 LP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LP_TYPE_PAIRS="${LP_TYPE_PAIRS:-$LP_SCRIPT_DIR/linkage-type-pairs.tsv}"
 
+# The config-driven doc-type matcher, shared with the corpus validator and the
+# 0007 migration. Sourced (not reimplemented) so the directory→type fact has one
+# encoding; see lp_resolve_path_target.
+DOC_TYPE_INFERENCE="${DOC_TYPE_INFERENCE:-$LP_SCRIPT_DIR/doc-type-inference.sh}"
+# shellcheck source=doc-type-inference.sh
+source "$DOC_TYPE_INFERENCE"
+DOC_TYPE_TABLE="${DOC_TYPE_TABLE:-$LP_SCRIPT_DIR/doc-type-table.sh}"
+# shellcheck source=doc-type-table.sh
+source "$DOC_TYPE_TABLE"
+
+# Resolve the table once, before any inference. LP_PROJECT_ROOT lets a caller
+# whose CWD is not the corpus root — the 0007 migration invokes this as a
+# subprocess — point config resolution at the right tree.
+#
+# Fail closed: with no table, infer_type_from_path returns empty for everything,
+# which would silently degrade every typed reference to a raw path in the
+# ambiguous band rather than reporting a problem.
+if ! load_doc_type_table "${LP_PROJECT_ROOT:-}"; then
+  echo "linkage-parser.sh: could not resolve the doc-type table" >&2
+  if [ "${BASH_SOURCE[0]}" = "${0}" ]; then exit 1; else return 1; fi
+fi
+
 # The five qualifying body-section headers (exact H2 text).
 LP_SECTIONS='## References|## Dependencies|## Historical Context|## Related Research|## Source References'
 
@@ -69,34 +91,25 @@ lp_has_source_label() {
 }
 
 # ---- Target-type / id resolution -------------------------------------------
-# Location → doc-type (exhaustive; reviews by subdir).
-lp_type_from_path() {
-  case "$1" in
-    # Reviews are discriminated by subdirectory and MUST precede the generic
-    # */work/* and */plans/* arms: a review path contains both segments (e.g.
-    # */reviews/work/*) so the generic arms would otherwise shadow them.
-    */reviews/plans/*) echo plan-review ;;
-    */reviews/work/*) echo work-item-review ;;
-    */reviews/prs/*) echo pr-review ;;
-    */work/*) echo work-item ;;
-    */plans/*) echo plan ;;
-    */decisions/*) echo adr ;;
-    */research/codebase/*) echo codebase-research ;;
-    */research/issues/*) echo issue-research ;;
-    */research/design-gaps/*) echo design-gap ;;
-    */research/design-inventories/*) echo design-inventory ;;
-    */validations/*) echo plan-validation ;;
-    */notes/*) echo note ;;
-    *) echo "" ;;
-  esac
-}
+# Location → doc-type is NOT encoded here. It comes from the shared, config-driven
+# infer_type_from_path (doc-type-inference.sh), the same matcher the corpus
+# validator and the 0007 migration use.
+#
+# This file used to carry its own hardcoded `case` over directory globs, ordered
+# by hand so the review arms would not be shadowed by the generic ones. It was the
+# only one of the three surfaces that was not config-driven — so linkage silently
+# stopped resolving in a re-pathed corpus while validation and migration carried
+# on working — and it had no meta/prs arm at all, so a PR description was
+# unresolvable. The shared matcher is longest-configured-dir-wins, which makes the
+# review/generic ordering fall out rather than needing to be maintained.
 
-# For a resolved meta path, echo "type<TAB>id". work-item/adr use the bare
-# number / ADR-NNNN; every other type uses the full filename stem (matching how
-# those types set their own id:). Echoes nothing for an unmapped directory.
+# For a resolved meta path, echo "type<TAB>id". The id derivation MUST agree with
+# the 0007 rewrite awk's path_to_typed and with corpus::linkage — a reference
+# resolved to a different id than the target document derives for itself points at
+# nothing. Echoes nothing for a path outside every configured doc-type directory.
 lp_resolve_path_target() {
   local path="$1" type stem id
-  type="$(lp_type_from_path "$path")"
+  type="$(infer_type_from_path "$path")"
   [ -n "$type" ] || return 0
   stem="$(basename "$path")"
   stem="${stem%.md}"
@@ -107,6 +120,19 @@ lp_resolve_path_target() {
       # Nested manifest: the id is the parent directory name (matching the
       # migration's derive_stem), not the manifest basename `inventory`.
       id="$(basename "$(dirname "$path")")"
+      ;;
+    pr-description)
+      # Identified by its PR number (templates/pr-description.md: id:
+      # "{pr_number}"): a genuine pr-/PR- segment, else a leading number on a
+      # stem that is not date-prefixed.
+      id="$(printf '%s' "$stem" | grep -oE '(^|-)[Pp][Rr]-?[0-9]+' | grep -oE '[0-9]+' | head -1 || true)"
+      if [ -z "$id" ]; then
+        case "$stem" in
+          [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*) : ;;
+          *) id="$(printf '%s' "$stem" | grep -oE '^[0-9]+' | head -1 || true)" ;;
+        esac
+      fi
+      [ -n "$id" ] || id="$stem"
       ;;
     *) id="$stem" ;;
   esac
@@ -239,7 +265,7 @@ lp_extract_tokens() {
 # (else inferred from path). Diagnostics go to stderr.
 lp_parse_file() {
   local file="$1" source_type="${2:-}"
-  [ -n "$source_type" ] || source_type="$(lp_type_from_path "$file")"
+  [ -n "$source_type" ] || source_type="$(infer_type_from_path "$file")"
   [ -n "$source_type" ] || source_type="unknown"
 
   local section="" seq=0 line token ttype tid target_ref keyinfo key explicit bandinfo band rtype

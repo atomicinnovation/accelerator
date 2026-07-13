@@ -43,15 +43,27 @@ path globs, with a comment explaining that the review arms must precede the
 generic `*/work/*` and `*/plans/*` arms or they would be shadowed. That ordering
 hack is only necessary *because* it is first-match rather than longest-match.
 
-The practical consequence: **linkage is not config-aware.** A repository that
-re-paths its corpus (`meta/work` → something else) gets correct validation and
-correct migration, but linkage silently stops resolving — references degrade to
-raw paths in the `ambiguous` band. Nothing detects this.
+The practical consequence: **linkage was not config-aware.** A repository that
+re-paths its corpus (`meta/work` → something else) got correct validation and
+correct migration, but linkage silently stopped resolving — references degraded to
+raw paths in the `ambiguous` band, and nothing detected it.
 
-The crates resolve this by making linkage table-driven: `corpus::linkage` takes
-the same injected doc-type table the other surfaces take, and derives
-path-to-type through `corpus::doc_type::infer` (longest-match). One encoding, in
-`DocTypeKey`.
+**Fixed on both sides.** `corpus::linkage` takes the same injected doc-type table
+the other surfaces take and derives path→type through `corpus::doc_type::infer`
+(longest-match), single-sourced on `DocTypeKey`. And `linkage-parser.sh` now
+*sources* `doc-type-inference.sh` rather than carrying its own table:
+`lp_type_from_path` is gone. The hand-ordered review-before-generic arms went with
+it — longest-configured-dir-wins makes that ordering fall out instead of needing to
+be maintained.
+
+Two things fell out of the bash retirement, both worth knowing:
+
+- The parser is invoked **once per corpus file** by the 0007 migration, so
+  resolving config on startup spawned the resolver per file. The migration's
+  resolve-once guard caught it. `load_doc_type_table` now accepts a pre-resolved
+  table via `DOC_TYPE_TABLE_TSV`, which the migration hands down.
+- Type inference is config-aware now, but **token extraction still is not** — see
+  §5.
 
 ## 2. `lp_type_from_path` has no `meta/prs` arm
 
@@ -227,13 +239,39 @@ Roughly in order of how much they can actually bite:
    §2 and §2a. It is, via `work-item relates_to pr-description` and `plan
    relates_to pr-description`; the id derivation was fixed first so the newly
    resolvable references point at documents that exist.
-3. Retire `lp_type_from_path` in favour of the config-driven
-   `infer_type_from_path`, so bash linkage stops being blind to a re-pathed
-   corpus — and so it stops missing `meta/prs` entirely, which is now a
-   resolvable target everywhere *except* there. (The crates are already
-   config-driven; this is about keeping the bash surface honest for as long as it
-   survives.) **This is now the highest-value item left.**
-4. Consider collapsing the four doc-type vocabularies toward one.
+3. ~~Retire `lp_type_from_path` in favour of the config-driven
+   `infer_type_from_path`~~ — **done**, see §1. `linkage-parser.sh` now sources
+   the shared matcher; `meta/prs` resolves, and a re-pathed corpus is classified
+   correctly. Two things fell out of it, both recorded below.
+4. **Token extraction is still hardcoded to `meta/`** — the remaining half of
+   config-awareness. See §5.
+5. Consider collapsing the four doc-type vocabularies toward one.
+
+## 5. Path-token extraction is still `meta/`-bound
+
+Retiring `lp_type_from_path` made *type inference* config-driven, but the step
+before it — deciding which strings in a line are candidate references at all — is
+still a literal `meta/` prefix, in **both** implementations:
+
+- `scripts/linkage-parser.sh`: `grep -oE 'meta/[A-Za-z0-9/_.-]+\.md'`
+- `cli/corpus/src/linkage.rs`: `line[cursor..].find("meta/")`
+
+So a corpus configured to `paths.work: docs/tickets` now has its *source type*
+classified correctly, and a `pr-description` target resolves — but a reference
+*to* `docs/tickets/0002-y.md` is never extracted, because the scan never sees it.
+Verified: that document yields no linkage records at all.
+
+The two implementations agree, so the parity suite stays green and nothing is
+*inconsistent* — this is a shared limitation rather than a drift. Fixing it means
+deriving the scan prefixes from the injected table on both sides (and threading
+the table into the Rust extractor, which currently doesn't take it).
+
+**The resolve-once invariant is load-bearing.** The 0007 migration invokes the
+linkage parser once per corpus file, so having the parser resolve config on
+startup spawned the resolver per file. A migration guard caught it. The shared
+loader now takes a pre-resolved table via `DOC_TYPE_TABLE_TSV`, which the
+migration hands down. Any future caller that shells to the parser in a loop needs
+the same seam.
 
 ## A pattern worth naming
 
