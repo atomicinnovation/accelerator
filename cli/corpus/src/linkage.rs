@@ -7,6 +7,15 @@
 //! Keyword boundaries are matched against an explicit character set rather than
 //! a word-boundary class, so hyphenated and underscored compounds (`code-block`,
 //! `code_block`) never read as the bare keyword.
+//!
+//! The directory-to-type fact is not re-encoded here: a path resolves through
+//! the same injected doc-type table and the same matcher the rest of the domain
+//! uses, and its vocabulary name comes from `DocTypeKey`.
+
+use std::path::Path;
+use std::path::PathBuf;
+
+use crate::doc_type::DocTypeKey;
 
 /// How confidently a reference was classified.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,21 +69,6 @@ const TYPE_PAIRS: [(&str, &str, &str); 14] = [
     ("adr", "relates_to", "adr"),
     ("design-gap", "relates_to", "design-inventory"),
     ("work-item", "source", "note"),
-];
-
-const PATH_TYPES: [(&str, &str); 12] = [
-    ("/reviews/plans/", "plan-review"),
-    ("/reviews/work/", "work-item-review"),
-    ("/reviews/prs/", "pr-review"),
-    ("/work/", "work-item"),
-    ("/plans/", "plan"),
-    ("/decisions/", "adr"),
-    ("/research/codebase/", "codebase-research"),
-    ("/research/issues/", "issue-research"),
-    ("/research/design-gaps/", "design-gap"),
-    ("/research/design-inventories/", "design-inventory"),
-    ("/validations/", "plan-validation"),
-    ("/notes/", "note"),
 ];
 
 /// True when a token is a documentation placeholder rather than a real link.
@@ -193,35 +187,44 @@ fn has_dependency_label(line: &str) -> bool {
     })
 }
 
-/// Maps a meta path to its document type.
+/// Maps a meta path to its typed-linkage vocabulary name, resolving through the
+/// injected doc-type table.
 #[must_use]
-pub fn type_from_path(path: &str) -> Option<&'static str> {
-    PATH_TYPES
-        .iter()
-        .find(|(segment, _)| path.contains(segment))
-        .map(|(_, kind)| *kind)
+pub fn type_from_path(
+    path: &str,
+    table: &[(DocTypeKey, PathBuf)],
+) -> Option<&'static str> {
+    crate::doc_type::infer(Path::new(path), table)?.linkage_type_name()
 }
 
 /// Resolves a meta path to its `(type, id)` target, or `None` when the path is
-/// outside the mapped directories.
+/// outside every configured doc-type directory.
 #[must_use]
-pub fn resolve_path_target(path: &str) -> Option<(&'static str, String)> {
-    let kind = type_from_path(path)?;
+pub fn resolve_path_target(
+    path: &str,
+    table: &[(DocTypeKey, PathBuf)],
+) -> Option<(&'static str, String)> {
+    let kind = crate::doc_type::infer(Path::new(path), table)?;
+    let name = kind.linkage_type_name()?;
     let file = path.rsplit('/').next()?;
     let stem = file.strip_suffix(".md").unwrap_or(file);
 
     let id = match kind {
-        "work-item" => stem.chars().take_while(char::is_ascii_digit).collect(),
-        "adr" => stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
-            let digits: String =
-                rest.chars().take_while(char::is_ascii_digit).collect();
-            if digits.is_empty() {
-                String::new()
-            } else {
-                format!("ADR-{digits}")
-            }
-        }),
-        "design-inventory" => path
+        DocTypeKey::WorkItems => {
+            stem.chars().take_while(char::is_ascii_digit).collect()
+        }
+        DocTypeKey::Decisions => {
+            stem.strip_prefix("ADR-").map_or_else(String::new, |rest| {
+                let digits: String =
+                    rest.chars().take_while(char::is_ascii_digit).collect();
+                if digits.is_empty() {
+                    String::new()
+                } else {
+                    format!("ADR-{digits}")
+                }
+            })
+        }
+        DocTypeKey::DesignInventories => path
             .rsplit_once('/')
             .and_then(|(dir, _)| dir.rsplit('/').next())
             .unwrap_or_default()
@@ -232,7 +235,7 @@ pub fn resolve_path_target(path: &str) -> Option<(&'static str, String)> {
     if id.is_empty() {
         None
     } else {
-        Some((kind, id))
+        Some((name, id))
     }
 }
 
@@ -423,9 +426,12 @@ fn extract_tokens(section: &str, line: &str) -> Vec<String> {
 }
 
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
-fn classify_token(token: &str) -> (&'static str, String) {
+fn classify_token(
+    token: &str,
+    table: &[(DocTypeKey, PathBuf)],
+) -> (&'static str, String) {
     if token.starts_with("meta/") && token.ends_with(".md") {
-        return resolve_path_target(token)
+        return resolve_path_target(token, table)
             .map_or(("", String::new()), |(kind, id)| (kind, id));
     }
     if token.starts_with("ADR-") {
@@ -452,9 +458,14 @@ fn section_slug(section: &str) -> String {
         .collect()
 }
 
-/// Extracts every linkage record from a document body.
+/// Extracts every linkage record from a document body, resolving path targets
+/// through the injected doc-type table.
 #[must_use]
-pub fn parse_document(source_type: &str, content: &str) -> Vec<LinkageRecord> {
+pub fn parse_document(
+    source_type: &str,
+    content: &str,
+    table: &[(DocTypeKey, PathBuf)],
+) -> Vec<LinkageRecord> {
     let mut records: Vec<LinkageRecord> = Vec::new();
     let mut section: Option<&'static str> = None;
     let mut seq = 0usize;
@@ -473,7 +484,7 @@ pub fn parse_document(source_type: &str, content: &str) -> Vec<LinkageRecord> {
             if is_template_path(&token) {
                 continue;
             }
-            let (mut target_type, target_id) = classify_token(&token);
+            let (mut target_type, target_id) = classify_token(&token, table);
             let (key, explicit) = infer_key(section, line, target_type);
             let (band, filled) =
                 classify_band(source_type, &key, target_type, explicit);
@@ -513,10 +524,41 @@ pub fn parse_document(source_type: &str, content: &str) -> Vec<LinkageRecord> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::{
         has_blocks_keyword, has_sibling_keyword, infer_key, is_template_path,
-        parse_document, Band, LinkageRecord,
+        Band, LinkageRecord,
     };
+    use crate::doc_type::DocTypeKey;
+
+    fn table() -> Vec<(DocTypeKey, PathBuf)> {
+        [
+            (DocTypeKey::WorkItems, "meta/work"),
+            (DocTypeKey::Plans, "meta/plans"),
+            (DocTypeKey::Validations, "meta/validations"),
+            (DocTypeKey::PrDescriptions, "meta/prs"),
+            (DocTypeKey::Decisions, "meta/decisions"),
+            (DocTypeKey::Research, "meta/research/codebase"),
+            (DocTypeKey::RootCauseAnalyses, "meta/research/issues"),
+            (
+                DocTypeKey::DesignInventories,
+                "meta/research/design-inventories",
+            ),
+            (DocTypeKey::DesignGaps, "meta/research/design-gaps"),
+            (DocTypeKey::PlanReviews, "meta/reviews/plans"),
+            (DocTypeKey::WorkItemReviews, "meta/reviews/work"),
+            (DocTypeKey::PrReviews, "meta/reviews/prs"),
+            (DocTypeKey::Notes, "meta/notes"),
+        ]
+        .into_iter()
+        .map(|(kind, dir)| (kind, PathBuf::from(dir)))
+        .collect()
+    }
+
+    fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
+        super::parse_document(source, content, &table())
+    }
 
     fn find<'a>(
         records: &'a [LinkageRecord],

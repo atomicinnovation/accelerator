@@ -839,27 +839,39 @@ visualiser reported `Malformed` only because libyml *crashed*, now asserts a **c
 parse** (it is valid YAML — confirmed against serde-saphyr in Phase 1). Those are
 deliberate rewrites, called out so the oracle stays honest.
 
+**Design-inventory id divergence (found by AC-6, deviation)**: the single-source
+suite surfaced a *pre-existing* disagreement between the two bash surfaces.
+`linkage-parser.sh` derives a design-inventory id from the **parent directory**
+(its comment: "not the manifest basename `inventory`"), but the 0007 rewrite awk's
+`path_to_typed` has no nested-manifest arm and falls through to the whole-stem
+default, yielding `design-inventory:inventory`. The crate follows
+`linkage-parser.sh`, which is what the parity suite pins it to. AC-6 asks for the
+**dir→type** mapping, and the awk agrees with the crate on that for all 13
+directories; the id-derivation test therefore covers the three arms the awk does
+encode (work-item, ADR, whole-stem default) and names the design-inventory
+exclusion. Fixing the awk is a migration-side change, out of scope here.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] `corpus-adapters` reaches serde-saphyr only through `document`:
+- [x] `corpus-adapters` reaches serde-saphyr only through `document`:
       `mise run deny:check`
-- [ ] Import rules hold: `mise run pup:check`
-- [ ] Parse/infer/linkage/slug/patcher suites pass: `mise run test:unit:cli`
-- [ ] The single-source test passes (migration snapshot + awk derive from
+- [x] Import rules hold: `mise run pup:check`
+- [x] Parse/infer/linkage/slug/patcher suites pass: `mise run test:unit:cli`
+- [x] The single-source test passes (migration snapshot + awk derive from
       `DocTypeKey`): `cd cli && cargo test -p corpus-adapters doc_type_single_source`
-- [ ] The parity suite passes against the live bash scripts:
+- [x] The parity suite passes against the live bash scripts:
       `cd cli && cargo test -p corpus-adapters parity`
-- [ ] The bash parity suites are unchanged and still green:
+- [x] The bash parity suites are unchanged and still green:
       `bash skills/work/scripts/test-work-item-pattern.sh`,
       `bash scripts/test-linkage-parser.sh`
 
 #### Manual Verification
 
-- [ ] The re-pathed harness locates `work-item-pattern.sh` from the new crate
+- [x] The re-pathed harness locates `work-item-pattern.sh` from the new crate
       location (fails loudly, not silently, if the script moves).
-- [ ] A `status:` patch preserves quote style, inline comment, and CRLF against a
+- [x] A `status:` patch preserves quote style, inline comment, and CRLF against a
       hand-built fixture.
 
 ---
@@ -1140,8 +1152,9 @@ ambient-host assertion would be vacuous. The test also asserts the offset resolv
   schemes, embedded-id edges). These differential suites shell to bash/awk/jj/git and
   build temp repos, so they live in cargo `tests/` (integration-flavoured, run under
   `test:unit:cli` via nextest) and assert tool presence + hard-fail when absent.
-- Doc-type single-source: the migration snapshot + rewrite awk matcher are executed
-  and asserted to agree with `DocTypeKey`.
+- Doc-type single-source: the bash doc-type registry and the rewrite awk matcher are
+  executed and asserted to agree with `DocTypeKey` on dir→type, and on id derivation
+  for the arms the awk encodes (see the design-inventory divergence in Phase 3).
 - Adversarial frontmatter under the bounded-time guard (no panic/abort/hang),
   including an anchor/alias-expansion (billion-laughs) input that exercises the
   guard and the trailing-whitespace regression.

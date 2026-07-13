@@ -64,6 +64,37 @@ impl DocTypeKey {
         }
     }
 
+    /// The typed-linkage vocabulary name, as used in `<type>:<id>` references.
+    /// Distinct from [`Self::wire_str`] (the API wire token) and from
+    /// [`Self::config_path_key`] (the config key). `None` for a virtual type.
+    #[must_use]
+    pub const fn linkage_type_name(self) -> Option<&'static str> {
+        match self {
+            Self::WorkItems => Some("work-item"),
+            Self::Plans => Some("plan"),
+            Self::Validations => Some("plan-validation"),
+            Self::PrDescriptions => Some("pr-description"),
+            Self::Decisions => Some("adr"),
+            Self::Research => Some("codebase-research"),
+            Self::RootCauseAnalyses => Some("issue-research"),
+            Self::DesignInventories => Some("design-inventory"),
+            Self::DesignGaps => Some("design-gap"),
+            Self::PlanReviews => Some("plan-review"),
+            Self::WorkItemReviews => Some("work-item-review"),
+            Self::PrReviews => Some("pr-review"),
+            Self::Notes => Some("note"),
+            Self::Templates => None,
+        }
+    }
+
+    /// The type whose linkage vocabulary name is `name`.
+    #[must_use]
+    pub fn from_linkage_type_name(name: &str) -> Option<Self> {
+        Self::all()
+            .into_iter()
+            .find(|kind| kind.linkage_type_name() == Some(name))
+    }
+
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {

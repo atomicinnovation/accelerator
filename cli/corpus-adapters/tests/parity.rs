@@ -5,12 +5,15 @@
 //! than skipping: Rust's harness has no skip primitive, so a silent early
 //! return would register as a green PASS.
 
+mod common;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-type TestError = Box<dyn std::error::Error>;
+use common::{doc_type_table, require_script, TestError};
+use corpus::DocTypeKey;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -68,24 +71,6 @@ const FIXTURES: [(&str, &str); 8] = [
     ),
 ];
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
-fn oracle() -> Result<PathBuf, TestError> {
-    let script = repo_root()?.join("scripts/linkage-parser.sh");
-    if !script.is_file() {
-        return Err(format!(
-            "linkage-parser.sh not found at {} — the parity oracle moved",
-            script.display()
-        )
-        .into());
-    }
-    Ok(script)
-}
-
 fn tempdir() -> Result<PathBuf, TestError> {
     let dir = std::env::temp_dir().join(format!(
         "corpus-parity-{}-{}",
@@ -114,11 +99,15 @@ fn bash_records(script: &Path, file: &Path) -> Result<Vec<String>, TestError> {
         .collect())
 }
 
-fn rust_records(file: &Path, content: &str) -> Vec<String> {
+fn rust_records(
+    file: &Path,
+    content: &str,
+    table: &[(DocTypeKey, PathBuf)],
+) -> Vec<String> {
     let path = file.to_string_lossy();
     let source_type =
-        corpus::linkage::type_from_path(&path).unwrap_or("unknown");
-    corpus::linkage::parse_document(source_type, content)
+        corpus::linkage::type_from_path(&path, table).unwrap_or("unknown");
+    corpus::linkage::parse_document(source_type, content, table)
         .into_iter()
         .map(|record| {
             format!(
@@ -136,14 +125,7 @@ fn rust_records(file: &Path, content: &str) -> Vec<String> {
 /// Compiles a work-item id pattern into its scan regex using the real bash DSL
 /// compiler — the regex `corpus` takes by injection.
 fn compile_scan(pattern: &str, project: &str) -> Result<String, TestError> {
-    let script = repo_root()?.join("skills/work/scripts/work-item-pattern.sh");
-    if !script.is_file() {
-        return Err(format!(
-            "work-item-pattern.sh not found at {} — the harness path moved",
-            script.display()
-        )
-        .into());
-    }
+    let script = require_script("skills/work/scripts/work-item-pattern.sh")?;
     let output = Command::new(&script)
         .arg("--compile-scan")
         .arg(pattern)
@@ -221,7 +203,8 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
 
 #[test]
 fn linkage_extraction_matches_the_bash_parser() -> Result<(), TestError> {
-    let script = oracle()?;
+    let script = require_script("scripts/linkage-parser.sh")?;
+    let table = doc_type_table()?;
     let root = tempdir()?;
 
     let mut compared = 0usize;
@@ -233,7 +216,7 @@ fn linkage_extraction_matches_the_bash_parser() -> Result<(), TestError> {
         fs::write(&file, content)?;
 
         let expected = bash_records(&script, &file)?;
-        let actual = rust_records(&file, content);
+        let actual = rust_records(&file, content, &table);
         assert_eq!(
             actual,
             expected,

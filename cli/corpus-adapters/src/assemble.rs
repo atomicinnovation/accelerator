@@ -35,16 +35,19 @@ pub fn assemble<S: BuildHasher>(
     scheme: &WorkItemIdScheme,
     scanner: &dyn IdScanner,
 ) -> Option<AssembledDocument> {
-    let kind = crate::doc_type::infer(path, doc_paths)?;
+    let table = crate::doc_type::table_from_paths(doc_paths);
+    let kind = corpus::doc_type::infer(path, &table)?;
     let filename = path.file_name()?.to_str()?;
 
     let parsed = crate::document::parse(raw);
     let slug = corpus::slug::derive(kind, filename, scheme, scanner);
     let work_item_id = scheme.extract_id(filename, scanner);
 
-    let source_type = corpus::linkage::type_from_path(&path.to_string_lossy())
-        .unwrap_or("unknown");
-    let linkage = corpus::linkage::parse_document(source_type, &parsed.body);
+    let source_type =
+        corpus::linkage::type_from_path(&path.to_string_lossy(), &table)
+            .unwrap_or("unknown");
+    let linkage =
+        corpus::linkage::parse_document(source_type, &parsed.body, &table);
 
     Some(AssembledDocument {
         kind,
