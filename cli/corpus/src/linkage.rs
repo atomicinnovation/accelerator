@@ -391,33 +391,69 @@ pub fn classify_band(
     (Band::Ambiguous, "")
 }
 
-fn extract_meta_paths(line: &str) -> Vec<String> {
+/// The distinct leading segments of the configured doc-type directories — the
+/// roots a path token must sit under to be a candidate reference.
+///
+/// Scanning by root rather than by full directory keeps an out-of-scope subtree
+/// (`meta/docs/…`) a *candidate*, exactly as a literal `meta/` scan did: it is
+/// extracted, fails to infer a type, and is carried through as a raw path.
+#[must_use]
+pub fn path_roots(table: &[(DocTypeKey, PathBuf)]) -> Vec<String> {
+    let mut roots: Vec<String> = Vec::new();
+    for (_, dir) in table {
+        let Some(root) = dir
+            .to_str()
+            .and_then(|dir| dir.split('/').next())
+            .filter(|root| !root.is_empty())
+        else {
+            continue;
+        };
+        if !roots.iter().any(|seen| seen == root) {
+            roots.push(root.to_owned());
+        }
+    }
+    roots
+}
+
+/// Extracts every path token under a configured root. The root set comes from
+/// the injected table, so a re-pathed corpus is scanned where it actually lives
+/// rather than under a hardcoded `meta/`.
+fn extract_doc_paths(line: &str, roots: &[String]) -> Vec<String> {
     let allowed = |character: char| {
         character.is_ascii_alphanumeric()
             || matches!(character, '/' | '_' | '.' | '-')
     };
-    let mut tokens = Vec::new();
-    let mut cursor = 0;
-    while let Some(offset) = line[cursor..].find("meta/") {
-        let start = cursor + offset;
-        let mut end = start;
-        for (index, character) in line[start..].char_indices() {
-            if allowed(character) {
-                end = start + index + character.len_utf8();
+
+    let mut tokens: Vec<(usize, String)> = Vec::new();
+    for root in roots {
+        let prefix = format!("{root}/");
+        let mut cursor = 0;
+        while let Some(offset) = line[cursor..].find(&prefix) {
+            let start = cursor + offset;
+            let mut end = start;
+            for (index, character) in line[start..].char_indices() {
+                if allowed(character) {
+                    end = start + index + character.len_utf8();
+                } else {
+                    break;
+                }
+            }
+            let run = &line[start..end];
+            if let Some(suffix) = run.rfind(".md") {
+                let token_end = start + suffix + ".md".len();
+                tokens.push((start, line[start..token_end].to_owned()));
+                cursor = token_end;
             } else {
-                break;
+                cursor = start + prefix.len();
             }
         }
-        let run = &line[start..end];
-        if let Some(suffix) = run.rfind(".md") {
-            let token_end = start + suffix + ".md".len();
-            tokens.push(line[start..token_end].to_owned());
-            cursor = token_end;
-        } else {
-            cursor = start + "meta/".len();
-        }
     }
-    tokens
+
+    // Several roots scan the same line independently, so restore source order —
+    // the anchor sequence numbers are positional.
+    tokens.sort_by_key(|(start, _)| *start);
+    tokens.dedup_by(|a, b| a.1 == b.1 && a.0 == b.0);
+    tokens.into_iter().map(|(_, token)| token).collect()
 }
 
 fn extract_adr_ids(line: &str) -> Vec<String> {
@@ -477,8 +513,8 @@ fn extract_bare_ids(line: &str) -> Vec<String> {
     tokens
 }
 
-fn extract_tokens(section: &str, line: &str) -> Vec<String> {
-    let mut tokens = extract_meta_paths(line);
+fn extract_tokens(section: &str, line: &str, roots: &[String]) -> Vec<String> {
+    let mut tokens = extract_doc_paths(line, roots);
     tokens.extend(extract_adr_ids(line));
     tokens.extend(extract_pr_refs(line));
     if section == "## Dependencies" && has_dependency_label(line) {
@@ -492,7 +528,10 @@ fn classify_token(
     token: &str,
     table: &[(DocTypeKey, PathBuf)],
 ) -> (&'static str, String) {
-    if token.starts_with("meta/") && token.ends_with(".md") {
+    // The extractor only yields path tokens ending `.md`; ADR ids, `pr:` refs and
+    // bare ids never do. So the suffix identifies a path without pinning it to a
+    // hardcoded root.
+    if token.ends_with(".md") {
         return resolve_path_target(token, table)
             .map_or(("", String::new()), |(kind, id)| (kind, id));
     }
@@ -531,6 +570,7 @@ pub fn parse_document(
     let mut records: Vec<LinkageRecord> = Vec::new();
     let mut section: Option<&'static str> = None;
     let mut seq = 0usize;
+    let roots = path_roots(table);
 
     for line in content.lines() {
         if line.starts_with("## ") {
@@ -542,7 +582,7 @@ pub fn parse_document(
         };
 
         let mut seen: Vec<(String, String)> = Vec::new();
-        for token in extract_tokens(section, line) {
+        for token in extract_tokens(section, line, &roots) {
             if is_template_path(&token) {
                 continue;
             }
@@ -620,6 +660,49 @@ mod tests {
 
     fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
         super::parse_document(source, content, &table())
+    }
+
+    #[test]
+    fn a_re_pathed_corpus_is_scanned_where_it_actually_lives() {
+        // The scan roots come from the table, so a corpus that is not under
+        // `meta/` still has its references extracted. A hardcoded `meta/` prefix
+        // would find nothing here.
+        let table = vec![
+            (DocTypeKey::WorkItems, PathBuf::from("docs/tickets")),
+            (DocTypeKey::Plans, PathBuf::from("docs/plans")),
+        ];
+        let content = "## References\n- A sibling `docs/tickets/0002-y.md`\n";
+
+        let records = super::parse_document("work-item", content, &table);
+
+        assert_eq!(
+            records.len(),
+            1,
+            "the token must be extracted: {records:?}"
+        );
+        assert_eq!(records[0].target_ref, "work-item:0002");
+    }
+
+    #[test]
+    fn path_roots_are_the_distinct_leading_segments() {
+        let table = vec![
+            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
+            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
+            (DocTypeKey::Notes, PathBuf::from("docs/notes")),
+        ];
+        assert_eq!(super::path_roots(&table), vec!["meta", "docs"]);
+    }
+
+    #[test]
+    fn a_path_under_a_root_but_outside_every_doc_type_stays_a_raw_path() {
+        // meta/docs/ is a configured root but no doc-type directory — it must
+        // still be extracted and carried through unresolved, as before.
+        let content = "## References\n- See `meta/docs/logging-guide.md`\n";
+        let records = parse_document("work-item", content);
+
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].target_ref, "meta/docs/logging-guide.md");
+        assert_eq!(records[0].band, Band::Ambiguous);
     }
 
     #[test]

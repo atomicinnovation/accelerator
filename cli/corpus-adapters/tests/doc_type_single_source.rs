@@ -182,6 +182,57 @@ fn the_rewrite_awk_agrees_on_the_directory_to_type_mapping(
     Ok(())
 }
 
+/// Every doc type's config key must exist in the bash config schema.
+///
+/// `config_path_key` is how `corpus-adapters` keys the resolved doc-paths map, so
+/// a key renamed in `config-defaults.sh` without updating `DocTypeKey` would
+/// silently drop that type from the table — the document would simply stop being
+/// classified, with nothing to report it.
+#[test]
+fn every_config_path_key_exists_in_the_config_schema() -> Result<(), TestError>
+{
+    let defaults = require_script("scripts/config-defaults.sh")?;
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg(format!(
+            "source {}; printf '%s\\n' \"${{PATH_KEYS[@]}}\"",
+            defaults.display()
+        ))
+        .output()
+        .map_err(|error| format!("could not read PATH_KEYS: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "config-defaults.sh failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+
+    let declared: Vec<String> = String::from_utf8(output.stdout)?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect();
+    assert!(
+        !declared.is_empty(),
+        "config-defaults.sh declared no PATH_KEYS — the probe has broken"
+    );
+
+    for kind in DocTypeKey::all() {
+        let Some(key) = kind.config_path_key() else {
+            continue;
+        };
+        let qualified = format!("paths.{key}");
+        assert!(
+            declared.contains(&qualified),
+            "{kind:?} claims the config key {qualified:?}, which the config \
+             schema does not declare — the crate and the config have drifted"
+        );
+    }
+    Ok(())
+}
+
 /// `corpus::linkage::TYPE_PAIRS` and `scripts/linkage-type-pairs.tsv` are the
 /// same table written twice — bash reads the file at runtime, the crate compiles
 /// it in. Nothing but this test stops them drifting apart.

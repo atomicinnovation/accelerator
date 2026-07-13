@@ -241,14 +241,44 @@ lp_band() {
 }
 
 # ---- Reference extraction from a single line -------------------------------
+# The scan roots: the distinct leading segments of the configured doc-type
+# directories, ERE-escaped and alternated. Scanning by ROOT rather than by full
+# directory keeps an out-of-scope subtree (meta/docs/...) a candidate, exactly as
+# the old literal `meta/` scan did — it is extracted, fails to infer a type, and
+# is carried through as a raw path ref.
+#
+# Built once, after the table is injected: a hardcoded `meta/` here would make the
+# parser blind to a re-pathed corpus even though its type inference is config-aware.
+LP_PATH_RE=""
+lp_build_path_re() {
+  local dir root seen="" alt=""
+  for dir in "${DOC_TYPE_INJECTED_DIRS[@]}"; do
+    [ -n "$dir" ] || continue
+    root="${dir%%/*}"
+    [ -n "$root" ] || continue
+    case "|$seen|" in *"|$root|"*) continue ;; esac
+    seen="${seen:+$seen|}$root"
+    # A config value reaches a regex here, so escape ERE metacharacters. `$` sits
+    # last in the bracket expression so the literal set carries no `$(` sequence.
+    root="$(printf '%s' "$root" | sed 's/[][\\.*^(){}?+|$]/\\&/g')"
+    alt="${alt:+$alt|}$root"
+  done
+  [ -n "$alt" ] || return 1
+  LP_PATH_RE="($alt)/[A-Za-z0-9/_.-]+\.md"
+}
+lp_build_path_re || {
+  echo "linkage-parser.sh: no configured doc-type directories to scan" >&2
+  if [ "${BASH_SOURCE[0]}" = "${0}" ]; then exit 1; else return 1; fi
+}
+
 # Echoes one candidate "raw_token" per line, in priority order. Tokens are:
-#   - meta/ paths (from backticks, markdown links, or bare)
+#   - paths under a configured doc-type root (from backticks, markdown links, bare)
 #   - ADR-<digits> ids
 #   - pr:<n> references
 #   - inside ## Dependencies only: bare 4-digit ids after a recognised label
 lp_extract_tokens() {
   local section="$1" line="$2"
-  printf '%s\n' "$line" | grep -oE 'meta/[A-Za-z0-9/_.-]+\.md' || true
+  printf '%s\n' "$line" | grep -oE "$LP_PATH_RE" || true
   printf '%s\n' "$line" | grep -oE 'ADR-[0-9]{3,4}' || true
   printf '%s\n' "$line" | grep -oE 'pr:[0-9]+' || true
   if [ "$section" = '## Dependencies' ]; then
@@ -295,14 +325,18 @@ lp_parse_file() {
       ttype=""
       tid=""
       case "$token" in
-        meta/*.md)
+        # The extractor only yields path tokens ending `.md` — ADR ids, pr: refs
+        # and bare ids never do — so the suffix identifies a path without pinning
+        # it to a hardcoded root.
+        *.md)
           local resolved
           resolved="$(lp_resolve_path_target "$token")"
           if [ -n "$resolved" ]; then
             ttype="$(printf '%s' "$resolved" | cut -f1)"
             tid="$(printf '%s' "$resolved" | cut -f2)"
           else
-            # Unmapped meta path (specs/talks/global/typo) — leave as path ref.
+            # A path under a configured root but outside every doc-type directory
+            # (specs/talks/global/typo) — leave it as a raw path ref.
             ttype=""
             tid=""
           fi

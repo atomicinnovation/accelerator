@@ -243,28 +243,32 @@ Roughly in order of how much they can actually bite:
    `infer_type_from_path`~~ — **done**, see §1. `linkage-parser.sh` now sources
    the shared matcher; `meta/prs` resolves, and a re-pathed corpus is classified
    correctly. Two things fell out of it, both recorded below.
-4. **Token extraction is still hardcoded to `meta/`** — the remaining half of
-   config-awareness. See §5.
-5. Consider collapsing the four doc-type vocabularies toward one.
+4. ~~Token extraction is still hardcoded to `meta/`~~ — **done**, see §5.
+5. The four doc-type vocabularies are **not** worth collapsing — see §6.
 
-## 5. Path-token extraction is still `meta/`-bound
+## 5. Path-token extraction was `meta/`-bound **[FIXED]**
 
 Retiring `lp_type_from_path` made *type inference* config-driven, but the step
-before it — deciding which strings in a line are candidate references at all — is
+before it — deciding which strings in a line are candidate references at all — was
 still a literal `meta/` prefix, in **both** implementations:
 
 - `scripts/linkage-parser.sh`: `grep -oE 'meta/[A-Za-z0-9/_.-]+\.md'`
 - `cli/corpus/src/linkage.rs`: `line[cursor..].find("meta/")`
 
-So a corpus configured to `paths.work: docs/tickets` now has its *source type*
-classified correctly, and a `pr-description` target resolves — but a reference
-*to* `docs/tickets/0002-y.md` is never extracted, because the scan never sees it.
-Verified: that document yields no linkage records at all.
+So a corpus configured to `paths.work: docs/tickets` had its *source type*
+classified correctly, but a reference *to* `docs/tickets/0002-y.md` was never
+extracted — the scan never saw it. The document yielded no linkage records at all.
 
-The two implementations agree, so the parity suite stays green and nothing is
-*inconsistent* — this is a shared limitation rather than a drift. Fixing it means
-deriving the scan prefixes from the injected table on both sides (and threading
-the table into the Rust extractor, which currently doesn't take it).
+**Fixed on both sides.** The scan roots are now the distinct *leading segments* of
+the configured doc-type directories, derived from the injected table
+(`corpus::linkage::path_roots`, and `lp_build_path_re` in bash). Scanning by root
+rather than by full directory deliberately preserves the old behaviour for an
+out-of-scope subtree: `meta/docs/…` is still extracted, still fails to infer a
+type, and is still carried through as a raw path ref.
+
+The classifier's `meta/*.md` guard went too — the extractor only ever yields path
+tokens ending `.md` (ADR ids, `pr:` refs and bare ids never do), so the suffix
+identifies a path without pinning it to a root.
 
 **The resolve-once invariant is load-bearing.** The 0007 migration invokes the
 linkage parser once per corpus file, so having the parser resolve config on
@@ -272,6 +276,36 @@ startup spawned the resolver per file. A migration guard caught it. The shared
 loader now takes a pre-resolved table via `DOC_TYPE_TABLE_TSV`, which the
 migration hands down. Any future caller that shells to the parser in a loop needs
 the same seam.
+
+## 6. The four vocabularies should stay four
+
+Recorded as a decision, against the earlier suggestion to collapse them.
+
+They are not four spellings of an internal name — they are **three external
+contracts** plus a display string, and each has a different consumer:
+
+| Vocabulary | Example | Consumer | Cost of changing |
+| --- | --- | --- | --- |
+| `config_path_key` | `paths.research_codebase` | `config-defaults.sh`, every user's `.accelerator/config.md` | breaks every user config |
+| `linkage_type_name` | `work-item:0046` | every typed ref in every document | breaks every corpus |
+| `wire_str` | `work-items` | the visualiser HTTP API and the React frontend | breaks the API + frontend |
+| `label` | `Work items` | humans | — |
+
+Collapsing them means three simultaneous breaking migrations — config, corpus, and
+wire — and the result would be *worse*, because the three forms are idiomatic for
+their contexts on purpose: a config key naming a directory (`work`), a singular
+typed reference (`work-item:0046`), and a plural collection on the wire
+(`work-items`). Forcing one string would make at least two of them read wrong.
+
+The problem worth solving was never the plurality — it was **drift**. That is now
+closed: all four are `const fn`s on `DocTypeKey`, and the bash surfaces are pinned
+against it by the `doc_type_single_source` suite, which now also asserts that every
+`config_path_key` exists in `config-defaults.sh`'s `PATH_KEYS` (a key renamed in
+bash would otherwise silently drop that type from the table, and the document would
+simply stop being classified).
+
+The one contract still unpinned is `wire_str` versus the frontend's TypeScript —
+a cross-language pin, and the visualiser's own tests cover the wire today.
 
 ## A pattern worth naming
 
