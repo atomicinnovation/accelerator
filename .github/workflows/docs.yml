@@ -4,15 +4,16 @@ on:
   push:
     branches:
       - main
+      # Escape hatch: push this branch to deploy the docs before merging.
+      - force-deploy-docs
   pull_request:
     types:
       - opened
       - reopened
       - edited
       - synchronize
-  # Manual escape hatch: redeploy the docs site on demand without cutting a
-  # release (replaces the old force-deploy-docs branch trigger). Run via the
-  # Actions "Run workflow" button or `gh workflow run docs.yml`.
+  # Manual escape hatch: redeploy the docs site on demand without a push.
+  # Run via the Actions "Run workflow" button or `gh workflow run docs.yml`.
   workflow_dispatch:
 
 jobs:
