@@ -7,10 +7,12 @@ from invoke import Context
 import tasks.docs as td
 from tasks.shared.skill_pages import (
     DOCS_GENERATED_RELATIVE,
+    SkillPage,
     SkillPageError,
     discover_skills,
     generate_pages,
     output_path,
+    render_index,
     sanitise_body,
 )
 
@@ -149,6 +151,35 @@ class TestGeneration:
         assert "[beta](othercat/deep/beta.md)" in index
         assert "[hidden](internal/hidden.md)" in index
         assert "## Internal" in index
+
+    def test_index_gloss_is_first_sentence_only(self, fake_repo_tree):
+        generate_pages(fake_repo_tree)
+        index = (_generated_dir(fake_repo_tree) / "index.md").read_text()
+        assert (
+            "- [alpha](testcat/alpha.md) — Create things interactively.\n"
+            in index
+        )
+
+    def test_index_gloss_survives_abbreviations(self, fake_repo_tree):
+        page = SkillPage(
+            name="abbrev",
+            category="testcat",
+            source=fake_repo_tree / "skills/testcat/abbrev/SKILL.md",
+            frontmatter={
+                "name": "abbrev",
+                "description": (
+                    "Look up keys (e.g. PROJ-123, i.e. issue keys) in the "
+                    "tracker. Second sentence."
+                ),
+            },
+            body="X.\n",
+        )
+        index = render_index([page])
+        assert (
+            "— Look up keys (e.g. PROJ-123, i.e. issue keys) in the tracker."
+            in index
+        )
+        assert "Second sentence" not in index
 
     def test_regeneration_removes_stale_pages(self, fake_repo_tree):
         gen = _generated_dir(fake_repo_tree)

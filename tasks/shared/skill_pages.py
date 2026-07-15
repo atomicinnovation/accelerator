@@ -161,9 +161,16 @@ def render_page(page: SkillPage) -> str:
     )
 
 
+_ABBREVIATIONS = ("e.g.", "i.e.", "etc.")
+
+
 def _first_sentence(text: str) -> str:
     collapsed = " ".join(text.split())
+    for i, abbreviation in enumerate(_ABBREVIATIONS):
+        collapsed = collapsed.replace(abbreviation, f"\x00{i}\x00")
     head, separator, _ = collapsed.partition(". ")
+    for i, abbreviation in enumerate(_ABBREVIATIONS):
+        head = head.replace(f"\x00{i}\x00", abbreviation)
     return head + ("." if separator else "")
 
 
