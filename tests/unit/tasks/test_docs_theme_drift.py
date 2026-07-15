@@ -1,9 +1,10 @@
 """Drift guards for docs-site theme values duplicated from the visualiser.
 
 The docs site is a separate npm build from the visualiser frontend, so it
-duplicates the brand palette (``--atomic-*``) and the self-hosted font
-files. These tests pin every duplicated value to its canonical source so
-the copies cannot diverge silently.
+duplicates the brand palette (``--atomic-*``). These tests pin every
+duplicated value to its canonical source so the copies cannot diverge
+silently, and check theme.css only references fonts the build can sync
+from the visualiser's canonical fonts directory.
 """
 
 import json
@@ -12,7 +13,6 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _THEME_CSS = _REPO_ROOT / "docs-site/src/styles/theme.css"
-_DOCS_FONTS = _REPO_ROOT / "docs-site/public/fonts"
 _FRONTEND = _REPO_ROOT / "skills/visualisation/visualise/frontend"
 _FIXTURE = _FRONTEND / "src/styles/fixtures/prototype-tokens.json"
 _FRONTEND_FONTS = _FRONTEND / "public/fonts"
@@ -109,25 +109,17 @@ def test_shiki_theme_colours_match_canonical_fixture():
         )
 
 
-def test_docs_fonts_are_byte_identical_to_frontend_sources():
-    assert _DOCS_FONTS.is_dir(), (
-        f"docs fonts directory missing: {_DOCS_FONTS} — copy the brand "
-        f"woff2 files from {_FRONTEND_FONTS}"
-    )
-    docs_fonts = sorted(_DOCS_FONTS.glob("*.woff2"))
-    assert docs_fonts, (
-        f"no .woff2 files in {_DOCS_FONTS} — copy the brand fonts from "
-        f"{_FRONTEND_FONTS}"
-    )
-    for font in docs_fonts:
-        source = _FRONTEND_FONTS / font.name
-        assert source.is_file(), (
-            f"docs font {font.name} has no counterpart in "
-            f"{_FRONTEND_FONTS} — docs fonts must be copies of the "
-            f"visualiser's; remove {font} or add the canonical source"
-        )
-        assert font.read_bytes() == source.read_bytes(), (
-            f"docs font {font.name} diverged from its canonical source: "
-            f"{font} is not byte-identical to {source} — re-copy the "
-            "file from the frontend fonts directory"
+def test_theme_css_fonts_exist_in_canonical_frontend_directory():
+    # docs-site/public/fonts is a symlink to the frontend fonts directory
+    # (Astro dereferences it into dist/), so identity is guaranteed by
+    # construction; here we pin every URL theme.css references to an
+    # existing canonical source file.
+    css = _THEME_CSS.read_text()
+    referenced = re.findall(r"url\('/accelerator/fonts/([^']+)'\)", css)
+    assert referenced, f"no font URLs found in {_THEME_CSS}"
+    for name in referenced:
+        assert (_FRONTEND_FONTS / name).is_file(), (
+            f"theme.css references {name} but it does not exist in the "
+            f"canonical fonts directory {_FRONTEND_FONTS} — the docs "
+            "build syncs fonts from there (tasks.docs.sync_fonts)"
         )
