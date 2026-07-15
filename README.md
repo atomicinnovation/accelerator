@@ -25,10 +25,11 @@ with large, cluttered context windows.
 ## Getting Started
 
 ```bash
+/plugin marketplace add atomicinnovation/accelerator
 /plugin install accelerator@atomic-innovation
 ```
 
-For the full walkthrough — adding the marketplace, initialising your project,
+For the full walkthrough — initialising your project
 and running the research → plan → implement loop — see [Getting
 Started](https://atomicinnovation.github.io/accelerator/getting-started/).
 
@@ -62,7 +63,7 @@ The full documentation site is published at
 
 **Skills**
 
-- <img src="https://api.iconify.design/ph/squares-four-bold.svg?color=%23475569" width="16" align="center" alt=""> [All Skills](https://atomicinnovation.github.io/accelerator/skills/) — the full index of every skill, grouped by
+- <img src="https://api.iconify.design/ph/squares-four-bold.svg?color=%23475569" width="16" align="center" alt=""> [All Skills](https://atomicinnovation.github.io/accelerator/reference/skills/) — the full index of every skill, grouped by
   family.
 - <img src="https://api.iconify.design/ph/arrows-clockwise-bold.svg?color=%236366f1" width="16" align="center" alt=""> [Development Loop](https://atomicinnovation.github.io/accelerator/skills/development-loop/) — research, plan, implement,
   and the plan review/stress-test/validate companions.
