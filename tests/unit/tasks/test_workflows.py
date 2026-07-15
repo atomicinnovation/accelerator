@@ -343,42 +343,51 @@ def test_nightly_lane_isolation_holds(wf):
 
 # --- Documentation-site publishing lane --------------------------------
 #
-# check-docs runs the strict Starlight build on every PR and push; deploy-docs
-# publishes to GitHub Pages, gated to pushes only (main plus the manual
-# force-deploy-docs branch). Because the push trigger now covers a second
-# branch, the release lane must be ref-gated to main — otherwise a push to
-# force-deploy-docs would cut a prerelease. deploy-docs must NOT carry the
-# accelerator-release lock (the exactly-2-lock-members invariant above must
-# keep holding), and its permission set must stay minimal.
+# The docs lane lives in its own workflow (docs.yml): check-docs runs the
+# strict Starlight build on every PR and push; deploy-docs publishes to
+# GitHub Pages, gated to pushes (main plus the manual force-deploy-docs
+# branch) and manual workflow_dispatch runs. Keeping the docs lane out of
+# main.yml means a force-deploy-docs push can never start the release lane,
+# and deploy-docs cannot hold the accelerator-release lock. Its permission
+# set must stay minimal.
 
+DOCS_WORKFLOW = REPO_ROOT / ".github/workflows/docs.yml"
 DOCS_CHECK_JOB = "check-docs"
 DOCS_DEPLOY_JOB = "deploy-docs"
 DOCS_FORCE_BRANCH = "force-deploy-docs"
+DOCS_DEPLOY_GATE = (
+    "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
+)
 MAIN_PUSH_GATE = (
     "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 )
+
+
+@pytest.fixture
+def docs_wf():
+    return yaml.safe_load(DOCS_WORKFLOW.read_text())
 
 
 def _job_run_text_workflows(job):
     return "\n".join(step.get("run", "") for step in job.get("steps") or [])
 
 
-def test_check_docs_runs_docs_check(wf):
-    job = wf["jobs"][DOCS_CHECK_JOB]
+def test_check_docs_runs_docs_check(docs_wf):
+    job = docs_wf["jobs"][DOCS_CHECK_JOB]
     assert "mise run docs:check" in _job_run_text_workflows(job), (
         "check-docs must run the strict docs gate (mise run docs:check)"
     )
 
 
-def test_deploy_docs_is_push_gated(wf):
-    job = wf["jobs"][DOCS_DEPLOY_JOB]
-    assert job.get("if") == "github.event_name == 'push'", (
-        "deploy-docs must be gated to pushes only"
+def test_deploy_docs_is_push_gated(docs_wf):
+    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
+    assert job.get("if") == DOCS_DEPLOY_GATE, (
+        "deploy-docs must be gated to pushes and manual dispatch only"
     )
 
 
-def test_deploy_docs_targets_github_pages_environment(wf):
-    job = wf["jobs"][DOCS_DEPLOY_JOB]
+def test_deploy_docs_targets_github_pages_environment(docs_wf):
+    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
     environment = job.get("environment")
     name = environment.get("name") if isinstance(environment, dict) else None
     assert name == "github-pages", (
@@ -386,13 +395,13 @@ def test_deploy_docs_targets_github_pages_environment(wf):
     )
 
 
-def test_deploy_docs_needs_check_docs(wf):
-    job = wf["jobs"][DOCS_DEPLOY_JOB]
+def test_deploy_docs_needs_check_docs(docs_wf):
+    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
     assert DOCS_CHECK_JOB in _needs(job), "deploy-docs must wait on check-docs"
 
 
-def test_deploy_docs_has_minimal_pages_permissions(wf):
-    job = wf["jobs"][DOCS_DEPLOY_JOB]
+def test_deploy_docs_has_minimal_pages_permissions(docs_wf):
+    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
     permissions = job.get("permissions") or {}
     assert permissions == {
         "contents": "read",
@@ -401,42 +410,43 @@ def test_deploy_docs_has_minimal_pages_permissions(wf):
     }, "deploy-docs must hold exactly the minimal Pages deploy permissions"
 
 
-def test_deploy_docs_does_not_hold_the_release_lock(wf):
-    # The exactly-2-lock-members invariant must keep holding: adding the docs
-    # lane must not put a third job on the accelerator-release group.
-    job = wf["jobs"][DOCS_DEPLOY_JOB]
-    assert _conc(job).get("group") != LOCK_GROUP, (
-        "deploy-docs must not carry the accelerator-release lock"
-    )
-    # And the release lock still has exactly its two members.
-    blocks = [
-        _conc(j)
-        for j in wf["jobs"].values()
-        if _conc(j).get("group") == LOCK_GROUP
-    ]
-    assert len(blocks) == 2, f"expected 2 lock members, got {len(blocks)}"
+def test_deploy_docs_does_not_hold_the_release_lock(docs_wf):
+    # The exactly-2-lock-members invariant must keep holding: the docs lane
+    # must not put a job on the accelerator-release group.
+    for name, job in docs_wf["jobs"].items():
+        assert _conc(job).get("group") != LOCK_GROUP, (
+            f"{name} must not carry the accelerator-release lock"
+        )
 
 
-def test_push_trigger_covers_force_deploy_docs_branch(wf):
-    branches = wf[True]["push"]["branches"]
+def test_docs_push_trigger_covers_force_deploy_docs_branch(docs_wf):
+    branches = docs_wf[True]["push"]["branches"]
     assert branches == ["main", DOCS_FORCE_BRANCH], (
-        "push trigger must cover exactly main and the docs force branch"
+        "docs push trigger must cover exactly main and the docs force branch"
+    )
+
+
+def test_main_push_trigger_covers_only_main(wf):
+    # The docs lane lives in docs.yml; main.yml must not react to the docs
+    # force branch, or a docs force-push would cut a prerelease.
+    assert wf[True]["push"]["branches"] == ["main"], (
+        "main.yml push trigger must cover exactly main"
     )
 
 
 def test_release_lane_is_gated_to_main_pushes(wf):
-    # With force-deploy-docs in the push trigger, an event-only gate would
-    # let a docs force-push start the release lane.
+    # Defence in depth: even though main.yml only triggers on main pushes,
+    # the release jobs stay ref-gated to main.
     for name in sorted(_RELEASE_JOBS):
         assert wf["jobs"][name].get("if") == MAIN_PUSH_GATE, (
             f"{name} must be gated to pushes on main only"
         )
 
 
-def test_deploy_docs_not_in_prerelease_needs(wf):
-    # The docs lane is deliberately decoupled from the release lane.
-    assert DOCS_DEPLOY_JOB not in _needs(wf["jobs"]["prerelease"])
-    assert DOCS_CHECK_JOB not in _needs(wf["jobs"]["prerelease"])
+def test_docs_jobs_not_in_main_workflow(wf):
+    # The docs lane is deliberately decoupled from the release workflow.
+    assert DOCS_DEPLOY_JOB not in wf["jobs"]
+    assert DOCS_CHECK_JOB not in wf["jobs"]
 
 
 def _needs_edge_into_stable_job(jobs):
