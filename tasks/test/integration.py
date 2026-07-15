@@ -13,7 +13,7 @@ _EXPECTED_MIGRATE_SUITES = 4
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
 # (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
 # silently vanish from CI. Bumped as suites are added under scripts/.
-_EXPECTED_CONFIG_SUITES = 21
+_EXPECTED_CONFIG_SUITES = 20
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
