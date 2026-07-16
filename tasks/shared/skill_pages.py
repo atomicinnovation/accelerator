@@ -64,8 +64,16 @@ def _load_skill(skill_md: Path, skills_root: Path) -> SkillPage:
     match = _FRONTMATTER.match(text)
     if match is None:
         raise SkillPageError(f"no frontmatter in {skill_md}")
-    frontmatter: dict[str, Any] = yaml.safe_load(match.group(1))
+    frontmatter: Any = yaml.safe_load(match.group(1))
+    if not isinstance(frontmatter, dict):
+        raise SkillPageError(f"frontmatter is not a mapping in {skill_md}")
+    if "name" not in frontmatter:
+        raise SkillPageError(f"no 'name' in frontmatter of {skill_md}")
     category = skill_md.parent.parent.relative_to(skills_root).as_posix()
+    if category == ".":
+        raise SkillPageError(
+            f"SKILL.md not under a category directory: {skill_md}"
+        )
     return SkillPage(
         name=str(frontmatter["name"]),
         category=category,
@@ -209,14 +217,15 @@ def render_index(pages: list[SkillPage]) -> str:
 def generate_pages(repo_root: Path) -> list[tuple[str, Path]]:
     generated_dir = repo_root / DOCS_GENERATED_RELATIVE
     pages = discover_skills(repo_root)
-    outputs: dict[Path, str] = {}
+    outputs: dict[Path, SkillPage] = {}
     for page in pages:
         path = output_path(page, generated_dir)
         if path in outputs:
             raise SkillPageError(
-                f"output collision at {path}: {outputs[path]} and {page.name}"
+                f"output collision at {path}: "
+                f"{outputs[path].source} and {page.source}"
             )
-        outputs[path] = page.name
+        outputs[path] = page
     if generated_dir.exists():
         shutil.rmtree(generated_dir)
     for page in pages:

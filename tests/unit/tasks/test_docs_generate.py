@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -52,6 +53,35 @@ class TestDiscovery:
         by_name = {p.name: p for p in discover_skills(fake_repo_tree)}
         assert by_name["alpha"].category == "testcat"
         assert by_name["beta"].category == "othercat/deep"
+
+    def test_non_mapping_frontmatter_names_the_file(self, fake_repo_tree):
+        bad = fake_repo_tree / "skills/testcat/bad/SKILL.md"
+        bad.parent.mkdir()
+        bad.write_text("---\njust a scalar\n---\n\nX.\n")
+        with pytest.raises(SkillPageError, match=r"not a mapping in .*bad"):
+            discover_skills(fake_repo_tree)
+
+    def test_missing_name_names_the_file(self, fake_repo_tree):
+        bad = fake_repo_tree / "skills/testcat/bad/SKILL.md"
+        bad.parent.mkdir()
+        bad.write_text("---\ndescription: No name here.\n---\n\nX.\n")
+        with pytest.raises(SkillPageError, match=r"no 'name' in .*bad"):
+            discover_skills(fake_repo_tree)
+
+    def test_skill_outside_category_directory_names_the_file(
+        self, fake_repo_tree
+    ):
+        plugin = fake_repo_tree / ".claude-plugin/plugin.json"
+        data = json.loads(plugin.read_text())
+        data["skills"].append("./skills/shallow/")
+        plugin.write_text(json.dumps(data))
+        bad = fake_repo_tree / "skills/shallow/SKILL.md"
+        bad.parent.mkdir()
+        bad.write_text("---\nname: shallow\ndescription: X.\n---\n\nX.\n")
+        with pytest.raises(
+            SkillPageError, match=r"not under a category directory: .*shallow"
+        ):
+            discover_skills(fake_repo_tree)
 
     def test_folded_multiline_description_parses(self, fake_repo_tree):
         by_name = {p.name: p for p in discover_skills(fake_repo_tree)}
@@ -151,6 +181,8 @@ class TestGeneration:
         assert "[beta](othercat/deep/beta.md)" in index
         assert "[hidden](internal/hidden.md)" in index
         assert "## Internal" in index
+        assert index.count("[hidden]") == 1
+        assert "[hidden](testcat/hidden.md)" not in index
 
     def test_index_gloss_is_first_sentence_only(self, fake_repo_tree):
         generate_pages(fake_repo_tree)
@@ -199,7 +231,10 @@ class TestGeneration:
         clash = fake_repo_tree / "skills/testcat/alpha2/SKILL.md"
         clash.parent.mkdir()
         clash.write_text("---\nname: alpha\ndescription: Dup.\n---\n\nX.\n")
-        with pytest.raises(SkillPageError, match="collision"):
+        with pytest.raises(
+            SkillPageError,
+            match=r"collision.*alpha/SKILL\.md.*alpha2/SKILL\.md",
+        ):
             generate_pages(fake_repo_tree)
 
     def test_output_path_uses_skill_name(self, fake_repo_tree):
