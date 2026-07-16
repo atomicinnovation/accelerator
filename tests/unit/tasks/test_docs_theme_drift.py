@@ -3,8 +3,9 @@
 The docs site is a separate npm build from the visualiser frontend, so it
 duplicates the brand palette (``--atomic-*``). These tests pin every
 duplicated value to its canonical source so the copies cannot diverge
-silently, and check theme.css only references fonts the build can sync
-from the visualiser's canonical fonts directory.
+silently, and check theme.css only references fonts that exist in the
+visualiser's canonical fonts directory (docs-site/public/fonts is a
+symlink to it).
 """
 
 import json
@@ -121,5 +122,6 @@ def test_theme_css_fonts_exist_in_canonical_frontend_directory():
         assert (_FRONTEND_FONTS / name).is_file(), (
             f"theme.css references {name} but it does not exist in the "
             f"canonical fonts directory {_FRONTEND_FONTS} — the docs "
-            "build syncs fonts from there (tasks.docs.sync_fonts)"
+            "build serves fonts from there via the docs-site/public/fonts "
+            "symlink"
         )
