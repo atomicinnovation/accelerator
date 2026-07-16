@@ -6,9 +6,15 @@ import rehypeMermaid from 'rehype-mermaid'
 import rehypeAstroRelativeMarkdownLinks from 'astro-rehype-relative-markdown-links'
 import { atomicCodeTheme } from './shiki-atomic.mjs'
 
+// The hosting decision lives here alone: everything below derives from
+// these two values, overridable for forks or a future custom domain.
+const site = process.env.DOCS_SITE ?? 'https://atomicinnovation.github.io'
+const base = process.env.DOCS_BASE ?? '/accelerator'
+const ogImage = `${site}${base}/accelerator_logo_light_bg.png`
+
 export default defineConfig({
-  site: 'https://atomicinnovation.github.io',
-  base: '/accelerator',
+  site,
+  base,
   markdown: {
     syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
     shikiConfig: { theme: atomicCodeTheme },
@@ -16,7 +22,7 @@ export default defineConfig({
       [rehypeMermaid, { strategy: 'img-svg', dark: true }],
       [
         rehypeAstroRelativeMarkdownLinks,
-        { base: '/accelerator', collectionBase: false },
+        { base, collectionBase: false },
       ],
     ],
   },
@@ -52,16 +58,14 @@ export default defineConfig({
           tag: 'meta',
           attrs: {
             property: 'og:image',
-            content:
-              'https://atomicinnovation.github.io/accelerator/accelerator_logo_light_bg.png',
+            content: ogImage,
           },
         },
         {
           tag: 'meta',
           attrs: {
             name: 'twitter:image',
-            content:
-              'https://atomicinnovation.github.io/accelerator/accelerator_logo_light_bg.png',
+            content: ogImage,
           },
         },
       ],
