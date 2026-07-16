@@ -80,7 +80,8 @@ agents:
 
 Recognised keys: `reviewer`, `codebase-locator`, `codebase-analyser`,
 `codebase-pattern-finder`, `documents-locator`, `documents-analyser`,
-`web-search-researcher`. Unrecognised keys produce a warning.
+`web-search-researcher`, `browser-locator`, `browser-analyser`.
+Unrecognised keys produce a warning.
 
 ## Tune review behaviour
 
