@@ -15,13 +15,23 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
 # Gates that MUST be reachable from the aggregate `check` task.
-_CHECK_GATES = ["cli:check", "deny:check", "pup:check", "docs:check"]
+_CHECK_GATES = ["cli:check", "deny:check", "pup:check"]
 
 
 def test_docs_build_wired_into_default(mise):
     assert "docs:build" in _task_depends(mise, "default"), (
         "docs:build is not in default.depends — the docs site is not built "
         "by the full local CI mirror"
+    )
+
+
+def test_docs_check_stays_out_of_aggregate_check(mise):
+    # docs:check writes gitignored artefacts and needs network + a Chromium
+    # install, so the docs CI lane owns it — the aggregate check must stay
+    # read-only and hermetic.
+    assert "docs:check" not in _task_depends(mise, "check"), (
+        "docs:check is in check.depends — it breaks the read-only/hermetic "
+        "contract of the aggregate check; the docs CI lane owns it"
     )
 
 
