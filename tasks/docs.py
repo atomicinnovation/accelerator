@@ -32,6 +32,12 @@ def preview(context: Context) -> None:
 
 
 @task
+def audit(context: Context) -> None:
+    """Fail on high/critical npm advisories in the docs-site tree."""
+    context.run(f"npm --prefix {DOCS_SITE} audit --audit-level=high")
+
+
+@task
 def generate(context: Context, repo_root: str | None = None) -> None:
     """Generate per-skill reference pages from SKILL.md sources."""
     root = Path(repo_root) if repo_root else REPO_ROOT
@@ -52,8 +58,9 @@ def generate_check(context: Context, repo_root: str | None = None) -> None:
         output_path(page, generated_dir): page.name
         for page in discover_skills(root)
     }
+    index = generated_dir / "index.md"
     actual = (
-        {p for p in generated_dir.rglob("*.md") if p.name != "index.md"}
+        {p for p in generated_dir.rglob("*.md") if p != index}
         if generated_dir.is_dir()
         else set()
     )

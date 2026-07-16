@@ -53,3 +53,10 @@ class TestGenerateCheck:
         generate_pages(fake_repo_tree)
         assert (_generated_dir(fake_repo_tree) / "index.md").is_file()
         td.generate_check(ctx, repo_root=str(fake_repo_tree))
+
+    def test_nested_index_page_is_an_orphan(self, ctx, fake_repo_tree):
+        generate_pages(fake_repo_tree)
+        stray = _generated_dir(fake_repo_tree) / "testcat/index.md"
+        stray.write_text("stray")
+        with pytest.raises(Exit, match=r"orphan.*testcat/index\.md"):
+            td.generate_check(ctx, repo_root=str(fake_repo_tree))

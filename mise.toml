@@ -101,6 +101,9 @@ run = "invoke docs.build"
 sources = [
   "docs-site/src/**/*",
   "docs-site/public/**/*",
+  # docs-site/public/fonts is a symlink into the visualiser frontend, so
+  # the target must be a source too or font edits leave a stale cache
+  "skills/visualisation/visualise/frontend/public/fonts/**/*",
   "docs-site/astro.config.mjs",
   "docs-site/package.json",
   "docs-site/package-lock.json",
@@ -112,9 +115,14 @@ description = "Verify every plugin.json skill has a generated docs page"
 depends = ["docs:generate"]
 run = "invoke docs.generate-check"
 
+[tasks."docs:audit"]
+description = "Fail on high/critical npm advisories in the docs-site tree"
+depends = ["deps:install:docs"]
+run = "invoke docs.audit"
+
 [tasks."docs:check"]
 description = "Read-only docs gate: the strict site build incl. link validation"
-depends = ["docs:build", "docs:generate:check"]
+depends = ["docs:build", "docs:generate:check", "docs:audit"]
 
 [tasks."docs:serve"]
 description = "Serve the documentation site locally with live reload"
