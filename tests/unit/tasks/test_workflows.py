@@ -344,15 +344,18 @@ def test_nightly_lane_isolation_holds(wf):
 # --- Documentation-site publishing lane --------------------------------
 #
 # The docs lane lives in its own workflow (docs.yml): check-docs runs the
-# strict Starlight build on every PR and push; deploy-docs publishes to
+# strict Starlight build on every PR and push; build-docs builds and
+# uploads the Pages artifact unprivileged; deploy-docs publishes it to
 # GitHub Pages, gated to pushes (main plus the manual force-deploy-docs
 # branch) and manual workflow_dispatch runs. Keeping the docs lane out of
 # main.yml means a force-deploy-docs push can never start the release lane,
 # and deploy-docs cannot hold the accelerator-release lock. Its permission
-# set must stay minimal.
+# set must stay minimal, and the npm/Astro build must never run in the
+# job holding the Pages/OIDC permissions.
 
 DOCS_WORKFLOW = REPO_ROOT / ".github/workflows/docs.yml"
 DOCS_CHECK_JOB = "check-docs"
+DOCS_BUILD_JOB = "build-docs"
 DOCS_DEPLOY_JOB = "deploy-docs"
 DOCS_FORCE_BRANCH = "force-deploy-docs"
 DOCS_DEPLOY_GATE = (
@@ -379,11 +382,12 @@ def test_check_docs_runs_docs_check(docs_wf):
     )
 
 
-def test_deploy_docs_is_push_gated(docs_wf):
-    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
-    assert job.get("if") == DOCS_DEPLOY_GATE, (
-        "deploy-docs must be gated to pushes and manual dispatch only"
-    )
+def test_build_and_deploy_docs_are_push_gated(docs_wf):
+    for job_name in (DOCS_BUILD_JOB, DOCS_DEPLOY_JOB):
+        job = docs_wf["jobs"][job_name]
+        assert job.get("if") == DOCS_DEPLOY_GATE, (
+            f"{job_name} must be gated to pushes and manual dispatch only"
+        )
 
 
 def test_deploy_docs_targets_github_pages_environment(docs_wf):
@@ -395,19 +399,45 @@ def test_deploy_docs_targets_github_pages_environment(docs_wf):
     )
 
 
-def test_deploy_docs_needs_check_docs(docs_wf):
-    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
-    assert DOCS_CHECK_JOB in _needs(job), "deploy-docs must wait on check-docs"
+def test_docs_deploy_chain_orders_check_build_deploy(docs_wf):
+    build = docs_wf["jobs"][DOCS_BUILD_JOB]
+    deploy = docs_wf["jobs"][DOCS_DEPLOY_JOB]
+    assert DOCS_CHECK_JOB in _needs(build), (
+        "build-docs must wait on check-docs"
+    )
+    assert DOCS_BUILD_JOB in _needs(deploy), (
+        "deploy-docs must wait on build-docs"
+    )
+
+
+def test_build_docs_runs_unprivileged(docs_wf):
+    job = docs_wf["jobs"][DOCS_BUILD_JOB]
+    assert job.get("permissions") == {"contents": "read"}, (
+        "build-docs runs npm lifecycle scripts and must hold only "
+        "contents: read"
+    )
+    assert "mise run docs:build" in _job_run_text_workflows(job), (
+        "build-docs must run the docs build (mise run docs:build)"
+    )
 
 
 def test_deploy_docs_has_minimal_pages_permissions(docs_wf):
     job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
     permissions = job.get("permissions") or {}
     assert permissions == {
-        "contents": "read",
         "pages": "write",
         "id-token": "write",
     }, "deploy-docs must hold exactly the minimal Pages deploy permissions"
+
+
+def test_deploy_docs_runs_no_build_commands(docs_wf):
+    # The npm/Astro build must stay out of the job holding the Pages/OIDC
+    # permissions — a compromised dependency must not run with them in scope.
+    job = docs_wf["jobs"][DOCS_DEPLOY_JOB]
+    assert _job_run_text_workflows(job).strip() == "", (
+        "deploy-docs must only run configure-pages/deploy-pages actions on "
+        "the uploaded artifact, never build commands"
+    )
 
 
 def test_deploy_docs_does_not_hold_the_release_lock(docs_wf):
