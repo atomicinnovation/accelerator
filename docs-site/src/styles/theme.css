@@ -8,42 +8,42 @@
 
 @font-face {
   font-family: 'Inter';
-  src: url('/accelerator/fonts/Inter-Regular.woff2') format('woff2');
+  src: url('../fonts/Inter-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter';
-  src: url('/accelerator/fonts/Inter-SemiBold.woff2') format('woff2');
+  src: url('../fonts/Inter-SemiBold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter';
-  src: url('/accelerator/fonts/Inter-Bold.woff2') format('woff2');
+  src: url('../fonts/Inter-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Sora';
-  src: url('/accelerator/fonts/Sora-SemiBold.woff2') format('woff2');
+  src: url('../fonts/Sora-SemiBold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Sora';
-  src: url('/accelerator/fonts/Sora-Bold.woff2') format('woff2');
+  src: url('../fonts/Sora-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Fira Code';
-  src: url('/accelerator/fonts/FiraCode-Regular.woff2') format('woff2');
+  src: url('../fonts/FiraCode-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

@@ -4,7 +4,7 @@ The docs site is a separate npm build from the visualiser frontend, so it
 duplicates the brand palette (``--atomic-*``). These tests pin every
 duplicated value to its canonical source so the copies cannot diverge
 silently, and check theme.css only references fonts that exist in the
-visualiser's canonical fonts directory (docs-site/public/fonts is a
+visualiser's canonical fonts directory (docs-site/src/fonts is a
 symlink to it).
 """
 
@@ -111,17 +111,18 @@ def test_shiki_theme_colours_match_canonical_fixture():
 
 
 def test_theme_css_fonts_exist_in_canonical_frontend_directory():
-    # docs-site/public/fonts is a symlink to the frontend fonts directory
-    # (Astro dereferences it into dist/), so identity is guaranteed by
+    # docs-site/src/fonts is a symlink to the frontend fonts directory
+    # (Vite resolves the relative url()s through it and rewrites them
+    # from the configured base), so identity is guaranteed by
     # construction; here we pin every URL theme.css references to an
     # existing canonical source file.
     css = _THEME_CSS.read_text()
-    referenced = re.findall(r"url\('/accelerator/fonts/([^']+)'\)", css)
+    referenced = re.findall(r"url\('\.\./fonts/([^']+)'\)", css)
     assert referenced, f"no font URLs found in {_THEME_CSS}"
     for name in referenced:
         assert (_FRONTEND_FONTS / name).is_file(), (
             f"theme.css references {name} but it does not exist in the "
             f"canonical fonts directory {_FRONTEND_FONTS} — the docs "
-            "build serves fonts from there via the docs-site/public/fonts "
+            "build serves fonts from there via the docs-site/src/fonts "
             "symlink"
         )
