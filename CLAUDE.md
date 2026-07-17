@@ -35,10 +35,11 @@ Two faster entry points exist and should be your inner loop:
   the `build:*` artifact namespace), `scripts` (shell). There is **no
   `<component>:fix`** roll-up — fix a component via its `format:<c>:fix` +
   `lint:<c>:fix` tasks. Rust enforcement beyond `cli:check` (cargo-deny,
-  cargo-pup) is documented in `tasks/README.md`. The docs site gate
-  (`docs:check`) is deliberately **not** in the aggregate `check` — it writes
-  gitignored artefacts and needs network + a Chromium install, so the docs CI
-  lane owns it; run it manually when touching `docs-site/`.
+  cargo-pup) is documented in `tasks/README.md`. The docs site tasks
+  (`docs:check`, `docs:build`) are deliberately in **neither** the aggregate
+  `check` nor the bare `default` task — they write gitignored artefacts and
+  need network + a Chromium install, so the docs CI lane owns them; run
+  `docs:check` manually when touching `docs-site/`.
 
 Enforcement is **CI-only — there are no pre-commit hooks.** Run `mise run fix &&
 mise run check` yourself before pushing.

@@ -101,7 +101,7 @@ run = "invoke docs.build"
 sources = [
   "docs-site/src/**/*",
   "docs-site/public/**/*",
-  # docs-site/public/fonts is a symlink into the visualiser frontend, so
+  # docs-site/src/fonts is a symlink into the visualiser frontend, so
   # the target must be a source too or font edits leave a stale cache
   "skills/visualisation/visualise/frontend/public/fonts/**/*",
   "docs-site/astro.config.mjs",
@@ -523,7 +523,7 @@ depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:che
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "docs:build", "test"]
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"
