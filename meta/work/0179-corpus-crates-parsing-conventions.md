@@ -5,7 +5,7 @@ title: "corpus and corpus-adapters Crates for Parsing and Conventions"
 date: "2026-07-06T22:27:35+00:00"
 author: Toby Clemson
 producer: refine-work-item
-status: draft
+status: done
 kind: task
 priority: high
 parent: "work-item:0166"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0179: corpus and corpus-adapters Crates for Parsing and Conventions
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -184,48 +184,48 @@ atomic-store primitives in `corpus-adapters`.
 
 ## Acceptance Criteria
 
-- [ ] The `corpus` domain crate depends on `kernel` only and imports no serde,
+- [x] The `corpus` domain crate depends on `kernel` only and imports no serde,
       serde_json, serde_yml, or serde-saphyr symbol; cargo-deny + cargo-pup fail
       the build if it does.
-- [ ] Parsed frontmatter is represented by a serde-free domain value enum; a
+- [x] Parsed frontmatter is represented by a serde-free domain value enum; a
       round-trip (parse → render) through `corpus-adapters` preserves the body
       byte-for-byte, and big integers beyond `i64` survive as `String`.
-- [ ] The shared document-format crate is the **only** crate importing
+- [x] The shared document-format crate is the **only** crate importing
       serde-saphyr (enforced by the `deny.toml` wrapper), and both
       `config-adapters` and `corpus-adapters` obtain frontmatter split/parse
       through it — `config-adapters` no longer parses YAML independently.
-- [ ] Frontmatter parsing of an enumerated adversarial-input fixture set — the
+- [x] Frontmatter parsing of an enumerated adversarial-input fixture set — the
       0178 plan's adversarial fixtures plus the visualiser's trailing-whitespace
       quoted-flow-scalar regression — returns a clean malformed/error result
       under the 0178 plan's bounded-time guard (cited in References): each parse
       must not panic, abort, or hang, without a `catch_unwind` guard.
-- [ ] `corpus-adapters` parses frontmatter, infers doc types, and resolves
+- [x] `corpus-adapters` parses frontmatter, infers doc types, and resolves
       typed-linkage and slugs over the `corpus` domain types at parity with the
       bash sources — crate output compared against `doc-type-inference.sh`,
       `linkage-parser.sh`, and `work-item-pattern.sh`'s slug/path conventions over
       a shared fixture corpus that spans each of the 14 `DocTypeKey` variants, all
       three identity schemes (ADR-`N`, bare-`N`, date-prefixed), and the
       optional-embedded-work-item-id cases.
-- [ ] The dir→type fact is single-sourced in `corpus` — no triplication —
+- [x] The dir→type fact is single-sourced in `corpus` — no triplication —
       verified by a test asserting the 0007 migration snapshot and the
       `0007-frontmatter-rewrite.awk` table derive from the crate's `DocTypeKey`
       source rather than re-declaring it.
-- [ ] Work-item-ID `extract`/`normalise`/`is-canonical` match the bash
+- [x] Work-item-ID `extract`/`normalise`/`is-canonical` match the bash
       `work-item-pattern.sh` behaviour, reusing that script's existing test suite
       as the parity baseline, with the scan regex injected (the pattern DSL
       compiler is not implemented here).
-- [ ] The frontmatter write-convention performs a `status:` value replacement
+- [x] The frontmatter write-convention performs a `status:` value replacement
       that preserves surrounding quote style, inline comments, CRLF line endings,
       and the untouched body, matched against fixtures.
-- [ ] Artifact-metadata derivation reaches parity with all three helper scripts —
+- [x] Artifact-metadata derivation reaches parity with all three helper scripts —
       current UTC date/time, a parameterised filename timestamp, repository name,
       and current revision — with VCS-kind detection, repo-root detection, and the
       clock behind faked ports so each field is asserted deterministically.
-- [ ] Each VCS port's chosen technique (marker-walk vs command-probe) is recorded
+- [x] Each VCS port's chosen technique (marker-walk vs command-probe) is recorded
       (in the plan or a decision note), and fixtures assert correct repo-root and
       VCS-kind resolution for a secondary jj workspace, a colocated repo, and a
       bare repo.
-- [ ] The two `{number:0Nd}` width parsers are collapsed into one; the
+- [x] The two `{number:0Nd}` width parsers are collapsed into one; the
       title-casers that share semantics are collapsed into a single helper and
       reused, with any intentional divergence (e.g. `humanise_status` vs
       `humanise_slug`) documented.
