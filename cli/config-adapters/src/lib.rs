@@ -7,7 +7,6 @@
 
 mod compose;
 mod document;
-mod frontmatter;
 mod render;
 mod store;
 

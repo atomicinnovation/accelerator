@@ -31,7 +31,13 @@ load_doc_type_table() {
   DOC_TYPE_INJECTED_NAMES=()
   DOC_TYPE_INJECTED_DIRS=()
   local tsv rc=0
-  if [ -n "$root" ]; then
+  if [ -n "${DOC_TYPE_TABLE_TSV:-}" ]; then
+    # An already-resolved table, handed down by a caller that spawned the
+    # resolver itself. The 0007 migration invokes the linkage parser once per
+    # file; without this seam each invocation would re-resolve, turning the
+    # resolve-once invariant into one resolver spawn per corpus file.
+    tsv="$DOC_TYPE_TABLE_TSV"
+  elif [ -n "$root" ]; then
     tsv="$(bash "$DOC_TYPE_PATHS_RESOLVER" "$root")" || rc=$?
   else
     tsv="$(bash "$DOC_TYPE_PATHS_RESOLVER")" || rc=$?

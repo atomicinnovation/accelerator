@@ -1,0 +1,26 @@
+[package]
+name = "corpus-adapters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# The differential suites shell out to bash, awk, and the repo's own scripts.
+# Under the feature an absent tool hard-fails rather than skipping — Rust's
+# harness has no skip primitive, so a silent early return would register as a
+# green PASS. Off, only the pure-Rust tables run, so `cargo test` stays usable
+# on a machine without the toolchain. CI enables it (tasks/test/cli.py).
+bash-parity = []
+
+[dependencies]
+corpus = { path = "../corpus" }
+document = { path = "../document" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+regex = { workspace = true }
+time = { workspace = true }

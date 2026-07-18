@@ -14,7 +14,7 @@ blocked_by: ["work-item:0163"]
 relates_to: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, config, corpus, store, crates, dedup]
-last_updated: "2026-07-06T22:16:29+00:00"
+last_updated: "2026-07-11T12:40:21+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-187"
@@ -29,11 +29,14 @@ external_id: "PP-187"
 
 ## Summary
 
-Build the shared library crates the subdomains depend on — `config`/`config-adapters`
-(native YAML configuration reader), `corpus`/`corpus-adapters` (frontmatter,
-doc-type inference, typed-linkage, slug/path conventions, work-item-ID,
-artifact-metadata, plus the atomic-store JSONL/locking primitives) — collapsing the
-bash↔Rust duplication ADR-0045 names.
+Build the shared library crates the subdomains depend on — a shared
+document-format crate (markdown + YAML-frontmatter protocol, consumed by both
+`config-adapters` and `corpus-adapters`), `config`/`config-adapters` (native YAML
+configuration reader), `corpus`/`corpus-adapters` (frontmatter, doc-type
+inference, typed-linkage, slug/path conventions, work-item-ID, artifact-metadata,
+plus the atomic-store JSONL/locking primitives), and `vcs`/`vcs-adapters` (the
+cross-cutting VCS/repo probe the artifact-metadata composition consumes) —
+collapsing the bash↔Rust duplication ADR-0045 names.
 
 ## Context
 
@@ -48,6 +51,13 @@ beneath the built-in `config` command (0167).
 
 ## Requirements
 
+- **Shared document-format crate** (naming TBD): a utility crate for the
+  markdown-with-YAML-frontmatter protocol (fence split in byte-offset and
+  owned-halves forms, serde-saphyr parse, round-trip render), consumed by both
+  `config-adapters` and `corpus-adapters`, with serde-saphyr confined to it. This
+  is a **fifth crate** beyond the original four; it is created and consumed under
+  **0179**, which also retrofits the already-shipped 0178 `config-adapters` onto
+  it so there is a single document-protocol implementation.
 - `config` (domain + application + ports) and `config-adapters` (outbound: native
   YAML/`serde` frontmatter reader, filesystem). Implement team→local
   last-writer-wins precedence; arbitrary YAML structure (no 2-level cap); the full
@@ -66,7 +76,19 @@ beneath the built-in `config` command (0167).
   canonical-order JSONL compose/remove — porting the load-bearing concurrency
   semantics from `atomic-common.sh`/`jsonl-common.sh`. No standalone `store` crate
   for now (see Drafting Notes). Extract from the visualiser where it already exists
-  rather than re-deriving.
+  rather than re-deriving. The VCS/repo probe the artifact-metadata composition
+  needs lives in the dedicated `vcs`/`vcs-adapters` pair below, **not** in
+  `corpus-adapters`.
+- **`vcs`/`vcs-adapters` pair** (created under **0179**): a dedicated
+  domain+adapters pair for the cross-cutting VCS/repo probe — repo-root
+  (marker-walk), VCS-kind (`.jj`-wins), current working-copy revision (jj/git
+  command-probe), and repo-name — at the **helpers' contract** level. It lives
+  here rather than inside `corpus-adapters` because VCS detection is cross-cutting
+  infra: `config-adapters` already carries a repo-root walk (`discover_root`), and
+  0180/0170 will also want it, so the pair is the convergence point. **0169**
+  builds the `accelerator-vcs` subdomain on top and **extends** the pair with the
+  richer `classify_checkout` taxonomy (secondary/colocated/worktree/bare/`GIT_DIR`);
+  0179 ships only the probe the artifact-metadata composition needs.
 - All crates unit-tested in isolation with faked ports (ADR-0053); the cargo-deny
   ban-lists from 0162 first bite at the `config`/`config-adapters` split here.
 
@@ -101,8 +123,9 @@ beneath the built-in `config` command (0167).
 - [ ] Artifact-metadata derivation reaches parity with
       `artifact-derive-metadata.sh` — current UTC date/time, filename timestamp,
       repository name, and current revision resolved via the jj → git → empty
-      fallback — with the clock and VCS seams behind faked ports so each field is
-      asserted deterministically.
+      fallback — with the clock and VCS seams (the latter provided by the
+      `vcs`/`vcs-adapters` pair) behind faked ports so each field is asserted
+      deterministically.
 - [ ] `corpus-adapters` provides atomic writes (temp + rename) and the mkdir-based
       lock with PID-owner reclaim and jittered back-off, plus canonical-order JSONL
       compose/remove — at parity with `atomic-common.sh` / `jsonl-common.sh` —
@@ -121,9 +144,10 @@ beneath the built-in `config` command (0167).
 - Blocked by: 0163 (workspace skeleton) — **complete**. 0162 (Rust toolchain guard
   rails, `relates_to`) is also **complete**, so both prerequisites are satisfied
   and this story is unblocked.
-- Blocks: 0167 (built-in config command), 0168 (visualiser refactor), 0169 (vcs),
-  0170 (work), 0171 (integrations), 0172 (migrate), 0173 (remaining subdomains) —
-  all consume these crates.
+- Blocks: 0167 (built-in config command), 0168 (visualiser refactor), 0169 (vcs
+  subdomain — consumes and extends the `vcs`/`vcs-adapters` crates created under
+  0179), 0170 (work), 0171 (integrations), 0172 (migrate), 0173 (remaining
+  subdomains) — all consume these crates.
 - Parent: epic 0136.
 
 ## Assumptions
@@ -134,8 +158,9 @@ beneath the built-in `config` command (0167).
 
 ## Technical Notes
 
-**Size**: L — four new crates (`config`, `config-adapters`, `corpus`,
-`corpus-adapters`) plus their cargo-deny/cargo-pup rule activation; a
+**Size**: L — seven new crates (`document`, `config`, `config-adapters`,
+`corpus`, `corpus-adapters`, `vcs`, `vcs-adapters`) plus their
+cargo-deny/cargo-pup rule activation; a
 from-scratch native YAML reader (the bash 2-level reader and the visualiser's
 JSON-reading `config.rs` are both non-reusable); extraction of six visualiser
 twins spanning trivial (`typed_ref.rs`) to highest-effort (`cluster_key.rs`,
@@ -195,6 +220,20 @@ canonical JSONL) whose bash semantics must be reasoned through for Rust.
 - Boundary with 0173: the frontmatter/doc-type/typed-linkage *parsing* logic lands
   only in this story's `corpus`/`corpus-adapters` crates; 0173's `accelerator-corpus`
   binary merely *calls* them, so the two must not re-implement or diverge.
+- Fifth crate added (via the 0179 review): a shared markdown+frontmatter
+  document-format utility crate, consumed by both `config-adapters` and
+  `corpus-adapters`, was not in the original four-crate plan. It is created under
+  0179, which also retrofits the shipped 0178 `config-adapters` onto it;
+  serde-saphyr moves behind this crate's wrapper.
+- Sixth and seventh crates added (via the 0179 plan): a `vcs`/`vcs-adapters`
+  pair, moving the VCS/repo probe out of `corpus-adapters` into a dedicated
+  domain+adapters pair. VCS detection is cross-cutting infra (`config-adapters`
+  already has a repo-root walk), so the pair is the convergence point 0180/0170
+  reuse and 0169 extends with the full `classify_checkout` taxonomy. 0179 ships
+  the helpers'-contract probe only (repo-root, VCS-kind, working-copy revision,
+  repo-name), keeping `corpus` `kernel`-only — since `corpus` cannot name `vcs`
+  value types, the artifact-metadata composition that consumes the pair stays in
+  `corpus-adapters`.
 
 ## References
 

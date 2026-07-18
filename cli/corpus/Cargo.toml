@@ -1,0 +1,17 @@
+[package]
+name = "corpus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# No dependencies: the conventions are pure string, path, and value logic. The
+# infra they need — the scan regex, the doc-type table, a clock, a VCS probe —
+# arrives by injection through ports declared here. The pup rule additionally
+# permits `kernel::Error`, for when a fallible convention needs the shared
+# diagnostic; nothing does yet, so the dependency is not carried.
+[dependencies]

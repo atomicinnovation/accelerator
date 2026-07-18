@@ -298,6 +298,41 @@ mod tests {
     }
 
     #[test]
+    fn a_write_against_a_fence_valid_but_invalid_yaml_file_fails_closed(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let malformed = "---\nkey: : :\n  - broken\n---\nbody\n";
+        seed(&root, "config.md", malformed)?;
+        let store = FileConfigStore::at(&root);
+        let document = single_mapping("core", "v");
+
+        assert!(matches!(
+            store.write(Level::Team, &document),
+            Err(ConfigError::MalformedFrontmatter { .. })
+        ));
+        assert_eq!(
+            fs::read_to_string(root.join(".accelerator/config.md"))?,
+            malformed
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_over_cap_frontmatter_reads_as_malformed() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let mut content = String::from("---\n");
+        content.push_str(&"filler: line\n".repeat(120_000));
+        content.push_str("---\nbody\n");
+        seed(&root, "config.md", &content)?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.read(Level::Team),
+            Err(ConfigError::MalformedFrontmatter { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn a_successful_write_leaves_no_stray_temp() -> Result<(), TestError> {
         let root = tempdir()?;
         let store = FileConfigStore::at(&root);

@@ -38,7 +38,7 @@ fn render_scalar(scalar: &Scalar) -> String {
         Scalar::Bool(value) => value.to_string(),
         Scalar::Int(value) => value.to_string(),
         Scalar::Float(value) => value.to_string(),
-        _ => String::new(),
+        Scalar::Null => String::new(),
     }
 }
 

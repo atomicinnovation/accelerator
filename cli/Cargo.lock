@@ -284,8 +284,23 @@ name = "config-adapters"
 version = "1.24.0-pre.13"
 dependencies = [
  "config",
- "serde",
- "serde-saphyr",
+ "document",
+]
+
+[[package]]
+name = "corpus"
+version = "1.24.0-pre.13"
+
+[[package]]
+name = "corpus-adapters"
+version = "1.24.0-pre.13"
+dependencies = [
+ "corpus",
+ "document",
+ "regex",
+ "time",
+ "vcs",
+ "vcs-adapters",
 ]
 
 [[package]]
@@ -434,6 +449,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "document"
+version = "1.24.0-pre.13"
+dependencies = [
+ "serde",
+ "serde-saphyr",
 ]
 
 [[package]]
@@ -1805,6 +1828,18 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "vcs"
+version = "1.24.0-pre.13"
+
+[[package]]
+name = "vcs-adapters"
+version = "1.24.0-pre.13"
+dependencies = [
+ "tracing",
+ "vcs",
+]
 
 [[package]]
 name = "vergen"
