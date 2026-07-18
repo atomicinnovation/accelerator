@@ -97,11 +97,13 @@ semantics reasoned through for a Rust context.
 - [ ] **AC-7** A golden-record assertion pins the emitted canonical field order
       independently of the round-trip, matching `jsonl_compose_record`
       (`jsonl-common.sh:129-148`): `transformation_key`, `schema_version`,
-      `outcome`, `proposed_value`, then `user_value` (only when
-      `outcome=edited`), then `timestamp`, then author-declared extras in
-      declaration order. This guards against the self-referential AC-6 round-trip
-      passing while the emitted order silently diverges from the on-disk contract
-      the visualiser reads.
+      `outcome`, `proposed_value`, then `user_value` (only when a `user_value`
+      is supplied — emission is **presence-based**, decoupled from `outcome`;
+      the `outcome=edited` coupling is enforced by the migrate consumer 0172, not
+      this primitive, per the 2026-07-19 research follow-up), then `timestamp`,
+      then author-declared extras in declaration order. This guards against the
+      self-referential AC-6 round-trip passing while the emitted order silently
+      diverges from the on-disk contract the visualiser reads.
 - [ ] **AC-8** Composing/writing a record whose `proposed_value` is empty *or
       absent* is rejected with a validation error (covering both halves of the
       "required and non-empty" rule), enforcing the documented-required behaviour
