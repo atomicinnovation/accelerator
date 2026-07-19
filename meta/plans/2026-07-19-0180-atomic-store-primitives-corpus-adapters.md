@@ -5,7 +5,7 @@ title: "Atomic-Store Primitives in corpus-adapters Implementation Plan"
 date: "2026-07-19T00:41:09+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0180"
 parent: "work-item:0180"
 blocked_by: ["work-item:0179"]
