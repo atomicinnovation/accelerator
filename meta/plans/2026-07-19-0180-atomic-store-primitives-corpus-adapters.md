@@ -309,20 +309,20 @@ currently states the kernel dependency "is not carried."
 
 #### Automated Verification
 
-- [ ] `corpus` compiles with the new modules: `cd cli && cargo build -p corpus`
-- [ ] `StoreError` `Display` + kernel-mapping tests pass for **all five**
+- [x] `corpus` compiles with the new modules: `cd cli && cargo build -p corpus`
+- [x] `StoreError` `Display` + kernel-mapping tests pass for **all five**
       variants (`NotWritable`, `LockTimeout`, `CrossFilesystem`, `Validation`,
       `Io`), so `CrossFilesystem` — whose runtime path is only inspection-verified
       in Phase 2 — is exercised here rather than being dead in tests:
       `cd cli && cargo test -p corpus store`
-- [ ] `Outcome::as_str` test passes: `cd cli && cargo test -p corpus record`
-- [ ] Clippy and the pup domain-import guard pass:
-      `mise run lint:cli:clippy:check && mise run lint:cli:pup:check`
-- [ ] Workspace formatting is clean: `mise run format:cli:check`
+- [x] `Outcome::as_str` test passes: `cd cli && cargo test -p corpus record`
+- [x] Clippy and the pup domain-import guard pass:
+      `mise run lint:cli:check && mise run pup:check`
+- [x] Workspace formatting is clean: `mise run format:cli:check`
 
 #### Manual Verification
 
-- [ ] `corpus/Cargo.toml`'s dependency comment reflects that `kernel` is now
+- [x] `corpus/Cargo.toml`'s dependency comment reflects that `kernel` is now
       carried for the `StoreError` boundary mapping.
 
 ---
