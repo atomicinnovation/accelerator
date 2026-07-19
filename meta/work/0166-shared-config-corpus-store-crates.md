@@ -14,7 +14,7 @@ blocked_by: ["work-item:0163"]
 relates_to: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, config, corpus, store, crates, dedup]
-last_updated: "2026-07-11T12:40:21+00:00"
+last_updated: "2026-07-19T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-187"
@@ -75,10 +75,12 @@ beneath the built-in `config` command (0167).
   `mkdir`-based lock with PID-owner reclaim and jittered back-off, and
   canonical-order JSONL compose/remove — porting the load-bearing concurrency
   semantics from `atomic-common.sh`/`jsonl-common.sh`. No standalone `store` crate
-  for now (see Drafting Notes). Extract from the visualiser where it already exists
-  rather than re-deriving. The VCS/repo probe the artifact-metadata composition
-  needs lives in the dedicated `vcs`/`vcs-adapters` pair below, **not** in
-  `corpus-adapters`.
+  for now (see Drafting Notes) — **amended 2026-07-19: `atomic_write` alone now
+  splits out into a `store` crate, carved out by 0167; the lock and JSONL
+  primitives remain folded into `corpus-adapters` as decided here.** Extract from
+  the visualiser where it already exists rather than re-deriving. The VCS/repo 
+  probe the artifact-metadata composition needs lives in the dedicated 
+  `vcs`/`vcs-adapters` pair below, **not** in `corpus-adapters`.
 - **`vcs`/`vcs-adapters` pair** (created under **0179**): a dedicated
   domain+adapters pair for the cross-cutting VCS/repo probe — repo-root
   (marker-walk), VCS-kind (`.jj`-wins), current working-copy revision (jj/git
@@ -137,7 +139,10 @@ beneath the built-in `config` command (0167).
 
 - None outstanding. (The earlier question of whether atomic JSONL + locking is its
   own `store` crate or folded into `corpus-adapters` is resolved: folded into
-  `corpus-adapters` for now — see Drafting Notes.)
+  `corpus-adapters` for now — see Drafting Notes. **Amended 2026-07-19**: the
+  second-consumer contingency recorded there has since fired for `atomic_write`,
+  which splits out into a `store` crate under 0167. The answer for the lock and
+  JSONL primitives is unchanged — they stay folded.)
 
 ## Dependencies
 
@@ -213,6 +218,28 @@ canonical JSONL) whose bash semantics must be reasoned through for Rust.
   carved into a standalone `store` crate; the title retains "store" because the
   capability is still delivered, and a later split stays open if a second consumer
   needs it independently.
+- **Amendment (2026-07-19) — the second-consumer contingency fired for
+  `atomic_write`.** 0167's `config set` is that second consumer. Rather than ship
+  a duplicate, `atomic_write` is carved into the standalone `store` crate this
+  story reserved the name for. Three points worth recording:
+  - **The split is partial, and the original decision largely stands.** Only
+    `atomic_write` moves. The mkdir-lock and canonical-order JSONL compose/remove
+    have corpus-only callers, are not duplicated, and stay folded into
+    `corpus-adapters` exactly as decided here. `store` begins as a
+    single-primitive crate; folding the rest in later remains open on the same
+    second-consumer test.
+  - **0167 owns the carve-out, not 0180.** By the time the contingency fired,
+    0178 had already shipped an `atomic_write` in `config-adapters`
+    (`cli/config-adapters/src/store.rs:58`), so the work is detection and
+    extraction across the workspace rather than a fresh port. 0167 owns it so the
+    result does not depend on whether 0180 lands first — if it has, its
+    implementation is consolidated too. **0180 needs no amendment and is not
+    gated by this**; it may proceed as written.
+  - **The extracted primitive gains a permitted-root parameter**, refusing any
+    component that resolves outside the caller's root. The shipped
+    `config-adapters` implementation has no such refusal, and 0167 requires one on
+    every read and write; generalising it keeps config-specific logic out of a
+    shared crate and gives corpus the same guarantee.
 - Dropped the `ACCELERATOR_MIGRATION_MODE` legacy-read path: it is not user-facing
   backward-compat but migration-internal plumbing, and normal readers already
   fail closed on a legacy layout. The Rust reader ports that fail-closed assertion
