@@ -14,7 +14,7 @@ blocks: ["work-item:0169", "work-item:0173", "work-item:0174"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0106", "work-item:0107", "work-item:0180"]
 tags: [rust, config, skills, invocation-contract, allowed-tools, cli, migration]
-last_updated: "2026-07-19T00:00:00+00:00"
+last_updated: "2026-07-19T21:06:21+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-188"
@@ -72,11 +72,30 @@ pipes, no quoting variants — and exactly **one** `allowed-tools` glob pattern
 is also the first production exercise of the 0164 bootstrap path: `bin/accelerator`
 is built and tested but referenced by zero skills and zero hooks today.
 
-The 46-vs-35 gap between call-site files and glob-carrying frontmatter blocks is
-not yet explained — it may mean eleven skills invoke config scripts without
-declaring the permission, or that the two counts were measured over different
-sets. Resolving it is a precondition of the rewrite, since it decides whether
-eleven files need a glob *added* rather than rewritten.
+**Q2 is resolved (2026-07-19), and benignly.** Re-measured at revision
+`b290d5d9`: 247 `!` call sites across 46 SKILL.md files; 35 files declaring
+`Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)` (34 clean plus one carrying a
+trailing space). The eleven-file gap is **not** missing declarations — every one
+invokes config scripts under a *broader* rule:
+
+- **1 file** — `skills/vcs/commit/SKILL.md:7` declares
+  `Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)`, broad because it also calls
+  `vcs-status.sh` and `vcs-log.sh`.
+- **10 files** — the `disable-model-invocation: true` integration *write* skills,
+  each declaring bare `- Bash`, each with the identical three-call-site shape.
+
+**Nothing is broken today, and no file needs a rule added for the bash surface.**
+Exactly one file can silently break under the rewrite: `skills/vcs/commit`, whose
+`scripts/*` rule does **not** cover `bin/accelerator`. It gains a rule rather
+than having one rewritten. `skills/config/configure/SKILL.md` also gains one — it
+has no `allowed-tools` key at all today.
+
+The `!`-scoped count is **not** the whole migration surface, which the earlier
+text implied. Beyond the 247 there are **14 non-`!` call sites** across five
+files — nine fenced code blocks in `configure/SKILL.md` (the only flagged and
+multi-arg invocations anywhere), four prose "run this script" instructions, and
+`skills/config/init/SKILL.md:45`. `create-jira-issue/SKILL.md:114` *sources*
+`config-common.sh` and is out of scope. Grep A is the criterion that covers them.
 
 ## Requirements
 
@@ -242,11 +261,11 @@ name none.)
       Requirements enumeration, with columns: subcommand, **output class**,
       **fixture**, and **expected exit code**. It is the parametrised test's input,
       so an omitted or stubbed subcommand fails. The classes and their contracts:
-      - **scalar** (`get`, `path`, `agent`, `template`, `doc-type-paths`) — stdout
-        is exactly the value plus a single `\n`; stderr empty.
+      - **scalar** (`get`, `path`, `agent`, `template`) — stdout is exactly the
+        value plus a single `\n`; stderr empty.
       - **block** (`paths`, `context`, `agents`, `work`, `review`, `dump`,
-        `summary`, `skill-context`, `skill-instructions`, `templates list|show`) —
-        stdout matches a committed golden byte-for-byte.
+        `summary`, `skill-context`, `skill-instructions`, `doc-type-paths`,
+        `templates list|show`) — stdout matches a committed golden byte-for-byte.
       - **customisation-state** (`templates eject|diff|reset`) — the ADR-0021 exit
         codes below govern; stdout matches a committed golden per exit state.
       - **mutation** (`set`, `init`) — exit code plus a post-state assertion on
@@ -254,10 +273,26 @@ name none.)
       A subcommand's class may be corrected only by amending **this criterion**
       alongside the table, so the specification cannot be edited to match whatever
       was built.
-- [ ] Exit codes, ADR-0021 (**customisation-state** class): given
-      `templates eject|diff|reset` against the **not-customised** fixture the
-      process exits **2**; against the **error** fixture, **1**; on success, **0**.
-      A uniform-exit-1 implementation fails this criterion.
+- [ ] Exit codes, ADR-0021 (**customisation-state** class). ADR-0021:80 defines
+      exit 2 as "destructive action requires confirmation". The three commands
+      fire it on **opposite** customisation states, so no single fixture serves
+      all three:
+
+      | Command | Exits 2 when | Fixture | Exits 0 against |
+      |---|---|---|---|
+      | `templates eject` (no `--force`) | the override **already exists** | **already-customised** | **not-customised** |
+      | `templates diff` | there is **no** override | **not-customised** | **already-customised** |
+      | `templates reset` | there is **no** override | **not-customised** | **already-customised** |
+
+      Against the **error** fixture all three exit **1**. A uniform-exit-1
+      implementation fails this criterion. For `eject --all`, any error wins
+      (exit 1) over any exists (exit 2), per `config-eject-template.sh:118-137`.
+- [ ] **Usage errors exit 1, so exit 2 keeps one meaning.** clap 4 exits **2** on
+      a usage error (unknown flag, bad `--level`) and the launcher currently
+      delegates to `error.exit()` (`cli/launcher/src/main.rs:106`). The bash exits
+      **1**, so without interception a mistyped template name would be
+      indistinguishable from "confirmation required". Asserted by invoking a
+      template subcommand with an unknown flag and observing exit 1.
 - [ ] The three injection commands — `config agents` → `## Agent Names`,
       `config context` → `## Project Context`, `config review` →
       `## Review Configuration` — each match a committed golden byte-for-byte
@@ -345,13 +380,31 @@ name none.)
       **second, final-state discovery run** is recorded and every difference from
       the audit table is attributed to a named deletion or addition — the
       population changes mid-story, so a single unpinned count cannot hold.
+      The audit **must** include `scripts/test-design.sh`, which is named nowhere
+      else in this story but asserts SKILL.md invocation shape and the
+      browser-executor's existence at `:42`, `:157-161`, `:427`, `:444-446`,
+      `:471-472` — the same class as the flagged `test-config.sh` regions, and it
+      breaks by design at the cutover.
+      It must also record the two **Rust** tests pinning the shell surface, which
+      break at deletion rather than at cutover:
+      `cli/config-adapters/tests/parity.rs:42-43,113-121` (asserts
+      `config-read-value.sh` is a file, then shells out to it) and
+      `cli/corpus-adapters/tests/doc_type_single_source.rs:189-220` (sources
+      `config-defaults.sh`); plus the two suites writing `exec` stubs that
+      hard-code the resolver path
+      (`scripts/test-validate-corpus-frontmatter.sh:412`,
+      `skills/config/migrate/scripts/test-migrate-0007.sh:2208`).
 - [ ] **At the final state** (after the deletion change — not at any intermediate
       commit, since `test-init.sh` is deliberately wired *in* mid-story), the set
       `run_shell_suites` discovers contains **none** of the three superseded
       suites (`test-config.sh`, `test-config-read-doc-type-paths.sh`,
       `test-init.sh`). `_EXPECTED_CONFIG_SUITES` is then set to equal what
       discovery finds — necessary bookkeeping, but tautological once edited, so the
-      absence assertion is what carries weight.
+      absence assertion is what carries weight. Note it is an **at-least floor**
+      (`tasks/test/integration.py:85` compares with `<`), not an equality, so
+      retiring suites requires *lowering* it or the build fails; the sibling
+      floors (`_EXPECTED_MIGRATE_SUITES`, `_EXPECTED_WORK_SUITES`,
+      `_EXPECTED_INTEGRATIONS_SUITES`) work the same way and are untouched.
 
 ### Invocation contract
 
@@ -372,6 +425,10 @@ name none.)
       --include=SKILL.md skills/`, run pre-migration to record both its total and
       its `config-read-browser-executor.sh` subset. Post-migration it returns
       **exactly that subset count**, and every remaining hit is one of them.
+      Measured at revision `b290d5d9`: total **297**, browser-executor subset
+      **1**, so post-migration it must return **exactly 1**. (The 297 includes the
+      35 `allowed-tools` declaration lines, which the rewrite also removes — the
+      pre-migration figure is a floor to re-measure at cutover, not a constant.)
       (Two greps because one cannot do both jobs: Grep A's pattern is built from
       removal-set paths and can never match the browser-executor, whose surviving
       call sites are exactly what Grep B counts.)
@@ -389,10 +446,12 @@ name none.)
       extractor that sees bare paths — is what verifies the requirement.
 - [ ] Q1's answer, and the Claude Code version it was empirically verified
       against, are recorded in Assumptions before the first call site is rewritten.
-- [ ] Q2's re-measured counts and the explanation for the 46-vs-35 gap are
+- [x] Q2's re-measured counts and the explanation for the 46-vs-35 gap are
       recorded in Context before the first call site is rewritten, and any file
       found to invoke a config script without declaring the permission gains a rule
-      rather than a rewrite.
+      rather than a rewrite. **Done 2026-07-19** — see Context. No file lacks a
+      declaration; `skills/vcs/commit` and `skills/config/configure` gain rules for
+      the new bootstrap path.
 
 ### End-to-end proof (ADR-0045)
 
@@ -453,11 +512,25 @@ name none.)
       every race. Separately, after both a successful and a failed write, no temp
       artefacts remain.
 - [ ] **No temp-file-plus-rename implementation exists outside the `store`
-      crate**, asserted by a committed grep or pup rule. The check is shown to flag
-      every such implementation present in the pre-consolidation tree — one if 0180
-      has not landed, two if it has — and those findings are recorded. Phrased as
-      "none outside `store`" because that is what the check proves; it does not
-      establish that exactly one exists inside.
+      crate**, asserted by a committed grep or pup rule, save two allowlisted
+      exceptions each carrying its reason inline. The check is shown to flag both
+      real duplicates present in the pre-consolidation tree —
+      `cli/config-adapters/src/store.rs:58-80` and
+      `cli/corpus-adapters/src/store.rs:48-85`, **two, since 0180 has landed** —
+      and those findings are recorded. Phrased as "none outside `store`" because
+      that is what the check proves; it does not establish that exactly one exists
+      inside.
+      **The two exceptions are not duplicates and must not be flagged**, or the
+      check fails forever:
+      - `cli/launcher/src/launch/outbound/resolve/cache.rs:112-127` — a cache
+        *publication* primitive: 0600 write, conditional `chmod +x`, and a paired
+        `.minisig` written alongside. Its permission semantics have no analogue in
+        a config or corpus write.
+      - `cli/corpus-adapters/src/lock.rs:106-117` — renames a **directory** as a
+        stale-lock claim. Not a write at all; a naive `fs::rename` grep hits it.
+      A raw `fs::rename` grep is therefore insufficient on its own — the check
+      needs the allowlist, or a shape-aware pattern that matches temp-write-then-
+      rename-a-file specifically.
 - [ ] `config set` calls `store`'s `atomic_write` and contains no temp-file or
       `fs::rename` logic of its own.
 
@@ -518,11 +591,15 @@ name none.)
   against the minimum supported Claude Code (v2.1.144) before the first call site
   is rewritten; record the verified version alongside the answer, since this is
   undocumented vendor behaviour that may change.
-- **(Q2, blocks the rewrite)** Why do 247 call sites span 46 SKILL.md files while
-  the `allowed-tools` glob appears in only 35 frontmatter blocks? Resolve by
-  re-measuring both sets before the rewrite; if eleven files genuinely lack the
-  declaration, they need a rule added rather than rewritten.
-Q1 and Q2 are the only outstanding items; both block the rewrite.
+  **Counter-evidence worth probing against**: the tree carries
+  `Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)`
+  **alongside** `.../inventory-design/scripts/*`. That nested rule would be
+  redundant if `*` spanned `/`, which cuts against the source research's reading
+  of the same taxonomy as evidence that it does. Neither reading is assumed; the
+  probe settles it.
+
+**Q1 is the only outstanding item.** Q2 was resolved on 2026-07-19 by
+re-measurement — see Context.
 
 **Closed decisions** (recorded here rather than left in the list, so Open
 Questions stays a list of things that actually block work):
@@ -554,7 +631,9 @@ requires it to be re-measured rather than assumed.)*
 ## Dependencies
 
 - Blocked by: 0166 (shared config/corpus crates) — concretely its children 0178
-  (config/config-adapters, **done**) and 0179 (document/corpus crates, **draft**),
+  (config/config-adapters, **done**) and 0179 (document/corpus crates, **done** as
+of 2026-07-19 — the `document`, `corpus`, `corpus-adapters`, `vcs` and
+`vcs-adapters` crates are all in the tree),
   which are what actually gate this work; and 0164 (the bootstrap + launcher,
   **done** — the entrypoint exists and is tested, this story is its first
   consumer). 0180 is **not** a blocker: this story consolidates `atomic_write`
@@ -565,11 +644,15 @@ requires it to be re-measured rather than assumed.)*
   established by inspection: 0178 (**done**) already shipped an `atomic_write` as
   a private method on `FileConfigStore` (`cli/config-adapters/src/store.rs:58`) —
   temp dir under `config_dir()/tmp`, PID+counter-named temp file, write, rename,
-  cleanup on both failure paths. 0180 (**draft**) will likely build a second one
-  in `corpus-adapters`.
-  **Owning consolidation here makes the outcome ordering-independent**: if 0180
-  lands first there are two implementations to consolidate; if it does not, there
-  is one to extract. Either way this story converges on a single primitive, and
+  cleanup on both failure paths. **0180 has since landed** (2026-07-19; commits
+  `338dcd37 → accc29a5 → 76753652 → 609bb999`), so the second implementation now
+  exists in `cli/corpus-adapters/src/store.rs:48-85` — a free function taking
+  `&[u8]` and returning `StoreError`, with a same-directory `NamedTempFile`, RAII
+  cleanup and EXDEV classification, against config-adapters' method taking `&str`
+  and returning `ConfigError`. The extraction reconciles all three axes.
+  **The ordering-independence argument held**: there are two implementations to
+  consolidate rather than one to extract. Either way this story converges on a
+  single primitive, and
   0180 needs no amendment, no scope expansion, and no agreement negotiated before
   work starts. The earlier draft made 0180 the owner and required its consent as
   a precondition — unenforceable, since 0180 is a sibling that may proceed
@@ -705,8 +788,11 @@ requires it to be re-measured rather than assumed.)*
 - **Fixture workspaces**, named once here and referenced by name from the
   criteria: a **baseline** fixture (team config present, no local overrides — the
   golden-comparison target for scalar reads, injection blocks, and the summary);
-  a **not-customised** fixture (no ejected templates, for the ADR-0021 exit-2
-  paths); an **error** fixture (for exit-1 paths); an **empty-summary** fixture;
+  a **not-customised** fixture (no ejected templates — the exit-2 state for
+  `diff`/`reset` and the exit-0 state for `eject`); an **already-customised**
+  fixture (an ejected template present — the exit-2 state for `eject` and the
+  exit-0 state for `diff`/`reset`); an **error** fixture (for exit-1 paths); an
+  **empty-summary** fixture;
   an **unreadable-config** fixture; and three **malformed** fixtures for
   `config set` (unterminated frontmatter, invalid YAML, config-dir symlink
   escape); and three **fail-closed trigger** fixtures — **writeback-failure**
@@ -818,7 +904,10 @@ their own; this pass repairs those and closes the remaining verification gaps.
 - **Settled `atomic_write` ownership**: the primitive moves down into a shared
   lower-level crate that both config and corpus depend on, rather than
   config-adapters depending on corpus-adapters or the write discipline being
-  implemented twice. This expands 0180's scope and must be agreed there.
+  implemented twice. ~~This expands 0180's scope and must be agreed there.~~
+  **Superseded by pass 3** — this story owns the consolidation outright, so 0180
+  needs no amendment and no negotiated consent. See "Review pass 3 —
+  `atomic_write` settled" and the Dependencies section.
 - **Made the suite counter self-checking** (`_EXPECTED_CONFIG_SUITES` equals what
   discovery actually finds) instead of deferring its own pass condition to the
   implementer, which is what "plus one if … confirm at implementation" did.
@@ -1048,8 +1137,10 @@ Repairs to text earlier passes introduced. No scope or design changes.
   filesystem in practice, so `rename` stays atomic — but a `tmp` on a different
   mount would silently degrade it to a copy, so the extracted primitive must pick
   one.
-- Amending 0166's resolved decision and expanding 0180's scope are both
-  consequences of this choice and must be recorded on those items.
+- Amending 0166's resolved decision is a consequence of this choice and must be
+  recorded there. **0180's scope is not expanded** — this story owns detection
+  and extraction, which is what makes the outcome ordering-independent. (An
+  earlier note in pass 2 said otherwise; it is struck above.)
 
 ### Acceptance Criteria rewrite (2026-07-19)
 
@@ -1152,8 +1243,67 @@ Other repairs from the same pass:
   led a reader straight back to the 337-row burden the repointing decision
   removed. Also dropped the dangling 337 comparison from the remainder criterion.
 
+### Planning pass — corrections from implementation planning (2026-07-19)
+
+Made while writing
+`meta/plans/2026-07-19-0167-config-command-and-invocation-contract-migration.md`,
+which supersedes this item where the two differ on mechanics. Four of these are
+defects no review pass caught; all were established by inspecting the tree at
+revision `b290d5d9` rather than by argument.
+
+- **The ADR-0021 exit-2 criterion was wrong and unsatisfiable.** It asserted exit
+  2 from `eject|diff|reset` against a single **not-customised** fixture. But the
+  three fire on *opposite* customisation states: `eject` exits 2 when the override
+  **already exists** (`config-eject-template.sh:133-135`), while `diff` and
+  `reset` exit 2 when there is **none** (`:36,43` and `:60,67`). Against
+  not-customised, `eject` *succeeds*. Replaced with a per-command table and a new
+  **already-customised** fixture. ADR-0021:80's actual definition — "destructive
+  action requires confirmation" — fits `eject` and is overloaded by the other two.
+- **Exit 2 collides with clap, a regression the port would introduce.** clap 4
+  exits **2** on usage errors and `cli/launcher/src/main.rs:106` delegates to
+  `error.exit()`. The bash exits **1**. Without interception, a mistyped template
+  name is indistinguishable from "confirmation required" — which would silently
+  corrupt the two-phase flow ADR-0021 exists to drive. New criterion added.
+- **`doc-type-paths` was mis-classed `scalar`.** It emits 13 tab-separated
+  `type<TAB>dir` lines under `LC_ALL=C` (`config-read-doc-type-paths.sh:81-110`),
+  never a single value. Moved to **block**.
+- **Q2 resolved and recorded in Context**, and struck from Open Questions. The gap
+  is benign; nothing is broken today. Two files gain rules for the new bootstrap
+  path — `vcs/commit` (whose `scripts/*` rule does not cover `bin/accelerator`)
+  and `configure` (which has no `allowed-tools` key at all).
+- **`_EXPECTED_CONFIG_SUITES` is a `<` floor, not an equality**
+  (`tasks/test/integration.py:85`). The research called it "zero headroom", which
+  is right about the consequence and wrong about the mechanism. Retiring suites
+  requires *lowering* it either way.
+- **`scripts/test-design.sh` added to the surviving-suite audit** — named nowhere
+  in this item previously, but it asserts SKILL.md invocation shape in the same
+  class as the flagged `test-config.sh` regions and breaks by design at cutover.
+  The audit also now names the two Rust tests and two stub-writing suites that
+  pin the shell surface.
+- **The `store` duplication check needs an allowlist.** Of the four
+  temp-and-rename sites, only two are duplicates. `cache.rs:112-127` is a 0600
+  publication primitive with a paired signature file; `lock.rs:106-117` renames a
+  *directory* as a lock claim. A naive `fs::rename` grep flags both forever.
+- **Statuses corrected**: 0179 and 0180 have both landed. The "one if 0180 has not
+  landed, two if it has" hedge resolves to **two**, and the pass-2 note claiming
+  the decision "expands 0180's scope" is struck — pass 3 superseded it.
+- **Three deliberate divergences from bash parity** are recorded in the plan and
+  will be committed as a divergence note: `config_assert_no_legacy_layout` applied
+  **uniformly** (the bash applies it to 7 of 20 scripts, asymmetrically and
+  undocumented); the `config-read-review.sh:270` **double slash** in custom-lens
+  paths **fixed** rather than frozen into a golden; and the
+  `config-summary.sh:20-22` init sentinel resolved against **project root** rather
+  than CWD. Each updates its repointed assertion in the same commit.
+
+**Not addressed, deliberately.** The ~40-line "Answering the scope objection"
+section still argues against the deleted-not-repointed premise that the AC rewrite
+reversed. It is now historical rather than wrong — the section says so itself in
+its final paragraph — so it is left standing as a record of how the decision moved.
+
 ## References
 
+- Plan: `meta/plans/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
+- Research: `meta/research/codebase/2026-07-19-0167-config-command-and-invocation-contract-migration.md`
 - Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
 - Parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0045, ADR-0047, ADR-0020, ADR-0021
