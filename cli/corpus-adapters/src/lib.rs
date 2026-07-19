@@ -8,6 +8,8 @@
 pub mod assemble;
 pub mod doc_type;
 pub mod document;
+mod jsonl;
+mod lock;
 pub mod metadata;
 pub mod patcher;
 pub mod scanner;

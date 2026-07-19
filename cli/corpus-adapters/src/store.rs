@@ -4,18 +4,32 @@
 
 use std::fs;
 use std::io::Error as IoError;
+use std::io::ErrorKind;
 use std::io::Write as _;
 use std::path::Path;
+use std::path::PathBuf;
 
-use corpus::{AtomicWrite, StoreError};
+use corpus::{AtomicWrite, Record, RecordStore, StoreError};
 use tempfile::NamedTempFile;
 
-pub struct FileCorpusStore;
+use crate::jsonl::{compose_record, remove_prefix};
+use crate::lock::{self, LockOptions};
+
+pub struct FileCorpusStore {
+    lock: LockOptions,
+}
 
 impl FileCorpusStore {
     #[must_use]
-    pub const fn new() -> Self {
-        Self
+    pub fn new() -> Self {
+        Self {
+            lock: LockOptions::default(),
+        }
+    }
+
+    #[must_use]
+    pub const fn with_lock_options(lock: LockOptions) -> Self {
+        Self { lock }
     }
 }
 
@@ -23,6 +37,12 @@ impl Default for FileCorpusStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn lockdir(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(".lockdir");
+    PathBuf::from(name)
 }
 
 pub(crate) fn atomic_write(
@@ -78,6 +98,54 @@ fn io(path: &Path, error: &IoError) -> StoreError {
 impl AtomicWrite for FileCorpusStore {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
         atomic_write(path, bytes)
+    }
+}
+
+impl RecordStore for FileCorpusStore {
+    fn append_record(
+        &self,
+        path: &Path,
+        record: &Record,
+    ) -> Result<(), StoreError> {
+        let line = compose_record(record)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
+        }
+        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        let mut content = match fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == ErrorKind::NotFound => Vec::new(),
+            Err(error) => return Err(io(path, &error)),
+        };
+        if content.last().is_some_and(|byte| *byte != b'\n') {
+            content.push(b'\n');
+        }
+        content.extend_from_slice(line.as_bytes());
+        content.push(b'\n');
+        atomic_write(path, &content)
+    }
+
+    fn remove_by_key(&self, path: &Path, key: &str) -> Result<(), StoreError> {
+        if !path.exists() {
+            return Ok(());
+        }
+        let prefix = remove_prefix(key)?;
+        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        let existing = match fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(());
+            }
+            Err(error) => return Err(io(path, &error)),
+        };
+        let mut out = String::with_capacity(existing.len());
+        for line in existing.lines() {
+            if !line.starts_with(&prefix) {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+        atomic_write(path, out.as_bytes())
     }
 }
 

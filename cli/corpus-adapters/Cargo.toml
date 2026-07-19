@@ -26,3 +26,5 @@ regex = { workspace = true }
 time = { workspace = true }
 tempfile = { workspace = true }
 libc = { workspace = true }
+rand = { workspace = true }
+serde_json = { workspace = true }

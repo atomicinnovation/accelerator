@@ -935,13 +935,13 @@ consumers use the `RecordStore` port).
 
 #### Automated Verification
 
-- [ ] `corpus-adapters` compiles: `cd cli && cargo build -p corpus-adapters`
-- [ ] Lock tests pass: `cd cli && cargo test -p corpus-adapters lock`
-- [ ] JSONL composer tests pass: `cd cli && cargo test -p corpus-adapters jsonl`
-- [ ] `RecordStore` round-trip tests pass:
+- [x] `corpus-adapters` compiles: `cd cli && cargo build -p corpus-adapters`
+- [x] Lock tests pass: `cd cli && cargo test -p corpus-adapters lock`
+- [x] JSONL composer tests pass: `cd cli && cargo test -p corpus-adapters jsonl`
+- [x] `RecordStore` round-trip tests pass:
       `cd cli && cargo test -p corpus-adapters --test store`
-- [ ] `cargo-deny` admits `rand`: `mise run deny:check`
-- [ ] Full single-component gate: `mise run cli:check`
+- [x] `cargo-deny` admits `rand`: `mise run deny:check`
+- [x] Full single-component gate: `mise run cli:check`
 
 Tests to write first:
 
@@ -1021,7 +1021,7 @@ Tests to write first:
 
 #### Manual Verification
 
-- [ ] The automated `std::thread::scope` concurrency test above is the primary
+- [x] The automated `std::thread::scope` concurrency test above is the primary
       guard; optionally, a longer hand-run soak (many rounds of parallel
       `append_record` to one path) confirms no record is lost and no partial line
       is ever observable on disk under sustained contention.
