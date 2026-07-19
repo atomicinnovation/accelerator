@@ -5,7 +5,6 @@
 //! darwin + musl target set.
 
 use std::fs;
-use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,6 +12,8 @@ use std::time::Duration;
 
 use corpus::StoreError;
 use rand::Rng as _;
+use rustix::io::Errno;
+use rustix::process::{test_kill_process, Pid};
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Copy)]
@@ -132,15 +133,18 @@ fn discard_path(lockdir: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-/// `kill(pid, 0)`: `0` → alive; `EPERM` → alive (exists but not signalable by
-/// this process); `ESRCH` → gone. Only a confirmed `ESRCH` is treated as dead.
+/// `kill(pid, 0)` via rustix: signalable → alive; `EPERM` → alive (exists but
+/// not signalable by this process); only a confirmed `ESRCH` (or any other
+/// error) is treated as dead. A non-positive PID is never a real holder, so it
+/// is treated as live rather than reclaimed.
 fn process_is_alive(pid: i32) -> bool {
-    // SAFETY: `kill` takes two scalar arguments and returns a scalar; it
-    // dereferences no pointers and cannot violate memory safety.
-    if unsafe { libc::kill(pid, 0) } == 0 {
+    if pid <= 0 {
         return true;
     }
-    IoError::last_os_error().raw_os_error() == Some(libc::EPERM)
+    let Some(pid) = Pid::from_raw(pid) else {
+        return true;
+    };
+    matches!(test_kill_process(pid), Ok(()) | Err(Errno::PERM))
 }
 
 fn jitter_ms(base_ms: u64) -> u64 {
@@ -157,7 +161,10 @@ mod tests {
     use corpus::StoreError;
     use tempfile::TempDir;
 
-    use super::{acquire_with, claim, jitter_ms, LockGuard, LockOptions};
+    use super::{
+        acquire_with, claim, jitter_ms, process_is_alive, LockGuard,
+        LockOptions,
+    };
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -319,6 +326,18 @@ mod tests {
         assert!(matches!(outcome, Err(StoreError::Io { .. })));
         assert!(!lockdir.exists());
         Ok(())
+    }
+
+    #[test]
+    fn the_current_process_reads_as_alive() {
+        let pid = i32::try_from(std::process::id()).unwrap_or(1);
+        assert!(process_is_alive(pid));
+    }
+
+    #[test]
+    fn a_non_positive_pid_is_treated_as_live() {
+        assert!(process_is_alive(0));
+        assert!(process_is_alive(-1));
     }
 
     #[test]

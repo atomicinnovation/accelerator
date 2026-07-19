@@ -303,6 +303,7 @@ dependencies = [
  "libc",
  "rand",
  "regex",
+ "rustix",
  "serde_json",
  "tempfile",
  "time",
