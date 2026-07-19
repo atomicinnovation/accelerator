@@ -448,12 +448,12 @@ go through the `AtomicWrite` port.
 
 #### Automated Verification
 
-- [ ] `corpus-adapters` compiles: `cd cli && cargo build -p corpus-adapters`
-- [ ] Atomic-write tests pass: `cd cli && cargo test -p corpus-adapters store`
-- [ ] `cargo-deny` admits the new deps: `mise run deny:check`
-- [ ] Clippy and pup pass: `mise run lint:cli:clippy:check &&
-      mise run lint:cli:pup:check`
-- [ ] Full single-component gate: `mise run cli:check`
+- [x] `corpus-adapters` compiles: `cd cli && cargo build -p corpus-adapters`
+- [x] Atomic-write tests pass: `cd cli && cargo test -p corpus-adapters store`
+- [x] `cargo-deny` admits the new deps: `mise run deny:check`
+- [x] Clippy and pup pass: `mise run lint:cli:check &&
+      mise run pup:check`
+- [x] Full single-component gate: `mise run cli:check`
 
 Tests to write first (all inline `#[cfg(test)]` in `store.rs`, so they reach the
 private `stage`/`persist` seam):
@@ -481,7 +481,7 @@ private `stage`/`persist` seam):
 
 #### Manual Verification
 
-- [ ] AC-2's end-to-end cross-mount rename is confirmed only by inspection
+- [x] AC-2's end-to-end cross-mount rename is confirmed only by inspection
       against the `file_driver.rs:231-242` precedent (a genuine cross-mount is
       not portable in CI); the errno-classification logic itself is unit-covered
       via `classify_persist_error`.
