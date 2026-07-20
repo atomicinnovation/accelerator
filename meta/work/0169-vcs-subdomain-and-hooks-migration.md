@@ -62,8 +62,11 @@ with the migration subdomain (0172).
   handling) and extending those crates with the full `classify_checkout` taxonomy.
   "Full taxonomy" here means reproducing the shell's existing classification set
   (worktree, submodule, bare, `GIT_DIR`, plain) as typed variants — not adding
-  classifications beyond what the shell produces. External tools (`jj`, `git`)
-  behind an outbound port.
+  classifications beyond what the shell produces. External VCS state (`jj`,
+  `git`) is read through in-process Rust libraries — `gix` (gitoxide) for git
+  and `jj-lib` for jujutsu — bound behind the outbound port, not by spawning
+  `jj`/`git` subprocesses; a per-query shell fallback behind the same port is
+  permitted only where no library equivalent exists.
 - Migrate the VCS and config hook logic into the CLI: `hooks.json` registers the
   universal bash wrapper (which fetches `accelerator` on first use, then execs it)
   invoking domain subcommands — SessionStart → `accelerator vcs detect` +
@@ -95,6 +98,11 @@ with the migration subdomain (0172).
       submodule, bare, `GIT_DIR`, plain) and asserting first-match-wins precedence
       for at least one ambiguous checkout, so the load-bearing arm order cannot
       regress silently.
+- [ ] The `accelerator-vcs` adapters read VCS state through the `gix` and
+      `jj-lib` libraries rather than by spawning `jj`/`git` subprocesses —
+      verified by asserting zero `jj`/`git` process spawns across the
+      detect/status/log/guard paths under an instrumented process launcher; any
+      shell fallback is explicit, per-query, and covered by its own test.
 - [ ] `accelerator config detect` reproduces the SessionStart config-detection
       behaviour of `config-detect.sh`, verified against its hook test.
 - [ ] `hooks.json` registers the wrapper invoking domain subcommands; SessionStart
@@ -153,6 +161,50 @@ with the migration subdomain (0172).
   `classify_checkout` taxonomy rather than defining them from scratch.
 - `classify_checkout` arm ordering is load-bearing — preserve first-match-wins
   semantics exactly.
+- **Implementation approach — bind VCS libraries, don't shell out.** The adapters
+  should drive git and jujutsu through in-process Rust libraries — `gix`
+  (gitoxide) for git and `jj-lib` for jujutsu — bound behind the outbound VCS
+  ports, rather than spawning `jj`/`git` child processes. This departs from the
+  current `CommandProbe` adapter (`cli/vcs-adapters/src/lib.rs:48-196`), which
+  runs `jj log`/`git rev-parse` as subprocesses; the port abstraction
+  (`cli/vcs/src/lib.rs:48-55`) already allows swapping in a library-backed
+  adapter without touching the domain.
+  - Git queries `classify_checkout` needs map to `gix`: bare check
+    (`git rev-parse --is-bare-repository`, `vcs-common.sh:207`), worktree
+    detection (`--git-dir` vs `--git-common-dir`, `vcs-common.sh:217-219`), and
+    superproject/submodule resolution (`--show-superproject-working-tree`,
+    `vcs-common.sh:140-146`).
+  - jj queries map to `jj-lib`: workspace-root resolution and the
+    main-vs-secondary distinction (`.jj/repo` dir vs file,
+    `vcs-common.sh:74-81`), plus revision reads.
+  - Risk to validate early: `jj-lib`'s public API is explicitly unstable and
+    pins to the jj release; confirm its workspace/repo-loading surface covers
+    the secondary-workspace and colocated cases before committing. `gix` is the
+    more mature of the two. Where a query has no library equivalent, a per-query
+    shell fallback *behind the same port* is acceptable, but library-first is
+    the default.
+- Behavioural reference (`path:line`):
+  - jj-outranks-git dispatch — a command-set selector, not a topology (git's
+    index lags jj's working copy in colocated): `scripts/vcs-common.sh:27-36`.
+  - `classify_checkout` contract + six-line `KEY=VALUE` record:
+    `scripts/vcs-common.sh:157-176`; body `:177-280`.
+  - Load-bearing arm cascade (first-match-wins) — `colocated` must precede the
+    `nested-*` arms: `scripts/vcs-common.sh:240-272`.
+  - Hook I/O envelopes to reproduce under `--format=hook`: SessionStart
+    `{hookSpecificOutput:{hookEventName,additionalContext}}` + optional
+    `systemMessage` (`hooks/vcs-detect.sh:177-181`); PreToolUse guard
+    `{decision:block,reason}` (pure-jj) vs
+    `{decision:allow,hookSpecificOutput}}` (colocated)
+    (`hooks/vcs-guard.sh:97-108`).
+  - Guard command-parsing (a separate behaviour from detection): compound-command
+    split on `&& || ; |` then git-subcommand pattern match
+    (`hooks/vcs-guard.sh:44-108`); `gh`/`rtk` unconditionally allowed.
+  - Rust starting point: `vcs`/`vcs-adapters` today model corpus `RepoFacts`
+    (root/name/kind/revision), *not* the hook taxonomy —
+    `cli/vcs/src/lib.rs:32-78`; parity tests assert facts only
+    (`cli/vcs-adapters/tests/detection.rs`). The launcher dispatches any new
+    `accelerator-vcs` external subcommand with no launcher changes
+    (`cli/launcher/src/launch/inbound/cli.rs:15-22`).
 
 ## Drafting Notes
 
