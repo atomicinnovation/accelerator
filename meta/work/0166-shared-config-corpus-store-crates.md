@@ -5,7 +5,7 @@ title: "Shared config, corpus, and store Crates"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: draft
+status: done
 kind: story
 priority: high
 parent: "work-item:0136"
