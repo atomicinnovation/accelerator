@@ -4,14 +4,11 @@
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::process;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use config::{ConfigError, Level, Node, ReadConfigLevel, WriteConfigLevel};
+use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::document;
-
-static WRITE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// A config store rooted at a project directory. Holds only its root path, so
 /// it is a cheap `Clone` backing both read and write ports.
@@ -55,34 +52,20 @@ impl FileConfigStore {
         })
     }
 
-    fn atomic_write(
-        &self,
-        target: &Path,
-        contents: &str,
-    ) -> Result<(), ConfigError> {
-        let temp_dir = self.config_dir().join("tmp");
-        fs::create_dir_all(&temp_dir)
-            .map_err(|error| io_error(&temp_dir, &error))?;
-        let temp = temp_dir.join(format!(
-            "config-{}-{}.tmp",
-            process::id(),
-            WRITE_COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        if let Err(error) = fs::write(&temp, contents) {
-            let _ = fs::remove_file(&temp);
-            return Err(io_error(&temp, &error));
+    fn bounds<'a>(&'a self, config_dir: &'a Path) -> WriteBounds<'a> {
+        WriteBounds {
+            permitted_root: config_dir,
+            project_root: &self.root,
         }
-        if let Err(error) = fs::rename(&temp, target) {
-            let _ = fs::remove_file(&temp);
-            return Err(io_error(target, &error));
-        }
-        Ok(())
     }
 }
 
 impl ReadConfigLevel for FileConfigStore {
     fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
         let path = self.level_path(level);
+        let config_dir = self.config_dir();
+        store::ensure_contained(&path, &self.bounds(&config_dir))
+            .map_err(to_config_error)?;
         let content = match fs::read_to_string(&path) {
             Ok(content) => content,
             Err(error) if error.kind() == ErrorKind::NotFound => {
@@ -103,6 +86,9 @@ impl ReadConfigLevel for FileConfigStore {
 impl WriteConfigLevel for FileConfigStore {
     fn write(&self, level: Level, document: &Node) -> Result<(), ConfigError> {
         let path = self.level_path(level);
+        let config_dir = self.config_dir();
+        let bounds = self.bounds(&config_dir);
+        store::ensure_contained(&path, &bounds).map_err(to_config_error)?;
         let existing = match fs::read_to_string(&path) {
             Ok(content) => Some(content),
             Err(error) if error.kind() == ErrorKind::NotFound => None,
@@ -113,7 +99,15 @@ impl WriteConfigLevel for FileConfigStore {
                 path: display(&path),
                 detail,
             })?;
-        self.atomic_write(&path, &rendered)
+        ensure_inner_gitignore(&config_dir)?;
+        let mode = match level {
+            Level::Personal => NewFileMode::Set(0o600),
+            Level::Team => {
+                NewFileMode::PreserveOr(0o666 & !store::current_umask())
+            }
+        };
+        store::atomic_write(&path, rendered.as_bytes(), &bounds, mode)
+            .map_err(to_config_error)
     }
 }
 
@@ -126,6 +120,57 @@ fn io_error(path: &Path, error: &std::io::Error) -> ConfigError {
         path: display(path),
         detail: error.to_string(),
     }
+}
+
+fn to_config_error(error: WriteError) -> ConfigError {
+    match error {
+        WriteError::UnsafePath { path } => ConfigError::UnsafePath { path },
+        WriteError::NotWritable { path } => ConfigError::Io {
+            path,
+            detail: "not writable".to_owned(),
+        },
+        WriteError::CrossFilesystem { path } => ConfigError::Io {
+            path,
+            detail: "atomic rename crossed a filesystem boundary".to_owned(),
+        },
+        WriteError::Io { path, detail } => ConfigError::Io { path, detail },
+        other => ConfigError::Io {
+            path: String::new(),
+            detail: other.to_string(),
+        },
+    }
+}
+
+/// Ensures `.accelerator/.gitignore` ignores the personal config file and the
+/// staged temp prefix, appending only rules that are absent so a hand-edited
+/// file keeps its other entries. Fails closed so a write never orphans an
+/// un-ignored temp under jj's working-copy auto-snapshot.
+fn ensure_inner_gitignore(config_dir: &Path) -> Result<(), ConfigError> {
+    let path = config_dir.join(".gitignore");
+    let existing = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(io_error(&path, &error)),
+    };
+    let temp_rule = format!("{}*", store::TEMP_PREFIX);
+    let mut additions = String::new();
+    for rule in ["config.local.md", temp_rule.as_str()] {
+        if !existing.lines().any(|line| line == rule) {
+            additions.push_str(rule);
+            additions.push('\n');
+        }
+    }
+    if additions.is_empty() {
+        return Ok(());
+    }
+    fs::create_dir_all(config_dir)
+        .map_err(|error| io_error(config_dir, &error))?;
+    let mut content = existing;
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content.push_str(&additions);
+    fs::write(&path, content).map_err(|error| io_error(&path, &error))
 }
 
 #[cfg(test)]
@@ -338,10 +383,137 @@ mod tests {
         let store = FileConfigStore::at(&root);
         service(&store).set(&Key::parse("core.example")?, "v", Level::Team)?;
 
-        let temp_entries: Vec<_> = fs::read_dir(root.join(".accelerator/tmp"))?
+        let temps: Vec<_> = fs::read_dir(root.join(".accelerator"))?
             .flatten()
+            .filter(|entry| {
+                entry.file_name().to_string_lossy().starts_with(".tmp-")
+            })
             .collect();
-        assert!(temp_entries.is_empty(), "stray temp: {temp_entries:?}");
+        assert!(temps.is_empty(), "stray temp: {temps:?}");
+        Ok(())
+    }
+
+    fn mode_of(path: &Path) -> Result<u32, TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        Ok(fs::metadata(path)?.permissions().mode() & 0o777)
+    }
+
+    #[test]
+    fn a_personal_write_lands_at_0600() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let store = FileConfigStore::at(&root);
+        service(&store).set(
+            &Key::parse("jira.token")?,
+            "secret",
+            Level::Personal,
+        )?;
+        assert_eq!(mode_of(&root.join(".accelerator/config.local.md"))?, 0o600);
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_write_clamps_a_preexisting_wider_mode(
+    ) -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        seed(&root, "config.local.md", "---\njira:\n  token: old\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o644),
+        )?;
+        let store = FileConfigStore::at(&root);
+        service(&store).set(
+            &Key::parse("jira.token")?,
+            "new",
+            Level::Personal,
+        )?;
+        assert_eq!(
+            mode_of(&root.join(".accelerator/config.local.md"))?,
+            0o600,
+            "a personal write must clamp a world-readable file to 0600"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_team_write_preserves_an_existing_mode() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        seed(&root, "config.md", "---\ncore:\n  example: old\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.md"),
+            fs::Permissions::from_mode(0o664),
+        )?;
+        let store = FileConfigStore::at(&root);
+        service(&store).set(
+            &Key::parse("core.example")?,
+            "new",
+            Level::Team,
+        )?;
+        assert_eq!(
+            mode_of(&root.join(".accelerator/config.md"))?,
+            0o664,
+            "a team write must preserve the shared mode"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_write_ensures_the_inner_gitignore() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let store = FileConfigStore::at(&root);
+        service(&store).set(
+            &Key::parse("jira.token")?,
+            "secret",
+            Level::Personal,
+        )?;
+        let gitignore =
+            fs::read_to_string(root.join(".accelerator/.gitignore"))?;
+        assert!(gitignore.lines().any(|line| line == "config.local.md"));
+        assert!(gitignore.lines().any(|line| line == ".tmp-*"));
+        Ok(())
+    }
+
+    #[test]
+    fn a_symlinked_config_file_escaping_is_refused_on_read(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let outside = root.join("outside.md");
+        fs::write(&outside, "---\njira:\n  token: stolen\n---\n")?;
+        fs::create_dir_all(root.join(".accelerator"))?;
+        std::os::unix::fs::symlink(
+            &outside,
+            root.join(".accelerator/config.local.md"),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.read(Level::Personal),
+            Err(ConfigError::UnsafePath { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_symlinked_config_file_escaping_is_refused_on_write(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let outside = root.join("outside.md");
+        fs::write(&outside, "---\ncore:\n  example: original\n---\n")?;
+        fs::create_dir_all(root.join(".accelerator"))?;
+        std::os::unix::fs::symlink(
+            &outside,
+            root.join(".accelerator/config.md"),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.write(Level::Team, &single_mapping("core", "v")),
+            Err(ConfigError::UnsafePath { .. })
+        ));
+        assert_eq!(
+            fs::read_to_string(&outside)?,
+            "---\ncore:\n  example: original\n---\n",
+            "the symlink target must not be clobbered"
+        );
         Ok(())
     }
 

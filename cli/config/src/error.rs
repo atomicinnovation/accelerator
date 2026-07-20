@@ -56,6 +56,9 @@ pub enum ConfigError {
     InvalidKey {
         key: String,
     },
+    UnsafePath {
+        path: String,
+    },
     LegacyLayout,
 }
 
@@ -88,6 +91,10 @@ impl Display for ConfigError {
                 formatter,
                 "invalid config key '{key}': expected dot-separated \
                  non-empty segments"
+            ),
+            Self::UnsafePath { path } => write!(
+                formatter,
+                "refusing to follow an unsafe config path '{path}'"
             ),
             Self::LegacyLayout => write!(
                 formatter,

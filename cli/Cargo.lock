@@ -285,6 +285,7 @@ version = "1.24.0-pre.15"
 dependencies = [
  "config",
  "document",
+ "store",
 ]
 
 [[package]]
