@@ -845,44 +845,46 @@ confirm no new licence or `[bans]` entry is needed rather than assuming.
 
 #### Automated Verification
 
-- [ ] Workspace builds: `cd cli && cargo build --workspace`
-- [ ] All Rust tests pass with CI's feature set: `mise run test:unit:cli` (which
+- [x] Workspace builds: `cd cli && cargo build --workspace`
+- [x] All Rust tests pass with CI's feature set: `mise run test:unit:cli` (which
       runs `cargo nextest --workspace --all-features`, enabling `bash-parity`) —
       plain `cargo test --workspace` omits the feature-gated suites this migration
       must keep green. (`cli:test` is not a task; `cli:check` is format+lint only.)
-- [ ] `mise run cli:check` exits 0
-- [ ] The duplicate check flags **both** real duplicates when run against the
+- [x] `mise run cli:check` exits 0
+- [x] The duplicate check flags **both** real duplicates when run against the
       pre-consolidation tree (recorded as its known-positive proof) and exits 0
-      after
-- [ ] The duplicate check does **not** flag `cache.rs` or `lock.rs`
-- [ ] Interruption invariant, asserted through the existing `stage`/`persist`
+      after — proven against rev `7a64db2b`: `config-adapters/src/store.rs`
+      `fs::rename` + `corpus-adapters/src/store.rs` `NamedTempFile`/`.persist`
+- [x] The duplicate check does **not** flag `cache.rs` or `lock.rs`
+- [x] Interruption invariant, asserted through the existing `stage`/`persist`
       seam: after a staged-but-not-persisted write the target is **byte-identical
       to its prior contents**, the directory gains no extra entries, and a
       completed write replaces it exactly once. Stated as observable properties
       rather than a recorded syscall sequence — no injected filesystem port
       exists today, and building a syscall recorder behind a ~25-line primitive
       would cost more indirection than the invariant is worth
-- [ ] After both a successful and a failed write, no temp artefacts remain
-- [ ] A path whose symlink resolves outside the permitted root is refused on
+- [x] After both a successful and a failed write, no temp artefacts remain
+- [x] A path whose symlink resolves outside the permitted root is refused on
       **both** read and write
-- [ ] A target reached through a symlinked ancestor is refused **when the
+- [x] A target reached through a symlinked ancestor is refused **when the
       permitted root does not yet exist** — the first-write case
-- [ ] A permitted root that is itself a symlink resolving outside the project
+- [x] A permitted root that is itself a symlink resolving outside the project
       root is refused
-- [ ] Under `PreserveOr`, an existing team `config.md`'s mode survives
+- [x] Under `PreserveOr`, an existing team `config.md`'s mode survives
       replacement, and a fresh one lands umask-derived
-- [ ] Under `Set(0o600)`, a newly created `config.local.md` is 0600, a
+- [x] Under `Set(0o600)`, a newly created `config.local.md` is 0600, a
       pre-existing 0600 file stays 0600, **and a pre-existing 0644
       `config.local.md` is 0600 after a personal write** — the case that
       distinguishes clamping from preservation, and the one that keeps a
       credential out of a world-readable file
-- [ ] The reader refuses a symlinked `config.local.md` (mirroring
+- [x] The reader refuses a symlinked `config.local.md` (mirroring
       `jira-auth.sh:189-192`) rather than following it
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] `cargo tree -p store` shows no dependency beyond std, tempfile, libc
+- [x] `cargo tree -p store` shows no dependency beyond std, tempfile, libc
+      (direct deps: `libc`, `tempfile` only)
 
 ---
 
