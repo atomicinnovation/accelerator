@@ -587,7 +587,7 @@ commit a check that fails on a reintroduced duplicate. Touches no CLI surface.
 **File**: `cli/store/Cargo.toml`, `cli/store/src/lib.rs`
 
 `store` is an **infrastructure** primitive (Phase 1 §4 confirms it needs no
-inward pup rule), depending on `std`, `tempfile` and `libc` only. It does **not**
+inward pup rule), depending on `std`, `tempfile` and `rustix` only. It does **not**
 depend on `kernel`: both consumers translate `WriteError` into their own taxonomy
 (`ConfigError`, `corpus::StoreError`), each of which already has its own
 `From … for kernel::Error`, so a `From<WriteError> for kernel::Error` would be
@@ -618,7 +618,7 @@ pub enum WriteError {
 }
 
 /// How the persisted file's mode is chosen. The caller supplies any concrete
-/// mode value, so `store` never reads the process-global umask.
+/// mode value, so mode resolution here never reads the process-global umask.
 pub enum NewFileMode {
     /// Force this mode whether or not the target exists — personal
     /// `config.local.md` is `Set(0o600)`, clamped rather than preserved.
@@ -717,6 +717,16 @@ preserved as the fault-injection seam.
 root, and the per-level `NewFileMode` (`Set(0o600)` for personal,
 `PreserveOr(0o666 & !umask)` for team, the umask read here in the adapter/composition
 root, not in `store`). `ConfigError` gains an `UnsafePath { path }` variant.
+
+**Implemented divergence (2026-07-20).** The umask read was hoisted into a
+shared **`store::current_umask()`** — rustix-based, no `unsafe` — rather than
+copied into each adapter; `store` is the only crate both adapters share, and
+`atomic_write` still never reads the umask (the caller composes the mode and
+hands it in), so the determinism this boundary protects is preserved and only
+the query utility is co-located. Both adapters call it, and `libc` is dropped
+from `store` and both adapters in favour of rustix (`process::umask` for the
+mask, `io::Errno::XDEV` for the cross-filesystem classification). The workspace
+`rustix` dependency gains the `fs` feature (`umask` takes a `rustix::fs::Mode`).
 
 The `store::WriteError → ConfigError` translation is a **private free function**
 in `config-adapters` (`fn to_config_error(error: store::WriteError) -> ConfigError`),
@@ -838,7 +848,7 @@ the existing whole-crate domain rules (`^config($|::)`, `^corpus($|::)`,
 importing `store` is rejected.
 
 **File**: `cli/deny.toml`
-**Changes**: `tempfile` and `libc` are already in the graph via `corpus-adapters`;
+**Changes**: `tempfile` and `rustix` are already in the graph via `corpus-adapters`;
 confirm no new licence or `[bans]` entry is needed rather than assuming.
 
 ### Success Criteria
@@ -883,8 +893,8 @@ confirm no new licence or `[bans]` entry is needed rather than assuming.
 
 #### Manual Verification
 
-- [x] `cargo tree -p store` shows no dependency beyond std, tempfile, libc
-      (direct deps: `libc`, `tempfile` only)
+- [x] `cargo tree -p store` shows no dependency beyond std, tempfile, rustix
+      (direct deps: `rustix`, `tempfile` only)
 
 ---
 
