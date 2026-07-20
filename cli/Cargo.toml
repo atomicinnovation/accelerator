@@ -50,7 +50,6 @@ serde-saphyr = "=0.0.29"
 # EXDEV classification, and jittered lock back-off. All 1.x/0.x behaviour-stable,
 # so the exact-pin discipline is not warranted here.
 tempfile = "3"
-libc = "0.2"
 rand = "0.9"
 rustix = { version = "1", features = ["process", "fs"] }
 

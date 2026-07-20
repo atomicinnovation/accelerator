@@ -15,6 +15,7 @@ pub enum StoreError {
     NotWritable { path: String },
     LockTimeout { path: String },
     CrossFilesystem { path: String },
+    UnsafePath { path: String },
     Validation { detail: String },
     Io { path: String, detail: String },
 }
@@ -31,6 +32,10 @@ impl Display for StoreError {
             Self::CrossFilesystem { path } => write!(
                 formatter,
                 "atomic rename to '{path}' crossed a filesystem boundary"
+            ),
+            Self::UnsafePath { path } => write!(
+                formatter,
+                "refusing to write through an unsafe path '{path}'"
             ),
             Self::Validation { detail } => {
                 write!(formatter, "invalid record: {detail}")

@@ -44,7 +44,7 @@ fn nonempty_lines(path: &Path) -> Result<Vec<String>, TestError> {
 fn adversarial_keys_round_trip_to_an_empty_file() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    let store = FileCorpusStore::new();
+    let store = FileCorpusStore::new(dir.path());
 
     for key in ["a\\b", "c\"d", "e\tf", "g\x7fh"] {
         store.append_record(&path, &record(key))?;
@@ -58,7 +58,7 @@ fn adversarial_keys_round_trip_to_an_empty_file() -> Result<(), TestError> {
 fn an_anchored_prefix_does_not_over_match() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    let store = FileCorpusStore::new();
+    let store = FileCorpusStore::new(dir.path());
 
     store.append_record(&path, &record("foo"))?;
     store.append_record(&path, &record("foobar"))?;
@@ -74,7 +74,7 @@ fn an_anchored_prefix_does_not_over_match() -> Result<(), TestError> {
 fn removing_one_key_leaves_the_other_record() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    let store = FileCorpusStore::new();
+    let store = FileCorpusStore::new(dir.path());
 
     store.append_record(&path, &record("alpha"))?;
     store.append_record(&path, &record("beta"))?;
@@ -90,7 +90,7 @@ fn removing_one_key_leaves_the_other_record() -> Result<(), TestError> {
 fn removing_from_an_absent_file_is_a_no_op() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    FileCorpusStore::new().remove_by_key(&path, "anything")?;
+    FileCorpusStore::new(dir.path()).remove_by_key(&path, "anything")?;
     assert!(!path.exists());
     Ok(())
 }
@@ -100,7 +100,7 @@ fn removing_from_an_empty_file_is_a_no_op() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
     fs::write(&path, b"")?;
-    FileCorpusStore::new().remove_by_key(&path, "anything")?;
+    FileCorpusStore::new(dir.path()).remove_by_key(&path, "anything")?;
     assert!(nonempty_lines(&path)?.is_empty());
     Ok(())
 }
@@ -109,7 +109,8 @@ fn removing_from_an_empty_file_is_a_no_op() -> Result<(), TestError> {
 fn a_fresh_append_is_the_composed_line_plus_lf() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    FileCorpusStore::new().append_record(&path, &record("greeting"))?;
+    FileCorpusStore::new(dir.path())
+        .append_record(&path, &record("greeting"))?;
 
     let raw = fs::read(&path)?;
     assert_eq!(*raw.last().ok_or("empty file")?, b'\n');
@@ -124,7 +125,7 @@ fn a_newlineless_last_line_still_yields_two_lines() -> Result<(), TestError> {
     let path = dir.path().join("log.jsonl");
     fs::write(&path, b"{\"transformation_key\":\"seed\"}")?;
 
-    FileCorpusStore::new().append_record(&path, &record("second"))?;
+    FileCorpusStore::new(dir.path()).append_record(&path, &record("second"))?;
 
     let lines = nonempty_lines(&path)?;
     assert_eq!(lines.len(), 2);
@@ -136,7 +137,7 @@ fn a_newlineless_last_line_still_yields_two_lines() -> Result<(), TestError> {
 fn concurrent_appends_preserve_every_record() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let path = dir.path().join("log.jsonl");
-    let store = FileCorpusStore::new();
+    let store = FileCorpusStore::new(dir.path());
 
     let keys: Vec<String> = (0..12).map(|n| format!("key-{n}")).collect();
     std::thread::scope(|scope| -> Result<(), TestError> {
