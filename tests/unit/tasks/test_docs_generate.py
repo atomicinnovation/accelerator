@@ -115,6 +115,20 @@ class TestSanitisation:
         out = sanitise_body("Keep `<KEPT>` but escape <GONE>.\n")
         assert out == "Keep `<KEPT>` but escape \\<GONE>.\n"
 
+    def test_longer_fence_contains_literal_shorter_fence(self):
+        # CommonMark idiom: a 4-backtick fence displaying a literal
+        # 3-backtick block must not close at the inner fence.
+        body = "````\n```\n<ID> and !`cmd`\n```\n````\nEscape <ME>.\n"
+        out = sanitise_body(body)
+        assert "<ID> and !`cmd`" in out
+        assert "Escape \\<ME>." in out
+
+    def test_shorter_run_cannot_close_longer_fence(self):
+        body = "````\n```\n<INSIDE>\n````\nOutside <OUT>.\n"
+        out = sanitise_body(body)
+        assert "<INSIDE>" in out
+        assert "Outside \\<OUT>." in out
+
     def test_tilde_fences_respected(self):
         body = "~~~\n<ID>\n~~~\n"
         assert sanitise_body(body) == body
@@ -151,6 +165,35 @@ class TestGeneration:
         assert "**Argument hint:** `[optional thing]`" in page
         assert "**Allowed tools:**" in page
         assert "${CLAUDE_PLUGIN_ROOT}/scripts/*" in page
+
+    def test_page_edit_link_targets_source_skill_md(self, fake_repo_tree):
+        # Generated pages are gitignored, so the site-wide docs-site/ edit
+        # link would 404 — each page must point at its source SKILL.md.
+        generate_pages(fake_repo_tree)
+        page = (_generated_dir(fake_repo_tree) / "testcat/alpha.md").read_text()
+        assert (
+            "editUrl: https://github.com/atomicinnovation/accelerator"
+            "/edit/main/skills/testcat/alpha/SKILL.md" in page
+        )
+
+    def test_source_relative_under_checkout_path_containing_skills(
+        self, fake_repo_tree
+    ):
+        # A checkout under a directory that itself contains a "skills"
+        # component must not garble the Source line or the edit link.
+        nested = fake_repo_tree.parent / "skills-mirror" / "skills" / "checkout"
+        nested.parent.mkdir(parents=True)
+        fake_repo_tree.rename(nested)
+        try:
+            (page,) = [p for p in discover_skills(nested) if p.name == "alpha"]
+            assert page.source_relative == "skills/testcat/alpha/SKILL.md"
+        finally:
+            nested.rename(fake_repo_tree)
+
+    def test_index_disables_edit_link(self, fake_repo_tree):
+        generate_pages(fake_repo_tree)
+        index = (_generated_dir(fake_repo_tree) / "index.md").read_text()
+        assert "editUrl: false" in index
 
     def test_page_body_is_sanitised(self, fake_repo_tree):
         generate_pages(fake_repo_tree)
@@ -197,6 +240,7 @@ class TestGeneration:
             name="abbrev",
             category="testcat",
             source=fake_repo_tree / "skills/testcat/abbrev/SKILL.md",
+            source_relative="skills/testcat/abbrev/SKILL.md",
             frontmatter={
                 "name": "abbrev",
                 "description": (

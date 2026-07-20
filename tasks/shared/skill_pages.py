@@ -20,10 +20,15 @@ from tasks.shared.paths import DOCS_GENERATED_DIR, REPO_ROOT
 
 DOCS_GENERATED_RELATIVE = DOCS_GENERATED_DIR.relative_to(REPO_ROOT)
 
+# Generated pages are gitignored, so the site-wide docs-site/ edit link
+# would 404; each page points its edit link at the source SKILL.md.
+_EDIT_URL_BASE = "https://github.com/atomicinnovation/accelerator/edit/main"
+
 _EXCLUDED_PATH_PARTS = frozenset({"node_modules", "test-fixtures"})
 _FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 _PREPROCESSOR = re.compile(r"!`([^`]+)`")
 _CODE_SPAN = re.compile(r"`[^`]*`")
+_FENCE = re.compile(r"(`{3,}|~{3,})")
 
 
 class SkillPageError(Exception):
@@ -35,6 +40,7 @@ class SkillPage:
     name: str
     category: str
     source: Path
+    source_relative: str
     frontmatter: dict[str, Any]
     body: str
 
@@ -78,6 +84,7 @@ def _load_skill(skill_md: Path, skills_root: Path) -> SkillPage:
         name=str(frontmatter["name"]),
         category=category,
         source=skill_md,
+        source_relative=skill_md.relative_to(skills_root.parent).as_posix(),
         frontmatter=frontmatter,
         body=text[match.end() :],
     )
@@ -88,12 +95,15 @@ def sanitise_body(body: str) -> str:
     fence: str | None = None
     for line in body.splitlines():
         stripped = line.lstrip()
+        opener = _FENCE.match(stripped)
         if fence is not None:
             out.append(line)
-            if stripped.startswith(fence):
+            # CommonMark: close only on a run of the same character at
+            # least as long as the opener.
+            if opener and opener.group(1).startswith(fence):
                 fence = None
-        elif stripped.startswith(("```", "~~~")):
-            fence = stripped[:3]
+        elif opener:
+            fence = opener.group(1)
             out.append(line)
         else:
             neutralised = _PREPROCESSOR.sub(r"`!\1`", line)
@@ -134,6 +144,7 @@ def _starlight_frontmatter(page: SkillPage) -> str:
         "title": page.name,
         "description": page.description,
         "sidebar": sidebar,
+        "editUrl": f"{_EDIT_URL_BASE}/{page.source_relative}",
     }
     dumped = yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True)
     return f"---\n{dumped}---\n"
@@ -150,13 +161,8 @@ def _header_block(page: SkillPage) -> str:
             tools = [tools]
         joined = ", ".join(f"`{tool}`" for tool in tools)
         lines.append(f"**Allowed tools:** {joined}  ")
-    lines.append(f"**Source:** `{_source_relative(page)}`")
+    lines.append(f"**Source:** `{page.source_relative}`")
     return "\n".join(lines) + "\n"
-
-
-def _source_relative(page: SkillPage) -> str:
-    parts = page.source.parts
-    return Path(*parts[parts.index("skills") :]).as_posix()
 
 
 def render_page(page: SkillPage) -> str:
@@ -187,6 +193,7 @@ def render_index(pages: list[SkillPage]) -> str:
         "title": "All skills",
         "description": "Generated reference for every Accelerator skill.",
         "sidebar": {"label": "All skills"},
+        "editUrl": False,
     }
     dumped = yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True)
     lines = [
