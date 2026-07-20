@@ -402,11 +402,18 @@ def test_deploy_docs_targets_github_pages_environment(docs_wf):
 def test_docs_deploy_chain_orders_check_build_deploy(docs_wf):
     build = docs_wf["jobs"][DOCS_BUILD_JOB]
     deploy = docs_wf["jobs"][DOCS_DEPLOY_JOB]
-    assert DOCS_CHECK_JOB in _needs(build), (
-        "build-docs must wait on check-docs"
-    )
+    assert DOCS_CHECK_JOB in _needs(build), "build-docs must wait on check-docs"
     assert DOCS_BUILD_JOB in _needs(deploy), (
         "deploy-docs must wait on build-docs"
+    )
+
+
+def test_docs_workflow_defaults_to_read_only_token(docs_wf):
+    # Jobs running npm lifecycle scripts must not inherit the repository
+    # default token scope; only deploy-docs escalates, per-job.
+    assert docs_wf.get("permissions") == {"contents": "read"}, (
+        "docs.yml must declare a workflow-level contents: read permissions "
+        "block so no job inherits the repository default token scope"
     )
 
 
@@ -453,6 +460,19 @@ def test_docs_push_trigger_covers_force_deploy_docs_branch(docs_wf):
     branches = docs_wf[True]["push"]["branches"]
     assert branches == ["main", DOCS_FORCE_BRANCH], (
         "docs push trigger must cover exactly main and the docs force branch"
+    )
+
+
+def test_docs_pull_request_trigger_validates_prs(docs_wf):
+    # check-docs is the PR-time docs gate; dropping the pull_request
+    # trigger would defer broken links to the post-merge deploy path.
+    triggers = docs_wf[True]
+    assert "pull_request" in triggers, (
+        "docs.yml must trigger on pull_request so check-docs gates PRs"
+    )
+    assert "synchronize" in (triggers["pull_request"] or {}).get("types", []), (
+        "docs.yml pull_request trigger must fire on synchronize so new "
+        "pushes to a PR re-run the docs gate"
     )
 
 
