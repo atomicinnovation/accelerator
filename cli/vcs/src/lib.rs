@@ -29,6 +29,11 @@ impl VcsKind {
 }
 
 /// The repository facts the corpus surfaces stamp artifacts with.
+///
+/// `root` is the working-copy root (a jj secondary workspace roots at its own
+/// marker); `name` is the *repository* the working copy belongs to, so a
+/// workspace stamps artifacts with the repository's name rather than the
+/// ephemeral workspace directory's.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoFacts {
     pub root: PathBuf,
@@ -39,9 +44,16 @@ pub struct RepoFacts {
 
 /// Locates the repository a path belongs to.
 pub trait RepoRoot {
-    /// The root of the repository containing `start`, or `None` when there is
-    /// no repository above it.
+    /// The working-copy root containing `start`, or `None` when there is no
+    /// repository above it.
     fn discover(&self, start: &Path) -> Option<PathBuf>;
+
+    /// The repository a working-copy root belongs to. A jj secondary workspace
+    /// roots at its own working copy but shares the repository's store; by
+    /// default the working-copy root is itself the repository root.
+    fn repository_root(&self, working_copy_root: &Path) -> PathBuf {
+        working_copy_root.to_path_buf()
+    }
 }
 
 /// Reports a repository's idiom and its working-copy revision.
@@ -65,7 +77,8 @@ pub fn facts(
     probe: &dyn VcsProbe,
 ) -> Option<RepoFacts> {
     let root_path = root.discover(start)?;
-    let name = root_path.file_name()?.to_str()?.to_owned();
+    let repository_root = root.repository_root(&root_path);
+    let name = repository_root.file_name()?.to_str()?.to_owned();
     let kind = probe.kind(&root_path);
     let revision = probe.revision(&root_path, kind);
 

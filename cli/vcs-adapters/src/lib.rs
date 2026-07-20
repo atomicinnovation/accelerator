@@ -8,6 +8,7 @@
 //! to `None` and is warn-logged, so a real failure leaves a trace instead of
 //! reading like a legitimately revision-less repository.
 
+use std::fs;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -41,6 +42,29 @@ impl RepoRoot for MarkerWalkRoot {
         }
         None
     }
+
+    fn repository_root(&self, working_copy_root: &Path) -> PathBuf {
+        jj_repository_root(working_copy_root)
+            .unwrap_or_else(|| working_copy_root.to_path_buf())
+    }
+}
+
+/// Resolves a jj secondary workspace's working-copy root to the repository whose
+/// store it shares. A secondary workspace's `.jj/repo` is a file pointing at the
+/// shared `<repo>/.jj/repo` store, so the repository is the store's grandparent;
+/// the primary workspace's `.jj/repo` is that store directory. `None` when this
+/// is not a jj workspace or the pointer cannot be resolved.
+fn jj_repository_root(working_copy_root: &Path) -> Option<PathBuf> {
+    let marker = working_copy_root.join(".jj").join("repo");
+    let metadata = fs::symlink_metadata(&marker).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    let pointer = fs::read_to_string(&marker).ok()?;
+    let store =
+        fs::canonicalize(working_copy_root.join(".jj").join(pointer.trim()))
+            .ok()?;
+    Some(store.parent()?.parent()?.to_path_buf())
 }
 
 /// Reads the repository's idiom from its markers and its revision by running
