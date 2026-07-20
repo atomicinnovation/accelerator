@@ -87,5 +87,27 @@
                 ),
             ],
         )),
+        // The config command's inbound hexagon: it may name the config domain
+        // and its own subtree, never the composition root's adapter crate
+        // (`config_adapters`) nor a sibling launcher module (`crate::launch`),
+        // so the injected-ports seam cannot erode. The `crate::` allowance is
+        // scoped to the module's own subtree — a bare `^crate` would admit
+        // `crate::launch::outbound`.
+        Module((
+            name: "config_command_imports_only_permitted",
+            matches: Module("^accelerator::config_command($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^config(::|$)",
+                        "^crate::config_command(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
     ],
 )

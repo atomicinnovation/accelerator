@@ -12,4 +12,8 @@ pub enum Error {
     LogFilter(#[from] tracing_subscriber::filter::ParseError),
     #[error("{0}")]
     Failed(String),
+    /// A subcommand-scoped refusal the caller acts on; its meaning is defined
+    /// per subcommand, not globally. Mapped to exit code 2 at the boundary.
+    #[error("{0}")]
+    Refusal(String),
 }

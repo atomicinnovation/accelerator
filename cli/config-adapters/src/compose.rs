@@ -7,21 +7,27 @@ use std::path::Path;
 use config::{ConfigError, ConfigService};
 
 use crate::legacy;
-use crate::store::FileConfigStore;
+use crate::store::{FileConfigStore, LegacyPolicy};
 
-/// Wires a full-stack reader at `cwd`'s project root, failing closed on the
-/// legacy layout.
+/// Wires a full-stack reader at `cwd`'s project root.
+///
+/// Under [`LegacyPolicy::Reject`] it fails closed on the legacy layout; under
+/// [`LegacyPolicy::Allow`] it suppresses that refusal and reads the legacy pair
+/// when the current one is absent.
 ///
 /// # Errors
 ///
 /// [`ConfigError::LegacyLayout`] when the discovered root carries the legacy
-/// `.claude/accelerator.md` layout.
+/// `.claude/accelerator.md` layout and the policy is [`LegacyPolicy::Reject`].
 pub fn compose(
     cwd: &Path,
+    policy: LegacyPolicy,
 ) -> Result<ConfigService<FileConfigStore, FileConfigStore>, ConfigError> {
     let root = FileConfigStore::discover_root(cwd);
-    legacy::assert_no_legacy_layout(&root)?;
-    let store = FileConfigStore::at(root);
+    if policy == LegacyPolicy::Reject {
+        legacy::assert_no_legacy_layout(&root)?;
+    }
+    let store = FileConfigStore::at(root).with_legacy_policy(policy);
     Ok(ConfigService::new(store.clone(), store))
 }
 
@@ -34,6 +40,7 @@ mod tests {
     use config::{ConfigAccess, ConfigError, Key, Resolved, Scalar, Value};
 
     use super::compose;
+    use crate::store::LegacyPolicy;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -58,7 +65,7 @@ mod tests {
             root.join(".accelerator/config.md"),
             "---\npaths:\n  work: wired\n---\n",
         )?;
-        let service = compose(&root)?;
+        let service = compose(&root, LegacyPolicy::Reject)?;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String("wired".to_owned())))
@@ -71,7 +78,57 @@ mod tests {
         let root = tempdir()?;
         fs::create_dir_all(root.join(".claude"))?;
         fs::write(root.join(".claude/accelerator.md"), "legacy")?;
-        assert!(matches!(compose(&root), Err(ConfigError::LegacyLayout)));
+        assert!(matches!(
+            compose(&root, LegacyPolicy::Reject),
+            Err(ConfigError::LegacyLayout)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn allow_suppresses_the_refusal_and_reads_the_legacy_pair(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        fs::create_dir_all(root.join(".claude"))?;
+        fs::write(
+            root.join(".claude/accelerator.md"),
+            "---\npaths:\n  work: legacy-team\n---\n",
+        )?;
+        fs::write(
+            root.join(".claude/accelerator.local.md"),
+            "---\npaths:\n  work: legacy-local\n---\n",
+        )?;
+        let service = compose(&root, LegacyPolicy::Allow)?;
+        assert_eq!(
+            service.get(&Key::parse("paths.work")?, None)?,
+            Resolved::Found(Value::Scalar(Scalar::String(
+                "legacy-local".to_owned()
+            )))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_legacy_fallback_is_inert_when_the_current_pair_is_present(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        fs::create_dir_all(root.join(".accelerator"))?;
+        fs::write(
+            root.join(".accelerator/config.md"),
+            "---\npaths:\n  work: current\n---\n",
+        )?;
+        fs::create_dir_all(root.join(".claude"))?;
+        fs::write(
+            root.join(".claude/accelerator.md"),
+            "---\npaths:\n  work: legacy\n---\n",
+        )?;
+        let service = compose(&root, LegacyPolicy::Allow)?;
+        assert_eq!(
+            service.get(&Key::parse("paths.work")?, None)?,
+            Resolved::Found(Value::Scalar(Scalar::String(
+                "current".to_owned()
+            )))
+        );
         Ok(())
     }
 }

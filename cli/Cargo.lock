@@ -7,6 +7,8 @@ name = "accelerator"
 version = "1.24.0-pre.15"
 dependencies = [
  "clap",
+ "config",
+ "config-adapters",
  "kernel",
  "minisign-verify",
  "reqwest",

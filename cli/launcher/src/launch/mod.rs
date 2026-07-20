@@ -6,29 +6,89 @@ pub mod help;
 pub mod inbound;
 pub mod outbound;
 
+use config::ConfigError;
+
+use crate::config_command::core::{ConfigStack, OnFailure};
+use crate::config_command::inbound::cli as config_cli;
 use crate::launch::core::{
     run_external, ExecBinary, ExternalCommand, ResolveBinary,
 };
-use crate::launch::inbound::cli::{Cli, Command};
+use crate::launch::inbound::cli::{Cli, Command, ConfigAction};
 use crate::version::core::ReportVersion;
 use crate::version::inbound::cli as version_cli;
+
+const fn on_failure(fail_safe: bool) -> OnFailure {
+    if fail_safe {
+        OnFailure::Degrade
+    } else {
+        OnFailure::Fail
+    }
+}
+
+/// Maps the launcher's clap `ConfigAction` onto the hexagon's own request type,
+/// so `config_command` never names the launcher's clap tree.
+fn to_action(action: &ConfigAction) -> config_cli::Action {
+    match action {
+        ConfigAction::Get {
+            key,
+            default,
+            level,
+            fail_safe,
+            ..
+        } => config_cli::Action::Get {
+            key: key.clone(),
+            default: default.clone(),
+            level: level.map(Into::into),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Path {
+            key,
+            default,
+            level,
+            fail_safe,
+            ..
+        } => config_cli::Action::Path {
+            key: key.clone(),
+            default: default.clone(),
+            level: level.map(Into::into),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Agent {
+            name, fail_safe, ..
+        } => config_cli::Action::Agent {
+            name: name.clone(),
+            on_failure: on_failure(*fail_safe),
+        },
+    }
+}
 
 /// Route the parsed command: built-ins run in-process, an external subcommand
 /// resolves and execs (replacing this process on success).
 ///
+/// `compose_config` builds the `config` port bundle lazily — invoked only when
+/// the `Config` arm routes to it, so `version` and external subcommands never
+/// pay root discovery or the legacy guard. It is opaque here, so this module
+/// names no concrete adapter.
+///
 /// # Errors
 ///
-/// A [`kernel::Error`] when an external subcommand cannot be resolved or exec'd.
+/// A [`kernel::Error`] when a built-in fails or an external subcommand cannot
+/// be resolved or exec'd.
 pub fn dispatch(
     cli: &Cli,
     reporter: &impl ReportVersion,
     resolver: &impl ResolveBinary,
     executor: &impl ExecBinary,
+    compose_config: impl FnOnce() -> Result<ConfigStack, ConfigError>,
 ) -> Result<(), kernel::Error> {
     match &cli.command {
         Command::Version => {
             version_cli::report(reporter);
             Ok(())
+        }
+        Command::Config { action } => {
+            let stack = compose_config()?;
+            Ok(config_cli::run(&stack, &to_action(action))?)
         }
         Command::External(raw) => {
             let command = ExternalCommand::from_raw(raw.clone())?;

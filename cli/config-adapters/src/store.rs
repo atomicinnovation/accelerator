@@ -10,16 +10,38 @@ use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::document;
 
-/// A config store rooted at a project directory. Holds only its root path, so
-/// it is a cheap `Clone` backing both read and write ports.
+/// Whether the reader honours the legacy `.claude/accelerator.md` layout.
+///
+/// `Allow` carries both halves the bash `ACCELERATOR_MIGRATION_MODE=1` did: it
+/// suppresses the uniform legacy-layout refusal, and — when the current-layout
+/// pair is absent — falls back to reading the legacy `.claude/accelerator.md`
+/// and `.claude/accelerator.local.md` pair.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LegacyPolicy {
+    Reject,
+    Allow,
+}
+
+/// A config store rooted at a project directory. Holds its root path and the
+/// legacy policy, so it is a cheap `Clone` backing both read and write ports.
 #[derive(Clone)]
 pub struct FileConfigStore {
     root: PathBuf,
+    policy: LegacyPolicy,
 }
 
 impl FileConfigStore {
     pub fn at(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: root.into(),
+            policy: LegacyPolicy::Reject,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_legacy_policy(mut self, policy: LegacyPolicy) -> Self {
+        self.policy = policy;
+        self
     }
 
     /// Roots at the nearest ancestor of `start` holding a `.accelerator/`
@@ -45,16 +67,44 @@ impl FileConfigStore {
         self.root.join(".accelerator")
     }
 
+    fn legacy_dir(&self) -> PathBuf {
+        self.root.join(".claude")
+    }
+
+    /// Whether the legacy source fallback is engaged: the policy allows it and
+    /// neither current-layout file exists, matching bash `config_find_files`.
+    fn legacy_fallback_active(&self) -> bool {
+        self.policy == LegacyPolicy::Allow
+            && !self.config_dir().join("config.md").exists()
+            && !self.config_dir().join("config.local.md").exists()
+    }
+
     fn level_path(&self, level: Level) -> PathBuf {
+        if self.legacy_fallback_active() {
+            return self.legacy_dir().join(match level {
+                Level::Team => "accelerator.md",
+                Level::Personal => "accelerator.local.md",
+            });
+        }
         self.config_dir().join(match level {
             Level::Team => "config.md",
             Level::Personal => "config.local.md",
         })
     }
 
-    fn bounds<'a>(&'a self, config_dir: &'a Path) -> WriteBounds<'a> {
+    /// The directory a level's file legitimately lives in, which the legacy
+    /// fallback moves from `.accelerator/` to `.claude/`.
+    fn permitted_root(&self) -> PathBuf {
+        if self.legacy_fallback_active() {
+            self.legacy_dir()
+        } else {
+            self.config_dir()
+        }
+    }
+
+    fn bounds<'a>(&'a self, permitted_root: &'a Path) -> WriteBounds<'a> {
         WriteBounds {
-            permitted_root: config_dir,
+            permitted_root,
             project_root: &self.root,
         }
     }
@@ -63,8 +113,8 @@ impl FileConfigStore {
 impl ReadConfigLevel for FileConfigStore {
     fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
         let path = self.level_path(level);
-        let config_dir = self.config_dir();
-        store::ensure_contained(&path, &self.bounds(&config_dir))
+        let permitted_root = self.permitted_root();
+        store::ensure_contained(&path, &self.bounds(&permitted_root))
             .map_err(to_config_error)?;
         let content = match fs::read_to_string(&path) {
             Ok(content) => content,

@@ -1,27 +1,15 @@
-//! The value projection shared by the parity oracle and the shipped output, so
-//! the two can never drift. Distinct from `document::render`, which round-trips
-//! a document body.
+//! The oracle projection of a resolved outcome. The value projection itself
+//! lives in the `config` domain (`config::render_value`), re-exported here so
+//! the shipped output and the parity oracle share one source and cannot drift.
+//! Distinct from `document::render`, which round-trips a document body.
 
-use config::{Resolved, Scalar, Value};
+pub use config::render_value;
+use config::Resolved;
 
 /// The string a resolution miss projects to. The parity oracle passes it to the
 /// bash reader as the default argument so a genuine miss compares equal on both
 /// sides.
 pub const ABSENT_SENTINEL: &str = "__accelerator_config_absent__";
-
-/// Projects a resolved [`Value`] to its canonical string form.
-#[must_use]
-pub fn render_value(value: &Value) -> String {
-    match value {
-        Value::Scalar(scalar) => render_scalar(scalar),
-        Value::Sequence(items) => {
-            let rendered: Vec<String> =
-                items.iter().map(render_scalar).collect();
-            format!("[{}]", rendered.join(", "))
-        }
-        _ => String::new(),
-    }
-}
 
 /// Projects a [`Resolved`] outcome, mapping a miss to [`ABSENT_SENTINEL`].
 #[must_use]
@@ -29,16 +17,6 @@ pub fn render_resolved(resolved: &Resolved) -> String {
     match resolved {
         Resolved::Found(value) => render_value(value),
         Resolved::Absent => ABSENT_SENTINEL.to_owned(),
-    }
-}
-
-fn render_scalar(scalar: &Scalar) -> String {
-    match scalar {
-        Scalar::String(text) => text.clone(),
-        Scalar::Bool(value) => value.to_string(),
-        Scalar::Int(value) => value.to_string(),
-        Scalar::Float(value) => value.to_string(),
-        Scalar::Null => String::new(),
     }
 }
 

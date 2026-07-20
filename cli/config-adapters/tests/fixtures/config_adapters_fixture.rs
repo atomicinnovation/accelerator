@@ -12,6 +12,7 @@
 use std::process::ExitCode;
 
 use config::{ConfigAccess, Key, Resolved};
+use config_adapters::LegacyPolicy;
 
 fn main() -> ExitCode {
     let cwd = match std::env::current_dir() {
@@ -21,7 +22,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let service = match config_adapters::compose(&cwd) {
+    let service = match config_adapters::compose(&cwd, LegacyPolicy::Reject) {
         Ok(service) => service,
         Err(error) => {
             eprintln!("{error}");

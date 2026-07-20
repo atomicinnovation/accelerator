@@ -2,7 +2,8 @@
 
 use std::ffi::OsString;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+use config_adapters::LegacyPolicy;
 
 /// The `accelerator` command-line surface.
 #[derive(Parser)]
@@ -16,9 +17,119 @@ pub struct Cli {
 pub enum Command {
     /// Print the version, commit SHA, build date, and target triple.
     Version,
+    /// Read or write Accelerator configuration.
+    #[command(arg_required_else_help = true)]
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
     /// Any unknown subcommand and its args, forwarded to the resolved binary.
     #[command(external_subcommand)]
     External(Vec<OsString>),
+}
+
+/// Read or write a configuration value.
+///
+/// Configuration is a dotted `section.key` tree resolved across two levels:
+/// `team` is the committed, shared `.accelerator/config.md`, and `personal` is
+/// the git-ignored, local `.accelerator/config.local.md` that overrides it.
+#[derive(Subcommand)]
+pub enum ConfigAction {
+    /// Print a configuration value. Without `--level` the value resolves
+    /// personal-over-team; with `--level` only that level is read. An unset
+    /// key prints the given default, or nothing when none is given.
+    Get {
+        /// The dotted `section.key` to read (e.g. `agents.reviewer`).
+        key: String,
+        /// The value to print when the key is unset.
+        default: Option<String>,
+        /// Read only this level instead of resolving across both.
+        #[arg(long)]
+        level: Option<Level>,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, print nothing and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Print a configured `paths.<key>` value. An unset key falls back to the
+    /// given default, else the plugin-standard default, else an empty line.
+    Path {
+        /// The bare path key to read (e.g. `plans`), resolved as `paths.<key>`.
+        key: String,
+        /// The value to print when the key is unset; wins over the catalogue
+        /// default.
+        default: Option<String>,
+        /// Read only this level instead of resolving across both.
+        #[arg(long)]
+        level: Option<Level>,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, print nothing and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Print an agent-name override, falling back to `accelerator:<name>`.
+    Agent {
+        /// The agent key to read (e.g. `reviewer`), resolved as `agents.<key>`.
+        name: String,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, print nothing and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+}
+
+impl ConfigAction {
+    /// The legacy policy this action's `--allow-legacy-layout` flag selects.
+    /// Only the read subcommands carry the flag; the mutating ones reject it.
+    #[must_use]
+    pub const fn legacy_policy(&self) -> LegacyPolicy {
+        let allow = match self {
+            Self::Get {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Path {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Agent {
+                allow_legacy_layout,
+                ..
+            } => *allow_legacy_layout,
+        };
+        if allow {
+            LegacyPolicy::Allow
+        } else {
+            LegacyPolicy::Reject
+        }
+    }
+}
+
+/// Which configuration level a command reads.
+#[derive(Clone, Copy, ValueEnum)]
+pub enum Level {
+    /// The committed, shared `.accelerator/config.md`.
+    Team,
+    /// The git-ignored, local `.accelerator/config.local.md` (overrides team).
+    Personal,
+}
+
+impl From<Level> for config::Level {
+    fn from(level: Level) -> Self {
+        match level {
+            Level::Team => Self::Team,
+            Level::Personal => Self::Personal,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -39,7 +150,9 @@ mod tests {
                 raw,
                 vec![OsString::from("frobnicate"), OsString::from("--flag")]
             ),
-            Command::Version => return Err("routed to Version".into()),
+            Command::Version | Command::Config { .. } => {
+                return Err("routed away from External".into())
+            }
         }
         Ok(())
     }
@@ -49,6 +162,27 @@ mod tests {
     {
         let cli = Cli::try_parse_from(["accelerator", "version"])?;
         assert!(matches!(cli.command, Command::Version));
+        Ok(())
+    }
+
+    #[test]
+    fn config_get_parses_its_key_and_flags() -> Result<(), Box<dyn Error>> {
+        let cli = Cli::try_parse_from([
+            "accelerator",
+            "config",
+            "get",
+            "agents.reviewer",
+            "--fail-safe",
+        ])?;
+        match cli.command {
+            Command::Config {
+                action: super::ConfigAction::Get { key, fail_safe, .. },
+            } => {
+                assert_eq!(key, "agents.reviewer");
+                assert!(fail_safe);
+            }
+            _ => return Err("did not route to config get".into()),
+        }
         Ok(())
     }
 }
