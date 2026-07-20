@@ -298,3 +298,77 @@ def test_real_config_rule_passes_a_compliant_service(tmp_path: Path) -> None:
     _write_config_probe(tmp_path, _CONFIG_SERVICE_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The domain rule also denies the shared `store` crate ---
+#
+# store is infrastructure and carries no inward rule of its own, so the
+# whole-crate domain allowance (std / kernel::Error / crate) is what must keep a
+# domain crate from importing it. Driven against a crate literally named
+# `config` importing one literally named `store`, under the shipped rule.
+
+_CONFIG_STORE_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["config", "store"]
+"""
+
+_CONFIG_STORE_MANIFEST = """\
+[package]
+name = "config"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+store = { path = "../store" }
+"""
+
+_STORE_MANIFEST = """\
+[package]
+name = "store"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_STORE_LIB = "pub struct Writer;\n"
+
+# config::service importing the shared store crate — denied: the domain
+# allowance is std / kernel::Error / crate, and store is none of them.
+_CONFIG_SERVICE_STORE_VIOLATION = (
+    "use store::Writer;\n\npub fn make() -> Writer {\n    Writer\n}\n"
+)
+
+
+def _write_config_store_probe(root: Path, service_body: str) -> None:
+    (root / "Cargo.toml").write_text(_CONFIG_STORE_WORKSPACE)
+
+    config_src = root / "config/src"
+    config_src.mkdir(parents=True, exist_ok=True)
+    (root / "config/Cargo.toml").write_text(_CONFIG_STORE_MANIFEST)
+    (config_src / "lib.rs").write_text(_CONFIG_LIB)
+    (config_src / "service.rs").write_text(service_body)
+
+    store_src = root / "store/src"
+    store_src.mkdir(parents=True, exist_ok=True)
+    (root / "store/Cargo.toml").write_text(_STORE_MANIFEST)
+    (store_src / "lib.rs").write_text(_STORE_LIB)
+
+
+def test_real_config_rule_rejects_a_domain_crate_importing_store(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_config_store_probe(tmp_path, _CONFIG_SERVICE_STORE_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "config_domain_imports_only_permitted" in output, output

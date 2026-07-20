@@ -805,17 +805,28 @@ the ripple to construction sites is not mistaken for scope creep.
 
 #### 3. The duplicate check
 
-**File**: `scripts/lint-store-duplication.sh` (new, `0755`)
-**Changes**: fails when a temp-then-rename shape appears outside `cli/store/`.
-Two allowlisted exceptions, each with the reason inline:
+Per ADR-0048 (Python is the test language for the non-Rust surfaces), the guard
+is **Python, not a bash script**.
+
+**File**: `tasks/lint/store_duplication.py` (new)
+**Changes**: a `violations(root)` scan flagging a temp-then-rename shape
+(`fs::rename(`, `NamedTempFile`, `.persist(`) under `cli/**/src` outside
+`cli/store/`, behind a `check` invoke task that fails on any finding. Two
+allowlisted exceptions, each with the reason inline:
 
 ```
 cli/launcher/src/launch/outbound/resolve/cache.rs  # 0600 publish + paired signature
 cli/corpus-adapters/src/lock.rs                    # directory rename-as-claim, not a write
 ```
 
-**File**: `tasks/lint/scripts.py` (or the nearest existing shell-lint task)
-**Changes**: register the check so `mise run check` runs it.
+**File**: `mise.toml`, `tasks/__init__.py`, `tasks/lint/__init__.py`
+**Changes**: register `lint:store-duplication:check` and add it to `cli:check`
+(mirroring `lint:vendor-shims:check`) so `mise run check` runs it.
+
+**File**: `tests/unit/tasks/test_store_duplication.py` (new)
+**Changes**: the known-positive proof as a unit test — a planted temp-rename
+outside `cli/store/` is flagged; the store crate and the two allowlisted renames
+are not; the real `cli/` tree is clean.
 
 #### 4. Enforcement configs
 
@@ -2933,7 +2944,8 @@ deferring on a stale number.
       one new gate that otherwise takes its own correctness on trust, and it guards
       the plan's one irreversible risk. The replay output is committed
 - [ ] `bash scripts/check-inventory.sh` exits 0 against the final tree
-- [ ] `bash scripts/lint-store-duplication.sh` exits 0
+- [ ] `mise run lint:store-duplication:check` exits 0 (and its unit test
+      `tests/unit/tasks/test_store_duplication.py` passes)
 - [ ] The `config` built-in path drags in **no HTTP/fetch code at runtime**,
       asserted two ways since `config_command` is a *module* in `launcher` (which
       genuinely depends on `reqwest`/`rustls` for external resolution, so no

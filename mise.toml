@@ -390,9 +390,14 @@ description = "Guard the committed verify shims against their cli/verify build i
 depends = ["deps:install:python"]
 run = "invoke lint.vendor-shims.check"
 
+[tasks."lint:store-duplication:check"]
+description = "Keep atomic_write consolidated: no temp-and-rename outside cli/store/"
+depends = ["deps:install:python"]
+run = "invoke lint.store-duplication.check"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"

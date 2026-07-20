@@ -4,6 +4,7 @@ from . import (
     frontend,
     scripts,
     server,
+    store_duplication,
     vendor_shims,
     workflows,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "frontend",
     "scripts",
     "server",
+    "store_duplication",
     "vendor_shims",
     "workflows",
 ]

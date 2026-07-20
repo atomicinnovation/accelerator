@@ -12,18 +12,24 @@
 # Public helpers: accelerator_ensure_*  / accelerator_remove_*
 # Implementation helpers: _accelerator_*
 
-# Writes .accelerator/.gitignore containing the unanchored config.local.md
-# rule if the file is absent. Defence-in-depth companion to the anchored root
-# rule; kept in sync with accelerator_ensure_root_gitignore_rule via this
-# shared file so the two surfaces cannot drift.
+# Ensures .accelerator/.gitignore carries the unanchored config.local.md rule
+# and the staged-temp prefix, appending each only when absent (grep -qFx, the
+# same shape as accelerator_ensure_root_gitignore_rule) so a hand-edited file
+# keeps its other entries. The temp prefix must match store::TEMP_PREFIX in
+# cli/store — same-directory config-write temps land here, and jj auto-snapshots
+# an orphaned one, so the rule cannot depend on init having run.
 accelerator_ensure_inner_gitignore() {
   local project_root="$1"
   local dir="$project_root/.accelerator"
   local gi="$dir/.gitignore"
   mkdir -p "$dir"
-  if [ ! -f "$gi" ]; then
-    printf 'config.local.md\n' >"$gi"
-  fi
+  touch "$gi"
+  local rule
+  for rule in 'config.local.md' '.tmp-*'; do
+    if ! grep -qFx "$rule" "$gi"; then
+      printf '%s\n' "$rule" >>"$gi"
+    fi
+  done
 }
 
 # Ensures the anchored .accelerator/config.local.md rule is present in
