@@ -115,7 +115,19 @@ def test_theme_css_fonts_exist_in_canonical_frontend_directory():
     # (Vite resolves the relative url()s through it and rewrites them
     # from the configured base), so identity is guaranteed by
     # construction; here we pin every URL theme.css references to an
-    # existing canonical source file.
+    # existing canonical source file. Pin the symlink target too, so a
+    # relocated fonts directory fails here rather than as a stale docs
+    # cache or a broken Pages deploy.
+    docs_fonts = _REPO_ROOT / "docs-site/src/fonts"
+    assert docs_fonts.is_symlink(), (
+        f"{docs_fonts} must be a symlink into the visualiser frontend "
+        "fonts directory"
+    )
+    assert docs_fonts.resolve() == _FRONTEND_FONTS.resolve(), (
+        f"{docs_fonts} resolves to {docs_fonts.resolve()}, not the "
+        f"canonical fonts directory {_FRONTEND_FONTS} — update the "
+        "symlink and the docs:build source glob in mise.toml together"
+    )
     css = _THEME_CSS.read_text()
     referenced = re.findall(r"url\('\.\./fonts/([^']+)'\)", css)
     assert referenced, f"no font URLs found in {_THEME_CSS}"
