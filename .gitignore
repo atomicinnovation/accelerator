@@ -29,6 +29,10 @@ skills/visualisation/visualise/server/target/
 workspaces/
 node_modules/
 
+# Dev-launcher override marker: untracked and unshippable by design, so no clone
+# or marketplace install can carry it (bin/accelerator gates on its presence).
+/.accelerator-dev-launcher
+
 # minisign secret keys must never be committed — the release secret lives in
 # the GitHub release environment; only public keys are tracked.
 *.key

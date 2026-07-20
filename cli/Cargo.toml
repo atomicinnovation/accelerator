@@ -68,3 +68,10 @@ todo = "warn"
 unimplemented = "warn"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
+
+# The bootstrap hashes the whole launcher on every invocation, so binary size is
+# a per-call latency term and the cold-fetch payload. `strip` trades symbol names
+# for size; `lto = "thin"` trades release build time for size.
+[profile.release]
+strip = true
+lto = "thin"

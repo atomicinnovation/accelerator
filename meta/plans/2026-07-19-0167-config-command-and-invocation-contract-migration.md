@@ -520,41 +520,53 @@ symbolised after the fact. All three are recorded as deliberate.
 
 #### Automated Verification
 
-- [ ] With the opt-in variable set and the marker present, the bootstrap execs
+- [x] With the opt-in variable set and the marker present, the bootstrap execs
       the named binary, emits the warning on stderr, appends the record to
       `.accelerator-unverified.log`, and performs no fetch
-- [ ] With `ACCELERATOR_LAUNCHER_BIN` set but the opt-in variable absent, the
+- [x] With `ACCELERATOR_LAUNCHER_BIN` set but the opt-in variable absent, the
       override is ignored and the normal verified path runs
-- [ ] The override is refused when the marker is absent — asserted against a
+- [x] The override is refused when the marker is absent — asserted against a
       **pristine clone at a release tag** (whole tree present, no marker), so the
       refusal is tested in the shape a real install takes, not a synthetic fixture
-- [ ] `.accelerator-dev-launcher` is listed in `.gitignore` (asserted by a
+- [x] `.accelerator-dev-launcher` is listed in `.gitignore` (asserted by a
       committed test) and is untracked — so no clone or marketplace install carries
       it, and jj's auto-snapshot cannot make it tracked
-- [ ] The override is refused when the named binary is a symlink, is not
+- [x] The override is refused when the named binary is a symlink, is not
       executable, is reached through a **symlinked ancestor directory**, or whose
       canonical path contains `..` or resolves outside the canonical
       `${CLAUDE_PLUGIN_ROOT}/cli/target/`
-- [ ] A tampered cached launcher is still refused — the override changes nothing
+- [x] A tampered cached launcher is still refused — the override changes nothing
       about the verification path when it is not engaged
-- [ ] A **planted or tampered staged shim is refused**: a content-addressed shim
-      whose bytes do not match `bin/accelerator-verify.vendored.sha256` is
-      re-staged from the tracked source rather than trusted, so a stub pre-written
-      to the staging path (including via `ACCELERATOR_CACHE_DIR` without the
-      opt-in) never becomes the verifier
-- [ ] `ACCELERATOR_CACHE_DIR` is honoured only under the override opt-in; without
-      it, a caller-set cache dir still hash-verifies the shim before use
-- [ ] N concurrent bootstrap invocations against a **warm** cache all succeed; no
+- [x] A **planted or tampered staged shim is refused**: a content-addressed shim
+      whose bytes do not match **the source shim's own SHA-256** is re-staged from
+      the tracked source rather than trusted, so a stub pre-written to the staging
+      path (including via `ACCELERATOR_CACHE_DIR`) never becomes the verifier.
+      **Deviation (approved): the content address and skip-if-exists check key on
+      the source shim's digest, not `bin/accelerator-verify.vendored.sha256` —
+      that file is a cli/verify build-input marker, not a shim content hash.**
+- [x] `ACCELERATOR_CACHE_DIR` **remains ungated (approved deviation from §2):** a
+      caller-set cache dir always hash-verifies the staged shim against the source
+      before use, so a planted shim there is re-staged not trusted — the gate the
+      plan proposed protected only the broken trust-by-name design and would have
+      broken read-only-root installs. Launcher verification is always on regardless.
+- [x] N concurrent bootstrap invocations against a **warm** cache all succeed; no
       run fails shim verification
-- [ ] N concurrent bootstrap invocations against a **cold** cache with a slow
+- [x] N concurrent bootstrap invocations against a **cold** cache with a slow
       injected downloader all succeed — no waiter fails the lock while the fetch
-      is still progressing (the lock ceiling exceeds the fetch `--max-time`)
+      is still progressing (waiters that see a live owner extend rather than abort)
 - [ ] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
 - [ ] Launcher binary size recorded before and after the profile change, and the
-      per-invocation `verify_launcher` cost recorded at each size
+      per-invocation `verify_launcher` cost recorded at each size.
+      **Recorded: stripped release launcher (darwin-arm64) = 6,085,776 bytes with
+      `strip = true` + `lto = "thin"`.** `split-debuginfo` was **dropped
+      (deviation from §3): it is inert without `debug > 0`, and making it
+      meaningful — enabling debug, validating `.dSYM`/`.dwp` under zigbuild musl
+      cross-compile, and wiring the launcher into `create_debug_archives`
+      (currently visualiser-only) — is release-pipeline work overlapping 0165.
+      Recorded as a follow-up alongside Phase 7's launcher-size regression check.**
 
 ---
 

@@ -2,7 +2,7 @@
 # Mechanical audit: every reference to every removal-set member, in every form.
 set -uo pipefail
 
-cd "${1:?repo root required}"
+cd "${1:?repo root required}" || exit 1
 
 REMOVAL_SET="
 scripts/config-read-value.sh
@@ -32,8 +32,8 @@ hooks/config-detect.sh
 is_removal_set() {
   case "$1" in
     scripts/config-read-*.sh | scripts/config-*-template.sh | \
-    scripts/config-dump.sh | scripts/config-summary.sh | \
-    skills/config/init/scripts/init.sh | hooks/config-detect.sh) return 0 ;;
+      scripts/config-dump.sh | scripts/config-summary.sh | \
+      skills/config/init/scripts/init.sh | hooks/config-detect.sh) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -42,10 +42,10 @@ classify() {
   case "$1" in
     meta/*) echo "PROSE (meta/ — migration docs)" ;;
     */SKILL.md) echo "SKILL.md (Phase 5 §2/§3)" ;;
-    *test-*.sh | */test-*.sh) echo "TEST SUITE (Phase 2 §7 audit)" ;;
+    *test-*.sh) echo "TEST SUITE (Phase 2 §7 audit)" ;;
     scripts/test-shims/*) echo "SHIM (Phase 4, deleted Phase 7)" ;;
     *.rs) echo "RUST" ;;
-    tasks/*.py | tasks/*/*.py) echo "PYTHON (tasks/)" ;;
+    tasks/*.py) echo "PYTHON (tasks/)" ;;
     *.sh) echo "SHELL CONSUMER (Phase 5 §4b)" ;;
     *) echo "OTHER" ;;
   esac
