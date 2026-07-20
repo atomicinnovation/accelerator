@@ -43,6 +43,15 @@ regex = "1"
 # 0.0.x: every patch is semver-breaking, so pin exactly and review upgrades at
 # the `document` boundary — the sole permitted wrapper (see deny.toml).
 serde-saphyr = "=0.0.29"
+# Caret bounds: temp-in-target-dir naming + RAII cleanup for atomic writes,
+# a safe wrapper over the POSIX kill(pid, 0) liveness probe the mkdir-lock needs
+# (rustix is already in the graph via tempfile; `process` adds the module),
+# EXDEV classification, and jittered lock back-off. All 1.x/0.x behaviour-stable,
+# so the exact-pin discipline is not warranted here.
+tempfile = "3"
+libc = "0.2"
+rand = "0.9"
+rustix = { version = "1", features = ["process"] }
 
 [workspace.lints.rust]
 warnings = "deny"
