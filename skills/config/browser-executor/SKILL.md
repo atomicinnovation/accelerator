@@ -6,7 +6,7 @@ description: Resolves the absolute path of the Playwright executor (run.sh)
   invocation.
 user-invocable: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-read-browser-executor.sh)
 ---
 
 <!--

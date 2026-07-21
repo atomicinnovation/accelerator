@@ -400,6 +400,10 @@ description = "Keep atomic_write consolidated: no temp-and-rename outside cli/st
 depends = ["deps:install:python"]
 run = "invoke lint.store-duplication.check"
 
+[tasks."lint:skill-permissions:check"]
+description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant)"
+run = "bash scripts/check-skill-permissions.sh"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
 depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
@@ -444,7 +448,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

@@ -18,8 +18,7 @@ allowed-tools:
 
 # Comment Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh comment-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill comment-jira-issue --fail-safe`
 
 Manage comments on a Jira issue. Work through the steps below in order.
 This skill never auto-invokes — it only runs when the user explicitly types
@@ -229,4 +228,4 @@ User: `/comment-jira-issue delete ENG-42 10042`
 Skill runs `--describe`, shows `DELETE comment 10042 from ENG-42 (irreversible)`,
 waits for `y`, deletes and confirms.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh comment-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions comment-jira-issue --fail-safe`

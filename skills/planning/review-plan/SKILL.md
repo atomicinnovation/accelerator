@@ -5,14 +5,13 @@ description: Review an implementation plan through multiple quality lenses and
   a plan before implementation.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Review Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-plan`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-plan --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,10 +19,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config review plan --fail-safe`
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
-**Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_plans --fail-safe`
 
 ## Plan Review Template
 
@@ -31,7 +30,7 @@ The template below defines the frontmatter and body structure that every
 plan review must carry. Read it now — use it to guide what information
 you record in Steps 3-4 and what shape you persist in Step 4.8.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh plan-review`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template plan-review --fail-safe`
 
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.
@@ -270,7 +269,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agent-name.sh reviewer`"`.
+`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agent reviewer --fail-safe`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 
@@ -692,4 +691,4 @@ The review sits in the plan lifecycle between creation and implementation:
 3. `/implement-plan` — Execute the approved plan
 4. `/validate-plan` — Verify implementation matches the plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-plan --fail-safe`

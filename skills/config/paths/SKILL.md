@@ -5,7 +5,7 @@ description: Resolves all configured document-discovery paths for the current
   locations; not intended for direct user invocation.
 user-invocable: false
 allowed-tools: 
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 <!--
@@ -19,7 +19,7 @@ These paths are authoritative for all document searches in this project. If
 a key is missing from the resolved list below (e.g. bang preprocessing was
 disabled or failed), fall back to the plugin default shown in the legend.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-all-paths.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config paths --fail-safe`
 
 ## Path legend
 

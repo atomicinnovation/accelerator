@@ -4,15 +4,14 @@ description: Interactively create a well-formed work item. Use when capturing a
   feature, bug, task, spike, or epic as a structured work item in meta/work/.
 argument-hint: "[topic or existing work item path/number]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Create Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-work-item`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-work-item --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,8 +19,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh integration`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
 
 The **Active integration** line gates the post-draft push offer (Step 5).
 `config-read-work.sh integration` exits 0 with an **empty line** when no
@@ -37,7 +36,7 @@ The template below defines the sections and frontmatter fields that every
 work item must contain. Read it now — use it to guide what information you gather
 in Step 1 and what structure you produce in Steps 3–4.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
 You are tasked with guiding the user through creating a well-formed work item —
 a structured document capturing a feature, bug, task, spike, or epic for
@@ -768,4 +767,4 @@ identity-swap check passes.
 - If `work-item-next-number.sh` exits non-zero, abort and surface the error
   message verbatim.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-work-item --fail-safe`

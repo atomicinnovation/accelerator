@@ -60,7 +60,7 @@ emit it.
   - **body**: Self-contained finding body. See "Finding Body Format" below.
 
 The canonical source of valid lens identifiers is the Lens Catalogue emitted
-by `config-read-review.sh work-item`. See the Lens Catalogue for the current
+by `accelerator config review work-item`. See the Lens Catalogue for the current
 list.
 
 ## Severity Emoji Prefixes

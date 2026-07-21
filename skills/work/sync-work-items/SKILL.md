@@ -6,15 +6,15 @@ description: Reconcile local work items in meta/work/ with the active remote
   reconcile divergent local and remote state.
 argument-hint: "[--push-only|--pull-only] [--preview] [--all] [filter-flags…]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Sync Work Items
 
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh integration`
-**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
+**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code --fail-safe`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 `/sync-work-items` reconciles the local work items under the work directory with
 the remote tracker named by `work.integration`. It is **on-demand** (never

@@ -10,7 +10,7 @@ set -euo pipefail
 #
 #   1. Fenced-block context — the field name appears as a YAML key
 #      (^<field>:) inside a triple-backtick fenced code block that is NOT
-#      a `!`config-read-template.sh ...`` template-inclusion line.
+#      a `!`accelerator config template ...`` template-inclusion line.
 #   2. Imperative-instruction context — the field name appears in a line
 #      that contains one of [Ss]ubstitute|[Pp]opulate|[Ss]et|[Ww]rite|[Ee]mit
 #      AND that line lies inside a section whose heading matches
@@ -68,11 +68,11 @@ fi
 echo "  PASS: skills-schema.tsv field-count self-check"
 PASS=$((PASS + 1))
 
-# Returns the body of the SKILL.md with `!`config-read-template.sh...`` lines
+# Returns the body of the SKILL.md with `!`accelerator config template...`` lines
 # stripped (those are template inclusion directives, not prose).
 strip_template_directives() {
   local file="$1"
-  grep -v '^!`.*config-read-template\.sh' "$file"
+  grep -v '^!`.*accelerator config template' "$file"
 }
 
 # Check fenced-block context: the field appears as a YAML key inside a
@@ -246,7 +246,7 @@ fi
 # references this script by name).
 echo "--- Discovery pass: every emitting/template-consuming SKILL is allowlisted ---"
 DISCOVERY_PATTERNS=(
-  'config-read-template\.sh'
+  'accelerator config template '
   '^[[:space:]]*producer:'
   '^[[:space:]]*schema_version:'
   '^[[:space:]]*verdict:'

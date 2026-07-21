@@ -13,15 +13,14 @@ argument-hint: "<ISSUE-KEY> [--fields a,b,c|--fields a]... [--expand a,b,c] [--c
 disable-model-invocation: false
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Show Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh show-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill show-jira-issue --fail-safe`
 
 Fetch and render a single Jira issue by key. Work through the steps below
 in order.
@@ -97,4 +96,4 @@ jira-show-flow.sh ENG-42 --no-render-adf
 ```
 Then prints the response with ADF intact.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh show-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions show-jira-issue --fail-safe`

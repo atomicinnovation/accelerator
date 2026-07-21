@@ -12,15 +12,14 @@ argument-hint: "[--state NAME] [--assignee NAME] [--label NAME] [--text STR] [--
 disable-model-invocation: false
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Search Linear Issues
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh search-linear-issues`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill search-linear-issues --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > The team is fixed at `/init-linear` time (single-team scoping) — there is no
@@ -71,4 +70,4 @@ Read each row from `.data.issues.nodes[]`: `.identifier`, `.title`,
 `.state.name`, `.assignee.name` (show `—` for an unassigned issue). Report the
 total count and note if the result was truncated.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh search-linear-issues`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions search-linear-issues --fail-safe`

@@ -18,8 +18,7 @@ allowed-tools:
 
 # Create Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > See the
@@ -95,4 +94,4 @@ remotely but the local file was **not** updated. Surface this loudly: tell the
 user the created identifier, that they must NOT blindly re-run (it would create
 a duplicate), and that they should set `external_id: <IDENTIFIER>` by hand.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-linear-issue --fail-safe`

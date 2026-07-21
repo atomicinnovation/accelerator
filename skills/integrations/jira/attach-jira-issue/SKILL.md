@@ -16,8 +16,7 @@ allowed-tools:
 
 # Attach files to a Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh attach-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill attach-jira-issue --fail-safe`
 
 Upload one or more local files as attachments to a Jira issue. Work through
 the steps below in order. This skill never auto-invokes — it only runs when
@@ -145,4 +144,4 @@ both in one request, confirms:
 - debug.json (ID: 10002, 3.1 KB)
 ```
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh attach-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions attach-jira-issue --fail-safe`

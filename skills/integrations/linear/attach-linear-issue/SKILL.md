@@ -17,8 +17,7 @@ allowed-tools:
 
 # Attach to a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh attach-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill attach-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -80,4 +79,4 @@ registration fails (`E_ATTACH_REGISTER_FAILED`), the asset is orphaned in Linear
 — tell the user which step failed and that a blind re-run re-uploads. On
 success, confirm the attachment was added.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh attach-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions attach-linear-issue --fail-safe`

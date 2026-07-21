@@ -11,15 +11,14 @@ argument-hint: "[--site <subdomain>] [--email <addr>] [--refresh-fields] [--list
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Init Jira
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh init-jira`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill init-jira --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -58,7 +57,7 @@ If `--refresh-fields` was requested, skip to Step 5 (field discovery only).
 ## Step 1: Resolve site
 
 Use the site from `--site` if provided. Otherwise read it from config by running
-`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.site ""`. Run the bare path
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.site ""`. Run the bare path
 **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
 prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
 prompt).
@@ -69,7 +68,7 @@ If still empty, prompt: *"Enter your Jira Cloud subdomain (the part before
 ## Step 2: Resolve email
 
 Use `--email` if provided. Otherwise read it from config by running
-`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-value.sh jira.email ""`. Run the bare path
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.email ""`. Run the bare path
 **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
 prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
 prompt).
@@ -161,4 +160,4 @@ so teammates pick up the shared cache without running `/init-jira` themselves.
 (`site.json` is gitignored — each developer runs `/init-jira` to configure their
 own credentials.)
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh init-jira`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions init-jira --fail-safe`

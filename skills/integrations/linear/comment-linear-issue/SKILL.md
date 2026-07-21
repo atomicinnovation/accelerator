@@ -16,8 +16,7 @@ allowed-tools:
 
 # Comment on a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh comment-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill comment-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -69,4 +68,4 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-comment-flow.sh 
 
 Confirm the comment was posted.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh comment-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions comment-linear-issue --fail-safe`

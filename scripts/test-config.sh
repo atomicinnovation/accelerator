@@ -1095,12 +1095,12 @@ SKILLS_DIR="$SCRIPT_DIR/../skills"
 # Add new artefact directories here rather than at each call site.
 SKILLS_GREP=(grep -r --include='SKILL.md' --exclude-dir=node_modules --exclude-dir=target)
 
-echo "Test: config-read-context.sh appears in exactly 42 skills"
-CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+echo "Test: config context injection appears in exactly 42 skills"
+CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'accelerator config context' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "42 skills have context injection" "42" "$CONTEXT_COUNT"
 
-echo "Test: config-read-agents.sh appears in exactly 22 skills"
-AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-agents.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+echo "Test: config agents injection appears in exactly 22 skills"
+AGENTS_COUNT=$("${SKILLS_GREP[@]}" 'accelerator config agents' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "22 skills have agent override injection" "22" "$AGENTS_COUNT"
 
 echo "Test: context injection is within a few lines of first # heading"
@@ -1125,7 +1125,7 @@ CONTEXT_PLACEMENT_OK=true
 for skill in "${CONTEXT_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
   HEADING_LINE=$(grep -n '^# ' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  CONTEXT_LINE=$(grep -n 'config-read-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  CONTEXT_LINE=$(grep -n 'accelerator config context' "$SKILL_FILE" | head -1 | cut -d: -f1)
   DIFF=$((CONTEXT_LINE - HEADING_LINE))
   if [ "$DIFF" -lt 1 ] || [ "$DIFF" -gt 5 ]; then
     echo "  FAIL: $skill - heading at line $HEADING_LINE, context at line $CONTEXT_LINE (diff=$DIFF)"
@@ -1139,7 +1139,10 @@ if [ "$CONTEXT_PLACEMENT_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: config-read-agents.sh appears after config-read-context.sh and config-read-skill-context.sh"
+# The context and skill-context injections collapsed into one
+# `config context --skill` line, so agents now sits on the immediately
+# following line rather than two lines below.
+echo "Test: config agents injection appears on the line after config context"
 AGENT_SKILLS=(
   "planning/create-plan"
   "planning/review-plan"
@@ -1156,9 +1159,9 @@ AGENT_SKILLS=(
 AGENT_PLACEMENT_OK=true
 for skill in "${AGENT_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
-  CONTEXT_LINE=$(grep -n 'config-read-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  EXPECTED_LINE=$((CONTEXT_LINE + 2))
+  CONTEXT_LINE=$(grep -n 'accelerator config context' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  AGENTS_LINE=$(grep -n 'accelerator config agents' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  EXPECTED_LINE=$((CONTEXT_LINE + 1))
   if [ "$AGENTS_LINE" -ne "$EXPECTED_LINE" ]; then
     echo "  FAIL: $skill - context at line $CONTEXT_LINE, agents at line $AGENTS_LINE (expected $EXPECTED_LINE)"
     AGENT_PLACEMENT_OK=false
@@ -1171,7 +1174,7 @@ if [ "$AGENT_PLACEMENT_OK" = true ]; then
   PASS=$((PASS + 1))
 fi
 
-echo "Test: Non-agent skills do NOT have config-read-agents.sh"
+echo "Test: Non-agent skills do NOT inject config agents"
 NON_AGENT_SKILLS=(
   "github/describe-pr"
   "github/respond-to-pr"
@@ -1180,8 +1183,8 @@ NON_AGENT_SKILLS=(
 NON_AGENT_OK=true
 for skill in "${NON_AGENT_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
-  if grep -q 'config-read-agents.sh' "$SKILL_FILE"; then
-    echo "  FAIL: $skill should not have config-read-agents.sh"
+  if grep -q 'accelerator config agents' "$SKILL_FILE"; then
+    echo "  FAIL: $skill should not inject config agents"
     NON_AGENT_OK=false
     FAIL=$((FAIL + 1))
     break
@@ -1193,8 +1196,8 @@ if [ "$NON_AGENT_OK" = true ]; then
 fi
 
 echo "Test: review-pr and review-plan have inline config-read-agent-name.sh"
-if grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/github/review-pr/SKILL.md" &&
-  grep -q 'config-read-agent-name.sh reviewer' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+if grep -q 'accelerator config agent reviewer' "$SKILLS_DIR/github/review-pr/SKILL.md" &&
+  grep -q 'accelerator config agent reviewer' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
   echo "  PASS: both review skills have inline agent name substitution"
   PASS=$((PASS + 1))
 else
@@ -2997,7 +3000,7 @@ echo "=== Preprocessor placement: config-read-review.sh ==="
 echo ""
 
 echo "Test: config-read-review.sh appears in review-pr SKILL.md"
-if grep -q 'config-read-review.sh pr' "$SKILLS_DIR/github/review-pr/SKILL.md"; then
+if grep -q 'accelerator config review pr' "$SKILLS_DIR/github/review-pr/SKILL.md"; then
   echo "  PASS: review-pr has review config injection"
   PASS=$((PASS + 1))
 else
@@ -3006,7 +3009,7 @@ else
 fi
 
 echo "Test: config-read-review.sh appears in review-plan SKILL.md"
-if grep -q 'config-read-review.sh plan' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+if grep -q 'accelerator config review plan' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
   echo "  PASS: review-plan has review config injection"
   PASS=$((PASS + 1))
 else
@@ -3015,8 +3018,8 @@ else
 fi
 
 echo "Test: config-read-review.sh appears after config-read-agents.sh (with fallback) in review-pr"
-AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
-REVIEW_LINE=$(grep -n 'config-read-review.sh' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
+AGENTS_LINE=$(grep -n 'accelerator config agents' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
+REVIEW_LINE=$(grep -n 'accelerator config review' "$SKILLS_DIR/github/review-pr/SKILL.md" | head -1 | cut -d: -f1)
 if [ "$REVIEW_LINE" -gt "$AGENTS_LINE" ]; then
   echo "  PASS: review config after agents in review-pr (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
   PASS=$((PASS + 1))
@@ -3026,8 +3029,8 @@ else
 fi
 
 echo "Test: config-read-review.sh appears after config-read-agents.sh (with fallback) in review-plan"
-AGENTS_LINE=$(grep -n 'config-read-agents.sh' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
-REVIEW_LINE=$(grep -n 'config-read-review.sh' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
+AGENTS_LINE=$(grep -n 'accelerator config agents' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
+REVIEW_LINE=$(grep -n 'accelerator config review' "$SKILLS_DIR/planning/review-plan/SKILL.md" | head -1 | cut -d: -f1)
 if [ "$REVIEW_LINE" -gt "$AGENTS_LINE" ]; then
   echo "  PASS: review config after agents in review-plan (agents:$AGENTS_LINE, review:$REVIEW_LINE)"
   PASS=$((PASS + 1))
@@ -4134,8 +4137,8 @@ for f in "${_CONSUMER_FILES[@]}"; do
   if [ ! -f "$full_path" ]; then
     echo "  FAIL: $f not found"
     CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
-  elif ! grep -q "config-read-work" "$full_path"; then
-    echo "  FAIL: $f does not reference config-read-work.sh"
+  elif ! grep -qE "config-read-work|accelerator config work" "$full_path"; then
+    echo "  FAIL: $f does not reference the work config reader"
     CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
   fi
 done
@@ -4502,7 +4505,7 @@ echo ""
 SKILLS_DIR="$SCRIPT_DIR/../skills"
 
 echo "Test: create-plan uses config-read-path.sh"
-if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
+if grep -q 'accelerator config path plans' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
   echo "  PASS: create-plan has plans path injection"
   PASS=$((PASS + 1))
 else
@@ -4511,7 +4514,7 @@ else
 fi
 
 echo "Test: create-plan uses config-read-template.sh"
-if grep -q 'config-read-template.sh plan' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
+if grep -q 'accelerator config template plan' "$SKILLS_DIR/planning/create-plan/SKILL.md"; then
   echo "  PASS: create-plan has template injection"
   PASS=$((PASS + 1))
 else
@@ -4520,7 +4523,7 @@ else
 fi
 
 echo "Test: research-codebase uses config-read-path.sh research_codebase"
-if grep -q 'config-read-path.sh research_codebase' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+if grep -q 'accelerator config path research_codebase' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
   echo "  PASS: research-codebase has research_codebase path injection"
   PASS=$((PASS + 1))
 else
@@ -4529,7 +4532,7 @@ else
 fi
 
 echo "Test: research-codebase uses config-read-template.sh codebase-research"
-if grep -q 'config-read-template.sh codebase-research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
+if grep -q 'accelerator config template codebase-research' "$SKILLS_DIR/research/research-codebase/SKILL.md"; then
   echo "  PASS: research-codebase has codebase-research template injection"
   PASS=$((PASS + 1))
 else
@@ -4538,7 +4541,7 @@ else
 fi
 
 echo "Test: research-issue uses config-read-path.sh research_issues"
-if grep -q 'config-read-path.sh research_issues' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
+if grep -q 'accelerator config path research_issues' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
   echo "  PASS: research-issue has research_issues path injection"
   PASS=$((PASS + 1))
 else
@@ -4547,7 +4550,7 @@ else
 fi
 
 echo "Test: research-issue uses config-read-template.sh rca"
-if grep -q 'config-read-template.sh rca' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
+if grep -q 'accelerator config template rca' "$SKILLS_DIR/research/research-issue/SKILL.md"; then
   echo "  PASS: research-issue has rca template injection"
   PASS=$((PASS + 1))
 else
@@ -4556,7 +4559,7 @@ else
 fi
 
 echo "Test: create-adr uses config-read-path.sh"
-if grep -q 'config-read-path.sh decisions' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
+if grep -q 'accelerator config path decisions' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
   echo "  PASS: create-adr has decisions path injection"
   PASS=$((PASS + 1))
 else
@@ -4565,7 +4568,7 @@ else
 fi
 
 echo "Test: create-adr uses config-read-template.sh"
-if grep -q 'config-read-template.sh adr' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
+if grep -q 'accelerator config template adr' "$SKILLS_DIR/decisions/create-adr/SKILL.md"; then
   echo "  PASS: create-adr has template injection"
   PASS=$((PASS + 1))
 else
@@ -4577,7 +4580,7 @@ echo "Test: extract-adrs uses config-read-path.sh for decisions, research, plans
 EXTRACT_SKILL="$SKILLS_DIR/decisions/extract-adrs/SKILL.md"
 EXTRACT_PASS=true
 for key in decisions research plans; do
-  if ! grep -q "config-read-path.sh $key" "$EXTRACT_SKILL"; then
+  if ! grep -q "accelerator config path $key" "$EXTRACT_SKILL"; then
     EXTRACT_PASS=false
     break
   fi
@@ -4591,7 +4594,7 @@ else
 fi
 
 echo "Test: review-adr uses config-read-path.sh"
-if grep -q 'config-read-path.sh decisions' "$SKILLS_DIR/decisions/review-adr/SKILL.md"; then
+if grep -q 'accelerator config path decisions' "$SKILLS_DIR/decisions/review-adr/SKILL.md"; then
   echo "  PASS: review-adr has decisions path injection"
   PASS=$((PASS + 1))
 else
@@ -4600,7 +4603,7 @@ else
 fi
 
 echo "Test: validate-plan uses config-read-path.sh"
-if grep -q 'config-read-path.sh validations' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+if grep -q 'accelerator config path validations' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
   echo "  PASS: validate-plan has validations path injection"
   PASS=$((PASS + 1))
 else
@@ -4609,7 +4612,7 @@ else
 fi
 
 echo "Test: validate-plan uses config-read-template.sh"
-if grep -q 'config-read-template.sh validation' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+if grep -q 'accelerator config template validation' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
   echo "  PASS: validate-plan has template injection"
   PASS=$((PASS + 1))
 else
@@ -4619,8 +4622,8 @@ fi
 
 echo "Test: describe-pr uses config-read-path.sh for prs and config-read-template.sh for pr-description"
 DESCRIBE_SKILL="$SKILLS_DIR/github/describe-pr/SKILL.md"
-if grep -q 'config-read-path.sh prs' "$DESCRIBE_SKILL" &&
-  grep -q 'config-read-template.sh pr-description' "$DESCRIBE_SKILL"; then
+if grep -q 'accelerator config path prs' "$DESCRIBE_SKILL" &&
+  grep -q 'accelerator config template pr-description' "$DESCRIBE_SKILL"; then
   echo "  PASS: describe-pr has prs path and pr-description template injections"
   PASS=$((PASS + 1))
 else
@@ -4629,7 +4632,7 @@ else
 fi
 
 echo "Test: review-plan uses config-read-path.sh"
-if grep -q 'config-read-path.sh review_plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+if grep -q 'accelerator config path review_plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
   echo "  PASS: review-plan has review_plans path injection"
   PASS=$((PASS + 1))
 else
@@ -4638,7 +4641,7 @@ else
 fi
 
 echo "Test: review-pr uses config-read-path.sh"
-if grep -q 'config-read-path.sh review_prs' "$SKILLS_DIR/github/review-pr/SKILL.md"; then
+if grep -q 'accelerator config path review_prs' "$SKILLS_DIR/github/review-pr/SKILL.md"; then
   echo "  PASS: review-pr has review_prs path injection"
   PASS=$((PASS + 1))
 else
@@ -4647,7 +4650,7 @@ else
 fi
 
 echo "Test: respond-to-pr uses config-read-path.sh"
-if grep -q 'config-read-path.sh review_prs' "$SKILLS_DIR/github/respond-to-pr/SKILL.md"; then
+if grep -q 'accelerator config path review_prs' "$SKILLS_DIR/github/respond-to-pr/SKILL.md"; then
   echo "  PASS: respond-to-pr has review_prs path injection"
   PASS=$((PASS + 1))
 else
@@ -4656,7 +4659,7 @@ else
 fi
 
 echo "Test: implement-plan uses config-read-path.sh"
-if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/implement-plan/SKILL.md"; then
+if grep -q 'accelerator config path plans' "$SKILLS_DIR/planning/implement-plan/SKILL.md"; then
   echo "  PASS: implement-plan has plans path injection"
   PASS=$((PASS + 1))
 else
@@ -4665,7 +4668,7 @@ else
 fi
 
 echo "Test: validate-plan has plans path injection"
-if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
+if grep -q 'accelerator config path plans' "$SKILLS_DIR/planning/validate-plan/SKILL.md"; then
   echo "  PASS: validate-plan has plans path injection"
   PASS=$((PASS + 1))
 else
@@ -4674,7 +4677,7 @@ else
 fi
 
 echo "Test: review-plan has plans path injection"
-if grep -q 'config-read-path.sh plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
+if grep -q 'accelerator config path plans' "$SKILLS_DIR/planning/review-plan/SKILL.md"; then
   echo "  PASS: review-plan has plans path injection"
   PASS=$((PASS + 1))
 else
@@ -4987,15 +4990,17 @@ echo ""
 echo "=== Preprocessor placement (per-skill) ==="
 echo ""
 
-echo "Test: config-read-skill-context.sh appears in exactly 42 skills"
-SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-context.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+# The context and skill-context injections collapsed into one
+# `config context --skill <name>` line, so the skill-context census now counts
+# that combined form and there is no separate ordering check for the two.
+echo "Test: config context --skill injection appears in exactly 42 skills"
+SKILL_CONTEXT_COUNT=$("${SKILLS_GREP[@]}" 'accelerator config context --skill' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "42 skills have skill-context injection" "42" "$SKILL_CONTEXT_COUNT"
 
-echo "Test: config-read-skill-instructions.sh appears in exactly 42 skills"
-SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'config-read-skill-instructions.sh' "$SKILLS_DIR" | wc -l | tr -d ' ')
+echo "Test: config instructions injection appears in exactly 42 skills"
+SKILL_INSTRUCTIONS_COUNT=$("${SKILLS_GREP[@]}" 'accelerator config instructions' "$SKILLS_DIR" | wc -l | tr -d ' ')
 assert_eq "42 skills have skill-instructions injection" "42" "$SKILL_INSTRUCTIONS_COUNT"
 
-echo "Test: config-read-skill-context.sh appears immediately after config-read-context.sh in each skill"
 ALL_SKILLS=(
   "planning/create-plan"
   "planning/review-plan"
@@ -5013,30 +5018,13 @@ ALL_SKILLS=(
   "vcs/commit"
   "visualisation/visualise"
 )
-SKILL_CTX_PLACEMENT_OK=true
-for skill in "${ALL_SKILLS[@]}"; do
-  SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
-  CONTEXT_LINE=$(grep -n 'config-read-context\.sh[^-]' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  SKILL_CTX_LINE=$(grep -n 'config-read-skill-context.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
-  EXPECTED_LINE=$((CONTEXT_LINE + 1))
-  if [ "$SKILL_CTX_LINE" -ne "$EXPECTED_LINE" ]; then
-    echo "  FAIL: $skill - context at line $CONTEXT_LINE, skill-context at line $SKILL_CTX_LINE (expected $EXPECTED_LINE)"
-    SKILL_CTX_PLACEMENT_OK=false
-    FAIL=$((FAIL + 1))
-    break
-  fi
-done
-if [ "$SKILL_CTX_PLACEMENT_OK" = true ]; then
-  echo "  PASS: all skill-context injections immediately after context injection"
-  PASS=$((PASS + 1))
-fi
 
-echo "Test: config-read-skill-instructions.sh is the last preprocessor line in each skill"
+echo "Test: config instructions is the last preprocessor line in each skill"
 SKILL_INSTR_PLACEMENT_OK=true
 for skill in "${ALL_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
   LAST_PREPROCESSOR_LINE=$(grep -n '^!`' "$SKILL_FILE" | tail -1 | cut -d: -f1)
-  SKILL_INSTR_LINE=$(grep -n 'config-read-skill-instructions.sh' "$SKILL_FILE" | head -1 | cut -d: -f1)
+  SKILL_INSTR_LINE=$(grep -n 'accelerator config instructions' "$SKILL_FILE" | head -1 | cut -d: -f1)
   if [ "$SKILL_INSTR_LINE" -ne "$LAST_PREPROCESSOR_LINE" ]; then
     echo "  FAIL: $skill - skill-instructions at line $SKILL_INSTR_LINE, last preprocessor at line $LAST_PREPROCESSOR_LINE"
     SKILL_INSTR_PLACEMENT_OK=false
@@ -5054,8 +5042,8 @@ SKILL_NAME_MATCH_OK=true
 for skill in "${ALL_SKILLS[@]}"; do
   SKILL_FILE="$SKILLS_DIR/$skill/SKILL.md"
   FM_NAME=$(awk '/^name:/{print $2; exit}' "$SKILL_FILE")
-  CTX_ARG=$(grep 'config-read-skill-context.sh' "$SKILL_FILE" | sed 's/.*config-read-skill-context.sh //' | sed 's/`$//')
-  INSTR_ARG=$(grep 'config-read-skill-instructions.sh' "$SKILL_FILE" | sed 's/.*config-read-skill-instructions.sh //' | sed 's/`$//')
+  CTX_ARG=$(grep 'accelerator config context --skill' "$SKILL_FILE" | sed 's/.*accelerator config context --skill //' | awk '{print $1}')
+  INSTR_ARG=$(grep 'accelerator config instructions' "$SKILL_FILE" | sed 's/.*accelerator config instructions //' | awk '{print $1}')
   if [ "$FM_NAME" != "$CTX_ARG" ] || [ "$FM_NAME" != "$INSTR_ARG" ]; then
     echo "  FAIL: $skill - frontmatter name=$FM_NAME, context arg=$CTX_ARG, instructions arg=$INSTR_ARG"
     SKILL_NAME_MATCH_OK=false
@@ -5777,8 +5765,8 @@ echo ""
 
 CONFIGURE_SKILL="$SKILLS_DIR/config/configure/SKILL.md"
 
-echo "Test: Configure skill SKILL.md contains config-list-template.sh"
-if grep -q 'config-list-template.sh' "$CONFIGURE_SKILL"; then
+echo "Test: Configure skill SKILL.md contains accelerator config templates list"
+if grep -q 'accelerator config templates list' "$CONFIGURE_SKILL"; then
   echo "  PASS: config-list-template.sh referenced"
   PASS=$((PASS + 1))
 else
@@ -5786,8 +5774,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Configure skill SKILL.md contains config-show-template.sh"
-if grep -q 'config-show-template.sh' "$CONFIGURE_SKILL"; then
+echo "Test: Configure skill SKILL.md contains accelerator config templates show"
+if grep -q 'accelerator config templates show' "$CONFIGURE_SKILL"; then
   echo "  PASS: config-show-template.sh referenced"
   PASS=$((PASS + 1))
 else
@@ -5795,8 +5783,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Configure skill SKILL.md contains config-eject-template.sh"
-if grep -q 'config-eject-template.sh' "$CONFIGURE_SKILL"; then
+echo "Test: Configure skill SKILL.md contains accelerator config templates eject"
+if grep -q 'accelerator config templates eject' "$CONFIGURE_SKILL"; then
   echo "  PASS: config-eject-template.sh referenced"
   PASS=$((PASS + 1))
 else
@@ -5804,8 +5792,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Configure skill SKILL.md contains config-diff-template.sh"
-if grep -q 'config-diff-template.sh' "$CONFIGURE_SKILL"; then
+echo "Test: Configure skill SKILL.md contains accelerator config templates diff"
+if grep -q 'accelerator config templates diff' "$CONFIGURE_SKILL"; then
   echo "  PASS: config-diff-template.sh referenced"
   PASS=$((PASS + 1))
 else
@@ -5813,8 +5801,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Configure skill SKILL.md contains config-reset-template.sh"
-if grep -q 'config-reset-template.sh' "$CONFIGURE_SKILL"; then
+echo "Test: Configure skill SKILL.md contains accelerator config templates reset"
+if grep -q 'accelerator config templates reset' "$CONFIGURE_SKILL"; then
   echo "  PASS: config-reset-template.sh referenced"
   PASS=$((PASS + 1))
 else
@@ -5889,7 +5877,7 @@ echo "Test: skills/config/paths/SKILL.md exists"
 assert_file_exists "paths skill exists" "$PATHS_SKILL"
 
 echo "Test: paths skill contains bang call to config-read-all-paths.sh"
-if grep -q 'config-read-all-paths\.sh' "$PATHS_SKILL"; then
+if grep -q 'accelerator config paths' "$PATHS_SKILL"; then
   echo "  PASS: bang call to config-read-all-paths.sh present"
   PASS=$((PASS + 1))
 else

@@ -6,14 +6,13 @@ description: Interactively stress-test a work item by grilling the user
   implementation is planned.
 argument-hint: "[work item number or path]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Stress-Test Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh stress-test-work-item`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill stress-test-work-item --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,7 +20,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 You are tasked with stress-testing a work item by interviewing the user
 relentlessly about every aspect of it. Your goal is to find issues,
@@ -218,4 +217,4 @@ This skill sits in the work item lifecycle between review and planning:
   finding logical inconsistencies, missing edge cases, flawed assumptions, and
   gaps that only surface when you trace through scenarios step by step
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh stress-test-work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions stress-test-work-item --fail-safe`
