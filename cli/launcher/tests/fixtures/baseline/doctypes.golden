@@ -1,0 +1,13 @@
+work-item	custom/work
+plan	meta/plans
+plan-validation	meta/validations
+pr-description	meta/prs
+adr	meta/decisions
+codebase-research	meta/research/codebase
+issue-research	meta/research/issues
+design-inventory	meta/research/design-inventories
+design-gap	meta/research/design-gaps
+plan-review	meta/reviews/plans
+work-item-review	meta/reviews/work
+pr-review	meta/reviews/prs
+note	meta/notes

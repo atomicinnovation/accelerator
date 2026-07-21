@@ -78,6 +78,16 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             skill: skill.clone(),
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Paths {
+            doc_types,
+            all,
+            fail_safe,
+            ..
+        } => config_cli::Action::Paths {
+            doc_types: *doc_types,
+            all: *all,
+            on_failure: on_failure(*fail_safe),
+        },
     }
 }
 

@@ -1,0 +1,16 @@
+## Configured Paths
+
+- plans: meta/plans
+- research_codebase: meta/research/codebase
+- decisions: meta/decisions
+- prs: meta/prs
+- validations: meta/validations
+- review_plans: meta/reviews/plans
+- review_prs: meta/reviews/prs
+- review_work: meta/reviews/work
+- work: custom/work
+- notes: meta/notes
+- research_design_inventories: meta/research/design-inventories
+- research_design_gaps: meta/research/design-gaps
+- global: meta/global
+- research_issues: meta/research/issues

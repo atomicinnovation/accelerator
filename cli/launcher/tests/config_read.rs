@@ -495,3 +495,90 @@ fn instructions_of_an_absent_skill_prints_nothing() -> TestResult {
     assert_eq!(code(&output), 0);
     Ok(())
 }
+
+#[test]
+fn paths_matches_the_configured_golden() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "paths"])?;
+    assert_eq!(output.stdout, golden("baseline", "paths.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_all_includes_the_excluded_keys() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "paths", "--all"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("- tmp: "));
+    assert!(stdout.contains("- templates: "));
+    assert!(stdout.contains("- integrations: "));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_doc_types_matches_the_tsv_golden() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(
+        &workspace,
+        &["config", "paths", "--doc-types", "--format", "tsv"],
+    )?;
+    assert_eq!(output.stdout, golden("baseline", "doctypes.golden")?);
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 13);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_doc_types_resolves_against_the_root_positional() -> TestResult {
+    let workspace = workspace("baseline")?;
+    // Run from an unrelated CWD, pointing the resolver at the workspace root.
+    let elsewhere = workspace.parent().unwrap_or(&workspace).to_path_buf();
+    let output = run_in(
+        &elsewhere,
+        &[
+            "config",
+            "paths",
+            "--doc-types",
+            "--format",
+            "tsv",
+            workspace.to_str().unwrap_or("."),
+        ],
+    )?;
+    assert_eq!(output.stdout, golden("baseline", "doctypes.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_doc_types_coerces_a_blank_key_to_thirteen_rows() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: \"\"\n---\n")?;
+    let output = fixture.run(&["config", "paths", "--doc-types"])?;
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 13);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("is blank"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_doc_types_refuses_an_unsafe_path_with_empty_stdout() -> TestResult {
+    let workspace = workspace("doc-type-escape")?;
+    let output = run_in(&workspace, &["config", "paths", "--doc-types"])?;
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unsafe path"));
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_doc_types_stays_fail_closed_on_escape_with_fail_safe() -> TestResult {
+    let workspace = workspace("doc-type-escape")?;
+    let output = run_in(
+        &workspace,
+        &["config", "paths", "--doc-types", "--fail-safe"],
+    )?;
+    assert!(output.stdout.is_empty());
+    assert_ne!(code(&output), 0);
+    Ok(())
+}

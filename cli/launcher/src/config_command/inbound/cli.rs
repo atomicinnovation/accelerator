@@ -12,11 +12,11 @@ use config::{catalogue, ConfigError, Key, Level, Resolved};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::{
-    agents as agents_view, ConfigStack, OnFailure,
+    agents as agents_view, paths as paths_view, ConfigStack, OnFailure,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
-    instructions as instructions_render, Rendered,
+    instructions as instructions_render, paths as paths_render, Rendered,
 };
 
 /// A parsed `config` request, owned by this module so the hexagon never names
@@ -52,6 +52,11 @@ pub enum Action {
     },
     Instructions {
         skill: String,
+        on_failure: OnFailure,
+    },
+    Paths {
+        doc_types: bool,
+        all: bool,
         on_failure: OnFailure,
     },
 }
@@ -101,6 +106,29 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
         Action::Instructions { skill, on_failure } => {
             run_instructions(stack, skill, *on_failure)
         }
+        Action::Paths {
+            doc_types,
+            all,
+            on_failure,
+        } => finish(
+            resolve_paths(stack, *doc_types, *all),
+            *on_failure,
+            Degrade::Notice(paths_render::render_unavailable),
+        ),
+    }
+}
+
+fn resolve_paths(
+    stack: &ConfigStack,
+    doc_types: bool,
+    all: bool,
+) -> Result<Rendered, Failure> {
+    if doc_types {
+        let view = paths_view::doc_types(stack.config())?;
+        Ok(paths_render::doc_types(&view))
+    } else {
+        let paths = paths_view::configured(stack.config(), all)?;
+        Ok(paths_render::configured(&paths))
     }
 }
 
@@ -203,7 +231,10 @@ enum Failure {
 
 impl From<ConfigError> for Failure {
     fn from(error: ConfigError) -> Self {
-        Self::Read(error)
+        match error {
+            ConfigError::Invalid { .. } => Self::Refusal(error),
+            _ => Self::Read(error),
+        }
     }
 }
 

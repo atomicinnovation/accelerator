@@ -7,6 +7,7 @@
 
 pub mod agents;
 pub mod context;
+pub mod paths;
 
 use config::{ConfigAccess, ReadConfigLevel, ReadContent};
 

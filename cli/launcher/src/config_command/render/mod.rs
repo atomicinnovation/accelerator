@@ -9,6 +9,7 @@
 pub mod agents;
 pub mod context;
 pub mod instructions;
+pub mod paths;
 
 /// A rendered subcommand output.
 pub struct Rendered {

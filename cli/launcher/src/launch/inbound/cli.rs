@@ -143,6 +143,43 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print the `## Configured Paths` block, or — with `--doc-types` — the 13
+    /// doc-type → directory mappings as `type<TAB>dir` lines.
+    Paths {
+        /// Emit the doc-type → directory mappings instead of the configured
+        /// path keys.
+        #[arg(long)]
+        doc_types: bool,
+        /// Include the excluded keys (`tmp`, `templates`, `integrations`) in
+        /// the configured-paths block.
+        #[arg(long)]
+        all: bool,
+        /// Rendering; `tsv` for the doc-type mappings, `block` for the
+        /// configured paths.
+        #[arg(long, value_enum)]
+        format: Option<PathsFormat>,
+        /// With `--doc-types`, the project root to resolve directories against
+        /// (defaults to the current directory).
+        root: Option<String>,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Configured Paths Unavailable` notice and exit 0. A doc-type
+        /// validation refusal stays fail-closed regardless.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+}
+
+/// How `config paths` renders its output.
+#[derive(Clone, Copy, ValueEnum)]
+pub enum PathsFormat {
+    /// The `## Configured Paths` markdown block.
+    Block,
+    /// Tab-separated `type<TAB>dir` lines.
+    Tsv,
 }
 
 impl ConfigAction {
@@ -178,12 +215,28 @@ impl ConfigAction {
             | Self::Instructions {
                 allow_legacy_layout,
                 ..
+            }
+            | Self::Paths {
+                allow_legacy_layout,
+                ..
             } => *allow_legacy_layout,
         };
         if allow {
             LegacyPolicy::Allow
         } else {
             LegacyPolicy::Reject
+        }
+    }
+
+    /// The directory config resolution should start from: the `--doc-types`
+    /// `[root]` positional, else `None` for the current directory. This is how
+    /// `config paths --doc-types <root>` resolves against `<root>` rather than
+    /// the caller's CWD, matching the bash resolver's `( cd "$root" && … )`.
+    #[must_use]
+    pub fn resolution_root(&self) -> Option<&str> {
+        match self {
+            Self::Paths { root, .. } => root.as_deref(),
+            _ => None,
         }
     }
 }

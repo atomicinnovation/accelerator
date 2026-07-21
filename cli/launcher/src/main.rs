@@ -143,19 +143,37 @@ const fn legacy_policy(command: &Command) -> LegacyPolicy {
     }
 }
 
-/// Composes the `config` port bundle at the current directory's project root,
-/// applying the resolved legacy policy. Invoked lazily by `dispatch`.
-fn compose_stack(policy: LegacyPolicy) -> Result<ConfigStack, ConfigError> {
-    let cwd = std::env::current_dir().map_err(|error| ConfigError::Io {
-        path: ".".to_owned(),
-        detail: error.to_string(),
-    })?;
-    let composed = config_adapters::compose(&cwd, policy)?;
+/// Composes the `config` port bundle at `start`'s project root (the current
+/// directory when `start` is `None`), applying the resolved legacy policy.
+/// Invoked lazily by `dispatch`.
+fn compose_stack(
+    policy: LegacyPolicy,
+    start: Option<PathBuf>,
+) -> Result<ConfigStack, ConfigError> {
+    let start = match start {
+        Some(start) => start,
+        None => std::env::current_dir().map_err(|error| ConfigError::Io {
+            path: ".".to_owned(),
+            detail: error.to_string(),
+        })?,
+    };
+    let composed = config_adapters::compose(&start, policy)?;
     Ok(ConfigStack::new(
         Box::new(composed.service),
         Box::new(composed.store.clone()),
         Box::new(composed.store),
     ))
+}
+
+/// The directory config resolution starts from — the `config paths --doc-types`
+/// `[root]` positional, else `None` for the current directory.
+fn resolution_start(command: &Command) -> Option<PathBuf> {
+    match command {
+        Command::Config { action } => {
+            action.resolution_root().map(PathBuf::from)
+        }
+        Command::Version | Command::External(_) => None,
+    }
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
@@ -164,8 +182,9 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     let resolver = LazyProductionResolver;
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
+    let start = resolution_start(&cli.command);
     dispatch(cli, &reporter, &resolver, &executor, move || {
-        compose_stack(policy)
+        compose_stack(policy, start)
     })
 }
 
