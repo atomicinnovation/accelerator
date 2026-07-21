@@ -41,6 +41,11 @@ pub enum Action {
         explain: bool,
         on_failure: OnFailure,
     },
+    Set {
+        key: String,
+        value: String,
+        level: Level,
+    },
     Agent {
         name: String,
         on_failure: OnFailure,
@@ -119,6 +124,7 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Suppress,
         ),
+        Action::Set { key, value, level } => run_set(stack, key, value, *level),
         Action::Agent { name, on_failure } => {
             finish(resolve_agent(stack, name), *on_failure, Degrade::Suppress)
         }
@@ -397,6 +403,18 @@ fn finish(
         }
         Err(Failure::Read(error) | Failure::Refusal(error)) => Err(error),
     }
+}
+
+/// Writes a value at a key, silent on success. Fails closed and loud (no
+/// `--fail-safe`): a write is never a prompt-splice site.
+fn run_set(
+    stack: &ConfigStack,
+    raw_key: &str,
+    value: &str,
+    level: Level,
+) -> Result<(), ConfigError> {
+    let key = Key::parse(raw_key)?;
+    stack.config().set(&key, value, level)
 }
 
 fn resolve_get(

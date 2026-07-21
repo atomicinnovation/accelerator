@@ -59,6 +59,11 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             explain: *explain,
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Set { key, value, level } => config_cli::Action::Set {
+            key: key.clone(),
+            value: value.clone(),
+            level: (*level).into(),
+        },
         ConfigAction::Agent {
             name, fail_safe, ..
         } => config_cli::Action::Agent {

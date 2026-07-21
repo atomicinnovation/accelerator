@@ -1076,3 +1076,135 @@ fn context_both_sources_failing_prints_both_notices_with_one_blank_line(
     assert_eq!(code(&output), 0);
     Ok(())
 }
+
+// --- config set (write path) ---
+
+fn read_file(root: &Path, name: &str) -> Result<String, Box<dyn Error>> {
+    Ok(fs::read_to_string(root.join(".accelerator").join(name))?)
+}
+
+#[test]
+fn set_round_trips_and_preserves_the_body() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\ncore:\n  example: old\n---\nBody prose.\n\nMore.\n")?;
+    let output = fixture.run(&[
+        "config",
+        "set",
+        "core.example",
+        "new",
+        "--level",
+        "team",
+    ])?;
+    assert_eq!(code(&output), 0);
+    assert!(output.stdout.is_empty());
+    let after = read_file(&fixture.root, "config.md")?;
+    assert!(after.contains("example: new"));
+    assert!(
+        after.ends_with("Body prose.\n\nMore.\n"),
+        "body lost: {after:?}"
+    );
+    let reread =
+        fixture.run(&["config", "get", "core.example", "--level", "team"])?;
+    assert_eq!(reread.stdout, b"new\n");
+    Ok(())
+}
+
+#[test]
+fn set_writes_the_team_level_when_asked() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output =
+        fixture.run(&["config", "set", "core.k", "v", "--level", "team"])?;
+    assert_eq!(code(&output), 0);
+    assert!(fixture.root.join(".accelerator/config.md").is_file());
+    Ok(())
+}
+
+#[test]
+fn set_gitignores_config_local_on_a_fresh_repo() -> TestResult {
+    let fixture = Fixture::new()?;
+    fixture.run(&["config", "set", "jira.token", "secret"])?;
+    let gitignore =
+        fs::read_to_string(fixture.root.join(".accelerator/.gitignore"))?;
+    assert!(gitignore.lines().any(|line| line == "config.local.md"));
+    Ok(())
+}
+
+#[test]
+fn set_ensures_the_rule_on_a_gitignore_lacking_it() -> TestResult {
+    let fixture = Fixture::new()?;
+    fs::create_dir_all(fixture.root.join(".accelerator"))?;
+    fs::write(fixture.root.join(".accelerator/.gitignore"), "other-rule\n")?;
+    fixture.run(&["config", "set", "jira.token", "secret"])?;
+    let gitignore =
+        fs::read_to_string(fixture.root.join(".accelerator/.gitignore"))?;
+    assert!(gitignore.lines().any(|line| line == "other-rule"));
+    assert!(gitignore.lines().any(|line| line == "config.local.md"));
+    Ok(())
+}
+
+#[test]
+fn set_a_deeply_nested_key_round_trips() -> TestResult {
+    let fixture = Fixture::new()?;
+    fixture.run(&["config", "set", "a.b.c.d", "deep", "--level", "team"])?;
+    let output = fixture.run(&["config", "get", "a.b.c.d"])?;
+    assert_eq!(output.stdout, b"deep\n");
+    Ok(())
+}
+
+const MALFORMED_UNTERMINATED: &str = "---\nkey: value\n";
+const MALFORMED_YAML: &str = "---\nkey: : :\n  - broken\n---\nbody\n";
+const NON_MAPPING_ROOT: &str = "---\n- a\n- b\n---\nbody\n";
+
+#[test]
+fn set_refuses_a_malformed_file_and_leaves_it_byte_identical() -> TestResult {
+    for content in [MALFORMED_UNTERMINATED, MALFORMED_YAML, NON_MAPPING_ROOT] {
+        let fixture = Fixture::new()?.team(content)?;
+        let output = fixture
+            .run(&["config", "set", "core.k", "v", "--level", "team"])?;
+        assert_ne!(code(&output), 0, "should refuse: {content:?}");
+        assert!(output.stdout.is_empty());
+        assert_eq!(
+            read_file(&fixture.root, "config.md")?,
+            content,
+            "file must be left untouched: {content:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn set_refuses_a_config_dir_symlink_escape() -> TestResult {
+    let fixture = Fixture::new()?;
+    let outside = fixture.root.join("outside.md");
+    fs::write(&outside, "---\njira:\n  token: original\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator"))?;
+    std::os::unix::fs::symlink(
+        &outside,
+        fixture.root.join(".accelerator/config.local.md"),
+    )?;
+    let output = fixture.run(&["config", "set", "jira.token", "stolen"])?;
+    assert_ne!(code(&output), 0);
+    assert_eq!(
+        fs::read_to_string(&outside)?,
+        "---\njira:\n  token: original\n---\n",
+        "the symlink target must not be clobbered"
+    );
+    Ok(())
+}
+
+#[test]
+fn set_against_an_unwritable_config_fails_non_zero() -> TestResult {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = Fixture::new()?;
+    let dir = fixture.root.join(".accelerator");
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("config.md"), "---\ncore:\n  k: old\n---\n")?;
+    // Make the config directory unwritable so the atomic rename cannot land.
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o500))?;
+    let output =
+        fixture.run(&["config", "set", "core.k", "new", "--level", "team"])?;
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o755))?;
+    assert_ne!(code(&output), 0);
+    assert!(output.stdout.is_empty());
+    Ok(())
+}

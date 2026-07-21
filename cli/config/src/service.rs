@@ -255,7 +255,15 @@ impl<R: ReadConfigLevel, W: WriteConfigLevel> ConfigAccess
     ) -> Result<(), ConfigError> {
         let mut root = match self.reader.read(level)? {
             Some(Node::Mapping(mapping)) => mapping,
-            _ => Mapping::new(),
+            None => Mapping::new(),
+            Some(_) => {
+                return Err(ConfigError::Invalid {
+                    detail:
+                        "refusing to write: the config frontmatter root is \
+                         not a mapping"
+                            .to_owned(),
+                })
+            }
         };
         insert(&mut root, key.segments(), value, key)?;
         self.writer.write(level, &Node::Mapping(root))
@@ -754,6 +762,25 @@ mod tests {
                 )])
             )]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn set_refuses_a_present_non_mapping_root() -> Result<(), ConfigError> {
+        let writer = FakeWriter::default();
+        let captured = writer.captured.clone();
+        let service = ConfigService::new(
+            FakeReader::new(
+                LevelState::Missing,
+                LevelState::Present(sequence(&["a", "b"])),
+            ),
+            writer,
+        );
+        assert!(matches!(
+            service.set(&Key::parse("core.example")?, "v", Level::Personal),
+            Err(ConfigError::Invalid { .. })
+        ));
+        assert!(captured.borrow().is_empty());
         Ok(())
     }
 

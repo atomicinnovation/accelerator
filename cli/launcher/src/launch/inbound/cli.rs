@@ -58,6 +58,18 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Write a configuration value. Defaults to the git-ignored personal
+    /// level; `--level team` writes the committed, shared file. Creates
+    /// `.accelerator/` and the level's file on first write.
+    Set {
+        /// The dotted `section.key` to write (e.g. `agents.reviewer`).
+        key: String,
+        /// The value to store.
+        value: String,
+        /// Write this level instead of the personal default.
+        #[arg(long, default_value = "personal")]
+        level: Level,
+    },
     /// Print a configured `paths.<key>` value. An unset key falls back to the
     /// given default, else the plugin-standard default, else an empty line.
     Path {
@@ -379,6 +391,7 @@ impl ConfigAction {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,
+            Self::Set { .. } => false,
             Self::Templates { action } => return action.legacy_policy(),
         };
         if allow {
