@@ -5,6 +5,7 @@ umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_ROOT="${ACCELERATOR_VISUALISER_SKILL_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 source "$PLUGIN_ROOT/scripts/vcs-common.sh"
 source "$SCRIPT_DIR/launcher-helpers.sh"
 
@@ -13,7 +14,7 @@ source "$SCRIPT_DIR/launcher-helpers.sh"
 PROJECT_ROOT="$(find_repo_root)"
 cd "$PROJECT_ROOT"
 
-TMP_REL="$("$PLUGIN_ROOT/scripts/config-read-path.sh" tmp)"
+TMP_REL="$("$ACCELERATOR" config path tmp)"
 TMP_DIR="$PROJECT_ROOT/$TMP_REL/visualiser"
 
 INFO="$TMP_DIR/server-info.json"
@@ -107,7 +108,8 @@ BIN=""
 if [ -n "${ACCELERATOR_VISUALISER_BIN:-}" ]; then
   BIN="$ACCELERATOR_VISUALISER_BIN"
 else
-  CONFIG_BIN="$("$PLUGIN_ROOT/scripts/config-read-value.sh" visualiser.binary 2>/dev/null || true)"
+  CONFIG_BIN="$("$ACCELERATOR" config get visualiser.binary)" || die_json "$(jq -nc \
+    --arg error 'config read failed for visualiser.binary' '{error:$error}')"
   if [ -n "$CONFIG_BIN" ]; then
     case "$CONFIG_BIN" in
       /*) ;;

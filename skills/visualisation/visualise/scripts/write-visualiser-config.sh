@@ -5,6 +5,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
+
+# A config read that exits non-zero is a genuine read/IO failure (unreadable
+# config, legacy-layout refusal, a broken launcher), not an unset key — an unset
+# key exits 0 with the caller's default. Suppressing it would let the visualiser
+# launch from a partial configuration (e.g. the tickets→work guard silently not
+# firing), so a failed read is fatal.
+config_read_failed() {
+  echo "write-visualiser-config: config read failed for $1 — refusing to launch with a partial configuration" >&2
+  exit 1
+}
+
 PLUGIN_VERSION=""
 PROJECT_ROOT=""
 TMP_DIR=""
@@ -52,7 +64,7 @@ for required in PLUGIN_VERSION PROJECT_ROOT TMP_DIR LOG_FILE; do
   fi
 done
 
-resolve_path() { "$PLUGIN_ROOT/scripts/config-read-path.sh" "$1"; }
+resolve_path() { "$ACCELERATOR" config path "$1"; }
 abs_path() {
   echo "$PROJECT_ROOT/$(resolve_path "$1")"
 }
@@ -61,8 +73,8 @@ abs_path() {
 # `paths.tickets` config key without a corresponding `paths.work` key. This
 # indicates the project predates the tickets→work-items rename and the
 # visualiser would silently produce an empty kanban without this guard.
-TICKETS_OVERRIDE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "paths.tickets" "" 2>/dev/null || true)"
-WORK_OVERRIDE="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "paths.work" "" 2>/dev/null || true)"
+TICKETS_OVERRIDE="$("$ACCELERATOR" config get "paths.tickets" "")" || config_read_failed "paths.tickets"
+WORK_OVERRIDE="$("$ACCELERATOR" config get "paths.work" "")" || config_read_failed "paths.work"
 if [ -n "$TICKETS_OVERRIDE" ] && [ -z "$WORK_OVERRIDE" ]; then
   echo "This project predates the tickets→work-items rename. Run \`/accelerator:migrate\` to apply migration \`0001-rename-tickets-to-work\` before launching the visualiser." >&2
   exit 1
@@ -88,7 +100,10 @@ TEMPLATES_PLUGIN_ROOT="$PLUGIN_ROOT/templates"
 template_tier() {
   local name="$1"
   local override
-  override="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "templates.$name" 2>/dev/null || true)"
+  # No suppression: a failed read aborts template_tier under `set -e`, which the
+  # documented fail-fast chain below surfaces to the TEMPLATES_JSON capture. An
+  # unset key exits 0 with empty output (the common case).
+  override="$("$ACCELERATOR" config get "templates.$name")"
   local override_json
   local override_source_json="null"
   if [ -z "$override" ]; then
@@ -152,8 +167,8 @@ TEMPLATES_JSON="$(build_templates_json)"
 # Work-item ID pattern config. Read from `work.id_pattern` / `work.default_project_code`;
 # compile the scan regex via the work-item-pattern skill's --compile-scan subcommand.
 WORK_SCRIPT="$PLUGIN_ROOT/skills/work/scripts/work-item-pattern.sh"
-ID_PATTERN="$("$PLUGIN_ROOT/scripts/config-read-work.sh" id_pattern)"
-PROJECT_CODE="$("$PLUGIN_ROOT/scripts/config-read-work.sh" default_project_code)"
+ID_PATTERN="$("$ACCELERATOR" config work id_pattern)"
+PROJECT_CODE="$("$ACCELERATOR" config work default_project_code)"
 SCAN_REGEX="$("$WORK_SCRIPT" --compile-scan "$ID_PATTERN" "$PROJECT_CODE")"
 
 # Build the work_item JSON block. If PROJECT_CODE is empty, omit default_project_code.
@@ -182,7 +197,7 @@ for _i in "${!VISUALISER_KEYS[@]}"; do
     break
   fi
 done
-KANBAN_RAW="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.kanban_columns" "$KANBAN_DEFAULT" 2>/dev/null || echo "$KANBAN_DEFAULT")"
+KANBAN_RAW="$("$ACCELERATOR" config get "visualiser.kanban_columns" "$KANBAN_DEFAULT")" || config_read_failed "visualiser.kanban_columns"
 
 # Detect unclosed inline-array bracket (starts with [ but doesn't end with ])
 case "$KANBAN_RAW" in
@@ -214,7 +229,7 @@ fi
 # the config key rather than overriding it with "".
 IDLE_TIMEOUT="${ACCELERATOR_VISUALISER_IDLE_TIMEOUT:-}"
 if [ -z "$IDLE_TIMEOUT" ]; then
-  IDLE_TIMEOUT="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.idle_timeout" "" 2>/dev/null || true)"
+  IDLE_TIMEOUT="$("$ACCELERATOR" config get "visualiser.idle_timeout" "")" || config_read_failed "visualiser.idle_timeout"
 fi
 
 if [ -n "$IDLE_TIMEOUT" ]; then
@@ -260,11 +275,11 @@ fi
 # unset, so an empty env value falls through to the config key.
 EDITOR="${ACCELERATOR_VISUALISER_EDITOR:-}"
 if [ -z "$EDITOR" ]; then
-  EDITOR="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.editor" "" 2>/dev/null || true)"
+  EDITOR="$("$ACCELERATOR" config get "visualiser.editor" "")" || config_read_failed "visualiser.editor"
 fi
 EDITOR_PROJECT="${ACCELERATOR_VISUALISER_EDITOR_PROJECT:-}"
 if [ -z "$EDITOR_PROJECT" ]; then
-  EDITOR_PROJECT="$("$PLUGIN_ROOT/scripts/config-read-value.sh" "visualiser.editor_project" "" 2>/dev/null || true)"
+  EDITOR_PROJECT="$("$ACCELERATOR" config get "visualiser.editor_project" "")" || config_read_failed "visualiser.editor_project"
 fi
 
 # Trim surrounding whitespace (bash 3.2-safe; uses ${%%}/${##}, NOT ${//} per the
