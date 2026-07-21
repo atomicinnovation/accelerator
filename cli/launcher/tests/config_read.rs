@@ -1008,3 +1008,49 @@ fn context_degrades_the_project_source_and_keeps_the_skill_block() -> TestResult
     assert_eq!(code(&output), 0);
     Ok(())
 }
+
+#[test]
+fn instructions_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
+    // An invalid skill name degrades to the notice under --fail-safe.
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        fixture.run(&["config", "instructions", "../bad", "--fail-safe"])?;
+    assert_eq!(output.stdout, b"## Skill Instructions Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn paths_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "paths", "--fail-safe"])?;
+    assert_eq!(output.stdout, b"## Configured Paths Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn template_with_fail_safe_renders_the_unavailable_notice_on_a_read_failure(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "template", "demo", "--fail-safe"],
+    )?;
+    assert_eq!(output.stdout, b"## Template Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn templates_list_with_fail_safe_renders_the_unavailable_notice() -> TestResult
+{
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "list", "--fail-safe"],
+    )?;
+    assert_eq!(output.stdout, b"## Template Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
