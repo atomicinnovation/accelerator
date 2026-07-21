@@ -13,7 +13,9 @@ use crate::config_command::inbound::cli as config_cli;
 use crate::launch::core::{
     run_external, ExecBinary, ExternalCommand, ResolveBinary,
 };
-use crate::launch::inbound::cli::{Cli, Command, ConfigAction, SummaryFormat};
+use crate::launch::inbound::cli::{
+    Cli, Command, ConfigAction, SummaryFormat, TemplatesAction,
+};
 use crate::version::core::ReportVersion;
 use crate::version::inbound::cli as version_cli;
 
@@ -101,6 +103,29 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             format, fail_safe, ..
         } => config_cli::Action::Summary {
             hook: matches!(format, Some(SummaryFormat::Hook)),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Template {
+            name, fail_safe, ..
+        } => config_cli::Action::Template {
+            name: name.clone(),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Templates { action } => to_templates_action(action),
+    }
+}
+
+fn to_templates_action(action: &TemplatesAction) -> config_cli::Action {
+    match action {
+        TemplatesAction::List { fail_safe, .. } => {
+            config_cli::Action::TemplatesList {
+                on_failure: on_failure(*fail_safe),
+            }
+        }
+        TemplatesAction::Show {
+            name, fail_safe, ..
+        } => config_cli::Action::TemplatesShow {
+            name: name.clone(),
             on_failure: on_failure(*fail_safe),
         },
     }

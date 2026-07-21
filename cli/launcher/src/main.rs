@@ -158,12 +158,20 @@ fn compose_stack(
         })?,
     };
     let composed = config_adapters::compose(&start, policy)?;
+    let store = composed.store.with_plugin_root(plugin_root());
     Ok(ConfigStack::new(
         Box::new(composed.service),
-        Box::new(composed.store.clone()),
-        Box::new(composed.store.clone()),
-        Box::new(composed.store),
+        Box::new(store.clone()),
+        Box::new(store.clone()),
+        Box::new(store.clone()),
+        Box::new(store),
     ))
+}
+
+/// The plugin root from `CLAUDE_PLUGIN_ROOT`, for resolving plugin-default
+/// templates; `None` when unset (template defaults are then unavailable).
+fn plugin_root() -> Option<PathBuf> {
+    std::env::var_os("CLAUDE_PLUGIN_ROOT").map(PathBuf::from)
 }
 
 /// The directory config resolution starts from — the `config paths --doc-types`

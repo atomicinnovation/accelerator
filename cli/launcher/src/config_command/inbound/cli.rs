@@ -14,13 +14,13 @@ use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::review::{self as review_view, Mode};
 use crate::config_command::core::{
     agents as agents_view, dump as dump_view, paths as paths_view,
-    summary as summary_view, ConfigStack, OnFailure,
+    summary as summary_view, template as template_view, ConfigStack, OnFailure,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
     dump as dump_render, instructions as instructions_render,
     paths as paths_render, review as review_render, summary as summary_render,
-    Rendered,
+    template as template_render, Rendered,
 };
 
 /// A parsed `config` request, owned by this module so the hexagon never names
@@ -72,6 +72,17 @@ pub enum Action {
     },
     Summary {
         hook: bool,
+        on_failure: OnFailure,
+    },
+    Template {
+        name: String,
+        on_failure: OnFailure,
+    },
+    TemplatesList {
+        on_failure: OnFailure,
+    },
+    TemplatesShow {
+        name: String,
         on_failure: OnFailure,
     },
 }
@@ -144,6 +155,57 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             resolve_summary(stack, *hook),
             *on_failure,
             Degrade::Suppress,
+        ),
+        Action::Template { name, on_failure } => finish(
+            resolve_template(stack, name),
+            *on_failure,
+            Degrade::Notice(template_render::render_unavailable),
+        ),
+        Action::TemplatesList { on_failure } => finish(
+            resolve_templates_list(stack),
+            *on_failure,
+            Degrade::Notice(template_render::render_unavailable),
+        ),
+        Action::TemplatesShow { name, on_failure } => finish(
+            resolve_templates_show(stack, name),
+            *on_failure,
+            Degrade::Notice(template_render::render_unavailable),
+        ),
+    }
+}
+
+fn resolve_template(
+    stack: &ConfigStack,
+    name: &str,
+) -> Result<Rendered, Failure> {
+    template_view::resolve(stack.config(), stack.templates(), name)?
+        .map_or_else(
+            || Err(Failure::Refusal(not_found(stack, name))),
+            |resolved| Ok(template_render::fenced(&resolved)),
+        )
+}
+
+fn resolve_templates_show(
+    stack: &ConfigStack,
+    name: &str,
+) -> Result<Rendered, Failure> {
+    template_view::resolve(stack.config(), stack.templates(), name)?
+        .map_or_else(
+            || Err(Failure::Refusal(not_found(stack, name))),
+            |resolved| Ok(template_render::show(&resolved)),
+        )
+}
+
+fn resolve_templates_list(stack: &ConfigStack) -> Result<Rendered, Failure> {
+    let rows = template_view::list(stack.config(), stack.templates())?;
+    Ok(template_render::list(&rows))
+}
+
+fn not_found(stack: &ConfigStack, name: &str) -> ConfigError {
+    ConfigError::Invalid {
+        detail: format!(
+            "Template '{name}' not found. Available templates: {}",
+            template_view::available(stack.templates())
         ),
     }
 }

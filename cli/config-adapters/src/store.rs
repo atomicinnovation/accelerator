@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use config::{
     ConfigError, CustomLens, LensFields, Level, Node, ReadConfigLevel,
-    ReadContent, ReadLensCatalogue, WriteConfigLevel,
+    ReadContent, ReadLensCatalogue, ReadTemplate, ResolvedTemplate,
+    TemplateSource, WriteConfigLevel,
 };
 use store::{NewFileMode, WriteBounds, WriteError};
 
@@ -25,12 +26,14 @@ pub enum LegacyPolicy {
     Allow,
 }
 
-/// A config store rooted at a project directory. Holds its root path and the
-/// legacy policy, so it is a cheap `Clone` backing both read and write ports.
+/// A config store rooted at a project directory. Holds its root path, the
+/// legacy policy, and the plugin root (for template defaults), so it is a cheap
+/// `Clone` backing every read and write port.
 #[derive(Clone)]
 pub struct FileConfigStore {
     root: PathBuf,
     policy: LegacyPolicy,
+    plugin_root: Option<PathBuf>,
 }
 
 impl FileConfigStore {
@@ -38,6 +41,7 @@ impl FileConfigStore {
         Self {
             root: root.into(),
             policy: LegacyPolicy::Reject,
+            plugin_root: None,
         }
     }
 
@@ -45,6 +49,35 @@ impl FileConfigStore {
     pub const fn with_legacy_policy(mut self, policy: LegacyPolicy) -> Self {
         self.policy = policy;
         self
+    }
+
+    #[must_use]
+    pub fn with_plugin_root(mut self, plugin_root: Option<PathBuf>) -> Self {
+        self.plugin_root = plugin_root;
+        self
+    }
+
+    fn absolutise(&self, path: &str) -> PathBuf {
+        let candidate = Path::new(path);
+        if candidate.is_absolute() {
+            candidate.to_path_buf()
+        } else {
+            self.root.join(candidate)
+        }
+    }
+
+    /// Shortens an absolute path for display: under the project root it is
+    /// relative; under the plugin root it is `<plugin>/…`; else verbatim.
+    fn display_path(&self, path: &Path) -> String {
+        if let Ok(relative) = path.strip_prefix(&self.root) {
+            return relative.display().to_string();
+        }
+        if let Some(plugin) = &self.plugin_root {
+            if let Ok(relative) = path.strip_prefix(plugin) {
+                return format!("<plugin>/{}", relative.display());
+            }
+        }
+        path.display().to_string()
     }
 
     /// Roots at the nearest ancestor of `start` holding a `.accelerator/`
@@ -249,6 +282,95 @@ impl ReadLensCatalogue for FileConfigStore {
         tmp_relative: &str,
     ) -> Result<bool, ConfigError> {
         Ok(self.root.join(tmp_relative).join(".gitignore").is_file())
+    }
+}
+
+impl ReadTemplate for FileConfigStore {
+    fn resolve_template(
+        &self,
+        name: &str,
+        config_path: Option<&str>,
+        templates_dir: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError> {
+        let warning = match config_path.filter(|value| !value.is_empty()) {
+            Some(configured) => {
+                let candidate = self.absolutise(configured);
+                if candidate.is_file() {
+                    return Ok(Some(self.resolved(
+                        TemplateSource::ConfigPath,
+                        &candidate,
+                        None,
+                    )?));
+                }
+                Some(format!(
+                    "configured template path '{}' not found, falling back \
+                     to defaults",
+                    candidate.display()
+                ))
+            }
+            None => None,
+        };
+        let user = self.absolutise(templates_dir).join(format!("{name}.md"));
+        if user.is_file() {
+            return Ok(Some(self.resolved(
+                TemplateSource::UserOverride,
+                &user,
+                warning,
+            )?));
+        }
+        if let Some(plugin) = &self.plugin_root {
+            let default = plugin.join("templates").join(format!("{name}.md"));
+            if default.is_file() {
+                return Ok(Some(self.resolved(
+                    TemplateSource::PluginDefault,
+                    &default,
+                    warning,
+                )?));
+            }
+        }
+        Ok(None)
+    }
+
+    fn template_names(&self) -> Vec<String> {
+        let Some(plugin) = &self.plugin_root else {
+            return Vec::new();
+        };
+        let Ok(entries) = fs::read_dir(plugin.join("templates")) else {
+            return Vec::new();
+        };
+        // Sort by the full `<stem>.md` filename, matching the shell glob order
+        // the bash reader relied on (where `-` sorts before `.`).
+        let mut files: Vec<String> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| {
+                Path::new(name).extension().and_then(|e| e.to_str())
+                    == Some("md")
+            })
+            .collect();
+        files.sort();
+        files
+            .into_iter()
+            .filter_map(|name| name.strip_suffix(".md").map(str::to_owned))
+            .collect()
+    }
+}
+
+impl FileConfigStore {
+    fn resolved(
+        &self,
+        source: TemplateSource,
+        path: &Path,
+        warning: Option<String>,
+    ) -> Result<ResolvedTemplate, ConfigError> {
+        let content =
+            fs::read_to_string(path).map_err(|e| io_error(path, &e))?;
+        Ok(ResolvedTemplate {
+            source,
+            display_path: self.display_path(path),
+            content,
+            warning,
+        })
     }
 }
 

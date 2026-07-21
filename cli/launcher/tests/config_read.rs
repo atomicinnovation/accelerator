@@ -759,3 +759,118 @@ fn summary_hook_without_fail_safe_fails_loud_on_a_read_failure() -> TestResult {
     assert_ne!(code(&output), 0);
     Ok(())
 }
+
+/// The committed fixture plugin root carrying `templates/`.
+fn plugin_root() -> PathBuf {
+    PathBuf::from(FIXTURES).join("plugin")
+}
+
+fn run_with_plugin(
+    cwd: &Path,
+    args: &[&str],
+) -> Result<Output, Box<dyn Error>> {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
+    command.current_dir(cwd);
+    command.env_remove("ACCELERATOR_LOG");
+    command.env_remove("ACCELERATOR_CACHE_DIR");
+    command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    command.env("CLAUDE_PLUGIN_ROOT", plugin_root());
+    command.args(args);
+    Ok(command.output()?)
+}
+
+#[test]
+fn template_wraps_the_plugin_default_in_markdown_fences() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(
+        output.stdout,
+        b"```markdown\n# Demo Template\n\nBody line.\n```\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn template_not_found_fails_closed_even_with_fail_safe() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "template", "nonesuch", "--fail-safe"],
+    )?;
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("not found"));
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn templates_show_prints_the_source_header_and_content() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "show", "demo"],
+    )?;
+    assert_eq!(
+        output.stdout,
+        b"Source: plugin default (<plugin>/templates/demo.md)\n---\n\
+          # Demo Template\n\nBody line.\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn templates_list_tabulates_every_plugin_template() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "templates", "list"])?;
+    assert_eq!(
+        output.stdout,
+        b"| Template | Source | Path |\n\
+          |----------|--------|------|\n\
+          | `demo` | plugin default | `<plugin>/templates/demo.md` |\n\
+          | `other` | plugin default | `<plugin>/templates/other.md` |\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn a_user_override_template_wins_over_the_plugin_default() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "# Overridden\n",
+    )?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(output.stdout, b"```markdown\n# Overridden\n```\n");
+    Ok(())
+}
+
+#[test]
+fn an_already_fenced_template_is_not_double_wrapped() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "```markdown\nalready fenced\n```\n",
+    )?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(output.stdout, b"```markdown\nalready fenced\n```\n");
+    Ok(())
+}
+
+#[test]
+fn a_traversing_template_name_is_refused() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "../../etc"])?;
+    assert!(output.stdout.is_empty());
+    assert_ne!(code(&output), 0);
+    Ok(())
+}

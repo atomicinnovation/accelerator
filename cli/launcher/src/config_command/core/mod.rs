@@ -12,7 +12,11 @@ pub mod paths;
 pub mod review;
 pub mod summary;
 
-use config::{ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue};
+pub mod template;
+
+use config::{
+    ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue, ReadTemplate,
+};
 
 /// How a read failure is surfaced at a splice-safe call site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,6 +40,7 @@ pub struct ConfigStack {
     levels: Box<dyn ReadConfigLevel>,
     content: Box<dyn ReadContent>,
     lenses: Box<dyn ReadLensCatalogue>,
+    templates: Box<dyn ReadTemplate>,
 }
 
 impl ConfigStack {
@@ -45,12 +50,14 @@ impl ConfigStack {
         levels: Box<dyn ReadConfigLevel>,
         content: Box<dyn ReadContent>,
         lenses: Box<dyn ReadLensCatalogue>,
+        templates: Box<dyn ReadTemplate>,
     ) -> Self {
         Self {
             service,
             levels,
             content,
             lenses,
+            templates,
         }
     }
 
@@ -72,5 +79,10 @@ impl ConfigStack {
     #[must_use]
     pub fn lenses(&self) -> &dyn ReadLensCatalogue {
         self.lenses.as_ref()
+    }
+
+    #[must_use]
+    pub fn templates(&self) -> &dyn ReadTemplate {
+        self.templates.as_ref()
     }
 }

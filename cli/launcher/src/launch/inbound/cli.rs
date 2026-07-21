@@ -213,6 +213,72 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print a resolved template's content, wrapped in markdown fences.
+    Template {
+        /// The template name (e.g. `plan`).
+        name: String,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Template Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Inspect the configured templates.
+    Templates {
+        #[command(subcommand)]
+        action: TemplatesAction,
+    },
+}
+
+/// The `config templates` subcommands.
+#[derive(Subcommand)]
+pub enum TemplatesAction {
+    /// List every template with its resolution source and path.
+    List {
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the notice, exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Show a template's content with source metadata, unfenced.
+    Show {
+        /// The template name (e.g. `plan`).
+        name: String,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the notice, exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+}
+
+impl TemplatesAction {
+    #[must_use]
+    pub const fn legacy_policy(&self) -> LegacyPolicy {
+        let allow = match self {
+            Self::List {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Show {
+                allow_legacy_layout,
+                ..
+            } => *allow_legacy_layout,
+        };
+        if allow {
+            LegacyPolicy::Allow
+        } else {
+            LegacyPolicy::Reject
+        }
+    }
 }
 
 /// How `config summary` renders its output.
@@ -300,7 +366,12 @@ impl ConfigAction {
             | Self::Summary {
                 allow_legacy_layout,
                 ..
+            }
+            | Self::Template {
+                allow_legacy_layout,
+                ..
             } => *allow_legacy_layout,
+            Self::Templates { action } => return action.legacy_policy(),
         };
         if allow {
             LegacyPolicy::Allow

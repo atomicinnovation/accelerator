@@ -129,6 +129,61 @@ pub trait ReadLensCatalogue {
     ) -> Result<bool, ConfigError>;
 }
 
+/// Where a resolved template came from, in three-tier precedence order.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TemplateSource {
+    ConfigPath,
+    UserOverride,
+    PluginDefault,
+}
+
+impl TemplateSource {
+    /// The bash label for the source.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::ConfigPath => "config path",
+            Self::UserOverride => "user override",
+            Self::PluginDefault => "plugin default",
+        }
+    }
+}
+
+/// A resolved template.
+///
+/// Carries its source, its display-shortened path, and its raw content;
+/// `warning` holds the tier-1 fallback note when a configured path was set but
+/// absent.
+pub struct ResolvedTemplate {
+    pub source: TemplateSource,
+    pub display_path: String,
+    pub content: String,
+    pub warning: Option<String>,
+}
+
+/// Resolves and enumerates template files across the project and plugin.
+///
+/// A driven port: the caller supplies the config-derived inputs
+/// (`templates.<key>` and the templates directory); the port performs the
+/// filesystem tiers.
+pub trait ReadTemplate {
+    /// Resolves `name` through the three tiers, or `None` when not found.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a candidate file cannot be read.
+    fn resolve_template(
+        &self,
+        name: &str,
+        config_path: Option<&str>,
+        templates_dir: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError>;
+
+    /// The template names available from the plugin templates directory,
+    /// sorted.
+    fn template_names(&self) -> Vec<String>;
+}
+
 /// The operations the core offers callers — the driving port.
 pub trait ConfigAccess {
     /// Resolves a key, full-stack (personal over team) when `level` is `None`,

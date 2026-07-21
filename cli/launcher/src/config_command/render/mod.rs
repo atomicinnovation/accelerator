@@ -13,6 +13,7 @@ pub mod instructions;
 pub mod paths;
 pub mod review;
 pub mod summary;
+pub mod template;
 
 /// A rendered subcommand output.
 pub struct Rendered {
