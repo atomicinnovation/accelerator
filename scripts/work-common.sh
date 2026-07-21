@@ -15,10 +15,10 @@ source "$WORK_COMMON_SCRIPT_DIR/log-common.sh"
 # pipefail, and real script errors on the default_project_code read are
 # surfaced rather than masked into a silent empty value.
 work_resolve_default_project() {
-  local read_work integration project
-  read_work="$WORK_COMMON_SCRIPT_DIR/config-read-work.sh"
-  integration=$("$read_work" integration) || return $?
-  project=$("$read_work" default_project_code) || return $?
+  local acc integration project
+  acc="${ACCELERATOR_BIN:-${WORK_COMMON_SCRIPT_DIR%/scripts}/bin/accelerator}"
+  integration=$("$acc" config work integration) || return $?
+  project=$("$acc" config work default_project_code) || return $?
   if [ -n "$integration" ] && [ -z "$project" ]; then
     log_warn "work.default_project_code is empty but work.integration is set ($integration) — pass --project explicitly or set default_project_code in .accelerator/config.md"
   fi
