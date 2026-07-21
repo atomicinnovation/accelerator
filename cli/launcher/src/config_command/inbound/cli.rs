@@ -273,7 +273,7 @@ fn resolve_summary(
     stack: &ConfigStack,
     hook: bool,
 ) -> Result<Rendered, Failure> {
-    let summary = summary_view::assemble(
+    let (summary, warnings) = summary_view::assemble(
         stack.config(),
         stack.levels(),
         stack.content(),
@@ -286,7 +286,7 @@ fn resolve_summary(
             format!("{}\n", summary_render::hook_envelope(&text))
         }
     };
-    Ok(Rendered::new(stdout))
+    Ok(Rendered { stdout, warnings })
 }
 
 fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
@@ -635,6 +635,7 @@ fn resolve_path(
     let full = format!("paths.{raw_key}");
     let key = Key::parse(&full)?;
     let mut warnings = Vec::new();
+    warnings.extend(legacy_alias_warning(stack, raw_key)?);
     let fallback = path_fallback(default, raw_key, &full, &mut warnings);
     let value = match stack.config().get(&key, level)? {
         Resolved::Found(value) => config::render_value(&value),
@@ -645,6 +646,31 @@ fn resolve_path(
         stdout: format!("{value}\n"),
         warnings,
     })
+}
+
+/// The migration-0004 nudge when a canonical `research_design_*` key is read
+/// while its pre-rename alias carries a value in config that is being ignored.
+fn legacy_alias_warning(
+    stack: &ConfigStack,
+    raw_key: &str,
+) -> Result<Option<String>, ConfigError> {
+    let legacy = match raw_key {
+        "research_design_inventories" => "design_inventories",
+        "research_design_gaps" => "design_gaps",
+        _ => return Ok(None),
+    };
+    let key = Key::parse(&format!("paths.{legacy}"))?;
+    let set = match stack.config().get(&key, None)? {
+        Resolved::Found(value) => !config::render_value(&value).is_empty(),
+        Resolved::Absent => false,
+    };
+    Ok(set.then(|| {
+        format!(
+            "Warning: your config sets 'paths.{legacy}' (renamed by migration \
+             0004 to 'paths.{raw_key}'); the legacy override is being \
+             ignored. Run /accelerator:migrate"
+        )
+    }))
 }
 
 /// The `--explain` resolution provenance for a scalar read: which level file
@@ -714,12 +740,11 @@ fn path_fallback(
 fn unknown_path_key_warning(key: &str) -> String {
     match key {
         "design_inventories" | "design_gaps" => format!(
-            "accelerator config path: key '{key}' was renamed by migration \
-             0004 to 'research_{key}'; run /accelerator:migrate"
+            "Warning: key '{key}' was renamed by migration 0004 to \
+             'research_{key}'; run /accelerator:migrate"
         ),
         _ => format!(
-            "accelerator config path: unknown key '{key}' — no centralized \
-             default"
+            "Warning: unknown key 'paths.{key}' — no centralized default"
         ),
     }
 }
@@ -774,10 +799,7 @@ fn work_fallback(
 }
 
 fn unknown_work_key_warning(key: &str) -> String {
-    format!(
-        "accelerator config work: unknown key 'work.{key}' — no centralized \
-         default"
-    )
+    format!("Warning: unknown key 'work.{key}' — no centralized default")
 }
 
 fn bad_integration(value: &str) -> ConfigError {
@@ -785,7 +807,8 @@ fn bad_integration(value: &str) -> ConfigError {
     ConfigError::Invalid {
         detail: format!(
             "work.integration must be one of: {allowed} (got '{value}'). \
-             Update work.integration in .accelerator/config.md."
+             Update work.integration in .accelerator/config.md or run \
+             '/accelerator:configure view' to inspect the current value."
         ),
     }
 }

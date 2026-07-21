@@ -15,6 +15,13 @@ _EXPECTED_MIGRATE_SUITES = 4
 # silently vanish from CI. Bumped as suites are added under scripts/.
 _EXPECTED_CONFIG_SUITES = 21
 
+# The config-init subtree (skills/config/init) ships exactly one shell suite.
+# It is a different subtree from the config walk above, so it needs its own
+# floor: run_shell_suites filters on the exec bit, and a dropped bit would
+# silently yield zero suites — letting the wiring pass with the suite never
+# having run. Bumped if init grows more suites.
+_EXPECTED_INIT_SUITES = 1
+
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
 # regression net. Bumped as suites are added under skills/work (pattern,
@@ -99,6 +106,19 @@ def config(context: Context) -> None:
             f"Required config shell suite(s) not discovered by name: {missing} "
             f"(found {suites}). A fail-closed gate may have lost its exec bit "
             f"or been renamed off the test-*.sh convention.",
+            code=1,
+        )
+
+
+@task
+def init(context: Context) -> None:
+    """Integration tests for the config init scaffold (shell harness)."""
+    suites = run_shell_suites(context, "skills/config/init")
+    if len(suites) < _EXPECTED_INIT_SUITES:
+        raise Exit(
+            f"Expected at least {_EXPECTED_INIT_SUITES} config-init shell "
+            f"suite(s), found {len(suites)}: {suites}. An exec bit may have "
+            f"been dropped, leaving the init contract untested in CI.",
             code=1,
         )
 

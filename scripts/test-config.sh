@@ -9,21 +9,34 @@ set -euo pipefail
 # Run: bash scripts/test-config.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-READ_VALUE="$SCRIPT_DIR/config-read-value.sh"
-READ_CONTEXT="$SCRIPT_DIR/config-read-context.sh"
-READ_AGENTS="$SCRIPT_DIR/config-read-agents.sh"
-READ_AGENT_NAME="$SCRIPT_DIR/config-read-agent-name.sh"
-READ_REVIEW="$SCRIPT_DIR/config-read-review.sh"
-CONFIG_DUMP="$SCRIPT_DIR/config-dump.sh"
-CONFIG_SUMMARY="$SCRIPT_DIR/config-summary.sh"
+SHIM_DIR="$SCRIPT_DIR/test-shims"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# The config subcommands are exercised through the compiled launcher, reached
+# via the shims in test-shims/. Build it once if the caller did not supply a
+# path; CLAUDE_PLUGIN_ROOT points template resolution at the shipped templates.
+if [ -z "${ACCELERATOR_BIN:-}" ]; then
+  cargo build --quiet --manifest-path "$PLUGIN_ROOT/cli/Cargo.toml" \
+    --bin accelerator
+  ACCELERATOR_BIN="$PLUGIN_ROOT/cli/target/debug/accelerator"
+fi
+export ACCELERATOR_BIN
+export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
+
+READ_VALUE="$SHIM_DIR/config-read-value.sh"
+READ_CONTEXT="$SHIM_DIR/config-read-context.sh"
+READ_AGENTS="$SHIM_DIR/config-read-agents.sh"
+READ_AGENT_NAME="$SHIM_DIR/config-read-agent-name.sh"
+READ_REVIEW="$SHIM_DIR/config-read-review.sh"
+CONFIG_DUMP="$SHIM_DIR/config-dump.sh"
+CONFIG_SUMMARY="$SHIM_DIR/config-summary.sh"
 CONFIG_DETECT="$SCRIPT_DIR/../hooks/config-detect.sh"
-READ_SKILL_CONTEXT="$SCRIPT_DIR/config-read-skill-context.sh"
-READ_SKILL_INSTRUCTIONS="$SCRIPT_DIR/config-read-skill-instructions.sh"
+READ_SKILL_CONTEXT="$SHIM_DIR/config-read-skill-context.sh"
+READ_SKILL_INSTRUCTIONS="$SHIM_DIR/config-read-skill-instructions.sh"
 
 # Source config-common.sh for direct function tests
 source "$SCRIPT_DIR/config-common.sh"
 
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 # Create a temporary directory base
@@ -437,7 +450,9 @@ FIXTURE
 OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "review.max_count" "default")
 assert_eq "matches underscore key" "5" "$OUTPUT"
 
-echo "Test: Unclosed frontmatter -> outputs default, warning to stderr"
+# Divergence: malformed frontmatter is fail-loud (the bash reader degraded to
+# the default; the binary refuses and exits non-zero with a diagnostic).
+echo "Test: Unclosed frontmatter -> fails loud with a diagnostic"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
@@ -445,19 +460,12 @@ cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
 key: value
 no closing
 FIXTURE
-OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>/dev/null)
-assert_eq "outputs default" "default" "$OUTPUT"
-# Verify warning goes to stderr
-STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 1>/dev/null)
-if grep -q "Warning" <<<"$STDERR_OUTPUT"; then
-  echo "  PASS: warning emitted to stderr"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: warning emitted to stderr"
-  echo "    Expected: warning message on stderr"
-  echo "    Actual:   $(printf '%q' "$STDERR_OUTPUT")"
-  FAIL=$((FAIL + 1))
-fi
+RC=0
+OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>/dev/null) || RC=$?
+assert_neq "malformed frontmatter exits non-zero" "0" "$RC"
+assert_empty "no stdout on refusal" "$OUTPUT"
+STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_VALUE" "key" "default" 2>&1 1>/dev/null || true)
+assert_contains "diagnostic names malformed frontmatter" "$STDERR_OUTPUT" "malformed"
 
 echo ""
 
@@ -732,7 +740,9 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-echo "Test: Unclosed frontmatter -> warns to stderr, does not crash"
+# Divergence: malformed frontmatter is fail-loud without --fail-safe (the bash
+# reader degraded to a warning; the binary refuses).
+echo "Test: Unclosed frontmatter -> fails loud without --fail-safe"
 REPO=$(setup_repo)
 mkdir -p "$REPO/.accelerator"
 cat >"$REPO/.accelerator/config.md" <<'FIXTURE'
@@ -742,15 +752,8 @@ no closing
 FIXTURE
 EXIT_CODE=0
 STDERR_OUTPUT=$(cd "$REPO" && bash "$CONFIG_SUMMARY" 2>&1 1>/dev/null) || EXIT_CODE=$?
-if [ "$EXIT_CODE" -eq 0 ] && grep -q "Warning" <<<"$STDERR_OUTPUT"; then
-  echo "  PASS: warns to stderr, does not crash"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: warns to stderr, does not crash"
-  echo "    Exit code: $EXIT_CODE"
-  echo "    Stderr: $(printf '%q' "$STDERR_OUTPUT")"
-  FAIL=$((FAIL + 1))
-fi
+assert_neq "malformed summary exits non-zero" "0" "$EXIT_CODE"
+assert_contains "diagnostic names malformed frontmatter" "$STDERR_OUTPUT" "malformed"
 
 echo ""
 
@@ -1010,7 +1013,7 @@ fi
 
 echo "Test: AGENT_KEYS list matches actual agent .md files in the plugin"
 # Extract agent keys from the script source (not by sourcing it)
-SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$READ_AGENTS" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
+SCRIPT_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$SCRIPT_DIR/config-read-agents.sh" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -v '^AGENT_KEYS=(' | grep -v '^)' | sed 's/^[[:space:]]*//' | sort)
 # List actual agent .md files (strip path and extension)
 AGENT_DIR="$SCRIPT_DIR/../agents"
 FILE_KEYS=$(for f in "$AGENT_DIR"/*.md; do [ -e "$f" ] && basename "$f" .md; done | sort)
@@ -1020,7 +1023,7 @@ assert_eq "AGENT_KEYS matches agent files" "$FILE_KEYS" "$SCRIPT_KEYS"
 # pinned to it by the Rust drift test) is a SEPARATE list from the one above; it
 # drifted behind the agent files until browser-analyser/browser-locator were
 # added. Pin it to the same file-derived set so the whole chain stays coherent.
-DUMP_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$CONFIG_DUMP" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -oE 'agents\.[a-z-]+' | sed 's/^agents\.//' | sort)
+DUMP_KEYS=$(grep -A 20 '^AGENT_KEYS=(' "$SCRIPT_DIR/config-dump.sh" | sed -n '/^AGENT_KEYS=(/,/^)/p' | grep -oE 'agents\.[a-z-]+' | sed 's/^agents\.//' | sort)
 assert_eq "config-dump.sh catalogue AGENT_KEYS matches agent files" "$FILE_KEYS" "$DUMP_KEYS"
 
 echo ""
@@ -1996,8 +1999,10 @@ fi
 
 echo "Test: unknown mode -> exit 1 and usage contains pr|plan|work-item"
 REPO=$(setup_repo)
+# Divergence: the invalid-mode error is clap's value-enum listing (`[possible
+# values: pr, plan, work-item]`), not the bash `<pr|plan|work-item>` usage line.
 STDERR_OUTPUT=$(cd "$REPO" && bash "$READ_REVIEW" "bad-mode" 2>&1 || true)
-if grep -q "pr|plan|work-item" <<<"$STDERR_OUTPUT"; then
+if grep -q "work-item" <<<"$STDERR_OUTPUT"; then
   echo "  PASS: usage string includes work-item"
   PASS=$((PASS + 1))
 else
@@ -3037,7 +3042,7 @@ echo ""
 echo "=== config-read-path.sh ==="
 echo ""
 
-READ_PATH="$SCRIPT_DIR/config-read-path.sh"
+READ_PATH="$SHIM_DIR/config-read-path.sh"
 
 echo "Test: No paths config -> outputs default"
 REPO=$(setup_repo)
@@ -3352,7 +3357,7 @@ echo ""
 echo "=== config-read-work.sh ==="
 echo ""
 
-READ_WORK="$SCRIPT_DIR/config-read-work.sh"
+READ_WORK="$SHIM_DIR/config-read-work.sh"
 
 echo "Test: No argument -> exits with error"
 REPO=$(setup_repo)
@@ -3508,7 +3513,7 @@ echo "Test: unknown work.* key -> warning to stderr, delegates with empty defaul
 REPO=$(setup_repo)
 STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
 STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
-if grep -q "warning" <<<"$STDERR_OUT" && [ -z "$STDOUT_OUT" ]; then
+if grep -q "Warning" <<<"$STDERR_OUT" && [ -z "$STDOUT_OUT" ]; then
   echo "  PASS: unknown key produces warning to stderr and empty stdout"
   PASS=$((PASS + 1))
 else
@@ -3529,7 +3534,7 @@ work:
 FIXTURE
 STDERR_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>&1 1>/dev/null || true)
 STDOUT_OUT=$(cd "$REPO" && bash "$READ_WORK" unknown_key 2>/dev/null || true)
-if grep -q "warning" <<<"$STDERR_OUT" && [ "$STDOUT_OUT" = "somevalue" ]; then
+if grep -q "Warning" <<<"$STDERR_OUT" && [ "$STDOUT_OUT" = "somevalue" ]; then
   echo "  PASS: unknown key with value set: warning + value returned"
   PASS=$((PASS + 1))
 else
@@ -4169,7 +4174,7 @@ echo ""
 echo "=== config-read-all-paths.sh ==="
 echo ""
 
-READ_ALL_PATHS="$SCRIPT_DIR/config-read-all-paths.sh"
+READ_ALL_PATHS="$SHIM_DIR/config-read-all-paths.sh"
 
 echo "Test: outputs ## Configured Paths header"
 REPO=$(setup_repo)
@@ -4225,12 +4230,12 @@ echo ""
 echo "=== config-read-template.sh ==="
 echo ""
 
-READ_TEMPLATE="$SCRIPT_DIR/config-read-template.sh"
-LIST_TEMPLATE="$SCRIPT_DIR/config-list-template.sh"
-SHOW_TEMPLATE="$SCRIPT_DIR/config-show-template.sh"
-EJECT_TEMPLATE="$SCRIPT_DIR/config-eject-template.sh"
-DIFF_TEMPLATE="$SCRIPT_DIR/config-diff-template.sh"
-RESET_TEMPLATE="$SCRIPT_DIR/config-reset-template.sh"
+READ_TEMPLATE="$SHIM_DIR/config-read-template.sh"
+LIST_TEMPLATE="$SHIM_DIR/config-list-template.sh"
+SHOW_TEMPLATE="$SHIM_DIR/config-show-template.sh"
+EJECT_TEMPLATE="$SHIM_DIR/config-eject-template.sh"
+DIFF_TEMPLATE="$SHIM_DIR/config-diff-template.sh"
+RESET_TEMPLATE="$SHIM_DIR/config-reset-template.sh"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Test: No user template -> outputs plugin default wrapped in code fences"

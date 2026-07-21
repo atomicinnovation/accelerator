@@ -117,6 +117,15 @@ pub trait ReadLensCatalogue {
     /// A [`ConfigError`] when the skills directory cannot be enumerated.
     fn skill_names(&self) -> Result<Vec<String>, ConfigError>;
 
+    /// The plugin's own skill names (excluding `configure`), used to flag a
+    /// customisation directory that matches no real skill. Empty when the
+    /// plugin root is unknown, so the caller cannot validate and stays silent.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a plugin skill directory cannot be enumerated.
+    fn known_skill_names(&self) -> Result<Vec<String>, ConfigError>;
+
     /// Whether the init sentinel `<tmp>/.gitignore` exists, `tmp` resolved
     /// relative to the project root.
     ///

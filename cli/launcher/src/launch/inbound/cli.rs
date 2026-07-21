@@ -284,7 +284,7 @@ pub enum TemplatesAction {
     /// Copy a plugin default template into the user templates directory.
     Eject {
         /// The template name to eject; omit when passing `--all`.
-        #[arg(conflicts_with = "all")]
+        #[arg(required_unless_present = "all", conflicts_with = "all")]
         name: Option<String>,
         /// Eject every template.
         #[arg(long)]

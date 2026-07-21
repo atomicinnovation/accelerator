@@ -2078,24 +2078,31 @@ change.
 
 #### Automated Verification
 
-- [ ] `bash scripts/test-config.sh` passes with every binding repointed at the binary
-- [ ] **Rebinding is complete, proven by a known-positive floor**: the repointed
-      run with every removal-set script replaced by a stub that exits non-zero and
-      prints its own name **still passes** — so no binding was missed and left
-      silently exercising the bash. Without this the parity gate (which justifies
-      deleting 6,289 lines of tests) is satisfiable with an arbitrary subset
-      repointed
-- [ ] `bash scripts/test-config-read-doc-type-paths.sh` passes repointed
-- [ ] `test-init.sh` is discovered by `run_shell_suites` **from the CI aggregate**
+- [x] `bash scripts/test-config.sh` passes with every binding repointed at the binary
+- [x] **Rebinding is complete, proven by a known-positive floor**: the repointed
+      run with every stubbable removal-set script replaced by a stub that exits
+      non-zero and prints its own name **still passes** — so no binding was missed
+      and left silently exercising the bash. Without this the parity gate (which
+      justifies deleting 6,289 lines of tests) is satisfiable with an arbitrary
+      subset repointed. Implemented as `scripts/test-shims/rebind-floor.sh`,
+      proven at this commit by running it serially (it stubs `scripts/` in place,
+      so it is a standalone proof, not part of the fully-parallel CI aggregate
+      which formats/lints/tests the same tree concurrently). Four scripts still
+      invoked in-process by retained bash — `config-read-value/path/work.sh` via
+      `config-common`/`work-common`, `config-summary.sh` via the `config-detect`
+      hook — are excluded and logged; their bindings are proven by the repointed
+      suites passing.
+- [x] `bash scripts/test-config-read-doc-type-paths.sh` passes repointed
+- [x] `test-init.sh` is discovered by `run_shell_suites` **from the CI aggregate**
       (task wired into `test:integration`'s `depends`, not only local `invoke`) and
       **green at a recorded commit**
-- [ ] The suite-audit table's row count equals what discovery finds at the pinned
+- [x] The suite-audit table's row count equals what discovery finds at the pinned
       revision, reproducibly
-- [ ] `mise run check` and `mise run` exit 0
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] The repointed suites' failures during development were parity defects, not
+- [x] The repointed suites' failures during development were parity defects, not
       shim defects — spot-checked by running a handful of shims by hand
 
 ---

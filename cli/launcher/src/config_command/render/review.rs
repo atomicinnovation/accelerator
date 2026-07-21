@@ -71,10 +71,13 @@ pub fn render(view: &ReviewView, mode: Mode) -> Rendered {
             " | custom |\n"
         });
     }
-    Rendered {
-        stdout,
-        warnings: view.warnings.clone(),
-    }
+    let mut warnings: Vec<String> = view
+        .warnings
+        .iter()
+        .map(|warning| format!("Warning: {warning}"))
+        .collect();
+    warnings.extend(view.notes.iter().cloned());
+    Rendered { stdout, warnings }
 }
 
 #[must_use]

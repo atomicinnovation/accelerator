@@ -278,6 +278,27 @@ impl ReadLensCatalogue for FileConfigStore {
         Ok(names)
     }
 
+    fn known_skill_names(&self) -> Result<Vec<String>, ConfigError> {
+        let Some(plugin) = &self.plugin_root else {
+            return Ok(Vec::new());
+        };
+        let skills = plugin.join("skills");
+        let mut names = Vec::new();
+        for entry in skill_manifest_paths(&skills) {
+            let Ok(content) = fs::read_to_string(&entry) else {
+                continue;
+            };
+            if let Some(name) = frontmatter_name(&content) {
+                if name != "configure" {
+                    names.push(name);
+                }
+            }
+        }
+        names.sort();
+        names.dedup();
+        Ok(names)
+    }
+
     fn init_sentinel_present(
         &self,
         tmp_relative: &str,
@@ -304,8 +325,8 @@ impl ReadTemplate for FileConfigStore {
                     )?));
                 }
                 Some(format!(
-                    "configured template path '{}' not found, falling back \
-                     to defaults",
+                    "Warning: configured template path '{}' not found, \
+                     falling back to defaults",
                     candidate.display()
                 ))
             }
@@ -531,6 +552,45 @@ fn ensure_line(file: &Path, rule: &str) -> Result<(), ConfigError> {
     content.push_str(rule);
     content.push('\n');
     fs::write(file, content).map_err(|e| io_error(file, &e))
+}
+
+/// The `SKILL.md` paths one and two levels under a plugin `skills/` directory,
+/// matching the bash `skills/*/SKILL.md` and `skills/*/*/SKILL.md` globs.
+fn skill_manifest_paths(skills: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let Ok(top) = fs::read_dir(skills) else {
+        return paths;
+    };
+    for entry in top.filter_map(Result::ok) {
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let direct = dir.join("SKILL.md");
+        if direct.is_file() {
+            paths.push(direct);
+        }
+        let Ok(children) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for child in children.filter_map(Result::ok) {
+            let nested = child.path().join("SKILL.md");
+            if nested.is_file() {
+                paths.push(nested);
+            }
+        }
+    }
+    paths
+}
+
+/// The first whitespace-delimited value of the first `name:` line, matching the
+/// bash `awk '/^name:/{print $2; exit}'`.
+fn frontmatter_name(content: &str) -> Option<String> {
+    content.lines().find_map(|line| {
+        line.strip_prefix("name:")
+            .and_then(|rest| rest.split_whitespace().next())
+            .map(str::to_owned)
+    })
 }
 
 fn read_lens(dir: &Path, skill_file: &Path) -> Result<CustomLens, ConfigError> {

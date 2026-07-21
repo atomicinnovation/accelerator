@@ -6,10 +6,21 @@ set -euo pipefail
 # Run: bash scripts/test-config-read-doc-type-paths.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHIM_DIR="$SCRIPT_DIR/test-shims"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/test-helpers.sh"
 export LC_ALL=C
 
-RESOLVER="$SCRIPT_DIR/config-read-doc-type-paths.sh"
+# The doc-type resolver is exercised through the compiled launcher via its shim.
+# Build it once if the caller did not supply a path.
+if [ -z "${ACCELERATOR_BIN:-}" ]; then
+  cargo build --quiet --manifest-path "$PLUGIN_ROOT/cli/Cargo.toml" \
+    --bin accelerator
+  ACCELERATOR_BIN="$PLUGIN_ROOT/cli/target/debug/accelerator"
+fi
+export ACCELERATOR_BIN
+
+RESOLVER="$SHIM_DIR/config-read-doc-type-paths.sh"
 SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
 
 TMP=$(mktemp -d)

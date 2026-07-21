@@ -52,6 +52,7 @@ pub struct ReviewView {
     pub builtin_lenses: Vec<&'static str>,
     pub custom_rows: Vec<CustomRow>,
     pub warnings: Vec<String>,
+    pub notes: Vec<String>,
 }
 
 const SEVERITIES: &[&str] = &["critical", "major", "none"];
@@ -93,6 +94,14 @@ pub fn assemble(
 
     let core_lenses = resolve_list(config, "review.core_lenses")?;
     let disabled_lenses = resolve_list(config, "review.disabled_lenses")?;
+    for lens in &core_lenses {
+        if disabled_lenses.contains(lens) {
+            warnings.push(format!(
+                "Lens '{lens}' appears in both core_lenses and \
+                 disabled_lenses — disabled_lenses takes precedence"
+            ));
+        }
+    }
 
     let discovered = discover_custom(lenses, &mut warnings)?;
     let active = filter_by_mode(&discovered, mode, &mut warnings);
@@ -115,6 +124,9 @@ pub fn assemble(
 
     let verdict = verdict_lines(config, mode, &mut warnings)?;
 
+    let notes =
+        core_lenses_note(mode, &builtin_lenses, &core_lenses, &disabled_lenses);
+
     Ok(ReviewView {
         values,
         core_lenses,
@@ -131,7 +143,43 @@ pub fn assemble(
             })
             .collect(),
         warnings,
+        notes,
     })
+}
+
+/// In work-item mode, when the user sets `core_lenses` to a subset of the
+/// built-in work-item lenses, the informational note listing the built-ins that
+/// will still be added up to `max_lenses`.
+fn core_lenses_note(
+    mode: Mode,
+    builtins: &[&str],
+    core_lenses: &[String],
+    disabled_lenses: &[String],
+) -> Vec<String> {
+    if mode != Mode::WorkItem || core_lenses.is_empty() {
+        return Vec::new();
+    }
+    let missing: Vec<&str> = builtins
+        .iter()
+        .copied()
+        .filter(|lens| {
+            !disabled_lenses.iter().any(|d| d == lens)
+                && !core_lenses.iter().any(|c| c == lens)
+        })
+        .collect();
+    if missing.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        format!(
+            "Note: built-in work-item lens(es) not in your core_lenses but \
+             will be added up to max_lenses: {}",
+            missing.join(" ")
+        ),
+        "      Add them to disabled_lenses to opt out, or raise core_lenses \
+         to include them explicitly."
+            .to_owned(),
+    ]
 }
 
 /// The mode-specific threshold value lines (before `min`/`max`).

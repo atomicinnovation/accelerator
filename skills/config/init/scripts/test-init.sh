@@ -33,15 +33,19 @@ tree_hash() {
 echo "=== init.sh ==="
 echo ""
 
-# ── Test 1: fresh repo creates 12 meta directories with .gitkeep ──────────────
-echo "Test: fresh repo creates 12 meta directories with .gitkeep"
+# ── Test 1: fresh repo creates 14 meta directories with .gitkeep ──────────────
+# The directory set follows init.sh's DIR_DEFAULTS: research artefacts nest
+# under meta/research/ (migration 0004 regrouped design-inventories/design-gaps
+# there and added issues), and global lives at meta/global.
+echo "Test: fresh repo creates 14 meta directories with .gitkeep"
 REPO=$(setup_repo)
 PROJECT_ROOT="$REPO" bash "$INIT_SCRIPT"
 for dir in \
-  meta/plans meta/research meta/decisions meta/prs meta/validations \
+  meta/plans meta/research/codebase meta/decisions meta/prs meta/validations \
   meta/reviews/plans meta/reviews/prs meta/reviews/work \
   meta/work meta/notes \
-  meta/design-inventories meta/design-gaps; do
+  meta/research/design-inventories meta/research/design-gaps \
+  meta/global meta/research/issues; do
   assert_dir_exists "directory $dir exists" "$REPO/$dir"
   assert_file_exists ".gitkeep in $dir" "$REPO/$dir/.gitkeep"
 done

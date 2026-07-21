@@ -44,7 +44,9 @@ Test locations:
 | 11 | A block-authored YAML sequence resolves to a populated sequence | `parity.rs::a_block_authored_array_diverges_from_the_bash_found_empty` | done (0178) |
 | 12 | Divergent value encodings resolve to their declared forms | `parity.rs::value_encodings_resolve_to_their_declared_divergent_forms` | done (0178) |
 | 13 | `context --skill` inserts one blank line between the project and skill blocks | `read.rs::context_skill_joins_both_blocks_with_one_blank_line` | done |
-| 14 | `init` sources its 14 directories from `catalogue::default_for` | Phase 3 test (`init` not yet implemented) | pending (Phase 3) |
+| 14 | `init` sources its 14 directories from `catalogue::default_for` | `read.rs::init_creates_the_documented_tree` (plus the `core::init::tests::each_dir_default_matches_the_catalogue` unit test pinning the coincidence) | done (Phase 3) |
+| 15 | Recoverable stderr warnings carry a uniform `Warning: ` prefix, not the bash per-script `config-read-*.sh: warning:` / bare form | `test-config.sh` (repointed): the `config review`/`path`/`work`/`template` warning greps | done (Phase 4) |
+| 16 | An invalid `review` mode is reported via clap's value-enum error (`[possible values: pr, plan, work-item]`), not the bash `<pr\|plan\|work-item>` usage line | `test-config.sh` (repointed): "unknown mode -> exit 1 and usage contains …" | done (Phase 4) |
 
 ## Notes
 

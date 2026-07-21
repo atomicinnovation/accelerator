@@ -28,18 +28,20 @@ pub fn assemble(
     levels: &dyn ReadConfigLevel,
     content: &dyn ReadContent,
     enumeration: &dyn ReadLensCatalogue,
-) -> Result<Option<String>, ConfigError> {
+) -> Result<(Option<String>, Vec<String>), ConfigError> {
     let team = levels.read(Level::Team)?;
     let personal = levels.read(Level::Personal)?;
     let initialised = enumeration.init_sentinel_present(&tmp_dir(config)?)?;
 
     if team.is_none() && personal.is_none() {
-        return Ok(if initialised {
+        let summary = if initialised {
             None
         } else {
             Some(INIT_HINT.to_owned())
-        });
+        };
+        return Ok((summary, Vec::new()));
     }
+    let mut warnings = Vec::new();
 
     let mut summary =
         String::from("Accelerator plugin configuration detected:");
@@ -65,7 +67,8 @@ pub fn assemble(
         );
     }
 
-    let customisations = skill_customisations(content, enumeration)?;
+    let customisations =
+        skill_customisations(content, enumeration, &mut warnings)?;
     if !customisations.is_empty() {
         summary.push_str("\n- Per-skill customisations:");
         for line in customisations {
@@ -80,7 +83,7 @@ pub fn assemble(
         summary.push_str("\n\n");
         summary.push_str(INIT_HINT);
     }
-    Ok(Some(summary))
+    Ok((Some(summary), warnings))
 }
 
 fn tmp_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {
@@ -143,9 +146,18 @@ fn has_project_context(content: &dyn ReadContent) -> Result<bool, ConfigError> {
 fn skill_customisations(
     content: &dyn ReadContent,
     enumeration: &dyn ReadLensCatalogue,
+    warnings: &mut Vec<String>,
 ) -> Result<Vec<String>, ConfigError> {
+    let known = enumeration.known_skill_names()?;
     let mut lines = Vec::new();
     for name in enumeration.skill_names()? {
+        if !known.is_empty() && !known.contains(&name) {
+            warnings.push(format!(
+                "Warning: .accelerator/skills/{name}/ does not match any \
+                 known skill name. Valid names: {}",
+                known.join(" ")
+            ));
+        }
         let has_context = content
             .skill_context(&name)?
             .is_some_and(|body| !trim_body(&body).is_empty());
