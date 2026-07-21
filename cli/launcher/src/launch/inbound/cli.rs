@@ -46,6 +46,10 @@ pub enum ConfigAction {
         /// Read only this level instead of resolving across both.
         #[arg(long)]
         level: Option<Level>,
+        /// Also print resolution provenance to stderr — which files were read
+        /// and which level supplied the value.
+        #[arg(long)]
+        explain: bool,
         /// Suppress the uniform legacy-layout refusal and read the legacy
         /// `.claude/accelerator.md` pair when the current one is absent.
         #[arg(long)]
@@ -65,6 +69,10 @@ pub enum ConfigAction {
         /// Read only this level instead of resolving across both.
         #[arg(long)]
         level: Option<Level>,
+        /// Also print resolution provenance to stderr — which files were read
+        /// and which level supplied the value.
+        #[arg(long)]
+        explain: bool,
         /// Suppress the uniform legacy-layout refusal and read the legacy
         /// `.claude/accelerator.md` pair when the current one is absent.
         #[arg(long)]

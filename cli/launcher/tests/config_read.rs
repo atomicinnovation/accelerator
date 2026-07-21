@@ -874,3 +874,102 @@ fn a_traversing_template_name_is_refused() -> TestResult {
     assert_ne!(code(&output), 0);
     Ok(())
 }
+
+const OVERRIDDEN: &str = "---\ncore:\n  key: teamval\n---\n";
+const OVERRIDE_LOCAL: &str = "---\ncore:\n  key: personalval\n---\n";
+
+#[test]
+fn explain_names_both_files_and_attributes_to_personal() -> TestResult {
+    let fixture = Fixture::new()?.team(OVERRIDDEN)?;
+    fs::write(
+        fixture.root.join(".accelerator/config.local.md"),
+        OVERRIDE_LOCAL,
+    )?;
+    let with = fixture.run(&["config", "get", "core.key", "--explain"])?;
+    let without = fixture.run(&["config", "get", "core.key"])?;
+    // stdout is byte-identical with and without --explain.
+    assert_eq!(with.stdout, without.stdout);
+    assert_eq!(with.stdout, b"personalval\n");
+    let stderr = String::from_utf8_lossy(&with.stderr);
+    assert!(stderr.contains(".accelerator/config.md"));
+    assert!(stderr.contains(".accelerator/config.local.md"));
+    assert!(stderr.contains("resolved from: personal"));
+    // Without --explain there is no provenance.
+    assert!(without.stderr.is_empty());
+    Ok(())
+}
+
+#[test]
+fn config_help_lists_every_subcommand() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = fixture.run(&["config", "--help"])?;
+    assert_eq!(code(&output), 0);
+    let help = String::from_utf8_lossy(&output.stdout);
+    for subcommand in [
+        "get",
+        "path",
+        "agent",
+        "agents",
+        "work",
+        "context",
+        "instructions",
+        "paths",
+        "dump",
+        "review",
+        "summary",
+        "template",
+        "templates",
+    ] {
+        assert!(
+            help.contains(subcommand),
+            "config --help omits `{subcommand}`"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_subcommand_help_renders_its_contract() -> TestResult {
+    let cases: &[(&[&str], &str)] = &[
+        (&["get", "--help"], "Print a configuration value"),
+        (&["path", "--help"], "Print a configured"),
+        (&["agent", "--help"], "Print an agent-name override"),
+        (&["agents", "--help"], "## Agent Names"),
+        (&["work", "--help"], "work.integration"),
+        (&["context", "--help"], "## Project Context"),
+        (&["instructions", "--help"], "## Additional Instructions"),
+        (&["paths", "--help"], "## Configured Paths"),
+        (&["dump", "--help"], "## Effective Configuration"),
+        (&["review", "--help"], "## Review Configuration"),
+        (&["summary", "--help"], "SessionStart"),
+        (&["template", "--help"], "markdown fences"),
+        (&["templates", "list", "--help"], "resolution source"),
+        (&["templates", "show", "--help"], "source metadata"),
+    ];
+    for (args, expected) in cases {
+        let fixture = Fixture::new()?;
+        let mut full = vec!["config"];
+        full.extend_from_slice(args);
+        let output = fixture.run(&full)?;
+        assert_eq!(code(&output), 0, "help exit for {args:?}");
+        let help = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            help.contains(expected),
+            "`config {args:?}` help omits its contract text {expected:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn summary_resolves_the_init_sentinel_against_the_project_root() -> TestResult {
+    // Divergence 3: from a subdirectory the sentinel is found via the project
+    // root, so an initialised repo is not misreported as uninitialised.
+    let workspace = workspace("empty-summary")?;
+    let deep = workspace.join("src/deep");
+    fs::create_dir_all(&deep)?;
+    let output = run_in(&deep, &["config", "summary"])?;
+    assert!(output.stdout.is_empty(), "should read as initialised");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}

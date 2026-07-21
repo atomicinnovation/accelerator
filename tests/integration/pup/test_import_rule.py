@@ -256,6 +256,19 @@ path = "src/lib.rs"
 _CONFIG_LIB = "pub mod service;\n"
 _ADAPTERS_LIB = "pub struct Client;\n"
 
+# A dependency-free `config` crate, for probes that only need it as an allowed
+# import target.
+_CONFIG_MANIFEST_MIN = """\
+[package]
+name = "config"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
 # config::service importing an adapter crate — the outbound violation.
 _CONFIG_SERVICE_VIOLATION = (
     "use adapters::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
@@ -372,3 +385,124 @@ def test_real_config_rule_rejects_a_domain_crate_importing_store(
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert "config_domain_imports_only_permitted" in output, output
+
+
+# --- The config_command module rule ---
+#
+# The launcher's config_command hexagon may name only the config domain and its
+# own subtree. Driven against a crate literally named `accelerator` (so the
+# `^accelerator::config_command` regex is exercised directly) with a
+# `config_command` module, under the shipped cli/pup.ron. Two violations are
+# load-bearing: importing a sibling launcher module (`crate::launch::outbound`)
+# and importing the composition-root adapter crate (`config_adapters`) — the
+# latter is what the injected-ports seam depends on and what a bare `^config`
+# allowance would wrongly admit.
+
+_ACCEL_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["accelerator", "config", "config-adapters"]
+"""
+
+_ACCEL_MANIFEST = """\
+[package]
+name = "accelerator"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+"""
+
+_CONFIG_ADAPTERS_MANIFEST = """\
+[package]
+name = "config-adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_ACCEL_LIB = "pub mod config_command;\npub mod launch;\n"
+_ACCEL_LAUNCH_MOD = "pub mod outbound;\n"
+_ACCEL_LAUNCH_OUTBOUND = "pub struct Resolver;\n"
+_CONFIG_ADAPTERS_LIB = "pub struct FileConfigStore;\n"
+
+# config_command importing a sibling launcher module — the seam-eroding import.
+_CONFIG_COMMAND_LAUNCH_VIOLATION = (
+    "use crate::launch::outbound::Resolver;\n\n"
+    "pub fn make() -> Resolver {\n    Resolver\n}\n"
+)
+# config_command importing the adapter crate directly — the load-bearing
+# prohibition a bare `^config` allowance would wrongly admit.
+_CONFIG_COMMAND_ADAPTERS_VIOLATION = (
+    "use config_adapters::FileConfigStore;\n\n"
+    "pub fn make() -> FileConfigStore {\n    FileConfigStore\n}\n"
+)
+# config_command importing the config domain — compliant (positive control).
+_CONFIG_COMMAND_COMPLIANT = (
+    "use config::Key;\n\npub fn make() -> Option<Key> {\n    None\n}\n"
+)
+
+
+def _write_config_command_probe(root: Path, command_body: str) -> None:
+    (root / "Cargo.toml").write_text(_ACCEL_WORKSPACE)
+
+    accel_src = root / "accelerator/src"
+    (accel_src / "config_command").mkdir(parents=True, exist_ok=True)
+    (accel_src / "launch").mkdir(parents=True, exist_ok=True)
+    (root / "accelerator/Cargo.toml").write_text(_ACCEL_MANIFEST)
+    (accel_src / "lib.rs").write_text(_ACCEL_LIB)
+    (accel_src / "config_command/mod.rs").write_text(command_body)
+    (accel_src / "launch/mod.rs").write_text(_ACCEL_LAUNCH_MOD)
+    (accel_src / "launch/outbound.rs").write_text(_ACCEL_LAUNCH_OUTBOUND)
+
+    config_src = root / "config/src"
+    config_src.mkdir(parents=True, exist_ok=True)
+    (root / "config/Cargo.toml").write_text(_CONFIG_MANIFEST_MIN)
+    (config_src / "lib.rs").write_text("pub struct Key;\n")
+
+    adapters_src = root / "config-adapters/src"
+    adapters_src.mkdir(parents=True, exist_ok=True)
+    (root / "config-adapters/Cargo.toml").write_text(_CONFIG_ADAPTERS_MANIFEST)
+    (adapters_src / "lib.rs").write_text(_CONFIG_ADAPTERS_LIB)
+
+
+def test_config_command_rule_rejects_importing_a_launch_module(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_config_command_probe(tmp_path, _CONFIG_COMMAND_LAUNCH_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "config_command_may_not_import_adapters_or_launch" in output, output
+
+
+def test_config_command_rule_rejects_importing_config_adapters(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_config_command_probe(tmp_path, _CONFIG_COMMAND_ADAPTERS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "config_command_may_not_import_adapters_or_launch" in output, output
+
+
+def test_config_command_rule_passes_a_compliant_module(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_config_command_probe(tmp_path, _CONFIG_COMMAND_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)

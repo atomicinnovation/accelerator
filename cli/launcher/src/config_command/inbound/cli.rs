@@ -31,12 +31,14 @@ pub enum Action {
         key: String,
         default: Option<String>,
         level: Option<Level>,
+        explain: bool,
         on_failure: OnFailure,
     },
     Path {
         key: String,
         default: Option<String>,
         level: Option<Level>,
+        explain: bool,
         on_failure: OnFailure,
     },
     Agent {
@@ -99,9 +101,10 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             key,
             default,
             level,
+            explain,
             on_failure,
         } => finish(
-            resolve_get(stack, key, default.as_deref(), *level),
+            resolve_get(stack, key, default.as_deref(), *level, *explain),
             *on_failure,
             Degrade::Suppress,
         ),
@@ -109,9 +112,10 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             key,
             default,
             level,
+            explain,
             on_failure,
         } => finish(
-            resolve_path(stack, key, default.as_deref(), *level),
+            resolve_path(stack, key, default.as_deref(), *level, *explain),
             *on_failure,
             Degrade::Suppress,
         ),
@@ -400,13 +404,17 @@ fn resolve_get(
     raw_key: &str,
     default: Option<&str>,
     level: Option<Level>,
+    explain: bool,
 ) -> Result<Rendered, Failure> {
     let key = Key::parse(raw_key)?;
     let value = match stack.config().get(&key, level)? {
         Resolved::Found(value) => config::render_value(&value),
         Resolved::Absent => default.unwrap_or_default().to_owned(),
     };
-    Ok(Rendered::new(format!("{value}\n")))
+    Ok(Rendered {
+        stdout: format!("{value}\n"),
+        warnings: explain_lines(stack, &key, level, explain)?,
+    })
 }
 
 fn resolve_path(
@@ -414,6 +422,7 @@ fn resolve_path(
     raw_key: &str,
     default: Option<&str>,
     level: Option<Level>,
+    explain: bool,
 ) -> Result<Rendered, Failure> {
     let full = format!("paths.{raw_key}");
     let key = Key::parse(&full)?;
@@ -423,10 +432,57 @@ fn resolve_path(
         Resolved::Found(value) => config::render_value(&value),
         Resolved::Absent => fallback,
     };
+    warnings.extend(explain_lines(stack, &key, level, explain)?);
     Ok(Rendered {
         stdout: format!("{value}\n"),
         warnings,
     })
+}
+
+/// The `--explain` resolution provenance for a scalar read: which level file
+/// supplied the value and which files were consulted. Emitted on stderr only.
+fn explain_lines(
+    stack: &ConfigStack,
+    key: &Key,
+    level: Option<Level>,
+    explain: bool,
+) -> Result<Vec<String>, ConfigError> {
+    if !explain {
+        return Ok(Vec::new());
+    }
+    let mut lines = Vec::new();
+    let levels: &[Level] = match level {
+        Some(Level::Team) => &[Level::Team],
+        Some(Level::Personal) => &[Level::Personal],
+        None => &[Level::Team, Level::Personal],
+    };
+    let mut winner = "default";
+    for probe in levels {
+        let present = matches!(
+            stack.config().get(key, Some(*probe))?,
+            Resolved::Found(_)
+        );
+        lines.push(format!(
+            "{probe} ({}): {}",
+            level_file(*probe),
+            if present { "set" } else { "not set" }
+        ));
+        if present {
+            winner = match probe {
+                Level::Team => "team",
+                Level::Personal => "personal",
+            };
+        }
+    }
+    lines.push(format!("resolved from: {winner}"));
+    Ok(lines)
+}
+
+const fn level_file(level: Level) -> &'static str {
+    match level {
+        Level::Team => ".accelerator/config.md",
+        Level::Personal => ".accelerator/config.local.md",
+    }
 }
 
 /// The value a `path` miss falls back to: an explicit non-empty default wins,

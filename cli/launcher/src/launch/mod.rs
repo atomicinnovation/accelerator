@@ -35,24 +35,28 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             key,
             default,
             level,
+            explain,
             fail_safe,
             ..
         } => config_cli::Action::Get {
             key: key.clone(),
             default: default.clone(),
             level: level.map(Into::into),
+            explain: *explain,
             on_failure: on_failure(*fail_safe),
         },
         ConfigAction::Path {
             key,
             default,
             level,
+            explain,
             fail_safe,
             ..
         } => config_cli::Action::Path {
             key: key.clone(),
             default: default.clone(),
             level: level.map(Into::into),
+            explain: *explain,
             on_failure: on_failure(*fail_safe),
         },
         ConfigAction::Agent {
