@@ -409,7 +409,7 @@ WRAP="$TMP/resolver-wrap.sh"
 cat >"$WRAP" <<WRAPEOF
 #!/usr/bin/env bash
 echo x >>"$COUNTER"
-exec "$SCRIPT_DIR/config-read-doc-type-paths.sh" "\$@"
+exec "\${ACCELERATOR_BIN:-${SCRIPT_DIR%/scripts}/bin/accelerator}" config paths --doc-types --format tsv "\$@"
 WRAPEOF
 chmod +x "$WRAP"
 DOC_TYPE_PATHS_RESOLVER="$WRAP" "$VALIDATOR" "$ONCE" >/dev/null 2>&1 || true
