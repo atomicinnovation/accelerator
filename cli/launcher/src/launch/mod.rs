@@ -13,7 +13,7 @@ use crate::config_command::inbound::cli as config_cli;
 use crate::launch::core::{
     run_external, ExecBinary, ExternalCommand, ResolveBinary,
 };
-use crate::launch::inbound::cli::{Cli, Command, ConfigAction};
+use crate::launch::inbound::cli::{Cli, Command, ConfigAction, SummaryFormat};
 use crate::version::core::ReportVersion;
 use crate::version::inbound::cli as version_cli;
 
@@ -95,6 +95,12 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             mode, fail_safe, ..
         } => config_cli::Action::Review {
             mode: (*mode).into(),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Summary {
+            format, fail_safe, ..
+        } => config_cli::Action::Summary {
+            hook: matches!(format, Some(SummaryFormat::Hook)),
             on_failure: on_failure(*fail_safe),
         },
     }

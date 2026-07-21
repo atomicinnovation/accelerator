@@ -225,6 +225,31 @@ impl ReadLensCatalogue for FileConfigStore {
         }
         Ok(lenses)
     }
+
+    fn skill_names(&self) -> Result<Vec<String>, ConfigError> {
+        let skills_dir = self.config_dir().join("skills");
+        let entries = match fs::read_dir(&skills_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(Vec::new())
+            }
+            Err(error) => return Err(io_error(&skills_dir, &error)),
+        };
+        let mut names: Vec<String> = entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().is_dir())
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        Ok(names)
+    }
+
+    fn init_sentinel_present(
+        &self,
+        tmp_relative: &str,
+    ) -> Result<bool, ConfigError> {
+        Ok(self.root.join(tmp_relative).join(".gitignore").is_file())
+    }
 }
 
 fn read_lens(dir: &Path, skill_file: &Path) -> Result<CustomLens, ConfigError> {

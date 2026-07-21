@@ -98,14 +98,35 @@ pub struct CustomLens {
     pub fields: Option<LensFields>,
 }
 
-/// Enumerates the custom review lenses under `.accelerator/lenses/` — a driven
-/// port. Domain validation (name collision, `applies_to` filtering) is the
-/// review view's, not the adapter's.
+/// Enumerates the project's customisation directories — a driven port.
+///
+/// Covers the custom lenses under `.accelerator/lenses/`, the per-skill
+/// customisation directory names under `.accelerator/skills/`, and the init
+/// sentinel. Domain validation (lens name collision, `applies_to` filtering)
+/// is the review view's, not the adapter's.
 pub trait ReadLensCatalogue {
     /// # Errors
     ///
     /// A [`ConfigError`] when the lenses directory cannot be enumerated.
     fn custom_lenses(&self) -> Result<Vec<CustomLens>, ConfigError>;
+
+    /// The directory names directly under `.accelerator/skills/`, sorted.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the skills directory cannot be enumerated.
+    fn skill_names(&self) -> Result<Vec<String>, ConfigError>;
+
+    /// Whether the init sentinel `<tmp>/.gitignore` exists, `tmp` resolved
+    /// relative to the project root.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the check cannot be performed.
+    fn init_sentinel_present(
+        &self,
+        tmp_relative: &str,
+    ) -> Result<bool, ConfigError>;
 }
 
 /// The operations the core offers callers — the driving port.

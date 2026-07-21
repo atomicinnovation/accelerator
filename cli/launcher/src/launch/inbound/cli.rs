@@ -198,6 +198,30 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print a brief summary of the active configuration, for the
+    /// `SessionStart` hook. `--format hook` wraps it in the `additionalContext`
+    /// envelope.
+    Summary {
+        /// Rendering: `plain` text, or the `SessionStart` `hook` envelope.
+        #[arg(long, value_enum)]
+        format: Option<SummaryFormat>,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, print nothing and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+}
+
+/// How `config summary` renders its output.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SummaryFormat {
+    /// Plain summary text.
+    Plain,
+    /// The `SessionStart` `additionalContext` JSON envelope.
+    Hook,
 }
 
 /// Which review a `config review` renders settings for.
@@ -270,6 +294,10 @@ impl ConfigAction {
                 ..
             }
             | Self::Review {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Summary {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,

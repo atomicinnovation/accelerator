@@ -10,6 +10,7 @@ pub mod context;
 pub mod dump;
 pub mod paths;
 pub mod review;
+pub mod summary;
 
 use config::{ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue};
 

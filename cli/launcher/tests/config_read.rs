@@ -83,7 +83,7 @@ fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
             fs::copy(&file, root.join(".accelerator").join(name))?;
         }
     }
-    for subtree in ["skills", "lenses"] {
+    for subtree in ["skills", "lenses", "tmp"] {
         let source = src.join(subtree);
         if source.is_dir() {
             copy_tree(&source, &root.join(".accelerator").join(subtree))?;
@@ -689,5 +689,73 @@ fn a_review_without_a_mode_is_a_usage_error() -> TestResult {
     let workspace = workspace("baseline")?;
     let output = run_in(&workspace, &["config", "review"])?;
     assert_eq!(code(&output), 1);
+    Ok(())
+}
+
+#[test]
+fn summary_matches_the_committed_golden() -> TestResult {
+    let workspace = workspace("summary")?;
+    let output = run_in(&workspace, &["config", "summary"])?;
+    assert_eq!(output.stdout, golden("summary", "summary.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn summary_hook_wraps_the_plain_output_as_additional_context() -> TestResult {
+    let workspace = workspace("summary")?;
+    let plain = run_in(&workspace, &["config", "summary"])?;
+    let hook = run_in(&workspace, &["config", "summary", "--format", "hook"])?;
+    let hook_out = String::from_utf8_lossy(&hook.stdout);
+    let plain_out = String::from_utf8_lossy(&plain.stdout);
+    let plain_trimmed = plain_out.trim_end_matches('\n');
+    assert!(hook_out.starts_with(
+        "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\","
+    ));
+    // The additionalContext is the plain summary with newlines JSON-escaped.
+    let escaped = plain_trimmed.replace('\n', "\\n");
+    assert!(hook_out.contains(&escaped));
+    assert_eq!(code(&hook), 0);
+    Ok(())
+}
+
+#[test]
+fn summary_of_an_initialised_repo_with_no_config_prints_nothing() -> TestResult
+{
+    let workspace = workspace("empty-summary")?;
+    let plain = run_in(&workspace, &["config", "summary"])?;
+    assert!(plain.stdout.is_empty());
+    assert_eq!(code(&plain), 0);
+    let hook = run_in(&workspace, &["config", "summary", "--format", "hook"])?;
+    assert!(hook.stdout.is_empty());
+    assert_eq!(code(&hook), 0);
+    Ok(())
+}
+
+#[test]
+fn summary_of_an_uninitialised_repo_prints_the_init_hint() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = fixture.run(&["config", "summary"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("has not been initialised"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn summary_with_fail_safe_suppresses_a_read_failure() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "summary", "--fail-safe"])?;
+    assert!(output.stdout.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn summary_hook_without_fail_safe_fails_loud_on_a_read_failure() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "summary", "--format", "hook"])?;
+    assert!(output.stdout.is_empty());
+    assert_ne!(code(&output), 0);
     Ok(())
 }

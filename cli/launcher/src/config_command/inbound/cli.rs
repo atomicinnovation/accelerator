@@ -13,13 +13,14 @@ use config::{catalogue, ConfigError, Key, Level, Resolved};
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::review::{self as review_view, Mode};
 use crate::config_command::core::{
-    agents as agents_view, dump as dump_view, paths as paths_view, ConfigStack,
-    OnFailure,
+    agents as agents_view, dump as dump_view, paths as paths_view,
+    summary as summary_view, ConfigStack, OnFailure,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
     dump as dump_render, instructions as instructions_render,
-    paths as paths_render, review as review_render, Rendered,
+    paths as paths_render, review as review_render, summary as summary_render,
+    Rendered,
 };
 
 /// A parsed `config` request, owned by this module so the hexagon never names
@@ -67,6 +68,10 @@ pub enum Action {
     },
     Review {
         mode: Mode,
+        on_failure: OnFailure,
+    },
+    Summary {
+        hook: bool,
         on_failure: OnFailure,
     },
 }
@@ -135,6 +140,11 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Notice(review_render::render_unavailable),
         ),
+        Action::Summary { hook, on_failure } => finish(
+            resolve_summary(stack, *hook),
+            *on_failure,
+            Degrade::Suppress,
+        ),
     }
 }
 
@@ -144,6 +154,26 @@ fn resolve_review(
 ) -> Result<Rendered, Failure> {
     let view = review_view::assemble(stack.config(), stack.lenses(), mode)?;
     Ok(review_render::render(&view, mode))
+}
+
+fn resolve_summary(
+    stack: &ConfigStack,
+    hook: bool,
+) -> Result<Rendered, Failure> {
+    let summary = summary_view::assemble(
+        stack.config(),
+        stack.levels(),
+        stack.content(),
+        stack.lenses(),
+    )?;
+    let stdout = match (summary, hook) {
+        (None, _) => String::new(),
+        (Some(text), false) => format!("{text}\n"),
+        (Some(text), true) => {
+            format!("{}\n", summary_render::hook_envelope(&text))
+        }
+    };
+    Ok(Rendered::new(stdout))
 }
 
 fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
