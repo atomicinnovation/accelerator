@@ -74,7 +74,7 @@ jira_state_dir() {
     return 1
   }
   local integrations_path
-  integrations_path=$(cd "$root" && "$_JIRA_PLUGIN_ROOT/scripts/config-read-path.sh" \
+  integrations_path=$(cd "$root" && "${ACCELERATOR_BIN:-$_JIRA_PLUGIN_ROOT/bin/accelerator}" config path \
     integrations)
   local state_dir
   if [[ "$integrations_path" == /* ]]; then

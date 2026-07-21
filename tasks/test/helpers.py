@@ -14,6 +14,27 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def ensure_accelerator_bin(context: Context) -> None:
+    """Build the debug launcher once and export ACCELERATOR_BIN at it.
+
+    Repointed production shell scripts read config through
+    ``"${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config …``. Setting
+    ACCELERATOR_BIN keeps a subtree's suites on the compiled binary rather than
+    the signed-release bootstrap; children of ``run_shell_suites`` inherit it.
+    CLAUDE_PLUGIN_ROOT is exported for template resolution.
+    """
+    repo = repo_root()
+    if not os.environ.get("ACCELERATOR_BIN"):
+        manifest = repo / "cli" / "Cargo.toml"
+        context.run(
+            f"cargo build --quiet --manifest-path {manifest} --bin accelerator"
+        )
+        os.environ["ACCELERATOR_BIN"] = str(
+            repo / "cli" / "target" / "debug" / "accelerator"
+        )
+    os.environ.setdefault("CLAUDE_PLUGIN_ROOT", str(repo))
+
+
 def run_shell_suites(context: Context, subtree: str) -> list[str]:
     """Glob-discover and run every executable test-*.sh inside a subtree.
 

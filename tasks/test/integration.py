@@ -2,7 +2,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 
-from .helpers import repo_root, run_shell_suites
+from .helpers import ensure_accelerator_bin, repo_root, run_shell_suites
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
 # `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
@@ -57,6 +57,7 @@ def visualiser(context: Context) -> None:
         f"cargo test --manifest-path {CARGO_TOML} --tests "
         f"--no-default-features --features dev-frontend"
     )
+    ensure_accelerator_bin(context)
     run_shell_suites(context, "skills/visualisation/visualise")
 
 
@@ -91,6 +92,7 @@ def pup(context: Context) -> None:
 @task
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
+    ensure_accelerator_bin(context)
     suites = run_shell_suites(context, "scripts")
     if len(suites) < _EXPECTED_CONFIG_SUITES:
         raise Exit(
@@ -126,12 +128,14 @@ def init(context: Context) -> None:
 @task
 def decisions(context: Context) -> None:
     """Integration tests for the decisions skill scripts."""
+    ensure_accelerator_bin(context)
     run_shell_suites(context, "skills/decisions")
 
 
 @task
 def binary_acquisition(context: Context) -> None:
     """Test launch-server.sh binary acquisition (sentinel, SHA, 404)."""
+    ensure_accelerator_bin(context)
     script = (
         repo_root()
         / "skills/visualisation/visualise/scripts/test-launch-server.sh"
@@ -154,6 +158,7 @@ def github(context: Context) -> None:
 @task
 def work(context: Context) -> None:
     """Integration tests for the work-management skill scripts."""
+    ensure_accelerator_bin(context)
     suites = run_shell_suites(context, "skills/work")
     if len(suites) < _EXPECTED_WORK_SUITES:
         raise Exit(
@@ -167,6 +172,7 @@ def work(context: Context) -> None:
 @task
 def integrations(context: Context) -> None:
     """Integration tests for the jira/linear integration scripts."""
+    ensure_accelerator_bin(context)
     suites = run_shell_suites(context, "skills/integrations")
     if len(suites) < _EXPECTED_INTEGRATIONS_SUITES:
         raise Exit(
@@ -180,6 +186,7 @@ def integrations(context: Context) -> None:
 @task
 def migrate(context: Context) -> None:
     """Integration tests for the meta-directory migration framework."""
+    ensure_accelerator_bin(context)
     suites = run_shell_suites(context, "skills/config/migrate")
     if len(suites) < _EXPECTED_MIGRATE_SUITES:
         raise Exit(
