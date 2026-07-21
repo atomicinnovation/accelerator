@@ -12,11 +12,13 @@ use config::{catalogue, ConfigError, Key, Level, Resolved};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::{
-    agents as agents_view, paths as paths_view, ConfigStack, OnFailure,
+    agents as agents_view, dump as dump_view, paths as paths_view, ConfigStack,
+    OnFailure,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
-    instructions as instructions_render, paths as paths_render, Rendered,
+    dump as dump_render, instructions as instructions_render,
+    paths as paths_render, Rendered,
 };
 
 /// A parsed `config` request, owned by this module so the hexagon never names
@@ -57,6 +59,9 @@ pub enum Action {
     Paths {
         doc_types: bool,
         all: bool,
+        on_failure: OnFailure,
+    },
+    Dump {
         on_failure: OnFailure,
     },
 }
@@ -115,7 +120,21 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Notice(paths_render::render_unavailable),
         ),
+        Action::Dump { on_failure } => finish(
+            resolve_dump(stack),
+            *on_failure,
+            Degrade::Notice(dump_render::render_unavailable),
+        ),
     }
+}
+
+fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
+    Ok(
+        dump_view::assemble(stack.config(), stack.levels())?.map_or_else(
+            || Rendered::new(String::new()),
+            |rows| dump_render::render(&rows),
+        ),
+    )
 }
 
 fn resolve_paths(

@@ -171,6 +171,18 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print the `## Effective Configuration` table — every catalogue key with
+    /// its effective value and source attribution (team, local, or default).
+    Dump {
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Effective Configuration Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
 }
 
 /// How `config paths` renders its output.
@@ -217,6 +229,10 @@ impl ConfigAction {
                 ..
             }
             | Self::Paths {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Dump {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,

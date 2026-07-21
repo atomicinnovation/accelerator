@@ -8,6 +8,7 @@
 
 pub mod agents;
 pub mod context;
+pub mod dump;
 pub mod instructions;
 pub mod paths;
 

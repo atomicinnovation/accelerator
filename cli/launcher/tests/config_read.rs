@@ -582,3 +582,45 @@ fn paths_doc_types_stays_fail_closed_on_escape_with_fail_safe() -> TestResult {
     assert_ne!(code(&output), 0);
     Ok(())
 }
+
+#[test]
+fn dump_matches_the_committed_golden() -> TestResult {
+    let workspace = workspace("dump")?;
+    let output = run_in(&workspace, &["config", "dump"])?;
+    assert_eq!(output.stdout, golden("dump", "dump.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn dump_hides_credential_values() -> TestResult {
+    let workspace = workspace("dump")?;
+    let output = run_in(&workspace, &["config", "dump"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("`jira.token` | *(set — hidden)*"));
+    assert!(!stdout.contains("secret-value"));
+    Ok(())
+}
+
+#[test]
+fn dump_of_an_unconfigured_repo_prints_nothing() -> TestResult {
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "config-read-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(root.join(".git"))?;
+    let output = run_in(&root, &["config", "dump"])?;
+    assert!(output.stdout.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn dump_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "dump", "--fail-safe"])?;
+    assert_eq!(output.stdout, b"## Effective Configuration Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}

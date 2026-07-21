@@ -106,6 +106,23 @@ pub const WORK_KEYS: &[(&str, Default)] = &[
 pub const WORK_INTEGRATION_VALUES: &[&str] =
     &["jira", "linear", "trello", "github-issues"];
 
+/// Integration and tool keys read ad-hoc by their own consumers.
+///
+/// They carry no catalogue default — an unset key means the consumer's own
+/// default applies — so `dump` surfaces them by presence only. The bash mirror
+/// is `EXTRA_KEYS` in `config-defaults.sh`.
+pub const EXTRA_KEYS: &[&str] = &[
+    "jira.site",
+    "jira.email",
+    "jira.token",
+    "jira.token_cmd",
+    "linear.token",
+    "linear.token_cmd",
+    "visualiser.editor",
+    "visualiser.editor_project",
+    "visualiser.binary",
+];
+
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.max_inline_comments", Default::Scalar("10")),
     ("review.min_lenses", Default::Scalar("4")),

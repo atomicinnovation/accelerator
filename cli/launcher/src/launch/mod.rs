@@ -88,6 +88,9 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             all: *all,
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Dump { fail_safe, .. } => config_cli::Action::Dump {
+            on_failure: on_failure(*fail_safe),
+        },
     }
 }
 
