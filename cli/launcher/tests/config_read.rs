@@ -973,3 +973,38 @@ fn summary_resolves_the_init_sentinel_against_the_project_root() -> TestResult {
     assert_eq!(code(&output), 0);
     Ok(())
 }
+
+#[test]
+fn summary_hook_with_fail_safe_suppresses_a_read_failure() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&[
+        "config",
+        "summary",
+        "--format",
+        "hook",
+        "--fail-safe",
+    ])?;
+    assert!(output.stdout.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_degrades_the_project_source_and_keeps_the_skill_block() -> TestResult
+{
+    let workspace = workspace("context-full")?;
+    // Make config.md unreadable (a directory), so the project body read fails
+    // while the skill context file is untouched.
+    fs::remove_file(workspace.join(".accelerator/config.md"))?;
+    fs::remove_file(workspace.join(".accelerator/config.local.md"))?;
+    fs::create_dir(workspace.join(".accelerator/config.md"))?;
+    let output = run_in(
+        &workspace,
+        &["config", "context", "--skill", "demo", "--fail-safe"],
+    )?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("## Project Context Unavailable"));
+    assert!(stdout.contains("## Skill-Specific Context\n"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
