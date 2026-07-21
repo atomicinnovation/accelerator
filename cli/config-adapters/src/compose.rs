@@ -9,7 +9,18 @@ use config::{ConfigError, ConfigService};
 use crate::legacy;
 use crate::store::{FileConfigStore, LegacyPolicy};
 
-/// Wires a full-stack reader at `cwd`'s project root.
+/// The composed configuration ports handed to the composition root.
+///
+/// The resolution service serves scalar reads; the store serves the
+/// view-assembling block subcommands as a raw level reader. Both are the same
+/// `FileConfigStore` rooted at the discovered project directory, each boxed
+/// behind its `config`-crate trait by the root.
+pub struct Composed {
+    pub service: ConfigService<FileConfigStore, FileConfigStore>,
+    pub store: FileConfigStore,
+}
+
+/// Wires the configuration ports at `cwd`'s project root.
 ///
 /// Under [`LegacyPolicy::Reject`] it fails closed on the legacy layout; under
 /// [`LegacyPolicy::Allow`] it suppresses that refusal and reads the legacy pair
@@ -22,13 +33,14 @@ use crate::store::{FileConfigStore, LegacyPolicy};
 pub fn compose(
     cwd: &Path,
     policy: LegacyPolicy,
-) -> Result<ConfigService<FileConfigStore, FileConfigStore>, ConfigError> {
+) -> Result<Composed, ConfigError> {
     let root = FileConfigStore::discover_root(cwd);
     if policy == LegacyPolicy::Reject {
         legacy::assert_no_legacy_layout(&root)?;
     }
     let store = FileConfigStore::at(root).with_legacy_policy(policy);
-    Ok(ConfigService::new(store.clone(), store))
+    let service = ConfigService::new(store.clone(), store.clone());
+    Ok(Composed { service, store })
 }
 
 #[cfg(test)]
@@ -65,7 +77,7 @@ mod tests {
             root.join(".accelerator/config.md"),
             "---\npaths:\n  work: wired\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Reject)?;
+        let service = compose(&root, LegacyPolicy::Reject)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String("wired".to_owned())))
@@ -98,7 +110,7 @@ mod tests {
             root.join(".claude/accelerator.local.md"),
             "---\npaths:\n  work: legacy-local\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Allow)?;
+        let service = compose(&root, LegacyPolicy::Allow)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String(
@@ -122,7 +134,7 @@ mod tests {
             root.join(".claude/accelerator.md"),
             "---\npaths:\n  work: legacy\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Allow)?;
+        let service = compose(&root, LegacyPolicy::Allow)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String(

@@ -150,8 +150,11 @@ fn compose_stack(policy: LegacyPolicy) -> Result<ConfigStack, ConfigError> {
         path: ".".to_owned(),
         detail: error.to_string(),
     })?;
-    let service = config_adapters::compose(&cwd, policy)?;
-    Ok(ConfigStack::new(Box::new(service)))
+    let composed = config_adapters::compose(&cwd, policy)?;
+    Ok(ConfigStack::new(
+        Box::new(composed.service),
+        Box::new(composed.store),
+    ))
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {

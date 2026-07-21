@@ -101,6 +101,11 @@ pub const WORK_KEYS: &[(&str, Default)] = &[
     ("work.default_project_code", Default::Scalar("")),
 ];
 
+/// The non-empty values `work.integration` accepts; empty (unset) is always
+/// permitted. A `work` read of any other value is a fail-closed refusal.
+pub const WORK_INTEGRATION_VALUES: &[&str] =
+    &["jira", "linear", "trello", "github-issues"];
+
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.max_inline_comments", Default::Scalar("10")),
     ("review.min_lenses", Default::Scalar("4")),

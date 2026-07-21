@@ -22,14 +22,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let service = match config_adapters::compose(&cwd, LegacyPolicy::Reject) {
-        Ok(service) => service,
+    let composed = match config_adapters::compose(&cwd, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
         Err(error) => {
             eprintln!("{error}");
             return ExitCode::FAILURE;
         }
     };
-    match service.get(
+    match composed.service.get(
         &Key::parse("paths.work").expect("constant key parses"),
         None,
     ) {

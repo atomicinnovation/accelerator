@@ -56,6 +56,9 @@ pub enum ConfigError {
     InvalidKey {
         key: String,
     },
+    Invalid {
+        detail: String,
+    },
     UnsafePath {
         path: String,
     },
@@ -92,6 +95,7 @@ impl Display for ConfigError {
                 "invalid config key '{key}': expected dot-separated \
                  non-empty segments"
             ),
+            Self::Invalid { detail } => write!(formatter, "{detail}"),
             Self::UnsafePath { path } => write!(
                 formatter,
                 "refusing to follow an unsafe config path '{path}'"

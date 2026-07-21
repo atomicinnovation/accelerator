@@ -5,7 +5,9 @@
 //! adapter, so no launcher module outside the composition root names
 //! `config_adapters`.
 
-use config::ConfigAccess;
+pub mod agents;
+
+use config::{ConfigAccess, ReadConfigLevel};
 
 /// How a read failure is surfaced at a splice-safe call site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,21 +21,32 @@ pub enum OnFailure {
     Degrade,
 }
 
-/// The composed configuration ports, handed to the inbound adapter by the
-/// composition root. Grows a driven-port field per subcommand family as they
-/// land; for now it exposes the resolution service alone.
+/// The composed configuration ports, handed to the inbound adapter.
+///
+/// The composition root supplies the resolution service for scalar reads and
+/// the raw level reader the view-assembling block subcommands walk. Grows a
+/// driven-port field per subcommand family as they land.
 pub struct ConfigStack {
     service: Box<dyn ConfigAccess>,
+    levels: Box<dyn ReadConfigLevel>,
 }
 
 impl ConfigStack {
     #[must_use]
-    pub fn new(service: Box<dyn ConfigAccess>) -> Self {
-        Self { service }
+    pub fn new(
+        service: Box<dyn ConfigAccess>,
+        levels: Box<dyn ReadConfigLevel>,
+    ) -> Self {
+        Self { service, levels }
     }
 
     #[must_use]
     pub fn config(&self) -> &dyn ConfigAccess {
         self.service.as_ref()
+    }
+
+    #[must_use]
+    pub fn levels(&self) -> &dyn ReadConfigLevel {
+        self.levels.as_ref()
     }
 }

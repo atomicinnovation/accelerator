@@ -63,6 +63,33 @@ fn code(output: &Output) -> i32 {
     output.status.code().unwrap_or(-1)
 }
 
+const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
+
+/// Materializes a committed fixture into a fresh temp workspace: its `config.md`
+/// (and `config.local.md`, if present) copied under `.accelerator/`, with a
+/// `.git` boundary marker so root discovery stops inside the workspace.
+fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
+    let src = PathBuf::from(FIXTURES).join(name);
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "config-read-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(root.join(".git"))?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    for name in ["config.md", "config.local.md"] {
+        let file = src.join(name);
+        if file.exists() {
+            fs::copy(&file, root.join(".accelerator").join(name))?;
+        }
+    }
+    Ok(root)
+}
+
+fn golden(name: &str, file: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    Ok(fs::read(PathBuf::from(FIXTURES).join(name).join(file))?)
+}
+
 const SEEDED: &str = "\
 ---
 agents:
@@ -260,5 +287,82 @@ fn subcommand_help_renders_the_matched_subcommand_not_the_root() -> TestResult {
     assert_eq!(code(&output), 0);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Print a configuration value"));
+    Ok(())
+}
+
+#[test]
+fn agents_matches_the_committed_golden() -> TestResult {
+    let workspace = workspace("agents")?;
+    let output = run_in(&workspace, &["config", "agents"])?;
+    assert_eq!(output.stdout, golden("agents", "agents.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn agents_against_the_baseline_matches_its_golden() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "agents"])?;
+    assert_eq!(output.stdout, golden("baseline", "agents.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn agents_warns_on_an_unknown_key_and_still_emits_the_block() -> TestResult {
+    let workspace = workspace("agents")?;
+    let output = run_in(&workspace, &["config", "agents"])?;
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("unknown agent key 'bogus-agent'"));
+    Ok(())
+}
+
+#[test]
+fn agents_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "agents", "--fail-safe"])?;
+    assert_eq!(output.stdout, b"## Agent Names Unavailable\n");
+    assert!(!output.stderr.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn work_prints_a_valid_integration() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "work", "integration"])?;
+    assert_eq!(output.stdout, b"linear\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn work_prints_a_catalogue_default() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "work", "id_pattern"])?;
+    assert_eq!(output.stdout, b"{number:04d}\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn work_with_a_bad_integration_enum_fails_closed() -> TestResult {
+    let workspace = workspace("bad-integration")?;
+    let output = run_in(&workspace, &["config", "work", "integration"])?;
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("must be one of"));
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn work_stays_fail_closed_on_a_bad_enum_even_with_fail_safe() -> TestResult {
+    let workspace = workspace("bad-integration")?;
+    let output = run_in(
+        &workspace,
+        &["config", "work", "integration", "--fail-safe"],
+    )?;
+    assert!(output.stdout.is_empty());
+    assert_ne!(code(&output), 0);
     Ok(())
 }

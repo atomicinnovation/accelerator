@@ -85,6 +85,33 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print the `## Agent Names` block resolving every agent's configured
+    /// override or `accelerator:<name>` default.
+    Agents {
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Agent Names Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Print a `work.<key>` value with its catalogue default; a
+    /// `work.integration` outside the allowed set is a fail-closed refusal.
+    Work {
+        /// The bare work key to read (e.g. `integration`), resolved as
+        /// `work.<key>`.
+        key: String,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, print nothing and exit 0.
+        /// A validation refusal stays fail-closed regardless.
+        #[arg(long)]
+        fail_safe: bool,
+    },
 }
 
 impl ConfigAction {
@@ -102,6 +129,14 @@ impl ConfigAction {
                 ..
             }
             | Self::Agent {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Agents {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Work {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,

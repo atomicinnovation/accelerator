@@ -59,6 +59,13 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             name: name.clone(),
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Agents { fail_safe, .. } => config_cli::Action::Agents {
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Work { key, fail_safe, .. } => config_cli::Action::Work {
+            key: key.clone(),
+            on_failure: on_failure(*fail_safe),
+        },
     }
 }
 
