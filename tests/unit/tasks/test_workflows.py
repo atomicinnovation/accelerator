@@ -361,6 +361,8 @@ DOCS_FORCE_BRANCH = "force-deploy-docs"
 DOCS_DEPLOY_GATE = (
     "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
 )
+
+
 @pytest.fixture
 def docs_wf():
     return yaml.safe_load(DOCS_WORKFLOW.read_text())
