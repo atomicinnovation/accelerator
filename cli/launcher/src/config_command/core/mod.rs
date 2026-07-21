@@ -6,8 +6,9 @@
 //! `config_adapters`.
 
 pub mod agents;
+pub mod context;
 
-use config::{ConfigAccess, ReadConfigLevel};
+use config::{ConfigAccess, ReadConfigLevel, ReadContent};
 
 /// How a read failure is surfaced at a splice-safe call site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +30,7 @@ pub enum OnFailure {
 pub struct ConfigStack {
     service: Box<dyn ConfigAccess>,
     levels: Box<dyn ReadConfigLevel>,
+    content: Box<dyn ReadContent>,
 }
 
 impl ConfigStack {
@@ -36,8 +38,13 @@ impl ConfigStack {
     pub fn new(
         service: Box<dyn ConfigAccess>,
         levels: Box<dyn ReadConfigLevel>,
+        content: Box<dyn ReadContent>,
     ) -> Self {
-        Self { service, levels }
+        Self {
+            service,
+            levels,
+            content,
+        }
     }
 
     #[must_use]
@@ -48,5 +55,10 @@ impl ConfigStack {
     #[must_use]
     pub fn levels(&self) -> &dyn ReadConfigLevel {
         self.levels.as_ref()
+    }
+
+    #[must_use]
+    pub fn content(&self) -> &dyn ReadContent {
+        self.content.as_ref()
     }
 }

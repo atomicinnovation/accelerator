@@ -153,6 +153,7 @@ fn compose_stack(policy: LegacyPolicy) -> Result<ConfigStack, ConfigError> {
     let composed = config_adapters::compose(&cwd, policy)?;
     Ok(ConfigStack::new(
         Box::new(composed.service),
+        Box::new(composed.store.clone()),
         Box::new(composed.store),
     ))
 }

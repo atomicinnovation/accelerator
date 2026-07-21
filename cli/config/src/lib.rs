@@ -25,6 +25,7 @@ pub use crate::render::render_value;
 pub use crate::service::ConfigAccess;
 pub use crate::service::ConfigService;
 pub use crate::service::ReadConfigLevel;
+pub use crate::service::ReadContent;
 pub use crate::service::Resolved;
 pub use crate::service::Value;
 pub use crate::service::WriteConfigLevel;

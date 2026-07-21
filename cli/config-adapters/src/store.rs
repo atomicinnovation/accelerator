@@ -5,7 +5,9 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use config::{ConfigError, Level, Node, ReadConfigLevel, WriteConfigLevel};
+use config::{
+    ConfigError, Level, Node, ReadConfigLevel, ReadContent, WriteConfigLevel,
+};
 use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::document;
@@ -159,6 +161,87 @@ impl WriteConfigLevel for FileConfigStore {
         store::atomic_write(&path, rendered.as_bytes(), &bounds, mode)
             .map_err(to_config_error)
     }
+}
+
+impl ReadContent for FileConfigStore {
+    fn config_body(&self, level: Level) -> Result<Option<String>, ConfigError> {
+        let path = self.level_path(level);
+        let permitted_root = self.permitted_root();
+        Ok(read_within(&path, &self.bounds(&permitted_root))?
+            .map(|content| extract_body(&content)))
+    }
+
+    fn skill_context(
+        &self,
+        skill: &str,
+    ) -> Result<Option<String>, ConfigError> {
+        self.read_skill_file(skill, "context.md")
+    }
+
+    fn skill_instructions(
+        &self,
+        skill: &str,
+    ) -> Result<Option<String>, ConfigError> {
+        self.read_skill_file(skill, "instructions.md")
+    }
+}
+
+impl FileConfigStore {
+    fn read_skill_file(
+        &self,
+        skill: &str,
+        file: &str,
+    ) -> Result<Option<String>, ConfigError> {
+        let config_dir = self.config_dir();
+        let path = config_dir.join("skills").join(skill).join(file);
+        read_within(&path, &self.bounds(&config_dir))
+    }
+}
+
+/// Reads a file within `bounds`, returning `None` when it is absent. Refuses a
+/// path escaping the permitted root before touching the filesystem.
+fn read_within(
+    path: &Path,
+    bounds: &WriteBounds<'_>,
+) -> Result<Option<String>, ConfigError> {
+    store::ensure_contained(path, bounds).map_err(to_config_error)?;
+    match fs::read_to_string(path) {
+        Ok(content) => Ok(Some(content)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(io_error(path, &error)),
+    }
+}
+
+/// The markdown body: everything after a leading `---`-fenced frontmatter, or
+/// the whole file when there is none. An unterminated fence yields no body,
+/// matching bash `config_extract_body`.
+fn extract_body(content: &str) -> String {
+    let mut lines = content.lines();
+    match lines.next() {
+        None => String::new(),
+        Some(first) if !is_fence(first) => content.to_owned(),
+        Some(_) => {
+            let mut closed = false;
+            let mut body = Vec::new();
+            for line in lines {
+                if closed {
+                    body.push(line);
+                } else if is_fence(line) {
+                    closed = true;
+                }
+            }
+            if closed {
+                body.join("\n")
+            } else {
+                String::new()
+            }
+        }
+    }
+}
+
+fn is_fence(line: &str) -> bool {
+    line.strip_prefix("---")
+        .is_some_and(|rest| rest.trim().is_empty())
 }
 
 fn display(path: &Path) -> String {

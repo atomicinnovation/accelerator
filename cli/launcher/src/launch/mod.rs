@@ -66,6 +66,18 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             key: key.clone(),
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Context {
+            skill, fail_safe, ..
+        } => config_cli::Action::Context {
+            skill: skill.clone(),
+            on_failure: on_failure(*fail_safe),
+        },
+        ConfigAction::Instructions {
+            skill, fail_safe, ..
+        } => config_cli::Action::Instructions {
+            skill: skill.clone(),
+            on_failure: on_failure(*fail_safe),
+        },
     }
 }
 

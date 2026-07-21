@@ -7,6 +7,8 @@
 //! notice bytes live beside the success output they mirror.
 
 pub mod agents;
+pub mod context;
+pub mod instructions;
 
 /// A rendered subcommand output.
 pub struct Rendered {

@@ -112,6 +112,37 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print the `## Project Context` block from the config-file bodies, and —
+    /// with `--skill` — that skill's `## Skill-Specific Context` block after it.
+    Context {
+        /// Also render this skill's context from
+        /// `.accelerator/skills/<name>/context.md`.
+        #[arg(long)]
+        skill: Option<String>,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the matching
+        /// `## <Name> Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// Print a skill's `## Additional Instructions` block from
+    /// `.accelerator/skills/<name>/instructions.md`.
+    Instructions {
+        /// The skill whose instructions to render, named by its frontmatter
+        /// `name`.
+        skill: String,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Skill Instructions Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
 }
 
 impl ConfigAction {
@@ -137,6 +168,14 @@ impl ConfigAction {
                 ..
             }
             | Self::Work {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Context {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Instructions {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,

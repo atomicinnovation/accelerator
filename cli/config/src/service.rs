@@ -44,6 +44,44 @@ pub trait WriteConfigLevel {
     fn write(&self, level: Level, document: &Node) -> Result<(), ConfigError>;
 }
 
+/// Reads the injection *content* the block subcommands render — a driven port.
+///
+/// That content is the markdown body of a config level's file (project
+/// context) and a per-skill customisation file. Distinct from
+/// [`ReadConfigLevel`], which parses only the frontmatter.
+pub trait ReadContent {
+    /// The raw markdown body of the config level's file (everything after the
+    /// frontmatter), or `None` when the file is absent.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn config_body(&self, level: Level) -> Result<Option<String>, ConfigError>;
+
+    /// The raw content of `.accelerator/skills/<skill>/context.md`, or `None`
+    /// when it is absent. `skill` is a validated identifier.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn skill_context(&self, skill: &str)
+        -> Result<Option<String>, ConfigError>;
+
+    /// The raw content of `.accelerator/skills/<skill>/instructions.md`, or
+    /// `None` when it is absent. `skill` is a validated identifier.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn skill_instructions(
+        &self,
+        skill: &str,
+    ) -> Result<Option<String>, ConfigError>;
+}
+
 /// The operations the core offers callers — the driving port.
 pub trait ConfigAccess {
     /// Resolves a key, full-stack (personal over team) when `level` is `None`,

@@ -83,7 +83,25 @@ fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
             fs::copy(&file, root.join(".accelerator").join(name))?;
         }
     }
+    let skills = src.join("skills");
+    if skills.is_dir() {
+        copy_tree(&skills, &root.join(".accelerator/skills"))?;
+    }
     Ok(root)
+}
+
+fn copy_tree(src: &Path, dest: &Path) -> Result<(), Box<dyn Error>> {
+    fs::create_dir_all(dest)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let target = dest.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 fn golden(name: &str, file: &str) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -364,5 +382,116 @@ fn work_stays_fail_closed_on_a_bad_enum_even_with_fail_safe() -> TestResult {
     )?;
     assert!(output.stdout.is_empty());
     assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_matches_the_project_golden() -> TestResult {
+    let workspace = workspace("context-full")?;
+    let output = run_in(&workspace, &["config", "context"])?;
+    assert_eq!(output.stdout, golden("context-full", "context.golden")?);
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_skill_joins_both_blocks_with_one_blank_line() -> TestResult {
+    let workspace = workspace("context-full")?;
+    let output = run_in(&workspace, &["config", "context", "--skill", "demo"])?;
+    assert_eq!(
+        output.stdout,
+        golden("context-full", "context-skill.golden")?
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn instructions_matches_its_golden() -> TestResult {
+    let workspace = workspace("context-full")?;
+    let output = run_in(&workspace, &["config", "instructions", "demo"])?;
+    assert_eq!(
+        output.stdout,
+        golden("context-full", "instructions.golden")?
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_of_an_unconfigured_repo_prints_nothing() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output = fixture.run(&["config", "context"])?;
+    assert!(output.stdout.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_skill_only_when_the_project_body_is_empty() -> TestResult {
+    let workspace = workspace("context-full")?;
+    // Blank the project body but keep the skill body.
+    fs::write(
+        workspace.join(".accelerator/config.md"),
+        "---\npaths:\n  work: x\n---\n",
+    )?;
+    fs::remove_file(workspace.join(".accelerator/config.local.md"))?;
+    let output = run_in(&workspace, &["config", "context", "--skill", "demo"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("## Skill-Specific Context\n"));
+    assert!(!stdout.contains("## Project Context"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn context_skill_degrades_the_skill_source_within_one_invocation() -> TestResult
+{
+    let workspace = workspace("context-full")?;
+    // A skill directory whose context.md is a directory, so the read fails.
+    fs::remove_file(workspace.join(".accelerator/skills/demo/context.md"))?;
+    fs::create_dir(workspace.join(".accelerator/skills/demo/context.md"))?;
+    let output = run_in(
+        &workspace,
+        &["config", "context", "--skill", "demo", "--fail-safe"],
+    )?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("## Project Context\n"));
+    assert!(stdout.contains("## Skill-Specific Context Unavailable"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn an_invalid_skill_name_under_fail_safe_keeps_the_project_block() -> TestResult
+{
+    let workspace = workspace("context-full")?;
+    let output = run_in(
+        &workspace,
+        &["config", "context", "--skill", "../../etc", "--fail-safe"],
+    )?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("## Project Context\n"));
+    assert!(stdout.contains("## Skill-Specific Context Unavailable"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn an_invalid_skill_name_without_fail_safe_exits_non_zero() -> TestResult {
+    let workspace = workspace("context-full")?;
+    let output =
+        run_in(&workspace, &["config", "context", "--skill", "../../etc"])?;
+    assert!(output.stdout.is_empty());
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn instructions_of_an_absent_skill_prints_nothing() -> TestResult {
+    let workspace = workspace("context-full")?;
+    let output = run_in(&workspace, &["config", "instructions", "nonesuch"])?;
+    assert!(output.stdout.is_empty());
+    assert_eq!(code(&output), 0);
     Ok(())
 }

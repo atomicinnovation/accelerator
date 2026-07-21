@@ -10,9 +10,14 @@
 
 use config::{catalogue, ConfigError, Key, Level, Resolved};
 
-use crate::config_command::core::agents as agents_view;
-use crate::config_command::core::{ConfigStack, OnFailure};
-use crate::config_command::render::{self, agents as agents_render, Rendered};
+use crate::config_command::core::context::{self as context_core, SkillFile};
+use crate::config_command::core::{
+    agents as agents_view, ConfigStack, OnFailure,
+};
+use crate::config_command::render::{
+    self, agents as agents_render, context as context_render,
+    instructions as instructions_render, Rendered,
+};
 
 /// A parsed `config` request, owned by this module so the hexagon never names
 /// the launcher's clap tree. The composition boundary maps the clap
@@ -39,6 +44,14 @@ pub enum Action {
     },
     Work {
         key: String,
+        on_failure: OnFailure,
+    },
+    Context {
+        skill: Option<String>,
+        on_failure: OnFailure,
+    },
+    Instructions {
+        skill: String,
         on_failure: OnFailure,
     },
 }
@@ -82,7 +95,102 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
         Action::Work { key, on_failure } => {
             finish(resolve_work(stack, key), *on_failure, Degrade::Suppress)
         }
+        Action::Context { skill, on_failure } => {
+            run_context(stack, skill.as_deref(), *on_failure)
+        }
+        Action::Instructions { skill, on_failure } => {
+            run_instructions(stack, skill, *on_failure)
+        }
     }
+}
+
+/// One member of a context/instructions output: a rendered block, an
+/// `Unavailable` notice absorbed under `--fail-safe`, or nothing.
+enum Section {
+    Block(String),
+    Notice(&'static str),
+    Empty,
+}
+
+/// Resolves one section, degrading a per-source failure to its notice under
+/// `--fail-safe` (with the diagnostic on stderr) or propagating it otherwise.
+fn section(
+    assembled: Result<Option<String>, ConfigError>,
+    notice: &'static str,
+    on_failure: OnFailure,
+) -> Result<Section, ConfigError> {
+    match assembled {
+        Ok(Some(block)) => Ok(Section::Block(block)),
+        Ok(None) => Ok(Section::Empty),
+        Err(error) if on_failure == OnFailure::Degrade => {
+            eprintln!("{error}");
+            Ok(Section::Notice(notice))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Emits the surviving sections joined by one blank line, with a single
+/// trailing newline; nothing when none survive.
+fn emit_sections(sections: &[Section]) {
+    let parts: Vec<&str> = sections
+        .iter()
+        .filter_map(|section| match section {
+            Section::Block(block) => Some(block.as_str()),
+            Section::Notice(header) => Some(*header),
+            Section::Empty => None,
+        })
+        .collect();
+    if !parts.is_empty() {
+        println!("{}", parts.join("\n\n"));
+    }
+}
+
+fn run_context(
+    stack: &ConfigStack,
+    skill: Option<&str>,
+    on_failure: OnFailure,
+) -> Result<(), ConfigError> {
+    let project = section(
+        context_core::project_body(stack.content())
+            .map(|body| body.map(|body| context_render::project(&body))),
+        context_render::PROJECT_UNAVAILABLE,
+        on_failure,
+    )?;
+    let mut sections = vec![project];
+    if let Some(name) = skill {
+        let block =
+            context_core::skill_body(stack.content(), name, SkillFile::Context)
+                .map(|content| {
+                    content.map(|body| context_render::skill(name, &body))
+                });
+        sections.push(section(
+            block,
+            context_render::SKILL_UNAVAILABLE,
+            on_failure,
+        )?);
+    }
+    emit_sections(&sections);
+    Ok(())
+}
+
+fn run_instructions(
+    stack: &ConfigStack,
+    skill: &str,
+    on_failure: OnFailure,
+) -> Result<(), ConfigError> {
+    let block = context_core::skill_body(
+        stack.content(),
+        skill,
+        SkillFile::Instructions,
+    )
+    .map(|content| {
+        content.map(|body| instructions_render::render(skill, &body))
+    });
+    let rendered =
+        section(block, instructions_render::UNAVAILABLE, on_failure)?;
+    emit_sections(&[rendered]);
+    Ok(())
 }
 
 /// A handler failure, tagged by whether `--fail-safe` may degrade it.
