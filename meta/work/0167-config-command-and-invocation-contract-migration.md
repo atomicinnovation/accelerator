@@ -584,22 +584,16 @@ name none.)
 
 ## Open Questions
 
-- **(Q1, blocks the rewrite)** Does the `allowed-tools` prefix matcher's `*` span
-  `/`? Still unanswered from 0107, and it decides whether a single
-  `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator *)` glob is viable or narrower
-  per-subcommand globs are required. **Resolution path**: an empirical probe
-  against the minimum supported Claude Code (v2.1.144) before the first call site
-  is rewritten; record the verified version alongside the answer, since this is
-  undocumented vendor behaviour that may change.
-  **Counter-evidence worth probing against**: the tree carries
-  `Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)`
-  **alongside** `.../inventory-design/scripts/*`. That nested rule would be
-  redundant if `*` spanned `/`, which cuts against the source research's reading
-  of the same taxonomy as evidence that it does. Neither reading is assumed; the
-  probe settles it.
+- **(Q1, RESOLVED 2026-07-21)** Does the `allowed-tools` prefix matcher's `*`
+  span `/`? **Yes** — empirically verified against Claude Code v2.1.144 and
+  v2.1.216 (see the Assumptions slot for the full finding). A single broad
+  `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)` rule is viable; no
+  narrower per-subcommand globs are required. The nested-glob counter-evidence
+  (`inventory-design/scripts/playwright/*` alongside `.../scripts/*`) turned out
+  not to reflect the matcher's actual reach — the probe settled it directly.
 
-**Q1 is the only outstanding item.** Q2 was resolved on 2026-07-19 by
-re-measurement — see Context.
+**Q1 is resolved; no outstanding items block the rewrite.** Q2 was resolved on
+2026-07-19 by re-measurement — see Context.
 
 **Closed decisions** (recorded here rather than left in the list, so Open
 Questions stays a list of things that actually block work):
@@ -737,13 +731,19 @@ of 2026-07-19 — the `document`, `corpus`, `corpus-adapters`, `vcs` and
   floor. A script with no covering suite remains the likeliest site of silent
   loss, and the repointing decision does not change that; it only removes the
   need to hand-inventory the assertions a suite already encodes.
-- **RESERVED SLOT — TO BE FILLED before the rewrite starts (Q1).** The
-  `allowed-tools` prefix matcher's `*` {does / does not} span `/`, verified
-  empirically against Claude Code v{version}. This bullet asserts nothing until
-  filled; it is a slot, not an assumption. It lives here rather than in Q1
-  because the answer is a premise the rest of the plan rests on, and it is
-  undocumented vendor behaviour that may change — so the verified version matters
-  as much as the answer.
+- **Q1 RESOLVED (2026-07-21).** The `allowed-tools` Bash matcher's `*` **does
+  span `/`**: a single broad `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)`
+  rule authorises every config invocation, including the slash-bearing
+  `config set paths.work meta/work` — so **no narrow per-subcommand rule is
+  needed**. Verified empirically against Claude Code **v2.1.144** (the declared
+  floor) and **v2.1.216** (current), identical results on both. Supporting
+  findings from the same probe: the space-separated wildcard form matches (as do
+  the `config:*` and `config*` variants); `${CLAUDE_PLUGIN_ROOT}` is expanded
+  before matching; enforcement is **per-call**, not first-call-only;
+  `!`-preprocessor commands are permission-checked (a non-matching rule yields
+  "requires approval"), except trivially-safe commands (`echo`, …) which are
+  auto-approved regardless of the rule. This is undocumented vendor behaviour, so
+  the verified versions are recorded alongside the answer.
 - `scripts/config-common.sh` survives this story for its non-config consumers. 44
   scripts source it today; an unknown number of those are themselves on the
   removal set, so the surviving count is lower and is re-measured and recorded per
