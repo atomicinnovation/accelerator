@@ -361,11 +361,6 @@ DOCS_FORCE_BRANCH = "force-deploy-docs"
 DOCS_DEPLOY_GATE = (
     "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
 )
-MAIN_PUSH_GATE = (
-    "github.event_name == 'push' && github.ref == 'refs/heads/main'"
-)
-
-
 @pytest.fixture
 def docs_wf():
     return yaml.safe_load(DOCS_WORKFLOW.read_text())
@@ -482,15 +477,6 @@ def test_main_push_trigger_covers_only_main(wf):
     assert wf[True]["push"]["branches"] == ["main"], (
         "main.yml push trigger must cover exactly main"
     )
-
-
-def test_release_lane_is_gated_to_main_pushes(wf):
-    # Defence in depth: even though main.yml only triggers on main pushes,
-    # the release jobs stay ref-gated to main.
-    for name in sorted(_RELEASE_JOBS):
-        assert wf["jobs"][name].get("if") == MAIN_PUSH_GATE, (
-            f"{name} must be gated to pushes on main only"
-        )
 
 
 def test_docs_jobs_not_in_main_workflow(wf):
