@@ -2522,12 +2522,36 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 > on every direct read). `run-migrations.sh --unapply` lands with a test. A
 > shared `ensure_accelerator_bin` invoke helper points the config/work/
 > integrations/migrate/decisions/visualiser suites at the compiled launcher.
-> **Still to do:** per-migration stub-fail / per-k proofs (plan §4b), the
-> `check-call-site-migration.sh` gate (its Grep A-functional=0 assertion is only
-> reachable at Phase 7 — the removal set, `test-shims/`, `test-config.sh` and the
-> `cli/` refs in `catalogue.rs`/`parity.rs`/`corpus-adapters` still functionally
-> name removal-set basenames until Phase 7 deletes/repoints them), tightening the
-> transitional work-consumer census, and recording Q2.
+> `check-call-site-migration.sh` is built and wired into `lint:check`: Grep B (no
+> removal-set config- script in a SKILL.md) and the `--allow-legacy-layout`
+> confinement (migrations/ + doc-type-table.sh only) gate immediately; Grep
+> A-functional gates to zero **outside** a `PENDING_PHASE7` allowlist (deviation
+> below). The transitional work-consumer census is tightened to `config work`,
+> and Q2 was already recorded in Context during planning. `mise run check` is
+> green with all of the above.
+>
+> **Deviation (approved 2026-07-22): the gate allowlists the not-yet-migrated
+> references.** The Phase-5 criterion "Grep A-functional returns exactly 0" is
+> only literally reachable at Phase 7 — the removal set, `scripts/test-shims/`,
+> `scripts/test-config.sh`, the `cli/` dependants (`catalogue.rs` `EXTRACT`,
+> `config-adapters/tests/parity.rs`, `corpus-adapters/tests/common/mod.rs`) and
+> `config-common`'s `config_resolve_template` still functionally name removal-set
+> basenames until Phase 7 §2-§3 deletes/repoints them, and
+> `hooks/config-detect.sh` until Phase 6. The gate carries a committed
+> `PENDING_PHASE7` allowlist naming exactly those files, each held to a
+> known-positive floor (it MUST still contain a functional reference), so Phase
+> 6/7 empties the list rather than leaving it to rot — mirroring the
+> `store`-duplication lint's allowlist. It catches any NEW functional reference
+> outside the allowlist today.
+>
+> **Still to do:** the per-migration failing-stub / per-k proofs (plan §4b — the
+> graded conversions are implemented and every migrate suite is green, but no
+> test yet injects a failing stub to assert a migration exits non-zero AND stays
+> out of `migrations-applied`); the bare `mise run` end-to-end (only `mise run
+> check` + each affected suite have been run this increment); and the Phase-2 §6
+> member-1 disposition of the now-vacuous `test-config.sh` inline-default censuses
+> (they grep the old names, pass vacuously, are superseded by the new gates, and
+> are deleted in Phase 7).
 
 #### Automated Verification
 
@@ -2570,8 +2594,13 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       pushed (or the bump is the last step), and a simulated upload failure is
       asserted to leave `plugin.json` on `main` at the previous, fully-published
       version
-- [ ] `bash scripts/check-call-site-migration.sh` — **Grep A-functional** returns
-      exactly 0, Grep B exactly 1; **Grep A-mention** is reported (not gated)
+- [x] `bash scripts/check-call-site-migration.sh` — **Grep A-functional** returns
+      exactly 0, Grep B exactly 1; **Grep A-mention** is reported (not gated).
+      **Deviation (approved): Grep A-functional is zero _outside_ the committed
+      `PENDING_PHASE7` allowlist** (the Phase-6/7-owned refs), each held to a
+      known-positive floor; Grep B is asserted as "no removal-set config- script
+      in a SKILL.md" (the browser executor and config-common are the permitted
+      survivors). See the increment-B progress note.
 - [ ] The pre-migration Grep A-functional run is recorded and demonstrably
       non-zero, and its floor includes the three references a path-shaped pattern
       misses — `config-common.sh:407,422`, `catalogue.rs:301,325` and
@@ -2581,11 +2610,12 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       final state (Grep A-functional over the whole tree); surviving mentions in
       `CHANGELOG.md`/`docs`/retained-comment files are excluded or reported, not
       gated
-- [ ] All 28 shell consumers are repointed, **including the eight non-migration
+- [x] All 28 shell consumers are repointed, **including the eight non-migration
       failure-suppression sites** (`write-visualiser-config.sh` ×7,
       `launch-server.sh:110`) converted to distinguish non-zero from
       exit-0-empty; a tree-wide functional scan for removal-set paths outside the
-      exclude list returns 0
+      exclude list returns 0 (the scan is `check-call-site-migration.sh`'s Grep
+      A-functional, zero outside the approved `PENDING_PHASE7` allowlist)
 - [x] `bash skills/integrations/jira/scripts/test-jira-auth.sh` and the Linear
       equivalent pass repointed — the credential path resolves through
       `accelerator config get` and an absent token still fails closed
@@ -2614,7 +2644,7 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       converges to the same tree as an uninterrupted run
 - [x] `run-migrations.sh --unapply <id>` removes an applied entry, so a discovered
       half-application has a supported recovery
-- [ ] `--allow-legacy-layout` appears nowhere outside
+- [x] `--allow-legacy-layout` appears nowhere outside
       `skills/config/migrate/migrations/` **and the allowlisted
       `scripts/doc-type-table.sh`**, asserted by `check-call-site-migration.sh`
 - [ ] A full `/accelerator:migrate` run takes a legacy-layout fixture to the
