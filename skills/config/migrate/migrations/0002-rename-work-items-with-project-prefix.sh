@@ -4,6 +4,7 @@ set -euo pipefail
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$PLUGIN_ROOT/skills/work/scripts/work-item-common.sh"
@@ -16,9 +17,9 @@ WORK_DIR="$PROJECT_ROOT/meta/work"
 
 # ── Step 1: validate_preconditions ──────────────────────────────────────────
 
-PATTERN=$(cd "$PROJECT_ROOT" && bash "$PLUGIN_ROOT/scripts/config-read-value.sh" \
+PATTERN=$(cd "$PROJECT_ROOT" && "$ACCELERATOR" config get --allow-legacy-layout \
   work.id_pattern "{number:04d}")
-DEFAULT_PROJECT=$(cd "$PROJECT_ROOT" && bash "$PLUGIN_ROOT/scripts/config-read-value.sh" \
+DEFAULT_PROJECT=$(cd "$PROJECT_ROOT" && "$ACCELERATOR" config get --allow-legacy-layout \
   work.default_project_code "")
 
 if [[ "$PATTERN" != *"{project}"* ]]; then

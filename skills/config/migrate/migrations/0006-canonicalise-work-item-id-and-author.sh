@@ -4,6 +4,7 @@ set -euo pipefail
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
@@ -55,11 +56,17 @@ assert_safe_relpath() {
 
 resolve_corpus_path() {
   local key="$1"
-  local rel
+  local rel rc=0
+  # Called inside a command substitution, so it must not exit here: return 2 on
+  # a genuine read failure (the caller turns that into a fatal), 1 on an unset
+  # key (the caller keeps its "skip this corpus" meaning).
   rel="$(cd "$PROJECT_ROOT" &&
-    bash "$PLUGIN_ROOT/scripts/config-read-path.sh" "$key" 2>/dev/null || true)"
+    "$ACCELERATOR" config path --allow-legacy-layout "$key")" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    return 2
+  fi
   if [ -z "$rel" ]; then
-    log_warn "0006: config-read-path.sh returned empty for '$key' — skipping corpus"
+    log_warn "0006: config path returned empty for '$key' — skipping corpus"
     return 1
   fi
   if ! assert_safe_relpath "$rel" "paths.$key"; then
@@ -294,11 +301,17 @@ rewrite_file() {
 
 walk_corpus() {
   local key="$1"
-  local rel
-  if ! rel="$(resolve_corpus_path "$key")"; then
-    echo "0006: rewrote 0 file(s) under <unresolved $key>"
-    return 0
-  fi
+  local rel rc=0
+  # The `if !` form discards resolve_corpus_path's graded return, so capture it:
+  # rc=2 is a read failure (fatal), rc=1 is an unresolved/unsafe key (skip).
+  rel="$(resolve_corpus_path "$key")" || rc=$?
+  case "$rc" in
+    2) log_die "0006: config read failed for paths.$key" ;;
+    1)
+      echo "0006: rewrote 0 file(s) under <unresolved $key>"
+      return 0
+      ;;
+  esac
   local abs="$PROJECT_ROOT/$rel"
   if [ ! -d "$abs" ]; then
     log_warn "0006: $key directory does not exist: $rel"
@@ -332,7 +345,8 @@ _walked_owner() { # echoes the recorded key for a canon, empty if unseen
   return 0 # not found: echo nothing, succeed (a failing match must not abort set -e)
 }
 for key in plans research_codebase research_issues; do
-  raw_rel="$(cd "$PROJECT_ROOT" && bash "$PLUGIN_ROOT/scripts/config-read-path.sh" "$key" 2>/dev/null || true)"
+  raw_rel="$(cd "$PROJECT_ROOT" && "$ACCELERATOR" config path --allow-legacy-layout "$key")" ||
+    log_die "0006: config read failed for paths.$key"
   if [ -z "$raw_rel" ]; then continue; fi
   canon="$(canonicalise_rel "$raw_rel")"
   owner="$(_walked_owner "$canon")"
@@ -351,9 +365,12 @@ done
 resolve_user_template_path() {
   local name="$1"
 
-  local tier1
+  # Called inside a command substitution, so a read failure returns 2 (the
+  # caller turns that into a fatal) rather than exiting only this subshell.
+  local tier1 rc=0
   tier1="$(cd "$PROJECT_ROOT" &&
-    bash "$PLUGIN_ROOT/scripts/config-read-value.sh" "templates.$name" 2>/dev/null || true)"
+    "$ACCELERATOR" config get --allow-legacy-layout "templates.$name")" || rc=$?
+  [ "$rc" -eq 0 ] || return 2
   if [ -n "$tier1" ]; then
     if ! assert_safe_relpath "$tier1" "templates.$name"; then
       return 0
@@ -368,8 +385,10 @@ resolve_user_template_path() {
   fi
 
   local tdir_rel
+  rc=0
   tdir_rel="$(cd "$PROJECT_ROOT" &&
-    bash "$PLUGIN_ROOT/scripts/config-read-path.sh" templates 2>/dev/null || true)"
+    "$ACCELERATOR" config path --allow-legacy-layout templates)" || rc=$?
+  [ "$rc" -eq 0 ] || return 2
   if [ -n "$tdir_rel" ]; then
     local tier2_abs="$PROJECT_ROOT/$tdir_rel/$name.md"
     if [ -f "$tier2_abs" ]; then
@@ -393,7 +412,9 @@ _template_owner() { # echoes the recorded name for a resolved path, empty if uns
   return 0 # not found: echo nothing, succeed (a failing match must not abort set -e)
 }
 for name in plan codebase-research rca; do
-  path=$(resolve_user_template_path "$name")
+  if ! path=$(resolve_user_template_path "$name"); then
+    log_die "0006: config read failed resolving template $name"
+  fi
   if [ -n "$path" ]; then
     owner="$(_template_owner "$path")"
     if [ -n "$owner" ]; then

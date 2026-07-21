@@ -1066,6 +1066,21 @@ setup_0003_repo() {
   printf '%s\n' "$repo"
 }
 
+# Write a well-formed legacy .claude/accelerator.md: the fixture's base work:
+# block plus any extra top-level frontmatter in $2. The fixture ships without a
+# trailing newline, so `>>`-appending a second `---` block would fuse the two
+# fences into `------` and malform the YAML — which the launcher now rejects
+# loudly. Emit one block instead.
+write_legacy_config() {
+  local repo="$1" extra="${2:-}"
+  {
+    printf -- '---\nwork:\n  id_pattern: "{project}-{number:04d}"\n'
+    printf '  default_project_code: PROJ\n'
+    [ -n "$extra" ] && printf '%s\n' "$extra"
+    printf -- '---\n'
+  } >"$repo/.claude/accelerator.md"
+}
+
 # ── Test 1: dirty-tree refusal covers .accelerator/ ──────────────────────────
 echo "Test: dirty-tree refusal applies to .accelerator/ changes"
 REPO=$(mktemp -d "$TMPDIR_BASE/m0003-dirty-XXXXXX")
@@ -1151,8 +1166,8 @@ echo ""
 # ── Test 5: paths.tmp overridden to custom path — meta/tmp/ untouched ────────
 echo "Test: paths.tmp overridden to custom path — meta/tmp/ left untouched"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: custom/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: custom/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
@@ -1162,8 +1177,8 @@ echo ""
 # ── Test 6: paths.tmp = "meta/tmp" literal — treated as explicit override ─────
 echo "Test: paths.tmp = meta/tmp literal — explicit override leaves meta/tmp untouched"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: meta/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: meta/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (literal override)" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
@@ -1173,8 +1188,8 @@ echo ""
 # ── Test 6a: paths.tmp = "meta/tmp/" (trailing slash) — also treated as set ──
 echo "Test: paths.tmp with trailing slash — treated as explicit override"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: meta/tmp/\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: meta/tmp/'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (slash override)" "$REPO/meta/tmp"
 
@@ -1183,8 +1198,8 @@ echo ""
 # ── Test 6b: tmp under nested non-paths block — not detected as override ──────
 echo "Test: tmp under non-paths block — awk anchor prevents false positive, meta/tmp moved"
 REPO=$(setup_0003_repo)
-printf -- '---\nsome_section:\n  tmp: meta/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'some_section:
+  tmp: meta/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists ".accelerator/tmp created (nested not detected)" "$REPO/.accelerator/tmp"
 assert_dir_not_exists "meta/tmp moved away" "$REPO/meta/tmp"
@@ -1363,8 +1378,9 @@ echo ""
 # ── Test 14: pinned-override warning for paths.templates and paths.integrations ─
 echo "Test: pinned-override warning emitted for paths.templates and paths.integrations"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  templates: custom/templates\n  integrations: custom/ints\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  templates: custom/templates
+  integrations: custom/ints'
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 (warning not error)" "0" "$RC"

@@ -4,6 +4,7 @@ set -euo pipefail
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/fs-common.sh"
 
@@ -28,9 +29,17 @@ done
 
 # Read old paths.tickets / paths.review_tickets from user config (old key names)
 pinned_tickets="$(cd "$PROJECT_ROOT" &&
-  bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.tickets "" 2>/dev/null || true)"
+  "$ACCELERATOR" config get --allow-legacy-layout paths.tickets "")" ||
+  {
+    echo "0001: config read failed for paths.tickets" >&2
+    exit 1
+  }
 pinned_review_tickets="$(cd "$PROJECT_ROOT" &&
-  bash "$PLUGIN_ROOT/scripts/config-read-value.sh" paths.review_tickets "" 2>/dev/null || true)"
+  "$ACCELERATOR" config get --allow-legacy-layout paths.review_tickets "")" ||
+  {
+    echo "0001: config read failed for paths.review_tickets" >&2
+    exit 1
+  }
 
 if [ -z "$pinned_tickets" ] || [ "$pinned_tickets" = "meta/tickets" ]; then
   tickets_dir="$PROJECT_ROOT/meta/tickets"
