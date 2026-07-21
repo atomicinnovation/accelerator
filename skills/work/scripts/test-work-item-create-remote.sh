@@ -10,6 +10,9 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
+# The routing test resolves work.integration through the accelerator launcher.
+accelerator_ensure_bin "$PLUGIN_ROOT"
+
 DISPATCH="$SCRIPT_DIR/work-item-create-remote.sh"
 DECIDE="$SCRIPT_DIR/work-item-push-decide.sh"
 
@@ -141,7 +144,7 @@ echo ""
 # The caller sources --integration from the SAME config read as the gate. Mirror
 # that: resolve work.integration from config, pass it through, assert the route.
 REPO=$(setup_linear_repo)
-SYS=$(cd "$REPO" && "$PLUGIN_ROOT/scripts/config-read-work.sh" integration)
+SYS=$(cd "$REPO" && "${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config work integration)
 assert_eq "configured integration is linear" "linear" "$SYS"
 start_mock "$LINEAR_MOCK" "$LINEAR_SCN/create-201-capture.json"
 OUT=$(dispatch_linear "$REPO" --integration "$SYS" --title "A widget" --body-file "$BODY" 2>/dev/null)
