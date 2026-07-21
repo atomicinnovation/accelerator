@@ -2492,6 +2492,21 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 
 ### Success Criteria
 
+> **Progress (2026-07-21).** Split into two increments. **Increment A — the
+> SKILL.md contract flip — is committed and `mise run`-green** (`6e509b2e`):
+> all 247 `!` sites and 14 non-`!` sites repointed at `bin/accelerator config`
+> (`--fail-safe` on every config `!` site; the 42 context+skill-context pairs
+> collapsed; `skill-instructions`→`instructions`), the 35 `allowed-tools` blocks
+> swept (plus `vcs/commit` gaining the rule, `browser-executor` narrowed,
+> `configure` gaining a full key), `check-skill-permissions.sh` built + wired
+> into `lint:check`, and the SKILL.md census suites (`test-config.sh`,
+> `test-design.sh`, `test-skill-frontmatter-population.sh`) rewritten to the new
+> contract (the work-consumer census left **transitional** — accepts either the
+> old script or the new form — so A could land before §4b). **Increment B —
+> §4b (the 28 shell consumers + migrations graded-return + `--unapply` +
+> `check-call-site-migration.sh` + tightening the transitional censuses) — is
+> still to do.** Boxes below are ticked accordingly.
+
 #### Automated Verification
 
 - [ ] **Entry precondition — 0165's artefact gate.** Signed, checksum-verified
@@ -2583,18 +2598,19 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 - [ ] A full `/accelerator:migrate` run takes a legacy-layout fixture to the
       current layout end to end — the deadlock case, exercised rather than
       reasoned about
-- [ ] `bash scripts/check-skill-permissions.sh` exits 0 — including its assertion
+- [x] `bash scripts/check-skill-permissions.sh` exits 0 — including its assertion
       that `--fail-safe` is present on **every** `bin/accelerator config`
       invocation in a `!` block (the flag is present everywhere; its effect
       differs per the fail-safe matrix), and its rejection of any `!` invocation
       containing a shell metacharacter
-- [ ] The checker rejects an ancestor-glob rule (`Bash(${CLAUDE_PLUGIN_ROOT}/*)`)
+- [x] The checker rejects an ancestor-glob rule (`Bash(${CLAUDE_PLUGIN_ROOT}/*)`)
       that would match the bootstrap path without naming a subcommand
+      (negative-tested against a broken rule, a missing flag, and metacharacters)
 - [ ] **Same-commit re-homing**: the coverage script is replayed against **each
       commit** in the migration range and exits 0 at every one; the replay output
       is committed. Final-tree checks cannot distinguish a rule added in the right
       commit from one added three commits later
-- [ ] `bash scripts/test-design.sh` passes with its SKILL.md censuses updated
+- [x] `bash scripts/test-design.sh` passes with its SKILL.md censuses updated
 - [ ] The SKILL.md census invariants (injection present in exactly 42 skills,
       skill-context immediately follows context, skill-instructions is the last
       preprocessor line, skill-name matches frontmatter `name`, `configure`
@@ -2608,11 +2624,12 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 
 #### Manual Verification
 
-- [ ] Q1's two open answers, and **both** verified Claude Code versions, are
-      written into the work item's Assumptions slot **before** the first call site
-      was rewritten
-- [ ] The winning rule shape is confirmed against **one real skill** in a live
-      session before the remaining 34 frontmatter blocks are rewritten
+- [x] Q1's two open answers, and **both** verified Claude Code versions
+      (v2.1.144 and v2.1.216), are written into the work item's Assumptions slot
+      **before** the first call site was rewritten
+- [x] The winning rule shape is confirmed against **one real skill** in a live
+      session before the remaining 34 frontmatter blocks are rewritten (the
+      `probe-q1` skill, run on both versions)
 - [ ] In a live session, invoking `/accelerator:commit` and one integration write
       skill produces **no new permission prompt**
 - [ ] `/accelerator:configure` loads and its injected blocks render correctly
