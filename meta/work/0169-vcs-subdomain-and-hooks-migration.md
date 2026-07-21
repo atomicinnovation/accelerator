@@ -31,11 +31,13 @@ external_id: "PP-190"
 
 Build the `accelerator-vcs` subdomain (detection/status/log/guard) and migrate the
 SessionStart and PreToolUse hook logic into the CLI (ADR-0048), registering the
-universal bash wrapper in `hooks.json` to invoke domain subcommands with a
-`--format=hook` envelope rather than a hook-specific subcommand. The SessionStart
-migration covers VCS detection and config detection only (the latter via a
-cross-subdomain `accelerator config detect` port); the migration-discoverability
-reminder is deferred to 0172.
+bootstrap path (`${CLAUDE_PLUGIN_ROOT}/bin/accelerator`) in `hooks.json` to invoke
+domain subcommands with a `--format=hook` envelope rather than a hook-specific
+subcommand. The SessionStart migration covers VCS detection and config detection
+only; the config side is **already shipped by 0167** as
+`accelerator config summary --format=hook --fail-safe` (there is no
+`config detect` subcommand — 0167 reuses `config summary`), so this story owns
+the VCS half. The migration-discoverability reminder is deferred to 0172.
 
 ## Context
 
@@ -67,12 +69,13 @@ with the migration subdomain (0172).
   and `jj-lib` for jujutsu — bound behind the outbound port, not by spawning
   `jj`/`git` subprocesses; a per-query shell fallback behind the same port is
   permitted only where no library equivalent exists.
-- Migrate the VCS and config hook logic into the CLI: `hooks.json` registers the
-  universal bash wrapper (which fetches `accelerator` on first use, then execs it)
-  invoking domain subcommands — SessionStart → `accelerator vcs detect` +
-  `accelerator config detect`; PreToolUse(`Bash`) → `accelerator vcs guard`. No
-  hook-specific subcommand. The SessionStart migration-discoverability reminder is
-  out of scope here and remains its existing bash hook until 0172.
+- Migrate the VCS hook logic into the CLI: `hooks.json` registers the bootstrap
+  path (which fetches `accelerator` on first use, then execs it) invoking domain
+  subcommands — SessionStart → `accelerator vcs detect` (the config side,
+  `accelerator config summary --format=hook --fail-safe`, is already registered by
+  0167); PreToolUse(`Bash`) → `accelerator vcs guard`. No hook-specific subcommand.
+  The SessionStart migration-discoverability reminder is out of scope here and
+  remains its existing bash hook until 0172.
 - Add a `--format=hook` switch producing the Claude Code hook I/O envelope, so one
   domain operation serves both its skill-injection caller (plain) and its hook
   caller (envelope).
@@ -103,22 +106,31 @@ with the migration subdomain (0172).
       verified by asserting zero `jj`/`git` process spawns across the
       detect/status/log/guard paths under an instrumented process launcher; any
       shell fallback is explicit, per-query, and covered by its own test.
-- [ ] `accelerator config detect` reproduces the SessionStart config-detection
-      behaviour of `config-detect.sh`, verified against its hook test.
-- [ ] `hooks.json` registers the wrapper invoking domain subcommands; SessionStart
-      injects the VCS and config context and PreToolUse guards Bash calls, both
-      emitting the hook I/O envelope via `--format=hook`, verified against a golden
-      envelope fixture per hook type (SessionStart, PreToolUse) that pins the
-      Claude Code hook I/O protocol fields.
+- [x] The SessionStart config-detection behaviour is reproduced — **delivered by
+      0167** as `accelerator config summary --format=hook --fail-safe`, registered
+      via `hooks/config-detect.sh` (a thin exec-wrapper of the bootstrap path).
+- [ ] `hooks.json` registers the bootstrap path invoking the VCS subcommands;
+      SessionStart injects the VCS context and PreToolUse guards Bash calls, each
+      emitting its hook I/O envelope via `--format=hook`, verified against a golden
+      envelope fixture per hook type (SessionStart, PreToolUse). **The two envelopes
+      are different shapes** — SessionStart is
+      `{hookSpecificOutput:{hookEventName,additionalContext}}`; the PreToolUse guard
+      is `{decision, reason}` / `{decision, hookSpecificOutput}` — so the fixture is
+      per hook type, not one shared envelope.
 - [ ] After first use, the PreToolUse guard resolves `accelerator vcs guard` from the
       warmed cache — verified by asserting zero sub-binary fetch invocations against
       a stubbed/instrumented fetcher across repeated guard calls after the cache is
       warm.
 - [ ] The wrapper passes the bash-3.2 gate — `scripts/lint-bashisms.sh` (and the
       standard shfmt/ShellCheck checks) report no findings against it.
-- [ ] The `vcs-detect.sh`, `vcs-guard.sh`, and `config-detect.sh` hook scripts are
-      removed and the hooks suite floor adjusted in the same change;
-      `migrate-discoverability.sh` is left in place for 0172.
+- [ ] The `vcs-detect.sh` and `vcs-guard.sh` hook scripts are removed and the hooks
+      suite floor adjusted in the same change; `migrate-discoverability.sh` is left
+      in place for 0172. `config-detect.sh` was re-homed by 0167 to a thin
+      exec-wrapper of the bootstrap path — this story may fold it directly into
+      `hooks.json` and delete it **only once the argument-splitting probe below is
+      resolved** (whether `hooks.json`'s `command` field expands
+      `${CLAUDE_PLUGIN_ROOT}` and splits argument tokens); until then the wrapper
+      stays.
 
 ## Open Questions
 
@@ -205,6 +217,30 @@ with the migration subdomain (0172).
     (`cli/vcs-adapters/tests/detection.rs`). The launcher dispatches any new
     `accelerator-vcs` external subcommand with no launcher changes
     (`cli/launcher/src/launch/inbound/cli.rs:15-22`).
+
+## Notes from 0167 (2026-07-22)
+
+- **The SessionStart envelope contract is settled by 0167** and this story
+  inherits it: `accelerator config summary --format=hook` emits
+  `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"…"}}`
+  (compact `serde_json`, not `jq`'s pretty-print), emits **nothing** when the
+  summary is empty, and — with `--fail-safe` — exits 0 with a stderr diagnostic on
+  a read/IO failure. `accelerator vcs detect`'s SessionStart output must slot into
+  the same `additionalContext` shape.
+- **The registration names the bootstrap path**, `${CLAUDE_PLUGIN_ROOT}/bin/accelerator`,
+  not a "universal wrapper" — 0164/0165's fetch-verify-cache launcher. The word
+  "wrapper" in this story's earlier prose refers to that bootstrap script.
+- **PreToolUse's envelope is this story's own to define.** `vcs-guard.sh` emits
+  `{decision, reason}` and `{decision, hookSpecificOutput}`, an unrelated shape to
+  SessionStart's — there is no single envelope spanning all hooks, so the
+  `--format=hook` switch renders a per-hook-type envelope, not one uniform one.
+- **The hooks.json argument-splitting question is unresolved and shared.** 0167
+  could not confirm headlessly whether `hooks.json`'s `command` field expands
+  `${CLAUDE_PLUGIN_ROOT}` *and* splits argument tokens, so it left
+  `config-detect.sh` as a thin exec-wrapper rather than inlining
+  `bin/accelerator config summary --format=hook --fail-safe` into `hooks.json`.
+  This story resolves the probe (it must, to register argument-bearing VCS
+  subcommands) and can then fold the config registration in and delete the wrapper.
 
 ## Drafting Notes
 

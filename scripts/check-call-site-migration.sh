@@ -71,10 +71,9 @@ skills/config/init/scripts/init.sh
 # Files whose functional removal-set references belong to a later phase, not to
 # this call-site cutover. Each MUST still contain a functional reference (the
 # known-positive floor below), so the later phase empties this list rather than
-# leaving it to rot. hooks/config-detect.sh is Phase 6's (the SessionStart
-# registration); the rest are Phase 7 §2-§3 (deletions and cli/ repoints).
+# leaving it to rot. These are Phase 7 §2-§3 (deletions and cli/ repoints);
+# Phase 6 already re-homed hooks/config-detect.sh onto the bootstrap path.
 PENDING_PHASE7="
-hooks/config-detect.sh
 cli/config/src/catalogue.rs
 cli/config-adapters/tests/parity.rs
 cli/corpus-adapters/tests/common/mod.rs

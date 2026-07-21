@@ -2790,14 +2790,30 @@ envelope for both SessionStart and PreToolUse; and it names
 
 ### Success Criteria
 
+> **Progress (2026-07-22).** `hooks/config-detect.sh` is rewritten as a thin
+> exec-wrapper of `${…}/bin/accelerator config summary --format=hook --fail-safe`
+> (dropping the jq guard, the emptiness test and the envelope, all now in the
+> CLI). **Deviation (approved by the "push through Phase 7" direction): the
+> registration is NOT inlined into `hooks.json` and the wrapper is NOT deleted.**
+> Whether `hooks.json`'s `command` field expands `${CLAUDE_PLUGIN_ROOT}` and
+> splits argument tokens can only be settled by a live SessionStart, which cannot
+> run headlessly — so the plan's own fallback (keep a thin wrapper) is taken.
+> `hooks.json` is therefore unchanged, which also keeps `vcs-detect` at index 0.
+> 0169 is updated with the envelope contract, the bootstrap-path naming, the
+> distinct PreToolUse envelope, and the shared arg-splitting probe. The wrapper is
+> lint-clean (shellcheck/shfmt/bashisms) and `config-detect.sh` is dropped from the
+> call-site gate's Phase-7 allowlist.
+
 #### Automated Verification
 
-- [ ] `bash hooks/test-vcs-detect.sh` still passes (index-sensitive assertion)
-- [ ] The registration's arguments actually arrive — `hooks.json` expands
+- [x] `bash hooks/test-vcs-detect.sh` still passes (index-sensitive assertion)
+- [~] The registration's arguments actually arrive — `hooks.json` expands
       `${CLAUDE_PLUGIN_ROOT}` and splits the argument tokens, per the Phase 5
-      probe. If it does not, a thin `hooks/config-detect.sh` survives to exec the
-      bootstrap path with them
-- [ ] `mise run check` and `mise run` exit 0
+      probe. **Deferred (live-session probe): the thin `hooks/config-detect.sh`
+      wrapper survives and takes no arguments in `hooks.json`, so the arg-splitting
+      question does not block; it is 0169's to resolve before inlining.**
+- [~] `mise run check` exits 0 (confirmed); the bare `mise run` is run at the end
+      of the Phase 7 push
 
 The `--format=hook` output criteria live in Phase 2, where it is implemented.
 
