@@ -1645,111 +1645,111 @@ suites writing `exec` stubs that hard-code the resolver path
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes (CI's `cargo nextest --workspace
+- [x] `mise run test:unit:cli` passes (CI's `cargo nextest --workspace
       --all-features`, not bare `cargo test --workspace`, so the
       `bash-parity`-gated suites are exercised)
 - [ ] `accelerator config --help` and every subcommand's `--help` match a
       committed snapshot
-- [ ] Each **block** subcommand matches its golden byte-for-byte against the
+- [x] Each **block** subcommand matches its golden byte-for-byte against the
       baseline fixture
-- [ ] Each **scalar** subcommand emits exactly the value plus one `\n`, stderr empty
-- [ ] `config paths --doc-types --format tsv` emits exactly 13 tab-separated
+- [x] Each **scalar** subcommand emits exactly the value plus one `\n`, stderr empty
+- [x] `config paths --doc-types --format tsv` emits exactly 13 tab-separated
       lines under `LC_ALL=C`, byte-identical to `config-read-doc-type-paths.sh`
-- [ ] `config paths` emits the `## Configured Paths` block excluding `tmp`,
+- [x] `config paths` emits the `## Configured Paths` block excluding `tmp`,
       `templates` and `integrations`; `--all` includes them
-- [ ] `config context --skill <name>` covers all four survival states: both
+- [x] `config context --skill <name>` covers all four survival states: both
       blocks (project, one blank line, skill), project-only, skill-only, and
       neither (zero bytes). The separator appears only when both survive — plain
       concatenation of the two bash scripts yields zero blank lines, so
       "byte-identical to concatenation" and "one blank line" are different
       contracts and only one can hold
-- [ ] Fail-safe, read/IO failure, notice-rendering commands: `agents`, `context`,
+- [x] Fail-safe, read/IO failure, notice-rendering commands: `agents`, `context`,
       `instructions`, `review` **with `--fail-safe`** against **unreadable-config**
       exit 0 with stdout exactly the named header (`## Agent Names Unavailable\n`,
       `## Project Context Unavailable\n` and `## Skill-Specific Context Unavailable\n`
       for `context --skill`, `## Skill Instructions Unavailable\n`,
       `## Review Configuration Unavailable\n`), diagnostic on stderr, nothing else
-- [ ] Fail-safe, suppression commands: `summary`, `get`, `path`, **`work`** **with
+- [x] Fail-safe, suppression commands: `summary`, `get`, `path`, **`work`** **with
       `--fail-safe`** against **unreadable-config** emit **nothing** on stdout,
       exit 0, diagnostic on stderr — including `config work integration`, whose
       empty output the work skills read as "not configured"
-- [ ] Fail-safe, multi-line block commands: `dump`, `paths`, `template`,
+- [x] Fail-safe, multi-line block commands: `dump`, `paths`, `template`,
       `templates list` **with `--fail-safe`** against **unreadable-config** render
       their `## <Name> Unavailable` block, exit 0
-- [ ] **Without** `--fail-safe` the same input exits non-zero with the error on
+- [x] **Without** `--fail-safe` the same input exits non-zero with the error on
       stderr and stdout empty — asserted for every subcommand above, since this is
       what the 28 shell consumers depend on
-- [ ] **Validation refusals stay fail-closed even WITH `--fail-safe`**:
+- [x] **Validation refusals stay fail-closed even WITH `--fail-safe`**:
       `config work integration --fail-safe` against **bad-integration-enum**, and
       `config paths --doc-types --fail-safe` against **doc-type-escape**, each exit
       non-zero with empty stdout and the diagnostic on stderr — the load-bearing
       read/IO-vs-validation split
-- [ ] Per-source degradation asserted **within one `context --skill` invocation**,
+- [x] Per-source degradation asserted **within one `context --skill` invocation**,
       with notice **position** pinned by golden: an unreadable skill file prints
       the project block then the skill notice in the skill block's position; an
       unreadable config prints the project notice then the skill block; both
       failing prints both notices; the one-blank-line separator applies between the
       two members in every case
-- [ ] An invalid `--skill` name under `--fail-safe` still prints the project
+- [x] An invalid `--skill` name under `--fail-safe` still prints the project
       block and exits 0 — proving the name is parsed inside the fail-safe
       boundary rather than by a clap `value_parser`
-- [ ] The same invalid name **without** `--fail-safe` exits non-zero
-- [ ] `--explain` names **both** files on a fixture where a key set in `config.md`
+- [x] The same invalid name **without** `--fail-safe` exits non-zero
+- [x] `--explain` names **both** files on a fixture where a key set in `config.md`
       is overridden in `config.local.md`, attributes the winning value to the
       personal level, and leaves stdout byte-identical to the same run without it;
       the same run **without** `--explain` emits no provenance — so the flag is
       distinguishable from the default, not a no-op
-- [ ] `config paths --doc-types` emits exactly 13 rows under a **blank**
+- [x] `config paths --doc-types` emits exactly 13 rows under a **blank**
       `paths.<key>` override, coercing it to the registry default with the stderr
       note — the invariant migration 0007's fail-closed net depends on
-- [ ] Fail-closed (no flag): **bad-integration-enum** → `config work` exits
+- [x] Fail-closed (no flag): **bad-integration-enum** → `config work` exits
       non-zero; **doc-type-escape** → `config paths --doc-types` exits non-zero;
       stdout empty in both (the buffered divergence — the bash leaves a partial
       prefix), diagnostic on stderr
-- [ ] A usage error (unknown flag, bad `--level`) exits **1**, not 2 — asserted
+- [x] A usage error (unknown flag, bad `--level`) exits **1**, not 2 — asserted
       for `accelerator --bogus-flag` and `accelerator version --bogus-flag` too,
       since the interception is at the launcher-wide parse point
-- [ ] A bare `accelerator config` prints help and exits **0**, matching
+- [x] A bare `accelerator config` prints help and exits **0**, matching
       `config --help`
-- [ ] `accelerator config --help` and `accelerator config get --help` render the
+- [x] `accelerator config --help` and `accelerator config get --help` render the
       **matched-subcommand** help, not the top-level launcher help — the augmented
       top-level help fires only for the top-level `--help`
 - [ ] Neither `accelerator version` nor `accelerator config path <key>` installs
       the rustls crypto provider (the built-in path skips `install_crypto_provider`)
-- [ ] `config get` on an unset key with no `[default]` prints empty and exits 0
-- [ ] `config get <key> <default>` on a miss returns the **caller's** default even
+- [x] `config get` on an unset key with no `[default]` prints empty and exits 0
+- [x] `config get <key> <default>` on a miss returns the **caller's** default even
       where a differing catalogue default exists, and returns **empty** for an
       explicitly empty default — the presence probe `jira-auth.sh:228`,
       `linear-auth.sh:241` and `write-visualiser-config.sh:64-65` depend on
-- [ ] `config path <key> <default>` prefers the explicit default over the
+- [x] `config path <key> <default>` prefers the explicit default over the
       catalogue; without it, the catalogue default, else empty plus a stderr
       warning
 - [ ] Fixtures include **config-path-customised** and **non-mapping-root**
-- [ ] Legacy layout is refused uniformly by every subcommand
+- [x] Legacy layout is refused uniformly by every subcommand
 - [ ] `--allow-legacy-layout` suppresses that refusal on the **read** subcommands
       when passed, and enables the source fallback; `config set
       --allow-legacy-layout` (and the other mutating subcommands) **exits
       non-zero** — the flag is rejected on writes. `ACCELERATOR_MIGRATION_MODE=1`
       alone still refuses, asserted by the retained 0178 negative test
-- [ ] The legacy source fallback is **inert** when the current-layout pair is
+- [x] The legacy source fallback is **inert** when the current-layout pair is
       present, and reads the `.claude/accelerator{,.local}.md` pair (team then
       local, last-writer-wins) only when the current pair is absent
-- [ ] `config-summary.sh`'s output against the baseline fixture is captured and
+- [x] `config-summary.sh`'s output against the baseline fixture is captured and
       committed as a golden **before** the script is deleted (by redirection and
       `cmp`, not command substitution), and `accelerator config summary` matches
       it byte-for-byte
-- [ ] `--format=hook --fail-safe` against **baseline** emits exactly the envelope
+- [x] `--format=hook --fail-safe` against **baseline** emits exactly the envelope
       with the plain command's output as `additionalContext`
-- [ ] `--format=hook --fail-safe` against **empty-summary**: nothing on stdout,
+- [x] `--format=hook --fail-safe` against **empty-summary**: nothing on stdout,
       exit 0 — not `{}`, not an envelope carrying an empty string
-- [ ] `--format=hook --fail-safe` against **unreadable-config**: nothing on
+- [x] `--format=hook --fail-safe` against **unreadable-config**: nothing on
       stdout, exit 0, diagnostic on stderr
-- [ ] `--format=hook` **without** `--fail-safe` against **unreadable-config**:
+- [x] `--format=hook` **without** `--fail-safe` against **unreadable-config**:
       exit non-zero, empty stdout — the flag is required for the exit-0 states, so
       the hook registration (Phase 6) carries it
 - [ ] The stdout/stderr split is preserved: the unrecognised-skill warning appears
       on stderr and **not** in the stdout JSON
-- [ ] `bash scripts/check-inventory.sh` exits 0
+- [x] `bash scripts/check-inventory.sh` exits 0
 - [ ] `mise run check` exits 0, `mise run` exits 0
 
 #### Manual Verification

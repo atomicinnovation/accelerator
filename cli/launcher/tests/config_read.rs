@@ -1054,3 +1054,25 @@ fn templates_list_with_fail_safe_renders_the_unavailable_notice() -> TestResult
     assert_eq!(code(&output), 0);
     Ok(())
 }
+
+#[test]
+fn context_both_sources_failing_prints_both_notices_with_one_blank_line(
+) -> TestResult {
+    let workspace = workspace("context-full")?;
+    // Make both the config body and the skill context unreadable (directories).
+    fs::remove_file(workspace.join(".accelerator/config.md"))?;
+    fs::remove_file(workspace.join(".accelerator/config.local.md"))?;
+    fs::create_dir(workspace.join(".accelerator/config.md"))?;
+    fs::remove_file(workspace.join(".accelerator/skills/demo/context.md"))?;
+    fs::create_dir(workspace.join(".accelerator/skills/demo/context.md"))?;
+    let output = run_in(
+        &workspace,
+        &["config", "context", "--skill", "demo", "--fail-safe"],
+    )?;
+    assert_eq!(
+        output.stdout,
+        b"## Project Context Unavailable\n\n## Skill-Specific Context Unavailable\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
