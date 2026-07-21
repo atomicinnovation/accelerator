@@ -2506,6 +2506,28 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 > §4b (the 28 shell consumers + migrations graded-return + `--unapply` +
 > `check-call-site-migration.sh` + tightening the transitional censuses) — is
 > still to do.** Boxes below are ticked accordingly.
+>
+> **Progress (2026-07-21, increment B).** All 28 shell consumers are repointed
+> at `"${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config …` across six
+> `mise run check`-green commits: work-management scripts + `work-common`;
+> jira/linear (`-auth` via `config get`, `-common`/`-resolve-fields`/init-flow);
+> `adr-next-number` + the inventory-design playwright launcher; the
+> `doc-type-table` resolver (now `config paths --doc-types --format tsv`,
+> word-split, appending `--allow-legacy-layout` under migration mode); the four
+> visualiser scripts (the eight failure-suppression reads converted to
+> distinguish a fatal non-zero read from an unset key, each with a failing-stub
+> test); and migrations `0001`/`0002`/`0004`/`0005`/`0006` (graded-return
+> conversions — `resolve_corpus_path`/`resolve_user_template_path` return a code
+> because they run inside command substitutions — plus `--allow-legacy-layout`
+> on every direct read). `run-migrations.sh --unapply` lands with a test. A
+> shared `ensure_accelerator_bin` invoke helper points the config/work/
+> integrations/migrate/decisions/visualiser suites at the compiled launcher.
+> **Still to do:** per-migration stub-fail / per-k proofs (plan §4b), the
+> `check-call-site-migration.sh` gate (its Grep A-functional=0 assertion is only
+> reachable at Phase 7 — the removal set, `test-shims/`, `test-config.sh` and the
+> `cli/` refs in `catalogue.rs`/`parity.rs`/`corpus-adapters` still functionally
+> name removal-set basenames until Phase 7 deletes/repoints them), tightening the
+> transitional work-consumer census, and recording Q2.
 
 #### Automated Verification
 
@@ -2564,7 +2586,7 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       `launch-server.sh:110`) converted to distinguish non-zero from
       exit-0-empty; a tree-wide functional scan for removal-set paths outside the
       exclude list returns 0
-- [ ] `bash skills/integrations/jira/scripts/test-jira-auth.sh` and the Linear
+- [x] `bash skills/integrations/jira/scripts/test-jira-auth.sh` and the Linear
       equivalent pass repointed — the credential path resolves through
       `accelerator config get` and an absent token still fails closed
 - [ ] Every migration `0001`-`0007` runs green against a **legacy-layout** fixture
@@ -2590,7 +2612,7 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       `migrations-applied` unchanged — a stub that fails on every call would only
       ever prove the first site was converted. A re-run with a working binary
       converges to the same tree as an uninterrupted run
-- [ ] `run-migrations.sh --unapply <id>` removes an applied entry, so a discovered
+- [x] `run-migrations.sh --unapply <id>` removes an applied entry, so a discovered
       half-application has a supported recovery
 - [ ] `--allow-legacy-layout` appears nowhere outside
       `skills/config/migrate/migrations/` **and the allowlisted
