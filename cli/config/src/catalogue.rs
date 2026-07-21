@@ -151,6 +151,32 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.work_item_revise_major_count", Default::Scalar("2")),
 ];
 
+/// Built-in review lens names for code reviews (pr and plan modes).
+pub const BUILTIN_CODE_LENSES: &[&str] = &[
+    "architecture",
+    "code-quality",
+    "compatibility",
+    "correctness",
+    "database",
+    "documentation",
+    "performance",
+    "portability",
+    "safety",
+    "security",
+    "standards",
+    "test-coverage",
+    "usability",
+];
+
+/// Built-in review lens names for work-item reviews.
+pub const BUILTIN_WORK_ITEM_LENSES: &[&str] = &[
+    "clarity",
+    "completeness",
+    "dependency",
+    "scope",
+    "testability",
+];
+
 pub const AGENT_KEYS: &[&str] = &[
     "reviewer",
     "browser-analyser",

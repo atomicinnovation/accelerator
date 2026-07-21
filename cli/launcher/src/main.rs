@@ -161,6 +161,7 @@ fn compose_stack(
     Ok(ConfigStack::new(
         Box::new(composed.service),
         Box::new(composed.store.clone()),
+        Box::new(composed.store.clone()),
         Box::new(composed.store),
     ))
 }

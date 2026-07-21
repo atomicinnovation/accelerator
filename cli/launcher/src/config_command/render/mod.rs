@@ -11,6 +11,7 @@ pub mod context;
 pub mod dump;
 pub mod instructions;
 pub mod paths;
+pub mod review;
 
 /// A rendered subcommand output.
 pub struct Rendered {

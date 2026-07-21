@@ -183,6 +183,39 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Print the `## Review Configuration` block and lens catalogue for a
+    /// review mode.
+    Review {
+        /// The review this renders settings for.
+        #[arg(value_enum)]
+        mode: ReviewMode,
+        /// Suppress the uniform legacy-layout refusal and read the legacy
+        /// `.claude/accelerator.md` pair when the current one is absent.
+        #[arg(long)]
+        allow_legacy_layout: bool,
+        /// Never exit non-zero: on a read failure, render the
+        /// `## Review Configuration Unavailable` notice and exit 0.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+}
+
+/// Which review a `config review` renders settings for.
+#[derive(Clone, Copy, ValueEnum)]
+pub enum ReviewMode {
+    Pr,
+    Plan,
+    WorkItem,
+}
+
+impl From<ReviewMode> for crate::config_command::core::review::Mode {
+    fn from(mode: ReviewMode) -> Self {
+        match mode {
+            ReviewMode::Pr => Self::Pr,
+            ReviewMode::Plan => Self::Plan,
+            ReviewMode::WorkItem => Self::WorkItem,
+        }
+    }
 }
 
 /// How `config paths` renders its output.
@@ -233,6 +266,10 @@ impl ConfigAction {
                 ..
             }
             | Self::Dump {
+                allow_legacy_layout,
+                ..
+            }
+            | Self::Review {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,

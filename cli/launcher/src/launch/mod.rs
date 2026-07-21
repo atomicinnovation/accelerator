@@ -91,6 +91,12 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
         ConfigAction::Dump { fail_safe, .. } => config_cli::Action::Dump {
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Review {
+            mode, fail_safe, ..
+        } => config_cli::Action::Review {
+            mode: (*mode).into(),
+            on_failure: on_failure(*fail_safe),
+        },
     }
 }
 

@@ -6,7 +6,8 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use config::{
-    ConfigError, Level, Node, ReadConfigLevel, ReadContent, WriteConfigLevel,
+    ConfigError, CustomLens, LensFields, Level, Node, ReadConfigLevel,
+    ReadContent, ReadLensCatalogue, WriteConfigLevel,
 };
 use store::{NewFileMode, WriteBounds, WriteError};
 
@@ -195,6 +196,84 @@ impl FileConfigStore {
         let config_dir = self.config_dir();
         let path = config_dir.join("skills").join(skill).join(file);
         read_within(&path, &self.bounds(&config_dir))
+    }
+}
+
+impl ReadLensCatalogue for FileConfigStore {
+    fn custom_lenses(&self) -> Result<Vec<CustomLens>, ConfigError> {
+        let lenses_dir = self.config_dir().join("lenses");
+        let entries = match fs::read_dir(&lenses_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(Vec::new())
+            }
+            Err(error) => return Err(io_error(&lenses_dir, &error)),
+        };
+        let mut dirs: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.is_dir())
+            .collect();
+        dirs.sort();
+        let mut lenses = Vec::new();
+        for dir in dirs {
+            let skill_file = dir.join("SKILL.md");
+            if !skill_file.is_file() {
+                continue;
+            }
+            lenses.push(read_lens(&dir, &skill_file)?);
+        }
+        Ok(lenses)
+    }
+}
+
+fn read_lens(dir: &Path, skill_file: &Path) -> Result<CustomLens, ConfigError> {
+    let content =
+        fs::read_to_string(skill_file).map_err(|e| io_error(skill_file, &e))?;
+    let fields = document::parse(&content).ok().map(|node| LensFields {
+        name: lens_field(&node, "name"),
+        auto_detect: lens_field(&node, "auto_detect"),
+        applies_to: lens_field(&node, "applies_to"),
+    });
+    Ok(CustomLens {
+        dir: display(dir),
+        path: display(skill_file),
+        fields,
+    })
+}
+
+fn lens_field(node: &Node, key: &str) -> Option<String> {
+    let Node::Mapping(mapping) = node else {
+        return None;
+    };
+    mapping.get(key).map(render_node)
+}
+
+fn render_node(node: &Node) -> String {
+    match node {
+        Node::Scalar(scalar) => render_scalar(scalar),
+        Node::Sequence(items) => {
+            let rendered: Vec<String> = items
+                .iter()
+                .map(|item| match item {
+                    Node::Scalar(scalar) => render_scalar(scalar),
+                    _ => String::new(),
+                })
+                .collect();
+            format!("[{}]", rendered.join(", "))
+        }
+        Node::Mapping(_) => String::new(),
+    }
+}
+
+fn render_scalar(scalar: &config::Scalar) -> String {
+    use config::Scalar;
+    match scalar {
+        Scalar::String(value) => value.clone(),
+        Scalar::Bool(value) => value.to_string(),
+        Scalar::Int(value) => value.to_string(),
+        Scalar::Float(value) => value.to_string(),
+        Scalar::Null => String::new(),
     }
 }
 

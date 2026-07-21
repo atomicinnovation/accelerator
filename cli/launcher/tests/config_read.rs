@@ -83,9 +83,11 @@ fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
             fs::copy(&file, root.join(".accelerator").join(name))?;
         }
     }
-    let skills = src.join("skills");
-    if skills.is_dir() {
-        copy_tree(&skills, &root.join(".accelerator/skills"))?;
+    for subtree in ["skills", "lenses"] {
+        let source = src.join(subtree);
+        if source.is_dir() {
+            copy_tree(&source, &root.join(".accelerator").join(subtree))?;
+        }
     }
     Ok(root)
 }
@@ -622,5 +624,70 @@ fn dump_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
     let output = fixture.run(&["config", "dump", "--fail-safe"])?;
     assert_eq!(output.stdout, b"## Effective Configuration Unavailable\n");
     assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn review_matches_the_baseline_goldens_for_every_mode() -> TestResult {
+    for mode in ["pr", "plan", "work-item"] {
+        let workspace = workspace("baseline")?;
+        let output = run_in(&workspace, &["config", "review", mode])?;
+        assert_eq!(
+            output.stdout,
+            golden("baseline", &format!("review-{mode}.golden"))?,
+            "review {mode} drifted from its golden"
+        );
+        assert_eq!(code(&output), 0);
+    }
+    Ok(())
+}
+
+#[test]
+fn review_lists_a_custom_lens_only_in_its_applies_to_modes() -> TestResult {
+    let workspace = workspace("custom-lenses")?;
+
+    let pr = run_in(&workspace, &["config", "review", "pr"])?;
+    let pr_out = String::from_utf8_lossy(&pr.stdout);
+    assert!(pr_out.contains("| perf-custom |"));
+    assert!(!pr_out.contains("| wi-custom |"));
+
+    let wi = run_in(&workspace, &["config", "review", "work-item"])?;
+    let wi_out = String::from_utf8_lossy(&wi.stdout);
+    assert!(wi_out.contains("| wi-custom |"));
+    assert!(!wi_out.contains("| perf-custom |"));
+    Ok(())
+}
+
+#[test]
+fn a_custom_lens_row_uses_a_single_slash_path_and_the_right_source(
+) -> TestResult {
+    let workspace = workspace("custom-lenses")?;
+    let output = run_in(&workspace, &["config", "review", "pr"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Divergence 2: the bash double slash is fixed here.
+    assert!(stdout.contains("/lenses/perf-lens/SKILL.md | custom |"));
+    assert!(!stdout.contains("/lenses/perf-lens//SKILL.md"));
+    // auto_detect present → "custom"; wi-custom has none → "always include".
+    let wi = run_in(&workspace, &["config", "review", "work-item"])?;
+    let wi_out = String::from_utf8_lossy(&wi.stdout);
+    assert!(wi_out.contains("| wi-custom |"));
+    assert!(wi_out.contains("| custom (always include) |"));
+    Ok(())
+}
+
+#[test]
+fn review_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
+    let fixture = Fixture::new()?.team(MALFORMED)?;
+    let output = fixture.run(&["config", "review", "pr", "--fail-safe"])?;
+    assert_eq!(output.stdout, b"## Review Configuration Unavailable\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn a_review_without_a_mode_is_a_usage_error() -> TestResult {
+    let workspace = workspace("baseline")?;
+    let output = run_in(&workspace, &["config", "review"])?;
+    assert_eq!(code(&output), 1);
     Ok(())
 }

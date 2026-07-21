@@ -82,6 +82,32 @@ pub trait ReadContent {
     ) -> Result<Option<String>, ConfigError>;
 }
 
+/// A custom lens directory's parsed frontmatter fields. `None` on a field means
+/// the field was absent; `Some(String::new())` means it was present but empty.
+pub struct LensFields {
+    pub name: Option<String>,
+    pub auto_detect: Option<String>,
+    pub applies_to: Option<String>,
+}
+
+/// One custom lens directory carrying a `SKILL.md`. `fields` is `None` when that
+/// file's frontmatter is malformed.
+pub struct CustomLens {
+    pub dir: String,
+    pub path: String,
+    pub fields: Option<LensFields>,
+}
+
+/// Enumerates the custom review lenses under `.accelerator/lenses/` — a driven
+/// port. Domain validation (name collision, `applies_to` filtering) is the
+/// review view's, not the adapter's.
+pub trait ReadLensCatalogue {
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the lenses directory cannot be enumerated.
+    fn custom_lenses(&self) -> Result<Vec<CustomLens>, ConfigError>;
+}
+
 /// The operations the core offers callers — the driving port.
 pub trait ConfigAccess {
     /// Resolves a key, full-stack (personal over team) when `level` is `None`,

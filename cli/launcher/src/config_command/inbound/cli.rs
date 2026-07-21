@@ -11,6 +11,7 @@
 use config::{catalogue, ConfigError, Key, Level, Resolved};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
+use crate::config_command::core::review::{self as review_view, Mode};
 use crate::config_command::core::{
     agents as agents_view, dump as dump_view, paths as paths_view, ConfigStack,
     OnFailure,
@@ -18,7 +19,7 @@ use crate::config_command::core::{
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
     dump as dump_render, instructions as instructions_render,
-    paths as paths_render, Rendered,
+    paths as paths_render, review as review_render, Rendered,
 };
 
 /// A parsed `config` request, owned by this module so the hexagon never names
@@ -62,6 +63,10 @@ pub enum Action {
         on_failure: OnFailure,
     },
     Dump {
+        on_failure: OnFailure,
+    },
+    Review {
+        mode: Mode,
         on_failure: OnFailure,
     },
 }
@@ -125,7 +130,20 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Notice(dump_render::render_unavailable),
         ),
+        Action::Review { mode, on_failure } => finish(
+            resolve_review(stack, *mode),
+            *on_failure,
+            Degrade::Notice(review_render::render_unavailable),
+        ),
     }
+}
+
+fn resolve_review(
+    stack: &ConfigStack,
+    mode: Mode,
+) -> Result<Rendered, Failure> {
+    let view = review_view::assemble(stack.config(), stack.lenses(), mode)?;
+    Ok(review_render::render(&view, mode))
 }
 
 fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
