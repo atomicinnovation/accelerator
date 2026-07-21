@@ -766,6 +766,21 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-ren
   >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 
+echo "Test: --unapply removes an entry from the applied ledger"
+REPO=$(setup_old_repo)
+mkdir -p "$REPO/.accelerator/state"
+printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
+  >"$REPO/.accelerator/state/migrations-applied"
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" \
+  --unapply 0001-rename-tickets-to-work >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "applied ledger no longer has unapplied ID" \
+  "$APPLIED" "0001-rename-tickets-to-work"
+assert_contains "applied ledger keeps the other ID" \
+  "$APPLIED" "0002-rename-work-items-with-project-prefix"
+
 echo "Test: skipping unknown ID writes it and warns on next run"
 REPO=$(setup_old_repo)
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 9999-future-migration \

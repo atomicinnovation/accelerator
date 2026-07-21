@@ -57,6 +57,15 @@ while [ $# -gt 0 ]; do
       echo "Unskipped migration: $2"
       exit 0
       ;;
+    --unapply)
+      if [ $# -lt 2 ]; then
+        echo "Usage: run-migrations.sh --unapply <migration-id>" >&2
+        exit 1
+      fi
+      atomic_remove_line "$STATE_FILE" "$2"
+      echo "Unapplied migration: $2"
+      exit 0
+      ;;
     --decisions-file)
       if [ $# -lt 2 ]; then
         echo "Usage: run-migrations.sh --decisions-file <path>" >&2
@@ -80,6 +89,8 @@ while [ $# -gt 0 ]; do
 Usage: run-migrations.sh [FLAG]
   --skip <id>             Mark migration <id> skipped; do not run it.
   --unskip <id>           Remove migration <id> from the skip list.
+  --unapply <id>          Remove migration <id> from the applied ledger so a
+                          half-applied migration can be re-run.
   --list                  Dry-emit pending interactive transformations, one
                           tab-delimited line each, then exit (no mutation):
                             <pos>\t<key>\t<proposed>\t<path>:<field>
