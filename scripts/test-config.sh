@@ -2548,7 +2548,7 @@ echo ""
 # surfaced: a key a consumer reads but nobody registered (so it never reaches
 # config-dump or the docs). Two directions are checked robustly:
 #   (A) every registered key is documented in the configure reference, and
-#   (B) every jira/linear/visualiser key read via config-read-value.sh in
+#   (B) every jira/linear/visualiser key read via `config get` in
 #       shipped (non-test) code is registered.
 # The jira/linear bare-subkey reads (site/email via *_read_field_from_file) are
 # a small, stable surface already covered by (A); (B) catches the full-key reads
@@ -2571,18 +2571,19 @@ done <<<"$REGISTERED"
 assert_eq "every registered jira/linear/visualiser key is documented in configure SKILL.md" \
   "" "$UNDOCUMENTED"
 
-# (B) consumer full-key reads ⊆ registry.
+# (B) consumer full-key reads ⊆ registry. Consumers now read via
+# `config get <key>`, so match that shape (keys may be quoted).
 READS=$(cd "$PLUGIN_ROOT" && grep -rhoE --include='*.sh' --exclude='test-*.sh' \
   --exclude-dir=workspaces --exclude-dir=node_modules --exclude-dir=target \
-  'config-read-value\.sh"?[[:space:]]+"?(jira|linear|visualiser)\.[a-z_-]+' \
+  'config get[[:space:]]+"?(jira|linear|visualiser)\.[a-z_-]+' \
   scripts skills hooks 2>/dev/null |
-  grep -oE '(jira|linear|visualiser)\.[a-z_-]+' | sort -u)
+  grep -oE '(jira|linear|visualiser)\.[a-z_-]+' | sort -u) || true
 UNREGISTERED=""
 while IFS= read -r key; do
   [ -z "$key" ] && continue
   printf '%s\n' "$REGISTERED" | grep -qxF "$key" || UNREGISTERED="$UNREGISTERED $key"
 done <<<"$READS"
-assert_eq "every jira/linear/visualiser config-read-value.sh key is registered" \
+assert_eq "every jira/linear/visualiser config get key is registered" \
   "" "$UNREGISTERED"
 
 echo ""
@@ -4121,7 +4122,7 @@ else
 fi
 unset -f _check_stale_work_read
 
-echo "Test: every known work.* consumer file references config-read-work.sh"
+echo "Test: every known work.* consumer file references accelerator config work"
 CONSUMER_FAIL=0
 declare -a _CONSUMER_FILES=(
   "skills/work/scripts/work-item-next-number.sh"
@@ -4137,23 +4138,23 @@ for f in "${_CONSUMER_FILES[@]}"; do
   if [ ! -f "$full_path" ]; then
     echo "  FAIL: $f not found"
     CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
-  elif ! grep -qE "config-read-work|accelerator config work" "$full_path"; then
+  elif ! grep -qE "config work" "$full_path"; then
     echo "  FAIL: $f does not reference the work config reader"
     CONSUMER_FAIL=$((CONSUMER_FAIL + 1))
   fi
 done
 if [ "$CONSUMER_FAIL" -eq 0 ]; then
-  echo "  PASS: all known consumer files reference config-read-work.sh"
+  echo "  PASS: all known consumer files reference accelerator config work"
   PASS=$((PASS + 1))
 else
   FAIL=$((FAIL + 1))
 fi
 unset _CONSUMER_FILES
 
-echo "Test: every SKILL.md that invokes config-read-work.sh has an allowed-tools entry permitting it"
+echo "Test: every SKILL.md that invokes accelerator config work has an allowed-tools entry permitting it"
 SKILL_TOOL_FAIL=0
 while IFS= read -r -d '' skill_file; do
-  if grep -q "config-read-work" "$skill_file" 2>/dev/null; then
+  if grep -q "config work" "$skill_file" 2>/dev/null; then
     if ! grep -qE 'Bash\(.*scripts[/*]|\bBash\b' "$skill_file" 2>/dev/null; then
       rel="${skill_file#"$PLUGIN_ROOT"/}"
       echo "  FAIL: $rel uses config-read-work.sh but has no matching allowed-tools entry"
@@ -4165,7 +4166,7 @@ done < <(cd "$PLUGIN_ROOT" && find . \( -type d \( -name node_modules -o -name t
   -not -path './workspaces/*' \
   -print0)
 if [ "$SKILL_TOOL_FAIL" -eq 0 ]; then
-  echo "  PASS: all SKILL.md files with config-read-work.sh have allowed-tools entry"
+  echo "  PASS: all SKILL.md files with accelerator config work have allowed-tools entry"
   PASS=$((PASS + 1))
 else
   FAIL=$((FAIL + 1))
