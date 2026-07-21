@@ -90,4 +90,4 @@ workflow states — `catalogue.json` is committed and team-shared,
 `work.integration: linear` to enable auto-scoping.
 
 Per-skill flags, sub-actions, and behaviours are documented on each
-generated skill page linked in the table above.
+skill's reference page linked in the table above.

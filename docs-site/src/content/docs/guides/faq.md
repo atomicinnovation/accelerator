@@ -47,20 +47,6 @@ your OS/architecture — macOS and Linux on arm64/x64 are supported. A
 digest of all zeros means no binary was released for this plugin
 version; use `ACCELERATOR_VISUALISER_BIN` as above.
 
-## A script works in CI but fails on my Mac
-
-macOS ships bash 3.2, and the plugin's shell scripts hold a strict
-bash 3.2 floor. If you are extending or debugging scripts and see a
-macOS-only failure:
-
-:::caution
-Suspect the bash 3.2 floor first. Bash-4-only constructs —
-associative arrays (`declare -A`), lowercase expansion (`${var,,}`),
-`mapfile`, and friends — fail only on macOS because CI runs a newer
-bash. The repo's `scripts/lint-bashisms.sh` linter catches known
-offenders.
-:::
-
 ## I keep being told to run /accelerator:migrate
 
 After a plugin update, a `SessionStart` hook compares the migrations

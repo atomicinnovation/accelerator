@@ -42,7 +42,7 @@ After drafting and before planning:
   sharpens acceptance criteria, sizes it, or links dependencies.
 - [`review-work-item`](../reference/skills/work/review-work-item.md)
   applies the [Review System](review-system.md) lenses (completeness,
-  testability, clarity).
+  testability, clarity, scope, dependency).
 - [`stress-test-work-item`](../reference/skills/work/stress-test-work-item.md)
   interrogates **your** assumptions interactively — scope, acceptance
   criteria, edge cases, dependencies. Complements review the same way

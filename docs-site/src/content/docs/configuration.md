@@ -98,7 +98,7 @@ walks you through gathering project context and writes the config file for you.
 
 ## Custom Review Lenses
 
-You can add custom review lenses alongside the 13 built-in ones. Place them in
+You can add custom review lenses alongside the 13 built-in code review ones. Place them in
 `.accelerator/lenses/` following the `[name]-lens/SKILL.md` convention.
 Custom lenses are auto-discovered and included in the lens catalogue. See
 the [Review System](skills/review-system.md) for the built-in lens catalogue and

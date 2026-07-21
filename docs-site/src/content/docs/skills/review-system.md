@@ -35,6 +35,8 @@ compiles the lens outputs into one analysis.
 | **Completeness** | Section presence, content density, type-appropriate content    |
 | **Testability**  | Measurable criteria, verifiable outcomes, verification framing |
 | **Clarity**      | Unambiguous referents, internal consistency, jargon handling   |
+| **Scope**        | Right-sizing, decomposition, orthogonality                     |
+| **Dependency**   | Implied couplings — blockers, consumers, external systems      |
 
 Lenses are automatically selected based on scope, or you can specify
 focus areas:

@@ -17,8 +17,8 @@ Recovery is via VCS revert. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass the
 clean-tree check if needed.
 
 To opt out of an individual migration, run
-`bash skills/config/migrate/scripts/run-migrations.sh --skip <id>` (and
-`--unskip <id>` to re-enable it). Skipped IDs are tracked in
+`bash ${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh --skip <id>`
+(and `--unskip <id>` to re-enable it). Skipped IDs are tracked in
 `.accelerator/state/migrations-skipped` and surfaced by name in the runner's
 summary line so a permanent skip is never invisible. A migration can also
 self-defer by emitting `MIGRATION_RESULT: no_op_pending` on stdout — useful

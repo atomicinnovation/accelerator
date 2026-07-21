@@ -1,5 +1,5 @@
 ---
-title: Development Loop
+title: Development Loop Skills
 description: 'How the research → plan → implement skills fit together, and
   when to reach for each.'
 ---
