@@ -6,11 +6,12 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use config::{
-    ConfigError, CustomLens, LensFields, Level, Node, ReadConfigLevel,
-    ReadContent, ReadLensCatalogue, ReadTemplate, ResolvedTemplate,
-    TemplateSource, WriteConfigLevel,
+    ConfigError, CustomLens, EjectOutcome, EjectResult, LensFields, Level,
+    Node, ReadConfigLevel, ReadContent, ReadLensCatalogue, ReadTemplate,
+    ResolvedTemplate, Scaffold, TemplateOverride, TemplateSource,
+    WriteConfigLevel,
 };
-use store::{NewFileMode, WriteBounds, WriteError};
+use store::{NewFileMode, WriteBounds, WriteError, TEMP_PREFIX};
 
 use crate::document;
 
@@ -338,8 +339,6 @@ impl ReadTemplate for FileConfigStore {
         let Ok(entries) = fs::read_dir(plugin.join("templates")) else {
             return Vec::new();
         };
-        // Sort by the full `<stem>.md` filename, matching the shell glob order
-        // the bash reader relied on (where `-` sorts before `.`).
         let mut files: Vec<String> = entries
             .filter_map(Result::ok)
             .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -354,6 +353,22 @@ impl ReadTemplate for FileConfigStore {
             .filter_map(|name| name.strip_suffix(".md").map(str::to_owned))
             .collect()
     }
+
+    fn plugin_default(
+        &self,
+        name: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError> {
+        let Some(path) =
+            self.plugin_template_path(name).filter(|p| p.is_file())
+        else {
+            return Ok(None);
+        };
+        Ok(Some(self.resolved(
+            TemplateSource::PluginDefault,
+            &path,
+            None,
+        )?))
+    }
 }
 
 impl FileConfigStore {
@@ -367,11 +382,155 @@ impl FileConfigStore {
             fs::read_to_string(path).map_err(|e| io_error(path, &e))?;
         Ok(ResolvedTemplate {
             source,
+            abs_path: display(path),
             display_path: self.display_path(path),
             content,
             warning,
         })
     }
+
+    fn plugin_template_path(&self, name: &str) -> Option<PathBuf> {
+        self.plugin_root
+            .as_ref()
+            .map(|plugin| plugin.join("templates").join(format!("{name}.md")))
+    }
+}
+
+impl TemplateOverride for FileConfigStore {
+    fn eject(
+        &self,
+        name: &str,
+        templates_dir: &str,
+        force: bool,
+        dry_run: bool,
+    ) -> Result<EjectResult, ConfigError> {
+        let key = name.to_owned();
+        let Some(source) =
+            self.plugin_template_path(name).filter(|p| p.is_file())
+        else {
+            return Ok(EjectResult {
+                outcome: EjectOutcome::NoDefault,
+                key,
+                display: String::new(),
+            });
+        };
+        let target = self.absolutise(templates_dir).join(format!("{name}.md"));
+        let display = self.display_path(&target);
+        let exists = target.is_file();
+        if exists && !force {
+            let outcome = if dry_run {
+                EjectOutcome::WouldSkip
+            } else {
+                EjectOutcome::Exists
+            };
+            return Ok(EjectResult {
+                outcome,
+                key,
+                display,
+            });
+        }
+        if dry_run {
+            let outcome = if exists {
+                EjectOutcome::WouldOverwrite
+            } else {
+                EjectOutcome::WouldEject
+            };
+            return Ok(EjectResult {
+                outcome,
+                key,
+                display,
+            });
+        }
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|e| io_error(parent, &e))?;
+        }
+        fs::copy(&source, &target).map_err(|e| io_error(&target, &e))?;
+        let outcome = if exists {
+            EjectOutcome::Overwritten
+        } else {
+            EjectOutcome::Ejected
+        };
+        Ok(EjectResult {
+            outcome,
+            key,
+            display,
+        })
+    }
+
+    fn delete(&self, abs_path: &str) -> Result<(), ConfigError> {
+        let path = Path::new(abs_path);
+        fs::remove_file(path).map_err(|e| io_error(path, &e))
+    }
+
+    fn within_project(&self, abs_path: &str) -> bool {
+        Path::new(abs_path).strip_prefix(&self.root).is_ok()
+    }
+}
+
+impl Scaffold for FileConfigStore {
+    fn init(
+        &self,
+        content_dirs: &[String],
+        tmp_dir: &str,
+    ) -> Result<(), ConfigError> {
+        for dir in content_dirs {
+            ensure_keepable_dir(&self.absolutise(dir))?;
+        }
+        let accelerator = self.root.join(".accelerator");
+        create_dir(&accelerator)?;
+        let inner = accelerator.join(".gitignore");
+        ensure_line(&inner, "config.local.md")?;
+        ensure_line(&inner, &format!("{TEMP_PREFIX}*"))?;
+        ensure_keepable_dir(&accelerator.join("state"))?;
+        for extension in ["skills", "lenses", "templates"] {
+            ensure_keepable_dir(&accelerator.join(extension))?;
+        }
+        let tmp = self.absolutise(tmp_dir);
+        create_dir(&tmp)?;
+        let tmp_ignore = tmp.join(".gitignore");
+        if !tmp_ignore.is_file() {
+            fs::write(&tmp_ignore, "*\n!.gitkeep\n!.gitignore\n")
+                .map_err(|e| io_error(&tmp_ignore, &e))?;
+        }
+        ensure_keep(&tmp)?;
+        ensure_line(
+            &self.root.join(".gitignore"),
+            ".accelerator/config.local.md",
+        )
+    }
+}
+
+fn create_dir(path: &Path) -> Result<(), ConfigError> {
+    fs::create_dir_all(path).map_err(|e| io_error(path, &e))
+}
+
+fn ensure_keep(dir: &Path) -> Result<(), ConfigError> {
+    let keep = dir.join(".gitkeep");
+    if keep.exists() {
+        Ok(())
+    } else {
+        fs::write(&keep, "").map_err(|e| io_error(&keep, &e))
+    }
+}
+
+fn ensure_keepable_dir(dir: &Path) -> Result<(), ConfigError> {
+    create_dir(dir)?;
+    ensure_keep(dir)
+}
+
+fn ensure_line(file: &Path, rule: &str) -> Result<(), ConfigError> {
+    let existing = match fs::read_to_string(file) {
+        Ok(content) => content,
+        Err(e) if e.kind() == ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(io_error(file, &e)),
+    };
+    if existing.lines().any(|line| line == rule) {
+        return Ok(());
+    }
+    let mut content = existing;
+    content.push_str(rule);
+    content.push('\n');
+    fs::write(file, content).map_err(|e| io_error(file, &e))
 }
 
 fn read_lens(dir: &Path, skill_file: &Path) -> Result<CustomLens, ConfigError> {

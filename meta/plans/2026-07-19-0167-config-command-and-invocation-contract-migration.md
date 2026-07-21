@@ -1902,41 +1902,41 @@ failing closed if it cannot.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes (CI's `cargo nextest --workspace
+- [x] `mise run test:unit:cli` passes (CI's `cargo nextest --workspace
       --all-features`, not bare `cargo test --workspace`, so the
       `bash-parity`-gated suites are exercised)
-- [ ] `config set` on either level re-reads identically, and **all content outside
+- [x] `config set` on either level re-reads identically, and **all content outside
       the edited key — including surrounding Markdown body prose — is
       byte-identical** to the pre-write file
-- [ ] `config.local.md` is gitignored after a personal write, asserted on a
+- [x] `config.local.md` is gitignored after a personal write, asserted on a
       fixture where `init` has **not** run and on one carrying a pre-existing
       `.accelerator/.gitignore` that lacks the rule — on an already-initialised
       fixture the assertion passes vacuously
-- [ ] A traversing skill name (`../../etc/passwd`) or template name is refused by
+- [x] A traversing skill name (`../../etc/passwd`) or template name is refused by
       `context --skill`, `instructions` and every `templates` subcommand
-- [ ] A deeply nested key (`a.b.c.d`) round-trips, proving ADR-0047 nesting
-- [ ] Each of the three **malformed** fixtures: `config set` refuses and leaves
+- [x] A deeply nested key (`a.b.c.d`) round-trips, proving ADR-0047 nesting
+- [x] Each of the three **malformed** fixtures: `config set` refuses and leaves
       the file byte-identical (asserted by comparing contents before and after)
-- [ ] The **non-mapping-root** fixture — a *well-formed* frontmatter whose root is
+- [x] The **non-mapping-root** fixture — a *well-formed* frontmatter whose root is
       a sequence or scalar — is refused and left byte-identical.
       `ConfigService::set` matches `_ => Mapping::new()` (`service.rs:116-119`)
       while `document.rs:33-37` parses every YAML variant successfully, so
       without this the whole frontmatter is silently discarded on first write
-- [ ] **writeback-failure** fixture → `config set` exits non-zero, stdout empty
-- [ ] `templates eject` against **already-customised** exits 2; against
+- [x] **writeback-failure** fixture → `config set` exits non-zero, stdout empty
+- [x] `templates eject` against **already-customised** exits 2; against
       **not-customised** exits 0
-- [ ] `templates diff` and `templates reset` against **not-customised** exit 2;
+- [x] `templates diff` and `templates reset` against **not-customised** exit 2;
       against **already-customised** exit 0
-- [ ] Against the **error** fixture all three exit 1
-- [ ] `config set` contains no temp-file or `fs::rename` logic of its own
-- [ ] `config set --allow-legacy-layout <key> <value>` exits non-zero — the flag
+- [x] Against the **error** fixture all three exit 1
+- [x] `config set` contains no temp-file or `fs::rename` logic of its own
+- [x] `config set --allow-legacy-layout <key> <value>` exits non-zero — the flag
       is rejected on writes, so no split-brain legacy-read/current-write occurs
-- [ ] `config init` on an empty fixture produces exactly the documented tree; a
+- [x] `config init` on an empty fixture produces exactly the documented tree; a
       second run is a no-op
-- [ ] Each of `init`'s 14 `DIR_DEFAULTS` values equals
+- [x] Each of `init`'s 14 `DIR_DEFAULTS` values equals
       `catalogue::default_for("paths.<key>")`, captured before `init.sh` is
       deleted — pinning the source-of-truth coincidence
-- [ ] `mise run check` and `mise run` exit 0
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 

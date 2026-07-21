@@ -151,14 +151,81 @@ impl TemplateSource {
 
 /// A resolved template.
 ///
-/// Carries its source, its display-shortened path, and its raw content;
-/// `warning` holds the tier-1 fallback note when a configured path was set but
-/// absent.
+/// Carries its source, its absolute and display-shortened paths, and its raw
+/// content; `warning` holds the tier-1 fallback note when a configured path was
+/// set but absent.
 pub struct ResolvedTemplate {
     pub source: TemplateSource,
+    pub abs_path: String,
     pub display_path: String,
     pub content: String,
     pub warning: Option<String>,
+}
+
+/// What ejecting one template did (or would do), for the exit code and message.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EjectOutcome {
+    Ejected,
+    Overwritten,
+    /// The target already exists and `--force` was not given — exit 2.
+    Exists,
+    WouldEject,
+    WouldOverwrite,
+    WouldSkip,
+    /// No plugin default template for the name — exit 1.
+    NoDefault,
+}
+
+/// The result of an eject: its outcome, the key, and the display target path.
+pub struct EjectResult {
+    pub outcome: EjectOutcome,
+    pub key: String,
+    pub display: String,
+}
+
+/// Mutates the user template overrides — a driven port. Reads live on
+/// [`ReadTemplate`]; this port owns the eject copy and the reset delete.
+pub trait TemplateOverride {
+    /// Ejects (copies) the plugin default for `name` into `templates_dir`.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the copy or the directory creation fails.
+    fn eject(
+        &self,
+        name: &str,
+        templates_dir: &str,
+        force: bool,
+        dry_run: bool,
+    ) -> Result<EjectResult, ConfigError>;
+
+    /// Deletes a resolved override file (reset `--confirm`).
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the delete fails.
+    fn delete(&self, abs_path: &str) -> Result<(), ConfigError>;
+
+    /// Whether an absolute path lies inside the resolution project root.
+    fn within_project(&self, abs_path: &str) -> bool;
+}
+
+/// Creates the project scaffold — a driven port. The core resolves which
+/// content directories and tmp directory to create; the adapter performs the
+/// idempotent filesystem work.
+pub trait Scaffold {
+    /// Creates each content directory with a `.gitkeep`, the `.accelerator/`
+    /// core tree and its ignore rules, the tmp directory with its ignore file,
+    /// and the anchored root ignore rule. Idempotent.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a directory or file cannot be created.
+    fn init(
+        &self,
+        content_dirs: &[String],
+        tmp_dir: &str,
+    ) -> Result<(), ConfigError>;
 }
 
 /// Resolves and enumerates template files across the project and plugin.
@@ -182,6 +249,17 @@ pub trait ReadTemplate {
     /// The template names available from the plugin templates directory,
     /// sorted.
     fn template_names(&self) -> Vec<String>;
+
+    /// The plugin default template for `name`, or `None` when the plugin ships
+    /// no default for it.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a present default cannot be read.
+    fn plugin_default(
+        &self,
+        name: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError>;
 }
 
 /// The operations the core offers callers — the driving port.

@@ -8,13 +8,16 @@
 //! regardless of `--fail-safe`, so a bad `work.integration` enum is never
 //! papered over into empty-and-exit-0.
 
-use config::{catalogue, ConfigError, Key, Level, Resolved};
+use config::{
+    catalogue, ConfigError, EjectOutcome, Key, Level, Resolved, TemplateSource,
+};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::review::{self as review_view, Mode};
 use crate::config_command::core::{
-    agents as agents_view, dump as dump_view, paths as paths_view,
-    summary as summary_view, template as template_view, ConfigStack, OnFailure,
+    agents as agents_view, dump as dump_view, init as init_view,
+    paths as paths_view, summary as summary_view, template as template_view,
+    ConfigStack, OnFailure,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
@@ -46,6 +49,7 @@ pub enum Action {
         value: String,
         level: Level,
     },
+    Init,
     Agent {
         name: String,
         on_failure: OnFailure,
@@ -92,15 +96,48 @@ pub enum Action {
         name: String,
         on_failure: OnFailure,
     },
+    TemplatesEject {
+        name: Option<String>,
+        all: bool,
+        force: bool,
+        dry_run: bool,
+    },
+    TemplatesDiff {
+        name: String,
+    },
+    TemplatesReset {
+        name: String,
+        confirm: bool,
+    },
 }
 
 /// Runs a parsed `config` request against the composed stack.
 ///
+/// The write subcommands that overload exit code 2 (`templates eject`, `diff`
+/// and `reset`) map their refusals to [`kernel::Error::Refusal`]; everything
+/// else fails through [`kernel::Error::Failed`].
+///
 /// # Errors
 ///
-/// A [`ConfigError`] when a read fails and the request's `on_failure` is
-/// [`OnFailure::Fail`], or when a validation refusal fires regardless of it.
-pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
+/// A [`kernel::Error`] when a read fails and the request's `on_failure` is
+/// [`OnFailure::Fail`], or when a validation or confirmation refusal fires.
+pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), kernel::Error> {
+    match action {
+        Action::TemplatesEject {
+            name,
+            all,
+            force,
+            dry_run,
+        } => run_eject(stack, name.as_deref(), *all, *force, *dry_run),
+        Action::TemplatesDiff { name } => run_diff(stack, name),
+        Action::TemplatesReset { name, confirm } => {
+            run_reset(stack, name, *confirm)
+        }
+        _ => run_read(stack, action).map_err(kernel::Error::from),
+    }
+}
+
+fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
     match action {
         Action::Get {
             key,
@@ -125,6 +162,7 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             Degrade::Suppress,
         ),
         Action::Set { key, value, level } => run_set(stack, key, value, *level),
+        Action::Init => init_view::run(stack.config(), stack.scaffold()),
         Action::Agent { name, on_failure } => {
             finish(resolve_agent(stack, name), *on_failure, Degrade::Suppress)
         }
@@ -181,6 +219,9 @@ pub fn run(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Notice(template_render::render_unavailable),
         ),
+        Action::TemplatesEject { .. }
+        | Action::TemplatesDiff { .. }
+        | Action::TemplatesReset { .. } => unreachable!(),
     }
 }
 
@@ -415,6 +456,155 @@ fn run_set(
 ) -> Result<(), ConfigError> {
     let key = Key::parse(raw_key)?;
     stack.config().set(&key, value, level)
+}
+
+/// Copies plugin default templates into the user directory. A single name
+/// reports its own outcome; `--all` walks every template and aggregates.
+fn run_eject(
+    stack: &ConfigStack,
+    name: Option<&str>,
+    all: bool,
+    force: bool,
+    dry_run: bool,
+) -> Result<(), kernel::Error> {
+    let dir = template_view::templates_dir(stack.config())?;
+    if all {
+        return eject_all(stack, &dir, force, dry_run);
+    }
+    let Some(name) = name else {
+        return Err(kernel::Error::Failed(
+            "config templates eject requires a template name or --all"
+                .to_owned(),
+        ));
+    };
+    template_view::validate(name)?;
+    let available = template_view::available_or_none(stack.templates());
+    let result = stack.overrides().eject(name, &dir, force, dry_run)?;
+    let text = template_render::eject_text(
+        result.outcome,
+        &result.key,
+        &result.display,
+        &available,
+    );
+    match result.outcome {
+        EjectOutcome::Ejected
+        | EjectOutcome::Overwritten
+        | EjectOutcome::WouldEject
+        | EjectOutcome::WouldOverwrite => {
+            println!("{text}");
+            Ok(())
+        }
+        EjectOutcome::WouldSkip => {
+            println!("{text}");
+            Err(kernel::Error::Refusal(String::new()))
+        }
+        EjectOutcome::Exists => Err(kernel::Error::Refusal(text)),
+        EjectOutcome::NoDefault => Err(kernel::Error::Failed(text)),
+    }
+}
+
+/// Ejects every template, printing each outcome as it lands; any error wins the
+/// exit code over any already-exists.
+fn eject_all(
+    stack: &ConfigStack,
+    dir: &str,
+    force: bool,
+    dry_run: bool,
+) -> Result<(), kernel::Error> {
+    let available = template_view::available_or_none(stack.templates());
+    let mut had_error = false;
+    let mut had_exists = false;
+    for key in stack.templates().template_names() {
+        let result = stack.overrides().eject(&key, dir, force, dry_run)?;
+        let text = template_render::eject_text(
+            result.outcome,
+            &result.key,
+            &result.display,
+            &available,
+        );
+        match result.outcome {
+            EjectOutcome::Exists | EjectOutcome::NoDefault => {
+                eprintln!("{text}");
+            }
+            _ => println!("{text}"),
+        }
+        match result.outcome {
+            EjectOutcome::NoDefault => had_error = true,
+            EjectOutcome::Exists | EjectOutcome::WouldSkip => had_exists = true,
+            _ => {}
+        }
+    }
+    if had_error {
+        Err(kernel::Error::Failed(
+            template_render::EJECT_ALL_ERROR.to_owned(),
+        ))
+    } else if had_exists {
+        Err(kernel::Error::Refusal(
+            template_render::EJECT_ALL_EXISTS.to_owned(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+/// Shows the unified diff between a customised template and the plugin default.
+/// Exits 2 when there is no override to compare.
+fn run_diff(stack: &ConfigStack, name: &str) -> Result<(), kernel::Error> {
+    template_view::validate(name)?;
+    let Some(default) = stack.templates().plugin_default(name)? else {
+        return Err(kernel::Error::Failed(unknown_template(stack, name)));
+    };
+    let user = template_view::resolve(stack.config(), stack.templates(), name)?
+        .filter(|resolved| resolved.source != TemplateSource::PluginDefault);
+    let Some(user) = user else {
+        return Err(kernel::Error::Refusal(format!(
+            "No customised template found for '{name}' — using plugin default."
+        )));
+    };
+    print!("{}", template_render::diff_report(&default, &user));
+    Ok(())
+}
+
+/// Reports (or, with `confirm`, deletes) the override that shadows a plugin
+/// default. Exits 2 when there is no override.
+fn run_reset(
+    stack: &ConfigStack,
+    name: &str,
+    confirm: bool,
+) -> Result<(), kernel::Error> {
+    template_view::validate(name)?;
+    if stack.templates().plugin_default(name)?.is_none() {
+        return Err(kernel::Error::Failed(unknown_template(stack, name)));
+    }
+    let resolved =
+        template_view::resolve(stack.config(), stack.templates(), name)?
+            .filter(|resolved| {
+                resolved.source != TemplateSource::PluginDefault
+            });
+    let Some(resolved) = resolved else {
+        return Err(kernel::Error::Refusal(format!(
+            "No customised template found for '{name}' — already using \
+             plugin default."
+        )));
+    };
+    if confirm {
+        stack.overrides().delete(&resolved.abs_path)?;
+        print!(
+            "{}",
+            template_render::reset_confirmed(resolved.source, name)
+        );
+    } else {
+        let within = stack.overrides().within_project(&resolved.abs_path);
+        print!("{}", template_render::reset_found(&resolved, within, name));
+    }
+    Ok(())
+}
+
+fn unknown_template(stack: &ConfigStack, name: &str) -> String {
+    format!(
+        "Error: Unknown template '{name}'. Available: {}",
+        template_view::available_or_none(stack.templates())
+    )
 }
 
 fn resolve_get(

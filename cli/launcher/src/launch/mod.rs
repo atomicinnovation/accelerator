@@ -59,6 +59,7 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             explain: *explain,
             on_failure: on_failure(*fail_safe),
         },
+        ConfigAction::Init => config_cli::Action::Init,
         ConfigAction::Set { key, value, level } => config_cli::Action::Set {
             key: key.clone(),
             value: value.clone(),
@@ -137,6 +138,26 @@ fn to_templates_action(action: &TemplatesAction) -> config_cli::Action {
             name: name.clone(),
             on_failure: on_failure(*fail_safe),
         },
+        TemplatesAction::Eject {
+            name,
+            all,
+            force,
+            dry_run,
+        } => config_cli::Action::TemplatesEject {
+            name: name.clone(),
+            all: *all,
+            force: *force,
+            dry_run: *dry_run,
+        },
+        TemplatesAction::Diff { name } => {
+            config_cli::Action::TemplatesDiff { name: name.clone() }
+        }
+        TemplatesAction::Reset { name, confirm } => {
+            config_cli::Action::TemplatesReset {
+                name: name.clone(),
+                confirm: *confirm,
+            }
+        }
     }
 }
 
@@ -166,7 +187,7 @@ pub fn dispatch(
         }
         Command::Config { action } => {
             let stack = compose_config()?;
-            Ok(config_cli::run(&stack, &to_action(action))?)
+            config_cli::run(&stack, &to_action(action))
         }
         Command::External(raw) => {
             let command = ExternalCommand::from_raw(raw.clone())?;

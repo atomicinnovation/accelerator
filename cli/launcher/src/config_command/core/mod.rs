@@ -8,6 +8,7 @@
 pub mod agents;
 pub mod context;
 pub mod dump;
+pub mod init;
 pub mod paths;
 pub mod review;
 pub mod summary;
@@ -15,7 +16,8 @@ pub mod summary;
 pub mod template;
 
 use config::{
-    ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue, ReadTemplate,
+    ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue,
+    ReadTemplate, Scaffold, TemplateOverride,
 };
 
 /// How a read failure is surfaced at a splice-safe call site.
@@ -41,6 +43,8 @@ pub struct ConfigStack {
     content: Box<dyn ReadContent>,
     lenses: Box<dyn ReadLensCatalogue>,
     templates: Box<dyn ReadTemplate>,
+    overrides: Box<dyn TemplateOverride>,
+    scaffold: Box<dyn Scaffold>,
 }
 
 impl ConfigStack {
@@ -51,6 +55,8 @@ impl ConfigStack {
         content: Box<dyn ReadContent>,
         lenses: Box<dyn ReadLensCatalogue>,
         templates: Box<dyn ReadTemplate>,
+        overrides: Box<dyn TemplateOverride>,
+        scaffold: Box<dyn Scaffold>,
     ) -> Self {
         Self {
             service,
@@ -58,6 +64,8 @@ impl ConfigStack {
             content,
             lenses,
             templates,
+            overrides,
+            scaffold,
         }
     }
 
@@ -84,5 +92,15 @@ impl ConfigStack {
     #[must_use]
     pub fn templates(&self) -> &dyn ReadTemplate {
         self.templates.as_ref()
+    }
+
+    #[must_use]
+    pub fn overrides(&self) -> &dyn TemplateOverride {
+        self.overrides.as_ref()
+    }
+
+    #[must_use]
+    pub fn scaffold(&self) -> &dyn Scaffold {
+        self.scaffold.as_ref()
     }
 }

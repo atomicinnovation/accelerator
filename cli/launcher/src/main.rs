@@ -164,6 +164,8 @@ fn compose_stack(
         Box::new(store.clone()),
         Box::new(store.clone()),
         Box::new(store.clone()),
+        Box::new(store.clone()),
+        Box::new(store.clone()),
         Box::new(store),
     ))
 }
@@ -198,7 +200,10 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
 }
 
 fn report(error: &kernel::Error) -> ExitCode {
-    eprintln!("{error}");
+    let message = error.to_string();
+    if !message.is_empty() {
+        eprintln!("{message}");
+    }
     match error {
         kernel::Error::Refusal(_) => ExitCode::from(2),
         _ => ExitCode::FAILURE,

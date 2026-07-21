@@ -28,8 +28,7 @@ pub fn resolve(
 ) -> Result<Option<ResolvedTemplate>, ConfigError> {
     validate_name(name)?;
     let config_path = scalar(config, &format!("templates.{name}"))?;
-    let dir = scalar(config, "paths.templates")?
-        .unwrap_or_else(|| ".accelerator/templates".to_owned());
+    let dir = templates_dir(config)?;
     templates.resolve_template(name, config_path.as_deref(), &dir)
 }
 
@@ -63,6 +62,38 @@ pub fn list(
 #[must_use]
 pub fn available(templates: &dyn ReadTemplate) -> String {
     templates.template_names().join(", ")
+}
+
+/// The comma-joined available names, or `(none found)` when there are none —
+/// the form the `eject`/`diff`/`reset` error messages carry.
+#[must_use]
+pub fn available_or_none(templates: &dyn ReadTemplate) -> String {
+    let names = available(templates);
+    if names.is_empty() {
+        "(none found)".to_owned()
+    } else {
+        names
+    }
+}
+
+/// The configured user templates directory, or the built-in default.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when the `paths.templates` value cannot be read.
+pub fn templates_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {
+    Ok(scalar(config, "paths.templates")?
+        .unwrap_or_else(|| ".accelerator/templates".to_owned()))
+}
+
+/// Validates a template name as a lowercase identifier before it reaches a
+/// filesystem path.
+///
+/// # Errors
+///
+/// [`ConfigError::Invalid`] when the name is not an identifier.
+pub fn validate(name: &str) -> Result<(), ConfigError> {
+    validate_name(name)
 }
 
 fn scalar(

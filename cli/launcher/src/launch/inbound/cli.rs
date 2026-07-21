@@ -58,6 +58,9 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Create the project scaffold: the content directories, the
+    /// `.accelerator/` tree, and the gitignore rules. Idempotent and silent.
+    Init,
     /// Write a configuration value. Defaults to the git-ignored personal
     /// level; `--level team` writes the committed, shared file. Creates
     /// `.accelerator/` and the level's file on first write.
@@ -278,6 +281,34 @@ pub enum TemplatesAction {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Copy a plugin default template into the user templates directory.
+    Eject {
+        /// The template name to eject; omit when passing `--all`.
+        #[arg(conflicts_with = "all")]
+        name: Option<String>,
+        /// Eject every template.
+        #[arg(long)]
+        all: bool,
+        /// Overwrite an existing template file.
+        #[arg(long)]
+        force: bool,
+        /// Report what would happen without writing anything.
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show the difference between a customised template and its default.
+    Diff {
+        /// The template name (e.g. `plan`).
+        name: String,
+    },
+    /// Report or remove the override that shadows a plugin default template.
+    Reset {
+        /// The template name (e.g. `plan`).
+        name: String,
+        /// Delete the override rather than only reporting it.
+        #[arg(long)]
+        confirm: bool,
+    },
 }
 
 impl TemplatesAction {
@@ -292,6 +323,9 @@ impl TemplatesAction {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,
+            Self::Eject { .. } | Self::Diff { .. } | Self::Reset { .. } => {
+                false
+            }
         };
         if allow {
             LegacyPolicy::Allow
@@ -391,7 +425,7 @@ impl ConfigAction {
                 allow_legacy_layout,
                 ..
             } => *allow_legacy_layout,
-            Self::Set { .. } => false,
+            Self::Set { .. } | Self::Init => false,
             Self::Templates { action } => return action.legacy_policy(),
         };
         if allow {

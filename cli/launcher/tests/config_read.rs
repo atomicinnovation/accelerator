@@ -1153,22 +1153,33 @@ fn set_a_deeply_nested_key_round_trips() -> TestResult {
 
 const MALFORMED_UNTERMINATED: &str = "---\nkey: value\n";
 const MALFORMED_YAML: &str = "---\nkey: : :\n  - broken\n---\nbody\n";
+const MALFORMED_FLOW: &str = "---\nkey: [1, 2\n---\nbody\n";
 const NON_MAPPING_ROOT: &str = "---\n- a\n- b\n---\nbody\n";
 
 #[test]
 fn set_refuses_a_malformed_file_and_leaves_it_byte_identical() -> TestResult {
-    for content in [MALFORMED_UNTERMINATED, MALFORMED_YAML, NON_MAPPING_ROOT] {
-        let fixture = Fixture::new()?.team(content)?;
-        let output = fixture
-            .run(&["config", "set", "core.k", "v", "--level", "team"])?;
-        assert_ne!(code(&output), 0, "should refuse: {content:?}");
-        assert!(output.stdout.is_empty());
-        assert_eq!(
-            read_file(&fixture.root, "config.md")?,
-            content,
-            "file must be left untouched: {content:?}"
-        );
+    for content in [MALFORMED_UNTERMINATED, MALFORMED_YAML, MALFORMED_FLOW] {
+        assert_set_refuses_and_preserves(content)?;
     }
+    Ok(())
+}
+
+#[test]
+fn set_refuses_a_non_mapping_root_and_leaves_it_byte_identical() -> TestResult {
+    assert_set_refuses_and_preserves(NON_MAPPING_ROOT)
+}
+
+fn assert_set_refuses_and_preserves(content: &str) -> TestResult {
+    let fixture = Fixture::new()?.team(content)?;
+    let output =
+        fixture.run(&["config", "set", "core.k", "v", "--level", "team"])?;
+    assert_ne!(code(&output), 0, "should refuse: {content:?}");
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        read_file(&fixture.root, "config.md")?,
+        content,
+        "file must be left untouched: {content:?}"
+    );
     Ok(())
 }
 
@@ -1206,5 +1217,478 @@ fn set_against_an_unwritable_config_fails_non_zero() -> TestResult {
     fs::set_permissions(&dir, fs::Permissions::from_mode(0o755))?;
     assert_ne!(code(&output), 0);
     assert!(output.stdout.is_empty());
+    Ok(())
+}
+
+#[test]
+fn set_rejects_the_allow_legacy_layout_flag() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = fixture.run(&[
+        "config",
+        "set",
+        "--allow-legacy-layout",
+        "core.k",
+        "v",
+    ])?;
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn set_leaves_no_temp_file_behind() -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\ncore:\n  example: old\n---\nBody.\n")?;
+    fixture.run(&[
+        "config",
+        "set",
+        "core.example",
+        "new",
+        "--level",
+        "team",
+    ])?;
+    let leftovers: Vec<_> = fs::read_dir(fixture.root.join(".accelerator"))?
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry.file_name().to_string_lossy().starts_with(".tmp-")
+        })
+        .collect();
+    assert!(leftovers.is_empty(), "temp file left: {leftovers:?}");
+    Ok(())
+}
+
+// --- templates eject / diff / reset (write path) ---
+
+/// Seeds a user-directory override for `demo`, making it "already customised"
+/// for every subcommand.
+fn customise_demo(root: &Path, body: &str) -> TestResult {
+    fs::create_dir_all(root.join(".accelerator/templates"))?;
+    fs::write(root.join(".accelerator/templates/demo.md"), body)?;
+    Ok(())
+}
+
+#[test]
+fn eject_writes_the_default_when_not_customised() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert_eq!(
+        output.stdout,
+        b"Ejected: demo -> .accelerator/templates/demo.md\n"
+    );
+    let written = fs::read_to_string(
+        fixture.root.join(".accelerator/templates/demo.md"),
+    )?;
+    assert_eq!(written, "# Demo Template\n\nBody line.\n");
+    Ok(())
+}
+
+#[test]
+fn eject_against_already_customised_exits_two() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "demo"],
+    )?;
+    assert_eq!(code(&output), 2);
+    assert_eq!(
+        fs::read_to_string(
+            fixture.root.join(".accelerator/templates/demo.md")
+        )?,
+        "# Mine\n",
+        "existing file must be left untouched"
+    );
+    Ok(())
+}
+
+#[test]
+fn eject_force_overwrites_an_existing_file() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "--force", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert_eq!(
+        output.stdout,
+        b"Overwritten: demo -> .accelerator/templates/demo.md\n"
+    );
+    assert_eq!(
+        fs::read_to_string(
+            fixture.root.join(".accelerator/templates/demo.md")
+        )?,
+        "# Demo Template\n\nBody line.\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn eject_dry_run_reports_without_writing() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "--dry-run", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Would eject:"));
+    assert!(!fixture.root.join(".accelerator/templates/demo.md").exists());
+    Ok(())
+}
+
+#[test]
+fn eject_dry_run_on_an_existing_file_would_skip_and_exits_two() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "--dry-run", "demo"],
+    )?;
+    assert_eq!(code(&output), 2);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Would skip:"));
+    Ok(())
+}
+
+#[test]
+fn eject_all_writes_every_template() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "--all"],
+    )?;
+    assert_eq!(code(&output), 0);
+    for name in ["demo", "other"] {
+        assert!(
+            fixture
+                .root
+                .join(format!(".accelerator/templates/{name}.md"))
+                .is_file(),
+            "{name} not ejected"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn eject_all_with_a_conflict_exits_two_but_writes_the_rest() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "--all"],
+    )?;
+    assert_eq!(code(&output), 2);
+    assert!(fixture
+        .root
+        .join(".accelerator/templates/other.md")
+        .is_file());
+    Ok(())
+}
+
+#[test]
+fn eject_of_an_unknown_template_exits_one() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "missing"],
+    )?;
+    assert_eq!(code(&output), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Available:"));
+    Ok(())
+}
+
+#[test]
+fn eject_respects_the_paths_templates_override() -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\npaths:\n  templates: docs/tpl\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert!(fixture.root.join("docs/tpl/demo.md").is_file());
+    Ok(())
+}
+
+#[test]
+fn eject_of_a_traversing_name_is_refused() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "../../etc/passwd"],
+    )?;
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn diff_against_not_customised_exits_two() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "demo"],
+    )?;
+    assert_eq!(code(&output), 2);
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("No customised template found"));
+    Ok(())
+}
+
+#[test]
+fn diff_against_customised_shows_the_addition() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(
+        &fixture.root,
+        "# Demo Template\n\nBody line.\n\n# Extra\n",
+    )?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Comparing plugin default vs user override:"));
+    assert!(stdout.contains("+# Extra"));
+    Ok(())
+}
+
+#[test]
+fn diff_of_an_identical_override_reports_identical() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Demo Template\n\nBody line.\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8_lossy(&output.stdout)
+        .contains("Templates are identical."));
+    Ok(())
+}
+
+#[test]
+fn diff_of_an_unknown_template_exits_one() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "missing"],
+    )?;
+    assert_eq!(code(&output), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Available:"));
+    Ok(())
+}
+
+#[test]
+fn diff_of_a_traversing_name_is_refused() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "../../etc/passwd"],
+    )?;
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn reset_against_not_customised_exits_two() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "demo"],
+    )?;
+    assert_eq!(code(&output), 2);
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("already using plugin default"));
+    Ok(())
+}
+
+#[test]
+fn reset_reports_the_override_without_confirm() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Found override: user override"));
+    assert!(stdout.contains(".accelerator/templates/demo.md"));
+    assert!(
+        fixture
+            .root
+            .join(".accelerator/templates/demo.md")
+            .is_file(),
+        "reset without --confirm must not delete"
+    );
+    Ok(())
+}
+
+#[test]
+fn reset_confirm_deletes_the_override() -> TestResult {
+    let fixture = Fixture::new()?;
+    customise_demo(&fixture.root, "# Mine\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "--confirm", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, b"Reset: demo\n");
+    assert!(!fixture.root.join(".accelerator/templates/demo.md").exists());
+    Ok(())
+}
+
+#[test]
+fn reset_of_an_unknown_template_exits_one() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "missing"],
+    )?;
+    assert_eq!(code(&output), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Available:"));
+    Ok(())
+}
+
+#[test]
+fn reset_of_a_traversing_name_is_refused() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "../../etc/passwd"],
+    )?;
+    assert_ne!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn a_config_path_override_is_customised_for_diff_and_reset_but_not_eject(
+) -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\ntemplates:\n  demo: custom/my-demo.md\n---\n")?;
+    fs::create_dir_all(fixture.root.join("custom"))?;
+    fs::write(
+        fixture.root.join("custom/my-demo.md"),
+        "# Demo Template\n\nBody line.\n\n# Config addition\n",
+    )?;
+
+    let eject = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "demo"],
+    )?;
+    assert_eq!(code(&eject), 0, "eject ignores the config-path override");
+    assert!(fixture
+        .root
+        .join(".accelerator/templates/demo.md")
+        .is_file());
+
+    let diff = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "diff", "demo"],
+    )?;
+    assert_eq!(code(&diff), 0);
+
+    let reset = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "demo"],
+    )?;
+    assert_eq!(code(&reset), 0);
+    assert!(String::from_utf8_lossy(&reset.stdout)
+        .contains("also remove the 'templates.demo' entry"));
+    Ok(())
+}
+
+#[test]
+fn reset_warns_when_the_override_is_outside_the_project() -> TestResult {
+    let outside = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "config-outside-{}-{}.md",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::write(&outside, "# Outside\n")?;
+    let fixture = Fixture::new()?.team(&format!(
+        "---\ntemplates:\n  demo: {}\n---\n",
+        outside.display()
+    ))?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "reset", "demo"],
+    )?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8_lossy(&output.stdout)
+        .contains("outside the project directory"));
+    Ok(())
+}
+
+// --- config init ---
+
+#[test]
+fn init_creates_the_documented_tree() -> TestResult {
+    let fixture = Fixture::new()?;
+    let output = fixture.run(&["config", "init"])?;
+    assert_eq!(code(&output), 0);
+    assert!(output.stdout.is_empty(), "init is silent on stdout");
+    for dir in [
+        "meta/plans",
+        "meta/research/codebase",
+        "meta/decisions",
+        "meta/prs",
+        "meta/validations",
+        "meta/reviews/plans",
+        "meta/reviews/prs",
+        "meta/reviews/work",
+        "meta/work",
+        "meta/notes",
+        "meta/research/design-inventories",
+        "meta/research/design-gaps",
+        "meta/global",
+        "meta/research/issues",
+    ] {
+        assert!(
+            fixture.root.join(dir).join(".gitkeep").is_file(),
+            "{dir}/.gitkeep missing"
+        );
+    }
+    for dir in ["state", "skills", "lenses", "templates"] {
+        assert!(fixture
+            .root
+            .join(".accelerator")
+            .join(dir)
+            .join(".gitkeep")
+            .is_file());
+    }
+    let inner =
+        fs::read_to_string(fixture.root.join(".accelerator/.gitignore"))?;
+    assert!(inner.lines().any(|line| line == "config.local.md"));
+    assert!(inner.lines().any(|line| line == ".tmp-*"));
+    assert_eq!(
+        fs::read_to_string(fixture.root.join(".accelerator/tmp/.gitignore"))?,
+        "*\n!.gitkeep\n!.gitignore\n"
+    );
+    let root_ignore = fs::read_to_string(fixture.root.join(".gitignore"))?;
+    assert!(root_ignore
+        .lines()
+        .any(|line| line == ".accelerator/config.local.md"));
+    Ok(())
+}
+
+#[test]
+fn init_is_idempotent() -> TestResult {
+    let fixture = Fixture::new()?;
+    fixture.run(&["config", "init"])?;
+    let output = fixture.run(&["config", "init"])?;
+    assert_eq!(code(&output), 0);
+    let root_ignore = fs::read_to_string(fixture.root.join(".gitignore"))?;
+    assert_eq!(
+        root_ignore
+            .lines()
+            .filter(|l| *l == ".accelerator/config.local.md")
+            .count(),
+        1,
+        "the root rule must not be duplicated"
+    );
     Ok(())
 }
