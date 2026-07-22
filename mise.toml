@@ -104,6 +104,10 @@ run = "invoke build.frontend"
 description = "Build the visualiser server binary with the dev-frontend feature"
 run = "invoke build.server-dev"
 
+[tasks."build:cli:dev"]
+description = "Build the debug cli launcher (cli/target/debug/accelerator) the test suites invoke through ACCELERATOR_BIN"
+run = "invoke build.cli-dev"
+
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
 depends = ["build:frontend"]
@@ -169,7 +173,7 @@ depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "tes
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
-depends = ["build:server:dev"]
+depends = ["build:server:dev", "build:cli:dev"]
 run = "invoke test.integration.visualiser"
 
 [tasks."test:integration:dev"]
@@ -184,6 +188,7 @@ run = "invoke test.integration.entrypoint"
 
 [tasks."test:integration:config"]
 description = "Run config integration tests"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.config"
 
 [tasks."test:integration:deny"]
@@ -198,10 +203,12 @@ run = "invoke test.integration.pup"
 
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.decisions"
 
 [tasks."test:integration:binary-acquisition"]
 description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.binary-acquisition"
 
 [tasks."test:integration:hooks"]
@@ -215,14 +222,17 @@ env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
 [tasks."test:integration:migrate"]
 description = "Run meta-directory migration framework tests (shell harnesses)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.migrate"
 
 [tasks."test:integration:work"]
 description = "Run work-management skill script tests (shell harnesses)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.work"
 
 [tasks."test:integration:integrations"]
 description = "Run jira/linear integration script tests (shell harnesses + python3 mock servers)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.integrations"
 
 [tasks."test:integration"]

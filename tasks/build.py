@@ -248,6 +248,21 @@ def server_dev(context: Context) -> None:
 
 
 @task
+def cli_dev(context: Context) -> None:
+    """Build the debug cli launcher (cli/target/debug/accelerator).
+
+    The local launcher the repointed shell suites and cargo integration tests
+    invoke through ACCELERATOR_BIN. Declared as a mise build dependency of the
+    test tasks so build ordering lives in the task graph, not in ad-hoc cargo
+    calls inside the suites.
+    """
+    context.run(
+        f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        f"--bin accelerator"
+    )
+
+
+@task
 def server_release(context: Context) -> None:
     """Build the visualiser server binary for release.
 

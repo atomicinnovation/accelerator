@@ -10,9 +10,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-# The routing test resolves work.integration through the accelerator launcher.
-accelerator_ensure_bin "$PLUGIN_ROOT"
-
 DISPATCH="$SCRIPT_DIR/work-item-create-remote.sh"
 DECIDE="$SCRIPT_DIR/work-item-push-decide.sh"
 

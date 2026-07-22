@@ -12,10 +12,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 # PASS/FAIL counters. See scripts/test-helpers.sh for the exposed surface.
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
-# next-number/resolve-id/sync-baseline/template-field-hints read config through
-# the accelerator launcher; point it at the compiled binary.
-accelerator_ensure_bin "$PLUGIN_ROOT"
-
 NEXT_NUMBER="$SCRIPT_DIR/work-item-next-number.sh"
 READ_STATUS="$SCRIPT_DIR/work-item-read-status.sh"
 READ_FIELD="$SCRIPT_DIR/work-item-read-field.sh"

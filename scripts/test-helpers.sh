@@ -368,26 +368,6 @@ assert_grep_empty() {
   esac
 }
 
-# Resolve the accelerator launcher for suites that exercise repointed
-# production scripts. Those scripts invoke
-# "${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}", so pointing
-# ACCELERATOR_BIN at the compiled binary keeps a suite off the signed-release
-# bootstrap (and its unverified-launcher stderr warning). Honours a
-# caller-supplied ACCELERATOR_BIN (a stub, a release build) and otherwise
-# builds the debug launcher once; cargo's own lock serialises parallel suites.
-# Also exports CLAUDE_PLUGIN_ROOT so template resolution finds the shipped
-# templates. Pass the plugin root as $1.
-accelerator_ensure_bin() {
-  local plugin_root="$1"
-  if [ -z "${ACCELERATOR_BIN:-}" ]; then
-    cargo build --quiet --manifest-path "$plugin_root/cli/Cargo.toml" \
-      --bin accelerator
-    ACCELERATOR_BIN="$plugin_root/cli/target/debug/accelerator"
-  fi
-  export ACCELERATOR_BIN
-  export CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$plugin_root}"
-}
-
 test_summary() {
   echo ""
   echo "=== Results ==="

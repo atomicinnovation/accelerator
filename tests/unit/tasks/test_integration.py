@@ -16,9 +16,10 @@ from tasks.test import helpers, integration
 
 @pytest.fixture(autouse=True)
 def _stub_ensure_accelerator_bin(mocker):
-    """The guard tasks build the launcher via ``ensure_accelerator_bin`` before
-    discovery; stub it so the guard logic is testable without a real
-    ``context.run`` (which raises under pytest's stdin capture)."""
+    """The guard tasks call ``ensure_accelerator_bin`` (which points
+    ACCELERATOR_BIN at the launcher built by the ``build:cli:dev`` mise
+    dependency) before discovery; stub it so the guard logic is tested without
+    mutating the process environment."""
     mocker.patch.object(integration, "ensure_accelerator_bin")
 
 

@@ -15,10 +15,6 @@ source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 # shellcheck source=scripts/hash-common.sh
 source "$PLUGIN_ROOT/scripts/hash-common.sh"
 
-# work-item-sync-baseline.sh reads config through the accelerator launcher;
-# point it at the compiled binary.
-accelerator_ensure_bin "$PLUGIN_ROOT"
-
 APPLY="$SCRIPT_DIR/work-item-sync-apply.sh"
 BASELINE="$SCRIPT_DIR/work-item-sync-baseline.sh"
 NORMALISE="$SCRIPT_DIR/work-item-normalise.sh"
