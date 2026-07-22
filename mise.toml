@@ -403,6 +403,10 @@ run = "bash scripts/check-skill-permissions.sh"
 description = "Assert no retained file still invokes a removal-set config script (Grep A/B) and that --allow-legacy-layout stays confined to the migration engine"
 run = "bash scripts/check-call-site-migration.sh"
 
+[tasks."lint:deletion-ledger-replay:check"]
+description = "Replay the 0167 deletion ledger: every removed script's covering gate resolves to a surviving test (presence + known-positive floor; --no-tests keeps it working-tree-only, no jj/cargo)"
+run = "bash scripts/replay-deletion-ledger.sh --no-tests"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
 depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
@@ -447,7 +451,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:deletion-ledger-replay:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

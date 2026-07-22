@@ -809,6 +809,61 @@ fn summary_hook_without_fail_safe_fails_loud_on_a_read_failure() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn summary_hook_keeps_the_unrecognised_skill_warning_off_stdout() -> TestResult
+{
+    // A workspace carrying config (so the summary block is emitted) and a skill
+    // directory whose name matches no plugin skill, plus a plugin root
+    // advertising a single known skill so the warning actually fires.
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
+        "config-read-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(root.join(".git"))?;
+    fs::create_dir_all(root.join(".accelerator/skills/bogus-skill"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\npaths:\n  work: x\n---\n",
+    )?;
+    fs::write(
+        root.join(".accelerator/skills/bogus-skill/context.md"),
+        "some context\n",
+    )?;
+    let plugin = root.join("plugin");
+    fs::create_dir_all(plugin.join("skills/create-plan"))?;
+    fs::write(
+        plugin.join("skills/create-plan/SKILL.md"),
+        "---\nname: create-plan\n---\n",
+    )?;
+
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
+    command.current_dir(&root);
+    command.env_remove("ACCELERATOR_LOG");
+    command.env_remove("ACCELERATOR_CACHE_DIR");
+    command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    command.env("CLAUDE_PLUGIN_ROOT", &plugin);
+    command.args(["config", "summary", "--format", "hook"]);
+    let output = command.output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(code(&output), 0);
+    assert!(
+        stdout.starts_with("{\"hookSpecificOutput\""),
+        "expected the hook envelope on stdout, got: {stdout}"
+    );
+    assert!(
+        stderr.contains("does not match any known skill name"),
+        "the unrecognised-skill warning was not on stderr: {stderr}"
+    );
+    assert!(
+        !stdout.contains("does not match"),
+        "the warning leaked into the stdout JSON: {stdout}"
+    );
+    Ok(())
+}
+
 /// The committed fixture plugin root carrying `templates/`.
 fn plugin_root() -> PathBuf {
     PathBuf::from(FIXTURES).join("plugin")

@@ -2539,4 +2539,55 @@ assert_eq "third-run byte-identical" "$HASH2" "$HASH3"
 
 echo ""
 
+# ── failing-stub: a fatal config read aborts 0006 and leaves it unrecorded ───
+# 0006 resolves corpus paths through `config path` inside a command
+# substitution (resolve_corpus_path), a context where `set -e` is suspended, so
+# the read's status is captured and graded: a non-zero exit is fatal, exit-0
+# empty keeps "skip this corpus". A stub that fails `config path` must therefore
+# make 0006 exit non-zero AND stay out of migrations-applied — otherwise a
+# transient read failure would half-migrate a repo with no re-run.
+echo "Test: a failed config-path read aborts 0006 without recording it"
+
+STUB_DIR="$TMPDIR_BASE/failing-stub"
+mkdir -p "$STUB_DIR"
+STUB="$STUB_DIR/accelerator"
+STUB_REAL="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
+cat >"$STUB" <<STUBEOF
+#!/usr/bin/env bash
+# Forward to the real launcher, but fail any \`config path\` read so 0006's
+# graded corpus-path resolution goes fatal.
+if [ "\${1:-}" = "config" ] && [ "\${2:-}" = "path" ]; then
+  echo "failing-stub: forced failure on a config path read" >&2
+  exit 7
+fi
+exec "$STUB_REAL" "\$@"
+STUBEOF
+chmod +x "$STUB"
+
+# Control: with a pass-through binary, 0006 succeeds and IS recorded — so the
+# failure below is attributable to the stubbed read, not to the fixture.
+REPO=$(setup_0006_repo default-layout)
+run_0006_driver "$REPO" >/dev/null 2>&1
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "control: 0006 recorded on a clean run" "$APPLIED" \
+  "0006-canonicalise-work-item-id-and-author"
+
+# Failing read: the corpus-path resolution fails fatally.
+REPO=$(setup_0006_repo default-layout)
+RC=0
+OUT=$(cd "$REPO" &&
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+    ACCELERATOR_BIN="$STUB" \
+    bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "driver exits non-zero on a failed config-path read" "0" "$RC"
+assert_contains "the fatal read is diagnosed" "$OUT" \
+  "config read failed for paths"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "0006 is NOT recorded after a fatal read" "$APPLIED" \
+  "0006-canonicalise-work-item-id-and-author"
+
+echo ""
+
 test_summary

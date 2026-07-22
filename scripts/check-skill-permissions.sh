@@ -20,10 +20,32 @@ set -euo pipefail
 #   4. No `!` command contains a shell metacharacter — the matcher is a literal
 #      prefix, so a chained command could smuggle an unmatched call past a rule.
 #
+# It also carries the SKILL.md injection census (formerly in test-config.sh,
+# deleted with the bash config cluster):
+#
+#   5. Every `config context --skill <name>` and `config instructions <name>`
+#      names the SKILL.md's own frontmatter `name` — a mechanical-rewrite
+#      copy-paste error would otherwise inject a sibling skill's context.
+#   6. Where a skill calls `config instructions`, it is the LAST `!`
+#      preprocessor command in the body (the collapse of context+skill-context
+#      into one call made this ordering newly fragile).
+#   7. Context and instructions injection are present in exactly the expected
+#      number of skills, and move together — a skill silently losing its
+#      injection during the rewrite drops the count. `configure` injects
+#      neither and is excluded by construction.
+#
 # Exits non-zero on any violation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Injection is expected in exactly this many skills (42 at the migration's final
+# state). Bump deliberately when a skill's context/instructions injection is
+# genuinely added or removed — the equality is what catches an accidental loss.
+EXPECTED_INJECTION_SKILLS=42
+
+context_skills=0
+instructions_skills=0
 
 # A launcher command naming no subcommand — any rule matching this is too broad.
 BARE_LAUNCHER='${CLAUDE_PLUGIN_ROOT}/bin/accelerator zz-external-subcommand-zz'
@@ -67,6 +89,21 @@ has_bare_bash() {
   ' "$1"
 }
 
+# The frontmatter `name:` value (the skill's canonical name), quotes stripped.
+frontmatter_name() {
+  awk '
+    NR == 1 && $0 == "---" { infm = 1; next }
+    infm && $0 == "---" { exit }
+    infm && $0 ~ /^name:[[:space:]]/ {
+      sub(/^name:[[:space:]]*/, "")
+      gsub(/[[:space:]]*$/, "")
+      gsub(/^"|"$/, "")
+      print
+      exit
+    }
+  ' "$1"
+}
+
 # Whether a `!` command invokes a plugin script or the launcher — the only
 # invocations `allowed-tools` governs. Shell builtins (printf, echo, …) are
 # auto-approved and out of scope.
@@ -104,8 +141,10 @@ has_metacharacter() {
 check_skill() {
   local skill="$1" rel="${1#"$PLUGIN_ROOT"/}"
   local rules cmd rule covered bare=0
+  local name has_ctx=0 has_instr=0 argname
 
   rules="$(frontmatter_bash_rules "$skill")"
+  name="$(frontmatter_name "$skill")"
   if has_bare_bash "$skill"; then
     bare=1
   fi
@@ -142,6 +181,27 @@ would exit non-zero and discard the prompt" ;;
         ;;
     esac
 
+    # Census (5): the injected skill name must be the skill's own.
+    case "$cmd" in
+      *"/bin/accelerator config context --skill "*)
+        has_ctx=1
+        argname="$(printf '%s\n' "$cmd" |
+          sed -E 's/.*config context --skill ([a-z0-9][a-z0-9-]*).*/\1/')"
+        [ "$argname" = "$name" ] || report "$rel: 'config context --skill \
+$argname' does not name this skill's frontmatter name '$name'"
+        ;;
+      *"/bin/accelerator config context"*) has_ctx=1 ;;
+    esac
+    case "$cmd" in
+      *"/bin/accelerator config instructions "*)
+        has_instr=1
+        argname="$(printf '%s\n' "$cmd" |
+          sed -E 's/.*config instructions ([a-z0-9][a-z0-9-]*).*/\1/')"
+        [ "$argname" = "$name" ] || report "$rel: 'config instructions \
+$argname' does not name this skill's frontmatter name '$name'"
+        ;;
+    esac
+
     [ "$bare" -eq 1 ] && continue
 
     covered=0
@@ -161,11 +221,38 @@ prompt at load"
   done <<EOF
 $(preprocessor_commands "$skill")
 EOF
+
+  # Census (6): where instructions is injected, it is the last `!` plugin line.
+  if [ "$has_instr" -eq 1 ]; then
+    local last
+    last="$(preprocessor_commands "$skill" |
+      grep -F '${CLAUDE_PLUGIN_ROOT}/' | tail -1)"
+    case "$last" in
+      *"/bin/accelerator config instructions "*) ;;
+      *) report "$rel: 'config instructions' is not the last \`!\` \
+preprocessor command" ;;
+    esac
+    instructions_skills=$((instructions_skills + 1))
+  fi
+  if [ "$has_ctx" -eq 1 ]; then
+    context_skills=$((context_skills + 1))
+  fi
 }
 
 while IFS= read -r skill; do
   check_skill "$skill"
 done < <(find "$PLUGIN_ROOT/skills" -name SKILL.md -type f | sort)
+
+# Census (7): injection present in exactly the expected number of skills, with
+# context and instructions moving together.
+if [ "$context_skills" -ne "$EXPECTED_INJECTION_SKILLS" ]; then
+  report "context injection present in $context_skills skill(s), expected \
+$EXPECTED_INJECTION_SKILLS — bump EXPECTED_INJECTION_SKILLS if this was intended"
+fi
+if [ "$instructions_skills" -ne "$EXPECTED_INJECTION_SKILLS" ]; then
+  report "instructions injection present in $instructions_skills skill(s), \
+expected $EXPECTED_INJECTION_SKILLS"
+fi
 
 if [ "$fail_count" -gt 0 ]; then
   echo "check-skill-permissions: $fail_count violation(s)" >&2

@@ -554,7 +554,7 @@ symbolised after the fact. All three are recorded as deliberate.
 - [x] N concurrent bootstrap invocations against a **cold** cache with a slow
       injected downloader all succeed — no waiter fails the lock while the fetch
       is still progressing (waiters that see a live owner extend rather than abort)
-- [ ] `mise run check` and `mise run` exit 0
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
@@ -1714,8 +1714,9 @@ suites writing `exec` stubs that hard-code the resolver path
 - [x] `accelerator config --help` and `accelerator config get --help` render the
       **matched-subcommand** help, not the top-level launcher help — the augmented
       top-level help fires only for the top-level `--help`
-- [ ] Neither `accelerator version` nor `accelerator config path <key>` installs
+- [x] Neither `accelerator version` nor `accelerator config path <key>` installs
       the rustls crypto provider (the built-in path skips `install_crypto_provider`)
+      — spy-resolver dispatch harness in `cli/launcher/tests/crypto_provider.rs`
 - [x] `config get` on an unset key with no `[default]` prints empty and exits 0
 - [x] `config get <key> <default>` on a miss returns the **caller's** default even
       where a differing catalogue default exists, and returns **empty** for an
@@ -1724,9 +1725,9 @@ suites writing `exec` stubs that hard-code the resolver path
 - [x] `config path <key> <default>` prefers the explicit default over the
       catalogue; without it, the catalogue default, else empty plus a stderr
       warning
-- [ ] Fixtures include **config-path-customised** and **non-mapping-root**
+- [x] Fixtures include **config-path-customised** and **non-mapping-root**
 - [x] Legacy layout is refused uniformly by every subcommand
-- [ ] `--allow-legacy-layout` suppresses that refusal on the **read** subcommands
+- [x] `--allow-legacy-layout` suppresses that refusal on the **read** subcommands
       when passed, and enables the source fallback; `config set
       --allow-legacy-layout` (and the other mutating subcommands) **exits
       non-zero** — the flag is rejected on writes. `ACCELERATOR_MIGRATION_MODE=1`
@@ -1747,10 +1748,11 @@ suites writing `exec` stubs that hard-code the resolver path
 - [x] `--format=hook` **without** `--fail-safe` against **unreadable-config**:
       exit non-zero, empty stdout — the flag is required for the exit-0 states, so
       the hook registration (Phase 6) carries it
-- [ ] The stdout/stderr split is preserved: the unrecognised-skill warning appears
+- [x] The stdout/stderr split is preserved: the unrecognised-skill warning appears
       on stderr and **not** in the stdout JSON
+      (`summary_hook_keeps_the_unrecognised_skill_warning_off_stdout`)
 - [x] `bash scripts/check-inventory.sh` exits 0
-- [ ] `mise run check` exits 0, `mise run` exits 0
+- [x] `mise run check` exits 0, `mise run` exits 0
 
 #### Manual Verification
 
@@ -2547,8 +2549,7 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 > **Still to do:** the per-migration failing-stub / per-k proofs (plan §4b — the
 > graded conversions are implemented and every migrate suite is green, but no
 > test yet injects a failing stub to assert a migration exits non-zero AND stays
-> out of `migrations-applied`); the bare `mise run` end-to-end (only `mise run
-> check` + each affected suite have been run this increment); and the Phase-2 §6
+> out of `migrations-applied`); and the Phase-2 §6
 > member-1 disposition of the now-vacuous `test-config.sh` inline-default censuses
 > (they grep the old names, pass vacuously, are superseded by the new gates, and
 > are deleted in Phase 7).
@@ -2606,7 +2607,7 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       misses — `config-common.sh:407,422`, `catalogue.rs:301,325` and
       `corpus-adapters/tests/common/mod.rs:66` (all reachable because `cli/` is
       **in** the corpus)
-- [ ] No **retained** file *functionally* references a removal-set member at the
+- [x] No **retained** file *functionally* references a removal-set member at the
       final state (Grep A-functional over the whole tree); surviving mentions in
       `CHANGELOG.md`/`docs`/retained-comment files are excluded or reported, not
       gated
@@ -2627,15 +2628,17 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       default — is demonstrably the one walked. "Runs green" alone cannot catch a
       migration reading `meta/plans` instead of a configured `docs/plans` and
       rewriting the wrong corpus
-- [ ] A repointed config read that exits **non-zero** makes its migration exit
+- [x] A repointed config read that exits **non-zero** makes its migration exit
       non-zero, and that migration is **not** appended to
       `.accelerator/state/migrations-applied` — exercised with a stub
       `accelerator` that fails. Exit-0-with-empty keeps its "not configured"
-      meaning
-- [ ] The same holds for a read reached **through a helper invoked in a condition
+      meaning (`test-migrate.sh` "a failed config-path read aborts 0006 without
+      recording it", with a pass-through control)
+- [x] The same holds for a read reached **through a helper invoked in a condition
       or command-substitution context** (`0006:298` → `resolve_corpus_path`), where
       `set -e` is suspended — asserted against the reshaped `rc=$?` caller, since
-      the original `if !` form discards the graded return
+      the original `if !` form discards the graded return (the same test stubs
+      `config path`, which `resolve_corpus_path` reads in a command substitution)
 - [ ] **Per-site conversion is proven, not sampled**: a stub failing on exactly
       the k-th config invocation, for **every** k in 1..N across the migration's
       suppression sites, makes its migration exit non-zero and leaves
@@ -2647,9 +2650,10 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
 - [x] `--allow-legacy-layout` appears nowhere outside
       `skills/config/migrate/migrations/` **and the allowlisted
       `scripts/doc-type-table.sh`**, asserted by `check-call-site-migration.sh`
-- [ ] A full `/accelerator:migrate` run takes a legacy-layout fixture to the
+- [x] A full `/accelerator:migrate` run takes a legacy-layout fixture to the
       current layout end to end — the deadlock case, exercised rather than
-      reasoned about
+      reasoned about (`test-migrate.sh` Test 2, green against the compiled
+      launcher)
 - [x] `bash scripts/check-skill-permissions.sh` exits 0 — including its assertion
       that `--fail-safe` is present on **every** `bin/accelerator config`
       invocation in a `!` block (the flag is present everywhere; its effect
@@ -2663,16 +2667,18 @@ file needs a rule *added* for the bash surface — only `vcs/commit` and
       is committed. Final-tree checks cannot distinguish a rule added in the right
       commit from one added three commits later
 - [x] `bash scripts/test-design.sh` passes with its SKILL.md censuses updated
-- [ ] The SKILL.md census invariants (injection present in exactly 42 skills,
+- [x] The SKILL.md census invariants (injection present in exactly 42 skills,
       skill-context immediately follows context, skill-instructions is the last
       preprocessor line, skill-name matches frontmatter `name`, `configure`
       excluded) have a **named surviving gate** at the final state — rewritten
-      into `check-call-site-migration.sh` / `check-skill-permissions.sh` /
-      `test-design.sh` per the inventory member-1 disposition, **not** left only
+      into `check-skill-permissions.sh` (census items 5-7, negative-tested)
+      per the inventory member-1 disposition, **not** left only
       in `test-config.sh` (which Phase 7 deletes); the `context`+`skill-context`
       collapse makes the ordering invariant newly fragile, so it is explicitly one
-      of them
-- [ ] `mise run check` and `mise run` exit 0
+      of them. (The pre-collapse "skill-context immediately follows context"
+      ordering is subsumed: the pair is now a single `config context --skill`
+      call, so it holds by construction.)
+- [x] `mise run check` and `mise run` exit 0
 
 #### Manual Verification
 
@@ -2812,8 +2818,8 @@ envelope for both SessionStart and PreToolUse; and it names
       probe. **Deferred (live-session probe): the thin `hooks/config-detect.sh`
       wrapper survives and takes no arguments in `hooks.json`, so the arg-splitting
       question does not block; it is 0169's to resolve before inlining.**
-- [~] `mise run check` exits 0 (confirmed); the bare `mise run` is run at the end
-      of the Phase 7 push
+- [x] `mise run check` exits 0 (confirmed); the bare `mise run` exits 0
+      end-to-end (validated 2026-07-22)
 
 The `--format=hook` output criteria live in Phase 2, where it is implemented.
 
@@ -3044,24 +3050,32 @@ non-cluster figure the plan predicted.)
 > (`_EXPECTED_CONFIG_SUITES` 21→19, the init suite wiring removed); the call-site
 > gate's `PENDING_PHASE7` allowlist is empty; the removal-set/ledger/suite-audit
 > inventories are recorded; and the 0106/0107/0178 cross-item records are written
-> (0166 verified already-written). **Recorded as remaining (not blocking the
-> deletion): the bare `mise run` end-to-end; a dedicated `install_crypto_provider`
-> negative test (the pup module rule + the lazy-resolver structure already protect
-> it, but no explicit test asserts it); the standalone deletion-ledger *replay*
-> script with its own known-positive floor (the ledger's final-state column is
-> filled and `check-inventory.sh` validates coverage + divergence-test resolution,
-> but the cross-commit replay is not built); and the launcher-size regression
-> check.** The Phase-5 release-gated items (signed artefacts, latency budget) and
-> the live-session probes remain blocked in this environment.
+> (0166 verified already-written).
+>
+> **Follow-up close-out (2026-07-22).** Three of the recorded-remaining items are
+> now built and green: the `install_crypto_provider` negative test
+> (`cli/launcher/tests/crypto_provider.rs`, a spy-`ResolveBinary` dispatch
+> harness); the standalone deletion-ledger *replay* with its own known-positive
+> floor (`scripts/replay-deletion-ledger.sh`, wired into `mise run check` as
+> `lint:deletion-ledger-replay:check`, output committed at
+> `meta/inventories/0167-deletion-ledger-replay.md`, negative-tested); and the
+> SKILL.md census surviving gate (`check-skill-permissions.sh` items 5-7). Also
+> added: the summary-hook stdout/stderr-split test and the 0006 failing-stub
+> proof (`test-migrate.sh`). **Still remaining: the launcher-size regression
+> check** (overlaps 0165 release-pipeline work), the full per-*k* migration stub
+> matrix across every migration (the 0006 command-substitution site is proven),
+> and a committed `--help` snapshot suite. The Phase-5 release-gated items (signed
+> artefacts, latency budget) and the live-session probes remain blocked in this
+> environment.
 
 #### Automated Verification
 
 - [x] Every file on the removal set is deleted
 - [x] `mise run check` exits 0
-- [~] The bare `mise run` exits 0 end-to-end — run at the end of the push
+- [x] The bare `mise run` exits 0 end-to-end (validated 2026-07-22)
 - [x] At the **final state**, `run_shell_suites` discovery contains **none** of
       `test-config.sh`, `test-config-read-doc-type-paths.sh`, `test-init.sh`
-- [~] **Deletion ledger replay.** `meta/inventories/0167-deletion-ledger.md` maps
+- [x] **Deletion ledger replay.** `meta/inventories/0167-deletion-ledger.md` maps
       every deleted path to a **gate that exists and is green at the final state**
       (a third column beyond "covering gate" and "commit where it went green"), and
       the replay asserts that final-state gate is present and passing **after** the
@@ -3074,20 +3088,24 @@ non-cluster figure the plan predicted.)
       at a commit after its deletion, must make the replay fail — since this is the
       one new gate that otherwise takes its own correctness on trust, and it guards
       the plan's one irreversible risk. The replay output is committed
+      (`scripts/replay-deletion-ledger.sh`; presence + floor wired into
+      `mise run check` via `lint:deletion-ledger-replay:check`, output at
+      `meta/inventories/0167-deletion-ledger-replay.md`; negative-tested that a
+      mis-named gate row fails it)
 - [x] `bash scripts/check-inventory.sh` exits 0 against the final tree
 - [x] `mise run lint:store-duplication:check` exits 0 (and its unit test
       `tests/unit/tasks/test_store_duplication.py` passes)
-- [~] The `config` built-in path drags in **no HTTP/fetch code at runtime**,
+- [x] The `config` built-in path drags in **no HTTP/fetch code at runtime**,
       asserted two ways since `config_command` is a *module* in `launcher` (which
       genuinely depends on `reqwest`/`rustls` for external resolution, so no
       `cargo tree` boundary exists): the **pup module rule** denies
       `accelerator::config_command` from naming `crate::launch::outbound` (present:
       `config_command_may_not_import_adapters_or_launch`), and a **test** asserts a
       `config path` invocation does not reach `install_crypto_provider`.
-      **Partial: the pup rule holds and `install_crypto_provider` is called lazily
-      inside the resolver's `resolve()` (external path only), so built-ins
-      structurally never reach it; the dedicated negative test is recorded as
-      remaining — a faithful one needs a mock-`ResolveBinary` dispatch harness.**
+      **Done: the dedicated negative test now exists
+      (`cli/launcher/tests/crypto_provider.rs`) — a spy `ResolveBinary` driven
+      through `dispatch` proves neither `version` nor `config path` consults the
+      resolver, where `install_crypto_provider` lives; the pup rule still holds.**
 - [~] The shipped launcher's size is recorded and bounded by a
       **launcher-size regression check** in `mise run check`. **Remaining: recorded
       as a follow-up (overlaps the 0165 release-pipeline size datum alongside
