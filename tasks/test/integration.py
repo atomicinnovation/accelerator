@@ -48,11 +48,15 @@ def visualiser(context: Context) -> None:
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
     feature, so the cargo invocation enables that feature to include it.
     """
+    # Build the launcher and export ACCELERATOR_BIN/CLAUDE_PLUGIN_ROOT first:
+    # the cargo tests include config_contract.rs, which runs the repointed
+    # write-visualiser-config.sh, so they need the compiled launcher on the env
+    # rather than the signed-release bootstrap.
+    ensure_accelerator_bin(context)
     context.run(
         f"cargo test --manifest-path {CARGO_TOML} --tests "
         f"--no-default-features --features dev-frontend"
     )
-    ensure_accelerator_bin(context)
     run_shell_suites(context, "skills/visualisation/visualise")
 
 
