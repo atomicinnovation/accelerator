@@ -411,19 +411,9 @@ depends = ["deps:install:python"]
 run = "invoke lint.skill-permissions.check"
 
 [tasks."lint:call-site-migration:check"]
-description = "Assert no retained file still invokes a removal-set config script (Grep A/B) and that --allow-legacy-layout stays confined to the migration engine"
+description = "Guard against regressing to the bash config cluster: no SKILL.md names a removed scripts/config- script (Grep B) and --allow-legacy-layout stays confined to the migration engine"
 depends = ["deps:install:python"]
 run = "invoke lint.call-site-migration.check"
-
-[tasks."lint:deletion-ledger-replay:check"]
-description = "Replay the 0167 deletion ledger: every removed script's covering gate resolves to a surviving test (presence + known-positive floor)"
-depends = ["deps:install:python"]
-run = "invoke lint.deletion-ledger-replay.check"
-
-[tasks."lint:inventory:check"]
-description = "Reconcile the 0167 inventory records against the pinned pre-deletion revision (removal-set floor, divergence tests, deletion ledger, member 4). Needs jj history; run at phase boundaries, not part of the default check"
-depends = ["deps:install:python"]
-run = "invoke lint.inventory.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
@@ -469,7 +459,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:deletion-ledger-replay:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

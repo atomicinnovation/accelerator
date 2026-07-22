@@ -5,7 +5,7 @@ title: "0167 Recorded Divergences from the Bash Config Cluster"
 date: "2026-07-21T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
-status: in-progress
+status: complete
 parent: "work-item:0167"
 relates_to:
   - "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"

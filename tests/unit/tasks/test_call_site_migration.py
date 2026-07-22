@@ -1,9 +1,9 @@
-"""Tests for the call-site migration gate in
+"""Tests for the call-site regression gate in
 ``tasks/lint/call_site_migration.py``.
 
-Synthetic ``tmp_path`` trees exercise Grep A (functional vs mention), Grep B,
-and the ``--allow-legacy-layout`` confinement, plus a real-tree assertion that
-the shipped tree carries no gated violation.
+Synthetic ``tmp_path`` trees exercise Grep B and the ``--allow-legacy-layout``
+confinement, plus a real-tree assertion that the shipped tree carries no gated
+violation.
 """
 
 from pathlib import Path
@@ -17,33 +17,6 @@ def _write(root: Path, rel: str, body: str) -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body)
-
-
-def test_functional_invocation_is_flagged(tmp_path: Path) -> None:
-    _write(tmp_path, "skills/x/run.sh", 'bash "$DIR/config-read-value.sh"\n')
-    hits = gate.functional_hits(tmp_path)
-    assert any("skills/x/run.sh" in h for h in hits)
-
-
-def test_comment_mention_is_not_flagged(tmp_path: Path) -> None:
-    _write(
-        tmp_path, "skills/x/run.sh", "# once used config-read-value.sh here\n"
-    )
-    assert gate.functional_hits(tmp_path) == []
-    assert gate.mention_count(tmp_path) == 1
-
-
-def test_removal_set_member_is_excluded(tmp_path: Path) -> None:
-    _write(
-        tmp_path, "scripts/config-read-value.sh", "exec config-read-path.sh\n"
-    )
-    assert gate.functional_hits(tmp_path) == []
-
-
-def test_pruned_and_changelog_are_ignored(tmp_path: Path) -> None:
-    _write(tmp_path, "meta/notes.md", "bash config-read-value.sh\n")
-    _write(tmp_path, "CHANGELOG.md", "bash config-read-value.sh\n")
-    assert gate.functional_hits(tmp_path) == []
 
 
 def test_grep_b_flags_a_skill_md_script_reference(tmp_path: Path) -> None:

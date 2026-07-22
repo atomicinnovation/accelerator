@@ -9,7 +9,6 @@ status: complete
 parent: "work-item:0167"
 relates_to:
   - "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
-  - "inventory:0167-removal-set-references"
 tags: [rust, config, cli, migration, suite-audit]
 last_updated: "2026-07-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
