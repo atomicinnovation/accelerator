@@ -65,7 +65,7 @@ pub fn require_script(relative: &str) -> Result<PathBuf, TestError> {
 /// derives the path from its test exe instead. A bare `cargo test -p
 /// corpus-adapters` does not build the launcher, so an absent binary fails
 /// loudly here rather than falling through to `bin/accelerator`'s network fetch.
-fn launcher_binary() -> Result<PathBuf, TestError> {
+pub fn launcher_binary() -> Result<PathBuf, TestError> {
     let exe = std::env::current_exe()?;
     // .../target/<profile>/deps/<testbin> -> .../target/<profile>
     let profile_dir = exe
