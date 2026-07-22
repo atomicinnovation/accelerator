@@ -1,6 +1,7 @@
 //! The driven and driving ports and the application service that performs
 //! precedence resolution and the nested-path walk and insert.
 
+use crate::catalogue;
 use crate::error::ConfigError;
 use crate::error::Existing;
 use crate::key::Key;
@@ -8,6 +9,7 @@ use crate::level::Level;
 use crate::node::Mapping;
 use crate::node::Node;
 use crate::node::Scalar;
+use crate::render::render_value;
 
 /// A resolved configuration value: a scalar leaf or a sequence of scalars.
 #[non_exhaustive]
@@ -23,6 +25,57 @@ pub enum Value {
 pub enum Resolved {
     Found(Value),
     Absent,
+}
+
+/// Which side supplied a resolved value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    Personal,
+    Team,
+    Catalogue,
+    Unset,
+}
+
+/// A resolved value with its winning source, the catalogue default already
+/// folded in on absence.
+///
+/// Where [`Resolved`] reports raw presence in a level, `Resolution` is
+/// presence-plus-default-plus-source. `render_value(Scalar::Null)` is the empty
+/// string, so an [`Source::Unset`] resolution renders identically to a
+/// config-present empty string; absence is authoritative only via [`source`]
+/// and [`is_from_config`], never `rendered().is_empty()`.
+///
+/// [`source`]: Resolution::source
+/// [`is_from_config`]: Resolution::is_from_config
+#[derive(Debug, Clone)]
+pub struct Resolution {
+    value: Value,
+    source: Source,
+}
+
+impl Resolution {
+    #[must_use]
+    pub fn rendered(&self) -> String {
+        render_value(&self.value)
+    }
+
+    #[must_use]
+    pub const fn source(&self) -> Source {
+        self.source
+    }
+
+    #[must_use]
+    pub const fn is_from_config(&self) -> bool {
+        matches!(self.source, Source::Personal | Source::Team)
+    }
+
+    /// The rendered value only when it came from config (`Personal` or `Team`);
+    /// `None` for a catalogue default or an unset key, so the empty-vs-absent
+    /// distinction cannot be lost to a naive `.is_empty()` check.
+    #[must_use]
+    pub fn configured_value(&self) -> Option<String> {
+        self.is_from_config().then(|| self.rendered())
+    }
 }
 
 /// Reads a single level's document — a driven port.
@@ -299,6 +352,88 @@ pub trait ConfigAccess {
         value: &str,
         level: Level,
     ) -> Result<(), ConfigError>;
+
+    /// Resolves a key with its catalogue default folded in on absence, reporting
+    /// the winning [`Source`]. A config-present value keeps its level source even
+    /// when it renders empty; the catalogue default applies only when neither
+    /// level supplies the key. Reads both levels eagerly when `level` is `None`,
+    /// so a malformed non-winning level still fails loud.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a level being read fails; a full-stack read fails
+    /// if either level is malformed.
+    fn effective(
+        &self,
+        key: &Key,
+        level: Option<Level>,
+    ) -> Result<Resolution, ConfigError> {
+        let found = if let Some(one) = level {
+            match self.get(key, Some(one))? {
+                Resolved::Found(value) => Some((source_of(one), value)),
+                Resolved::Absent => None,
+            }
+        } else {
+            let personal = self.get(key, Some(Level::Personal))?;
+            let team = self.get(key, Some(Level::Team))?;
+            match (personal, team) {
+                (Resolved::Found(value), _) => Some((Source::Personal, value)),
+                (Resolved::Absent, Resolved::Found(value)) => {
+                    Some((Source::Team, value))
+                }
+                (Resolved::Absent, Resolved::Absent) => None,
+            }
+        };
+        Ok(match found {
+            Some((source, value)) => Resolution { value, source },
+            None => default_resolution(key),
+        })
+    }
+
+    /// As [`effective`], but a config-present value that renders empty is treated
+    /// as absent and replaced by the catalogue default — the empty-collapse the
+    /// agent and template paths need.
+    ///
+    /// [`effective`]: ConfigAccess::effective
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a level being read fails; a full-stack read fails
+    /// if either level is malformed.
+    fn effective_nonempty(
+        &self,
+        key: &Key,
+        level: Option<Level>,
+    ) -> Result<Resolution, ConfigError> {
+        let resolution = self.effective(key, level)?;
+        Ok(
+            if resolution.is_from_config() && resolution.rendered().is_empty() {
+                default_resolution(key)
+            } else {
+                resolution
+            },
+        )
+    }
+}
+
+const fn source_of(level: Level) -> Source {
+    match level {
+        Level::Team => Source::Team,
+        Level::Personal => Source::Personal,
+    }
+}
+
+fn default_resolution(key: &Key) -> Resolution {
+    catalogue::default_for(&key.to_string()).map_or(
+        Resolution {
+            value: Value::Scalar(Scalar::Null),
+            source: Source::Unset,
+        },
+        |value| Resolution {
+            value,
+            source: Source::Catalogue,
+        },
+    )
 }
 
 /// The application service. Depends only on the two driven ports.
@@ -452,7 +587,7 @@ mod tests {
     use std::rc::Rc;
 
     use super::{
-        ConfigAccess, ConfigService, ReadConfigLevel, Resolved, Value,
+        ConfigAccess, ConfigService, ReadConfigLevel, Resolved, Source, Value,
         WriteConfigLevel,
     };
     use crate::error::{ConfigError, Existing};
@@ -988,6 +1123,122 @@ mod tests {
         assert_eq!(entries[0].0, "enabled");
         assert_eq!(entries[0].1, Node::Scalar(Scalar::Bool(true)));
         assert_eq!(entries[1].0, "core");
+        Ok(())
+    }
+
+    fn agents_reviewer(value: &str) -> FakeReader {
+        FakeReader::new(
+            LevelState::Missing,
+            LevelState::Present(mapping(vec![(
+                "agents",
+                mapping(vec![("reviewer", text(value))]),
+            )])),
+        )
+    }
+
+    #[test]
+    fn effective_keeps_the_config_source_for_an_explicit_empty_value(
+    ) -> Result<(), ConfigError> {
+        let resolution = service(agents_reviewer(""))
+            .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(resolution.source(), Source::Personal);
+        assert!(resolution.is_from_config());
+        assert_eq!(resolution.rendered(), "");
+        assert_eq!(resolution.configured_value(), Some(String::new()));
+        Ok(())
+    }
+
+    #[test]
+    fn effective_nonempty_collapses_an_explicit_empty_to_the_catalogue(
+    ) -> Result<(), ConfigError> {
+        let resolution = service(agents_reviewer(""))
+            .effective_nonempty(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(resolution.source(), Source::Catalogue);
+        assert!(!resolution.is_from_config());
+        assert_eq!(resolution.rendered(), "accelerator:reviewer");
+        assert_eq!(resolution.configured_value(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_source_is_authoritative_independent_of_the_rendered_value(
+    ) -> Result<(), ConfigError> {
+        let configured_empty = service(agents_reviewer(""))
+            .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(configured_empty.source(), Source::Personal);
+        assert_eq!(configured_empty.rendered(), "");
+
+        let absent =
+            service(FakeReader::new(LevelState::Missing, LevelState::Missing))
+                .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(absent.source(), Source::Catalogue);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_personal_wins_over_team() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("team"))]),
+            )])),
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("personal"))]),
+            )])),
+        );
+        let resolution =
+            service(reader).effective(&Key::parse("core.example")?, None)?;
+        assert_eq!(resolution.source(), Source::Personal);
+        assert_eq!(resolution.rendered(), "personal");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_team_wins_on_personal_absent() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("team"))]),
+            )])),
+            LevelState::Missing,
+        );
+        let resolution =
+            service(reader).effective(&Key::parse("core.example")?, None)?;
+        assert_eq!(resolution.source(), Source::Team);
+        assert_eq!(resolution.rendered(), "team");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_catalogue_on_both_absent() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(LevelState::Missing, LevelState::Missing);
+        let resolution =
+            service(reader).effective(&Key::parse("paths.work")?, None)?;
+        assert_eq!(resolution.source(), Source::Catalogue);
+        assert_eq!(resolution.rendered(), "meta/work");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_is_unset_on_an_unknown_key() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(LevelState::Missing, LevelState::Missing);
+        let resolution =
+            service(reader).effective(&Key::parse("no.such.key")?, None)?;
+        assert_eq!(resolution.source(), Source::Unset);
+        assert_eq!(resolution.rendered(), "");
+        assert_eq!(resolution.configured_value(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_fails_loud_when_the_non_winning_level_is_malformed(
+    ) -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Failing,
+            LevelState::Present(mapping(vec![("k", text("personal"))])),
+        );
+        assert!(service(reader).effective(&Key::parse("k")?, None).is_err());
         Ok(())
     }
 }

@@ -6,7 +6,6 @@
 
 use config::{
     catalogue, ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel,
-    Resolved,
 };
 
 /// The assembled agents view: the resolved names in catalogue order, and the
@@ -32,30 +31,15 @@ pub fn assemble(
     let mut agents = Vec::new();
     for name in catalogue::AGENT_KEYS {
         let key = Key::parse(&format!("agents.{name}"))?;
-        let value = match config.get(&key, None)? {
-            Resolved::Found(value) => {
-                let rendered = config::render_value(&value);
-                if rendered.is_empty() {
-                    default_agent(name)
-                } else {
-                    rendered
-                }
-            }
-            Resolved::Absent => default_agent(name),
-        };
         agents.push(Agent {
             display: name.replace('-', " "),
-            value,
+            value: config.effective_nonempty(&key, None)?.rendered(),
         });
     }
     Ok(AgentsView {
         agents,
         unknown: unknown_keys(levels)?,
     })
-}
-
-fn default_agent(name: &str) -> String {
-    format!("{}{name}", catalogue::AGENT_PREFIX)
 }
 
 fn unknown_keys(

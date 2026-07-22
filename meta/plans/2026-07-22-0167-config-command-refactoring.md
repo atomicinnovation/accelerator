@@ -398,29 +398,29 @@ places, both keyed off the single `catalogue::AGENT_PREFIX` constant:
 
 #### Automated Verification
 
-- [ ] Failing-test-first: a `config` unit test asserting
+- [x] Failing-test-first: a `config` unit test asserting
       `effective(agents.reviewer)` on `agents.reviewer: ""` returns
       `Source::Personal` with empty rendered value, while
       `effective_nonempty(agents.reviewer)` returns `Source::Catalogue` /
       `accelerator:reviewer`
-- [ ] A launcher test asserts `config agents` and `config agent reviewer` render
+- [x] A launcher test asserts `config agents` and `config agent reviewer` render
       the **same** value for `agents.reviewer: ""` (the drift is gone)
-- [ ] A launcher test asserts `config agent <name-not-in-AGENT_KEYS>` on an unset
+- [x] A launcher test asserts `config agent <name-not-in-AGENT_KEYS>` on an unset
       key still renders `accelerator:<name>` (the unconditional prefixed fallback
       is preserved, not regressed to empty)
-- [ ] `effective`/`effective_nonempty` unit tests cover: personal wins over team;
+- [x] `effective`/`effective_nonempty` unit tests cover: personal wins over team;
       team wins on personal-absent; catalogue on both-absent; `Unset` on an
       unknown key; fail-loud when the non-winning level is malformed
-- [ ] A unit test asserts `source()` is authoritative independent of the rendered
+- [x] A unit test asserts `source()` is authoritative independent of the rendered
       value: `effective(agents.reviewer)` on `agents.reviewer: ""` reports
       `Source::Personal` with an empty rendered value, while an absent key reports
       `Source::Catalogue`/`Unset`
-- [ ] `mise run test:unit:cli` passes (all `--all-features` suites)
-- [ ] `mise run cli:check` and `mise run` exit 0
+- [x] `mise run test:unit:cli` passes (all `--all-features` suites)
+- [x] `mise run cli:check` and `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] No existing committed golden moves: the block `config agents` path already
+- [x] No existing committed golden moves: the block `config agents` path already
       coalesces empty to the prefixed default, and the scalar `config agent
       <name>` fix is proven by the new agreement test (there is no `agent.golden`).
       Confirm every committed golden is byte-identical via the diff of the

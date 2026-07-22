@@ -219,6 +219,30 @@ fn agent_of_an_unset_key_falls_back_to_the_prefixed_default() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn agent_and_agents_agree_on_an_explicit_empty_override() -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\nagents:\n  reviewer: \"\"\n---\n")?;
+    let agent = fixture.run(&["config", "agent", "reviewer"])?;
+    assert_eq!(agent.stdout, b"accelerator:reviewer\n");
+    assert_eq!(code(&agent), 0);
+    let agents = fixture.run(&["config", "agents"])?;
+    assert!(String::from_utf8_lossy(&agents.stdout)
+        .contains("- **reviewer agent**: accelerator:reviewer"));
+    assert_eq!(code(&agents), 0);
+    Ok(())
+}
+
+#[test]
+fn agent_of_a_name_outside_the_catalogue_still_prefixes_the_default(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let output = fixture.run(&["config", "agent", "custom-helper"])?;
+    assert_eq!(output.stdout, b"accelerator:custom-helper\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
 const MALFORMED: &str = "---\nkey: value\n";
 
 #[test]

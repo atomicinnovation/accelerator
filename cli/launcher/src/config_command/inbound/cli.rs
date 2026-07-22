@@ -751,10 +751,11 @@ fn unknown_path_key_warning(key: &str) -> String {
 
 fn resolve_agent(stack: &ConfigStack, name: &str) -> Result<Rendered, Failure> {
     let key = Key::parse(&format!("agents.{name}"))?;
-    let value = match stack.config().get(&key, None)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => format!("{}{name}", catalogue::AGENT_PREFIX),
-    };
+    let value = stack
+        .config()
+        .effective_nonempty(&key, None)?
+        .configured_value()
+        .unwrap_or_else(|| format!("{}{name}", catalogue::AGENT_PREFIX));
     Ok(Rendered::new(format!("{value}\n")))
 }
 
