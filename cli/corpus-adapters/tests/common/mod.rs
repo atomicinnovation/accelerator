@@ -1,5 +1,5 @@
 //! Shared rigging for the differential suites: locating the repository, and
-//! resolving the doc-type table through the live bash config chain.
+//! resolving the doc-type table through the compiled launcher.
 //!
 //! Each integration test is its own crate, so helpers one binary does not use
 //! would otherwise read as dead code.
@@ -59,21 +59,47 @@ pub fn require_script(relative: &str) -> Result<PathBuf, TestError> {
     Ok(script)
 }
 
-/// The doc-type table, resolved through the bash config chain and keyed back to
+/// The compiled launcher, resolved beside the test binary at
+/// `cli/target/<profile>/accelerator`. `CARGO_BIN_EXE_accelerator` is injected
+/// only for the launcher crate's own integration tests, so `corpus-adapters`
+/// derives the path from its test exe instead. A bare `cargo test -p
+/// corpus-adapters` does not build the launcher, so an absent binary fails
+/// loudly here rather than falling through to `bin/accelerator`'s network fetch.
+fn launcher_binary() -> Result<PathBuf, TestError> {
+    let exe = std::env::current_exe()?;
+    // .../target/<profile>/deps/<testbin> -> .../target/<profile>
+    let profile_dir = exe
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("could not locate the target profile dir from the test exe")?;
+    let bin = profile_dir.join("accelerator");
+    if !bin.is_file() {
+        return Err(format!(
+            "launcher not built at {} — build the whole workspace first \
+             (`mise run test:unit:cli`, or `cargo build -p accelerator`); this \
+             test never falls through to bin/accelerator's release fetch",
+            bin.display()
+        )
+        .into());
+    }
+    Ok(bin)
+}
+
+/// The doc-type table, resolved through the compiled launcher and keyed back to
 /// `DocTypeKey`. Every emitted type name must map to a variant, so the linkage
 /// vocabulary is single-sourced in the crate rather than re-encoded in bash.
 pub fn doc_type_table() -> Result<Vec<(DocTypeKey, PathBuf)>, TestError> {
-    let script = require_script("scripts/config-read-doc-type-paths.sh")?;
-    let output = Command::new("bash")
-        .arg(&script)
+    let bin = launcher_binary()?;
+    let output = Command::new(&bin)
+        .args(["config", "paths", "--doc-types", "--format", "tsv"])
         .arg(repo_root()?)
         .output()
         .map_err(|error| {
-            format!("could not run the doc-type resolver (is bash present?): {error}")
+            format!("could not run the doc-type resolver: {error}")
         })?;
     if !output.status.success() {
         return Err(format!(
-            "config-read-doc-type-paths.sh failed: {}",
+            "config paths --doc-types failed: {}",
             String::from_utf8_lossy(&output.stderr)
         )
         .into());
