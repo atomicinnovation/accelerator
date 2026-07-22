@@ -196,10 +196,6 @@ description = "Run the cargo-pup architecture regression (needs the nightly lane
 depends = ["deps:install:python", "deps:install:pup"]
 run = "invoke test.integration.pup"
 
-[tasks."test:integration:init"]
-description = "Run config-init scaffold integration tests (shell harness)"
-run = "invoke test.integration.init"
-
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
 run = "invoke test.integration.decisions"
@@ -236,7 +232,6 @@ depends = [
     "test:integration:dev",
     "test:integration:entrypoint",
     "test:integration:config",
-    "test:integration:init",
     "test:integration:deny",
     "test:integration:decisions",
     "test:integration:tasks",

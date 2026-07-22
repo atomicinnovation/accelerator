@@ -68,15 +68,14 @@ scripts/config-summary.sh
 skills/config/init/scripts/init.sh
 "
 
-# Files whose functional removal-set references belong to a later phase, not to
-# this call-site cutover. Each MUST still contain a functional reference (the
-# known-positive floor below), so the later phase empties this list rather than
-# leaving it to rot. These are Phase 7 §2-§3 (deletions and cli/ repoints);
-# Phase 6 already re-homed hooks/config-detect.sh onto the bootstrap path.
+# Files whose functional removal-set references belonged to a later phase.
+# Empty at the final state: Phase 7 deleted the removal set, the superseded
+# shell suites and the shims, dropped config_resolve_template from
+# config-common.sh, and repointed the cli/ dependants — so no retained file
+# functionally references a removal-set script any more. Each entry carries a
+# known-positive floor (it MUST still be a functional hit), so an entry left
+# here after its file is cleaned fails the build rather than rotting.
 PENDING_PHASE7="
-scripts/config-common.sh
-scripts/test-config.sh
-scripts/test-config-read-doc-type-paths.sh
 "
 
 # Enumerate candidate files: tracked shell/rust/markdown under the repo, minus

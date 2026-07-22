@@ -5,13 +5,13 @@ title: "0167 Surviving-Suite Audit"
 date: "2026-07-21T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
-status: in-progress
+status: complete
 parent: "work-item:0167"
 relates_to:
   - "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
   - "inventory:0167-removal-set-references"
 tags: [rust, config, cli, migration, suite-audit]
-last_updated: "2026-07-21T00:00:00+00:00"
+last_updated: "2026-07-22T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -78,8 +78,32 @@ inventoried under member 3 of the behaviour inventory.
 
 Both keep working because `DOC_TYPE_PATHS_RESOLVER` survives as a full command.
 
-## Final-state discovery run
+## Final-state discovery run (Phase 7, 2026-07-22)
 
-A second discovery run is recorded at Phase 7, with every difference from this
-table attributed to a named deletion (`test-config.sh`,
-`test-config-read-doc-type-paths.sh`, `test-init.sh`) or addition.
+After the Phase 7 deletion, `run_shell_suites(context, "scripts")` discovers
+**19** executable `test-*.sh` suites (`_EXPECTED_CONFIG_SUITES` lowered
+21 → 19). The two-suite difference is attributed to named deletions:
+
+- `test-config.sh` — retired; the config behaviour it gated is covered by the
+  `config_read.rs` black-box suite (deletion ledger).
+- `test-config-read-doc-type-paths.sh` — retired; `config paths --doc-types` is
+  covered by `config_read.rs` and the repointed `corpus-adapters` harness.
+
+The `skills/config/init` subtree now discovers **0** suites, so its dedicated
+call site, `test:integration:init` task, and `_EXPECTED_INIT_SUITES` floor were
+removed: `test-init.sh` was retired against its recorded Phase 4 green run and
+`init.sh`'s contract is covered by `config_read.rs`'s `init_*` tests.
+
+No suite was added. Every surviving `(c)`-class suite above keeps working
+against the compiled binary: `test-design.sh` and
+`test-skill-frontmatter-population.sh` (SKILL.md censuses, rewritten at the
+Phase 5 cutover), `test-validate-corpus-frontmatter.sh` and
+`test-doc-type-inference.sh` (resolver reached through the `config paths
+--doc-types` command that survives).
+
+The Rust pins listed above are resolved: `parity.rs`'s differential shell-out
+helpers are removed (the declared-value divergence tests 10-12 retained);
+`corpus-adapters/tests/common/mod.rs` is repointed at the compiled launcher; the
+catalogue drift test's extractor no longer sources `config-dump.sh` or invokes
+`config-read-review.sh`. `doc_type_single_source.rs` is unchanged (it sources
+the retained `config-defaults.sh`; repointing moves to 0174).
