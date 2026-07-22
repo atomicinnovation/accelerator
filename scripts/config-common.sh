@@ -9,8 +9,8 @@ source "$SCRIPT_DIR/vcs-common.sh"
 source "$SCRIPT_DIR/config-defaults.sh"
 source "$SCRIPT_DIR/atomic-common.sh"
 
-# shellcheck disable=SC2034
-AGENT_PREFIX="accelerator:"
+# AGENT_PREFIX is defined in config-defaults.sh (sourced above) so the agent
+# default arrays can reference it at their definition site.
 
 # Locate the project root. Reuses find_repo_root() from vcs-common.sh
 # with a fallback to $PWD if no VCS root is found.

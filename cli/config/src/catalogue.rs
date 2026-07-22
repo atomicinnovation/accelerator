@@ -346,7 +346,6 @@ scripts="$1"
 root="$2"
 cd "$root"
 source "$scripts/config-common.sh"
-{ source "$scripts/config-dump.sh"; } >/dev/null 2>&1
 for i in "${!PATH_KEYS[@]}"; do
   printf 'K\t%s\t%s\n' "${PATH_KEYS[$i]}" "${PATH_DEFAULTS[$i]}"
 done
@@ -366,18 +365,6 @@ for i in "${!DOC_TYPE_NAMES[@]}"; do
   printf 'D\t%s\t%s\n' "${DOC_TYPE_NAMES[$i]}" "${DOC_TYPE_PATH_KEYS[$i]}"
 done
 for k in "${TEMPLATE_KEYS[@]}"; do printf 'T\t%s\n' "$k"; done
-# Runtime cross-checks against config-read-review.sh: these keys are also in
-# config-dump's REVIEW_KEYS, so the M lines (map-overwriting the loop emission)
-# assert the catalogue default matches the live runtime default, mirroring the
-# min_lenses guard below.
-pr=$("$scripts/config-read-review.sh" pr 2>/dev/null || true)
-wi=$("$scripts/config-read-review.sh" work-item 2>/dev/null || true)
-printf 'M\treview.work_item_revise_severity\t%s\n' \
-  "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise severity\*\*: //p')"
-printf 'M\treview.work_item_revise_major_count\t%s\n' \
-  "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise major count\*\*: //p')"
-printf 'M\treview.min_lenses\t%s\n' \
-  "$(printf '%s\n' "$pr" | sed -n 's/^- \*\*min lenses\*\*: //p')"
 "#;
 
     fn seed_config(root: &std::path::Path) -> Result<(), TestError> {
@@ -429,7 +416,7 @@ printf 'M\treview.min_lenses\t%s\n' \
         for line in stdout.lines() {
             let fields: Vec<&str> = line.split('\t').collect();
             match fields.as_slice() {
-                ["K" | "M", key, value] => {
+                ["K", key, value] => {
                     bash_keys.insert((*key).to_owned(), (*value).to_owned());
                 }
                 ["T", key] => bash_templates.push((*key).to_owned()),

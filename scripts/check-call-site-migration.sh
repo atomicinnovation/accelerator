@@ -74,7 +74,6 @@ skills/config/init/scripts/init.sh
 # leaving it to rot. These are Phase 7 §2-§3 (deletions and cli/ repoints);
 # Phase 6 already re-homed hooks/config-detect.sh onto the bootstrap path.
 PENDING_PHASE7="
-cli/config/src/catalogue.rs
 cli/config-adapters/tests/parity.rs
 cli/corpus-adapters/tests/common/mod.rs
 scripts/config-common.sh

@@ -643,6 +643,55 @@ fn review_matches_the_baseline_goldens_for_every_mode() -> TestResult {
 }
 
 #[test]
+fn review_renders_the_catalogue_defaults_per_mode() -> TestResult {
+    // Replaces the catalogue drift test's dropped config-read-review.sh runtime
+    // cross-check: the rendered `review` output must carry the catalogue defaults
+    // per key and mode. `max lenses` and the work-item severity/count track
+    // `default_for`; `min lenses` is mode-specific (3 for work-item, 4 otherwise)
+    // and is asserted literally, since it is deliberately NOT `default_for`.
+    fn scalar(key: &str) -> Result<String, Box<dyn Error>> {
+        match config::catalogue::default_for(key) {
+            Some(config::Value::Scalar(config::Scalar::String(text))) => {
+                Ok(text)
+            }
+            other => {
+                Err(format!("expected a scalar default for {key}: {other:?}")
+                    .into())
+            }
+        }
+    }
+
+    let max = scalar("review.max_lenses")?;
+    for mode in ["pr", "plan", "work-item"] {
+        let workspace = workspace("baseline")?;
+        let output = run_in(&workspace, &["config", "review", mode])?;
+        let text = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            text.contains(&format!("- **max lenses**: {max}")),
+            "max lenses drifted from the catalogue default in {mode} mode"
+        );
+        let expected_min = if mode == "work-item" { "3" } else { "4" };
+        assert!(
+            text.contains(&format!("- **min lenses**: {expected_min}")),
+            "min lenses wrong in {mode} mode"
+        );
+    }
+
+    let workspace = workspace("baseline")?;
+    let wi = run_in(&workspace, &["config", "review", "work-item"])?;
+    let wi_text = String::from_utf8_lossy(&wi.stdout);
+    assert!(wi_text.contains(&format!(
+        "- **work-item revise severity**: {}",
+        scalar("review.work_item_revise_severity")?
+    )));
+    assert!(wi_text.contains(&format!(
+        "- **work-item revise major count**: {}",
+        scalar("review.work_item_revise_major_count")?
+    )));
+    Ok(())
+}
+
+#[test]
 fn review_lists_a_custom_lens_only_in_its_applies_to_modes() -> TestResult {
     let workspace = workspace("custom-lenses")?;
 
