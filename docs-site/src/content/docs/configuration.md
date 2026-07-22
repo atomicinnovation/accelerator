@@ -133,22 +133,6 @@ directory names. See `/configure help` for the full reference.
 
 ## Skill reference
 
-<a id="configure"></a>
-
-### <img src="https://api.iconify.design/ph/gear-six-bold.svg?color=%23475569" width="18" align="center" alt=""> `/configure [view | create | help | templates ...]`
-
-View, create, or edit Accelerator plugin configuration.
-
-*`configure help` prints the full configuration-key reference; the `templates`
-subcommands manage document templates (see [Template
-Management](#template-management)).*
-
-<a id="init"></a>
-
-### <img src="https://api.iconify.design/ph/rocket-launch-bold.svg?color=%23475569" width="18" align="center" alt=""> `/init`
-
-Prepare a repository with the directories and gitignore entries that Accelerator
-skills expect. Takes no arguments and is safe to run repeatedly.
-
-*Idempotent: it creates the `meta/` directories up front, but skills also create
-them on first use, so running `init` is optional.*
+For invocation and arguments, see the
+[`configure`](reference/skills/config/configure.md) and
+[`init`](reference/skills/config/init.md) skill references.

@@ -89,7 +89,7 @@ loop itself, and what lands the result.
 **Work Items, Issue Trackers & Design Convergence — what gets worked on.**
 [Work items](skills/work-items.md) are the unit of work. They can be created
 locally, or synced both ways with a remote
-[issue tracker](skills/issue-trackers.md) (Jira or Linear).
+[issue tracker](skills/issue-trackers.mdx) (Jira or Linear).
 [Design convergence](skills/design-convergence.md) feeds the funnel from the
 other side: it inventories a frontend, analyses gaps, and emits a document that
 [`extract-work-items`](reference/skills/work/extract-work-items.md) turns into work

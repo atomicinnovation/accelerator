@@ -140,11 +140,5 @@ For an independent, out-of-band check you can run `gh attestation verify
 
 ## Skill reference
 
-<a id="visualise"></a>
-
-### <img src="https://api.iconify.design/ph/presentation-chart-bold.svg?color=%23ea580c" width="18" align="center" alt=""> `/visualise [stop | status]`
-
-Open the accelerator meta visualiser.
-
-*Bare `visualise` starts (or re-attaches to) the server; `status` reports its
-state and `stop` shuts it down. See [Lifecycle](#lifecycle).*
+For invocation and arguments, see the
+[`visualise`](reference/skills/visualisation/visualise.md) skill reference.

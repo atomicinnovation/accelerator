@@ -9,7 +9,7 @@ The filename prefix defaults to a 4-digit number
 `work.id_pattern` and `work.default_project_code`. The
 `work.integration` key selects an optional remote tracker (`jira` or
 `linear` today); when unset, everything stays local with no external API
-calls. See [Issue Trackers](issue-trackers.md) for the integrations.
+calls. See [Issue Trackers](issue-trackers.mdx) for the integrations.
 
 ```
 existing docs (specs, PRDs, notes)

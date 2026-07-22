@@ -32,12 +32,5 @@ haven't run migration `0003` yet, the hook reads the legacy
 
 ## Skill reference
 
-<a id="migrate"></a>
-
-### <img src="https://api.iconify.design/ph/wrench-bold.svg?color=%23475569" width="18" align="center" alt=""> `/migrate`
-
-Apply pending Accelerator meta-directory migrations to bring a repo into line
-with the latest plugin schema.
-
-*Destructive but guarded: it refuses to run on a dirty working tree and previews
-each pending migration before applying. Recovery is via VCS revert.*
+For invocation and arguments, see the
+[`migrate`](reference/skills/config/migrate.md) skill reference.
