@@ -8,16 +8,15 @@
 //! regardless of `--fail-safe`, so a bad `work.integration` enum is never
 //! papered over into empty-and-exit-0.
 
-use config::{
-    catalogue, ConfigError, EjectOutcome, Key, Level, Resolved, TemplateSource,
-};
+use config::{ConfigError, EjectOutcome, Key, Level, TemplateSource};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::review::{self as review_view, Mode};
 use crate::config_command::core::{
-    agents as agents_view, dump as dump_view, init as init_view,
-    paths as paths_view, summary as summary_view, template as template_view,
-    ConfigStack, OnFailure,
+    agents as agents_view, dump as dump_view, get as get_view,
+    init as init_view, paths as paths_view, summary as summary_view,
+    template as template_view, work as work_view, ConfigStack, OnFailure,
+    ScalarView,
 };
 use crate::config_command::render::{
     self, agents as agents_render, context as context_render,
@@ -145,10 +144,15 @@ fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             level,
             explain,
             on_failure,
-        } => finish(
-            resolve_get(stack, key, default.as_deref(), *level, *explain),
+        } => finish_scalar(
+            get_view::resolve(
+                stack.config(),
+                key,
+                default.as_deref(),
+                *level,
+                *explain,
+            ),
             *on_failure,
-            Degrade::Suppress,
         ),
         Action::Path {
             key,
@@ -156,23 +160,29 @@ fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             level,
             explain,
             on_failure,
-        } => finish(
-            resolve_path(stack, key, default.as_deref(), *level, *explain),
+        } => finish_scalar(
+            paths_view::resolve(
+                stack.config(),
+                key,
+                default.as_deref(),
+                *level,
+                *explain,
+            ),
             *on_failure,
-            Degrade::Suppress,
         ),
         Action::Set { key, value, level } => run_set(stack, key, value, *level),
         Action::Init => init_view::run(stack.config(), stack.scaffold()),
-        Action::Agent { name, on_failure } => {
-            finish(resolve_agent(stack, name), *on_failure, Degrade::Suppress)
-        }
+        Action::Agent { name, on_failure } => finish_scalar(
+            agents_view::resolve(stack.config(), name),
+            *on_failure,
+        ),
         Action::Agents { on_failure } => finish(
             resolve_agents(stack),
             *on_failure,
             Degrade::Notice(agents_render::render_unavailable),
         ),
         Action::Work { key, on_failure } => {
-            finish(resolve_work(stack, key), *on_failure, Degrade::Suppress)
+            finish_scalar(work_view::resolve(stack.config(), key), *on_failure)
         }
         Action::Context { skill, on_failure } => {
             run_context(stack, skill.as_deref(), *on_failure)
@@ -425,6 +435,20 @@ enum Degrade {
     Notice(fn() -> Rendered),
 }
 
+/// Renders a scalar view to stdout-plus-warnings and dispatches it through
+/// [`finish`] with the scalar suppression policy. A [`ConfigError::Invalid`]
+/// stays a fail-closed refusal via [`From<ConfigError>`].
+fn finish_scalar(
+    view: Result<ScalarView, ConfigError>,
+    on_failure: OnFailure,
+) -> Result<(), ConfigError> {
+    let rendered = view.map_err(Failure::from).map(|view| Rendered {
+        stdout: format!("{}\n", view.value),
+        warnings: view.warnings,
+    });
+    finish(rendered, on_failure, Degrade::Suppress)
+}
+
 fn finish(
     resolved: Result<Rendered, Failure>,
     on_failure: OnFailure,
@@ -607,209 +631,7 @@ fn unknown_template(stack: &ConfigStack, name: &str) -> String {
     )
 }
 
-fn resolve_get(
-    stack: &ConfigStack,
-    raw_key: &str,
-    default: Option<&str>,
-    level: Option<Level>,
-    explain: bool,
-) -> Result<Rendered, Failure> {
-    let key = Key::parse(raw_key)?;
-    let value = match stack.config().get(&key, level)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => default.unwrap_or_default().to_owned(),
-    };
-    Ok(Rendered {
-        stdout: format!("{value}\n"),
-        warnings: explain_lines(stack, &key, level, explain)?,
-    })
-}
-
-fn resolve_path(
-    stack: &ConfigStack,
-    raw_key: &str,
-    default: Option<&str>,
-    level: Option<Level>,
-    explain: bool,
-) -> Result<Rendered, Failure> {
-    let full = format!("paths.{raw_key}");
-    let key = Key::parse(&full)?;
-    let mut warnings = Vec::new();
-    warnings.extend(legacy_alias_warning(stack, raw_key)?);
-    let fallback = path_fallback(default, raw_key, &full, &mut warnings);
-    let value = match stack.config().get(&key, level)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => fallback,
-    };
-    warnings.extend(explain_lines(stack, &key, level, explain)?);
-    Ok(Rendered {
-        stdout: format!("{value}\n"),
-        warnings,
-    })
-}
-
-/// The migration-0004 nudge when a canonical `research_design_*` key is read
-/// while its pre-rename alias carries a value in config that is being ignored.
-fn legacy_alias_warning(
-    stack: &ConfigStack,
-    raw_key: &str,
-) -> Result<Option<String>, ConfigError> {
-    let legacy = match raw_key {
-        "research_design_inventories" => "design_inventories",
-        "research_design_gaps" => "design_gaps",
-        _ => return Ok(None),
-    };
-    let key = Key::parse(&format!("paths.{legacy}"))?;
-    let set = match stack.config().get(&key, None)? {
-        Resolved::Found(value) => !config::render_value(&value).is_empty(),
-        Resolved::Absent => false,
-    };
-    Ok(set.then(|| {
-        format!(
-            "Warning: your config sets 'paths.{legacy}' (renamed by migration \
-             0004 to 'paths.{raw_key}'); the legacy override is being \
-             ignored. Run /accelerator:migrate"
-        )
-    }))
-}
-
-/// The `--explain` resolution provenance for a scalar read: which level file
-/// supplied the value and which files were consulted. Emitted on stderr only.
-fn explain_lines(
-    stack: &ConfigStack,
-    key: &Key,
-    level: Option<Level>,
-    explain: bool,
-) -> Result<Vec<String>, ConfigError> {
-    if !explain {
-        return Ok(Vec::new());
-    }
-    let mut lines = Vec::new();
-    let levels: &[Level] = match level {
-        Some(Level::Team) => &[Level::Team],
-        Some(Level::Personal) => &[Level::Personal],
-        None => &[Level::Team, Level::Personal],
-    };
-    let mut winner = "default";
-    for probe in levels {
-        let present = matches!(
-            stack.config().get(key, Some(*probe))?,
-            Resolved::Found(_)
-        );
-        lines.push(format!(
-            "{probe} ({}): {}",
-            level_file(*probe),
-            if present { "set" } else { "not set" }
-        ));
-        if present {
-            winner = match probe {
-                Level::Team => "team",
-                Level::Personal => "personal",
-            };
-        }
-    }
-    lines.push(format!("resolved from: {winner}"));
-    Ok(lines)
-}
-
-const fn level_file(level: Level) -> &'static str {
-    match level {
-        Level::Team => ".accelerator/config.md",
-        Level::Personal => ".accelerator/config.local.md",
-    }
-}
-
-/// The value a `path` miss falls back to: an explicit non-empty default wins,
-/// else the catalogue default, else empty with a stderr warning naming the key.
-fn path_fallback(
-    default: Option<&str>,
-    raw_key: &str,
-    full_key: &str,
-    warnings: &mut Vec<String>,
-) -> String {
-    if let Some(explicit) = default.filter(|value| !value.is_empty()) {
-        return explicit.to_owned();
-    }
-    if let Some(value) = catalogue::default_for(full_key) {
-        return config::render_value(&value);
-    }
-    warnings.push(unknown_path_key_warning(raw_key));
-    String::new()
-}
-
-fn unknown_path_key_warning(key: &str) -> String {
-    match key {
-        "design_inventories" | "design_gaps" => format!(
-            "Warning: key '{key}' was renamed by migration 0004 to \
-             'research_{key}'; run /accelerator:migrate"
-        ),
-        _ => format!(
-            "Warning: unknown key 'paths.{key}' — no centralized default"
-        ),
-    }
-}
-
-fn resolve_agent(stack: &ConfigStack, name: &str) -> Result<Rendered, Failure> {
-    let key = Key::parse(&format!("agents.{name}"))?;
-    let value = stack
-        .config()
-        .effective_nonempty(&key, None)?
-        .configured_value()
-        .unwrap_or_else(|| format!("{}{name}", catalogue::AGENT_PREFIX));
-    Ok(Rendered::new(format!("{value}\n")))
-}
-
 fn resolve_agents(stack: &ConfigStack) -> Result<Rendered, Failure> {
     let view = agents_view::assemble(stack.config(), stack.levels())?;
     Ok(agents_render::render(&view))
-}
-
-fn resolve_work(stack: &ConfigStack, key: &str) -> Result<Rendered, Failure> {
-    let full = format!("work.{key}");
-    let parsed = Key::parse(&full)?;
-    let mut warnings = Vec::new();
-    let fallback = work_fallback(key, &full, &mut warnings);
-    let value = match stack.config().get(&parsed, None)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => fallback,
-    };
-    if key == "integration"
-        && !value.is_empty()
-        && !catalogue::WORK_INTEGRATION_VALUES.contains(&value.as_str())
-    {
-        return Err(Failure::Refusal(bad_integration(&value)));
-    }
-    Ok(Rendered {
-        stdout: format!("{value}\n"),
-        warnings,
-    })
-}
-
-/// The default a `work` miss falls back to: the catalogue default, else empty
-/// with a stderr warning naming the unrecognised key.
-fn work_fallback(
-    key: &str,
-    full_key: &str,
-    warnings: &mut Vec<String>,
-) -> String {
-    if let Some(value) = catalogue::default_for(full_key) {
-        return config::render_value(&value);
-    }
-    warnings.push(unknown_work_key_warning(key));
-    String::new()
-}
-
-fn unknown_work_key_warning(key: &str) -> String {
-    format!("Warning: unknown key 'work.{key}' — no centralized default")
-}
-
-fn bad_integration(value: &str) -> ConfigError {
-    let allowed = catalogue::WORK_INTEGRATION_VALUES.join(", ");
-    ConfigError::Invalid {
-        detail: format!(
-            "work.integration must be one of: {allowed} (got '{value}'). \
-             Update work.integration in .accelerator/config.md or run \
-             '/accelerator:configure view' to inspect the current value."
-        ),
-    }
 }

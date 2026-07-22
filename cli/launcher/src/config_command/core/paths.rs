@@ -1,7 +1,9 @@
 //! The `paths` view assembly: the configured path keys, and the 13 doc-type →
 //! directory mappings with their fail-closed value hardening.
 
-use config::{catalogue, ConfigAccess, ConfigError, Key};
+use config::{catalogue, ConfigAccess, ConfigError, Key, Level, Resolved};
+
+use crate::config_command::core::ScalarView;
 
 /// A configured path row: the bare key and its resolved (or default) value.
 pub struct ConfiguredPath {
@@ -37,6 +39,90 @@ pub fn configured(
         });
     }
     Ok(paths)
+}
+
+/// Resolves a single `paths.<key>`, prefixing the `paths.` section.
+///
+/// On a miss an explicit non-empty `--default` wins over the catalogue, which
+/// wins over empty-plus-warning. The fallback is computed eagerly, so an
+/// unknown-key warning can accompany a value that resolves from config.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when the key is malformed or a config level cannot be read.
+pub fn resolve(
+    config: &dyn ConfigAccess,
+    raw_key: &str,
+    default: Option<&str>,
+    level: Option<Level>,
+    explain: bool,
+) -> Result<ScalarView, ConfigError> {
+    let full = format!("paths.{raw_key}");
+    let key = Key::parse(&full)?;
+    let mut warnings = Vec::new();
+    warnings.extend(legacy_alias_warning(config, raw_key)?);
+    let fallback = path_fallback(default, raw_key, &full, &mut warnings);
+    let value = match config.get(&key, level)? {
+        Resolved::Found(value) => config::render_value(&value),
+        Resolved::Absent => fallback,
+    };
+    warnings.extend(super::explain_lines(config, &key, level, explain)?);
+    Ok(ScalarView { value, warnings })
+}
+
+/// The migration-0004 nudge when a canonical `research_design_*` key is read
+/// while its pre-rename alias carries a value in config that is being ignored.
+fn legacy_alias_warning(
+    config: &dyn ConfigAccess,
+    raw_key: &str,
+) -> Result<Option<String>, ConfigError> {
+    let legacy = match raw_key {
+        "research_design_inventories" => "design_inventories",
+        "research_design_gaps" => "design_gaps",
+        _ => return Ok(None),
+    };
+    let key = Key::parse(&format!("paths.{legacy}"))?;
+    let set = match config.get(&key, None)? {
+        Resolved::Found(value) => !config::render_value(&value).is_empty(),
+        Resolved::Absent => false,
+    };
+    Ok(set.then(|| {
+        format!(
+            "Warning: your config sets 'paths.{legacy}' (renamed by migration \
+             0004 to 'paths.{raw_key}'); the legacy override is being \
+             ignored. Run /accelerator:migrate"
+        )
+    }))
+}
+
+/// The value a `path` miss falls back to: an explicit non-empty default wins,
+/// else the catalogue default, else empty with a stderr warning naming the key.
+fn path_fallback(
+    default: Option<&str>,
+    raw_key: &str,
+    full_key: &str,
+    warnings: &mut Vec<String>,
+) -> String {
+    if let Some(explicit) = default.filter(|value| !value.is_empty()) {
+        return explicit.to_owned();
+    }
+    if let Some(value) = catalogue::default_for(full_key) {
+        return config::render_value(&value);
+    }
+    warnings.push(unknown_path_key_warning(raw_key));
+    String::new()
+}
+
+fn unknown_path_key_warning(key: &str) -> String {
+    match key {
+        "design_inventories" | "design_gaps" => format!(
+            "Warning: key '{key}' was renamed by migration 0004 to \
+             'research_{key}'; run /accelerator:migrate"
+        ),
+        _ => format!(
+            "Warning: unknown key 'paths.{key}' — no centralized default"
+        ),
+    }
 }
 
 /// Resolves each doc-type's configured directory.

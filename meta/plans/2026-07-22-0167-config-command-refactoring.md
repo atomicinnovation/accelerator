@@ -604,18 +604,18 @@ untouched. No clap type is introduced into the co-located assemblers
 
 #### Automated Verification
 
-- [ ] Characterization test (added green against the current code, before the
+- [x] Characterization test (added green against the current code, before the
       move): a `core/` scalar test pinning the eager-warning subtlety (a warning
       is emitted on a `Found` value where `path_fallback` would warn)
-- [ ] A test asserts `config get <catalogue-backed key>` on an unset key stays
+- [x] A test asserts `config get <catalogue-backed key>` on an unset key stays
       **empty** (the catalogue default is not injected)
-- [ ] A test asserts `config path <catalogue-backed key> --default X` on an unset
+- [x] A test asserts `config path <catalogue-backed key> --default X` on an unset
       key returns `X` (explicit default outranks the catalogue)
-- [ ] A test asserts `config work integration` with a bad enum exits non-zero
+- [x] A test asserts `config work integration` with a bad enum exits non-zero
       with empty stdout (fail-closed), and `--fail-safe` does not degrade it
-- [ ] `--explain` provenance for a key set in `config.md` and overridden in
+- [x] `--explain` provenance for a key set in `config.md` and overridden in
       `config.local.md` names both levels and attributes the win to personal
-- [ ] The golden contract covers **stdout only**, and the existing stderr checks
+- [x] The golden contract covers **stdout only**, and the existing stderr checks
       are substring/non-empty, not byte-exact; each relocated stderr-emitting
       helper therefore gets a dedicated **byte-exact** test, exhaustive over every
       warning path — the migration-0004 `legacy_alias_warning` (set a legacy alias
@@ -623,16 +623,25 @@ untouched. No clap type is introduced into the co-located assemblers
       `unknown_work_key_warning`, the `--default`-present-suppresses-unknown-key
       interaction, and the **order** of the legacy-alias → fallback → `--explain`
       sequence on the multi-warning path
-- [ ] A test pins `config path <key> --default ""` falling through to the
+- [x] A test pins `config path <key> --default ""` falling through to the
       catalogue while `config get <key> --default ""` returns empty (each
       subcommand's empty-`--default` predicate is preserved verbatim)
-- [ ] All existing scalar golden/behaviour tests pass unchanged
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] All existing scalar golden/behaviour tests pass unchanged
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+
+> Deviation: `path`/`work` were relocated verbatim on `config.get()` + eager
+> `path_fallback`/`work_fallback` rather than routed through `effective`. Routing
+> through `effective` + `configured_value()` would suppress the eager unknown-key
+> warning on a config-set value, breaking the eager-warning subtlety this phase is
+> required to pin. `agent` uses `effective_nonempty` (Phase 1); `get` keeps raw
+> `get()` (no catalogue). Behaviour is byte-identical; the single-seam goal is
+> served by Phase 2's `core/` collapse, not by re-resolving the scalar tails.
 
 #### Manual Verification
 
-- [ ] `inbound/cli.rs` contains no `Key::parse`/`config.get`/`Resolved` matching
-      for the scalar subcommands — resolution lives in `core/`
+- [x] `inbound/cli.rs` contains no `Key::parse`/`config.get`/`Resolved` matching
+      for the scalar subcommands — resolution lives in `core/` (the sole remaining
+      `Key::parse` is `run_set`, the write path)
 
 ---
 

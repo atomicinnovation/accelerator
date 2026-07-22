@@ -243,6 +243,136 @@ fn agent_of_a_name_outside_the_catalogue_still_prefixes_the_default(
     Ok(())
 }
 
+/// The eager-fallback subtlety: `path_fallback` runs before the value is known,
+/// so a config-set key with no catalogue default emits the unknown-key warning
+/// even though the value resolves from config.
+#[test]
+fn path_of_a_config_set_unknown_key_warns_even_though_the_value_resolves(
+) -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\npaths:\n  bogus: from-config\n---\n")?;
+    let output = fixture.run(&["config", "path", "bogus"])?;
+    assert_eq!(output.stdout, b"from-config\n");
+    assert_eq!(code(&output), 0);
+    assert_eq!(
+        String::from_utf8(output.stderr)?,
+        "Warning: unknown key 'paths.bogus' — no centralized default\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn get_of_a_catalogue_backed_key_on_a_miss_does_not_inject_the_catalogue(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let output = fixture.run(&["config", "get", "paths.plans"])?;
+    assert_eq!(output.stdout, b"\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn path_with_an_empty_default_falls_through_to_the_catalogue() -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let path = fixture.run(&["config", "path", "plans", ""])?;
+    assert_eq!(path.stdout, b"meta/plans\n");
+    let get = fixture.run(&["config", "get", "paths.plans", ""])?;
+    assert_eq!(get.stdout, b"\n");
+    Ok(())
+}
+
+#[test]
+fn path_default_present_suppresses_the_unknown_key_warning() -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let output = fixture.run(&["config", "path", "bogus", "somewhere"])?;
+    assert_eq!(output.stdout, b"somewhere\n");
+    assert!(output.stderr.is_empty());
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn path_of_a_renamed_alias_key_emits_the_migration_nudge() -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    for (key, canonical) in [
+        ("design_inventories", "research_design_inventories"),
+        ("design_gaps", "research_design_gaps"),
+    ] {
+        let output = fixture.run(&["config", "path", key])?;
+        assert_eq!(output.stdout, b"\n");
+        assert_eq!(
+            String::from_utf8(output.stderr)?,
+            format!(
+                "Warning: key '{key}' was renamed by migration 0004 to \
+                 '{canonical}'; run /accelerator:migrate\n"
+            )
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn path_of_a_canonical_key_warns_when_the_legacy_alias_is_set() -> TestResult {
+    for (legacy, canonical) in [
+        ("design_inventories", "research_design_inventories"),
+        ("design_gaps", "research_design_gaps"),
+    ] {
+        let fixture = Fixture::new()?
+            .team(&format!("---\npaths:\n  {legacy}: old/dir\n---\n"))?;
+        let output = fixture.run(&["config", "path", canonical])?;
+        assert_eq!(code(&output), 0);
+        assert_eq!(
+            String::from_utf8(output.stderr)?,
+            format!(
+                "Warning: your config sets 'paths.{legacy}' (renamed by \
+                 migration 0004 to 'paths.{canonical}'); the legacy override \
+                 is being ignored. Run /accelerator:migrate\n"
+            )
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn work_of_an_unknown_key_emits_the_no_centralized_default_warning(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let output = fixture.run(&["config", "work", "bogus"])?;
+    assert_eq!(output.stdout, b"\n");
+    assert_eq!(code(&output), 0);
+    assert_eq!(
+        String::from_utf8(output.stderr)?,
+        "Warning: unknown key 'work.bogus' — no centralized default\n"
+    );
+    Ok(())
+}
+
+/// On the multi-warning path the legacy-alias nudge precedes the `--explain`
+/// provenance lines.
+#[test]
+fn path_multi_warning_orders_legacy_alias_before_explain() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\npaths:\n  design_inventories: old/dir\n---\n")?;
+    let output = fixture.run(&[
+        "config",
+        "path",
+        "research_design_inventories",
+        "--explain",
+    ])?;
+    assert_eq!(output.stdout, b"meta/research/design-inventories\n");
+    assert_eq!(code(&output), 0);
+    assert_eq!(
+        String::from_utf8(output.stderr)?,
+        "Warning: your config sets 'paths.design_inventories' (renamed by \
+         migration 0004 to 'paths.research_design_inventories'); the legacy \
+         override is being ignored. Run /accelerator:migrate\n\
+         team (.accelerator/config.md): not set\n\
+         personal (.accelerator/config.local.md): not set\n\
+         resolved from: default\n"
+    );
+    Ok(())
+}
+
 const MALFORMED: &str = "---\nkey: value\n";
 
 #[test]

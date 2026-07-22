@@ -8,6 +8,8 @@ use config::{
     catalogue, ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel,
 };
 
+use crate::config_command::core::ScalarView;
+
 /// The assembled agents view: the resolved names in catalogue order, and the
 /// unrecognised keys found under `agents:`.
 pub struct AgentsView {
@@ -39,6 +41,31 @@ pub fn assemble(
     Ok(AgentsView {
         agents,
         unknown: unknown_keys(levels)?,
+    })
+}
+
+/// Resolves a single `agents.<name>` to its config override.
+///
+/// An explicit-empty value coalesces to the prefixed default, as does any name
+/// with no config override — including one outside `AGENT_KEYS`, which carries
+/// no catalogue default.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when the name is malformed or a config level cannot be
+/// read.
+pub fn resolve(
+    config: &dyn ConfigAccess,
+    name: &str,
+) -> Result<ScalarView, ConfigError> {
+    let key = Key::parse(&format!("agents.{name}"))?;
+    let value = config
+        .effective_nonempty(&key, None)?
+        .configured_value()
+        .unwrap_or_else(|| format!("{}{name}", catalogue::AGENT_PREFIX));
+    Ok(ScalarView {
+        value,
+        warnings: Vec::new(),
     })
 }
 

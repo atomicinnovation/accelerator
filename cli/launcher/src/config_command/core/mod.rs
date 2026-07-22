@@ -8,17 +8,69 @@
 pub mod agents;
 pub mod context;
 pub mod dump;
+pub mod get;
 pub mod init;
 pub mod paths;
 pub mod review;
 pub mod summary;
+pub mod work;
 
 pub mod template;
 
 use config::{
-    ConfigAccess, ReadConfigLevel, ReadContent, ReadLensCatalogue,
-    ReadTemplate, Scaffold, TemplateOverride,
+    ConfigAccess, ConfigError, Key, Level, ReadConfigLevel, ReadContent,
+    ReadLensCatalogue, ReadTemplate, Resolved, Scaffold, TemplateOverride,
 };
+
+/// A resolved scalar subcommand value with the warnings accumulated while
+/// resolving it (each emitted on stderr, never on stdout).
+pub struct ScalarView {
+    pub value: String,
+    pub warnings: Vec<String>,
+}
+
+/// The `--explain` resolution provenance for a scalar read: which level file
+/// supplied the value and which files were consulted. Reports the set/not-set
+/// status of both levels — the per-level presence a single winning source
+/// cannot reconstruct.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when a level being probed cannot be read.
+pub(crate) fn explain_lines(
+    config: &dyn ConfigAccess,
+    key: &Key,
+    level: Option<Level>,
+    explain: bool,
+) -> Result<Vec<String>, ConfigError> {
+    if !explain {
+        return Ok(Vec::new());
+    }
+    let mut lines = Vec::new();
+    let levels: &[Level] = match level {
+        Some(Level::Team) => &[Level::Team],
+        Some(Level::Personal) => &[Level::Personal],
+        None => &[Level::Team, Level::Personal],
+    };
+    let mut winner = "default";
+    for probe in levels {
+        let present =
+            matches!(config.get(key, Some(*probe))?, Resolved::Found(_));
+        lines.push(format!(
+            "{probe} ({}): {}",
+            probe.filename(),
+            if present { "set" } else { "not set" }
+        ));
+        if present {
+            winner = match probe {
+                Level::Team => "team",
+                Level::Personal => "personal",
+            };
+        }
+    }
+    lines.push(format!("resolved from: {winner}"));
+    Ok(lines)
+}
 
 /// How a read failure is surfaced at a splice-safe call site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
