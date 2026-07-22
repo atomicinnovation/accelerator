@@ -3025,16 +3025,43 @@ primitives, not for config reading. **The surviving count is what justifies
 keeping the library until 0174; if it reaches zero, say so** rather than
 deferring on a stale number.
 
+**Re-measured (2026-07-22).** Post-deletion, **18 non-cluster production scripts**
+still `source config-common.sh` — the seven migrations, `run-migrations.sh`,
+`migrate-discoverability.sh`, four work-item scripts, `jira-auth`/`jira-resolve-fields`,
+`linear-auth`/`linear-create-flow`, and `write-visualiser-config`. It has **not**
+reached zero, so config-common's retention to 0174 stays justified. (The removal
+set's own sourcers are gone with the scripts; the count matches the 18
+non-cluster figure the plan predicted.)
+
 ### Success Criteria
+
+> **Progress (2026-07-22).** Phases 6 and 7 pushed through to the deletion
+> end-state, `mise run check`-green. The removal set (20 scripts), the superseded
+> suites (`test-config.sh`, `test-config-read-doc-type-paths.sh`, `test-init.sh`)
+> and the Phase-4 shims are deleted; `config_resolve_template` is dropped from the
+> retained `config-common.sh`; the four cli/ dependants are repointed and the
+> review/agent arrays moved into `config-defaults.sh`; counters moved
+> (`_EXPECTED_CONFIG_SUITES` 21→19, the init suite wiring removed); the call-site
+> gate's `PENDING_PHASE7` allowlist is empty; the removal-set/ledger/suite-audit
+> inventories are recorded; and the 0106/0107/0178 cross-item records are written
+> (0166 verified already-written). **Recorded as remaining (not blocking the
+> deletion): the bare `mise run` end-to-end; a dedicated `install_crypto_provider`
+> negative test (the pup module rule + the lazy-resolver structure already protect
+> it, but no explicit test asserts it); the standalone deletion-ledger *replay*
+> script with its own known-positive floor (the ledger's final-state column is
+> filled and `check-inventory.sh` validates coverage + divergence-test resolution,
+> but the cross-commit replay is not built); and the launcher-size regression
+> check.** The Phase-5 release-gated items (signed artefacts, latency budget) and
+> the live-session probes remain blocked in this environment.
 
 #### Automated Verification
 
-- [ ] Every file on the removal set is deleted
-- [ ] `mise run check` exits 0
-- [ ] The bare `mise run` exits 0 end-to-end
-- [ ] At the **final state**, `run_shell_suites` discovery contains **none** of
+- [x] Every file on the removal set is deleted
+- [x] `mise run check` exits 0
+- [~] The bare `mise run` exits 0 end-to-end — run at the end of the push
+- [x] At the **final state**, `run_shell_suites` discovery contains **none** of
       `test-config.sh`, `test-config-read-doc-type-paths.sh`, `test-init.sh`
-- [ ] **Deletion ledger replay.** `meta/inventories/0167-deletion-ledger.md` maps
+- [~] **Deletion ledger replay.** `meta/inventories/0167-deletion-ledger.md` maps
       every deleted path to a **gate that exists and is green at the final state**
       (a third column beyond "covering gate" and "commit where it went green"), and
       the replay asserts that final-state gate is present and passing **after** the
@@ -3047,23 +3074,24 @@ deferring on a stale number.
       at a commit after its deletion, must make the replay fail — since this is the
       one new gate that otherwise takes its own correctness on trust, and it guards
       the plan's one irreversible risk. The replay output is committed
-- [ ] `bash scripts/check-inventory.sh` exits 0 against the final tree
-- [ ] `mise run lint:store-duplication:check` exits 0 (and its unit test
+- [x] `bash scripts/check-inventory.sh` exits 0 against the final tree
+- [x] `mise run lint:store-duplication:check` exits 0 (and its unit test
       `tests/unit/tasks/test_store_duplication.py` passes)
-- [ ] The `config` built-in path drags in **no HTTP/fetch code at runtime**,
+- [~] The `config` built-in path drags in **no HTTP/fetch code at runtime**,
       asserted two ways since `config_command` is a *module* in `launcher` (which
       genuinely depends on `reqwest`/`rustls` for external resolution, so no
       `cargo tree` boundary exists): the **pup module rule** denies
-      `accelerator::config_command` from naming `crate::launch::outbound`, and a
-      **test** asserts a `config path` invocation does not reach
-      `install_crypto_provider` (Phase 2 §3). The earlier "crate graph contains no
-      HTTP dependency" wording is dropped — it asserted a crate boundary the design
-      does not create
-- [ ] The shipped launcher's size is recorded and bounded by a
-      **launcher-size regression check** in `mise run check`, since the bootstrap
-      hashes the whole binary on every invocation and lever 3 is "binary size" with
-      no stated bound today; the size datum has a natural home alongside
-      `tasks/manifest.py`/`create_checksums`
+      `accelerator::config_command` from naming `crate::launch::outbound` (present:
+      `config_command_may_not_import_adapters_or_launch`), and a **test** asserts a
+      `config path` invocation does not reach `install_crypto_provider`.
+      **Partial: the pup rule holds and `install_crypto_provider` is called lazily
+      inside the resolver's `resolve()` (external path only), so built-ins
+      structurally never reach it; the dedicated negative test is recorded as
+      remaining — a faithful one needs a mock-`ResolveBinary` dispatch harness.**
+- [~] The shipped launcher's size is recorded and bounded by a
+      **launcher-size regression check** in `mise run check`. **Remaining: recorded
+      as a follow-up (overlaps the 0165 release-pipeline size datum alongside
+      `tasks/manifest.py`/`create_checksums`); not built in this push.**
 
 #### Manual Verification
 
