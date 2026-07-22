@@ -15,12 +15,12 @@ from tasks.test import helpers, integration
 
 
 @pytest.fixture(autouse=True)
-def _stub_ensure_accelerator_bin(mocker):
-    """The guard tasks call ``ensure_accelerator_bin`` (which points
-    ACCELERATOR_BIN at the launcher built by the ``build:cli:dev`` mise
-    dependency) before discovery; stub it so the guard logic is tested without
-    mutating the process environment."""
-    mocker.patch.object(integration, "ensure_accelerator_bin")
+def _stub_accelerator_env(mocker):
+    """The guard tasks call ``accelerator_env`` (the ACCELERATOR_BIN overlay for
+    the launcher built by the ``build:cli:dev`` mise dependency) and pass it to
+    the suites; stub it to an empty overlay so the guard logic is tested without
+    touching a real launcher path."""
+    mocker.patch.object(integration, "accelerator_env", return_value={})
 
 
 class _FakeContext:
