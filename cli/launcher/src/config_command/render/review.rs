@@ -1,5 +1,7 @@
 //! The byte-exact `## Review Configuration` block and lens catalogue.
 
+use config::{catalogue, render_value, Value};
+
 use crate::config_command::core::review::{Mode, ReviewView};
 use crate::config_command::render::Rendered;
 
@@ -7,8 +9,18 @@ const PROSE: &str = "\
 Use the paths below when constructing agent prompts. Always use the path
 from this table rather than constructing paths from the lens name.";
 
-const DEFAULT_CORE: &str =
-    "architecture, code-quality, test-coverage, correctness";
+/// The catalogue `review.core_lenses` default as a comma-joined display string
+/// (its scalar items joined with `, `, not the bracketed sequence form).
+fn default_core() -> String {
+    match catalogue::default_for("review.core_lenses") {
+        Some(Value::Sequence(items)) => items
+            .into_iter()
+            .map(|item| render_value(&Value::Scalar(item)))
+            .collect::<Vec<_>>()
+            .join(", "),
+        _ => String::new(),
+    }
+}
 
 #[must_use]
 pub fn render(view: &ReviewView, mode: Mode) -> Rendered {
@@ -29,7 +41,7 @@ pub fn render(view: &ReviewView, mode: Mode) -> Rendered {
         stdout.push_str("- **Core lenses**: ");
         stdout.push_str(&view.core_lenses.join(", "));
         stdout.push_str("\n  (default: ");
-        stdout.push_str(DEFAULT_CORE);
+        stdout.push_str(&default_core());
         stdout.push_str(")\n");
     }
     if !view.filtered_core_lenses.is_empty() {

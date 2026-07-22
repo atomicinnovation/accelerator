@@ -697,26 +697,32 @@ introduced in Phase 3, so Phase 4 lands after Phase 3.
 
 #### Automated Verification
 
-- [ ] `catalogue::is_valid_work_integration` unit test (empty ok; each allowed
+- [x] `catalogue::is_valid_work_integration` unit test (empty ok; each allowed
       value ok; an unknown value rejected)
-- [ ] A test asserts each catalogue-sourced review default equals the value the
+- [x] A test asserts each catalogue-sourced review default equals the value the
       catalogue declares (so a catalogue change propagates to the command)
-- [ ] A new review fixture sets `review.core_lenses` (a non-default value) with a
+- [x] A new review fixture sets `review.core_lenses` (a non-default value) with a
       committed golden pinning the exact `Core lenses` line and the
       `(default: architecture, code-quality, test-coverage, correctness)` bytes —
       the baseline goldens leave this branch unexercised, so it must be added here
       (not deferred to Phase 5) to actually verify the `DEFAULT_CORE` rewrite
-- [ ] A dump fixture with an invalid `work.integration` value and a committed
+- [x] A dump fixture with an invalid `work.integration` value and a committed
       golden pin the exact `"<value> (invalid: must be …)"` annotation cell, so the
       validator swap here and the Phase 5 string relocation are byte-guarded (the
       baseline dump fixture uses a valid integration, leaving this branch
       unexercised)
-- [ ] All existing review/dump golden tests pass unchanged
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] All existing review/dump golden tests pass unchanged
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+
+> Note: the "committed golden" for the two newly-exercised branches is realised as
+> byte-exact substring assertions (`review-core-lenses` fixture for the `Core
+> lenses` default line; the existing `bad-integration` fixture for the dump
+> invalid-annotation cell) rather than full `.golden` files — the assertions pin
+> exactly the bytes the DEFAULT_CORE rewrite and validator swap touch.
 
 #### Manual Verification
 
-- [ ] No review/dump golden bytes change
+- [x] No review/dump golden bytes change
 
 ---
 

@@ -879,6 +879,73 @@ fn a_custom_lens_row_uses_a_single_slash_path_and_the_right_source(
 }
 
 #[test]
+fn review_core_lenses_default_line_carries_the_catalogue_join() -> TestResult {
+    let workspace = workspace("review-core-lenses")?;
+    let output = run_in(&workspace, &["config", "review", "pr"])?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(
+        stdout.contains(
+            "- **Core lenses**: architecture, security\n  (default: \
+             architecture, code-quality, test-coverage, correctness)\n"
+        ),
+        "core lenses default line drifted: {stdout}"
+    );
+    Ok(())
+}
+
+#[test]
+fn review_value_lines_track_the_catalogue_defaults() -> TestResult {
+    fn scalar(key: &str) -> Result<String, Box<dyn Error>> {
+        match config::catalogue::default_for(key) {
+            Some(config::Value::Scalar(config::Scalar::String(text))) => {
+                Ok(text)
+            }
+            other => {
+                Err(format!("expected a scalar for {key}: {other:?}").into())
+            }
+        }
+    }
+    let pr = run_in(&workspace("baseline")?, &["config", "review", "pr"])?;
+    let pr_text = String::from_utf8(pr.stdout)?;
+    assert!(pr_text.contains(&format!(
+        "- **max inline comments**: {}",
+        scalar("review.max_inline_comments")?
+    )));
+    assert!(pr_text.contains(&format!(
+        "- **dedup proximity**: {}",
+        scalar("review.dedup_proximity")?
+    )));
+    let plan = run_in(&workspace("baseline")?, &["config", "review", "plan"])?;
+    let plan_text = String::from_utf8(plan.stdout)?;
+    assert!(plan_text.contains(&format!(
+        "- **plan revise major count**: {}",
+        scalar("review.plan_revise_major_count")?
+    )));
+    assert!(plan_text.contains(&format!(
+        "- **plan revise severity**: {}",
+        scalar("review.plan_revise_severity")?
+    )));
+    Ok(())
+}
+
+#[test]
+fn dump_annotates_an_invalid_work_integration() -> TestResult {
+    let workspace = workspace("bad-integration")?;
+    let output = run_in(&workspace, &["config", "dump"])?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(
+        stdout.contains(
+            "`work.integration` | `bogus (invalid: must be jira, linear, \
+             trello, github-issues)`"
+        ),
+        "invalid work.integration annotation drifted: {stdout}"
+    );
+    Ok(())
+}
+
+#[test]
 fn review_with_fail_safe_renders_the_unavailable_notice() -> TestResult {
     let fixture = Fixture::new()?.team(MALFORMED)?;
     let output = fixture.run(&["config", "review", "pr", "--fail-safe"])?;

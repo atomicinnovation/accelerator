@@ -137,7 +137,7 @@ fn work_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
         });
     }
     let display = if key == "work.integration"
-        && !catalogue::WORK_INTEGRATION_VALUES.contains(&value.as_str())
+        && !catalogue::is_valid_work_integration(&value)
     {
         format!(
             "{value} (invalid: must be {})",

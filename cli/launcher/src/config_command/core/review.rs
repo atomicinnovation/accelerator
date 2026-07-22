@@ -66,16 +66,21 @@ pub fn assemble(
     mode: Mode,
 ) -> Result<ReviewView, ConfigError> {
     let mut warnings = Vec::new();
-    let min_default = if mode == Mode::WorkItem { "3" } else { "4" };
+    let min_default = if mode == Mode::WorkItem {
+        "3".to_owned()
+    } else {
+        catalogue_default("review.min_lenses")
+    };
+    let max_default = catalogue_default("review.max_lenses");
 
-    let min = positive(config, "min_lenses", min_default, &mut warnings)?;
-    let max = positive(config, "max_lenses", "8", &mut warnings)?;
+    let min = positive(config, "min_lenses", &min_default, &mut warnings)?;
+    let max = positive(config, "max_lenses", &max_default, &mut warnings)?;
     let (min_lenses, max_lenses) = if int(&min) > int(&max) {
         warnings.push(format!(
             "review.min_lenses ({min}) > review.max_lenses ({max}) — using \
-             defaults ({min_default}, 8)"
+             defaults ({min_default}, {max_default})"
         ));
-        (min_default.to_owned(), "8".to_owned())
+        (min_default.clone(), max_default.clone())
     } else {
         (min, max)
     };
@@ -84,12 +89,12 @@ pub fn assemble(
     values.push(ValueLine {
         label: "min lenses",
         value: min_lenses.clone(),
-        default: min_default.to_owned(),
+        default: min_default,
     });
     values.push(ValueLine {
         label: "max lenses",
         value: max_lenses,
-        default: "8".to_owned(),
+        default: max_default,
     });
 
     let core_lenses = resolve_list(config, "review.core_lenses")?;
@@ -194,14 +199,14 @@ fn threshold_lines(
                 config,
                 "max inline comments",
                 "max_inline_comments",
-                "10",
+                &catalogue_default("review.max_inline_comments"),
                 warnings,
             )?,
             non_negative_line(
                 config,
                 "dedup proximity",
                 "dedup_proximity",
-                "3",
+                &catalogue_default("review.dedup_proximity"),
                 warnings,
             )?,
             severity_line(
@@ -222,7 +227,7 @@ fn threshold_lines(
                 config,
                 "plan revise major count",
                 "plan_revise_major_count",
-                "3",
+                &catalogue_default("review.plan_revise_major_count"),
                 warnings,
             )?,
         ],
@@ -237,7 +242,7 @@ fn threshold_lines(
                 config,
                 "work-item revise major count",
                 "work_item_revise_major_count",
-                "2",
+                &catalogue_default("review.work_item_revise_major_count"),
                 warnings,
             )?,
         ],
@@ -504,6 +509,14 @@ fn revise_verdict(
     ])
 }
 
+/// The catalogue default for a full `review.*` key, rendered to its scalar
+/// string (empty when the key carries none).
+fn catalogue_default(key: &str) -> String {
+    catalogue::default_for(key)
+        .map(|value| config::render_value(&value))
+        .unwrap_or_default()
+}
+
 fn resolve(
     config: &dyn ConfigAccess,
     key: &str,
@@ -580,7 +593,8 @@ fn severity(
     key: &str,
     warnings: &mut Vec<String>,
 ) -> Result<String, ConfigError> {
-    let value = resolve(config, &format!("review.{key}"), "critical")?;
+    let default = catalogue_default(&format!("review.{key}"));
+    let value = resolve(config, &format!("review.{key}"), &default)?;
     if SEVERITIES.contains(&value.as_str()) {
         Ok(value)
     } else {
@@ -588,7 +602,7 @@ fn severity(
             "review.{key} must be 'critical', 'major', or 'none', got \
              '{value}' — using default (critical)"
         ));
-        Ok("critical".to_owned())
+        Ok(default)
     }
 }
 
@@ -629,6 +643,6 @@ fn severity_line(
     Ok(ValueLine {
         label,
         value: severity(config, key, warnings)?,
-        default: "critical".to_owned(),
+        default: catalogue_default(&format!("review.{key}")),
     })
 }

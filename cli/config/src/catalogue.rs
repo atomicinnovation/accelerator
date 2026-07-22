@@ -106,6 +106,13 @@ pub const WORK_KEYS: &[(&str, Default)] = &[
 pub const WORK_INTEGRATION_VALUES: &[&str] =
     &["jira", "linear", "trello", "github-issues"];
 
+/// Whether `value` is an accepted `work.integration`: empty (unset) is always
+/// permitted, else membership in [`WORK_INTEGRATION_VALUES`].
+#[must_use]
+pub fn is_valid_work_integration(value: &str) -> bool {
+    value.is_empty() || WORK_INTEGRATION_VALUES.contains(&value)
+}
+
 /// Integration and tool keys read ad-hoc by their own consumers.
 ///
 /// They carry no catalogue default — an unset key means the consumer's own
@@ -297,6 +304,16 @@ mod tests {
     #[test]
     fn default_for_a_template_key_is_none() {
         assert_eq!(default_for("templates.plan"), None);
+    }
+
+    #[test]
+    fn work_integration_accepts_empty_and_members_and_rejects_others() {
+        assert!(super::is_valid_work_integration(""));
+        for value in super::WORK_INTEGRATION_VALUES {
+            assert!(super::is_valid_work_integration(value), "{value}");
+        }
+        assert!(!super::is_valid_work_integration("bitbucket"));
+        assert!(!super::is_valid_work_integration("Jira"));
     }
 
     #[test]

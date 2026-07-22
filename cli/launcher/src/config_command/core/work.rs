@@ -26,10 +26,7 @@ pub fn resolve(
         Resolved::Found(value) => config::render_value(&value),
         Resolved::Absent => fallback,
     };
-    if key == "integration"
-        && !value.is_empty()
-        && !catalogue::WORK_INTEGRATION_VALUES.contains(&value.as_str())
-    {
+    if key == "integration" && !catalogue::is_valid_work_integration(&value) {
         return Err(bad_integration(&value));
     }
     Ok(ScalarView { value, warnings })
