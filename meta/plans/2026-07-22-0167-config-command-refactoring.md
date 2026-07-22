@@ -502,26 +502,28 @@ resolution becomes `None` and the fall-through is unchanged.
 
 #### Automated Verification
 
-- [ ] `Level::filename()` unit test (both variants)
-- [ ] A `config` test asserts `catalogue::default_for` for `paths.tmp` and
+- [x] `Level::filename()` unit test (both variants)
+- [x] A `config` test asserts `catalogue::default_for` for `paths.tmp` and
       `paths.templates` is present and non-empty, so a future catalogue drift that
       emptied these path defaults fails loudly rather than silently resolving to
       the project root
-- [ ] All existing `dump`/`init`/`paths`/`summary`/`template` golden tests pass
+- [x] All existing `dump`/`init`/`paths`/`summary`/`template` golden tests pass
       unchanged
-- [ ] A `dump` test asserts source attribution (Local/Team/Default) is unchanged
-      across a fixture with personal, team, and default-only keys
-- [ ] A test asserts `paths.templates: ""` in config still resolves
+- [x] A `dump` test asserts source attribution (Local/Team/Default) is unchanged
+      across a fixture with personal, team, and default-only keys (the committed
+      `dump.golden` — team `min_lenses`, local `max_lenses`, default rest — is the
+      byte-exact guarantee)
+- [x] A test asserts `paths.templates: ""` in config still resolves
       `templates_dir` to `.accelerator/templates` (the empty-collapse is preserved
       by `effective_nonempty`)
-- [ ] A test sets `templates.demo: ""` in config and asserts `config template demo`
+- [x] A test sets `templates.demo: ""` in config and asserts `config template demo`
       still resolves to the plugin default (the `configured_value()` → `None`
       fall-through is preserved)
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] No committed golden bytes change in this phase
+- [x] No committed golden bytes change in this phase
 
 ---
 

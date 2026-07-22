@@ -1,7 +1,7 @@
 //! The `config init` scaffold: resolves the project content directories and
 //! the tmp directory, then applies the idempotent scaffold through the port.
 
-use config::{catalogue, ConfigAccess, ConfigError, Key, Resolved, Scaffold};
+use config::{ConfigAccess, ConfigError, Key, Scaffold};
 
 /// The content-directory keys `init` creates. Each resolves through
 /// `paths.<key>`, falling back to the catalogue default.
@@ -43,13 +43,8 @@ fn resolve_path(
     config: &dyn ConfigAccess,
     key: &str,
 ) -> Result<String, ConfigError> {
-    let full = format!("paths.{key}");
-    let parsed = Key::parse(&full)?;
-    Ok(match config.get(&parsed, None)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => catalogue::default_for(&full)
-            .map_or_else(String::new, |value| config::render_value(&value)),
-    })
+    let parsed = Key::parse(&format!("paths.{key}"))?;
+    Ok(config.effective(&parsed, None)?.rendered())
 }
 
 #[cfg(test)]

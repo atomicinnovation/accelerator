@@ -4,9 +4,7 @@
 //! override directory, plugin default), validating the name as an identifier
 //! before it reaches a path.
 
-use config::{
-    ConfigAccess, ConfigError, Key, ReadTemplate, Resolved, ResolvedTemplate,
-};
+use config::{ConfigAccess, ConfigError, Key, ReadTemplate, ResolvedTemplate};
 
 /// One row of the `templates list` table.
 pub struct ListRow {
@@ -82,8 +80,9 @@ pub fn available_or_none(templates: &dyn ReadTemplate) -> String {
 ///
 /// A [`ConfigError`] when the `paths.templates` value cannot be read.
 pub fn templates_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {
-    Ok(scalar(config, "paths.templates")?
-        .unwrap_or_else(|| ".accelerator/templates".to_owned()))
+    Ok(config
+        .effective_nonempty(&Key::parse("paths.templates")?, None)?
+        .rendered())
 }
 
 /// Validates a template name as a lowercase identifier before it reaches a
@@ -100,14 +99,9 @@ fn scalar(
     config: &dyn ConfigAccess,
     key: &str,
 ) -> Result<Option<String>, ConfigError> {
-    let parsed = Key::parse(key)?;
-    Ok(match config.get(&parsed, None)? {
-        Resolved::Found(value) => {
-            let rendered = config::render_value(&value);
-            (!rendered.is_empty()).then_some(rendered)
-        }
-        Resolved::Absent => None,
-    })
+    Ok(config
+        .effective_nonempty(&Key::parse(key)?, None)?
+        .configured_value())
 }
 
 fn validate_name(name: &str) -> Result<(), ConfigError> {

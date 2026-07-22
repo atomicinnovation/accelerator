@@ -7,7 +7,7 @@
 
 use config::{
     ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel, ReadContent,
-    ReadLensCatalogue, Resolved,
+    ReadLensCatalogue,
 };
 
 use crate::config_command::core::context::trim_body;
@@ -46,10 +46,12 @@ pub fn assemble(
     let mut summary =
         String::from("Accelerator plugin configuration detected:");
     if team.is_some() {
-        summary.push_str("\n- Team config: .accelerator/config.md");
+        summary.push_str("\n- Team config: ");
+        summary.push_str(Level::Team.filename());
     }
     if personal.is_some() {
-        summary.push_str("\n- Personal config: .accelerator/config.local.md");
+        summary.push_str("\n- Personal config: ");
+        summary.push_str(Level::Personal.filename());
     }
 
     let sections = configured_sections(team.as_ref(), personal.as_ref());
@@ -87,11 +89,9 @@ pub fn assemble(
 }
 
 fn tmp_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {
-    let key = Key::parse("paths.tmp")?;
-    Ok(match config.get(&key, None)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => ".accelerator/tmp".to_owned(),
-    })
+    Ok(config
+        .effective(&Key::parse("paths.tmp")?, None)?
+        .rendered())
 }
 
 fn configured_sections(

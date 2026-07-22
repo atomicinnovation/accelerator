@@ -921,6 +921,36 @@ fn template_wraps_the_plugin_default_in_markdown_fences() -> TestResult {
 }
 
 #[test]
+fn templates_dir_falls_back_to_the_default_on_an_empty_paths_templates(
+) -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\npaths:\n  templates: \"\"\n---\n")?;
+    let output = run_with_plugin(
+        &fixture.root,
+        &["config", "templates", "eject", "demo", "--dry-run"],
+    )?;
+    assert!(String::from_utf8_lossy(&output.stdout)
+        .contains(".accelerator/templates/demo.md"));
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn template_with_an_empty_config_override_falls_through_to_the_plugin_default(
+) -> TestResult {
+    let fixture =
+        Fixture::new()?.team("---\ntemplates:\n  demo: \"\"\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(
+        output.stdout,
+        b"```markdown\n# Demo Template\n\nBody line.\n```\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
 fn template_not_found_fails_closed_even_with_fail_safe() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
     let output = run_with_plugin(

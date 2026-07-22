@@ -89,24 +89,19 @@ fn source_of(
     config: &dyn ConfigAccess,
     key: &str,
 ) -> Result<Source, ConfigError> {
-    if config_get(config, key, Some(Level::Personal))?.is_some() {
-        Ok(Source::Local)
-    } else if config_get(config, key, Some(Level::Team))?.is_some() {
-        Ok(Source::Team)
-    } else {
-        Ok(Source::Default)
-    }
+    let parsed = Key::parse(key)?;
+    Ok(match config.effective(&parsed, None)?.source() {
+        config::Source::Personal => Source::Local,
+        config::Source::Team => Source::Team,
+        config::Source::Catalogue | config::Source::Unset => Source::Default,
+    })
 }
 
 fn defaulted_row(
     config: &dyn ConfigAccess,
     key: &str,
 ) -> Result<Row, ConfigError> {
-    let value = config_get(config, key, None)?.unwrap_or_else(|| {
-        catalogue::default_for(key)
-            .map(|value| config::render_value(&value))
-            .unwrap_or_default()
-    });
+    let value = config.effective(&Key::parse(key)?, None)?.rendered();
     Ok(Row {
         key: key.to_owned(),
         cell: Cell::Value(value),
@@ -133,11 +128,7 @@ fn optional_row(
 }
 
 fn work_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
-    let value = config_get(config, key, None)?.unwrap_or_else(|| {
-        catalogue::default_for(key)
-            .map(|value| config::render_value(&value))
-            .unwrap_or_default()
-    });
+    let value = config.effective(&Key::parse(key)?, None)?.rendered();
     if value.is_empty() {
         return Ok(Row {
             key: key.to_owned(),

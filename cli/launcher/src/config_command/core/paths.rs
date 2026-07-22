@@ -1,7 +1,7 @@
 //! The `paths` view assembly: the configured path keys, and the 13 doc-type →
 //! directory mappings with their fail-closed value hardening.
 
-use config::{catalogue, ConfigAccess, ConfigError, Key, Resolved};
+use config::{catalogue, ConfigAccess, ConfigError, Key};
 
 /// A configured path row: the bare key and its resolved (or default) value.
 pub struct ConfiguredPath {
@@ -88,13 +88,7 @@ fn resolve_or_default(
     config: &dyn ConfigAccess,
     full_key: &str,
 ) -> Result<String, ConfigError> {
-    let key = Key::parse(full_key)?;
-    Ok(match config.get(&key, None)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => catalogue::default_for(full_key)
-            .map(|value| config::render_value(&value))
-            .unwrap_or_default(),
-    })
+    Ok(config.effective(&Key::parse(full_key)?, None)?.rendered())
 }
 
 /// Whether a directory is unsafe, matching the bash `config-read-doc-type-paths`

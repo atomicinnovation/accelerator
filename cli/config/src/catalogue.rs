@@ -304,6 +304,21 @@ mod tests {
         assert_eq!(default_for("no.such.key"), None);
     }
 
+    #[test]
+    fn the_path_defaults_relied_on_as_fallbacks_are_present_and_non_empty() {
+        for key in ["paths.tmp", "paths.templates"] {
+            let default = default_for(key);
+            assert!(
+                matches!(
+                    &default,
+                    Some(Value::Scalar(Scalar::String(text)))
+                        if !text.is_empty()
+                ),
+                "{key} must have a non-empty scalar default, got {default:?}"
+            );
+        }
+    }
+
     type TestError = Box<dyn std::error::Error>;
 
     fn scripts_dir() -> Result<PathBuf, TestError> {
