@@ -14,6 +14,14 @@ from invoke import Context, Exit
 from tasks.test import helpers, integration
 
 
+@pytest.fixture(autouse=True)
+def _stub_ensure_accelerator_bin(mocker):
+    """The guard tasks build the launcher via ``ensure_accelerator_bin`` before
+    discovery; stub it so the guard logic is testable without a real
+    ``context.run`` (which raises under pytest's stdin capture)."""
+    mocker.patch.object(integration, "ensure_accelerator_bin")
+
+
 class _FakeContext:
     """Records run() invocations without executing anything."""
 
