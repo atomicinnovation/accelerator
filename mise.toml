@@ -396,16 +396,24 @@ depends = ["deps:install:python"]
 run = "invoke lint.store-duplication.check"
 
 [tasks."lint:skill-permissions:check"]
-description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant)"
-run = "bash scripts/check-skill-permissions.sh"
+description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
+depends = ["deps:install:python"]
+run = "invoke lint.skill-permissions.check"
 
 [tasks."lint:call-site-migration:check"]
 description = "Assert no retained file still invokes a removal-set config script (Grep A/B) and that --allow-legacy-layout stays confined to the migration engine"
-run = "bash scripts/check-call-site-migration.sh"
+depends = ["deps:install:python"]
+run = "invoke lint.call-site-migration.check"
 
 [tasks."lint:deletion-ledger-replay:check"]
-description = "Replay the 0167 deletion ledger: every removed script's covering gate resolves to a surviving test (presence + known-positive floor; --no-tests keeps it working-tree-only, no jj/cargo)"
-run = "bash scripts/replay-deletion-ledger.sh --no-tests"
+description = "Replay the 0167 deletion ledger: every removed script's covering gate resolves to a surviving test (presence + known-positive floor)"
+depends = ["deps:install:python"]
+run = "invoke lint.deletion-ledger-replay.check"
+
+[tasks."lint:inventory:check"]
+description = "Reconcile the 0167 inventory records against the pinned pre-deletion revision (removal-set floor, divergence tests, deletion ledger, member 4). Needs jj history; run at phase boundaries, not part of the default check"
+depends = ["deps:install:python"]
+run = "invoke lint.inventory.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"

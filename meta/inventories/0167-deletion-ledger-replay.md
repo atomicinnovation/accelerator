@@ -18,12 +18,14 @@ schema_version: 1
 
 # 0167: Deletion-Ledger Replay Output
 
-Committed output of `scripts/replay-deletion-ledger.sh`, run against the
-final-state tree. For every removal-set row, the named covering-gate test
-prefix resolves to at least one surviving `#[test]` in the final-state gate
-file, and the surviving config-read suite passes — so each deleted script's
-behaviour is pinned by a test in a file the Phase 7 deletion did **not** remove,
-never solely by the now-deleted `test-config.sh`.
+A captured resolution snapshot of the deletion-ledger replay against the
+final-state tree. The replay is enforced by the Python gate
+`tasks/lint/deletion_ledger_replay.py` (`mise run lint:deletion-ledger-replay:check`,
+per ADR-0048), which supersedes the original `scripts/replay-deletion-ledger.sh`.
+For every removal-set row, the named covering-gate test prefix resolves to at
+least one surviving `#[test]` in the final-state gate file — so each deleted
+script's behaviour is pinned by a test in a file the Phase 7 deletion did
+**not** remove, never solely by the now-deleted `test-config.sh`.
 
 The replay carries its own known-positive floor: a built-in self-test proves a
 bogus prefix is rejected, and a mis-named gate row (verified out-of-band) makes

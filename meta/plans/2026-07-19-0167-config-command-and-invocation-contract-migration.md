@@ -3067,6 +3067,18 @@ non-cluster figure the plan predicted.)
 > and a committed `--help` snapshot suite. The Phase-5 release-gated items (signed
 > artefacts, latency budget) and the live-session probes remain blocked in this
 > environment.
+>
+> **ADR-0048 gate migration (2026-07-22).** The four bash CI gates added during
+> this work — `check-inventory.sh`, `check-skill-permissions.sh`,
+> `check-call-site-migration.sh`, and `replay-deletion-ledger.sh` — were ports of
+> guardrail logic that ADR-0048 assigns to Python, not shell. They have been
+> rewritten as invoke tasks under `tasks/lint/` (`inventory`, `skill_permissions`,
+> `call_site_migration`, `deletion_ledger_replay`), each with a unit test under
+> `tests/unit/tasks/`, and the bash scripts deleted. The mise task names are
+> unchanged (`lint:skill-permissions:check`, `lint:call-site-migration:check`,
+> `lint:deletion-ledger-replay:check` stay in `lint:check`; `lint:inventory:check`
+> stays out of the default aggregate for its jj dependency), so the enforcement
+> surface is identical — only the implementation language changed.
 
 #### Automated Verification
 
