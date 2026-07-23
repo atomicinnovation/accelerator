@@ -9,7 +9,6 @@ status: complete
 result: "partial"
 parent: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
 target: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
-relates_to: []
 tags: [rust, config, cli, skills, invocation-contract, allowed-tools, hooks, store, migration]
 last_updated: "2026-07-22T16:32:47+00:00"
 last_updated_by: Toby Clemson
