@@ -22,7 +22,8 @@ pub mod assets;
 pub mod cluster_key;
 pub mod clusters;
 pub mod config;
-pub mod docs;
+pub mod doc_type_serde;
+pub mod doc_type_view;
 pub mod file_driver;
 pub mod frontmatter;
 pub mod indexer;
@@ -34,7 +35,6 @@ pub mod shutdown;
 pub mod slug;
 pub mod sse_hub;
 pub mod templates;
-pub mod typed_ref;
 pub mod watcher;
 pub mod write_coordinator;
 

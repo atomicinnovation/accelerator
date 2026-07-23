@@ -11,10 +11,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use super::{api_from_fd, parse_kind, ApiError};
-use crate::docs::DocTypeKey;
 use crate::file_driver::FileDriver;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
+use corpus::DocTypeKey;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DocsListQuery {
@@ -186,7 +186,7 @@ pub(crate) async fn doc_patch_frontmatter(
         .ok_or_else(|| ApiError::NotFound(doc_rel.to_string()))?;
 
     // Step 5 — work-item type guard.
-    if entry.r#type != crate::docs::DocTypeKey::WorkItems {
+    if entry.r#type != corpus::DocTypeKey::WorkItems {
         return Err(ApiError::OnlyWorkItemsAreWritable);
     }
 

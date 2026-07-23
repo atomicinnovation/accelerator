@@ -47,12 +47,12 @@ pub(crate) async fn activity(
 mod tests {
     use super::*;
     use crate::activity_feed::ActivityRingBuffer;
-    use crate::docs::DocTypeKey;
     use crate::server::AppState;
     use crate::sse_hub::ActionKind;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use chrono::{TimeZone, Utc};
+    use corpus::DocTypeKey;
     use http_body_util::BodyExt as _;
     use tower::ServiceExt;
 

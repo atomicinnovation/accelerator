@@ -208,8 +208,8 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
         // form. Currently only `work-item:` is extracted here; other
         // prefixes are not aggregated into work-item refs.
         if let Some(s) = extract_scalar(v) {
-            if let Some(crate::typed_ref::TypedRef::WorkItem(id)) =
-                crate::typed_ref::parse_typed_ref(&s)
+            if let Some(corpus::TypedRef::WorkItem(id)) =
+                corpus::parse_typed_ref(&s)
             {
                 refs.push(id);
             }
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn title_cascade_humanises_stem_for_every_doc_kind() {
-        use crate::docs::DocTypeKey;
+        use corpus::DocTypeKey;
 
         // No frontmatter.title and no first H1 → layer 3 for every kind.
         let raw = b("body without h1\n");

@@ -152,8 +152,8 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub(crate) fn parse_kind(s: &str) -> Option<crate::docs::DocTypeKey> {
-    serde_json::from_str::<crate::docs::DocTypeKey>(&format!("\"{s}\"")).ok()
+pub(crate) fn parse_kind(s: &str) -> Option<corpus::DocTypeKey> {
+    corpus::DocTypeKey::from_wire_str(s)
 }
 
 pub(crate) fn api_from_fd(e: crate::file_driver::FileDriverError) -> ApiError {

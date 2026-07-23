@@ -4,11 +4,11 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use serde::Serialize;
 
-use crate::docs::DocTypeKey;
 use crate::indexer::{
     facets_for, LatestPreview, LibraryAggregates, PerTypeAggregate, Selection,
 };
 use crate::server::AppState;
+use corpus::DocTypeKey;
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -29,6 +29,7 @@ pub struct Phase {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryDocType {
+    #[serde(with = "crate::doc_type_serde")]
     pub id: DocTypeKey,
     pub label: String,
     pub count: usize,

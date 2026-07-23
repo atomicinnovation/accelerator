@@ -7,10 +7,10 @@ use serde::Serialize;
 use tokio::sync::{RwLock, Semaphore};
 
 use crate::clusters::Completeness;
-use crate::docs::DocTypeKey;
 use crate::file_driver::{FileContent, FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
 use crate::slug;
+use corpus::DocTypeKey;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
 
@@ -160,6 +160,7 @@ pub fn entry_matches_all_except(
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexEntry {
+    #[serde(with = "crate::doc_type_serde")]
     pub r#type: DocTypeKey,
     pub path: PathBuf,
     pub rel_path: PathBuf,
@@ -982,7 +983,7 @@ pub(crate) fn target_path_from_entry(
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> Option<PathBuf> {
-    use crate::typed_ref::{parse_typed_ref, TypedRef};
+    use corpus::{parse_typed_ref, TypedRef};
     if !entry.r#type.carries_target_frontmatter() {
         return None;
     }

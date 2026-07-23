@@ -20,15 +20,15 @@ use std::sync::Mutex;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::docs::DocTypeKey;
 use crate::sse_hub::{ActionKind, SsePayload};
+use corpus::DocTypeKey;
 
 pub const CAPACITY: usize = 50;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ActivityEvent {
     pub action: ActionKind,
-    #[serde(rename = "docType")]
+    #[serde(rename = "docType", with = "crate::doc_type_serde")]
     pub doc_type: DocTypeKey,
     pub path: String,
     pub timestamp: DateTime<Utc>,

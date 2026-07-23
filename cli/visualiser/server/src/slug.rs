@@ -1,5 +1,5 @@
 use crate::config::WorkItemConfig;
-use crate::docs::DocTypeKey;
+use corpus::DocTypeKey;
 
 /// Derive the slug for a work-item file using the configured scan regex.
 /// The regex must have capture group 1 covering the ID token (digits or

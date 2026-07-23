@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 
 use corpus_adapters::{patch_status, PatchError};
 
-use crate::docs::DocTypeKey;
+use corpus::DocTypeKey;
 
 /// A frontmatter mutation applied through the file driver.
 #[derive(Debug, Clone)]

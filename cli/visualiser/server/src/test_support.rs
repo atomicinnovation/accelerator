@@ -1,6 +1,6 @@
 use crate::config::WorkItemConfig;
-use crate::docs::DocTypeKey;
 use crate::indexer::IndexEntry;
+use corpus::DocTypeKey;
 use std::path::PathBuf;
 
 /// Test-only `IndexEntry` factory. New required fields default here in

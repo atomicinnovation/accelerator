@@ -38,11 +38,11 @@ pub async fn events(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::docs::DocTypeKey;
     use crate::server::AppState;
     use crate::sse_hub::SsePayload;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use corpus::DocTypeKey;
     use std::sync::Arc;
     use tower::ServiceExt;
 

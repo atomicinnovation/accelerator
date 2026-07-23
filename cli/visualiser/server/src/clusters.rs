@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::config::WorkItemConfig;
-use crate::docs::DocTypeKey;
 use crate::indexer::IndexEntry;
+use corpus::DocTypeKey;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

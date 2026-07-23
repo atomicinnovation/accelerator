@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
-use crate::docs::DocTypeKey;
+use corpus::DocTypeKey;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -17,7 +17,7 @@ pub enum ActionKind {
 pub enum SsePayload {
     DocChanged {
         action: ActionKind,
-        #[serde(rename = "docType")]
+        #[serde(rename = "docType", with = "crate::doc_type_serde")]
         doc_type: DocTypeKey,
         path: String,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,7 +25,7 @@ pub enum SsePayload {
         timestamp: DateTime<Utc>,
     },
     DocInvalid {
-        #[serde(rename = "docType")]
+        #[serde(rename = "docType", with = "crate::doc_type_serde")]
         doc_type: DocTypeKey,
         path: String,
     },
@@ -66,7 +66,7 @@ mod tests {
     fn make_event(path: &str) -> SsePayload {
         SsePayload::DocChanged {
             action: ActionKind::Edited,
-            doc_type: crate::docs::DocTypeKey::Plans,
+            doc_type: corpus::DocTypeKey::Plans,
             path: path.to_string(),
             etag: Some("sha256-abc".to_string()),
             timestamp: Utc::now(),
@@ -105,7 +105,7 @@ mod tests {
         for i in 0..10u32 {
             hub.broadcast(SsePayload::DocChanged {
                 action: ActionKind::Edited,
-                doc_type: crate::docs::DocTypeKey::Plans,
+                doc_type: corpus::DocTypeKey::Plans,
                 path: format!("meta/plans/{i}.md"),
                 etag: Some("sha256-x".into()),
                 timestamp: Utc::now(),
@@ -120,7 +120,7 @@ mod tests {
         let ts = Utc.with_ymd_and_hms(2026, 5, 13, 12, 0, 0).unwrap();
         let changed = SsePayload::DocChanged {
             action: ActionKind::Edited,
-            doc_type: crate::docs::DocTypeKey::Plans,
+            doc_type: corpus::DocTypeKey::Plans,
             path: "meta/plans/foo.md".into(),
             etag: Some("sha256-abc".into()),
             timestamp: ts,
@@ -137,7 +137,7 @@ mod tests {
 
         let deleted = SsePayload::DocChanged {
             action: ActionKind::Deleted,
-            doc_type: crate::docs::DocTypeKey::Plans,
+            doc_type: corpus::DocTypeKey::Plans,
             path: "meta/plans/foo.md".into(),
             etag: None,
             timestamp: ts,
@@ -150,7 +150,7 @@ mod tests {
         );
 
         let invalid = SsePayload::DocInvalid {
-            doc_type: crate::docs::DocTypeKey::Plans,
+            doc_type: corpus::DocTypeKey::Plans,
             path: "meta/plans/bad.md".into(),
         };
         let json = serde_json::to_string(&invalid).unwrap();

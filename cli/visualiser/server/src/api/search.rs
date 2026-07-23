@@ -8,9 +8,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use super::ApiError;
-use crate::docs::DocTypeKey;
 use crate::indexer::IndexEntry;
 use crate::server::AppState;
+use corpus::DocTypeKey;
 
 /// Server-side hard cap on `q` length. Over-cap input short-circuits to empty
 /// results, defending against amplification attacks that bypass the client
@@ -27,6 +27,7 @@ pub(crate) struct SearchQuery {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SearchResultRow {
+    #[serde(with = "crate::doc_type_serde")]
     doc_type: DocTypeKey,
     title: String,
     slug: String,

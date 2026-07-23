@@ -3,12 +3,12 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use serde::Serialize;
 
-use crate::docs::describe_types;
+use crate::doc_type_view::describe_types;
 use crate::server::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct TypesResponse {
-    types: Vec<crate::docs::DocType>,
+    types: Vec<crate::doc_type_view::DocType>,
 }
 
 pub(crate) async fn types(

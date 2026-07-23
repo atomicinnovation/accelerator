@@ -146,10 +146,7 @@ async fn patch_broadcasts_doc_changed_with_new_etag() {
             etag: Some(broadcast_etag),
             ..
         } => {
-            assert_eq!(
-                doc_type,
-                accelerator_visualiser::docs::DocTypeKey::WorkItems
-            );
+            assert_eq!(doc_type, corpus::DocTypeKey::WorkItems);
             assert_eq!(path, WORK_ITEM_PATH);
             assert_eq!(
                 format!("\"{broadcast_etag}\""),

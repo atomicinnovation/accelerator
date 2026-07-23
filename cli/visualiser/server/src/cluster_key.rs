@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use tracing::warn;
 
 use crate::config::WorkItemConfig;
-use crate::docs::DocTypeKey;
 use crate::indexer::{canonicalise_one_id, target_path_from_entry, IndexEntry};
-use crate::typed_ref::{parse_typed_ref, TypedRef};
+use corpus::DocTypeKey;
+use corpus::{parse_typed_ref, TypedRef};
 
 /// The longest legitimate chain in today's vocabulary is
 /// work-item-review → plan → parent → work-item (3 hops). 8 gives

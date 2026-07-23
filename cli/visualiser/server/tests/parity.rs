@@ -7,6 +7,57 @@
 //! parser's — a deliberate, documented dialect adoption, not a regression.
 
 use accelerator_visualiser::frontmatter::{self, FrontmatterState};
+use corpus::DocTypeKey;
+
+/// The doc-type wire token and config-path key are the load-bearing SPA/config
+/// contract. Pin all 14 variants to the exact tokens the retired serde-derived
+/// enum produced, so the swap onto `corpus::DocTypeKey` is provably
+/// wire-stable.
+#[test]
+fn doc_type_wire_and_config_keys_are_pinned() {
+    let rows: &[(DocTypeKey, &str, Option<&str>)] = &[
+        (DocTypeKey::Decisions, "decisions", Some("decisions")),
+        (DocTypeKey::WorkItems, "work-items", Some("work")),
+        (DocTypeKey::Plans, "plans", Some("plans")),
+        (DocTypeKey::Research, "research", Some("research_codebase")),
+        (
+            DocTypeKey::PlanReviews,
+            "plan-reviews",
+            Some("review_plans"),
+        ),
+        (DocTypeKey::PrReviews, "pr-reviews", Some("review_prs")),
+        (
+            DocTypeKey::WorkItemReviews,
+            "work-item-reviews",
+            Some("review_work"),
+        ),
+        (DocTypeKey::Validations, "validations", Some("validations")),
+        (DocTypeKey::Notes, "notes", Some("notes")),
+        (DocTypeKey::PrDescriptions, "pr-descriptions", Some("prs")),
+        (
+            DocTypeKey::DesignGaps,
+            "design-gaps",
+            Some("research_design_gaps"),
+        ),
+        (
+            DocTypeKey::DesignInventories,
+            "design-inventories",
+            Some("research_design_inventories"),
+        ),
+        (
+            DocTypeKey::RootCauseAnalyses,
+            "root-cause-analyses",
+            Some("research_issues"),
+        ),
+        (DocTypeKey::Templates, "templates", None),
+    ];
+    assert_eq!(rows.len(), DocTypeKey::all().len());
+    for (kind, wire, config_key) in rows {
+        assert_eq!(kind.wire_str(), *wire, "wire for {kind:?}");
+        assert_eq!(DocTypeKey::from_wire_str(wire), Some(*kind));
+        assert_eq!(kind.config_path_key(), *config_key, "config for {kind:?}");
+    }
+}
 
 fn parsed_json(input: &str) -> serde_json::Value {
     match frontmatter::parse(input.as_bytes()).state {
