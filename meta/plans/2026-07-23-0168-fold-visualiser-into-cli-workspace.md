@@ -5,7 +5,7 @@ title: "Fold the Visualiser into the cli/ Workspace Implementation Plan"
 date: "2026-07-23T08:41:19+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: in-progress
 work_item_id: "work-item:0168"
 parent: "work-item:0168"
 derived_from: ["codebase-research:2026-07-23-0168-fold-visualiser-into-cli-workspace"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0165"]
 tags: [rust, visualiser, cli, launcher, corpus, workspace]
 revision: "220cb821e3efd2e87acbd84600c02b36555e40e6"
 repository: "build-system"
-last_updated: "2026-07-23T10:06:43+00:00"
+last_updated: "2026-07-23T17:29:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -37,6 +37,69 @@ Phase 4's producer wiring, so the live manifest resolves `visualiser` and the
 user-facing path never breaks. Phase 5 is the deletions-only cut-over — it
 removes the now-dead shell surface and the flat `checksums.json` once a release
 carrying the producer wiring has shipped.
+
+## Implementation Progress
+
+_Last updated 2026-07-23._
+
+- **Phase 1 (Relocate + Become a Workspace Member): complete.** Landed as four
+  commits (a pure history-preserving move, then workspace membership + lints,
+  then build-system/CI/docs repointing, then gitignore). Full `mise run` green.
+  Deviations, all within Phase 1's intent: the `version.py` member-manifest write
+  was dropped now (not Phase 5) because it would clobber `version.workspace =
+  true`; `test:unit:cli` excludes the visualiser (it keeps its own dedicated test
+  tasks); the `store_duplication` guard skips `cli/visualiser/` until the
+  Phase-2 write-path retirement; Phase 1 §7 (orchestration binary-path) was a
+  no-op (the shell resolves the binary via env/config/distribution, no hardcoded
+  target path). Manual checks (blame preservation, `--version`, live serve) not
+  yet performed.
+
+- **Phase 2 (Refactor onto the Shared Crates): steps 1–3 of 5 complete.** Three
+  further commits, each differential-verified for byte/behaviour equivalence
+  before deletion and parity-pinned, each `server:check` + `test:unit:visualiser`
+  + `test:integration:visualiser` green, and collectively green under a full
+  `mise run` (the one E2E failure was a lingering `start-server.mjs` wrapper from
+  a flaked run holding the health port — a known infra flake, confirmed by a
+  clean isolated re-run, not a code regression):
+  1. **Format layer** — `frontmatter` engine → `corpus_adapters::parse` +
+     `document` (serde-saphyr), mapping `corpus::Mapping` → the `serde_json::Value`
+     the SPA consumes; `patcher` → `corpus_adapters::patch_status` (proven
+     byte-identical across the status-patch contract); `gray_matter`/`serde_yml`
+     dropped from the closure; the `serde_yml` advisory ignore removed from
+     `deny.toml`. Dialect flips (1.1-style `yes/no/on/off/y/n` → bool; unquoted
+     leading-zero/underscore numerics → number; libyml-panic inputs now parse)
+     catalogued, judged harmless to accelerator conventions, and pinned; a
+     `read_ref_keys` number-coercion keeps leading-zero ids canonicalising.
+  2. **doc-type + typed_ref** — `corpus::DocTypeKey` via a serde-free
+     `doc_type_serde` wire bridge (`wire_str`/`from_wire_str`, byte-identical
+     tokens); `DocType`/`describe_types` relocated to `doc_type_view`;
+     `corpus::typed_ref`. 14-variant wire + `config_path_key` parity pinned.
+  3. **slug + config-ID** — `corpus::slug`; `WorkItemConfig` now holds a
+     `corpus::WorkItemIdScheme` + `corpus_adapters::RegexScanner` and delegates
+     its admission predicates (0 differential flips across numeric and
+     project-prefixed schemes). `slug.rs` deleted.
+
+  Deviation from the plan's letter: `frontmatter.rs` is **not** deleted — its
+  serde_yml *engine* retired, but its server-only presentation helpers
+  (`title_from`/`body_preview_from`/`read_ref_keys`) stay. `indexer.rs`'s
+  `canonicalise_one_id` still reads the id scheme's fields for now; it moves onto
+  corpus with the clustering lift.
+
+  **Remaining in Phase 2:** (4) the full clustering retirement — lift the pure
+  `clusters`/`cluster_key`/`related`-core + `canonicalise_one_id`/
+  `target_path_from_entry`/`normalize_target_key` into a **new `corpus::cluster`
+  module** (decision confirmed with the author; the clustering reads no markdown
+  body and is fully pure/lock-free, so it fits corpus's kernel-only architecture),
+  with the server's three modules becoming thin async snapshot-gathering adapters
+  and its own pup/deny/adversarial governance; (5) retire `file_driver`'s atomic
+  write onto `corpus_adapters::FileCorpusStore` over a `spawn_blocking` seam with
+  the CRLF/mode-preservation, concurrent-conditional-patch (TOCTOU), and
+  path-containment regression tests, then drop the Phase-1 `store_duplication`
+  exclusion; (6) reconcile `thiserror` 1→2 and re-prune `deny.toml`. The parity
+  suite still needs its `patch_status`-bytes and linkage fixtures (added with
+  their respective retirements).
+
+- **Phases 3–5:** not started.
 
 ## Current State Analysis
 
@@ -512,9 +575,9 @@ regression tests over the new `FileCorpusStore`-backed, `spawn_blocking` seam:
       linkage): `cd cli/visualiser/server && cargo test --test parity`
 - [ ] The retired modules are absent (no `docs.rs`/`slug.rs`/`frontmatter.rs`/
       `patcher.rs`/`typed_ref.rs` under `src/`; no ID logic in `config.rs`)
-- [ ] `gray_matter` and `serde_yml` are absent from `Cargo.toml` and
+- [x] `gray_matter` and `serde_yml` are absent from `Cargo.toml` and
       `Cargo.lock`
-- [ ] `serde-saphyr` reaches the server only through `document`, and `deny.toml`
+- [x] `serde-saphyr` reaches the server only through `document`, and `deny.toml`
       carries no unused allowances/ignores after the YAML engines are dropped:
       `mise run deny:check`
 - [ ] CRLF/mode-preservation and concurrent-conditional-patch tests pass
