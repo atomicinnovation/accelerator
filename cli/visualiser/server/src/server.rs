@@ -648,6 +648,22 @@ async fn host_header_guard(
     }
 }
 
+/// True iff `origin` names a genuine loopback HTTP origin: scheme `http` and an
+/// authority host of exactly `127.0.0.1` or `localhost` (any port). The origin
+/// is parsed as a URI and the authority host compared exactly, so a
+/// loopback-lookalike (`http://127.0.0.1.evil.com`) or a userinfo smuggle
+/// (`http://127.0.0.1:x@evil.com`) resolves to its true host and is rejected —
+/// both defeat a naive `starts_with` prefix match.
+fn origin_is_loopback(origin: &str) -> bool {
+    let Ok(uri) = origin.parse::<axum::http::Uri>() else {
+        return false;
+    };
+    if uri.scheme_str() != Some("http") {
+        return false;
+    }
+    matches!(uri.host(), Some("127.0.0.1" | "localhost"))
+}
+
 async fn origin_guard(
     req: Request,
     next: Next,
@@ -655,7 +671,6 @@ async fn origin_guard(
     // Reject state-changing requests from foreign origins. Browsers always send
     // Origin on cross-origin PATCH/POST/PUT/DELETE; curl and server-to-server
     // callers omit it, so requests with no Origin header are allowed through.
-    // Allowed: http://127.0.0.1[:<port>] and http://localhost[:<port>].
     let is_state_changing = matches!(
         req.method(),
         &axum::http::Method::PATCH
@@ -666,9 +681,7 @@ async fn origin_guard(
     if is_state_changing {
         if let Some(origin) = req.headers().get("origin") {
             let s = origin.to_str().unwrap_or("");
-            let allowed = s.starts_with("http://127.0.0.1")
-                || s.starts_with("http://localhost");
-            if !allowed {
+            if !origin_is_loopback(s) {
                 return Err(StatusCode::FORBIDDEN);
             }
         }
@@ -787,6 +800,28 @@ mod tests {
         // Insecure (e2e Docker opt-in): the container's bridge-gateway Host
         // (host.docker.internal) is accepted.
         assert!(host_header_is_allowed("host.docker.internal", true));
+    }
+
+    #[test]
+    fn origin_guard_accepts_genuine_loopback_origins() {
+        assert!(origin_is_loopback("http://127.0.0.1"));
+        assert!(origin_is_loopback("http://127.0.0.1:8080"));
+        assert!(origin_is_loopback("http://localhost"));
+        assert!(origin_is_loopback("http://localhost:3000"));
+    }
+
+    #[test]
+    fn origin_guard_rejects_lookalikes_userinfo_and_foreign() {
+        // Loopback-lookalike host and userinfo-@ smuggle both defeat a naive
+        // prefix check but resolve to a foreign authority host here.
+        assert!(!origin_is_loopback("http://127.0.0.1.evil.com"));
+        assert!(!origin_is_loopback("http://127.0.0.1:x@evil.com"));
+        assert!(!origin_is_loopback("http://localhost.evil.com"));
+        // Wrong scheme, foreign host, and unparseable origins.
+        assert!(!origin_is_loopback("https://127.0.0.1"));
+        assert!(!origin_is_loopback("https://evil.example"));
+        assert!(!origin_is_loopback("null"));
+        assert!(!origin_is_loopback(""));
     }
 
     #[tokio::test]

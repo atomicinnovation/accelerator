@@ -696,6 +696,27 @@ async fn patch_from_disallowed_origin_returns_403_allowed_origins_succeed() {
         "foreign origin must be rejected"
     );
 
+    // Loopback-lookalike origin → 403 (a naive prefix check would pass it)
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::PATCH)
+                .uri(format!("/api/docs/{WORK_ITEM_PATH}/frontmatter"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::IF_MATCH, &etag)
+                .header("origin", "http://127.0.0.1.evil.com")
+                .body(Body::from(r#"{"patch":{"status":"in-progress"}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        res.status(),
+        StatusCode::FORBIDDEN,
+        "loopback-lookalike origin must be rejected"
+    );
+
     // No Origin header (curl-style) → succeeds
     let res = app
         .clone()
