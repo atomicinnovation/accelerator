@@ -15,7 +15,7 @@ pub fn render(view: &AgentsView) -> Rendered {
     stdout.push_str("\n\n");
     for agent in &view.agents {
         stdout.push_str("- **");
-        stdout.push_str(&agent.display);
+        stdout.push_str(&agent.name.replace('-', " "));
         stdout.push_str(" agent**: ");
         stdout.push_str(&agent.value);
         stdout.push('\n');
@@ -30,7 +30,7 @@ pub fn render(view: &AgentsView) -> Rendered {
 
 #[must_use]
 pub fn render_unavailable() -> Rendered {
-    Rendered::new("## Agent Names Unavailable\n".to_owned())
+    super::unavailable("## Agent Names Unavailable")
 }
 
 #[cfg(test)]
@@ -38,9 +38,9 @@ mod tests {
     use super::{render, render_unavailable};
     use crate::config_command::core::agents::{Agent, AgentsView};
 
-    fn agent(display: &str, value: &str) -> Agent {
+    fn agent(name: &str, value: &str) -> Agent {
         Agent {
-            display: display.to_owned(),
+            name: name.to_owned(),
             value: value.to_owned(),
         }
     }
@@ -50,7 +50,7 @@ mod tests {
         let view = AgentsView {
             agents: vec![
                 agent("reviewer", "accelerator:reviewer"),
-                agent("codebase locator", "my-locator"),
+                agent("codebase-locator", "my-locator"),
             ],
             unknown: Vec::new(),
         };

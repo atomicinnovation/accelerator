@@ -4,7 +4,7 @@
 
 use config::{EjectOutcome, ResolvedTemplate, TemplateSource};
 
-use crate::config_command::core::template::ListRow;
+use crate::config_command::core::template::{ListRow, TemplateDiff};
 use crate::config_command::render::Rendered;
 
 /// The template content wrapped in `markdown` fences, unless it is already
@@ -57,7 +57,7 @@ pub fn list(rows: &[ListRow]) -> Rendered {
 
 #[must_use]
 pub fn render_unavailable() -> Rendered {
-    Rendered::new("## Template Unavailable\n".to_owned())
+    super::unavailable("## Template Unavailable")
 }
 
 /// The one-line message an `eject` outcome prints, on the stream and with the
@@ -100,21 +100,23 @@ pub const EJECT_ALL_EXISTS: &str =
     "Some templates already exist. Re-run with --force to overwrite.";
 
 /// The full `diff` stdout: the header naming both paths, then either the
-/// unified diff or the identical-templates line.
+/// unified diff or the identical-templates line, from the computed diff.
 #[must_use]
 pub fn diff_report(
     default: &ResolvedTemplate,
     user: &ResolvedTemplate,
+    diff: &TemplateDiff,
 ) -> String {
     let mut out = format!(
         "Comparing plugin default vs user override:\n  Default: {}\n  \
          User:    {}\n\n",
         default.display_path, user.display_path
     );
-    if default.content == user.content {
-        out.push_str("Templates are identical.\n");
-    } else {
-        out.push_str(&unified_diff(&default.content, &user.content));
+    match diff {
+        TemplateDiff::Identical => {
+            out.push_str("Templates are identical.\n");
+        }
+        TemplateDiff::Unified(body) => out.push_str(body),
     }
     out
 }
@@ -155,57 +157,4 @@ pub fn reset_confirmed(source: TemplateSource, name: &str) -> String {
         out.push_str("' entry from your config.\n");
     }
     out
-}
-
-/// A line-oriented unified diff of `old` against `new`, common lines prefixed
-/// with a space and changes with `-`/`+`, computed from the longest common
-/// subsequence.
-fn unified_diff(old: &str, new: &str) -> String {
-    let a: Vec<&str> = old.lines().collect();
-    let b: Vec<&str> = new.lines().collect();
-    let lcs = lcs_lengths(&a, &b);
-    let mut out = String::new();
-    let (mut i, mut j) = (0, 0);
-    while i < a.len() && j < b.len() {
-        if a[i] == b[j] {
-            push_line(&mut out, ' ', a[i]);
-            i += 1;
-            j += 1;
-        } else if lcs[i + 1][j] >= lcs[i][j + 1] {
-            push_line(&mut out, '-', a[i]);
-            i += 1;
-        } else {
-            push_line(&mut out, '+', b[j]);
-            j += 1;
-        }
-    }
-    while i < a.len() {
-        push_line(&mut out, '-', a[i]);
-        i += 1;
-    }
-    while j < b.len() {
-        push_line(&mut out, '+', b[j]);
-        j += 1;
-    }
-    out
-}
-
-fn push_line(out: &mut String, prefix: char, line: &str) {
-    out.push(prefix);
-    out.push_str(line);
-    out.push('\n');
-}
-
-fn lcs_lengths(a: &[&str], b: &[&str]) -> Vec<Vec<usize>> {
-    let mut lengths = vec![vec![0usize; b.len() + 1]; a.len() + 1];
-    for i in (0..a.len()).rev() {
-        for j in (0..b.len()).rev() {
-            lengths[i][j] = if a[i] == b[j] {
-                lengths[i + 1][j + 1] + 1
-            } else {
-                lengths[i + 1][j].max(lengths[i][j + 1])
-            };
-        }
-    }
-    lengths
 }

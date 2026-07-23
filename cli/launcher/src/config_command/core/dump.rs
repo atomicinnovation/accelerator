@@ -13,6 +13,9 @@ use config::{
 pub enum Cell {
     /// A concrete value, rendered in backticks.
     Value(String),
+    /// A `work.integration` value outside the allow-set; the raw value only,
+    /// with the "invalid: must be …" annotation added by the renderer.
+    Invalid(String),
     /// A set credential, rendered as `*(set — hidden)*`.
     Hidden,
     /// An unset key, rendered as `*(not set)*`.
@@ -136,19 +139,16 @@ fn work_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
             source: source_of(config, key)?,
         });
     }
-    let display = if key == "work.integration"
+    let cell = if key == "work.integration"
         && !catalogue::is_valid_work_integration(&value)
     {
-        format!(
-            "{value} (invalid: must be {})",
-            catalogue::WORK_INTEGRATION_VALUES.join(", ")
-        )
+        Cell::Invalid(value)
     } else {
-        value
+        Cell::Value(value)
     };
     Ok(Row {
         key: key.to_owned(),
-        cell: Cell::Value(display),
+        cell,
         source: source_of(config, key)?,
     })
 }

@@ -289,7 +289,7 @@ fn resolve_summary(
         stack.content(),
         stack.lenses(),
     )?;
-    let stdout = match (summary, hook) {
+    let stdout = match (summary_render::body(&summary), hook) {
         (None, _) => String::new(),
         (Some(text), false) => format!("{text}\n"),
         (Some(text), true) => {
@@ -585,7 +585,8 @@ fn run_diff(stack: &ConfigStack, name: &str) -> Result<(), kernel::Error> {
             "No customised template found for '{name}' — using plugin default."
         )));
     };
-    print!("{}", template_render::diff_report(&default, &user));
+    let diff = template_view::diff(&default.content, &user.content);
+    print!("{}", template_render::diff_report(&default, &user, &diff));
     Ok(())
 }
 

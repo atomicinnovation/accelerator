@@ -104,6 +104,77 @@ fn scalar(
         .configured_value())
 }
 
+/// The line-diff between a plugin default and a user override.
+pub enum TemplateDiff {
+    /// The two contents are byte-identical.
+    Identical,
+    /// A line-oriented unified diff body.
+    Unified(String),
+}
+
+/// Computes the diff between a plugin default and a user override.
+#[must_use]
+pub fn diff(default: &str, user: &str) -> TemplateDiff {
+    if default == user {
+        TemplateDiff::Identical
+    } else {
+        TemplateDiff::Unified(unified_diff(default, user))
+    }
+}
+
+/// A line-oriented unified diff of `old` against `new`, common lines prefixed
+/// with a space and changes with `-`/`+`, computed from the longest common
+/// subsequence.
+fn unified_diff(old: &str, new: &str) -> String {
+    let a: Vec<&str> = old.lines().collect();
+    let b: Vec<&str> = new.lines().collect();
+    let lcs = lcs_lengths(&a, &b);
+    let mut out = String::new();
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() && j < b.len() {
+        if a[i] == b[j] {
+            push_line(&mut out, ' ', a[i]);
+            i += 1;
+            j += 1;
+        } else if lcs[i + 1][j] >= lcs[i][j + 1] {
+            push_line(&mut out, '-', a[i]);
+            i += 1;
+        } else {
+            push_line(&mut out, '+', b[j]);
+            j += 1;
+        }
+    }
+    while i < a.len() {
+        push_line(&mut out, '-', a[i]);
+        i += 1;
+    }
+    while j < b.len() {
+        push_line(&mut out, '+', b[j]);
+        j += 1;
+    }
+    out
+}
+
+fn push_line(out: &mut String, prefix: char, line: &str) {
+    out.push(prefix);
+    out.push_str(line);
+    out.push('\n');
+}
+
+fn lcs_lengths(a: &[&str], b: &[&str]) -> Vec<Vec<usize>> {
+    let mut lengths = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for i in (0..a.len()).rev() {
+        for j in (0..b.len()).rev() {
+            lengths[i][j] = if a[i] == b[j] {
+                lengths[i + 1][j + 1] + 1
+            } else {
+                lengths[i + 1][j].max(lengths[i][j + 1])
+            };
+        }
+    }
+    lengths
+}
+
 fn validate_name(name: &str) -> Result<(), ConfigError> {
     let mut chars = name.chars();
     let head_ok = chars
@@ -117,5 +188,24 @@ fn validate_name(name: &str) -> Result<(), ConfigError> {
         Err(ConfigError::Invalid {
             detail: format!("invalid template name '{name}'"),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{diff, TemplateDiff};
+
+    #[test]
+    fn identical_content_yields_identical() {
+        assert!(matches!(diff("a\nb\n", "a\nb\n"), TemplateDiff::Identical));
+    }
+
+    #[test]
+    fn a_changed_line_is_a_deletion_then_an_addition() {
+        let body = match diff("a\nb\nc\n", "a\nx\nc\n") {
+            TemplateDiff::Unified(body) => body,
+            TemplateDiff::Identical => String::new(),
+        };
+        assert_eq!(body, " a\n-b\n+x\n c\n");
     }
 }

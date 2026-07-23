@@ -26,13 +26,21 @@ pub fn doc_types(view: &DocTypes) -> Rendered {
         stdout.push_str(dir);
         stdout.push('\n');
     }
-    Rendered {
-        stdout,
-        warnings: view.notes.clone(),
-    }
+    let warnings = view
+        .blanks
+        .iter()
+        .map(|blank| {
+            format!(
+                "paths.{} is blank; using default '{}' (blanking a path does \
+                 not disable a doc-type)",
+                blank.path_key, blank.default
+            )
+        })
+        .collect();
+    Rendered { stdout, warnings }
 }
 
 #[must_use]
 pub fn render_unavailable() -> Rendered {
-    Rendered::new("## Configured Paths Unavailable\n".to_owned())
+    super::unavailable("## Configured Paths Unavailable")
 }

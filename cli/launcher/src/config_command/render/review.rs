@@ -2,7 +2,7 @@
 
 use config::{catalogue, render_value, Value};
 
-use crate::config_command::core::review::{Mode, ReviewView};
+use crate::config_command::core::review::{Mode, ReviewView, Verdict};
 use crate::config_command::render::Rendered;
 
 const PROSE: &str = "\
@@ -58,8 +58,8 @@ pub fn render(view: &ReviewView, mode: Mode) -> Rendered {
             "\n  (these lenses should be skipped regardless of auto-detect)\n",
         );
     }
-    for line in &view.verdict {
-        stdout.push_str(line);
+    for line in verdict_lines(&view.verdict) {
+        stdout.push_str(&line);
         stdout.push('\n');
     }
     stdout.push_str("\n### Lens Catalogue\n\n");
@@ -88,11 +88,71 @@ pub fn render(view: &ReviewView, mode: Mode) -> Rendered {
         .iter()
         .map(|warning| format!("Warning: {warning}"))
         .collect();
-    warnings.extend(view.notes.iter().cloned());
+    warnings.extend(core_lens_note(&view.missing_builtin_lenses));
     Rendered { stdout, warnings }
+}
+
+/// The `- **Verdict**: …` lines for a resolved verdict, or none when the
+/// thresholds sit at their silent defaults.
+fn verdict_lines(verdict: &Verdict) -> Vec<String> {
+    match verdict {
+        Verdict::Pr { severity } if severity == "critical" => Vec::new(),
+        Verdict::Pr { severity } if severity == "none" => vec![
+            "- **Verdict**: REQUEST_CHANGES disabled (severity-based \
+             escalation turned off)"
+                .to_owned(),
+            "  (default: any `critical`)".to_owned(),
+        ],
+        Verdict::Pr { severity } => vec![
+            format!(
+                "- **Verdict**: REQUEST_CHANGES when any `{severity}` or higher"
+            ),
+            "  (default: any `critical`)".to_owned(),
+        ],
+        Verdict::Revise {
+            severity,
+            count,
+            count_default,
+        } => {
+            if severity == "critical" && count == count_default {
+                return Vec::new();
+            }
+            let severity_part = if severity == "none" {
+                "severity-based REVISE disabled".to_owned()
+            } else {
+                format!("any `{severity}`")
+            };
+            vec![
+                format!(
+                    "- **Verdict**: REVISE when {severity_part} or {count}+ \
+                     `major`"
+                ),
+                format!(
+                    "  (default: any `critical` or {count_default}+ `major`)"
+                ),
+            ]
+        }
+    }
+}
+
+/// The two-line work-item core-lens note, or none when nothing is missing.
+fn core_lens_note(missing: &[String]) -> Vec<String> {
+    if missing.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        format!(
+            "Note: built-in work-item lens(es) not in your core_lenses but \
+             will be added up to max_lenses: {}",
+            missing.join(" ")
+        ),
+        "      Add them to disabled_lenses to opt out, or raise core_lenses \
+         to include them explicitly."
+            .to_owned(),
+    ]
 }
 
 #[must_use]
 pub fn render_unavailable() -> Rendered {
-    Rendered::new("## Review Configuration Unavailable\n".to_owned())
+    super::unavailable("## Review Configuration Unavailable")
 }

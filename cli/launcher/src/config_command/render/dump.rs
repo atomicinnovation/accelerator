@@ -1,5 +1,7 @@
 //! The `## Effective Configuration` table and its `--fail-safe` notice.
 
+use config::catalogue;
+
 use crate::config_command::core::dump::{Cell, Row, Source};
 use crate::config_command::render::Rendered;
 
@@ -25,6 +27,10 @@ pub fn render(rows: &[Row]) -> Rendered {
 fn cell(cell: &Cell) -> String {
     match cell {
         Cell::Value(value) => format!("`{value}`"),
+        Cell::Invalid(value) => format!(
+            "`{value} (invalid: must be {})`",
+            catalogue::WORK_INTEGRATION_VALUES.join(", ")
+        ),
         Cell::Hidden => "*(set — hidden)*".to_owned(),
         Cell::NotSet => "*(not set)*".to_owned(),
     }
@@ -40,5 +46,5 @@ const fn source(source: Source) -> &'static str {
 
 #[must_use]
 pub fn render_unavailable() -> Rendered {
-    Rendered::new("## Effective Configuration Unavailable\n".to_owned())
+    super::unavailable("## Effective Configuration Unavailable")
 }

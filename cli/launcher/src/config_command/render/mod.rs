@@ -31,6 +31,13 @@ impl Rendered {
     }
 }
 
+/// The `--fail-safe` degraded notice for a block subcommand: its bare
+/// `Unavailable` header on its own line.
+#[must_use]
+pub fn unavailable(header: &str) -> Rendered {
+    Rendered::new(format!("{header}\n"))
+}
+
 /// Writes a [`Rendered`]: warnings to stderr first so they always precede the
 /// buffered stdout, then the stdout bytes verbatim.
 pub fn emit(rendered: &Rendered) {

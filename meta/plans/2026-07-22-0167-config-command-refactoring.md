@@ -789,7 +789,7 @@ multi-block join semantics do not move.
 
 #### Automated Verification
 
-- [ ] Characterization goldens (added green before the move): **before**
+- [x] Characterization goldens (added green before the move): **before**
       relocating the review prose, add review fixtures/goldens covering **every**
       currently-unexercised branch of
       `verdict_lines`/`revise_verdict`/`core_lenses_note` — the Pr-mode
@@ -798,16 +798,18 @@ multi-block join semantics do not move.
       none`), a custom non-`critical` severity in **both** the Pr and revise
       branches, and a non-default `*_revise_major_count` — so the whole branch set,
       not three examples, is golden-pinned prior to the move
-- [ ] All existing review/summary/dump/agents/paths/template golden tests pass
+- [x] All existing review/summary/dump/agents/paths/template golden tests pass
       **byte-identical** — this is the phase's core guarantee
-- [ ] A `render/template` test asserts the unified diff for a known
-      default-vs-user pair matches the committed golden
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] A `render/template` test asserts the unified diff for a known
+      default-vs-user pair matches the committed golden (as a byte-exact
+      `core/template::diff` unit test — the LCS now lives there)
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] `core/` modules contain no user-facing literal output lines for
-      review/summary; `render/template.rs` contains no LCS computation
+- [x] `core/` modules contain no user-facing literal output lines for
+      review/summary; `render/template.rs` contains no LCS computation (only
+      backticked doc comments name the verdict tokens)
 
 ---
 

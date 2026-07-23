@@ -12,12 +12,24 @@ use config::{
 
 use crate::config_command::core::context::trim_body;
 
-const INIT_HINT: &str = "Accelerator has not been initialised in this \
-repository. Type /accelerator:init at the prompt to set up the expected \
-directory structure and gitignore entries.";
+/// The summary state the renderer turns into text (or nothing).
+pub enum Summary {
+    /// No config and the repo is initialised — the hook injects nothing.
+    Nothing,
+    /// No config and the repo is not initialised — the init hint.
+    NotInitialised,
+    /// Config is present.
+    Configured(SummaryView),
+}
 
-const TRAILER: &str = "Skills will read this configuration at invocation \
-time. To view or edit configuration, use /accelerator:configure.";
+/// The facts a configured-summary body is built from.
+pub struct SummaryView {
+    pub present_levels: Vec<Level>,
+    pub configured_sections: Vec<String>,
+    pub has_project_context: bool,
+    pub customisations: Vec<String>,
+    pub initialised: bool,
+}
 
 /// # Errors
 ///
@@ -28,64 +40,42 @@ pub fn assemble(
     levels: &dyn ReadConfigLevel,
     content: &dyn ReadContent,
     enumeration: &dyn ReadLensCatalogue,
-) -> Result<(Option<String>, Vec<String>), ConfigError> {
+) -> Result<(Summary, Vec<String>), ConfigError> {
     let team = levels.read(Level::Team)?;
     let personal = levels.read(Level::Personal)?;
     let initialised = enumeration.init_sentinel_present(&tmp_dir(config)?)?;
 
     if team.is_none() && personal.is_none() {
         let summary = if initialised {
-            None
+            Summary::Nothing
         } else {
-            Some(INIT_HINT.to_owned())
+            Summary::NotInitialised
         };
         return Ok((summary, Vec::new()));
     }
     let mut warnings = Vec::new();
-
-    let mut summary =
-        String::from("Accelerator plugin configuration detected:");
+    let mut present_levels = Vec::new();
     if team.is_some() {
-        summary.push_str("\n- Team config: ");
-        summary.push_str(Level::Team.filename());
+        present_levels.push(Level::Team);
     }
     if personal.is_some() {
-        summary.push_str("\n- Personal config: ");
-        summary.push_str(Level::Personal.filename());
+        present_levels.push(Level::Personal);
     }
-
-    let sections = configured_sections(team.as_ref(), personal.as_ref());
-    if !sections.is_empty() {
-        summary.push_str("\n- Configured sections:");
-        for section in sections {
-            summary.push(' ');
-            summary.push_str(&section);
-        }
-    }
-
-    if has_project_context(content)? {
-        summary.push_str(
-            "\n- Project context: provided (will be injected into skills)",
-        );
-    }
-
+    let configured_sections =
+        configured_sections(team.as_ref(), personal.as_ref());
+    let has_project_context = has_project_context(content)?;
     let customisations =
         skill_customisations(content, enumeration, &mut warnings)?;
-    if !customisations.is_empty() {
-        summary.push_str("\n- Per-skill customisations:");
-        for line in customisations {
-            summary.push_str("\n    - ");
-            summary.push_str(&line);
-        }
-    }
-
-    summary.push_str("\n\n");
-    summary.push_str(TRAILER);
-    if !initialised {
-        summary.push_str("\n\n");
-        summary.push_str(INIT_HINT);
-    }
-    Ok((Some(summary), warnings))
+    Ok((
+        Summary::Configured(SummaryView {
+            present_levels,
+            configured_sections,
+            has_project_context,
+            customisations,
+            initialised,
+        }),
+        warnings,
+    ))
 }
 
 fn tmp_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {

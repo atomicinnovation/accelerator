@@ -11,10 +11,17 @@ pub struct ConfiguredPath {
     pub value: String,
 }
 
-/// The doc-type resolutions and any blank-coercion notes for stderr.
+/// A doc-type path key that was blank in config and fell back to its default.
+pub struct BlankDefault {
+    pub path_key: String,
+    pub default: String,
+}
+
+/// The doc-type resolutions and the blank-coercion facts the renderer turns
+/// into stderr notes.
 pub struct DocTypes {
     pub rows: Vec<(String, String)>,
-    pub notes: Vec<String>,
+    pub blanks: Vec<BlankDefault>,
 }
 
 /// Non-document keys excluded from the configured-paths block unless `all`.
@@ -137,7 +144,7 @@ fn unknown_path_key_warning(key: &str) -> String {
 /// tab or newline; a [`ConfigError`] when a config level cannot be read.
 pub fn doc_types(config: &dyn ConfigAccess) -> Result<DocTypes, ConfigError> {
     let mut rows = Vec::new();
-    let mut notes = Vec::new();
+    let mut blanks = Vec::new();
     for (doc_type, path_key) in catalogue::DOC_TYPES {
         let full_key = format!("paths.{path_key}");
         let default = catalogue::default_for(&full_key)
@@ -145,10 +152,10 @@ pub fn doc_types(config: &dyn ConfigAccess) -> Result<DocTypes, ConfigError> {
             .unwrap_or_default();
         let mut raw = resolve_or_default(config, &full_key)?;
         if raw.is_empty() {
-            notes.push(format!(
-                "paths.{path_key} is blank; using default '{default}' \
-                 (blanking a path does not disable a doc-type)"
-            ));
+            blanks.push(BlankDefault {
+                path_key: (*path_key).to_owned(),
+                default: default.clone(),
+            });
             raw = default;
         }
         if raw.contains('\t') || raw.contains('\n') {
@@ -167,7 +174,7 @@ pub fn doc_types(config: &dyn ConfigAccess) -> Result<DocTypes, ConfigError> {
         }
         rows.push(((*doc_type).to_owned(), normalise(&raw)));
     }
-    Ok(DocTypes { rows, notes })
+    Ok(DocTypes { rows, blanks })
 }
 
 fn resolve_or_default(

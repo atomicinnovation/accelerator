@@ -42,17 +42,32 @@ pub struct CustomRow {
     pub always_include: bool,
 }
 
+/// The resolved verdict thresholds, formatted into output lines by the renderer.
+pub enum Verdict {
+    /// The pr-mode `REQUEST_CHANGES` escalation severity.
+    Pr { severity: String },
+    /// The plan/work-item `REVISE` escalation severity and major count, with the
+    /// count's default (for the override annotation).
+    Revise {
+        severity: String,
+        count: String,
+        count_default: String,
+    },
+}
+
 /// The assembled review view.
 pub struct ReviewView {
     pub values: Vec<ValueLine>,
     pub core_lenses: Vec<String>,
     pub filtered_core_lenses: Vec<String>,
     pub disabled_lenses: Vec<String>,
-    pub verdict: Vec<String>,
+    pub verdict: Verdict,
     pub builtin_lenses: Vec<&'static str>,
     pub custom_rows: Vec<CustomRow>,
     pub warnings: Vec<String>,
-    pub notes: Vec<String>,
+    /// Work-item built-in lenses absent from a non-empty `core_lenses`; the
+    /// renderer turns a non-empty set into the informational note.
+    pub missing_builtin_lenses: Vec<String>,
 }
 
 const SEVERITIES: &[&str] = &["critical", "major", "none"];
@@ -127,10 +142,14 @@ pub fn assemble(
         &mut warnings,
     );
 
-    let verdict = verdict_lines(config, mode, &mut warnings)?;
+    let verdict = resolve_verdict(config, mode, &mut warnings)?;
 
-    let notes =
-        core_lenses_note(mode, &builtin_lenses, &core_lenses, &disabled_lenses);
+    let missing_builtin_lenses = missing_core_lenses(
+        mode,
+        &builtin_lenses,
+        &core_lenses,
+        &disabled_lenses,
+    );
 
     Ok(ReviewView {
         values,
@@ -148,14 +167,14 @@ pub fn assemble(
             })
             .collect(),
         warnings,
-        notes,
+        missing_builtin_lenses,
     })
 }
 
 /// In work-item mode, when the user sets `core_lenses` to a subset of the
-/// built-in work-item lenses, the informational note listing the built-ins that
-/// will still be added up to `max_lenses`.
-fn core_lenses_note(
+/// built-in work-item lenses, the built-ins that will still be added up to
+/// `max_lenses` (empty when the note does not apply).
+fn missing_core_lenses(
     mode: Mode,
     builtins: &[&str],
     core_lenses: &[String],
@@ -164,27 +183,15 @@ fn core_lenses_note(
     if mode != Mode::WorkItem || core_lenses.is_empty() {
         return Vec::new();
     }
-    let missing: Vec<&str> = builtins
+    builtins
         .iter()
         .copied()
         .filter(|lens| {
             !disabled_lenses.iter().any(|d| d == lens)
                 && !core_lenses.iter().any(|c| c == lens)
         })
-        .collect();
-    if missing.is_empty() {
-        return Vec::new();
-    }
-    vec![
-        format!(
-            "Note: built-in work-item lens(es) not in your core_lenses but \
-             will be added up to max_lenses: {}",
-            missing.join(" ")
-        ),
-        "      Add them to disabled_lenses to opt out, or raise core_lenses \
-         to include them explicitly."
-            .to_owned(),
-    ]
+        .map(str::to_owned)
+        .collect()
 }
 
 /// The mode-specific threshold value lines (before `min`/`max`).
@@ -439,42 +446,27 @@ fn lens_count_warnings(
     }
 }
 
-fn verdict_lines(
+fn resolve_verdict(
     config: &dyn ConfigAccess,
     mode: Mode,
     warnings: &mut Vec<String>,
-) -> Result<Vec<String>, ConfigError> {
+) -> Result<Verdict, ConfigError> {
     match mode {
-        Mode::Pr => {
-            let severity =
-                severity(config, "pr_request_changes_severity", warnings)?;
-            Ok(if severity == "critical" {
-                Vec::new()
-            } else if severity == "none" {
-                vec![
-                    "- **Verdict**: REQUEST_CHANGES disabled (severity-based \
-                     escalation turned off)"
-                        .to_owned(),
-                    "  (default: any `critical`)".to_owned(),
-                ]
-            } else {
-                vec![
-                    format!(
-                        "- **Verdict**: REQUEST_CHANGES when any `{severity}` \
-                         or higher"
-                    ),
-                    "  (default: any `critical`)".to_owned(),
-                ]
-            })
-        }
-        Mode::Plan => revise_verdict(
+        Mode::Pr => Ok(Verdict::Pr {
+            severity: severity(
+                config,
+                "pr_request_changes_severity",
+                warnings,
+            )?,
+        }),
+        Mode::Plan => resolve_revise(
             config,
             "plan_revise_severity",
             "plan_revise_major_count",
             "3",
             warnings,
         ),
-        Mode::WorkItem => revise_verdict(
+        Mode::WorkItem => resolve_revise(
             config,
             "work_item_revise_severity",
             "work_item_revise_major_count",
@@ -484,29 +476,18 @@ fn verdict_lines(
     }
 }
 
-fn revise_verdict(
+fn resolve_revise(
     config: &dyn ConfigAccess,
     severity_key: &str,
     count_key: &str,
     count_default: &str,
     warnings: &mut Vec<String>,
-) -> Result<Vec<String>, ConfigError> {
-    let severity = severity(config, severity_key, warnings)?;
-    let count = positive(config, count_key, count_default, warnings)?;
-    if severity == "critical" && count == count_default {
-        return Ok(Vec::new());
-    }
-    let severity_part = if severity == "none" {
-        "severity-based REVISE disabled".to_owned()
-    } else {
-        format!("any `{severity}`")
-    };
-    Ok(vec![
-        format!(
-            "- **Verdict**: REVISE when {severity_part} or {count}+ `major`"
-        ),
-        format!("  (default: any `critical` or {count_default}+ `major`)"),
-    ])
+) -> Result<Verdict, ConfigError> {
+    Ok(Verdict::Revise {
+        severity: severity(config, severity_key, warnings)?,
+        count: positive(config, count_key, count_default, warnings)?,
+        count_default: count_default.to_owned(),
+    })
 }
 
 /// The catalogue default for a full `review.*` key, rendered to its scalar

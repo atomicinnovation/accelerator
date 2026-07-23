@@ -17,9 +17,10 @@ pub struct AgentsView {
     pub unknown: Vec<String>,
 }
 
-/// One resolved agent, with its display name (hyphens turned to spaces).
+/// One resolved agent: its raw catalogue name (the renderer turns hyphens into
+/// spaces for display) and its resolved value.
 pub struct Agent {
-    pub display: String,
+    pub name: String,
     pub value: String,
 }
 
@@ -34,7 +35,7 @@ pub fn assemble(
     for name in catalogue::AGENT_KEYS {
         let key = Key::parse(&format!("agents.{name}"))?;
         agents.push(Agent {
-            display: name.replace('-', " "),
+            name: (*name).to_owned(),
             value: config.effective_nonempty(&key, None)?.rendered(),
         });
     }
