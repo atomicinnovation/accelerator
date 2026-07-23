@@ -322,18 +322,18 @@ path (checksums/download) is untouched this phase.
 
 #### Automated Verification
 
-- [ ] Workspace build succeeds: `cargo build -p accelerator-visualiser`
+- [x] Workspace build succeeds: `cargo build -p accelerator-visualiser`
       (run from `cli/`)
-- [ ] Component check passes: `mise run server:check`
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] cargo-deny passes: `mise run deny:check`
-- [ ] Visualiser unit + integration + E2E suites pass:
+- [x] Component check passes: `mise run server:check`
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] cargo-deny passes: `mise run deny:check`
+- [x] Visualiser unit + integration + E2E suites pass:
       `mise run test:unit:visualiser test:integration:visualiser test:e2e:visualiser`
-- [ ] Version-coherence passes after inheritance, and a skewed visualiser member
+- [x] Version-coherence passes after inheritance, and a skewed visualiser member
       version is caught via `_read_workspace_version` (regression test)
-- [ ] Python task-unit suites pass with the repointed paths:
+- [x] Python task-unit suites pass with the repointed paths:
       `mise run test:unit:tasks`
-- [ ] Full gate is green: `mise run`
+- [x] Full gate is green: `mise run`
 
 #### Manual Verification
 

@@ -571,7 +571,7 @@ mod tests {
 
     fn compile_scan(pattern: &str, project_code: &str) -> regex::Regex {
         let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../../skills/work/scripts/work-item-pattern.sh");
+            .join("../../../skills/work/scripts/work-item-pattern.sh");
         let out = std::process::Command::new(&script)
             .arg("--compile-scan")
             .arg(pattern)
@@ -592,7 +592,7 @@ mod tests {
         project_code: &str,
     ) -> std::process::Output {
         let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../../skills/work/scripts/work-item-pattern.sh");
+            .join("../../../skills/work/scripts/work-item-pattern.sh");
         std::process::Command::new(&script)
             .arg("--compile-scan")
             .arg(pattern)

@@ -3,13 +3,18 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# The skill keeps its bin/ (checksums) and scripts/ here; the server + frontend
+# have moved into the cli/ workspace.
 VISUALISER = REPO_ROOT / "skills/visualisation/visualise"
 BIN_DIR = VISUALISER / "bin"
 CHECKSUMS = BIN_DIR / "checksums.json"
-SERVER = VISUALISER / "server"
-CARGO_TOML = SERVER / "Cargo.toml"
-FRONTEND = VISUALISER / "frontend"
 CLI_DIR = REPO_ROOT / "cli"
+# The server is the 12th cli/ workspace member, so it builds into the shared
+# workspace target dir, not a crate-local one.
+CLI_TARGET_DIR = CLI_DIR / "target"
+SERVER = CLI_DIR / "visualiser/server"
+CARGO_TOML = SERVER / "Cargo.toml"
+FRONTEND = CLI_DIR / "visualiser/frontend"
 CLI_WORKSPACE_CARGO_TOML = CLI_DIR / "Cargo.toml"
 RELEASE_STAGING = REPO_ROOT / "dist" / "release"
 RELEASE_MANIFEST = RELEASE_STAGING / "manifest.json"

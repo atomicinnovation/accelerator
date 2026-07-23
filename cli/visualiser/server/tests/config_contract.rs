@@ -4,8 +4,10 @@ use accelerator_visualiser::config::Config;
 
 #[test]
 fn write_visualiser_config_produces_valid_config_json() {
-    let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../scripts/write-visualiser-config.sh");
+    let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../../skills/visualisation/visualise/scripts/\
+         write-visualiser-config.sh",
+    );
     assert!(
         script.exists(),
         "write-visualiser-config.sh not found at {}",
@@ -72,7 +74,7 @@ fn write_visualiser_config_produces_valid_config_json() {
     // plugin-default templates/ dir. Keeps the contract drift-proof — adding or
     // removing a template never requires editing this test.
     let templates_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../templates");
+        .join("../../../templates");
     let mut expected: Vec<String> = std::fs::read_dir(&templates_dir)
         .expect("read plugin templates dir")
         .filter_map(|e| {

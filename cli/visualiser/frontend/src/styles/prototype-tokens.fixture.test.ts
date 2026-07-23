@@ -8,12 +8,11 @@ import { extractBlockBody } from "./testing/cssBlocks";
 // Drift detector: the committed fixture must remain byte-equivalent
 // (case- and whitespace-normalised) to the prototype's .ac-codeblock
 // and :root brand-palette blocks. If the prototype changes a colour,
-// this spec surfaces the drift instead of silently accepting it. Four
-// `..` walks from `skills/visualisation/visualise/frontend/` reach the
-// repo root; mirrors the cwd-relative pattern in fonts.test.ts.
+// this spec surfaces the drift instead of silently accepting it. Three
+// `..` walks from `cli/visualiser/frontend/` reach the repo root; mirrors
+// the cwd-relative pattern in fonts.test.ts.
 const PROTOTYPE_PATH = resolve(
   process.cwd(),
-  "..",
   "..",
   "..",
   "..",

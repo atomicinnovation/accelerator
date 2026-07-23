@@ -46,8 +46,8 @@ The aggregate `mise run test:*` tasks have no name filter; drop to the
 underlying runner for one test:
 
 - **Python (tasks/):** `uv run pytest tests/unit/tasks/test_x.py::test_y -v`
-- **Rust (server):** `cd skills/visualisation/visualise/server && cargo test <name>`
-- **Frontend (Vitest):** `cd skills/visualisation/visualise/frontend && npx vitest run -t "<name>"`
+- **Rust (server):** `cd cli/visualiser/server && cargo test <name>`
+- **Frontend (Vitest):** `cd cli/visualiser/frontend && npx vitest run -t "<name>"`
 - **Shell:** the suites are standalone scripts — run e.g.
   `bash scripts/test-config.sh` or `bash hooks/test-vcs-detect.sh` directly.
 
@@ -73,7 +73,7 @@ memory; each skill reads/writes predictable paths within it. Subagents
 summaries. Locator agents (find, no Read) are deliberately separated from
 analyser agents (Read) to keep each context bounded.
 
-### Visualiser (`skills/visualisation/visualise/`)
+### Visualiser (`cli/visualiser/`)
 
 - `server/` — Rust (axum) HTTP server. Cargo features: `embed-dist` (default,
   bundles the built SPA via `rust-embed`) and `dev-frontend` (serves from disk).

@@ -92,7 +92,7 @@ export default async function globalSetup() {
         "plus an orphaned 'node e2e/start-server.mjs' still answering the " +
         "health port, so Playwright reused a dead server. Kill the orphaned " +
         "wrapper and remove " +
-        "skills/visualisation/visualise/frontend/.e2e-port, then re-run.",
+        "cli/visualiser/frontend/.e2e-port, then re-run.",
     );
   }
 

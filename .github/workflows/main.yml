@@ -81,10 +81,11 @@ jobs:
       - name: Cache cargo build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
         with:
-          # test:integration:visualiser compiles the server workspace;
-          # test:integration:deny only reads cli metadata (no build), and its
-          # crate downloads are covered by the always-cached cargo registry.
-          workspaces: skills/visualisation/visualise/server
+          # test:integration:visualiser compiles the server, now a cli/
+          # workspace member; test:integration:deny only reads cli metadata (no
+          # build), and its crate downloads are covered by the always-cached
+          # cargo registry.
+          workspaces: cli
 
       - name: Run integration tests
         run: mise run test:integration
@@ -109,11 +110,11 @@ jobs:
           experimental: true
 
       # test:e2e builds the dev server (build:server:dev) on the host before the
-      # Playwright run, so cache the server workspace's target/ across runs.
+      # Playwright run, so cache the cli/ workspace target/ across runs.
       - name: Cache cargo build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
         with:
-          workspaces: skills/visualisation/visualise/server
+          workspaces: cli
 
       - name: Run E2E tests
         run: mise run test:e2e
@@ -138,7 +139,7 @@ jobs:
       - name: Cache cargo build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
         with:
-          workspaces: skills/visualisation/visualise/server
+          workspaces: cli
 
       - name: Run visual regression tests
         run: mise run test:e2e:visualiser:docker
@@ -214,7 +215,7 @@ jobs:
       - name: Cache cargo build
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
         with:
-          workspaces: skills/visualisation/visualise/server
+          workspaces: cli
 
       - name: Run visualiser server checks
         run: mise run server:check
@@ -402,7 +403,6 @@ jobs:
         with:
           workspaces: |
             cli
-            skills/visualisation/visualise/server
 
       - name: Prepare prerelease
         env:
@@ -511,7 +511,6 @@ jobs:
         with:
           workspaces: |
             cli
-            skills/visualisation/visualise/server
 
       # The steps below stay INSIDE this locked, approved job on purpose: the
       # post-stable prerelease re-cut (prepare/attest/finalise, last three

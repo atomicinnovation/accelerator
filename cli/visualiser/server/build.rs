@@ -13,7 +13,7 @@ fn main() {
         assert!(
             dist_index.exists(),
             "frontend/dist/index.html not found — \
-             run `npm run build` in skills/visualisation/visualise/frontend/ \
+             run `npm run build` in cli/visualiser/frontend/ \
              before `cargo build` (or use `--features dev-frontend` to \
              skip embedding and serve from disk instead)"
         );

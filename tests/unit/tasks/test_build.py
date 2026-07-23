@@ -319,14 +319,35 @@ class TestValidateVersionCoherence:
         result = validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
         assert result is None
 
-    def test_cargo_toml_mismatch_raises(self, fake_repo_tree: Path):
-        cargo = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
+    def test_visualiser_inheriting_covered_by_workspace_version(
+        self, fake_repo_tree: Path
+    ):
+        # The visualiser inherits its version, so a skewed visualiser version
+        # reduces to a workspace-version skew; _read_workspace_version catches
+        # it now the standalone member-literal reader is gone.
+        (fake_repo_tree / "cli/Cargo.toml").write_text(
+            "[workspace]\n"
+            'members = ["launcher", "visualiser/server"]\n\n'
+            "[workspace.package]\n"
+            'version = "0.9.0"\n'
         )
-        cargo.write_text('[package]\nname = "x"\nversion = "0.9.0"\n')
         with pytest.raises(VersionCoherenceError) as exc_info:
             validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
-        assert "Cargo.toml" in str(exc_info.value)
+        assert "cli/Cargo.toml" in str(exc_info.value)
+        assert "0.9.0" in str(exc_info.value)
+
+    def test_visualiser_member_pinning_drift_is_named(
+        self, fake_repo_tree: Path
+    ):
+        # If the visualiser opts out of inheritance and pins a drifting literal,
+        # _pinned_member_versions must still name it — the member stays covered.
+        server_cargo = fake_repo_tree / "cli/visualiser/server/Cargo.toml"
+        server_cargo.write_text(
+            '[package]\nname = "accelerator-visualiser"\nversion = "0.9.0"\n'
+        )
+        with pytest.raises(VersionCoherenceError) as exc_info:
+            validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
+        assert "cli/visualiser/server/Cargo.toml" in str(exc_info.value)
         assert "0.9.0" in str(exc_info.value)
 
     def test_plugin_json_mismatch_raises(self, fake_repo_tree: Path):

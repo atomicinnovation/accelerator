@@ -16,12 +16,12 @@ from tasks.shared.paths import (
     CARGO_TOML,
     CHECKSUMS,
     CLI_DIR,
+    CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
     FRONTEND,
     PLUGIN_JSON,
     RELEASE_STAGING,
     REPO_ROOT,
-    SERVER,
     VENDOR_SHIM_MARKER,
     binary_path,
     cli_binary_path,
@@ -38,7 +38,6 @@ _CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
 class VersionCoherenceError(Exception): ...
 
 
-_CARGO_TOML_RELATIVE = CARGO_TOML.relative_to(REPO_ROOT)
 _CLI_WORKSPACE_CARGO_TOML_RELATIVE = CLI_WORKSPACE_CARGO_TOML.relative_to(
     REPO_ROOT
 )
@@ -58,10 +57,6 @@ _ELF_MAGIC = b"\x7fELF"
 def _read_plugin_json_version(root: Path) -> str:
     data = json.loads((root / _PLUGIN_JSON_RELATIVE).read_text())
     return data["version"]
-
-
-def _read_cargo_toml_version(root: Path) -> str:
-    return load_toml(root / _CARGO_TOML_RELATIVE)["package"]["version"]
 
 
 def _read_checksums_json_version(root: Path) -> str:
@@ -192,7 +187,6 @@ def validate_version_coherence(
     root = repo_root or REPO_ROOT
     found = {
         "plugin.json": _read_plugin_json_version(root),
-        "Cargo.toml": _read_cargo_toml_version(root),
         "checksums.json": _read_checksums_json_version(root),
         _CLI_WORKSPACE_CARGO_TOML_RELATIVE.as_posix(): _read_workspace_version(
             root
@@ -284,7 +278,7 @@ def server_cross_compile(context: Context) -> None:
             f"--manifest-path {CARGO_TOML}",
             pty=True,
         )
-        src = SERVER / "target" / triple / "release" / "accelerator-visualiser"
+        src = CLI_TARGET_DIR / triple / "release" / "accelerator-visualiser"
         _assert_magic_bytes(src, triple)
         shutil.copy2(src, binary_path(platform))
 

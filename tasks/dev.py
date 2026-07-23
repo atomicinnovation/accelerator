@@ -16,10 +16,10 @@ from tasks.shared.dev.lifecycle import (
     do_stop,
 )
 from tasks.shared.paths import (
+    CLI_TARGET_DIR,
     FRONTEND,
     PLUGIN_JSON,
     REPO_ROOT,
-    SERVER,
     VISUALISER,
 )
 from tasks.shared.ports import free_port
@@ -40,7 +40,7 @@ _TMP_DIR = REPO_ROOT / ".accelerator/tmp/dev-server"
 _CONFIG_PATH = _TMP_DIR / "config.json"
 _SERVER_INFO_PATH = _TMP_DIR / "server-info.json"
 _SERVER_PIDFILE = _TMP_DIR / "server.pid"
-_SERVER_BIN = SERVER / "target/debug/accelerator-visualiser"
+_SERVER_BIN = CLI_TARGET_DIR / "debug/accelerator-visualiser"
 _WRITE_CONFIG = VISUALISER / "scripts/write-visualiser-config.sh"
 
 _DEV_DIR = REPO_ROOT / ".accelerator/tmp/dev"
