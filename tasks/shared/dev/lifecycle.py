@@ -57,7 +57,7 @@ class DevDeps:
     launcher: Callable[..., LaunchHandle]
     killer: ProcessOps
     clock: Clock
-    config_renderer: Callable[[], Path]
+    project_root: Path
     workspace_root: Path
     state_path: Path
     lock_path: Path
@@ -279,17 +279,13 @@ def allocate_and_launch(deps: DevDeps) -> LaunchedArbiter:
     fe_port = deps.free_port()
     fe_url = f"http://127.0.0.1:{fe_port}"
 
-    config_path = (
-        deps.config_renderer()
-    )  # render-then-launch ordering, in one place
-
     spec = ArbiterSpec(
         endpoint_socket=str(endpoint_sock),
         pubsub_socket=str(pubsub_sock),
         pidfile=str(deps.pidfile),
         dev_dir=str(deps.dev_dir),
         server_bin=str(deps.server_bin),
-        config_path=str(config_path),
+        project_root=str(deps.project_root),
         npm_bin=deps.npm_bin,
         frontend=str(deps.frontend),
         frontend_port=fe_port,
