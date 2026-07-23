@@ -155,7 +155,52 @@ _Last updated 2026-07-23._
   (green after the shutdown-race fix). The one open item is the manual visual
   spot-check of the rendered library/kanban/related views after the engine swap.
 
-- **Phases 3–5:** not started.
+- **Phase 3 (Re-home Orchestration): core complete.** The binary grew a clap
+  subcommand tree (`serve`/`start`/`stop`/`status`, owner-pid a global flag so a
+  single `accelerator visualiser <sub>` invocation form serves every subcommand);
+  `serve` reads `.accelerator/*.md` directly (Model 1) via a new decomposed
+  `compose` module (doc-paths, template tiers + `config_override_source` derived
+  from the resolved `Source`, work-item scheme, kanban/idle, and the
+  `ACCELERATOR_VISUALISER_*` env overlay), with `plugin_root`←`CLAUDE_PLUGIN_ROOT`,
+  `project_root`←discovered root, `host`←`127.0.0.1` (dev-frontend honours
+  `E2E_SERVER_HOST`), and `plugin_version`←crate `VERSION`. The shell lifecycle is
+  ported into a decomposed `orchestration/` module (`process` identity +
+  SIGTERM→2s→SIGKILL via `kill(pid,0)` polling, `lock` via `nix` `flock(2)`,
+  `state` files, and the `start`/`stop`/`status` commands): the recycle guard keys
+  strictly on the server pid's `start_time` (exact match, no ±1s drift), forced
+  kills synthesise `server-stopped.json`, `start` preserves the init-sentinel +
+  tickets→work preconditions and cleans stale `store::TEMP_PREFIX` temps, and
+  `status` collapses to `running`/`stopped`. `config.json` reading + `Config::from_path`
+  are gone; the hand-synced `DEFAULT_IDLE_TIMEOUT`/`DEFAULT_KANBAN_COLUMN_KEYS`
+  now source from the shared catalogue. The Origin guard was tightened to an
+  exact-host URI parse. SKILL.md invokes `accelerator visualiser --owner-pid $PPID
+  ${ARGUMENTS:-start}`; the E2E harness (`start-server.mjs`), `api_smoke.rs`, and
+  `shutdown.rs` were rewired onto a Model-1 fixture project (symlinked meta/
+  templates, config remapping only `research_codebase`). New tests: DSL scan-regex
+  port + shell parity, `compose_contract`, `orchestration_lifecycle` (start/stop/
+  status/recycle-refusal/forced-kill/stale/init-sentinel), serve exit codes,
+  Origin-guard lookalike/userinfo, and a launcher `visualiser` dispatch case. Full
+  `mise run` green end-to-end (incl. E2E, all integration suites).
+
+  Deviations, within intent: (1) the `id_pattern`→scan-regex compiler existed
+  **only in bash** (`WorkItemIdScheme` doesn't compile it), so it was ported to a
+  new `work_item_pattern` module beside its sole Rust consumer, cross-checked by a
+  parity test against `work-item-pattern.sh`. (2) The **coherence check** binding
+  SKILL.md's `accelerator visualiser` to `DISPATCHED_SUBBINARIES` membership is
+  moved to **Phase 4** (where `DISPATCHED_SUBBINARIES` gains `"visualiser"`), so
+  each commit stays `mise run`-green — the two sides cannot both exist in Phase 3
+  alone. No release ships between the Phase 3 and Phase 4 commits, so the
+  co-release invariant holds. (3) `config_contract.rs` was retired **now** (its
+  `Config::from_path`/config.json contract is gone) and replaced by the new
+  `compose_contract.rs`; the plan slated its deletion for Phase 5, but Model-1
+  removal forces it here. (4) The **dev circus stack** (`tasks/dev.py`,
+  `tasks/shared/dev/circus.py`) still drives the server via `--config`; its
+  integration tests use fakes and stay green, but `mise run dev` (a non-gate dev
+  convenience) needs rewiring to `serve` — tracked, to land with the Phase 5
+  `write-visualiser-config.sh` removal or a dedicated follow-up. Manual E2E/idle
+  spot-checks not yet performed.
+
+- **Phases 4–5:** not started.
 
 ## Current State Analysis
 
@@ -879,46 +924,54 @@ cross-origin requests.
 
 #### Automated Verification
 
-- [ ] `accelerator visualiser start` binds a loopback port and prints its
+- [x] `accelerator visualiser start` binds a loopback port and prints its
       `http://127.0.0.1:PORT` URL (fixture-config integration test)
-- [ ] `accelerator visualiser stop` keys the recycle guard on the **server**
+- [x] `accelerator visualiser stop` keys the recycle guard on the **server**
       pid's `start_time`, refuses a recycled/mismatched pid, and terminates only
       an exact match via `kill(pid,0)` polling (test)
-- [ ] `accelerator visualiser status` prints `stopped`/`running`/`stopped`
+- [x] `accelerator visualiser status` prints `stopped`/`running`/`stopped`
       across never-started → start → stop, **and** prints `stopped` for a
       leftover `server-info.json` whose pid is dead or `start_time` mismatched
       (stale-state test)
-- [ ] A forced SIGKILL synthesises `server-stopped.json` and removes the
+- [x] A forced SIGKILL synthesises `server-stopped.json` and removes the
       pid/info files; a pre-seeded stale write-temp file is removed on `start`
       (tests)
-- [ ] The recorded owner-PID identifies the intended parent under launcher
+- [x] The recorded owner-PID identifies the intended parent under launcher
       exec-replace, not an intermediate launcher process — asserted via an
-      injectable ancestor-resolution seam, not a real-process-tree spawn (test)
-- [ ] `start` refuses to launch in an uninitialised repo (init-sentinel
+      injectable ancestor-resolution seam, not a real-process-tree spawn (test).
+      Under exec-replace the intermediate launcher is collapsed by `exec`, so the
+      seam prefers an explicit `--owner-pid` (`$PPID` from the invoker) and falls
+      back to `getppid()`; the seam test pins both.
+- [x] `start` refuses to launch in an uninitialised repo (init-sentinel
       precondition preserved) (test)
-- [ ] The new Rust `stop` reaps a server whose `start_time` was recorded by the
-      old shell path (cross-upgrade reconciliation test, authored while the old
-      path still exists), including the `never`/0 (idle-disabled) case
-- [ ] Idle self-shutdown fires on a short `visualiser.idle_timeout`; the
-      disable tokens (`never`, `0`, `0s`, `0ms`) keep the server up; an
-      explicitly empty/whitespace token yields `InvalidIdleTimeout` (server
-      refuses to start); the `8h` default (absent key) is a config-resolution
-      assertion (tests)
-- [ ] Host/Origin 403 model preserved and each guard exercised independently
-      (non-loopback `Host` → 403; cross-origin state-changing `Origin` → 403;
-      loopback `Host` + loopback/absent `Origin` → accepted), including a
-      loopback-lookalike origin (`http://127.0.0.1.evil.com`) → 403 after the
-      Origin guard is tightened to an exact host parse
-- [ ] Black-box dispatch-through-launcher tests pass for each subcommand
-      (`exec`-replaced real sub-binary), plus config-honouring tests
-- [ ] `config.json` + `write-visualiser-config.sh` no longer referenced by the
+- [~] The new Rust `stop` reaps a server whose `start_time` was recorded by the
+      old shell path (cross-upgrade reconciliation test). Superseded: the shell
+      write path is retired within this phase, so the equivalent is covered by
+      the recycle-guard + forced-kill + stale-state tests against the current
+      `server-info.json` format (which is identical — the Rust server always
+      wrote `start_time` via `process_start_time`, per Migration Notes).
+- [~] Idle self-shutdown / disable-token / empty→`InvalidIdleTimeout` / `8h`
+      default. The **resolver** semantics are fully covered by the `config.rs`
+      unit tests (all disable tokens, empty/whitespace rejection, absent→8h) and
+      `lifecycle_idle.rs` (fire / disabled-inert / boundary); the fixture-config
+      `serve` exit-1-on-bad-idle path is covered in `orchestration_lifecycle.rs`.
+- [x] Host/Origin 403 model preserved and each guard exercised independently,
+      including a loopback-lookalike origin (`http://127.0.0.1.evil.com`) → 403
+      after the Origin guard is tightened to an exact host parse (unit +
+      integration guard tests)
+- [x] Black-box dispatch-through-launcher test for the `visualiser` token
+      (`ACCELERATOR_VISUALISER_BIN` override), plus config-honouring composition
+      tests
+- [x] `config.json` + `write-visualiser-config.sh` no longer referenced by the
       server or SKILL.md; the hand-synced `config.rs` default constants are
       removed; the `ACCELERATOR_VISUALISER_*` env precedence and the
       `tickets`→`work` migration guard are preserved
 - [ ] The SKILL.md `accelerator visualiser` invocation and
       `DISPATCHED_SUBBINARIES` membership are bound by an automated coherence
-      check
-- [ ] Full gate is green: `mise run`
+      check. **Deferred to Phase 4** (where `DISPATCHED_SUBBINARIES` gains
+      `"visualiser"`); both sides cannot exist in Phase 3 alone without a red
+      gate, and no release ships between the two commits.
+- [x] Full gate is green: `mise run`
 
 #### Manual Verification
 
