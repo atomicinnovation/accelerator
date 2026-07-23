@@ -437,6 +437,8 @@ fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
     tokio::spawn({
         let tx = tx.clone();
         async move {
+            // Registering a signal handler fails only on an invalid signal.
+            #[allow(clippy::expect_used)]
             let mut s =
                 signal(SignalKind::terminate()).expect("SIGTERM handler");
             s.recv().await;
@@ -444,6 +446,7 @@ fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
         }
     });
     tokio::spawn(async move {
+        #[allow(clippy::expect_used)]
         let mut s = signal(SignalKind::interrupt()).expect("SIGINT handler");
         s.recv().await;
         let _ = tx.send(ShutdownReason::Sigint).await;

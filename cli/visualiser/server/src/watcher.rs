@@ -46,6 +46,9 @@ pub fn spawn(
     let (tx, mut rx) =
         tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
 
+    // Watcher construction fails only if the platform backend is unavailable at
+    // startup; there is no recovery path, so a panic is the correct outcome.
+    #[allow(clippy::expect_used)]
     let mut watcher = RecommendedWatcher::new(
         move |res| {
             if tx.try_send(res).is_err() {

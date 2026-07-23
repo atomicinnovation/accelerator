@@ -94,6 +94,8 @@ pub(crate) async fn doc_fetch(
         [
             (
                 header::ETAG,
+                // A quoted hex etag is always a valid header value.
+                #[allow(clippy::unwrap_used)]
                 HeaderValue::from_str(&format!("\"{etag}\"")).unwrap(),
             ),
             (
@@ -239,7 +241,10 @@ pub(crate) async fn doc_patch_frontmatter(
     let coordinator = state.write_coordinator.clone();
     let on_committed: Box<dyn FnOnce(&Path) + Send> =
         Box::new(move |canonical: &Path| {
-            *canonical_capture.lock().unwrap() = Some(canonical.to_path_buf());
+            // Mutex poisoned only by a panic while held; none occurs here.
+            #[allow(clippy::unwrap_used)]
+            let mut slot = canonical_capture.lock().unwrap();
+            *slot = Some(canonical.to_path_buf());
             coordinator.mark_self_write(canonical);
         });
 
@@ -258,6 +263,7 @@ pub(crate) async fn doc_patch_frontmatter(
     // on_committed was not called for idempotent patches (driver short-circuited), so
     // committed_canonical is None. Extract before awaiting: std::sync::MutexGuard is
     // !Send and must not be held across an await point.
+    #[allow(clippy::unwrap_used)] // mutex poisoned only by a panic while held
     let committed = committed_canonical.lock().unwrap().take();
     if let Some(canonical) = committed {
         // Refresh index first so subscribers that refetch on the broadcast see fresh data.

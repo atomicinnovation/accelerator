@@ -127,6 +127,7 @@ impl IntoResponse for ApiError {
             // so we do not leak the current state. This prevents the optimistic-
             // concurrency rollback UI from triggering on a client programming bug.
             ApiError::IfMatchRequired => (
+                #[allow(clippy::unwrap_used)] // 428 is a valid status code
                 StatusCode::from_u16(428).unwrap(),
                 Json(serde_json::json!({ "error": "if-match-required" })),
             )

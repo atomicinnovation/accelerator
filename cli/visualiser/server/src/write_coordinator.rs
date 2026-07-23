@@ -35,6 +35,9 @@ impl WriteCoordinator {
         }
     }
 
+    // The recent-writes mutex is only ever poisoned by a panic while held, and
+    // no code panics inside these short critical sections.
+    #[allow(clippy::unwrap_used)]
     pub fn mark_self_write(&self, canonical: &Path) {
         let mut map = self.recent.lock().unwrap();
         let now = (self.now)();
@@ -49,6 +52,7 @@ impl WriteCoordinator {
         map.insert(canonical.to_path_buf(), now);
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn should_suppress(&self, canonical: &Path) -> bool {
         let mut map = self.recent.lock().unwrap();
         let now = (self.now)();
@@ -58,6 +62,7 @@ impl WriteCoordinator {
         map.contains_key(canonical)
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn unmark(&self, canonical: &Path) {
         self.recent.lock().unwrap().remove(canonical);
     }

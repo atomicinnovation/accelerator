@@ -157,6 +157,8 @@ impl LocalFileDriver {
         canonical: &Path,
     ) -> tokio::sync::OwnedMutexGuard<()> {
         let per_path = {
+            // Poisoned only by a panic while held; nothing panics under this lock.
+            #[allow(clippy::unwrap_used)]
             let mut map = self.path_locks.lock().unwrap();
             map.entry(canonical.to_path_buf())
                 .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))

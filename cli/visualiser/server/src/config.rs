@@ -109,6 +109,8 @@ impl WorkItemConfig {
     pub fn default_numeric() -> Self {
         let raw = "^([0-9]+)-".to_string();
         Self {
+            // Compile-time-constant regex literal cannot fail to compile.
+            #[allow(clippy::unwrap_used)]
             scan_regex: regex::Regex::new(&raw).unwrap(),
             scan_regex_raw: raw,
             id_pattern: "{number:04d}".to_string(),

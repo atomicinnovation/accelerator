@@ -286,6 +286,8 @@ impl Indexer {
     pub async fn rescan(&self) -> Result<(), FileDriverError> {
         // Phase 2 reads files concurrently; this bounds the in-flight reads.
         const READ_CONCURRENCY: usize = 64;
+        // acquire() errors only if the semaphore is closed, which never happens.
+        #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
         let mut entries: HashMap<PathBuf, IndexEntry> = HashMap::new();
@@ -428,6 +430,8 @@ impl Indexer {
         &self,
         path: &Path,
     ) -> Result<Option<IndexEntry>, FileDriverError> {
+        // acquire() errors only if the semaphore is closed, which never happens.
+        #[allow(clippy::unwrap_used)]
         let _permit = self.rescan_lock.acquire().await.unwrap();
 
         match self.driver.read(path).await {
@@ -1193,6 +1197,7 @@ async fn remove_from_reviews_by_target(
 fn number_width_from_id_pattern(pattern: &str) -> usize {
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
+    #[allow(clippy::unwrap_used)] // compile-time-constant regex literal
     RE.get_or_init(|| regex::Regex::new(r"\{number:0*(\d+)d\}").unwrap())
         .captures(pattern)
         .and_then(|c| c.get(1))
@@ -1211,9 +1216,12 @@ pub fn canonicalise_one_id(
     use std::sync::OnceLock;
     static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
     static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
+    // Compile-time-constant regex literals cannot fail to compile.
+    #[allow(clippy::unwrap_used)]
     let project_re = PROJECT_RE.get_or_init(|| {
         regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap()
     });
+    #[allow(clippy::unwrap_used)]
     let numeric_re =
         NUMERIC_RE.get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
 
