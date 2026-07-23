@@ -193,14 +193,52 @@ _Last updated 2026-07-23._
   co-release invariant holds. (3) `config_contract.rs` was retired **now** (its
   `Config::from_path`/config.json contract is gone) and replaced by the new
   `compose_contract.rs`; the plan slated its deletion for Phase 5, but Model-1
-  removal forces it here. (4) The **dev circus stack** (`tasks/dev.py`,
-  `tasks/shared/dev/circus.py`) still drives the server via `--config`; its
-  integration tests use fakes and stay green, but `mise run dev` (a non-gate dev
-  convenience) needs rewiring to `serve` — tracked, to land with the Phase 5
-  `write-visualiser-config.sh` removal or a dedicated follow-up. Manual E2E/idle
-  spot-checks not yet performed.
+  removal forces it here. (4) The **dev circus stack** was rewired onto `serve`
+  in a follow-up commit (see below), so `mise run dev` reads `.accelerator/*.md`
+  directly like the dispatched path. Manual E2E/idle spot-checks not yet
+  performed.
 
-- **Phases 4–5:** not started.
+- **Dev circus stack (follow-up to Phase 3): complete.** `tasks/dev.py` +
+  `tasks/shared/dev/circus.py` now drive the dev server via `serve --owner-pid 0`
+  from `working_dir = the project root` (with `CLAUDE_PLUGIN_ROOT` propagated)
+  instead of `--config`; the dev lifecycle points at the composed
+  `.accelerator/tmp/visualiser` state dir, the `config.json` renderer + the
+  `dev-server` dir are gone, and the fakes + dev unit/integration tests were
+  repointed to the new server-owned location. `mise run dev:server` verified
+  against the real repo root.
+
+- **Phase 4 (Producer Wiring + Local-Manifest Verify): complete.**
+  `DISPATCHED_SUBBINARIES = ("visualiser",)` engages the signed-manifest flow:
+  `server_cross_compile` now stages the default (`embed-dist`) binary to both
+  `bin/` (checksums flow, debug archive only) and
+  `dist/release/accelerator-visualiser-{platform}` (manifest flow) after a
+  full-symbol `ACCELERATOR_VISUALISER_E2E_INSECURE` byte-scan guard (matched
+  exactly, not the prefix, since the release binary legitimately embeds other
+  `ACCELERATOR_VISUALISER_*` literals). Every sub-binary asset carries the
+  `accelerator-` prefix via `subbinary_asset_path`, so the launcher fetches
+  `accelerator-<token>-<platform>` even though the manifest keys on the bare
+  token; the visualiser thus ships as a **single shared asset**
+  (`accelerator-visualiser-{platform}`) referenced by both verification paths,
+  and the checksums flow no longer uploads a duplicate binary. `manifest.py`/
+  `signing.py`/`github.py` were already parameterised; the discovered gaps were
+  fixed — `_default_subbinary_manifest` maps `visualiser` → `cli/visualiser/
+  server/Cargo.toml` (not the nonexistent `cli/visualiser/Cargo.toml`), and the
+  server crate description became `"Launch the interactive meta-directory
+  visualiser"` to match the golden manifest. The launcher fixture + `manifest.rs`
+  test now key on `visualiser`, and the whole `resolution.rs` fetch/verify/reject
+  suite (happy path + `ChecksumMismatch` + `SignatureMismatch` + tamper) is
+  re-keyed on the `visualiser` entry, resolving `accelerator-visualiser-*`. The
+  shared asset is covered by the existing `dist/release/accelerator-*` provenance
+  glob, so no new glob was needed. The deferred **coherence check**
+  (`validate_dispatch_coherence`, gated in `emit_manifest`) now binds SKILL.md's
+  `accelerator visualiser` invocation to `DISPATCHED_SUBBINARIES` membership. Test
+  lockstep: `_setup_release` stages the shared `accelerator-visualiser` asset +
+  `.minisig` + a `visualiser` manifest entry, the upload-count literal went
+  18 → 22 (the checksums flow's duplicate binary upload dropped), `_pass_reverify`
+  mocks `_reverify_subbinary`, and new unit tests cover the manifest mapping, the
+  E2E-insecure guard, and the coherence check. Full `mise run` green.
+
+- **Phase 5:** not started.
 
 ## Current State Analysis
 
@@ -306,13 +344,16 @@ the local-manifest fetch/verify test (with a rejection case).
 
 ## Naming Resolution (settled)
 
-The single cross-cutting decision, resolved: **key the manifest, asset, and
-override on the bare token `visualiser`.** `accelerator visualiser` stays the
-UX; `DISPATCHED_SUBBINARIES` gains `"visualiser"`; the staged asset becomes
-`visualiser-{platform}`; the golden fixture key changes
-`accelerator-visualiser` → `visualiser`. The crate/bin name
-`accelerator-visualiser` is unaffected (it is the compiled artifact's internal
-name, not the dispatched key). No launcher alias layer is introduced.
+The single cross-cutting decision, resolved: **key the manifest and override on
+the bare token `visualiser`.** `accelerator visualiser` stays the UX;
+`DISPATCHED_SUBBINARIES` gains `"visualiser"`; the golden fixture key changes
+`accelerator-visualiser` → `visualiser`. The published **asset**, however,
+carries the `accelerator-` prefix — `accelerator-visualiser-{platform}` — so the
+launcher fetches `accelerator-<token>-<platform>` and the visualiser ships as one
+shared asset serving both verification paths (the same name the checksums flow
+reverifies). The crate/bin name `accelerator-visualiser` is unaffected (it is the
+compiled artifact's internal name, not the dispatched key). No launcher alias
+layer is introduced.
 
 ## What We're NOT Doing
 
@@ -966,11 +1007,10 @@ cross-origin requests.
       server or SKILL.md; the hand-synced `config.rs` default constants are
       removed; the `ACCELERATOR_VISUALISER_*` env precedence and the
       `tickets`→`work` migration guard are preserved
-- [ ] The SKILL.md `accelerator visualiser` invocation and
+- [x] The SKILL.md `accelerator visualiser` invocation and
       `DISPATCHED_SUBBINARIES` membership are bound by an automated coherence
-      check. **Deferred to Phase 4** (where `DISPATCHED_SUBBINARIES` gains
-      `"visualiser"`); both sides cannot exist in Phase 3 alone without a red
-      gate, and no release ships between the two commits.
+      check (`validate_dispatch_coherence`, landed with Phase 4's producer
+      wiring so both sides exist together).
 - [x] Full gate is green: `mise run`
 
 #### Manual Verification
@@ -1075,17 +1115,19 @@ negative cases already cover the mechanism for any entry). Skips cleanly if the
 
 #### Automated Verification
 
-- [ ] `mise run deny:check` and the launcher suite pass with the
+- [x] `mise run deny:check` and the launcher suite pass with the
       `visualiser`-keyed manifest fixture and the updated `manifest.rs`
       assertions
-- [ ] The local-manifest resolver test passes, including the tamper/rejection
-      case: `cd cli/launcher && cargo test --test resolution visualiser`
-- [ ] Full gate is green: `mise run`
+- [x] The local-manifest resolver test passes, including the tamper/rejection
+      case: the whole `resolution.rs` suite is re-keyed on the `visualiser`
+      entry (happy path + `ChecksumMismatch` + `SignatureMismatch` + tamper)
+- [x] Full gate is green: `mise run`
 
 #### Manual Verification
 
-- [ ] A dry-run release build stages, signs, and lists `visualiser-{platform}`
-      in `manifest.json`, built with default (`embed-dist`) features only — the
+- [ ] A dry-run release build stages, signs, and lists the shared
+      `accelerator-visualiser-{platform}` asset (manifest key `visualiser`) in
+      `manifest.json`, built with default (`embed-dist`) features only — the
       `ACCELERATOR_VISUALISER_E2E_INSECURE` switch is inert in the staged binary
 - [ ] The live-manifest fetch assertion is left to 0165's coverage (documented,
       not asserted here)
