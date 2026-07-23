@@ -8,7 +8,7 @@ from pathlib import Path
 
 from invoke import Context, task
 
-from tasks.shared.errors import InvalidVersionError
+from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
@@ -18,6 +18,7 @@ from tasks.shared.paths import (
     CLI_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
+    DISPATCHED_SUBBINARIES,
     FRONTEND,
     PLUGIN_JSON,
     RELEASE_STAGING,
@@ -28,9 +29,13 @@ from tasks.shared.paths import (
     cli_member_manifests,
     debug_archive_path,
     load_toml,
+    subbinary_asset_path,
     vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS
+
+# The SKILL.md that dispatches the visualiser through the launcher.
+_VISUALISE_SKILL_RELATIVE = "skills/visualisation/visualise/SKILL.md"
 
 _CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
 
@@ -204,6 +209,28 @@ def validate_version_coherence(
         )
 
 
+def validate_dispatch_coherence(repo_root: Path | None = None) -> None:
+    """Bind SKILL.md's `accelerator visualiser` invocation to the producer.
+
+    The visualise SKILL.md must invoke `accelerator visualiser` iff the release
+    producer lists `visualiser` in DISPATCHED_SUBBINARIES — otherwise a shipped
+    plugin's `start` resolves to AssetNotFound (SKILL switched, producer not) or
+    a released asset is never dispatched (producer wired, SKILL not). Catches a
+    mis-ordered co-release across the merge window.
+    """
+    root = repo_root or REPO_ROOT
+    skill = (root / _VISUALISE_SKILL_RELATIVE).read_text()
+    invokes = "accelerator visualiser" in skill
+    dispatched = "visualiser" in DISPATCHED_SUBBINARIES
+    if invokes != dispatched:
+        raise DispatchCoherenceError(
+            "visualiser dispatch is incoherent: SKILL.md invokes "
+            f"`accelerator visualiser`={invokes} but DISPATCHED_SUBBINARIES "
+            f"lists 'visualiser'={dispatched} — a release carrying the SKILL "
+            "switch must also carry the producer wiring"
+        )
+
+
 @task
 def frontend(context: Context) -> None:
     """Build the visualiser frontend (Vite production build into dist/)."""
@@ -266,12 +293,33 @@ def server_release(context: Context) -> None:
     context.run(f"cargo build --manifest-path {CARGO_TOML} --release")
 
 
+def _assert_no_e2e_insecure(src: Path) -> None:
+    """Fail staging if a release artifact carries the insecure-bypass symbol.
+
+    ``ACCELERATOR_VISUALISER_E2E_INSECURE`` gates the non-loopback bind + the
+    relaxed Host guard and is compiled only into the ``dev-frontend`` (test)
+    binary, never a default (``embed-dist``) release. Match the full symbol, not
+    the ``ACCELERATOR_VISUALISER_`` prefix — the release binary legitimately
+    embeds other ``ACCELERATOR_VISUALISER_*`` literals (idle_timeout/editor).
+    """
+    marker = b"ACCELERATOR_VISUALISER_E2E_INSECURE"
+    if marker in src.read_bytes():
+        raise RuntimeError(
+            f"{src}: release artifact contains {marker.decode()} — it must be "
+            "built with default (embed-dist) features only, never dev-frontend"
+        )
+
+
 @task
 def server_cross_compile(context: Context) -> None:
     """Cross-compile the visualiser server for all four release targets.
 
-    Produces stripped binaries staged to bin/ alongside debug-symbol archives.
+    Produces stripped default (embed-dist) binaries staged both to bin/ (the
+    checksums flow) and to dist/release/visualiser-{platform} (the signed
+    manifest flow), after asserting the artifact carries no dev-frontend
+    insecure-bypass symbol.
     """
+    RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
     for triple, platform in TARGETS:
         context.run(
             f"cargo zigbuild --release --target {triple} "
@@ -280,7 +328,12 @@ def server_cross_compile(context: Context) -> None:
         )
         src = CLI_TARGET_DIR / triple / "release" / "accelerator-visualiser"
         _assert_magic_bytes(src, triple)
+        _assert_no_e2e_insecure(src)
+        # bin/ copy backs checksums.json + the debug archive (old flow); the
+        # dist/release copy is the single published binary the manifest flow
+        # signs and the launcher fetches, shared with the checksums flow.
         shutil.copy2(src, binary_path(platform))
+        shutil.copy2(src, subbinary_asset_path("visualiser", platform))
 
 
 @task

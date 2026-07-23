@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Meta-directory visualiser server for the accelerator Claude Code plugin"
+description = "Launch the interactive meta-directory visualiser"
 publish.workspace = true
 
 [features]

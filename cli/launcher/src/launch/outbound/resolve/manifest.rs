@@ -143,9 +143,9 @@ mod tests {
         let manifest =
             Manifest::parse_and_validate(GOLDEN.as_bytes(), version)?;
         let entry = manifest
-            .platform_entry("accelerator-visualiser", "darwin-arm64")
+            .platform_entry("visualiser", "darwin-arm64")
             .ok_or("missing entry")?;
-        assert_eq!(entry.bare_sha256("accelerator-visualiser")?.len(), 64);
+        assert_eq!(entry.bare_sha256("visualiser")?.len(), 64);
         Ok(())
     }
 

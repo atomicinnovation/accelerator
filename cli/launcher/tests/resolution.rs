@@ -27,7 +27,9 @@ use accelerator::launch::outbound::resolve::{
 const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
 // Matches the launcher's own version (anti-rollback) regardless of version bump.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const BINARY: &str = "frobnicate";
+// The visualiser is the first real dispatched sub-binary, so it keys the whole
+// fetch → verify → cache suite (happy path plus every rejection case) end to end.
+const BINARY: &str = "visualiser";
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -95,7 +97,7 @@ fn manifest_json(version: &str, sha256: &str, signature: &str) -> String {
     let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
     format!(
         "{{\"schema_version\":1,\"version\":\"{version}\",\"binaries\":{{\
-         \"{BINARY}\":{{\"description\":\"Frobnicator\",\"platforms\":{{\
+         \"{BINARY}\":{{\"description\":\"Visualiser\",\"platforms\":{{\
          \"{HOST_PLATFORM}\":{{\"sha256\":\"{sha256}\",\"signature\":\"{escaped}\"\
          }}}}}}}}}}"
     )
@@ -148,7 +150,7 @@ impl Harness {
 }
 
 fn asset_path() -> String {
-    format!("/{BINARY}-{HOST_PLATFORM}")
+    format!("/accelerator-{BINARY}-{HOST_PLATFORM}")
 }
 
 /// Build a harness with a correctly-signed release the resolver will accept.
@@ -347,7 +349,7 @@ fn an_unsupported_higher_schema_is_refused_with_the_schema_error(
     let escaped = asset_sig.replace('\n', "\\n").replace('\t', "\\t");
     let manifest = format!(
         "{{\"schema_version\":2,\"version\":\"{VERSION}\",\"binaries\":{{\
-         \"{BINARY}\":{{\"description\":\"Frobnicator\",\"platforms\":{{\
+         \"{BINARY}\":{{\"description\":\"Visualiser\",\"platforms\":{{\
          \"{HOST_PLATFORM}\":{{\"sha256\":\"{sha}\",\"signature\":\"{escaped}\"\
          }}}}}}}}}}"
     );

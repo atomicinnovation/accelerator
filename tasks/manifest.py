@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from tasks.build import validate_version_coherence
+from tasks.build import (
+    validate_dispatch_coherence,
+    validate_version_coherence,
+)
 from tasks.shared.errors import ManifestError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.hashing import compute_sha256
@@ -12,8 +15,8 @@ from tasks.shared.paths import (
     CLI_DIR,
     DISPATCHED_SUBBINARIES,
     RELEASE_STAGING,
-    cli_binary_path,
     load_toml,
+    subbinary_asset_path,
 )
 from tasks.shared.targets import TARGETS
 from tasks.signing import sign_file
@@ -43,8 +46,15 @@ class BinaryEntry:
     platforms: Mapping[str, PlatformAsset]
 
 
+# Dispatched sub-binaries whose crate manifest is not `cli/<name>/Cargo.toml`
+# (the visualiser server lives under `cli/visualiser/server/`).
+_SUBBINARY_MANIFESTS: dict[str, Path] = {
+    "visualiser": CLI_DIR / "visualiser/server/Cargo.toml",
+}
+
+
 def _default_subbinary_manifest(name: str) -> Path:
-    return CLI_DIR / name / "Cargo.toml"
+    return _SUBBINARY_MANIFESTS.get(name, CLI_DIR / name / "Cargo.toml")
 
 
 def _read_description(manifest_path: Path, name: str) -> str:
@@ -74,7 +84,7 @@ def collect_entries(
         description = _read_description(manifest_for(name), name)
         platforms: dict[str, PlatformAsset] = {}
         for _triple, platform in TARGETS:
-            binary = cli_binary_path(name, platform, staging_dir)
+            binary = subbinary_asset_path(name, platform, staging_dir)
             signature = binary.with_name(binary.name + ".minisig")
             platforms[platform] = {
                 "sha256": compute_sha256(binary),
@@ -125,6 +135,7 @@ def emit_manifest(
     manifest = build_manifest(version, entries)
     atomic_write_text(path, json.dumps(manifest, indent=2) + "\n")
     validate_version_coherence(version, manifest_path=path)
+    validate_dispatch_coherence()
     signature = path.with_name("manifest.minisig")
     sign_file(secret_key, path, signature)
     return path

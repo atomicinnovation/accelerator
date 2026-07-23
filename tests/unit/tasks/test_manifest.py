@@ -24,11 +24,13 @@ from jsonschema import Draft202012Validator
 from tasks.build import VersionCoherenceError, validate_version_coherence
 from tasks.manifest import (
     BinaryEntry,
+    _default_subbinary_manifest,
     build_manifest,
     collect_entries,
     emit_manifest,
 )
 from tasks.shared.errors import ManifestError
+from tasks.shared.paths import CLI_DIR, load_toml
 from tasks.shared.targets import TARGETS
 from tasks.signing import generate, sign_file
 
@@ -108,7 +110,7 @@ def _stage_and_sign(staging: Path, name: str, sec: Path) -> dict[str, bytes]:
     staging.mkdir(parents=True, exist_ok=True)
     payloads: dict[str, bytes] = {}
     for platform in _PLATFORMS:
-        binary = staging / f"{name}-{platform}"
+        binary = staging / f"accelerator-{name}-{platform}"
         payload = f"{name} {platform} bytes".encode()
         binary.write_bytes(payload)
         payloads[platform] = payload
@@ -178,6 +180,16 @@ class TestCollectEntries:
     def test_empty_subbinaries_yields_no_entries(self):
         assert collect_entries([]) == {}
 
+    def test_default_manifest_maps_visualiser_to_the_server_crate(self):
+        # The visualiser server crate is not at cli/visualiser/Cargo.toml; the
+        # mapping resolves it and yields the user-facing manifest description.
+        resolved = _default_subbinary_manifest("visualiser")
+        assert resolved == CLI_DIR / "visualiser/server/Cargo.toml"
+        assert resolved.exists()
+        description = load_toml(resolved)["package"]["description"]
+        expected = "Launch the interactive meta-directory visualiser"
+        assert description == expected
+
 
 # ── emit_manifest() round-trip ────────────────────────────────────────
 
@@ -230,7 +242,7 @@ class TestEmitManifest:
             assert entry["sha256"] == expected
             # The inline signature verifies the sub-binary bytes (the launcher's
             # per-binary check).
-            binary = staging / f"foo-{platform}"
+            binary = staging / f"accelerator-foo-{platform}"
             inline = tmp_path / f"{platform}.inline.minisig"
             inline.write_text(entry["signature"])
             assert _verifies(shim_bin, pub, inline, binary)

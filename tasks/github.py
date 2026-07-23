@@ -21,6 +21,7 @@ from tasks.shared.paths import (
     binary_path,
     cli_binary_path,
     debug_archive_path,
+    subbinary_asset_path,
     vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS, host_platform
@@ -219,7 +220,9 @@ def _reverify_subbinary(
 def _release_uploads() -> list[Path]:
     uploads: list[Path] = []
     for _triple, platform in TARGETS:
-        uploads.append(binary_path(platform))
+        # The visualiser binary is published once, as the shared
+        # accelerator-visualiser-{platform} manifest asset below; only its debug
+        # archive ships from the checksums flow here.
         uploads.append(debug_archive_path(platform))
         launcher = cli_binary_path("accelerator", platform)
         uploads.append(launcher)
@@ -228,7 +231,7 @@ def _release_uploads() -> list[Path]:
     uploads.append(RELEASE_MANIFEST_SIG)
     for name in DISPATCHED_SUBBINARIES:
         for _triple, platform in TARGETS:
-            asset = cli_binary_path(name, platform)
+            asset = subbinary_asset_path(name, platform)
             uploads.append(asset)
             uploads.append(_sig(asset))
     return uploads
@@ -292,7 +295,7 @@ def _subbinary_reverifies(context: Context, tag: str) -> list[_Reverify]:
     for name in DISPATCHED_SUBBINARIES:
         entry = manifest["binaries"][name]
         for _triple, platform in TARGETS:
-            asset = cli_binary_path(name, platform).name
+            asset = subbinary_asset_path(name, platform).name
             plat = entry["platforms"][platform]
             items.append(
                 _Reverify(

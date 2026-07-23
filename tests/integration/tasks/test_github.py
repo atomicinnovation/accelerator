@@ -276,6 +276,11 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
         "cli_binary_path",
         side_effect=lambda name, p: tmp_path / f"{name}-{p}",
     )
+    mocker.patch.object(
+        gh,
+        "subbinary_asset_path",
+        side_effect=lambda token, p: tmp_path / f"accelerator-{token}-{p}",
+    )
     manifest = tmp_path / "manifest.json"
     manifest_sig = tmp_path / "manifest.minisig"
     mocker.patch.object(gh, "RELEASE_MANIFEST", manifest)
@@ -290,9 +295,29 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
             ).write_bytes(b"\x00" * 8)
             (tmp_path / f"accelerator-{platform}").write_bytes(b"\x00" * 4)
             (tmp_path / f"accelerator-{platform}.minisig").write_text("sig")
+            # The shared accelerator-visualiser-{platform} binary (staged above)
+            # doubles as the manifest-flow sub-binary asset; sign it once.
+            (
+                tmp_path / f"accelerator-visualiser-{platform}.minisig"
+            ).write_text("sig")
         manifest.write_text(
             json.dumps(
-                {"schema_version": 1, "version": "1.20.0", "binaries": {}}
+                {
+                    "schema_version": 1,
+                    "version": "1.20.0",
+                    "binaries": {
+                        "visualiser": {
+                            "description": (
+                                "Launch the interactive meta-directory "
+                                "visualiser"
+                            ),
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        }
+                    },
+                }
             )
         )
         manifest_sig.write_text("sig")
@@ -302,6 +327,7 @@ class TestUploadAndVerifyRelease:
     def _pass_reverify(self, mocker):
         mocker.patch.object(gh, "download_and_verify")
         mocker.patch.object(gh, "_reverify_via_shim")
+        mocker.patch.object(gh, "_reverify_subbinary")
 
     def test_uploads_every_asset_with_clobber(self, ctx, mocker, tmp_path):
         _setup_release(mocker, tmp_path)
@@ -310,8 +336,9 @@ class TestUploadAndVerifyRelease:
         uploads = [
             c for c in ctx.run.call_args_list if "gh release upload" in str(c)
         ]
-        # 4x(visualiser + debug + launcher + launcher.minisig) + manifest + sig
-        assert len(uploads) == 18
+        # 4x(debug + launcher + launcher.minisig) + manifest + sig
+        # + 4x(visualiser sub-binary + .minisig)
+        assert len(uploads) == 22
         assert all("--clobber" in str(c) for c in uploads)
 
     def test_publishes_once_after_all_reverify(self, ctx, mocker, tmp_path):
@@ -389,8 +416,8 @@ class TestUploadAndVerifyRelease:
     ):
         _setup_release(mocker, tmp_path)
         for platform in _PLATFORMS:
-            (tmp_path / f"foo-{platform}").write_bytes(b"\x00" * 4)
-            (tmp_path / f"foo-{platform}.minisig").write_text("sig")
+            (tmp_path / f"accelerator-foo-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-foo-{platform}.minisig").write_text("sig")
         (tmp_path / "manifest.json").write_text(
             json.dumps(
                 {
@@ -413,8 +440,8 @@ class TestUploadAndVerifyRelease:
         mocker.patch.object(gh, "_reverify_subbinary")
         upload_and_verify_release(ctx, "1.20.0")
         uploads = "".join(str(c) for c in ctx.run.call_args_list)
-        assert "foo-darwin-arm64 --clobber" in uploads
-        assert "foo-darwin-arm64.minisig --clobber" in uploads
+        assert "accelerator-foo-darwin-arm64 --clobber" in uploads
+        assert "accelerator-foo-darwin-arm64.minisig --clobber" in uploads
 
 
 class TestReverifyViaShim:

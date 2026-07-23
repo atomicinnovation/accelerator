@@ -21,9 +21,9 @@ RELEASE_MANIFEST = RELEASE_STAGING / "manifest.json"
 RELEASE_MANIFEST_SIG = RELEASE_STAGING / "manifest.minisig"
 VENDORED_SHIM_DIR = REPO_ROOT / "bin"
 VENDOR_SHIM_MARKER = VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256"
-# The crates whose binaries the manifest lists (empty at HEAD; 0168 appends the
-# visualiser).
-DISPATCHED_SUBBINARIES: tuple[str, ...] = ()
+# The crates whose binaries the signed manifest lists and the launcher fetches
+# by bare token. The visualiser is the first dispatched sub-binary.
+DISPATCHED_SUBBINARIES: tuple[str, ...] = ("visualiser",)
 KEYS_DIR = REPO_ROOT / "keys"
 RELEASE_PUBLIC_KEY = KEYS_DIR / "accelerator-release.pub"
 RELEASE_SECRET_KEY = KEYS_DIR / "accelerator-release.sec"
@@ -60,6 +60,20 @@ def cli_binary_path(
     name: str, platform: str, staging_dir: Path = RELEASE_STAGING
 ) -> Path:
     return staging_dir / f"{name}-{platform}"
+
+
+def subbinary_asset_path(
+    token: str, platform: str, staging_dir: Path = RELEASE_STAGING
+) -> Path:
+    """Resolve the published release asset for a dispatched sub-binary.
+
+    Every sub-binary asset carries the `accelerator-` prefix even though the
+    manifest keys on the bare `token`, so the launcher fetches
+    `accelerator-<token>-<platform>`. For the visualiser this resolves to the
+    same `accelerator-visualiser-<platform>` name the checksums flow reverifies,
+    so the binary ships as a single shared asset.
+    """
+    return staging_dir / f"accelerator-{token}-{platform}"
 
 
 def vendored_shim_path(

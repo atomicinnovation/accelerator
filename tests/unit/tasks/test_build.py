@@ -9,6 +9,7 @@ from invoke import Context
 import tasks.build as tb
 from tasks.build import (
     VersionCoherenceError,
+    _assert_no_e2e_insecure,
     _assert_static_elf,
     _is_statically_linked,
     assert_staged_launcher_versions,
@@ -17,7 +18,7 @@ from tasks.build import (
     validate_version_coherence,
     vendor_shim_marker_digest,
 )
-from tasks.shared.errors import InvalidVersionError
+from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
 from tasks.shared.paths import cli_binary_path, vendored_shim_path
 from tasks.shared.targets import TARGETS
 
@@ -134,6 +135,62 @@ class TestAssertStagedLauncherVersions:
 
 
 # ── cli path helpers ──────────────────────────────────────────────────
+
+
+class TestValidateDispatchCoherence:
+    def test_coherent_repo_passes(self):
+        # The real repo: SKILL.md invokes `accelerator visualiser` and
+        # DISPATCHED_SUBBINARIES lists it.
+        tb.validate_dispatch_coherence()
+
+    def _seed_skill(self, root: Path, *, invokes: bool) -> None:
+        skill = root / "skills/visualisation/visualise/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text(
+            "run `accelerator visualiser start`"
+            if invokes
+            else "no launcher invocation here"
+        )
+
+    def test_skill_switch_without_producer_raises(self, tmp_path, mocker):
+        self._seed_skill(tmp_path, invokes=True)
+        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
+        with pytest.raises(DispatchCoherenceError):
+            tb.validate_dispatch_coherence(tmp_path)
+
+    def test_producer_without_skill_switch_raises(self, tmp_path, mocker):
+        self._seed_skill(tmp_path, invokes=False)
+        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ("visualiser",))
+        with pytest.raises(DispatchCoherenceError):
+            tb.validate_dispatch_coherence(tmp_path)
+
+    def test_both_absent_is_coherent(self, tmp_path, mocker):
+        self._seed_skill(tmp_path, invokes=False)
+        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
+        tb.validate_dispatch_coherence(tmp_path)
+
+
+class TestAssertNoE2eInsecure:
+    def test_passes_when_marker_absent(self, tmp_path):
+        artifact = tmp_path / "visualiser-linux-x64"
+        artifact.write_bytes(b"\x00\x01harmless release bytes\x00")
+        _assert_no_e2e_insecure(artifact)  # must not raise
+
+    def test_ignores_other_visualiser_env_symbols(self, tmp_path):
+        # Phase-3 config reading embeds these in every release binary; a prefix
+        # scan would false-positive and block all releases.
+        artifact = tmp_path / "visualiser-linux-x64"
+        artifact.write_bytes(
+            b"ACCELERATOR_VISUALISER_IDLE_TIMEOUT\x00"
+            b"ACCELERATOR_VISUALISER_EDITOR\x00"
+        )
+        _assert_no_e2e_insecure(artifact)  # must not raise
+
+    def test_raises_when_insecure_symbol_present(self, tmp_path):
+        artifact = tmp_path / "visualiser-linux-x64"
+        artifact.write_bytes(b"x\x00ACCELERATOR_VISUALISER_E2E_INSECURE\x00y")
+        with pytest.raises(RuntimeError, match="E2E_INSECURE"):
+            _assert_no_e2e_insecure(artifact)
 
 
 class TestCliPathHelpers:
