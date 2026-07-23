@@ -160,7 +160,7 @@ _jrf_main() {
     project_source="flag"
   else
     local cfg
-    cfg=$("$_JRF_PLUGIN_ROOT/scripts/config-read-work.sh" default_project_code) || cfg=""
+    cfg=$("${ACCELERATOR_BIN:-$_JRF_PLUGIN_ROOT/bin/accelerator}" config work default_project_code) || cfg=""
     if [[ -n "$cfg" ]]; then
       project="$cfg"
       project_source="config"

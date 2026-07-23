@@ -5,15 +5,14 @@ description: Conduct comprehensive codebase research by spawning parallel
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Research Codebase
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh research-codebase`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill research-codebase --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,9 +20,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_codebase`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
 
 You are tasked with conducting comprehensive research across the codebase to
 answer user questions by spawning parallel sub-agents and synthesising their
@@ -128,7 +127,7 @@ The key is to use these agents intelligently:
 - Structure the document with YAML frontmatter followed by content using
   this template:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh codebase-research`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template codebase-research --fail-safe`
 
   Before writing the artifact file, **substitute** every field below
   with the indicated value, using the helper output captured in
@@ -221,4 +220,4 @@ The key is to use these agents intelligently:
     `git_commit`)
   - Tags should be relevant to the research topic and components studied
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh research-codebase`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions research-codebase --fail-safe`

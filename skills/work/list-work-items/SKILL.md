@@ -5,15 +5,14 @@ description: List and filter work items from the configured work directory.
   status/kind/priority/parent/tag, or viewing the work item hierarchy.
 argument-hint: "[filter description]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # List Work Items
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh list-work-items`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill list-work-items --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,10 +20,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
-**Work item ID pattern**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern`
-**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code`
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh integration`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work item ID pattern**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work id_pattern --fail-safe`
+**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code --fail-safe`
+**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
 
 The **Active integration** line above gates the sync-status rendering (Step 4).
 `config-read-work.sh integration` exits 0 with an **empty line** when no
@@ -38,7 +37,7 @@ The following template defines the work item schema and field defaults.
 Hint values for filter parsing are extracted at runtime via
 `work-item-template-field-hints.sh`.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
 You are tasked with listing and filtering work items from the configured
 work items directory. This is a **read-only** skill — never write any files
@@ -469,4 +468,4 @@ All work items (29 total)
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh list-work-items`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions list-work-items --fail-safe`

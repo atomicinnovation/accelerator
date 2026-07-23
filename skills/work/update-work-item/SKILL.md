@@ -6,15 +6,14 @@ description: Update fields (status, priority, tags, parent, etc.) of an
   changes are allowed.
 argument-hint: "[work-item-ref] [field-op...]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Update Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh update-work-item`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-work-item --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -22,14 +21,14 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 ## Work Item Template
 
 The following template defines the work item schema and field defaults.
 Hint values are extracted at runtime via `work-item-template-field-hints.sh`.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
 You are tasked with updating frontmatter fields on an existing work item.
 This skill supports status transitions, priority changes, tag management,
@@ -289,4 +288,4 @@ Updated <filename>:
   legacy files) are hard-blocked. Point the user to `jj mv` + manual
   frontmatter edit for renumbering.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-work-item --fail-safe`

@@ -18,8 +18,7 @@ allowed-tools:
 
 # Update Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh update-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-jira-issue --fail-safe`
 
 Update an existing Jira issue via `PUT /rest/api/3/issue/{key}`. Work through
 the steps below in order. This skill never auto-invokes — it only runs when the
@@ -192,4 +191,4 @@ User: `/update-jira-issue ENG-42 --body-file revised-spec.md`
 Skill reads `revised-spec.md`, converts to ADF, shows truncated preview if long,
 confirms, updates.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-jira-issue --fail-safe`

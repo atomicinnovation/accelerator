@@ -1,7 +1,7 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "store"]
 
 [workspace.package]
 version = "1.24.0-pre.15"
@@ -45,13 +45,13 @@ regex = "1"
 serde-saphyr = "=0.0.29"
 # Caret bounds: temp-in-target-dir naming + RAII cleanup for atomic writes,
 # a safe wrapper over the POSIX kill(pid, 0) liveness probe the mkdir-lock needs
-# (rustix is already in the graph via tempfile; `process` adds the module),
+# and the umask(2) read the config/corpus writers need (both via `process`;
+# `umask` takes a `rustix::fs::Mode`, so the `fs` feature is enabled too),
 # EXDEV classification, and jittered lock back-off. All 1.x/0.x behaviour-stable,
 # so the exact-pin discipline is not warranted here.
 tempfile = "3"
-libc = "0.2"
 rand = "0.9"
-rustix = { version = "1", features = ["process"] }
+rustix = { version = "1", features = ["process", "fs"] }
 
 [workspace.lints.rust]
 warnings = "deny"
@@ -68,3 +68,10 @@ todo = "warn"
 unimplemented = "warn"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
+
+# The bootstrap hashes the whole launcher on every invocation, so binary size is
+# a per-call latency term and the cold-fetch payload. `strip` trades symbol names
+# for size; `lto = "thin"` trades release build time for size.
+[profile.release]
+strip = true
+lto = "thin"

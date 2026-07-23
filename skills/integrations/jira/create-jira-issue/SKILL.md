@@ -18,8 +18,7 @@ allowed-tools:
 
 # Create Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-jira-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -147,7 +146,7 @@ Read the argument string and note each flag:
 ## Step 2: Resolve --project
 
 If `--project` was not supplied, read the default from config by running
-`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code`. Run the bare
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code`. Run the bare
 path **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
 prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
 prompt). If the config also returns empty, warn the user: "No project key supplied and
@@ -288,4 +287,4 @@ Skill coerces the sprint field as a JSON array literal and shows the preview.
 User: `/create-jira-issue --project ENG --type Bug --summary "Crash on startup" --assignee @me`
 Skill resolves `@me` from `site.json`, includes `assignee.accountId` in payload, shows preview.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-jira-issue --fail-safe`

@@ -17,8 +17,7 @@ allowed-tools:
 
 # Transition a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh transition-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill transition-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -66,4 +65,4 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-transition-flow.
 
 Confirm the new state. Suggest `/show-linear-issue <IDENTIFIER>` to verify.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh transition-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions transition-linear-issue --fail-safe`

@@ -5,14 +5,14 @@ description: Create VCS commits for session changes. Use when the user wants to
 argument-hint: "[optional message or flags]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Commit Changes
 
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-status.sh`
 !`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-log.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh commit`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill commit --fail-safe`
 
 ## Process:
 
@@ -63,4 +63,4 @@ allowed-tools:
 - Keep commits focused and atomic when possible
 - The user trusts your judgment - they asked you to commit
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh commit`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions commit --fail-safe`

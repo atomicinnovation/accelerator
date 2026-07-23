@@ -9,16 +9,15 @@ description: Generate a structured design inventory for a frontend source —
 argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)
 ---
 
 # Inventory Design
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh inventory-design`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill inventory-design --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -27,7 +26,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher, accelerator:browser-locator,
 accelerator:browser-analyser.
 
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_inventories`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
 
 You are tasked with crawling a design source and producing a structured
 `design-inventory` artifact. The artifact captures the design tokens,
@@ -228,7 +227,7 @@ Build the inventory under a sibling temporary directory:
 
 Use the `design-inventory` template:
 ```
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh design-inventory`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template design-inventory --fail-safe`
 ```
 
 Before writing `inventory.md`, **substitute** every field below with
@@ -330,4 +329,4 @@ Suggest next steps:
 - The `.tmp/` → final directory rename is atomic on POSIX filesystems. Do not
   write directly to the final directory name.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh inventory-design`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions inventory-design --fail-safe`

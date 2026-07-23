@@ -168,6 +168,24 @@ between a skill's body invocations and its declared permissions.
     should match the opening-fence backtick run length or document that 4+-backtick and
     tilde (`~~~`) fences are out of scope.
 
+## Notes from 0167 (2026-07-22)
+
+- **Migrate-then-build.** 0167 migrated the config cluster to
+  `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config <subcommand>` *before* this lint
+  guard exists, so the migration was landed by hand-rewriting call sites +
+  `allowed-tools` and gated by the bespoke `scripts/check-skill-permissions.sh` /
+  `scripts/check-call-site-migration.sh`. This guard is built afterwards to keep
+  the invariant from regressing, not as a precondition of the migration.
+- **Invocation shape the matcher must cover.** Config call sites are now
+  ``!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config <subcommand> [args] [--fail-safe]` ``
+  under a `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)` rule. The guard
+  must (a) treat the bootstrap path as an executable invoked directly (no
+  `bash`/`sh`/`env` prefix — same rule as bare paths), and (b) reject a rule that
+  matches the bootstrap path without naming the `config` subcommand (an ancestor
+  glob like `Bash(${CLAUDE_PLUGIN_ROOT}/*)`), which `check-skill-permissions.sh`
+  already does and this guard should absorb. Bare-path families (`artifact-*`,
+  etc.) remain in scope for the original bare-path matcher.
+
 ## References
 
 - Source: `meta/research/issues/2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission.md`

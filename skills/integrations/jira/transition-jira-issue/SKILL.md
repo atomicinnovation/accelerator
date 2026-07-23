@@ -17,8 +17,7 @@ allowed-tools:
 
 # Transition Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh transition-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill transition-jira-issue --fail-safe`
 
 Transition a Jira issue through its workflow by state name. Work through the
 steps below in order. This skill never auto-invokes — it only runs when the
@@ -202,4 +201,4 @@ re-invokes `--describe --transition-id 41`, shows preview, waits for `y`,
 posts, confirms `✓ **ENG-42** transitioned to "In Review" (via transition ID
 41)`.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh transition-jira-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions transition-jira-issue --fail-safe`

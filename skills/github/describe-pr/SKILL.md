@@ -5,25 +5,24 @@ description: Generate a comprehensive pull request description following the
   PR description.
 argument-hint: "[PR number or URL]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/describe-pr/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
 
 # Generate PR Description
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh describe-pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill describe-pr --fail-safe`
 
-**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp`
+**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path prs --fail-safe`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
 
 **IMPORTANT**: Wherever `{prs directory}` or `{tmp directory}` appears in
 the instructions below, substitute the actual resolved path shown above.
 
 **PR description template**:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-description`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-description --fail-safe`
 
 You are tasked with generating a comprehensive pull request description
 following the repository's standard template.
@@ -97,7 +96,7 @@ potential impacts)
   Use the unified pr-description template as the source of the
   frontmatter block:
 
-  !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-description`
+  !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-description --fail-safe`
 
   Before writing the artifact file, capture metadata and substitute
   the unified base fields into the template's frontmatter block:
@@ -200,4 +199,4 @@ potential impacts)
 - Always attempt to run verification commands when possible
 - Clearly communicate which verification steps need manual testing
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh describe-pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions describe-pr --fail-safe`

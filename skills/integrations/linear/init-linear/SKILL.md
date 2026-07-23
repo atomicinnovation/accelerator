@@ -12,15 +12,14 @@ argument-hint: "[--team-id <uuid>]"
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Init Linear
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh init-linear`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill init-linear --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`
 > to enable auto-scoping. See the
@@ -118,4 +117,4 @@ shared team + state catalogue without re-running `/init-linear`. (`viewer.json`
 is gitignored — each developer runs `/init-linear` to record their own viewer
 identity and resolve their own credentials.)
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh init-linear`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions init-linear --fail-safe`

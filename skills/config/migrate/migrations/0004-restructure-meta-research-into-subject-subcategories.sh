@@ -4,6 +4,7 @@ set -euo pipefail
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
 source "$PLUGIN_ROOT/scripts/fs-common.sh"
@@ -380,7 +381,8 @@ _rewrite_pair "templates" "research" "codebase-research" _xform_identity
 # D4: rename user-overridden template file if present at <paths.templates>/research.md.
 _rename_user_template_file_if_present() {
   local templates_dir
-  templates_dir=$(bash "$PLUGIN_ROOT/scripts/config-read-path.sh" templates 2>/dev/null || echo "")
+  templates_dir=$("$ACCELERATOR" config path --allow-legacy-layout templates) ||
+    log_die "0004: config read failed for paths.templates"
   [ -n "$templates_dir" ] || return 0
   local src="$PROJECT_ROOT/$templates_dir/research.md"
   local dst="$PROJECT_ROOT/$templates_dir/codebase-research.md"
@@ -455,8 +457,15 @@ fi
 # build_scan_corpus: enumerate the configured document directories that exist,
 # one absolute path per line. Sole consumer is Step 3's inbound-link scan below
 # (both the corpus-size banner and the per-file walk).
+# Resolve the configured paths once, fatally: a read failure must abort the
+# migration rather than degrade to an empty scan corpus (which would silently
+# skip the inbound-link rewrite). build_scan_corpus is consumed in subshells (a
+# pipe and a process substitution), so the read cannot live inside it.
+_ALL_CONFIGURED_PATHS="$("$ACCELERATOR" config paths --allow-legacy-layout)" ||
+  log_die "0004: config read failed enumerating configured paths"
+
 build_scan_corpus() {
-  bash "$PLUGIN_ROOT/scripts/config-read-all-paths.sh" 2>/dev/null |
+  printf '%s\n' "$_ALL_CONFIGURED_PATHS" |
     awk '
         /^- [^[:space:]]+: / {
           sub(/^- [^[:space:]]+: /, "")

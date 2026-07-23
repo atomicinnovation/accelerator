@@ -1,0 +1,4 @@
+---
+work:
+  integration: bogus
+---

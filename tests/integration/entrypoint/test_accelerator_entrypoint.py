@@ -15,6 +15,8 @@ shell suite's `env -i`) so an ambient variable can't mask a bug. `cargo` and
 regression (fail) rather than a local convenience skip.
 """
 
+import concurrent.futures
+import hashlib
 import os
 import platform
 import shutil
@@ -468,3 +470,362 @@ def test_path_planted_decoy_shim_is_not_used(
     output = result.stdout + result.stderr
     assert result.returncode != 0, output
     assert "verify" in output, output
+
+
+# ── Phase 0: local-build override ────────────────────────────────────────────
+
+# A slow injected downloader: sleeps ${DL_SLEEP} before copying, so a cold-cache
+# lock holder stays alive long enough that concurrent waiters must extend rather
+# than abort.
+_SLOW_DOWNLOADER_SRC = """\
+#!/usr/bin/env python3
+import os
+import shutil
+import sys
+import time
+
+url, dest = sys.argv[1], sys.argv[2]
+time.sleep(float(os.environ.get("DL_SLEEP", "1")))
+with open(os.environ["DL_LOG"], "a") as log:
+    log.write(url + "\\n")
+src = os.path.join(os.environ["SERVER_DIR"], os.path.basename(url))
+if os.path.isfile(src):
+    shutil.copy(src, dest)
+    sys.exit(0)
+sys.exit(22)
+"""
+
+
+def _local_launcher(
+    root: Path, *, rel: str = "cli/target/debug/accelerator"
+) -> Path:
+    """Write a launcher stub inside the harness root's cli/target/ tree."""
+    launcher = root / rel
+    launcher.parent.mkdir(parents=True, exist_ok=True)
+    launcher.write_text(_LAUNCHER_SRC)
+    launcher.chmod(0o755)
+    return launcher
+
+
+def _write_marker(root: Path) -> None:
+    (root / ".accelerator-dev-launcher").write_text("")
+
+
+def _source_shim_digest(root: Path, host_platform: str) -> str:
+    shim = root / f"bin/accelerator-verify-{host_platform}"
+    return hashlib.sha256(shim.read_bytes()).hexdigest()
+
+
+@pytest.fixture
+def slow_downloader(tmp_path: Path) -> Path:
+    script = tmp_path / "slow_downloader.py"
+    script.write_text(_SLOW_DOWNLOADER_SRC)
+    script.chmod(0o755)
+    return script
+
+
+def test_dev_override_execs_named_binary(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    tmp_path: Path,
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    launcher = _local_launcher(root)
+    args_out = tmp_path / "args.out"
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        args=("config", "get"),
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(launcher),
+            "LAUNCHER_ARGS_OUT": str(args_out),
+            "LAUNCHER_EXIT": "0",
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert args_out.read_text().splitlines() == ["config", "get"]
+    assert "WARNING" in result.stderr, result.stderr
+    assert _dl_lines(server) == [], "override must perform no fetch"
+    log = root / "bin/.accelerator-unverified.log"
+    assert log.exists(), "override must leave a durable record"
+    assert str(launcher) in log.read_text()
+
+
+def test_dev_override_ignored_without_optin(
+    make_harness: Callable[..., tuple[Path, Path]], downloader: Path
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    launcher = _local_launcher(root)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={"ACCELERATOR_LAUNCHER_BIN": str(launcher)},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _dl_lines(server), "no opt-in → the verified path must fetch"
+    assert "WARNING" not in result.stderr
+
+
+def test_dev_override_ignored_without_marker(
+    make_harness: Callable[..., tuple[Path, Path]], downloader: Path
+) -> None:
+    # A pristine tree (no marker) with both env vars set must still take the
+    # verified path — the shape a real install ships in.
+    root, server = make_harness()
+    launcher = _local_launcher(root)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(launcher),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _dl_lines(server), "no marker → the verified path must fetch"
+    assert "WARNING" not in result.stderr
+
+
+def _run_refused_override(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    launcher_bin: str,
+) -> subprocess.CompletedProcess[str]:
+    root, server = make_harness()
+    _write_marker(root)
+    return _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": launcher_bin,
+        },
+    )
+
+
+def test_dev_override_refused_when_symlink(
+    make_harness: Callable[..., tuple[Path, Path]], downloader: Path
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    real = _local_launcher(root)
+    link = root / "cli/target/debug/accelerator-link"
+    link.symlink_to(real)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(link),
+        },
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "refused" in output, output
+
+
+def test_dev_override_refused_when_not_executable(
+    make_harness: Callable[..., tuple[Path, Path]], downloader: Path
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    binary = root / "cli/target/debug/accelerator"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text(_LAUNCHER_SRC)
+    binary.chmod(0o644)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(binary),
+        },
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "refused" in output, output
+
+
+def test_dev_override_refused_via_symlinked_ancestor(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    tmp_path: Path,
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    (root / "cli/target").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    real = outside / "accelerator"
+    real.write_text(_LAUNCHER_SRC)
+    real.chmod(0o755)
+    link = root / "cli/target/link"
+    link.symlink_to(outside)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(link / "accelerator"),
+        },
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "refused" in output, output
+
+
+def test_dev_override_refused_outside_target(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    tmp_path: Path,
+) -> None:
+    root, server = make_harness()
+    _write_marker(root)
+    (root / "cli/target").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    binary = outside / "accelerator"
+    binary.write_text(_LAUNCHER_SRC)
+    binary.chmod(0o755)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={
+            "ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER": "1",
+            "ACCELERATOR_LAUNCHER_BIN": str(binary),
+        },
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "refused" in output, output
+
+
+# ── Phase 0: content-addressed shim staging ──────────────────────────────────
+
+
+def test_planted_staged_shim_rehashed_then_succeeds(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    root, server = make_harness()
+    digest = _source_shim_digest(root, host_platform)
+    planted = root / f"bin/accelerator-verify-{host_platform}-{digest}"
+    planted.write_text("garbage that is not the shim")
+    planted.chmod(0o755)
+    result = _run_bootstrap(root, server, downloader)
+    assert result.returncode == 0, result.stdout + result.stderr
+    source = root / f"bin/accelerator-verify-{host_platform}"
+    assert planted.read_bytes() == source.read_bytes(), "stub must be re-staged"
+
+
+def test_planted_staged_shim_is_not_trusted(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    # Launcher signed by a non-release key; a permissive stub pre-written to the
+    # content-addressed staging path must be re-staged (bytes mismatch) so the
+    # real shim refuses the signature rather than the stub rubber-stamping it.
+    root, server = make_harness(secret="attacker")
+    digest = _source_shim_digest(root, host_platform)
+    planted = root / f"bin/accelerator-verify-{host_platform}-{digest}"
+    planted.write_text("#!/bin/sh\nexit 0\n")
+    planted.chmod(0o755)
+    result = _run_bootstrap(root, server, downloader)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    source = root / f"bin/accelerator-verify-{host_platform}"
+    assert planted.read_bytes() == source.read_bytes(), "stub must be re-staged"
+
+
+def test_planted_staged_shim_via_cache_dir_is_not_trusted(
+    make_harness: Callable[..., tuple[Path, Path]],
+    downloader: Path,
+    tmp_path: Path,
+    host_platform: str,
+) -> None:
+    # A caller-chosen cache dir must not let a planted shim be trusted by path,
+    # even without the opt-in: the staged bytes are still hash-checked.
+    root, server = make_harness(secret="attacker")
+    alt = tmp_path / "altcache"
+    alt.mkdir()
+    source = root / f"bin/accelerator-verify-{host_platform}"
+    digest = _source_shim_digest(root, host_platform)
+    planted = alt / f"accelerator-verify-{host_platform}-{digest}"
+    planted.write_text("#!/bin/sh\nexit 0\n")
+    planted.chmod(0o755)
+    result = _run_bootstrap(
+        root, server, downloader, extra_env={"ACCELERATOR_CACHE_DIR": str(alt)}
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert planted.read_bytes() == source.read_bytes(), "stub must be re-staged"
+
+
+# ── Phase 0: lock ceiling under concurrency ──────────────────────────────────
+
+
+def test_concurrent_warm_cache_all_succeed(
+    make_harness: Callable[..., tuple[Path, Path]], downloader: Path
+) -> None:
+    root, server = make_harness()
+    _run_bootstrap(root, server, downloader)  # warm the cache
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(
+            pool.map(
+                lambda _: _run_bootstrap(root, server, downloader), range(8)
+            )
+        )
+    for result in results:
+        assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_concurrent_cold_cache_slow_downloader_all_succeed(
+    make_harness: Callable[..., tuple[Path, Path]], slow_downloader: Path
+) -> None:
+    root, server = make_harness()  # cold cache
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(
+            pool.map(
+                lambda _: _run_bootstrap(
+                    root, server, slow_downloader, extra_env={"DL_SLEEP": "1"}
+                ),
+                range(6),
+            )
+        )
+    for result in results:
+        assert result.returncode == 0, result.stdout + result.stderr
+    # The lock serialised the cold fetch to exactly one bin+sig pair; a waiter
+    # that aborted mid-fetch would have re-fetched.
+    assert len(_dl_lines(server)) == 2, _dl_lines(server)
+
+
+# ── Phase 0: the dev-launcher marker is gitignored and unshippable ───────────
+
+
+def test_dev_launcher_marker_is_gitignored_and_unshipped() -> None:
+    import pathspec
+
+    gitignore = (_REPO_ROOT / ".gitignore").read_text()
+    spec = pathspec.GitIgnoreSpec.from_lines(gitignore.splitlines())
+    assert spec.match_file(".accelerator-dev-launcher"), (
+        "the dev-launcher marker must be gitignored so no install carries it"
+    )
+    assert not (_REPO_ROOT / ".accelerator-dev-launcher").exists(), (
+        "the marker must never be committed"
+    )
+    assert ".accelerator-dev-launcher" in _BOOTSTRAP.read_text(), (
+        "the ignore rule must correspond to a real bootstrap gate"
+    )

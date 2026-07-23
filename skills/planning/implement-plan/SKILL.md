@@ -5,14 +5,13 @@ description: Execute an approved implementation plan from the configured plans
   verification.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Implement Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh implement-plan`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill implement-plan --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,7 +19,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
 
 You are tasked with implementing an approved technical plan from
 the configured plans directory (shown above). These plans contain phases with
@@ -100,4 +99,4 @@ If the plan has existing checkmarks:
 Remember: You're implementing a solution, not just checking boxes. Keep the end
 goal in mind and maintain forward momentum.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh implement-plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions implement-plan --fail-safe`

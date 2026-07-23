@@ -56,15 +56,15 @@ fi
 
 REPO_ROOT=$(find_repo_root) || REPO_ROOT="$PWD"
 
-WORK_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" work)
+WORK_PATH=$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config path work)
 if [[ "$WORK_PATH" == /* ]]; then
   WORK_DIR="$WORK_PATH"
 else
   WORK_DIR="$REPO_ROOT/$WORK_PATH"
 fi
 
-PATTERN=$("$PLUGIN_ROOT/scripts/config-read-work.sh" id_pattern)
-DEFAULT_PROJECT=$("$PLUGIN_ROOT/scripts/config-read-work.sh" default_project_code)
+PATTERN=$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config work id_pattern)
+DEFAULT_PROJECT=$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config work default_project_code)
 
 # Validate pattern
 if ! wip_validate_pattern "$PATTERN"; then

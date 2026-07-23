@@ -4,29 +4,28 @@ description: Open the accelerator meta visualiser. Launches the companion-window
 argument-hint: "[stop | status]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
 ---
 
 # Visualise Meta Directory
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh visualise`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill visualise --fail-safe`
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_codebase`
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions`
-**PR descriptions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh prs`
-**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations`
-**Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_plans`
-**Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs`
-**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh templates`
-**Work directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
-**Work reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work`
-**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_gaps`
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_inventories`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**PR descriptions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path prs --fail-safe`
+**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path validations --fail-safe`
+**Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_plans --fail-safe`
+**Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
+**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path templates --fail-safe`
+**Work directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_work --fail-safe`
+**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path notes --fail-safe`
+**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_gaps --fail-safe`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
 
 **Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/visualiser.sh "$ARGUMENTS"`
 
@@ -158,4 +157,4 @@ To run the visualiser from a terminal, symlink the CLI wrapper:
 
 **Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh visualise`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions visualise --fail-safe`

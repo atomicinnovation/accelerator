@@ -6,15 +6,14 @@ description: Interactively refine a work item by decomposing it into children,
   drafted and before planning begins.
 argument-hint: "[work item number or path]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Refine Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh refine-work-item`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill refine-work-item --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -22,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 ## Work Item Template
 
@@ -30,7 +29,7 @@ The template below defines the sections and frontmatter fields that every
 work item must contain. Read it now — use it to know valid kinds, statuses,
 priorities, and section names without re-reading the file at runtime.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
 You are tasked with refining a work item through one or more of five operations:
 decompose it into child work items, enrich it with codebase context, sharpen
@@ -468,4 +467,4 @@ Do NOT invoke `/review-work-item` automatically — wait for the user's choice.
 5. `/update-work-item` — status/metadata transitions (not this skill's concern)
 6. `/create-plan` — plan implementation from an approved work item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh refine-work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions refine-work-item --fail-safe`

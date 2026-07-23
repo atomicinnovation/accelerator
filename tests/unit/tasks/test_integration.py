@@ -14,6 +14,15 @@ from invoke import Context, Exit
 from tasks.test import helpers, integration
 
 
+@pytest.fixture(autouse=True)
+def _stub_accelerator_env(mocker):
+    """The guard tasks call ``accelerator_env`` (the ACCELERATOR_BIN overlay for
+    the launcher built by the ``build:cli:dev`` mise dependency) and pass it to
+    the suites; stub it to an empty overlay so the guard logic is tested without
+    touching a real launcher path."""
+    mocker.patch.object(integration, "accelerator_env", return_value={})
+
+
 class _FakeContext:
     """Records run() invocations without executing anything."""
 

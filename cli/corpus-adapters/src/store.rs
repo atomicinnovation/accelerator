@@ -1,41 +1,68 @@
-//! The filesystem atomic-store: same-directory-temp + atomic rename behind the
-//! `AtomicWrite` port. The `stage`/`persist` split is the fault-injection seam
-//! the interruption invariant is tested through.
+//! The filesystem corpus store: whole-file atomic writes and canonical-order
+//! JSONL append/remove behind the corpus ports.
+//!
+//! Built over the shared `store` crate's `atomic_write` and the mkdir-lock.
+//! Every write is bounded by the store's root, so a target resolving outside it
+//! through a symlink is refused.
 
 use std::fs;
 use std::io::Error as IoError;
-use std::io::ErrorKind;
-use std::io::Write as _;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use corpus::{AtomicWrite, Record, RecordStore, StoreError};
-use tempfile::NamedTempFile;
+use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::jsonl::{compose_record, remove_prefix};
 use crate::lock::{self, LockOptions};
 
+/// A corpus store rooted at a directory that bounds every write.
+///
+/// The fresh-file mode is resolved from the umask once at construction rather
+/// than per write, so a concurrent `append_record` never races the
+/// process-global `umask`.
 pub struct FileCorpusStore {
+    root: PathBuf,
     lock: LockOptions,
+    fresh_mode: u32,
 }
 
 impl FileCorpusStore {
     #[must_use]
-    pub fn new() -> Self {
-        Self {
-            lock: LockOptions::default(),
-        }
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self::with_lock_options(root, LockOptions::default())
     }
 
     #[must_use]
-    pub const fn with_lock_options(lock: LockOptions) -> Self {
-        Self { lock }
+    pub fn with_lock_options(
+        root: impl Into<PathBuf>,
+        lock: LockOptions,
+    ) -> Self {
+        Self {
+            root: root.into(),
+            lock,
+            fresh_mode: 0o666 & !store::current_umask(),
+        }
     }
-}
 
-impl Default for FileCorpusStore {
-    fn default() -> Self {
-        Self::new()
+    fn bounds(&self) -> WriteBounds<'_> {
+        WriteBounds {
+            permitted_root: &self.root,
+            project_root: &self.root,
+        }
+    }
+
+    fn write_atomic(
+        &self,
+        path: &Path,
+        bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        store::atomic_write(
+            path,
+            bytes,
+            &self.bounds(),
+            NewFileMode::PreserveOr(self.fresh_mode),
+        )
+        .map_err(to_store_error)
     }
 }
 
@@ -43,45 +70,6 @@ fn lockdir(path: &Path) -> PathBuf {
     let mut name = path.as_os_str().to_owned();
     name.push(".lockdir");
     PathBuf::from(name)
-}
-
-pub(crate) fn atomic_write(
-    path: &Path,
-    bytes: &[u8],
-) -> Result<(), StoreError> {
-    let staged = stage(path, bytes)?;
-    persist(staged, path)
-}
-
-fn stage(path: &Path, bytes: &[u8]) -> Result<NamedTempFile, StoreError> {
-    let parent = path.parent().filter(|p| !p.as_os_str().is_empty());
-    if let Some(parent) = parent {
-        fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
-    }
-    let dir = parent.unwrap_or_else(|| Path::new("."));
-    let mut temp = NamedTempFile::new_in(dir).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::PermissionDenied {
-            StoreError::NotWritable { path: show(dir) }
-        } else {
-            io(dir, &error)
-        }
-    })?;
-    temp.write_all(bytes).map_err(|error| io(dir, &error))?;
-    Ok(temp)
-}
-
-fn persist(temp: NamedTempFile, path: &Path) -> Result<(), StoreError> {
-    temp.persist(path)
-        .map(|_| ())
-        .map_err(|error| classify_persist_error(path, &error.error))
-}
-
-fn classify_persist_error(path: &Path, error: &IoError) -> StoreError {
-    if error.raw_os_error() == Some(libc::EXDEV) {
-        StoreError::CrossFilesystem { path: show(path) }
-    } else {
-        io(path, error)
-    }
 }
 
 fn show(path: &Path) -> String {
@@ -95,9 +83,24 @@ fn io(path: &Path, error: &IoError) -> StoreError {
     }
 }
 
+fn to_store_error(error: WriteError) -> StoreError {
+    match error {
+        WriteError::NotWritable { path } => StoreError::NotWritable { path },
+        WriteError::CrossFilesystem { path } => {
+            StoreError::CrossFilesystem { path }
+        }
+        WriteError::UnsafePath { path } => StoreError::UnsafePath { path },
+        WriteError::Io { path, detail } => StoreError::Io { path, detail },
+        other => StoreError::Io {
+            path: String::new(),
+            detail: other.to_string(),
+        },
+    }
+}
+
 impl AtomicWrite for FileCorpusStore {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
-        atomic_write(path, bytes)
+        self.write_atomic(path, bytes)
     }
 }
 
@@ -108,36 +111,44 @@ impl RecordStore for FileCorpusStore {
         record: &Record,
     ) -> Result<(), StoreError> {
         let line = compose_record(record)?;
+        // The mkdir-lock needs the parent to exist before acquiring, so the
+        // parent is created before locking — but only after the containment
+        // check, so a symlinked component cannot redirect the tree that is built.
+        store::ensure_contained(path, &self.bounds())
+            .map_err(to_store_error)?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
         }
         let _guard = lock::acquire(&lockdir(path), self.lock)?;
-        let mut content = match fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(error) if error.kind() == ErrorKind::NotFound => Vec::new(),
-            Err(error) => return Err(io(path, &error)),
-        };
+        let mut content = store::read_within(path, &self.bounds())
+            .map_err(to_store_error)?
+            .unwrap_or_default();
         if content.last().is_some_and(|byte| *byte != b'\n') {
             content.push(b'\n');
         }
         content.extend_from_slice(line.as_bytes());
         content.push(b'\n');
-        atomic_write(path, &content)
+        self.write_atomic(path, &content)
     }
 
     fn remove_by_key(&self, path: &Path, key: &str) -> Result<(), StoreError> {
         if !path.exists() {
             return Ok(());
         }
+        store::ensure_contained(path, &self.bounds())
+            .map_err(to_store_error)?;
         let prefix = remove_prefix(key)?;
         let _guard = lock::acquire(&lockdir(path), self.lock)?;
-        let existing = match fs::read_to_string(path) {
-            Ok(text) => text,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Ok(());
-            }
-            Err(error) => return Err(io(path, &error)),
+        let Some(bytes) =
+            store::read_within(path, &self.bounds()).map_err(to_store_error)?
+        else {
+            return Ok(());
         };
+        let existing =
+            String::from_utf8(bytes).map_err(|error| StoreError::Io {
+                path: show(path),
+                detail: error.to_string(),
+            })?;
         let mut out = String::with_capacity(existing.len());
         for line in existing.lines() {
             if !line.starts_with(&prefix) {
@@ -145,47 +156,31 @@ impl RecordStore for FileCorpusStore {
                 out.push('\n');
             }
         }
-        atomic_write(path, out.as_bytes())
+        self.write_atomic(path, out.as_bytes())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::Path;
 
-    use corpus::{AtomicWrite, StoreError};
+    use corpus::{AtomicWrite, Outcome, Record, RecordStore, StoreError};
     use tempfile::TempDir;
 
-    use super::{atomic_write, classify_persist_error, stage, FileCorpusStore};
+    use super::FileCorpusStore;
 
     type TestError = Box<dyn std::error::Error>;
 
-    fn temp_names(dir: &Path) -> Result<Vec<String>, TestError> {
-        let mut names = Vec::new();
-        for entry in fs::read_dir(dir)? {
-            names.push(entry?.file_name().to_string_lossy().into_owned());
+    fn record() -> Record {
+        Record {
+            transformation_key: "greeting".to_owned(),
+            schema_version: 1,
+            outcome: Outcome::Edited,
+            proposed_value: "hello".to_owned(),
+            user_value: None,
+            timestamp: "2026-07-19T00:00:00+00:00".to_owned(),
+            extras: Vec::new(),
         }
-        Ok(names)
-    }
-
-    #[test]
-    fn the_temp_is_staged_in_the_targets_directory() -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("log.jsonl");
-        let temp = stage(&target, b"hello")?;
-        assert_eq!(temp.path().parent(), Some(dir.path()));
-        Ok(())
-    }
-
-    #[test]
-    fn a_successful_write_leaves_no_stray_temp() -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("log.jsonl");
-        atomic_write(&target, b"hello")?;
-        assert_eq!(fs::read(&target)?, b"hello");
-        assert_eq!(temp_names(dir.path())?, vec!["log.jsonl".to_owned()]);
-        Ok(())
     }
 
     #[test]
@@ -194,65 +189,67 @@ mod tests {
         let dir = TempDir::new()?;
         let target = dir.path().join("log.jsonl");
         fs::write(&target, b"old contents")?;
-        FileCorpusStore::new().write(&target, b"new")?;
+        FileCorpusStore::new(dir.path()).write(&target, b"new")?;
         assert_eq!(fs::read(&target)?, b"new");
-        assert_eq!(temp_names(dir.path())?, vec!["log.jsonl".to_owned()]);
         Ok(())
     }
 
     #[test]
-    fn a_write_creates_the_parent_directory() -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("nested/deeper/log.jsonl");
-        atomic_write(&target, b"hello")?;
-        assert_eq!(fs::read(&target)?, b"hello");
-        Ok(())
-    }
-
-    #[test]
-    fn interruption_before_rename_leaves_existing_content_intact(
+    fn a_write_escaping_the_root_through_a_symlink_is_refused(
     ) -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("log.jsonl");
-        fs::write(&target, b"seeded")?;
-        {
-            let _staged = stage(&target, b"never persisted")?;
-        }
-        assert_eq!(fs::read(&target)?, b"seeded");
-        assert_eq!(temp_names(dir.path())?, vec!["log.jsonl".to_owned()]);
-        Ok(())
-    }
-
-    #[test]
-    fn interruption_before_rename_leaves_a_fresh_path_absent(
-    ) -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("log.jsonl");
-        {
-            let _staged = stage(&target, b"never persisted")?;
-        }
-        assert!(!target.exists());
-        assert!(temp_names(dir.path())?.is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn cross_filesystem_errno_classifies_as_cross_filesystem() {
-        let error = std::io::Error::from_raw_os_error(libc::EXDEV);
-        assert_eq!(
-            classify_persist_error(Path::new("/x/log"), &error),
-            StoreError::CrossFilesystem {
-                path: "/x/log".to_owned()
-            }
-        );
-    }
-
-    #[test]
-    fn any_other_errno_classifies_as_io() {
-        let error = std::io::Error::from_raw_os_error(libc::ENOENT);
+        let root = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        let outside = elsewhere.path().join("stolen.jsonl");
+        fs::write(&outside, b"secret")?;
+        let target = root.path().join("log.jsonl");
+        std::os::unix::fs::symlink(&outside, &target)?;
         assert!(matches!(
-            classify_persist_error(Path::new("/x/log"), &error),
-            StoreError::Io { .. }
+            FileCorpusStore::new(root.path()).write(&target, b"new"),
+            Err(StoreError::UnsafePath { .. })
         ));
+        assert_eq!(
+            fs::read(&outside)?,
+            b"secret",
+            "the symlink target must not be clobbered"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn remove_by_key_on_invalid_utf8_errors_and_leaves_the_file(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("log.jsonl");
+        let bad = b"\xff\xfe not valid utf8\n";
+        fs::write(&target, bad)?;
+        let result =
+            FileCorpusStore::new(dir.path()).remove_by_key(&target, "greeting");
+        assert!(
+            result.is_err(),
+            "invalid UTF-8 must not be silently rewritten"
+        );
+        assert_eq!(
+            fs::read(&target)?,
+            bad,
+            "the file must be left byte-identical"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn append_record_refuses_a_symlinked_intermediate_component(
+    ) -> Result<(), TestError> {
+        let root = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        std::os::unix::fs::symlink(elsewhere.path(), root.path().join("sub"))?;
+        let target = root.path().join("sub").join("log.jsonl");
+        let result =
+            FileCorpusStore::new(root.path()).append_record(&target, &record());
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(
+            !elsewhere.path().join("log.jsonl").exists(),
+            "no file may be created outside the root"
+        );
+        Ok(())
     }
 }

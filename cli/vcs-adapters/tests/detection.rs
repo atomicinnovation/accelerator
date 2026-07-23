@@ -195,7 +195,15 @@ fn a_secondary_jj_workspace_roots_at_its_own_marker() -> Result<(), TestError> {
         "a secondary workspace roots at its own .jj, not at the primary"
     );
     assert_eq!(derived.kind, VcsKind::Jj);
-    assert_eq!(derived.name, "workspace");
+    assert_eq!(
+        derived.name,
+        primary
+            .file_name()
+            .and_then(std::ffi::OsStr::to_str)
+            .ok_or("the primary root has no final component")?,
+        "a workspace's name is the repository it shares a store with, not the \
+         ephemeral workspace directory"
+    );
     Ok(())
 }
 

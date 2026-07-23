@@ -8,15 +8,14 @@ description: Compare two design inventories produced by inventory-design and emi
 argument-hint: "[current-source-id] [target-source-id]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
 ---
 
 # Analyse Design Gaps
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh analyse-design-gaps`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill analyse-design-gaps --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -24,8 +23,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_inventories`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_design_gaps`
+**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
+**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_gaps --fail-safe`
 
 You are tasked with comparing two design inventories and producing a structured
 `design-gap` artifact. The artifact's prose paragraphs must satisfy the
@@ -146,7 +145,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/gap-metadata.sh
 
 Use the `design-gap` template:
 ```
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh design-gap`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template design-gap --fail-safe`
 ```
 
 Before writing the artifact file, **substitute** every field below
@@ -216,4 +215,4 @@ Suggest next steps:
 - The cue-phrase audit is programmatic enforcement, not a style suggestion. Revise
   failing sections until the audit passes or the three-attempt limit is reached.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh analyse-design-gaps`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions analyse-design-gaps --fail-safe`

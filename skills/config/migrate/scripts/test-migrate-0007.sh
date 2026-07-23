@@ -519,7 +519,7 @@ assert_contains "validator sources doc-type-inference.sh" \
 echo "=== Phase 6: path_to_typed id-derivation alignment (default table) ==="
 # The awk takes the table as 0x1E-joined records (a newline is unusable in a -v
 # value on the one-true-awk); convert the resolver's newline output accordingly.
-DEFAULT_TBL="$("$PLUGIN_ROOT/scripts/config-read-doc-type-paths.sh" | tr '\n' '\036')"
+DEFAULT_TBL="$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config paths --doc-types --format tsv | tr '\n' '\036')"
 PT_PROBE="$TMP/pt-probe.awk"
 cat >"$PT_PROBE" <<'AWK'
 BEGIN {
@@ -2205,7 +2205,7 @@ spawn_count() { # $1=repo $2=tag -> echoes spawn count
   cat >"$wrap" <<WRAPEOF
 #!/usr/bin/env bash
 echo x >>"$counter"
-exec "$PLUGIN_ROOT/scripts/config-read-doc-type-paths.sh" "\$@"
+exec "\${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config paths --doc-types --format tsv "\$@"
 WRAPEOF
   chmod +x "$wrap"
   (cd "$repo" && PROJECT_ROOT="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \

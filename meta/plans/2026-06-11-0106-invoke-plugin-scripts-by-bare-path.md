@@ -165,6 +165,21 @@ sentence — its wording never varies; only its *placement* does:
 > (a wrapper prefix escapes the skill's `allowed-tools` permission and forces an
 > unnecessary prompt).
 
+**Config-cluster variant (added by 0167, 2026-07-22).** The `scripts/config-*`
+family is no longer invoked by bare path — 0167 migrated the whole config cluster
+to the `accelerator config <subcommand>` launcher built-in. For those call sites
+the conforming form is:
+
+> Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config <subcommand>` and cover it
+> with a `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)` rule in the skill's
+> `allowed-tools`.
+
+This is a **deliberate departure** from this plan's blanket prohibition on
+`allowed-tools` changes: the bootstrap path lives outside `scripts/`, so the
+existing `scripts/*` glob does not cover it and a rule must be added. The bare-path
+directive above is **retained unchanged** for `artifact-*` and every other
+non-config family, which stay on bare paths until 0173.
+
 **Placement rules** (wording is identical in every case):
 
 - **Standalone step / converted fence** — the sentence follows the inline-code path in

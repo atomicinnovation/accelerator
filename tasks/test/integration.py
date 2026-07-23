@@ -2,7 +2,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 
-from .helpers import repo_root, run_shell_suites
+from .helpers import accelerator_env, repo_root, run_shell_suites
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
 # `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
@@ -12,8 +12,10 @@ _EXPECTED_MIGRATE_SUITES = 4
 # The config subtree (scripts/) discoverable shell suites. Like the migrate
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
 # (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
-# silently vanish from CI. Bumped as suites are added under scripts/.
-_EXPECTED_CONFIG_SUITES = 21
+# silently vanish from CI. Bumped as suites are added under scripts/. Dropped
+# from 21 to 19 when 0167 retired test-config.sh and
+# test-config-read-doc-type-paths.sh alongside the removal set.
+_EXPECTED_CONFIG_SUITES = 19
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
@@ -46,11 +48,18 @@ def visualiser(context: Context) -> None:
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
     feature, so the cargo invocation enables that feature to include it.
     """
+    # The cargo tests include config_contract.rs, which runs the repointed
+    # write-visualiser-config.sh, so they need the compiled launcher on the env
+    # (built by the build:cli:dev mise dependency) rather than the
+    # signed-release bootstrap. The overlay is passed to each child, not written
+    # into this process.
+    env = accelerator_env()
     context.run(
         f"cargo test --manifest-path {CARGO_TOML} --tests "
-        f"--no-default-features --features dev-frontend"
+        f"--no-default-features --features dev-frontend",
+        env=env,
     )
-    run_shell_suites(context, "skills/visualisation/visualise")
+    run_shell_suites(context, "skills/visualisation/visualise", env)
 
 
 @task
@@ -84,7 +93,7 @@ def pup(context: Context) -> None:
 @task
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
-    suites = run_shell_suites(context, "scripts")
+    suites = run_shell_suites(context, "scripts", accelerator_env())
     if len(suites) < _EXPECTED_CONFIG_SUITES:
         raise Exit(
             f"Expected at least {_EXPECTED_CONFIG_SUITES} config shell "
@@ -106,7 +115,7 @@ def config(context: Context) -> None:
 @task
 def decisions(context: Context) -> None:
     """Integration tests for the decisions skill scripts."""
-    run_shell_suites(context, "skills/decisions")
+    run_shell_suites(context, "skills/decisions", accelerator_env())
 
 
 @task
@@ -116,7 +125,7 @@ def binary_acquisition(context: Context) -> None:
         repo_root()
         / "skills/visualisation/visualise/scripts/test-launch-server.sh"
     )
-    context.run(f"bash {script}")
+    context.run(f"bash {script}", env=accelerator_env())
 
 
 @task
@@ -134,7 +143,7 @@ def github(context: Context) -> None:
 @task
 def work(context: Context) -> None:
     """Integration tests for the work-management skill scripts."""
-    suites = run_shell_suites(context, "skills/work")
+    suites = run_shell_suites(context, "skills/work", accelerator_env())
     if len(suites) < _EXPECTED_WORK_SUITES:
         raise Exit(
             f"Expected at least {_EXPECTED_WORK_SUITES} work shell suites, "
@@ -147,7 +156,7 @@ def work(context: Context) -> None:
 @task
 def integrations(context: Context) -> None:
     """Integration tests for the jira/linear integration scripts."""
-    suites = run_shell_suites(context, "skills/integrations")
+    suites = run_shell_suites(context, "skills/integrations", accelerator_env())
     if len(suites) < _EXPECTED_INTEGRATIONS_SUITES:
         raise Exit(
             f"Expected at least {_EXPECTED_INTEGRATIONS_SUITES} integration "
@@ -160,7 +169,9 @@ def integrations(context: Context) -> None:
 @task
 def migrate(context: Context) -> None:
     """Integration tests for the meta-directory migration framework."""
-    suites = run_shell_suites(context, "skills/config/migrate")
+    suites = run_shell_suites(
+        context, "skills/config/migrate", accelerator_env()
+    )
     if len(suites) < _EXPECTED_MIGRATE_SUITES:
         raise Exit(
             f"Expected at least {_EXPECTED_MIGRATE_SUITES} migrate shell "

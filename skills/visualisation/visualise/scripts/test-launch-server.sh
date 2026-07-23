@@ -411,4 +411,21 @@ assert_eq "sentdel: URL still returned" "1" "$URLMATCH"
 unset ACCELERATOR_VISUALISER_BIN
 cd "$ORIG_DIR"
 
+# ─── A failing config read is fatal, not suppressed ──────────────────────────
+echo "Test: a failing config read makes launch-server exit non-zero"
+PROJ_FAIL="$TMPDIR_BASE/t-failstub"
+make_project "$PROJ_FAIL"
+FAIL_STUB="$TMPDIR_BASE/failing-accelerator"
+cat >"$FAIL_STUB" <<'STUBEOF'
+#!/usr/bin/env bash
+echo "stub: config unavailable" >&2
+exit 1
+STUBEOF
+chmod +x "$FAIL_STUB"
+FAIL_RC=0
+(cd "$PROJ_FAIL" && ACCELERATOR_BIN="$FAIL_STUB" bash "$LAUNCH_SERVER") \
+  >/dev/null 2>&1 || FAIL_RC=$?
+assert_neq "launch-server exits non-zero on a failing config read" "0" "$FAIL_RC"
+cd "$ORIG_DIR"
+
 test_summary

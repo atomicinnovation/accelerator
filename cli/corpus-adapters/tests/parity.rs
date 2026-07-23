@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use common::{doc_type_table, require_file, require_script, TestError};
+use common::{
+    doc_type_table, launcher_binary, require_file, require_script, TestError,
+};
 use corpus::DocTypeKey;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -83,9 +85,19 @@ fn tempdir() -> Result<PathBuf, TestError> {
 }
 
 fn bash_records(script: &Path, file: &Path) -> Result<Vec<String>, TestError> {
-    let output = Command::new(script).arg(file).output().map_err(|error| {
-        format!("could not run linkage-parser.sh (is bash present?): {error}")
-    })?;
+    // linkage-parser.sh sources doc-type-table.sh, whose resolver is
+    // `${ACCELERATOR_BIN:-…/bin/accelerator} config paths --doc-types`. Point it
+    // at the compiled launcher so the oracle never falls through to the
+    // bootstrap (which needs CLAUDE_PLUGIN_ROOT or a signed release).
+    let output = Command::new(script)
+        .arg(file)
+        .env("ACCELERATOR_BIN", launcher_binary()?)
+        .output()
+        .map_err(|error| {
+            format!(
+                "could not run linkage-parser.sh (is bash present?): {error}"
+            )
+        })?;
     if !output.status.success() {
         return Err(format!(
             "linkage-parser.sh failed for {}: {}",

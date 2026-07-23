@@ -12,6 +12,6 @@ mod store;
 
 pub mod legacy;
 
-pub use compose::compose;
+pub use compose::{compose, Composed};
 pub use render::{render_resolved, render_value, ABSENT_SENTINEL};
-pub use store::FileConfigStore;
+pub use store::{FileConfigStore, LegacyPolicy};

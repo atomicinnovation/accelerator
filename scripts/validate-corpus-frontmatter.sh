@@ -55,7 +55,7 @@ export LC_ALL=C
 # now consult this injected table. config resolves from the CWD (the corpus
 # root: callers invoke `validate-corpus-frontmatter.sh "$(pwd)/meta"`).
 if ! load_doc_type_table; then
-  echo "$0: failed to resolve the doc-type allowlist (config-read-doc-type-paths.sh)" >&2
+  echo "$0: failed to resolve the doc-type allowlist (config paths --doc-types)" >&2
   exit 1
 fi
 

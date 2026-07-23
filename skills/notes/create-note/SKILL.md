@@ -5,24 +5,23 @@ description: Interactively capture a short-form note. Use when jotting down
   meta/notes/ — e.g. "make a note of this", "jot this down", "capture a note".
 argument-hint: "[note topic]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Create Note
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-note`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-note --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
-**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh notes`
+**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path notes --fail-safe`
 
 ## Note Template
 
 The template below defines the frontmatter every note must carry. Read it now —
 use it as the structure you populate in the Write step.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh note`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template note --fail-safe`
 
 You are tasked with capturing a short-form note — an observation, insight, or
 strategy snippet that does not warrant a research document, plan, or ADR. This
@@ -145,4 +144,4 @@ Note created: <notes_dir>/YYYY-MM-DD-<slug>.md
 Note created: <final-path> (an earlier note on this topic exists at <first-path>; this one was written as <slug>-N.md)
 ```
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-note`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-note --fail-safe`

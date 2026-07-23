@@ -5,14 +5,13 @@ description: Interactively stress-test an implementation plan by grilling the us
   before implementation begins.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Stress-Test Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh stress-test-plan`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill stress-test-plan --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,7 +19,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
 
 You are tasked with stress-testing an implementation plan by interviewing the
 user relentlessly about every aspect of it. Your goal is to find issues,
@@ -230,4 +229,4 @@ This skill sits in the plan lifecycle between review and implementation:
   finding logical inconsistencies, missing edge cases, flawed assumptions, and
   gaps that only surface when you trace through scenarios step by step
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh stress-test-plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions stress-test-plan --fail-safe`

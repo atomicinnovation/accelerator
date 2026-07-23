@@ -87,5 +87,28 @@
                 ),
             ],
         )),
+        // The config command's inbound hexagon must not reach the composition
+        // root's adapter crate (`config_adapters`) nor a sibling launcher
+        // module (`crate::launch`), so the injected-ports seam cannot erode.
+        // Expressed as a `denied` list rather than `allowed_only`: cargo-pup
+        // resolves a grouped `use config::{a, b}` to an empty module name,
+        // which an `allowed_only` rule would reject as unpermitted — false-
+        // positiving every legitimate grouped import the codebase uses. A
+        // `denied` list is unaffected by that resolution and states the seam
+        // prohibition directly.
+        Module((
+            name: "config_command_may_not_import_adapters_or_launch",
+            matches: Module("^accelerator::config_command($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^config_adapters(::|$)",
+                        "^crate::launch(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
     ],
 )

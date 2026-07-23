@@ -184,6 +184,24 @@ and templated by the launcher's version hexagon, hence M rather than L.
   `.claude/accelerator.md` is present (the `.local` file is not part of the
   trigger); prints two stderr lines then `exit 1` (`config-common.sh:55-67`).
 
+## Notes from 0167 (2026-07-22)
+
+- **`--allow-legacy-layout` supersedes the dropped `ACCELERATOR_MIGRATION_MODE`
+  bypass — a reframing, not a reversal.** 0178 deliberately dropped the env-var
+  bypass and is tested to ignore it; 0167 keeps that decision. The env var stays
+  **unhonoured** and its negative test
+  (`config-adapters/tests/config_reader.rs`'s
+  `run_with_migration_mode` /
+  `a_legacy_layout_exits_non_zero_with_the_migrate_directive`) is **retained, not
+  relaxed**. What 0167 adds is an explicit, per-invocation
+  `--allow-legacy-layout` flag on the **read** subcommands only, carrying both
+  halves the env var used to (suppress the uniform legacy-layout refusal *and*
+  enable the `.claude/accelerator{,.local}.md` source fallback). It is passed
+  directly by migrations 0001-0006 and via the allowlisted `doc-type-table.sh`
+  for 0007, and `check-call-site-migration.sh` confines it to the migration
+  engine. The escape is now greppable and explicit rather than an ambient env var
+  escapable by anything in the process tree.
+
 ## References
 
 - Parent: `meta/work/0166-shared-config-corpus-store-crates.md`

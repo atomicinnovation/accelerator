@@ -8,12 +8,11 @@
 # default rename is a one-line edit at this site rather than a
 # grep-and-replace across the consumer surface.
 #
-# Scope note: this file centralises PATH, TEMPLATE, and WORK *keys* (and
-# their defaults). Review-key DEFAULTS, AGENT_KEYS, and AGENT_DEFAULTS
-# remain inline in config-dump.sh because they have no external consumers.
-# DIR_KEYS/DIR_DEFAULTS in skills/config/init/scripts/init.sh use a
-# different vocabulary (bare keys vs paths.*-prefixed) and are tracked for
-# unification in a follow-on work item.
+# Scope note: this file centralises PATH, TEMPLATE, WORK, REVIEW, AGENT and
+# VISUALISER *keys* (and their defaults) — the whole shell catalogue the Rust
+# `config` crate is drift-tested against. The review and agent arrays moved
+# here from config-dump.sh when that script was retired, so the catalogue
+# drift test can still read them via config-common.sh after deletion.
 #
 # config-read-path.sh sources this file directly (it cannot afford the VCS
 # detection overhead pulled in via config-common.sh). All other consumers
@@ -119,6 +118,66 @@ WORK_INTEGRATION_VALUES=(
   "linear"
   "trello"
   "github-issues"
+)
+
+# Review keys with their catalogue defaults (bash-3.2 has no associative
+# arrays; REVIEW_DEFAULTS must stay index-aligned with REVIEW_KEYS). Drift-tested
+# against the Rust catalogue key-for-key.
+REVIEW_KEYS=(
+  "review.max_inline_comments"
+  "review.min_lenses"
+  "review.max_lenses"
+  "review.dedup_proximity"
+  "review.core_lenses"
+  "review.disabled_lenses"
+  "review.pr_request_changes_severity"
+  "review.plan_revise_severity"
+  "review.plan_revise_major_count"
+  "review.work_item_revise_severity"
+  "review.work_item_revise_major_count"
+)
+
+REVIEW_DEFAULTS=(
+  "10"
+  "4"
+  "8"
+  "3"
+  "[architecture, code-quality, test-coverage, correctness]"
+  "[]"
+  "critical"
+  "critical"
+  "3"
+  "critical"
+  "2"
+)
+
+# The namespace every default agent name carries. Kept here rather than in
+# config-common.sh so AGENT_DEFAULTS below can reference it — config-defaults.sh
+# is sourced before config-common.sh's own body runs.
+AGENT_PREFIX="accelerator:"
+
+AGENT_KEYS=(
+  "agents.reviewer"
+  "agents.browser-analyser"
+  "agents.browser-locator"
+  "agents.codebase-locator"
+  "agents.codebase-analyser"
+  "agents.codebase-pattern-finder"
+  "agents.documents-locator"
+  "agents.documents-analyser"
+  "agents.web-search-researcher"
+)
+
+AGENT_DEFAULTS=(
+  "${AGENT_PREFIX}reviewer"
+  "${AGENT_PREFIX}browser-analyser"
+  "${AGENT_PREFIX}browser-locator"
+  "${AGENT_PREFIX}codebase-locator"
+  "${AGENT_PREFIX}codebase-analyser"
+  "${AGENT_PREFIX}codebase-pattern-finder"
+  "${AGENT_PREFIX}documents-locator"
+  "${AGENT_PREFIX}documents-analyser"
+  "${AGENT_PREFIX}web-search-researcher"
 )
 
 # Visualiser keys that DO carry a catalogue default. These mirror VISUALISER_KEYS

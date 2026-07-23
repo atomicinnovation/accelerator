@@ -766,6 +766,21 @@ cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --unskip 0001-ren
   >/dev/null 2>&1 || RC=$?
 assert_eq "exit 0" "0" "$RC"
 
+echo "Test: --unapply removes an entry from the applied ledger"
+REPO=$(setup_old_repo)
+mkdir -p "$REPO/.accelerator/state"
+printf '0001-rename-tickets-to-work\n0002-rename-work-items-with-project-prefix\n' \
+  >"$REPO/.accelerator/state/migrations-applied"
+RC=0
+cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" \
+  --unapply 0001-rename-tickets-to-work >/dev/null 2>&1 || RC=$?
+assert_eq "exit 0" "0" "$RC"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "applied ledger no longer has unapplied ID" \
+  "$APPLIED" "0001-rename-tickets-to-work"
+assert_contains "applied ledger keeps the other ID" \
+  "$APPLIED" "0002-rename-work-items-with-project-prefix"
+
 echo "Test: skipping unknown ID writes it and warns on next run"
 REPO=$(setup_old_repo)
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" --skip 9999-future-migration \
@@ -1066,6 +1081,21 @@ setup_0003_repo() {
   printf '%s\n' "$repo"
 }
 
+# Write a well-formed legacy .claude/accelerator.md: the fixture's base work:
+# block plus any extra top-level frontmatter in $2. The fixture ships without a
+# trailing newline, so `>>`-appending a second `---` block would fuse the two
+# fences into `------` and malform the YAML — which the launcher now rejects
+# loudly. Emit one block instead.
+write_legacy_config() {
+  local repo="$1" extra="${2:-}"
+  {
+    printf -- '---\nwork:\n  id_pattern: "{project}-{number:04d}"\n'
+    printf '  default_project_code: PROJ\n'
+    [ -n "$extra" ] && printf '%s\n' "$extra"
+    printf -- '---\n'
+  } >"$repo/.claude/accelerator.md"
+}
+
 # ── Test 1: dirty-tree refusal covers .accelerator/ ──────────────────────────
 echo "Test: dirty-tree refusal applies to .accelerator/ changes"
 REPO=$(mktemp -d "$TMPDIR_BASE/m0003-dirty-XXXXXX")
@@ -1151,8 +1181,8 @@ echo ""
 # ── Test 5: paths.tmp overridden to custom path — meta/tmp/ untouched ────────
 echo "Test: paths.tmp overridden to custom path — meta/tmp/ left untouched"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: custom/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: custom/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
@@ -1162,8 +1192,8 @@ echo ""
 # ── Test 6: paths.tmp = "meta/tmp" literal — treated as explicit override ─────
 echo "Test: paths.tmp = meta/tmp literal — explicit override leaves meta/tmp untouched"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: meta/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: meta/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (literal override)" "$REPO/meta/tmp"
 assert_dir_not_exists ".accelerator/tmp not created" "$REPO/.accelerator/tmp"
@@ -1173,8 +1203,8 @@ echo ""
 # ── Test 6a: paths.tmp = "meta/tmp/" (trailing slash) — also treated as set ──
 echo "Test: paths.tmp with trailing slash — treated as explicit override"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  tmp: meta/tmp/\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  tmp: meta/tmp/'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists "meta/tmp still present (slash override)" "$REPO/meta/tmp"
 
@@ -1183,8 +1213,8 @@ echo ""
 # ── Test 6b: tmp under nested non-paths block — not detected as override ──────
 echo "Test: tmp under non-paths block — awk anchor prevents false positive, meta/tmp moved"
 REPO=$(setup_0003_repo)
-printf -- '---\nsome_section:\n  tmp: meta/tmp\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'some_section:
+  tmp: meta/tmp'
 cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" >/dev/null 2>&1
 assert_dir_exists ".accelerator/tmp created (nested not detected)" "$REPO/.accelerator/tmp"
 assert_dir_not_exists "meta/tmp moved away" "$REPO/meta/tmp"
@@ -1363,8 +1393,9 @@ echo ""
 # ── Test 14: pinned-override warning for paths.templates and paths.integrations ─
 echo "Test: pinned-override warning emitted for paths.templates and paths.integrations"
 REPO=$(setup_0003_repo)
-printf -- '---\npaths:\n  templates: custom/templates\n  integrations: custom/ints\n---\n' \
-  >>"$REPO/.claude/accelerator.md"
+write_legacy_config "$REPO" 'paths:
+  templates: custom/templates
+  integrations: custom/ints'
 RC=0
 OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$DRIVER" 2>&1) || RC=$?
 assert_eq "exit 0 (warning not error)" "0" "$RC"
@@ -2505,6 +2536,57 @@ run_0006_driver "$REPO" >/dev/null 2>&1 || RC=$?
 HASH3=$(tree_hash "$REPO/meta")
 assert_eq "third-run exit 0" "0" "$RC"
 assert_eq "third-run byte-identical" "$HASH2" "$HASH3"
+
+echo ""
+
+# ── failing-stub: a fatal config read aborts 0006 and leaves it unrecorded ───
+# 0006 resolves corpus paths through `config path` inside a command
+# substitution (resolve_corpus_path), a context where `set -e` is suspended, so
+# the read's status is captured and graded: a non-zero exit is fatal, exit-0
+# empty keeps "skip this corpus". A stub that fails `config path` must therefore
+# make 0006 exit non-zero AND stay out of migrations-applied — otherwise a
+# transient read failure would half-migrate a repo with no re-run.
+echo "Test: a failed config-path read aborts 0006 without recording it"
+
+STUB_DIR="$TMPDIR_BASE/failing-stub"
+mkdir -p "$STUB_DIR"
+STUB="$STUB_DIR/accelerator"
+STUB_REAL="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
+cat >"$STUB" <<STUBEOF
+#!/usr/bin/env bash
+# Forward to the real launcher, but fail any \`config path\` read so 0006's
+# graded corpus-path resolution goes fatal.
+if [ "\${1:-}" = "config" ] && [ "\${2:-}" = "path" ]; then
+  echo "failing-stub: forced failure on a config path read" >&2
+  exit 7
+fi
+exec "$STUB_REAL" "\$@"
+STUBEOF
+chmod +x "$STUB"
+
+# Control: with a pass-through binary, 0006 succeeds and IS recorded — so the
+# failure below is attributable to the stubbed read, not to the fixture.
+REPO=$(setup_0006_repo default-layout)
+run_0006_driver "$REPO" >/dev/null 2>&1
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_contains "control: 0006 recorded on a clean run" "$APPLIED" \
+  "0006-canonicalise-work-item-id-and-author"
+
+# Failing read: the corpus-path resolution fails fatally.
+REPO=$(setup_0006_repo default-layout)
+RC=0
+OUT=$(cd "$REPO" &&
+  CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+    ACCELERATOR_MIGRATIONS_DIR="$ONLY_0006_DIR" \
+    ACCELERATOR_MIGRATE_FORCE=1 \
+    ACCELERATOR_BIN="$STUB" \
+    bash "$DRIVER" 2>&1) || RC=$?
+assert_neq "driver exits non-zero on a failed config-path read" "0" "$RC"
+assert_contains "the fatal read is diagnosed" "$OUT" \
+  "config read failed for paths"
+APPLIED=$(cat "$REPO/.accelerator/state/migrations-applied" 2>/dev/null || echo "")
+assert_not_contains "0006 is NOT recorded after a fatal read" "$APPLIED" \
+  "0006-canonicalise-work-item-id-and-author"
 
 echo ""
 

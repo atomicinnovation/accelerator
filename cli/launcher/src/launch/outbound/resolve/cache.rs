@@ -8,6 +8,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use store::TEMP_PREFIX;
+
 use crate::launch::core::ResolutionError;
 
 // Per-process temp uniqueness; the PID alone collides across threads.
@@ -30,6 +32,10 @@ fn stem(name: &str, version: &str, sha256: &str) -> String {
 
 fn signature_name(stem: &str) -> String {
     format!("{stem}.minisig")
+}
+
+fn temp_name(stem: &str, unique: &str, suffix: &str) -> String {
+    format!("{TEMP_PREFIX}{stem}-{unique}{suffix}")
 }
 
 fn cache_error(path: &Path, error: &std::io::Error) -> ResolutionError {
@@ -91,8 +97,8 @@ pub fn store(
         std::process::id(),
         TEMP_SEQ.fetch_add(1, Ordering::Relaxed)
     );
-    let temp_binary = root.join(format!(".tmp-{stem}-{unique}"));
-    let temp_signature = root.join(format!(".tmp-{stem}-{unique}.minisig"));
+    let temp_binary = root.join(temp_name(&stem, &unique, ""));
+    let temp_signature = root.join(temp_name(&stem, &unique, ".minisig"));
 
     write_then_rename(&temp_binary, &final_path, bytes, true)?;
     write_then_rename(
@@ -163,9 +169,16 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    use super::{find, store};
+    use super::{find, store, temp_name, TEMP_PREFIX};
 
     static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn temp_names_begin_with_the_store_temp_prefix() {
+        assert!(temp_name("foo-1.0.0-abc", "9-0", "").starts_with(TEMP_PREFIX));
+        assert!(temp_name("foo-1.0.0-abc", "9-0", ".minisig")
+            .starts_with(TEMP_PREFIX));
+    }
 
     fn tempdir() -> Result<PathBuf, Box<dyn Error>> {
         let dir = std::env::temp_dir().join(format!(

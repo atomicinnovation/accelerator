@@ -9,6 +9,12 @@
 #
 # Test seams (unset in production): ACCELERATOR_UNAME_S/_M override host
 # detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER injects a `downloader <url> <dest>`.
+#
+# Local-build override (contributor-only): with ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER=1,
+# the untracked .accelerator-dev-launcher marker, and ACCELERATOR_LAUNCHER_BIN
+# naming a binary inside cli/target/, execs that launcher directly. Documented
+# apart from the seams above because it bypasses the whole verification chain
+# rather than substituting one step.
 set -uo pipefail
 
 fail() {
@@ -101,13 +107,68 @@ cache_dir=$(resolve_cache_dir) ||
 	fail "no writable, exec-capable cache directory: ${CLAUDE_PLUGIN_ROOT}/bin \
 is not usable and no ACCELERATOR_CACHE_DIR override was given (no XDG fallback)"
 
+# ── Local-build override (skips fetch, cache and verification entirely) ──────
+# Three gates: the opt-in variable, the untracked dev-launcher marker, and a
+# named binary that canonically resolves to a non-symlink regular executable
+# inside cli/target/. After the migration this path is pre-authorised in 35
+# skills and invoked unattended at every SessionStart, so an ambient env var
+# alone must not redirect it. Warns and records durably, since stderr is invisible
+# at SessionStart and behind the !-site --fail-safe contract.
+dev_launcher_marker="${CLAUDE_PLUGIN_ROOT}/.accelerator-dev-launcher"
+
+dev_launcher_contained() {
+	bin="$1"
+	[[ -e "${bin}" && ! -L "${bin}" && -f "${bin}" && -x "${bin}" ]] || return 1
+	target_root=$(cd "${CLAUDE_PLUGIN_ROOT}/cli/target" 2>/dev/null && pwd -P) ||
+		return 1
+	bin_parent=$(cd "$(dirname "${bin}")" 2>/dev/null && pwd -P) || return 1
+	case "${bin_parent}/" in
+	"${target_root}/"*) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+if [[ "${ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER:-}" == "1" &&
+	-f "${dev_launcher_marker}" && -n "${ACCELERATOR_LAUNCHER_BIN:-}" ]]; then
+	dev_launcher_contained "${ACCELERATOR_LAUNCHER_BIN}" ||
+		fail "ACCELERATOR_LAUNCHER_BIN refused (not a regular executable inside \
+${CLAUDE_PLUGIN_ROOT}/cli/target/): ${ACCELERATOR_LAUNCHER_BIN}"
+	printf 'accelerator: WARNING execing unverified launcher: %s\n' \
+		"${ACCELERATOR_LAUNCHER_BIN}" >&2
+	printf '%s pid=%s %s\n' \
+		"$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf 'unknown')" \
+		"$$" "${ACCELERATOR_LAUNCHER_BIN}" \
+		>>"${cache_dir}/.accelerator-unverified.log" 2>/dev/null || true
+	exec "${ACCELERATOR_LAUNCHER_BIN}" "$@"
+fi
+
+# Portable full-digest sha256 (detection-based backend, matching the repo idiom);
+# inlined to keep this root-of-trust entry point self-contained (it sources
+# nothing else).
+sha256_file() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	else
+		shasum -a 256 "$1" | awk '{print $1}'
+	fi
+}
+
 # The plugin root may be noexec, so run the shim from the cache dir, and by
 # absolute path so a PATH-planted decoy cannot stand in for the verifier.
-shim="${cache_dir}/accelerator-verify"
-cp "${shim_source}" "${shim}" 2>/dev/null ||
-	fail "could not stage the verify shim into ${cache_dir}"
-chmod +x "${shim}" 2>/dev/null ||
-	fail "could not make the verify shim executable"
+# Content-addressed by the source shim's own digest: a warm call re-hashes
+# (cheap) instead of re-copying 475KB, a uniquely-named file is never torn by a
+# concurrent reader, and skip-if-exists verifies the staged bytes against that
+# digest so a planted stub is re-staged rather than trusted by name.
+shim_digest=$(sha256_file "${shim_source}") ||
+	fail "could not hash the verify shim source: ${shim_source}"
+shim="${cache_dir}/accelerator-verify-${platform}-${shim_digest}"
+if [[ ! -x "${shim}" ]] ||
+	[[ "$(sha256_file "${shim}" 2>/dev/null)" != "${shim_digest}" ]]; then
+	cp "${shim_source}" "${shim}" 2>/dev/null ||
+		fail "could not stage the verify shim into ${cache_dir}"
+	chmod +x "${shim}" 2>/dev/null ||
+		fail "could not make the verify shim executable"
+fi
 
 # Serialise concurrent first-use sessions; a lock orphaned by a SIGKILL'd
 # bootstrap (no trap ran) is reclaimed via a PID-owner staleness check.
@@ -131,14 +192,21 @@ acquire_lock() {
 			return 0
 		fi
 		owner=$(cat "${lock_dir}/pid" 2>/dev/null)
-		if [[ -n "${owner}" ]] && ! kill -0 "${owner}" 2>/dev/null; then
+		if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
+			# A live owner is fetching, bounded by curl's --max-time; reset the
+			# abort budget so a slow-but-progressing cold fetch never fails a
+			# waiter. The budget elapses only while no live owner is seen — a
+			# dead owner is reclaimed immediately below.
+			waited=0
+		elif [[ -n "${owner}" ]]; then
 			rm -f "${lock_dir}/pid" 2>/dev/null
 			rmdir "${lock_dir}" 2>/dev/null
 			continue
-		fi
-		waited=$((waited + 1))
-		if [[ "${waited}" -gt 300 ]]; then
-			fail "timed out acquiring the launcher cache lock: ${lock_dir}"
+		else
+			waited=$((waited + 1))
+			if [[ "${waited}" -gt 300 ]]; then
+				fail "timed out acquiring the launcher cache lock: ${lock_dir}"
+			fi
 		fi
 		sleep 0.1
 	done

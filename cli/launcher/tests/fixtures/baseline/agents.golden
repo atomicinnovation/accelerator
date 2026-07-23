@@ -1,0 +1,15 @@
+## Agent Names
+
+The following agent names are configured for this project. Always use
+the name shown for each role as the `subagent_type` parameter when
+spawning agents via the Agent/Task tool.
+
+- **reviewer agent**: my-reviewer
+- **browser analyser agent**: accelerator:browser-analyser
+- **browser locator agent**: accelerator:browser-locator
+- **codebase locator agent**: accelerator:codebase-locator
+- **codebase analyser agent**: accelerator:codebase-analyser
+- **codebase pattern finder agent**: accelerator:codebase-pattern-finder
+- **documents locator agent**: accelerator:documents-locator
+- **documents analyser agent**: accelerator:documents-analyser
+- **web search researcher agent**: accelerator:web-search-researcher

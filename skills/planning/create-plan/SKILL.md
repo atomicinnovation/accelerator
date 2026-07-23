@@ -4,14 +4,13 @@ description: Create detailed implementation plans through interactive, iterative
   collaboration. Use when the user needs to plan a feature, refactoring, or task.
 argument-hint: "[work item reference or description]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Implementation Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-plan`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-plan --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -19,8 +18,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
@@ -208,7 +207,7 @@ Once aligned on approach:
 After structure approval:
 
 1. **Write the plan** to
-   `!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans``/YYYY-MM-DD-ENG-XXXX-description.md
+   `!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe``/YYYY-MM-DD-ENG-XXXX-description.md
 
 - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
   - YYYY-MM-DD is today's date
@@ -220,7 +219,7 @@ After structure approval:
 
 2. **Use this template structure**:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template plan --fail-safe`
 
 ### Step 5: Populate frontmatter
 
@@ -461,4 +460,4 @@ Based on the work item, I understand we need to track parent-child relationships
 [Interactive process continues...]
 ```
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-plan --fail-safe`

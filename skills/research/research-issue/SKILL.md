@@ -5,22 +5,21 @@ description: Investigate production issues and bugs through hypothesis-driven
   descriptions and produces a root cause analysis.
 argument-hint: "[issue description, stacktrace, or error message]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Research Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh research-issue`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill research-issue --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
 accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_issues`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_issues --fail-safe`
 
 You are tasked with investigating production issues and bugs through
 hypothesis-driven debugging. You accept structured input (stacktraces, logs,
@@ -99,7 +98,7 @@ Then wait for the user's issue description.
 - Write the RCA document to the configured research directory using this
   template:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh rca`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template rca --fail-safe`
 
   Before writing the artifact file, **substitute** every field below
   with the indicated value:
@@ -168,4 +167,4 @@ Then wait for the user's issue description.
   - NEVER write the RCA document with placeholder values
   - NEVER skip the file write — the document IS the output of this skill
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh research-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions research-issue --fail-safe`
