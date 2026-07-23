@@ -67,6 +67,75 @@ description = "Install Playwright browser binaries (Chromium + OS-level deps)"
 depends = ["deps:install:node"]
 run = "invoke deps.install-playwright"
 
+[tasks."deps:install:docs"]
+description = "Install Node.js dependencies for the documentation site"
+run = "invoke deps.install-docs"
+sources = ["docs-site/package.json", "docs-site/package-lock.json"]
+outputs = ["docs-site/node_modules/.package-lock.json"]
+
+[tasks."deps:install:docs-playwright"]
+description = "Install the Chromium binary the docs mermaid render needs"
+depends = ["deps:install:docs"]
+run = "invoke deps.install-docs-playwright"
+sources = ["docs-site/package-lock.json"]
+outputs = { auto = true }
+
+[tasks."docs:generate"]
+description = "Generate per-skill reference pages from SKILL.md sources"
+depends = ["deps:install:python"]
+run = "invoke docs.generate"
+sources = [
+  "skills/**/SKILL.md",
+  ".claude-plugin/plugin.json",
+  "tasks/docs.py",
+  "tasks/shared/skill_pages.py",
+  "tasks/shared/files.py",
+  "tasks/shared/paths.py",
+]
+outputs = ["docs-site/src/content/docs/reference/skills/**/*.md"]
+
+[tasks."docs:build"]
+description = "Build the documentation site (strict: broken links fail the build)"
+depends = ["deps:install:docs-playwright", "docs:generate"]
+run = "invoke docs.build"
+sources = [
+  "docs-site/src/**/*",
+  "docs-site/public/**/*",
+  # docs-site/src/fonts is a symlink into the visualiser frontend, so
+  # the target must be a source too or font edits leave a stale cache
+  "skills/visualisation/visualise/frontend/public/fonts/**/*",
+  "docs-site/astro.config.mjs",
+  "docs-site/package.json",
+  "docs-site/package-lock.json",
+]
+outputs = ["docs-site/dist/**/*"]
+
+[tasks."docs:generate:check"]
+description = "Verify every plugin.json skill has a generated docs page"
+depends = ["docs:generate"]
+run = "invoke docs.generate-check"
+
+[tasks."docs:audit"]
+description = "Fail on high/critical npm advisories in the docs-site tree"
+depends = ["deps:install:docs"]
+run = "invoke docs.audit"
+
+# Deliberately NOT in the aggregate `check`: it writes gitignored artefacts
+# and needs network + a Chromium install, so the docs CI lane owns it.
+[tasks."docs:check"]
+description = "Docs gate: strict site build incl. link validation + npm audit (CI-owned; needs network + Chromium)"
+depends = ["docs:build", "docs:generate:check", "docs:audit"]
+
+[tasks."docs:serve"]
+description = "Serve the documentation site locally with live reload"
+depends = ["deps:install:docs-playwright", "docs:generate"]
+run = "invoke docs.serve"
+
+[tasks."docs:preview"]
+description = "Serve the built documentation site from docs-site/dist (run docs:build first)"
+depends = ["docs:build"]
+run = "invoke docs.preview"
+
 [tasks."dev"]
 description = "Start + supervise the visualiser server + frontend, detached in the background (use dev:stop to tear down; dev:server/dev:frontend for the manual two-terminal flow)"
 depends = ["build:server:dev", "deps:install:node"]

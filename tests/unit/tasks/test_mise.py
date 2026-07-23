@@ -18,6 +18,20 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 _CHECK_GATES = ["cli:check", "deny:check", "pup:check"]
 
 
+def test_docs_tasks_stay_out_of_default_and_aggregate_check(mise):
+    # The docs tasks write gitignored artefacts and need network + a
+    # Chromium install, so the docs CI lane owns them — default and the
+    # aggregate check must stay hermetic.
+    assert "docs:build" not in _task_depends(mise, "default"), (
+        "docs:build is in default.depends — it gives the local CI mirror a "
+        "network + Chromium dependency; the docs CI lane owns the docs build"
+    )
+    assert "docs:check" not in _task_depends(mise, "check"), (
+        "docs:check is in check.depends — it breaks the read-only/hermetic "
+        "contract of the aggregate check; the docs CI lane owns it"
+    )
+
+
 def _task_depends(mise: dict, task: str) -> list[str]:
     return mise["tasks"][task].get("depends", [])
 

@@ -341,6 +341,99 @@ def test_nightly_lane_isolation_holds(wf):
     _isolation_invariants(wf)
 
 
+# --- Documentation-site publishing lane --------------------------------
+#
+# The docs lane lives in main.yml: check-docs runs the strict Starlight
+# build on every PR and push and gates the prerelease; build-docs builds
+# and uploads the Pages artifact unprivileged AFTER a stable release ships
+# (needs: release, so an unapproved release skips the docs deploy);
+# deploy-docs publishes it to GitHub Pages. The permission set must stay
+# minimal, and the npm/Astro build must never run in the job holding the
+# Pages/OIDC permissions.
+
+DOCS_CHECK_JOB = "check-docs"
+DOCS_BUILD_JOB = "build-docs"
+DOCS_DEPLOY_JOB = "deploy-docs"
+
+
+def _job_run_text_workflows(job):
+    return "\n".join(step.get("run", "") for step in job.get("steps") or [])
+
+
+def test_check_docs_runs_docs_check(wf):
+    job = wf["jobs"][DOCS_CHECK_JOB]
+    assert "mise run docs:check" in _job_run_text_workflows(job), (
+        "check-docs must run the strict docs gate (mise run docs:check)"
+    )
+
+
+def test_check_docs_gates_the_prerelease(wf):
+    assert DOCS_CHECK_JOB in _needs(wf["jobs"]["prerelease"]), (
+        "prerelease must wait on check-docs so broken docs block a release"
+    )
+
+
+def test_deploy_docs_targets_github_pages_environment(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    environment = job.get("environment")
+    name = environment.get("name") if isinstance(environment, dict) else None
+    assert name == "github-pages", (
+        "deploy-docs must target the github-pages environment"
+    )
+
+
+def test_docs_deploy_chain_orders_release_build_deploy(wf):
+    # Docs are rebuilt and published only when a stable release ships.
+    build = wf["jobs"][DOCS_BUILD_JOB]
+    deploy = wf["jobs"][DOCS_DEPLOY_JOB]
+    assert "release" in _needs(build), "build-docs must wait on release"
+    assert DOCS_BUILD_JOB in _needs(deploy), (
+        "deploy-docs must wait on build-docs"
+    )
+
+
+def test_build_docs_runs_unprivileged(wf):
+    job = wf["jobs"][DOCS_BUILD_JOB]
+    assert job.get("permissions") == {"contents": "read"}, (
+        "build-docs runs npm lifecycle scripts and must hold only "
+        "contents: read"
+    )
+    assert "mise run docs:build" in _job_run_text_workflows(job), (
+        "build-docs must run the docs build (mise run docs:build)"
+    )
+
+
+def test_deploy_docs_has_minimal_pages_permissions(wf):
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    permissions = job.get("permissions") or {}
+    assert permissions == {
+        "pages": "write",
+        "id-token": "write",
+    }, "deploy-docs must hold exactly the minimal Pages deploy permissions"
+
+
+def test_deploy_docs_runs_no_build_commands(wf):
+    # The npm/Astro build must stay out of the job holding the Pages/OIDC
+    # permissions — a compromised dependency must not run with them in scope.
+    job = wf["jobs"][DOCS_DEPLOY_JOB]
+    assert _job_run_text_workflows(job).strip() == "", (
+        "deploy-docs must only run configure-pages/deploy-pages actions on "
+        "the uploaded artifact, never build commands"
+    )
+
+
+def test_main_push_trigger_covers_only_main(wf):
+    assert wf[True]["push"]["branches"] == ["main"], (
+        "main.yml push trigger must cover exactly main"
+    )
+
+
+def test_no_stray_docs_workflow_exists():
+    # The docs lane merged into main.yml; a resurrected docs.yml would run a
+    # second, competing Pages deploy pipeline.
+    assert not (REPO_ROOT / ".github/workflows/docs.yml").exists()
+
+
 def _needs_edge_into_stable_job(jobs):
     # A stable check job made to depend on the nightly lane.
     jobs["check-cli"]["needs"] = [_NIGHTLY_JOB]

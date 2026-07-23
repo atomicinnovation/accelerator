@@ -1,0 +1,239 @@
+/* Brand theme: maps the visualiser design system onto Starlight.
+   Starlight is dark-by-default on :root with light overrides under
+   :root[data-theme='light']; this unlayered sheet wins over the
+   starlight.* cascade layers without !important.
+   --atomic-* values are duplicated verbatim from the canonical sheet
+   (skills/visualisation/visualise/frontend/src/styles/global.css) and
+   drift-guarded by tests/unit/tasks/test_docs_theme_drift.py. */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sora';
+  src: url('../fonts/Sora-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sora';
+  src: url('../fonts/Sora-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Fira Code';
+  src: url('../fonts/FiraCode-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Theme-invariant brand palette (subset consumed below). */
+  --atomic-night: rgb(14, 15, 25);
+  --atomic-night-2: rgb(10, 17, 27);
+  --atomic-indigo: rgb(89, 95, 200);
+  --atomic-indigo-2: rgb(50, 48, 98);
+  --atomic-indigo-tint: rgb(193, 197, 255);
+  --atomic-white: rgb(255, 255, 255);
+  --atomic-bone: rgb(251, 252, 254);
+  --atomic-slate: rgb(95, 99, 120);
+
+  --sl-font: 'Inter';
+  --sl-font-mono: 'Fira Code';
+
+  /* Dark theme (Starlight default on :root). */
+  --sl-color-accent-low: var(--atomic-indigo-2);
+  --sl-color-accent: #8a90e8;
+  --sl-color-accent-high: var(--atomic-indigo-tint);
+  --sl-color-white: var(--atomic-white);
+  --sl-color-gray-1: #e7e9f2;
+  --sl-color-gray-2: #c3c7d6;
+  --sl-color-gray-3: #a0a5b8;
+  --sl-color-gray-4: #6c7088;
+  --sl-color-gray-5: #2a2e40;
+  --sl-color-gray-6: #131524;
+  --sl-color-black: var(--atomic-night-2);
+  --sl-color-text: #e7e9f2;
+  --sl-color-bg: var(--atomic-night-2);
+  --sl-color-bg-nav: var(--atomic-night);
+  --sl-color-bg-sidebar: #0b121c;
+  --sl-color-hairline-light: rgba(255, 255, 255, 0.04);
+  --sl-color-hairline: rgba(255, 255, 255, 0.08);
+  --sl-color-hairline-shade: rgba(255, 255, 255, 0.16);
+
+  /* Theme-invariant code surface (mirrors the visualiser's --code-*
+     tokens; the Shiki theme in ../../shiki-atomic.mjs inlines the
+     matching bg/fg at build time). */
+  --code-stroke: rgba(255, 255, 255, 0.07);
+
+  /* Inline code: subtle sunken tint per theme, mirroring the
+     visualiser's `code:not(pre code)` pill (--ac-bg-sunken). */
+  --sl-color-bg-inline-code: #070b12;
+}
+
+:root {
+  /* Component-polish tokens mirroring the visualiser's --ac-* values
+     (dark defaults here, light overrides below). */
+  --ac-accent-tint: rgba(138, 144, 232, 0.18);
+  --ac-shadow-soft:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='light'] {
+  --ac-accent-tint: rgba(89, 95, 200, 0.12);
+  --ac-shadow-soft:
+    0 1px 2px rgba(10, 17, 27, 0.04),
+    0 8px 28px rgba(10, 17, 27, 0.06);
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: var(--atomic-indigo-tint);
+  --sl-color-accent: var(--atomic-indigo);
+  --sl-color-accent-high: var(--atomic-indigo-2);
+  --sl-color-white: #14161f;
+  --sl-color-gray-1: #202231;
+  --sl-color-gray-2: #383b4d;
+  --sl-color-gray-3: var(--atomic-slate);
+  --sl-color-gray-4: #8b90a3;
+  --sl-color-gray-5: #c7c9d8;
+  --sl-color-gray-6: #eef0f6;
+  --sl-color-gray-7: #f4f6fa;
+  --sl-color-black: var(--atomic-white);
+  --sl-color-text: #14161f;
+  --sl-color-bg: var(--atomic-bone);
+  --sl-color-bg-nav: var(--atomic-white);
+  --sl-color-bg-sidebar: #f7f8fb;
+  --sl-color-hairline-light: rgba(32, 34, 49, 0.06);
+  --sl-color-hairline: rgba(32, 34, 49, 0.1);
+  --sl-color-hairline-shade: rgba(32, 34, 49, 0.18);
+  --sl-color-bg-inline-code: #f4f6fa;
+}
+
+/* Expressive Code frames get this border via the config's
+   styleOverrides.borderColor; this rule covers any stock Shiki pre. */
+.sl-markdown-content pre:not(.expressive-code *) {
+  border: 1px solid var(--code-stroke);
+}
+
+.sl-markdown-content code:not(pre code) {
+  border: 1px solid var(--sl-color-hairline-light);
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content h5,
+.sl-markdown-content h6,
+.site-title {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.sl-markdown-content h1 {
+  font-weight: 700;
+}
+
+/* Sidebar group headings: the visualiser's nav-label treatment
+   (Sidebar.module.css .libraryHeading). Fira Code ships at 400 only. */
+#starlight__sidebar .group-label .large {
+  font-family: var(--sl-font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+#starlight__sidebar a[aria-current='page'] {
+  background-color: var(--ac-accent-tint);
+  color: var(--sl-color-text-accent);
+}
+
+header.header {
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+aside.starlight-aside,
+.sl-markdown-content .card {
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 8px;
+  box-shadow: var(--ac-shadow-soft);
+}
+
+.pagination-links a {
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 8px;
+  box-shadow: var(--ac-shadow-soft);
+}
+
+site-search button[data-open-modal] {
+  border-color: var(--sl-color-hairline);
+  border-radius: 8px;
+}
+
+site-search button[data-open-modal]:hover {
+  border-color: var(--sl-color-hairline-shade);
+}
+
+site-search dialog {
+  border-color: var(--sl-color-hairline);
+  box-shadow: var(--ac-shadow-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+.hero h1 {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.sl-link-button.primary {
+  background: var(--sl-color-accent);
+  border-color: var(--sl-color-accent);
+}
+
+.sl-link-button.primary:hover {
+  background: color-mix(
+    in srgb,
+    var(--sl-color-accent) 85%,
+    var(--sl-color-white)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--sl-color-accent) 85%,
+    var(--sl-color-white)
+  );
+}
