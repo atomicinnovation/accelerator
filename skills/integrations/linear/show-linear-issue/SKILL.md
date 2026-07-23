@@ -13,15 +13,14 @@ argument-hint: "<IDENTIFIER> [--comments N]"
 disable-model-invocation: false
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Show Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh show-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill show-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > See the
@@ -62,4 +61,4 @@ Render the issue's fields under `.data.issue`:
   (no ADF conversion).
 - **Comments**: each `.comments.nodes[].body` (Markdown), if any.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh show-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions show-linear-issue --fail-safe`

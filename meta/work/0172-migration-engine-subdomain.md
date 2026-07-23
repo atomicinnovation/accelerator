@@ -9,9 +9,10 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
+relates_to: ["work-item:0180"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, migration-engine, concurrency]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-07-18T22:02:04+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-193"
@@ -73,6 +74,16 @@ crates.
 
 - Blocked by: 0166 (shared `config`/`store` crates).
 - Parent: epic 0136.
+- Clean-cutover obligation from 0180 (`relates_to: 0180`): 0180 ports the
+  canonical-order JSONL primitives and scopes bash↔Rust byte-parity out on the
+  premise that no session-log file is written by both the bash primitives and the
+  Rust port concurrently. As the one production JSONL caller, this engine must
+  honour that premise — cut a given session-log file over from bash to Rust
+  atomically, never interleaving a bash writer and a Rust writer against the same
+  file. (This engine's own move to `serde_json` for compose/parse must also stay
+  consistent with 0180's canonical field order and escaper for any records that
+  outlive the cutover.) If an atomic cutover cannot be guaranteed, flag 0180 so
+  its byte-parity scope-out is revisited.
 
 ## Assumptions
 

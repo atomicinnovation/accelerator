@@ -58,13 +58,13 @@ _wisb_path() {
     return 1
   }
   local integration
-  integration=$(cd "$root" && "$_WISB_REPO_SCRIPTS/config-read-work.sh" integration)
+  integration=$(cd "$root" && "${ACCELERATOR_BIN:-${_WISB_REPO_SCRIPTS%/scripts}/bin/accelerator}" config work integration)
   if [ -z "$integration" ]; then
     echo "E_NO_INTEGRATION: work.integration is not configured" >&2
     return 1
   fi
   local ipath
-  ipath=$(cd "$root" && "$_WISB_REPO_SCRIPTS/config-read-path.sh" integrations)
+  ipath=$(cd "$root" && "${ACCELERATOR_BIN:-${_WISB_REPO_SCRIPTS%/scripts}/bin/accelerator}" config path integrations)
   local base
   if [ "${ipath#/}" != "$ipath" ]; then
     base="$ipath"

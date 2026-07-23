@@ -4,7 +4,7 @@
     {
       "id": 1,
       "name": "code-crawler-fixture",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow Steps 1-9 of the skill. For Step 5, analyse the files in examples/design-test-app/ directly rather than spawning real agents. For Step 8, simulate writing the artifact by producing the inventory body in your response rather than actually writing to disk.\n\nSave to outputs/:\n- inventory.md: The full content of the inventory.md you would write\n- summary.md: The summary you would present to the user (Step 9)",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nFollow Steps 1-9 of the skill. For Step 5, analyse the files in skills/design/inventory-design/evals/fixtures/design-test-app/ directly rather than spawning real agents. For Step 8, simulate writing the artifact by producing the inventory body in your response rather than actually writing to disk.\n\nSave to outputs/:\n- inventory.md: The full content of the inventory.md you would write\n- summary.md: The summary you would present to the user (Step 9)",
       "expected_output": "Inventory contains a Component Catalogue with Button and Card components named. Token table lists the four Tailwind palette entries (primary, primary-muted, surface, danger). Screen Inventory identifies at least Home and Settings screens. Artifact path follows the YYYY-MM-DD-HHMMSS-design-test-app/ pattern.",
       "files": [],
       "expectations": [
@@ -22,7 +22,7 @@
     {
       "id": 2,
       "name": "supersede-prior-inventory",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: a prior inventory already exists at meta/design-inventories/2026-05-01-120000-design-test-app/inventory.md with frontmatter status: accepted and sequence: 1.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow the supersede protocol (Step 4 and end of Step 8). Simulate the sequence computation and the supersede mutation.\n\nSave to outputs/:\n- sequence.md: What sequence number would be assigned to the new inventory and why\n- supersede.md: Which prior directory would be marked superseded and what change would be made to its frontmatter\n- summary.md: The summary presented to the user",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: a prior inventory already exists at meta/design-inventories/2026-05-01-120000-design-test-app/inventory.md with frontmatter status: accepted and sequence: 1.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nFollow the supersede protocol (Step 4 and end of Step 8). Simulate the sequence computation and the supersede mutation.\n\nSave to outputs/:\n- sequence.md: What sequence number would be assigned to the new inventory and why\n- supersede.md: Which prior directory would be marked superseded and what change would be made to its frontmatter\n- summary.md: The summary presented to the user",
       "expected_output": "New inventory gets sequence 2. Prior 2026-05-01-120000-design-test-app inventory is marked status: superseded. Summary confirms supersede occurred and names the prior directory.",
       "files": [],
       "expectations": [
@@ -38,7 +38,7 @@
       "name": "mcp-unavailable-fallback",
       "deprecated": true,
       "deprecation_reason": "MCP path removed in Phase 4b. Replaced by eval id 20 (executor-bootstrap-failure-fallback).",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nIMPORTANT: For this eval, mcp__playwright__browser_navigate is NOT in your available tool set.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler hybrid\n\nFollow Step 3 (MCP detection). The MCP is unavailable.\n\nSave to outputs/:\n- response.md: Your exact response to the user before starting the crawl\n- crawl-notes.md: What you would write in the Crawl Notes section about the downgrade",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nIMPORTANT: For this eval, mcp__playwright__browser_navigate is NOT in your available tool set.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler hybrid\n\nFollow Step 3 (MCP detection). The MCP is unavailable.\n\nSave to outputs/:\n- response.md: Your exact response to the user before starting the crawl\n- crawl-notes.md: What you would write in the Crawl Notes section about the downgrade",
       "expected_output": "Skill prints the auto-fallback notice BEFORE starting the crawl (not only in Crawl Notes). Falls back to code-only. Both the pre-crawl notice and Crawl Notes mention Playwright MCP unavailability.",
       "files": [],
       "expectations": [
@@ -79,7 +79,7 @@
     {
       "id": 8,
       "name": "same-day-rerun-no-clobber",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nContext: an inventory already exists at meta/design-inventories/2026-05-03-090000-design-test-app/inventory.md (written earlier today).\n\nA user invokes (later that same minute): /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nExplain the artifact directory that would be written and why it does not collide with the prior directory.\n\nSave to outputs/:\n- directory-name.md: The new directory name that would be written and why it is distinct from the prior one",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nContext: an inventory already exists at meta/design-inventories/2026-05-03-090000-design-test-app/inventory.md (written earlier today).\n\nA user invokes (later that same minute): /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nExplain the artifact directory that would be written and why it does not collide with the prior directory.\n\nSave to outputs/:\n- directory-name.md: The new directory name that would be written and why it is distinct from the prior one",
       "expected_output": "New directory has a different HHMMSS timestamp from the prior directory. No clobber occurs. Sequence number is incremented.",
       "files": [],
       "expectations": [
@@ -193,7 +193,7 @@
     {
       "id": 20,
       "name": "executor-bootstrap-failure-fallback",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=1 is set (simulates npm ci failure during bootstrap).\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler hybrid\n\nFollow Steps 1-9. In Step 4, simulate running ensure-playwright.sh — it exits 14 and emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed to stderr. Follow the hybrid-downgrade path.\n\nSave to outputs/:\n- response.md: The downgrade notice printed to the user before the crawl begins\n- crawl-notes.md: What you would write in the Crawl Notes section\n- summary.md: The summary presented to the user at Step 13",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=1 is set (simulates npm ci failure during bootstrap).\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler hybrid\n\nFollow Steps 1-9. In Step 4, simulate running ensure-playwright.sh — it exits 14 and emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed to stderr. Follow the hybrid-downgrade path.\n\nSave to outputs/:\n- response.md: The downgrade notice printed to the user before the crawl begins\n- crawl-notes.md: What you would write in the Crawl Notes section\n- summary.md: The summary presented to the user at Step 13",
       "expected_output": "Skill prints the notify-downgrade.sh output for 'bootstrap-failed' before starting the crawl. Falls back to code-only crawler. Crawl Notes records the bootstrap failure. No run.sh navigate calls are made.",
       "files": [],
       "expectations": [
@@ -207,7 +207,7 @@
     {
       "id": 21,
       "name": "executor-ping-no-browser",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./examples/design-test-app --crawler code\n\nFollow Steps 1-13. Because the crawler mode is 'code', Steps 4-5 (ensure-playwright.sh and run.sh ping) are skipped entirely.\n\nSave to outputs/:\n- behavior.md: Which steps are skipped and why, and whether any executor or browser commands are invoked",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nFollow Steps 1-13. Because the crawler mode is 'code', Steps 4-5 (ensure-playwright.sh and run.sh ping) are skipped entirely.\n\nSave to outputs/:\n- behavior.md: Which steps are skipped and why, and whether any executor or browser commands are invoked",
       "expected_output": "Steps 4 and 5 are skipped because the crawler mode is 'code'. No ensure-playwright.sh invocation. No run.sh ping call. No Chromium browser launched. The code-only crawl completes without any executor interaction.",
       "files": [],
       "expectations": [

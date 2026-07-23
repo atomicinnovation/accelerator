@@ -225,7 +225,7 @@ jira_resolve_credentials() {
       echo "E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in config.md ignored — move to config.local.md" >&2
     fi
     local _shared_token
-    _shared_token=$("$_JIRA_AUTH_PLUGIN_ROOT/scripts/config-read-value.sh" jira.token "")
+    _shared_token=$("${ACCELERATOR_BIN:-$_JIRA_AUTH_PLUGIN_ROOT/bin/accelerator}" config get jira.token "")
     if [ -n "$_shared_token" ]; then
       JIRA_TOKEN="$_shared_token"
       JIRA_RESOLUTION_SOURCE_TOKEN="shared"

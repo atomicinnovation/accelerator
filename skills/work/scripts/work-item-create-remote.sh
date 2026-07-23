@@ -21,7 +21,7 @@ set -euo pipefail
 #   linear\t(no user-resolvable type/project — team fixed by /init-linear)
 #
 # <sys> is the active tracker. The caller (/create-work-item) MUST source it from
-# the same `config-read-work.sh integration` read used to gate the push, so the
+# the same `config work integration` read used to gate the push, so the
 # gate and the route cannot diverge; this script does not re-derive it.
 #
 # Contract:

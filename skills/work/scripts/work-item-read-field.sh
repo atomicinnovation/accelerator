@@ -14,7 +14,7 @@ set -euo pipefail
 # returned. This bridges the unified schema with work items written
 # under the older shape until a corpus migration normalises them.
 #
-# Duplicate keys: first-match-wins (consistent with config-read-value.sh;
+# Duplicate keys: first-match-wins (consistent with `config get`;
 # diverges from adr-read-status.sh which currently returns last-match).
 # Array values (e.g., `tags: [a, b]`) are returned verbatim — callers are
 # responsible for parsing them (see config_parse_array in config-common.sh).

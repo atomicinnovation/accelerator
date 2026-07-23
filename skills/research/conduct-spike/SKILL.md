@@ -8,22 +8,21 @@ description: Interactively conduct a time-boxed spike — collaboratively reduce
   confidence.
 argument-hint: "[path to spike work item or brief, or work item number]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
 ---
 
 # Conduct Spike
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh conduct-spike`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill conduct-spike --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:web-search-researcher, accelerator:codebase-locator,
 accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 
 You are tasked with conducting a **spike**: a time-boxed, uncertainty-reducing
 investigation. The spike is mostly conceptual, but a question is often best
@@ -299,4 +298,4 @@ work — get ground truth instead of reasoning in the abstract:
 - **A deferred question is a finding.** If the time-box closes with unknowns
   open, record them explicitly with their risk — don't let them vanish.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh conduct-spike`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions conduct-spike --fail-safe`

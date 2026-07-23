@@ -16,8 +16,7 @@ allowed-tools:
 
 # Update Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh update-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -69,4 +68,4 @@ ${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-update-flow.sh \
 
 Confirm the updated fields. Suggest `/show-linear-issue <IDENTIFIER>` to verify.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh update-linear-issue`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-linear-issue --fail-safe`

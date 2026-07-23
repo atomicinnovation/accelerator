@@ -5,16 +5,15 @@ description: Respond to pull request review feedback interactively, working
   to address PR review comments.
 argument-hint: "[PR number or URL]"
 allowed-tools:
-   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
    - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
 
 # Respond to PR
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh respond-to-pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill respond-to-pr --fail-safe`
 
-**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs`
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
 
 You are tasked with working through outstanding pull request review feedback
 in a systematic, interactive fashion. For each piece of feedback, you verify
@@ -556,4 +555,4 @@ The respond-to-pr skill fills a gap in the development lifecycle:
 7. **`/respond-to-pr`** — Address review feedback (this command)
 8. `/commit` — Commit changes (used within this workflow)
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh respond-to-pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions respond-to-pr --fail-safe`

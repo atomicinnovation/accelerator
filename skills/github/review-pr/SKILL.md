@@ -5,15 +5,14 @@ description: Review a pull request through multiple quality lenses and present a
   review.
 argument-hint: "[PR number or URL]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
 
 # Review PR
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-pr`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-pr --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,10 +20,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config review pr --fail-safe`
 
-**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_prs`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh tmp`
+**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
+**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
 
 **IMPORTANT**: Wherever `{tmp directory}` or `{pr reviews directory}` appears
 in the instructions below, substitute the actual resolved path shown above.
@@ -41,7 +40,7 @@ The template below defines the frontmatter and body structure that every
 PR review must carry. Read it now — use it to guide what information
 you record in Steps 3-4 and what shape you persist in Step 4.10.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh pr-review`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-review --fail-safe`
 
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
@@ -321,7 +320,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agent-name.sh reviewer`"`.
+`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agent reviewer --fail-safe`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 
@@ -751,4 +750,4 @@ The PR review sits in the development lifecycle alongside other commands:
 5. `/describe-pr` — Generate PR description
 6. `/review-pr` — Review the PR through quality lenses (this command)
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-pr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-pr --fail-safe`

@@ -1,0 +1,15 @@
+[package]
+name = "vcs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# No dependencies: the repo facts are plain values and the probe arrives by
+# injection. As in `corpus`, the pup rule permits `kernel::Error` for when a
+# fallible port needs the shared diagnostic; nothing does yet.
+[dependencies]

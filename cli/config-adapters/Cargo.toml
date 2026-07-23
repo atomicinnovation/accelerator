@@ -18,5 +18,5 @@ path = "tests/fixtures/config_adapters_fixture.rs"
 
 [dependencies]
 config = { path = "../config" }
-serde = { workspace = true }
-serde-saphyr = { workspace = true }
+document = { path = "../document" }
+store = { path = "../store" }

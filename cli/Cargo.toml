@@ -1,10 +1,10 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "config", "config-adapters"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "store"]
 
 [workspace.package]
-version = "1.24.0-pre.12"
+version = "1.24.0-pre.16"
 edition = "2021"
 rust-version = "1.90.0"
 license = "MIT"
@@ -37,9 +37,21 @@ minisign-verify = "=0.2.5"
 sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Caret bound: regex's 1.x line is behaviour-stable, so the exact-pin discipline
+# that fences behaviour-sensitive crates is not warranted here.
+regex = "1"
 # 0.0.x: every patch is semver-breaking, so pin exactly and review upgrades at
-# the config-adapters adapter boundary.
+# the `document` boundary — the sole permitted wrapper (see deny.toml).
 serde-saphyr = "=0.0.29"
+# Caret bounds: temp-in-target-dir naming + RAII cleanup for atomic writes,
+# a safe wrapper over the POSIX kill(pid, 0) liveness probe the mkdir-lock needs
+# and the umask(2) read the config/corpus writers need (both via `process`;
+# `umask` takes a `rustix::fs::Mode`, so the `fs` feature is enabled too),
+# EXDEV classification, and jittered lock back-off. All 1.x/0.x behaviour-stable,
+# so the exact-pin discipline is not warranted here.
+tempfile = "3"
+rand = "0.9"
+rustix = { version = "1", features = ["process", "fs"] }
 
 [workspace.lints.rust]
 warnings = "deny"
@@ -56,3 +68,10 @@ todo = "warn"
 unimplemented = "warn"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
+
+# The bootstrap hashes the whole launcher on every invocation, so binary size is
+# a per-call latency term and the cold-fetch payload. `strip` trades symbol names
+# for size; `lto = "thin"` trades release build time for size.
+[profile.release]
+strip = true
+lto = "thin"

@@ -1,0 +1,8 @@
+Accelerator plugin configuration detected:
+- Team config: .accelerator/config.md
+- Configured sections: paths work
+- Project context: provided (will be injected into skills)
+- Per-skill customisations:
+    - create-plan (context)
+
+Skills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure.

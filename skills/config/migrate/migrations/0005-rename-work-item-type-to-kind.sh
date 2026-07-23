@@ -4,6 +4,7 @@ set -euo pipefail
 
 MIGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
+ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
@@ -14,10 +15,11 @@ if [ -z "${PROJECT_ROOT:-}" ]; then
 fi
 
 work_dir_rel="$(cd "$PROJECT_ROOT" &&
-  bash "$PLUGIN_ROOT/scripts/config-read-path.sh" work)"
+  "$ACCELERATOR" config path --allow-legacy-layout work)" ||
+  log_die "0005: config read failed for paths.work"
 
 if [ -z "$work_dir_rel" ]; then
-  log_die "0005: config-read-path.sh returned empty for 'work'"
+  log_die "0005: config path returned empty for 'work'"
 fi
 
 case "$work_dir_rel" in

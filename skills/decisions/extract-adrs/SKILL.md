@@ -6,16 +6,15 @@ description: Extract architecture decision records from existing meta documents
   buried in research or planning documents and need to be captured formally.
 argument-hint: "[research doc paths...] or leave empty to scan all"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Extract ADRs from Meta Documents
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh extract-adrs`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill extract-adrs --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,9 +22,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_codebase`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
 
 You are tasked with identifying architectural decisions within existing meta
 documents and helping the user capture them as formal ADRs.
@@ -217,7 +216,7 @@ Wait for user selection.
 The ADR template is loaded directly via the template loader so the
 shape stays in sync with `create-adr`:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh adr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template adr --fail-safe`
 
 When populating the template from extracted decisions:
 
@@ -244,4 +243,4 @@ When populating the template from extracted decisions:
 - Use sequential numbering: determine the starting number once, then increment
   for batch creation.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh extract-adrs`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions extract-adrs --fail-safe`

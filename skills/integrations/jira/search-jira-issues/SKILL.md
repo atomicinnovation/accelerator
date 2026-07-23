@@ -13,15 +13,14 @@ argument-hint: "[--project KEY] [--status NAME]... [--assignee NAME|@me]... [--t
 disable-model-invocation: false
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(jq)
   - Bash(curl)
 ---
 
 # Search Jira Issues
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh search-jira-issues`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill search-jira-issues --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -136,4 +135,4 @@ jira-search-flow.sh --project ENG --assignee @me --status '~Done' --limit 50 \
 The response either includes a new `nextPageToken` (more pages remain) or
 omits it (last page).
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh search-jira-issues`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions search-jira-issues --fail-safe`

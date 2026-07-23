@@ -3,6 +3,11 @@ name: configure
 description: "View, create, or edit Accelerator plugin configuration. Manage document templates."
 argument-hint: "[view | create | help | templates ...]"
 disable-model-invocation: true
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Read
+  - Write
+  - Edit
 ---
 
 # Configure Accelerator
@@ -922,7 +927,7 @@ executable; never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
 skill's `allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-list-template.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates list
 ```
 
 Present the table output to the user.
@@ -934,7 +939,7 @@ executable; never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
 skill's `allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-show-template.sh <key>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates show <key>
 ```
 
 Present the source metadata and template content to the user. If the user
@@ -950,7 +955,7 @@ prompt) — this applies to every `config-eject-template.sh` invocation in this
 subsection:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --dry-run <key|--all>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates eject --dry-run <key|--all>
 ```
 
 Present the dry-run output to the user. If any templates already exist
@@ -959,20 +964,20 @@ overwriting, run a second dry-run with `--force` to show the full preview
 (including which files will be overwritten):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --dry-run --force <key|--all>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates eject --dry-run --force <key|--all>
 ```
 
 Present this preview, then run the actual eject with `--force`:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh --force <key|--all>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates eject --force <key|--all>
 ```
 
 If no templates already exist (exit code 0 from the initial dry-run),
 proceed directly with the eject (no `--force` needed):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-eject-template.sh <key|--all>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates eject <key|--all>
 ```
 
 If the user says `eject --all` or `eject all`, pass `--all` to the script.
@@ -990,7 +995,7 @@ never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the skill's
 `allowed-tools` permission and forces an unnecessary prompt):
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/config-diff-template.sh <key>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates diff <key>
 ```
 
 Present the diff output to the user. If exit code is 2, no customisation
@@ -1009,7 +1014,7 @@ both `config-reset-template.sh` invocations below.
 1. Determine the template key. If not provided, ask the user.
 2. Run the reset script without `--confirm` to check for an override:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/scripts/config-reset-template.sh <key>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates reset <key>
    ```
 3. If exit code 2: tell the user "No customised template found for '<key>'
    — already using plugin default."
@@ -1020,7 +1025,7 @@ both `config-reset-template.sh` invocations below.
    confirm they want to delete a file outside the project root.
 5. On confirmation, run with `--confirm`:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/scripts/config-reset-template.sh --confirm <key>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator config templates reset --confirm <key>
    ```
 6. Inform the user that the template was reset. If the script output
    includes a note about removing a config entry (i.e., the override was

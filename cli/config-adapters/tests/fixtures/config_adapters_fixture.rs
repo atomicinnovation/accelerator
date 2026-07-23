@@ -12,6 +12,7 @@
 use std::process::ExitCode;
 
 use config::{ConfigAccess, Key, Resolved};
+use config_adapters::LegacyPolicy;
 
 fn main() -> ExitCode {
     let cwd = match std::env::current_dir() {
@@ -21,14 +22,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let service = match config_adapters::compose(&cwd) {
-        Ok(service) => service,
+    let composed = match config_adapters::compose(&cwd, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
         Err(error) => {
             eprintln!("{error}");
             return ExitCode::FAILURE;
         }
     };
-    match service.get(
+    match composed.service.get(
         &Key::parse("paths.work").expect("constant key parses"),
         None,
     ) {

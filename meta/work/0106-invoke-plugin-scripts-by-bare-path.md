@@ -81,7 +81,13 @@ converting the two bare ADR fences to inline code.
   inline code. (Line numbers are version-pinned — see Technical Notes; locate the
   fences by content if they have drifted.)
 - Make no `allowed-tools` rule changes in this item — rely on the existing shebang
-  + execute bit and existing rules.
+  + execute bit and existing rules. **(Superseded for the config cluster by 0167,
+  2026-07-22.)** The `scripts/config-*` family is no longer invoked by bare path:
+  0167 migrated it to `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config <subcommand>`,
+  which lives outside `scripts/` and therefore *does* require a
+  `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)` `allowed-tools` rule — a
+  deliberate departure from this no-`allowed-tools`-changes rule. The bare-path
+  directive still governs `artifact-*` and every other non-config family (0173).
 
 ## Acceptance Criteria
 

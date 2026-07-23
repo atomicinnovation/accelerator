@@ -101,6 +101,35 @@ pub const WORK_KEYS: &[(&str, Default)] = &[
     ("work.default_project_code", Default::Scalar("")),
 ];
 
+/// The non-empty values `work.integration` accepts; empty (unset) is always
+/// permitted. A `work` read of any other value is a fail-closed refusal.
+pub const WORK_INTEGRATION_VALUES: &[&str] =
+    &["jira", "linear", "trello", "github-issues"];
+
+/// Whether `value` is an accepted `work.integration`: empty (unset) is always
+/// permitted, else membership in [`WORK_INTEGRATION_VALUES`].
+#[must_use]
+pub fn is_valid_work_integration(value: &str) -> bool {
+    value.is_empty() || WORK_INTEGRATION_VALUES.contains(&value)
+}
+
+/// Integration and tool keys read ad-hoc by their own consumers.
+///
+/// They carry no catalogue default — an unset key means the consumer's own
+/// default applies — so `dump` surfaces them by presence only. The bash mirror
+/// is `EXTRA_KEYS` in `config-defaults.sh`.
+pub const EXTRA_KEYS: &[&str] = &[
+    "jira.site",
+    "jira.email",
+    "jira.token",
+    "jira.token_cmd",
+    "linear.token",
+    "linear.token_cmd",
+    "visualiser.editor",
+    "visualiser.editor_project",
+    "visualiser.binary",
+];
+
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.max_inline_comments", Default::Scalar("10")),
     ("review.min_lenses", Default::Scalar("4")),
@@ -127,6 +156,32 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
         Default::Scalar("critical"),
     ),
     ("review.work_item_revise_major_count", Default::Scalar("2")),
+];
+
+/// Built-in review lens names for code reviews (pr and plan modes).
+pub const BUILTIN_CODE_LENSES: &[&str] = &[
+    "architecture",
+    "code-quality",
+    "compatibility",
+    "correctness",
+    "database",
+    "documentation",
+    "performance",
+    "portability",
+    "safety",
+    "security",
+    "standards",
+    "test-coverage",
+    "usability",
+];
+
+/// Built-in review lens names for work-item reviews.
+pub const BUILTIN_WORK_ITEM_LENSES: &[&str] = &[
+    "clarity",
+    "completeness",
+    "dependency",
+    "scope",
+    "testability",
 ];
 
 pub const AGENT_KEYS: &[&str] = &[
@@ -252,8 +307,33 @@ mod tests {
     }
 
     #[test]
+    fn work_integration_accepts_empty_and_members_and_rejects_others() {
+        assert!(super::is_valid_work_integration(""));
+        for value in super::WORK_INTEGRATION_VALUES {
+            assert!(super::is_valid_work_integration(value), "{value}");
+        }
+        assert!(!super::is_valid_work_integration("bitbucket"));
+        assert!(!super::is_valid_work_integration("Jira"));
+    }
+
+    #[test]
     fn default_for_an_unrecognised_key_is_none() {
         assert_eq!(default_for("no.such.key"), None);
+    }
+
+    #[test]
+    fn the_path_defaults_relied_on_as_fallbacks_are_present_and_non_empty() {
+        for key in ["paths.tmp", "paths.templates"] {
+            let default = default_for(key);
+            assert!(
+                matches!(
+                    &default,
+                    Some(Value::Scalar(Scalar::String(text)))
+                        if !text.is_empty()
+                ),
+                "{key} must have a non-empty scalar default, got {default:?}"
+            );
+        }
     }
 
     type TestError = Box<dyn std::error::Error>;
@@ -298,7 +378,6 @@ scripts="$1"
 root="$2"
 cd "$root"
 source "$scripts/config-common.sh"
-{ source "$scripts/config-dump.sh"; } >/dev/null 2>&1
 for i in "${!PATH_KEYS[@]}"; do
   printf 'K\t%s\t%s\n' "${PATH_KEYS[$i]}" "${PATH_DEFAULTS[$i]}"
 done
@@ -318,18 +397,6 @@ for i in "${!DOC_TYPE_NAMES[@]}"; do
   printf 'D\t%s\t%s\n' "${DOC_TYPE_NAMES[$i]}" "${DOC_TYPE_PATH_KEYS[$i]}"
 done
 for k in "${TEMPLATE_KEYS[@]}"; do printf 'T\t%s\n' "$k"; done
-# Runtime cross-checks against config-read-review.sh: these keys are also in
-# config-dump's REVIEW_KEYS, so the M lines (map-overwriting the loop emission)
-# assert the catalogue default matches the live runtime default, mirroring the
-# min_lenses guard below.
-pr=$("$scripts/config-read-review.sh" pr 2>/dev/null || true)
-wi=$("$scripts/config-read-review.sh" work-item 2>/dev/null || true)
-printf 'M\treview.work_item_revise_severity\t%s\n' \
-  "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise severity\*\*: //p')"
-printf 'M\treview.work_item_revise_major_count\t%s\n' \
-  "$(printf '%s\n' "$wi" | sed -n 's/^- \*\*work-item revise major count\*\*: //p')"
-printf 'M\treview.min_lenses\t%s\n' \
-  "$(printf '%s\n' "$pr" | sed -n 's/^- \*\*min lenses\*\*: //p')"
 "#;
 
     fn seed_config(root: &std::path::Path) -> Result<(), TestError> {
@@ -381,7 +448,7 @@ printf 'M\treview.min_lenses\t%s\n' \
         for line in stdout.lines() {
             let fields: Vec<&str> = line.split('\t').collect();
             match fields.as_slice() {
-                ["K" | "M", key, value] => {
+                ["K", key, value] => {
                     bash_keys.insert((*key).to_owned(), (*value).to_owned());
                 }
                 ["T", key] => bash_templates.push((*key).to_owned()),

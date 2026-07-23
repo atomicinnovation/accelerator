@@ -104,6 +104,15 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.vendor_shims)
 )  # lint.vendor-shims.check
+ns_lint.add_collection(
+    Collection.from_module(lint.store_duplication)
+)  # lint.store-duplication.check
+ns_lint.add_collection(
+    Collection.from_module(lint.skill_permissions)
+)  # lint.skill-permissions.check
+ns_lint.add_collection(
+    Collection.from_module(lint.call_site_migration)
+)  # lint.call-site-migration.check
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")

@@ -37,7 +37,7 @@ fi
 REPO_ROOT=$(find_repo_root) || REPO_ROOT="$PWD"
 
 # Read configured decisions path, defaulting to meta/decisions
-DECISIONS_PATH=$("$PLUGIN_ROOT/scripts/config-read-path.sh" decisions)
+DECISIONS_PATH=$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config path decisions)
 
 # Resolve: absolute paths used as-is, relative paths resolved against repo root
 if [[ "$DECISIONS_PATH" == /* ]]; then

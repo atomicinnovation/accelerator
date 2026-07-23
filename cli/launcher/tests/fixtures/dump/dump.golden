@@ -1,0 +1,68 @@
+## Effective Configuration
+
+| Key | Value | Source |
+|-----|-------|--------|
+| `review.max_inline_comments` | `10` | default |
+| `review.min_lenses` | `5` | team (.accelerator/config.md) |
+| `review.max_lenses` | `6` | local (.accelerator/config.local.md) |
+| `review.dedup_proximity` | `3` | default |
+| `review.core_lenses` | `[architecture, code-quality, test-coverage, correctness]` | default |
+| `review.disabled_lenses` | `[]` | default |
+| `review.pr_request_changes_severity` | `critical` | default |
+| `review.plan_revise_severity` | `critical` | default |
+| `review.plan_revise_major_count` | `3` | default |
+| `review.work_item_revise_severity` | `critical` | default |
+| `review.work_item_revise_major_count` | `2` | default |
+| `agents.reviewer` | `my-reviewer` | team (.accelerator/config.md) |
+| `agents.browser-analyser` | `accelerator:browser-analyser` | default |
+| `agents.browser-locator` | `accelerator:browser-locator` | default |
+| `agents.codebase-locator` | `accelerator:codebase-locator` | default |
+| `agents.codebase-analyser` | `accelerator:codebase-analyser` | default |
+| `agents.codebase-pattern-finder` | `accelerator:codebase-pattern-finder` | default |
+| `agents.documents-locator` | `accelerator:documents-locator` | default |
+| `agents.documents-analyser` | `accelerator:documents-analyser` | default |
+| `agents.web-search-researcher` | `accelerator:web-search-researcher` | default |
+| `paths.plans` | `meta/plans` | default |
+| `paths.research_codebase` | `meta/research/codebase` | default |
+| `paths.decisions` | `meta/decisions` | default |
+| `paths.prs` | `meta/prs` | default |
+| `paths.validations` | `meta/validations` | default |
+| `paths.review_plans` | `meta/reviews/plans` | default |
+| `paths.review_prs` | `meta/reviews/prs` | default |
+| `paths.review_work` | `meta/reviews/work` | default |
+| `paths.templates` | `.accelerator/templates` | default |
+| `paths.work` | `custom/work` | team (.accelerator/config.md) |
+| `paths.notes` | `meta/notes` | default |
+| `paths.tmp` | `.accelerator/tmp` | default |
+| `paths.integrations` | `.accelerator/state/integrations` | default |
+| `paths.research_design_inventories` | `meta/research/design-inventories` | default |
+| `paths.research_design_gaps` | `meta/research/design-gaps` | default |
+| `paths.global` | `meta/global` | default |
+| `paths.research_issues` | `meta/research/issues` | default |
+| `templates.plan` | `my/plan.md` | team (.accelerator/config.md) |
+| `templates.codebase-research` | *(not set)* | default |
+| `templates.adr` | *(not set)* | default |
+| `templates.validation` | *(not set)* | default |
+| `templates.pr-description` | *(not set)* | default |
+| `templates.work-item` | *(not set)* | default |
+| `templates.rca` | *(not set)* | default |
+| `templates.design-inventory` | *(not set)* | default |
+| `templates.design-gap` | *(not set)* | default |
+| `templates.plan-review` | *(not set)* | default |
+| `templates.work-item-review` | *(not set)* | default |
+| `templates.pr-review` | *(not set)* | default |
+| `templates.note` | *(not set)* | default |
+| `work.integration` | `linear` | team (.accelerator/config.md) |
+| `work.id_pattern` | `{number:04d}` | default |
+| `work.default_project_code` | *(not set)* | default |
+| `visualiser.kanban_columns` | `[draft, ready, in-progress, review, done, blocked, abandoned]` | default |
+| `visualiser.idle_timeout` | `8h` | default |
+| `jira.site` | `example.atlassian.net` | team (.accelerator/config.md) |
+| `jira.email` | *(not set)* | default |
+| `jira.token` | *(set — hidden)* | team (.accelerator/config.md) |
+| `jira.token_cmd` | *(not set)* | default |
+| `linear.token` | *(not set)* | default |
+| `linear.token_cmd` | *(not set)* | default |
+| `visualiser.editor` | *(not set)* | default |
+| `visualiser.editor_project` | *(not set)* | default |
+| `visualiser.binary` | *(not set)* | default |

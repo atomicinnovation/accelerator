@@ -56,6 +56,12 @@ pub enum ConfigError {
     InvalidKey {
         key: String,
     },
+    Invalid {
+        detail: String,
+    },
+    UnsafePath {
+        path: String,
+    },
     LegacyLayout,
 }
 
@@ -82,12 +88,17 @@ impl Display for ConfigError {
                 "config file '{path}' has malformed frontmatter: {detail}"
             ),
             Self::Io { path, detail } => {
-                write!(formatter, "I/O error on config file '{path}': {detail}")
+                write!(formatter, "I/O error on '{path}': {detail}")
             }
             Self::InvalidKey { key } => write!(
                 formatter,
                 "invalid config key '{key}': expected dot-separated \
                  non-empty segments"
+            ),
+            Self::Invalid { detail } => write!(formatter, "{detail}"),
+            Self::UnsafePath { path } => write!(
+                formatter,
+                "refusing to follow an unsafe config path '{path}'"
             ),
             Self::LegacyLayout => write!(
                 formatter,
@@ -185,8 +196,7 @@ mod tests {
         };
         assert_eq!(
             error.to_string(),
-            "I/O error on config file '.accelerator/config.md': \
-             permission denied"
+            "I/O error on '.accelerator/config.md': permission denied"
         );
     }
 

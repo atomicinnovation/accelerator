@@ -39,7 +39,7 @@ echo ""
 
 echo "=== Design key call sites use canonical research_design_* form ==="
 assert_exit_code "no SKILL.md or agent uses bare design_(inventories|gaps)" 1 \
-  bash -c "grep -rE --exclude-dir=node_modules --exclude-dir=target 'config-read-path\\.sh[[:space:]]+design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
+  bash -c "grep -rE --exclude-dir=node_modules --exclude-dir=target 'config path design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
 
 echo ""
 
@@ -154,11 +154,11 @@ assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
 assert_contains "allowed-tools enumerates inventory-design scripts glob" \
   "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)'
 assert_contains "loads config context" \
-  "$(cat "$SKILL")" "config-read-context.sh"
+  "$(cat "$SKILL")" "accelerator config context"
 assert_contains "loads agent names" \
-  "$(cat "$SKILL")" "config-read-agents.sh"
+  "$(cat "$SKILL")" "accelerator config agents"
 assert_contains "ends with skill-instructions hook" \
-  "$(tail -n 5 "$SKILL")" "config-read-skill-instructions.sh inventory-design"
+  "$(tail -n 5 "$SKILL")" "accelerator config instructions inventory-design"
 assert_contains "Agent Names defaults include browser-locator" \
   "$(cat "$SKILL")" "accelerator:browser-locator"
 assert_contains "Agent Names defaults include browser-analyser" \
@@ -177,7 +177,7 @@ assert_exit_code "accepts https URL" 0 "$VALIDATE" "https://prototype.example.co
 assert_exit_code "rejects file:// scheme" 1 "$VALIDATE" "file:///etc/passwd"
 assert_exit_code "rejects javascript: scheme" 1 "$VALIDATE" "javascript:alert(1)"
 assert_exit_code "rejects data: scheme" 1 "$VALIDATE" "data:text/html,<script>"
-assert_exit_code "accepts code-repo path inside project root" 0 "$VALIDATE" "./examples/design-test-app"
+assert_exit_code "accepts code-repo path inside project root" 0 "$VALIDATE" "./skills/design/inventory-design/evals/fixtures/design-test-app"
 assert_exit_code "rejects path with .. escape" 1 "$VALIDATE" "../../etc/passwd"
 
 # Default-allow cases (localhost / 127.0.0.1)
@@ -424,7 +424,7 @@ assert_file_exists "extract-work-items cue-phrase regex file exists" \
 
 rm -f "$COMPLIANT" "$NONCOMPLIANT" "$LOWER_IMPL" "$EMPTY_H2"
 assert_contains "ends with skill-instructions hook" \
-  "$(tail -n 5 "$SKILL")" "config-read-skill-instructions.sh analyse-design-gaps"
+  "$(tail -n 5 "$SKILL")" "accelerator config instructions analyse-design-gaps"
 
 echo ""
 

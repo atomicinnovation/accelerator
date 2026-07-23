@@ -7,15 +7,14 @@ description: Extract work items in batch from existing documents (specs, PRDs,
   work items in meta/work/ — even if they don't say "extract" explicitly.
 argument-hint: "[document paths...] or leave empty to scan all"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Extract Work Items from Meta Documents
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh extract-work-items`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill extract-work-items --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,9 +22,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh research_codebase`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
 
 ## Work Item Template
 
@@ -34,7 +33,7 @@ work item must contain. Read it now — the valid work item kinds live in the `k
 field (not a hardcoded list elsewhere in this skill), and every written file
 must populate every frontmatter field.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
 You are tasked with identifying requirements, work items, and actionable
 tasks within existing meta documents and helping the user capture them as
@@ -347,9 +346,9 @@ in Step 4 after all approvals — enriched and thin — are collected.
       assignment, as the assignment (not the path) would become the command and escape
       the rule:
 
-      - Run `${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh id_pattern` and use its
+      - Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work id_pattern` and use its
         stdout as `PATTERN`.
-      - Run `${CLAUDE_PLUGIN_ROOT}/scripts/config-read-work.sh default_project_code` and
+      - Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code` and
         use its stdout as `DEFAULT_PROJECT`.
 
       Run the bare path **directly** as an executable;
@@ -609,4 +608,4 @@ Under the default `{number:04d}` pattern the ID column shows
   prefer Given/When/Then for story/task. Challenge any criterion that
   is not measurable before accepting it into the draft.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh extract-work-items`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions extract-work-items --fail-safe`

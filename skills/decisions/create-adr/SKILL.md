@@ -6,16 +6,15 @@ description: Interactively create an architecture decision record (ADR). Use
   analysis, and consequence documentation.
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
 ---
 
 # Create Architecture Decision Record
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh create-adr`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-adr --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,7 +22,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh decisions`
+**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
 
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
@@ -219,7 +218,7 @@ Next steps:
 
 Use this exact template structure when generating ADRs:
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh adr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template adr --fail-safe`
 
 ## Quality Guidelines
 
@@ -261,4 +260,4 @@ When drafting ADRs, follow these principles:
 - Before writing a new ADR file, verify the target path does not already exist
   to prevent accidental overwrites from concurrent invocations
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh create-adr`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-adr --fail-safe`

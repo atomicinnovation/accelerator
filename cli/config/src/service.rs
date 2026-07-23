@@ -1,6 +1,7 @@
 //! The driven and driving ports and the application service that performs
 //! precedence resolution and the nested-path walk and insert.
 
+use crate::catalogue;
 use crate::error::ConfigError;
 use crate::error::Existing;
 use crate::key::Key;
@@ -8,6 +9,7 @@ use crate::level::Level;
 use crate::node::Mapping;
 use crate::node::Node;
 use crate::node::Scalar;
+use crate::render::render_value;
 
 /// A resolved configuration value: a scalar leaf or a sequence of scalars.
 #[non_exhaustive]
@@ -23,6 +25,57 @@ pub enum Value {
 pub enum Resolved {
     Found(Value),
     Absent,
+}
+
+/// Which side supplied a resolved value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    Personal,
+    Team,
+    Catalogue,
+    Unset,
+}
+
+/// A resolved value with its winning source, the catalogue default already
+/// folded in on absence.
+///
+/// Where [`Resolved`] reports raw presence in a level, `Resolution` is
+/// presence-plus-default-plus-source. `render_value(Scalar::Null)` is the empty
+/// string, so an [`Source::Unset`] resolution renders identically to a
+/// config-present empty string; absence is authoritative only via [`source`]
+/// and [`is_from_config`], never `rendered().is_empty()`.
+///
+/// [`source`]: Resolution::source
+/// [`is_from_config`]: Resolution::is_from_config
+#[derive(Debug, Clone)]
+pub struct Resolution {
+    value: Value,
+    source: Source,
+}
+
+impl Resolution {
+    #[must_use]
+    pub fn rendered(&self) -> String {
+        render_value(&self.value)
+    }
+
+    #[must_use]
+    pub const fn source(&self) -> Source {
+        self.source
+    }
+
+    #[must_use]
+    pub const fn is_from_config(&self) -> bool {
+        matches!(self.source, Source::Personal | Source::Team)
+    }
+
+    /// The rendered value only when it came from config (`Personal` or `Team`);
+    /// `None` for a catalogue default or an unset key, so the empty-vs-absent
+    /// distinction cannot be lost to a naive `.is_empty()` check.
+    #[must_use]
+    pub fn configured_value(&self) -> Option<String> {
+        self.is_from_config().then(|| self.rendered())
+    }
 }
 
 /// Reads a single level's document — a driven port.
@@ -42,6 +95,233 @@ pub trait WriteConfigLevel {
     ///
     /// [`ConfigError::Io`] when the document cannot be persisted.
     fn write(&self, level: Level, document: &Node) -> Result<(), ConfigError>;
+}
+
+/// Reads the injection *content* the block subcommands render — a driven port.
+///
+/// That content is the markdown body of a config level's file (project
+/// context) and a per-skill customisation file. Distinct from
+/// [`ReadConfigLevel`], which parses only the frontmatter.
+pub trait ReadContent {
+    /// The raw markdown body of the config level's file (everything after the
+    /// frontmatter), or `None` when the file is absent.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn config_body(&self, level: Level) -> Result<Option<String>, ConfigError>;
+
+    /// The raw content of `.accelerator/skills/<skill>/context.md`, or `None`
+    /// when it is absent. `skill` is a validated identifier.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn skill_context(&self, skill: &str)
+        -> Result<Option<String>, ConfigError>;
+
+    /// The raw content of `.accelerator/skills/<skill>/instructions.md`, or
+    /// `None` when it is absent. `skill` is a validated identifier.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] or [`ConfigError::UnsafePath`] when a present file
+    /// cannot be read.
+    fn skill_instructions(
+        &self,
+        skill: &str,
+    ) -> Result<Option<String>, ConfigError>;
+}
+
+/// A custom lens directory's parsed frontmatter fields. `None` on a field means
+/// the field was absent; `Some(String::new())` means it was present but empty.
+pub struct LensFields {
+    pub name: Option<String>,
+    pub auto_detect: Option<String>,
+    pub applies_to: Option<String>,
+}
+
+/// One custom lens directory carrying a `SKILL.md`. `fields` is `None` when that
+/// file's frontmatter is malformed.
+pub struct CustomLens {
+    pub dir: String,
+    pub path: String,
+    pub fields: Option<LensFields>,
+}
+
+/// Enumerates the project's customisation directories — a driven port.
+///
+/// Covers the custom lenses under `.accelerator/lenses/`, the per-skill
+/// customisation directory names under `.accelerator/skills/`, and the init
+/// sentinel. Domain validation (lens name collision, `applies_to` filtering)
+/// is the review view's, not the adapter's.
+pub trait ReadLensCatalogue {
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the lenses directory cannot be enumerated.
+    fn custom_lenses(&self) -> Result<Vec<CustomLens>, ConfigError>;
+
+    /// The directory names directly under `.accelerator/skills/`, sorted.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the skills directory cannot be enumerated.
+    fn skill_names(&self) -> Result<Vec<String>, ConfigError>;
+
+    /// The plugin's own skill names (excluding `configure`), used to flag a
+    /// customisation directory that matches no real skill. Empty when the
+    /// plugin root is unknown, so the caller cannot validate and stays silent.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a plugin skill directory cannot be enumerated.
+    fn known_skill_names(&self) -> Result<Vec<String>, ConfigError>;
+
+    /// Whether the init sentinel `<tmp>/.gitignore` exists, `tmp` resolved
+    /// relative to the project root.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the check cannot be performed.
+    fn init_sentinel_present(
+        &self,
+        tmp_relative: &str,
+    ) -> Result<bool, ConfigError>;
+}
+
+/// Where a resolved template came from, in three-tier precedence order.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TemplateSource {
+    ConfigPath,
+    UserOverride,
+    PluginDefault,
+}
+
+impl TemplateSource {
+    /// The bash label for the source.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::ConfigPath => "config path",
+            Self::UserOverride => "user override",
+            Self::PluginDefault => "plugin default",
+        }
+    }
+}
+
+/// A resolved template.
+///
+/// Carries its source, its absolute and display-shortened paths, and its raw
+/// content; `warning` holds the tier-1 fallback note when a configured path was
+/// set but absent.
+pub struct ResolvedTemplate {
+    pub source: TemplateSource,
+    pub abs_path: String,
+    pub display_path: String,
+    pub content: String,
+    pub warning: Option<String>,
+}
+
+/// What ejecting one template did (or would do), for the exit code and message.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EjectOutcome {
+    Ejected,
+    Overwritten,
+    /// The target already exists and `--force` was not given — exit 2.
+    Exists,
+    WouldEject,
+    WouldOverwrite,
+    WouldSkip,
+    /// No plugin default template for the name — exit 1.
+    NoDefault,
+}
+
+/// The result of an eject: its outcome, the key, and the display target path.
+pub struct EjectResult {
+    pub outcome: EjectOutcome,
+    pub key: String,
+    pub display: String,
+}
+
+/// Mutates the user template overrides — a driven port. Reads live on
+/// [`ReadTemplate`]; this port owns the eject copy and the reset delete.
+pub trait TemplateOverride {
+    /// Ejects (copies) the plugin default for `name` into `templates_dir`.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the copy or the directory creation fails.
+    fn eject(
+        &self,
+        name: &str,
+        templates_dir: &str,
+        force: bool,
+        dry_run: bool,
+    ) -> Result<EjectResult, ConfigError>;
+
+    /// Deletes a resolved override file (reset `--confirm`).
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the delete fails.
+    fn delete(&self, abs_path: &str) -> Result<(), ConfigError>;
+
+    /// Whether an absolute path lies inside the resolution project root.
+    fn within_project(&self, abs_path: &str) -> bool;
+}
+
+/// Creates the project scaffold — a driven port. The core resolves which
+/// content directories and tmp directory to create; the adapter performs the
+/// idempotent filesystem work.
+pub trait Scaffold {
+    /// Creates each content directory with a `.gitkeep`, the `.accelerator/`
+    /// core tree and its ignore rules, the tmp directory with its ignore file,
+    /// and the anchored root ignore rule. Idempotent.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a directory or file cannot be created.
+    fn init(
+        &self,
+        content_dirs: &[String],
+        tmp_dir: &str,
+    ) -> Result<(), ConfigError>;
+}
+
+/// Resolves and enumerates template files across the project and plugin.
+///
+/// A driven port: the caller supplies the config-derived inputs
+/// (`templates.<key>` and the templates directory); the port performs the
+/// filesystem tiers.
+pub trait ReadTemplate {
+    /// Resolves `name` through the three tiers, or `None` when not found.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a candidate file cannot be read.
+    fn resolve_template(
+        &self,
+        name: &str,
+        config_path: Option<&str>,
+        templates_dir: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError>;
+
+    /// The template names available from the plugin templates directory,
+    /// sorted.
+    fn template_names(&self) -> Vec<String>;
+
+    /// The plugin default template for `name`, or `None` when the plugin ships
+    /// no default for it.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a present default cannot be read.
+    fn plugin_default(
+        &self,
+        name: &str,
+    ) -> Result<Option<ResolvedTemplate>, ConfigError>;
 }
 
 /// The operations the core offers callers — the driving port.
@@ -72,6 +352,88 @@ pub trait ConfigAccess {
         value: &str,
         level: Level,
     ) -> Result<(), ConfigError>;
+
+    /// Resolves a key with its catalogue default folded in on absence, reporting
+    /// the winning [`Source`]. A config-present value keeps its level source even
+    /// when it renders empty; the catalogue default applies only when neither
+    /// level supplies the key. Reads both levels eagerly when `level` is `None`,
+    /// so a malformed non-winning level still fails loud.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a level being read fails; a full-stack read fails
+    /// if either level is malformed.
+    fn effective(
+        &self,
+        key: &Key,
+        level: Option<Level>,
+    ) -> Result<Resolution, ConfigError> {
+        let found = if let Some(one) = level {
+            match self.get(key, Some(one))? {
+                Resolved::Found(value) => Some((source_of(one), value)),
+                Resolved::Absent => None,
+            }
+        } else {
+            let personal = self.get(key, Some(Level::Personal))?;
+            let team = self.get(key, Some(Level::Team))?;
+            match (personal, team) {
+                (Resolved::Found(value), _) => Some((Source::Personal, value)),
+                (Resolved::Absent, Resolved::Found(value)) => {
+                    Some((Source::Team, value))
+                }
+                (Resolved::Absent, Resolved::Absent) => None,
+            }
+        };
+        Ok(match found {
+            Some((source, value)) => Resolution { value, source },
+            None => default_resolution(key),
+        })
+    }
+
+    /// As [`effective`], but a config-present value that renders empty is treated
+    /// as absent and replaced by the catalogue default — the empty-collapse the
+    /// agent and template paths need.
+    ///
+    /// [`effective`]: ConfigAccess::effective
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when a level being read fails; a full-stack read fails
+    /// if either level is malformed.
+    fn effective_nonempty(
+        &self,
+        key: &Key,
+        level: Option<Level>,
+    ) -> Result<Resolution, ConfigError> {
+        let resolution = self.effective(key, level)?;
+        Ok(
+            if resolution.is_from_config() && resolution.rendered().is_empty() {
+                default_resolution(key)
+            } else {
+                resolution
+            },
+        )
+    }
+}
+
+const fn source_of(level: Level) -> Source {
+    match level {
+        Level::Team => Source::Team,
+        Level::Personal => Source::Personal,
+    }
+}
+
+fn default_resolution(key: &Key) -> Resolution {
+    catalogue::default_for(&key.to_string()).map_or(
+        Resolution {
+            value: Value::Scalar(Scalar::Null),
+            source: Source::Unset,
+        },
+        |value| Resolution {
+            value,
+            source: Source::Catalogue,
+        },
+    )
 }
 
 /// The application service. Depends only on the two driven ports.
@@ -115,7 +477,15 @@ impl<R: ReadConfigLevel, W: WriteConfigLevel> ConfigAccess
     ) -> Result<(), ConfigError> {
         let mut root = match self.reader.read(level)? {
             Some(Node::Mapping(mapping)) => mapping,
-            _ => Mapping::new(),
+            None => Mapping::new(),
+            Some(_) => {
+                return Err(ConfigError::Invalid {
+                    detail:
+                        "refusing to write: the config frontmatter root is \
+                         not a mapping"
+                            .to_owned(),
+                })
+            }
         };
         insert(&mut root, key.segments(), value, key)?;
         self.writer.write(level, &Node::Mapping(root))
@@ -138,7 +508,13 @@ fn resolve(document: Option<&Node>, key: &Key) -> Resolved {
     Resolved::Found(project(current))
 }
 
-fn project(node: &Node) -> Value {
+/// Projects a raw [`Node`] to the [`Value`] shape resolution yields.
+///
+/// A scalar leaf maps to itself, an all-scalar sequence to a
+/// [`Value::Sequence`], and any other node (a mapping, or a sequence with a
+/// non-scalar element) to a null scalar.
+#[must_use]
+pub fn project(node: &Node) -> Value {
     match node {
         Node::Scalar(scalar) => Value::Scalar(scalar.clone()),
         Node::Sequence(items) => scalar_elements(items)
@@ -217,7 +593,7 @@ mod tests {
     use std::rc::Rc;
 
     use super::{
-        ConfigAccess, ConfigService, ReadConfigLevel, Resolved, Value,
+        ConfigAccess, ConfigService, ReadConfigLevel, Resolved, Source, Value,
         WriteConfigLevel,
     };
     use crate::error::{ConfigError, Existing};
@@ -618,6 +994,25 @@ mod tests {
     }
 
     #[test]
+    fn set_refuses_a_present_non_mapping_root() -> Result<(), ConfigError> {
+        let writer = FakeWriter::default();
+        let captured = writer.captured.clone();
+        let service = ConfigService::new(
+            FakeReader::new(
+                LevelState::Missing,
+                LevelState::Present(sequence(&["a", "b"])),
+            ),
+            writer,
+        );
+        assert!(matches!(
+            service.set(&Key::parse("core.example")?, "v", Level::Personal),
+            Err(ConfigError::Invalid { .. })
+        ));
+        assert!(captured.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
     fn set_conflicts_descending_through_a_scalar() -> Result<(), ConfigError> {
         let writer = FakeWriter::default();
         let captured = writer.captured.clone();
@@ -734,6 +1129,122 @@ mod tests {
         assert_eq!(entries[0].0, "enabled");
         assert_eq!(entries[0].1, Node::Scalar(Scalar::Bool(true)));
         assert_eq!(entries[1].0, "core");
+        Ok(())
+    }
+
+    fn agents_reviewer(value: &str) -> FakeReader {
+        FakeReader::new(
+            LevelState::Missing,
+            LevelState::Present(mapping(vec![(
+                "agents",
+                mapping(vec![("reviewer", text(value))]),
+            )])),
+        )
+    }
+
+    #[test]
+    fn effective_keeps_the_config_source_for_an_explicit_empty_value(
+    ) -> Result<(), ConfigError> {
+        let resolution = service(agents_reviewer(""))
+            .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(resolution.source(), Source::Personal);
+        assert!(resolution.is_from_config());
+        assert_eq!(resolution.rendered(), "");
+        assert_eq!(resolution.configured_value(), Some(String::new()));
+        Ok(())
+    }
+
+    #[test]
+    fn effective_nonempty_collapses_an_explicit_empty_to_the_catalogue(
+    ) -> Result<(), ConfigError> {
+        let resolution = service(agents_reviewer(""))
+            .effective_nonempty(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(resolution.source(), Source::Catalogue);
+        assert!(!resolution.is_from_config());
+        assert_eq!(resolution.rendered(), "accelerator:reviewer");
+        assert_eq!(resolution.configured_value(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_source_is_authoritative_independent_of_the_rendered_value(
+    ) -> Result<(), ConfigError> {
+        let configured_empty = service(agents_reviewer(""))
+            .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(configured_empty.source(), Source::Personal);
+        assert_eq!(configured_empty.rendered(), "");
+
+        let absent =
+            service(FakeReader::new(LevelState::Missing, LevelState::Missing))
+                .effective(&Key::parse("agents.reviewer")?, None)?;
+        assert_eq!(absent.source(), Source::Catalogue);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_personal_wins_over_team() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("team"))]),
+            )])),
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("personal"))]),
+            )])),
+        );
+        let resolution =
+            service(reader).effective(&Key::parse("core.example")?, None)?;
+        assert_eq!(resolution.source(), Source::Personal);
+        assert_eq!(resolution.rendered(), "personal");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_team_wins_on_personal_absent() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Present(mapping(vec![(
+                "core",
+                mapping(vec![("example", text("team"))]),
+            )])),
+            LevelState::Missing,
+        );
+        let resolution =
+            service(reader).effective(&Key::parse("core.example")?, None)?;
+        assert_eq!(resolution.source(), Source::Team);
+        assert_eq!(resolution.rendered(), "team");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_catalogue_on_both_absent() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(LevelState::Missing, LevelState::Missing);
+        let resolution =
+            service(reader).effective(&Key::parse("paths.work")?, None)?;
+        assert_eq!(resolution.source(), Source::Catalogue);
+        assert_eq!(resolution.rendered(), "meta/work");
+        Ok(())
+    }
+
+    #[test]
+    fn effective_is_unset_on_an_unknown_key() -> Result<(), ConfigError> {
+        let reader = FakeReader::new(LevelState::Missing, LevelState::Missing);
+        let resolution =
+            service(reader).effective(&Key::parse("no.such.key")?, None)?;
+        assert_eq!(resolution.source(), Source::Unset);
+        assert_eq!(resolution.rendered(), "");
+        assert_eq!(resolution.configured_value(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn effective_fails_loud_when_the_non_winning_level_is_malformed(
+    ) -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Failing,
+            LevelState::Present(mapping(vec![("k", text("personal"))])),
+        );
+        assert!(service(reader).effective(&Key::parse("k")?, None).is_err());
         Ok(())
     }
 }

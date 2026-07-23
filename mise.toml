@@ -173,6 +173,10 @@ run = "invoke build.frontend"
 description = "Build the visualiser server binary with the dev-frontend feature"
 run = "invoke build.server-dev"
 
+[tasks."build:cli:dev"]
+description = "Build the debug cli launcher (cli/target/debug/accelerator) the test suites invoke through ACCELERATOR_BIN"
+run = "invoke build.cli-dev"
+
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
 depends = ["build:frontend"]
@@ -238,7 +242,7 @@ depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "tes
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"
-depends = ["build:server:dev"]
+depends = ["build:server:dev", "build:cli:dev"]
 run = "invoke test.integration.visualiser"
 
 [tasks."test:integration:dev"]
@@ -253,6 +257,7 @@ run = "invoke test.integration.entrypoint"
 
 [tasks."test:integration:config"]
 description = "Run config integration tests"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.config"
 
 [tasks."test:integration:deny"]
@@ -267,10 +272,12 @@ run = "invoke test.integration.pup"
 
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.decisions"
 
 [tasks."test:integration:binary-acquisition"]
 description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.binary-acquisition"
 
 [tasks."test:integration:hooks"]
@@ -284,14 +291,17 @@ env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
 [tasks."test:integration:migrate"]
 description = "Run meta-directory migration framework tests (shell harnesses)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.migrate"
 
 [tasks."test:integration:work"]
 description = "Run work-management skill script tests (shell harnesses)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.work"
 
 [tasks."test:integration:integrations"]
 description = "Run jira/linear integration script tests (shell harnesses + python3 mock servers)"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.integrations"
 
 [tasks."test:integration"]
@@ -459,9 +469,24 @@ description = "Guard the committed verify shims against their cli/verify build i
 depends = ["deps:install:python"]
 run = "invoke lint.vendor-shims.check"
 
+[tasks."lint:store-duplication:check"]
+description = "Keep atomic_write consolidated: no temp-and-rename outside cli/store/"
+depends = ["deps:install:python"]
+run = "invoke lint.store-duplication.check"
+
+[tasks."lint:skill-permissions:check"]
+description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
+depends = ["deps:install:python"]
+run = "invoke lint.skill-permissions.check"
+
+[tasks."lint:call-site-migration:check"]
+description = "Guard against regressing to the bash config cluster: no SKILL.md names a removed scripts/config- script (Grep B) and --allow-legacy-layout stays confined to the migration engine"
+depends = ["deps:install:python"]
+run = "invoke lint.call-site-migration.check"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -503,7 +528,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

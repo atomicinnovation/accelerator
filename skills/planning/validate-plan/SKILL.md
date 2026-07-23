@@ -5,14 +5,13 @@ description: Validate that an implementation plan was correctly executed by
   a plan to verify correctness.
 argument-hint: "[path to plan file]"
 allowed-tools:
-   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Validate Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh validate-plan`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill validate-plan --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,8 +19,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh plans`
-**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh validations`
+**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path validations --fail-safe`
 
 ## Plan Validation Template
 
@@ -30,7 +29,7 @@ every plan validation report must carry. Read it now — use it to guide
 what information you record in the validation process and what shape
 you persist in Step 4.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh validation`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template validation --fail-safe`
 
 You are tasked with validating that an implementation plan was correctly
 executed, verifying all success criteria and identifying any deviations or
@@ -240,4 +239,4 @@ history to understand what was implemented.
 Remember: Good validation catches issues before they reach production. Be
 constructive but thorough in identifying gaps or improvements.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh validate-plan`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions validate-plan --fail-safe`

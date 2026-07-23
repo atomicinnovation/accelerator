@@ -1,5 +1,5 @@
 ---
-id: "240-description"
+id: "240"
 title: "PR 240 Description"
 date: "2026-06-01T00:00:00+00:00"
 author: Toby

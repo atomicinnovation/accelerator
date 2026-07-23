@@ -9,7 +9,6 @@ pub enum Node {
 }
 
 /// A leaf value, typed so a rewrite keeps a sibling's kind intact.
-#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scalar {
     String(String),

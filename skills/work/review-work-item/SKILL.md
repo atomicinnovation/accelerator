@@ -5,15 +5,14 @@ description: Review a work item through multiple quality lenses and
   evaluate a work item before implementation or escalation.
 argument-hint: "[path to work item file]"
 allowed-tools:
-   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/config-*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
    - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # Review Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-context.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-context.sh review-work-item`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agents.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-work-item --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,10 +20,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-review.sh work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config review work-item --fail-safe`
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh work`
-**Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-path.sh review_work`
+**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work item reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_work --fail-safe`
 
 ## Work Item Review Template
 
@@ -32,7 +31,7 @@ The template below defines the frontmatter and body structure that every
 work item review must carry. Read it now — use it to guide what information
 you record in Steps 3-4 and what shape you persist in Step 4.8.
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-template.sh work-item-review`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item-review --fail-safe`
 
 You are tasked with reviewing a work item through quality lenses and then
 collaboratively iterating the work item based on findings.
@@ -210,7 +209,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-agent-name.sh reviewer`"`.
+`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agent reviewer --fail-safe`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 
@@ -604,4 +603,4 @@ Work item review sits in the work item lifecycle between authoring and implement
 4. `/update-work-item` — Apply status transitions after review decisions
 5. `/create-plan` — Create an implementation plan from an approved work item
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-skill-instructions.sh review-work-item`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-work-item --fail-safe`

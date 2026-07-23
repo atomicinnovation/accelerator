@@ -50,13 +50,13 @@ hardcoded_fallback() {
 
 # Try to read the template
 TEMPLATE_OUTPUT=""
-TEMPLATE_OUTPUT=$("$PLUGIN_ROOT/scripts/config-read-template.sh" work-item 2>/dev/null) || {
+TEMPLATE_OUTPUT=$("${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}" config template work-item 2>/dev/null) || {
   hardcoded_fallback "$FIELD"
   exit 0
 }
 
 # Find the field line in the template frontmatter.
-# The template output is wrapped in code fences by config-read-template.sh,
+# The template output is wrapped in code fences by the template renderer,
 # so we need to look inside the fenced content.
 FIELD_LINE=""
 while IFS= read -r line; do

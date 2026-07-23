@@ -402,5 +402,28 @@ run_config "$PROJ_OO" >"$OUT_OO"
 assert_json_eq "override-only template absent from set" \
   '.templates | has("zzz-fake")' "false" "$OUT_OO"
 
+# ─── A failing config read is fatal, not suppressed ──────────────────────────
+echo "Test: a failing config read refuses to launch a partial configuration"
+PROJ_FAIL="$TMPDIR_BASE/t-failstub"
+make_project "$PROJ_FAIL"
+FAIL_STUB="$TMPDIR_BASE/failing-accelerator"
+cat >"$FAIL_STUB" <<'STUBEOF'
+#!/usr/bin/env bash
+echo "stub: config unavailable" >&2
+exit 1
+STUBEOF
+chmod +x "$FAIL_STUB"
+FAIL_RC=0
+(
+  cd "$PROJ_FAIL"
+  ACCELERATOR_BIN="$FAIL_STUB" "$WRITE_CONFIG" \
+    --plugin-version "0.0.0-test" \
+    --project-root "$PROJ_FAIL" \
+    --tmp-dir "$PROJ_FAIL/.accelerator/tmp/visualiser" \
+    --log-file "$PROJ_FAIL/.accelerator/tmp/visualiser/server.log"
+) >/dev/null 2>&1 || FAIL_RC=$?
+assert_neq "write-visualiser-config exits non-zero on a failing config read" \
+  "0" "$FAIL_RC"
+
 echo ""
 test_summary
