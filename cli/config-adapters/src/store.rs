@@ -35,6 +35,7 @@ pub struct FileConfigStore {
     root: PathBuf,
     policy: LegacyPolicy,
     plugin_root: Option<PathBuf>,
+    fresh_mode: u32,
 }
 
 impl FileConfigStore {
@@ -43,6 +44,7 @@ impl FileConfigStore {
             root: root.into(),
             policy: LegacyPolicy::Reject,
             plugin_root: None,
+            fresh_mode: 0o666 & !store::current_umask(),
         }
     }
 
@@ -189,9 +191,7 @@ impl WriteConfigLevel for FileConfigStore {
         ensure_inner_gitignore(&config_dir)?;
         let mode = match level {
             Level::Personal => NewFileMode::Set(0o600),
-            Level::Team => {
-                NewFileMode::PreserveOr(0o666 & !store::current_umask())
-            }
+            Level::Team => NewFileMode::PreserveOr(self.fresh_mode),
         };
         store::atomic_write(&path, rendered.as_bytes(), &bounds, mode)
             .map_err(to_config_error)
@@ -612,49 +612,29 @@ fn lens_field(node: &Node, key: &str) -> Option<String> {
     let Node::Mapping(mapping) = node else {
         return None;
     };
-    mapping.get(key).map(render_node)
+    mapping
+        .get(key)
+        .map(|value| config::render_value(&config::project(value)))
 }
 
-fn render_node(node: &Node) -> String {
-    match node {
-        Node::Scalar(scalar) => render_scalar(scalar),
-        Node::Sequence(items) => {
-            let rendered: Vec<String> = items
-                .iter()
-                .map(|item| match item {
-                    Node::Scalar(scalar) => render_scalar(scalar),
-                    _ => String::new(),
-                })
-                .collect();
-            format!("[{}]", rendered.join(", "))
-        }
-        Node::Mapping(_) => String::new(),
-    }
-}
-
-fn render_scalar(scalar: &config::Scalar) -> String {
-    use config::Scalar;
-    match scalar {
-        Scalar::String(value) => value.clone(),
-        Scalar::Bool(value) => value.to_string(),
-        Scalar::Int(value) => value.to_string(),
-        Scalar::Float(value) => value.to_string(),
-        Scalar::Null => String::new(),
-    }
-}
-
-/// Reads a file within `bounds`, returning `None` when it is absent. Refuses a
-/// path escaping the permitted root before touching the filesystem.
+/// Reads a file within `bounds`, returning `None` when it is absent. Decodes as
+/// UTF-8 fail-loud (never lossily), preserving the old `read_to_string`
+/// contract for the config-body and skill-file readers.
 fn read_within(
     path: &Path,
     bounds: &WriteBounds<'_>,
 ) -> Result<Option<String>, ConfigError> {
-    store::ensure_contained(path, bounds).map_err(to_config_error)?;
-    match fs::read_to_string(path) {
-        Ok(content) => Ok(Some(content)),
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(io_error(path, &error)),
-    }
+    let Some(bytes) =
+        store::read_within(path, bounds).map_err(to_config_error)?
+    else {
+        return Ok(None);
+    };
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|error| ConfigError::Io {
+            path: display(path),
+            detail: error.to_string(),
+        })
 }
 
 /// The markdown body: everything after a leading `---`-fenced frontmatter, or
@@ -759,7 +739,7 @@ mod tests {
 
     use config::{
         ConfigAccess, ConfigError, ConfigService, Key, Level, Node,
-        ReadConfigLevel, Scalar, WriteConfigLevel,
+        ReadConfigLevel, ReadContent, Scalar, WriteConfigLevel,
     };
 
     use super::FileConfigStore;
@@ -1124,6 +1104,36 @@ mod tests {
         let start = tempdir()?.join("isolated/leaf");
         fs::create_dir_all(&start)?;
         assert_eq!(FileConfigStore::discover_root(&start), start);
+        Ok(())
+    }
+
+    #[test]
+    fn a_config_body_with_invalid_utf8_fails_loud() -> Result<(), TestError> {
+        let root = tempdir()?;
+        fs::create_dir_all(root.join(".accelerator"))?;
+        fs::write(
+            root.join(".accelerator/config.md"),
+            b"\xff\xfe---\nx: 1\n---\nbody\n",
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.config_body(Level::Team),
+            Err(ConfigError::Io { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_skill_context_with_invalid_utf8_fails_loud() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let skill = root.join(".accelerator/skills/demo");
+        fs::create_dir_all(&skill)?;
+        fs::write(skill.join("context.md"), b"\xff\xfe not utf8")?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.skill_context("demo"),
+            Err(ConfigError::Io { .. })
+        ));
         Ok(())
     }
 }

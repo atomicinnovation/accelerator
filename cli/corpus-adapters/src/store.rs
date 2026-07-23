@@ -7,7 +7,6 @@
 
 use std::fs;
 use std::io::Error as IoError;
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use corpus::{AtomicWrite, Record, RecordStore, StoreError};
@@ -121,11 +120,9 @@ impl RecordStore for FileCorpusStore {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
         }
         let _guard = lock::acquire(&lockdir(path), self.lock)?;
-        let mut content = match fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(error) if error.kind() == ErrorKind::NotFound => Vec::new(),
-            Err(error) => return Err(io(path, &error)),
-        };
+        let mut content = store::read_within(path, &self.bounds())
+            .map_err(to_store_error)?
+            .unwrap_or_default();
         if content.last().is_some_and(|byte| *byte != b'\n') {
             content.push(b'\n');
         }
@@ -142,13 +139,16 @@ impl RecordStore for FileCorpusStore {
             .map_err(to_store_error)?;
         let prefix = remove_prefix(key)?;
         let _guard = lock::acquire(&lockdir(path), self.lock)?;
-        let existing = match fs::read_to_string(path) {
-            Ok(text) => text,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Ok(());
-            }
-            Err(error) => return Err(io(path, &error)),
+        let Some(bytes) =
+            store::read_within(path, &self.bounds()).map_err(to_store_error)?
+        else {
+            return Ok(());
         };
+        let existing =
+            String::from_utf8(bytes).map_err(|error| StoreError::Io {
+                path: show(path),
+                detail: error.to_string(),
+            })?;
         let mut out = String::with_capacity(existing.len());
         for line in existing.lines() {
             if !line.starts_with(&prefix) {
@@ -164,12 +164,24 @@ impl RecordStore for FileCorpusStore {
 mod tests {
     use std::fs;
 
-    use corpus::{AtomicWrite, StoreError};
+    use corpus::{AtomicWrite, Outcome, Record, RecordStore, StoreError};
     use tempfile::TempDir;
 
     use super::FileCorpusStore;
 
     type TestError = Box<dyn std::error::Error>;
+
+    fn record() -> Record {
+        Record {
+            transformation_key: "greeting".to_owned(),
+            schema_version: 1,
+            outcome: Outcome::Edited,
+            proposed_value: "hello".to_owned(),
+            user_value: None,
+            timestamp: "2026-07-19T00:00:00+00:00".to_owned(),
+            extras: Vec::new(),
+        }
+    }
 
     #[test]
     fn a_write_through_the_port_replaces_existing_content(
@@ -199,6 +211,44 @@ mod tests {
             fs::read(&outside)?,
             b"secret",
             "the symlink target must not be clobbered"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn remove_by_key_on_invalid_utf8_errors_and_leaves_the_file(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("log.jsonl");
+        let bad = b"\xff\xfe not valid utf8\n";
+        fs::write(&target, bad)?;
+        let result =
+            FileCorpusStore::new(dir.path()).remove_by_key(&target, "greeting");
+        assert!(
+            result.is_err(),
+            "invalid UTF-8 must not be silently rewritten"
+        );
+        assert_eq!(
+            fs::read(&target)?,
+            bad,
+            "the file must be left byte-identical"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn append_record_refuses_a_symlinked_intermediate_component(
+    ) -> Result<(), TestError> {
+        let root = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        std::os::unix::fs::symlink(elsewhere.path(), root.path().join("sub"))?;
+        let target = root.path().join("sub").join("log.jsonl");
+        let result =
+            FileCorpusStore::new(root.path()).append_record(&target, &record());
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(
+            !elsewhere.path().join("log.jsonl").exists(),
+            "no file may be created outside the root"
         );
         Ok(())
     }

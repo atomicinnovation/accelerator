@@ -24,6 +24,7 @@ pub use crate::node::Mapping;
 pub use crate::node::Node;
 pub use crate::node::Scalar;
 pub use crate::render::render_value;
+pub use crate::service::project;
 pub use crate::service::ConfigAccess;
 pub use crate::service::ConfigService;
 pub use crate::service::CustomLens;

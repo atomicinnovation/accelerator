@@ -133,6 +133,27 @@ pub fn ensure_contained(
     Ok(parent_canonical)
 }
 
+/// Reads a file within `bounds`, returning `Ok(None)` when it is absent.
+///
+/// The read half of the [`ensure_contained`] containment contract: a path
+/// escaping the permitted root is refused before the filesystem is touched.
+///
+/// # Errors
+/// Returns [`WriteError::UnsafePath`] when a component escapes the permitted
+/// root, or [`WriteError::Io`] on any read failure other than the file being
+/// absent.
+pub fn read_within(
+    path: &Path,
+    bounds: &WriteBounds<'_>,
+) -> Result<Option<Vec<u8>>, WriteError> {
+    ensure_contained(path, bounds)?;
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(io(path, &error)),
+    }
+}
+
 /// Canonicalises `path` by resolving its deepest existing ancestor and
 /// re-appending the not-yet-existing tail verbatim, so a target under a
 /// not-yet-created permitted root still resolves for the containment check.
@@ -260,8 +281,8 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        atomic_write, classify_persist_error, ensure_contained, stage,
-        NewFileMode, WriteBounds, WriteError,
+        atomic_write, classify_persist_error, ensure_contained, read_within,
+        stage, NewFileMode, WriteBounds, WriteError,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -516,6 +537,51 @@ mod tests {
         let target = permitted.join("config.md");
         assert!(matches!(
             ensure_contained(&target, &bounds(&permitted, project.path())),
+            Err(WriteError::UnsafePath { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn read_within_reads_a_contained_file() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("permitted");
+        fs::create_dir_all(&permitted)?;
+        let target = permitted.join("file.md");
+        fs::write(&target, b"hello")?;
+        assert_eq!(
+            read_within(&target, &bounds(&permitted, project.path()))?,
+            Some(b"hello".to_vec())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn read_within_returns_none_on_absence() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("permitted");
+        fs::create_dir_all(&permitted)?;
+        assert_eq!(
+            read_within(
+                &permitted.join("absent.md"),
+                &bounds(&permitted, project.path())
+            )?,
+            None
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn read_within_refuses_a_symlink_escaping_path() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("permitted");
+        fs::create_dir_all(&permitted)?;
+        let outside = project.path().join("outside.md");
+        fs::write(&outside, b"secret")?;
+        let target = permitted.join("link.md");
+        std::os::unix::fs::symlink(&outside, &target)?;
+        assert!(matches!(
+            read_within(&target, &bounds(&permitted, project.path())),
             Err(WriteError::UnsafePath { .. })
         ));
         Ok(())

@@ -918,30 +918,37 @@ subdomain, so this crosses no pup boundary.
 
 #### Automated Verification
 
-- [ ] `store::read_within` unit tests: reads a contained file; returns `None` on
+- [x] `store::read_within` unit tests: reads a contained file; returns `None` on
       absence; refuses a symlink-escaping path (mirrors `atomic_write`'s refusal)
-- [ ] A corpus-adapters test asserts `remove_by_key` on a file with invalid UTF-8
+- [x] A corpus-adapters test asserts `remove_by_key` on a file with invalid UTF-8
       returns an error and leaves the file byte-identical (no lossy rewrite)
-- [ ] A config-adapters test asserts `config_body`/`read_skill_file` on a file
+- [x] A config-adapters test asserts `config_body`/`read_skill_file` on a file
       with invalid UTF-8 returns an error (fail-loud), mirroring the corpus test —
       the `String::from_utf8` decode must not degrade to lossy
-- [ ] A corpus-adapters test asserts `append_record`/`remove_by_key` refuse a path
+- [x] A corpus-adapters test asserts `append_record`/`remove_by_key` refuse a path
       whose **intermediate** directory component is a symlink escaping the root,
       and that no directory is created outside the root — pinning that
       `ensure_contained` runs before `create_dir_all`
-- [ ] Existing config-adapters and corpus-adapters store tests pass unchanged
-- [ ] The existing `PreserveOr` mode tests stay green (the resulting on-disk mode
+- [x] Existing config-adapters and corpus-adapters store tests pass unchanged
+- [x] The existing `PreserveOr` mode tests stay green (the resulting on-disk mode
       is unchanged by moving the umask read to construction)
-- [ ] `lens_field` output is unchanged by the `render_value` swap (existing lens
+- [x] `lens_field` output is unchanged by the `render_value` swap (existing lens
       tests pass)
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+
+> Deviation: the `render_node` → `config::render_value` swap needs a `Node` →
+> `Value` projection, for which the private `service::project` was made public and
+> re-exported as `config::project` (a config-subdomain change the plan implied but
+> did not spell out). Behaviour is identical for every tested lens (all-scalar
+> fields); only a malformed non-scalar-in-sequence field, which nothing produces,
+> differs.
 
 #### Manual Verification
 
-- [ ] `cargo tree -p store` shows no new dependency (still std, tempfile, rustix)
-- [ ] The `store` duplication check (`tasks/lint/store_duplication.py`) still
+- [x] `cargo tree -p store` shows no new dependency (still std, tempfile, rustix)
+- [x] The `store` duplication check (`tasks/lint/store_duplication.py`) still
       passes — `read_within` is a read, not a temp-then-rename
-- [ ] The umask read-once change is structural: `fresh_mode` is a field resolved
+- [x] The umask read-once change is structural: `fresh_mode` is a field resolved
       in the constructor and `WriteConfigLevel::write` reads no umask per call
       (confirmed by inspection — the `PreserveOr` tests cannot observe read count).
       If per-call read-count coverage is later wanted, inject the umask via a

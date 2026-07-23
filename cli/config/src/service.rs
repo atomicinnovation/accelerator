@@ -508,7 +508,13 @@ fn resolve(document: Option<&Node>, key: &Key) -> Resolved {
     Resolved::Found(project(current))
 }
 
-fn project(node: &Node) -> Value {
+/// Projects a raw [`Node`] to the [`Value`] shape resolution yields.
+///
+/// A scalar leaf maps to itself, an all-scalar sequence to a
+/// [`Value::Sequence`], and any other node (a mapping, or a sequence with a
+/// non-scalar element) to a null scalar.
+#[must_use]
+pub fn project(node: &Node) -> Value {
     match node {
         Node::Scalar(scalar) => Value::Scalar(scalar.clone()),
         Node::Sequence(items) => scalar_elements(items)
