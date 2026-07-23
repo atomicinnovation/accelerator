@@ -129,6 +129,16 @@ _Last updated 2026-07-23._
      covered by the retained `api_docs_patch` write-path tests + the patcher unit
      tests, so a separate golden fixture was not added.
 
+     The added dir-fsync widened a **pre-existing** startup race the full-gate run
+     surfaced (`shutdown_preserves_state_on_stopped_write_failure` exiting via
+     SIGTERM under parallel load): `server-info.json` was announced before the
+     SIGTERM handler was installed, so a signal arriving the instant the file
+     appeared hit the default terminate disposition. Fixed structurally — the
+     signal streams are now created **synchronously** in `spawn_signal_handlers`
+     (installing the OS handler before it returns) and that call moved ahead of
+     the pid/info writes, so readiness is never announced before shutdown is
+     handled.
+
   6. **thiserror + deny reconcile** — the server's `thiserror` pin moved to the
      workspace `2` line; it built and tested clean (its error enums use only the
      standard `#[error]`/`#[from]`/`#[source]`/`transparent` forms that carry
@@ -137,9 +147,13 @@ _Last updated 2026-07-23._
      `Unicode-DFS-2016` allowance removed (`deny:check` no longer warns
      license-not-encountered).
 
-  **Phase 2 is complete.** All six steps landed; `server:check`, `cli:check`,
-  `deny:check`, `pup:check`, `lint:store-duplication:check`, the visualiser
-  unit/integration suites, and the parity suite are green.
+  **Phase 2 is complete**, landed as three commits (clustering retirement; write
+  -path retirement + shared-store fsync + the shutdown-race fix; thiserror 2 +
+  deny re-prune). All component criteria green — `server:check`, `cli:check`,
+  `deny:check`, `pup:check`, `lint:store-duplication:check`, `build-system:check`,
+  the visualiser unit/integration/parity suites, and the full `mise run` gate
+  (green after the shutdown-race fix). The one open item is the manual visual
+  spot-check of the rendered library/kanban/related views after the engine swap.
 
 - **Phases 3–5:** not started.
 
@@ -628,7 +642,7 @@ regression tests over the new `FileCorpusStore`-backed, `spawn_blocking` seam:
 - [x] CRLF/mode-preservation and concurrent-conditional-patch tests pass
 - [x] Component + visualiser suites pass:
       `mise run server:check test:unit:visualiser test:integration:visualiser`
-- [ ] Full gate is green: `mise run`
+- [x] Full gate is green: `mise run` (confirmed after the shutdown-race fix)
 
 #### Manual Verification
 
