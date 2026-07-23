@@ -895,6 +895,79 @@ fn review_core_lenses_default_line_carries_the_catalogue_join() -> TestResult {
 }
 
 #[test]
+fn review_pr_verdict_disabled_line_is_byte_exact() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\nreview:\n  pr_request_changes_severity: none\n---\n")?;
+    let output = fixture.run(&["config", "review", "pr"])?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8(output.stdout)?.contains(
+        "- **Verdict**: REQUEST_CHANGES disabled (severity-based escalation \
+         turned off)\n  (default: any `critical`)\n"
+    ));
+    Ok(())
+}
+
+#[test]
+fn review_pr_verdict_custom_severity_line_is_byte_exact() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\nreview:\n  pr_request_changes_severity: major\n---\n")?;
+    let output = fixture.run(&["config", "review", "pr"])?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8(output.stdout)?.contains(
+        "- **Verdict**: REQUEST_CHANGES when any `major` or higher\n  \
+         (default: any `critical`)\n"
+    ));
+    Ok(())
+}
+
+#[test]
+fn review_plan_revise_disabled_line_is_byte_exact() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\nreview:\n  plan_revise_severity: none\n---\n")?;
+    let output = fixture.run(&["config", "review", "plan"])?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8(output.stdout)?.contains(
+        "- **Verdict**: REVISE when severity-based REVISE disabled or 3+ \
+         `major`\n  (default: any `critical` or 3+ `major`)\n"
+    ));
+    Ok(())
+}
+
+#[test]
+fn review_work_item_revise_custom_severity_and_count_is_byte_exact(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nreview:\n  work_item_revise_severity: major\n  \
+         work_item_revise_major_count: 5\n---\n",
+    )?;
+    let output = fixture.run(&["config", "review", "work-item"])?;
+    assert_eq!(code(&output), 0);
+    assert!(String::from_utf8(output.stdout)?.contains(
+        "- **Verdict**: REVISE when any `major` or 5+ `major`\n  (default: \
+         any `critical` or 2+ `major`)\n"
+    ));
+    Ok(())
+}
+
+#[test]
+fn review_work_item_core_lenses_note_is_byte_exact() -> TestResult {
+    let fixture = Fixture::new()?
+        .team("---\nreview:\n  core_lenses:\n    - clarity\n---\n")?;
+    let output = fixture.run(&["config", "review", "work-item"])?;
+    assert_eq!(code(&output), 0);
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains(
+        "Note: built-in work-item lens(es) not in your core_lenses but will \
+         be added up to max_lenses: completeness dependency scope testability"
+    ));
+    assert!(stderr.contains(
+        "      Add them to disabled_lenses to opt out, or raise core_lenses \
+         to include them explicitly."
+    ));
+    Ok(())
+}
+
+#[test]
 fn review_value_lines_track_the_catalogue_defaults() -> TestResult {
     fn scalar(key: &str) -> Result<String, Box<dyn Error>> {
         match config::catalogue::default_for(key) {
