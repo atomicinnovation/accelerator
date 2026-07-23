@@ -32,7 +32,6 @@ pub mod log;
 pub mod related;
 pub mod server;
 pub mod shutdown;
-pub mod slug;
 pub mod sse_hub;
 pub mod templates;
 pub mod watcher;

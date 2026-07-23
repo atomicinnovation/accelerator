@@ -76,158 +76,78 @@ fn default_id_pattern() -> String {
     "{number:04d}".to_string()
 }
 
-/// Runtime work-item ID configuration with the scan regex compiled once
-/// at boot. All downstream code accepts `&WorkItemConfig` and never
-/// re-compiles.
-#[derive(Debug)]
+/// Runtime work-item ID configuration: the shared corpus id scheme plus its
+/// compiled scan regex, resolved once at boot. The admission predicates
+/// (`extract_id`/`normalise_id`/`is_canonical_id_token`) delegate to
+/// `corpus::WorkItemIdScheme`; no id convention lives here.
 pub struct WorkItemConfig {
-    pub scan_regex: regex::Regex,
-    pub scan_regex_raw: String,
-    pub id_pattern: String,
-    pub default_project_code: Option<String>,
+    scheme: corpus::WorkItemIdScheme,
+    scanner: corpus_adapters::RegexScanner,
+}
+
+impl std::fmt::Debug for WorkItemConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkItemConfig")
+            .field("scheme", &self.scheme)
+            .finish_non_exhaustive()
+    }
 }
 
 impl WorkItemConfig {
     pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
-        let scan_regex =
-            regex::Regex::new(&raw.scan_regex).map_err(|source| {
-                ConfigError::InvalidScanRegex {
-                    pattern: raw.scan_regex.clone(),
-                    source,
-                }
-            })?;
+        let scanner = corpus_adapters::RegexScanner::compile(&raw.scan_regex)
+            .map_err(|source| ConfigError::InvalidScanRegex {
+            pattern: raw.scan_regex.clone(),
+            source,
+        })?;
         Ok(Self {
-            scan_regex,
-            scan_regex_raw: raw.scan_regex,
-            id_pattern: raw.id_pattern,
-            default_project_code: raw.default_project_code,
+            scheme: corpus::WorkItemIdScheme {
+                id_pattern: raw.id_pattern,
+                default_project_code: raw.default_project_code,
+            },
+            scanner,
         })
     }
 
     /// Fallback used when `work_item` is absent from config (pre-Phase-2
     /// launchers). Behaves identically to the default `{number:04d}` pattern.
+    #[must_use]
     pub fn default_numeric() -> Self {
-        let raw = "^([0-9]+)-".to_string();
+        // Compile-time-constant regex literal cannot fail to compile.
+        #[allow(clippy::expect_used)]
+        let scanner = corpus_adapters::RegexScanner::compile("^([0-9]+)-")
+            .expect("numeric scan regex is a valid literal");
         Self {
-            // Compile-time-constant regex literal cannot fail to compile.
-            #[allow(clippy::unwrap_used)]
-            scan_regex: regex::Regex::new(&raw).unwrap(),
-            scan_regex_raw: raw,
-            id_pattern: "{number:04d}".to_string(),
-            default_project_code: None,
+            scheme: corpus::WorkItemIdScheme::numeric(),
+            scanner,
         }
     }
 
-    /// True iff `token` is exactly a canonical work-item id under this
-    /// configuration. The width is parsed from `id_pattern`'s
-    /// `{number:0Nd}` segment; tokens with the wrong digit count
-    /// (or a missing/incorrect project prefix) are rejected.
-    ///
-    /// This is distinct from `extract_id` (which uses the more permissive
-    /// `scan_regex` and requires a trailing `-`) and from `normalise_id`
-    /// (which pads bare digits to the canonical width). The token
-    /// predicate admits only canonical-form strings, with no padding and
-    /// no surrounding context — the right tool for slug-prefix stripping.
+    /// The shared id scheme (pattern + project code) driving admission.
+    #[must_use]
+    pub fn scheme(&self) -> &corpus::WorkItemIdScheme {
+        &self.scheme
+    }
+
+    /// The compiled scan regex, as a `corpus::IdScanner`.
+    #[must_use]
+    pub fn scanner(&self) -> &corpus_adapters::RegexScanner {
+        &self.scanner
+    }
+
+    #[must_use]
     pub fn is_canonical_id_token(&self, token: &str) -> bool {
-        let width = self.canonical_digit_width();
-        let digits = match &self.default_project_code {
-            Some(code) => match token.strip_prefix(&format!("{code}-")) {
-                Some(rest) => rest,
-                None => return false,
-            },
-            None => token,
-        };
-        if width == 0 {
-            // No width specifier: admit any non-empty digit run.
-            !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
-        } else {
-            digits.len() == width && digits.chars().all(|c| c.is_ascii_digit())
-        }
+        self.scheme.is_canonical_id_token(token)
     }
 
-    fn canonical_digit_width(&self) -> usize {
-        let s = &self.id_pattern;
-        let Some(i) = s.find("{number") else {
-            return 0;
-        };
-        let rest = &s[i + "{number".len()..];
-        let Some(end) = rest.find('}') else {
-            return 0;
-        };
-        let spec = &rest[..end];
-        let trimmed = spec.trim_start_matches(':').trim_end_matches('d');
-        if trimmed.is_empty() {
-            return 0;
-        }
-        let digits = trimmed.trim_start_matches('0');
-        if digits.is_empty() {
-            // Was "0" or "00…" — admit any digit count.
-            return 0;
-        }
-        digits.parse::<usize>().ok().unwrap_or(0)
-    }
-
-    /// Extract the full-string work-item ID from a filename.
-    ///
-    /// Two-pass admission:
-    /// 1. Primary: apply the configured scan regex. Capture group 1 is the
-    ///    digit run; the full ID is `<project_code>-<digits>` when a project
-    ///    code is configured, or just `<digits>` for the numeric-only pattern.
-    /// 2. Fallback (project-prefixed pattern only): if the primary regex fails
-    ///    and a `default_project_code` is set, try the bare-numeric form.
-    ///    On match, key the file as `<project_code>-<digits>` so legacy
-    ///    bare-numeric files remain reachable during a pattern-config rollout.
+    #[must_use]
     pub fn extract_id(&self, filename: &str) -> Option<String> {
-        if let Some(cap) = self.scan_regex.captures(filename) {
-            let digits = cap.get(1)?.as_str();
-            return Some(match &self.default_project_code {
-                Some(code) => format!("{code}-{digits}"),
-                None => digits.to_string(),
-            });
-        }
-        // Fallback: only when a project code is configured.
-        let code = self.default_project_code.as_deref()?;
-        let dash = filename.find('-')?;
-        let prefix = &filename[..dash];
-        if prefix.is_empty() || !prefix.chars().all(|c| c.is_ascii_digit()) {
-            return None;
-        }
-        Some(format!("{code}-{prefix}"))
+        self.scheme.extract_id(filename, &self.scanner)
     }
 
-    /// Validate and normalise a work-item ID from any source (frontmatter,
-    /// API input, etc.). Accepts:
-    /// - Bare digits (`"42"` or `"0042"`): when `default_project_code` is
-    ///   set, prefixes with the code (`"ENG-42"`); otherwise returns the
-    ///   digits unchanged.
-    /// - Prefixed form (`"ENG-0042"`, `"OPS-7"`): returns the value
-    ///   verbatim — the workspace's `default_project_code` is NOT
-    ///   re-applied, so multi-prefix coexistence under remote sync works.
-    ///
-    /// Returns `None` for any other shape (`"ENG0042"`, `"PROJ-1.2"`,
-    /// `""`, whitespace).
+    #[must_use]
     pub fn normalise_id(&self, raw: &str) -> Option<String> {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-        if let Some((prefix, digits)) = trimmed.split_once('-') {
-            if prefix.is_empty()
-                || !prefix.chars().all(|c| c.is_ascii_alphabetic())
-                || digits.is_empty()
-                || !digits.chars().all(|c| c.is_ascii_digit())
-            {
-                return None;
-            }
-            return Some(trimmed.to_string());
-        }
-        if !trimmed.chars().all(|c| c.is_ascii_digit()) {
-            return None;
-        }
-        Some(match &self.default_project_code {
-            Some(code) => format!("{code}-{trimmed}"),
-            None => trimmed.to_string(),
-        })
+        self.scheme.normalise_id(raw)
     }
 }
 
@@ -242,12 +162,13 @@ impl WorkItemConfig {
     pub fn with_pattern_for_test(prefix: &str, width: usize) -> Self {
         let raw = format!("^({}-[0-9]{{{}}})-", regex::escape(prefix), width);
         Self {
-            scan_regex: regex::Regex::new(&raw).unwrap(),
-            scan_regex_raw: raw,
-            // Use the literal `{project}` placeholder so `id_pattern.contains
-            // ("{project}")` lookups behave like production configs.
-            id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-            default_project_code: Some(prefix.to_string()),
+            scanner: corpus_adapters::RegexScanner::compile(&raw).unwrap(),
+            scheme: corpus::WorkItemIdScheme {
+                // Use the literal `{project}` placeholder so `id_pattern`
+                // lookups behave like production configs.
+                id_pattern: format!("{{project}}-{{number:0{width}d}}"),
+                default_project_code: Some(prefix.to_string()),
+            },
         }
     }
 }
@@ -693,9 +614,12 @@ mod tests {
     fn default_impl_matches_default_numeric() {
         let a: WorkItemConfig = WorkItemConfig::default();
         let b = WorkItemConfig::default_numeric();
-        assert_eq!(a.scan_regex_raw, b.scan_regex_raw);
-        assert_eq!(a.id_pattern, b.id_pattern);
-        assert_eq!(a.default_project_code, b.default_project_code);
+        assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
+        assert_eq!(
+            a.scheme().default_project_code,
+            b.scheme().default_project_code
+        );
+        assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
     }
 
     #[test]

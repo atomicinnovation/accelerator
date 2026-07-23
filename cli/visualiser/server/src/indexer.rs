@@ -9,7 +9,6 @@ use tokio::sync::{RwLock, Semaphore};
 use crate::clusters::Completeness;
 use crate::file_driver::{FileContent, FileDriver, FileDriverError};
 use crate::frontmatter::{self, FrontmatterState};
-use crate::slug;
 use corpus::DocTypeKey;
 
 pub const FRONTMATTER_MALFORMED: &str = "malformed";
@@ -1229,8 +1228,8 @@ pub fn canonicalise_one_id(
     if raw.is_empty() {
         return None;
     }
-    let has_project = cfg.id_pattern.contains("{project}");
-    let width = number_width_from_id_pattern(&cfg.id_pattern);
+    let has_project = cfg.scheme().id_pattern.contains("{project}");
+    let width = number_width_from_id_pattern(&cfg.scheme().id_pattern);
 
     if numeric_re.is_match(raw) {
         let n_str = raw
@@ -1238,7 +1237,7 @@ pub fn canonicalise_one_id(
             .map_or_else(|_| raw.to_string(), |n| n.to_string());
         let padded = format!("{n_str:0>width$}");
         if has_project {
-            return Some(match &cfg.default_project_code {
+            return Some(match &cfg.scheme().default_project_code {
                 Some(code) => format!("{code}-{padded}"),
                 None => padded,
             });
@@ -1353,15 +1352,19 @@ fn build_entry(
     };
 
     let (slug_val, work_item_id) = if kind == DocTypeKey::WorkItems {
-        let regex_slug = slug::derive_work_item_with_regex(
-            &work_item_cfg.scan_regex,
-            filename,
-        );
+        let regex_slug =
+            corpus::slug::derive_work_item(filename, work_item_cfg.scanner());
         // Fall back to the default numeric slug derivation when the primary
         // regex doesn't match (e.g., legacy bare-numeric files in a
         // project-prefixed workspace during a pattern-config rollout).
-        let slug =
-            regex_slug.or_else(|| slug::derive(kind, filename, work_item_cfg));
+        let slug = regex_slug.or_else(|| {
+            corpus::slug::derive(
+                kind,
+                filename,
+                work_item_cfg.scheme(),
+                work_item_cfg.scanner(),
+            )
+        });
         // Identity resolution: the unified `id:` key is the sole work-item
         // identity source. It routes through `normalise_id` so the identity
         // shape is canonical (a raw `id:` must not bypass normalisation). A
@@ -1390,7 +1393,15 @@ fn build_entry(
         let id = read_fm_id("id");
         (slug, id)
     } else {
-        (slug::derive(kind, &slug_filename, work_item_cfg), None)
+        (
+            corpus::slug::derive(
+                kind,
+                &slug_filename,
+                work_item_cfg.scheme(),
+                work_item_cfg.scanner(),
+            ),
+            None,
+        )
     };
     // Title fallback uses the slug-source stem so nested kinds (where the
     // manifest filename is just "inventory") get a meaningful default.

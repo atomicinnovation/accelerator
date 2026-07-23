@@ -1,4 +1,4 @@
-use crate::slug::humanise_slug;
+use corpus::slug::humanise_slug;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq)]

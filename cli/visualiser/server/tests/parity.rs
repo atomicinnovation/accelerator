@@ -6,8 +6,40 @@
 //! differs from the retired `serde_yml` engine, the pinned value is the shared
 //! parser's — a deliberate, documented dialect adoption, not a regression.
 
+use accelerator_visualiser::config::WorkItemConfig;
 use accelerator_visualiser::frontmatter::{self, FrontmatterState};
 use corpus::DocTypeKey;
+
+/// Slug derivation and work-item id admission now delegate to corpus; pin
+/// representative cases so the delegation stays behaviour-stable.
+#[test]
+fn slug_and_id_conventions_are_pinned() {
+    let cfg = WorkItemConfig::default_numeric();
+    let derive = |kind, f: &str| {
+        corpus::slug::derive(kind, f, cfg.scheme(), cfg.scanner())
+    };
+    assert_eq!(
+        derive(DocTypeKey::WorkItems, "0042-ship-it.md").as_deref(),
+        Some("ship-it")
+    );
+    assert_eq!(
+        derive(DocTypeKey::Decisions, "ADR-0012-some-choice.md").as_deref(),
+        Some("some-choice")
+    );
+    assert_eq!(
+        corpus::slug::derive_work_item("0007-thing.md", cfg.scanner())
+            .as_deref(),
+        Some("thing")
+    );
+    assert_eq!(corpus::slug::humanise_slug("2026-07-23-my-note"), "My Note");
+
+    assert_eq!(cfg.extract_id("0042-x.md").as_deref(), Some("0042"));
+    assert_eq!(cfg.extract_id("no-id.md"), None);
+    assert_eq!(cfg.normalise_id("  42  ").as_deref(), Some("42"));
+    assert_eq!(cfg.normalise_id("ENG-7").as_deref(), Some("ENG-7"));
+    assert!(cfg.is_canonical_id_token("0042"));
+    assert!(!cfg.is_canonical_id_token("42"));
+}
 
 /// The doc-type wire token and config-path key are the load-bearing SPA/config
 /// contract. Pin all 14 variants to the exact tokens the retired serde-derived

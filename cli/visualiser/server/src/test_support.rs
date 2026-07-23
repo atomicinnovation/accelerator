@@ -39,7 +39,8 @@ pub fn entry_for_test_with_filename(
     filename: &str,
     cfg: &WorkItemConfig,
 ) -> IndexEntry {
-    let slug = crate::slug::derive(doc_type, filename, cfg);
+    let slug =
+        corpus::slug::derive(doc_type, filename, cfg.scheme(), cfg.scanner());
     let dir = doc_type.config_path_key().unwrap_or("misc");
     let path = PathBuf::from(format!("/repo/meta/{dir}/{filename}"));
     let title = slug.as_deref().unwrap_or("untitled").to_string();
