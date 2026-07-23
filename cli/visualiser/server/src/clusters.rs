@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use crate::config::WorkItemConfig;
 use crate::indexer::IndexEntry;
+use corpus::cluster::ClusterEntry;
 use corpus::DocTypeKey;
 
 #[derive(Debug, Clone, Serialize)]
@@ -24,26 +25,54 @@ pub struct Completeness {
     pub present: Vec<String>,
 }
 
-// Single source of truth for stage push order. The clustering / `present`
-// model is the canonical superset; `decisions` is pushed here but is
-// intentionally NOT a rendered lifecycle stage on the frontend, which omits it
-// from LIFECYCLE_PIPELINE_STEPS (in `frontend/src/api/types.ts`). The frontend
-// order must otherwise match this literal minus `decisions` — the parity test
-// in `frontend/src/api/pipeline-step-parity.test.ts` pins that relationship.
-// Cross-reference any reordering on both sides.
-const STAGE_PUSH_ORDER: &[(fn(&Completeness) -> bool, &str)] = &[
-    (|c| c.has_work_item, "work-items"),
-    (|c| c.has_research, "research"),
-    (|c| c.has_plan, "plans"),
-    (|c| c.has_plan_review, "plan-reviews"),
-    (|c| c.has_validation, "validations"),
-    (|c| c.has_pr_description, "pr-descriptions"),
-    (|c| c.has_pr_review, "pr-reviews"),
-    (|c| c.has_decision, "decisions"),
-    (|c| c.has_notes, "notes"),
-    (|c| c.has_design_inventory, "design-inventories"),
-    (|c| c.has_design_gap, "design-gaps"),
-];
+impl From<corpus::cluster::Completeness> for Completeness {
+    fn from(c: corpus::cluster::Completeness) -> Self {
+        Self {
+            has_work_item: c.has_work_item,
+            has_research: c.has_research,
+            has_plan: c.has_plan,
+            has_plan_review: c.has_plan_review,
+            has_validation: c.has_validation,
+            has_pr_description: c.has_pr_description,
+            has_pr_review: c.has_pr_review,
+            has_decision: c.has_decision,
+            has_notes: c.has_notes,
+            has_design_inventory: c.has_design_inventory,
+            has_design_gap: c.has_design_gap,
+            present: c.present,
+        }
+    }
+}
+
+impl ClusterEntry for IndexEntry {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+    fn doc_type(&self) -> DocTypeKey {
+        self.r#type
+    }
+    fn slug(&self) -> Option<&str> {
+        self.slug.as_deref()
+    }
+    fn title(&self) -> &str {
+        &self.title
+    }
+    fn mtime_ms(&self) -> i64 {
+        self.mtime_ms
+    }
+    fn frontmatter_parsed(&self) -> bool {
+        self.frontmatter_state == "parsed"
+    }
+    fn work_item_id(&self) -> Option<&str> {
+        self.work_item_id.as_deref()
+    }
+    fn parent(&self) -> Option<&str> {
+        self.frontmatter.get("parent").and_then(|v| v.as_str())
+    }
+    fn target(&self) -> Option<&str> {
+        self.frontmatter.get("target").and_then(|v| v.as_str())
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,11 +88,9 @@ pub struct LifecycleCluster {
     pub cluster_key: Option<String>,
 }
 
-/// Snapshots required by the cluster-key resolver. Built once at
-/// clustering time by the indexer caller from a coherent view of
-/// `entries`.
+/// Snapshots and conventions the cluster-key resolver needs, threaded from the
+/// indexer caller into `corpus::cluster`.
 pub struct ClusterContext<'a> {
-    pub entries_by_path: HashMap<PathBuf, &'a IndexEntry>,
     pub work_item_by_id: &'a HashMap<String, PathBuf>,
     pub plans_by_id: &'a HashMap<String, PathBuf>,
     pub project_root: &'a Path,
@@ -71,20 +98,14 @@ pub struct ClusterContext<'a> {
 }
 
 impl<'a> ClusterContext<'a> {
-    /// Build `entries_by_path` from the borrowed entries slice so the
-    /// snapshot is trivially coherent with the slice being clustered.
-    /// Zero deep clones — entries are referenced, not owned.
     pub fn from_entries(
-        entries: &'a [IndexEntry],
+        _entries: &'a [IndexEntry],
         work_item_by_id: &'a HashMap<String, PathBuf>,
         plans_by_id: &'a HashMap<String, PathBuf>,
         project_root: &'a Path,
         work_item_cfg: &'a WorkItemConfig,
     ) -> Self {
-        let entries_by_path =
-            entries.iter().map(|e| (e.path.clone(), e)).collect();
         Self {
-            entries_by_path,
             work_item_by_id,
             plans_by_id,
             project_root,
@@ -123,7 +144,6 @@ impl EmptyClusterFixture {
     }
     pub fn ctx(&self) -> ClusterContext<'_> {
         ClusterContext {
-            entries_by_path: HashMap::new(),
             work_item_by_id: &self.wi,
             plans_by_id: &self.pl,
             project_root: &self.root,
@@ -148,6 +168,10 @@ pub fn compute_clusters(
 ///   resolved `cluster_key` (or `None` for slug-fallback / orphan-bucket
 ///   entries). Callers apply this map onto `IndexEntry.cluster_key` so
 ///   the canonical entries map stays in lockstep with the cluster view.
+///
+/// The pure grouping algorithm lives in `corpus::cluster`; this adapter
+/// injects the id convention and re-projects the path-keyed result back onto
+/// the server's `IndexEntry`-shaped wire types.
 pub fn compute_clusters_with_backfill(
     entries: &[IndexEntry],
     ctx: &ClusterContext<'_>,
@@ -156,278 +180,52 @@ pub fn compute_clusters_with_backfill(
     HashMap<PathBuf, Completeness>,
     HashMap<PathBuf, Option<String>>,
 ) {
-    // 1. Resolve cluster_key for every non-template entry.
-    let mut cluster_key_by_path: HashMap<PathBuf, Option<String>> =
-        HashMap::with_capacity(entries.len());
-    for e in entries {
-        if matches!(e.r#type, DocTypeKey::Templates) {
-            continue;
-        }
-        let key = crate::cluster_key::resolve_cluster_key(
-            e,
-            &ctx.entries_by_path,
-            ctx.work_item_by_id,
-            ctx.plans_by_id,
-            ctx.project_root,
-            ctx.work_item_cfg,
-        );
-        cluster_key_by_path.insert(e.path.clone(), key);
-    }
+    let corpus_ctx = corpus::cluster::ClusterContext::from_entries(
+        entries,
+        ctx.work_item_by_id,
+        ctx.plans_by_id,
+        ctx.project_root,
+        ctx.work_item_cfg.scheme(),
+        ctx.work_item_cfg.scanner(),
+    );
+    let clustering = corpus::cluster::compute(entries, &corpus_ctx);
 
-    // 2. Build a slug → cluster_key bridge so lifecycle-participating
-    //    entries that lack typed-linkage frontmatter still merge with
-    //    their cluster_key-carrying siblings via slug equivalence.
-    //    Without this, a research-with-no-parent whose filename slug
-    //    matches the work-item's slug lands in its own slug-only bucket
-    //    and produces a second cluster sharing the same representative
-    //    slug — breaking the /lifecycle/<slug> URL invariant. WorkItems
-    //    win the slug → cluster_key mapping (they are the canonical
-    //    source of the slug); other typed entries are inserted only
-    //    when WorkItems hasn't already claimed the slug.
-    let mut slug_to_cluster_key: HashMap<String, String> = HashMap::new();
-    for e in entries {
-        if e.r#type != DocTypeKey::WorkItems {
-            continue;
-        }
-        if let (Some(slug), Some(ck)) = (
-            e.slug.as_deref(),
-            cluster_key_by_path.get(&e.path).and_then(|o| o.as_deref()),
-        ) {
-            slug_to_cluster_key.insert(slug.to_string(), ck.to_string());
-        }
-    }
-    for e in entries {
-        if e.r#type == DocTypeKey::WorkItems {
-            continue;
-        }
-        if let (Some(slug), Some(ck)) = (
-            e.slug.as_deref(),
-            cluster_key_by_path.get(&e.path).and_then(|o| o.as_deref()),
-        ) {
-            slug_to_cluster_key
-                .entry(slug.to_string())
-                .or_insert_with(|| ck.to_string());
-        }
-    }
-
-    // 3. Bucketing. Bucket key is cluster_key when present; otherwise
-    //    slug — but only for types that participate in the lifecycle
-    //    pipeline. Lifecycle-participating slug-fallback entries first
-    //    check `slug_to_cluster_key` so they merge with any typed
-    //    cluster sharing their slug. Orphan-by-design types (Notes,
-    //    Decisions, DesignGaps, DesignInventories) get their own
-    //    per-path bucket so they cannot accidentally collision-merge
-    //    with unrelated entries that share a slug derivation.
-    //    Templates are filtered out earlier.
-    let mut buckets: HashMap<String, Vec<IndexEntry>> = HashMap::new();
-    for e in entries {
-        if matches!(e.r#type, DocTypeKey::Templates) {
-            continue;
-        }
-        let key = cluster_key_by_path.get(&e.path).and_then(|o| o.as_deref());
-        let bucket_key = match key {
-            Some(k) => Some(k.to_string()),
-            None if e.r#type.participates_in_lifecycle() => {
-                match e.slug.as_deref().and_then(|s| slug_to_cluster_key.get(s))
-                {
-                    Some(ck) => {
-                        // Adopt the cluster's key for this entry so the
-                        // backfill / wire shape reflects the merge.
-                        cluster_key_by_path
-                            .insert(e.path.clone(), Some(ck.clone()));
-                        Some(ck.clone())
-                    }
-                    None => e.slug.clone(),
-                }
-            }
-            None => {
-                // Orphan-by-design (Notes, Decisions, DesignGaps,
-                // DesignInventories): consult the slug → cluster_key
-                // bridge so a note/decision/etc. whose slug matches a
-                // typed cluster joins that cluster. Falls back to a
-                // per-path bucket only when no typed cluster shares
-                // the slug — which preserves the "two orphan-type
-                // entries with colliding slugs must not merge"
-                // invariant pinned by
-                // `orphan_types_with_colliding_slugs_do_not_merge`.
-                match e.slug.as_deref().and_then(|s| slug_to_cluster_key.get(s))
-                {
-                    Some(ck) => {
-                        cluster_key_by_path
-                            .insert(e.path.clone(), Some(ck.clone()));
-                        Some(ck.clone())
-                    }
-                    None => Some(format!("__orphan__::{}", e.path.display())),
-                }
-            }
-        };
-        let Some(k) = bucket_key else { continue };
-        buckets.entry(k).or_default().push(e.clone());
-    }
-
-    // 3. Build clusters.
-    let mut backfill: HashMap<PathBuf, Completeness> = HashMap::new();
-    let mut clusters: Vec<LifecycleCluster> = buckets
-        .into_values()
-        .map(|mut bucket_entries| {
-            bucket_entries.sort_by(|a, b| {
-                canonical_rank(a.r#type)
-                    .cmp(&canonical_rank(b.r#type))
-                    .then(a.mtime_ms.cmp(&b.mtime_ms))
-            });
-            let last_changed_ms =
-                bucket_entries.iter().map(|e| e.mtime_ms).max().unwrap_or(0);
-            // Representative cluster_key: read from the backfill map for the
-            // first WorkItems entry, else the first entry by path order.
-            let cluster_key = pick_representative_cluster_key(
-                &bucket_entries,
-                &cluster_key_by_path,
-            );
-            let representative_slug = pick_representative_slug(
-                &bucket_entries,
-                cluster_key.as_deref(),
-            );
-            let title = derive_title(&representative_slug, &bucket_entries);
-            let completeness = derive_completeness(&bucket_entries);
-            for e in &mut bucket_entries {
-                e.completeness = Some(completeness.clone());
-                e.cluster_key =
-                    cluster_key_by_path.get(&e.path).cloned().unwrap_or(None);
-                backfill.insert(e.path.clone(), completeness.clone());
-            }
+    let clusters = clustering
+        .clusters
+        .into_iter()
+        .map(|c| {
+            let completeness = Completeness::from(c.completeness);
+            let cluster_entries = c
+                .members
+                .iter()
+                .map(|&i| {
+                    let mut e = entries[i].clone();
+                    e.completeness = Some(completeness.clone());
+                    e.cluster_key = clustering
+                        .cluster_key_by_path
+                        .get(&e.path)
+                        .cloned()
+                        .unwrap_or(None);
+                    e
+                })
+                .collect();
             LifecycleCluster {
-                slug: representative_slug,
-                title,
-                entries: bucket_entries,
+                slug: c.slug,
+                title: c.title,
+                entries: cluster_entries,
                 completeness,
-                last_changed_ms,
-                cluster_key,
+                last_changed_ms: c.last_changed_ms,
+                cluster_key: c.cluster_key,
             }
         })
         .collect();
 
-    clusters.sort_by(|a, b| a.slug.cmp(&b.slug));
-    (clusters, backfill, cluster_key_by_path)
-}
-
-fn pick_representative_cluster_key(
-    bucket: &[IndexEntry],
-    cluster_key_by_path: &HashMap<PathBuf, Option<String>>,
-) -> Option<String> {
-    // Prefer the WorkItems entry's cluster_key when present.
-    if let Some(wi) = bucket.iter().find(|e| e.r#type == DocTypeKey::WorkItems)
-    {
-        if let Some(key) = cluster_key_by_path.get(&wi.path).cloned().flatten()
-        {
-            return Some(key);
-        }
-    }
-    // Otherwise, any entry's cluster_key (deterministic order by path).
-    let mut sorted: Vec<&IndexEntry> = bucket.iter().collect();
-    sorted.sort_by(|a, b| a.path.cmp(&b.path));
-    for e in &sorted {
-        if let Some(key) = cluster_key_by_path.get(&e.path).cloned().flatten() {
-            return Some(key);
-        }
-    }
-    None
-}
-
-fn pick_representative_slug(
-    bucket: &[IndexEntry],
-    cluster_key: Option<&str>,
-) -> String {
-    // 1. WorkItems entry's slug, if Some.
-    if let Some(wi_slug) = bucket
-        .iter()
-        .find(|e| e.r#type == DocTypeKey::WorkItems)
-        .and_then(|e| e.slug.clone())
-    {
-        return wi_slug;
-    }
-    // 2. Any entry's slug (deterministic order by path).
-    let mut sorted: Vec<&IndexEntry> = bucket.iter().collect();
-    sorted.sort_by(|a, b| a.path.cmp(&b.path));
-    if let Some(s) = sorted.iter().find_map(|e| e.slug.clone()) {
-        return s;
-    }
-    // 3. Last resort: the cluster_key string itself. Guarantees the
-    //    cluster URL is always derivable.
-    cluster_key.unwrap_or("").to_string()
-}
-
-fn canonical_rank(kind: DocTypeKey) -> u8 {
-    match kind {
-        DocTypeKey::WorkItems => 0,
-        DocTypeKey::Research => 1,
-        DocTypeKey::Plans => 2,
-        DocTypeKey::PlanReviews => 3,
-        DocTypeKey::Validations => 4,
-        DocTypeKey::PrDescriptions => 5,
-        DocTypeKey::PrReviews | DocTypeKey::WorkItemReviews => 6,
-        DocTypeKey::Decisions => 7,
-        DocTypeKey::Notes => 8,
-        DocTypeKey::DesignInventories => 9,
-        DocTypeKey::DesignGaps => 10,
-        // Non-lifecycle peers: never clustered (cluster_key returns None), so
-        // these only reach here defensively — rank them last.
-        DocTypeKey::RootCauseAnalyses | DocTypeKey::Templates => u8::MAX,
-    }
-}
-
-fn derive_title(slug: &str, entries: &[IndexEntry]) -> String {
-    for e in entries {
-        if e.frontmatter_state == "parsed" && !e.title.is_empty() {
-            return e.title.clone();
-        }
-    }
-    if let Some(e) = entries.first() {
-        if !e.title.is_empty() {
-            return e.title.clone();
-        }
-    }
-    slug.to_string()
-}
-
-fn derive_completeness(entries: &[IndexEntry]) -> Completeness {
-    let mut c = Completeness {
-        has_work_item: false,
-        has_research: false,
-        has_plan: false,
-        has_plan_review: false,
-        has_validation: false,
-        has_pr_description: false,
-        has_pr_review: false,
-        has_decision: false,
-        has_notes: false,
-        has_design_inventory: false,
-        has_design_gap: false,
-        present: Vec::new(),
-    };
-    for e in entries {
-        match e.r#type {
-            DocTypeKey::WorkItems => c.has_work_item = true,
-            DocTypeKey::Research => c.has_research = true,
-            DocTypeKey::Plans => c.has_plan = true,
-            DocTypeKey::PlanReviews => c.has_plan_review = true,
-            DocTypeKey::WorkItemReviews
-            | DocTypeKey::RootCauseAnalyses
-            | DocTypeKey::Templates => {}
-            DocTypeKey::Validations => c.has_validation = true,
-            DocTypeKey::PrDescriptions => c.has_pr_description = true,
-            DocTypeKey::PrReviews => c.has_pr_review = true,
-            DocTypeKey::Decisions => c.has_decision = true,
-            DocTypeKey::Notes => c.has_notes = true,
-            DocTypeKey::DesignGaps => c.has_design_gap = true,
-            DocTypeKey::DesignInventories => c.has_design_inventory = true,
-        }
-    }
-    for (test, key) in STAGE_PUSH_ORDER {
-        if test(&c) {
-            c.present.push((*key).into());
-        }
-    }
-    c
+    let backfill = clustering
+        .completeness_by_path
+        .into_iter()
+        .map(|(k, v)| (k, Completeness::from(v)))
+        .collect();
+    (clusters, backfill, clustering.cluster_key_by_path)
 }
 
 #[cfg(test)]

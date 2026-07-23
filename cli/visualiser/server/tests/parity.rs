@@ -6,8 +6,15 @@
 //! differs from the retired `serde_yml` engine, the pinned value is the shared
 //! parser's — a deliberate, documented dialect adoption, not a regression.
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use accelerator_visualiser::clusters::{
+    compute_clusters_with_backfill, ClusterContext,
+};
 use accelerator_visualiser::config::WorkItemConfig;
 use accelerator_visualiser::frontmatter::{self, FrontmatterState};
+use accelerator_visualiser::indexer::IndexEntry;
 use corpus::DocTypeKey;
 
 /// Slug derivation and work-item id admission now delegate to corpus; pin
@@ -147,6 +154,98 @@ fn frontmatter_scalar_dialect_is_pinned() {
     for (input, expected) in cases {
         assert_eq!(&parsed_json(input), expected, "input: {input:?}");
     }
+}
+
+fn entry(
+    kind: DocTypeKey,
+    path: &str,
+    slug: &str,
+    frontmatter: serde_json::Value,
+) -> IndexEntry {
+    IndexEntry {
+        r#type: kind,
+        path: PathBuf::from(path),
+        rel_path: PathBuf::from(path),
+        slug: Some(slug.to_string()),
+        work_item_id: None,
+        title: slug.to_string(),
+        frontmatter,
+        frontmatter_state: "parsed".to_string(),
+        work_item_refs: Vec::new(),
+        mtime_ms: 1,
+        size: 0,
+        etag: "sha256-x".to_string(),
+        body_preview: String::new(),
+        completeness: None,
+        linked_count: 0,
+        cluster_key: None,
+    }
+}
+
+/// Lifecycle clustering (the typed-linkage walk retired onto `corpus::cluster`)
+/// stays behaviour-stable: a work item, its `parent:`-linked plan, and a
+/// same-slug note cluster as before — the plan adopts the work-item id, and the
+/// orphan-by-design note stays in its own bucket.
+#[test]
+fn clustering_typed_linkage_is_pinned() {
+    let cfg = WorkItemConfig::default_numeric();
+    let mut wi = entry(
+        DocTypeKey::WorkItems,
+        "/repo/meta/work/0040-pipeline.md",
+        "pipeline",
+        serde_json::Value::Null,
+    );
+    wi.work_item_id = Some("0040".to_string());
+    let plan = entry(
+        DocTypeKey::Plans,
+        "/repo/meta/plans/2026-05-31-0040-pipeline.md",
+        "pipeline",
+        serde_json::json!({ "parent": "work-item:0040" }),
+    );
+    let note = entry(
+        DocTypeKey::Notes,
+        "/repo/meta/notes/loose-thought.md",
+        "loose-thought",
+        serde_json::Value::Null,
+    );
+    let entries = vec![wi, plan, note];
+
+    let work_item_by_id: HashMap<String, PathBuf> = [(
+        "0040".to_string(),
+        PathBuf::from("/repo/meta/work/0040-pipeline.md"),
+    )]
+    .into_iter()
+    .collect();
+    let plans_by_id = HashMap::new();
+    let root = PathBuf::from("/repo");
+    let ctx = ClusterContext::from_entries(
+        &entries,
+        &work_item_by_id,
+        &plans_by_id,
+        &root,
+        &cfg,
+    );
+    let (clusters, _, cluster_key_by_path) =
+        compute_clusters_with_backfill(&entries, &ctx);
+
+    assert_eq!(clusters.len(), 2);
+    let pipeline = clusters
+        .iter()
+        .find(|c| c.slug == "pipeline")
+        .expect("pipeline cluster");
+    assert_eq!(pipeline.cluster_key.as_deref(), Some("0040"));
+    assert_eq!(pipeline.completeness.present, vec!["work-items", "plans"]);
+    assert_eq!(
+        cluster_key_by_path
+            [&PathBuf::from("/repo/meta/plans/2026-05-31-0040-pipeline.md")]
+            .as_deref(),
+        Some("0040")
+    );
+    let note = clusters
+        .iter()
+        .find(|c| c.slug == "loose-thought")
+        .expect("note cluster");
+    assert_eq!(note.cluster_key, None);
 }
 
 /// Structure boundaries: state classification across the fence edge cases.

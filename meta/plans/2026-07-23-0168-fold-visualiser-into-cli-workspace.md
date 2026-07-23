@@ -81,23 +81,39 @@ _Last updated 2026-07-23._
 
   Deviation from the plan's letter: `frontmatter.rs` is **not** deleted — its
   serde_yml *engine* retired, but its server-only presentation helpers
-  (`title_from`/`body_preview_from`/`read_ref_keys`) stay. `indexer.rs`'s
-  `canonicalise_one_id` still reads the id scheme's fields for now; it moves onto
-  corpus with the clustering lift.
+  (`title_from`/`body_preview_from`/`read_ref_keys`) stay.
 
-  **Remaining in Phase 2:** (4) the full clustering retirement — lift the pure
-  `clusters`/`cluster_key`/`related`-core + `canonicalise_one_id`/
-  `target_path_from_entry`/`normalize_target_key` into a **new `corpus::cluster`
-  module** (decision confirmed with the author; the clustering reads no markdown
-  body and is fully pure/lock-free, so it fits corpus's kernel-only architecture),
-  with the server's three modules becoming thin async snapshot-gathering adapters
-  and its own pup/deny/adversarial governance; (5) retire `file_driver`'s atomic
+  4. **Clustering retirement** — the pure `clusters`/`cluster_key` logic +
+     `canonicalise_one_id`/`target_path_from_entry`/`normalize_target_key` lifted
+     into a **new `corpus::cluster` module** behind a serde-free `ClusterEntry`
+     view port, taking the id convention as an injected `WorkItemIdScheme` +
+     `IdScanner`. `WorkItemIdScheme::canonicalise_id` (regex-free, parity-pinned
+     against the retired scan-regex canonicaliser) replaces the indexer's
+     `canonicalise_one_id`/`number_width_from_id_pattern` regex pair. `clusters.rs`
+     is now a thin adapter (`impl ClusterEntry for IndexEntry`, re-projecting the
+     path-keyed corpus result back onto the wire types); `cluster_key.rs` deleted;
+     the indexer's `canonicalise_one_id`/`target_path_from_entry` are thin
+     delegators (its own `normalize_absolute` for reverse-index keying stays).
+     Cluster membership is returned by **index** (not path) so distinct entries
+     that share a path re-project faithfully. `corpus::cluster` is covered by the
+     existing whole-crate `corpus_domain_imports_only_permitted` pup rule; a
+     clustering/linkage parity fixture added to `tests/parity.rs`. The whole
+     retired unit-test surface (40+ clustering + cluster-key cases) is preserved
+     through the adapter and green.
+
+     Deviations, within intent: `related.rs` stays a server module unchanged — its
+     logic is inherently async (`Indexer` snapshot gathering); only its trivial
+     pure `count_from_resolution`/dedup would move, so lifting it adds no value.
+     No new adversarial-governance harness was added for the corpus module beyond
+     the pup rule (deferred, mirroring the pre-existing `pup.ron` debt note).
+
+  **Remaining in Phase 2:** (5) retire `file_driver`'s atomic
   write onto `corpus_adapters::FileCorpusStore` over a `spawn_blocking` seam with
   the CRLF/mode-preservation, concurrent-conditional-patch (TOCTOU), and
   path-containment regression tests, then drop the Phase-1 `store_duplication`
   exclusion; (6) reconcile `thiserror` 1→2 and re-prune `deny.toml`. The parity
-  suite still needs its `patch_status`-bytes and linkage fixtures (added with
-  their respective retirements).
+  suite's linkage fixture landed with step 4; the `patch_status`-bytes fixture is
+  still pending (added with the step-5 write-path retirement).
 
 - **Phases 3–5:** not started.
 

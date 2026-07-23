@@ -108,6 +108,40 @@ impl WorkItemIdScheme {
         ))
     }
 
+    /// Canonicalises a raw cross-reference token to the exact form used as a
+    /// `work_item_by_id` key. Bare digits are stripped of leading zeros and
+    /// re-padded to the scheme's width (prefixed with the project code when the
+    /// scheme carries one); an already-prefixed `<alnum>-<digits>` token passes
+    /// through verbatim. Returns `None` for anything else. Distinct from
+    /// [`Self::normalise_id`], which preserves the raw digit run rather than
+    /// re-padding it.
+    #[must_use]
+    pub fn canonicalise_id(&self, raw: &str) -> Option<String> {
+        if raw.is_empty() {
+            return None;
+        }
+        let has_project = self.id_pattern.contains("{project}");
+        let width = number_width(&self.id_pattern);
+        if raw.chars().all(|c| c.is_ascii_digit()) {
+            let n_str = raw
+                .parse::<u64>()
+                .map_or_else(|_| raw.to_owned(), |n| n.to_string());
+            let padded = format!("{n_str:0>width$}");
+            return Some(if has_project {
+                match &self.default_project_code {
+                    Some(code) => format!("{code}-{padded}"),
+                    None => padded,
+                }
+            } else {
+                padded
+            });
+        }
+        if is_project_prefixed(raw) {
+            return Some(raw.to_owned());
+        }
+        None
+    }
+
     /// Extracts the full work-item-ID from a filename: the injected `scanner`
     /// supplies the primary digit run; a bare-numeric fallback keys legacy files
     /// when a project code is configured.
@@ -132,6 +166,41 @@ impl WorkItemIdScheme {
         }
         Some(format!("{code}-{prefix}"))
     }
+}
+
+/// The zero-pad width the canonical form uses: the `{number:0Nd}` segment's
+/// `N`, or `4` when the pattern carries no explicit width. Matches the width
+/// the retired scan-regex canonicaliser applied.
+fn number_width(pattern: &str) -> usize {
+    let Some(start) = pattern.find("{number:") else {
+        return 4;
+    };
+    let rest = &pattern[start + "{number:".len()..];
+    let Some(dend) = rest.find("d}") else {
+        return 4;
+    };
+    let spec = &rest[..dend];
+    if spec.is_empty() {
+        return 4;
+    }
+    let stripped = spec.trim_start_matches('0');
+    let digits = if stripped.is_empty() { "0" } else { stripped };
+    digits.parse().unwrap_or(4)
+}
+
+/// True iff `token` is an already-canonical `<alnum-starting-with-letter>-<digits>`
+/// reference (e.g. `PROJ-0040`).
+fn is_project_prefixed(token: &str) -> bool {
+    let Some((prefix, digits)) = token.split_once('-') else {
+        return false;
+    };
+    prefix
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic())
+        && prefix.chars().all(|c| c.is_ascii_alphanumeric())
+        && !digits.is_empty()
+        && digits.chars().all(|c| c.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -209,6 +278,26 @@ mod tests {
         let eng = project("ENG", 4);
         assert_eq!(eng.normalise_id("42").as_deref(), Some("ENG-42"));
         assert_eq!(eng.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn canonicalise_id_pads_and_prefixes_per_scheme() {
+        let numeric = WorkItemIdScheme::numeric();
+        assert_eq!(numeric.canonicalise_id("40").as_deref(), Some("0040"));
+        assert_eq!(numeric.canonicalise_id("00040").as_deref(), Some("0040"));
+        assert_eq!(numeric.canonicalise_id("12345").as_deref(), Some("12345"));
+        assert_eq!(
+            numeric.canonicalise_id("ENG-0042").as_deref(),
+            Some("ENG-0042")
+        );
+        assert_eq!(numeric.canonicalise_id("PR1-7").as_deref(), Some("PR1-7"));
+        assert_eq!(numeric.canonicalise_id(""), None);
+        assert_eq!(numeric.canonicalise_id("AB-12-34"), None);
+        assert_eq!(numeric.canonicalise_id("1A-2"), None);
+
+        let proj = project("PROJ", 4);
+        assert_eq!(proj.canonicalise_id("40").as_deref(), Some("PROJ-0040"));
+        assert_eq!(proj.canonicalise_id("OTHER-9").as_deref(), Some("OTHER-9"));
     }
 
     #[test]

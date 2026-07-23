@@ -928,36 +928,6 @@ fn normalize_absolute(path: &Path) -> PathBuf {
     out
 }
 
-/// Validate and normalise a `target:` frontmatter value. Returns
-/// `None` for any value that:
-///   - is empty;
-///   - contains `..`, `.`, NUL, or backslash in any segment;
-///   - starts with `/` (absolute paths bypass `project_root`);
-///   - resolves outside `project_root` after lexical join.
-fn normalize_target_key(raw: &str, project_root: &Path) -> Option<PathBuf> {
-    if raw.is_empty() || raw.starts_with('/') {
-        return None;
-    }
-    for segment in raw.split('/') {
-        if segment.is_empty()
-            || segment == "."
-            || segment == ".."
-            || segment.contains('\\')
-            || segment.contains('\0')
-        {
-            return None;
-        }
-    }
-    let joined = project_root.join(raw);
-    let normalized = normalize_absolute(&joined);
-    // Defence in depth: per-segment validation already rejects `..`,
-    // but verify the normalised form retains the project_root prefix.
-    if !normalized.starts_with(project_root) {
-        return None;
-    }
-    Some(normalized)
-}
-
 /// Resolves a review/validation `target:` value to the target artifact's path.
 ///
 /// Accepts, per ADR-0034 §"Forms":
@@ -982,23 +952,14 @@ pub(crate) fn target_path_from_entry(
     work_item_cfg: &crate::config::WorkItemConfig,
     project_root: &Path,
 ) -> Option<PathBuf> {
-    use corpus::{parse_typed_ref, TypedRef};
-    if !entry.r#type.carries_target_frontmatter() {
-        return None;
-    }
-    let raw = entry.frontmatter.get("target")?.as_str()?;
-    match parse_typed_ref(raw)? {
-        TypedRef::Plan(id) => plans_by_id.get(&id).cloned(),
-        TypedRef::WorkItem(id) => {
-            let canon = canonicalise_one_id(&id, work_item_cfg)?;
-            work_item_by_id.get(&canon).cloned()
-        }
-        TypedRef::Path(p) => {
-            let raw_str = p.to_str()?;
-            normalize_target_key(raw_str, project_root)
-        }
-        _ => None,
-    }
+    corpus::cluster::target_path_from_entry(
+        entry.r#type,
+        entry.frontmatter.get("target").and_then(|v| v.as_str()),
+        plans_by_id,
+        work_item_by_id,
+        work_item_cfg.scheme(),
+        project_root,
+    )
 }
 
 /// Pure function over a held entries snapshot — direct map lookup first,
@@ -1193,18 +1154,6 @@ async fn remove_from_reviews_by_target(
 // Work-item cross-reference canonicalisation.
 // ──────────────────────────────────────────────────────────────────────
 
-/// Extracts the zero-pad width from an `id_pattern` like `{number:04d}` → 4.
-fn number_width_from_id_pattern(pattern: &str) -> usize {
-    use std::sync::OnceLock;
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    #[allow(clippy::unwrap_used)] // compile-time-constant regex literal
-    RE.get_or_init(|| regex::Regex::new(r"\{number:0*(\d+)d\}").unwrap())
-        .captures(pattern)
-        .and_then(|c| c.get(1))
-        .and_then(|m| m.as_str().parse().ok())
-        .unwrap_or(4)
-}
-
 /// Canonicalises a single raw cross-reference string to match
 /// `work_item_by_id` keys. Returns `None` for malformed values
 /// (anything not in one of the three accepted shapes). The
@@ -1213,41 +1162,7 @@ pub fn canonicalise_one_id(
     raw: &str,
     cfg: &crate::config::WorkItemConfig,
 ) -> Option<String> {
-    use std::sync::OnceLock;
-    static PROJECT_RE: OnceLock<regex::Regex> = OnceLock::new();
-    static NUMERIC_RE: OnceLock<regex::Regex> = OnceLock::new();
-    // Compile-time-constant regex literals cannot fail to compile.
-    #[allow(clippy::unwrap_used)]
-    let project_re = PROJECT_RE.get_or_init(|| {
-        regex::Regex::new(r"^[A-Za-z][A-Za-z0-9]*-\d+$").unwrap()
-    });
-    #[allow(clippy::unwrap_used)]
-    let numeric_re =
-        NUMERIC_RE.get_or_init(|| regex::Regex::new(r"^\d+$").unwrap());
-
-    if raw.is_empty() {
-        return None;
-    }
-    let has_project = cfg.scheme().id_pattern.contains("{project}");
-    let width = number_width_from_id_pattern(&cfg.scheme().id_pattern);
-
-    if numeric_re.is_match(raw) {
-        let n_str = raw
-            .parse::<u64>()
-            .map_or_else(|_| raw.to_string(), |n| n.to_string());
-        let padded = format!("{n_str:0>width$}");
-        if has_project {
-            return Some(match &cfg.scheme().default_project_code {
-                Some(code) => format!("{code}-{padded}"),
-                None => padded,
-            });
-        }
-        return Some(padded);
-    }
-    if project_re.is_match(raw) {
-        return Some(raw.to_string());
-    }
-    None
+    cfg.scheme().canonicalise_id(raw)
 }
 
 /// Canonicalises raw cross-reference strings to match `work_item_by_id` keys.

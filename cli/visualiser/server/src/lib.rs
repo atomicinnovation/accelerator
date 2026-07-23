@@ -19,7 +19,6 @@ pub mod activity;
 pub mod activity_feed;
 pub mod api;
 pub mod assets;
-pub mod cluster_key;
 pub mod clusters;
 pub mod config;
 pub mod doc_type_serde;
