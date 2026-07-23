@@ -16,6 +16,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "store",
  "time",
  "tracing",
  "vergen",

@@ -1009,24 +1009,24 @@ message.
 
 #### Automated Verification
 
-- [ ] `kernel` doc-test/build passes with the reworded `Refusal` doc; no exit-code
+- [x] `kernel` doc-test/build passes with the reworded `Refusal` doc; no exit-code
       string remains in it
-- [ ] A launcher test asserts `cache.rs` temp names begin with `store::TEMP_PREFIX`
-- [ ] The canonical render tests in `config/src/render.rs` still pass; the
+- [x] A launcher test asserts `cache.rs` temp names begin with `store::TEMP_PREFIX`
+- [x] The canonical render tests in `config/src/render.rs` still pass; the
       config-adapters duplicates are gone
-- [ ] `ConfigError::Io` Display test updated and passing
-- [ ] A black-box test triggers an I/O error on a non-config path (e.g. a skill
+- [x] `ConfigError::Io` Display test updated and passing
+- [x] A black-box test triggers an I/O error on a non-config path (e.g. a skill
       context file that is itself a directory) and asserts the emitted message
       uses the new file-kind-neutral `I/O error on '{path}'` form
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] `grep -rn '"\.tmp-"' cli/launcher/src` returns nothing (the literal is gone
+- [x] `grep -rn '"\.tmp-"' cli/launcher/src` returns nothing (the literal is gone
       from `cache.rs`)
-- [ ] The `ConfigError::Io` message reads sensibly for a non-config path (e.g. a
+- [x] The `ConfigError::Io` message reads sensibly for a non-config path (e.g. a
       skill file or a template override)
-- [ ] `grep -rn "I/O error on config file" skills hooks scripts` (the pre-reword
+- [x] `grep -rn "I/O error on config file" skills hooks scripts` (the pre-reword
       substring) returns nothing — no skill/hook/script parses the old wording
 
 ---

@@ -88,7 +88,7 @@ impl Display for ConfigError {
                 "config file '{path}' has malformed frontmatter: {detail}"
             ),
             Self::Io { path, detail } => {
-                write!(formatter, "I/O error on config file '{path}': {detail}")
+                write!(formatter, "I/O error on '{path}': {detail}")
             }
             Self::InvalidKey { key } => write!(
                 formatter,
@@ -196,8 +196,7 @@ mod tests {
         };
         assert_eq!(
             error.to_string(),
-            "I/O error on config file '.accelerator/config.md': \
-             permission denied"
+            "I/O error on '.accelerator/config.md': permission denied"
         );
     }
 

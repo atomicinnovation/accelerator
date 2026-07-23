@@ -22,33 +22,9 @@ pub fn render_resolved(resolved: &Resolved) -> String {
 
 #[cfg(test)]
 mod tests {
-    use config::{Resolved, Scalar, Value};
+    use config::Resolved;
 
-    use super::{render_resolved, render_value, ABSENT_SENTINEL};
-
-    #[test]
-    fn renders_scalar_kinds() {
-        assert_eq!(
-            render_value(&Value::Scalar(Scalar::String("x".to_owned()))),
-            "x"
-        );
-        assert_eq!(render_value(&Value::Scalar(Scalar::Bool(true))), "true");
-        assert_eq!(render_value(&Value::Scalar(Scalar::Int(42))), "42");
-        assert_eq!(render_value(&Value::Scalar(Scalar::Float(1.5))), "1.5");
-        assert_eq!(render_value(&Value::Scalar(Scalar::Null)), "");
-    }
-
-    #[test]
-    fn renders_a_sequence_in_bracketed_form() {
-        assert_eq!(
-            render_value(&Value::Sequence(vec![
-                Scalar::String("a".to_owned()),
-                Scalar::String("b".to_owned()),
-            ])),
-            "[a, b]"
-        );
-        assert_eq!(render_value(&Value::Sequence(Vec::new())), "[]");
-    }
+    use super::{render_resolved, ABSENT_SENTINEL};
 
     #[test]
     fn renders_a_miss_as_the_sentinel() {

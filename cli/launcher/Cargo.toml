@@ -24,6 +24,7 @@ path = "tests/fixtures/accelerator_fixture.rs"
 kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
+store = { path = "../store" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }

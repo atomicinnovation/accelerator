@@ -644,6 +644,20 @@ fn an_invalid_skill_name_without_fail_safe_exits_non_zero() -> TestResult {
 }
 
 #[test]
+fn an_io_error_on_a_skill_file_uses_the_file_kind_neutral_message() -> TestResult
+{
+    let workspace = workspace("context-full")?;
+    fs::remove_file(workspace.join(".accelerator/skills/demo/context.md"))?;
+    fs::create_dir(workspace.join(".accelerator/skills/demo/context.md"))?;
+    let output = run_in(&workspace, &["config", "context", "--skill", "demo"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("I/O error on '"), "stderr: {stderr}");
+    assert!(!stderr.contains("I/O error on config file"));
+    Ok(())
+}
+
+#[test]
 fn instructions_of_an_absent_skill_prints_nothing() -> TestResult {
     let workspace = workspace("context-full")?;
     let output = run_in(&workspace, &["config", "instructions", "nonesuch"])?;
