@@ -5,12 +5,12 @@ title: "Stand up a documentation site for the docs/ tree"
 date: "2026-06-29T10:28:21+00:00"
 author: Phil Helm
 producer: refine-work-item
-status: draft
+status: done
 kind: story
 priority: medium
 parent: "work-item:0178"
 tags: []
-last_updated: "2026-06-29T14:46:59+00:00"
+last_updated: "2026-07-23T00:00:00+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 external_id: PP-699
@@ -19,7 +19,7 @@ external_id: PP-699
 # 0177: Stand up a documentation site for the docs/ tree
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Phil Helm
 
@@ -59,15 +59,19 @@ comparison and integration details.
 
 ## Acceptance Criteria
 
-- [ ] The generator selection (Astro Starlight) is recorded in an accepted
+- [x] The generator selection (Astro Starlight) is recorded in an accepted
       ADR whose rationale weighs Starlight against Docusaurus, Nextra,
       VitePress, mkdocs-material, and mdBook under the project's constraints.
-- [ ] `mise run docs:build` builds the site from the `docs/` tree with zero
+- [x] `mise run docs:build` builds the site from the `docs/` tree with zero
       errors and zero broken-link findings (via `starlight-links-validator`).
-- [ ] A CI job in `.github/workflows/main.yml` publishes the built site to
+- [x] A CI job in `.github/workflows/main.yml` publishes the built site to
       GitHub Pages on push to `main`, and the published URL is documented in
-      the README.
-- [ ] The site navigation exposes every page produced by 0175 (its narrative
+      the README. *(Deviation, 2026-07-22: the publish trigger was tightened
+      from every push to `main` to the release lane — `build-docs` needs the
+      `release` job, so the site republishes only when an approved stable
+      release ships. `check-docs` still gates every PR/push and the
+      prerelease.)*
+- [x] The site navigation exposes every page produced by 0175 (its narrative
       pages and any sections it relocates) and 0176 (the `docs/skills/` reference
       pages), grouped to reflect the `docs/` tree structure — verified against
       those siblings' final Technical Notes mappings.

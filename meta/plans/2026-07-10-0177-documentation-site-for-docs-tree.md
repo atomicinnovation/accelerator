@@ -5,7 +5,7 @@ title: "Documentation Site for the docs/ Tree Implementation Plan"
 date: "2026-07-10T14:08:31+00:00"
 author: Phil Helm
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0177"
 parent: "work-item:0177"
 derived_from: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0056"]
 tags: [docs, starlight, github-pages, mise, ci]
 revision: "012ec6fb8934c494ab3b9ecbc606df342273189a"
 repository: "barcelona"
-last_updated: "2026-07-10T14:08:31+00:00"
+last_updated: "2026-07-23T00:00:00+00:00"
 last_updated_by: Phil Helm
 schema_version: 1
 ---
@@ -535,6 +535,26 @@ e.g. `.../accelerator/skills/work-items/`); fix `README.md:44`
 - [ ] On a PR: `check-docs` runs, `deploy-docs` is skipped
 - [ ] All README documentation links resolve on the live site
 - [ ] Search, dark mode, and the mermaid diagram work on the live site
+
+> **Deviations (Phase 3, final topology as of 2026-07-22).** The shipped
+> workflow differs from this phase's design in three ways:
+> (1) The single privileged `deploy-docs` job was split into an
+> unprivileged `build-docs` (contents: read, runs `docs:build`, uploads
+> the Pages artifact) and a run-nothing `deploy-docs` holding the
+> `pages: write`/`id-token: write` permissions, so npm lifecycle scripts
+> never execute with the deploy tokens in scope (PR 19 review outcome).
+> (2) The publish trigger changed from every push to `main` to the
+> release lane: `build-docs` has `needs: release`, so the site
+> republishes only when an approved stable release ships. The manual
+> criterion "on a PR: check-docs runs, deploy-docs is skipped" now also
+> holds for unapproved pushes.
+> (3) The "decide at review" question resolved opposite to this plan's
+> default: `check-docs` **is** in `prerelease.needs`, so broken docs
+> block the release lane. (Mid-PR the lane briefly lived in its own
+> `docs.yml` with `force-deploy-docs`/`workflow_dispatch` escape
+> hatches — both reverted; the lane is back in `main.yml` with no
+> escape hatches. Guarded by the rewritten docs-lane section of
+> `tests/unit/tasks/test_workflows.py`.)
 
 ---
 
