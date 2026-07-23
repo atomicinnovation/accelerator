@@ -6,8 +6,15 @@ use std::sync::Arc;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use corpus_adapters::{patch_status, PatchError};
+
 use crate::docs::DocTypeKey;
-use crate::patcher::{self, FrontmatterPatch, PatchError};
+
+/// A frontmatter mutation applied through the file driver.
+#[derive(Debug, Clone)]
+pub enum FrontmatterPatch {
+    Status(String),
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +51,7 @@ pub enum FileDriverError {
     EtagMismatch { current: String },
     #[error("patch failed: {0}")]
     Patch(#[source] PatchError),
+    // PatchError is corpus_adapters::PatchError.
     #[error("path is not in a writable root: {path}")]
     PathNotWritable { path: PathBuf },
     #[error("cross-filesystem rename not supported for {path}")]
@@ -470,7 +478,8 @@ impl FileDriver for LocalFileDriver {
             let bytes = self.read_and_check_etag(&canonical, &if_match).await?;
 
             // Apply the patch
-            let new_bytes = patcher::apply(&bytes, patch)
+            let FrontmatterPatch::Status(new_status) = &patch;
+            let new_bytes = patch_status(&bytes, new_status)
                 .map_err(FileDriverError::Patch)?;
 
             // Idempotent short-circuit: no write needed
@@ -672,7 +681,6 @@ mod tests {
 #[cfg(test)]
 mod write_tests {
     use super::*;
-    use crate::patcher::FrontmatterPatch;
 
     fn seeded_write_driver(tmp: &Path) -> LocalFileDriver {
         let work = tmp.join("work");
@@ -899,7 +907,7 @@ mod write_tests {
             matches!(
                 err,
                 FileDriverError::Patch(
-                    crate::patcher::PatchError::FrontmatterAbsent
+                    corpus_adapters::PatchError::FrontmatterAbsent
                 )
             ),
             "expected Patch(FrontmatterAbsent), got {err:?}"
@@ -939,7 +947,9 @@ mod write_tests {
         assert!(
             matches!(
                 err,
-                FileDriverError::Patch(crate::patcher::PatchError::KeyNotFound)
+                FileDriverError::Patch(
+                    corpus_adapters::PatchError::KeyNotFound
+                )
             ),
             "expected Patch(KeyNotFound), got {err:?}"
         );

@@ -40,10 +40,14 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "config",
+ "config-adapters",
+ "corpus",
+ "corpus-adapters",
+ "document",
  "file-rotate",
  "form_urlencoded",
  "futures",
- "gray_matter",
  "hex",
  "http-body-util",
  "humantime",
@@ -57,7 +61,6 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "serde_yml",
  "sha2 0.10.9",
  "tempfile",
  "thiserror 1.0.69",
@@ -911,12 +914,6 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foldhash"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
-
-[[package]]
-name = "foldhash"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
@@ -1065,26 +1062,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gray_matter"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3563a3eb8bacf11a0a6d93de7885f2cca224dddff0114e4eb8053ca0f1918acd"
-dependencies = [
- "serde",
- "thiserror 2.0.18",
- "yaml-rust2",
-]
-
-[[package]]
-name = "hashbrown"
-version = "0.15.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
-dependencies = [
- "foldhash 0.1.5",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1092,22 +1069,7 @@ checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
  "allocator-api2",
  "equivalent",
- "foldhash 0.2.0",
-]
-
-[[package]]
-name = "hashbrown"
-version = "0.17.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-
-[[package]]
-name = "hashlink"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7382cf6263419f2d8df38c55d7da83da5c18aef87fc7a7fc1fb1e344edfe14c1"
-dependencies = [
- "hashbrown 0.15.5",
+ "foldhash",
 ]
 
 [[package]]
@@ -1461,16 +1423,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indexmap"
-version = "2.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
-dependencies = [
- "equivalent",
- "hashbrown 0.17.1",
-]
-
-[[package]]
 name = "inotify"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1602,19 +1554,9 @@ version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff7a10e427698aef6eef269482776debfef63384d30f13aad39a1a95e0e098fd"
 dependencies = [
- "hashbrown 0.16.1",
+ "hashbrown",
  "no_std_io2",
  "rle-decode-fast",
-]
-
-[[package]]
-name = "libyml"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980"
-dependencies = [
- "anyhow",
- "version_check",
 ]
 
 [[package]]
@@ -2425,21 +2367,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_yml"
-version = "0.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd"
-dependencies = [
- "indexmap",
- "itoa",
- "libyml",
- "memchr",
- "ryu",
- "serde",
- "version_check",
 ]
 
 [[package]]
@@ -3438,17 +3365,6 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
-
-[[package]]
-name = "yaml-rust2"
-version = "0.10.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2462ea039c445496d8793d052e13787f2b90e750b833afee748e601c17621ed9"
-dependencies = [
- "arraydeque",
- "encoding_rs",
- "hashlink",
-]
 
 [[package]]
 name = "yoke"

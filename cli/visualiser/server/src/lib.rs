@@ -28,7 +28,6 @@ pub mod frontmatter;
 pub mod indexer;
 pub mod lifecycle;
 pub mod log;
-pub mod patcher;
 pub mod related;
 pub mod server;
 pub mod shutdown;

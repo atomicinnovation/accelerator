@@ -25,14 +25,9 @@ unmaintained = "all"
 yanked = "deny"
 # hickory-proto 0.25 DNS-parsing DoS advisories with no upgrade path yet
 # (reqwest 0.12 pins hickory-resolver 0.25). Remove when reqwest adopts 0.26.
-#
-# serde_yml is unsound/unmaintained; it reaches only the visualiser server's
-# not-yet-retired frontmatter engine and is dropped when that engine is replaced
-# by the shared document crate. Remove this ignore then.
 ignore = [
     "RUSTSEC-2026-0118",
     "RUSTSEC-2026-0119",
-    "RUSTSEC-2025-0068",
 ]
 
 [licenses]

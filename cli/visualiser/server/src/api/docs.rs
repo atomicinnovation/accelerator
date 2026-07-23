@@ -252,7 +252,7 @@ pub(crate) async fn doc_patch_frontmatter(
         .file_driver
         .write_frontmatter(
             &abs,
-            crate::patcher::FrontmatterPatch::Status(status.clone()),
+            crate::file_driver::FrontmatterPatch::Status(status.clone()),
             &if_match,
             on_committed,
         )

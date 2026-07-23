@@ -19,6 +19,11 @@ name = "accelerator-visualiser"
 path = "src/main.rs"
 
 [dependencies]
+corpus = { path = "../../corpus" }
+corpus-adapters = { path = "../../corpus-adapters" }
+document = { path = "../../document" }
+config = { path = "../../config" }
+config-adapters = { path = "../../config-adapters" }
 axum = { version = "0.7", default-features = false, features = ["http1", "tokio", "json", "query"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "net", "fs"] }
 tower-http = { version = "0.5", features = [
@@ -40,8 +45,6 @@ anyhow = "1"
 thiserror = "1"
 libc = "0.2"
 sha2 = "0.10"
-gray_matter = { version = "0.3", default-features = false, features = ["yaml"] }
-serde_yml = "0.0.12"
 hex = "0.4"
 notify = "6"
 arc-swap = "1"

@@ -1,74 +1,6 @@
 use crate::slug::humanise_slug;
 use std::collections::BTreeMap;
 
-#[derive(Debug, PartialEq)]
-pub enum FenceError {
-    Malformed,
-}
-
-/// Returns the byte range `(yaml_start, body_start)` of the YAML content
-/// region inside `---` fences, or `None` when no frontmatter is present
-/// (file doesn't start with `---\n` or `---\r\n`).
-///
-/// Returns `Err(Malformed)` when the opening fence is found but no closing
-/// fence exists within the 1 MiB scan window.
-///
-/// Works on raw bytes — invalid UTF-8 in the body does not affect fence
-/// detection because `---` is pure ASCII.
-///
-/// `yaml_start`: byte offset of the first character after the opening fence line.
-/// `body_start`: byte offset of the first character after the closing fence line.
-pub fn fence_offsets(raw: &[u8]) -> Result<Option<(usize, usize)>, FenceError> {
-    const MAX_SCAN: usize = 1 << 20;
-    // Find the end of the first line.
-    let Some(first_lf) = raw.iter().position(|&b| b == b'\n') else {
-        // Single line with no newline: can't be valid frontmatter.
-        return Ok(None);
-    };
-    // Strip optional CRLF.
-    let first_line_end = if first_lf > 0 && raw[first_lf - 1] == b'\r' {
-        first_lf - 1
-    } else {
-        first_lf
-    };
-    if &raw[..first_line_end] != b"---" {
-        return Ok(None);
-    }
-
-    let scan_end = raw.len().min(MAX_SCAN);
-    let yaml_start = first_lf + 1;
-    if yaml_start >= raw.len() {
-        return Err(FenceError::Malformed);
-    }
-
-    let mut pos = yaml_start;
-    while pos < scan_end {
-        let line_lf = raw[pos..scan_end]
-            .iter()
-            .position(|&b| b == b'\n')
-            .map(|n| pos + n);
-        let Some(line_lf) = line_lf else {
-            break; // no newline found before scan_end
-        };
-        let line_end = if line_lf > pos && raw[line_lf - 1] == b'\r' {
-            line_lf - 1
-        } else {
-            line_lf
-        };
-        if &raw[pos..line_end] == b"---" {
-            let body_start = if line_lf < raw.len() {
-                line_lf + 1
-            } else {
-                raw.len()
-            };
-            return Ok(Some((yaml_start, body_start)));
-        }
-        pos = line_lf + 1;
-    }
-
-    Err(FenceError::Malformed)
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum FrontmatterState {
     Parsed(BTreeMap<String, serde_json::Value>),
@@ -93,145 +25,51 @@ pub struct Parsed {
 }
 
 pub fn parse(raw: &[u8]) -> Parsed {
-    let s = match std::str::from_utf8(raw) {
-        Ok(s) => s.to_string(),
-        Err(_) => String::from_utf8_lossy(raw).into_owned(),
-    };
-
-    let (yaml_start, body_start) = match fence_offsets(raw) {
-        Ok(None) => {
-            return Parsed {
-                state: FrontmatterState::Absent,
-                body: s,
-            }
+    let parsed = corpus_adapters::parse(raw);
+    let state = match parsed.state {
+        corpus_adapters::FrontmatterState::Parsed(m) => {
+            FrontmatterState::Parsed(mapping_to_json(&m))
         }
-        Err(FenceError::Malformed) => {
-            return Parsed {
-                state: FrontmatterState::Malformed,
-                body: s,
-            }
-        }
-        Ok(Some(offsets)) => offsets,
-    };
-
-    // The YAML content lives between yaml_start and the closing fence line.
-    // body_start points to the first byte after the closing `---\n`.
-    // We need the YAML string: everything from yaml_start up to (but not
-    // including) the closing `---` line. Since body_start is right after
-    // the closing fence newline, we find the closing fence by searching
-    // backwards from body_start in the raw bytes.
-    let yaml_region = &s[yaml_start..body_start];
-    // Strip the closing `---` line (and its preceding newline) from the end.
-    let yaml_src = if let Some(close_pos) = yaml_region.rfind("---") {
-        yaml_region[..close_pos]
-            .trim_end_matches('\r')
-            .trim_end_matches('\n')
-    } else {
-        yaml_region.trim_end_matches('\r').trim_end_matches('\n')
-    };
-    let body = s[body_start..].trim_start_matches('\n').to_string();
-
-    // serde_yml delegates scanning to libyml, a C-port that *panics* (rather
-    // than returning Err) on some adversarial inputs — e.g. a quoted flow
-    // scalar ending in a run of trailing whitespace overflows its internal
-    // bounds check ("String join would overflow memory bounds"). A single such
-    // file must not take down the whole server, so we treat a panic exactly
-    // like a parse error: the document is Malformed. `yaml_src` is a `&str` and
-    // `from_str` holds no shared mutable state, so asserting unwind-safety is
-    // sound; the default panic hook still logs the backtrace (to the server log
-    // in production) for diagnosis.
-    let parsed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        serde_yml::from_str::<serde_yml::Value>(yaml_src)
-    }));
-    let value: serde_yml::Value = match parsed {
-        Ok(Ok(v)) => v,
-        Ok(Err(_)) | Err(_) => {
-            return Parsed {
-                state: FrontmatterState::Malformed,
-                body,
-            }
+        corpus_adapters::FrontmatterState::Absent => FrontmatterState::Absent,
+        corpus_adapters::FrontmatterState::Malformed => {
+            FrontmatterState::Malformed
         }
     };
-
-    let mapping = match value {
-        serde_yml::Value::Mapping(m) => m,
-        serde_yml::Value::Null => serde_yml::Mapping::new(),
-        _ => {
-            return Parsed {
-                state: FrontmatterState::Malformed,
-                body,
-            }
-        }
-    };
-
-    let mut out: BTreeMap<String, serde_json::Value> = BTreeMap::new();
-    for (k, v) in mapping {
-        let key = match k {
-            serde_yml::Value::String(s) => s,
-            other => match serde_yml::to_string(&other) {
-                Ok(s) => s.trim().to_string(),
-                Err(_) => {
-                    return Parsed {
-                        state: FrontmatterState::Malformed,
-                        body,
-                    }
-                }
-            },
-        };
-        let Some(json_val) = yml_to_json(&v) else {
-            return Parsed {
-                state: FrontmatterState::Malformed,
-                body,
-            };
-        };
-        out.insert(key, json_val);
-    }
-
     Parsed {
-        state: FrontmatterState::Parsed(out),
-        body,
+        state,
+        body: parsed.body,
     }
 }
 
-fn yml_to_json(v: &serde_yml::Value) -> Option<serde_json::Value> {
+fn mapping_to_json(
+    mapping: &corpus::value::Mapping,
+) -> BTreeMap<String, serde_json::Value> {
+    mapping
+        .entries()
+        .iter()
+        .map(|(k, v)| (k.clone(), fv_to_json(v)))
+        .collect()
+}
+
+fn fv_to_json(value: &corpus::value::FrontmatterValue) -> serde_json::Value {
+    use corpus::value::{FrontmatterValue as F, Scalar};
     use serde_json::Value as J;
-    Some(match v {
-        serde_yml::Value::Null => J::Null,
-        serde_yml::Value::Bool(b) => J::Bool(*b),
-        serde_yml::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                J::Number(i.into())
-            } else if let Some(u) = n.as_u64() {
-                J::Number(u.into())
-            } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f).map_or(J::Null, J::Number)
-            } else {
-                J::Null
-            }
+    match value {
+        F::Scalar(Scalar::Null) => J::Null,
+        F::Scalar(Scalar::Bool(b)) => J::Bool(*b),
+        F::Scalar(Scalar::Int(i)) => J::Number((*i).into()),
+        F::Scalar(Scalar::Float(f)) => {
+            serde_json::Number::from_f64(*f).map_or(J::Null, J::Number)
         }
-        serde_yml::Value::String(s) => J::String(s.clone()),
-        serde_yml::Value::Sequence(items) => {
-            let mut arr = Vec::with_capacity(items.len());
-            for item in items {
-                arr.push(yml_to_json(item)?);
-            }
-            J::Array(arr)
-        }
-        serde_yml::Value::Mapping(map) => {
-            let mut obj = serde_json::Map::new();
-            for (k, v) in map {
-                let key = match k {
-                    serde_yml::Value::String(s) => s.clone(),
-                    other => {
-                        serde_yml::to_string(other).ok()?.trim().to_string()
-                    }
-                };
-                obj.insert(key, yml_to_json(v)?);
-            }
-            J::Object(obj)
-        }
-        serde_yml::Value::Tagged(_) => return None,
-    })
+        F::Scalar(Scalar::String(s)) => J::String(s.clone()),
+        F::Sequence(items) => J::Array(items.iter().map(fv_to_json).collect()),
+        F::Mapping(m) => J::Object(
+            m.entries()
+                .iter()
+                .map(|(k, v)| (k.clone(), fv_to_json(v)))
+                .collect(),
+        ),
+    }
 }
 
 const PREVIEW_MAX_CHARS: usize = 200;
@@ -309,6 +147,26 @@ pub fn title_from(
     humanise_slug(filename_stem)
 }
 
+/// Stringifies a frontmatter number as a cross-reference token. An
+/// integer-valued number renders without a fractional part so a leading-zero id
+/// that parsed as a float (e.g. `0007` -> `7.0`) still canonicalises as a bare
+/// numeric id downstream rather than being dropped.
+fn number_ref_string(n: &serde_json::Number) -> String {
+    if let Some(i) = n.as_i64() {
+        i.to_string()
+    } else if let Some(u) = n.as_u64() {
+        u.to_string()
+    } else if let Some(f) = n.as_f64() {
+        if f.fract() == 0.0 && f.abs() < 1e15 {
+            (f as i64).to_string()
+        } else {
+            n.to_string()
+        }
+    } else {
+        n.to_string()
+    }
+}
+
 /// Reads cross-reference keys from frontmatter for work-item aggregation.
 ///
 /// Reads `work_item_id:` (preferred) or, failing that, the typed `target:`
@@ -324,7 +182,7 @@ pub fn read_ref_keys(parsed: &FrontmatterState) -> Vec<String> {
     let extract_scalar = |v: &serde_json::Value| -> Option<String> {
         match v {
             serde_json::Value::String(s) if !s.is_empty() => Some(s.clone()),
-            serde_json::Value::Number(n) => Some(n.to_string()),
+            serde_json::Value::Number(n) => Some(number_ref_string(n)),
             _ => None,
         }
     };
@@ -413,18 +271,18 @@ mod tests {
     }
 
     #[test]
-    fn malformed_when_quoted_scalar_has_trailing_whitespace() {
-        // libyml panics (rather than returning Err) on a quoted flow scalar
-        // ending in a run of trailing whitespace: "String join would overflow
-        // memory bounds". parse() must catch that panic and report Malformed
-        // instead of crashing the whole server (regression for a migrated note
-        // whose H1-derived title carried ~34 trailing spaces inside its quotes).
+    fn quoted_scalar_with_trailing_whitespace_parses() {
+        // The old libyml-backed engine panicked on a quoted scalar ending in a
+        // run of trailing whitespace ("String join would overflow memory
+        // bounds"), so such a note surfaced as Malformed. The shared parser has
+        // no such bug: the note parses and renders (regression for a migrated
+        // note whose H1-derived title carried ~34 trailing spaces).
         let title = format!("Security Lens{}", " ".repeat(34));
         let raw = b(&format!(
             "---\ntitle: \"{title}\"\nstatus: done\n---\nbody\n"
         ));
         let p = parse(&raw);
-        assert!(matches!(p.state, FrontmatterState::Malformed));
+        assert!(matches!(p.state, FrontmatterState::Parsed(_)));
         assert_eq!(p.body, "body\n");
     }
 
@@ -589,13 +447,16 @@ mod tests {
 
     #[test]
     fn read_ref_keys_reads_parent_and_related() {
+        // Unquoted leading-zero ids parse as numbers, so read_ref_keys yields
+        // the numeric string (`0007` -> `7`); canonicalise_refs zero-pads them
+        // back to the canonical width downstream, so resolution is unchanged.
         let raw = b("---\nparent: 0007\nrelated: [0001, 0002]\n---\nbody\n");
         let p = parse(&raw);
         let refs = read_ref_keys(&p.state);
         assert_eq!(refs.len(), 3);
-        assert!(refs.contains(&"0007".to_string()));
-        assert!(refs.contains(&"0001".to_string()));
-        assert!(refs.contains(&"0002".to_string()));
+        assert!(refs.contains(&"7".to_string()));
+        assert!(refs.contains(&"1".to_string()));
+        assert!(refs.contains(&"2".to_string()));
     }
 
     #[test]
@@ -636,13 +497,16 @@ mod tests {
 
     #[test]
     fn read_ref_keys_aggregates_work_item_id_and_parent_and_related() {
+        // Quoted ids keep their leading zeros; unquoted leading-zero ids parse
+        // as numbers (`0007` -> `7`, `0011` -> `11`) and are re-padded by
+        // canonicalise_refs downstream.
         let raw = b("---\nwork_item_id: \"0042\"\nparent: 0007\nrelated: [0011]\n---\nbody\n");
         let p = parse(&raw);
         let refs = read_ref_keys(&p.state);
         assert_eq!(refs.len(), 3);
         assert!(refs.contains(&"0042".to_string()));
-        assert!(refs.contains(&"0007".to_string()));
-        assert!(refs.contains(&"0011".to_string()));
+        assert!(refs.contains(&"7".to_string()));
+        assert!(refs.contains(&"11".to_string()));
     }
 
     #[test]
@@ -753,67 +617,5 @@ mod body_preview_tests {
     fn joins_multi_line_first_paragraph_with_single_spaces() {
         let body = "Line one.\nLine two.\nLine three.\n\nNext paragraph.\n";
         assert_eq!(body_preview_from(body), "Line one. Line two. Line three.");
-    }
-}
-
-#[cfg(test)]
-mod fence_offsets_tests {
-    use super::{fence_offsets, FenceError};
-
-    #[test]
-    fn returns_none_when_no_leading_fence() {
-        assert_eq!(fence_offsets(b"# Heading\n"), Ok(None));
-    }
-
-    #[test]
-    fn returns_none_for_empty_input() {
-        assert_eq!(fence_offsets(b""), Ok(None));
-    }
-
-    #[test]
-    fn returns_offsets_for_simple_frontmatter() {
-        // "---\nstatus: todo\n---\nbody\n"
-        let raw = b"---\nstatus: todo\n---\nbody\n";
-        let r = fence_offsets(raw).unwrap().unwrap();
-        assert_eq!(r.0, 4); // yaml_start: after "---\n"
-        assert_eq!(r.1, 21); // body_start: after closing "---\n"
-        assert_eq!(&raw[r.0..r.1], b"status: todo\n---\n");
-    }
-
-    #[test]
-    fn returns_malformed_when_no_closing_fence() {
-        assert_eq!(
-            fence_offsets(b"---\ntitle: foo\n"),
-            Err(FenceError::Malformed)
-        );
-    }
-
-    #[test]
-    fn returns_malformed_when_only_opening_fence_and_no_content() {
-        assert_eq!(fence_offsets(b"---\n"), Err(FenceError::Malformed));
-    }
-
-    #[test]
-    fn handles_crlf_fences() {
-        let raw = b"---\r\ntitle: Foo\r\n---\r\nbody\r\n";
-        let r = fence_offsets(raw).unwrap().unwrap();
-        assert_eq!(r.0, 5); // yaml_start: after "---\r\n"
-        assert_eq!(&raw[r.0..r.0 + 10], b"title: Foo");
-    }
-
-    #[test]
-    fn body_start_is_after_closing_fence_newline() {
-        let raw = b"---\ntitle: foo\n---\nbody starts here\n";
-        let (_, body_start) = fence_offsets(raw).unwrap().unwrap();
-        assert_eq!(&raw[body_start..], b"body starts here\n");
-    }
-
-    #[test]
-    fn empty_frontmatter_returns_offsets() {
-        // "---\n---\n"
-        let raw = b"---\n---\nbody\n";
-        let r = fence_offsets(raw).unwrap().unwrap();
-        assert_eq!(r.0, 4); // yaml_start
-        assert_eq!(r.1, 8); // body_start (after second ---\n)
     }
 }
