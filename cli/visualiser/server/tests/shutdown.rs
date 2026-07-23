@@ -1,46 +1,49 @@
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-#[tokio::test]
-async fn sigterm_removes_info_writes_stopped_and_exits() {
-    let tmp = tempfile::tempdir().unwrap();
-    let log = tmp.path().join("server.log");
-    let cfg_path = tmp.path().join("config.json");
-    let config = serde_json::json!({
-        "plugin_root": tmp.path(),
-        "plugin_version": "0.0.0-test",
-        "project_root": tmp.path(),
-        "tmp_path": tmp.path(),
-        "host": "127.0.0.1",
-        "owner_pid": 0,
-        "log_path": log,
-        "doc_paths": {},
-        "templates": {}
-    });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
+/// Seed a minimal Model-1 project and return its visualiser state dir.
+fn seed_project(project: &Path) -> PathBuf {
+    std::fs::create_dir_all(project.join(".accelerator")).unwrap();
+    std::fs::write(project.join(".accelerator/config.md"), "---\n---\n")
         .unwrap();
+    project.join(".accelerator/tmp/visualiser")
+}
 
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
-    let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
+fn spawn_serve(project: &Path) -> tokio::process::Child {
+    tokio::process::Command::new(env!("CARGO_BIN_EXE_accelerator-visualiser"))
+        .args(["serve", "--owner-pid", "0"])
+        .current_dir(project)
+        .env("CLAUDE_PLUGIN_ROOT", project)
         .spawn()
-        .expect("spawn");
+        .expect("spawn serve")
+}
 
-    let info_path = tmp.path().join("server-info.json");
-    let stopped_path = tmp.path().join("server-stopped.json");
+async fn wait_for(
+    path: &Path,
+    budget: Duration,
+    child: &mut tokio::process::Child,
+) {
     let start = std::time::Instant::now();
-    loop {
-        if info_path.exists() {
-            break;
-        }
-        if start.elapsed() > Duration::from_secs(5) {
+    while !path.exists() {
+        if start.elapsed() > budget {
             child.kill().await.ok();
-            panic!("server did not start in 5s");
+            panic!("{} did not appear in {budget:?}", path.display());
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
+}
+
+#[tokio::test]
+async fn sigterm_removes_info_writes_stopped_and_exits() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = seed_project(tmp.path());
+    let mut child = spawn_serve(tmp.path());
+
+    let info_path = state.join("server-info.json");
+    wait_for(&info_path, Duration::from_secs(5), &mut child).await;
 
     kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM)
         .expect("send SIGTERM");
@@ -50,9 +53,12 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
         .expect("wait");
     assert!(status.success(), "server exited with non-zero: {status:?}");
 
-    let pid_path = tmp.path().join("server.pid");
     assert!(!info_path.exists(), "server-info.json must be removed");
-    assert!(!pid_path.exists(), "server.pid must be removed");
+    assert!(
+        !state.join("server.pid").exists(),
+        "server.pid must be removed"
+    );
+    let stopped_path = state.join("server-stopped.json");
     assert!(stopped_path.exists(), "server-stopped.json must be written");
     let stopped: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&stopped_path).unwrap()).unwrap();
@@ -62,44 +68,18 @@ async fn sigterm_removes_info_writes_stopped_and_exits() {
 #[tokio::test]
 async fn server_writes_pid_file_with_its_own_pid() {
     let tmp = tempfile::tempdir().unwrap();
-    let cfg_path = tmp.path().join("config.json");
-    let config = serde_json::json!({
-        "plugin_root": tmp.path(),
-        "plugin_version": "0.0.0-test",
-        "project_root": tmp.path(),
-        "tmp_path": tmp.path(),
-        "host": "127.0.0.1",
-        "owner_pid": 0,
-        "log_path": tmp.path().join("server.log"),
-        "doc_paths": {},
-        "templates": {}
-    });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
-        .unwrap();
-
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
-    let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
-        .spawn()
-        .expect("spawn");
+    let state = seed_project(tmp.path());
+    let mut child = spawn_serve(tmp.path());
     let child_pid = child.id().unwrap() as i32;
 
-    let pid_path = tmp.path().join("server.pid");
-    let info_path = tmp.path().join("server-info.json");
-    let start = std::time::Instant::now();
-    loop {
-        if pid_path.exists() && info_path.exists() {
-            break;
-        }
-        if start.elapsed() > Duration::from_secs(30) {
-            child.kill().await.ok();
-            panic!("lifecycle files did not appear in 30s");
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+    let pid_path = state.join("server.pid");
+    wait_for(&pid_path, Duration::from_secs(30), &mut child).await;
 
-    let pid_str = std::fs::read_to_string(&pid_path).unwrap();
-    let recorded_pid: i32 = pid_str.trim().parse().unwrap();
+    let recorded_pid: i32 = std::fs::read_to_string(&pid_path)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
     assert_eq!(
         recorded_pid, child_pid,
         "server.pid must match the child's PID"
@@ -111,50 +91,19 @@ async fn server_writes_pid_file_with_its_own_pid() {
 
 #[tokio::test]
 async fn shutdown_preserves_state_on_stopped_write_failure() {
-    // Pre-create a blocker directory at the server-stopped.json path before
-    // the binary starts. The server should still exit cleanly (exit 0), and
-    // server-info.json + server.pid must remain on disk (the launcher's
-    // stale-PID reuse path will reap them on next invocation).
+    // A blocker directory at the server-stopped.json path forces the atomic
+    // rename to fail on shutdown; the server must still exit 0 and preserve
+    // server-info.json + server.pid for the launcher's stale-PID reuse path.
     let tmp = tempfile::tempdir().unwrap();
-    let cfg_path = tmp.path().join("config.json");
-    let config = serde_json::json!({
-        "plugin_root": tmp.path(),
-        "plugin_version": "0.0.0-test",
-        "project_root": tmp.path(),
-        "tmp_path": tmp.path(),
-        "host": "127.0.0.1",
-        "owner_pid": 0,
-        "log_path": tmp.path().join("server.log"),
-        "doc_paths": {},
-        "templates": {}
-    });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&config).unwrap())
-        .unwrap();
-
-    // Pre-create a non-empty directory at the stopped-file path to force
-    // the atomic rename to fail on shutdown.
-    let stopped_path = tmp.path().join("server-stopped.json");
+    let state = seed_project(tmp.path());
+    std::fs::create_dir_all(&state).unwrap();
+    let stopped_path = state.join("server-stopped.json");
     std::fs::create_dir(&stopped_path).unwrap();
     std::fs::write(stopped_path.join("blocker"), "x").unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
-    let mut child = tokio::process::Command::new(bin)
-        .args(["--config", cfg_path.to_str().unwrap()])
-        .spawn()
-        .expect("spawn");
-
-    let info_path = tmp.path().join("server-info.json");
-    let start = std::time::Instant::now();
-    loop {
-        if info_path.exists() {
-            break;
-        }
-        if start.elapsed() > Duration::from_secs(5) {
-            child.kill().await.ok();
-            panic!("server did not start in 5s");
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+    let mut child = spawn_serve(tmp.path());
+    let info_path = state.join("server-info.json");
+    wait_for(&info_path, Duration::from_secs(5), &mut child).await;
 
     kill(Pid::from_raw(child.id().unwrap() as i32), Signal::SIGTERM)
         .expect("send SIGTERM");
@@ -167,13 +116,12 @@ async fn shutdown_preserves_state_on_stopped_write_failure() {
         "server must exit 0 even when stopped-write fails: {status:?}"
     );
 
-    let pid_path = tmp.path().join("server.pid");
     assert!(
         info_path.exists(),
         "server-info.json must be preserved when stopped-write fails"
     );
     assert!(
-        pid_path.exists(),
+        state.join("server.pid").exists(),
         "server.pid must be preserved when stopped-write fails"
     );
 }

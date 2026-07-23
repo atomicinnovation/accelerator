@@ -489,7 +489,7 @@ fn write_state_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     .map_err(|error| std::io::Error::other(error.to_string()))
 }
 
-fn write_server_stopped(
+pub(crate) fn write_server_stopped(
     path: &Path,
     reason: ShutdownReason,
 ) -> std::io::Result<()> {

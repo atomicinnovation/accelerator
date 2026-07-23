@@ -10,7 +10,14 @@
  */
 
 import { execSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -53,74 +60,37 @@ if (!existsSync(bin)) {
   process.exit(1);
 }
 
-// ── 3. Write a config pointing at the committed fixtures ──────────────────────
+// ── 3. Assemble a throwaway project rooted at the committed fixtures ───────────
+//
+// The Model-1 server reads .accelerator/*.md from the discovered project root,
+// so instead of a config.json we build a temp project whose meta/ and templates/
+// symlink to the committed fixtures and whose config remaps only the one path
+// that differs from the catalogue default (research_codebase → meta/research).
+// Runtime state lands in the temp dir, keeping the tracked fixtures clean.
 
-const tmpDir = mkdtempSync(join(tmpdir(), "vis-e2e-"));
-const configPath = join(tmpDir, "config.json");
-const infoPath = join(tmpDir, "server-info.json");
-
-const docPaths = {
-  decisions: join(fixturesDir, "decisions"),
-  work: join(fixturesDir, "work"),
-  plans: join(fixturesDir, "plans"),
-  research_codebase: join(fixturesDir, "research"),
-  review_plans: join(fixturesDir, "reviews/plans"),
-  review_prs: join(fixturesDir, "reviews/prs"),
-  validations: join(fixturesDir, "validations"),
-  notes: join(fixturesDir, "notes"),
-  prs: join(fixturesDir, "prs"),
-  review_work: join(fixturesDir, "reviews/work"),
-  research_design_gaps: join(fixturesDir, "research/design-gaps"),
-  research_design_inventories: join(fixturesDir, "research/design-inventories"),
-  research_issues: join(fixturesDir, "research/issues"),
-  // NOTE: keep this `docPaths` key set in sync with the launcher's
-  // (write-visualiser-config.sh); the two are hand-maintained and have drifted
-  // before. A missing key here makes a doc type server-active but E2E-invisible.
-};
-
-const templates = {};
-for (const name of [
-  "adr",
-  "plan",
-  "research",
-  "validation",
-  "pr-description",
-]) {
-  templates[name] = {
-    config_override: null,
-    user_override: join(fixturesDir, `templates/${name}.md`),
-    plugin_default: join(templatesDir, `${name}.md`),
-  };
-}
-
+const project = mkdtempSync(join(tmpdir(), "vis-e2e-proj-"));
+mkdirSync(join(project, ".accelerator"), { recursive: true });
+symlinkSync(fixturesDir, join(project, "meta"));
+symlinkSync(templatesDir, join(project, "templates"));
 writeFileSync(
-  configPath,
-  JSON.stringify(
-    {
-      plugin_root: serverDir,
-      plugin_version: "0.0.0-e2e",
-      project_root: serverDir,
-      tmp_path: tmpDir,
-      // Loopback by default; the Docker task overrides to 0.0.0.0 so the
-      // container can reach the host over the bridge gateway. The 0.0.0.0
-      // binding is transient (one compare/rebaseline run) and serves only
-      // non-sensitive committed fixtures.
-      host: process.env.E2E_SERVER_HOST ?? "127.0.0.1",
-      owner_pid: 0,
-      owner_start_time: null,
-      log_path: join(tmpDir, "server.log"),
-      doc_paths: docPaths,
-      templates,
-    },
-    null,
-    2,
-  ),
+  join(project, ".accelerator", "config.md"),
+  "---\npaths:\n  research_codebase: meta/research\n---\n",
 );
+const infoPath = join(project, ".accelerator/tmp/visualiser/server-info.json");
 
 // ── 4. Spawn the visualiser server ────────────────────────────────────────────
+//
+// E2E_SERVER_HOST (set by the Docker visual-regression task) opts the
+// dev-frontend server into a non-loopback bind so the container can reach the
+// host over the bridge gateway. --owner-pid 0 disables owner-based shutdown.
 
-const child = spawn(bin, ["--config", configPath], {
-  env: { ...process.env, FIXTURES_PATH: fixturesDir },
+const child = spawn(bin, ["serve", "--owner-pid", "0"], {
+  cwd: project,
+  env: {
+    ...process.env,
+    CLAUDE_PLUGIN_ROOT: project,
+    FIXTURES_PATH: fixturesDir,
+  },
   stdio: "inherit",
 });
 

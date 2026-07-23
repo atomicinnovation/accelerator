@@ -1,72 +1,43 @@
+use std::os::unix::fs::symlink;
 use std::process::Stdio;
 use std::time::Duration;
 
-use serde_json::json;
 use tokio::process::Command;
 
 #[tokio::test]
 async fn api_surface_is_fully_reachable_against_fixture_meta() {
+    // Model-1 fixture project: symlink meta/ + templates/ to the committed
+    // fixtures and remap only the one path that differs from the catalogue
+    // default (research_codebase → meta/research). The server discovers this
+    // root from its cwd and reads config directly.
     let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/meta");
     let plugin_templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/templates");
     let tmp = tempfile::tempdir().unwrap();
-    let cfg_path = tmp.path().join("config.json");
-    let tmp_dir = tmp.path().join("visualiser");
-    std::fs::create_dir_all(&tmp_dir).unwrap();
-
-    let mut doc_paths = serde_json::Map::new();
-    for (key, rel) in [
-        ("decisions", "decisions"),
-        ("work", "work"),
-        ("plans", "plans"),
-        ("research", "research"),
-        ("review_plans", "reviews/plans"),
-        ("review_prs", "reviews/prs"),
-        ("validations", "validations"),
-        ("notes", "notes"),
-        ("prs", "prs"),
-        ("research_issues", "research/issues"),
-    ] {
-        doc_paths.insert(key.into(), json!(fixtures.join(rel)));
-    }
-    let mut templates = serde_json::Map::new();
-    for name in ["adr", "plan", "research", "validation", "pr-description"] {
-        templates.insert(
-            name.into(),
-            json!({
-                "config_override": null,
-                "user_override": fixtures.join(format!("templates/{name}.md")),
-                "plugin_default": plugin_templates.join(format!("{name}.md")),
-            }),
-        );
-    }
-    let cfg = json!({
-        "plugin_root": fixtures.parent().unwrap(),
-        "plugin_version": "0.0.0-smoke",
-        "project_root": fixtures.parent().unwrap(),
-        "tmp_path": tmp_dir,
-        "host": "127.0.0.1",
-        "owner_pid": 0,
-        "owner_start_time": null,
-        "log_path": tmp_dir.join("server.log"),
-        "doc_paths": doc_paths,
-        "templates": templates,
-    });
-    std::fs::write(&cfg_path, serde_json::to_vec_pretty(&cfg).unwrap())
-        .unwrap();
+    let project = tmp.path();
+    std::fs::create_dir_all(project.join(".accelerator")).unwrap();
+    symlink(&fixtures, project.join("meta")).unwrap();
+    symlink(&plugin_templates, project.join("templates")).unwrap();
+    std::fs::write(
+        project.join(".accelerator/config.md"),
+        "---\npaths:\n  research_codebase: meta/research\n---\n",
+    )
+    .unwrap();
 
     let bin = env!("CARGO_BIN_EXE_accelerator-visualiser");
     let mut child = Command::new(bin)
-        .arg("--config")
-        .arg(&cfg_path)
+        .args(["serve", "--owner-pid", "0"])
+        .current_dir(project)
+        .env("CLAUDE_PLUGIN_ROOT", project)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
         .unwrap();
 
-    let info_path = tmp_dir.join("server-info.json");
+    let info_path =
+        project.join(".accelerator/tmp/visualiser/server-info.json");
     let start = std::time::Instant::now();
     loop {
         if info_path.exists() {
@@ -142,7 +113,8 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     assert!(slugs.contains(&"first-plan"));
     assert!(slugs.contains(&"example-and-review-some-topic"));
 
-    // /api/templates -> 5 entries.
+    // /api/templates -> one entry per fixture plugin template (Model-1 composes
+    // the whole plugin templates/ set, not a hand-picked subset).
     let tpl: serde_json::Value = client
         .get(format!("{base}/api/templates"))
         .send()
@@ -151,7 +123,19 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .json()
         .await
         .unwrap();
-    assert_eq!(tpl["templates"].as_array().unwrap().len(), 5);
+    let expected_templates = std::fs::read_dir(&plugin_templates)
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .ok()
+                .and_then(|e| e.path().extension().map(|x| x == "md"))
+                .unwrap_or(false)
+        })
+        .count();
+    assert_eq!(
+        tpl["templates"].as_array().unwrap().len(),
+        expected_templates
+    );
 
     // /api/docs/{*path} with If-None-Match round-trip.
     let r1 = client

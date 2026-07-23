@@ -145,34 +145,14 @@ fn unknown_path_key_warning(key: &str) -> String {
 pub fn doc_types(config: &dyn ConfigAccess) -> Result<DocTypes, ConfigError> {
     let mut rows = Vec::new();
     let mut blanks = Vec::new();
-    for (doc_type, path_key) in catalogue::DOC_TYPES {
-        let full_key = format!("paths.{path_key}");
-        let default = catalogue::default_for(&full_key)
-            .map(|value| config::render_value(&value))
-            .unwrap_or_default();
-        let mut raw = resolve_or_default(config, &full_key)?;
-        if raw.is_empty() {
+    for resolved in config::paths::doc_type_dirs(config)? {
+        if resolved.blank_fallback {
             blanks.push(BlankDefault {
-                path_key: (*path_key).to_owned(),
-                default: default.clone(),
-            });
-            raw = default;
-        }
-        if raw.contains('\t') || raw.contains('\n') {
-            return Err(ConfigError::Invalid {
-                detail: format!(
-                    "paths.{path_key} value contains a tab or newline"
-                ),
+                path_key: resolved.path_key.to_owned(),
+                default: resolved.dir.clone(),
             });
         }
-        if is_unsafe(&raw) {
-            return Err(ConfigError::Invalid {
-                detail: format!(
-                    "paths.{path_key} resolves to an unsafe path: {raw}"
-                ),
-            });
-        }
-        rows.push(((*doc_type).to_owned(), normalise(&raw)));
+        rows.push((resolved.doc_type.to_owned(), resolved.dir));
     }
     Ok(DocTypes { rows, blanks })
 }
@@ -182,61 +162,4 @@ fn resolve_or_default(
     full_key: &str,
 ) -> Result<String, ConfigError> {
     Ok(config.effective(&Key::parse(full_key)?, None)?.rendered())
-}
-
-/// Whether a directory is unsafe, matching the bash `config-read-doc-type-paths`
-/// case: empty, `.`, `..`, absolute, or carrying a `..`/interior-`.` segment. A
-/// leading `./` alone is safe — it is normalised away.
-fn is_unsafe(dir: &str) -> bool {
-    dir.is_empty()
-        || dir == "."
-        || dir == ".."
-        || dir.starts_with('/')
-        || dir.ends_with("/..")
-        || dir.starts_with("../")
-        || dir.contains("/../")
-        || dir.contains("/./")
-}
-
-/// Collapses repeated slashes, strips a leading `./` and a trailing `/`.
-fn normalise(dir: &str) -> String {
-    let mut collapsed = String::with_capacity(dir.len());
-    let mut previous_slash = false;
-    for character in dir.chars() {
-        let slash = character == '/';
-        if !(slash && previous_slash) {
-            collapsed.push(character);
-        }
-        previous_slash = slash;
-    }
-    collapsed
-        .strip_prefix("./")
-        .unwrap_or(&collapsed)
-        .trim_end_matches('/')
-        .to_owned()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{is_unsafe, normalise};
-
-    #[test]
-    fn normalise_collapses_slashes_and_strips_dot_slash_and_trailing() {
-        assert_eq!(normalise("./meta//work/"), "meta/work");
-        assert_eq!(normalise("meta/work"), "meta/work");
-    }
-
-    #[test]
-    fn unsafe_paths_are_rejected() {
-        assert!(is_unsafe(""));
-        assert!(is_unsafe("."));
-        assert!(is_unsafe(".."));
-        assert!(is_unsafe("/abs"));
-        assert!(is_unsafe("../b"));
-        assert!(is_unsafe("a/.."));
-        assert!(is_unsafe("a/../b"));
-        assert!(is_unsafe("a/./b"));
-        assert!(!is_unsafe("meta/work"));
-        assert!(!is_unsafe("./meta/work"));
-    }
 }

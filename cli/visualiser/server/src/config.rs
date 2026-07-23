@@ -1,9 +1,6 @@
-//! Typed view over the config.json produced by launch-server.sh.
-//!
-//! Schema decided in the Phase 2 plan (research Gap 2). Any
-//! change here is a breaking change against the preprocessor —
-//! keep fields in sync with scripts/launch-server.sh's JSON
-//! writer.
+//! The server's typed runtime configuration. Assembled from `.accelerator/*.md`
+//! by [`crate::compose`]; the boot-time resolvers here (kanban columns, idle
+//! window) turn the raw fields into validated runtime values.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -200,32 +197,27 @@ impl TemplateTiers {
     }
 }
 
-impl Config {
-    pub fn from_path(path: &std::path::Path) -> Result<Self, ConfigError> {
-        let bytes =
-            std::fs::read(path).map_err(|source| ConfigError::Read {
-                path: path.to_path_buf(),
-                source,
-            })?;
-        serde_json::from_slice(&bytes).map_err(|source| ConfigError::Parse {
-            path: path.to_path_buf(),
-            source,
-        })
+/// The kanban column keys the catalogue declares for `visualiser.kanban_columns`,
+/// used when config omits the key. Sourced from the shared config catalogue so
+/// there is a single source of truth.
+fn default_kanban_column_keys() -> Vec<String> {
+    match config::catalogue::default_for("visualiser.kanban_columns") {
+        Some(config::Value::Sequence(items)) => {
+            items.iter().map(render_catalogue_scalar).collect()
+        }
+        _ => Vec::new(),
     }
 }
 
-// Runtime fallback for the kanban columns when config omits them. The
-// authoritative declaration is `visualiser.kanban_columns` in the config
-// catalogue (`cli/config`); this crate can't depend on it, so keep them in sync.
-const DEFAULT_KANBAN_COLUMN_KEYS: &[&str] = &[
-    "draft",
-    "ready",
-    "in-progress",
-    "review",
-    "done",
-    "blocked",
-    "abandoned",
-];
+fn render_catalogue_scalar(scalar: &config::Scalar) -> String {
+    match scalar {
+        config::Scalar::String(text) => text.clone(),
+        config::Scalar::Bool(value) => value.to_string(),
+        config::Scalar::Int(value) => value.to_string(),
+        config::Scalar::Float(value) => value.to_string(),
+        config::Scalar::Null => String::new(),
+    }
+}
 
 fn label_from_key(key: &str) -> String {
     let spaced = key.replace('-', " ");
@@ -248,10 +240,10 @@ impl Config {
         &self,
     ) -> Result<Vec<KanbanColumn>, ConfigError> {
         match &self.kanban_columns {
-            None => Ok(DEFAULT_KANBAN_COLUMN_KEYS
+            None => Ok(default_kanban_column_keys()
                 .iter()
                 .map(|k| KanbanColumn {
-                    key: (*k).to_string(),
+                    key: k.clone(),
                     label: label_from_key(k),
                 })
                 .collect()),
@@ -269,10 +261,14 @@ impl Config {
     }
 }
 
-/// Runtime fallback for the idle window when config omits it. The authoritative
-/// declaration is `visualiser.idle_timeout` in the config catalogue
-/// (`cli/config`); this crate can't depend on it, so keep the two in sync.
-const DEFAULT_IDLE_TIMEOUT: &str = "8h";
+/// The idle window the catalogue declares for `visualiser.idle_timeout`, used
+/// when config omits the key. Sourced from the shared config catalogue.
+fn default_idle_timeout() -> String {
+    match config::catalogue::default_for("visualiser.idle_timeout") {
+        Some(config::Value::Scalar(scalar)) => render_catalogue_scalar(&scalar),
+        _ => "8h".to_string(),
+    }
+}
 
 /// Sentinel meaning "idle auto-shutdown disabled". Inert against the
 /// `idle >= idle_limit_ms` comparison in lifecycle.rs (the production loop
@@ -305,7 +301,8 @@ impl Config {
     ///   underlying parse error) so the server fails fast at boot rather
     ///   than silently defaulting.
     pub fn resolve_idle_limit_ms(&self) -> Result<i64, ConfigError> {
-        let raw = self.idle_timeout.as_deref().unwrap_or(DEFAULT_IDLE_TIMEOUT);
+        let default = default_idle_timeout();
+        let raw = self.idle_timeout.as_deref().unwrap_or(&default);
         let trimmed = raw.trim();
         // Disable tokens handled before parsing: the textual "never" and the
         // bare "0" (which humantime cannot parse, lacking a unit).
@@ -335,16 +332,6 @@ impl Config {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("failed to read config {path}: {source}")]
-    Read {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    #[error("failed to parse config {path}: {source}")]
-    Parse {
-        path: PathBuf,
-        source: serde_json::Error,
-    },
     #[error("invalid work-item scan regex '{pattern}': {source}")]
     InvalidScanRegex {
         pattern: String,
@@ -352,8 +339,6 @@ pub enum ConfigError {
     },
     #[error("visualiser.kanban_columns must not be empty")]
     EmptyKanbanColumns,
-    // The accepted-format guidance is duplicated in write-visualiser-config.sh's
-    // pre-flight error — keep the two messages in sync.
     #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
     InvalidIdleTimeout {
         value: String,
@@ -364,102 +349,6 @@ pub enum ConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    fn fixture(name: &str) -> PathBuf {
-        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push("tests/fixtures");
-        p.push(name);
-        p
-    }
-
-    #[test]
-    fn parses_valid_config() {
-        let c =
-            Config::from_path(&fixture("config.valid.json")).expect("valid");
-        assert_eq!(c.plugin_version, "1.19.0-pre.2");
-        assert_eq!(c.host, "127.0.0.1");
-        assert_eq!(c.owner_pid, 0);
-        assert_eq!(c.doc_paths.len(), 12);
-        assert!(c.doc_paths.contains_key("decisions"));
-        assert!(c.doc_paths.contains_key("review_plans"));
-        assert!(c.doc_paths.contains_key("review_prs"));
-        assert_eq!(c.templates.len(), 13);
-        let adr = c.templates.get("adr").expect("adr tier");
-        assert!(adr.config_override.is_none());
-        assert!(adr.user_override.ends_with("adr.md"));
-        assert!(adr.plugin_default.ends_with("adr.md"));
-        assert!(adr.config_override_source.is_none());
-        // The previously-renamed and newly-added names deserialise and are
-        // tier-shaped (incl. the fourth key, config_override_source).
-        assert!(c.templates.contains_key("codebase-research"));
-        let rca = c.templates.get("rca").expect("rca tier");
-        assert!(rca.config_override.is_none());
-        assert!(rca.config_override_source.is_none());
-        assert!(rca.plugin_default.ends_with("rca.md"));
-    }
-
-    #[test]
-    fn rejects_missing_required_field() {
-        let err = Config::from_path(&fixture("config.missing-required.json"))
-            .expect_err("missing plugin_root must fail");
-        assert!(
-            matches!(err, ConfigError::Parse { .. }),
-            "expected Parse error, got {err:?}"
-        );
-    }
-
-    #[test]
-    fn rejects_nonexistent_path() {
-        let err =
-            Config::from_path(std::path::Path::new("/nonexistent/config.json"))
-                .expect_err("missing file must fail");
-        assert!(matches!(err, ConfigError::Read { .. }));
-    }
-
-    #[test]
-    fn rejects_unknown_top_level_field() {
-        // deny_unknown_fields guards against preprocessor/server
-        // schema drift — a typo like `doc_path` (singular) would
-        // otherwise silently produce an empty map.
-        let json = r#"{
-            "plugin_root": "/p", "plugin_version": "0.0.0",
-            "project_root": "/r",
-            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
-            "log_path": "/l", "doc_paths": {}, "templates": {},
-            "doc_path": {"decisions": "/typo"}
-        }"#;
-        let err = serde_json::from_str::<Config>(json)
-            .expect_err("unknown field must fail");
-        assert!(err.to_string().contains("unknown field"));
-    }
-
-    #[test]
-    fn config_override_can_be_populated() {
-        let json = r#"{
-            "plugin_root": "/p",
-            "plugin_version": "0.0.0",
-            "project_root": "/r",
-            "tmp_path": "/t",
-            "host": "127.0.0.1",
-            "owner_pid": 1,
-            "log_path": "/l",
-            "doc_paths": {},
-            "templates": {
-                "adr": {
-                    "config_override": "/custom/adr.md",
-                    "user_override": "/u/adr.md",
-                    "plugin_default": "/d/adr.md"
-                }
-            }
-        }"#;
-        let c: Config = serde_json::from_str(json).expect("parse");
-        let adr = c.templates.get("adr").unwrap();
-        assert_eq!(
-            adr.config_override.as_deref().unwrap(),
-            std::path::Path::new("/custom/adr.md")
-        );
-    }
 
     #[test]
     fn work_item_config_from_raw_compiles_valid_regex() {

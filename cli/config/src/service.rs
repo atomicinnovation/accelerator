@@ -9,6 +9,7 @@ use crate::level::Level;
 use crate::node::Mapping;
 use crate::node::Node;
 use crate::node::Scalar;
+use crate::render::render_scalar;
 use crate::render::render_value;
 
 /// A resolved configuration value: a scalar leaf or a sequence of scalars.
@@ -17,6 +18,20 @@ use crate::render::render_value;
 pub enum Value {
     Scalar(Scalar),
     Sequence(Vec<Scalar>),
+}
+
+impl Value {
+    /// Project this value to a list of strings: a sequence to its rendered
+    /// elements, a null scalar to the empty list, any other scalar to a single
+    /// element. The one string projection consumers of list-valued keys share.
+    #[must_use]
+    pub fn as_string_sequence(&self) -> Vec<String> {
+        match self {
+            Self::Scalar(Scalar::Null) => Vec::new(),
+            Self::Scalar(scalar) => vec![render_scalar(scalar)],
+            Self::Sequence(items) => items.iter().map(render_scalar).collect(),
+        }
+    }
 }
 
 /// The outcome of resolving a key. Presence is decided here; a present empty
@@ -607,6 +622,25 @@ mod tests {
 
     fn found_text(value: &str) -> Resolved {
         Resolved::Found(Value::Scalar(Scalar::String(value.to_owned())))
+    }
+
+    #[test]
+    fn value_as_string_sequence_projects_scalars_and_sequences() {
+        assert_eq!(
+            Value::Sequence(vec![
+                Scalar::String("a".to_owned()),
+                Scalar::Int(2),
+            ])
+            .as_string_sequence(),
+            vec!["a".to_owned(), "2".to_owned()]
+        );
+        assert_eq!(
+            Value::Scalar(Scalar::String("solo".to_owned()))
+                .as_string_sequence(),
+            vec!["solo".to_owned()]
+        );
+        assert!(Value::Scalar(Scalar::Null).as_string_sequence().is_empty());
+        assert!(Value::Sequence(Vec::new()).as_string_sequence().is_empty());
     }
 
     fn mapping(entries: Vec<(&str, Node)>) -> Node {
