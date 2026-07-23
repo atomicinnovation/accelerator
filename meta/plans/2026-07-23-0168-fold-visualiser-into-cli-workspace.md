@@ -107,13 +107,30 @@ _Last updated 2026-07-23._
      No new adversarial-governance harness was added for the corpus module beyond
      the pup rule (deferred, mirroring the pre-existing `pup.ron` debt note).
 
-  **Remaining in Phase 2:** (5) retire `file_driver`'s atomic
-  write onto `corpus_adapters::FileCorpusStore` over a `spawn_blocking` seam with
-  the CRLF/mode-preservation, concurrent-conditional-patch (TOCTOU), and
-  path-containment regression tests, then drop the Phase-1 `store_duplication`
-  exclusion; (6) reconcile `thiserror` 1→2 and re-prune `deny.toml`. The parity
-  suite's linkage fixture landed with step 4; the `patch_status`-bytes fixture is
-  still pending (added with the step-5 write-path retirement).
+  5. **Write-path retirement** — `file_driver`'s `atomic_write_preserving_perms`
+     retired onto `corpus_adapters::FileCorpusStore` (the `corpus::AtomicWrite`
+     port) over the existing `spawn_blocking` seam, with a `StoreError` →
+     `FileDriverError` mapping. The etag-verify-then-write critical section, the
+     per-path lock, the idempotent short-circuit, and the `on_committed`-under-lock
+     all stay in `write_frontmatter`; the pre-read of `original_perms` is dropped
+     (the store's `PreserveOr` reads the target's mode at write time, equivalent
+     under the lock). Durability preserved by **adding file + parent-dir fsync to
+     the shared `store::atomic_write`** (author-chosen over accepting the gap), so
+     every store consumer gains it. The three visualiser runtime state-file
+     writers (`server.pid`/`server-info.json`/`server-stopped.json`, 0600) also
+     consolidated onto `store::atomic_write` (`NewFileMode::Set(0o600)`), so the
+     blanket `cli/visualiser/` `store_duplication` exclusion is dropped (only a
+     test-only `fs::rename` in `indexer.rs` is allowlisted). New driver-level
+     CRLF + non-default-mode round-trip test; the existing concurrent-conditional
+     -patch (TOCTOU) test is a mutation-check for the under-lock etag re-check and
+     is deterministic via the per-path lock + barrier; the symlink-escape
+     containment test still passes (the driver's writable-root check owns the
+     guard, `FileCorpusStore` is defence-in-depth). `patch_status` byte parity is
+     covered by the retained `api_docs_patch` write-path tests + the patcher unit
+     tests, so a separate golden fixture was not added.
+
+  **Remaining in Phase 2:** (6) reconcile `thiserror` 1→2 and re-prune
+  `deny.toml`.
 
 - **Phases 3–5:** not started.
 

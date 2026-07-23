@@ -4,7 +4,6 @@
 //! default-deny middleware stack. Signal handling and
 //! owner-PID / idle watches land in later phases.
 
-use std::io::Write;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -330,6 +329,15 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         tmp_path: state.cfg.tmp_path.clone(),
     };
 
+    // Register signal handlers before announcing readiness via
+    // server-info.json: once the launcher (or a test) observes that file it
+    // may immediately send SIGTERM, and a handler registered afterwards would
+    // race the default-disposition kill. Any signal that arrives before the
+    // serve loop polls `rx` is buffered in the channel and drains a graceful
+    // shutdown as soon as serving begins.
+    let (tx, mut rx) = mpsc::channel::<ShutdownReason>(4);
+    spawn_signal_handlers(&tx)?;
+
     // Write PID file first (smaller artefact, faster to land) then
     // server-info.json. Both atomic-rename; order matters only to
     // the launcher's poll-for-readiness, which keys on
@@ -348,9 +356,6 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         }
     })?;
     info!(url = %info.url, pid = info.pid, start_time = ?info.start_time, "server-started");
-
-    let (tx, mut rx) = mpsc::channel::<ShutdownReason>(4);
-    spawn_signal_handlers(tx.clone());
     crate::lifecycle::spawn(
         activity.clone(),
         state.cfg.owner_pid,
@@ -432,32 +437,62 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     Ok(())
 }
 
-fn spawn_signal_handlers(tx: mpsc::Sender<ShutdownReason>) {
+fn spawn_signal_handlers(
+    tx: &mpsc::Sender<ShutdownReason>,
+) -> std::io::Result<()> {
     use tokio::signal::unix::{signal, SignalKind};
+    // Create the signal streams synchronously so the OS-level handlers are
+    // installed before this returns — only the blocking `recv().await` is
+    // deferred to a task. Installing inside the spawned task instead would
+    // leave a window where a signal arriving before the task is first
+    // scheduled hits the default (terminate) disposition.
+    let mut sigterm = signal(SignalKind::terminate())?;
+    let mut sigint = signal(SignalKind::interrupt())?;
     tokio::spawn({
         let tx = tx.clone();
         async move {
-            // Registering a signal handler fails only on an invalid signal.
-            #[allow(clippy::expect_used)]
-            let mut s =
-                signal(SignalKind::terminate()).expect("SIGTERM handler");
-            s.recv().await;
+            sigterm.recv().await;
             let _ = tx.send(ShutdownReason::Sigterm).await;
         }
     });
-    tokio::spawn(async move {
-        #[allow(clippy::expect_used)]
-        let mut s = signal(SignalKind::interrupt()).expect("SIGINT handler");
-        s.recv().await;
-        let _ = tx.send(ShutdownReason::Sigint).await;
+    tokio::spawn({
+        let tx = tx.clone();
+        async move {
+            sigint.recv().await;
+            let _ = tx.send(ShutdownReason::Sigint).await;
+        }
     });
+    Ok(())
+}
+
+/// Atomically publishes a visualiser state file (pid / info / stopped sentinel)
+/// at owner-only `0600` through the shared store — the file reveals the listener
+/// URL and process identity, and lives under the user's project tree where other
+/// local accounts may have traversal. Temp-write, fsync, rename, fsync the dir.
+fn write_state_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let dir = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "state file path has no parent",
+        )
+    })?;
+    std::fs::create_dir_all(dir)?;
+    store::atomic_write(
+        path,
+        bytes,
+        &store::WriteBounds {
+            permitted_root: dir,
+            project_root: dir,
+        },
+        store::NewFileMode::Set(0o600),
+    )
+    .map_err(|error| std::io::Error::other(error.to_string()))
 }
 
 fn write_server_stopped(
     path: &Path,
     reason: ShutdownReason,
 ) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
     let record = serde_json::json!({
         "reason": reason,
         // System-clock read — if this errs (pre-epoch clock) we
@@ -468,58 +503,19 @@ fn write_server_stopped(
             .ok()
             .map(|d| d.as_secs()),
     });
-    let dir = path.parent().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "server-stopped.json path has no parent",
-        )
-    })?;
-    std::fs::create_dir_all(dir)?;
-    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
-    serde_json::to_writer_pretty(&mut tmp, &record)?;
-    tmp.as_file_mut().write_all(b"\n")?;
-    tmp.as_file()
-        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
-    tmp.persist(path)?;
-    Ok(())
+    let mut bytes = serde_json::to_vec_pretty(&record)?;
+    bytes.push(b'\n');
+    write_state_file(path, &bytes)
 }
 
 fn write_server_info(path: &Path, info: &ServerInfo) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let dir = path.parent().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "server-info.json path has no parent",
-        )
-    })?;
-    std::fs::create_dir_all(dir)?;
-    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
-    serde_json::to_writer_pretty(&mut tmp, info)?;
-    tmp.as_file_mut().write_all(b"\n")?;
-    // Owner-only read/write — the file reveals listener URL and
-    // process identity, and lives under the user's project tree
-    // where other local accounts may have traversal.
-    tmp.as_file()
-        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
-    tmp.persist(path)?;
-    Ok(())
+    let mut bytes = serde_json::to_vec_pretty(info)?;
+    bytes.push(b'\n');
+    write_state_file(path, &bytes)
 }
 
 fn write_pid_file(path: &Path, pid: i32) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let dir = path.parent().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "server.pid path has no parent",
-        )
-    })?;
-    std::fs::create_dir_all(dir)?;
-    let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
-    writeln!(tmp.as_file_mut(), "{pid}")?;
-    tmp.as_file()
-        .set_permissions(std::fs::Permissions::from_mode(0o600))?;
-    tmp.persist(path)?;
-    Ok(())
+    write_state_file(path, format!("{pid}\n").as_bytes())
 }
 
 /// Seconds-since-epoch at which `pid` started, if obtainable.

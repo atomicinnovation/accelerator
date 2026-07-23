@@ -6,9 +6,9 @@ use std::sync::Arc;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use corpus_adapters::{patch_status, PatchError};
+use corpus_adapters::{patch_status, FileCorpusStore, PatchError};
 
-use corpus::DocTypeKey;
+use corpus::{AtomicWrite, DocTypeKey, StoreError};
 
 /// A frontmatter mutation applied through the file driver.
 #[derive(Debug, Clone)]
@@ -194,81 +194,48 @@ impl LocalFileDriver {
         Ok(bytes)
     }
 
-    async fn atomic_write_preserving_perms(
+    /// Commits `new_bytes` to `canonical` through the shared corpus store.
+    ///
+    /// An async façade over the synchronous [`FileCorpusStore`]/[`AtomicWrite`]
+    /// port: the temp-write, mode preservation, containment check, atomic
+    /// rename, and fsync of both the file and its parent directory all run on a
+    /// `spawn_blocking` thread. `store_root` is the writable root the target was
+    /// verified to sit under, and bounds the store's containment guard.
+    async fn commit_write(
+        store_root: PathBuf,
         canonical: PathBuf,
         new_bytes: Vec<u8>,
-        original_perms: std::fs::Permissions,
     ) -> Result<(), FileDriverError> {
-        use std::io::Write as _;
-
-        let canonical_clone = canonical.clone();
-
-        tokio::task::spawn_blocking(move || -> Result<(), FileDriverError> {
-            let parent = canonical_clone
-                .parent()
-                .unwrap_or(&canonical_clone)
-                .to_path_buf();
-
-            let mut tmp =
-                tempfile::NamedTempFile::new_in(&parent).map_err(|source| {
-                    FileDriverError::Io {
-                        path: parent.clone(),
-                        source,
-                    }
-                })?;
-
-            tmp.write_all(&new_bytes).map_err(|source| {
-                FileDriverError::Io {
-                    path: parent.clone(),
-                    source,
-                }
-            })?;
-
-            tmp.as_file()
-                .sync_all()
-                .map_err(|source| FileDriverError::Io {
-                    path: parent.clone(),
-                    source,
-                })?;
-
-            std::fs::set_permissions(tmp.path(), original_perms).map_err(
-                |source| FileDriverError::Io {
-                    path: tmp.path().to_path_buf(),
-                    source,
-                },
-            )?;
-
-            tmp.persist(&canonical_clone).map_err(|e| {
-                if e.error.raw_os_error() == Some(libc::EXDEV) {
-                    FileDriverError::CrossFilesystem {
-                        path: canonical_clone.clone(),
-                    }
-                } else {
-                    FileDriverError::Io {
-                        path: canonical_clone.clone(),
-                        source: e.error,
-                    }
-                }
-            })?;
-
-            let dir = std::fs::File::open(&parent).map_err(|source| {
-                FileDriverError::Io {
-                    path: parent.clone(),
-                    source,
-                }
-            })?;
-            dir.sync_all().map_err(|source| FileDriverError::Io {
-                path: parent.clone(),
-                source,
-            })?;
-
-            Ok(())
+        let target = canonical.clone();
+        tokio::task::spawn_blocking(move || {
+            FileCorpusStore::new(store_root)
+                .write(&canonical, &new_bytes)
+                .map_err(|error| store_error_to_fd(error, &canonical))
         })
         .await
         .map_err(|e| FileDriverError::Io {
-            path: canonical,
+            path: target,
             source: std::io::Error::other(e),
         })?
+    }
+}
+
+fn store_error_to_fd(error: StoreError, path: &Path) -> FileDriverError {
+    match error {
+        StoreError::CrossFilesystem { .. } => {
+            FileDriverError::CrossFilesystem {
+                path: path.to_path_buf(),
+            }
+        }
+        StoreError::NotWritable { .. } | StoreError::UnsafePath { .. } => {
+            FileDriverError::PathNotWritable {
+                path: path.to_path_buf(),
+            }
+        }
+        other => FileDriverError::Io {
+            path: path.to_path_buf(),
+            source: std::io::Error::other(other.to_string()),
+        },
     }
 }
 
@@ -454,25 +421,19 @@ impl FileDriver for LocalFileDriver {
                 })?;
 
             // Writable-root check
-            let writable =
-                self.writable_roots.iter().any(|r| canonical.starts_with(r));
-            if !writable {
+            let store_root = self
+                .writable_roots
+                .iter()
+                .find(|r| canonical.starts_with(r))
+                .cloned();
+            let Some(store_root) = store_root else {
                 return Err(FileDriverError::PathNotWritable {
                     path: canonical,
                 });
-            }
+            };
 
             // Acquire per-path mutex (TOCTOU safety)
             let _guard = self.acquire_write_lock(&canonical).await;
-
-            // Read original permissions before any mutation
-            let original_perms = tokio::fs::metadata(&canonical)
-                .await
-                .map_err(|source| FileDriverError::Io {
-                    path: canonical.clone(),
-                    source,
-                })?
-                .permissions();
 
             // Read bytes and verify etag
             let bytes = self.read_and_check_etag(&canonical, &if_match).await?;
@@ -499,11 +460,12 @@ impl FileDriver for LocalFileDriver {
                 });
             }
 
-            // Atomic write with permission preservation
-            Self::atomic_write_preserving_perms(
+            // Atomic write through the shared corpus store (preserves the
+            // target's mode; fsyncs the file and its parent directory).
+            Self::commit_write(
+                store_root,
                 canonical.clone(),
                 new_bytes.clone(),
-                original_perms,
             )
             .await?;
 
@@ -1120,6 +1082,55 @@ mod write_tests {
         let mode =
             std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o644, "file mode must be preserved after write");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn preserves_crlf_line_endings_and_non_default_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
+        let path = work.join("0001-foo.md");
+        std::fs::write(
+            &path,
+            "---\r\ntitle: Foo\r\nstatus: todo\r\n---\r\n# body\r\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640))
+            .unwrap();
+
+        let mut map = HashMap::new();
+        map.insert("work".into(), work.clone());
+        let d = LocalFileDriver::new(&map, vec![], vec![work.clone()]);
+
+        let etag = etag_of(&std::fs::read(&path).unwrap());
+        d.write_frontmatter(
+            &path,
+            FrontmatterPatch::Status("done".to_string()),
+            &etag,
+            Box::new(|_| {}),
+        )
+        .await
+        .unwrap();
+
+        let written = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            written.contains("status: done"),
+            "status must be patched: {written:?}"
+        );
+        assert!(
+            written.contains("\r\n") && !written.contains("\n\n"),
+            "CRLF line endings must be preserved: {written:?}"
+        );
+        assert!(
+            !written.replace("\r\n", "").contains('\n'),
+            "no bare LF may be introduced: {written:?}"
+        );
+        let mode =
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o640, "non-default file mode must be preserved");
     }
 
     // ── Step 2.13 ────────────────────────────────────────────────────────────

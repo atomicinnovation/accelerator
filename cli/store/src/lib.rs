@@ -1,7 +1,9 @@
 //! `atomic_write`: whole-file atomic replacement with a permitted-root symlink
 //! refusal, shared by the config and corpus writers. A reader never observes a
 //! partial file, and no component of the target may resolve outside the caller's
-//! permitted root — a symlinked component is refused, never followed.
+//! permitted root — a symlinked component is refused, never followed. The staged
+//! bytes and the publishing rename are both fsynced, so a committed write
+//! survives a crash.
 //!
 //! Infrastructure only: depends on std, `tempfile` and `rustix`. Both consumers
 //! translate [`WriteError`] into their own taxonomy, so this crate does not
@@ -208,6 +210,9 @@ fn stage(
             .map_err(|error| io(temp.path(), &error))?;
     }
     temp.write_all(bytes).map_err(|error| io(dir, &error))?;
+    temp.as_file()
+        .sync_all()
+        .map_err(|error| io(temp.path(), &error))?;
     Ok(temp)
 }
 
@@ -230,7 +235,19 @@ fn resolve_mode(
 fn persist(temp: NamedTempFile, target: &Path) -> Result<(), WriteError> {
     temp.persist(target)
         .map(|_| ())
-        .map_err(|error| classify_persist_error(target, &error.error))
+        .map_err(|error| classify_persist_error(target, &error.error))?;
+    sync_parent_dir(target)
+}
+
+/// Fsyncs the target's parent directory so the rename that published the file
+/// survives a crash — a `fsync` of the file's data alone does not persist the
+/// directory entry the rename created.
+fn sync_parent_dir(target: &Path) -> Result<(), WriteError> {
+    let Some(parent) = target.parent() else {
+        return Ok(());
+    };
+    let dir = fs::File::open(parent).map_err(|error| io(parent, &error))?;
+    dir.sync_all().map_err(|error| io(parent, &error))
 }
 
 fn classify_persist_error(target: &Path, error: &IoError) -> WriteError {
