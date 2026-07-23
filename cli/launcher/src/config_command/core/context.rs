@@ -51,7 +51,7 @@ pub fn skill_body(
     skill: &str,
     file: SkillFile,
 ) -> Result<Option<String>, ConfigError> {
-    validate_skill_name(skill)?;
+    config::validate_identifier("skill name", skill)?;
     let raw = match file {
         SkillFile::Context => content.skill_context(skill)?,
         SkillFile::Instructions => content.skill_instructions(skill)?,
@@ -75,24 +75,6 @@ pub fn trim_body(content: &str) -> String {
         .rposition(|line| !line.trim().is_empty())
         .unwrap_or(start);
     lines[start..=end].join("\n")
-}
-
-/// Refuses a skill name that is not `^[a-z0-9][a-z0-9-]*$`, so a traversing name
-/// can never reach a path.
-fn validate_skill_name(skill: &str) -> Result<(), ConfigError> {
-    let mut chars = skill.chars();
-    let head_ok = chars
-        .next()
-        .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
-    let tail_ok =
-        chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if head_ok && tail_ok {
-        Ok(())
-    } else {
-        Err(ConfigError::Invalid {
-            detail: format!("invalid skill name '{skill}'"),
-        })
-    }
 }
 
 #[cfg(test)]

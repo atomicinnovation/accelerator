@@ -840,14 +840,14 @@ byte-identical to today's, so no error-path golden moves.
 
 #### Automated Verification
 
-- [ ] `config::validate_identifier` unit tests (valid; leading hyphen; uppercase;
+- [x] `config::validate_identifier` unit tests (valid; leading hyphen; uppercase;
       empty; embedded space) with the exact error string per `kind`
-- [ ] Existing context/template invalid-name tests pass unchanged
-- [ ] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
+- [x] Existing context/template invalid-name tests pass unchanged
+- [x] `mise run test:unit:cli`, `mise run cli:check`, `mise run` exit 0
 
 #### Manual Verification
 
-- [ ] `Key::parse`'s own segment validation (`key.rs:19-27`) is untouched
+- [x] `Key::parse`'s own segment validation (`key.rs:19-27`) is untouched
 
 ---
 

@@ -7,6 +7,7 @@
 
 pub mod catalogue;
 pub mod error;
+pub mod identifier;
 pub mod key;
 pub mod legacy;
 pub mod level;
@@ -16,6 +17,7 @@ pub mod service;
 
 pub use crate::error::ConfigError;
 pub use crate::error::Existing;
+pub use crate::identifier::validate_identifier;
 pub use crate::key::Key;
 pub use crate::level::Level;
 pub use crate::node::Mapping;

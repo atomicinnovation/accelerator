@@ -24,7 +24,7 @@ pub fn resolve(
     templates: &dyn ReadTemplate,
     name: &str,
 ) -> Result<Option<ResolvedTemplate>, ConfigError> {
-    validate_name(name)?;
+    config::validate_identifier("template name", name)?;
     let config_path = scalar(config, &format!("templates.{name}"))?;
     let dir = templates_dir(config)?;
     templates.resolve_template(name, config_path.as_deref(), &dir)
@@ -92,7 +92,7 @@ pub fn templates_dir(config: &dyn ConfigAccess) -> Result<String, ConfigError> {
 ///
 /// [`ConfigError::Invalid`] when the name is not an identifier.
 pub fn validate(name: &str) -> Result<(), ConfigError> {
-    validate_name(name)
+    config::validate_identifier("template name", name)
 }
 
 fn scalar(
@@ -173,22 +173,6 @@ fn lcs_lengths(a: &[&str], b: &[&str]) -> Vec<Vec<usize>> {
         }
     }
     lengths
-}
-
-fn validate_name(name: &str) -> Result<(), ConfigError> {
-    let mut chars = name.chars();
-    let head_ok = chars
-        .next()
-        .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
-    let tail_ok =
-        chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if head_ok && tail_ok {
-        Ok(())
-    } else {
-        Err(ConfigError::Invalid {
-            detail: format!("invalid template name '{name}'"),
-        })
-    }
 }
 
 #[cfg(test)]
