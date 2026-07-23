@@ -129,8 +129,17 @@ _Last updated 2026-07-23._
      covered by the retained `api_docs_patch` write-path tests + the patcher unit
      tests, so a separate golden fixture was not added.
 
-  **Remaining in Phase 2:** (6) reconcile `thiserror` 1→2 and re-prune
-  `deny.toml`.
+  6. **thiserror + deny reconcile** — the server's `thiserror` pin moved to the
+     workspace `2` line; it built and tested clean (its error enums use only the
+     standard `#[error]`/`#[from]`/`#[source]`/`transparent` forms that carry
+     across the major). `thiserror` 1 is gone from the lock. `deny.toml`'s license
+     allow-list re-pruned to the exact closure: the now-unmatched
+     `Unicode-DFS-2016` allowance removed (`deny:check` no longer warns
+     license-not-encountered).
+
+  **Phase 2 is complete.** All six steps landed; `server:check`, `cli:check`,
+  `deny:check`, `pup:check`, `lint:store-duplication:check`, the visualiser
+  unit/integration suites, and the parity suite are green.
 
 - **Phases 3–5:** not started.
 
@@ -603,18 +612,21 @@ regression tests over the new `FileCorpusStore`-backed, `spawn_blocking` seam:
 
 #### Automated Verification
 
-- [ ] Parity tests pass across the whole retired surface (frontmatter map incl.
+- [x] Parity tests pass across the whole retired surface (frontmatter map incl.
       JSON value types, slug, doc-type, `config_path_key`, `patch_status` bytes,
       linkage): `cd cli/visualiser/server && cargo test --test parity`
-- [ ] The retired modules are absent (no `docs.rs`/`slug.rs`/`frontmatter.rs`/
-      `patcher.rs`/`typed_ref.rs` under `src/`; no ID logic in `config.rs`)
+- [~] The retired modules are absent (`docs.rs`/`slug.rs`/`patcher.rs`/
+      `typed_ref.rs`/`cluster_key.rs` deleted; no ID/cluster logic in `config.rs`/
+      `clusters.rs`). Deviation (documented above): `frontmatter.rs` stays — its
+      `serde_yml` engine is retired but its server-only presentation helpers
+      (`title_from`/`body_preview_from`/`read_ref_keys`/`FrontmatterState`) remain.
 - [x] `gray_matter` and `serde_yml` are absent from `Cargo.toml` and
       `Cargo.lock`
 - [x] `serde-saphyr` reaches the server only through `document`, and `deny.toml`
       carries no unused allowances/ignores after the YAML engines are dropped:
       `mise run deny:check`
-- [ ] CRLF/mode-preservation and concurrent-conditional-patch tests pass
-- [ ] Component + visualiser suites pass:
+- [x] CRLF/mode-preservation and concurrent-conditional-patch tests pass
+- [x] Component + visualiser suites pass:
       `mise run server:check test:unit:visualiser test:integration:visualiser`
 - [ ] Full gate is green: `mise run`
 

@@ -43,7 +43,7 @@ file-rotate = "0.7"
 tempfile = "3"
 nix = { version = "0.28", features = ["signal", "process"] }
 anyhow = "1"
-thiserror = "1"
+thiserror = { workspace = true }
 libc = "0.2"
 sha2 = "0.10"
 hex = "0.4"
