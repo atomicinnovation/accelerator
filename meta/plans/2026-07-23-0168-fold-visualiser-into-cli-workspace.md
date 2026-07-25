@@ -5,7 +5,7 @@ title: "Fold the Visualiser into the cli/ Workspace Implementation Plan"
 date: "2026-07-23T08:41:19+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: done
 work_item_id: "work-item:0168"
 parent: "work-item:0168"
 derived_from: ["codebase-research:2026-07-23-0168-fold-visualiser-into-cli-workspace"]
