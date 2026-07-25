@@ -238,7 +238,40 @@ _Last updated 2026-07-23._
   mocks `_reverify_subbinary`, and new unit tests cover the manifest mapping, the
   E2E-insecure guard, and the coherence check. Full `mise run` green.
 
-- **Phase 5:** not started.
+- **Phase 5 (Distribution Cut-over): complete.** Deleted the retired shell
+  surface (`visualiser.sh`, `launch-server.sh`, `stop-server.sh`,
+  `status-server.sh`, `write-visualiser-config.sh`, their `test-*.sh` suites, and
+  the co-located `test-helpers.sh`), `bin/checksums.json`, and the bash CLI
+  `cli/accelerator-visualiser`. Retired the checksums producer + coherence read:
+  `create_checksums`/`update_checksums_json`/`_read_checksums_json_version` and
+  the `checksums.json` coherence entry are gone from `build.py`;
+  `_render_checksums_version` + the checksums write are gone from `version.py`;
+  the two `create_checksums` calls are gone from `release.py`; and the
+  `build:checksums` mise task + `test:integration:binary-acquisition` task and its
+  roll-up entry are removed. Version coherence now spans plugin.json + the cli/
+  workspace manifest + pinned members only (the manifest flow's per-binary sha256
+  is the release-time integrity check).
+
+  Deviations from the plan text, all consequences of the earlier "unify to one
+  asset" decision (which post-dates this plan): (1) `binary_path` was NOT merely
+  removed as dead — the debug archive still needs a source, so
+  `create_debug_archives` was repointed to the shared `dist/release`
+  `subbinary_asset_path("visualiser", …)` binary (writing the `.tar.gz` into bin/
+  under the provenance glob, with an added `BIN_DIR.mkdir`), and only then was
+  `binary_path` deleted; (2) the plan scoped Phase 5 to build/version/paths, but
+  the unify wiring meant `github.py` also had to drop its checksums-track
+  visualiser reverify (`_release_reverifies` no longer reads `CHECKSUMS`; the
+  visualiser is fully reverified via the manifest sha256 + inline signature in
+  `_subbinary_reverifies`); (3) `launcher-helpers.sh` was deleted rather than
+  kept — its only surviving consumer, the design inventory-design Playwright
+  executor, used just `start_time_of`/`start_time_matches`, so those two helpers
+  were inlined into that executor's `run.sh` behind a sourced-mode guard (the
+  locale regression test still sources `run.sh` to exercise `start_time_of` in
+  isolation), removing the cross-skill dependency entirely.
+  Producer/version/release tests updated in lockstep; active docs (RELEASING.md,
+  docs/visualiser.md, tasks/README.md, CLAUDE.md) repointed off `checksums.json`
+  onto the signed manifest. `mise run build-system:check` + `scripts:check` +
+  tasks unit/integration suites green.
 
 ## Current State Analysis
 
@@ -1183,12 +1216,17 @@ invariants. Update the corresponding `tests/unit/tasks/*` assertions in lockstep
 
 #### Automated Verification
 
-- [ ] The five scripts, `bin/checksums.json`, and the bash CLI are absent
-- [ ] Version-coherence passes without any `checksums.json` / standalone-literal
-      reads: `mise run` (the release/version tasks)
-- [ ] Shell lint is green with the deleted sources removed from the source set:
+- [x] The five scripts, `bin/checksums.json`, and the bash CLI are absent
+- [x] Version-coherence passes without any `checksums.json` / standalone-literal
+      reads (`build-system:check` + the version/release task suites)
+- [x] Shell lint is green with the deleted sources removed from the source set:
       `mise run scripts:check`
-- [ ] Full gate is green: `mise run`
+- [x] Python side green: `build-system:check` + the full tasks unit/integration
+      suites (389 passed). A stale `test_dev.py::test_started_prints_ready_block`
+      assertion (server.log moved to the visualiser state dir under the Model-1
+      rewire but the adapter test still expected it under `dev_dir`) was corrected
+      in the dev-rewire commit where it was introduced. The heavy end-to-end
+      `mise run` (frontend + Rust builds/tests + E2E) has not been run in full.
 
 #### Manual Verification
 
