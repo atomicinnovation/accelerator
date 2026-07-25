@@ -13,12 +13,10 @@ from invoke import Context, task
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
-    CHECKSUMS,
     DISPATCHED_SUBBINARIES,
     RELEASE_MANIFEST,
     RELEASE_MANIFEST_SIG,
     RELEASE_PUBLIC_KEY,
-    binary_path,
     cli_binary_path,
     debug_archive_path,
     subbinary_asset_path,
@@ -222,7 +220,7 @@ def _release_uploads() -> list[Path]:
     for _triple, platform in TARGETS:
         # The visualiser binary is published once, as the shared
         # accelerator-visualiser-{platform} manifest asset below; only its debug
-        # archive ships from the checksums flow here.
+        # archive ships from the skill's bin/ tree here.
         uploads.append(debug_archive_path(platform))
         launcher = cli_binary_path("accelerator", platform)
         uploads.append(launcher)
@@ -238,26 +236,8 @@ def _release_uploads() -> list[Path]:
 
 
 def _release_reverifies(context: Context, tag: str) -> list[_Reverify]:
-    checksums = json.loads(CHECKSUMS.read_text())
-    hashes = {
-        platform: digest.removeprefix("sha256:")
-        for platform, digest in checksums["binaries"].items()
-    }
     items: list[_Reverify] = []
     for _triple, platform in TARGETS:
-        visualiser = binary_path(platform)
-        items.append(
-            _Reverify(
-                "Visualiser",
-                partial(
-                    download_and_verify,
-                    context,
-                    tag,
-                    visualiser.name,
-                    hashes[platform],
-                ),
-            )
-        )
         launcher = cli_binary_path("accelerator", platform)
         items.append(
             _Reverify(
@@ -319,16 +299,15 @@ def _upload_clobber(context: Context, tag: str, path: Path) -> None:
 
 @task
 def upload_and_verify_release(context: Context, version: str) -> None:
-    """Upload every asset across both tracks, re-verify, then publish once.
+    """Upload every release asset, re-verify, then publish once.
 
     Owns the single `--draft=false` transition, flipped only after every asset
-    (visualiser sha256, launcher shim-minisig, manifest shim-minisig, sub-binary
-    sha256 + inline signature) re-verifies. An AssetVerificationError on either
-    track preserves the draft with a track-labelled forensic alert; any other
-    error deletes the release. Because the delete lives inside this pre-publish
-    envelope, it can never run against an already-published release. Uploads are
-    `--clobber` so a preserved draft can be re-driven to green without manual
-    asset deletion.
+    (launcher shim-minisig, manifest shim-minisig, sub-binary sha256 + inline
+    signature) re-verifies. An AssetVerificationError preserves the draft with a
+    track-labelled forensic alert; any other error deletes the release. Because
+    the delete lives inside this pre-publish envelope, it can never run against
+    an already-published release. Uploads are `--clobber` so a preserved draft
+    can be re-driven to green without manual asset deletion.
     """
     tag = f"v{version}"
     uploads = _release_uploads()

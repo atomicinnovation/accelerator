@@ -3,18 +3,15 @@ import json
 import shutil
 import subprocess
 import tarfile
-from collections.abc import Mapping
 from pathlib import Path
 
 from invoke import Context, task
 
 from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
 from tasks.shared.files import atomic_write_text
-from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
     BIN_DIR,
     CARGO_TOML,
-    CHECKSUMS,
     CLI_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
@@ -24,7 +21,6 @@ from tasks.shared.paths import (
     RELEASE_STAGING,
     REPO_ROOT,
     VENDOR_SHIM_MARKER,
-    binary_path,
     cli_binary_path,
     cli_member_manifests,
     debug_archive_path,
@@ -47,7 +43,6 @@ _CLI_WORKSPACE_CARGO_TOML_RELATIVE = CLI_WORKSPACE_CARGO_TOML.relative_to(
     REPO_ROOT
 )
 _PLUGIN_JSON_RELATIVE = PLUGIN_JSON.relative_to(REPO_ROOT)
-_CHECKSUMS_RELATIVE = CHECKSUMS.relative_to(REPO_ROOT)
 
 _MACHO_MAGIC = frozenset(
     [
@@ -61,11 +56,6 @@ _ELF_MAGIC = b"\x7fELF"
 
 def _read_plugin_json_version(root: Path) -> str:
     data = json.loads((root / _PLUGIN_JSON_RELATIVE).read_text())
-    return data["version"]
-
-
-def _read_checksums_json_version(root: Path) -> str:
-    data = json.loads((root / _CHECKSUMS_RELATIVE).read_text())
     return data["version"]
 
 
@@ -168,19 +158,6 @@ def _assert_static_elf(path: Path) -> None:
         )
 
 
-def update_checksums_json(
-    manifest_path: Path,
-    version: str,
-    platform_hashes: Mapping[str, str] | None = None,
-) -> None:
-    data = json.loads(manifest_path.read_text())
-    data["version"] = version
-    if platform_hashes:
-        for platform, hex_digest in platform_hashes.items():
-            data.setdefault("binaries", {})[platform] = f"sha256:{hex_digest}"
-    atomic_write_text(manifest_path, json.dumps(data, indent=2) + "\n")
-
-
 def validate_version_coherence(
     expected_version: str,
     repo_root: Path | None = None,
@@ -192,7 +169,6 @@ def validate_version_coherence(
     root = repo_root or REPO_ROOT
     found = {
         "plugin.json": _read_plugin_json_version(root),
-        "checksums.json": _read_checksums_json_version(root),
         _CLI_WORKSPACE_CARGO_TOML_RELATIVE.as_posix(): _read_workspace_version(
             root
         ),
@@ -314,10 +290,10 @@ def _assert_no_e2e_insecure(src: Path) -> None:
 def server_cross_compile(context: Context) -> None:
     """Cross-compile the visualiser server for all four release targets.
 
-    Produces stripped default (embed-dist) binaries staged both to bin/ (the
-    checksums flow) and to dist/release/visualiser-{platform} (the signed
-    manifest flow), after asserting the artifact carries no dev-frontend
-    insecure-bypass symbol.
+    Produces stripped default (embed-dist) binaries staged to
+    dist/release/accelerator-visualiser-{platform} (the single published binary
+    the manifest flow signs and the launcher fetches), after asserting the
+    artifact carries no dev-frontend insecure-bypass symbol.
     """
     RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
     for triple, platform in TARGETS:
@@ -329,10 +305,6 @@ def server_cross_compile(context: Context) -> None:
         src = CLI_TARGET_DIR / triple / "release" / "accelerator-visualiser"
         _assert_magic_bytes(src, triple)
         _assert_no_e2e_insecure(src)
-        # bin/ copy backs checksums.json + the debug archive (old flow); the
-        # dist/release copy is the single published binary the manifest flow
-        # signs and the launcher fetches, shared with the checksums flow.
-        shutil.copy2(src, binary_path(platform))
         shutil.copy2(src, subbinary_asset_path("visualiser", platform))
 
 
@@ -454,23 +426,14 @@ def vendor_verify_shims(context: Context) -> None:
 
 @task
 def create_debug_archives(context: Context) -> None:
-    """Create .debug.tar.gz archives for all cross-compiled release binaries."""
+    """Create .debug.tar.gz archives for the cross-compiled visualiser binary.
+
+    Archives the shared dist/release binary into bin/, keeping the debug
+    artefact under the committed skill tree where the provenance glob covers it.
+    """
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
     for _, platform in TARGETS:
-        binary = binary_path(platform)
+        binary = subbinary_asset_path("visualiser", platform)
         archive_path = debug_archive_path(platform)
         with tarfile.open(archive_path, "w:gz") as tar:
             tar.add(binary, arcname=binary.name)
-
-
-@task
-def create_checksums(context: Context, version: str) -> None:
-    """Compute SHA-256 checksums for release binaries; write checksums.json."""
-    validate_version_coherence(version)
-    binaries = {
-        platform: binary_path(platform, BIN_DIR) for _, platform in TARGETS
-    }
-    hashes = {
-        platform: compute_sha256(path) for platform, path in binaries.items()
-    }
-    update_checksums_json(CHECKSUMS, version, hashes)
-    validate_version_coherence(version)

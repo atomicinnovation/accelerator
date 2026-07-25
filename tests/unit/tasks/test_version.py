@@ -24,52 +24,21 @@ def ctx():
 def _patch_paths(mocker, base: Path) -> None:
     mocker.patch.object(tv, "PLUGIN_JSON", base / ".claude-plugin/plugin.json")
     mocker.patch.object(tv, "CLI_WORKSPACE_CARGO_TOML", base / "cli/Cargo.toml")
-    mocker.patch.object(
-        tv,
-        "CHECKSUMS",
-        base / "skills/visualisation/visualise/bin/checksums.json",
-    )
 
 
 # ── write() ───────────────────────────────────────────────────────────
 
 
 class TestWrite:
-    def test_updates_plugin_and_checksums(self, ctx, mocker, fake_repo_tree):
+    def test_updates_plugin_version(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
         tv.write(ctx, "1.21.0")
 
         plugin_json = json.loads(
             (fake_repo_tree / ".claude-plugin/plugin.json").read_text()
         )
-        checksums = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
 
         assert plugin_json["version"] == "1.21.0"
-        assert checksums["version"] == "1.21.0"
-
-    def test_checksums_binaries_map_preserved(
-        self, ctx, mocker, fake_repo_tree
-    ):
-        _patch_paths(mocker, fake_repo_tree)
-        checksums_before = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
-        tv.write(ctx, "1.21.0")
-        checksums_after = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
-        assert checksums_after["binaries"] == checksums_before["binaries"]
 
     def test_idempotent(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
@@ -79,10 +48,6 @@ class TestWrite:
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
             "workspace": (fake_repo_tree / "cli/Cargo.toml").read_bytes(),
-            "checksums": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_bytes(),
         }
         tv.write(ctx, "1.21.0")
         content_after_second = {
@@ -90,10 +55,6 @@ class TestWrite:
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
             "workspace": (fake_repo_tree / "cli/Cargo.toml").read_bytes(),
-            "checksums": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_bytes(),
         }
         assert content_after_first == content_after_second
 

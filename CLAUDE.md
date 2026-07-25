@@ -81,7 +81,8 @@ analyser agents (Read) to keep each context bounded.
 - `frontend/` — React 19 + TypeScript + Vite SPA. **Biome** (not ESLint/Prettier)
   for lint + format; `tsc -b` for types; Vitest for unit, Playwright for E2E.
 - The binary is distributed via GitHub Releases and downloaded on first use,
-  verified against `bin/checksums.json` (SHA-256, optional SLSA provenance).
+  verified against the signed `manifest.json` (SHA-256 + minisign, optional SLSA
+  provenance).
 
 ### Build system (`tasks/`)
 
@@ -89,7 +90,8 @@ Python invoke tasks, type-checked with **pyrefly (strict preset)** and linted
 with **ruff (`select = ["ALL"]`)** — both version-pinned exactly in
 `pyproject.toml` because their rule sets are version-sensitive. Shared helpers
 live in `tasks/shared/`. Release/version logic enforces **version coherence**:
-`plugin.json`, the server's `Cargo.toml`, and `checksums.json` must agree.
+`plugin.json`, the cli/ workspace `Cargo.toml`, and any version-pinned member
+manifest must agree.
 
 ### Shell scripts (`scripts/`, `hooks/`)
 

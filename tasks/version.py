@@ -8,7 +8,6 @@ from invoke import Context, task
 
 from .shared.files import atomic_write_text
 from .shared.paths import (
-    CHECKSUMS,
     CLI_WORKSPACE_CARGO_TOML,
     PLUGIN_JSON,
 )
@@ -42,12 +41,6 @@ def _render_workspace_cargo_toml(version: str) -> str:
     return tomlkit.dumps(data)
 
 
-def _render_checksums_version(version: str) -> str:
-    data = json.loads(CHECKSUMS.read_text())
-    data["version"] = version
-    return json.dumps(data, indent=2) + "\n"
-
-
 @task
 def read(_context: Context, print_to_stdout: bool = True) -> semver.Version:
     """Read plugin version."""
@@ -60,7 +53,7 @@ def read(_context: Context, print_to_stdout: bool = True) -> semver.Version:
 
 @task
 def write(_context: Context, version: str) -> None:
-    """Write plugin version to plugin.json, the cli/ workspace, and checksums.
+    """Write plugin version to plugin.json and the cli/ workspace manifest.
 
     The visualiser server inherits its version from
     [workspace.package].version, so bumping the cli/ workspace manifest covers
@@ -68,11 +61,9 @@ def write(_context: Context, version: str) -> None:
     """
     rendered_plugin_json = _render_plugin_json(version)
     rendered_workspace_cargo_toml = _render_workspace_cargo_toml(version)
-    rendered_checksums = _render_checksums_version(version)
 
     atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
     atomic_write_text(CLI_WORKSPACE_CARGO_TOML, rendered_workspace_cargo_toml)
-    atomic_write_text(CHECKSUMS, rendered_checksums)
 
 
 @task(iterable=["bump_type"])

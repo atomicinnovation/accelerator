@@ -5,7 +5,6 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 
 RUN_SH="$SCRIPT_DIR/run.sh"
-LAUNCHER_HELPERS="$PLUGIN_ROOT/skills/visualisation/visualise/scripts/launcher-helpers.sh"
 
 # When set, skip tests that require a real Playwright install
 SKIP_REAL="${ACCELERATOR_PLAYWRIGHT_SKIP_REAL_INSTALL:-0}"
@@ -30,12 +29,11 @@ assert_exit_code "evaluate-payload-rejected not in executor source (lib/*.js, ru
   grep -r 'evaluate-payload-rejected' "$SCRIPT_DIR/lib" "$SCRIPT_DIR/run.js" 2>/dev/null
 
 echo ""
-echo "=== playwright executor: launcher-helpers.sh source path ==="
+echo "=== playwright executor: inlined start_time_of helper ==="
 
-assert_file_exists "launcher-helpers.sh exists at expected path" "$LAUNCHER_HELPERS"
-HELPERS_CONTENT="$(cat "$LAUNCHER_HELPERS")"
-assert_contains "launcher-helpers.sh contains start_time_of function" \
-  "$HELPERS_CONTENT" "start_time_of"
+RUN_SH_CONTENT="$(cat "$RUN_SH")"
+assert_contains "run.sh inlines the start_time_of function" \
+  "$RUN_SH_CONTENT" "start_time_of"
 
 # Locale fragility regression guard: start_time_of must return the same
 # epoch under LANG=de_DE.UTF-8 as under LANG=C. The previous form treated
@@ -44,7 +42,7 @@ assert_contains "launcher-helpers.sh contains start_time_of function" \
 # is back, not that the locale is missing. We probe locale availability
 # explicitly via `locale -a` and only SKIP when it's truly absent.
 PID=$$
-RESULT_C="$(LANG=C LC_ALL=C TZ=UTC bash -c "source '$LAUNCHER_HELPERS'; start_time_of $PID" 2>/dev/null || true)"
+RESULT_C="$(LANG=C LC_ALL=C TZ=UTC bash -c "source '$RUN_SH'; start_time_of $PID" 2>/dev/null || true)"
 # Capture `locale -a` into a variable rather than piping into `grep -q`:
 # under `set -o pipefail`, grep's early-exit can leave locale with SIGPIPE
 # (exit 141), which falsely fails the locale-availability probe.
@@ -54,7 +52,7 @@ if [[ -z "$RESULT_C" ]]; then
 elif [[ $'\n'"$LOCALES_AVAILABLE"$'\n' != *$'\n'"de_DE.UTF-8"$'\n'* ]]; then
   echo "  SKIP: start_time_of locale test (de_DE.UTF-8 not installed)"
 else
-  RESULT_DE="$(LANG=de_DE.UTF-8 TZ=UTC bash -c "source '$LAUNCHER_HELPERS'; start_time_of $PID" 2>/dev/null || true)"
+  RESULT_DE="$(LANG=de_DE.UTF-8 TZ=UTC bash -c "source '$RUN_SH'; start_time_of $PID" 2>/dev/null || true)"
   if [[ "$RESULT_C" == "$RESULT_DE" ]]; then
     echo "  PASS: start_time_of locale-safe (C=$RESULT_C, de_DE=$RESULT_DE)"
     PASS=$((PASS + 1))

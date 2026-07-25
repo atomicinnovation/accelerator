@@ -133,11 +133,6 @@ description = "Create .debug.tar.gz archives for all cross-compiled release bina
 depends = ["build:server:cross-compile"]
 run = "invoke build.create-debug-archives"
 
-[tasks."build:checksums"]
-description = "Compute SHA-256 checksums for all release binaries and write checksums.json"
-depends = ["build:server:cross-compile"]
-run = "invoke build.create-checksums"
-
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]
@@ -206,11 +201,6 @@ description = "Run decisions integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.decisions"
 
-[tasks."test:integration:binary-acquisition"]
-description = "Test launch-server.sh binary acquisition paths (sentinel rejection, SHA mismatch, 404)"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.binary-acquisition"
-
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 run = "invoke test.integration.hooks"
@@ -245,7 +235,6 @@ depends = [
     "test:integration:deny",
     "test:integration:decisions",
     "test:integration:tasks",
-    "test:integration:binary-acquisition",
     "test:integration:hooks",
     "test:integration:github",
     "test:integration:migrate",

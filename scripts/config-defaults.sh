@@ -183,10 +183,9 @@ AGENT_DEFAULTS=(
 # Visualiser keys that DO carry a catalogue default. These mirror VISUALISER_KEYS
 # in the Rust catalogue (cli/config) and are drift-tested against it key-for-key;
 # config-dump.sh renders them with their defaults. The visualiser server keeps a
-# matching runtime fallback in its own crate (server/src/config.rs) because it
-# cannot depend on the config crate — this catalogue is the authoritative
-# declaration and write-visualiser-config.sh sources the kanban default from
-# here. VISUALISER_DEFAULTS is index-aligned (bash 3.2 has no associative arrays).
+# matching runtime fallback in its own crate (server/src/config.rs) — this
+# catalogue is the authoritative declaration that config-dump.sh renders.
+# VISUALISER_DEFAULTS is index-aligned (bash 3.2 has no associative arrays).
 VISUALISER_KEYS=(
   "visualiser.kanban_columns"
   "visualiser.idle_timeout"

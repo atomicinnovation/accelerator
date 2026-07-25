@@ -3,11 +3,10 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-# The skill keeps its bin/ (checksums) and scripts/ here; the server + frontend
-# have moved into the cli/ workspace.
+# The skill keeps its bin/ (debug archives) here; the server + frontend have
+# moved into the cli/ workspace.
 VISUALISER = REPO_ROOT / "skills/visualisation/visualise"
 BIN_DIR = VISUALISER / "bin"
-CHECKSUMS = BIN_DIR / "checksums.json"
 CLI_DIR = REPO_ROOT / "cli"
 # The server is the 12th cli/ workspace member, so it builds into the shared
 # workspace target dir, not a crate-local one.
@@ -52,10 +51,6 @@ def cli_member_manifests(workspace_manifest: Path) -> list[Path]:
     return [workspace_manifest.parent / m / "Cargo.toml" for m in members]
 
 
-def binary_path(platform: str, bin_dir: Path = BIN_DIR) -> Path:
-    return bin_dir / f"accelerator-visualiser-{platform}"
-
-
 def cli_binary_path(
     name: str, platform: str, staging_dir: Path = RELEASE_STAGING
 ) -> Path:
@@ -69,9 +64,8 @@ def subbinary_asset_path(
 
     Every sub-binary asset carries the `accelerator-` prefix even though the
     manifest keys on the bare `token`, so the launcher fetches
-    `accelerator-<token>-<platform>`. For the visualiser this resolves to the
-    same `accelerator-visualiser-<platform>` name the checksums flow reverifies,
-    so the binary ships as a single shared asset.
+    `accelerator-<token>-<platform>` — for the visualiser,
+    `accelerator-visualiser-<platform>`.
     """
     return staging_dir / f"accelerator-{token}-{platform}"
 

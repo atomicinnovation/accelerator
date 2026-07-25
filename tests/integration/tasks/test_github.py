@@ -249,21 +249,6 @@ def _require(name: str) -> None:
 
 
 def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
-    checksums = tmp_path / "checksums.json"
-    checksums.write_text(
-        json.dumps(
-            {
-                "version": "1.20.0",
-                "binaries": dict.fromkeys(_PLATFORMS, f"sha256:{'a' * 64}"),
-            }
-        )
-    )
-    mocker.patch.object(gh, "CHECKSUMS", checksums)
-    mocker.patch.object(
-        gh,
-        "binary_path",
-        side_effect=lambda p: tmp_path / f"accelerator-visualiser-{p}",
-    )
     mocker.patch.object(
         gh,
         "debug_archive_path",
@@ -373,29 +358,33 @@ class TestUploadAndVerifyRelease:
         assert "Launcher/manifest release" in out
         assert "PRESERVED" in out
 
-    def test_visualiser_reverify_failure_preserves_draft(
+    def test_subbinary_reverify_failure_preserves_draft(
         self, ctx, mocker, tmp_path, capsys
     ):
         _setup_release(mocker, tmp_path)
+        mocker.patch.object(gh, "download_and_verify")
+        mocker.patch.object(gh, "_reverify_via_shim")
         mocker.patch.object(
             gh,
-            "download_and_verify",
+            "_reverify_subbinary",
             side_effect=AssetVerificationError("bad"),
         )
-        mocker.patch.object(gh, "_reverify_via_shim")
         with pytest.raises(AssetVerificationError):
             upload_and_verify_release(ctx, "1.20.0")
         cmds = "".join(str(c.args[0]) for c in ctx.run.call_args_list)
         assert "gh release delete" not in cmds
         assert "--draft=false" not in cmds
-        assert "Visualiser release" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Launcher/manifest release" in out
+        assert "PRESERVED" in out
 
     def test_generic_error_deletes_release(self, ctx, mocker, tmp_path):
         _setup_release(mocker, tmp_path)
-        mocker.patch.object(
-            gh, "download_and_verify", side_effect=RuntimeError("transient")
-        )
+        mocker.patch.object(gh, "download_and_verify")
         mocker.patch.object(gh, "_reverify_via_shim")
+        mocker.patch.object(
+            gh, "_reverify_subbinary", side_effect=RuntimeError("transient")
+        )
         with pytest.raises(RuntimeError):
             upload_and_verify_release(ctx, "1.20.0")
         deletes = [

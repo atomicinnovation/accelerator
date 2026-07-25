@@ -151,9 +151,8 @@ fn get_of_an_unset_key_prints_the_callers_default() -> TestResult {
     Ok(())
 }
 
-/// The presence probe `jira-auth.sh:228` / `write-visualiser-config.sh:64-65`
-/// depend on: an explicitly empty default yields empty on a miss, with no
-/// catalogue lookup for `get`.
+/// The presence probe `jira-auth.sh:228` depends on: an explicitly empty
+/// default yields empty on a miss, with no catalogue lookup for `get`.
 #[test]
 fn get_with_an_explicit_empty_default_yields_empty_on_a_miss() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
