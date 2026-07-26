@@ -15,8 +15,7 @@ const WORK_ITEM_0001_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../server/tests/fixtures/meta/work/0001-first-work-item.md",
 );
-const CARD =
-  'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]';
+const CARD = 'li[data-relpath="meta/work/0001-first-work-item.md"]';
 
 test("dragging a card and releasing does NOT navigate", async ({ page }) => {
   // Restore the fixture even though this drag stays within the card's own column

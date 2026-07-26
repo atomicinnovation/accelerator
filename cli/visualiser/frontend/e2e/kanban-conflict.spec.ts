@@ -39,13 +39,13 @@ test("stale ETag produces an assertive error toast and reverts the card to draft
     await page.goto("/kanban");
     await expect(
       page.locator(
-        'li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
+        'li[data-relpath="meta/work/0006-conflict-test-work-item.md"]',
       ),
     ).toBeVisible();
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"] a',
+      'li[data-relpath="meta/work/0006-conflict-test-work-item.md"] a',
       'section[data-column="in-progress"]',
     );
 
@@ -62,7 +62,7 @@ test("stale ETag produces an assertive error toast and reverts the card to draft
     // Card should have snapped back to draft (optimistic rollback)
     await expect(
       page.locator(
-        'section[data-column="draft"] li[data-relpath="tests/fixtures/meta/work/0006-conflict-test-work-item.md"]',
+        'section[data-column="draft"] li[data-relpath="meta/work/0006-conflict-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 });
 

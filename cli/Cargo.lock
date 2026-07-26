@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.24.0-pre.15"
+version = "1.24.0-pre.16"
 dependencies = [
  "anyhow",
  "arc-swap",

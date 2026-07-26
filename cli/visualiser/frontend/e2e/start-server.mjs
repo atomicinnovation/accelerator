@@ -13,13 +13,11 @@ import { execSync, spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  symlinkSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,7 +25,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const frontendDir = resolve(__dirname, "..");
 const serverDir = resolve(frontendDir, "../server");
 const fixturesDir = join(serverDir, "tests/fixtures/meta");
-const templatesDir = join(serverDir, "tests/fixtures/templates");
 
 const HEALTH_PORT = Number(process.env.E2E_HEALTH_PORT ?? 19087);
 
@@ -60,18 +57,28 @@ if (!existsSync(bin)) {
   process.exit(1);
 }
 
-// ── 3. Assemble a throwaway project rooted at the committed fixtures ───────────
+// ── 3. Root the server at the committed fixtures ─────────────────────────────
 //
-// The Model-1 server reads .accelerator/*.md from the discovered project root,
-// so instead of a config.json we build a temp project whose meta/ and templates/
-// symlink to the committed fixtures and whose config remaps only the one path
-// that differs from the catalogue default (research_codebase → meta/research).
-// Runtime state lands in the temp dir, keeping the tracked fixtures clean.
+// The Model-1 server reads .accelerator/*.md from the discovered project root
+// and derives each doc's API path by stripping that root off the doc's own
+// path, so the served docs must live physically under the root. A symlink or an
+// out-of-tree copy breaks that: a symlink resolves to a path that escapes the
+// root (absolute API paths the doc-read guard 403s), and a copy decouples the
+// served files from the on-disk fixtures these specs mutate (breaking the
+// fs-driven SSE and per-test reset flow). So the fixtures directory itself is
+// the project root — meta/ and templates/ are already real children — and only
+// .accelerator (config + git-ignored runtime state) is added. config.md remaps
+// the one path that differs from the catalogue default (research_codebase →
+// meta/research). globalSetup/globalTeardown snapshot and restore the mutated
+// work-item files.
 
-const project = mkdtempSync(join(tmpdir(), "vis-e2e-proj-"));
+const project = join(serverDir, "tests/fixtures");
+// The project root is fixed (not a fresh tempdir), so runtime state from an
+// earlier run persists here. Clear it before spawning so the readiness wait
+// below blocks on THIS server's server-info.json rather than reading a stale
+// port left by a previous run (or a checkout that accidentally tracked one).
+rmSync(join(project, ".accelerator", "tmp"), { recursive: true, force: true });
 mkdirSync(join(project, ".accelerator"), { recursive: true });
-symlinkSync(fixturesDir, join(project, "meta"));
-symlinkSync(templatesDir, join(project, "templates"));
 writeFileSync(
   join(project, ".accelerator", "config.md"),
   "---\npaths:\n  research_codebase: meta/research\n---\n",

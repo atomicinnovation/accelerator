@@ -17,7 +17,7 @@ test("drag todo card to in-progress column", async ({ page }) => {
     await page.goto("/kanban");
 
     const todoCard = page.locator(
-      'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]',
+      'li[data-relpath="meta/work/0001-first-work-item.md"]',
     );
     const inProgressColumn = page.locator('section[data-column="in-progress"]');
 
@@ -30,14 +30,14 @@ test("drag todo card to in-progress column", async ({ page }) => {
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"] a',
+      'li[data-relpath="meta/work/0001-first-work-item.md"] a',
       'section[data-column="in-progress"]',
     );
 
     // Card should now appear in the in-progress column (optimistic update).
     await expect(
       inProgressColumn.locator(
-        'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]',
+        'li[data-relpath="meta/work/0001-first-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 });
 
@@ -80,14 +80,14 @@ test("second tab receives SSE update after drag", async ({ page, context }) => {
 
     await dndDrag(
       page,
-      'li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"] a',
+      'li[data-relpath="meta/work/0005-sse-test-work-item.md"] a',
       'section[data-column="in-progress"]',
     );
 
     // Confirm optimistic update on page 1.
     await expect(
       page.locator(
-        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"]',
+        'section[data-column="in-progress"] li[data-relpath="meta/work/0005-sse-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 5000 });
 
@@ -99,7 +99,7 @@ test("second tab receives SSE update after drag", async ({ page, context }) => {
     // Second tab should receive the SSE event and move the card.
     await expect(
       page2.locator(
-        'section[data-column="in-progress"] li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"]',
+        'section[data-column="in-progress"] li[data-relpath="meta/work/0005-sse-test-work-item.md"]',
       ),
     ).toBeVisible({ timeout: 10000 });
   } finally {

@@ -14,10 +14,8 @@ const FIXTURES_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../server/tests/fixtures/meta/work",
 );
-const CARD_0001 =
-  'li[data-relpath="tests/fixtures/meta/work/0001-first-work-item.md"]';
-const CARD_0005 =
-  'li[data-relpath="tests/fixtures/meta/work/0005-sse-test-work-item.md"]';
+const CARD_0001 = 'li[data-relpath="meta/work/0001-first-work-item.md"]';
+const CARD_0005 = 'li[data-relpath="meta/work/0005-sse-test-work-item.md"]';
 const WORK_ITEM_0005_PATH = resolve(FIXTURES_DIR, "0005-sse-test-work-item.md");
 
 test("source card persists in its column while the lifted overlay clone renders (A1/A3)", async ({
