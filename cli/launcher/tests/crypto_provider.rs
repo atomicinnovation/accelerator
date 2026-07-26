@@ -17,6 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use clap::Parser as _;
+use tempfile::TempDir;
 
 use accelerator::config_command::core::ConfigStack;
 use accelerator::launch::core::{
@@ -69,13 +70,14 @@ impl ReportVersion for StubReporter {
 
 /// A throwaway workspace rooted at a `.git` marker, carrying a minimal team
 /// config so `config path` resolves without escaping into the real tree.
-fn fixture() -> Result<PathBuf, Box<dyn Error>> {
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-        .join(format!("crypto-provider-{}", std::process::id()));
-    fs::create_dir_all(root.join(".git"))?;
-    fs::create_dir_all(root.join(".accelerator"))?;
+fn fixture() -> Result<TempDir, Box<dyn Error>> {
+    let root = tempfile::Builder::new()
+        .prefix("crypto-provider-")
+        .tempdir()?;
+    fs::create_dir_all(root.path().join(".git"))?;
+    fs::create_dir_all(root.path().join(".accelerator"))?;
     fs::write(
-        root.join(".accelerator/config.md"),
+        root.path().join(".accelerator/config.md"),
         "---\npaths:\n  work: custom/work\n---\n",
     )?;
     Ok(root)
@@ -97,6 +99,7 @@ fn version_never_consults_the_resolver() -> TestResult {
 #[test]
 fn config_path_never_consults_the_resolver() -> TestResult {
     let root = fixture()?;
+    let root = root.path().to_path_buf();
     let spy = SpyResolver {
         called: Cell::new(false),
     };

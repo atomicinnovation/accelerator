@@ -3,6 +3,7 @@ import json
 import shutil
 import subprocess
 import tarfile
+import tomllib
 from pathlib import Path
 
 from invoke import Context, task
@@ -353,32 +354,102 @@ def _cargo_lock_package_block(
     raise RuntimeError(f"package {name!r} not found in cli/Cargo.lock")
 
 
+def _dev_only_dependency_names(manifest_path: Path) -> set[str]:
+    """Names declared under `[dev-dependencies]` but not `[dependencies]`.
+
+    Dev-dependencies compile only into the crate's own tests, never into the
+    release shim binary, so they are not shim build inputs. A name that is
+    also a normal dependency is a real build input and stays counted.
+    """
+    manifest = tomllib.loads(manifest_path.read_text())
+    dev = set(manifest.get("dev-dependencies", {}))
+    normal = set(manifest.get("dependencies", {}))
+    return dev - normal
+
+
+def _strip_dev_dependencies_table(text: str) -> str:
+    """Return `text` with any `[dev-dependencies]` table removed.
+
+    Mirrors the tests exclusion: dev-dependencies are not shim build inputs,
+    so a change to them must not perturb the drift marker. The single blank
+    separator preceding the table is dropped too, so removing a table appended
+    with a separator reproduces the pre-table bytes exactly.
+    """
+    lines = text.splitlines(keepends=True)
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        header = lines[index].lstrip()
+        if header.startswith(("[dev-dependencies]", "[dev-dependencies.")):
+            if kept and kept[-1].strip() == "":
+                kept.pop()
+            index += 1
+            while index < len(lines) and not lines[index].lstrip().startswith(
+                "["
+            ):
+                index += 1
+            continue
+        kept.append(lines[index])
+        index += 1
+    return "".join(kept)
+
+
+def _strip_lock_dependencies(block: str, names: set[str]) -> str:
+    """Drop `dependencies = [...]` entries in `block` naming `names`.
+
+    A Cargo.lock package block merges every dependency kind into one list, so
+    a dev-only dependency surfaces here as a plain entry; removing it keeps the
+    hashed block stable across dev-dependency changes.
+    """
+    kept: list[str] = []
+    for line in block.splitlines():
+        entry = line.strip()
+        if entry.startswith('"') and entry.rstrip(",").endswith('"'):
+            dep = entry.rstrip(",").strip('"').split(" ", 1)[0]
+            if dep in names:
+                continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
     """SHA-256 over the verify shim's build inputs.
 
-    Covers `cli/verify` source (excluding the crate's own tests, which do not
-    build into the shim) plus the `minisign-verify` pin and its resolved
-    lockfile closure, so a dependency bump that never touches `cli/verify/**`
-    still trips the drift guard. The `accelerator-verify` lock block's own
-    version line is dropped so a routine release version bump is not drift.
+    Covers `cli/verify` source (excluding the crate's own tests and its
+    `[dev-dependencies]`, neither of which builds into the shim) plus the
+    `minisign-verify` pin and its resolved lockfile closure, so a dependency
+    bump that never touches `cli/verify/**` still trips the drift guard. The
+    `accelerator-verify` lock block's own version line and its dev-only
+    dependency entries are dropped so a routine release version bump or a
+    test-only dev-dependency change is not drift.
     """
     hasher = hashlib.sha256()
     verify_dir = root / "cli" / "verify"
     tests_dir = verify_dir / "tests"
+    manifest_path = verify_dir / "Cargo.toml"
+    dev_only = _dev_only_dependency_names(manifest_path)
     for path in sorted(p for p in verify_dir.rglob("*") if p.is_file()):
         if tests_dir in path.parents:
             continue
         hasher.update(path.relative_to(verify_dir).as_posix().encode())
         hasher.update(b"\0")
-        hasher.update(path.read_bytes())
+        if path == manifest_path:
+            hasher.update(
+                _strip_dev_dependencies_table(path.read_text()).encode()
+            )
+        else:
+            hasher.update(path.read_bytes())
         hasher.update(b"\0")
     cargo_toml = (root / "cli" / "Cargo.toml").read_text()
     hasher.update(_minisign_verify_pin(cargo_toml).encode())
     hasher.update(b"\0")
     lock_text = (root / "cli" / "Cargo.lock").read_text()
     hasher.update(
-        _cargo_lock_package_block(
-            lock_text, "accelerator-verify", drop_version=True
+        _strip_lock_dependencies(
+            _cargo_lock_package_block(
+                lock_text, "accelerator-verify", drop_version=True
+            ),
+            dev_only,
         ).encode()
     )
     hasher.update(b"\0")

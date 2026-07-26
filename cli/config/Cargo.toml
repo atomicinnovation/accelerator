@@ -11,3 +11,6 @@ workspace = true
 
 [dependencies]
 kernel = { path = "../kernel" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

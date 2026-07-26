@@ -8,15 +8,13 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
 use config::{ConfigAccess, ConfigError, ConfigService, Key, Resolved, Value};
 use config_adapters::{render_resolved, FileConfigStore};
-
-static COUNTER: AtomicU64 = AtomicU64::new(0);
+use tempfile::TempDir;
 
 type Store = ConfigService<FileConfigStore, FileConfigStore>;
 
@@ -24,16 +22,15 @@ fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/configs")
 }
 
-fn materialise(name: &str) -> PathBuf {
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "parity-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir_all(dir.join(".git")).unwrap();
+fn materialise(name: &str) -> TempDir {
+    let dir = tempfile::Builder::new()
+        .prefix("parity-")
+        .tempdir()
+        .unwrap();
+    std::fs::create_dir_all(dir.path().join(".git")).unwrap();
     copy_dir(
         &fixtures().join(name).join(".accelerator"),
-        &dir.join(".accelerator"),
+        &dir.path().join(".accelerator"),
     );
     dir
 }
@@ -68,6 +65,7 @@ fn rendered(dir: &Path, key: &str) -> String {
 #[test]
 fn depth_beyond_two_resolves_declared_scalar_values() {
     let dir = materialise("deep");
+    let dir = dir.path().to_path_buf();
     assert_eq!(rendered(&dir, "a.b.c"), "three");
     assert_eq!(rendered(&dir, "a.b.d.e"), "four");
 }
@@ -75,6 +73,7 @@ fn depth_beyond_two_resolves_declared_scalar_values() {
 #[test]
 fn inline_and_nested_arrays_resolve_to_typed_sequences() {
     let deep = materialise("deep");
+    let deep = deep.path().to_path_buf();
     assert_eq!(
         resolve(&deep, "a.b.items").unwrap(),
         Resolved::Found(Value::Sequence(vec![
@@ -84,6 +83,7 @@ fn inline_and_nested_arrays_resolve_to_typed_sequences() {
     );
 
     let arrays = materialise("arrays");
+    let arrays = arrays.path().to_path_buf();
     assert_eq!(
         resolve(&arrays, "review.core_lenses").unwrap(),
         Resolved::Found(Value::Sequence(vec![
@@ -109,6 +109,7 @@ fn an_absent_array_key_defaults_to_the_same_sequence_shape() {
 #[test]
 fn value_encodings_resolve_to_their_declared_divergent_forms() {
     let dir = materialise("encodings");
+    let dir = dir.path().to_path_buf();
     let cases = [
         ("enc.id_pattern", ""),
         ("enc.leading_bracket", "[a, b]"),
@@ -131,6 +132,7 @@ fn value_encodings_resolve_to_their_declared_divergent_forms() {
 #[test]
 fn a_block_authored_array_diverges_from_the_bash_found_empty() {
     let dir = materialise("block-array");
+    let dir = dir.path().to_path_buf();
     assert_eq!(
         resolve(&dir, "review.core_lenses").unwrap(),
         Resolved::Found(Value::Sequence(vec![
@@ -143,12 +145,14 @@ fn a_block_authored_array_diverges_from_the_bash_found_empty() {
 #[test]
 fn malformed_frontmatter_is_fail_loud_where_bash_degrades() {
     let team = materialise("malformed-team");
+    let team = team.path().to_path_buf();
     assert!(matches!(
         resolve(&team, "paths.work"),
         Err(ConfigError::MalformedFrontmatter { .. })
     ));
 
     let local = materialise("malformed-local");
+    let local = local.path().to_path_buf();
     assert!(matches!(
         resolve(&local, "paths.work"),
         Err(ConfigError::MalformedFrontmatter { .. })
@@ -159,6 +163,7 @@ fn malformed_frontmatter_is_fail_loud_where_bash_degrades() {
 fn adversarial_input_terminates_with_an_error_not_a_hang() {
     for name in ["adversarial-deep", "adversarial-aliases"] {
         let dir = materialise(name);
+        let dir = dir.path().to_path_buf();
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
             let outcome = resolve(&dir, "leaf").is_err();

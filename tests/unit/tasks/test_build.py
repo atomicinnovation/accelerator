@@ -233,6 +233,29 @@ class TestVendorShimMarkerDigest:
         )
         assert vendor_shim_marker_digest(root=tmp_path) != baseline
 
+    def test_ignores_a_dev_dependency_change(self, tmp_path):
+        # A dev-dependency compiles only into the crate's tests, never the
+        # shim, so adding one under [dev-dependencies] (and to the lock block)
+        # must not register as drift.
+        baseline = vendor_shim_marker_digest()
+        cli_dst = tmp_path / "cli"
+        shutil.copytree(
+            _REPO_ROOT / "cli",
+            cli_dst,
+            ignore=shutil.ignore_patterns("target"),
+        )
+        manifest = cli_dst / "verify" / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text().rstrip() + '\nfastrand = "2"\n'
+        )
+        lock = cli_dst / "Cargo.lock"
+        lock.write_text(
+            lock.read_text().replace(
+                ' "tempfile",\n', ' "tempfile",\n "fastrand",\n', 1
+            )
+        )
+        assert vendor_shim_marker_digest(root=tmp_path) == baseline
+
 
 # ── validate_version_coherence() ─────────────────────────────────────
 

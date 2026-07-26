@@ -421,11 +421,9 @@ for k in "${TEMPLATE_KEYS[@]}"; do printf 'T\t%s\n' "$k"; done
         }
 
         let scripts = scripts_dir()?;
-        let root = std::env::temp_dir().join(format!(
-            "config-drift-{}-{}",
-            std::process::id(),
-            line!()
-        ));
+        let temp =
+            tempfile::Builder::new().prefix("config-drift-").tempdir()?;
+        let root = temp.path().to_path_buf();
         seed_config(&root)?;
 
         let output = Command::new("bash")
@@ -474,7 +472,6 @@ for k in "${TEMPLATE_KEYS[@]}"; do printf 'T\t%s\n' "$k"; done
             .collect();
         assert_eq!(bash_doc_types, rust_doc_types, "doc-type pairing drift");
 
-        std::fs::remove_dir_all(&root).ok();
         Ok(())
     }
 }

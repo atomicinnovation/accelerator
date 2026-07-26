@@ -46,25 +46,18 @@ pub fn compose(
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
 
     use config::{ConfigAccess, ConfigError, Key, Resolved, Scalar, Value};
+    use tempfile::TempDir;
 
     use super::compose;
     use crate::store::LegacyPolicy;
 
     type TestError = Box<dyn std::error::Error>;
 
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn tempdir() -> Result<PathBuf, TestError> {
-        let dir = std::env::temp_dir().join(format!(
-            "cfg-compose-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(dir.join(".git"))?;
+    fn tempdir() -> Result<TempDir, TestError> {
+        let dir = tempfile::Builder::new().prefix("cfg-compose-").tempdir()?;
+        fs::create_dir_all(dir.path().join(".git"))?;
         Ok(dir)
     }
 
@@ -72,12 +65,12 @@ mod tests {
     fn composes_a_reader_rooted_at_the_discovered_root() -> Result<(), TestError>
     {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".accelerator"))?;
+        fs::create_dir_all(root.path().join(".accelerator"))?;
         fs::write(
-            root.join(".accelerator/config.md"),
+            root.path().join(".accelerator/config.md"),
             "---\npaths:\n  work: wired\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Reject)?.service;
+        let service = compose(root.path(), LegacyPolicy::Reject)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String("wired".to_owned())))
@@ -88,10 +81,10 @@ mod tests {
     #[test]
     fn fails_closed_on_the_legacy_layout() -> Result<(), TestError> {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".claude"))?;
-        fs::write(root.join(".claude/accelerator.md"), "legacy")?;
+        fs::create_dir_all(root.path().join(".claude"))?;
+        fs::write(root.path().join(".claude/accelerator.md"), "legacy")?;
         assert!(matches!(
-            compose(&root, LegacyPolicy::Reject),
+            compose(root.path(), LegacyPolicy::Reject),
             Err(ConfigError::LegacyLayout)
         ));
         Ok(())
@@ -101,16 +94,16 @@ mod tests {
     fn allow_suppresses_the_refusal_and_reads_the_legacy_pair(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".claude"))?;
+        fs::create_dir_all(root.path().join(".claude"))?;
         fs::write(
-            root.join(".claude/accelerator.md"),
+            root.path().join(".claude/accelerator.md"),
             "---\npaths:\n  work: legacy-team\n---\n",
         )?;
         fs::write(
-            root.join(".claude/accelerator.local.md"),
+            root.path().join(".claude/accelerator.local.md"),
             "---\npaths:\n  work: legacy-local\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Allow)?.service;
+        let service = compose(root.path(), LegacyPolicy::Allow)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String(
@@ -124,17 +117,17 @@ mod tests {
     fn the_legacy_fallback_is_inert_when_the_current_pair_is_present(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".accelerator"))?;
+        fs::create_dir_all(root.path().join(".accelerator"))?;
         fs::write(
-            root.join(".accelerator/config.md"),
+            root.path().join(".accelerator/config.md"),
             "---\npaths:\n  work: current\n---\n",
         )?;
-        fs::create_dir_all(root.join(".claude"))?;
+        fs::create_dir_all(root.path().join(".claude"))?;
         fs::write(
-            root.join(".claude/accelerator.md"),
+            root.path().join(".claude/accelerator.md"),
             "---\npaths:\n  work: legacy\n---\n",
         )?;
-        let service = compose(&root, LegacyPolicy::Allow)?.service;
+        let service = compose(root.path(), LegacyPolicy::Allow)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,
             Resolved::Found(Value::Scalar(Scalar::String(

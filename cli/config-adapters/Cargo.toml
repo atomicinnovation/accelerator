@@ -20,3 +20,6 @@ path = "tests/fixtures/config_adapters_fixture.rs"
 config = { path = "../config" }
 document = { path = "../document" }
 store = { path = "../store" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

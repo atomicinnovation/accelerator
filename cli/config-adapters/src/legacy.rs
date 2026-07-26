@@ -23,34 +23,25 @@ pub fn assert_no_legacy_layout(root: &Path) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
 
     use config::ConfigError;
+    use tempfile::TempDir;
 
     use super::assert_no_legacy_layout;
 
     type TestError = Box<dyn std::error::Error>;
 
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn tempdir() -> Result<PathBuf, TestError> {
-        let dir = std::env::temp_dir().join(format!(
-            "cfg-legacy-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&dir)?;
-        Ok(dir)
+    fn tempdir() -> Result<TempDir, TestError> {
+        Ok(tempfile::Builder::new().prefix("cfg-legacy-").tempdir()?)
     }
 
     #[test]
     fn blocks_a_legacy_only_layout() -> Result<(), TestError> {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".claude"))?;
-        fs::write(root.join(".claude/accelerator.md"), "legacy")?;
+        fs::create_dir_all(root.path().join(".claude"))?;
+        fs::write(root.path().join(".claude/accelerator.md"), "legacy")?;
         assert!(matches!(
-            assert_no_legacy_layout(&root),
+            assert_no_legacy_layout(root.path()),
             Err(ConfigError::LegacyLayout)
         ));
         Ok(())
@@ -59,18 +50,18 @@ mod tests {
     #[test]
     fn allows_a_migrated_layout() -> Result<(), TestError> {
         let root = tempdir()?;
-        fs::create_dir_all(root.join(".accelerator"))?;
-        fs::write(root.join(".accelerator/config.md"), "---\n---\n")?;
-        fs::create_dir_all(root.join(".claude"))?;
-        fs::write(root.join(".claude/accelerator.md"), "legacy")?;
-        assert!(assert_no_legacy_layout(&root).is_ok());
+        fs::create_dir_all(root.path().join(".accelerator"))?;
+        fs::write(root.path().join(".accelerator/config.md"), "---\n---\n")?;
+        fs::create_dir_all(root.path().join(".claude"))?;
+        fs::write(root.path().join(".claude/accelerator.md"), "legacy")?;
+        assert!(assert_no_legacy_layout(root.path()).is_ok());
         Ok(())
     }
 
     #[test]
     fn allows_a_repo_with_neither_file() -> Result<(), TestError> {
         let root = tempdir()?;
-        assert!(assert_no_legacy_layout(&root).is_ok());
+        assert!(assert_no_legacy_layout(root.path()).is_ok());
         Ok(())
     }
 }

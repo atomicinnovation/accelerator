@@ -10,9 +10,9 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use common::{MockServer, Route};
+use tempfile::TempDir;
 
 use accelerator::launch::core::{
     ExternalCommand, ResolutionError, ResolveBinary,
@@ -31,16 +31,11 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 // fetch → verify → cache suite (happy path plus every rejection case) end to end.
 const BINARY: &str = "visualiser";
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-fn tempdir(tag: &str) -> PathBuf {
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "res-{tag}-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir_all(&dir).expect("mkdir temp");
-    dir
+fn tempdir(tag: &str) -> TempDir {
+    tempfile::Builder::new()
+        .prefix(&format!("res-{tag}-"))
+        .tempdir()
+        .expect("mkdir temp")
 }
 
 fn minisign_bin() -> Option<PathBuf> {
@@ -72,12 +67,12 @@ fn generate_keypair(
 
 /// Sign `bytes` with `secret`, returning the `.minisig` contents.
 fn sign(minisign: &Path, secret: &Path, dir: &Path, bytes: &[u8]) -> String {
-    let target = dir.join(format!(
-        "payload-{}",
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::write(&target, bytes).expect("write payload");
-    let signature = target.with_extension("minisig");
+    let payload = tempfile::Builder::new()
+        .prefix("payload-")
+        .tempfile_in(dir)
+        .expect("payload tempfile");
+    std::fs::write(payload.path(), bytes).expect("write payload");
+    let signature = payload.path().with_extension("minisig");
     let status = Command::new(minisign)
         .arg("-S")
         .arg("-s")
@@ -85,7 +80,7 @@ fn sign(minisign: &Path, secret: &Path, dir: &Path, bytes: &[u8]) -> String {
         .arg("-x")
         .arg(&signature)
         .arg("-m")
-        .arg(&target)
+        .arg(payload.path())
         .output()
         .expect("run minisign -S");
     assert!(status.status.success(), "signing failed");
@@ -111,6 +106,10 @@ struct Harness {
     workdir: PathBuf,
     minisign: PathBuf,
     trusted_secret: PathBuf,
+    // RAII guards: keep the temp dirs alive for the harness's lifetime and
+    // remove them on drop.
+    _workdir_guard: TempDir,
+    _cache_guard: TempDir,
 }
 
 impl Harness {
@@ -156,8 +155,10 @@ fn asset_path() -> String {
 /// Build a harness with a correctly-signed release the resolver will accept.
 fn happy_harness() -> Option<Harness> {
     let minisign = minisign_bin()?;
-    let workdir = tempdir("work");
-    let cache = tempdir("cache");
+    let workdir_guard = tempdir("work");
+    let workdir = workdir_guard.path().to_path_buf();
+    let cache_guard = tempdir("cache");
+    let cache = cache_guard.path().to_path_buf();
     let (trusted_pub, trusted_secret) =
         generate_keypair(&minisign, &workdir, "release");
     let fixture_bytes = std::fs::read(FIXTURE).expect("read fixture");
@@ -180,6 +181,8 @@ fn happy_harness() -> Option<Harness> {
         workdir,
         minisign,
         trusted_secret,
+        _workdir_guard: workdir_guard,
+        _cache_guard: cache_guard,
     })
 }
 

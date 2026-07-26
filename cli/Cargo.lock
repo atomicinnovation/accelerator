@@ -17,6 +17,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "store",
+ "tempfile",
  "time",
  "tracing",
  "vergen",
@@ -28,6 +29,7 @@ name = "accelerator-verify"
 version = "1.24.0-pre.16"
 dependencies = [
  "minisign-verify",
+ "tempfile",
 ]
 
 [[package]]
@@ -557,6 +559,7 @@ name = "config"
 version = "1.24.0-pre.16"
 dependencies = [
  "kernel",
+ "tempfile",
 ]
 
 [[package]]
@@ -566,6 +569,7 @@ dependencies = [
  "config",
  "document",
  "store",
+ "tempfile",
 ]
 
 [[package]]
@@ -2925,6 +2929,7 @@ version = "1.24.0-pre.16"
 name = "vcs-adapters"
 version = "1.24.0-pre.16"
 dependencies = [
+ "tempfile",
  "tracing",
  "vcs",
 ]
