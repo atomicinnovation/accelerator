@@ -138,7 +138,9 @@ def test_detach_readiness_and_log_routing(workspace):
     # arbiter survives the (now-exited) launching process
     assert alive(state["arbiter_pid"])
     dev = workspace / ".accelerator/tmp/dev"
-    server_log_path = dev / "server.log"
+    # The Model-1 server writes its own log under the composed state dir; the
+    # frontend's stdout is captured by circus to dev/frontend.log.
+    server_log_path = workspace / ".accelerator/tmp/visualiser/server.log"
     frontend_log_path = dev / "frontend.log"
     # each marker reaches its own log (AC3) — wait for the async capture to
     # flush
@@ -159,13 +161,13 @@ def test_reuse_starts_no_duplicate(workspace):
 
 
 def test_stale_info_does_not_satisfy_gate(workspace):
-    server_dir = workspace / ".accelerator/tmp/dev-server"
-    server_dir.mkdir(parents=True)
-    (server_dir / "server-info.json").write_text(
+    state_dir = workspace / ".accelerator/tmp/visualiser"
+    state_dir.mkdir(parents=True)
+    (state_dir / "server-info.json").write_text(
         json.dumps({"url": "http://127.0.0.1:1111", "port": 1111})
     )
     assert run_driver(workspace, "up", {"api_port": 8888}).returncode == 0
-    info = json.loads((server_dir / "server-info.json").read_text())
+    info = json.loads((state_dir / "server-info.json").read_text())
     assert info["port"] == 8888  # the fresh server's file, not the stale 1111
 
 

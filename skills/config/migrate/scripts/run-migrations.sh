@@ -256,7 +256,7 @@ is_session_artifact() {
 #   and each explicit `|| return 1` is an intended refusal.
 dirty_tree_fully_owned() {
   local vcs="$1" dirty="$2" path recorded current
-  # Usability gate (mirror launcher-helpers.sh identity gate).
+  # Usability gate (mirrors a run-identity ownership check).
   [ -r "$RUN_ID_FILE" ] && [ -s "$RUN_ID_FILE" ] || return 1 # run-id non-empty
   # The manifest must EXIST but may be EMPTY: an in-flight interactive interrupt
   # that ran before any mechanical delta leaves an empty manifest, yet its

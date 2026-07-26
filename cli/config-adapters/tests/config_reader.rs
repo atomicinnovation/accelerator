@@ -5,22 +5,20 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
+
+use tempfile::TempDir;
 
 const READER: &str = env!("CARGO_BIN_EXE_config-adapters-fixture");
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
-
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-fn workspace() -> PathBuf {
-    PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "reader-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ))
+fn workspace() -> TempDir {
+    tempfile::Builder::new()
+        .prefix("reader-")
+        .tempdir()
+        .expect("create workspace tempdir")
 }
 
 fn run(dir: &Path) -> Output {
@@ -55,6 +53,7 @@ fn seed_legacy(root: &Path) -> TestResult {
 #[test]
 fn a_legacy_layout_exits_non_zero_with_the_migrate_directive() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     seed_legacy(&root)?;
 
@@ -67,6 +66,7 @@ fn a_legacy_layout_exits_non_zero_with_the_migrate_directive() -> TestResult {
 #[test]
 fn a_legacy_layout_fails_closed_under_migration_mode() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     seed_legacy(&root)?;
 
@@ -79,6 +79,7 @@ fn a_legacy_layout_fails_closed_under_migration_mode() -> TestResult {
 #[test]
 fn a_legacy_layout_blocks_from_a_git_rooted_subdirectory() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     seed_legacy(&root)?;
     let sub = root.join("nested/deeper");
@@ -93,6 +94,7 @@ fn a_legacy_layout_blocks_from_a_git_rooted_subdirectory() -> TestResult {
 #[test]
 fn a_legacy_layout_blocks_from_a_jj_only_subdirectory() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".jj"))?;
     seed_legacy(&root)?;
     let sub = root.join("nested/deeper");
@@ -107,6 +109,7 @@ fn a_legacy_layout_blocks_from_a_jj_only_subdirectory() -> TestResult {
 #[test]
 fn a_normal_layout_resolves_and_exits_zero() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     fs::create_dir_all(root.join(".accelerator"))?;
     fs::write(
@@ -123,6 +126,7 @@ fn a_normal_layout_resolves_and_exits_zero() -> TestResult {
 #[test]
 fn a_normal_layout_without_paths_work_exits_non_zero() -> TestResult {
     let root = workspace();
+    let root = root.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     fs::create_dir_all(root.join(".accelerator"))?;
     fs::write(

@@ -166,12 +166,10 @@ fn set_executable(_path: &Path) -> Result<(), ResolutionError> {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use tempfile::TempDir;
 
     use super::{find, store, temp_name, TEMP_PREFIX};
-
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn temp_names_begin_with_the_store_temp_prefix() {
@@ -180,14 +178,8 @@ mod tests {
             .starts_with(TEMP_PREFIX));
     }
 
-    fn tempdir() -> Result<PathBuf, Box<dyn Error>> {
-        let dir = std::env::temp_dir().join(format!(
-            "acc-cache-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&dir)?;
-        Ok(dir)
+    fn tempdir() -> Result<TempDir, Box<dyn Error>> {
+        Ok(tempfile::Builder::new().prefix("acc-cache-").tempdir()?)
     }
 
     const SHA: &str =
@@ -196,6 +188,7 @@ mod tests {
     #[test]
     fn store_then_find_round_trips() -> Result<(), Box<dyn Error>> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
         let found = find(&root, "foo", "1.0.0").ok_or("not found")?;
         assert_eq!(found.sha256, SHA);
@@ -208,6 +201,7 @@ mod tests {
     fn find_ignores_an_entry_missing_its_signature(
     ) -> Result<(), Box<dyn Error>> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         std::fs::write(root.join(format!("foo-1.0.0-{SHA}")), b"x")?;
         assert!(find(&root, "foo", "1.0.0").is_none());
         Ok(())
@@ -216,6 +210,7 @@ mod tests {
     #[test]
     fn a_re_store_replaces_the_entry_in_place() -> Result<(), Box<dyn Error>> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         store(&root, "foo", "1.0.0", SHA, b"binary", "sig")?;
         let path = find(&root, "foo", "1.0.0").ok_or("not found")?.path;
         std::fs::write(&path, b"poisoned")?;

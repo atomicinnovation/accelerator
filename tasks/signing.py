@@ -14,6 +14,7 @@ from tasks.shared.paths import (
     RELEASE_PUBLIC_KEY,
     RELEASE_SECRET_KEY,
     cli_binary_path,
+    subbinary_asset_path,
 )
 from tasks.shared.targets import TARGETS
 
@@ -55,9 +56,13 @@ def sign_staged_binaries(secret_key: Path) -> None:
     deliberately excluded: they ship committed in bin/, never as release assets.
     """
     expected = [
-        cli_binary_path(name, platform)
+        cli_binary_path("accelerator", platform)
         for _triple, platform in TARGETS
-        for name in ("accelerator", *DISPATCHED_SUBBINARIES)
+    ]
+    expected += [
+        subbinary_asset_path(token, platform)
+        for _triple, platform in TARGETS
+        for token in DISPATCHED_SUBBINARIES
     ]
     missing = [binary for binary in expected if not binary.exists()]
     if missing:

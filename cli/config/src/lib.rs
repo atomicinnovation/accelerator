@@ -12,6 +12,7 @@ pub mod key;
 pub mod legacy;
 pub mod level;
 pub mod node;
+pub mod paths;
 pub mod render;
 pub mod service;
 

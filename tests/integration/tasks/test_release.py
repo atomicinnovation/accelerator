@@ -73,7 +73,6 @@ class TestPrereleasePrepare:
         mocker.patch.object(tb, "cli_cross_compile")
         mocker.patch.object(tb, "assert_staged_launcher_versions")
         mocker.patch.object(tb, "create_debug_archives")
-        mocker.patch.object(tb, "create_checksums")
 
     def test_calls_configure_and_pull(self, ctx, mocker):
         self._setup(mocker)
@@ -113,7 +112,6 @@ class TestPrereleasePrepare:
         )
         mocker.patch.object(tb, "assert_staged_launcher_versions")
         mocker.patch.object(tb, "create_debug_archives")
-        mocker.patch.object(tb, "create_checksums")
 
         prerelease_prepare(ctx)
 

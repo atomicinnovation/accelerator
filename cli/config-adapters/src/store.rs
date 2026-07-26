@@ -734,28 +734,20 @@ fn ensure_inner_gitignore(config_dir: &Path) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::path::Path;
 
     use config::{
         ConfigAccess, ConfigError, ConfigService, Key, Level, Node,
         ReadConfigLevel, ReadContent, Scalar, WriteConfigLevel,
     };
+    use tempfile::TempDir;
 
     use super::FileConfigStore;
 
     type TestError = Box<dyn std::error::Error>;
 
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn tempdir() -> Result<PathBuf, TestError> {
-        let dir = std::env::temp_dir().join(format!(
-            "cfg-adapters-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&dir)?;
-        Ok(dir)
+    fn tempdir() -> Result<TempDir, TestError> {
+        Ok(tempfile::Builder::new().prefix("cfg-adapters-").tempdir()?)
     }
 
     fn seed(root: &Path, name: &str, content: &str) -> Result<(), TestError> {
@@ -797,7 +789,8 @@ mod tests {
 
     #[test]
     fn an_absent_file_reads_as_an_empty_level() -> Result<(), TestError> {
-        let store = FileConfigStore::at(tempdir()?);
+        let dir = tempdir()?;
+        let store = FileConfigStore::at(dir.path());
         assert!(store.read(Level::Personal)?.is_none());
         Ok(())
     }
@@ -805,6 +798,7 @@ mod tests {
     #[test]
     fn a_write_creates_the_dir_and_round_trips() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let store = FileConfigStore::at(&root);
         service(&store).set(
             &Key::parse("core.example")?,
@@ -824,6 +818,7 @@ mod tests {
     #[test]
     fn a_write_preserves_the_body() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         seed(
             &root,
             "config.md",
@@ -844,6 +839,7 @@ mod tests {
     #[test]
     fn typed_scalars_and_a_sequence_parse() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         seed(
             &root,
             "config.md",
@@ -871,6 +867,7 @@ mod tests {
     #[test]
     fn malformed_frontmatter_reads_as_malformed() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         seed(&root, "config.md", "---\nkey: value\n")?;
         let store = FileConfigStore::at(&root);
         assert!(matches!(
@@ -884,6 +881,7 @@ mod tests {
     fn a_write_against_a_malformed_file_fails_closed() -> Result<(), TestError>
     {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let malformed = "---\nkey: value\n";
         seed(&root, "config.md", malformed)?;
         let store = FileConfigStore::at(&root);
@@ -904,6 +902,7 @@ mod tests {
     fn a_write_against_a_fence_valid_but_invalid_yaml_file_fails_closed(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let malformed = "---\nkey: : :\n  - broken\n---\nbody\n";
         seed(&root, "config.md", malformed)?;
         let store = FileConfigStore::at(&root);
@@ -923,6 +922,7 @@ mod tests {
     #[test]
     fn an_over_cap_frontmatter_reads_as_malformed() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let mut content = String::from("---\n");
         content.push_str(&"filler: line\n".repeat(120_000));
         content.push_str("---\nbody\n");
@@ -938,6 +938,7 @@ mod tests {
     #[test]
     fn a_successful_write_leaves_no_stray_temp() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let store = FileConfigStore::at(&root);
         service(&store).set(&Key::parse("core.example")?, "v", Level::Team)?;
 
@@ -959,6 +960,7 @@ mod tests {
     #[test]
     fn a_personal_write_lands_at_0600() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let store = FileConfigStore::at(&root);
         service(&store).set(
             &Key::parse("jira.token")?,
@@ -974,6 +976,7 @@ mod tests {
     ) -> Result<(), TestError> {
         use std::os::unix::fs::PermissionsExt as _;
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         seed(&root, "config.local.md", "---\njira:\n  token: old\n---\n")?;
         fs::set_permissions(
             root.join(".accelerator/config.local.md"),
@@ -997,6 +1000,7 @@ mod tests {
     fn a_team_write_preserves_an_existing_mode() -> Result<(), TestError> {
         use std::os::unix::fs::PermissionsExt as _;
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         seed(&root, "config.md", "---\ncore:\n  example: old\n---\n")?;
         fs::set_permissions(
             root.join(".accelerator/config.md"),
@@ -1019,6 +1023,7 @@ mod tests {
     #[test]
     fn a_personal_write_ensures_the_inner_gitignore() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let store = FileConfigStore::at(&root);
         service(&store).set(
             &Key::parse("jira.token")?,
@@ -1036,6 +1041,7 @@ mod tests {
     fn a_symlinked_config_file_escaping_is_refused_on_read(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let outside = root.join("outside.md");
         fs::write(&outside, "---\njira:\n  token: stolen\n---\n")?;
         fs::create_dir_all(root.join(".accelerator"))?;
@@ -1055,6 +1061,7 @@ mod tests {
     fn a_symlinked_config_file_escaping_is_refused_on_write(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let outside = root.join("outside.md");
         fs::write(&outside, "---\ncore:\n  example: original\n---\n")?;
         fs::create_dir_all(root.join(".accelerator"))?;
@@ -1079,6 +1086,7 @@ mod tests {
     fn discover_prefers_the_nearest_accelerator_under_an_ancestor_git(
     ) -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         fs::create_dir_all(root.join(".git"))?;
         let project = root.join("project");
         fs::create_dir_all(project.join(".accelerator"))?;
@@ -1091,6 +1099,7 @@ mod tests {
     #[test]
     fn discover_roots_at_a_jj_only_checkout() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         fs::create_dir_all(root.join(".jj"))?;
         let start = root.join("sub");
         fs::create_dir_all(&start)?;
@@ -1101,7 +1110,8 @@ mod tests {
     #[test]
     fn discover_with_no_marker_roots_at_the_start_dir() -> Result<(), TestError>
     {
-        let start = tempdir()?.join("isolated/leaf");
+        let dir = tempdir()?;
+        let start = dir.path().join("isolated/leaf");
         fs::create_dir_all(&start)?;
         assert_eq!(FileConfigStore::discover_root(&start), start);
         Ok(())
@@ -1110,6 +1120,7 @@ mod tests {
     #[test]
     fn a_config_body_with_invalid_utf8_fails_loud() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         fs::create_dir_all(root.join(".accelerator"))?;
         fs::write(
             root.join(".accelerator/config.md"),
@@ -1126,6 +1137,7 @@ mod tests {
     #[test]
     fn a_skill_context_with_invalid_utf8_fails_loud() -> Result<(), TestError> {
         let root = tempdir()?;
+        let root = root.path().to_path_buf();
         let skill = root.join(".accelerator/skills/demo");
         fs::create_dir_all(&skill)?;
         fs::write(skill.join("context.md"), b"\xff\xfe not utf8")?;

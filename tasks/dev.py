@@ -1,7 +1,5 @@
-import json
 import os
 import shutil
-from pathlib import Path
 
 from invoke import Context, Exit, task
 
@@ -15,33 +13,23 @@ from tasks.shared.dev.lifecycle import (
     do_status,
     do_stop,
 )
-from tasks.shared.paths import (
-    FRONTEND,
-    PLUGIN_JSON,
-    REPO_ROOT,
-    SERVER,
-    VISUALISER,
-)
+from tasks.shared.paths import CLI_TARGET_DIR, FRONTEND, REPO_ROOT
 from tasks.shared.ports import free_port
 from tasks.shared.processes import PsutilProcessOps
 
 # Directory-ownership boundary (keep this comment — it survives refactors):
-#   .accelerator/tmp/dev-server/ is SERVER-owned: the server writes config.json,
-#     server-info.json, and its own server.pid there.
+#   .accelerator/tmp/visualiser/ is SERVER-owned: the Model-1 server discovers
+#     the project root from its cwd and writes server-info.json, server.pid, and
+#     its own server.log there (the composed tmp path).
 #   .accelerator/tmp/dev/ is ORCHESTRATION-owned: the lock, dev-state, circus
-#     INI, circusd pidfile, captured logs, and the ipc:// sockets (under a short
-#     $TMPDIR-rooted hashed base recorded in dev-state) live here.
+#     INI, circusd pidfile, captured bootstrap log, and the ipc:// sockets live
+#     here.
 #   server-info.json is the sole cross-directory contract between them.
-# The legacy dev.server runs the binary with --log-file {dev-server}/server.log.
-# The unified path points the server's --log-file at {dev}/server.log instead
-# (distinct path, no clash) and additionally has circus capture the server
-# watcher's pre-/dev/null stderr to {dev}/server.bootstrap.log.
-_TMP_DIR = REPO_ROOT / ".accelerator/tmp/dev-server"
-_CONFIG_PATH = _TMP_DIR / "config.json"
-_SERVER_INFO_PATH = _TMP_DIR / "server-info.json"
-_SERVER_PIDFILE = _TMP_DIR / "server.pid"
-_SERVER_BIN = SERVER / "target/debug/accelerator-visualiser"
-_WRITE_CONFIG = VISUALISER / "scripts/write-visualiser-config.sh"
+_STATE_DIR = REPO_ROOT / ".accelerator/tmp/visualiser"
+_SERVER_INFO_PATH = _STATE_DIR / "server-info.json"
+_SERVER_PIDFILE = _STATE_DIR / "server.pid"
+_SERVER_LOG = _STATE_DIR / "server.log"
+_SERVER_BIN = CLI_TARGET_DIR / "debug/accelerator-visualiser"
 
 _DEV_DIR = REPO_ROOT / ".accelerator/tmp/dev"
 _DEV_STATE = _DEV_DIR / "dev.json"
@@ -51,26 +39,13 @@ _INI = _DEV_DIR / "circus.ini"
 _DIAGNOSTIC_LOG = _DEV_DIR / "dev.log"
 
 
-def _render_server_config(context: Context, *, log_file: Path) -> Path:
-    """Render config.json via write-visualiser-config.sh and return its path.
+def _server_env() -> dict[str, str]:
+    """Env for the arbiter and the detached daemon.
 
-    Shared by the legacy dev.server (log_file under dev-server/) and the unified
-    arbiter path (log_file under dev/). --owner-pid 0 disables owner-based
-    auto-shutdown for the dev path.
+    The resolved PATH lets the daemon find node; CLAUDE_PLUGIN_ROOT lets the
+    Model-1 server resolve plugin templates.
     """
-    _TMP_DIR.mkdir(parents=True, exist_ok=True)
-    version = json.loads(PLUGIN_JSON.read_text())["version"]
-    result = context.run(
-        f"{_WRITE_CONFIG}"
-        f" --plugin-version {version}"
-        f" --project-root {REPO_ROOT}"
-        f" --tmp-dir {_TMP_DIR}"
-        f" --log-file {log_file}"
-        f" --owner-pid 0",
-        hide=True,
-    )
-    _CONFIG_PATH.write_text(result.stdout)
-    return _CONFIG_PATH
+    return {**os.environ, "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
 
 
 def _dev_deps(context: Context) -> DevDeps:
@@ -80,9 +55,7 @@ def _dev_deps(context: Context) -> DevDeps:
         launcher=default_launcher,
         killer=PsutilProcessOps(),
         clock=Clock(),
-        config_renderer=lambda: _render_server_config(
-            context, log_file=_DEV_DIR / "server.log"
-        ),
+        project_root=REPO_ROOT,
         workspace_root=REPO_ROOT,
         state_path=_DEV_STATE,
         lock_path=_LOCK,
@@ -94,8 +67,7 @@ def _dev_deps(context: Context) -> DevDeps:
         server_bin=_SERVER_BIN,
         frontend=FRONTEND,
         diagnostic_log=_DIAGNOSTIC_LOG,
-        # resolved PATH so the detached daemon finds node
-        env=os.environ.copy(),
+        env=_server_env(),
         npm_bin=shutil.which("npm") or "npm",
         node_bin=shutil.which("node") or "node",
         free_port=free_port,
@@ -111,7 +83,7 @@ def _print_stack_block(result: UpResult, *, heading: str) -> None:
     print(heading)
     print(f"  Frontend: {result.frontend_url}")
     print(f"  API:      {api_line}")
-    print(f"  Logs:     {result.dev_dir}/server.log")
+    print(f"  Logs:     {_SERVER_LOG}")
     print(f"            {result.dev_dir}/frontend.log")
 
 
@@ -187,26 +159,25 @@ def status(context: Context) -> None:
 def server(context: Context) -> None:
     """Start the visualiser API server in dev mode.
 
-    Generates a server config via write-visualiser-config.sh (picks up
-    .accelerator/config.md overrides) then starts the debug binary (built by
-    build:server:dev). The server binds a random port on 127.0.0.1 and writes
-    .accelerator/tmp/dev-server/server-info.json so the Vite dev server can
+    Runs the debug binary (built by build:server:dev) as `serve`, reading
+    .accelerator/*.md config directly from the repo root. The server binds a
+    random port on 127.0.0.1 and writes
+    .accelerator/tmp/visualiser/server-info.json so the Vite dev server can
     discover the port.
 
     Run in one terminal; run `mise run dev:frontend` in a second terminal once
     the server is up and the info file has been written.
     """
-    config_path = _render_server_config(
-        context, log_file=_TMP_DIR / "server.log"
+    context.run(
+        f"{_SERVER_BIN} serve --owner-pid 0", env=_server_env(), pty=True
     )
-    context.run(f"{_SERVER_BIN} --config {config_path}", pty=True)
 
 
 @task
 def frontend(context: Context) -> None:
     """Start the Vite dev server, proxying /api to the running dev API server.
 
-    Reads the server port from .accelerator/tmp/dev-server/server-info.json,
+    Reads the server port from .accelerator/tmp/visualiser/server-info.json,
     which the server writes on startup. Start `mise run dev:server` in a
     separate terminal first.
     """

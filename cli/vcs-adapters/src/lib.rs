@@ -238,17 +238,14 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // The marker walk needs no VCS binary, so this stays outside the
         // `bash-parity` detection fixtures and runs on a bare machine.
-        let loose = std::env::temp_dir()
-            .join(format!("vcs-loose-{}", std::process::id()));
-        std::fs::create_dir_all(&loose)?;
+        let loose = tempfile::Builder::new().prefix("vcs-loose-").tempdir()?;
 
         assert_eq!(
-            facts(&loose),
+            facts(loose.path()),
             None,
             "a tree with no .jj or .git must be representable as absent"
         );
 
-        std::fs::remove_dir_all(&loose)?;
         Ok(())
     }
 

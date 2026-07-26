@@ -6,6 +6,7 @@
 //! The convention algorithms take infra-sourced data (a compiled scanner, a
 //! doc-type table, a parsed frontmatter value) by injection.
 
+pub mod cluster;
 pub mod doc_type;
 pub mod linkage;
 pub mod metadata;

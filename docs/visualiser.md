@@ -44,11 +44,11 @@ launched it exits, so explicit `stop` is rarely necessary.
 The server is distributed as a pre-compiled native binary (~8 MB). On first
 run the launcher:
 
-1. Reads `bin/checksums.json` (committed in the plugin) to find the SHA-256
-   for your platform and the current plugin version.
-2. Downloads the matching binary from the plugin's GitHub Releases over HTTPS.
-3. Verifies the download against the manifest and caches it under the plugin
-   root. Subsequent launches skip the download.
+1. Fetches the signed `manifest.json` from the plugin's GitHub Releases, verifies
+   its minisign signature, and reads the SHA-256 for your platform.
+2. Downloads the matching binary from the same release over HTTPS.
+3. Verifies the download against the manifest's SHA-256 and inline signature,
+   then caches it under the plugin root. Subsequent launches skip the download.
 
 Every plugin version — pre-release (`X.Y.Z-pre.N`) and stable (`X.Y.Z`) —
 ships four-platform binaries. There is no need to build locally to use a

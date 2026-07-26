@@ -21,6 +21,10 @@ ALLOWLIST: frozenset[str] = frozenset(
         "cli/launcher/src/launch/outbound/resolve/cache.rs",
         # Renames a directory as a stale-lock claim, not a write at all.
         "cli/corpus-adapters/src/lock.rs",
+        # A test-only rename simulating a watcher file-move event; the indexer
+        # is a read/index module and performs no atomic writes (those route
+        # through the file driver onto store::atomic_write).
+        "cli/visualiser/server/src/indexer.rs",
     }
 )
 

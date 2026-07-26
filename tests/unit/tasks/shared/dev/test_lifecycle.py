@@ -147,7 +147,7 @@ def _orch_deps(
         "launcher": launcher or (lambda *a, **k: FakeHandle(9000)),
         "killer": procs,
         "clock": Clock(sleep=fc.sleep, now=fc.now),
-        "config_renderer": lambda: server_dir / "config.json",
+        "project_root": tmp_path,
         "workspace_root": tmp_path,
         "state_path": dev_dir / "dev.json",
         "lock_path": dev_dir / "dev.lock",

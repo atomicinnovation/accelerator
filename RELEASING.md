@@ -45,22 +45,21 @@ the top of each wrapper in `tasks/release.py` raises `RuntimeError` if
 `prerelease_prepare` steps:
 1. Configures git identity and pulls `main`
 2. Bumps the pre-release counter (`1.2.3-pre.N` → `1.2.3-pre.N+1`)
-3. Writes the new version to `Cargo.toml`, `plugin.json`, and `bin/checksums.json`
+3. Writes the new version to `Cargo.toml` and `plugin.json`
 4. Updates `.claude-plugin/marketplace-prerelease.json` to the new version tag
 5. Cross-compiles the visualiser + cli launcher via `cargo zigbuild`, asserting
-   each staged launcher embeds the release version
-6. Computes SHA-256 checksums and writes them to `bin/checksums.json`
+   each staged launcher embeds the release version, then archives debug symbols
 
 `prerelease_sign` (the only step holding the secret):
-7. Signs the launcher (and every dispatched sub-binary) into detached `.minisig`
-8. Emits and signs `manifest.json` → `manifest.minisig` under one materialised
+6. Signs the launcher (and every dispatched sub-binary) into detached `.minisig`
+7. Emits and signs `manifest.json` → `manifest.minisig` under one materialised
    key; fails closed if the secret is absent
 
 `prerelease_finalise` steps (shared `_publish` helper in `tasks/release.py`):
-9. Asserts no build artifact or secret leaked outside `dist/release/`
-10. Commits the version bump, tags `v{version}`, pushes
-11. Creates a draft GitHub release (`tasks/github.py → create_release`)
-12. Uploads every asset across both tracks, re-verifies each, publishes once
+8. Asserts no build artifact or secret leaked outside `dist/release/`
+9. Commits the version bump, tags `v{version}`, pushes
+10. Creates a draft GitHub release (`tasks/github.py → create_release`)
+11. Uploads every release asset, re-verifies each, publishes once
     (`upload_and_verify_release`)
 
 ### Release job (stable)
@@ -186,7 +185,7 @@ not the shim bytes — is what the drift guard compares.
 |------------------------|-------------------------------------------------------------------------------------------------|
 | `tasks/release.py`     | Orchestration tasks; `_refuse_under_ci` guard; `_sign`; `_publish`                              |
 | `tasks/github.py`      | `create_release`, `upload_and_verify_release`, `download_and_verify`                            |
-| `tasks/build.py`       | `create_checksums`, `cli_cross_compile`, `validate_version_coherence`                           |
+| `tasks/build.py`       | `server_cross_compile`, `cli_cross_compile`, `create_debug_archives`, `validate_version_coherence` |
 | `tasks/signing.py`     | `sign_file`, `resolve_secret_key`, `sign_staged_binaries`, `keys.generate`                      |
 | `tasks/manifest.py`    | `collect_entries`, `build_manifest`, `emit_manifest`                                            |
 | `tasks/version.py`     | Version read / bump / write across all tracked files                                            |
@@ -232,12 +231,12 @@ Delete orphans before re-running.
 When a run shows:
 
 ```
-::error title=Visualiser release v<ver>::AssetVerificationError — draft + tag PRESERVED for triage
+::error title=Launcher/manifest release v<ver>::AssetVerificationError — draft + tag PRESERVED for triage
 ```
 
 The draft and tag are preserved deliberately. Download the suspect asset
-out-of-band, compare its SHA-256 against `bin/checksums.json` on the tagged
-commit, and escalate as a security incident if there is a mismatch. Only run
+out-of-band, compare its SHA-256 against the `sha256` in `manifest.json` on the
+tagged commit, and escalate as a security incident if there is a mismatch. Only run
 `gh release delete v<ver> --cleanup-tag --yes` after triage closes. **Do not**
 treat a preserved draft as a routine orphan.
 
@@ -278,8 +277,8 @@ gh attestation verify accelerator-visualiser-<os>-<arch> \
     --repo atomicinnovation/accelerator
 ```
 
-Requires `gh >= 2.49.0`. This is a manual, out-of-band check — there is no
-runtime provenance hook in `launch-server.sh`.
+Requires `gh >= 2.49.0`. This is a manual, out-of-band check — the launcher's
+runtime trust root is the signed manifest, not SLSA provenance.
 
 ## Debug archives and crash symbolication
 
@@ -293,8 +292,8 @@ gh release download v<ver> --pattern '*.debug.tar.gz'
 # Mach-O: atos -o accelerator-visualiser-darwin-<arch> -l <load-addr> <address>
 ```
 
-Debug archives are not in `bin/checksums.json` and are never fetched by
-`launch-server.sh`.
+Debug archives are never listed in `manifest.json` and are never fetched by the
+launcher.
 
 ## GitHub Environment configuration
 

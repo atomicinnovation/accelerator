@@ -6,10 +6,10 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicU64, Ordering};
+
+use tempfile::TempDir;
 
 const SHIM: &str = env!("CARGO_BIN_EXE_accelerator-verify");
-static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn minisign_bin() -> Option<PathBuf> {
     std::env::split_paths(&std::env::var_os("PATH")?)
@@ -17,14 +17,11 @@ fn minisign_bin() -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-fn tempdir() -> PathBuf {
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "verify-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir_all(&dir).expect("mkdir");
-    dir
+fn tempdir() -> TempDir {
+    tempfile::Builder::new()
+        .prefix("verify-")
+        .tempdir()
+        .expect("mkdir")
 }
 
 fn keypair(minisign: &Path, dir: &Path, name: &str) -> (PathBuf, PathBuf) {
@@ -73,6 +70,7 @@ macro_rules! require_minisign {
 fn exits_zero_on_a_valid_signature() -> Result<(), Box<dyn Error>> {
     let minisign = require_minisign!();
     let dir = tempdir();
+    let dir = dir.path().to_path_buf();
     let (public, secret) = keypair(&minisign, &dir, "release");
     let target = dir.join("launcher");
     std::fs::write(&target, b"launcher bytes")?;
@@ -91,6 +89,7 @@ fn exits_zero_on_a_valid_signature() -> Result<(), Box<dyn Error>> {
 fn exits_nonzero_on_a_tampered_payload() -> Result<(), Box<dyn Error>> {
     let minisign = require_minisign!();
     let dir = tempdir();
+    let dir = dir.path().to_path_buf();
     let (public, secret) = keypair(&minisign, &dir, "release");
     let target = dir.join("launcher");
     std::fs::write(&target, b"launcher bytes")?;
@@ -110,6 +109,7 @@ fn exits_nonzero_on_a_tampered_payload() -> Result<(), Box<dyn Error>> {
 fn exits_nonzero_on_a_non_release_key() -> Result<(), Box<dyn Error>> {
     let minisign = require_minisign!();
     let dir = tempdir();
+    let dir = dir.path().to_path_buf();
     let (release_public, _release_secret) = keypair(&minisign, &dir, "release");
     let (_attacker_public, attacker_secret) =
         keypair(&minisign, &dir, "attacker");
