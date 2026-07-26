@@ -23,6 +23,7 @@ cli/.pup/
 skills/visualisation/visualise/bin/accelerator-visualiser-*
 workspaces/
 node_modules/
+mise.local.toml
 
 # Dev-launcher override marker: untracked and unshippable by design, so no clone
 # or marketplace install can carry it (bin/accelerator gates on its presence).
