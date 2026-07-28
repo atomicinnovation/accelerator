@@ -1064,23 +1064,32 @@ names; 1b narrows it to one.
 - [x] The committed vendored shims are not gitignored:
       `uv run pytest tests/unit/tasks/test_bootstrap_coverage.py -v`
 - [x] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end. **Not confirmed on this
-      machine.** Every task passes except `test:unit:frontend`, which fails with
-      `Test timed out in 5000ms` on synchronous renders — a different subset each
-      run (4, 6, 9 and 10 tests across overlapping files). Attributed to host
-      load, not to this change:
-      - the diff touches no frontend file (`.gitignore`, `bin/accelerator`,
-        two test modules, three `meta/` documents);
-      - the failing files pass in isolation — `npx vitest run` over the four of
-        them gave `PASS (57) FAIL (0)`;
-      - the one command Phase 1a adds to the graph, the `launcher_bin` fixture's
-        `cargo build --bin accelerator`, is byte-identical to `build:cli:dev`
-        (`tasks/build.py:257-260`), which six integration tasks already depend
-        on — so in a full run it compiles nothing;
-      - the host reported load averages of 156 → 276 with no task of this
-        session running, and vitest logged `environment 6917.50s` for a 122-file
-        suite.
-      Re-run on an idle machine before merging.
+- [ ] `mise run` (bare default) exits 0 end-to-end. **Not achieved on this
+      machine, on timing-bounded suites unrelated to the change.** Three runs,
+      each failing exactly one *different* wall-clock assertion:
+
+      | Run | Sole failing task | Failure |
+      |---|---|---|
+      | 1 | `test:unit:frontend` | `Test timed out in 5000ms`, 4–10 tests, varying set |
+      | 2 | `test:integration:config` | Playwright daemon: `Target page, context or browser has been closed` |
+      | 3 | `test:integration:visualiser` | `scan took 5.390830542s, expected < 5 s` |
+
+      Each of the three passed in the other two runs, and each passes in
+      isolation — the frontend files gave `PASS (57) FAIL (0)`, the Playwright
+      suite `Passed: 33 Failed: 0`. `test:integration:entrypoint` passed all 46
+      in every run.
+
+      Not attributable to this change: the diff touches `.gitignore`,
+      `bin/accelerator`, two test modules and three `meta/` documents — no
+      frontend, Playwright or visualiser-server code. The one command Phase 1a
+      adds to the graph, the `launcher_bin` fixture's
+      `cargo build --bin accelerator`, is byte-identical to `build:cli:dev`
+      (`tasks/build.py:257-260`), which six integration tasks already depend on,
+      so in a full run it compiles nothing. The host was 14 days up with 19
+      users and load averages spiking past 270 with no task of this session
+      running.
+
+      Re-run on a quiet machine, or rely on CI, before merging.
 
 #### Manual Verification
 
