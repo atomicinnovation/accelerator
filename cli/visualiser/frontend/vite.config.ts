@@ -69,6 +69,13 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     css: true,
     restoreMocks: true,
+    // These timeouts catch hangs; they are not latency budgets. Vitest sizes
+    // its worker pool to the CPU count, and `mise run` schedules this suite
+    // alongside cargo builds and the Python suites, so a synchronous render
+    // that takes ~100ms idle has been measured past the 5s default. A real
+    // hang still fails, 30s later.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     exclude: [
       "**/node_modules/**",
       "**/e2e/**",
