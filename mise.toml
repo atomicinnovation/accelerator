@@ -193,7 +193,7 @@ run = "invoke test.integration.deny"
 
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
-depends = ["deps:install:python", "deps:install:pup"]
+depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
 run = "invoke test.integration.pup"
 
 [tasks."test:integration:decisions"]
@@ -376,12 +376,12 @@ depends = ["format:server:check", "lint:server:check"]
 
 [tasks."lint:cli:check"]
 description = "Lint the cli/ workspace with clippy (one workspace-wide pass covering every member, -D warnings)"
-depends = ["deps:install:rust-components"]
+depends = ["deps:install:rust-components", "build:frontend:stub"]
 run = "invoke lint.cli.check"
 
 [tasks."lint:cli:fix"]
 description = "Apply clippy's machine-applicable fixes to the cli/ workspace (machine-rewritable subset only — run lint:cli:check for the rest)"
-depends = ["deps:install:rust-components"]
+depends = ["deps:install:rust-components", "build:frontend:stub"]
 run = "invoke lint.cli.fix"
 
 [tasks."lint:vendor-shims:check"]
@@ -414,7 +414,7 @@ run = "invoke deny.check"
 
 [tasks."pup:check"]
 description = "Enforce intra-crate module-import rules with cargo-pup (blocking nightly lane; ACCELERATOR_PUP_MODE=warn downgrades to advisory)"
-depends = ["deps:install:pup"]
+depends = ["deps:install:pup", "build:frontend:stub"]
 run = "invoke pup.check"
 
 [tasks."format:frontend:check"]
