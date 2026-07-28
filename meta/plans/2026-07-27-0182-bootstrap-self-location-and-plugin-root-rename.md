@@ -5,7 +5,7 @@ title: "Bootstrap Self-Location and the ACCELERATOR_PLUGIN_ROOT Rename Implement
 date: "2026-07-27T09:02:16+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: draft
+status: in-progress
 work_item_id: "work-item:0182"
 parent: "work-item:0182"
 derived_from:
@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-27T10:43:33+00:00"
+last_updated: "2026-07-28T10:52:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -268,16 +268,41 @@ work without the chase.
 The core repair is split three ways so the urgent fix stops waiting on the
 rename:
 
-| Phase | Content | Green alone? |
-|---|---|---|
-| 0 | Determinations — no code | yes, no predecessor |
-| **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** |
-| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b |
-| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** |
-| 2 | The `CLAUDE_*` boundary guard | after 1b |
-| 3 | Terminal invocation surface | after 1a |
-| 4 | `!`-site conformance suite | after 1a |
-| 5 | Named error for a missing plugin root | after 1b |
+| Phase | Content | Green alone? | State |
+|---|---|---|---|
+| 0 | Determinations — no code | yes, no predecessor | **done** 2026-07-28 |
+| **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** | **done** 2026-07-28 |
+| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | not started |
+| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | not started |
+| 2 | The `CLAUDE_*` boundary guard | after 1b | not started |
+| 3 | Terminal invocation surface | after 1a | not started |
+| 4 | `!`-site conformance suite | after 1a | not started |
+| 5 | Named error for a missing plugin root | after 1b | not started |
+
+**Progress — 2026-07-28.** Phases 0 and 1a are implemented, verified and
+committed; `mise run` is green end-to-end (three consecutive runs). 1c is next
+in the merge order. Five commits carry the work:
+
+| Commit | Content |
+|---|---|
+| `Record the CLAUDE_PLUGIN_DATA and hook output channel determinations` | Phase 0 |
+| `Make the entrypoint harness rootless and hermetic` | 1a commit 1 |
+| `Cover rootless invocation, symlink chases and fail-safe aborts` | 1a commit 2 |
+| `Derive the installation root from the bootstrap's own location` | 1a commit 3 |
+| `Stop three suites failing on wall-clock noise under parallel load` | out of scope — see below |
+
+Two things a later phase inherits:
+
+- **Three pre-existing flakes were fixed to get a green run**, on their own
+  commit outside this plan's scope. The `test:integration:config` one was a real
+  daemon defect (`shutdown()` closed the browser before removing
+  `server-info.json`/`server.pid`, so `run.sh`'s reuse check still passed and
+  the next launcher dispatched onto a dead page); the `test:unit:frontend` and
+  `test:integration:visualiser` ones were wall-clock budgets sitting on the
+  noise floor. Details under Phase 1a's `mise run` criterion.
+- **The entrypoint suite had been running on Homebrew bash 5.3, not the 3.2
+  floor.** `_BASH` now pins `/bin/bash` with an assertion. Any later phase
+  touching `bin/accelerator` is genuinely held to 3.2 by the suite.
 
 **1c must precede 1b.** The seam re-point is green today and depends on neither,
 but landing it *after* the rename opens a window in which it is actively harmful:
@@ -392,6 +417,8 @@ launcher invocations in total. The two non-`config` ones are both in
 ---
 
 ## Phase 0: Determinations
+
+> **Done 2026-07-28.**
 
 ### Overview
 
@@ -548,6 +575,8 @@ Claude Code version tested.
 ---
 
 ## Phase 1a: Bootstrap Self-Location and `--fail-safe`
+
+> **Done 2026-07-28.** Three commits, as sequenced below.
 
 ### Overview
 
