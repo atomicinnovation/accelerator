@@ -36,6 +36,11 @@ _REPO_ROOT = _HERE.parents[2]
 _REPO_BOOTSTRAP = _REPO_ROOT / "bin/accelerator"
 _REPO_BIN = _REPO_ROOT / "bin"
 
+# The system interpreter, not whatever `bash` resolves to: macOS ships 3.2 and
+# the bootstrap is held to that floor, so a contributor with Homebrew bash 5 on
+# PATH would otherwise run the whole suite off-floor and green.
+_BASH = "/bin/bash" if Path("/bin/bash").exists() else "bash"
+
 # The harness pins a synthetic version so cache paths are deterministic and the
 # real GitHub release base URL is never contacted (overridden to .invalid).
 _VERSION = "9.9.9-test"
@@ -398,7 +403,7 @@ def _run_bootstrap(
         _assert_hermetic(env, cwd / entry)
         try:
             return subprocess.run(
-                ["bash", str(entry), *args],
+                [_BASH, str(entry), *args],
                 capture_output=True,
                 text=True,
                 env=env,
@@ -989,6 +994,20 @@ def test_dev_launcher_marker_is_gitignored_and_unshipped() -> None:
 
 
 # ── Self-location ────────────────────────────────────────────────────────────
+
+
+def test_the_suite_runs_the_bootstrap_on_the_bash_floor() -> None:
+    if platform.system() != "Darwin":
+        pytest.skip("the 3.2 floor exists because macOS ships 3.2")
+    result = subprocess.run(
+        [_BASH, "-c", 'printf "%s" "${BASH_VERSINFO[0]}"'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == "3", (
+        f"{_BASH} is bash {result.stdout}; the bootstrap is held to 3.2"
+    )
 
 
 def _run_and_capture_env(
