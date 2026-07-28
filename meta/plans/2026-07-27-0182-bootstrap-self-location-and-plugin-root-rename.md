@@ -521,27 +521,29 @@ Claude Code version tested.
 
 #### Automated Verification
 
-- [ ] `mise run check` exits 0 (unchanged — this phase touches no code)
+- [x] `mise run check` exits 0 (unchanged — this phase touches no code)
 
 #### Manual Verification
 
-- [ ] The work item's Open Questions carry both answers and the Claude Code
+- [x] The work item's Open Questions carry both answers and the Claude Code
       version tested (v2.1.220 for the substitution answer)
-- [ ] The substitution answer records its basis: the maintainer's observation,
+- [x] The substitution answer records its basis: the maintainer's observation,
       the verified absence of any Bash allow rule with `defaultMode: "default"`,
       and the both-sides matching argument
-- [ ] The declared floor is **unchanged** at v2.1.144 — `CLAUDE.md:123`,
+- [x] The declared floor is **unchanged** at v2.1.144 — `CLAUDE.md:123`,
       `docs/releases-and-compatibility.md:36` and
       `meta/decisions/ADR-0051-skills-as-the-product.md:116-118` are untouched
-- [ ] The `${CLAUDE_PLUGIN_DATA}` answer records its first version, **which
+- [x] The `${CLAUDE_PLUGIN_DATA}` answer records its first version, **which
       contexts export it** (hook / skill content / plain terminal — Phase 3's recipe
       depends on this), and that it is **not version-scoped** (confirmed
-      2026-07-27, which is what makes the user's hop a one-time action)
-- [ ] The `SessionStart` stderr visibility answer is recorded, and if stderr is
+      2026-07-28, which is what makes the user's hop a one-time action)
+- [x] The `SessionStart` stderr visibility answer is recorded, and if stderr is
       discarded, a follow-up item is raised for
-      `hooks/migrate-discoverability.sh`'s advisory
+      `hooks/migrate-discoverability.sh`'s advisory — it is discarded, and the
+      follow-up is work item 0183
 - [ ] Phase 3's `docs/internals.md` section states the version requirement
-      locally, with the version-pinned fallback for anyone below it
+      locally, with the version-pinned fallback for anyone below it *(deferred to
+      Phase 3)*
 
 ---
 

@@ -8,10 +8,10 @@ producer: create-work-item
 status: ready
 kind: bug
 priority: high
-relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
+relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
 source: "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
 tags: [bug, cli, launcher, bootstrap, plugin-root, skills]
-last_updated: "2026-07-26T23:42:29+00:00"
+last_updated: "2026-07-28T09:14:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -505,13 +505,14 @@ still holds for the suites that need a real compiled launcher.
       upgrade caveat; and the Documentation list in `README.md` links to it.
 - [x] R11's result is recorded in this item's Open Questions, naming the Claude
       Code version tested (v2.1.220) and its basis. **Met 2026-07-27.**
-- [ ] R12's floor determination is recorded, and either the declared floor is
+- [x] R12's floor determination is recorded, and either the declared floor is
       unchanged with `${CLAUDE_PLUGIN_DATA}` confirmed present at it, or the floor
       is raised. The floor lives in **prose only** — `CLAUDE.md:123` and
       `docs/releases-and-compatibility.md:36` — since
       `.claude-plugin/plugin.json` has no version-floor field and the planning
       decision was not to introduce one, so those two sites are the target rather
-      than `plugin.json`.
+      than `plugin.json`. **Met 2026-07-28**: the variable landed in v2.1.78, so
+      the floor is unchanged and both prose sites are untouched.
 - [ ] **Automated** — every `bin/accelerator config *` command extracted from a
       `!` block in any `skills/**/SKILL.md` exits 0 **and** emits no
       `accelerator:` diagnostic line on stderr, with a per-family stdout
@@ -596,12 +597,65 @@ still holds for the suites that need a real compiled launcher.
 
   The manual pre-release criterion keeps its value as a re-confirmation against
   the release artifact, but is no longer a discovery gate.
-- **What minimum Claude Code version provides `${CLAUDE_PLUGIN_DATA}`?** All
-  evidence here was gathered on v2.1.220 while the plugin's declared floor is
-  v2.1.144. R9 must either confirm the variable exists at the floor or the floor
-  must be raised in `.claude-plugin/plugin.json` as part of this item. The
-  inert-when-unset criterion caps the blast radius either way, so this gates the
-  floor declaration, not the design.
+- **What minimum Claude Code version provides `${CLAUDE_PLUGIN_DATA}`, and in
+  which contexts is it available?** **RESOLVED 2026-07-28 — v2.1.78, comfortably
+  below the declared v2.1.144 floor. The floor does not move.**
+
+  Determined from the Claude Code changelog and the plugins reference, read on
+  v2.1.220:
+
+  - **First version: v2.1.78.** The changelog entry under that heading reads
+    "Added `${CLAUDE_PLUGIN_DATA}` variable for plugin persistent state that
+    survives plugin updates; `/plugin uninstall` prompts before deleting it".
+    That is 66 patch releases below the declared floor, so R12 resolves as
+    "unchanged floor, variable confirmed present at it" and neither
+    `CLAUDE.md:123` nor `docs/releases-and-compatibility.md:36` is touched.
+    `meta/decisions/ADR-0051-skills-as-the-product.md:116-118` likewise stands.
+  - **Contexts.** The plugins reference states that `${CLAUDE_PLUGIN_ROOT}`,
+    `${CLAUDE_PLUGIN_DATA}` and `${CLAUDE_PROJECT_DIR}` "are exported as
+    environment variables to hook processes and to MCP and LSP server
+    subprocesses", and separately substitute inline in skill and agent content,
+    hook and monitor commands, and named MCP/LSP fields. So R9's hook receives
+    it as a real environment variable, a `!` site would see only a textual
+    substitution, and a plain user terminal has neither — which is why R9a's
+    documentation uses the literal per-channel path rather than the token.
+  - **Not version-scoped.** It "resolves to `~/.claude/plugins/data/{id}/`, where
+    `{id}` is the plugin identifier with characters outside `a-z`, `A-Z`, `0-9`,
+    `_`, and `-` replaced by `-`", is "created on first reference", and
+    "outlives any single plugin version". `${CLAUDE_PLUGIN_ROOT}`, by contrast,
+    "changes when the plugin updates". That asymmetry is exactly what makes the
+    two-hop chain work and the user's `ln -s` a one-time action.
+
+  The inert-when-unset guard in R9 stays regardless: it costs nothing and covers
+  a Claude Code that stops exporting the variable to hooks, which the floor
+  cannot.
+- **Where does a `SessionStart` hook's output actually go?** **RESOLVED
+  2026-07-28 from the Claude Code hooks reference**, fixing R9's channel choice:
+
+  - **`systemMessage` is a universal top-level JSON output field**, documented
+    for every event as "Warning message shown to the user" — not a
+    `SessionStart`-specific field and not nested inside `hookSpecificOutput`. So
+    `hooks/vcs-detect.sh:14`'s top-level `{"systemMessage": …}` is correct usage,
+    and it is the documented way to put a line in front of the user.
+  - **For `SessionStart`, plain stdout becomes Claude's context**, not user
+    output: `UserPromptSubmit`, `UserPromptExpansion` and `SessionStart` are the
+    three events where "stdout is added as context that Claude can see and act
+    on". Bare stdout is therefore the one channel a diagnostic must avoid.
+  - **stderr at exit 0 has no documented destination.** Exit 2 feeds stderr back
+    (rendering as a `<hook name> hook error` notice for the non-blockable events,
+    `SessionStart` among them) and other non-zero codes show its first line;
+    exit 0 assigns stderr nothing. `bin/accelerator:114-116`'s "invisible at
+    SessionStart" is the safe reading, and it is what R8's durable record exists
+    for.
+
+  Consequence for R9: routine and transient conditions go to stderr, accepting
+  they may be unseen; the persistent states the hook cannot fix go to a
+  top-level `systemMessage`, accumulated so at most one JSON object reaches
+  stdout.
+
+  Consequence beyond this item: `hooks/migrate-discoverability.sh:66-72`'s
+  stderr advisory at exit 0 reaches nobody. Pre-existing and out of scope here —
+  raised as **0183**.
 
 **Resolved during review** — a user tracking both the prerelease and stable
 marketplaces gets **two** fixed-path shims
