@@ -392,10 +392,10 @@ def _run_bootstrap(
     if extra_env:
         env.update(extra_env)
     entry = entry or root / "bin/accelerator"
-    _assert_hermetic(env, entry)
     with contextlib.ExitStack() as stack:
         if cwd is None:
             cwd = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+        _assert_hermetic(env, cwd / entry)
         try:
             return subprocess.run(
                 ["bash", str(entry), *args],
@@ -986,3 +986,375 @@ def test_dev_launcher_marker_is_gitignored_and_unshipped() -> None:
     assert ".accelerator-dev-launcher" in _REPO_BOOTSTRAP.read_text(), (
         "the ignore rule must correspond to a real bootstrap gate"
     )
+
+
+# ── Self-location ────────────────────────────────────────────────────────────
+
+
+def _run_and_capture_env(
+    harness: Harness,
+    downloader: Path,
+    tmp_path: Path,
+    **kwargs: object,
+) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
+    """Run the stub launcher and return its run plus its dumped environment.
+
+    Asserting the export directly beats inferring it from rendered output: it
+    is cheaper, and it fails at the layer that actually broke.
+    """
+    env_out = tmp_path / f"{harness.root.name}-env.json"
+    extra = dict(kwargs.pop("extra_env", None) or {})  # type: ignore[arg-type]
+    extra["LAUNCHER_ENV_OUT"] = str(env_out)
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        extra_env=extra,
+        **kwargs,  # type: ignore[arg-type]
+    )
+    assert env_out.exists(), result.stdout + result.stderr
+    return result, _dumped_env(env_out)
+
+
+def _link_chain(directory: Path, target: Path, length: int) -> Path:
+    """Build `length` chained symlinks and return the outermost."""
+    directory.mkdir(parents=True, exist_ok=True)
+    current = target
+    for index in range(length):
+        link = directory / f"link{index}"
+        link.symlink_to(current)
+        current = link
+    return current
+
+
+def _bare_root(tmp_path: Path, bootstrap_src: Path) -> Path:
+    """An installation-shaped directory that carries no plugin.json."""
+    root = tmp_path / "bare"
+    (root / "bin").mkdir(parents=True)
+    entry = root / "bin/accelerator"
+    shutil.copy(bootstrap_src, entry)
+    entry.chmod(0o755)
+    return root
+
+
+def test_rootless_template_render_resolves_the_fixture_root(
+    make_harness: Callable[..., Harness], downloader: Path
+) -> None:
+    harness = make_harness(real_launcher=True)
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("config", "template", "adr"),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert harness.sentinel in result.stdout, result.stdout
+    assert "accelerator:" not in result.stderr, result.stderr
+
+
+def test_rootless_instructions_command_degrades_cleanly(
+    make_harness: Callable[..., Harness], downloader: Path
+) -> None:
+    harness = make_harness(real_launcher=True)
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("config", "instructions", "commit", "--fail-safe"),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "accelerator:" not in result.stderr, result.stderr
+
+
+def test_rootless_templates_list_carries_the_plugin_default_row(
+    make_harness: Callable[..., Harness], downloader: Path
+) -> None:
+    harness = make_harness(real_launcher=True)
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("config", "templates", "list"),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    rows = [line for line in result.stdout.splitlines() if "adr" in line]
+    assert rows, result.stdout
+    assert "plugin default" in rows[0], rows[0]
+
+
+def test_two_hop_symlink_chain_resolves_to_the_fixture_root(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness()
+    plugin_data = tmp_path / "plugin-data/bin"
+    plugin_data.mkdir(parents=True)
+    channel = plugin_data / "accelerator"
+    channel.symlink_to(harness.root / "bin/accelerator")
+    userbin = tmp_path / "userbin"
+    userbin.mkdir()
+    entry = userbin / "accelerator"
+    entry.symlink_to(channel)
+
+    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+def test_a_directory_symlink_in_the_entry_path_resolves_physically(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # A logical `cd ..` collapses the component textually and yields
+    # <tmp>/other; only `cd -P` reaches the fixture root.
+    harness = make_harness()
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "bin").symlink_to(harness.root / "bin", target_is_directory=True)
+
+    _, dumped = _run_and_capture_env(
+        harness, downloader, tmp_path, entry=other / "bin/accelerator"
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+@pytest.mark.parametrize("inject", ["old", "new", "both"])
+def test_ambient_roots_never_redirect_the_resolved_root(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    inject: str,
+) -> None:
+    harness = make_harness("self")
+    decoy = make_harness("injected")
+    names = {
+        "old": ["CLAUDE_PLUGIN_ROOT"],
+        "new": ["ACCELERATOR_PLUGIN_ROOT"],
+        "both": ["CLAUDE_PLUGIN_ROOT", "ACCELERATOR_PLUGIN_ROOT"],
+    }[inject]
+
+    _, dumped = _run_and_capture_env(
+        harness,
+        downloader,
+        tmp_path,
+        extra_env={name: str(decoy.root) for name in names},
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+def test_relative_symlink_target_resolves(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness()
+    decoy = tmp_path / "decoy"
+    (decoy / ".claude-plugin").mkdir(parents=True)
+    (decoy / ".claude-plugin/plugin.json").write_text(
+        f'{{"name": "accelerator", "version": "{_VERSION}"}}\n'
+    )
+    links = tmp_path / "links"
+    links.mkdir()
+    entry = links / "accelerator"
+    entry.symlink_to(Path("..") / harness.root.name / "bin/accelerator")
+
+    _, dumped = _run_and_capture_env(
+        harness, downloader, tmp_path, entry=entry, cwd=decoy
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] != str(decoy)
+
+
+def test_an_exported_cdpath_does_not_redirect_the_resolved_root(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # CDPATH is consulted only for a relative `cd`, so the invocation has to be
+    # relative for the hazard to exist at all. On a match `cd` also prints the
+    # directory it chose — inside the command substitution, which would make
+    # the resolved root two lines.
+    harness = make_harness()
+    decoy_parent = tmp_path / "cdpath-decoy"
+    (decoy_parent / "bin").mkdir(parents=True)
+
+    _, dumped = _run_and_capture_env(
+        harness,
+        downloader,
+        tmp_path,
+        entry=Path("bin/accelerator"),
+        cwd=harness.root,
+        extra_env={"CDPATH": str(decoy_parent)},
+    )
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+def test_a_leading_dash_link_target_resolves(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # readlink output is taken verbatim, so a target whose first component
+    # begins with `-` must never reach a command that would read it as an
+    # option.
+    harness = make_harness()
+    links = tmp_path / "dash"
+    links.mkdir()
+    (links / "-x").symlink_to(harness.root / "bin", target_is_directory=True)
+    entry = links / "accelerator"
+    entry.symlink_to(Path("-x/accelerator"))
+
+    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+def test_a_sixteen_link_chain_resolves(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # The at-boundary partner of the seventeen-link case: without it, relaxing
+    # the bound's comparison reddens nothing.
+    harness = make_harness()
+    entry = _link_chain(
+        tmp_path / "chain16", harness.root / "bin/accelerator", 16
+    )
+
+    _, dumped = _run_and_capture_env(harness, downloader, tmp_path, entry=entry)
+    assert dumped["ACCELERATOR_PLUGIN_ROOT"] == str(harness.root)
+
+
+def test_a_seventeen_link_chain_exceeds_the_hop_bound(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness()
+    entry = _link_chain(
+        tmp_path / "chain17", harness.root / "bin/accelerator", 17
+    )
+    result = _run_bootstrap(
+        harness.root, harness.server, downloader, entry=entry
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "exceeded 16 hops" in result.stderr, result.stderr
+
+
+def test_a_symlink_cycle_terminates_rather_than_hanging(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # Characterises the kernel's ELOOP at open(2), not the in-script counter:
+    # with a true cycle bash never reads a byte of the script, so this passes
+    # even with the chase removed. The timeout is what makes a hang detectable.
+    harness = make_harness()
+    cycle = tmp_path / "cycle"
+    cycle.mkdir()
+    (cycle / "a").symlink_to(cycle / "b")
+    (cycle / "b").symlink_to(cycle / "a")
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        entry=cycle / "a",
+        timeout=30,
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+
+
+def test_a_derived_root_that_is_not_an_installation_aborts_by_name(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    bootstrap_src: Path,
+) -> None:
+    # Naming the derived path also pins that self-location ran, rather than
+    # something else having failed earlier.
+    harness = make_harness()
+    bare = _bare_root(tmp_path, bootstrap_src)
+    entry = bare / "bin/accelerator"
+
+    result = _run_bootstrap(
+        harness.root, harness.server, downloader, entry=entry
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "plugin.json not found" in result.stderr, result.stderr
+    assert str(bare) in result.stderr, result.stderr
+
+    degraded = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("config", "templates", "list", "--fail-safe"),
+        entry=entry,
+    )
+    assert degraded.returncode == 0, degraded.stdout + degraded.stderr
+    assert degraded.stdout == "", degraded.stdout
+    assert "plugin.json not found" in degraded.stderr, degraded.stderr
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("config", "get", "k", "--", "--fail-safe"),
+        ("config", "get", "k"),
+    ],
+)
+def test_fail_safe_is_not_honoured_outside_its_scan_window(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    bootstrap_src: Path,
+    args: tuple[str, ...],
+) -> None:
+    harness = make_harness()
+    bare = _bare_root(tmp_path, bootstrap_src)
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=args,
+        entry=bare / "bin/accelerator",
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
+
+
+def test_trust_chain_failure_records_durably_under_fail_safe(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    # Nothing unverified is ever exec'd either way, so the record buys
+    # detectability: without it a trust-chain abort is byte-identical to the
+    # many commands that legitimately emit nothing.
+    harness = make_harness()
+    (harness.root / f"bin/accelerator-verify-{host_platform}").unlink()
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("config", "templates", "list", "--fail-safe"),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout == "", result.stdout
+    log = harness.root / "bin/.accelerator-unverified.log"
+    assert log.exists(), result.stderr
+    assert "verify shim missing" in log.read_text().splitlines()[-1]
+
+
+def test_a_record_is_always_one_line(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    host_platform: str,
+) -> None:
+    # A cache dir carrying a newline reaches the staging diagnostic verbatim,
+    # so the write-site sanitiser — not any input check — is what keeps the log
+    # parseable.
+    harness = make_harness()
+    cache_dir = tmp_path / "cache\nwith-newline"
+    cache_dir.mkdir()
+    digest = _source_shim_digest(harness.root, host_platform)
+    blocked = cache_dir / f"accelerator-verify-{host_platform}-{digest}"
+    blocked.mkdir()
+    blocked.chmod(0o555)
+    try:
+        result = _run_bootstrap(
+            harness.root,
+            harness.server,
+            downloader,
+            args=("config", "templates", "list", "--fail-safe"),
+            extra_env={"ACCELERATOR_CACHE_DIR": str(cache_dir)},
+        )
+    finally:
+        blocked.chmod(0o755)
+    assert result.returncode == 0, result.stdout + result.stderr
+    log = cache_dir / ".accelerator-unverified.log"
+    assert log.exists(), result.stderr
+    assert len(log.read_text().splitlines()) == 1, log.read_text()
