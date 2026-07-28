@@ -20,10 +20,24 @@ meta/eval-workspaces/
 cli/target/
 cli/.pup/
 /dist/
-skills/visualisation/visualise/bin/accelerator-visualiser-*
 workspaces/
 node_modules/
 mise.local.toml
+
+# Everything bin/accelerator and the launcher write into the directory the
+# plugin ships from: the cached launcher and its signature, the staged verify
+# shims, the lock, the unverified-launcher record, and the sub-binary cache.
+# The staged-shim pattern is digest-anchored on purpose — `-*-*` would also
+# match the four committed vendored shims, silently blocking `git add` after a
+# `build:vendor-verify-shims` refresh while lint:vendor-shims:check stayed
+# green on the unchanged marker.
+bin/accelerator-launcher-*
+bin/accelerator-verify-*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
+bin/visualiser-*
+bin/*.minisig
+bin/.accelerator-lock-*
+bin/.accelerator-unverified.log
+bin/.tmp-*
 
 # Dev-launcher override marker: untracked and unshippable by design, so no clone
 # or marketplace install can carry it (bin/accelerator gates on its presence).
