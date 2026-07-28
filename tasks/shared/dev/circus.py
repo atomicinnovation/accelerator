@@ -20,7 +20,7 @@ class ArbiterSpec:
     pidfile: str
     dev_dir: str
     server_bin: str
-    config_path: str
+    project_root: str
     npm_bin: str
     frontend: str
     frontend_port: int
@@ -38,18 +38,20 @@ def render_circus_ini(spec: ArbiterSpec) -> str:
     ``--log-file`` so circus's captured stdout is the single writer of
     ``server.log``.
 
-    Logging note (deviation from the plan, forced by the server binary): the
-    Rust server initialises ``tracing`` to its config ``--log-file`` and then
-    redirects its own stdout/stderr to ``/dev/null`` (``main.rs``), so circus
-    cannot capture the server's output via stdout. The server therefore writes
-    ``dev/server.log`` itself (via ``--log-file``, rendered by the config
-    helper) and circus captures only the server watcher's **pre-redirect**
-    stderr — the early "failed to load config" / "failed to init logging"
-    lines — to a *separate* ``dev/server.bootstrap.log``, so the two never
-    contend for one file. The frontend (Vite) does log to stdout, so circus's
-    ``FileStream`` captures it to ``dev/frontend.log`` normally. ``copy_env``
-    lets the watchers inherit the detached daemon's resolved PATH so npm can
-    find node.
+    The server watcher runs ``serve`` from ``working_dir`` (the project root) so
+    the Model-1 server discovers ``.accelerator/`` and reads config directly;
+    ``copy_env`` propagates ``CLAUDE_PLUGIN_ROOT`` (and the resolved PATH so npm
+    finds node) from the arbiter env. ``--owner-pid 0`` disables owner-based
+    auto-shutdown for the dev path.
+
+    Logging note (forced by the server binary): the Rust server initialises
+    ``tracing`` to its composed log path (``<project>/.accelerator/tmp/
+    visualiser/server.log``) and then redirects its own stdout/stderr to
+    ``/dev/null`` (``main.rs``), so circus cannot capture it via stdout. circus
+    captures only the watcher's **pre-redirect** stderr — the early "failed to
+    compose config" / "failed to init logging" lines — to
+    ``dev/server.bootstrap.log``. The frontend (Vite) does log to stdout, so
+    circus's ``FileStream`` captures it to ``dev/frontend.log`` normally.
     """
     frontend_cmd = (
         f"{spec.npm_bin} --prefix {spec.frontend} run dev "
@@ -63,7 +65,8 @@ check_delay = 1
 pidfile = {spec.pidfile}
 
 [watcher:server]
-cmd = {spec.server_bin} --config {spec.config_path}
+cmd = {spec.server_bin} serve --owner-pid 0
+working_dir = {spec.project_root}
 numprocesses = 1
 autostart = true
 respawn = false

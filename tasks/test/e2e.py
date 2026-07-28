@@ -4,7 +4,7 @@ import sys
 from invoke import Context, Exit, task
 
 from tasks.shared.dev.host_server import run_against_host_server
-from tasks.shared.paths import FRONTEND, SERVER
+from tasks.shared.paths import CLI_TARGET_DIR, FRONTEND
 from tasks.shared.playwright import (
     BROWSER_LOCALE,
     CHROMIUM_CHANNEL,
@@ -14,7 +14,7 @@ from tasks.shared.playwright import (
     resolved_playwright_version,
 )
 
-SERVER_BIN = SERVER / "target/debug/accelerator-visualiser"
+SERVER_BIN = CLI_TARGET_DIR / "debug/accelerator-visualiser"
 
 
 @task
@@ -105,7 +105,7 @@ def visualiser_docker(
     if context.run("docker info", hide=True, warn=True).failed:
         raise Exit(
             "Docker daemon not reachable — start Docker Desktop / Colima and "
-            "retry. See skills/visualisation/visualise/frontend/README.md "
+            "retry. See cli/visualiser/frontend/README.md "
             "(Visual-Regression Baselines).",
             code=1,
         )

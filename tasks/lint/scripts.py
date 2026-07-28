@@ -36,8 +36,6 @@ SHELL_LIBRARIES: frozenset[str] = frozenset(
         "scripts/accelerator-scaffold.sh",
         "skills/config/migrate/scripts/interactive-lib.sh",
         "skills/github/scripts/test-helpers.sh",
-        "skills/visualisation/visualise/scripts/launcher-helpers.sh",
-        "skills/visualisation/visualise/scripts/test-helpers.sh",
         "skills/work/scripts/work-item-common.sh",
         "skills/work/scripts/work-item-bridge-codes.sh",
         "skills/integrations/jira/scripts/jira-common.sh",

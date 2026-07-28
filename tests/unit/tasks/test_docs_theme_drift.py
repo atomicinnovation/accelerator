@@ -14,7 +14,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _THEME_CSS = _REPO_ROOT / "docs-site/src/styles/theme.css"
-_FRONTEND = _REPO_ROOT / "skills/visualisation/visualise/frontend"
+_FRONTEND = _REPO_ROOT / "cli/visualiser/frontend"
 _FIXTURE = _FRONTEND / "src/styles/fixtures/prototype-tokens.json"
 _FRONTEND_FONTS = _FRONTEND / "public/fonts"
 

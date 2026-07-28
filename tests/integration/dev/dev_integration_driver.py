@@ -39,16 +39,26 @@ from tasks.shared.dev.lifecycle import (
 from tasks.shared.ports import free_port
 from tasks.shared.processes import PsutilProcessOps
 
+# Model-1 fake: the server discovers its project root from cwd (circus sets
+# working_dir) and writes its lifecycle files under the composed state dir,
+# exactly as the real `serve` does — no --config.
 _SERVER_TEMPLATE = """\
 #!{interp}
-import json, signal, subprocess, sys, time
-cfg = json.load(open(sys.argv[sys.argv.index("--config") + 1]))
+import json, os, signal, subprocess, sys, time
 {ignore}
-open(cfg["log_path"], "a").write({marker!r} + "\\n")
+base = os.path.join(os.getcwd(), ".accelerator", "tmp", "visualiser")
+os.makedirs(base, exist_ok=True)
+open(os.path.join(base, "server.log"), "a").write({marker!r} + "\\n")
 {spawn}
 if {write_info}:
-    json.dump({{"url": "http://127.0.0.1:%d" % {port}, "port": {port}}},
-              open(cfg["info_path"], "w"))
+    json.dump(
+        {{
+            "url": "http://127.0.0.1:%d" % {port},
+            "port": {port},
+            "pid": os.getpid(),
+        }},
+        open(os.path.join(base, "server-info.json"), "w"),
+    )
 time.sleep(3600)
 """
 
@@ -118,25 +128,14 @@ def _failing_launcher(argv, *, env, cwd):
 
 def _build_deps(workspace: Path, opts: dict) -> DevDeps:
     dev_dir = workspace / ".accelerator/tmp/dev"
-    server_dir = workspace / ".accelerator/tmp/dev-server"
+    state_dir = workspace / ".accelerator/tmp/visualiser"
     dev_dir.mkdir(parents=True, exist_ok=True)
-    server_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.mkdir(parents=True, exist_ok=True)
     server_bin, npm_bin = _write_fakes(workspace, opts)
-    server_info_path = server_dir / "server-info.json"
-
-    def config_renderer() -> Path:
-        config_path = server_dir / "config.json"
-        config_path.write_text(
-            json.dumps(
-                {
-                    "info_path": str(server_info_path),
-                    "log_path": str(dev_dir / "server.log"),
-                }
-            )
-        )
-        return config_path
+    server_info_path = state_dir / "server-info.json"
 
     env = os.environ.copy()
+    env["CLAUDE_PLUGIN_ROOT"] = str(workspace)
     if opts.get("strip_path"):
         # Only the venv bin (for circusd) — NOT the fake npm's dir. The frontend
         # watcher must still resolve npm via the absolute path rendered into the
@@ -152,7 +151,7 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         launcher=launcher,
         killer=PsutilProcessOps(),
         clock=Clock(),
-        config_renderer=config_renderer,
+        project_root=workspace,
         workspace_root=workspace,
         state_path=dev_dir / "dev.json",
         lock_path=dev_dir / "dev.lock",
@@ -160,7 +159,7 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         pidfile=dev_dir / "circusd.pid",
         ini_path=dev_dir / "circus.ini",
         server_info_path=server_info_path,
-        server_pidfile=server_dir / "server.pid",
+        server_pidfile=state_dir / "server.pid",
         server_bin=server_bin,
         frontend=workspace / "frontend",
         diagnostic_log=dev_dir / "dev.log",

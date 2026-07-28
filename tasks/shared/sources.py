@@ -48,14 +48,11 @@ def _ignore_spec(repo: Path) -> pathspec.GitIgnoreSpec:
     return pathspec.GitIgnoreSpec.from_lines(lines)
 
 
-# The standalone visualiser CLI is a bash script with no .sh extension (users
-# symlink it onto $PATH and type the bare command), so the walk's `.sh` filter
-# never matches it. Include it explicitly so it is linted/formatted like any
-# other script; shfmt/shellcheck detect bash from its `#!/usr/bin/env bash`.
-_EXTRA_SHELL_SOURCES = (
-    "skills/visualisation/visualise/cli/accelerator-visualiser",
-    "bin/accelerator",
-)
+# The plugin entry point is a bash script with no .sh extension (Claude Code
+# invokes the bare command), so the walk's `.sh` filter never matches it.
+# Include it explicitly so it is linted/formatted like any other script;
+# shfmt/shellcheck detect bash from its `#!/usr/bin/env bash`.
+_EXTRA_SHELL_SOURCES = ("bin/accelerator",)
 
 
 def shell_sources(root: Path | None = None) -> list[str]:

@@ -7,28 +7,35 @@
 
 use std::error::Error;
 use std::fs;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use tempfile::TempDir;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// A throwaway workspace with a `.git` boundary marker.
+/// A throwaway workspace with a `.git` boundary marker. Owns the `TempDir`
+/// guard so the directory is removed when the fixture drops; `root` mirrors the
+/// guard's path so field access stays a plain `PathBuf`.
 struct Fixture {
     root: PathBuf,
+    _guard: TempDir,
 }
 
 impl Fixture {
     fn new() -> Result<Self, Box<dyn Error>> {
-        let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-            "config-read-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
+        let guard =
+            tempfile::Builder::new().prefix("config-read-").tempdir()?;
+        let root = guard.path().to_path_buf();
         fs::create_dir_all(root.join(".git"))?;
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            _guard: guard,
+        })
     }
 
     fn team(self, body: &str) -> Result<Self, Box<dyn Error>> {
@@ -65,16 +72,29 @@ fn code(output: &Output) -> i32 {
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
 
+/// A materialized fixture workspace. Owns the `TempDir` guard so the directory
+/// is removed on drop, and derefs to its path so call sites use it exactly as
+/// the former `PathBuf` return.
+struct Workspace {
+    root: PathBuf,
+    _guard: TempDir,
+}
+
+impl Deref for Workspace {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        &self.root
+    }
+}
+
 /// Materializes a committed fixture into a fresh temp workspace: its `config.md`
 /// (and `config.local.md`, if present) copied under `.accelerator/`, with a
 /// `.git` boundary marker so root discovery stops inside the workspace.
-fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
+fn workspace(name: &str) -> Result<Workspace, Box<dyn Error>> {
     let src = PathBuf::from(FIXTURES).join(name);
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "config-read-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     fs::create_dir_all(root.join(".accelerator"))?;
     for name in ["config.md", "config.local.md"] {
@@ -89,7 +109,10 @@ fn workspace(name: &str) -> Result<PathBuf, Box<dyn Error>> {
             copy_tree(&source, &root.join(".accelerator").join(subtree))?;
         }
     }
-    Ok(root)
+    Ok(Workspace {
+        root,
+        _guard: guard,
+    })
 }
 
 fn copy_tree(src: &Path, dest: &Path) -> Result<(), Box<dyn Error>> {
@@ -151,9 +174,8 @@ fn get_of_an_unset_key_prints_the_callers_default() -> TestResult {
     Ok(())
 }
 
-/// The presence probe `jira-auth.sh:228` / `write-visualiser-config.sh:64-65`
-/// depend on: an explicitly empty default yields empty on a miss, with no
-/// catalogue lookup for `get`.
+/// The presence probe `jira-auth.sh:228` depends on: an explicitly empty
+/// default yields empty on a miss, with no catalogue lookup for `get`.
 #[test]
 fn get_with_an_explicit_empty_default_yields_empty_on_a_miss() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
@@ -774,11 +796,8 @@ fn dump_hides_credential_values() -> TestResult {
 
 #[test]
 fn dump_of_an_unconfigured_repo_prints_nothing() -> TestResult {
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "config-read-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     let output = run_in(&root, &["config", "dump"])?;
     assert!(output.stdout.is_empty());
@@ -1123,11 +1142,8 @@ fn summary_hook_keeps_the_unrecognised_skill_warning_off_stdout() -> TestResult
     // A workspace carrying config (so the summary block is emitted) and a skill
     // directory whose name matches no plugin skill, plus a plugin root
     // advertising a single known skill so the warning actually fires.
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!(
-        "config-read-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().to_path_buf();
     fs::create_dir_all(root.join(".git"))?;
     fs::create_dir_all(root.join(".accelerator/skills/bogus-skill"))?;
     fs::write(

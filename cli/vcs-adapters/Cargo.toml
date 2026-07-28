@@ -18,3 +18,6 @@ bash-parity = []
 [dependencies]
 vcs = { path = "../vcs" }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

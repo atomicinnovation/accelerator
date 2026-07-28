@@ -1,5 +1,0 @@
-test-results/
-playwright-report/
-.e2e-port
-.e2e-fixture-snapshot.json
-*.tsbuildinfo

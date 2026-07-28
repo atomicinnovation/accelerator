@@ -9,16 +9,14 @@
 #![cfg(feature = "bash-parity")]
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
-use std::sync::atomic::{AtomicU64, Ordering};
 
+use tempfile::TempDir;
 use vcs::VcsKind;
 use vcs_adapters::facts;
 
 type TestError = Box<dyn std::error::Error>;
-
-static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn require(binary: &str) -> Result<(), TestError> {
     let found = Command::new(binary)
@@ -31,16 +29,13 @@ fn require(binary: &str) -> Result<(), TestError> {
     Err(format!("`{binary}` is required by the detection fixtures").into())
 }
 
-/// A canonical temp directory, so a probed root compares equal on a platform
-/// whose temp dir is itself a symlink.
-fn tempdir(label: &str) -> Result<PathBuf, TestError> {
-    let dir = std::env::temp_dir().join(format!(
-        "vcs-detect-{}-{}-{label}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    fs::create_dir_all(&dir)?;
-    Ok(dir.canonicalize()?)
+/// A temp directory guard whose removal is handled on drop. Callers canonicalize
+/// its `.path()`, so a probed root compares equal on a platform whose temp dir
+/// is itself a symlink.
+fn tempdir(label: &str) -> Result<TempDir, TestError> {
+    Ok(tempfile::Builder::new()
+        .prefix(&format!("vcs-detect-{label}-"))
+        .tempdir()?)
 }
 
 fn run(binary: &str, args: &[&str], dir: &Path) -> Result<(), TestError> {
@@ -63,9 +58,9 @@ fn run(binary: &str, args: &[&str], dir: &Path) -> Result<(), TestError> {
 
 /// A git repository with one commit. Identity is passed per-invocation so the
 /// fixture does not depend on the developer's global git config.
-fn git_repo_with_a_commit(label: &str) -> Result<PathBuf, TestError> {
+fn git_repo_with_a_commit(label: &str) -> Result<TempDir, TestError> {
     let dir = tempdir(label)?;
-    run("git", &["init", "--quiet"], &dir)?;
+    run("git", &["init", "--quiet"], dir.path())?;
     run(
         "git",
         &[
@@ -79,7 +74,7 @@ fn git_repo_with_a_commit(label: &str) -> Result<PathBuf, TestError> {
             "-m",
             "root",
         ],
-        &dir,
+        dir.path(),
     )?;
     Ok(dir)
 }
@@ -95,6 +90,7 @@ fn a_git_repository_reports_its_root_name_and_revision() -> Result<(), TestError
 {
     require("git")?;
     let root = git_repo_with_a_commit("plain-git")?;
+    let root = root.path().canonicalize()?;
 
     let derived = facts(&root).ok_or("expected the git repo to be detected")?;
 
@@ -118,6 +114,7 @@ fn a_git_repository_reports_its_root_name_and_revision() -> Result<(), TestError
 fn the_walk_finds_the_root_from_a_nested_directory() -> Result<(), TestError> {
     require("git")?;
     let root = git_repo_with_a_commit("nested")?;
+    let root = root.path().canonicalize()?;
     let nested = root.join("meta/work");
     fs::create_dir_all(&nested)?;
 
@@ -131,6 +128,7 @@ fn the_walk_finds_the_root_from_a_nested_directory() -> Result<(), TestError> {
 fn a_git_repository_with_no_commits_has_no_revision() -> Result<(), TestError> {
     require("git")?;
     let root = tempdir("no-commits")?;
+    let root = root.path().canonicalize()?;
     run("git", &["init", "--quiet"], &root)?;
 
     let derived = facts(&root).ok_or("expected the git repo to be detected")?;
@@ -148,6 +146,7 @@ fn a_colocated_repository_is_driven_as_jj() -> Result<(), TestError> {
     require("jj")?;
     require("git")?;
     let root = git_repo_with_a_commit("colocated")?;
+    let root = root.path().canonicalize()?;
     run("jj", &["git", "init", "--colocate"], &root)?;
 
     assert!(root.join(".git").exists(), "the git marker should remain");
@@ -174,9 +173,11 @@ fn a_secondary_jj_workspace_roots_at_its_own_marker() -> Result<(), TestError> {
     require("jj")?;
     require("git")?;
     let primary = git_repo_with_a_commit("primary")?;
+    let primary = primary.path().canonicalize()?;
     run("jj", &["git", "init", "--colocate"], &primary)?;
 
-    let secondary = tempdir("secondary")?.join("workspace");
+    let secondary_root = tempdir("secondary")?;
+    let secondary = secondary_root.path().canonicalize()?.join("workspace");
     run(
         "jj",
         &[
@@ -212,7 +213,9 @@ fn a_worktree_whose_git_marker_is_a_file_is_recognised() -> Result<(), TestError
 {
     require("git")?;
     let primary = git_repo_with_a_commit("worktree-primary")?;
-    let worktree = tempdir("worktree")?.join("checkout");
+    let primary = primary.path().canonicalize()?;
+    let worktree_root = tempdir("worktree")?;
+    let worktree = worktree_root.path().canonicalize()?.join("checkout");
     run(
         "git",
         &[
@@ -253,6 +256,7 @@ fn a_bare_repository_has_no_facts() -> Result<(), TestError> {
     // bash helpers fall through on, and the reason `facts` is an Option rather
     // than a fabricated empty root.
     let bare = tempdir("bare")?;
+    let bare = bare.path().canonicalize()?;
     run(
         "git",
         &["init", "--bare", "--initial-branch=main", "."],

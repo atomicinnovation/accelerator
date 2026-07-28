@@ -140,7 +140,10 @@ impl FetchVerifyCacheResolver {
     ) -> Result<PathBuf, ResolutionError> {
         let base = &self.config.base_url;
         let manifest = self.load_manifest()?;
-        let asset_name = format!("{name}-{}", self.config.platform);
+        // Sub-binary release assets are `accelerator-<token>-<platform>`: the
+        // manifest keys on the bare dispatched token, but every published asset
+        // carries the `accelerator-` prefix.
+        let asset_name = format!("accelerator-{name}-{}", self.config.platform);
         let asset_url = format!("{base}/{asset_name}");
         let entry = manifest
             .platform_entry(name, &self.config.platform)

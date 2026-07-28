@@ -119,7 +119,7 @@ mise-pinned stable `1.90.0`.
   `deps:install:pup` fails with an actionable message naming the pin. Before
   committing a bump, verify the upstream release's published
   checksum/attestation (mirroring the SHA-256/SLSA discipline the visualiser
-  binary gets via `checksums.json`).
+  binary gets via the signed `manifest.json`).
 - **`mise.lock` refresh.** The committed `mise.lock` hash-pins the aqua-backed
   tools. On **any** `[tools]` edit (or aqua pin bump), regenerate it — `mise
   lock --platform linux-x64,macos-arm64,macos-x64` (all matrix platforms) — and

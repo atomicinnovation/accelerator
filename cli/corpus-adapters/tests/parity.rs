@@ -11,14 +11,12 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use common::{
     doc_type_table, launcher_binary, require_file, require_script, TestError,
 };
 use corpus::DocTypeKey;
-
-static COUNTER: AtomicU64 = AtomicU64::new(0);
+use tempfile::TempDir;
 
 const FIXTURES: [(&str, &str); 8] = [
     (
@@ -74,14 +72,10 @@ const FIXTURES: [(&str, &str); 8] = [
     ),
 ];
 
-fn tempdir() -> Result<PathBuf, TestError> {
-    let dir = std::env::temp_dir().join(format!(
-        "corpus-parity-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
-    fs::create_dir_all(&dir)?;
-    Ok(dir)
+fn tempdir() -> Result<TempDir, TestError> {
+    Ok(tempfile::Builder::new()
+        .prefix("corpus-parity-")
+        .tempdir()?)
 }
 
 fn bash_records(script: &Path, file: &Path) -> Result<Vec<String>, TestError> {
@@ -251,6 +245,7 @@ fn bash_infer(
     );
 
     let root = tempdir()?;
+    let root = root.path().to_path_buf();
     let script = root.join("drive-inference.sh");
     fs::write(&script, driver)?;
 
@@ -268,7 +263,6 @@ fn bash_infer(
         )
         .into());
     }
-    fs::remove_dir_all(&root)?;
 
     Ok(String::from_utf8(output.stdout)?
         .lines()
@@ -350,6 +344,7 @@ fn linkage_extraction_matches_the_bash_parser() -> Result<(), TestError> {
     let script = require_script("scripts/linkage-parser.sh")?;
     let table = doc_type_table()?;
     let root = tempdir()?;
+    let root = root.path().to_path_buf();
 
     let mut compared = 0usize;
     for (relative, content) in FIXTURES {
@@ -370,6 +365,5 @@ fn linkage_extraction_matches_the_bash_parser() -> Result<(), TestError> {
     }
 
     assert_eq!(compared, FIXTURES.len(), "every fixture must be compared");
-    fs::remove_dir_all(&root)?;
     Ok(())
 }

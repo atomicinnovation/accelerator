@@ -5,7 +5,7 @@ argument-hint: "[stop | status]"
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator visualiser *)
 ---
 
 # Visualise Meta Directory
@@ -27,7 +27,7 @@ allowed-tools:
 **Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
 **Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
 
-**Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/scripts/visualiser.sh "$ARGUMENTS"`
+**Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator visualiser --owner-pid $PPID ${ARGUMENTS:-start}`
 
 ## Server lifecycle
 
@@ -43,10 +43,10 @@ means different things by invocation mode — for the slash command
 it's the Claude Code harness; for the CLI wrapper it's the
 terminal shell. Don't assume Claude Code specifically.
 
-The dispatcher routes a single argument: empty/`start` launches
-the server, `stop` terminates it, `status` probes its lifecycle
-files. Output shape varies by subcommand — read it carefully
-before relaying to the user.
+`accelerator visualiser` routes a single argument: empty/`start`
+launches the server, `stop` terminates it, `status` probes its
+lifecycle files. Output shape varies by subcommand — read it
+carefully before relaying to the user.
 -->
 
 The user's argument selects the action. Interpret the
@@ -74,8 +74,11 @@ invoked:
 - `{"status":"refused",...}` or `{"status":"failed",...}` —
   relay the reason/error to the user.
 
-**`status`** — the line is a JSON object: `{"status":"running"|"stale"|"not_running","url":...,"pid":...}`.
-Relay the status (and URL/PID when present) to the user.
+**`status`** — the line is a JSON object:
+`{"status":"running","url":...,"pid":...}` when the server is up, or
+`{"status":"stopped"}` when it is not (never started, cleanly stopped,
+crashed, or leftover state from a recycled PID). Relay the status (and
+URL/PID when present) to the user.
 
 **`{"error":"unknown subcommand",...}`** — the user passed an
 unrecognised argument. Tell them the valid subcommands are
@@ -153,8 +156,9 @@ visualiser:
 ---
 ```
 
-To run the visualiser from a terminal, symlink the CLI wrapper:
+To run the visualiser from a terminal, symlink the accelerator CLI onto
+your `$PATH` and invoke `accelerator visualiser [stop | status]`:
 
-**Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/skills/visualisation/visualise/cli/accelerator-visualiser" "$HOME/.local/bin/accelerator-visualiser"`
+**Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/bin/accelerator" "$HOME/.local/bin/accelerator"`
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions visualise --fail-safe`

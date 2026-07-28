@@ -11,7 +11,6 @@ import tasks.version as tv
 from tasks.build import validate_version_coherence
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SERVER_DIR = REPO_ROOT / "skills/visualisation/visualise/server"
 CLI_DIR = REPO_ROOT / "cli"
 
 
@@ -24,76 +23,22 @@ def ctx():
 
 def _patch_paths(mocker, base: Path) -> None:
     mocker.patch.object(tv, "PLUGIN_JSON", base / ".claude-plugin/plugin.json")
-    mocker.patch.object(
-        tv,
-        "CARGO_TOML",
-        base / "skills/visualisation/visualise/server/Cargo.toml",
-    )
     mocker.patch.object(tv, "CLI_WORKSPACE_CARGO_TOML", base / "cli/Cargo.toml")
-    mocker.patch.object(
-        tv,
-        "CHECKSUMS",
-        base / "skills/visualisation/visualise/bin/checksums.json",
-    )
 
 
 # ── write() ───────────────────────────────────────────────────────────
 
 
 class TestWrite:
-    def test_updates_all_three_files(self, ctx, mocker, fake_repo_tree):
+    def test_updates_plugin_version(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
         tv.write(ctx, "1.21.0")
 
         plugin_json = json.loads(
             (fake_repo_tree / ".claude-plugin/plugin.json").read_text()
         )
-        cargo_toml = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
-        ).read_text()
-        checksums = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
 
         assert plugin_json["version"] == "1.21.0"
-        assert 'version = "1.21.0"' in cargo_toml
-        assert checksums["version"] == "1.21.0"
-
-    def test_checksums_binaries_map_preserved(
-        self, ctx, mocker, fake_repo_tree
-    ):
-        _patch_paths(mocker, fake_repo_tree)
-        checksums_before = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
-        tv.write(ctx, "1.21.0")
-        checksums_after = json.loads(
-            (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_text()
-        )
-        assert checksums_after["binaries"] == checksums_before["binaries"]
-
-    def test_cargo_toml_structure_preserved(self, ctx, mocker, fake_repo_tree):
-        cargo_path = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
-        )
-        cargo_path.write_text(
-            '[package]\nname = "accelerator-visualiser"\nversion = "1.20.0"\n\n'
-            '[dependencies]\naxum = { version = "0.7" }\n'
-        )
-        _patch_paths(mocker, fake_repo_tree)
-        tv.write(ctx, "1.21.0")
-        result = cargo_path.read_text()
-        assert 'version = "1.21.0"' in result
-        assert 'axum = { version = "0.7" }' in result
 
     def test_idempotent(self, ctx, mocker, fake_repo_tree):
         _patch_paths(mocker, fake_repo_tree)
@@ -102,28 +47,14 @@ class TestWrite:
             "plugin_json": (
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
-            "cargo_toml": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/server/Cargo.toml"
-            ).read_bytes(),
-            "checksums": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_bytes(),
+            "workspace": (fake_repo_tree / "cli/Cargo.toml").read_bytes(),
         }
         tv.write(ctx, "1.21.0")
         content_after_second = {
             "plugin_json": (
                 fake_repo_tree / ".claude-plugin/plugin.json"
             ).read_bytes(),
-            "cargo_toml": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/server/Cargo.toml"
-            ).read_bytes(),
-            "checksums": (
-                fake_repo_tree
-                / "skills/visualisation/visualise/bin/checksums.json"
-            ).read_bytes(),
+            "workspace": (fake_repo_tree / "cli/Cargo.toml").read_bytes(),
         }
         assert content_after_first == content_after_second
 
@@ -230,41 +161,6 @@ class TestBump:
 
 class TestLintsTemplating:
     """Guard the tomlkit round-trip that 0098's clippy config depends on."""
-
-    def test_render_cargo_toml_preserves_lints_table(
-        self, mocker, fake_repo_tree
-    ):
-        cargo_path = (
-            fake_repo_tree / "skills/visualisation/visualise/server/Cargo.toml"
-        )
-        # Bespoke input: a [lints.clippy] table AND an inline rationale comment.
-        cargo_path.write_text(
-            "[package]\n"
-            'name = "accelerator-visualiser"\n'
-            'version = "1.20.0"\n'
-            'edition = "2021"\n\n'
-            "[lints.clippy]\n"
-            'pedantic = { level = "warn", priority = -1 }\n'
-            'missing_errors_doc = "allow"  # why: no Errors doc mandated\n'
-        )
-        mocker.patch.object(tv, "CARGO_TOML", cargo_path)
-        result = tv._render_cargo_toml("1.21.0")
-        # The table and its values survive the round-trip...
-        assert "[lints.clippy]" in result
-        assert 'pedantic = { level = "warn", priority = -1 }' in result
-        # ...and — the load-bearing assertion — so does the verbatim comment.
-        # (A plain dict-based TOML writer would keep the table but DROP this; it
-        # is the property the justification-comment policy depends on.)
-        assert "# why: no Errors doc mandated" in result
-        assert 'version = "1.21.0"' in result
-
-    def test_cargo_and_rustfmt_editions_match(self):
-        # Cargo.toml [package].edition and rustfmt.toml edition are two
-        # hand-duplicated literals; this guards the drift hazard that would let
-        # a direct-rustfmt caller silently fall back to edition 2015.
-        cargo = tomllib.loads((SERVER_DIR / "Cargo.toml").read_text())
-        rustfmt = tomllib.loads((SERVER_DIR / "rustfmt.toml").read_text())
-        assert cargo["package"]["edition"] == rustfmt["edition"]
 
     def test_cli_cargo_and_rustfmt_editions_match(self):
         # The workspace edition and the rustfmt edition are two hand-duplicated

@@ -2,7 +2,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 
-from .helpers import accelerator_env, repo_root, run_shell_suites
+from .helpers import accelerator_env, run_shell_suites
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
 # `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
@@ -44,23 +44,21 @@ _REQUIRED_CONFIG_SUITES = (
 
 @task
 def visualiser(context: Context) -> None:
-    """Integration tests for the visualiser (cargo --tests + shell suites).
+    """Integration tests for the visualiser (cargo --tests).
 
     The `spa_serving.rs` integration test is gated on the `dev-frontend`
     feature, so the cargo invocation enables that feature to include it.
     """
-    # The cargo tests include config_contract.rs, which runs the repointed
-    # write-visualiser-config.sh, so they need the compiled launcher on the env
-    # (built by the build:cli:dev mise dependency) rather than the
-    # signed-release bootstrap. The overlay is passed to each child, not written
-    # into this process.
+    # The cargo tests include orchestration_lifecycle.rs, which dispatches the
+    # compiled launcher, so they need it on the env (built by the build:cli:dev
+    # mise dependency) rather than the signed-release bootstrap. The overlay is
+    # passed to each child, not written into this process.
     env = accelerator_env()
     context.run(
         f"cargo test --manifest-path {CARGO_TOML} --tests "
         f"--no-default-features --features dev-frontend",
         env=env,
     )
-    run_shell_suites(context, "skills/visualisation/visualise", env)
 
 
 @task
@@ -117,16 +115,6 @@ def config(context: Context) -> None:
 def decisions(context: Context) -> None:
     """Integration tests for the decisions skill scripts."""
     run_shell_suites(context, "skills/decisions", accelerator_env())
-
-
-@task
-def binary_acquisition(context: Context) -> None:
-    """Test launch-server.sh binary acquisition (sentinel, SHA, 404)."""
-    script = (
-        repo_root()
-        / "skills/visualisation/visualise/scripts/test-launch-server.sh"
-    )
-    context.run(f"bash {script}", env=accelerator_env())
 
 
 @task

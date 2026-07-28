@@ -3,7 +3,7 @@
    :root[data-theme='light']; this unlayered sheet wins over the
    starlight.* cascade layers without !important.
    --atomic-* values are duplicated verbatim from the canonical sheet
-   (skills/visualisation/visualise/frontend/src/styles/global.css) and
+   (cli/visualiser/frontend/src/styles/global.css) and
    drift-guarded by tests/unit/tasks/test_docs_theme_drift.py. */
 
 @font-face {

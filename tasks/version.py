@@ -8,8 +8,6 @@ from invoke import Context, task
 
 from .shared.files import atomic_write_text
 from .shared.paths import (
-    CARGO_TOML,
-    CHECKSUMS,
     CLI_WORKSPACE_CARGO_TOML,
     PLUGIN_JSON,
 )
@@ -34,12 +32,6 @@ def _render_plugin_json(version: str) -> str:
     return json.dumps(data, indent=2)
 
 
-def _render_cargo_toml(version: str) -> str:
-    data = tomlkit.parse(CARGO_TOML.read_text())
-    data["package"]["version"] = version
-    return tomlkit.dumps(data)
-
-
 def _render_workspace_cargo_toml(version: str) -> str:
     # Assumes a well-formed [workspace.package] table (mirroring
     # _render_cargo_toml's [package] assumption): the validating read side
@@ -47,12 +39,6 @@ def _render_workspace_cargo_toml(version: str) -> str:
     data = tomlkit.parse(CLI_WORKSPACE_CARGO_TOML.read_text())
     data["workspace"]["package"]["version"] = version
     return tomlkit.dumps(data)
-
-
-def _render_checksums_version(version: str) -> str:
-    data = json.loads(CHECKSUMS.read_text())
-    data["version"] = version
-    return json.dumps(data, indent=2) + "\n"
 
 
 @task
@@ -67,21 +53,17 @@ def read(_context: Context, print_to_stdout: bool = True) -> semver.Version:
 
 @task
 def write(_context: Context, version: str) -> None:
-    """Write plugin version to plugin.json, both Cargo.tomls, and checksums.
+    """Write plugin version to plugin.json and the cli/ workspace manifest.
 
-    Covers the standalone visualiser-server manifest and the cli/ workspace
-    manifest ([workspace.package].version), alongside plugin.json and
-    checksums.json.
+    The visualiser server inherits its version from
+    [workspace.package].version, so bumping the cli/ workspace manifest covers
+    it; writing the member manifest would clobber that inheritance.
     """
     rendered_plugin_json = _render_plugin_json(version)
-    rendered_cargo_toml = _render_cargo_toml(version)
     rendered_workspace_cargo_toml = _render_workspace_cargo_toml(version)
-    rendered_checksums = _render_checksums_version(version)
 
     atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
-    atomic_write_text(CARGO_TOML, rendered_cargo_toml)
     atomic_write_text(CLI_WORKSPACE_CARGO_TOML, rendered_workspace_cargo_toml)
-    atomic_write_text(CHECKSUMS, rendered_checksums)
 
 
 @task(iterable=["bump_type"])

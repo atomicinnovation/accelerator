@@ -108,8 +108,8 @@ fn make_executable(_path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use tempfile::TempDir;
 
     use super::{resolve, CacheRootConfig};
 
@@ -120,16 +120,10 @@ mod tests {
         }
     }
 
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn tempdir() -> Result<PathBuf, Box<dyn Error>> {
-        let dir = std::env::temp_dir().join(format!(
-            "acc-cacheroot-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(&dir)?;
-        Ok(dir)
+    fn tempdir() -> Result<TempDir, Box<dyn Error>> {
+        Ok(tempfile::Builder::new()
+            .prefix("acc-cacheroot-")
+            .tempdir()?)
     }
 
     #[test]
@@ -144,6 +138,7 @@ mod tests {
     #[test]
     fn a_writable_plugin_root_is_used() -> Result<(), Box<dyn Error>> {
         let temp = tempdir()?;
+        let temp = temp.path().to_path_buf();
         let resolved = resolve(&CacheRootConfig {
             plugin_root: Some(temp.clone()),
             ..config()
@@ -157,6 +152,7 @@ mod tests {
     ) -> Result<(), Box<dyn Error>> {
         use std::os::unix::fs::PermissionsExt as _;
         let plugin_root = tempdir()?;
+        let plugin_root = plugin_root.path().to_path_buf();
         std::fs::create_dir_all(plugin_root.join("bin"))?;
         std::fs::set_permissions(
             plugin_root.join("bin"),
@@ -173,6 +169,7 @@ mod tests {
     #[test]
     fn an_override_is_honoured() -> Result<(), Box<dyn Error>> {
         let temp = tempdir()?;
+        let temp = temp.path().to_path_buf();
         let resolved = resolve(&CacheRootConfig {
             cache_dir_override: Some(temp.clone()),
             ..config()

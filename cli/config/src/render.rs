@@ -18,7 +18,7 @@ pub fn render_value(value: &Value) -> String {
     }
 }
 
-fn render_scalar(scalar: &Scalar) -> String {
+pub(crate) fn render_scalar(scalar: &Scalar) -> String {
     match scalar {
         Scalar::String(text) => text.clone(),
         Scalar::Bool(value) => value.to_string(),

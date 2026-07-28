@@ -3,8 +3,14 @@ from invoke import Context, Exit, task
 from tasks.shared.paths import CLI_WORKSPACE_CARGO_TOML
 from tasks.shared.rust import coverage_enabled
 
+# The visualiser server is a workspace member but keeps its own dedicated test
+# tasks (test:unit:visualiser for the lib across both feature configs,
+# test:integration:visualiser for the server harness that needs the launcher on
+# PATH and a built frontend). Excluding it here avoids double-running those
+# suites under the wrong feature combination and env.
 _MANIFEST = (
-    f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} --workspace --all-features"
+    f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} --workspace "
+    "--exclude accelerator-visualiser --all-features"
 )
 
 

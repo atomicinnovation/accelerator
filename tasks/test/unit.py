@@ -28,7 +28,7 @@ def visualiser(context: Context) -> None:
 @task
 def frontend(context: Context) -> None:
     """Run the visualiser frontend unit tests (Vitest)."""
-    frontend_root = repo_root() / "skills/visualisation/visualise/frontend"
+    frontend_root = repo_root() / "cli/visualiser/frontend"
     context.run(f"npm --prefix {frontend_root} run test")
 
 

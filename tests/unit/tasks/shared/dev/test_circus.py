@@ -8,7 +8,7 @@ def _spec(**overrides) -> ArbiterSpec:
         "pidfile": "/dev/dir/circusd.pid",
         "dev_dir": "/dev/dir",
         "server_bin": "/bin/accelerator-visualiser",
-        "config_path": "/dev-server/config.json",
+        "project_root": "/repo/proj",
         "npm_bin": "/usr/local/bin/npm",
         "frontend": "/repo/frontend",
         "frontend_port": 54321,
@@ -54,16 +54,23 @@ class TestRenderCircusIni:
         assert f"--port {spec.frontend_port} --strictPort" in ini
         assert f"--prefix {spec.frontend}" in ini
 
-    def test_server_cmd_omits_log_file_flag(self):
-        ini = render_circus_ini(_spec())
-        # The server binary only takes --config; --log-file is a config-script
-        # arg, not a server cmd arg. It must never appear in the watcher cmd.
+    def test_server_cmd_is_serve_from_project_root(self):
+        spec = _spec()
+        ini = render_circus_ini(spec)
+        server_section = ini.split("[watcher:server]")[1].split(
+            "[watcher:frontend]"
+        )[0]
+        # Model-1: `serve` from working_dir (the project root); no --config and
+        # no --log-file (the server composes both from .accelerator/*.md).
+        assert f"cmd = {spec.server_bin} serve --owner-pid 0" in server_section
+        assert f"working_dir = {spec.project_root}" in server_section
+        assert "--config" not in server_section
         assert "--log-file" not in ini
 
     def test_server_stream_captures_bootstrap_log_not_server_log(self):
-        # The server writes dev/server.log itself (via config --log-file) and
-        # /dev/null's its stdout, so circus captures only the pre-redirect
-        # stderr to a separate bootstrap log — never the same file.
+        # The server writes its composed server.log itself and /dev/null's its
+        # stdout, so circus captures only the pre-redirect stderr to a separate
+        # bootstrap log — never the same file.
         spec = _spec()
         ini = render_circus_ini(spec)
         server_section = ini.split("[watcher:server]")[1].split(

@@ -1,0 +1,3 @@
+# The E2E harness (frontend/e2e/start-server.mjs) roots the Model-1 server at
+# this fixtures directory, writing config + runtime state under .accelerator/.
+/.accelerator/

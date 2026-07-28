@@ -42,6 +42,20 @@ fn a_hyphenated_subcommand_resolves_via_the_normalised_variable(
 }
 
 #[test]
+fn visualiser_subcommand_dispatches_via_its_override_var(
+) -> Result<(), Box<dyn Error>> {
+    // The `accelerator visualiser` UX resolves the bare `visualiser` token to
+    // ACCELERATOR_VISUALISER_BIN and exec-replaces it, forwarding the args
+    // (`start`/`stop`/`status`). Dispatch is name-agnostic, so exercising it for
+    // the real sub-binary token confirms the token→var derivation end to end.
+    let status = launcher_for("visualiser", "ACCELERATOR_VISUALISER_BIN")
+        .arg("exit-42")
+        .status()?;
+    assert_eq!(status.code(), Some(42));
+    Ok(())
+}
+
+#[test]
 fn external_subcommand_terminating_signal_propagates(
 ) -> Result<(), Box<dyn Error>> {
     // exec replaced the launcher, so the fixture is its PID; SIGTERM → 143.

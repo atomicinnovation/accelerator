@@ -38,7 +38,9 @@ class TestUpAdapter:
         assert "Visualiser dev stack ready." in out
         assert "Frontend: http://127.0.0.1:54321" in out
         assert "API:      http://127.0.0.1:7777" in out
-        assert "/d/dev/server.log" in out
+        # server.log is server-owned (the composed visualiser state dir), not
+        # under the orchestration dev_dir; frontend.log is orchestration-owned.
+        assert f"{dev._SERVER_LOG}" in out
         assert "/d/dev/frontend.log" in out
 
     def test_reused_prints_changes_not_live_heading(self, mocker, capsys):

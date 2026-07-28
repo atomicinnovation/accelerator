@@ -45,15 +45,12 @@ class TestShellSourcesDiscovery:
         ]
 
     def test_includes_extensionless_cli_script(self):
-        # The visualiser CLI is a bash script with no .sh extension, so the
+        # The plugin entry point is a bash script with no .sh extension, so the
         # walk's `.sh` filter never matches it — it must be appended
         # explicitly. Runs against the real repo root where the script exists
         # on disk.
         sources = shell_sources()
-        assert (
-            "skills/visualisation/visualise/cli/accelerator-visualiser"
-            in sources
-        )
+        assert "bin/accelerator" in sources
 
     def test_honours_gitignored_directories(self, tmp_path: Path):
         _write(tmp_path / ".gitignore", "node_modules/\ndist/\n")

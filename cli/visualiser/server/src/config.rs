@@ -1,0 +1,720 @@
+//! The server's typed runtime configuration. Assembled from `.accelerator/*.md`
+//! by [`crate::compose`]; the boot-time resolvers here (kanban columns, idle
+//! window) turn the raw fields into validated runtime values.
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Config {
+    pub plugin_root: PathBuf,
+    pub plugin_version: String,
+    pub project_root: PathBuf,
+    pub tmp_path: PathBuf,
+    pub host: String,
+    pub owner_pid: i32,
+    /// Start-time of the owner process, seconds-since-epoch.
+    /// `None` disables the owner-PID identity cross-check in the
+    /// lifecycle watch (the bare PID probe still runs).
+    #[serde(default)]
+    pub owner_start_time: Option<u64>,
+    pub log_path: PathBuf,
+    pub doc_paths: HashMap<String, PathBuf>,
+    pub templates: HashMap<String, TemplateTiers>,
+    /// Work-item ID pattern configuration. Absent from pre-Phase-2
+    /// configs; treated as the numeric default when missing.
+    #[serde(default)]
+    pub work_item: Option<RawWorkItemConfig>,
+    /// Kanban column keys. Absent → seven template-status defaults.
+    /// An empty list is rejected at boot.
+    #[serde(default)]
+    pub kanban_columns: Option<Vec<String>>,
+    /// Idle auto-shutdown window as a humantime duration string
+    /// (`"8h"`, `"30m"`, `"1h30m"`), or a disable token (`"never"`, `0`,
+    /// or any zero-length duration). Absent → the built-in 8h default.
+    /// Resolved + validated at boot by `resolve_idle_limit_ms`.
+    #[serde(default)]
+    pub idle_timeout: Option<String>,
+    /// Editor deep-link selection: a preset key (e.g. `vscode`, `cursor`,
+    /// `idea`, `web-storm`) or a custom URL template containing `://` or an
+    /// `{abs}`/`{rel}` placeholder. Absent → `Open in editor` renders disabled.
+    /// Passed through verbatim; the frontend resolves presets/templates.
+    #[serde(default)]
+    pub editor: Option<String>,
+    /// `JetBrains` project name for the `{project}` placeholder. Absent →
+    /// server defaults to the basename of `project_root`. Ignored by
+    /// non-JetBrains presets.
+    #[serde(default)]
+    pub editor_project: Option<String>,
+}
+
+/// A single kanban board column, as resolved at boot.
+#[derive(Debug, Clone)]
+pub struct KanbanColumn {
+    pub key: String,
+    pub label: String,
+}
+
+/// Deserializable form of the work-item ID configuration. The launcher
+/// emits this under the `work_item` key in config.json.
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawWorkItemConfig {
+    pub scan_regex: String,
+    #[serde(default = "default_id_pattern")]
+    pub id_pattern: String,
+    #[serde(default)]
+    pub default_project_code: Option<String>,
+}
+
+fn default_id_pattern() -> String {
+    "{number:04d}".to_string()
+}
+
+/// Runtime work-item ID configuration: the shared corpus id scheme plus its
+/// compiled scan regex, resolved once at boot. The admission predicates
+/// (`extract_id`/`normalise_id`/`is_canonical_id_token`) delegate to
+/// `corpus::WorkItemIdScheme`; no id convention lives here.
+pub struct WorkItemConfig {
+    scheme: corpus::WorkItemIdScheme,
+    scanner: corpus_adapters::RegexScanner,
+}
+
+impl std::fmt::Debug for WorkItemConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkItemConfig")
+            .field("scheme", &self.scheme)
+            .finish_non_exhaustive()
+    }
+}
+
+impl WorkItemConfig {
+    pub fn from_raw(raw: RawWorkItemConfig) -> Result<Self, ConfigError> {
+        let scanner = corpus_adapters::RegexScanner::compile(&raw.scan_regex)
+            .map_err(|source| ConfigError::InvalidScanRegex {
+            pattern: raw.scan_regex.clone(),
+            source,
+        })?;
+        Ok(Self {
+            scheme: corpus::WorkItemIdScheme {
+                id_pattern: raw.id_pattern,
+                default_project_code: raw.default_project_code,
+            },
+            scanner,
+        })
+    }
+
+    /// Fallback used when `work_item` is absent from config (pre-Phase-2
+    /// launchers). Behaves identically to the default `{number:04d}` pattern.
+    #[must_use]
+    pub fn default_numeric() -> Self {
+        // Compile-time-constant regex literal cannot fail to compile.
+        #[allow(clippy::expect_used)]
+        let scanner = corpus_adapters::RegexScanner::compile("^([0-9]+)-")
+            .expect("numeric scan regex is a valid literal");
+        Self {
+            scheme: corpus::WorkItemIdScheme::numeric(),
+            scanner,
+        }
+    }
+
+    /// The shared id scheme (pattern + project code) driving admission.
+    #[must_use]
+    pub fn scheme(&self) -> &corpus::WorkItemIdScheme {
+        &self.scheme
+    }
+
+    /// The compiled scan regex, as a `corpus::IdScanner`.
+    #[must_use]
+    pub fn scanner(&self) -> &corpus_adapters::RegexScanner {
+        &self.scanner
+    }
+
+    #[must_use]
+    pub fn is_canonical_id_token(&self, token: &str) -> bool {
+        self.scheme.is_canonical_id_token(token)
+    }
+
+    #[must_use]
+    pub fn extract_id(&self, filename: &str) -> Option<String> {
+        self.scheme.extract_id(filename, &self.scanner)
+    }
+
+    #[must_use]
+    pub fn normalise_id(&self, raw: &str) -> Option<String> {
+        self.scheme.normalise_id(raw)
+    }
+}
+
+impl Default for WorkItemConfig {
+    fn default() -> Self {
+        Self::default_numeric()
+    }
+}
+
+#[cfg(test)]
+impl WorkItemConfig {
+    pub fn with_pattern_for_test(prefix: &str, width: usize) -> Self {
+        let raw = format!("^({}-[0-9]{{{}}})-", regex::escape(prefix), width);
+        Self {
+            scanner: corpus_adapters::RegexScanner::compile(&raw).unwrap(),
+            scheme: corpus::WorkItemIdScheme {
+                // Use the literal `{project}` placeholder so `id_pattern`
+                // lookups behave like production configs.
+                id_pattern: format!("{{project}}-{{number:0{width}d}}"),
+                default_project_code: Some(prefix.to_string()),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TemplateTiers {
+    pub config_override: Option<PathBuf>,
+    pub user_override: PathBuf,
+    pub plugin_default: PathBuf,
+    /// Path of the config file (relative to the project root) in which
+    /// `config_override` is declared, when known to the launcher. Used
+    /// by the templates view's Tier 1 description text. `None` when
+    /// there is no config-override or the launcher does not surface
+    /// this information.
+    #[serde(default)]
+    pub config_override_source: Option<String>,
+}
+
+impl TemplateTiers {
+    /// Iterate over the three tier paths (config-override, user-override,
+    /// plugin-default). Skips the config-override slot when it is `None`.
+    pub fn iter_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
+        self.config_override
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.user_override.clone()))
+            .chain(std::iter::once(self.plugin_default.clone()))
+    }
+}
+
+/// The kanban column keys the catalogue declares for `visualiser.kanban_columns`,
+/// used when config omits the key. Sourced from the shared config catalogue so
+/// there is a single source of truth.
+fn default_kanban_column_keys() -> Vec<String> {
+    match config::catalogue::default_for("visualiser.kanban_columns") {
+        Some(config::Value::Sequence(items)) => {
+            items.iter().map(render_catalogue_scalar).collect()
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn render_catalogue_scalar(scalar: &config::Scalar) -> String {
+    match scalar {
+        config::Scalar::String(text) => text.clone(),
+        config::Scalar::Bool(value) => value.to_string(),
+        config::Scalar::Int(value) => value.to_string(),
+        config::Scalar::Float(value) => value.to_string(),
+        config::Scalar::Null => String::new(),
+    }
+}
+
+fn label_from_key(key: &str) -> String {
+    let spaced = key.replace('-', " ");
+    let mut chars = spaced.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().to_string() + chars.as_str(),
+    }
+}
+
+impl Config {
+    /// Resolves the raw `kanban_columns` field (list of key strings, or None for
+    /// "use defaults") into a validated `Vec<KanbanColumn>` with derived labels.
+    ///
+    /// Semantics:
+    /// - `None` (field absent from config) → seven template-status defaults.
+    /// - `Some(keys)` where `keys` is non-empty → one `KanbanColumn` per key.
+    /// - `Some([])` (empty list) → `ConfigError::EmptyKanbanColumns` (reject at boot).
+    pub fn resolve_kanban_columns(
+        &self,
+    ) -> Result<Vec<KanbanColumn>, ConfigError> {
+        match &self.kanban_columns {
+            None => Ok(default_kanban_column_keys()
+                .iter()
+                .map(|k| KanbanColumn {
+                    key: k.clone(),
+                    label: label_from_key(k),
+                })
+                .collect()),
+            Some(keys) if keys.is_empty() => {
+                Err(ConfigError::EmptyKanbanColumns)
+            }
+            Some(keys) => Ok(keys
+                .iter()
+                .map(|k| KanbanColumn {
+                    key: k.clone(),
+                    label: label_from_key(k),
+                })
+                .collect()),
+        }
+    }
+}
+
+/// The idle window the catalogue declares for `visualiser.idle_timeout`, used
+/// when config omits the key. Sourced from the shared config catalogue.
+fn default_idle_timeout() -> String {
+    match config::catalogue::default_for("visualiser.idle_timeout") {
+        Some(config::Value::Scalar(scalar)) => render_catalogue_scalar(&scalar),
+        _ => "8h".to_string(),
+    }
+}
+
+/// Sentinel meaning "idle auto-shutdown disabled". Inert against the
+/// `idle >= idle_limit_ms` comparison in lifecycle.rs (the production loop
+/// just compares the value it is handed; the sentinel never appears there
+/// literally).
+///
+/// The disable tests (the owner-death test in `tests/lifecycle_owner.rs` and the
+/// new `disabled_idle_never_fires`) reference this exported constant rather than a
+/// bare `i64::MAX`, so the disable contract is named in one place and shared by
+/// import — a future change to the idle comparison cannot silently break the
+/// disable assumption without the named constant showing up in the diff.
+pub const DISABLED_IDLE_LIMIT_MS: i64 = i64::MAX;
+
+/// Largest finite idle window we store: one below the disable sentinel,
+/// so an over-large configured duration clamps here and can never be
+/// mistaken for "disabled".
+const MAX_IDLE_LIMIT_MS: i64 = DISABLED_IDLE_LIMIT_MS - 1;
+
+impl Config {
+    /// Resolve the idle window into milliseconds, or the disable sentinel.
+    ///
+    /// Semantics:
+    /// - Absent field → the built-in `"8h"` default, parsed through the
+    ///   same path as user input.
+    /// - `"never"` (case-insensitive), the bare `"0"`, or *any* zero-length
+    ///   duration (`"0s"`, `"0ms"`, …) → `DISABLED_IDLE_LIMIT_MS`, so the
+    ///   "zero idle window" case is uniform regardless of spelling.
+    /// - Any other value → parsed by `humantime`; an unparseable value is
+    ///   rejected (`ConfigError::InvalidIdleTimeout`, carrying the
+    ///   underlying parse error) so the server fails fast at boot rather
+    ///   than silently defaulting.
+    pub fn resolve_idle_limit_ms(&self) -> Result<i64, ConfigError> {
+        let default = default_idle_timeout();
+        let raw = self.idle_timeout.as_deref().unwrap_or(&default);
+        let trimmed = raw.trim();
+        // Disable tokens handled before parsing: the textual "never" and the
+        // bare "0" (which humantime cannot parse, lacking a unit).
+        if trimmed.eq_ignore_ascii_case("never") || trimmed == "0" {
+            return Ok(DISABLED_IDLE_LIMIT_MS);
+        }
+        let dur = humantime::parse_duration(trimmed).map_err(|source| {
+            ConfigError::InvalidIdleTimeout {
+                value: raw.to_string(),
+                source,
+            }
+        })?;
+        // A zero-length window ("0s", "0ms", …) also disables, matching the
+        // bare-"0" token above.
+        if dur.is_zero() {
+            return Ok(DISABLED_IDLE_LIMIT_MS);
+        }
+        // Saturate in u128 *before* the i64 cast (an over-large duration must
+        // clamp to MAX_IDLE_LIMIT_MS, never wrap negative), and floor at 1ms so a
+        // sub-millisecond-but-non-zero value ("1ns", "500us") — which is NOT
+        // is_zero() yet truncates to 0 ms — stays a tiny finite window (fires on
+        // the next tick) rather than collapsing to `idle_limit_ms == 0`, which
+        // the loop would treat as fire-on-first-tick.
+        Ok(dur.as_millis().min(MAX_IDLE_LIMIT_MS as u128).max(1) as i64)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("invalid work-item scan regex '{pattern}': {source}")]
+    InvalidScanRegex {
+        pattern: String,
+        source: regex::Error,
+    },
+    #[error("visualiser.kanban_columns must not be empty")]
+    EmptyKanbanColumns,
+    #[error("invalid visualiser.idle_timeout '{value}': expected a duration like \"8h\", \"30m\", \"1h30m\", or \"never\"/0 to disable: {source}")]
+    InvalidIdleTimeout {
+        value: String,
+        source: humantime::DurationError,
+    },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn work_item_config_from_raw_compiles_valid_regex() {
+        let raw = RawWorkItemConfig {
+            scan_regex: "^([0-9]+)-".to_string(),
+            id_pattern: "{number:04d}".to_string(),
+            default_project_code: None,
+        };
+        assert!(WorkItemConfig::from_raw(raw).is_ok());
+    }
+
+    #[test]
+    fn work_item_config_from_raw_rejects_invalid_regex() {
+        let raw = RawWorkItemConfig {
+            scan_regex: "([unclosed".to_string(),
+            id_pattern: "{number:04d}".to_string(),
+            default_project_code: None,
+        };
+        let err =
+            WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
+        assert!(matches!(err, ConfigError::InvalidScanRegex { .. }));
+    }
+
+    #[test]
+    fn work_item_config_extract_id_default_pattern() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.extract_id("0001-foo.md").as_deref(), Some("0001"));
+        assert_eq!(cfg.extract_id("0042-bar-baz.md").as_deref(), Some("0042"));
+        assert_eq!(cfg.extract_id("malformed.md"), None);
+        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+    }
+
+    #[test]
+    fn work_item_config_extract_id_project_pattern() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^PROJ-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("PROJ".to_string()),
+        })
+        .unwrap();
+        assert_eq!(
+            cfg.extract_id("PROJ-0042-foo.md").as_deref(),
+            Some("PROJ-0042")
+        );
+        assert_eq!(
+            cfg.extract_id("PROJ-1-short.md").as_deref(),
+            Some("PROJ-1")
+        );
+        assert_eq!(cfg.extract_id("PROJ-0042.md"), None);
+        assert_eq!(cfg.extract_id("malformed.md"), None);
+    }
+
+    #[test]
+    fn work_item_config_extract_id_fallback_for_legacy_files() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^PROJ-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("PROJ".to_string()),
+        })
+        .unwrap();
+        // Bare-numeric file that doesn't match the project pattern:
+        // admitted via fallback keyed as PROJ-<digits>.
+        assert_eq!(cfg.extract_id("0042-foo.md").as_deref(), Some("PROJ-0042"));
+        assert_eq!(cfg.extract_id("0001-bar.md").as_deref(), Some("PROJ-0001"));
+    }
+
+    #[test]
+    fn work_item_config_extract_id_no_fallback_without_project_code() {
+        let cfg = WorkItemConfig::default_numeric();
+        // Default pattern: bare-numeric files go through primary, not fallback.
+        // Non-numeric prefixes are rejected.
+        assert_eq!(cfg.extract_id("ADR-0001-foo.md"), None);
+    }
+
+    #[test]
+    fn normalise_id_passes_prefixed_form_through_unchanged() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("ENG-0042").as_deref(), Some("ENG-0042"));
+        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn normalise_id_applies_project_code_to_bare_digits() {
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^ENG-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("ENG".to_string()),
+        })
+        .unwrap();
+        assert_eq!(cfg.normalise_id("42").as_deref(), Some("ENG-42"));
+        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("ENG-0042"));
+    }
+
+    #[test]
+    fn normalise_id_preserves_foreign_prefix_when_default_code_is_set() {
+        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"`
+        // in a workspace whose `default_project_code` is "ENG" passes
+        // through verbatim — the workspace's code is NOT re-applied.
+        let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
+            scan_regex: "^ENG-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            default_project_code: Some("ENG".to_string()),
+        })
+        .unwrap();
+        assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
+    }
+
+    #[test]
+    fn normalise_id_returns_bare_digits_when_no_default_code() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("42").as_deref(), Some("42"));
+        assert_eq!(cfg.normalise_id("0042").as_deref(), Some("0042"));
+    }
+
+    #[test]
+    fn normalise_id_rejects_shape_invalid_values() {
+        let cfg = WorkItemConfig::default_numeric();
+        // Prefix without dash:
+        assert_eq!(cfg.normalise_id("ENG0042"), None);
+        // Dotted suffix:
+        assert_eq!(cfg.normalise_id("PROJ-1.2"), None);
+        // Empty / whitespace:
+        assert_eq!(cfg.normalise_id(""), None);
+        assert_eq!(cfg.normalise_id("   "), None);
+        // Non-alphabetic prefix:
+        assert_eq!(cfg.normalise_id("123-456"), None);
+        // Trailing letters:
+        assert_eq!(cfg.normalise_id("ENG-42abc"), None);
+    }
+
+    #[test]
+    fn is_canonical_id_token_under_default_numeric() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert!(cfg.is_canonical_id_token("0040"));
+        assert!(!cfg.is_canonical_id_token("40"));
+        assert!(!cfg.is_canonical_id_token("00040"));
+        assert!(!cfg.is_canonical_id_token("100"));
+        assert!(!cfg.is_canonical_id_token("004A"));
+        assert!(!cfg.is_canonical_id_token(""));
+    }
+
+    #[test]
+    fn is_canonical_id_token_under_project_prefixed_pattern() {
+        let cfg = WorkItemConfig::with_pattern_for_test("PROJ", 4);
+        assert!(cfg.is_canonical_id_token("PROJ-0040"));
+        assert!(!cfg.is_canonical_id_token("0040"));
+        assert!(!cfg.is_canonical_id_token("PROJ-40"));
+        assert!(!cfg.is_canonical_id_token("OTHER-0040"));
+    }
+
+    #[test]
+    fn default_impl_matches_default_numeric() {
+        let a: WorkItemConfig = WorkItemConfig::default();
+        let b = WorkItemConfig::default_numeric();
+        assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
+        assert_eq!(
+            a.scheme().default_project_code,
+            b.scheme().default_project_code
+        );
+        assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
+    }
+
+    #[test]
+    fn normalise_id_trims_surrounding_whitespace() {
+        let cfg = WorkItemConfig::default_numeric();
+        assert_eq!(cfg.normalise_id("  0042  ").as_deref(), Some("0042"));
+        assert_eq!(cfg.normalise_id(" ENG-7 ").as_deref(), Some("ENG-7"));
+    }
+
+    fn bare_config_json() -> &'static str {
+        r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {}
+        }"#
+    }
+
+    #[test]
+    fn kanban_columns_missing_field_falls_back_to_defaults() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        assert_eq!(
+            cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
+            vec![
+                "draft",
+                "ready",
+                "in-progress",
+                "review",
+                "done",
+                "blocked",
+                "abandoned"
+            ]
+        );
+    }
+
+    #[test]
+    fn kanban_columns_labels_derived_from_keys() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        let draft = cols.iter().find(|c| c.key == "draft").unwrap();
+        assert_eq!(draft.label, "Draft");
+        let ip = cols.iter().find(|c| c.key == "in-progress").unwrap();
+        assert_eq!(ip.label, "In progress");
+    }
+
+    #[test]
+    fn kanban_columns_read_from_config() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "kanban_columns": ["ready", "in-progress", "done"]
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        let cols = cfg.resolve_kanban_columns().unwrap();
+        assert_eq!(
+            cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
+            vec!["ready", "in-progress", "done"]
+        );
+    }
+
+    #[test]
+    fn kanban_columns_empty_list_rejected_at_boot() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "kanban_columns": []
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        let err = cfg.resolve_kanban_columns().unwrap_err();
+        assert!(matches!(err, ConfigError::EmptyKanbanColumns));
+    }
+
+    /// Build a `Config` from `bare_config_json` with a single `idle_timeout`
+    /// value spliced in, so each resolver case is a one-liner.
+    fn config_with_idle_timeout(value: &str) -> Config {
+        let json = format!(
+            r#"{{
+                "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+                "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+                "log_path": "/l", "doc_paths": {{}}, "templates": {{}},
+                "idle_timeout": {value}
+            }}"#
+        );
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn idle_timeout_absent_field_defaults_to_8h() {
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        // Absolute assertion pins the unit (8h in ms).
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 28_800_000);
+        // Relative drift guard ties the "8h" string default to the const.
+        assert_eq!(
+            cfg.resolve_idle_limit_ms().unwrap(),
+            crate::lifecycle::Settings::DEFAULT.idle_limit_ms
+        );
+    }
+
+    #[test]
+    fn idle_timeout_simple_minutes() {
+        let cfg = config_with_idle_timeout(r#""30m""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 30 * 60 * 1000);
+    }
+
+    #[test]
+    fn idle_timeout_compound_duration() {
+        let cfg = config_with_idle_timeout(r#""1h30m""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 90 * 60 * 1000);
+    }
+
+    #[test]
+    fn idle_timeout_never_token_is_case_insensitive() {
+        for token in [r#""never""#, r#""Never""#, r#""NEVER""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                DISABLED_IDLE_LIMIT_MS,
+                "token {token} must disable"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_bare_zero_disables() {
+        // The bare "0" arrives as a JSON string "0" from config-read-value.sh.
+        let cfg = config_with_idle_timeout(r#""0""#);
+        assert_eq!(
+            cfg.resolve_idle_limit_ms().unwrap(),
+            DISABLED_IDLE_LIMIT_MS
+        );
+    }
+
+    #[test]
+    fn idle_timeout_zero_length_durations_disable() {
+        for token in [r#""0s""#, r#""0ms""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                DISABLED_IDLE_LIMIT_MS,
+                "zero-length {token} must disable"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_sub_millisecond_floors_to_one_ms() {
+        for token in [r#""1ns""#, r#""500us""#] {
+            let cfg = config_with_idle_timeout(token);
+            assert_eq!(
+                cfg.resolve_idle_limit_ms().unwrap(),
+                1,
+                "sub-ms {token} must floor to 1ms, not 0 and not disabled"
+            );
+        }
+    }
+
+    #[test]
+    fn idle_timeout_over_large_saturates_below_sentinel() {
+        let cfg = config_with_idle_timeout(r#""100000000000years""#);
+        let resolved = cfg.resolve_idle_limit_ms().unwrap();
+        assert_eq!(resolved, MAX_IDLE_LIMIT_MS);
+        assert_ne!(resolved, DISABLED_IDLE_LIMIT_MS);
+        assert!(resolved > 0, "must not wrap negative or to zero");
+    }
+
+    #[test]
+    fn idle_timeout_surrounding_whitespace_trimmed() {
+        let cfg = config_with_idle_timeout(r#""  8h  ""#);
+        assert_eq!(cfg.resolve_idle_limit_ms().unwrap(), 28_800_000);
+    }
+
+    #[test]
+    fn idle_timeout_invalid_values_fail_fast() {
+        for token in [r#""soon""#, r#""00""#, r#""0.0""#, r#""   ""#] {
+            let cfg = config_with_idle_timeout(token);
+            let err = cfg
+                .resolve_idle_limit_ms()
+                .expect_err(&format!("{token} must be rejected"));
+            assert!(
+                matches!(err, ConfigError::InvalidIdleTimeout { .. }),
+                "expected InvalidIdleTimeout for {token}, got {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn editor_fields_absent_resolve_to_none() {
+        // The `#[serde(default)]` fields are absent from `bare_config_json`;
+        // assert they parse to `None` at runtime (the disabled-button contract).
+        let cfg: Config = serde_json::from_str(bare_config_json()).unwrap();
+        assert_eq!(cfg.editor, None);
+        assert_eq!(cfg.editor_project, None);
+    }
+
+    #[test]
+    fn editor_fields_parse_when_present() {
+        let json = r#"{
+            "plugin_root": "/p", "plugin_version": "0.0.0", "project_root": "/r",
+            "tmp_path": "/t", "host": "127.0.0.1", "owner_pid": 0,
+            "log_path": "/l", "doc_paths": {}, "templates": {},
+            "editor": "cursor", "editor_project": "myrepo"
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.editor.as_deref(), Some("cursor"));
+        assert_eq!(cfg.editor_project.as_deref(), Some("myrepo"));
+    }
+}
