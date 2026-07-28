@@ -218,10 +218,30 @@ fn forced_kill_synthesises_stopped_sentinel() {
     std::fs::create_dir_all(&sd).unwrap();
     // A process that ignores SIGTERM forces the SIGKILL escalation. No recorded
     // start-time, so the identity check is skipped and stop signals by pid.
+    //
+    // The fake announces itself only once the trap is installed, and the test
+    // waits for that. Racing `stop` against the shell's startup makes SIGTERM
+    // fatal after all, and the graceful stop that follows reports no `forced`
+    // flag — a failure that needs a loaded machine to reproduce.
+    let ready = sd.join("fake-trap-installed");
     let child = Command::new("sh")
-        .args(["-c", "trap '' TERM; sleep 30"])
+        .args([
+            "-c",
+            r#"trap '' TERM; : >"$1"; sleep 30"#,
+            "sh",
+            ready.to_str().unwrap(),
+        ])
         .spawn()
         .unwrap();
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !ready.exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the fake never installed its TERM trap",
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     let pid = child.id();
     std::fs::write(
         sd.join("server-info.json"),
