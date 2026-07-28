@@ -651,6 +651,14 @@ invocation must pass:
 - assert `ACCELERATOR_RELEASE_BASE_URL` is present and ends in `.invalid`;
 - assert the resolved entry path is not `_REPO_ROOT / "bin/accelerator"`.
 
+**Implemented as a *hostname* check, not a suffix check.** The harness's URL is
+`https://example.invalid/v{_VERSION}`, whose last component is the version — a
+literal `endswith(".invalid")` would fail on the very value it is meant to
+admit, and "fix" it by moving the unresolvable label off the host, where it
+guarantees nothing. `urlparse(...).hostname.endswith(".invalid")` is what the
+criterion means and is strictly stronger: it pins the reserved TLD on the part
+that determines egress.
+
 Plus a session-scoped assertion that the repo's `bin/` gained no cached-launcher,
 staged-shim, lock or unverified-log entries during the run — a backstop for
 anything that bypasses the funnel, accepting that it fires after egress rather
@@ -1036,24 +1044,43 @@ names; 1b narrows it to one.
 
 #### Automated Verification
 
-- [ ] Entrypoint suite passes: `uv run pytest tests/integration/entrypoint -v`
-- [ ] The two deleted tests are gone:
+- [x] Entrypoint suite passes: `uv run pytest tests/integration/entrypoint -v`
+      *(46 passed)*
+- [x] The two deleted tests are gone:
       `! grep -q 'test_unset_plugin_root_is_a_named_error' tests/integration/entrypoint/test_accelerator_entrypoint.py`
-- [ ] Build-system unit tests pass: `mise run test:unit:tasks`
-- [ ] Bash 3.2 floor holds: `mise run lint:scripts:check` — noting this proves
+- [x] Build-system unit tests pass: `mise run test:unit:tasks` *(341 passed)*
+- [x] Bash 3.2 floor holds: `mise run lint:scripts:check` — noting this proves
       only the enumerated bash-4 denylist, since `scripts/lint-bashisms.sh` is
       self-documented KNOWN-INCOMPLETE and bans none of the constructs introduced
       here
-- [ ] The bootstrap under test runs on the floor interpreter: the entrypoint
+- [x] The bootstrap under test runs on the floor interpreter: the entrypoint
       harness invokes `/bin/bash` explicitly (or asserts `BASH_VERSINFO` is 3 on
       Darwin), so a contributor with Homebrew bash 5 cannot run the suite
-      off-floor and green
-- [ ] The suite writes nothing into `bin/`: the session-scoped guard reports no
+      off-floor and green. **Both**: `_BASH` pins `/bin/bash`, and
+      `test_the_suite_runs_the_bootstrap_on_the_bash_floor` asserts it is major
+      version 3 on Darwin. The suite had been running on Homebrew bash 5.3.
+- [x] The suite writes nothing into `bin/`: the session-scoped guard reports no
       new cached-launcher, staged-shim, lock or unverified-log entries
-- [ ] The committed vendored shims are not gitignored:
+- [x] The committed vendored shims are not gitignored:
       `uv run pytest tests/unit/tasks/test_bootstrap_coverage.py -v`
-- [ ] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run check` exits 0
+- [ ] `mise run` (bare default) exits 0 end-to-end. **Not confirmed on this
+      machine.** Every task passes except `test:unit:frontend`, which fails with
+      `Test timed out in 5000ms` on synchronous renders — a different subset each
+      run (4, 6, 9 and 10 tests across overlapping files). Attributed to host
+      load, not to this change:
+      - the diff touches no frontend file (`.gitignore`, `bin/accelerator`,
+        two test modules, three `meta/` documents);
+      - the failing files pass in isolation — `npx vitest run` over the four of
+        them gave `PASS (57) FAIL (0)`;
+      - the one command Phase 1a adds to the graph, the `launcher_bin` fixture's
+        `cargo build --bin accelerator`, is byte-identical to `build:cli:dev`
+        (`tasks/build.py:257-260`), which six integration tasks already depend
+        on — so in a full run it compiles nothing;
+      - the host reported load averages of 156 → 276 with no task of this
+        session running, and vitest logged `environment 6917.50s` for a 122-file
+        suite.
+      Re-run on an idle machine before merging.
 
 #### Manual Verification
 
@@ -1065,17 +1092,35 @@ names; 1b narrows it to one.
       development it 404s. It passes once released *because* of the transitional
       export, since the pre-rename launcher reads the old name. The hermetic
       equivalent, and the actual CI gate, is the entrypoint suite.
+      **Deferred to the release candidate**: `1.24.0-pre.16` is the version in
+      `plugin.json` and its assets are not published, so running this now would
+      404 against the real GitHub release *and* write into the shipped `bin/`.
 
-- [ ] The Phase 1a regression tests fail when run against the pre-change
-      `bin/accelerator` (stash the bootstrap change, confirm red, restore)
-- [ ] A 17-link non-cyclic chain aborts with `exceeded 16 hops`; `ln -sf a b;
-      ln -sf b a` terminates non-zero without hanging
-- [ ] Invoking the bootstrap through a hand-made `PATH` symlink in a scratch
-      directory resolves the real installation root
-- [ ] With `CDPATH` exported to a directory containing a `bin`, invocation still
-      resolves the real installation root
-- [ ] A missing verify shim under `--fail-safe` exits 0, emits nothing on stdout,
-      and appends one line to `.accelerator-unverified.log`
+- [x] The Phase 1a regression tests fail when run against the pre-change
+      `bin/accelerator` (stash the bootstrap change, confirm red, restore).
+      **Confirmed at the intermediate commit**: 18 of the new cases red, every
+      one with `accelerator: CLAUDE_PLUGIN_ROOT is not set`. The three that pass
+      pre-change are the ones the plan predicts — the cycle case (characterises
+      the kernel's ELOOP) and the two scan-window cases (a gate fires either way).
+The remaining four were promoted to automated cases rather than performed by
+hand — each is hermetic and cheap, so leaving it manual would have meant a
+one-off check that never runs again:
+
+- [x] A 17-link non-cyclic chain aborts with `exceeded 16 hops`; `ln -sf a b;
+      ln -sf b a` terminates non-zero without hanging —
+      `test_a_seventeen_link_chain_exceeds_the_hop_bound`,
+      `test_a_symlink_cycle_terminates_rather_than_hanging`, plus
+      `test_a_sixteen_link_chain_resolves` as the at-boundary partner
+- [x] Invoking the bootstrap through a hand-made `PATH` symlink in a scratch
+      directory resolves the real installation root —
+      `test_two_hop_symlink_chain_resolves_to_the_fixture_root`
+- [x] With `CDPATH` exported to a directory containing a `bin`, invocation still
+      resolves the real installation root —
+      `test_an_exported_cdpath_does_not_redirect_the_resolved_root`, which
+      invokes relatively because `cd` consults `CDPATH` only for a relative path
+- [x] A missing verify shim under `--fail-safe` exits 0, emits nothing on stdout,
+      and appends one line to `.accelerator-unverified.log` —
+      `test_trust_chain_failure_records_durably_under_fail_safe`
 
 ---
 

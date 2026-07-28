@@ -384,6 +384,17 @@ degradation. Stderr is asserted by that signature rather than by emptiness
 because the gated dev-launcher override — which these tests use, see below —
 legitimately warns on stderr every invocation (Technical Notes, R8).
 
+**Met 2026-07-28** — the first five and the `--fail-safe` criterion below are
+satisfied by `tests/integration/entrypoint/test_accelerator_entrypoint.py`, in
+the restated forms recorded under *Deviations from the work item* in the plan:
+`display_path` shortens plugin-root paths to a `<plugin>/` token, so a Path
+column can never carry an absolute path, and the assertions use a per-root
+`templates/adr.md` sentinel or the launcher's own dumped environment instead.
+The launcher is supplied by serving the real compiled binary through the stub
+release server — the genuine fetch → verify → cache → exec chain, no network and
+no dev override, which answers the correction below rather than working around
+it.
+
 **Shared preconditions for the bootstrap-level criteria** (the first five, R5 and
 R10): the bootstrap is invoked by absolute path from a fixture installation tree
 containing `.claude-plugin/plugin.json`, the verify shim, the release public key,
@@ -408,7 +419,7 @@ is the shape to use where the bootstrap itself is under test. Where only the
 convention R4 now follows). Either way the build-order dependency in Dependencies
 still holds for the suites that need a real compiled launcher.
 
-- [ ] Given both `CLAUDE_PLUGIN_ROOT` and `ACCELERATOR_PLUGIN_ROOT` are unset,
+- [x] Given both `CLAUDE_PLUGIN_ROOT` and `ACCELERATOR_PLUGIN_ROOT` are unset,
       when `bin/accelerator config template adr` is run by absolute path
       (deliberately **without** `--fail-safe`, and deliberately a *template*
       command — measured to be the only root-sensitive `config` family, see
@@ -417,7 +428,7 @@ still holds for the suites that need a real compiled launcher.
       `accelerator:` diagnostic line. This is falsifiable in both directions: it
       fails today at the bootstrap gate, and with R1 but without R2's export it
       fails again as a fail-closed `Template 'adr' not found` at exit 1.
-- [ ] Given both variables are unset, when
+- [x] Given both variables are unset, when
       `bin/accelerator config instructions commit --fail-safe` is run by absolute
       path — the exact command from the reported failure — then it exits 0 **and**
       stderr carries no `accelerator:` diagnostic line. **Empty stdout is correct
@@ -428,17 +439,17 @@ still holds for the suites that need a real compiled launcher.
       not exist and made the criterion unsatisfiable. This criterion proves the
       bootstrap no longer aborts; the template criterion above is what proves the
       root reached the launcher.
-- [ ] Given both variables are unset, when `bin/accelerator config templates
+- [x] Given both variables are unset, when `bin/accelerator config templates
       list` is run, then the output contains a row for `adr` whose Source column
       is `plugin default` and whose Path lies under the resolved installation root
       — **not** an empty table at exit 0.
-- [ ] Given `bin/accelerator` is invoked through a two-hop symlink chain
+- [x] Given `bin/accelerator` is invoked through a two-hop symlink chain
       (`<tmp>/userbin/accelerator` → `<tmp>/plugin-data/bin/accelerator` →
       `<fixture-root>/bin/accelerator`, no real `PATH` or `${CLAUDE_PLUGIN_DATA}`
       directory touched), when `config templates list` is run through it, then
       every plugin-default row's Path lies under `<fixture-root>/templates/` —
       i.e. the chain resolved to the fixture root, not to either symlink's parent.
-- [ ] Given a stale or wrong `CLAUDE_PLUGIN_ROOT` **or** `ACCELERATOR_PLUGIN_ROOT`
+- [x] Given a stale or wrong `CLAUDE_PLUGIN_ROOT` **or** `ACCELERATOR_PLUGIN_ROOT`
       is present in the environment — individually and together — when
       `bin/accelerator config templates list` is run, then the plugin-default rows
       still resolve under the real installation root and no row resolves under the
@@ -451,7 +462,7 @@ still holds for the suites that need a real compiled launcher.
       `hardcoded_fallback` branch is temporarily removed. Without this the four
       assertions pass vacuously, since the shipping template carries the same
       values they expect.
-- [ ] Given a bootstrap-layer failure (e.g. a missing verify shim — the small
+- [x] Given a bootstrap-layer failure (e.g. a missing verify shim — the small
       pre-verified binary the bootstrap uses to check the launcher's signature),
       when `--fail-safe` is in argv, then the bootstrap exits 0 with empty stdout
       and one diagnostic line on stderr; without the flag it exits non-zero.
