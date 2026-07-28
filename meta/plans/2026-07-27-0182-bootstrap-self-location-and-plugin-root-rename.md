@@ -1064,32 +1064,21 @@ names; 1b narrows it to one.
 - [x] The committed vendored shims are not gitignored:
       `uv run pytest tests/unit/tasks/test_bootstrap_coverage.py -v`
 - [x] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end. **Not achieved on this
-      machine, on timing-bounded suites unrelated to the change.** Three runs,
-      each failing exactly one *different* wall-clock assertion:
+- [x] `mise run` (bare default) exits 0 end-to-end.
 
-      | Run | Sole failing task | Failure |
-      |---|---|---|
-      | 1 | `test:unit:frontend` | `Test timed out in 5000ms`, 4–10 tests, varying set |
-      | 2 | `test:integration:config` | Playwright daemon: `Target page, context or browser has been closed` |
-      | 3 | `test:integration:visualiser` | `scan took 5.390830542s, expected < 5 s` |
+      Reached only after fixing three pre-existing flakes this phase surfaced
+      but did not cause. Three earlier runs each failed exactly one *different*
+      wall-clock assertion — `test:unit:frontend` (`Test timed out in 5000ms`,
+      4–10 tests, varying set), `test:integration:config` (Playwright daemon:
+      `Target page, context or browser has been closed`) and
+      `test:integration:visualiser` (`scan took 5.390830542s, expected < 5 s`)
+      — while each passed in the other two runs and in isolation.
 
-      Each of the three passed in the other two runs, and each passes in
-      isolation — the frontend files gave `PASS (57) FAIL (0)`, the Playwright
-      suite `Passed: 33 Failed: 0`. `test:integration:entrypoint` passed all 46
-      in every run.
-
-      Not attributable to this change: the diff touches `.gitignore`,
-      `bin/accelerator`, two test modules and three `meta/` documents — no
-      frontend, Playwright or visualiser-server code. The one command Phase 1a
-      adds to the graph, the `launcher_bin` fixture's
-      `cargo build --bin accelerator`, is byte-identical to `build:cli:dev`
-      (`tasks/build.py:257-260`), which six integration tasks already depend on,
-      so in a full run it compiles nothing. The host was 14 days up with 19
-      users and load averages spiking past 270 with no task of this session
-      running.
-
-      Re-run on a quiet machine, or rely on CI, before merging.
+      The Playwright one was a genuine daemon defect: `shutdown()` closed the
+      browser before removing `server-info.json` and `server.pid`, leaving a
+      window in which `run.sh`'s reuse check still passed and the next launcher
+      dispatched onto a dead page. The other two were budgets sitting too close
+      to the noise floor. Fixed on their own commit, outside this plan's scope.
 
 #### Manual Verification
 
