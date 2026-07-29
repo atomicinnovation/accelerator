@@ -31,9 +31,11 @@ rustfmt/clippy are provisioned explicitly. `lint:cli:fix` applies only clippy's
 machine-rewritable subset (lints such as `unwrap_used` cannot be auto-fixed), so
 `cli:check` must still be run for the remainder. It also folds three Python
 guards over the same tree — `lint:vendor-shims:check`,
-`lint:store-duplication:check` and `lint:claude-coupling:check` — which ride
-here rather than in `lint:check` because they are `cli/`-scoped and `cli:check`
-is what CI runs. Beyond `cli:check`, Rust
+`lint:store-duplication:check` and `lint:claude-coupling:check`. Those three are
+wired into `lint:check` as well: `cli:check` is what CI runs, but the bare
+`default` task depends on `lint:check` and not on `check`, so a `cli:check`-only
+guard stays green in a full local run however badly its invariant is broken.
+`tests/unit/tasks/test_mise.py` pins both placements. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
