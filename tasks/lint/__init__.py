@@ -1,6 +1,7 @@
 from . import (
     build_system,
     call_site_migration,
+    claude_coupling,
     cli,
     frontend,
     scripts,
@@ -14,6 +15,7 @@ from . import (
 __all__ = [
     "build_system",
     "call_site_migration",
+    "claude_coupling",
     "cli",
     "frontend",
     "scripts",

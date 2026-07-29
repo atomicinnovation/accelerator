@@ -274,13 +274,13 @@ rename:
 | **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** | **done** 2026-07-28 |
 | **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | **done** 2026-07-29 |
 | **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | **done** 2026-07-29 |
-| 2 | The `CLAUDE_*` boundary guard | after 1b | not started |
+| 2 | The `CLAUDE_*` boundary guard | after 1b | **done** 2026-07-29 |
 | 3 | Terminal invocation surface | after 1a | not started |
 | 4 | `!`-site conformance suite | after 1a | not started |
 | 5 | Named error for a missing plugin root | after 1b | not started |
 
-**Progress — 2026-07-29.** Phases 0, 1a, 1c and 1b are implemented, verified
-and committed. Phase 2 is next in the merge order. Seven commits carry the
+**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b and 2 are implemented, verified
+and committed. Phase 3 is next in the merge order. Ten commits carry the
 work:
 
 | Commit | Content |
@@ -292,6 +292,9 @@ work:
 | `Stop three suites failing on wall-clock noise under parallel load` | out of scope — see below |
 | `Force the work-item template fallback through ACCELERATOR_BIN` | Phase 1c |
 | `Rename the plugin root onto ACCELERATOR_PLUGIN_ROOT` | Phase 1b |
+| `Promote the gitignore-honouring walk to a shared primitive` | 2 commit 1 |
+| `Add a guard against CLAUDE_* coupling in the rename set` | 2 commit 2 |
+| `Wire the CLAUDE_* boundary guard into cli:check` | 2 commit 3 |
 
 Two things a later phase inherits:
 
@@ -1402,6 +1405,8 @@ CI needs no edit: `test-unit` and `test-integration` already carry the
 
 ## Phase 2: The `CLAUDE_*` Boundary Guard
 
+> **Done 2026-07-29.** Three commits, as sequenced.
+
 ### Overview
 
 Make the boundary rule non-negotiable rather than conventional: **nothing in the
@@ -1477,7 +1482,10 @@ Three details are load-bearing:
   build tree — exactly the failure the *Performance Considerations* section warns
   about. Hence `repo` plus an explicit `subtree`, rather than one conflated `root`.
 - **`prune` defaults to `_BUILD_OUTPUT` in the signature**, not to `()` with a
-  hidden additive union. A caller can then see what it gets and opt out. Without
+  hidden additive union. *Implemented with replace semantics, which is what the
+  signature default means — the plan's later test-case bullet said "adds to
+  rather than replaces", contradicting this paragraph's own rationale. A caller
+  wanting both writes `_BUILD_OUTPUT + (...)`, and the test asserts that.* A caller can then see what it gets and opt out. Without
   `dist`/`playwright-report` the guard reads the minified SPA bundle and Playwright
   traces — both present under bare `mise run`, which builds the frontend and runs
   E2E — so the result would depend on what had been run locally, and a vendored
@@ -1643,15 +1651,18 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
 
 #### Automated Verification
 
-- [ ] The guard reports nothing on the real tree:
-      `mise run lint:claude-coupling:check`
-- [ ] The guard's own tests pass:
-      `uv run pytest tests/unit/tasks/test_claude_coupling.py -v`
-- [ ] The promoted walk did not regress its callers:
+- [x] The guard reports nothing on the real tree:
+      `mise run lint:claude-coupling:check` *(724 files scanned, 0 violations)*
+- [x] The guard's own tests pass:
+      `uv run pytest tests/unit/tasks/test_claude_coupling.py -v` *(16 passed)*
+- [x] The promoted walk did not regress its callers:
       `uv run pytest tests/unit/tasks/shared/test_sources.py tests/unit/tasks/test_python_coverage.py tests/unit/tasks/test_exec_bits.py -v`
-- [ ] The leaf is pinned into `cli:check.depends`:
-      `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run cli:check` exits 0
+      *(42 passed)*. `shell_sources()`'s real-tree output is byte-identical
+      before and after (192 entries either way) — the `.venv`/`dist` prune is
+      latent on this tree, so it is pinned by a `tmp_path` case instead.
+- [x] The leaf is pinned into `cli:check.depends`:
+      `uv run pytest tests/unit/tasks/test_mise.py -v` *(21 passed)*
+- [x] `mise run cli:check` exits 0
 - [ ] The purge holds over **non-`meta/`** tracked files —
       `grep -rl 'CLAUDE_PLUGIN_ROOT'` honouring `.gitignore` and excluding
       `meta/` returns only `hooks/**`, `scripts/interactive-harness.sh`,
@@ -1669,19 +1680,29 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
       `meta/` is excluded because it records history — including this plan —
       rather than coupling. Derive the list by running the grep rather than by
       enumeration, so it cannot drift from what the tree actually contains.
-- [ ] `mise run check` exits 0
+
+      **Measured: 86 files, every one in the permitted set.** Two notes on the
+      list as written. `tests/integration/skill-invocation/test_skill_invocation_conformance.py`
+      does not exist yet — Phase 4 adds it. And the `hooks/**` entry covers four
+      more files than the list implies (`hooks.json`, the two hook suites and
+      `hooks/test-fixtures/vcs-detect/regenerate.sh`), which is why the criterion
+      says to derive the list rather than enumerate it.
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Reintroducing a `CLAUDE_PLUGIN_ROOT` read into `cli/launcher/src/main.rs`
+- [x] Reintroducing a `CLAUDE_PLUGIN_ROOT` read into `cli/launcher/src/main.rs`
       turns `mise run cli:check` red with a `path:line:text` report naming the
-      variable, and the failure message names the guard file
-- [ ] Reintroducing Phase 1a's transitional `export CLAUDE_PLUGIN_ROOT` into
+      variable, and the failure message names the guard file. **Confirmed**:
+      `cli/launcher/src/main.rs:177:std::env::var_os("CLAUDE_PLUGIN_ROOT")`.
+- [x] Reintroducing Phase 1a's transitional `export CLAUDE_PLUGIN_ROOT` into
       `bin/accelerator` turns it red too — the property that makes the guard the
-      backstop for 1b's cleanup
-- [ ] The guard's scan does not descend into `cli/target/`,
+      backstop for 1b's cleanup. **Confirmed** in the same run:
+      `bin/accelerator:353:export CLAUDE_PLUGIN_ROOT="${plugin_root}"`.
+- [x] The guard's scan does not descend into `cli/target/`,
       `node_modules/` or `dist/` (observable as a sub-second run rather than a
-      multi-second one, with or without a built frontend)
+      multi-second one, with or without a built frontend). **Confirmed**: 275ms
+      against a built tree, 724 files scanned.
 
 ---
 

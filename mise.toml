@@ -404,9 +404,14 @@ description = "Guard against regressing to the bash config cluster: no SKILL.md 
 depends = ["deps:install:python"]
 run = "invoke lint.call-site-migration.check"
 
+[tasks."lint:claude-coupling:check"]
+description = "Guard the rename set (cli/, bin/accelerator, the dev-env writers) against naming any CLAUDE_* variable"
+depends = ["deps:install:python"]
+run = "invoke lint.claude-coupling.check"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"

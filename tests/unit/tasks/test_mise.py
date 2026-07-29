@@ -17,6 +17,15 @@ MISE_TOML = REPO_ROOT / "mise.toml"
 # Gates that MUST be reachable from the aggregate `check` task.
 _CHECK_GATES = ["cli:check", "deny:check", "pup:check"]
 
+# cli/-scoped Python guards ride in cli:check rather than lint:check — that is
+# what CI runs. Nothing else pins their placement, so the roll-up would
+# otherwise happily lose one.
+_CLI_CHECK_GATES = [
+    "lint:vendor-shims:check",
+    "lint:store-duplication:check",
+    "lint:claude-coupling:check",
+]
+
 _LAUNCHER = "build:cli:dev"
 _INTEGRATION_PREFIX = "test:integration:"
 
@@ -62,6 +71,14 @@ def test_gate_wired_into_check(mise, gate):
     assert gate in _task_depends(mise, "check"), (
         f"{gate} is not in check.depends — the gate is unwired from the "
         f"read-only CI-mirror"
+    )
+
+
+@pytest.mark.parametrize("gate", _CLI_CHECK_GATES)
+def test_gate_wired_into_cli_check(mise, gate):
+    assert gate in _task_depends(mise, "cli:check"), (
+        f"{gate} is not in cli:check.depends — the guard is unwired from the "
+        f"roll-up CI runs"
     )
 
 
