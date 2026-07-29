@@ -63,6 +63,28 @@ pub enum ConfigError {
         path: String,
     },
     LegacyLayout,
+    PluginRootUnavailable,
+}
+
+impl ConfigError {
+    /// Whether `--fail-safe` must not absorb this failure.
+    ///
+    /// Exhaustive inside the defining crate, so a new variant does not compile
+    /// until it is classified — `#[non_exhaustive]` would otherwise let a
+    /// caller's wildcard default it to degradable.
+    #[must_use]
+    pub const fn is_refusal(&self) -> bool {
+        match self {
+            Self::Invalid { .. } | Self::PluginRootUnavailable => true,
+            Self::NotFound { .. }
+            | Self::PathConflict { .. }
+            | Self::MalformedFrontmatter { .. }
+            | Self::Io { .. }
+            | Self::InvalidKey { .. }
+            | Self::UnsafePath { .. }
+            | Self::LegacyLayout => false,
+        }
+    }
 }
 
 impl Display for ConfigError {
@@ -105,6 +127,12 @@ impl Display for ConfigError {
                 "Accelerator: legacy config detected at \
                  .claude/accelerator.md.\n\
                  Run /accelerator:migrate to update the layout, then retry."
+            ),
+            Self::PluginRootUnavailable => write!(
+                formatter,
+                "the plugin installation root is unknown: set \
+                 ACCELERATOR_PLUGIN_ROOT, or invoke accelerator through \
+                 bin/accelerator, which derives it"
             ),
         }
     }
@@ -215,6 +243,28 @@ mod tests {
         assert!(rendered.contains(".claude/accelerator.md"));
         assert!(rendered.contains("/accelerator:migrate"));
         assert_eq!(rendered.lines().count(), 2);
+    }
+
+    #[test]
+    fn plugin_root_unavailable_names_the_variable_and_the_bootstrap() {
+        let rendered = ConfigError::PluginRootUnavailable.to_string();
+        assert!(rendered.contains("ACCELERATOR_PLUGIN_ROOT"));
+        assert!(rendered.contains("bin/accelerator"));
+    }
+
+    #[test]
+    fn a_missing_plugin_root_is_a_refusal_and_a_read_failure_is_not() {
+        assert!(ConfigError::PluginRootUnavailable.is_refusal());
+        assert!(!ConfigError::LegacyLayout.is_refusal());
+        assert!(!ConfigError::Io {
+            path: ".accelerator/config.md".to_owned(),
+            detail: "permission denied".to_owned(),
+        }
+        .is_refusal());
+        assert!(ConfigError::Invalid {
+            detail: "bad".to_owned()
+        }
+        .is_refusal());
     }
 
     #[test]

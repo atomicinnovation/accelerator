@@ -131,7 +131,13 @@ mod tests {
         let result = resolve(&config());
         assert!(result.is_err(), "expected an ACCELERATOR_PLUGIN_ROOT error");
         if let Err(error) = result {
-            assert!(error.to_string().contains("ACCELERATOR_PLUGIN_ROOT"));
+            let message = error.to_string();
+            assert!(message.contains("ACCELERATOR_PLUGIN_ROOT"));
+            // Distinguishes this step from the config layer's plugin-root
+            // refusal, which also names the variable.
+            assert!(
+                message.contains("no ACCELERATOR_CACHE_DIR override was given")
+            );
         }
     }
 

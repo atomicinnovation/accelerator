@@ -175,8 +175,11 @@ fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
         "expected a non-zero exit for an unresolvable subcommand"
     );
     let stderr = String::from_utf8(output.stderr)?;
+    // The clause is unique to CacheRootUnavailable: asserting the variable name
+    // alone would also match the plugin-root refusal, so the two named errors
+    // would be interchangeable to this test.
     assert!(
-        stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
+        stderr.contains("no ACCELERATOR_CACHE_DIR override was given"),
         "stderr missing the named resolution step: {stderr:?}"
     );
     Ok(())

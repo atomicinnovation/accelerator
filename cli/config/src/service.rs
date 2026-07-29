@@ -325,14 +325,21 @@ pub trait ReadTemplate {
 
     /// The template names available from the plugin templates directory,
     /// sorted.
-    fn template_names(&self) -> Vec<String>;
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::PluginRootUnavailable`] when the plugin root is unknown:
+    /// this enumeration cannot be synthesised without it, unlike
+    /// [`ReadLensCatalogue::known_skill_names`], which stays empty.
+    fn template_names(&self) -> Result<Vec<String>, ConfigError>;
 
     /// The plugin default template for `name`, or `None` when the plugin ships
     /// no default for it.
     ///
     /// # Errors
     ///
-    /// A [`ConfigError`] when a present default cannot be read.
+    /// [`ConfigError::PluginRootUnavailable`] when the plugin root is unknown,
+    /// or a [`ConfigError`] when a present default cannot be read.
     fn plugin_default(
         &self,
         name: &str,

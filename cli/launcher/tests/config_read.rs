@@ -1239,6 +1239,142 @@ fn an_empty_plugin_root_behaves_as_an_unset_plugin_root() -> TestResult {
         "an empty root resolved templates from the cwd: {:?}",
         String::from_utf8_lossy(&empty.stdout)
     );
+    assert_ne!(code(&empty), 0);
+    assert!(empty.stdout.is_empty());
+    assert_names_the_plugin_root(&empty);
+    Ok(())
+}
+
+fn assert_names_the_plugin_root(output: &Output) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "stderr does not name the plugin root variable: {stderr}"
+    );
+}
+
+/// The refusal signature: non-zero, nothing on stdout so no answer can be
+/// spliced into a prompt, and a diagnostic naming what the caller must supply.
+fn assert_refuses_without_a_plugin_root(output: &Output) {
+    assert_ne!(code(output), 0);
+    assert!(
+        output.stdout.is_empty(),
+        "stdout was not empty: {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_names_the_plugin_root(output);
+}
+
+#[test]
+fn templates_list_with_no_plugin_root_is_a_named_refusal_not_an_empty_table(
+) -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output = run_in(&fixture.root, &["config", "templates", "list"])?;
+    assert_refuses_without_a_plugin_root(&output);
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("| Template |"));
+    Ok(())
+}
+
+/// The refusal classification is what makes these two identical: a read failure
+/// would degrade to `## Template Unavailable` on stdout at exit 0.
+#[test]
+fn a_missing_plugin_root_refuses_identically_with_and_without_fail_safe(
+) -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    for args in [
+        vec!["config", "templates", "list"],
+        vec!["config", "template", "demo"],
+        vec!["config", "templates", "show", "demo"],
+    ] {
+        let loud = run_in(&fixture.root, &args)?;
+        let mut flagged = args.clone();
+        flagged.push("--fail-safe");
+        let degraded = run_in(&fixture.root, &flagged)?;
+        assert_refuses_without_a_plugin_root(&loud);
+        assert_refuses_without_a_plugin_root(&degraded);
+        assert_eq!(code(&degraded), code(&loud), "{args:?}");
+        assert_eq!(degraded.stderr, loud.stderr, "{args:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn templates_eject_all_with_no_plugin_root_writes_nothing() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        run_in(&fixture.root, &["config", "templates", "eject", "--all"])?;
+    assert_refuses_without_a_plugin_root(&output);
+    assert!(
+        !fixture.root.join(".accelerator/templates").exists(),
+        "eject --all created the override directory without a plugin root"
+    );
+    Ok(())
+}
+
+/// `eject <name>`, `diff` and `reset` carry no `--fail-safe`, so their exit code
+/// is 1 either way and the diagnostic is the only observable.
+#[test]
+fn the_unflagged_template_commands_name_the_variable_with_no_plugin_root(
+) -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    for args in [
+        vec!["config", "templates", "eject", "demo"],
+        vec!["config", "templates", "diff", "demo"],
+        vec!["config", "templates", "reset", "demo"],
+    ] {
+        let output = run_in(&fixture.root, &args)?;
+        assert_ne!(code(&output), 0, "{args:?}");
+        assert_names_the_plugin_root(&output);
+    }
+    Ok(())
+}
+
+/// Pins the plugin-default check being at the third tier rather than hoisted to
+/// the top of `resolve_template`: hoisting would refuse this override too.
+#[test]
+fn a_user_override_still_resolves_with_no_plugin_root() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "# Mine\n",
+    )?;
+    let output = run_in(&fixture.root, &["config", "template", "demo"])?;
+    assert_eq!(output.stdout, b"```markdown\n# Mine\n```\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+/// A root that is set but is not an installation still succeeds-with-nothing:
+/// `template_names` swallows the failed `read_dir`. Deliberate residue, tracked
+/// as its own work item rather than folded in here.
+#[test]
+fn a_root_without_a_templates_directory_still_renders_an_empty_table(
+) -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "list"],
+    )?;
+    assert_eq!(
+        output.stdout,
+        b"| Template | Source | Path |\n|----------|--------|------|\n"
+    );
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn the_root_independent_families_still_succeed_with_no_plugin_root(
+) -> TestResult {
+    let workspace = workspace("summary")?;
+    for args in [vec!["config", "paths"], vec!["config", "summary"]] {
+        let output = run_in(&workspace, &args)?;
+        assert_eq!(code(&output), 0, "{args:?}");
+        assert!(!output.stdout.is_empty(), "{args:?} printed nothing");
+    }
     Ok(())
 }
 

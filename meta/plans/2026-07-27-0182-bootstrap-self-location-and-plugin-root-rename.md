@@ -3132,7 +3132,8 @@ Two consequences for this phase:
   `a_root_without_a_templates_directory_still_renders_an_empty_table`).
 - Raise a **follow-up work item** for converting that arm's `NotFound` case into
   `PluginRootUnavailable` (keeping genuine I/O failures as `Io`), and reference its
-  id here — a prose note in a completed plan is not a work queue.
+  id here — a prose note in a completed plan is not a work queue. **Raised as
+  0184** (`meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`).
 
 #### 4. Update the tests
 
@@ -3215,47 +3216,114 @@ Hand-run criteria assume the repository root as cwd and a host-native debug buil
 `CARGO_TARGET_DIR` may be set. The hermetic equivalents are the `config_read.rs`
 cases, which pin cwd via `run_in` and are what CI actually runs.
 
-- [ ] `cli/` workspace tests pass: `mise run test:unit:cli` — including the 47
-      untouched `run_in` cases and both rootless `summary` cases
-- [ ] The new variant's `Display` names the variable, asserted as a unit test in
-      `cli/config/src/error.rs`'s existing per-variant block
-- [ ] Every `ConfigError` variant is classified: adding one without extending
-      `is_refusal()` fails to compile
-- [ ] A rootless `config templates list` is a named error rather than an empty
-      table, exiting non-zero with a diagnostic naming the variable
-- [ ] The same command **with** `--fail-safe` behaves identically — non-zero, empty
+- [x] `cli/` workspace tests pass: `mise run test:unit:cli` — including the 47
+      untouched `run_in` cases and both rootless `summary` cases *(586 passed)*
+- [x] The new variant's `Display` names the variable, asserted as a unit test in
+      `cli/config/src/error.rs`'s existing per-variant block —
+      `plugin_root_unavailable_names_the_variable_and_the_bootstrap`
+- [x] Every `ConfigError` variant is classified: adding one without extending
+      `is_refusal()` fails to compile. **Confirmed** by adding a throwaway variant
+      mid-phase: `error[E0004]: non-exhaustive patterns` at the `is_refusal`
+      match. Classification of the four variants the plan's snippet omitted
+      (`PathConflict`, `MalformedFrontmatter`, `InvalidKey`, `UnsafePath`) follows
+      the wildcard it replaced — degradable — so no existing behaviour moved.
+- [x] A rootless `config templates list` is a named error rather than an empty
+      table, exiting non-zero with a diagnostic naming the variable —
+      `templates_list_with_no_plugin_root_is_a_named_refusal_not_an_empty_table`
+- [x] The same command **with** `--fail-safe` behaves identically — non-zero, empty
       stdout, diagnostic on stderr — because the failure is a `Refusal`
-- [ ] `config template adr` with no root still exits non-zero with and without
-      `--fail-safe`, as it does today, with a better message
-- [ ] A rootless `config templates eject --all` is a named error and writes no
-      file, where today it exits 0 having ejected nothing
-- [ ] **A rootless `config template <name>` still resolves a user override** — the
-      criterion that pins the tier check being in place rather than hoisted
-- [ ] A root that exists but has no `templates/` still renders a header-only table
-      at exit 0 (characterisation — the deferred residue, visible not implicit)
-- [ ] The root-independent families still succeed rootless, `config summary` among
+- [x] `config template adr` with no root still exits non-zero with and without
+      `--fail-safe`, as it does today, with a better message. Both this and the
+      criterion above are one parametrised case,
+      `a_missing_plugin_root_refuses_identically_with_and_without_fail_safe`,
+      covering `templates list`, `template <name>` and `templates show` and
+      asserting **byte-identical stderr** across the flag — which is the property
+      that separates the `Refusal` classification from a `Read` one.
+- [x] A rootless `config templates eject --all` is a named error and writes no
+      file, where today it exits 0 having ejected nothing —
+      `templates_eject_all_with_no_plugin_root_writes_nothing`, plus
+      `the_unflagged_template_commands_name_the_variable_with_no_plugin_root` for
+      `eject <name>`, `diff` and `reset`
+- [x] **A rootless `config template <name>` still resolves a user override** — the
+      criterion that pins the tier check being in place rather than hoisted:
+      `a_user_override_still_resolves_with_no_plugin_root`
+- [x] A root that exists but has no `templates/` still renders a header-only table
+      at exit 0 (characterisation — the deferred residue, visible not implicit) —
+      `a_root_without_a_templates_directory_still_renders_an_empty_table`
+- [x] The root-independent families still succeed rootless, `config summary` among
       them: `config paths` and `config summary` both exit 0 with non-empty stdout,
-      run against a stated fixture project
-- [ ] `version` with no root still exits 0
-- [ ] An external subcommand with no root fails at the **cache-root** step, pinned
-      by a substring only that error emits
-- [ ] An empty-string root behaves identically to an absent one, for the launcher
-      **and** the visualiser server (one filter in `with_plugin_root`)
-- [ ] Architecture rules hold: `mise run pup:check`
-- [ ] The Phase 4 conformance suite still passes:
-      `mise run test:integration:skill-invocation`
-- [ ] `mise run check` exits 0 — including `missing_errors_doc` on the newly
+      run against a stated fixture project — the `summary` fixture, in
+      `the_root_independent_families_still_succeed_with_no_plugin_root`
+- [x] `version` with no root still exits 0 — already covered: `version.rs`'s `run`
+      helper strips `ACCELERATOR_PLUGIN_ROOT` from every case in the file
+- [x] An external subcommand with no root fails at the **cache-root** step, pinned
+      by a substring only that error emits — `no ACCELERATOR_CACHE_DIR override
+      was given`, tightened at `version.rs`'s
+      `an_unresolvable_subcommand_exits_non_zero_with_a_named_step` and at
+      `cache_root.rs`'s `unset_plugin_root_with_no_override_is_a_named_error`
+- [x] An empty-string root behaves identically to an absent one, for the launcher
+      **and** the visualiser server (one filter in `with_plugin_root`) —
+      `an_empty_plugin_root_behaves_as_an_unset_plugin_root` (strengthened to the
+      named refusal) and the server's `an_empty_plugin_root_refuses_to_compose`
+- [x] Architecture rules hold: `mise run pup:check`
+- [x] The Phase 4 conformance suite still passes:
+      `mise run test:integration:skill-invocation` *(128 passed)*
+- [x] `mise run check` exits 0 — including `missing_errors_doc` on the newly
       fallible port
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run` (bare default) exits 0 end-to-end
 
 #### Manual Verification
 
-- [ ] A rootless launcher reached via `ACCELERATOR_BIN` prints a diagnostic naming
-      `ACCELERATOR_PLUGIN_ROOT` for `templates list` instead of an empty table
-- [ ] Nothing reaches stdout on that path, so no resolved path could be spliced
-      into a prompt
-- [ ] A `!` site still cannot reach this failure, because the bootstrap always
-      exports a root — confirm by checking one skill loads normally after the change
+- [x] A rootless launcher reached via `ACCELERATOR_BIN` prints a diagnostic naming
+      `ACCELERATOR_PLUGIN_ROOT` for `templates list` instead of an empty table.
+      **Confirmed**: exit 1 with `the plugin installation root is unknown: set
+      ACCELERATOR_PLUGIN_ROOT, or invoke accelerator through bin/accelerator,
+      which derives it`, run from a bare `mktemp -d` with both variables stripped.
+- [x] Nothing reaches stdout on that path, so no resolved path could be spliced
+      into a prompt. **Confirmed**: 0 bytes, with and without `--fail-safe`.
+- [x] A `!` site still cannot reach this failure, because the bootstrap always
+      exports a root — confirm by checking one skill loads normally after the
+      change. **Discharged by automation instead**: Phase 4's conformance suite
+      runs all 122 distinct `config` `!`-site commands through the real bootstrap
+      with both variables removed from the environment, and all 128 cases stay
+      green. That covers every skill rather than one, so a hand check adds
+      nothing.
+
+### Implementation notes
+
+Four departures from the section above.
+
+- **`is_refusal` is `pub`, not `pub(crate)`.** The section's snippet says
+  `pub(crate)`, but its sole consumer — `From<ConfigError> for Failure` — lives in
+  the `accelerator` launcher crate, so `pub(crate)` on a method of `config` makes
+  it unreachable and the delegation cannot compile. The property the section
+  actually wants is *exhaustiveness inside the defining crate*, which the
+  `match` provides regardless of the visibility of the method wrapping it.
+- **Nine variants to classify, not five.** The snippet omits `PathConflict`,
+  `MalformedFrontmatter`, `InvalidKey` and `UnsafePath`. All four take the
+  `false` arm, which is what the wildcard they replace already gave them, so no
+  existing classification moved and no existing test changed. `UnsafePath` is
+  the one worth naming: it *reads* like a refusal, and
+  `paths_doc_types_stays_fail_closed_on_escape_with_fail_safe` proves that path
+  is already fail-closed — but via `ConfigError::Invalid` raised in
+  `config::paths`, not via `UnsafePath`, so classifying it `true` would have
+  been a behaviour change dressed as a tidy-up.
+- **`plugin_default`'s and `eject`'s rewrites take the `if !path.is_file()`
+  shape the section predicts, but `plugin_template_path` keeps no `Option`
+  seam at all** — it is `Result<PathBuf, ConfigError>` outright, so the two
+  consumers each read `let path = self.plugin_template_path(name)?;`. The
+  `EjectOutcome::NoDefault` consequence the section flags is real and now
+  observable: with no root, `eject` refuses before it can report it.
+- **The server's half of the empty-root criterion is a `compose_contract.rs`
+  case, not a subprocess test.** `an_empty_plugin_root_refuses_to_compose`
+  calls `compose::load` with `PathBuf::new()` and asserts the error names the
+  variable. The server's own `var_os` at `main.rs:69` is left unfiltered as the
+  section intends — `store.template_names()?` refuses first, so `load` fails
+  before `plugin_root.join("templates")` can become a cwd-relative path. Absent
+  and empty are therefore not byte-identical at the server: absent exits 2 at
+  `main.rs` naming the variable, empty exits 2 via `failed to compose config`
+  also naming it. Both refuse to start; only the launcher achieves literal
+  identity.
 
 ---
 

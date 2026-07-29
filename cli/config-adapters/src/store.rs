@@ -59,10 +59,27 @@ impl FileConfigStore {
         self
     }
 
+    /// An empty path is dropped: it would resolve plugin content relative to
+    /// the process working directory. Every composer inherits the rule here.
     #[must_use]
     pub fn with_plugin_root(mut self, plugin_root: Option<PathBuf>) -> Self {
-        self.plugin_root = plugin_root;
+        self.plugin_root =
+            plugin_root.filter(|root| !root.as_os_str().is_empty());
         self
+    }
+
+    /// The installation root, required: this read cannot be synthesised without
+    /// it.
+    fn require_plugin_root(&self) -> Result<&Path, ConfigError> {
+        self.plugin_root
+            .as_deref()
+            .ok_or(ConfigError::PluginRootUnavailable)
+    }
+
+    /// The installation root when known. Callers here degrade a hint or a
+    /// warning rather than an answer, so an absent root is tolerated.
+    fn plugin_root_if_known(&self) -> Option<&Path> {
+        self.plugin_root.as_deref()
     }
 
     fn absolutise(&self, path: &str) -> PathBuf {
@@ -80,7 +97,7 @@ impl FileConfigStore {
         if let Ok(relative) = path.strip_prefix(&self.root) {
             return relative.display().to_string();
         }
-        if let Some(plugin) = &self.plugin_root {
+        if let Some(plugin) = self.plugin_root_if_known() {
             if let Ok(relative) = path.strip_prefix(plugin) {
                 return format!("<plugin>/{}", relative.display());
             }
@@ -284,7 +301,7 @@ impl ReadLensCatalogue for FileConfigStore {
     }
 
     fn known_skill_names(&self) -> Result<Vec<String>, ConfigError> {
-        let Some(plugin) = &self.plugin_root else {
+        let Some(plugin) = self.plugin_root_if_known() else {
             return Ok(Vec::new());
         };
         let skills = plugin.join("skills");
@@ -345,25 +362,22 @@ impl ReadTemplate for FileConfigStore {
                 warning,
             )?));
         }
-        if let Some(plugin) = &self.plugin_root {
-            let default = plugin.join("templates").join(format!("{name}.md"));
-            if default.is_file() {
-                return Ok(Some(self.resolved(
-                    TemplateSource::PluginDefault,
-                    &default,
-                    warning,
-                )?));
-            }
+        let plugin = self.require_plugin_root()?;
+        let default = plugin.join("templates").join(format!("{name}.md"));
+        if default.is_file() {
+            return Ok(Some(self.resolved(
+                TemplateSource::PluginDefault,
+                &default,
+                warning,
+            )?));
         }
         Ok(None)
     }
 
-    fn template_names(&self) -> Vec<String> {
-        let Some(plugin) = &self.plugin_root else {
-            return Vec::new();
-        };
+    fn template_names(&self) -> Result<Vec<String>, ConfigError> {
+        let plugin = self.require_plugin_root()?;
         let Ok(entries) = fs::read_dir(plugin.join("templates")) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
         let mut files: Vec<String> = entries
             .filter_map(Result::ok)
@@ -374,21 +388,20 @@ impl ReadTemplate for FileConfigStore {
             })
             .collect();
         files.sort();
-        files
+        Ok(files
             .into_iter()
             .filter_map(|name| name.strip_suffix(".md").map(str::to_owned))
-            .collect()
+            .collect())
     }
 
     fn plugin_default(
         &self,
         name: &str,
     ) -> Result<Option<ResolvedTemplate>, ConfigError> {
-        let Some(path) =
-            self.plugin_template_path(name).filter(|p| p.is_file())
-        else {
+        let path = self.plugin_template_path(name)?;
+        if !path.is_file() {
             return Ok(None);
-        };
+        }
         Ok(Some(self.resolved(
             TemplateSource::PluginDefault,
             &path,
@@ -415,10 +428,11 @@ impl FileConfigStore {
         })
     }
 
-    fn plugin_template_path(&self, name: &str) -> Option<PathBuf> {
-        self.plugin_root
-            .as_ref()
-            .map(|plugin| plugin.join("templates").join(format!("{name}.md")))
+    fn plugin_template_path(&self, name: &str) -> Result<PathBuf, ConfigError> {
+        Ok(self
+            .require_plugin_root()?
+            .join("templates")
+            .join(format!("{name}.md")))
     }
 }
 
@@ -431,15 +445,14 @@ impl TemplateOverride for FileConfigStore {
         dry_run: bool,
     ) -> Result<EjectResult, ConfigError> {
         let key = name.to_owned();
-        let Some(source) =
-            self.plugin_template_path(name).filter(|p| p.is_file())
-        else {
+        let source = self.plugin_template_path(name)?;
+        if !source.is_file() {
             return Ok(EjectResult {
                 outcome: EjectOutcome::NoDefault,
                 key,
                 display: String::new(),
             });
-        };
+        }
         let target = self.absolutise(templates_dir).join(format!("{name}.md"));
         let display = self.display_path(&target);
         let exists = target.is_file();
