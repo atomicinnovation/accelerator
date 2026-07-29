@@ -10,7 +10,7 @@ result: "partial"
 parent: "work-item:0182"
 target: "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
 tags: [validation, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
-last_updated: "2026-07-29T13:36:14+00:00"
+last_updated: "2026-07-29T15:21:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -20,6 +20,10 @@ schema_version: 1
 Validated at revision `2da813f0` (working copy empty, parent `b89ff3a5`).
 Every automated criterion was re-run rather than taken from the plan's own
 annotations; every count below is measured in this session.
+
+**Amended 2026-07-29T15:21Z**, after `1.24.0-pre.17` was installed: Phase 1a's
+release-candidate manual criteria are now performed and passing against the
+published artifact. Phase 3's five remain deferred — see *Manual Testing*.
 
 ### Implementation Status
 
@@ -31,28 +35,75 @@ annotations; every count below is measured in this session.
 ✓ Phase 3: Terminal invocation surface — fully implemented
 ✓ Phase 4: `!`-site conformance suite — fully implemented
 ✓ Phase 5: A missing plugin root becomes a named error — fully implemented
-⚠️ Closing step (`mise.local.toml` removal) — not done, and correctly so: its
-stated precondition (a prerelease carrying the Phase 1a fix installed and in
-use) is not met. `1.24.0-pre.16` is still the installed plugin. Two of its five
-automated criteria are however *already* satisfied — see *Deviations*.
+✓ Closing step (`mise.local.toml` removal) — **done 2026-07-29**, every criterion
+performed. The file was already absent when the deletion was attempted (removed
+alongside the `1.24.0-pre.17` install, outside this session), and `mise env` now
+exports no plugin root. Details under *Closing Step Results*.
+
+**The installed artifact is the Phase 1a-only release**, which is the plan's
+independent-releasability claim confirmed in the field rather than argued:
+`1.24.0-pre.17`'s `bin/accelerator` carries the self-location block
+(`BASH_SOURCE`, `max_hops=16`, `export ACCELERATOR_PLUGIN_ROOT`) **and** the
+transitional `export CLAUDE_PLUGIN_ROOT` at `:116` that Phase 1b deletes — so it
+predates 1b, and it works because the shipped launcher still reads the old name.
+Phase 3's hook is absent from it, which is why those checks cannot yet run.
 
 Sixteen commits carry the work (`nstyplkt`…`pnynskrr` plus the pre-existing-flake
 fix), one more than the plan's progress table records.
+
+### Closing Step Results
+
+Performed 2026-07-29, after `1.24.0-pre.17` was installed.
+
+✓ `test ! -e mise.local.toml` — the file was **already gone** when deletion was
+  attempted (`rm` reported "No such file or directory"), removed outside this
+  session alongside the plugin update. `mise env` exports no plugin root.
+✓ `.gitignore:26` carries the entry, and the file is absent from `main`.
+✓ Shell suites with **no ambient root**: `test:integration:work` 404 assertions
+  pass, `test:integration:config` 1692, each exit 0. Run as two separate
+  invocations — a single `mise run a b` passes `b` as an *argument* to `a`, which
+  fails with invoke's "No idea what … is!" rather than running the second task.
+✓ `mise run` (bare default) exits 0 end-to-end under
+  `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT`, with all three
+  `cli/`-scoped guards executing and the formatters changing nothing.
+⚠️ An earlier full run of the same commit failed `test:integration:config` on a
+  teardown race in the Playwright executor cases — `rm: … Directory not empty` on
+  the fixture's `.accelerator/tmp`. Not root-related and not caused by the
+  deletion: that suite passed standalone both before and after, and green inside
+  the clean run. It belongs to the recorded config-suite flake class. Worth its
+  own item if it recurs, since it turns a full local run red at random.
+✓ Two CLI-invoking skills load against installed `1.24.0-pre.17` with no error
+  and no permission prompt: `list-work-items` (injections populated — `meta/work`,
+  `linear`, the work-item template) and `paths` (all 14 configured paths
+  resolved). Non-empty injections are what distinguishes a real read from a
+  `--fail-safe` degradation.
+
+  **Caveat on that last one.** This session's own environment still carries a
+  stale `CLAUDE_PLUGIN_ROOT` pointing at `1.24.0-pre.16`, inherited at session
+  start, so the `!` shells did see one. It is provably inert — the executed path
+  is `pre.17`'s own bootstrap, whose only mention of the variable is the
+  transitional `export` at `:116`, with no read anywhere — but the unconfounded
+  version of this check is a session started outside this repository's mise
+  context. Worth doing once; it is the only check here resting on an argument
+  rather than on an isolated environment.
 
 ### Automated Verification Results
 
 ✓ `mise run` (bare default) exits 0 end-to-end — the full local CI mirror, run
   to completion in this session. Working copy is still empty afterwards, so the
   in-place formatters had nothing to change.
-✓ `mise run cli:check` exits 0 — run separately, because the bare default does
-  **not** reach it (see *Potential Issues*). `lint:claude-coupling:check`
-  completes in 228ms.
+✓ `mise run cli:check` exits 0. At the time of the first pass this had to be run
+  separately, because the bare default did **not** reach it; the wiring described
+  under *Potential Issues* has since fixed that, and the clean closing-step run
+  shows all three guards executing inside `mise run`.
+  `lint:claude-coupling:check` completes in 228ms.
 ✓ The `CLAUDE_*` guard is clean and its scope is intact: `_in_scope()` discovers
   **724** files and `violations(REPO_ROOT)` returns `[]` — reproduced directly,
   matching the plan's measurement exactly.
 ✓ Suite counts, all from the full run: `test:integration:entrypoint` 46 passed ·
   `test:integration:hooks` 22 passed · `test:integration:skill-invocation` 128
-  passed · `test:unit:tasks` 406 passed · `test:integration:tasks` 51 passed ·
+  passed · `test:unit:tasks` 406 passed, 409 after the guard-wiring cases ·
+  `test:integration:tasks` 51 passed ·
   `test:integration:deny` 15 passed · `test:integration:dev` 17 passed ·
   `test:unit:cli` green (89.12% line coverage) · all shell suites (`config`,
   `work`, `migrate`, `integrations`, `decisions`, `github`) green · frontend
@@ -206,14 +257,31 @@ Nothing failed. No automated criterion in the plan was found to be overstated.
 
 ### Manual Testing Required:
 
-The plan's own deferrals stand, unchanged and correctly reasoned — all of them
-need the fix to be *installed*, and `1.24.0-pre.16` predates it:
+Phase 1a's deferrals are **discharged**; Phase 3's still stand, because the hook
+is not in the installed artifact.
 
-1. Release-candidate checks (Phase 1a, Phase 3):
-  - [ ] `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT ./bin/accelerator config templates list`
-        exits 0 and lists an `adr` row with Source `plugin default`, against a
-        published release (it 404s until then, and would write into the shipped
-        `bin/`).
+1. Phase 1a, performed 2026-07-29 against installed `1.24.0-pre.17`, invoked by
+   absolute path from a bare `mktemp -d` with **both** root variables stripped:
+  - [x] `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT <root>/bin/accelerator config templates list`
+        exits 0 and renders
+        `` | `adr` | plugin default | `<plugin>/templates/adr.md` | `` — a real
+        plugin-default row, not the empty table this bug produced — with **zero**
+        `accelerator:` lines on stderr.
+  - [x] The originally reported failing command,
+        `config instructions commit --fail-safe`, exits 0 with no `accelerator:`
+        diagnostic. Empty stdout is correct here, as the plan records.
+  - [x] The genuine fetch → verify → cache chain ran against the real release:
+        `bin/accelerator-launcher-1.24.0-pre.17-darwin-arm64` and its `.minisig`
+        are cached in the installed tree, and no
+        `.accelerator-unverified.log` exists — so nothing degraded to an
+        unverified path.
+
+2. Phase 3, still deferred — `hooks/launcher-link-refresh.sh` is **absent** from
+   `1.24.0-pre.17`, so a release carrying Phase 3 is needed. Current machine
+   state, recorded as the pre-condition baseline: `${CLAUDE_PLUGIN_DATA}` resolves
+   to `~/.claude/plugins/data/accelerator-atomic-innovation-prerelease/` (the
+   `data/<plugin>-<marketplace>` shape the documentation describes as *typical*),
+   it holds no `bin/`, and there is no `~/.local/bin/accelerator`.
   - [ ] In a real session the hook fires at `SessionStart` and
         `${CLAUDE_PLUGIN_DATA}/bin/accelerator` resolves to the current
         installation.
@@ -226,11 +294,12 @@ need the fix to be *installed*, and `1.24.0-pre.16` predates it:
   - [ ] Removing the plugin leaves only the dangling plugin-owned link inside
         `${CLAUDE_PLUGIN_DATA}`.
 
-2. Closing step, once a prerelease carrying Phase 1a is installed:
-  - [ ] Delete `mise.local.toml`, then `mise run test:integration:work
-        test:integration:config` and a bare `mise run` still exit 0.
-  - [ ] `/accelerator:commit` and one other CLI-invoking skill load against the
-        **installed** plugin with no error and no permission prompt.
+3. Closing step — **done**, see *Closing Step Results* above. One optional
+   follow-up remains:
+  - [ ] Re-confirm a CLI-invoking skill load from a Claude Code session whose
+        environment carries no `CLAUDE_PLUGIN_ROOT` at all (start it outside this
+        repository's mise context), so the check rests on isolation rather than
+        on the inertness argument.
 
 ### Recommendations:
 
@@ -245,9 +314,14 @@ need the fix to be *installed*, and `1.24.0-pre.16` predates it:
   than ticketing; see *Potential Issues*. Note this deliberately overrides the
   plan's Phase 2 argument against dual-wiring (which reasoned from `cli:check`
   being what CI runs, and did not weigh the bare `default` task's blindness).
-- **Do not flip the plan to `done` yet.** The closing step and the
-  release-candidate manual set are real remaining deliverables with an external
-  precondition; `in-progress` is the accurate status until a prerelease carrying
-  Phase 1a is installed and those checks are performed.
+- ~~Do the closing step~~ — **done in this pass**, all five automated and both
+  manual criteria performed; see *Closing Step Results*.
+- **Do not flip the plan to `done` yet.** Phase 3's five checks still need a
+  release carrying `hooks/launcher-link-refresh.sh`, which `1.24.0-pre.17` does
+  not have; `in-progress` stays accurate until then. That, plus the optional
+  clean-session skill load, is all that is left.
+- **Consider an item for the config-suite teardown race** if it recurs — it turned
+  one full local run red at random during this pass, and a flake in the gate that
+  defines "done" costs more than its size suggests.
 - Optionally, make `dir` local in `dir_of()` while `bin/accelerator` is still
   fresh in mind.

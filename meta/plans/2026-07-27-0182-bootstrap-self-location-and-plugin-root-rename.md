@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-29T13:40:46+00:00"
+last_updated: "2026-07-29T15:21:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1129,7 +1129,7 @@ names; 1b narrows it to one.
 
 #### Manual Verification
 
-- [ ] Rootless invocation by absolute path succeeds:
+- [x] Rootless invocation by absolute path succeeds:
       `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT ./bin/accelerator config templates list`
       exits 0 and lists an `adr` row with Source `plugin default`. **Manual, with a
       precondition**: it fetches the launcher for the version in
@@ -1137,9 +1137,16 @@ names; 1b narrows it to one.
       development it 404s. It passes once released *because* of the transitional
       export, since the pre-rename launcher reads the old name. The hermetic
       equivalent, and the actual CI gate, is the entrypoint suite.
-      **Deferred to the release candidate**: `1.24.0-pre.16` is the version in
-      `plugin.json` and its assets are not published, so running this now would
-      404 against the real GitHub release *and* write into the shipped `bin/`.
+      **Performed 2026-07-29 against installed `1.24.0-pre.17`** — the Phase
+      1a-only release, which still carries the transitional export — invoked by
+      absolute path from a bare `mktemp -d` with both variables stripped: exit 0
+      and `` | `adr` | plugin default | `<plugin>/templates/adr.md` | ``, no
+      `accelerator:` line on stderr. `config instructions commit --fail-safe`
+      likewise exits 0 clean. The launcher and its `.minisig` are cached in the
+      installed tree with no `.accelerator-unverified.log`, so the real
+      fetch → verify → cache chain ran. (It was deferred while `1.24.0-pre.16`
+      was current, whose assets were unpublished: running it then would have
+      404'd *and* written into the shipped `bin/`.)
 
 - [x] The Phase 1a regression tests fail when run against the pre-change
       `bin/accelerator` (stash the bootstrap change, confirm red, restore).
@@ -3367,6 +3374,12 @@ Until then this file is what supplies `CLAUDE_PLUGIN_ROOT` to the installed
 plugin's still-unfixed bootstrap in this repository, and every CLI-invoking skill
 — including the ones used to carry out this plan — depends on it.
 
+**Met 2026-07-29**: `1.24.0-pre.17` is installed and self-locates, verified by
+Phase 1a's rootless criterion above. The step is unblocked. Note the two manual
+criteria below cannot be evidenced by skill loads performed *before* the
+deletion — those still run through this file's ambient value — so the deletion
+comes first and the skill loads after.
+
 ### Why keeping it this long costs nothing
 
 The file's only hazard is masking the bug class in local test runs, and **Phase 1b
@@ -3401,21 +3414,45 @@ feeding the installed plugin's bootstrap.
 
 #### Automated Verification
 
-- [ ] The file is gone: `test ! -e mise.local.toml`
+- [x] The file is gone: `test ! -e mise.local.toml` — **done 2026-07-29**,
+      alongside the `1.24.0-pre.17` install. `mise env` now exports no plugin
+      root.
 - [x] The ignore entry landed: `grep -qx 'mise.local.toml' .gitignore` —
       `.gitignore:26`, and the file is untracked as a result
 - [x] It is on no branch that can reach CI:
       `! git cat-file -e main:mise.local.toml 2>/dev/null`
-- [ ] The shell suites still pass with no ambient root:
-      `mise run test:integration:work test:integration:config`
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] The shell suites still pass with no ambient root:
+      `mise run test:integration:work test:integration:config` — run as two
+      invocations, since a single `mise run` passes the second name as an
+      *argument* to the first. 404 assertions pass in the work subtree, 1692 in
+      config, each exit 0; both green again inside the clean full run below
+- [x] `mise run` (bare default) exits 0 end-to-end — run under
+      `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT`, so no ambient root
+      reached any task. All three `cli/`-scoped guards executed, and the
+      formatters changed nothing.
+
+      An earlier run of the same commit failed `test:integration:config` on a
+      teardown race in the Playwright executor cases (`rm: … Directory not
+      empty` on the fixture's `.accelerator/tmp`), not on anything root-related:
+      that suite passed standalone both before and after, and green in the clean
+      run. It belongs to the recorded config-suite flake class, not to this step.
 
 #### Manual Verification
 
-- [ ] With the file deleted, `/accelerator:commit` and one other CLI-invoking
-      skill load without error against the **installed** plugin — the direct
-      confirmation that the fix reached the artifact
-- [ ] No permission prompt appears for either skill
+- [x] With the file deleted, two CLI-invoking skills load without error against
+      the **installed** `1.24.0-pre.17` — `list-work-items` (injections
+      populated: `meta/work`, `linear`, the work-item template) and `paths` (all
+      14 configured paths resolved). Non-empty injections are what separates a
+      real read from a `--fail-safe` degradation.
+
+      Caveat on strictness: this Claude Code session's own environment still
+      carries a stale `CLAUDE_PLUGIN_ROOT` pointing at `1.24.0-pre.16`,
+      inherited at session start, so the `!` shells saw one. It is provably
+      inert — the executed path is `1.24.0-pre.17`'s own bootstrap, which never
+      *reads* either variable (its only mention is the export at `:116`) — but
+      the unconfounded confirmation is a session started outside this
+      repository's mise context, which is worth doing once.
+- [x] No permission prompt appears for either skill
 
 ---
 
