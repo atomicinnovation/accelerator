@@ -118,7 +118,12 @@ def decisions(context: Context) -> None:
 
 @task
 def hooks(context: Context) -> None:
-    """Integration tests for the hooks/ subtree."""
+    """Integration tests for the hooks/ subtree.
+
+    Two halves: the pytest suites (ADR-0048 — Python is the test language for
+    the non-Rust surfaces) and the two bash harnesses that predate it.
+    """
+    context.run("uv run pytest tests/integration/hooks -v")
     run_shell_suites(context, "hooks")
 
 
