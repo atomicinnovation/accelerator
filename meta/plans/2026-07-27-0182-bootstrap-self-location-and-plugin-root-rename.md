@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-28T10:52:00+00:00"
+last_updated: "2026-07-29T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -272,16 +272,15 @@ rename:
 |---|---|---|---|
 | 0 | Determinations — no code | yes, no predecessor | **done** 2026-07-28 |
 | **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** | **done** 2026-07-28 |
-| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | not started |
+| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | **done** 2026-07-29 |
 | **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | not started |
 | 2 | The `CLAUDE_*` boundary guard | after 1b | not started |
 | 3 | Terminal invocation surface | after 1a | not started |
 | 4 | `!`-site conformance suite | after 1a | not started |
 | 5 | Named error for a missing plugin root | after 1b | not started |
 
-**Progress — 2026-07-28.** Phases 0 and 1a are implemented, verified and
-committed; `mise run` is green end-to-end (three consecutive runs). 1c is next
-in the merge order. Five commits carry the work:
+**Progress — 2026-07-29.** Phases 0, 1a and 1c are implemented, verified and
+committed. 1b is next in the merge order. Six commits carry the work:
 
 | Commit | Content |
 |---|---|
@@ -290,6 +289,7 @@ in the merge order. Five commits carry the work:
 | `Cover rootless invocation, symlink chases and fail-safe aborts` | 1a commit 2 |
 | `Derive the installation root from the bootstrap's own location` | 1a commit 3 |
 | `Stop three suites failing on wall-clock noise under parallel load` | out of scope — see below |
+| `Force the work-item template fallback through ACCELERATOR_BIN` | Phase 1c |
 
 Two things a later phase inherits:
 
@@ -1257,6 +1257,8 @@ file is on Phase 2's permitted-residue list.
 
 ## Phase 1c: The Work-Item Seam and the Build Edge
 
+> **Done 2026-07-29.**
+
 ### Overview
 
 Two changes that are green **today**, independent of 1a and 1b: the seam re-point
@@ -1362,19 +1364,26 @@ CI needs no edit: `test-unit` and `test-integration` already carry the
 
 #### Automated Verification
 
-- [ ] Work-item shell suites pass: `mise run test:integration:work`
-- [ ] The exhaustive edge assertion passes:
-      `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run check` exits 0
+- [x] Work-item shell suites pass: `mise run test:integration:work` *(242 passed
+      in the work-item suite; 0 failed across the subtree)*
+- [x] The exhaustive edge assertion passes:
+      `uv run pytest tests/unit/tasks/test_mise.py -v` *(18 passed)*
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Temporarily removing `hardcoded_fallback`'s `status)` arm turns the
+- [x] Temporarily removing `hardcoded_fallback`'s `status)` arm turns the
       re-pointed seam assertions red. (It also reddens Test 7 at `:1071` and both
       tripwire comparisons, so the mutation is a sanity check on the pair rather
-      than an isolating one.)
-- [ ] Adding a `test:integration:*` task to neither `_LAUNCHER_DEPENDENTS` nor
-      `_NO_LAUNCHER_NEEDED` turns `test_mise.py` red
+      than an isolating one.) **Confirmed**: 4 failures, including both
+      `returns hardcoded status values` and `seam forces the hardcoded fallback`,
+      while `a working CLI reads the override` stayed green — the pair is
+      falsifiable in both directions as designed.
+- [x] Adding a `test:integration:*` task to neither `_LAUNCHER_DEPENDENTS` nor
+      `_NO_LAUNCHER_NEEDED` turns `test_mise.py` red. **Confirmed**: a temporary
+      `test:integration:probe` leaf fails
+      `test_every_integration_task_declares_its_launcher_need` with
+      `Extra items in the left set: 'test:integration:probe'`.
 
 ---
 
