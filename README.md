@@ -55,7 +55,7 @@ Code compatibility, see [Releases & Compatibility](docs/releases-and-compatibili
   implement spine in detail, including the plan review/stress-test cycle.
 - [Visualiser](docs/visualiser.md) — the browser-based companion view of `meta/`.
 - [Internals](docs/internals.md) — the `meta/` directory deep-dive, the agent
-  roster, and VCS detection.
+  roster, VCS detection, and running the CLI from a terminal.
 - [Configuration](docs/configuration.md) — config files, templates, per-skill
   customisation, and custom review lenses.
 - [Migrations](docs/migrations.md) — upgrading a repo with `/accelerator:migrate`.

@@ -156,9 +156,9 @@ visualiser:
 ---
 ```
 
-To run the visualiser from a terminal, symlink the accelerator CLI onto
-your `$PATH` and invoke `accelerator visualiser [stop | status]`:
-
-**Install command**: !`printf 'ln -s "%s" "%s"' "${CLAUDE_PLUGIN_ROOT}/bin/accelerator" "$HOME/.local/bin/accelerator"`
+To run the visualiser from a terminal, link the accelerator CLI onto your
+`$PATH` and invoke `accelerator visualiser [stop | status]`. The link is a
+two-hop chain so it survives plugin upgrades — see the Terminal Invocation
+section of `docs/internals.md` for the setup steps.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions visualise --fail-safe`

@@ -20,8 +20,8 @@ load-error pages.
 ## Launching
 
 ```bash
-/visualise            # from inside a Claude Code session
-accelerator-visualiser            # CLI wrapper — optionally symlink onto $PATH
+/visualise                  # from inside a Claude Code session
+accelerator visualiser      # from a terminal — see internals.md
 ```
 
 The server binds to `localhost` on a dynamic port. It has no authentication
@@ -35,7 +35,7 @@ returns the same URL.
 /visualise stop       # SIGTERM, escalating to SIGKILL after 2s
 ```
 
-Both subcommands also work via the `accelerator-visualiser` CLI wrapper.
+Both subcommands also work via the `accelerator visualiser` CLI.
 The server auto-exits after 8 hours idle or when the process that
 launched it exits, so explicit `stop` is rarely necessary.
 

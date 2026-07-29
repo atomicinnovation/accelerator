@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- **The CLI can be run from an ordinary terminal.** A new `SessionStart` hook
+  keeps a fixed path inside the plugin's data directory pointing at the current
+  installation's launcher, so a symlink you create once on your `$PATH` keeps
+  working across plugin upgrades. Setup, platform support and the trust-chain
+  caveats are documented under Terminal Invocation in `docs/internals.md`.
+
 ### Changed
 
 - **Interactive option panels replace typed confirmations across 15 skills.**
