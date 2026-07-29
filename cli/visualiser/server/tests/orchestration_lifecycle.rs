@@ -52,7 +52,7 @@ fn seed_project(dir: &Path, config_body: &str) {
 fn cli(project: &Path) -> Command {
     let mut cmd = Command::cargo_bin("accelerator-visualiser").unwrap();
     cmd.current_dir(project)
-        .env("CLAUDE_PLUGIN_ROOT", repo_root());
+        .env("ACCELERATOR_PLUGIN_ROOT", repo_root());
     cmd
 }
 
@@ -291,7 +291,7 @@ fn serve_without_plugin_root_exits_2() {
     Command::cargo_bin("accelerator-visualiser")
         .unwrap()
         .current_dir(tmp.path())
-        .env_remove("CLAUDE_PLUGIN_ROOT")
+        .env_remove("ACCELERATOR_PLUGIN_ROOT")
         .args(["serve", "--owner-pid", "0"])
         .assert()
         .code(2);

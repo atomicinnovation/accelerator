@@ -170,10 +170,13 @@ fn compose_stack(
     ))
 }
 
-/// The plugin root from `CLAUDE_PLUGIN_ROOT`, for resolving plugin-default
-/// templates; `None` when unset (template defaults are then unavailable).
+/// The plugin root from `ACCELERATOR_PLUGIN_ROOT`, for resolving plugin-default
+/// templates; `None` when unset or empty (template defaults are then
+/// unavailable).
 fn plugin_root() -> Option<PathBuf> {
-    std::env::var_os("CLAUDE_PLUGIN_ROOT").map(PathBuf::from)
+    std::env::var_os("ACCELERATOR_PLUGIN_ROOT")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }
 
 /// The directory config resolution starts from — the `config paths --doc-types`

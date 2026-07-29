@@ -16,7 +16,7 @@ fn spawn_serve(project: &Path) -> tokio::process::Child {
     tokio::process::Command::new(env!("CARGO_BIN_EXE_accelerator-visualiser"))
         .args(["serve", "--owner-pid", "0"])
         .current_dir(project)
-        .env("CLAUDE_PLUGIN_ROOT", project)
+        .env("ACCELERATOR_PLUGIN_ROOT", project)
         .spawn()
         .expect("spawn serve")
 }

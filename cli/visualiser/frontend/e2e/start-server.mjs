@@ -95,7 +95,7 @@ const child = spawn(bin, ["serve", "--owner-pid", "0"], {
   cwd: project,
   env: {
     ...process.env,
-    CLAUDE_PLUGIN_ROOT: project,
+    ACCELERATOR_PLUGIN_ROOT: project,
     FIXTURES_PATH: fixturesDir,
   },
   stdio: "inherit",

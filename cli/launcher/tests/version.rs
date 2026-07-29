@@ -19,7 +19,7 @@ fn run(args: &[&str], env: &[(&str, &str)]) -> Result<Output, Box<dyn Error>> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.env_remove("ACCELERATOR_LOG");
     // Hermetic: no inherited plugin root, cache override, or release URL.
-    command.env_remove("CLAUDE_PLUGIN_ROOT");
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
     command.args(args);
@@ -176,7 +176,7 @@ fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
     );
     let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        stderr.contains("CLAUDE_PLUGIN_ROOT"),
+        stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
         "stderr missing the named resolution step: {stderr:?}"
     );
     Ok(())

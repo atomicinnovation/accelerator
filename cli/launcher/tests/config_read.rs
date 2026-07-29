@@ -6,6 +6,7 @@
 //! compare `output.stdout` directly, never through `from_utf8_lossy`.
 
 use std::error::Error;
+use std::ffi::OsStr;
 use std::fs;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -59,7 +60,7 @@ fn run_in(cwd: &Path, args: &[&str]) -> Result<Output, Box<dyn Error>> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.current_dir(cwd);
     command.env_remove("ACCELERATOR_LOG");
-    command.env_remove("CLAUDE_PLUGIN_ROOT");
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
     command.args(args);
@@ -1166,7 +1167,7 @@ fn summary_hook_keeps_the_unrecognised_skill_warning_off_stdout() -> TestResult
     command.env_remove("ACCELERATOR_LOG");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
-    command.env("CLAUDE_PLUGIN_ROOT", &plugin);
+    command.env("ACCELERATOR_PLUGIN_ROOT", &plugin);
     command.args(["config", "summary", "--format", "hook"]);
     let output = command.output()?;
 
@@ -1197,14 +1198,48 @@ fn run_with_plugin(
     cwd: &Path,
     args: &[&str],
 ) -> Result<Output, Box<dyn Error>> {
+    run_with_plugin_root(cwd, plugin_root().as_os_str(), args)
+}
+
+fn run_with_plugin_root(
+    cwd: &Path,
+    root: &OsStr,
+    args: &[&str],
+) -> Result<Output, Box<dyn Error>> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.current_dir(cwd);
     command.env_remove("ACCELERATOR_LOG");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
-    command.env("CLAUDE_PLUGIN_ROOT", plugin_root());
+    command.env("ACCELERATOR_PLUGIN_ROOT", root);
     command.args(args);
     Ok(command.output()?)
+}
+
+/// Without the empty-string filter an empty value becomes `PathBuf::from("")`,
+/// which resolves plugin templates relative to the current directory — so the
+/// cwd is seeded with a `templates/` tree the assertion would otherwise see.
+#[test]
+fn an_empty_plugin_root_behaves_as_an_unset_plugin_root() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join("templates"))?;
+    fs::write(fixture.root.join("templates/decoy.md"), "# decoy\n")?;
+
+    let unset = run_in(&fixture.root, &["config", "templates", "list"])?;
+    let empty = run_with_plugin_root(
+        &fixture.root,
+        OsStr::new(""),
+        &["config", "templates", "list"],
+    )?;
+
+    assert_eq!(empty.stdout, unset.stdout);
+    assert_eq!(code(&empty), code(&unset));
+    assert!(
+        !String::from_utf8_lossy(&empty.stdout).contains("decoy"),
+        "an empty root resolved templates from the cwd: {:?}",
+        String::from_utf8_lossy(&empty.stdout)
+    );
+    Ok(())
 }
 
 #[test]

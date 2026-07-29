@@ -82,7 +82,7 @@ fn bash_records(script: &Path, file: &Path) -> Result<Vec<String>, TestError> {
     // linkage-parser.sh sources doc-type-table.sh, whose resolver is
     // `${ACCELERATOR_BIN:-…/bin/accelerator} config paths --doc-types`. Point it
     // at the compiled launcher so the oracle never falls through to the
-    // bootstrap (which needs CLAUDE_PLUGIN_ROOT or a signed release).
+    // bootstrap (which needs ACCELERATOR_PLUGIN_ROOT or a signed release).
     let output = Command::new(script)
         .arg(file)
         .env("ACCELERATOR_BIN", launcher_binary()?)

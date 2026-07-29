@@ -273,14 +273,15 @@ rename:
 | 0 | Determinations — no code | yes, no predecessor | **done** 2026-07-28 |
 | **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** | **done** 2026-07-28 |
 | **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | **done** 2026-07-29 |
-| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | not started |
+| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | **done** 2026-07-29 |
 | 2 | The `CLAUDE_*` boundary guard | after 1b | not started |
 | 3 | Terminal invocation surface | after 1a | not started |
 | 4 | `!`-site conformance suite | after 1a | not started |
 | 5 | Named error for a missing plugin root | after 1b | not started |
 
-**Progress — 2026-07-29.** Phases 0, 1a and 1c are implemented, verified and
-committed. 1b is next in the merge order. Six commits carry the work:
+**Progress — 2026-07-29.** Phases 0, 1a, 1c and 1b are implemented, verified
+and committed. Phase 2 is next in the merge order. Seven commits carry the
+work:
 
 | Commit | Content |
 |---|---|
@@ -290,6 +291,7 @@ committed. 1b is next in the merge order. Six commits carry the work:
 | `Derive the installation root from the bootstrap's own location` | 1a commit 3 |
 | `Stop three suites failing on wall-clock noise under parallel load` | out of scope — see below |
 | `Force the work-item template fallback through ACCELERATOR_BIN` | Phase 1c |
+| `Rename the plugin root onto ACCELERATOR_PLUGIN_ROOT` | Phase 1b |
 
 Two things a later phase inherits:
 
@@ -1153,7 +1155,7 @@ one-off check that never runs again:
 
 ## Phase 1b: The Rename
 
-> **Lands after Phase 1c**, which follows this section. 1c is green today and
+> **Done 2026-07-29**, after Phase 1c as sequenced. 1c is green today and
 > independent, but the rename makes its seam vacuous if it goes first — see the
 > mergeability table in *Implementation Approach* and Phase 1c's Overview.
 
@@ -1233,25 +1235,36 @@ file is on Phase 2's permitted-residue list.
 
 #### Automated Verification
 
-- [ ] `cli/` workspace tests pass: `mise run test:unit:cli`
-- [ ] The empty-string case is asserted:
-      `cargo test -p accelerator-launcher --test config_read empty_plugin_root`
-- [ ] Entrypoint suite still passes: `uv run pytest tests/integration/entrypoint -v`
-- [ ] Work-item shell suites pass: `mise run test:integration:work`
-- [ ] Dev-task integration tests pass: `mise run test:integration:dev`
-- [ ] Visualiser integration tests pass: `mise run test:integration:visualiser`
-- [ ] Build-system unit tests pass: `mise run test:unit:tasks`
-- [ ] No `CLAUDE_` string remains in `bin/accelerator`:
+- [x] `cli/` workspace tests pass: `mise run test:unit:cli`
+- [x] The empty-string case is asserted:
+      `cargo test -p accelerator --test config_read empty_plugin_root` — note
+      the package is `accelerator`, not `accelerator-launcher`. The case seeds a
+      `templates/decoy.md` in the cwd, so an unfiltered empty value (which
+      becomes `PathBuf::from("")`) is *observable* rather than merely equal:
+      confirmed red without the filter, listing `decoy` as a plugin default.
+- [x] Entrypoint suite still passes: `uv run pytest tests/integration/entrypoint -v`
+      *(46 passed)*
+- [x] Work-item shell suites pass: `mise run test:integration:work`
+- [x] Dev-task integration tests pass: `mise run test:integration:dev` *(17 passed)*
+- [x] Visualiser integration tests pass: `mise run test:integration:visualiser`
+- [x] Build-system unit tests pass: `mise run test:unit:tasks` *(368 passed)*
+- [x] No `CLAUDE_` string remains in `bin/accelerator`:
       `! grep -q 'CLAUDE_' bin/accelerator`
-- [ ] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run check` exits 0
+- [x] `mise run` (bare default) exits 0 end-to-end
 
 #### Manual Verification
 
-- [ ] `mise run dev:*` still starts the visualiser server (the renamed
-      `tasks/dev.py` writer feeds its hard-exit reader)
-- [ ] A freshly built launcher, invoked directly with only
-      `ACCELERATOR_PLUGIN_ROOT` set, renders the plugin-default template tier
+- [x] `mise run dev:*` still starts the visualiser server (the renamed
+      `tasks/dev.py` writer feeds its hard-exit reader). **Confirmed**:
+      `mise run dev` then `dev:status` reports both server and frontend active.
+      `mise.local.toml` sets only `CLAUDE_PLUGIN_ROOT`, so the server's root can
+      only have come from the renamed writer — had the rename been one-sided the
+      let-else would have exited 2.
+- [x] A freshly built launcher, invoked directly with only
+      `ACCELERATOR_PLUGIN_ROOT` set, renders the plugin-default template tier.
+      **Confirmed** under `env -i`: 13 plugin-default rows with the variable set,
+      a header-only table without it.
 
 ---
 

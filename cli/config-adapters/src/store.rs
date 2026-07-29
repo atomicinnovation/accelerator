@@ -21,6 +21,11 @@ use crate::document;
 /// suppresses the uniform legacy-layout refusal, and — when the current-layout
 /// pair is absent — falls back to reading the legacy `.claude/accelerator.md`
 /// and `.claude/accelerator.local.md` pair.
+///
+/// The policy is a caller-supplied flag, never an environment read. The shell
+/// migration runner still exports `ACCELERATOR_MIGRATION_MODE` into every
+/// migration child, and this layer deliberately ignores it — the bypass is
+/// requested explicitly or not at all.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LegacyPolicy {
     Reject,
