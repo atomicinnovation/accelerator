@@ -178,8 +178,9 @@ class TestShellSourcesDiscovery:
     def test_prunes_build_output_the_root_gitignore_misses(
         self, tmp_path: Path
     ):
-        # Before walk_files this yielded all six: the walk pruned only
-        # gitignored directories, and none of these five is in the root file.
+        # This root carries no .gitignore, so the prune is the only thing
+        # keeping the five vendored trees out — which is why the prune list
+        # overlaps the root file rather than deferring to it.
         _write(tmp_path / "scripts/keep.sh")
         _write(tmp_path / ".venv/bin/act.sh")
         _write(tmp_path / "cli/f/dist/b.sh")

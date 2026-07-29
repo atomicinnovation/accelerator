@@ -14,8 +14,13 @@ checkouts (CI) and jj workspaces (local).
 Only the root `.gitignore` is honoured, not nested ones. That is why `prune`
 carries build output the root file misses: `dist/` and `playwright-report/` are
 ignored only by `cli/visualiser/frontend/.gitignore` (the root file's `/dist/`
-is root-anchored), and `.venv` is ignored nowhere. Revisit with per-directory
-spec layering if a nested `.gitignore` ever needs to hide a source file.
+is root-anchored). Revisit with per-directory spec layering if a nested
+`.gitignore` ever needs to hide a source file.
+
+`prune` deliberately overlaps the root file for `.venv` and `node_modules`,
+which it also lists. The walk is called with `tmp_path` roots that carry no
+`.gitignore` at all, so the prune is the only thing keeping a vendored tree out
+of those scans.
 
 `shell_sources` layers the shell policy on top: `*.sh`, minus `workspaces/` (jj
 checkouts), plus the explicitly-listed extensionless CLI script, so format and

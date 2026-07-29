@@ -68,9 +68,8 @@ def _py_files() -> set[str]:
     """Repo-relative `.py` paths: gitignore-honoured, `.venv` pruned.
 
     Mirrors what ruff/pyrefly discover — ruff excludes `.venv` by default and
-    pyrefly is scoped to `tasks/` via `project-includes`, but `.venv` is not in
-    `.gitignore`, so `walk_files` prunes it alongside the gitignore-matched
-    directories.
+    pyrefly is scoped to `tasks/` via `project-includes`. `.venv` is kept out
+    twice over, by `.gitignore` and by `walk_files`' prune list.
     """
     return {rel for rel in walk_files(REPO) if rel.endswith(".py")}
 
@@ -105,8 +104,8 @@ class TestInScopeSet:
         assert MOCK_LINEAR in py
         # workspaces/ is gitignored, so the walk never surfaces it.
         assert not any(p.startswith("workspaces/") for p in py)
-        # .venv is gitignored nowhere, so only the explicit prune keeps the
-        # thousands of vendored .py files out of the in-scope set.
+        # .venv holds thousands of vendored .py files; either the gitignore
+        # entry or walk_files' prune alone is enough to keep them out.
         assert not any(p.startswith(".venv/") for p in py)
         ruff_in_scope = py - {MOCK_JIRA, MOCK_LINEAR}
         assert ruff_in_scope, "ruff in-scope set is empty after excludes"
