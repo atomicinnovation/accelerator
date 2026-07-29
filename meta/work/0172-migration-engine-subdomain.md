@@ -9,12 +9,12 @@ status: ready
 kind: story
 priority: high
 parent: "work-item:0136"
-blocked_by: ["work-item:0166", "work-item:0167", "work-item:0169"]
+blocked_by: ["work-item:0166", "work-item:0167", "work-item:0169", "work-item:0187"]
 blocks: ["work-item:0174"]
 relates_to: ["work-item:0173", "work-item:0180", "work-item:0182", "work-item:0183"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, migration-engine, concurrency, interactive]
-last_updated: "2026-08-01T11:59:07+00:00"
+last_updated: "2026-08-01T16:57:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-193"
@@ -649,6 +649,10 @@ script *and* registration — here.
   `vcs-detect`/`vcs-guard` registrations and leaves `migrate-discoverability` —
   script and registration — here.
 - Blocked by **0166** (done): retained because 0166 declares `blocks: 0172`.
+- Blocked by **0187** (generalises the sub-binary registration surface). This
+  story adds a dispatch token; it does not generalise the surface. Registration
+  follows the checklist 0187 adds at
+  `tasks/README.md#registering-a-dispatched-sub-binary`. (2026-08-01)
 - Blocks: 0174.
 - Parent: epic 0136.
 - Crate foundation (done): 0178 (`config`, `config-adapters`), 0179 (`corpus`,

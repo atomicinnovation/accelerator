@@ -9,10 +9,11 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
+blocked_by: ["work-item:0187"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170"]
 tags: [rust, jira, linear, integrations, reqwest]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-08-01T16:57:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-192"
@@ -74,6 +75,10 @@ into separate Jira and Linear stories if finer granularity is wanted.
 ## Dependencies
 
 - Blocked by: 0166 (shared crates), and the `tracker` port from 0170.
+- Blocked by: 0187 (generalises the sub-binary registration surface). This story
+  adds a dispatch token; it does not generalise the surface. Registration
+  follows the checklist 0187 adds at
+  `tasks/README.md#registering-a-dispatched-sub-binary`. (2026-08-01)
 - Relates to: 0170 (the sync engine consumes these clients).
 - Parent: epic 0136.
 

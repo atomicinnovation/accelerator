@@ -9,10 +9,10 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0167"]
+blocked_by: ["work-item:0167", "work-item:0187"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, corpus, design, collaboration, subdomains]
-last_updated: "2026-07-19T18:00:00+00:00"
+last_updated: "2026-08-01T16:57:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-194"
@@ -83,6 +83,11 @@ granularity is wanted.
 
 - Blocked by: 0166 (shared crates), 0167 (the invocation-contract pattern these
   subdomains' call sites follow).
+- Blocked by: 0187 (generalises the sub-binary registration surface). This story
+  adds a dispatch token per subdomain; it does not generalise the surface.
+  Registration follows the checklist 0187 adds at
+  `tasks/README.md#registering-a-dispatched-sub-binary` — three times over, once
+  for each of corpus, design and collaboration. (2026-08-01)
 - Parent: epic 0136.
 
 ## Assumptions

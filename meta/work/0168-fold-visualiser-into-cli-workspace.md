@@ -10,9 +10,10 @@ kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+blocks: ["work-item:0187"]
 relates_to: ["work-item:0165", "work-item:0166"]
 tags: [rust, visualiser, frontend, workspace]
-last_updated: "2026-07-19T23:12:20+00:00"
+last_updated: "2026-08-01T16:57:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-189"
@@ -177,6 +178,19 @@ dispatch path end to end.
 - Not blocked by: 0180 (atomic-store primitives) — the fold-in reuses
   `corpus-adapters`' existing `FileCorpusStore` write path from 0179; 0180's extra
   JSONL/lock primitives are not on this story's path.
+- Blocks: 0187 (generalise the sub-binary registration surface). 0187 documents
+  the `cli/<token>/Cargo.toml` manifest-path default and the
+  `_SUBBINARY_MANIFESTS` override using this story's landed nested placement
+  (`cli/visualiser/server/`) as the worked example, and the visualiser is the
+  one existing binding its generalised coherence guard is verified against.
+  0187's discharge condition: this story is closed, or its residual scope is
+  confirmed unable to move the visualiser crate path. If neither holds when 0187
+  is picked up, 0187 proceeds anyway and re-verifies the path at acceptance — so
+  this is a gate on confirmation, not a wait on this story's phase. If the
+  residual scope *does* move `cli/visualiser/server/` after 0187 has landed,
+  update the `_SUBBINARY_MANIFESTS` entry and the
+  `tasks/README.md#registering-a-dispatched-sub-binary` checklist in the same
+  change. (2026-08-01)
 - Relates to: 0165 (the visualiser joins the multi-binary release), 0166 (this
   refactor validates the shared-crate approach 0166 described; 0166 itself built
   nothing — see Drafting Notes).
