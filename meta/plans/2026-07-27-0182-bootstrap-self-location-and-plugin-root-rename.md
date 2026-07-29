@@ -275,13 +275,13 @@ rename:
 | **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | **done** 2026-07-29 |
 | **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | **done** 2026-07-29 |
 | 2 | The `CLAUDE_*` boundary guard | after 1b | **done** 2026-07-29 |
-| 3 | Terminal invocation surface | after 1a | not started |
+| 3 | Terminal invocation surface | after 1a | **done** 2026-07-29 |
 | 4 | `!`-site conformance suite | after 1a | not started |
 | 5 | Named error for a missing plugin root | after 1b | not started |
 
-**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b and 2 are implemented, verified
-and committed. Phase 3 is next in the merge order. Ten commits carry the
-work:
+**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b, 2 and 3 are implemented,
+verified and committed. Phase 4 is next in the merge order. Thirteen commits
+carry the work:
 
 | Commit | Content |
 |---|---|
@@ -295,6 +295,9 @@ work:
 | `Promote the gitignore-honouring walk to a shared primitive` | 2 commit 1 |
 | `Add a guard against CLAUDE_* coupling in the rename set` | 2 commit 2 |
 | `Wire the CLAUDE_* boundary guard into cli:check` | 2 commit 3 |
+| `Keep a terminal-reachable link to the current launcher` | 3 commit 1 |
+| `Give every shell-suite subtree a discovery floor` | 3 commit 2 |
+| `Document running the accelerator CLI from a terminal` | 3 commit 3 |
 
 Two things a later phase inherits:
 
@@ -573,9 +576,11 @@ Claude Code version tested.
       discarded, a follow-up item is raised for
       `hooks/migrate-discoverability.sh`'s advisory — it is discarded, and the
       follow-up is work item 0183
-- [ ] Phase 3's `docs/internals.md` section states the version requirement
-      locally, with the version-pinned fallback for anyone below it *(deferred to
-      Phase 3)*
+- [x] Phase 3's `docs/internals.md` section states the version requirement
+      locally, with the version-pinned fallback for anyone below it. **Done
+      2026-07-29**: the Terminal Invocation section names v2.1.78 and tells
+      anyone below it to link `<plugin root>/bin/accelerator` directly and
+      re-run after each upgrade.
 
 ---
 
@@ -1708,6 +1713,8 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
 
 ## Phase 3: Terminal Invocation Surface
 
+> **Done 2026-07-29.** Three commits, as sequenced.
+
 ### Overview
 
 A fixed-path, upgrade-surviving entry for terminal use, via a two-hop chain, plus
@@ -1759,6 +1766,13 @@ should move.
 ### Changes Required
 
 #### 1. The hook test suite (written first)
+
+> **Superseded on the language, not the cases.** The suite shipped as
+> `tests/integration/hooks/test_launcher_link_refresh.py`, not a
+> `hooks/test-*.sh` harness: ADR-0048 makes Python the test language for the
+> non-Rust surfaces, shell wrappers included, and the two bash harnesses still
+> under `hooks/` predate that decision. Every *case* below is implemented; the
+> bash-specific mechanics are not. See *Implementation notes*.
 
 **File**: `hooks/test-launcher-link-refresh.sh` (new, `chmod 0755`, mode committed)
 **Changes**: Copies the structure of `hooks/test-migrate-discoverability.sh` —
@@ -2233,14 +2247,17 @@ there (it registers only `skills`), so hooks are discovered by convention.
 exec bit, so no registry entry is needed. But `hooks` has no floor count, so a
 dropped exec bit would silently remove a suite from CI.
 
-A **count** floor alone does not close that for this phase. `hooks/` holds two
-suites today and three after it, so `_EXPECTED_HOOKS_SUITES = 3` is the value — but
-`TestHooksSuiteGuard` builds its at-baseline case from the constant itself, so a
-floor left at `2` would pass every test while failing to detect the loss of the very
-suite it was added for. Add a `_REQUIRED_HOOKS_SUITES` **by-name** entry for
-`hooks/test-launcher-link-refresh.sh`, mirroring `_REQUIRED_CONFIG_SUITES` — that is
-the only shape that detects this suite specifically. Both the count and the identity
-guard get their `Exit`.
+A **count** floor alone would not have closed that for a *shell* suite: `hooks/`
+holds two suites, three with a bash link-refresh harness, and the paired guard
+builds its at-baseline case from the constant itself, so a floor left at `2` would
+pass every test while failing to detect the loss of the very suite it was added for.
+The plan therefore called for a `_REQUIRED_HOOKS_SUITES` by-name entry.
+
+**That requirement lapses with the Python port.** `_EXPECTED_HOOKS_SUITES` stays at
+`2` — the two bash harnesses — and the by-name tuple is empty, because the exec-bit
+hazard the floor exists for does not apply to a pytest file: losing one is a
+collection error, not a silently smaller run. The floor still guards the two
+harnesses that *are* exec-bit-discovered.
 
 Rather than a fifth copy of the seven-line `if len(suites) < _EXPECTED_*: raise
 Exit(...)` block (and a fifth near-identical guard class), extract one
@@ -2258,18 +2275,15 @@ subtree.)
 **Changes**: Every existing floor constant has a paired guard class here —
 `TestConfigSuiteGuard`, `TestMigrateSuiteGuard`, `TestWorkSuiteGuard`,
 `TestIntegrationsSuiteGuard` — each asserting `pytest.raises(Exit)` below baseline
-and (for most) passing at baseline built from the constant itself. Add
-`TestHooksSuiteGuard` in the `TestWorkSuiteGuard` shape. Without it the new `Exit`
-branch would be the only floor in the file with no unit coverage, so an
-off-by-one or inverted comparison would ship silently — defeating the fail-loudly
-purpose the floor exists for.
+and (for most) passing at baseline built from the constant itself. Every guarded
+task gains a case, so no `Exit` branch ships without unit coverage and an
+off-by-one or inverted comparison cannot pass silently.
 
-Both new `.sh` files are entrypoints and must **not** be added to
-`SHELL_LIBRARIES` (`tasks/lint/scripts.py:18-49`) — that would trip the
-`chmod -x` branch (`:128-129`) and break the pinned-membership test
-`tests/unit/tasks/test_exec_bits.py:288-292`. A test *runner* is an entrypoint by
-the rule in `tasks/README.md`, so no registry or pinned-list edit is needed for
-the new suite.
+The hook itself is an entrypoint and must **not** be added to `SHELL_LIBRARIES`
+(`tasks/lint/scripts.py:18-49`) — that would trip the `chmod -x` branch
+(`:128-129`) and break the pinned-membership test
+`tests/unit/tasks/test_exec_bits.py:288-292`. Only one new `.sh` file lands now
+that the suite is Python.
 
 #### 5. Documentation
 
@@ -2413,38 +2427,52 @@ the mechanism by which any of this reaches users.
 
 #### Automated Verification
 
-- [ ] The hook suite passes: `bash hooks/test-launcher-link-refresh.sh`
-- [ ] Hooks integration tests pass, including the new floor:
-      `mise run test:integration:hooks`
-- [ ] The floor's own guard passes:
-      `uv run pytest tests/unit/tasks/test_integration.py -v`
-- [ ] The existing hook suites still pass — in particular the
+- [x] The hook suite passes: `uv run pytest tests/integration/hooks`
+      *(22 tests, 0.5s — ported from the 62-assertion bash draft)*
+- [x] Hooks integration tests pass, including the new floor:
+      `mise run test:integration:hooks` *(all three suites discovered and green)*
+- [x] The floor's own guard passes:
+      `uv run pytest tests/unit/tasks/test_integration.py -v` *(17 passed)*
+- [x] The existing hook suites still pass — in particular the
       `SessionStart[0]` index assertion: `bash hooks/test-vcs-detect.sh`
-- [ ] `hooks.json` is valid and registers the hook, selected by content:
+      *(131 passed; the new group was appended at index 3)*
+- [x] `hooks.json` is valid and registers the hook, selected by content:
       `jq -e '[.hooks.SessionStart[].hooks[].command] | any(endswith("launcher-link-refresh.sh"))' hooks/hooks.json`
-- [ ] The exec-bit invariant holds: `mise run lint:scripts:check` and
-      `uv run pytest tests/unit/tasks/test_exec_bits.py -v`
-- [ ] `docs/internals.md` carries the section:
+- [x] The exec-bit invariant holds: `mise run lint:scripts:check` and
+      `uv run pytest tests/unit/tasks/test_exec_bits.py -v` *(17 passed)*
+- [x] `docs/internals.md` carries the section:
       `grep -q '^## Terminal Invocation' docs/internals.md`
-- [ ] No stale wrapper name remains:
+- [x] No stale wrapper name remains:
       `! grep -q 'accelerator-visualiser' docs/visualiser.md`
-- [ ] The competing recipe is gone:
+- [x] The competing recipe is gone:
       `! grep -q 'CLAUDE_PLUGIN_ROOT}/bin/accelerator" "\$HOME/.local/bin' skills/visualisation/visualise/SKILL.md`
-- [ ] No ad-hoc symlink advice survives in the visualiser docs:
+- [x] No ad-hoc symlink advice survives in the visualiser docs:
       `! grep -q 'symlink onto' docs/visualiser.md`
-- [ ] The documented recipe carries no unexpanded token:
+- [x] The documented recipe carries no unexpanded token:
       `! grep -q 'CLAUDE_PLUGIN_DATA}/bin/accelerator' docs/internals.md`
-- [ ] `README.md` links to it and the gloss names the new section
-- [ ] The hook emits **at most one** JSON object on stdout, asserted by the
+- [x] `README.md` links to it and the gloss names the new section
+- [x] The hook emits **at most one** JSON object on stdout, asserted by the
       both-notices-at-once case
-- [ ] With `jq` shadowed off `PATH`, the notices degrade to stderr and the hook
-      still exits 0
-- [ ] The hook reads no root from the environment:
-      `! grep -q 'CLAUDE_PLUGIN_ROOT' hooks/launcher-link-refresh.sh`
-- [ ] A re-point is reported naming both roots, and a first refresh is silent
-- [ ] `mise run check` exits 0
+- [x] With `jq` shadowed off `PATH`, the notices degrade to stderr and the hook
+      still exits 0. **Shadowed, not stripped**: macOS 15 ships `/usr/bin/jq`,
+      so dropping every directory holding a `jq` also removes `dirname`,
+      `mkdir` and `ln`, and the hook fails for an unrelated reason well before
+      the jq fallback. The case prepends a `jq` stub that exits 127 instead.
+- [x] The hook reads no root from the environment:
+      `! grep -q 'CLAUDE_PLUGIN_ROOT' hooks/launcher-link-refresh.sh` — which
+      also constrains the *header comment*: the divergence note is worded
+      without naming the variable so the bare grep stays a usable guard.
+- [x] A re-point is reported naming both roots, and a first refresh is silent
+- [x] `mise run check` exits 0
 
 #### Manual Verification
+
+All five need the hook running from an **installed** plugin, so they are
+**deferred to the release candidate** — the installed plugin is `1.24.0-pre.16`,
+which predates this hook, and Claude Code invokes `hooks.json` from the
+installation rather than the working tree. The hermetic equivalents are the 62
+suite assertions; what these add is the real `SessionStart` path and a real
+upgrade.
 
 - [ ] In a real session, the hook fires at `SessionStart` and
       `${CLAUDE_PLUGIN_DATA}/bin/accelerator` resolves to the current
@@ -2458,6 +2486,67 @@ the mechanism by which any of this reaches users.
 - [ ] Removing the plugin leaves the dangling *plugin-owned* link inside
       `${CLAUDE_PLUGIN_DATA}`; the user's own first hop is theirs to remove, as
       the documentation now says
+
+### Implementation notes
+
+**The suite is Python, not bash.** ADR-0048 makes Python the test language for
+the non-Rust surfaces, shell wrappers included; the plan drafted a
+`hooks/test-*.sh` harness by analogy with `test-migrate-discoverability.sh` and
+`test-vcs-detect.sh`, which predate that decision. Ported to
+`tests/integration/hooks/test_launcher_link_refresh.py`: 22 tests in 0.5s,
+against 62 assertions in the bash draft. Consequences:
+
+- **Most of the "tool constraints" paragraph evaporates.** `find -printf` versus
+  BSD `find`, `stat -c` versus `stat -f`, `ls -ld | cut -c1-10` to dodge macOS's
+  xattr column, `LC_ALL=C sort` for stable tree listings, `readlink 2>/dev/null`
+  for GNU's non-symlink diagnostic — every one of those exists because bash has
+  no portable primitive. `os.lstat`, `Path.readlink` and `sorted()` behave the
+  same on both legs. What survives is the constraint that *matters*: the fixture
+  root is resolved physically because the hook uses `pwd -P`, while
+  `CLAUDE_PLUGIN_DATA` is never canonicalised because the hook composes it
+  verbatim.
+- **Scrubbing becomes construction.** `run_hook`'s `env -u …` list existed
+  because a bash suite inherits the ambient environment. `subprocess.run` takes
+  an explicit `env` dict, so the leak is impossible by default rather than
+  guarded against.
+- **The channel split is asserted more precisely.** `jq -r '.systemMessage'`
+  becomes `json.loads`, and the exactly-one-JSON-object case counts objects with
+  `raw_decode` rather than trusting `jq -s 'length'`.
+- **`hooks/` now has two test languages, so its mise task runs both** — the
+  pytest directory and the two remaining bash harnesses.
+- **The floor's by-name requirement lapses**, and
+  `tests/unit/tasks/test_integration.py` has to stub `Context.run`: the `hooks`
+  task shells out to pytest before its floor check, and invoke's `@task` rejects
+  a stand-in Context, so without the stub the floor unit tests would run the
+  whole hooks suite twice.
+- **The stale-staging case is unchanged in substance**, and worth re-noting: it
+  still goes through a wrapper that `exec`s the hook, because the staging path
+  carries the hook child's pid and no language makes that knowable in advance.
+
+Four further things the plan did not anticipate, each settled by measurement:
+
+- **Fixture roots must be returned as *physical* paths.** The plan's tool
+  constraints say neither the hook nor the suite may canonicalise "the paths it
+  is handed", which is right for `CLAUDE_PLUGIN_DATA` — the hook composes that
+  verbatim — but wrong for the fixture *root*: the hook resolves its own root
+  with `pwd -P`, so on macOS it reports `/private/var/folders/…` against a
+  `mktemp -d` of `/var/folders/…` and every `readlink` comparison fails on that
+  leg. `make_root` therefore returns `cd -P … && pwd -P`, deriving the expected
+  value the same way the hook derives the actual one. Three cases were red
+  before this.
+- **The jq-absent case shadows rather than strips.** See the criterion above.
+- **The hook's header comment cannot name `CLAUDE_PLUGIN_ROOT`.** The plan asks
+  the hook to record *why* it self-locates rather than reading the variable, and
+  separately asserts `! grep -q 'CLAUDE_PLUGIN_ROOT'` over the file. Both are
+  satisfiable only if the note is worded without the literal, which it now is.
+- **Two shellcheck findings are the plan's own deliberate choices**, so both
+  carry justified disables: `SC2174` (`-m` with `-p` applies only to the deepest
+  directory — exactly the intent, since `${CLAUDE_PLUGIN_DATA}` itself is Claude
+  Code's to own) and `SC2012` (`ls -ld | cut` is the only portable mode read once
+  `stat` is banned for the GNU/BSD flag split and BSD `find` has no `-printf`).
+
+The plan's optional deferral is taken: `decisions` and `github` gained floors
+alongside `hooks`, since the extracted helper made each one line.
 
 ---
 
