@@ -181,6 +181,11 @@ description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisi
 depends = ["deps:install:python"]
 run = "invoke test.integration.entrypoint"
 
+[tasks."test:integration:skill-invocation"]
+description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
+depends = ["deps:install:python"]
+run = "invoke test.integration.skill-invocation"
+
 [tasks."test:integration:config"]
 description = "Run config integration tests"
 depends = ["build:cli:dev"]
@@ -231,6 +236,7 @@ depends = [
     "test:integration:visualiser",
     "test:integration:dev",
     "test:integration:entrypoint",
+    "test:integration:skill-invocation",
     "test:integration:config",
     "test:integration:deny",
     "test:integration:decisions",

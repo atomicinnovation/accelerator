@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-29T00:00:00+00:00"
+last_updated: "2026-07-29T10:34:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -276,11 +276,11 @@ rename:
 | **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | **done** 2026-07-29 |
 | 2 | The `CLAUDE_*` boundary guard | after 1b | **done** 2026-07-29 |
 | 3 | Terminal invocation surface | after 1a | **done** 2026-07-29 |
-| 4 | `!`-site conformance suite | after 1a | not started |
+| 4 | `!`-site conformance suite | after 1a | **done** 2026-07-29 |
 | 5 | Named error for a missing plugin root | after 1b | not started |
 
-**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b, 2 and 3 are implemented,
-verified and committed. Phase 4 is next in the merge order. Thirteen commits
+**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b, 2, 3 and 4 are implemented,
+verified and committed. Phase 5 and the closing step remain. Fifteen commits
 carry the work:
 
 | Commit | Content |
@@ -298,6 +298,8 @@ carry the work:
 | `Keep a terminal-reachable link to the current launcher` | 3 commit 1 |
 | `Give every shell-suite subtree a discovery floor` | 3 commit 2 |
 | `Document running the accelerator CLI from a terminal` | 3 commit 3 |
+| `Extract the fixture-installation apparatus for reuse` | 4 commit 1 |
+| `Run every skill's config commands in the production shape` | 4 commit 2 |
 
 Two things a later phase inherits:
 
@@ -1668,7 +1670,7 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
 - [x] The leaf is pinned into `cli:check.depends`:
       `uv run pytest tests/unit/tasks/test_mise.py -v` *(21 passed)*
 - [x] `mise run cli:check` exits 0
-- [ ] The purge holds over **non-`meta/`** tracked files —
+- [x] The purge holds over **non-`meta/`** tracked files —
       `grep -rl 'CLAUDE_PLUGIN_ROOT'` honouring `.gitignore` and excluding
       `meta/` returns only `hooks/**`, `scripts/interactive-harness.sh`,
       `scripts/test-design.sh`, `skills/config/migrate/**`, migrations
@@ -1686,12 +1688,19 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
       rather than coupling. Derive the list by running the grep rather than by
       enumeration, so it cannot drift from what the tree actually contains.
 
-      **Measured: 86 files, every one in the permitted set.** Two notes on the
-      list as written. `tests/integration/skill-invocation/test_skill_invocation_conformance.py`
-      does not exist yet — Phase 4 adds it. And the `hooks/**` entry covers four
-      more files than the list implies (`hooks.json`, the two hook suites and
-      `hooks/test-fixtures/vcs-detect/regenerate.sh`), which is why the criterion
-      says to derive the list rather than enumerate it.
+      **Measured at Phase 2: 86 files. Re-measured after Phases 3 and 4: 87,
+      every one in the permitted set.** Three corrections to the list as
+      written. The `hooks/**` entry covers four more files than it implies
+      (`hooks.json`, the two bash harnesses and
+      `hooks/test-fixtures/vcs-detect/regenerate.sh`). Phase 3 adds one file
+      outside that prefix —
+      `tests/integration/hooks/test_launcher_link_refresh.py`, which must name
+      the variable in order to assert the hook does *not* — and that is the only
+      addition between the two measurements. And of the "three files this work
+      adds that must name what they forbid or strip", only **two** do:
+      `tests/integration/skill-invocation/test_skill_invocation_conformance.py`
+      never names the variable, because Phase 4 promoted `PLUGIN_PREFIX` to
+      public and imports it rather than carrying a third literal copy.
 - [x] `mise run check` exits 0
 
 #### Manual Verification
@@ -2552,6 +2561,8 @@ alongside `hooks`, since the extracted helper made each one line.
 
 ## Phase 4: `!`-Site Conformance Suite
 
+> **Done 2026-07-29.** Two commits: the harness extraction, then the suite.
+
 ### Overview
 
 Prove that every `bin/accelerator config *` command the skills actually invoke
@@ -2753,30 +2764,92 @@ step and `workspaces: cli` cargo caching.
 
 #### Automated Verification
 
-- [ ] The suite passes:
-      `uv run pytest tests/integration/skill-invocation -v`
-- [ ] The structural corpus invariants hold — every SKILL.md with a `config` `!`
+- [x] The suite passes:
+      `uv run pytest tests/integration/skill-invocation -v` *(128 passed in 80s;
+      122 command cases + 6 corpus invariants)*
+- [x] The structural corpus invariants hold — every SKILL.md with a `config` `!`
       site contributes a command, the `instructions`/`context` counts equal
-      `EXPECTED_INJECTION_SKILLS`, and the declined set is empty
-- [ ] The suite is hermetic — it performs no live fetch, serving the launcher from
-      the stub release server only
-- [ ] `mise run test:integration:skill-invocation` exits 0
-- [ ] The leaf is reachable from the roll-up CI runs, and the build edge is
-      asserted: `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run test:integration` runs it (not just the leaf directly)
-- [ ] `mise run check` exits 0
+      `EXPECTED_INJECTION_SKILLS`, and the declined set is empty. A fourth
+      invariant was added: every skill *named* by an `instructions`/`context`
+      command must exist. The fixture derives its overrides from the corpus, so
+      without it a `!` site naming a nonexistent skill would have an override
+      helpfully created for it and pass — and neither the permissions census nor
+      the count checks would notice, since both count skills carrying an
+      injection rather than whether the name resolves.
+- [x] The suite is hermetic — it performs no live fetch, serving the launcher from
+      the stub release server only (enforced by `run_bootstrap`'s preconditions,
+      plus the session-scoped `bin/` guard)
+- [x] `mise run test:integration:skill-invocation` exits 0
+- [x] The leaf is reachable from the roll-up CI runs, and the build edge is
+      asserted: `uv run pytest tests/unit/tasks/test_mise.py -v` *(23 passed)*
+- [x] `mise run test:integration` runs it (not just the leaf directly)
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Adding a new `!` site with a broken `config` command to any SKILL.md turns
-      the suite red
-- [ ] Adding a `!` site to a *new* SKILL.md that the scan fails to pick up turns
-      the suite red via the per-file invariant
-- [ ] Changing this repository's own `.accelerator/config.md` does **not** change
-      the suite's result — the fixture project is the only oracle
-- [ ] Deleting the fixture's instructions override for one skill turns exactly one
+- [x] Adding a new `!` site with a broken `config` command to any SKILL.md turns
+      the suite red. **Confirmed**: a `config template no-such-template
+      --fail-safe` site appended to `create-note` failed as its own case.
+- [x] Adding a `!` site to a *new* SKILL.md that the scan fails to pick up turns
+      the suite red via the per-file invariant. **Confirmed** with a real new
+      `skills/zzz-probe/SKILL.md` and the extractor's walk narrowed to skip it:
+      only `test_every_skill_with_a_config_site_contributes_a_command` fired.
+- [x] Changing this repository's own `.accelerator/config.md` does **not** change
+      the suite's result — the fixture project is the only oracle. **Confirmed**:
+      with `paths.work`, `paths.plans` and `agents.reviewer` all rewritten in the
+      repo config, all 128 still pass.
+- [x] Deleting the fixture's instructions override for one skill turns exactly one
       assertion red, confirming the 86 are content-discriminating rather than
-      empty-tolerant
+      empty-tolerant. **Confirmed, with a count correction**: dropping the
+      `commit` override reddens *two* cases, not one — `instructions commit` and
+      `context --skill commit`. Each configured skill contributes one command to
+      each family, so two is the correct blast radius.
+
+### Implementation notes
+
+Seven departures from the section above, each measured.
+
+- **The support extraction was not a Phase 1a deliverable after all.** Phase 1a
+  shipped with the apparatus still module-private in the entrypoint suite, so
+  this phase does the extraction itself — commit 1, with the entrypoint suite
+  refactored onto it and still 46 green.
+- **The fixture project is generated per run, not committed.** The section asks
+  for both ("the only committed fixture" *and* "generate the config file and the
+  expectations from one fixture data structure"). Generation wins: a committed
+  tree of ~84 override files would need hand-maintenance on every skill rename,
+  which is precisely the drift the single-sourcing exists to prevent. The cost
+  is that the fixture is derived from the thing under test, which is why
+  `test_every_named_skill_exists` was added — see the criterion above.
+- **The corpus module lives in `tests/integration/support/`.** A module inside
+  `tests/integration/skill-invocation/` is not importable: the directory name is
+  hyphenated. The suite directory keeps the hyphen (matching the task name); only
+  the importable module moves.
+- **The leaf gets no `build:cli:dev` edge, and goes in `_NO_LAUNCHER_NEEDED`.**
+  The section says to add both, but the suite builds the launcher in-fixture
+  through the shared `build_launcher` — which exists so a suite runs standalone —
+  and Phase 1a's own note says a build edge would then contend on cargo's target
+  lock while making the assertion inert. The two halves of the plan contradict
+  each other here; the Phase 1a reasoning is the one with a mechanism behind it.
+- **The family table's counts are off in three places.** Measured: 13 distinct
+  `template <name>` commands (19 occurrences), not 20; there is **no**
+  `templates list` command in the corpus at all; and there is a
+  `config agent <name>` family the table omits. The totals the section states —
+  204 commands, 122 distinct, 45 files, 42 injection skills each way — are all
+  exact.
+- **Every one of the 122 distinct commands renders non-empty stdout** against the
+  fixture, which is better than the section predicts. So no family needs an
+  empty-tolerant assertion: the per-skill 86 are exact content matches and
+  everything else is asserted non-empty.
+- **The suite does not name `CLAUDE_PLUGIN_ROOT`.** Phase 2's residue criterion
+  lists it among the files that "must name what they forbid or strip". It does
+  not need to: promoting `skill_permissions._PLUGIN_PREFIX` to a public
+  `PLUGIN_PREFIX` — which the section calls for anyway, to avoid a third literal
+  copy — means the substitution reads the constant instead. Phase 2's criterion
+  is corrected accordingly.
+- **One bootstrap invocation per command, not two.** The section implies separate
+  exit-code and stdout tests; merging them halves 244 subprocess runs to 122
+  (~80s for the suite). Cases are parametrised over *distinct* commands — the 204
+  occurrences carry 122 distinct texts, and a duplicate exercises nothing new.
 
 ---
 

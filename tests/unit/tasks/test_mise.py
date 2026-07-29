@@ -44,6 +44,7 @@ _LAUNCHER_DEPENDENTS = [
 # reason. Every test:integration:* task must appear in exactly one of the two.
 _NO_LAUNCHER_NEEDED = {
     "test:integration:entrypoint": "builds it in-fixture, mirroring shim_bin",
+    "test:integration:skill-invocation": "builds it in-fixture, same harness",
     "test:integration:tasks": "pytest over the invoke task modules",
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",
@@ -108,3 +109,19 @@ def test_every_integration_task_declares_its_launcher_need(mise):
 
 def test_the_two_launcher_sets_are_disjoint():
     assert not set(_LAUNCHER_DEPENDENTS) & set(_NO_LAUNCHER_NEEDED)
+
+
+# test:integration.depends is curated rather than derived, so membership is an
+# explicit decision — and an omission means a whole suite ships green and never
+# runs. Each exclusion carries its reason.
+_NOT_IN_INTEGRATION_ROLLUP = {
+    "test:integration:pup": "needs the isolated nightly toolchain lane",
+}
+
+
+def test_every_integration_task_is_in_the_rollup_or_excluded_with_a_reason(
+    mise,
+):
+    rollup = set(_task_depends(mise, "test:integration"))
+    assert rollup | set(_NOT_IN_INTEGRATION_ROLLUP) == _integration_tasks(mise)
+    assert not rollup & set(_NOT_IN_INTEGRATION_ROLLUP)

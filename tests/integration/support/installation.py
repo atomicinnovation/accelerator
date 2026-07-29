@@ -257,6 +257,7 @@ def make_installation(
     label: str = "self",
     secret: str = "release",
     launcher_source: Path | None = None,
+    templates: Path | None = None,
 ) -> Installation:
     """Build a plugin root plus its stub release server.
 
@@ -267,11 +268,18 @@ def make_installation(
     `label` names the root in its own `templates/adr.md` sentinel, so a caller
     with two roots proves which one resolved from stdout rather than from
     construction order.
+
+    `templates` copies a whole template tree in first, for callers that need
+    the plugin-default tier to resolve by name. The sentinel `adr.md` is
+    written afterwards either way, so it always wins.
     """
     (root / ".claude-plugin").mkdir(parents=True)
     (root / "keys").mkdir()
     (root / "bin").mkdir()
-    (root / "templates").mkdir()
+    if templates is None:
+        (root / "templates").mkdir()
+    else:
+        shutil.copytree(templates, root / "templates")
     (root / ".claude-plugin/plugin.json").write_text(
         f'{{\n  "name": "accelerator",\n  "version": "{VERSION}"\n}}\n'
     )

@@ -114,6 +114,12 @@ def entrypoint(context: Context) -> None:
 
 
 @task
+def skill_invocation(context: Context) -> None:
+    """Run every SKILL.md `!`-site config command in the production shape."""
+    context.run("uv run pytest tests/integration/skill-invocation -v")
+
+
+@task
 def deny(context: Context) -> None:
     """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""
     context.run("uv run pytest tests/integration/deny -v")
