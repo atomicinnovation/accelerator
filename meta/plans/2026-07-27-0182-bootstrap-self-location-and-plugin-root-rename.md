@@ -2855,6 +2855,11 @@ Seven departures from the section above, each measured.
 
 ## Phase 5: A Missing Plugin Root Becomes a Named Error
 
+> **Done 2026-07-29.** One commit. All implementation phases are now complete;
+> what remains in this plan is the closing `mise.local.toml` step and the manual
+> criteria deferred to the release candidate (Phase 1a's published-release check
+> and Phase 3's five installed-hook checks).
+
 ### Overview
 
 Remove the design flaw the rename does not fix. `plugin_root()` returns
