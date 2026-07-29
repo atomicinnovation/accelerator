@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-29T10:34:58+00:00"
+last_updated: "2026-07-29T13:40:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -88,10 +88,12 @@ one `!` site that exercises it is
 `ACCELERATOR_BIN`, so the one configuration that matters in production — correct
 path, empty environment — is never exercised. Two tests actively assert the
 faulty behaviour. No test invokes the bootstrap through a symlink.
-`mise.local.toml` — present only in the jj working-copy commit, on no pushed
-branch — sets the variable and masks the whole bug class in every local run,
-while simultaneously being the only reason the installed plugin's skills work in
-this repository at all.
+`mise.local.toml` — on no pushed branch — sets the variable and masks the whole
+bug class in every local run, while simultaneously being the only reason the
+installed plugin's skills work in this repository at all. (It was in the jj
+working-copy commit when this was written; it is now untracked, since
+`.gitignore` gained the entry the closing step calls for, so only the on-disk
+file remains.)
 
 ## Desired End State
 
@@ -277,11 +279,14 @@ rename:
 | 2 | The `CLAUDE_*` boundary guard | after 1b | **done** 2026-07-29 |
 | 3 | Terminal invocation surface | after 1a | **done** 2026-07-29 |
 | 4 | `!`-site conformance suite | after 1a | **done** 2026-07-29 |
-| 5 | Named error for a missing plugin root | after 1b | not started |
+| 5 | Named error for a missing plugin root | after 1b | **done** 2026-07-29 |
 
-**Progress — 2026-07-29.** Phases 0, 1a, 1c, 1b, 2, 3 and 4 are implemented,
-verified and committed. Phase 5 and the closing step remain. Fifteen commits
-carry the work:
+**Progress — 2026-07-29.** All eight phases — 0, 1a, 1c, 1b, 2, 3, 4 and 5 — are
+implemented, verified and committed. Only the closing step remains, and it waits
+on a precondition outside this plan (a prerelease carrying the Phase 1a fix
+installed and in use), along with the manual criteria deferred to the release
+candidate: Phase 1a's published-release check and Phase 3's five installed-hook
+checks. Sixteen commits carry the work:
 
 | Commit | Content |
 |---|---|
@@ -300,6 +305,7 @@ carry the work:
 | `Document running the accelerator CLI from a terminal` | 3 commit 3 |
 | `Extract the fixture-installation apparatus for reuse` | 4 commit 1 |
 | `Run every skill's config commands in the production shape` | 4 commit 2 |
+| `Refuse rather than answer empty when the plugin root is unknown` | Phase 5 |
 
 Two things a later phase inherits:
 
@@ -1184,9 +1190,14 @@ dev harness and the shell suites, so `mise run` would go red between them.
 #### 1. The launcher and server readers
 
 **Files**:
-- `cli/launcher/src/main.rs:173,176` — the doc comment and `var_os`. Add the
-  empty-string filter `cache_root.rs:27` already has, so an empty value does not
-  become `Some("")`.
+- `cli/launcher/src/main.rs:173,176` — the doc comment and `var_os`. An empty
+  value must not become `Some("")`, as the filter at `cache_root.rs:27` already
+  ensures for its own read. *Landed one layer down instead:
+  `FileConfigStore::with_plugin_root` (`cli/config-adapters/src/store.rs:65-69`)
+  drops an empty value, so the launcher and the visualiser server inherit the
+  rule from one place rather than each carrying a filter — `main.rs`'s `var_os`
+  is deliberately left unfiltered and its doc comment says so. Recorded in Phase
+  5's implementation notes, which also covers the server half.*
 - `cli/launcher/src/launch/outbound/resolve/cache_root.rs:3,26,38,60` — module
   doc, `var_os`, error doc, and the `CacheRootUnavailable` detail text.
 - `cli/visualiser/server/src/main.rs:69,70` — the let-else and its `eprintln!`.
@@ -1598,6 +1609,14 @@ the mandatory `depends = ["deps:install:python"]`, added to `cli:check.depends`
 `cli/`-scoped guard reachable from the bare `default` task, establishing a third
 pattern. (Closing that default-task blind spot for all three guards together is
 worth doing, but as its own change.)
+
+*Superseded 2026-07-29, at validation.* Validation measured what "as its own
+change" cost in the meantime: the bare `default` task depends on `lint:check` and
+never on `check`, so **none** of the three guards ran in a full local `mise run`
+— a `CLAUDE_*` reintroduction in the rename set was green locally and caught only
+by CI's separate `cli:check` step. All three are now in `lint:check.depends`
+*and* `cli:check.depends`, together rather than one at a time, so no third
+pattern is established. `test_mise.py`'s `_CLI_CHECK_GATES` pins both placements.
 
 **File**: `tasks/README.md`
 **Changes**: The per-component table describes `cli:check` as "format + lint
@@ -3370,21 +3389,22 @@ not touch — but it means the local masking ends at 1b, not 1a.
 **File**: `mise.local.toml`
 **Changes**: Delete, and confirm it is absent from the working-copy commit.
 
-The per-push hazard is already largely handled by mechanism rather than ritual:
-`.gitignore:26` lists `mise.local.toml`. That entry is **new in the current
-working copy** (`jj diff .gitignore` shows it as an addition), not pre-existing, so
-it is part of this work and should land with it. With it in place the file cannot
-be accidentally `git add`ed, and jj will not auto-snapshot it unless force-tracked
-— which is also the explanation for the otherwise-odd situation of a gitignored
-file being present in the working-copy commit.
+The per-push hazard is already handled by mechanism rather than ritual:
+`.gitignore:26` lists `mise.local.toml`. That entry was **new in the working copy**
+when this was written, not pre-existing, so it is part of this work — and it has
+since landed. With it in place the file cannot be accidentally `git add`ed, and
+jj no longer snapshots it: it is now untracked rather than sitting in the
+working-copy commit, so the only thing deletion still removes is the on-disk file
+feeding the installed plugin's bootstrap.
 
 ### Success Criteria
 
 #### Automated Verification
 
 - [ ] The file is gone: `test ! -e mise.local.toml`
-- [ ] The ignore entry landed: `grep -qx 'mise.local.toml' .gitignore`
-- [ ] It is on no branch that can reach CI:
+- [x] The ignore entry landed: `grep -qx 'mise.local.toml' .gitignore` —
+      `.gitignore:26`, and the file is untracked as a result
+- [x] It is on no branch that can reach CI:
       `! git cat-file -e main:mise.local.toml 2>/dev/null`
 - [ ] The shell suites still pass with no ambient root:
       `mise run test:integration:work test:integration:config`
