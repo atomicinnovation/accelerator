@@ -40,6 +40,43 @@ _REQUIRED_CONFIG_SUITES = (
     "scripts/test-validate-corpus-frontmatter.sh",
 )
 
+# The three previously-unguarded subtrees, each at its current size. hooks/
+# holds only the two bash harnesses that predate ADR-0048; the link-refresh
+# suite is pytest, where a lost file is a collection error rather than a
+# silently smaller run, so no by-name entry is needed.
+_EXPECTED_HOOKS_SUITES = 2
+_EXPECTED_DECISIONS_SUITES = 1
+_EXPECTED_GITHUB_SUITES = 3
+
+
+def _require_suite_floor(
+    suites: list[str],
+    floor: int,
+    required: tuple[str, ...],
+    subject: str,
+) -> None:
+    """Fail loudly when discovery shrinks below its floor or loses a gate.
+
+    An exec bit dropped on an exec-bit-lossy filesystem, or a suite renamed off
+    the ``test-*.sh`` convention, otherwise removes a regression net from CI
+    while every task still exits 0.
+    """
+    if len(suites) < floor:
+        raise Exit(
+            f"Expected at least {floor} {subject} shell suites, found "
+            f"{len(suites)}: {suites}. An exec bit may have been dropped — a "
+            f"regression suite is missing from CI.",
+            code=1,
+        )
+    missing = [s for s in required if s not in suites]
+    if missing:
+        raise Exit(
+            f"Required {subject} shell suite(s) not discovered by name: "
+            f"{missing} (found {suites}). A gate may have lost its exec bit or "
+            f"been renamed off the test-*.sh convention.",
+            code=1,
+        )
+
 
 @task
 def visualiser(context: Context) -> None:
@@ -77,6 +114,12 @@ def entrypoint(context: Context) -> None:
 
 
 @task
+def skill_invocation(context: Context) -> None:
+    """Run every SKILL.md `!`-site config command in the production shape."""
+    context.run("uv run pytest tests/integration/skill-invocation -v")
+
+
+@task
 def deny(context: Context) -> None:
     """cargo-deny native-tls/OpenSSL ban regression (offline fixtures)."""
     context.run("uv run pytest tests/integration/deny -v")
@@ -92,66 +135,51 @@ def pup(context: Context) -> None:
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
     suites = run_shell_suites(context, "scripts", accelerator_env())
-    if len(suites) < _EXPECTED_CONFIG_SUITES:
-        raise Exit(
-            f"Expected at least {_EXPECTED_CONFIG_SUITES} config shell "
-            f"suites, found {len(suites)}: {suites}. An exec bit may have "
-            f"been dropped — a fail-closed gate (e.g. the corpus validator) is "
-            f"missing from CI.",
-            code=1,
-        )
-    missing = [s for s in _REQUIRED_CONFIG_SUITES if s not in suites]
-    if missing:
-        raise Exit(
-            f"Required config shell suite(s) not discovered by name: {missing} "
-            f"(found {suites}). A fail-closed gate may have lost its exec bit "
-            f"or been renamed off the test-*.sh convention.",
-            code=1,
-        )
+    _require_suite_floor(
+        suites, _EXPECTED_CONFIG_SUITES, _REQUIRED_CONFIG_SUITES, "config"
+    )
 
 
 @task
 def decisions(context: Context) -> None:
     """Integration tests for the decisions skill scripts."""
-    run_shell_suites(context, "skills/decisions", accelerator_env())
+    suites = run_shell_suites(context, "skills/decisions", accelerator_env())
+    _require_suite_floor(suites, _EXPECTED_DECISIONS_SUITES, (), "decisions")
 
 
 @task
 def hooks(context: Context) -> None:
-    """Integration tests for the hooks/ subtree."""
-    run_shell_suites(context, "hooks")
+    """Integration tests for the hooks/ subtree.
+
+    Two halves: the pytest suites (ADR-0048 — Python is the test language for
+    the non-Rust surfaces) and the two bash harnesses that predate it.
+    """
+    context.run("uv run pytest tests/integration/hooks -v")
+    suites = run_shell_suites(context, "hooks")
+    _require_suite_floor(suites, _EXPECTED_HOOKS_SUITES, (), "hooks")
 
 
 @task
 def github(context: Context) -> None:
     """Integration tests for the github skills (shell harnesses)."""
-    run_shell_suites(context, "skills/github")
+    suites = run_shell_suites(context, "skills/github")
+    _require_suite_floor(suites, _EXPECTED_GITHUB_SUITES, (), "github")
 
 
 @task
 def work(context: Context) -> None:
     """Integration tests for the work-management skill scripts."""
     suites = run_shell_suites(context, "skills/work", accelerator_env())
-    if len(suites) < _EXPECTED_WORK_SUITES:
-        raise Exit(
-            f"Expected at least {_EXPECTED_WORK_SUITES} work shell suites, "
-            f"found {len(suites)}: {suites}. An exec bit may have been "
-            f"dropped — a work-management regression suite is missing from CI.",
-            code=1,
-        )
+    _require_suite_floor(suites, _EXPECTED_WORK_SUITES, (), "work")
 
 
 @task
 def integrations(context: Context) -> None:
     """Integration tests for the jira/linear integration scripts."""
     suites = run_shell_suites(context, "skills/integrations", accelerator_env())
-    if len(suites) < _EXPECTED_INTEGRATIONS_SUITES:
-        raise Exit(
-            f"Expected at least {_EXPECTED_INTEGRATIONS_SUITES} integration "
-            f"shell suites, found {len(suites)}: {suites}. An exec bit may "
-            f"have been dropped — a create/auth suite is missing from CI.",
-            code=1,
-        )
+    _require_suite_floor(
+        suites, _EXPECTED_INTEGRATIONS_SUITES, (), "integrations"
+    )
 
 
 @task
@@ -160,10 +188,4 @@ def migrate(context: Context) -> None:
     suites = run_shell_suites(
         context, "skills/config/migrate", accelerator_env()
     )
-    if len(suites) < _EXPECTED_MIGRATE_SUITES:
-        raise Exit(
-            f"Expected at least {_EXPECTED_MIGRATE_SUITES} migrate shell "
-            f"suites, found {len(suites)}: {suites}. An exec bit may have "
-            f"been dropped — the migrate regression net is incomplete.",
-            code=1,
-        )
+    _require_suite_floor(suites, _EXPECTED_MIGRATE_SUITES, (), "migrate")

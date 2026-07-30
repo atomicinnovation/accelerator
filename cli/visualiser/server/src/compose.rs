@@ -154,7 +154,7 @@ fn resolve_templates(
     let user_root = safe_dir(project_root, templates_rel, "paths.templates")?;
     let plugin_templates = plugin_root.join("templates");
     let mut map = HashMap::new();
-    for name in store.template_names() {
+    for name in store.template_names()? {
         let res = service
             .effective(&Key::parse(&format!("templates.{name}"))?, None)?;
         let configured =

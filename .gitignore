@@ -15,6 +15,7 @@
 .idea
 .playwright-mcp/
 .pytest_cache/
+.venv/
 __pycache__/
 meta/eval-workspaces/
 cli/target/

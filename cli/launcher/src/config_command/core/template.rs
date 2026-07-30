@@ -40,7 +40,7 @@ pub fn list(
     templates: &dyn ReadTemplate,
 ) -> Result<Vec<ListRow>, ConfigError> {
     let mut rows = Vec::new();
-    for key in templates.template_names() {
+    for key in templates.template_names()? {
         let (source, display_path) = match resolve(config, templates, &key)? {
             Some(resolved) => {
                 (resolved.source.label().to_owned(), resolved.display_path)
@@ -57,9 +57,13 @@ pub fn list(
 }
 
 /// The comma-joined available names, for the not-found diagnostic.
+///
+/// A failed enumeration degrades the hint to empty rather than propagating: the
+/// error it decorates carries the real signal, and constructing an error must
+/// not itself be fallible.
 #[must_use]
 pub fn available(templates: &dyn ReadTemplate) -> String {
-    templates.template_names().join(", ")
+    templates.template_names().unwrap_or_default().join(", ")
 }
 
 /// The comma-joined available names, or `(none found)` when there are none —

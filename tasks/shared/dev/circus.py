@@ -40,9 +40,9 @@ def render_circus_ini(spec: ArbiterSpec) -> str:
 
     The server watcher runs ``serve`` from ``working_dir`` (the project root) so
     the Model-1 server discovers ``.accelerator/`` and reads config directly;
-    ``copy_env`` propagates ``CLAUDE_PLUGIN_ROOT`` (and the resolved PATH so npm
-    finds node) from the arbiter env. ``--owner-pid 0`` disables owner-based
-    auto-shutdown for the dev path.
+    ``copy_env`` propagates ``ACCELERATOR_PLUGIN_ROOT`` (and the resolved PATH
+    so npm finds node) from the arbiter env. ``--owner-pid 0`` disables
+    owner-based auto-shutdown for the dev path.
 
     Logging note (forced by the server binary): the Rust server initialises
     ``tracing`` to its composed log path (``<project>/.accelerator/tmp/

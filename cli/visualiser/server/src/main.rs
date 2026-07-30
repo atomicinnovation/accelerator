@@ -66,8 +66,8 @@ fn resolve_host() -> String {
 }
 
 fn run_serve(owner_pid: i32, owner_start_time: Option<u64>) -> ExitCode {
-    let Some(plugin_root) = std::env::var_os("CLAUDE_PLUGIN_ROOT") else {
-        eprintln!("CLAUDE_PLUGIN_ROOT is not set");
+    let Some(plugin_root) = std::env::var_os("ACCELERATOR_PLUGIN_ROOT") else {
+        eprintln!("ACCELERATOR_PLUGIN_ROOT is not set");
         return ExitCode::from(2);
     };
     let plugin_root = PathBuf::from(plugin_root);

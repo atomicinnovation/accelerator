@@ -6,6 +6,7 @@ floor. It is also one half of the plugin's trust root, which must stay
 byte-identical to what the launcher embeds. These tests pin both.
 """
 
+import re
 from pathlib import Path
 
 from tasks.shared.paths import vendored_shim_path
@@ -18,6 +19,7 @@ _KEY = "keys/accelerator-release.pub"
 _BASHISMS = _REPO_ROOT / "scripts/lint-bashisms.sh"
 _BUILD_RS = _REPO_ROOT / "cli/launcher/build.rs"
 _BOOTSTRAP_SRC = _REPO_ROOT / "bin/accelerator"
+_PLUGIN_ROOT = "ACCELERATOR_PLUGIN_ROOT"
 _LAUNCHER_MAIN = _REPO_ROOT / "cli/launcher/src/main.rs"
 _CACHE_ROOT = (
     _REPO_ROOT / "cli/launcher/src/launch/outbound/resolve/cache_root.rs"
@@ -49,27 +51,29 @@ def test_launcher_and_bootstrap_reference_the_same_committed_key() -> None:
     assert (_REPO_ROOT / _KEY).is_file()
 
 
-def test_bootstrap_exports_the_names_the_launcher_reads() -> None:
+def test_bootstrap_exports_the_one_plugin_root_the_launcher_reads() -> None:
     # A one-sided rename otherwise surfaces as a missing sentinel deep in an
-    # integration suite rather than here, in seconds.
-    bootstrap = _BOOTSTRAP_SRC.read_text()
-    exported = {
-        name
-        for name in ("ACCELERATOR_PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT")
-        if f"export {name}=" in bootstrap
-    }
-    read = set()
-    for source in (_LAUNCHER_MAIN, _CACHE_ROOT):
-        text = source.read_text()
-        read |= {
-            name
-            for name in ("ACCELERATOR_PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT")
-            if f'var_os("{name}")' in text
-        }
-    assert read, "the launcher must read a plugin-root variable"
-    assert read <= exported, (
-        f"read but never exported: {sorted(read - exported)}"
+    # integration suite rather than here, in seconds. Exact equality on both
+    # sides also catches a second, transitional export left behind.
+    exported = set(
+        re.findall(
+            r"^export ([A-Z0-9_]*PLUGIN_ROOT)=",
+            _BOOTSTRAP_SRC.read_text(),
+            re.MULTILINE,
+        )
     )
+    assert exported == {_PLUGIN_ROOT}, (
+        f"the bootstrap exports {sorted(exported)}, not just {_PLUGIN_ROOT}"
+    )
+    for source in (_LAUNCHER_MAIN, _CACHE_ROOT):
+        read = set(
+            re.findall(
+                r'var_os\("([A-Z0-9_]*PLUGIN_ROOT)"\)', source.read_text()
+            )
+        )
+        assert read == {_PLUGIN_ROOT}, (
+            f"{source.name} reads {sorted(read)}, not {_PLUGIN_ROOT}"
+        )
 
 
 def test_the_committed_vendored_shims_are_not_gitignored() -> None:

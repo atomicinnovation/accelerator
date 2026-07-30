@@ -135,7 +135,7 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
     server_info_path = state_dir / "server-info.json"
 
     env = os.environ.copy()
-    env["CLAUDE_PLUGIN_ROOT"] = str(workspace)
+    env["ACCELERATOR_PLUGIN_ROOT"] = str(workspace)
     if opts.get("strip_path"):
         # Only the venv bin (for circusd) — NOT the fake npm's dir. The frontend
         # watcher must still resolve npm via the absolute path rendered into the

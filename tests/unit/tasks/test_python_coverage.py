@@ -20,7 +20,6 @@ The walk is VCS-agnostic (the same gitignore-honouring approach as
 making this guard vacuous/spurious locally.
 """
 
-import os
 import shutil
 import subprocess
 import tomllib
@@ -28,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from tasks.shared.sources import _ignore_spec, repo_root
+from tasks.shared.sources import repo_root, walk_files
 
 REPO = repo_root()
 MOCK_JIRA = "skills/integrations/jira/scripts/test-helpers/mock-jira-server.py"
@@ -69,29 +68,10 @@ def _py_files() -> set[str]:
     """Repo-relative `.py` paths: gitignore-honoured, `.venv` pruned.
 
     Mirrors what ruff/pyrefly discover — ruff excludes `.venv` by default and
-    pyrefly is scoped to `tasks/` via `project-includes`, but `.venv` is not in
-    `.gitignore`, so it is pruned here explicitly alongside the
-    gitignore-matched directories.
+    pyrefly is scoped to `tasks/` via `project-includes`. `.venv` is kept out
+    twice over, by `.gitignore` and by `walk_files`' prune list.
     """
-    spec = _ignore_spec(REPO)
-    out: set[str] = set()
-    for dirpath, dirnames, filenames in os.walk(REPO):
-        rel_dir = Path(dirpath).relative_to(REPO)
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if d != ".venv"
-            and not spec.match_file(
-                f"{d}/" if rel_dir == Path() else f"{rel_dir / d}/"
-            )
-        ]
-        for name in filenames:
-            if not name.endswith(".py"):
-                continue
-            rel = name if rel_dir == Path() else str(rel_dir / name)
-            if not spec.match_file(rel):
-                out.add(rel)
-    return out
+    return {rel for rel in walk_files(REPO) if rel.endswith(".py")}
 
 
 def _tool(name: str) -> str:
@@ -124,6 +104,9 @@ class TestInScopeSet:
         assert MOCK_LINEAR in py
         # workspaces/ is gitignored, so the walk never surfaces it.
         assert not any(p.startswith("workspaces/") for p in py)
+        # .venv holds thousands of vendored .py files; either the gitignore
+        # entry or walk_files' prune alone is enough to keep them out.
+        assert not any(p.startswith(".venv/") for p in py)
         ruff_in_scope = py - {MOCK_JIRA, MOCK_LINEAR}
         assert ruff_in_scope, "ruff in-scope set is empty after excludes"
         assert MOCK_JIRA not in ruff_in_scope

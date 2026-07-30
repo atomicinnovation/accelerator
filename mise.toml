@@ -181,6 +181,11 @@ description = "Run bin/accelerator entry-point tests (stubbed fetch, real minisi
 depends = ["deps:install:python"]
 run = "invoke test.integration.entrypoint"
 
+[tasks."test:integration:skill-invocation"]
+description = "Extract every bin/accelerator config !-site command from skills/**/SKILL.md and run it through the real bootstrap with an empty environment"
+depends = ["deps:install:python"]
+run = "invoke test.integration.skill-invocation"
+
 [tasks."test:integration:config"]
 description = "Run config integration tests"
 depends = ["build:cli:dev"]
@@ -231,6 +236,7 @@ depends = [
     "test:integration:visualiser",
     "test:integration:dev",
     "test:integration:entrypoint",
+    "test:integration:skill-invocation",
     "test:integration:config",
     "test:integration:deny",
     "test:integration:decisions",
@@ -404,9 +410,14 @@ description = "Guard against regressing to the bash config cluster: no SKILL.md 
 depends = ["deps:install:python"]
 run = "invoke lint.call-site-migration.check"
 
+[tasks."lint:claude-coupling:check"]
+description = "Guard the rename set (cli/, bin/accelerator, the dev-env writers) against naming any CLAUDE_* variable"
+depends = ["deps:install:python"]
+run = "invoke lint.claude-coupling.check"
+
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -448,7 +459,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

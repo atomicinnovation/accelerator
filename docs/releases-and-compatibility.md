@@ -28,6 +28,12 @@ marketplace:
 /plugin install accelerator@atomic-innovation
 ```
 
+If you have linked the CLI onto your `$PATH`, re-point your own link at the
+other channel's plugin data directory — it is per-plugin-id, so switching
+channels leaves the old link resolving to the uninstalled channel. The same
+applies when uninstalling entirely: remove your link. See
+[Terminal Invocation](internals.md#terminal-invocation).
+
 ## Claude Code compatibility
 
 This plugin relies on Claude Code's subagent `skills:` preload mechanism

@@ -113,7 +113,6 @@ readonly plugin_root
 unverified_log="${ACCELERATOR_CACHE_DIR:-${plugin_root}/bin}/.accelerator-unverified.log"
 
 export ACCELERATOR_PLUGIN_ROOT="${plugin_root}"
-export CLAUDE_PLUGIN_ROOT="${plugin_root}"
 
 # The case arms must stay in sync with tasks/shared/targets.py (coherence test).
 host_arch="${ACCELERATOR_UNAME_M:-$(uname -m)}"

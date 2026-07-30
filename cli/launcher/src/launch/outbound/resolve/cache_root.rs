@@ -1,6 +1,6 @@
 //! Resolves the runtime cache directory.
 //!
-//! `${CLAUDE_PLUGIN_ROOT}/bin` when writable and exec-capable, else the
+//! `${ACCELERATOR_PLUGIN_ROOT}/bin` when writable and exec-capable, else the
 //! `ACCELERATOR_CACHE_DIR` override, else a named error. No XDG fallback — an
 //! XDG-resident binary would break the plugin-root `allowed-tools` glob match.
 //! Read-only/noexec roots are probed.
@@ -23,7 +23,7 @@ impl CacheRootConfig {
             cache_dir_override: std::env::var_os("ACCELERATOR_CACHE_DIR")
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from),
-            plugin_root: std::env::var_os("CLAUDE_PLUGIN_ROOT")
+            plugin_root: std::env::var_os("ACCELERATOR_PLUGIN_ROOT")
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from),
         }
@@ -35,7 +35,7 @@ impl CacheRootConfig {
 /// # Errors
 ///
 /// [`ResolutionError::CacheRootUnavailable`] when no candidate is usable — an
-/// unset `CLAUDE_PLUGIN_ROOT` with no override, or a candidate failing the
+/// unset `ACCELERATOR_PLUGIN_ROOT` with no override, or a candidate failing the
 /// write+exec probe (with no XDG fallback).
 pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     if let Some(override_dir) = &config.cache_dir_override {
@@ -57,7 +57,7 @@ pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
 
     let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
         ResolutionError::CacheRootUnavailable {
-            detail: "CLAUDE_PLUGIN_ROOT is not set and no \
+            detail: "ACCELERATOR_PLUGIN_ROOT is not set and no \
                      ACCELERATOR_CACHE_DIR override was given"
                 .to_owned(),
         }
@@ -129,9 +129,15 @@ mod tests {
     #[test]
     fn unset_plugin_root_with_no_override_is_a_named_error() {
         let result = resolve(&config());
-        assert!(result.is_err(), "expected a CLAUDE_PLUGIN_ROOT error");
+        assert!(result.is_err(), "expected an ACCELERATOR_PLUGIN_ROOT error");
         if let Err(error) = result {
-            assert!(error.to_string().contains("CLAUDE_PLUGIN_ROOT"));
+            let message = error.to_string();
+            assert!(message.contains("ACCELERATOR_PLUGIN_ROOT"));
+            // Distinguishes this step from the config layer's plugin-root
+            // refusal, which also names the variable.
+            assert!(
+                message.contains("no ACCELERATOR_CACHE_DIR override was given")
+            );
         }
     }
 

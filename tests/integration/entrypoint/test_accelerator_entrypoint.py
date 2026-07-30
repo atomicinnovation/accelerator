@@ -1,238 +1,82 @@
-"""Hermetic tests for the `bin/accelerator` plugin entry point.
-
-Ports the former `scripts/test-accelerator-entrypoint.sh` to Python (ADR-0048:
-Python is the test language for the non-Rust surfaces, shell wrappers included).
-
-The bootstrap is exercised end-to-end with its documented test seams: fetches
-are stubbed via `ACCELERATOR_BOOTSTRAP_DOWNLOADER` (a script that copies from a
-local server dir and logs each requested URL), host detection is forced via the
-injected `ACCELERATOR_UNAME_S`/`_M`, and signatures are *real* minisign
-signatures verified by the *real* `accelerator-verify` shim built from `cli/`.
-
-Every subprocess runs under an explicit, minimal environment (mirroring the
-shell suite's `env -i`) so an ambient variable can't mask a bug. `cargo` and
-`minisign` are mise-provisioned, so a missing tool is a CI provisioning
-regression (fail) rather than a local convenience skip.
-"""
-
 import concurrent.futures
-import contextlib
 import hashlib
-import json
 import os
 import platform
 import shutil
 import subprocess
-import tempfile
-import urllib.parse
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
+from tests.integration.support.installation import (
+    BASH as _BASH,
+)
+from tests.integration.support.installation import (
+    LAUNCHER_STUB_SRC as _LAUNCHER_SRC,
+)
+from tests.integration.support.installation import (
+    REPO_BIN as _REPO_BIN,
+)
+from tests.integration.support.installation import (
+    REPO_BOOTSTRAP as _REPO_BOOTSTRAP,
+)
+from tests.integration.support.installation import (
+    REPO_ROOT as _REPO_ROOT,
+)
+from tests.integration.support.installation import (
+    VERSION as _VERSION,
+)
+from tests.integration.support.installation import (
+    Installation as Harness,
+)
+from tests.integration.support.installation import (
+    build_launcher,
+    build_shim,
+    copy_bootstrap,
+    download_log,
+    dumped_env,
+    generate_keys,
+    make_installation,
+    run_bootstrap,
+    serve_launcher,
+    write_downloader,
+)
+from tests.integration.support.installation import (
+    host_platform as _resolve_host_platform,
+)
+
 _HERE = Path(__file__).resolve().parent
-_REPO_ROOT = _HERE.parents[2]
-_REPO_BOOTSTRAP = _REPO_ROOT / "bin/accelerator"
-_REPO_BIN = _REPO_ROOT / "bin"
 
-# The system interpreter, not whatever `bash` resolves to: macOS ships 3.2 and
-# the bootstrap is held to that floor, so a contributor with Homebrew bash 5 on
-# PATH would otherwise run the whole suite off-floor and green.
-_BASH = "/bin/bash" if Path("/bin/bash").exists() else "bash"
-
-# The harness pins a synthetic version so cache paths are deterministic and the
-# real GitHub release base URL is never contacted (overridden to .invalid).
-_VERSION = "9.9.9-test"
-
-# Marks a fixture root's own templates/adr.md, so a resolved installation root
-# is provable from the launcher's stdout rather than from a rendered path.
-_SENTINEL = "FIXTURE-ADR-SENTINEL-{label}"
-
-# Stand-in for the fetched launcher binary: records its argv (one per line) to
-# LAUNCHER_ARGS_OUT, its whole environment as JSON to LAUNCHER_ENV_OUT, and
-# exits with LAUNCHER_EXIT. Signed by minisign like a real release asset; its
-# content is opaque to verification.
-_LAUNCHER_SRC = """\
-#!/usr/bin/env python3
-import json
-import os
-import sys
-
-out = os.environ.get("LAUNCHER_ARGS_OUT")
-if out:
-    with open(out, "w") as handle:
-        for arg in sys.argv[1:]:
-            handle.write(arg + "\\n")
-env_out = os.environ.get("LAUNCHER_ENV_OUT")
-if env_out:
-    with open(env_out, "w") as handle:
-        json.dump(dict(os.environ), handle)
-sys.exit(int(os.environ.get("LAUNCHER_EXIT", "0")))
-"""
-
-# Injected downloader: copies "${SERVER_DIR}/<basename>" to the destination and
-# appends each requested URL to ${DL_LOG}, so a test can assert what was (or was
-# not) fetched. Exits 22 (curl's "HTTP error") when the asset is absent.
-_DOWNLOADER_SRC = """\
-#!/usr/bin/env python3
-import os
-import shutil
-import sys
-
-url, dest = sys.argv[1], sys.argv[2]
-with open(os.environ["DL_LOG"], "a") as log:
-    log.write(url + "\\n")
-src = os.path.join(os.environ["SERVER_DIR"], os.path.basename(url))
-if os.path.isfile(src):
-    shutil.copy(src, dest)
-    sys.exit(0)
-sys.exit(22)
-"""
-
-
-def _in_ci() -> bool:
-    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
-
-
-def _require(name: str) -> None:
-    if shutil.which(name):
-        return
-    message = f"{name} not on PATH"
-    if _in_ci():
-        pytest.fail(f"{message} — provisioning regression in CI")
-    pytest.skip(message)
-
-
-def _sig_path(binary: Path) -> Path:
-    return binary.with_name(binary.name + ".minisig")
-
-
-def _sign(secret_key: Path, target: Path) -> None:
-    subprocess.run(
-        [
-            "minisign",
-            "-S",
-            "-s",
-            str(secret_key),
-            "-m",
-            str(target),
-            "-x",
-            str(_sig_path(target)),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-
-def _serve_launcher(
-    server: Path, alias: str, secret_key: Path, source: Path | None = None
-) -> None:
-    """Serve a launcher under the given target alias and sign it.
-
-    With no `source` the stub above is written; with one, that binary is copied
-    verbatim. Serving the real compiled launcher is what lets a test assert on
-    launcher-rendered stdout while still traversing the genuine fetch → verify
-    → cache → exec chain, with no network and no dev override.
-    """
-    launcher = server / f"accelerator-{alias}"
-    if source is None:
-        launcher.write_text(_LAUNCHER_SRC)
-    else:
-        shutil.copy(source, launcher)
-    launcher.chmod(0o755)
-    _sign(secret_key, launcher)
+_serve_launcher = serve_launcher
+_run_bootstrap = run_bootstrap
+_dumped_env = dumped_env
+_dl_lines = download_log
 
 
 @pytest.fixture(scope="module")
 def host_platform() -> str:
-    arch = {
-        "arm64": "arm64",
-        "aarch64": "arm64",
-        "x86_64": "x64",
-        "amd64": "x64",
-    }.get(platform.machine())
-    system = {"Darwin": "darwin", "Linux": "linux"}.get(platform.system())
-    if arch is None or system is None:
-        pytest.skip(
-            f"unsupported host: {platform.system()}/{platform.machine()}"
-        )
-    return f"{system}-{arch}"
+    return _resolve_host_platform()
 
 
 @pytest.fixture(scope="module")
 def shim_bin() -> Path:
-    """Build and return the real `accelerator-verify` shim from `cli/`."""
-    _require("cargo")
-    subprocess.run(
-        [
-            "cargo",
-            "build",
-            "--quiet",
-            "-p",
-            "accelerator-verify",
-            "--manifest-path",
-            str(_REPO_ROOT / "cli/Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    shim = _REPO_ROOT / "cli/target/debug/accelerator-verify"
-    if not (shim.exists() and os.access(shim, os.X_OK)):
-        pytest.fail(f"shim not built: {shim}")
-    return shim
+    return build_shim()
 
 
 @pytest.fixture(scope="module")
 def launcher_bin() -> Path:
-    """Build and return the real launcher from `cli/`.
-
-    Built in-fixture rather than behind a `mise` build edge, mirroring
-    `shim_bin`, so `uv run pytest tests/integration/entrypoint` still works
-    standalone. `test:integration:entrypoint` must therefore *not* gain a
-    `build:cli:dev` dependency: the two would contend on cargo's target lock.
-    """
-    _require("cargo")
-    subprocess.run(
-        [
-            "cargo",
-            "build",
-            "--quiet",
-            "--bin",
-            "accelerator",
-            "--manifest-path",
-            str(_REPO_ROOT / "cli/Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    launcher = _REPO_ROOT / "cli/target/debug/accelerator"
-    if not (launcher.exists() and os.access(launcher, os.X_OK)):
-        pytest.fail(f"launcher not built: {launcher}")
-    return launcher
+    return build_launcher()
 
 
 @pytest.fixture(scope="session")
 def bootstrap_src(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A copy of `bin/accelerator`, outside the working tree.
-
-    Naming the repo's own bootstrap as a runnable path is the trap this suite
-    must not leave reachable: with self-location it resolves the real repo
-    root, passes every gate, and fetches the real release over the network into
-    the working tree's `bin/`.
-    """
-    copy = tmp_path_factory.mktemp("bootstrap") / "accelerator"
-    shutil.copy(_REPO_BOOTSTRAP, copy)
-    copy.chmod(0o755)
-    return copy
+    return copy_bootstrap(tmp_path_factory.mktemp("bootstrap") / "accelerator")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def repo_bin_is_untouched() -> Iterator[None]:
-    """Backstop for anything that bypasses the `_run_bootstrap` funnel.
+    """Backstop for anything that bypasses the `run_bootstrap` funnel.
 
     Fires after egress rather than preventing it, which is why the funnel's own
     preconditions exist as well.
@@ -245,41 +89,12 @@ def repo_bin_is_untouched() -> Iterator[None]:
 
 @pytest.fixture(scope="module")
 def keys(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A dir holding passwordless release + attacker minisign keypairs."""
-    _require("minisign")
-    key_dir = tmp_path_factory.mktemp("keys")
-    for name in ("release", "attacker"):
-        subprocess.run(
-            [
-                "minisign",
-                "-G",
-                "-W",
-                "-f",
-                "-p",
-                str(key_dir / f"{name}.pub"),
-                "-s",
-                str(key_dir / f"{name}.key"),
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    return key_dir
+    return generate_keys(tmp_path_factory.mktemp("keys"))
 
 
 @pytest.fixture
 def downloader(tmp_path: Path) -> Path:
-    script = tmp_path / "downloader.py"
-    script.write_text(_DOWNLOADER_SRC)
-    script.chmod(0o755)
-    return script
-
-
-@dataclass(frozen=True)
-class Harness:
-    root: Path
-    server: Path
-    sentinel: str
+    return write_downloader(tmp_path / "downloader.py")
 
 
 @pytest.fixture
@@ -291,17 +106,7 @@ def make_harness(
     host_platform: str,
     bootstrap_src: Path,
 ) -> Callable[..., Harness]:
-    """Factory: build a plugin root + release server, return a `Harness`.
-
-    The release public key is always the real one; `secret` only chooses the
-    key the served launcher is *signed* with, so `secret="attacker"` models an
-    asset signed by a non-release key (verification must refuse it).
-
-    `label` names the root in its own `templates/adr.md` sentinel, so a test
-    with two roots proves which one resolved from stdout rather than from the
-    factory's call order. `real_launcher` serves the compiled launcher instead
-    of the stub, for the tests that assert on launcher-rendered output.
-    """
+    """Factory: build a plugin root + release server, return an installation."""
     counter = {"n": 0}
 
     def _make(
@@ -311,117 +116,22 @@ def make_harness(
         real_launcher: bool = False,
     ) -> Harness:
         counter["n"] += 1
-        root = tmp_path / f"root{counter['n']}"
-        (root / ".claude-plugin").mkdir(parents=True)
-        (root / "keys").mkdir()
-        (root / "bin").mkdir()
-        (root / "templates").mkdir()
-        (root / ".claude-plugin/plugin.json").write_text(
-            f'{{\n  "name": "accelerator",\n  "version": "{_VERSION}"\n}}\n'
-        )
-        sentinel = _SENTINEL.format(label=label)
-        (root / "templates/adr.md").write_text(
-            f"# ADR template\n\n{sentinel}\n"
-        )
-        shutil.copy(keys / "release.pub", root / "keys/accelerator-release.pub")
-        bootstrap = root / "bin/accelerator"
-        shutil.copy(bootstrap_src, bootstrap)
-        bootstrap.chmod(0o755)
-        shim = root / f"bin/accelerator-verify-{host_platform}"
-        shutil.copy(shim_bin, shim)
-        shim.chmod(0o755)
-
-        server = tmp_path / f"server{counter['n']}"
-        server.mkdir()
         source = (
             request.getfixturevalue("launcher_bin") if real_launcher else None
         )
-        _serve_launcher(
-            server, host_platform, keys / f"{secret}.key", source=source
+        return make_installation(
+            tmp_path / f"root{counter['n']}",
+            tmp_path / f"server{counter['n']}",
+            keys=keys,
+            shim=shim_bin,
+            bootstrap=bootstrap_src,
+            alias=host_platform,
+            label=label,
+            secret=secret,
+            launcher_source=source,
         )
-        return Harness(root=root, server=server, sentinel=sentinel)
 
     return _make
-
-
-def _assert_hermetic(env: dict[str, str], entry: Path) -> None:
-    """Preconditions enforced at the single funnel every invocation passes.
-
-    An autouse fixture cannot carry these: `_run_bootstrap` composes a complete
-    explicit environment, so nothing set on `os.environ` reaches the child.
-    """
-    assert "ACCELERATOR_BOOTSTRAP_DOWNLOADER" in env, (
-        "the bootstrap must never reach a real downloader"
-    )
-    base_url = env.get("ACCELERATOR_RELEASE_BASE_URL", "")
-    host = urllib.parse.urlparse(base_url).hostname or ""
-    assert host.endswith(".invalid"), (
-        f"the release base URL must be unresolvable, got {base_url!r}"
-    )
-    assert entry.absolute() != _REPO_BOOTSTRAP, (
-        "running the repo's own bootstrap fetches the real release into bin/"
-    )
-    with contextlib.suppress(OSError):
-        assert entry.resolve() != _REPO_BOOTSTRAP, (
-            "the entry path resolves to the repo's own bootstrap"
-        )
-
-
-def _run_bootstrap(
-    root: Path,
-    server: Path,
-    downloader: Path,
-    *,
-    args: tuple[str, ...] = (),
-    extra_env: dict[str, str] | None = None,
-    path: str | None = None,
-    entry: Path | None = None,
-    cwd: Path | None = None,
-    timeout: float | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """Run the harness's `bin/accelerator` under a minimal, explicit env.
-
-    Neither root variable is injected: the bootstrap self-locates from `entry`,
-    which defaults to the harness root's own copy. `cwd` defaults to an empty
-    directory, since the launcher's `config` family reads project config from
-    the working directory.
-    """
-    env = {
-        "PATH": path or os.environ["PATH"],
-        "HOME": os.environ.get("HOME", "/tmp"),
-        "ACCELERATOR_BOOTSTRAP_DOWNLOADER": str(downloader),
-        "ACCELERATOR_RELEASE_BASE_URL": f"https://example.invalid/v{_VERSION}",
-        "SERVER_DIR": str(server),
-        "DL_LOG": str(server / "dl.log"),
-    }
-    if extra_env:
-        env.update(extra_env)
-    entry = entry or root / "bin/accelerator"
-    with contextlib.ExitStack() as stack:
-        if cwd is None:
-            cwd = Path(stack.enter_context(tempfile.TemporaryDirectory()))
-        _assert_hermetic(env, cwd / entry)
-        try:
-            return subprocess.run(
-                [_BASH, str(entry), *args],
-                capture_output=True,
-                text=True,
-                env=env,
-                cwd=str(cwd),
-                timeout=timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            pytest.fail(f"the bootstrap did not terminate: {entry}")
-
-
-def _dumped_env(path: Path) -> dict[str, str]:
-    return json.loads(path.read_text())
-
-
-def _dl_lines(server: Path) -> list[str]:
-    log = server / "dl.log"
-    return log.read_text().splitlines() if log.exists() else []
 
 
 @pytest.mark.parametrize(

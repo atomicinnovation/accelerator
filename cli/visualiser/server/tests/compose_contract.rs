@@ -180,3 +180,23 @@ fn unconfigured_project_uses_catalogue_defaults() {
     assert_eq!(work_item.scan_regex, "^([0-9]+)-");
     assert!(work_item.default_project_code.is_none());
 }
+
+/// The emptiness rule lives in `with_plugin_root`, so the server inherits it:
+/// an empty root refuses rather than resolving plugin templates against cwd.
+#[test]
+fn an_empty_plugin_root_refuses_to_compose() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_project(tmp.path());
+    let error = load(Params {
+        cwd: tmp.path().to_path_buf(),
+        plugin_root: PathBuf::new(),
+        owner_pid: 0,
+        owner_start_time: None,
+        host: "127.0.0.1".to_string(),
+    })
+    .expect_err("an empty plugin root composed a config");
+    assert!(
+        error.to_string().contains("ACCELERATOR_PLUGIN_ROOT"),
+        "the error does not name the variable: {error}"
+    );
+}

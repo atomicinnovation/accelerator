@@ -1044,13 +1044,12 @@ OUTPUT=$(cd "$REPO" && bash "$FIELD_HINTS" status)
 EXPECTED=$(printf "open\nclosed\nwontfix")
 assert_eq "returns custom status values" "$EXPECTED" "$OUTPUT"
 
-# Test 6: config-read-template failure → hardcoded fallback for known fields
+# Test 6: CLI failure → hardcoded fallback for known fields
 echo "Test: Template read failure falls back to hardcoded defaults"
-# Create a repo with no template at all and set PLUGIN_ROOT to a nonexistent
-# plugin to force config-read-template.sh to fail
+# A repo with no template of its own, with ACCELERATOR_BIN pointed at a path
+# that does not exist so the template read fails.
 REPO=$(setup_repo)
-# Override PLUGIN_ROOT to simulate failure — run in subshell with modified env
-OUTPUT=$(cd "$REPO" && CLAUDE_PLUGIN_ROOT="/nonexistent/plugin" bash "$FIELD_HINTS" status 2>/dev/null) || true
+OUTPUT=$(cd "$REPO" && ACCELERATOR_BIN="/nonexistent/accelerator" bash "$FIELD_HINTS" status 2>/dev/null) || true
 EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
 assert_eq "returns hardcoded status values" "$EXPECTED" "$OUTPUT"
 
@@ -1083,7 +1082,7 @@ while IFS= read -r token; do
   token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
 done < <(echo "$STATUS_COMMENT" | tr '|' '\n')
-HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" status 2>/dev/null) || true
+HARDCODED_VALUES=$(cd /tmp && ACCELERATOR_BIN="/nonexistent/accelerator" bash "$FIELD_HINTS" status 2>/dev/null) || true
 assert_eq "hardcoded status matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
 
 KIND_LINE=$(grep "^kind:" "$SHIPPING_TEMPLATE")
@@ -1093,7 +1092,7 @@ while IFS= read -r token; do
   token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
 done < <(echo "$KIND_COMMENT" | tr '|' '\n')
-HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" kind 2>/dev/null) || true
+HARDCODED_VALUES=$(cd /tmp && ACCELERATOR_BIN="/nonexistent/accelerator" bash "$FIELD_HINTS" kind 2>/dev/null) || true
 assert_eq "hardcoded kind matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
 
 PRIORITY_LINE=$(grep "^priority:" "$SHIPPING_TEMPLATE")
@@ -1103,8 +1102,30 @@ while IFS= read -r token; do
   token=$(echo "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   [ -n "$token" ] && SHIPPING_VALUES="${SHIPPING_VALUES}${SHIPPING_VALUES:+$'\n'}${token}"
 done < <(echo "$PRIORITY_COMMENT" | tr '|' '\n')
-HARDCODED_VALUES=$(cd /tmp && CLAUDE_PLUGIN_ROOT="/nonexistent" bash "$FIELD_HINTS" priority 2>/dev/null) || true
+HARDCODED_VALUES=$(cd /tmp && ACCELERATOR_BIN="/nonexistent/accelerator" bash "$FIELD_HINTS" priority 2>/dev/null) || true
 assert_eq "hardcoded priority matches shipping template" "$SHIPPING_VALUES" "$HARDCODED_VALUES"
+
+# Test 9: The seam is provably what forces the fallback. Against a repo whose
+# own template carries values no fallback can produce, the seam still yields
+# the hardcoded set and a working CLI yields the override's.
+echo "Test: Seam forces the fallback against a distinguishable template"
+REPO=$(setup_repo)
+mkdir -p "$REPO/.accelerator/templates"
+cat >"$REPO/.accelerator/templates/work-item.md" <<'FIXTURE'
+---
+work_item_id: NNNN
+status: draft                                  # alpha | beta | gamma
+---
+
+# NNNN: Title
+FIXTURE
+OUTPUT=$(cd "$REPO" && ACCELERATOR_BIN="/nonexistent/accelerator" bash "$FIELD_HINTS" status 2>/dev/null) || true
+EXPECTED=$(printf "draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned")
+assert_eq "seam forces the hardcoded fallback" "$EXPECTED" "$OUTPUT"
+
+OUTPUT=$(cd "$REPO" && bash "$FIELD_HINTS" status)
+EXPECTED=$(printf "alpha\nbeta\ngamma")
+assert_eq "a working CLI reads the override" "$EXPECTED" "$OUTPUT"
 
 echo ""
 

@@ -5,13 +5,13 @@ title: "bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never ex
 date: "2026-07-26T21:28:26+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: in-progress
 kind: bug
 priority: high
-relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
+relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "work-item:0184", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
 source: "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
 tags: [bug, cli, launcher, bootstrap, plugin-root, skills]
-last_updated: "2026-07-28T09:14:02+00:00"
+last_updated: "2026-07-29T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -455,7 +455,7 @@ still holds for the suites that need a real compiled launcher.
       still resolve under the real installation root and no row resolves under the
       injected path. (Consistent with R4, which no longer relies on the bootstrap
       honouring an ambient root at all.)
-- [ ] Given the R4 seam is re-pointed at `ACCELERATOR_BIN="/nonexistent/accelerator"`,
+- [x] Given the R4 seam is re-pointed at `ACCELERATOR_BIN="/nonexistent/accelerator"`,
       when the four assertions in `test-work-item-scripts.sh` run, then they still
       exercise the hardcoded-fallback path in
       `work-item-template-field-hints.sh` — demonstrated by their failing if that
@@ -466,24 +466,44 @@ still holds for the suites that need a real compiled launcher.
       pre-verified binary the bootstrap uses to check the launcher's signature),
       when `--fail-safe` is in argv, then the bootstrap exits 0 with empty stdout
       and one diagnostic line on stderr; without the flag it exits non-zero.
-- [ ] Given `hooks/shim-refresh.sh` is run with `CLAUDE_PLUGIN_DATA=<tmp>/data`
+**Met 2026-07-29** — the hook criteria below are satisfied by
+`tests/integration/hooks/test_launcher_link_refresh.py` (22 cases). Two naming
+deviations from this list, both settled during implementation: the hook ships as
+`hooks/launcher-link-refresh.sh`, not `shim-refresh.sh`; and "prints that
+refreshed path" is narrowed to the **re-point** case — a first refresh is silent
+on both channels, since the resolved Open Question above establishes that a
+routine `SessionStart` stderr line reaches nobody, so only a *change* of target
+is worth naming.
+
+- [x] Given `hooks/shim-refresh.sh` is run with `CLAUDE_PLUGIN_DATA=<tmp>/data`
       and `CLAUDE_PLUGIN_ROOT=<tmp>/v1`, then `<tmp>/data/bin/accelerator` is a
       symlink to `<tmp>/v1/bin/accelerator` and the hook prints that refreshed
       path; when re-run with `CLAUDE_PLUGIN_ROOT=<tmp>/v2` it re-points there,
       and a pre-existing `<tmp>/userbin/accelerator → <tmp>/data/bin/accelerator`
       link — whose own target did not move — still executes.
-- [ ] Given `hooks/shim-refresh.sh` is run with `CLAUDE_PLUGIN_DATA` unset, then
+      (`test_a_first_refresh_creates_the_link_and_says_nothing` and
+      `test_a_second_root_repoints_the_link_and_names_both`, the latter executing
+      the user's own hop after the re-point.)
+- [x] Given `hooks/shim-refresh.sh` is run with `CLAUDE_PLUGIN_DATA` unset, then
       it exits 0 and creates nothing (in particular no `/bin` entry).
-- [ ] Given `hooks/shim-refresh.sh` alone is run with `HOME` and
+      (`test_an_unset_plugin_data_is_inert`, plus
+      `test_a_relative_plugin_data_is_inert` for a value that would compose a
+      cwd-relative path.)
+- [x] Given `hooks/shim-refresh.sh` alone is run with `HOME` and
       `CLAUDE_PLUGIN_DATA` pointed into a temp tree, when that tree is snapshotted
       before and after and diffed, then the only paths created or modified lie
       inside `${CLAUDE_PLUGIN_DATA}`, and `<HOME>/.local/bin` does not exist.
       (Scoped to this hook alone — the other `SessionStart` hooks legitimately
       write config and migration state elsewhere.)
-- [ ] No tracked source file under `cli/` contains the string `CLAUDE_`, as
+      (`test_nothing_outside_plugin_data_is_created_or_modified`.)
+- [x] No tracked source file under `cli/` contains the string `CLAUDE_`, as
       enforced by the R7 lint task (honouring `.gitignore`, so `cli/target/` and
       `cli/visualiser/frontend/node_modules/` are excluded), and that guard has a
       negative test proving it fails when a reference is reintroduced.
+      **Met 2026-07-29**: `mise run lint:claude-coupling:check` (28 packages,
+      clean) with `tests/unit/tasks/test_claude_coupling.py` carrying the negative
+      cases — a `var_os` read, a comment mention, any `CLAUDE_`-prefixed name, and
+      reintroduction into both the bootstrap and an out-of-tree writer.
 - [ ] `mise.local.toml` is absent from the repo, and `grep -rl
       'CLAUDE_PLUGIN_ROOT'` over the working tree (honouring `.gitignore`)
       returns **only**: `hooks/**`, `scripts/interactive-harness.sh`,
@@ -503,17 +523,27 @@ still holds for the suites that need a real compiled launcher.
       `_BARE_LAUNCHER` probe — the matcher *model*, which is why R7 is a separate
       guard), `.shellcheckrc:51` and `CLAUDE.md:65` (comment and prose); and it
       listed `agents/**`, which has **zero** occurrences.
-- [ ] The renamed diagnostics name `ACCELERATOR_PLUGIN_ROOT`, asserted by the
+- [x] The renamed diagnostics name `ACCELERATOR_PLUGIN_ROOT`, asserted by the
       existing message-text tests at `launcher/tests/version.rs:179` and
-      `cache_root.rs:132,134`.
-- [ ] `hooks/hooks.json` registers `shim-refresh.sh` as a `SessionStart` entry
+      `cache_root.rs:132,134`. Both were **tightened further** on 2026-07-29: the
+      config layer's new `PluginRootUnavailable` also names the variable, so a
+      variable-name-only assertion no longer distinguishes the cache-root step
+      from it. Each now additionally matches `no ACCELERATOR_CACHE_DIR override
+      was given`, a clause only `CacheRootUnavailable` emits.
+- [x] `hooks/hooks.json` registers `shim-refresh.sh` as a `SessionStart` entry
       (without it the hook never fires and R9's upgrade-survival property is
       absent, while every other hook criterion — which invokes the script
-      directly — would still pass).
-- [ ] `docs/internals.md` contains a "Terminal invocation" section stating the
+      directly — would still pass). **Met 2026-07-29**, as
+      `launcher-link-refresh.sh` at index 3 — appended, so
+      `test-vcs-detect.sh`'s hard-coded `SessionStart[0]` assertion still holds —
+      and asserted by `test_the_hook_is_a_session_start_group` and
+      `test_the_group_holds_exactly_one_command_hook`.
+- [x] `docs/internals.md` contains a "Terminal invocation" section stating the
       one-line `ln -s` recipe, the macOS `~/.local/bin`-not-on-`PATH` caveat, the
       per-channel shim paths with the second-channel note, and the mid-session
       upgrade caveat; and the Documentation list in `README.md` links to it.
+      **Met 2026-07-29** as "Terminal Invocation" (`docs/internals.md:88`),
+      linked from `README.md:58`.
 - [x] R11's result is recorded in this item's Open Questions, naming the Claude
       Code version tested (v2.1.220) and its basis. **Met 2026-07-27.**
 - [x] R12's floor determination is recorded, and either the declared floor is
@@ -524,7 +554,7 @@ still holds for the suites that need a real compiled launcher.
       decision was not to introduce one, so those two sites are the target rather
       than `plugin.json`. **Met 2026-07-28**: the variable landed in v2.1.78, so
       the floor is unchanged and both prose sites are untouched.
-- [ ] **Automated** — every `bin/accelerator config *` command extracted from a
+- [x] **Automated** — every `bin/accelerator config *` command extracted from a
       `!` block in any `skills/**/SKILL.md` exits 0 **and** emits no
       `accelerator:` diagnostic line on stderr, with a per-family stdout
       assertion (below). The harness performs Claude Code's own textual
@@ -556,6 +586,17 @@ still holds for the suites that need a real compiled launcher.
         `skill_permissions.py` point 3). Note the 20 `config template <name>`
         sites are **fail-closed regardless** of that flag (R4), so they are the
         subset that stays loud rather than degrading.
+
+      **Met 2026-07-29** by `tests/integration/skill-invocation/` (128 cases: 122
+      distinct commands plus 6 corpus invariants), run as
+      `mise run test:integration:skill-invocation`. Three counts above are off, as
+      measured during implementation: **13** distinct `template <name>` commands
+      (19 occurrences), not 20; there is **no** `templates list` command in the
+      corpus at all; and a `config agent <name>` family is missing from the list.
+      The totals — 204 commands, 122 distinct, 45 files, 42 injection skills each
+      way — are exact. Better than predicted: **every** one of the 122 renders
+      non-empty stdout against the fixture, so no family needs an empty-tolerant
+      assertion.
 - [ ] **Manual, pre-release** — on a clean install of the release artifact, with
       no `mise.local.toml` and neither variable exported into the shell, in
       permission mode `default` with no broad Bash allow rules: invoke
@@ -569,9 +610,15 @@ still holds for the suites that need a real compiled launcher.
       If a prompt appears, the `${CLAUDE_SKILL_DIR}` migration item is raised and
       the **prerelease** is gated on it (see Dependencies — this item still closes
       on its own criteria).
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
-- [ ] The regression test from R5 fails against the current `bin/accelerator` and
-      passes after the fix.
+- [x] `mise run` (bare default task) exits 0 end-to-end. **Met 2026-07-29** with
+      every phase landed.
+- [x] The regression test from R5 fails against the current `bin/accelerator` and
+      passes after the fix. **Met 2026-07-28**: confirmed at the intermediate
+      commit with the bootstrap change stashed — 18 of the new entrypoint cases
+      red, every one with `accelerator: CLAUDE_PLUGIN_ROOT is not set`. The three
+      that pass pre-change are the ones predicted: the symlink-cycle case (which
+      characterises the kernel's `ELOOP`) and the two scan-window cases (a gate
+      fires either way).
 
 ## Open Questions
 

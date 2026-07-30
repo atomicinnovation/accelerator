@@ -52,7 +52,9 @@ _CONFIG_MARKER = "/bin/accelerator config "
 _CONTEXT_SKILL = "/bin/accelerator config context --skill "
 _CONTEXT_ANY = "/bin/accelerator config context"
 _INSTRUCTIONS = "/bin/accelerator config instructions "
-_PLUGIN_PREFIX = "${CLAUDE_PLUGIN_ROOT}/"
+# Public: the conformance suite substitutes this prefix the way Claude Code
+# does, and a second literal copy could desynchronise from this guard.
+PLUGIN_PREFIX = "${CLAUDE_PLUGIN_ROOT}/"
 _NAME_TOKEN = re.compile(r"([a-z0-9][a-z0-9-]*)")
 
 
@@ -98,7 +100,7 @@ def preprocessor_commands(text: str) -> list[str]:
 
 def is_plugin_invocation(command: str) -> bool:
     """Return whether a command invokes a plugin script or the launcher."""
-    return command.startswith(_PLUGIN_PREFIX)
+    return command.startswith(PLUGIN_PREFIX)
 
 
 def covered_by(command: str, pattern: str) -> bool:

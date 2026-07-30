@@ -29,7 +29,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     let mut child = Command::new(bin)
         .args(["serve", "--owner-pid", "0"])
         .current_dir(project)
-        .env("CLAUDE_PLUGIN_ROOT", project)
+        .env("ACCELERATOR_PLUGIN_ROOT", project)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true)

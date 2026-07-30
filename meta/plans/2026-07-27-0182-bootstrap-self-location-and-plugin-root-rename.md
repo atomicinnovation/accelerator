@@ -14,7 +14,7 @@ derived_from:
 tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
-last_updated: "2026-07-28T10:52:00+00:00"
+last_updated: "2026-07-29T15:21:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -88,10 +88,12 @@ one `!` site that exercises it is
 `ACCELERATOR_BIN`, so the one configuration that matters in production — correct
 path, empty environment — is never exercised. Two tests actively assert the
 faulty behaviour. No test invokes the bootstrap through a symlink.
-`mise.local.toml` — present only in the jj working-copy commit, on no pushed
-branch — sets the variable and masks the whole bug class in every local run,
-while simultaneously being the only reason the installed plugin's skills work in
-this repository at all.
+`mise.local.toml` — on no pushed branch — sets the variable and masks the whole
+bug class in every local run, while simultaneously being the only reason the
+installed plugin's skills work in this repository at all. (It was in the jj
+working-copy commit when this was written; it is now untracked, since
+`.gitignore` gained the entry the closing step calls for, so only the on-disk
+file remains.)
 
 ## Desired End State
 
@@ -272,16 +274,19 @@ rename:
 |---|---|---|---|
 | 0 | Determinations — no code | yes, no predecessor | **done** 2026-07-28 |
 | **1a** | Bootstrap self-locates, `--fail-safe`-aware `fail()`, exports **both** names; new tests, 2 deletions | **yes — and independently releasable** | **done** 2026-07-28 |
-| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | not started |
-| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | not started |
-| 2 | The `CLAUDE_*` boundary guard | after 1b | not started |
-| 3 | Terminal invocation surface | after 1a | not started |
-| 4 | `!`-site conformance suite | after 1a | not started |
-| 5 | Named error for a missing plugin root | after 1b | not started |
+| **1c** | Work-item seam re-point + the `build:cli:dev` edge | **yes, today** — needs neither 1a nor 1b | **done** 2026-07-29 |
+| **1b** | The rename: 3 production + ~10 test `cli/` readers, 5 out-of-tree writers; drops the transitional export | yes, **given 1c** | **done** 2026-07-29 |
+| 2 | The `CLAUDE_*` boundary guard | after 1b | **done** 2026-07-29 |
+| 3 | Terminal invocation surface | after 1a | **done** 2026-07-29 |
+| 4 | `!`-site conformance suite | after 1a | **done** 2026-07-29 |
+| 5 | Named error for a missing plugin root | after 1b | **done** 2026-07-29 |
 
-**Progress — 2026-07-28.** Phases 0 and 1a are implemented, verified and
-committed; `mise run` is green end-to-end (three consecutive runs). 1c is next
-in the merge order. Five commits carry the work:
+**Progress — 2026-07-29.** All eight phases — 0, 1a, 1c, 1b, 2, 3, 4 and 5 — are
+implemented, verified and committed. Only the closing step remains, and it waits
+on a precondition outside this plan (a prerelease carrying the Phase 1a fix
+installed and in use), along with the manual criteria deferred to the release
+candidate: Phase 1a's published-release check and Phase 3's five installed-hook
+checks. Sixteen commits carry the work:
 
 | Commit | Content |
 |---|---|
@@ -290,6 +295,17 @@ in the merge order. Five commits carry the work:
 | `Cover rootless invocation, symlink chases and fail-safe aborts` | 1a commit 2 |
 | `Derive the installation root from the bootstrap's own location` | 1a commit 3 |
 | `Stop three suites failing on wall-clock noise under parallel load` | out of scope — see below |
+| `Force the work-item template fallback through ACCELERATOR_BIN` | Phase 1c |
+| `Rename the plugin root onto ACCELERATOR_PLUGIN_ROOT` | Phase 1b |
+| `Promote the gitignore-honouring walk to a shared primitive` | 2 commit 1 |
+| `Add a guard against CLAUDE_* coupling in the rename set` | 2 commit 2 |
+| `Wire the CLAUDE_* boundary guard into cli:check` | 2 commit 3 |
+| `Keep a terminal-reachable link to the current launcher` | 3 commit 1 |
+| `Give every shell-suite subtree a discovery floor` | 3 commit 2 |
+| `Document running the accelerator CLI from a terminal` | 3 commit 3 |
+| `Extract the fixture-installation apparatus for reuse` | 4 commit 1 |
+| `Run every skill's config commands in the production shape` | 4 commit 2 |
+| `Refuse rather than answer empty when the plugin root is unknown` | Phase 5 |
 
 Two things a later phase inherits:
 
@@ -568,9 +584,11 @@ Claude Code version tested.
       discarded, a follow-up item is raised for
       `hooks/migrate-discoverability.sh`'s advisory — it is discarded, and the
       follow-up is work item 0183
-- [ ] Phase 3's `docs/internals.md` section states the version requirement
-      locally, with the version-pinned fallback for anyone below it *(deferred to
-      Phase 3)*
+- [x] Phase 3's `docs/internals.md` section states the version requirement
+      locally, with the version-pinned fallback for anyone below it. **Done
+      2026-07-29**: the Terminal Invocation section names v2.1.78 and tells
+      anyone below it to link `<plugin root>/bin/accelerator` directly and
+      re-run after each upgrade.
 
 ---
 
@@ -1111,7 +1129,7 @@ names; 1b narrows it to one.
 
 #### Manual Verification
 
-- [ ] Rootless invocation by absolute path succeeds:
+- [x] Rootless invocation by absolute path succeeds:
       `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT ./bin/accelerator config templates list`
       exits 0 and lists an `adr` row with Source `plugin default`. **Manual, with a
       precondition**: it fetches the launcher for the version in
@@ -1119,9 +1137,16 @@ names; 1b narrows it to one.
       development it 404s. It passes once released *because* of the transitional
       export, since the pre-rename launcher reads the old name. The hermetic
       equivalent, and the actual CI gate, is the entrypoint suite.
-      **Deferred to the release candidate**: `1.24.0-pre.16` is the version in
-      `plugin.json` and its assets are not published, so running this now would
-      404 against the real GitHub release *and* write into the shipped `bin/`.
+      **Performed 2026-07-29 against installed `1.24.0-pre.17`** — the Phase
+      1a-only release, which still carries the transitional export — invoked by
+      absolute path from a bare `mktemp -d` with both variables stripped: exit 0
+      and `` | `adr` | plugin default | `<plugin>/templates/adr.md` | ``, no
+      `accelerator:` line on stderr. `config instructions commit --fail-safe`
+      likewise exits 0 clean. The launcher and its `.minisig` are cached in the
+      installed tree with no `.accelerator-unverified.log`, so the real
+      fetch → verify → cache chain ran. (It was deferred while `1.24.0-pre.16`
+      was current, whose assets were unpublished: running it then would have
+      404'd *and* written into the shipped `bin/`.)
 
 - [x] The Phase 1a regression tests fail when run against the pre-change
       `bin/accelerator` (stash the bootstrap change, confirm red, restore).
@@ -1153,7 +1178,7 @@ one-off check that never runs again:
 
 ## Phase 1b: The Rename
 
-> **Lands after Phase 1c**, which follows this section. 1c is green today and
+> **Done 2026-07-29**, after Phase 1c as sequenced. 1c is green today and
 > independent, but the rename makes its seam vacuous if it goes first — see the
 > mergeability table in *Implementation Approach* and Phase 1c's Overview.
 
@@ -1172,9 +1197,14 @@ dev harness and the shell suites, so `mise run` would go red between them.
 #### 1. The launcher and server readers
 
 **Files**:
-- `cli/launcher/src/main.rs:173,176` — the doc comment and `var_os`. Add the
-  empty-string filter `cache_root.rs:27` already has, so an empty value does not
-  become `Some("")`.
+- `cli/launcher/src/main.rs:173,176` — the doc comment and `var_os`. An empty
+  value must not become `Some("")`, as the filter at `cache_root.rs:27` already
+  ensures for its own read. *Landed one layer down instead:
+  `FileConfigStore::with_plugin_root` (`cli/config-adapters/src/store.rs:65-69`)
+  drops an empty value, so the launcher and the visualiser server inherit the
+  rule from one place rather than each carrying a filter — `main.rs`'s `var_os`
+  is deliberately left unfiltered and its doc comment says so. Recorded in Phase
+  5's implementation notes, which also covers the server half.*
 - `cli/launcher/src/launch/outbound/resolve/cache_root.rs:3,26,38,60` — module
   doc, `var_os`, error doc, and the `CacheRootUnavailable` detail text.
 - `cli/visualiser/server/src/main.rs:69,70` — the let-else and its `eprintln!`.
@@ -1233,29 +1263,42 @@ file is on Phase 2's permitted-residue list.
 
 #### Automated Verification
 
-- [ ] `cli/` workspace tests pass: `mise run test:unit:cli`
-- [ ] The empty-string case is asserted:
-      `cargo test -p accelerator-launcher --test config_read empty_plugin_root`
-- [ ] Entrypoint suite still passes: `uv run pytest tests/integration/entrypoint -v`
-- [ ] Work-item shell suites pass: `mise run test:integration:work`
-- [ ] Dev-task integration tests pass: `mise run test:integration:dev`
-- [ ] Visualiser integration tests pass: `mise run test:integration:visualiser`
-- [ ] Build-system unit tests pass: `mise run test:unit:tasks`
-- [ ] No `CLAUDE_` string remains in `bin/accelerator`:
+- [x] `cli/` workspace tests pass: `mise run test:unit:cli`
+- [x] The empty-string case is asserted:
+      `cargo test -p accelerator --test config_read empty_plugin_root` — note
+      the package is `accelerator`, not `accelerator-launcher`. The case seeds a
+      `templates/decoy.md` in the cwd, so an unfiltered empty value (which
+      becomes `PathBuf::from("")`) is *observable* rather than merely equal:
+      confirmed red without the filter, listing `decoy` as a plugin default.
+- [x] Entrypoint suite still passes: `uv run pytest tests/integration/entrypoint -v`
+      *(46 passed)*
+- [x] Work-item shell suites pass: `mise run test:integration:work`
+- [x] Dev-task integration tests pass: `mise run test:integration:dev` *(17 passed)*
+- [x] Visualiser integration tests pass: `mise run test:integration:visualiser`
+- [x] Build-system unit tests pass: `mise run test:unit:tasks` *(368 passed)*
+- [x] No `CLAUDE_` string remains in `bin/accelerator`:
       `! grep -q 'CLAUDE_' bin/accelerator`
-- [ ] `mise run check` exits 0
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run check` exits 0
+- [x] `mise run` (bare default) exits 0 end-to-end
 
 #### Manual Verification
 
-- [ ] `mise run dev:*` still starts the visualiser server (the renamed
-      `tasks/dev.py` writer feeds its hard-exit reader)
-- [ ] A freshly built launcher, invoked directly with only
-      `ACCELERATOR_PLUGIN_ROOT` set, renders the plugin-default template tier
+- [x] `mise run dev:*` still starts the visualiser server (the renamed
+      `tasks/dev.py` writer feeds its hard-exit reader). **Confirmed**:
+      `mise run dev` then `dev:status` reports both server and frontend active.
+      `mise.local.toml` sets only `CLAUDE_PLUGIN_ROOT`, so the server's root can
+      only have come from the renamed writer — had the rename been one-sided the
+      let-else would have exited 2.
+- [x] A freshly built launcher, invoked directly with only
+      `ACCELERATOR_PLUGIN_ROOT` set, renders the plugin-default template tier.
+      **Confirmed** under `env -i`: 13 plugin-default rows with the variable set,
+      a header-only table without it.
 
 ---
 
 ## Phase 1c: The Work-Item Seam and the Build Edge
+
+> **Done 2026-07-29.**
 
 ### Overview
 
@@ -1362,23 +1405,32 @@ CI needs no edit: `test-unit` and `test-integration` already carry the
 
 #### Automated Verification
 
-- [ ] Work-item shell suites pass: `mise run test:integration:work`
-- [ ] The exhaustive edge assertion passes:
-      `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run check` exits 0
+- [x] Work-item shell suites pass: `mise run test:integration:work` *(242 passed
+      in the work-item suite; 0 failed across the subtree)*
+- [x] The exhaustive edge assertion passes:
+      `uv run pytest tests/unit/tasks/test_mise.py -v` *(18 passed)*
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Temporarily removing `hardcoded_fallback`'s `status)` arm turns the
+- [x] Temporarily removing `hardcoded_fallback`'s `status)` arm turns the
       re-pointed seam assertions red. (It also reddens Test 7 at `:1071` and both
       tripwire comparisons, so the mutation is a sanity check on the pair rather
-      than an isolating one.)
-- [ ] Adding a `test:integration:*` task to neither `_LAUNCHER_DEPENDENTS` nor
-      `_NO_LAUNCHER_NEEDED` turns `test_mise.py` red
+      than an isolating one.) **Confirmed**: 4 failures, including both
+      `returns hardcoded status values` and `seam forces the hardcoded fallback`,
+      while `a working CLI reads the override` stayed green — the pair is
+      falsifiable in both directions as designed.
+- [x] Adding a `test:integration:*` task to neither `_LAUNCHER_DEPENDENTS` nor
+      `_NO_LAUNCHER_NEEDED` turns `test_mise.py` red. **Confirmed**: a temporary
+      `test:integration:probe` leaf fails
+      `test_every_integration_task_declares_its_launcher_need` with
+      `Extra items in the left set: 'test:integration:probe'`.
 
 ---
 
 ## Phase 2: The `CLAUDE_*` Boundary Guard
+
+> **Done 2026-07-29.** Three commits, as sequenced.
 
 ### Overview
 
@@ -1455,7 +1507,10 @@ Three details are load-bearing:
   build tree — exactly the failure the *Performance Considerations* section warns
   about. Hence `repo` plus an explicit `subtree`, rather than one conflated `root`.
 - **`prune` defaults to `_BUILD_OUTPUT` in the signature**, not to `()` with a
-  hidden additive union. A caller can then see what it gets and opt out. Without
+  hidden additive union. *Implemented with replace semantics, which is what the
+  signature default means — the plan's later test-case bullet said "adds to
+  rather than replaces", contradicting this paragraph's own rationale. A caller
+  wanting both writes `_BUILD_OUTPUT + (...)`, and the test asserts that.* A caller can then see what it gets and opt out. Without
   `dist`/`playwright-report` the guard reads the minified SPA bundle and Playwright
   traces — both present under bare `mise run`, which builds the frontend and runs
   E2E — so the result would depend on what had been run locally, and a vendored
@@ -1562,6 +1617,14 @@ the mandatory `depends = ["deps:install:python"]`, added to `cli:check.depends`
 pattern. (Closing that default-task blind spot for all three guards together is
 worth doing, but as its own change.)
 
+*Superseded 2026-07-29, at validation.* Validation measured what "as its own
+change" cost in the meantime: the bare `default` task depends on `lint:check` and
+never on `check`, so **none** of the three guards ran in a full local `mise run`
+— a `CLAUDE_*` reintroduction in the rename set was green locally and caught only
+by CI's separate `cli:check` step. All three are now in `lint:check.depends`
+*and* `cli:check.depends`, together rather than one at a time, so no third
+pattern is established. `test_mise.py`'s `_CLI_CHECK_GATES` pins both placements.
+
 **File**: `tasks/README.md`
 **Changes**: The per-component table describes `cli:check` as "format + lint
 (rustfmt, workspace-wide clippy)", already omitting the two Python guards wired
@@ -1621,16 +1684,19 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
 
 #### Automated Verification
 
-- [ ] The guard reports nothing on the real tree:
-      `mise run lint:claude-coupling:check`
-- [ ] The guard's own tests pass:
-      `uv run pytest tests/unit/tasks/test_claude_coupling.py -v`
-- [ ] The promoted walk did not regress its callers:
+- [x] The guard reports nothing on the real tree:
+      `mise run lint:claude-coupling:check` *(724 files scanned, 0 violations)*
+- [x] The guard's own tests pass:
+      `uv run pytest tests/unit/tasks/test_claude_coupling.py -v` *(16 passed)*
+- [x] The promoted walk did not regress its callers:
       `uv run pytest tests/unit/tasks/shared/test_sources.py tests/unit/tasks/test_python_coverage.py tests/unit/tasks/test_exec_bits.py -v`
-- [ ] The leaf is pinned into `cli:check.depends`:
-      `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run cli:check` exits 0
-- [ ] The purge holds over **non-`meta/`** tracked files —
+      *(42 passed)*. `shell_sources()`'s real-tree output is byte-identical
+      before and after (192 entries either way) — the `.venv`/`dist` prune is
+      latent on this tree, so it is pinned by a `tmp_path` case instead.
+- [x] The leaf is pinned into `cli:check.depends`:
+      `uv run pytest tests/unit/tasks/test_mise.py -v` *(21 passed)*
+- [x] `mise run cli:check` exits 0
+- [x] The purge holds over **non-`meta/`** tracked files —
       `grep -rl 'CLAUDE_PLUGIN_ROOT'` honouring `.gitignore` and excluding
       `meta/` returns only `hooks/**`, `scripts/interactive-harness.sh`,
       `scripts/test-design.sh`, `skills/config/migrate/**`, migrations
@@ -1647,23 +1713,42 @@ previous "the gate is reachable from `cli:check`" criterion was vacuous. Add
       `meta/` is excluded because it records history — including this plan —
       rather than coupling. Derive the list by running the grep rather than by
       enumeration, so it cannot drift from what the tree actually contains.
-- [ ] `mise run check` exits 0
+
+      **Measured at Phase 2: 86 files. Re-measured after Phases 3 and 4: 87,
+      every one in the permitted set.** Three corrections to the list as
+      written. The `hooks/**` entry covers four more files than it implies
+      (`hooks.json`, the two bash harnesses and
+      `hooks/test-fixtures/vcs-detect/regenerate.sh`). Phase 3 adds one file
+      outside that prefix —
+      `tests/integration/hooks/test_launcher_link_refresh.py`, which must name
+      the variable in order to assert the hook does *not* — and that is the only
+      addition between the two measurements. And of the "three files this work
+      adds that must name what they forbid or strip", only **two** do:
+      `tests/integration/skill-invocation/test_skill_invocation_conformance.py`
+      never names the variable, because Phase 4 promoted `PLUGIN_PREFIX` to
+      public and imports it rather than carrying a third literal copy.
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Reintroducing a `CLAUDE_PLUGIN_ROOT` read into `cli/launcher/src/main.rs`
+- [x] Reintroducing a `CLAUDE_PLUGIN_ROOT` read into `cli/launcher/src/main.rs`
       turns `mise run cli:check` red with a `path:line:text` report naming the
-      variable, and the failure message names the guard file
-- [ ] Reintroducing Phase 1a's transitional `export CLAUDE_PLUGIN_ROOT` into
+      variable, and the failure message names the guard file. **Confirmed**:
+      `cli/launcher/src/main.rs:177:std::env::var_os("CLAUDE_PLUGIN_ROOT")`.
+- [x] Reintroducing Phase 1a's transitional `export CLAUDE_PLUGIN_ROOT` into
       `bin/accelerator` turns it red too — the property that makes the guard the
-      backstop for 1b's cleanup
-- [ ] The guard's scan does not descend into `cli/target/`,
+      backstop for 1b's cleanup. **Confirmed** in the same run:
+      `bin/accelerator:353:export CLAUDE_PLUGIN_ROOT="${plugin_root}"`.
+- [x] The guard's scan does not descend into `cli/target/`,
       `node_modules/` or `dist/` (observable as a sub-second run rather than a
-      multi-second one, with or without a built frontend)
+      multi-second one, with or without a built frontend). **Confirmed**: 275ms
+      against a built tree, 724 files scanned.
 
 ---
 
 ## Phase 3: Terminal Invocation Surface
+
+> **Done 2026-07-29.** Three commits, as sequenced.
 
 ### Overview
 
@@ -1716,6 +1801,13 @@ should move.
 ### Changes Required
 
 #### 1. The hook test suite (written first)
+
+> **Superseded on the language, not the cases.** The suite shipped as
+> `tests/integration/hooks/test_launcher_link_refresh.py`, not a
+> `hooks/test-*.sh` harness: ADR-0048 makes Python the test language for the
+> non-Rust surfaces, shell wrappers included, and the two bash harnesses still
+> under `hooks/` predate that decision. Every *case* below is implemented; the
+> bash-specific mechanics are not. See *Implementation notes*.
 
 **File**: `hooks/test-launcher-link-refresh.sh` (new, `chmod 0755`, mode committed)
 **Changes**: Copies the structure of `hooks/test-migrate-discoverability.sh` —
@@ -2190,14 +2282,17 @@ there (it registers only `skills`), so hooks are discovered by convention.
 exec bit, so no registry entry is needed. But `hooks` has no floor count, so a
 dropped exec bit would silently remove a suite from CI.
 
-A **count** floor alone does not close that for this phase. `hooks/` holds two
-suites today and three after it, so `_EXPECTED_HOOKS_SUITES = 3` is the value — but
-`TestHooksSuiteGuard` builds its at-baseline case from the constant itself, so a
-floor left at `2` would pass every test while failing to detect the loss of the very
-suite it was added for. Add a `_REQUIRED_HOOKS_SUITES` **by-name** entry for
-`hooks/test-launcher-link-refresh.sh`, mirroring `_REQUIRED_CONFIG_SUITES` — that is
-the only shape that detects this suite specifically. Both the count and the identity
-guard get their `Exit`.
+A **count** floor alone would not have closed that for a *shell* suite: `hooks/`
+holds two suites, three with a bash link-refresh harness, and the paired guard
+builds its at-baseline case from the constant itself, so a floor left at `2` would
+pass every test while failing to detect the loss of the very suite it was added for.
+The plan therefore called for a `_REQUIRED_HOOKS_SUITES` by-name entry.
+
+**That requirement lapses with the Python port.** `_EXPECTED_HOOKS_SUITES` stays at
+`2` — the two bash harnesses — and the by-name tuple is empty, because the exec-bit
+hazard the floor exists for does not apply to a pytest file: losing one is a
+collection error, not a silently smaller run. The floor still guards the two
+harnesses that *are* exec-bit-discovered.
 
 Rather than a fifth copy of the seven-line `if len(suites) < _EXPECTED_*: raise
 Exit(...)` block (and a fifth near-identical guard class), extract one
@@ -2215,18 +2310,15 @@ subtree.)
 **Changes**: Every existing floor constant has a paired guard class here —
 `TestConfigSuiteGuard`, `TestMigrateSuiteGuard`, `TestWorkSuiteGuard`,
 `TestIntegrationsSuiteGuard` — each asserting `pytest.raises(Exit)` below baseline
-and (for most) passing at baseline built from the constant itself. Add
-`TestHooksSuiteGuard` in the `TestWorkSuiteGuard` shape. Without it the new `Exit`
-branch would be the only floor in the file with no unit coverage, so an
-off-by-one or inverted comparison would ship silently — defeating the fail-loudly
-purpose the floor exists for.
+and (for most) passing at baseline built from the constant itself. Every guarded
+task gains a case, so no `Exit` branch ships without unit coverage and an
+off-by-one or inverted comparison cannot pass silently.
 
-Both new `.sh` files are entrypoints and must **not** be added to
-`SHELL_LIBRARIES` (`tasks/lint/scripts.py:18-49`) — that would trip the
-`chmod -x` branch (`:128-129`) and break the pinned-membership test
-`tests/unit/tasks/test_exec_bits.py:288-292`. A test *runner* is an entrypoint by
-the rule in `tasks/README.md`, so no registry or pinned-list edit is needed for
-the new suite.
+The hook itself is an entrypoint and must **not** be added to `SHELL_LIBRARIES`
+(`tasks/lint/scripts.py:18-49`) — that would trip the `chmod -x` branch
+(`:128-129`) and break the pinned-membership test
+`tests/unit/tasks/test_exec_bits.py:288-292`. Only one new `.sh` file lands now
+that the suite is Python.
 
 #### 5. Documentation
 
@@ -2370,38 +2462,52 @@ the mechanism by which any of this reaches users.
 
 #### Automated Verification
 
-- [ ] The hook suite passes: `bash hooks/test-launcher-link-refresh.sh`
-- [ ] Hooks integration tests pass, including the new floor:
-      `mise run test:integration:hooks`
-- [ ] The floor's own guard passes:
-      `uv run pytest tests/unit/tasks/test_integration.py -v`
-- [ ] The existing hook suites still pass — in particular the
+- [x] The hook suite passes: `uv run pytest tests/integration/hooks`
+      *(22 tests, 0.5s — ported from the 62-assertion bash draft)*
+- [x] Hooks integration tests pass, including the new floor:
+      `mise run test:integration:hooks` *(all three suites discovered and green)*
+- [x] The floor's own guard passes:
+      `uv run pytest tests/unit/tasks/test_integration.py -v` *(17 passed)*
+- [x] The existing hook suites still pass — in particular the
       `SessionStart[0]` index assertion: `bash hooks/test-vcs-detect.sh`
-- [ ] `hooks.json` is valid and registers the hook, selected by content:
+      *(131 passed; the new group was appended at index 3)*
+- [x] `hooks.json` is valid and registers the hook, selected by content:
       `jq -e '[.hooks.SessionStart[].hooks[].command] | any(endswith("launcher-link-refresh.sh"))' hooks/hooks.json`
-- [ ] The exec-bit invariant holds: `mise run lint:scripts:check` and
-      `uv run pytest tests/unit/tasks/test_exec_bits.py -v`
-- [ ] `docs/internals.md` carries the section:
+- [x] The exec-bit invariant holds: `mise run lint:scripts:check` and
+      `uv run pytest tests/unit/tasks/test_exec_bits.py -v` *(17 passed)*
+- [x] `docs/internals.md` carries the section:
       `grep -q '^## Terminal Invocation' docs/internals.md`
-- [ ] No stale wrapper name remains:
+- [x] No stale wrapper name remains:
       `! grep -q 'accelerator-visualiser' docs/visualiser.md`
-- [ ] The competing recipe is gone:
+- [x] The competing recipe is gone:
       `! grep -q 'CLAUDE_PLUGIN_ROOT}/bin/accelerator" "\$HOME/.local/bin' skills/visualisation/visualise/SKILL.md`
-- [ ] No ad-hoc symlink advice survives in the visualiser docs:
+- [x] No ad-hoc symlink advice survives in the visualiser docs:
       `! grep -q 'symlink onto' docs/visualiser.md`
-- [ ] The documented recipe carries no unexpanded token:
+- [x] The documented recipe carries no unexpanded token:
       `! grep -q 'CLAUDE_PLUGIN_DATA}/bin/accelerator' docs/internals.md`
-- [ ] `README.md` links to it and the gloss names the new section
-- [ ] The hook emits **at most one** JSON object on stdout, asserted by the
+- [x] `README.md` links to it and the gloss names the new section
+- [x] The hook emits **at most one** JSON object on stdout, asserted by the
       both-notices-at-once case
-- [ ] With `jq` shadowed off `PATH`, the notices degrade to stderr and the hook
-      still exits 0
-- [ ] The hook reads no root from the environment:
-      `! grep -q 'CLAUDE_PLUGIN_ROOT' hooks/launcher-link-refresh.sh`
-- [ ] A re-point is reported naming both roots, and a first refresh is silent
-- [ ] `mise run check` exits 0
+- [x] With `jq` shadowed off `PATH`, the notices degrade to stderr and the hook
+      still exits 0. **Shadowed, not stripped**: macOS 15 ships `/usr/bin/jq`,
+      so dropping every directory holding a `jq` also removes `dirname`,
+      `mkdir` and `ln`, and the hook fails for an unrelated reason well before
+      the jq fallback. The case prepends a `jq` stub that exits 127 instead.
+- [x] The hook reads no root from the environment:
+      `! grep -q 'CLAUDE_PLUGIN_ROOT' hooks/launcher-link-refresh.sh` — which
+      also constrains the *header comment*: the divergence note is worded
+      without naming the variable so the bare grep stays a usable guard.
+- [x] A re-point is reported naming both roots, and a first refresh is silent
+- [x] `mise run check` exits 0
 
 #### Manual Verification
+
+All five need the hook running from an **installed** plugin, so they are
+**deferred to the release candidate** — the installed plugin is `1.24.0-pre.16`,
+which predates this hook, and Claude Code invokes `hooks.json` from the
+installation rather than the working tree. The hermetic equivalents are the 62
+suite assertions; what these add is the real `SessionStart` path and a real
+upgrade.
 
 - [ ] In a real session, the hook fires at `SessionStart` and
       `${CLAUDE_PLUGIN_DATA}/bin/accelerator` resolves to the current
@@ -2416,9 +2522,72 @@ the mechanism by which any of this reaches users.
       `${CLAUDE_PLUGIN_DATA}`; the user's own first hop is theirs to remove, as
       the documentation now says
 
+### Implementation notes
+
+**The suite is Python, not bash.** ADR-0048 makes Python the test language for
+the non-Rust surfaces, shell wrappers included; the plan drafted a
+`hooks/test-*.sh` harness by analogy with `test-migrate-discoverability.sh` and
+`test-vcs-detect.sh`, which predate that decision. Ported to
+`tests/integration/hooks/test_launcher_link_refresh.py`: 22 tests in 0.5s,
+against 62 assertions in the bash draft. Consequences:
+
+- **Most of the "tool constraints" paragraph evaporates.** `find -printf` versus
+  BSD `find`, `stat -c` versus `stat -f`, `ls -ld | cut -c1-10` to dodge macOS's
+  xattr column, `LC_ALL=C sort` for stable tree listings, `readlink 2>/dev/null`
+  for GNU's non-symlink diagnostic — every one of those exists because bash has
+  no portable primitive. `os.lstat`, `Path.readlink` and `sorted()` behave the
+  same on both legs. What survives is the constraint that *matters*: the fixture
+  root is resolved physically because the hook uses `pwd -P`, while
+  `CLAUDE_PLUGIN_DATA` is never canonicalised because the hook composes it
+  verbatim.
+- **Scrubbing becomes construction.** `run_hook`'s `env -u …` list existed
+  because a bash suite inherits the ambient environment. `subprocess.run` takes
+  an explicit `env` dict, so the leak is impossible by default rather than
+  guarded against.
+- **The channel split is asserted more precisely.** `jq -r '.systemMessage'`
+  becomes `json.loads`, and the exactly-one-JSON-object case counts objects with
+  `raw_decode` rather than trusting `jq -s 'length'`.
+- **`hooks/` now has two test languages, so its mise task runs both** — the
+  pytest directory and the two remaining bash harnesses.
+- **The floor's by-name requirement lapses**, and
+  `tests/unit/tasks/test_integration.py` has to stub `Context.run`: the `hooks`
+  task shells out to pytest before its floor check, and invoke's `@task` rejects
+  a stand-in Context, so without the stub the floor unit tests would run the
+  whole hooks suite twice.
+- **The stale-staging case is unchanged in substance**, and worth re-noting: it
+  still goes through a wrapper that `exec`s the hook, because the staging path
+  carries the hook child's pid and no language makes that knowable in advance.
+
+Four further things the plan did not anticipate, each settled by measurement:
+
+- **Fixture roots must be returned as *physical* paths.** The plan's tool
+  constraints say neither the hook nor the suite may canonicalise "the paths it
+  is handed", which is right for `CLAUDE_PLUGIN_DATA` — the hook composes that
+  verbatim — but wrong for the fixture *root*: the hook resolves its own root
+  with `pwd -P`, so on macOS it reports `/private/var/folders/…` against a
+  `mktemp -d` of `/var/folders/…` and every `readlink` comparison fails on that
+  leg. `make_root` therefore returns `cd -P … && pwd -P`, deriving the expected
+  value the same way the hook derives the actual one. Three cases were red
+  before this.
+- **The jq-absent case shadows rather than strips.** See the criterion above.
+- **The hook's header comment cannot name `CLAUDE_PLUGIN_ROOT`.** The plan asks
+  the hook to record *why* it self-locates rather than reading the variable, and
+  separately asserts `! grep -q 'CLAUDE_PLUGIN_ROOT'` over the file. Both are
+  satisfiable only if the note is worded without the literal, which it now is.
+- **Two shellcheck findings are the plan's own deliberate choices**, so both
+  carry justified disables: `SC2174` (`-m` with `-p` applies only to the deepest
+  directory — exactly the intent, since `${CLAUDE_PLUGIN_DATA}` itself is Claude
+  Code's to own) and `SC2012` (`ls -ld | cut` is the only portable mode read once
+  `stat` is banned for the GNU/BSD flag split and BSD `find` has no `-printf`).
+
+The plan's optional deferral is taken: `decisions` and `github` gained floors
+alongside `hooks`, since the extracted helper made each one line.
+
 ---
 
 ## Phase 4: `!`-Site Conformance Suite
+
+> **Done 2026-07-29.** Two commits: the harness extraction, then the suite.
 
 ### Overview
 
@@ -2621,34 +2790,101 @@ step and `workspaces: cli` cargo caching.
 
 #### Automated Verification
 
-- [ ] The suite passes:
-      `uv run pytest tests/integration/skill-invocation -v`
-- [ ] The structural corpus invariants hold — every SKILL.md with a `config` `!`
+- [x] The suite passes:
+      `uv run pytest tests/integration/skill-invocation -v` *(128 passed in 80s;
+      122 command cases + 6 corpus invariants)*
+- [x] The structural corpus invariants hold — every SKILL.md with a `config` `!`
       site contributes a command, the `instructions`/`context` counts equal
-      `EXPECTED_INJECTION_SKILLS`, and the declined set is empty
-- [ ] The suite is hermetic — it performs no live fetch, serving the launcher from
-      the stub release server only
-- [ ] `mise run test:integration:skill-invocation` exits 0
-- [ ] The leaf is reachable from the roll-up CI runs, and the build edge is
-      asserted: `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] `mise run test:integration` runs it (not just the leaf directly)
-- [ ] `mise run check` exits 0
+      `EXPECTED_INJECTION_SKILLS`, and the declined set is empty. A fourth
+      invariant was added: every skill *named* by an `instructions`/`context`
+      command must exist. The fixture derives its overrides from the corpus, so
+      without it a `!` site naming a nonexistent skill would have an override
+      helpfully created for it and pass — and neither the permissions census nor
+      the count checks would notice, since both count skills carrying an
+      injection rather than whether the name resolves.
+- [x] The suite is hermetic — it performs no live fetch, serving the launcher from
+      the stub release server only (enforced by `run_bootstrap`'s preconditions,
+      plus the session-scoped `bin/` guard)
+- [x] `mise run test:integration:skill-invocation` exits 0
+- [x] The leaf is reachable from the roll-up CI runs, and the build edge is
+      asserted: `uv run pytest tests/unit/tasks/test_mise.py -v` *(23 passed)*
+- [x] `mise run test:integration` runs it (not just the leaf directly)
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] Adding a new `!` site with a broken `config` command to any SKILL.md turns
-      the suite red
-- [ ] Adding a `!` site to a *new* SKILL.md that the scan fails to pick up turns
-      the suite red via the per-file invariant
-- [ ] Changing this repository's own `.accelerator/config.md` does **not** change
-      the suite's result — the fixture project is the only oracle
-- [ ] Deleting the fixture's instructions override for one skill turns exactly one
+- [x] Adding a new `!` site with a broken `config` command to any SKILL.md turns
+      the suite red. **Confirmed**: a `config template no-such-template
+      --fail-safe` site appended to `create-note` failed as its own case.
+- [x] Adding a `!` site to a *new* SKILL.md that the scan fails to pick up turns
+      the suite red via the per-file invariant. **Confirmed** with a real new
+      `skills/zzz-probe/SKILL.md` and the extractor's walk narrowed to skip it:
+      only `test_every_skill_with_a_config_site_contributes_a_command` fired.
+- [x] Changing this repository's own `.accelerator/config.md` does **not** change
+      the suite's result — the fixture project is the only oracle. **Confirmed**:
+      with `paths.work`, `paths.plans` and `agents.reviewer` all rewritten in the
+      repo config, all 128 still pass.
+- [x] Deleting the fixture's instructions override for one skill turns exactly one
       assertion red, confirming the 86 are content-discriminating rather than
-      empty-tolerant
+      empty-tolerant. **Confirmed, with a count correction**: dropping the
+      `commit` override reddens *two* cases, not one — `instructions commit` and
+      `context --skill commit`. Each configured skill contributes one command to
+      each family, so two is the correct blast radius.
+
+### Implementation notes
+
+Seven departures from the section above, each measured.
+
+- **The support extraction was not a Phase 1a deliverable after all.** Phase 1a
+  shipped with the apparatus still module-private in the entrypoint suite, so
+  this phase does the extraction itself — commit 1, with the entrypoint suite
+  refactored onto it and still 46 green.
+- **The fixture project is generated per run, not committed.** The section asks
+  for both ("the only committed fixture" *and* "generate the config file and the
+  expectations from one fixture data structure"). Generation wins: a committed
+  tree of ~84 override files would need hand-maintenance on every skill rename,
+  which is precisely the drift the single-sourcing exists to prevent. The cost
+  is that the fixture is derived from the thing under test, which is why
+  `test_every_named_skill_exists` was added — see the criterion above.
+- **The corpus module lives in `tests/integration/support/`.** A module inside
+  `tests/integration/skill-invocation/` is not importable: the directory name is
+  hyphenated. The suite directory keeps the hyphen (matching the task name); only
+  the importable module moves.
+- **The leaf gets no `build:cli:dev` edge, and goes in `_NO_LAUNCHER_NEEDED`.**
+  The section says to add both, but the suite builds the launcher in-fixture
+  through the shared `build_launcher` — which exists so a suite runs standalone —
+  and Phase 1a's own note says a build edge would then contend on cargo's target
+  lock while making the assertion inert. The two halves of the plan contradict
+  each other here; the Phase 1a reasoning is the one with a mechanism behind it.
+- **The family table's counts are off in three places.** Measured: 13 distinct
+  `template <name>` commands (19 occurrences), not 20; there is **no**
+  `templates list` command in the corpus at all; and there is a
+  `config agent <name>` family the table omits. The totals the section states —
+  204 commands, 122 distinct, 45 files, 42 injection skills each way — are all
+  exact.
+- **Every one of the 122 distinct commands renders non-empty stdout** against the
+  fixture, which is better than the section predicts. So no family needs an
+  empty-tolerant assertion: the per-skill 86 are exact content matches and
+  everything else is asserted non-empty.
+- **The suite does not name `CLAUDE_PLUGIN_ROOT`.** Phase 2's residue criterion
+  lists it among the files that "must name what they forbid or strip". It does
+  not need to: promoting `skill_permissions._PLUGIN_PREFIX` to a public
+  `PLUGIN_PREFIX` — which the section calls for anyway, to avoid a third literal
+  copy — means the substitution reads the constant instead. Phase 2's criterion
+  is corrected accordingly.
+- **One bootstrap invocation per command, not two.** The section implies separate
+  exit-code and stdout tests; merging them halves 244 subprocess runs to 122
+  (~80s for the suite). Cases are parametrised over *distinct* commands — the 204
+  occurrences carry 122 distinct texts, and a duplicate exercises nothing new.
 
 ---
 
 ## Phase 5: A Missing Plugin Root Becomes a Named Error
+
+> **Done 2026-07-29.** One commit. All implementation phases are now complete;
+> what remains in this plan is the closing `mise.local.toml` step and the manual
+> criteria deferred to the release candidate (Phase 1a's published-release check
+> and Phase 3's five installed-hook checks).
 
 ### Overview
 
@@ -2927,7 +3163,8 @@ Two consequences for this phase:
   `a_root_without_a_templates_directory_still_renders_an_empty_table`).
 - Raise a **follow-up work item** for converting that arm's `NotFound` case into
   `PluginRootUnavailable` (keeping genuine I/O failures as `Io`), and reference its
-  id here — a prose note in a completed plan is not a work queue.
+  id here — a prose note in a completed plan is not a work queue. **Raised as
+  0184** (`meta/work/0184-template-enumeration-swallows-a-wrong-plugin-root.md`).
 
 #### 4. Update the tests
 
@@ -3010,47 +3247,114 @@ Hand-run criteria assume the repository root as cwd and a host-native debug buil
 `CARGO_TARGET_DIR` may be set. The hermetic equivalents are the `config_read.rs`
 cases, which pin cwd via `run_in` and are what CI actually runs.
 
-- [ ] `cli/` workspace tests pass: `mise run test:unit:cli` — including the 47
-      untouched `run_in` cases and both rootless `summary` cases
-- [ ] The new variant's `Display` names the variable, asserted as a unit test in
-      `cli/config/src/error.rs`'s existing per-variant block
-- [ ] Every `ConfigError` variant is classified: adding one without extending
-      `is_refusal()` fails to compile
-- [ ] A rootless `config templates list` is a named error rather than an empty
-      table, exiting non-zero with a diagnostic naming the variable
-- [ ] The same command **with** `--fail-safe` behaves identically — non-zero, empty
+- [x] `cli/` workspace tests pass: `mise run test:unit:cli` — including the 47
+      untouched `run_in` cases and both rootless `summary` cases *(586 passed)*
+- [x] The new variant's `Display` names the variable, asserted as a unit test in
+      `cli/config/src/error.rs`'s existing per-variant block —
+      `plugin_root_unavailable_names_the_variable_and_the_bootstrap`
+- [x] Every `ConfigError` variant is classified: adding one without extending
+      `is_refusal()` fails to compile. **Confirmed** by adding a throwaway variant
+      mid-phase: `error[E0004]: non-exhaustive patterns` at the `is_refusal`
+      match. Classification of the four variants the plan's snippet omitted
+      (`PathConflict`, `MalformedFrontmatter`, `InvalidKey`, `UnsafePath`) follows
+      the wildcard it replaced — degradable — so no existing behaviour moved.
+- [x] A rootless `config templates list` is a named error rather than an empty
+      table, exiting non-zero with a diagnostic naming the variable —
+      `templates_list_with_no_plugin_root_is_a_named_refusal_not_an_empty_table`
+- [x] The same command **with** `--fail-safe` behaves identically — non-zero, empty
       stdout, diagnostic on stderr — because the failure is a `Refusal`
-- [ ] `config template adr` with no root still exits non-zero with and without
-      `--fail-safe`, as it does today, with a better message
-- [ ] A rootless `config templates eject --all` is a named error and writes no
-      file, where today it exits 0 having ejected nothing
-- [ ] **A rootless `config template <name>` still resolves a user override** — the
-      criterion that pins the tier check being in place rather than hoisted
-- [ ] A root that exists but has no `templates/` still renders a header-only table
-      at exit 0 (characterisation — the deferred residue, visible not implicit)
-- [ ] The root-independent families still succeed rootless, `config summary` among
+- [x] `config template adr` with no root still exits non-zero with and without
+      `--fail-safe`, as it does today, with a better message. Both this and the
+      criterion above are one parametrised case,
+      `a_missing_plugin_root_refuses_identically_with_and_without_fail_safe`,
+      covering `templates list`, `template <name>` and `templates show` and
+      asserting **byte-identical stderr** across the flag — which is the property
+      that separates the `Refusal` classification from a `Read` one.
+- [x] A rootless `config templates eject --all` is a named error and writes no
+      file, where today it exits 0 having ejected nothing —
+      `templates_eject_all_with_no_plugin_root_writes_nothing`, plus
+      `the_unflagged_template_commands_name_the_variable_with_no_plugin_root` for
+      `eject <name>`, `diff` and `reset`
+- [x] **A rootless `config template <name>` still resolves a user override** — the
+      criterion that pins the tier check being in place rather than hoisted:
+      `a_user_override_still_resolves_with_no_plugin_root`
+- [x] A root that exists but has no `templates/` still renders a header-only table
+      at exit 0 (characterisation — the deferred residue, visible not implicit) —
+      `a_root_without_a_templates_directory_still_renders_an_empty_table`
+- [x] The root-independent families still succeed rootless, `config summary` among
       them: `config paths` and `config summary` both exit 0 with non-empty stdout,
-      run against a stated fixture project
-- [ ] `version` with no root still exits 0
-- [ ] An external subcommand with no root fails at the **cache-root** step, pinned
-      by a substring only that error emits
-- [ ] An empty-string root behaves identically to an absent one, for the launcher
-      **and** the visualiser server (one filter in `with_plugin_root`)
-- [ ] Architecture rules hold: `mise run pup:check`
-- [ ] The Phase 4 conformance suite still passes:
-      `mise run test:integration:skill-invocation`
-- [ ] `mise run check` exits 0 — including `missing_errors_doc` on the newly
+      run against a stated fixture project — the `summary` fixture, in
+      `the_root_independent_families_still_succeed_with_no_plugin_root`
+- [x] `version` with no root still exits 0 — already covered: `version.rs`'s `run`
+      helper strips `ACCELERATOR_PLUGIN_ROOT` from every case in the file
+- [x] An external subcommand with no root fails at the **cache-root** step, pinned
+      by a substring only that error emits — `no ACCELERATOR_CACHE_DIR override
+      was given`, tightened at `version.rs`'s
+      `an_unresolvable_subcommand_exits_non_zero_with_a_named_step` and at
+      `cache_root.rs`'s `unset_plugin_root_with_no_override_is_a_named_error`
+- [x] An empty-string root behaves identically to an absent one, for the launcher
+      **and** the visualiser server (one filter in `with_plugin_root`) —
+      `an_empty_plugin_root_behaves_as_an_unset_plugin_root` (strengthened to the
+      named refusal) and the server's `an_empty_plugin_root_refuses_to_compose`
+- [x] Architecture rules hold: `mise run pup:check`
+- [x] The Phase 4 conformance suite still passes:
+      `mise run test:integration:skill-invocation` *(128 passed)*
+- [x] `mise run check` exits 0 — including `missing_errors_doc` on the newly
       fallible port
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] `mise run` (bare default) exits 0 end-to-end
 
 #### Manual Verification
 
-- [ ] A rootless launcher reached via `ACCELERATOR_BIN` prints a diagnostic naming
-      `ACCELERATOR_PLUGIN_ROOT` for `templates list` instead of an empty table
-- [ ] Nothing reaches stdout on that path, so no resolved path could be spliced
-      into a prompt
-- [ ] A `!` site still cannot reach this failure, because the bootstrap always
-      exports a root — confirm by checking one skill loads normally after the change
+- [x] A rootless launcher reached via `ACCELERATOR_BIN` prints a diagnostic naming
+      `ACCELERATOR_PLUGIN_ROOT` for `templates list` instead of an empty table.
+      **Confirmed**: exit 1 with `the plugin installation root is unknown: set
+      ACCELERATOR_PLUGIN_ROOT, or invoke accelerator through bin/accelerator,
+      which derives it`, run from a bare `mktemp -d` with both variables stripped.
+- [x] Nothing reaches stdout on that path, so no resolved path could be spliced
+      into a prompt. **Confirmed**: 0 bytes, with and without `--fail-safe`.
+- [x] A `!` site still cannot reach this failure, because the bootstrap always
+      exports a root — confirm by checking one skill loads normally after the
+      change. **Discharged by automation instead**: Phase 4's conformance suite
+      runs all 122 distinct `config` `!`-site commands through the real bootstrap
+      with both variables removed from the environment, and all 128 cases stay
+      green. That covers every skill rather than one, so a hand check adds
+      nothing.
+
+### Implementation notes
+
+Four departures from the section above.
+
+- **`is_refusal` is `pub`, not `pub(crate)`.** The section's snippet says
+  `pub(crate)`, but its sole consumer — `From<ConfigError> for Failure` — lives in
+  the `accelerator` launcher crate, so `pub(crate)` on a method of `config` makes
+  it unreachable and the delegation cannot compile. The property the section
+  actually wants is *exhaustiveness inside the defining crate*, which the
+  `match` provides regardless of the visibility of the method wrapping it.
+- **Nine variants to classify, not five.** The snippet omits `PathConflict`,
+  `MalformedFrontmatter`, `InvalidKey` and `UnsafePath`. All four take the
+  `false` arm, which is what the wildcard they replace already gave them, so no
+  existing classification moved and no existing test changed. `UnsafePath` is
+  the one worth naming: it *reads* like a refusal, and
+  `paths_doc_types_stays_fail_closed_on_escape_with_fail_safe` proves that path
+  is already fail-closed — but via `ConfigError::Invalid` raised in
+  `config::paths`, not via `UnsafePath`, so classifying it `true` would have
+  been a behaviour change dressed as a tidy-up.
+- **`plugin_default`'s and `eject`'s rewrites take the `if !path.is_file()`
+  shape the section predicts, but `plugin_template_path` keeps no `Option`
+  seam at all** — it is `Result<PathBuf, ConfigError>` outright, so the two
+  consumers each read `let path = self.plugin_template_path(name)?;`. The
+  `EjectOutcome::NoDefault` consequence the section flags is real and now
+  observable: with no root, `eject` refuses before it can report it.
+- **The server's half of the empty-root criterion is a `compose_contract.rs`
+  case, not a subprocess test.** `an_empty_plugin_root_refuses_to_compose`
+  calls `compose::load` with `PathBuf::new()` and asserts the error names the
+  variable. The server's own `var_os` at `main.rs:69` is left unfiltered as the
+  section intends — `store.template_names()?` refuses first, so `load` fails
+  before `plugin_root.join("templates")` can become a cwd-relative path. Absent
+  and empty are therefore not byte-identical at the server: absent exits 2 at
+  `main.rs` naming the variable, empty exits 2 via `failed to compose config`
+  also naming it. Both refuse to start; only the launcher achieves literal
+  identity.
 
 ---
 
@@ -3069,6 +3373,12 @@ checkout. Treat it as a line in the closure sequence (Migration Notes) and in th
 Until then this file is what supplies `CLAUDE_PLUGIN_ROOT` to the installed
 plugin's still-unfixed bootstrap in this repository, and every CLI-invoking skill
 — including the ones used to carry out this plan — depends on it.
+
+**Met 2026-07-29**: `1.24.0-pre.17` is installed and self-locates, verified by
+Phase 1a's rootless criterion above. The step is unblocked. Note the two manual
+criteria below cannot be evidenced by skill loads performed *before* the
+deletion — those still run through this file's ambient value — so the deletion
+comes first and the skill loads after.
 
 ### Why keeping it this long costs nothing
 
@@ -3092,32 +3402,57 @@ not touch — but it means the local masking ends at 1b, not 1a.
 **File**: `mise.local.toml`
 **Changes**: Delete, and confirm it is absent from the working-copy commit.
 
-The per-push hazard is already largely handled by mechanism rather than ritual:
-`.gitignore:26` lists `mise.local.toml`. That entry is **new in the current
-working copy** (`jj diff .gitignore` shows it as an addition), not pre-existing, so
-it is part of this work and should land with it. With it in place the file cannot
-be accidentally `git add`ed, and jj will not auto-snapshot it unless force-tracked
-— which is also the explanation for the otherwise-odd situation of a gitignored
-file being present in the working-copy commit.
+The per-push hazard is already handled by mechanism rather than ritual:
+`.gitignore:26` lists `mise.local.toml`. That entry was **new in the working copy**
+when this was written, not pre-existing, so it is part of this work — and it has
+since landed. With it in place the file cannot be accidentally `git add`ed, and
+jj no longer snapshots it: it is now untracked rather than sitting in the
+working-copy commit, so the only thing deletion still removes is the on-disk file
+feeding the installed plugin's bootstrap.
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] The file is gone: `test ! -e mise.local.toml`
-- [ ] The ignore entry landed: `grep -qx 'mise.local.toml' .gitignore`
-- [ ] It is on no branch that can reach CI:
+- [x] The file is gone: `test ! -e mise.local.toml` — **done 2026-07-29**,
+      alongside the `1.24.0-pre.17` install. `mise env` now exports no plugin
+      root.
+- [x] The ignore entry landed: `grep -qx 'mise.local.toml' .gitignore` —
+      `.gitignore:26`, and the file is untracked as a result
+- [x] It is on no branch that can reach CI:
       `! git cat-file -e main:mise.local.toml 2>/dev/null`
-- [ ] The shell suites still pass with no ambient root:
-      `mise run test:integration:work test:integration:config`
-- [ ] `mise run` (bare default) exits 0 end-to-end
+- [x] The shell suites still pass with no ambient root:
+      `mise run test:integration:work test:integration:config` — run as two
+      invocations, since a single `mise run` passes the second name as an
+      *argument* to the first. 404 assertions pass in the work subtree, 1692 in
+      config, each exit 0; both green again inside the clean full run below
+- [x] `mise run` (bare default) exits 0 end-to-end — run under
+      `env -u CLAUDE_PLUGIN_ROOT -u ACCELERATOR_PLUGIN_ROOT`, so no ambient root
+      reached any task. All three `cli/`-scoped guards executed, and the
+      formatters changed nothing.
+
+      An earlier run of the same commit failed `test:integration:config` on a
+      teardown race in the Playwright executor cases (`rm: … Directory not
+      empty` on the fixture's `.accelerator/tmp`), not on anything root-related:
+      that suite passed standalone both before and after, and green in the clean
+      run. It belongs to the recorded config-suite flake class, not to this step.
 
 #### Manual Verification
 
-- [ ] With the file deleted, `/accelerator:commit` and one other CLI-invoking
-      skill load without error against the **installed** plugin — the direct
-      confirmation that the fix reached the artifact
-- [ ] No permission prompt appears for either skill
+- [x] With the file deleted, two CLI-invoking skills load without error against
+      the **installed** `1.24.0-pre.17` — `list-work-items` (injections
+      populated: `meta/work`, `linear`, the work-item template) and `paths` (all
+      14 configured paths resolved). Non-empty injections are what separates a
+      real read from a `--fail-safe` degradation.
+
+      Caveat on strictness: this Claude Code session's own environment still
+      carries a stale `CLAUDE_PLUGIN_ROOT` pointing at `1.24.0-pre.16`,
+      inherited at session start, so the `!` shells saw one. It is provably
+      inert — the executed path is `1.24.0-pre.17`'s own bootstrap, which never
+      *reads* either variable (its only mention is the export at `:116`) — but
+      the unconfounded confirmation is a session started outside this
+      repository's mise context, which is worth doing once.
+- [x] No permission prompt appears for either skill
 
 ---
 
