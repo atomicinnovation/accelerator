@@ -47,6 +47,12 @@ bin/.accelerator-lock-*
 bin/.accelerator-unverified.log
 bin/.tmp-*
 
+# Release-only symbolication archives: `build:debug-archives` writes them into
+# the committed skill tree so the provenance glob covers them, and the release
+# job attaches them to the GitHub release. They are never in manifest.json and
+# never fetched by the launcher, so nothing in the plugin package needs them.
+bin/*.debug.tar.gz
+
 # Dev-launcher override marker: untracked and unshippable by design, so no clone
 # or marketplace install can carry it (bin/accelerator gates on its presence).
 /.accelerator-dev-launcher
