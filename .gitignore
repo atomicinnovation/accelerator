@@ -21,6 +21,13 @@ meta/eval-workspaces/
 cli/target/
 cli/.pup/
 /dist/
+
+# Build output under the pre-`cli/` visualiser location. `cli/target/` and the
+# root-anchored `/dist/` above do not reach it, so a build here snapshots tens of
+# thousands of paths into the working copy. Only `SKILL.md` and the four
+# `bin/*.debug.tar.gz` archives under this tree are tracked; nothing generated is.
+skills/visualisation/visualise/frontend/dist/
+skills/visualisation/visualise/server/target/
 workspaces/
 node_modules/
 mise.local.toml
