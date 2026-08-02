@@ -5,10 +5,11 @@ title: "bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never ex
 date: "2026-07-26T21:28:26+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: in-progress
+status: ready
 kind: bug
 priority: high
-relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "work-item:0184", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
+blocks: ["work-item:0186"]
+relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "work-item:0184", "work-item:0186", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
 source: "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
 tags: [bug, cli, launcher, bootstrap, plugin-root, skills]
 last_updated: "2026-07-29T00:00:00+00:00"
