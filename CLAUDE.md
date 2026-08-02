@@ -1,6 +1,3 @@
-This file provides guidance to Claude Code (claude.ai/code) when working with 
-code in this repository.
-
 ## What this repo is
 
 Accelerator is a **Claude Code plugin** — not a conventional application. The
@@ -43,27 +40,17 @@ mise run check` yourself before pushing.
 ### Running a single test
 
 The aggregate `mise run test:*` tasks have no name filter; drop to the
-underlying runner for one test:
-
-- **Python (tasks/):** `uv run pytest tests/unit/tasks/test_x.py::test_y -v`
-- **Rust (server):** `cd cli/visualiser/server && cargo test <name>`
-- **Frontend (Vitest):** `cd cli/visualiser/frontend && npx vitest run -t "<name>"`
-- **Shell:** the suites are standalone scripts — run e.g.
-  `bash scripts/test-config.sh` or `bash hooks/test-vcs-detect.sh` directly.
+underlying runner for one test.
 
 ## Architecture
 
 ### Skills as the product (`skills/`, `agents/`, `templates/`, `hooks/`)
 
-Skills are grouped by category (`planning/`, `research/`, `work/`, `review/`,
-`decisions/`, `design/`, `vcs/`, `github/`, `integrations/`, `config/`, …) and
-registered in `.claude-plugin/plugin.json`. Each skill is a `SKILL.md` with YAML
-frontmatter (`name`, `description`, `argument-hint`, `allowed-tools`). The
-non-obvious mechanism: a SKILL.md body runs shell via the **`!` preprocessor**
-(``!`command` ``) at invocation time to inject live context (VCS status, config,
-per-skill context) into the prompt — see `skills/vcs/commit/SKILL.md`. Scripts
-are addressed via `${CLAUDE_PLUGIN_ROOT}` so they resolve from the installed
-plugin location.
+The non-obvious mechanism: a SKILL.md body runs shell via the **`!`
+preprocessor** (``!`command` ``) at invocation time to inject live context (VCS
+status, config, per-skill context) into the prompt — see
+`skills/vcs/commit/SKILL.md`. Scripts are addressed via `${CLAUDE_PLUGIN_ROOT}`
+so they resolve from the installed plugin location.
 
 The core design (read the README "Philosophy" section): development is split
 into phases (research → plan → implement) that communicate **through the
@@ -73,31 +60,15 @@ memory; each skill reads/writes predictable paths within it. Subagents
 summaries. Locator agents (find, no Read) are deliberately separated from
 analyser agents (Read) to keep each context bounded.
 
-### Visualiser (`cli/visualiser/`)
-
-- `server/` — Rust (axum) HTTP server. Cargo features: `embed-dist` (default,
-  bundles the built SPA via `rust-embed`) and `dev-frontend` (serves from disk).
-  `build:server:dev` builds the dev binary; release builds embed the frontend.
-- `frontend/` — React 19 + TypeScript + Vite SPA. **Biome** (not ESLint/Prettier)
-  for lint + format; `tsc -b` for types; Vitest for unit, Playwright for E2E.
-- The binary is distributed via GitHub Releases and downloaded on first use,
-  verified against the signed `manifest.json` (SHA-256 + minisign, optional SLSA
-  provenance).
-
-### Build system (`tasks/`)
-
-Python invoke tasks, type-checked with **pyrefly (strict preset)** and linted
-with **ruff (`select = ["ALL"]`)** — both version-pinned exactly in
-`pyproject.toml` because their rule sets are version-sensitive. Shared helpers
-live in `tasks/shared/`. Release/version logic enforces **version coherence**:
-`plugin.json`, the cli/ workspace `Cargo.toml`, and any version-pinned member
-manifest must agree.
+Gotchas specific to the visualiser (`cli/visualiser/`) and the build system
+(`tasks/`) live in their own `CLAUDE.md` files, loaded when you work in those
+directories.
 
 ### Shell scripts (`scripts/`, `hooks/`)
 
 A large bash library backs the skills (config reading, VCS detection, frontmatter
-parsing, migrations). Checked with shfmt + ShellCheck, plus a custom
-**bashisms** linter (`scripts/lint-bashisms.sh`) that guards a **bash 3.2 floor**
+parsing, migrations). A custom **bashisms** linter
+(`scripts/lint-bashisms.sh`) guards a **bash 3.2 floor**
 — macOS ships bash 3.2, so bash-4 constructs (associative arrays, `${var,,}`,
 etc.) are banned. Suspect the 3.2 floor first for any macOS-only shell failure.
 `hooks/` contains `SessionStart`/`PreToolUse` hooks (config detection, VCS
