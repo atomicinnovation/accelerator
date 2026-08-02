@@ -15,7 +15,7 @@ relates_to: ["work-item:0125", "work-item:0168", "work-item:0187",
   "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["work-item:0169"]
 tags: [rust, vcs, dependencies]
-last_updated: "2026-08-02T14:39:47+00:00"
+last_updated: "2026-08-03T14:35:24+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -70,6 +70,61 @@ later epic-0136 phases migrate them.
 
 ## Requirements
 
+**Amended 2026-08-03 during planning**, on measurement rather than inference —
+eight changes, each recorded inline where it applies. Amendments 1-4 came from
+the planning measurement pass; 5-6 from plan review; 7-8 from the pin decision
+and the `revision` spike.
+
+1. The **reference-artefact size floor** was mis-calibrated and would have failed
+   on the artefact it guards; it is now a ratio floor plus a
+   headroom-bearing absolute floor with its unit stated (Acceptance Criteria).
+2. **Three walks are required, not one** — queries 4, 5 and the jj half of 6
+   need a `.jj`-only walk, because `jj-lib`'s loader does not walk (Delivered
+   surface, and the Library trap on `Workspace::load`).
+3. The **"colocated" fixture row is two distinct shapes**, the submodule row is
+   three, and `jj git init` **colocates by default** at 0.43 so the pure-jj
+   builder needs `--no-colocate` (Acceptance Criteria, Test-support
+   deliverables).
+4. The **single-query-mode rationale was measurably false** — process startup
+   dominates, so the aggregate figure is not inflated by an unknown factor
+   (Acceptance Criteria).
+5. The **size floor needs a mechanism, not just a number.** Amendment 1 fixed the
+   threshold but left it a figure recorded in Validation Results, which catches no
+   later regression. It is now a committed assertion, with the absolute-byte floor
+   scoped to musl triples and a host-native ratio check on the PR path
+   (Acceptance Criteria).
+6. **The six queries return `Result<Option<T>, Error>`, not `Option<T>`.**
+   `Option` alone conflates "no repository of this kind here" with "a repository
+   is here and the pinned pre-1.0 library could not parse it", and silently drops
+   `CommandProbe`'s time cap, crash isolation and warn-logging when 0185 switches
+   the composition root. `dual_roots` is infallible and carries a `Result` per
+   side, since a whole-struct `Result` cannot express one-sided failure on the
+   field that discriminates `colocated` from `nested-*` (Delivered surface).
+7. **The pins are asymmetric and the coupling is four-way, not two-way.**
+   `jj-lib` stays exact at `=0.43.0`; `gix` becomes `~0.85.0`, permitting
+   `0.85.x` patches so a RustSec fix is a lock update rather than a pin edit — the
+   range is anyway identical to jj-lib's own `^0.85.0`, so the single-graph
+   property is untouched. The coupling is jj-lib + gix + the Rust toolchain + the
+   `mise.toml` jj CLI pin (Dependency policy, Dependencies).
+8. **jj `revision` is out of scope; the type implements `VcsProbe` partially.**
+   A spike established that jj-lib 0.43 exposes no read-only, settings-free route
+   to the working-copy commit id. `revision` covers `VcsKind::Git`; the jj
+   mechanism transfers to 0185. The crate-wide `UserSettings` guard **stays**
+   crate-wide — the spike is the evidence nothing in scope needs it (Delivered
+   surface, Library traps, Acceptance Criteria).
+
+Two assumptions also resolved in the same pass: `gix`'s gating feature *is* on
+under `jj-lib`'s defaults, so the single-graph reasoning holds; and the
+`GIT_DIR` scrub invariant holds for free on **both** library sides, making it a
+property to verify rather than implement. A third correction from plan review:
+that invariant was verified over `GIT_DIR`/`GIT_COMMON_DIR` only, so "uniformly
+immune" overstated it — the verification set is widened to everything
+`scrub_environment` touches plus the object-directory and `GIT_CONFIG_COUNT`
+families.
+
+Plan: `meta/plans/2026-08-03-0188-library-backed-vcs-adapter.md`, which carries
+the full empirical oracle mapping.
+
 ### Delivered surface
 
 - **One library-backed type** in `cli/vcs-adapters` implementing *both* the
@@ -78,6 +133,25 @@ later epic-0136 phases migrate them.
   avoids having to say which of a pair carries the dual-root query, which needs
   both libraries. **The domain crate `cli/vcs` is untouched: no port is added,
   widened or changed.**
+
+  **Amended 2026-08-03 (spike) — `VcsProbe` is implemented *partially*.** `kind`
+  is complete; `revision` covers `VcsKind::Git` (via
+  `gix::discover(root)?.head_commit()?.id()`) and returns `None`, warn-logged, for
+  `VcsKind::Jj`. jj-lib 0.43 exposes no read-only, settings-free route to the
+  working-copy commit id: the op stores are settings-free
+  (`SimpleOpHeadsStore::load`, `SimpleOpStore::load`) but the workspace name
+  needed to index `View::get_wc_commit_id` is reachable only through
+  `LocalWorkingCopy::load` (requires `&UserSettings` for `TreeStateSettings`) or
+  `SimpleWorkspaceStore::load` (settings-free but **writes** to
+  `.jj/repo/workspace_store` — verified empirically, so unusable in a read-only
+  probe), and `CheckoutState` is a private struct. Reading the
+  `.jj/working_copy/checkout` protobuf by hand is the only remaining path and is
+  exactly the private-internals dependency this design avoids. **0185 inherits the
+  jj revision mechanism**, alongside the composition-root switch it already owns;
+  its options are a jj-lib version exposing the checkout state publicly, an
+  upstream request for one, or retaining `CommandProbe` for `revision` alone —
+  which would make its "atomic switch plus deletion" sizing wrong, so it needs
+  deciding early.
 - **Six taxonomy queries** as *inherent methods* on that type — not port
   methods. `CommandProbe` and `MarkerWalkRoot` gain none of them. 0169 defines
   whatever domain port its classifier needs and implements it over these; that
@@ -92,18 +166,74 @@ later epic-0136 phases migrate them.
   5. **jj main-vs-secondary distinction**, and where the main repository is.
   6. **Independent dual-root resolution** — the git repository root and the jj
      workspace root, each resolved by its own library's walk without being
-     truncated by the other's marker, so a consumer can compare them. This is
-     what separates `colocated` (roots equal) from `nested-jj-in-git` and
-     `nested-git-in-jj`; 0169 cannot build those arms without it.
+     truncated by the other's marker, so a consumer can compare them. This
+     comparison is **necessary but not sufficient** to separate `colocated` from
+     `nested-jj-in-git` and `nested-git-in-jj`; 0169 cannot build those arms
+     without it, and cannot build them from it alone.
 
-  **Invariant over all six**: `GIT_DIR`/`GIT_COMMON_DIR` are scrubbed for the
-  duration of any detection call, so every query answers identically whether or
-  not they are set. This matches the one place the shell made the decision
-  deliberately (`vcs-common.sh:130-135`, "cannot be poisoned by ambient env")
-  and diverges from `classify_checkout`'s inline reads, which honour them. The
-  shell is internally inconsistent here — `:206-215` unscrubbed against
-  `:130-135` scrubbed — and it is that asymmetry the adapter declines to carry
-  forward.
+  **Amended 2026-08-03 (measurement) — dual-root equality is not on its own a
+  classification.** An earlier framing implied roots-equal ⇒ `colocated`. It does
+  not: a real `jj git init --colocate` main repository has equal roots and
+  classifies as `main`, because `classify_checkout`'s `colocated` arm also
+  requires `jj_secondary && git_worktree` (`scripts/vcs-common.sh:242-247`).
+  Inequality is likewise insufficient — this repo's own `workspaces/<name>`
+  layout has *differing* roots and classifies as `jj-secondary`, because the
+  `nested-jj-in-git` arm additionally requires
+  `jj_main_root != git_main_root` and there they are equal. A consumer reads this
+  query together with queries 2 and 5, never alone.
+
+  **Amended 2026-08-03 (plan review) — the queries return
+  `Result<Option<T>, Error>`.** `Ok(None)` means "no repository of this kind
+  here"; `Err` means "a repository is here and the pinned library could not
+  answer". `Option` alone would collapse a corrupt object store, an unreadable
+  `.jj/repo` or an unsupported repository format into the same value as genuine
+  absence — a regression against `CommandProbe`, which parses in a child process
+  with a 10-second cap, kill-on-timeout and a scrubbed environment and warn-logs
+  every distinct failure. `InProcessProbe` parses repository-controlled data in
+  the caller's address space with no time or memory bound and no crash isolation,
+  and after 0185's switch that runs inside `cli/visualiser/server` and on the hook
+  path, so the distinction is load-bearing rather than stylistic. The partition
+  rule: only the not-found-shaped variant of each library error maps to
+  `Ok(None)`; every other variant is `Err`. `dual_roots` is **infallible with a
+  `Result` per side** — a whole-struct `Result` cannot say "the git side failed but
+  the jj side answered", and flattening that to `None` would reinstate the
+  conflation on the one field the nested/colocated distinction rests on. The two
+  *port* methods keep their `Option` signatures, since `cli/vcs` is untouched;
+  they warn-log instead.
+
+  **Three walks are required, not one** (established 2026-08-03 by measurement;
+  amends the single-boundary-walk framing this section previously carried):
+
+  1. The **combined `.jj`-or-`.git` boundary walk** — `RepoRoot::discover` only.
+     This is `MarkerWalkRoot`'s existing algorithm.
+  2. A **`.jj`-only walk** — queries 4, 5 and the jj half of query 6. This is
+     what `jj workspace root` answers, and the combined walk is **wrong** for
+     them: `jj_lib`'s `DefaultWorkspaceLoaderFactory::create` performs no upward
+     walk of its own, so feeding it the combined boundary makes it return
+     `Err(There is no Jujutsu repo in …)` on both nested-git-in-jj shapes —
+     where the oracle reports a root. A classifier built on the combined walk
+     would therefore report absence where `jj workspace root` reports presence.
+  3. **`gix`'s own discovery** (`gix::discover`) — queries 1, 2, 3 and the git
+     half of query 6. Its willingness to walk above the boundary is *required*
+     here, and is why the boundary rule below scopes to boundary resolution
+     only.
+
+  **Invariant over all six**: every query answers identically whether or not
+  `GIT_DIR`/`GIT_COMMON_DIR` are set. This matches the one place the shell made
+  the decision deliberately (`vcs-common.sh:130-135`, "cannot be poisoned by
+  ambient env") and diverges from `classify_checkout`'s inline reads, which
+  honour them. The shell is internally inconsistent here — `:206-215` unscrubbed
+  against `:130-135` scrubbed — and it is that asymmetry the adapter declines to
+  carry forward.
+
+  **The invariant is a property to verify, not to implement** (measured
+  2026-08-03, both sides). It holds *for free* across the whole fixture matrix:
+  `gix::discover`/`gix::open` do not consult the environment (only
+  `discover_with_environment_overrides` does), and `jj_lib`'s workspace loader is
+  pure filesystem reads. An earlier draft of this criterion required an explicit
+  scrub "for the duration of any detection call"; no such scrub is needed, and
+  adding one would be dead code. `discover_with_environment_overrides` is the
+  ready-made non-vacuity control the acceptance criteria demand.
 
   Anything 0169 needs beyond this list is a change to *this* work item, not
   silent growth in 0169. Two capabilities are explicitly **not** delivered and
@@ -132,12 +262,16 @@ These are shipped artefacts, not incidental test code, and are sized as such.
   list must serve both suites.
 - **A committed lockfile check** (test or `tasks/` lint) for the version
   invariants below.
-- **The checkout fixture matrix** — ten shapes × their start directories (see
-  the criterion). Bare, submodule, linked-worktree and both nesting shapes are
-  substantial to build; planning should record which already exist in
-  `detection.rs` and which are new.
+- **The checkout fixture matrix** — thirteen shapes × their start directories
+  (see the criterion; the count rose from ten on 2026-08-03 when the colocated
+  and submodule rows were split). Bare, all three submodule shapes,
+  linked-worktree, both colocated shapes and both nesting shapes are substantial
+  to build; planning should record which already exist in `detection.rs` and
+  which are new.
 - **A pure-jj benchmark fixture**, committed as a named reusable builder,
-  plus the cost measurements taken against it. Handed to 0169 ungated.
+  plus the cost measurements taken against it. Handed to 0169 ungated. Built
+  with **`jj git init --no-colocate`** — see the colocation-default note under
+  the cost criterion.
 - **Dated hand-off notes** on 0125, 0185 and 0169, including a `relates_to`
   edge on 0125.
 - **Documentation** of any new `tasks/` leaf task or CI job in
@@ -151,7 +285,7 @@ These are shipped artefacts, not incidental test code, and are sized as such.
 
 ### Library traps
 
-- **Bound `gix`'s discovery — for boundary resolution.** `gix::discover` walks
+- **Never call `gix::discover` on the boundary path.** `gix::discover` walks
   up *past* a jj workspace boundary (verified 2026-07-29: it returned the parent
   repository's `.git` from inside `workspaces/build-system`). The rule:
 
@@ -159,13 +293,36 @@ These are shipped artefacts, not incidental test code, and are sized as such.
   > containing a `.jj` or `.git` marker. `RepoRoot` reports that path and never
   > an ancestor above it, whether or not the environment supplies a ceiling.
 
-  Derive the ceiling from the marker walk rather than trusting the library's
-  default; an inherited `GIT_CEILING_DIRECTORIES` may narrow the walk further
-  but must never be what makes the rule hold. **The rule scopes to boundary
-  resolution only** — queries 2, 3 and 6 legitimately resolve outside the
-  boundary by following a recorded link (gitdir, superproject) or by letting
-  each library complete its own walk. An earlier draft forbade looking above the
-  boundary at all, which would have made 0169's `nested-*` arms unimplementable.
+  **The mechanism is a marker walk followed by `gix::open` at exactly the
+  boundary path** — `gix::open` performs no upward walk and errors cleanly when
+  the path is not a git repository, which is precisely the required behaviour.
+  `MarkerWalkRoot` already implements the walk, so the boundary rule is
+  satisfied by composition rather than by new code.
+
+  **A ceiling cannot enforce this rule and must not be relied on** (spike
+  2026-08-03): `gix_discover::upwards::Options::ceiling_dirs` computes the
+  ceiling height as `start.strip_prefix(ceiling).components().count()` and
+  **discards height 0**, so a ceiling equal to the boundary is silently ignored;
+  the walk's bound is then checked as `current_height > max_height` with the
+  counter incremented after the test, permitting one further level of ascent. No
+  anchor — boundary, boundary's parent, or the filesystem root — confined the
+  walk in testing; every configuration either errored uninformatively or
+  returned the parent repository. An inherited `GIT_CEILING_DIRECTORIES` is
+  irrelevant on this path, because plain `gix::discover` does not read the
+  environment at all (only `discover_with_environment_overrides` does).
+
+  **The rule scopes to boundary resolution only** — queries 2, 3 and 6
+  legitimately resolve outside the boundary by following a recorded link
+  (gitdir, superproject) or by letting each library complete its own walk. An
+  earlier draft forbade looking above the boundary at all, which would have made
+  0169's `nested-*` arms unimplementable.
+
+  **Consequence for query 1**: a bare repository has neither a `.jj` nor a
+  `.git` marker, so the marker walk returns `None` for it (confirmed
+  2026-08-03) while `gix::open` on the bare directory reports `is_bare = true`.
+  Bare detection therefore cannot take its start path from the boundary walk and
+  needs its own entry point. This matches today's behaviour, which
+  `cli/vcs-adapters/tests/detection.rs:250-277` pins as `facts(&bare) == None`.
 - **Avoid `jj_lib::workspace::Workspace::load`.** It needs a fully-populated
   `UserSettings` whose defaults are private to jj-lib, discovered one panic at a
   time. `DefaultWorkspaceLoaderFactory` is public and
@@ -174,17 +331,53 @@ These are shipped artefacts, not incidental test code, and are sized as such.
   crate-wide, deliberately wider than the detection paths strictly require, so
   the guard is a simple one.
 
+  **Confirmed 2026-08-03 (spike) — the crate-wide statement holds, and it is why
+  jj `revision` is out of scope.** A spike enumerated every route to the
+  working-copy commit id and found none that is both settings-free and
+  read-only: `LocalWorkingCopy::load` needs `&UserSettings` for
+  `TreeStateSettings`; `CheckoutState` (which holds the `operation_id` +
+  `workspace_name` pair) is private; and `SimpleWorkspaceStore::load`, though
+  settings-free, **creates `.jj/repo/workspace_store` and writes an `index`
+  file** — verified by removing the directory and observing it recreated. The op
+  stores themselves are settings-free (`SimpleOpHeadsStore::load(dir)`,
+  `SimpleOpStore::load(path, root_data)`), so the chain fails only at the
+  workspace-name link. The guard therefore costs nothing in scope, and does not
+  need narrowing.
+
+  **The loader does not walk** (verified 2026-08-03 against jj-lib 0.43
+  `src/workspace.rs:564-585`): `create(workspace_root)` demands a path whose
+  `.jj` is a directory and errors otherwise, so the caller must supply the
+  workspace root — see the `.jj`-only walk in the three-walk requirement above.
+  Note also that `repo_path()` comes back already canonicalised
+  (`dunce::canonicalize`) while `workspace_root()` is the path passed in, so both
+  sides need canonicalising before the secondary-vs-main comparison.
+
 ### Dependency policy
 
-- **`jj-lib` pinned exactly at `=0.43`.** The loader-internals design and every
+- **`jj-lib` pinned exactly at `=0.43.0`.** The loader-internals design and every
   feasibility measurement were validated against it, and the crate declares its
   API unstable. `mise.toml`'s `jj` CLI pin is held in lockstep at 0.43.0 so the
   CLI that writes fixtures and the library that reads them cannot skew. **The
   bump landed 2026-08-02**; what remains for this story is `mise install` in CI
   and a re-run of the jj-fixture shell suites.
-- **`gix` pinned to the version `jj-lib` 0.43 depends on when its `gix`
-  feature is enabled** — 0.85 (verified 2026-08-02: `jj-lib` 0.43.0 declares
+- **`gix` pinned to `~0.85.0`** — the version `jj-lib` 0.43 depends on when its
+  `gix` feature is enabled (verified 2026-08-02: `jj-lib` 0.43.0 declares
   `gix ^0.85.0`, optional). See the Assumption on feature-gating.
+
+  **Amended 2026-08-03 (plan review) — the two pins are deliberately asymmetric.**
+  `gix` takes a tilde range rather than `=`, permitting `0.85.x` patches so a
+  RustSec fix is a lock update instead of a pin edit. That matters because
+  `cli/deny.toml` sets `unmaintained = "all"` and `yanked = "deny"` over a
+  ~60-crate closure no repo code calls, and an exact pin would make an
+  `advisories.ignore` entry the cheapest response to an advisory. The
+  single-graph property is untouched: it comes from jj-lib's own `^0.85.0` plus
+  cargo's range unification, not from exactness, and `Cargo.lock` supplies the
+  exactness either way — `~0.85.0` is range-identical to `^0.85.0` for a 0.x
+  crate. `jj-lib` keeps `=` because the agility argument does not apply to the
+  crate whose declared-unstable internals this design depends on, and because a
+  transitive advisory inside *its* closure is adoptable with
+  `cargo update -p <crate>` without touching the pin. **The coupling is four-way,
+  not two-way**: jj-lib + gix + the Rust toolchain + the `mise.toml` jj CLI pin.
   Load-bearing: `gix`
   0.86.0 exists, and a caret range on a `0.x` crate will not cross it, so
   pinning 0.86 here would produce exactly the two graphs this forbids. The pin
@@ -224,15 +417,29 @@ field) is part of the mapping established in planning.
 
 - [ ] `detection.rs` runs every existing case through the injection seam against
       **the retained `MarkerWalkRoot`/`CommandProbe` pair and the single
-      library-backed type**, producing identical `RepoFacts`, with the suite's
-      existing **fixed expected values** retained — agreement between two
-      implementations is not on its own an oracle. The `.git`-as-file worktree
-      case keeps **today's** value (`classify_checkout` reports `main`, the git
-      side unseen); 0169 owns correcting that to `colocated`, so a
-      library-backed answer of `colocated` here is the deferred correction
-      arriving early, not a defect to chase. This dual comparison is
+      library-backed type**, with the suite's existing **fixed expected values**
+      retained — agreement between two implementations is not on its own an
+      oracle. The `.git`-as-file worktree case keeps **today's** value
+      (`classify_checkout` reports `main`, the git side unseen); 0169 owns
+      correcting that to `colocated`. This dual comparison is
       **transitional**: 0185 deletes `CommandProbe`, and collapsing the suite to
       the library-backed type alone is part of that deletion.
+
+      **Amended 2026-08-03 (spike) — parity is asserted per `VcsKind`.** Full
+      `RepoFacts` equality for `VcsKind::Git`; `root`/`name`/`kind` only for
+      `VcsKind::Jj`, where the library-backed `revision` is `None` by design
+      while `CommandProbe` returns a 40-hex id. The jj cases therefore assert the
+      `CommandProbe` arm against the suite's fixed values as today, and the
+      library-backed arm against the three fields it owns, so neither adapter's
+      coverage is dropped. Narrowing wholesale would also have discarded
+      achievable protection on the git revision path, which
+      `detection.rs:84-86` already pins.
+
+      Related, measured 2026-08-03: a **sha256** repository's `HEAD` is 64 hex
+      characters, so `is_full_revision_id`'s 40-hex assertion rejects it. Any
+      revision validation must accept both widths or record sha256 as
+      unsupported — a decision 0185 inherits, since its switch is what exposes
+      users to it.
 - [ ] All six queries are unit-tested against every **(fixture, start
       directory)** pair in the matrix — start directory included because every
       query is start-path-relative and the oracle is directory-parameterised, so
@@ -244,16 +451,35 @@ field) is part of the mapping established in planning.
 
       | Fixture | Start directories |
       | --- | --- |
-      | colocated | root |
+      | colocated, **real** (`jj git init --colocate`) | root |
+      | colocated, **hand-grafted** (jj secondary + git linked worktree at one path) | root |
       | jj secondary workspace | workspace root, and a subdirectory |
       | plain git | root, and a subdirectory |
       | nested-jj-in-git | inner jj workspace, and the outer git root |
       | nested-git-in-jj | inner git repo, and the outer jj root |
       | linked git worktree | the linked worktree, and the main worktree |
       | git submodule | the submodule, and the superproject root |
+      | git submodule, **nested** (depth 2) | the depth-2 submodule |
+      | git submodule, **old form** (nested `.git` directory) | the nested repo |
       | bare repository | the bare dir |
       | no repository at all | a dir with no marker at or above it |
       | pure-jj measurement fixture | root |
+
+      **Amended 2026-08-03 (measurement).** The row previously read "colocated |
+      root", which is ambiguous between two genuinely different shapes, and both
+      are now required. A real `jj git init --colocate` main repository has
+      `.jj/repo` as a *directory* and `gix` reports `Kind::Common`, so the shell
+      classifies it as **`main`** — the `colocated` arm requires
+      `jj_secondary && git_worktree` (`vcs-common.sh:242-247`). The shell suite's
+      hand-grafted fixture (`hooks/test-vcs-detect.sh:96-157`) is a jj secondary
+      workspace whose path is simultaneously a git linked worktree, reports
+      `Kind::LinkedWorkTree`, and is the only shape that classifies as
+      **`colocated`**. The two submodule rows are likewise split out: the
+      depth-2 shape is what proves the superproject derivation takes the
+      *nearest* `modules` component, and the old-form shape reports
+      `Kind::Common` — agreeing with git, which also reports no superproject —
+      so a `Kind::Submodule`-only implementation would silently miss it with no
+      oracle disagreement to reveal the omission.
 
 - [ ] The scrub invariant holds across that whole matrix: every query returns
       the same value with and without `GIT_DIR`/`GIT_COMMON_DIR` set — where
@@ -337,18 +563,72 @@ field) is part of the mapping established in planning.
       in-process cost, and cold per-process cost via the reference artefact.
       The last is required because an in-process microbenchmark yields
       microsecond figures that cannot be compared with 0169's millisecond
-      process-level baseline; it is the figure that corresponds to **G**, so the
-      reference artefact needs a single-query mode for it — timing a binary that
-      runs all six queries plus both port methods would inflate it by an unknown
-      factor. The `MarkerWalkRoot`/`CommandProbe` baseline is taken for the port
-      methods only (it has no queries and no library to initialise). Host and OS
-      recorded.
-- [ ] The reference artefact demonstrably links the dependency trees: its size
-      **built with the query calls live** is at least **2 MB larger** than the
-      same binary built with those calls replaced by stubs, both sizes recorded.
-      Without a floor this check cannot fail, and it is the one guarding the
-      story's headline false-pass — dead-code elimination letting the musl and
-      size checks succeed while linking almost none of `gix`/`jj-lib`.
+      process-level baseline; it is the figure that corresponds to **G**. The
+      reference artefact carries a single-query mode for it. The
+      `MarkerWalkRoot`/`CommandProbe` baseline is taken for the port methods only
+      (it has no queries and no library to initialise). Host and OS recorded,
+      and **darwin-arm64 is the required host** so the figures are comparable
+      with 0186's `B = 35.1 ms` — the ~97 ms probe delta is macOS-specific, so a
+      cross-host comparison would leave 0169's gate ill-posed.
+
+      **Amended 2026-08-03 (measurement), two corrections.**
+
+      *The single-query rationale was wrong.* This criterion previously said the
+      single-query mode was needed because "timing a binary that runs all six
+      queries plus both port methods would inflate it by an unknown factor."
+      Measured: `all` (six queries + both ports) **3.66 ms** against
+      `only <query>` **3.65 ms** on the pure-jj fixture, and 4.49 ms vs 3.65 ms
+      on plain git — process startup dominates, so the inflation is 0–23%, not
+      unknown. The mode is retained because 0169 will want a per-query figure,
+      not because the aggregate figure would be unusable.
+
+      *The fixture needs an explicit flag.* `jj git init` **colocates by default
+      at jj 0.43** — a bare `jj git init` in an empty directory produces both
+      `.jj` and `.git` — so "no `.git`" is not the default and cannot be assumed.
+      The builder must pass **`--no-colocate`** and assert `.git` is absent.
+      Consequence for the existing suites: `make_main_jj_workspace`
+      (`hooks/test-vcs-detect.sh:47-52`) has been producing *colocated*
+      repositories all along and is misnamed; several fixtures built on it are
+      not the pure-jj shapes their names suggest.
+- [ ] The reference artefact demonstrably links the dependency trees: **built
+      with the query calls live** it is at least **3× the size** of the same
+      artefact built with those calls replaced by stubs, **and** at least
+      **1,500,000 bytes larger** — measured on the **musl-static, stripped**
+      artefact, which is the one the release pipeline actually ships, with the
+      darwin figures recorded alongside. Both absolute sizes, the delta and the
+      ratio are recorded. Without a floor this check cannot fail, and it is the
+      one guarding the story's headline false-pass — dead-code elimination
+      letting the musl and size checks succeed while linking almost none of
+      `gix`/`jj-lib`.
+
+      **Amended 2026-08-03 (measurement).** This criterion previously demanded a
+      flat "at least 2 MB larger" and, as written, **would have failed on the
+      artefact it exists to guard**. Measured against a prototype linking
+      `gix` 0.85 + `jj-lib` 0.43: musl-static stripped delta **2,031,448 B**,
+      darwin stripped **1,639,872 B**, darwin unstripped 2,058,656 B. So the old
+      floor passed only on a decimal-MB reading of the musl build, by 1.6%, and
+      failed outright on the stripped darwin build and on every MiB reading —
+      while the trees were unambiguously linked (**ratio 6.19×** on musl, 5.42×
+      on darwin). A ratio floor is the robust discriminator; the absolute floor
+      is retained at a level with real headroom, with its unit stated, because
+      the ratio alone would lose the "these trees are large" signal.
+
+      **Amended again 2026-08-03 (plan review) — the floor needs a mechanism.**
+      Amendment 1 fixed the threshold but left it a number written into Validation
+      Results, which catches no later regression: a future edit that stops
+      printing a query result would let the linker drop the trees again with
+      nothing objecting. It is now a **committed assertion** in `tasks/build.py`'s
+      fixture staging, with a unit test over the comparison function using
+      synthetic sizes. Two scoping rules, because a heuristic threshold that first
+      executes in the release pipeline can abort a whole product release: the
+      **ratio** floor applies on every triple (wide margin — 5.42× darwin, 6.19×
+      musl), while the **absolute-byte** floor applies to **musl triples only**,
+      matching how `_assert_static_elf` is already guarded. The darwin stripped
+      delta clears 1,500,000 B by just 9.3%, and `[profile.release] strip = true`
+      means every triple is stripped, so gating darwin on it would put a
+      9%-margin heuristic on `prerelease:prepare`'s critical path. A host-native
+      ratio assertion also runs on the PR path, so the guard is not first
+      exercised during a release.
 - [ ] Dated notes are appended to three siblings, **raising** information
       without re-scoping them:
       - **0125** — the adapter dissolves its lexical-fallback rationale *for
@@ -400,10 +680,14 @@ field) is part of the mapping established in planning.
   - **Ongoing cost, not just one-off**: both transitive trees enter `cargo
     deny`'s `advisories` scope, so a future RustSec advisory anywhere in the
     `gix`/`jj-lib` closure fails the workspace-wide check for every unrelated
-    change. And because `gix` is pinned to whatever `jj-lib` depends on, any
-    future `jj-lib` bump is a **coordinated two-crate bump** — the single-
-    version criterion will otherwise fail it. Both pins carry inline comments
-    saying so.
+    change. And because `gix` tracks whatever `jj-lib` depends on, any future
+    `jj-lib` **minor** bump is a **coordinated four-pin change** — jj-lib, gix,
+    the Rust toolchain (jj-lib's MSRV moved 1.85 → 1.88 → 1.89 across eight
+    releases) and the `mise.toml` jj CLI pin, which writes the format jj-lib
+    reads. The single-version criterion will otherwise fail it. Both pins carry
+    inline comments saying so. *(Amended 2026-08-03: was "two-crate bump"; the
+    toolchain and CLI legs were unstated. `gix` patch releases within `~0.85.0`
+    are pre-authorised and need none of this ceremony.)*
 - **Upstream toolchain preconditions**:
   - **`jj` CLI ↔ `jj-lib` are now a lockstep pair.** The `bash-parity` fixtures
     are built by the installed `jj` CLI and read by `jj-lib`, so a skew between
@@ -504,13 +788,16 @@ record because their answers carry consequences.
   requirement forbids. `jj-lib` 0.43.0 also depends on `gix-ignore ^0.21.0`
   (non-optional), and carries no `git2`/`libgit2-sys` — confirming the
   2026-07-29 finding.
-- **`gix` is an *optional* dependency of `jj-lib` 0.43** (feature-gated). The
-  single-graph requirement is written as though `jj-lib` always pulls `gix`; if
-  the gating feature is off in our configuration, `jj-lib` may pull no `gix` at
-  all and this story's direct dependency is the only one. That changes the
-  *reasoning* behind the pin, not the pin itself — but the plan should state
-  which `jj-lib` features are enabled and re-check the single-version assertion
-  under that configuration.
+- **`gix` is an *optional* dependency of `jj-lib` 0.43** (feature-gated), but
+  **its gating feature is on under default features** — so the single-graph
+  reasoning behind the pin holds as written. **Resolved 2026-08-03** by resolving
+  the real graph: `jj-lib` 0.43.0 with default features pulls `gix` 0.85.0 and
+  enables `attributes`, `blob-diff`, `index`, `max-performance-safe`, `sha1` and
+  `zlib-rs` on it (plus a non-optional `gix-ignore ^0.21`). Two consequences:
+  the single-version assertion is **non-vacuous** under our configuration, and
+  the `attributes` feature that `Repository::submodules()` needs arrives from
+  `jj-lib` itself rather than from `gix`'s own defaults — so narrowing `gix`'s
+  features to shrink the binary would not remove it.
 - `jj-lib`'s loader API remains stable across **the pinned `jj-lib` version,
   0.43**, which the exact pin holds fixed. Verified against 0.43; unstable by
   the crate's own declaration.
@@ -561,6 +848,61 @@ record because their answers carry consequences.
   than the adapter would be what stops the walk and the criterion would pass
   vacuously.
 
+## Spike Outcome — gix 0.85 API surface (2026-08-03)
+
+Three of the six queries had **no recorded API evidence**: the 2026-07-29
+feasibility probe exercised exactly one gix entry point (`gix::discover`), and
+the word "submodule" appears nowhere in it. A throwaway prototype against real
+git fixtures (git 2.54.0, darwin-arm64, `gix` 0.85.0 with default features)
+settled them, together with two riders. Full evidence tables, including the
+verbatim per-fixture oracle comparison, are in
+`meta/research/codebase/2026-08-02-0188-library-backed-vcs-adapter.md`.
+
+- **Query 1 (bare) — available.** `Repository::is_bare()`
+  (`gix-0.85.0/src/repository/worktree.rs:64`) agreed with
+  `git rev-parse --is-bare-repository`. It reads `core.bare`, falling back to
+  `workdir().is_none()`. See the reachability consequence in Library traps.
+- **Query 2 (worktree + common dir) — first-class, and cheaper than assumed.**
+  `Repository::kind()` returns a three-variant enum — `Common`, `Submodule`,
+  `LinkedWorkTree` (`src/repository/mod.rs:6-16`) — so "is this a linked
+  worktree" is a single enum read rather than a path comparison. `git_dir()`
+  (`src/repository/location.rs:11`), `common_dir()` (`:33`) and `main_repo()`
+  (`src/repository/worktree.rs`) matched `--git-dir`, `--git-common-dir` and the
+  main worktree root exactly, from both the linked worktree and the main one.
+  `worktrees()` enumerates linked worktrees by id.
+- **Query 3 (superproject) — NO library API exists; it must be hand-rolled.**
+  Verified by search across `gix` 0.85, `gix-discover` and `gix-submodule`, and
+  behaviourally: `main_repo()` on a submodule returns the *submodule*, not the
+  superproject. `Repository::submodules()`
+  (`src/repository/submodule.rs:93`) resolves only the opposite direction
+  (superproject → children) and requires the `attributes` feature. A ~15-line
+  derivation from `Kind::Submodule` plus the `git_dir()` path shape
+  (`<super-git-dir>/modules/<name>`, nesting as
+  `.git/modules/mid/modules/leaf`) matched
+  `--show-superproject-working-tree` at depth 1 **and** depth 2. **This is a
+  sizing correction**: query 3 is bespoke path logic with its own edge cases,
+  not a library call like the other five.
+  - Old-form submodules (a nested `.git` *directory*) report `Kind::Common`, and
+    git also reports no superproject for them — the two **agree**, so this is
+    not an adapter/oracle divergence. The fixture matrix should still carry the
+    shape, because `Kind::Submodule` alone would silently miss it.
+- **Rider — the boundary rule's mechanism changed.** See Library traps above:
+  the ceiling route is structurally incapable of enforcing the rule, and the
+  requirement has been rewritten to marker-walk-then-`gix::open`.
+- **Rider — the scrub invariant holds for free on the git side.** With
+  `GIT_DIR`, `GIT_COMMON_DIR` and `GIT_CONFIG_GLOBAL` (asserting
+  `core.bare = true`) all poisoned at another fixture's real `.git`, every gix
+  query — `kind()`, `is_bare()`, `git_dir()`, `common_dir()`, `workdir()`,
+  `main_repo()` — returned **identical** values, while
+  `git rev-parse --git-dir` diverged, proving the poisoning was live. Plain
+  `gix::discover`/`gix::open` do not consult the environment;
+  only `discover_with_environment_overrides` does, and it diverged as expected.
+  Consequences: no explicit scrub is needed for the git-side queries — the
+  invariant is a property to *verify*, not to implement — and
+  `discover_with_environment_overrides` is a ready-made non-vacuity control for
+  the "an unscrubbed control must diverge" clause. **The jj-lib side remains
+  untested.**
+
 ## Validation Results
 
 - **Platform the strong-form zero-spawn run held on** — _pending_; absolute
@@ -579,7 +921,38 @@ record because their answers carry consequences.
   _pending_.
 - **Installed `git` CLI version the fixtures were built with** — _recorded
   2026-08-02_: 2.54.0, against `gix` 0.85. Coherence unverified but low-risk;
-  no format-boundary concern was identified.
+  no format-boundary concern was identified. _Spike 2026-08-03_: gix 0.85.0 read
+  bare, linked-worktree, modern-submodule, nested-submodule and old-form-nested
+  repositories written by git 2.54.0 with no format-boundary problem observed,
+  on darwin-arm64.
+- **gix API coverage for the six queries** — _spiked 2026-08-03_: queries 1 and
+  2 are served by library calls; **query 3 has no gix API and requires a
+  hand-rolled derivation** (validated against the oracle at submodule depths 1
+  and 2). Queries 4-6 not covered by this spike. See Spike Outcome.
+- **`gix` boundary containment mechanism** — _resolved 2026-08-03_:
+  `ceiling_dirs` cannot enforce the rule at any anchor; `gix::open` performs no
+  walk and is the mechanism. A paired negative assertion is available:
+  unbounded `gix::discover` from a `.jj`-only directory nested in a git
+  repository escapes to the parent repository, reproducibly.
+- **`GIT_DIR` scrub invariant, git side** — _measured 2026-08-03_: all six
+  probed gix calls stable under poisoned `GIT_DIR` + `GIT_COMMON_DIR` +
+  `GIT_CONFIG_GLOBAL`; `git rev-parse --git-dir` diverged under the same
+  poisoning (live control).
+- **`GIT_DIR` scrub invariant, jj-lib side** — _measured 2026-08-03_: stable.
+  Every gix **and** jj-lib call returned identical values across **all 25
+  (fixture, start directory) pairs** with `GIT_DIR` and `GIT_COMMON_DIR` pointed
+  at another fixture's real `.git`. The invariant therefore needs no
+  implementation on either side — it is verified, not built. Non-vacuity control
+  confirmed in the same run: `gix::discover_with_environment_overrides` returned
+  the poison target while plain `gix::discover` and `gix::open` did not.
+- **Local toolchain skew** — _found 2026-08-03_: the development machine used
+  for the spike had `jj` **0.42.0** on `PATH` from Homebrew
+  (`/opt/homebrew/bin/jj`), not the pinned 0.43.0, because `mise.toml` is
+  untrusted there and mise was not activating. Reinforces the outstanding
+  `mise install` item above, and is a reminder that on a developer's macOS
+  machine `/opt/homebrew/bin/jj` **is** the real binary — the opposite of CI,
+  where no system `jj` exists at all (see the shadow-list note in the research
+  document).
 - **Adapter/shell divergences recorded** — the `GIT_DIR` scrub asymmetry in
   `classify_checkout` (`:206-215` unscrubbed vs `:130-135` scrubbed), which the
   adapter deliberately does not reproduce — _confirmed 2026-08-01_; any further
