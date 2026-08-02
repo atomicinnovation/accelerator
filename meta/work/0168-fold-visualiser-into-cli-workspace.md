@@ -5,7 +5,7 @@ title: "Fold the Visualiser into the cli/ Workspace"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"

@@ -5,7 +5,7 @@ title: "bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never ex
 date: "2026-07-26T21:28:26+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: bug
 priority: high
 blocks: ["work-item:0186"]
