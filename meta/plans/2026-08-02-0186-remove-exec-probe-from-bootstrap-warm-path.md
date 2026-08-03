@@ -1334,8 +1334,8 @@ rationale** — that is 0169's own work.
 
 #### Automated Verification
 
-- [ ] `mise run` is green end to end
-- [ ] Work item frontmatter validates:
+- [x] `mise run` is green end to end
+- [x] Work item frontmatter validates:
       `mise run test:integration:config` — the corpus validator
       (`scripts/test-validate-corpus-frontmatter.sh`) is a by-name required
       suite there (`tasks/test/integration.py:33-41`). It is **not** part of
@@ -1343,27 +1343,27 @@ rationale** — that is 0169's own work.
 
 #### Manual Verification
 
-- [ ] Both instrument floors are within expectation; if `/usr/bin/true` does not
+- [x] Both instrument floors are within expectation; if `/usr/bin/true` does not
       read within a millisecond or two of a bare fork+exec, the medians are
       discarded and the harness fixed
-- [ ] `after ≤ 0.5 × before` holds; both medians, the delta, both floors,
+- [x] `after ≤ 0.5 × before` holds; both medians, the delta, both floors,
       min/median/p90, host, OS version and launcher provenance are recorded
-- [ ] The measured composition is recorded against the budget, the resolved
+- [x] The measured composition is recorded against the budget, the resolved
       sha256 backend is named, and any unexplained remainder over ~25% is
       attributed
-- [ ] The probe attribution is re-derived on this harness and the host's
+- [x] The probe attribution is re-derived on this harness and the host's
       security-agent status recorded
 - [ ] Both CI lanes observed green on the new cases, and which were observed is
       recorded — including the ubuntu lane's bash 5.2 coverage of the trace
       cases
-- [ ] Every _pending_ entry in Validation Results is resolved, each behavioural
+- [x] Every _pending_ entry in Validation Results is resolved, each behavioural
       one naming the test function that discharges it
-- [ ] The stale ~11.7 ms / ~23 ms figures are corrected in 0186's Dependencies,
+- [x] The stale ~11.7 ms / ~23 ms figures are corrected in 0186's Dependencies,
       Assumptions and Validation Results, not only in 0169's note
-- [ ] All three follow-ups are raised and cross-referenced
-- [ ] 0169's note re-confirmed against the measured figure and handed the
+- [x] All three follow-ups are raised and cross-referenced
+- [x] 0169's note re-confirmed against the measured figure and handed the
       backend-dependent range, with its threshold untouched
-- [ ] `bin/.tmp-accelerator-before` and `bin/.tmp-accelerator-floor` are gone
+- [x] `bin/.tmp-accelerator-before` and `bin/.tmp-accelerator-floor` are gone
       and `jj status` is clean of them
 
 ---

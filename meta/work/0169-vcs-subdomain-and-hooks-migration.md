@@ -404,6 +404,48 @@ segment matches; the first matching segment names the reported subcommand.
   exec and verify on top. **Resolve this before acceptance**: either relax the
   threshold, or accept the overrun with a stated rationale. See 0186's
   Dependencies and Validation Results.
+- **Hand-off note re-confirmed with measured figures (2026-08-03).** The note
+  above still holds in shape, but three of its numbers were wrong and the
+  headline moved in this story's favour. **This story's threshold and its
+  rationale are untouched — that decision remains 0169's own work.**
+  - **The warm bootstrap lands at ~30 ms, not ~41 ms.** Measured on
+    darwin-arm64 (Apple M4 Max, macOS 26.3), 50 interleaved samples per variant
+    in one process: median **125.35 ms before**, **29.92 ms after**, gate
+    `after ≤ 0.5 × before` passed at a ratio of 0.239. Instrument floors 1.60 ms
+    (`/usr/bin/true`) and 6.10 ms (a trivial bash script). The 149.1 ms in
+    0186's Context table is a pre-0182 reference produced by an unrecorded
+    method and is **not** method-comparable to these medians.
+  - **The retained residual is backend-dependent, and the ~11.7 ms figure
+    describes the wrong backend.** Where `command -v sha256sum` resolves to
+    Apple's `/sbin/sha256sum` — as it does on the measuring host — one
+    `sha256_file` call costs **~3.5 ms** and both together **~7 ms**. Where only
+    the Perl `shasum` fallback exists it is **~12 ms** per call and **~24 ms**
+    for both. Take the range and check `command -v sha256sum` on the target
+    host; do not carry a point estimate.
+  - **The measured composition of the ~30 ms**, for budgeting the sub-binary
+    dispatch on top: 6.1 ms bash interpreter startup, ~7 ms for the two hashes,
+    ~6.8 ms for the staged shim exec plus minisign verify (note: not the 2.3 ms
+    the Context table quotes for minisign alone — the shim's own startup and its
+    read of the 7.6 MB launcher dominate), ~2.4 ms for the launcher exec, and
+    ~4.6 ms across two `uname` substitutions, the `plugin.json` `sed`, two
+    `cd -P`/`pwd -P` subshells and the `resolve_cache_dir` substitution. ~2.9 ms
+    (≈10%) unexplained.
+  - **The dominant unaddressed cost is now the launcher-side probe, raised as
+    0189.** `cache_root::resolve` runs the identical write-chmod-exec probe on
+    **every** external-subcommand dispatch, before the sub-binary cache-hit
+    test — so a warm `accelerator vcs guard` still pays a first-exec penalty of
+    the same shape, measured at **131.97 ms** in the repo's `bin/` (107.15 ms in
+    `/tmp`) against a 3.72 ms re-exec of a file left in place. Built-ins never
+    reach it, which is why 0186's `version`-based measurement cannot see it.
+    **0189 is necessary but not sufficient for this story either, and this
+    story's threshold decision must not be deferred pending it.**
+  - **The cheapest remaining lever is 0191**: batching the two shim hashes into
+    one `sha256sum f1 f2` with no `awk`, measured at ~2.5 ms — essentially this
+    story's whole shortfall. It needs a branch to preserve today's
+    short-circuit, which is why it was not absorbed into 0186.
+  - The host runs no third-party EndpointSecurity or anti-malware agent (only
+    Apple's `xprotectd`, SIP and Gatekeeper on), so the first-exec penalty is
+    stock macOS behaviour rather than a machine artefact and should transfer.
 - **In-flight dependency**: 0182 (plugin-root self-location — **`in-progress`**,
   code landed). It delivers the `ACCELERATOR_PLUGIN_ROOT` regime the new
   `cli/**` code must use, and `hooks/launcher-link-refresh.sh`, which must
