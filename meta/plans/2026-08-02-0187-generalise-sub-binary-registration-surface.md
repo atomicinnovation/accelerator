@@ -1976,24 +1976,26 @@ link — which only 0168 and 0170–0173 carry, not 0169 and not any later autho
 
 #### Automated Verification
 
-- [ ] Checklist test passes: `uv run pytest
+- [x] Checklist test passes: `uv run pytest
       tests/unit/tasks/test_registration_docs.py -v`
-- [ ] Full unit suite passes: `mise run test:unit:tasks`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Full unit suite passes: `mise run test:unit:tasks`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] The GitHub anchor `tasks/README.md#registering-a-dispatched-sub-binary`
+- [x] The GitHub anchor `tasks/README.md#registering-a-dispatched-sub-binary`
       resolves — the four sibling work items (0170–0173) already link to it.
-- [ ] The section reads as a checklist an author can follow top-to-bottom
+- [x] The section reads as a checklist an author can follow top-to-bottom
       without consulting the research or this plan, starting from the lead-in
       definition of "token".
-- [ ] The new section wraps at 80 columns. There is no markdown formatter or
+- [x] The new section wraps at 80 columns. There is no markdown formatter or
       linter in this repo — `format:build-system:check` is ruff over Python — so
       width is hand-checked.
-- [ ] Renaming `DISPATCHED_SUBBINARIES` in `tasks/shared/paths.py` reddens the
-      checklist test, and reverting restores green — the cross-reference half is
-      live.
+- [x] Renaming a checklist-named symbol reddens the checklist test, and
+      reverting restores green — the cross-reference half is live. Demonstrated
+      with `[lints.clippy]` in `cli/visualiser/server/Cargo.toml`, which fails
+      cleanly; renaming `DISPATCHED_SUBBINARIES` also reddens, but as a
+      collection error, since every other consumer imports it too.
 
 ---
 
