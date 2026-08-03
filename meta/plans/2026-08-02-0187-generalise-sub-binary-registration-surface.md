@@ -5,7 +5,7 @@ title: "Generalise the Sub-Binary Registration Surface Implementation Plan"
 date: "2026-08-02T22:12:19+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0187"
 parent: "work-item:0187"
 derived_from: ["codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"]
