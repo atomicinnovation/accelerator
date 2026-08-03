@@ -442,21 +442,21 @@ which is off by one a directory deeper.
 
 #### Automated Verification
 
-- [ ] Parsing suite passes: `uv run pytest
+- [x] Parsing suite passes: `uv run pytest
       tests/unit/tasks/shared/test_skill_parsing.py -v`
-- [ ] Rename guard and lint suite pass: `uv run pytest
+- [x] Rename guard and lint suite pass: `uv run pytest
       tests/unit/tasks/test_skill_permissions.py -v`
-- [ ] Lint task still green: `mise run lint:skill-permissions:check`
-- [ ] Every entry point still imports: `uv run python -c "import tasks,
+- [x] Lint task still green: `mise run lint:skill-permissions:check`
+- [x] Every entry point still imports: `uv run python -c "import tasks,
       tasks.build, tasks.lint, tasks.manifest"`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Full unit suite passes: `mise run test:unit:tasks`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Full unit suite passes: `mise run test:unit:tasks`
 
 #### Manual Verification
 
-- [ ] `rg '_BARE_LAUNCHER' tasks/` returns nothing.
-- [ ] `rg 'import' tasks/shared/skill_parsing.py` shows only `fnmatch` and `re`.
-- [ ] `git diff` on the moved functions is a pure move — no logic change beyond
+- [x] `rg '_BARE_LAUNCHER' tasks/` returns nothing.
+- [x] `rg 'import' tasks/shared/skill_parsing.py` shows only `fnmatch` and `re`.
+- [x] `git diff` on the moved functions is a pure move — no logic change beyond
       the constant rename.
 
 ---

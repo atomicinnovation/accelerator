@@ -1,6 +1,6 @@
 """The `!`-site command corpus and the fixture project it is run against.
 
-Extraction reuses `tasks/lint/skill_permissions`'s own public machinery rather
+Extraction reuses `tasks/shared/skill_parsing`'s own public machinery rather
 than a second regex, so the population here cannot drift from the population the
 permissions guard checks.
 
@@ -18,7 +18,7 @@ import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
-from tasks.lint.skill_permissions import (
+from tasks.shared.skill_parsing import (
     PLUGIN_PREFIX,
     frontmatter_name,
     is_plugin_invocation,
