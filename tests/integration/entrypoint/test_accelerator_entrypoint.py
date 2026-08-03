@@ -1,7 +1,9 @@
 import concurrent.futures
+import contextlib
 import hashlib
 import os
 import platform
+import re
 import shutil
 import subprocess
 from collections.abc import Callable, Iterator
@@ -52,6 +54,19 @@ _serve_launcher = serve_launcher
 _run_bootstrap = run_bootstrap
 _dumped_env = dumped_env
 _dl_lines = download_log
+
+
+def _require_unprivileged() -> None:
+    """Hard-fail rather than skip under uid 0.
+
+    Root bypasses both the write permission and the execute bit, so these
+    assertions would hold whatever the code did; a skip would report green on a
+    lane that verified nothing.
+    """
+    assert os.getuid() != 0, (
+        "these cases assert on permission bits, which are advisory for uid 0; "
+        "run them unprivileged, or exclude them with a recorded privilege check"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -256,6 +271,7 @@ def test_readonly_root_with_override_runs_from_override(
     tmp_path: Path,
     host_platform: str,
 ) -> None:
+    _require_unprivileged()
     harness = make_harness()
     root, server = harness.root, harness.server
     bin_dir = root / "bin"
@@ -279,6 +295,7 @@ def test_readonly_root_with_override_runs_from_override(
 def test_readonly_root_without_override_is_a_named_error(
     make_harness: Callable[..., Harness], downloader: Path
 ) -> None:
+    _require_unprivileged()
     harness = make_harness()
     root, server = harness.root, harness.server
     bin_dir = root / "bin"
@@ -1066,6 +1083,7 @@ def test_a_record_is_always_one_line(
     # A cache dir carrying a newline reaches the staging diagnostic verbatim,
     # so the write-site sanitiser — not any input check — is what keeps the log
     # parseable.
+    _require_unprivileged()
     harness = make_harness()
     cache_dir = tmp_path / "cache\nwith-newline"
     cache_dir.mkdir()
@@ -1087,3 +1105,236 @@ def test_a_record_is_always_one_line(
     log = cache_dir / ".accelerator-unverified.log"
     assert log.exists(), result.stderr
     assert len(log.read_text().splitlines()) == 1, log.read_text()
+
+
+# ── Exec probe: cold-path only ───────────────────────────────────────────────
+
+_PROBE_FN = "probe_exec_capable"
+_ENSURE_FN = "ensure_dir"
+
+
+@contextlib.contextmanager
+def _restricted(path: Path, mode: int) -> Iterator[None]:
+    """Apply a mode and always restore it: `tmp_path` teardown cannot remove an
+    unwritable directory, and an advisory-permission filesystem (a bind mount,
+    WSL drvfs, an inherited ACL) would silently void the case, so every bit the
+    mode clears is verified to have bitten. Both bits are checked because the
+    two failure shapes differ: 0o555 keeps search and drops write, 0o666 drops
+    search and keeps write.
+    """
+    path.chmod(mode)
+    try:
+        for owner_bit, probe, label in (
+            (0o200, os.W_OK, "write"),
+            (0o100, os.X_OK, "search"),
+        ):
+            assert mode & owner_bit or not os.access(path, probe), (
+                f"chmod {mode:#o} left {label} available on {path}; "
+                "permission bits appear advisory on this filesystem — "
+                "exclude it explicitly"
+            )
+        yield
+    finally:
+        path.chmod(0o755)
+
+
+def _traced(
+    harness: Harness,
+    downloader: Path,
+    *,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        xtrace=True,
+        extra_env=extra_env,
+        timeout=30,
+    )
+
+
+def _entered(trace: str, function: str) -> bool:
+    pattern = rf"^\++{re.escape(function)}:"
+    return re.search(pattern, trace, re.MULTILINE) is not None
+
+
+def _probe_execs(trace: str) -> int:
+    # The `:/` anchor is load-bearing: the function's own
+    # `probe=/…/.accelerator-probe-<pid>` assignment is traced too, and a looser
+    # pattern matches it — passing on an implementation that never execs.
+    # Counting rather than searching also pins the idempotence flag.
+    pattern = rf"^\++{re.escape(_PROBE_FN)}:/\S*\.accelerator-probe-\d+$"
+    return len(re.findall(pattern, trace, re.MULTILINE))
+
+
+def test_warm_path_survives_a_non_writable_cache_dir(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    launcher_bin: Path,
+) -> None:
+    # Equality against a direct launcher run proves the cached binary is the one
+    # the fixture built. It pins the vergen commit/build stamps too, so a
+    # relink between fixture setup and this call would fail it.
+    _require_unprivileged()
+    harness = make_harness(real_launcher=True)
+    root, server = harness.root, harness.server
+    warm = _run_bootstrap(root, server, downloader, args=("version",))
+    assert warm.returncode == 0, warm.stdout + warm.stderr
+    with _restricted(root / "bin", 0o555):
+        result = _run_bootstrap(root, server, downloader, args=("version",))
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    direct = subprocess.run(
+        [str(launcher_bin), "version"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == direct.stdout, output
+
+
+def test_warm_path_does_not_enter_the_probe(
+    make_harness: Callable[..., Harness], downloader: Path
+) -> None:
+    harness = make_harness()
+    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    assert warm.returncode == 0, warm.stdout + warm.stderr
+    traced = _traced(harness, downloader)
+    assert traced.returncode == 0, traced.stdout + traced.stderr
+    trace = traced.stderr
+    # `verify_launcher` bounds the trace from the far end: `ensure_dir` alone
+    # only proves the run reached `resolve_cache_dir`, which is upstream of both
+    # gates, so a truncated trace would satisfy the negative assertion.
+    assert _entered(trace, _ENSURE_FN), trace
+    assert _entered(trace, "verify_launcher"), trace
+    assert not _entered(trace, _PROBE_FN), trace
+
+
+def test_cold_path_enters_and_executes_the_probe(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness()
+    cache = tmp_path / "fresh-cache"
+    result = _traced(
+        harness, downloader, extra_env={"ACCELERATOR_CACHE_DIR": str(cache)}
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert cache.is_dir(), "the always-run ensure_dir half must create it"
+    assert _entered(result.stderr, _PROBE_FN), result.stderr
+    # Exactly one: a cold run reaches both gates, so a broken idempotence flag
+    # would probe twice.
+    assert _probe_execs(result.stderr) == 1, result.stderr
+    assert not list(cache.glob(".accelerator-probe-*")), "probe not cleaned up"
+
+
+def test_cold_happy_path_creates_a_missing_cache_dir(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness(real_launcher=True)
+    cache = tmp_path / "absent" / "cache"
+    result = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        args=("version",),
+        extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert cache.is_dir(), output
+    assert result.stdout.startswith("accelerator "), output
+
+
+def test_cold_path_keeps_the_noexec_diagnostic(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    _require_unprivileged()
+    harness = make_harness()
+    cache = tmp_path / "noexec-cache"
+    cache.mkdir()
+    with _restricted(cache, 0o666):
+        result = _run_bootstrap(
+            harness.root,
+            harness.server,
+            downloader,
+            extra_env={"ACCELERATOR_CACHE_DIR": str(cache)},
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "no writable, exec-capable cache directory" in output, output
+    assert str(cache) in output, output
+    assert "is not writable" in output, output
+
+
+def test_warmed_then_non_executable_cache_keeps_the_diagnostic(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    _require_unprivileged()
+    harness = make_harness()
+    cache = tmp_path / "warm-cache"
+    cache.mkdir()
+    env = {"ACCELERATOR_CACHE_DIR": str(cache)}
+    first = _run_bootstrap(
+        harness.root, harness.server, downloader, extra_env=env
+    )
+    assert first.returncode == 0, first.stdout + first.stderr
+    with _restricted(cache, 0o666):
+        result = _run_bootstrap(
+            harness.root, harness.server, downloader, extra_env=env
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "no writable, exec-capable cache directory" in output, output
+
+
+def test_unverifiable_launcher_in_readonly_cache_fails_fast(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    host_platform: str,
+) -> None:
+    # 0o555, not 0o666: keeping the search bit means the cached artefacts still
+    # stat and the staged shim still hashes equal, so staging is skipped and
+    # verification is genuinely reached. `timeout` sits between the sub-second
+    # pass and the ~30s lock-timeout budget the gate prevents.
+    _require_unprivileged()
+    harness = make_harness()
+    cache = tmp_path / "readonly-cache"
+    cache.mkdir()
+    env = {"ACCELERATOR_CACHE_DIR": str(cache)}
+    first = _run_bootstrap(
+        harness.root, harness.server, downloader, extra_env=env
+    )
+    assert first.returncode == 0, first.stdout + first.stderr
+    launcher = cache / f"accelerator-launcher-{_VERSION}-{host_platform}"
+    launcher.write_bytes(b"poisoned")
+    with _restricted(cache, 0o555):
+        result = _run_bootstrap(
+            harness.root, harness.server, downloader, extra_env=env, timeout=15
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "no writable, exec-capable cache directory" in output, output
+
+
+def test_uncreatable_cache_dir_is_a_named_error(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    # The cause clause is what distinguishes this site from the two probe
+    # gates, which emit the same leading substring.
+    _require_unprivileged()
+    harness = make_harness()
+    parent = tmp_path / "readonly-parent"
+    parent.mkdir()
+    with _restricted(parent, 0o555):
+        result = _run_bootstrap(
+            harness.root,
+            harness.server,
+            downloader,
+            extra_env={"ACCELERATOR_CACHE_DIR": str(parent / "nested")},
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "no writable, exec-capable cache directory" in output, output
+    assert "could not be created" in output, output

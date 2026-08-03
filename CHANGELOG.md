@@ -12,6 +12,13 @@
 
 ### Changed
 
+- **Warm `accelerator` invocations are substantially faster** — better than
+  halved on macOS, so session start and every skill's live-context command are
+  noticeably quicker. The bootstrap now tests the cache directory only on a
+  cold start; a `noexec` cache directory still fails with the same named error,
+  and a cache directory populated once may afterwards be read-only for warm
+  invocations (dispatching a subcommand to a separate binary still needs it
+  writable).
 - **Interactive option panels replace typed confirmations across 15 skills.**
   All `y/n` typed gates, plain-text "Shall I proceed?" prompts, and numbered
   action menus have been replaced with `AskUserQuestion` panels — the terminal

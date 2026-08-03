@@ -205,11 +205,22 @@ has no degraded mode. Two environment variables cover the awkward cases:
 | `ACCELERATOR_RELEASE_BASE_URL` | Where release artifacts are fetched from        |
 
 Both are trust-root inputs rather than ordinary conveniences. The cache
-directory is where the bootstrap writes and *executes* a probe file, so point it
-at a directory you own and that is not group-writable. The release base URL
-should be a host you trust not to serve an older signed release: the cache key
-carries no content hash, so a mirror can hand back an older validly-signed
-launcher for the current version.
+directory is where signed binaries are staged and executed from, so point it at
+a directory you own and that is not group-writable. The release base URL should
+be a host you trust not to serve an older signed release: the cache key carries
+no content hash, so a mirror can hand back an older validly-signed launcher for
+the current version.
+
+The bootstrap needs that directory to be writable and executable on a *cold*
+start — one where it has no verified launcher cached, which includes the first
+run after a version bump and any run where verification fails. It writes and
+*executes* a probe file there to check. A *warm* start neither writes nor
+probes; it runs the already-staged verifier and launcher instead, so a cache
+directory populated once may afterwards be read-only for warm bootstrap
+invocations. That exemption stops at the bootstrap: running any subcommand that
+dispatches to a separate binary makes the launcher probe the same directory, and
+that probe writes — so a permanently read-only cache directory is only viable if
+you never use those subcommands.
 
 `ACCELERATOR_PLUGIN_ROOT` is **exported by** the bootstrap for the launcher it
 runs; it is never read as an input. Setting it has no effect.

@@ -76,6 +76,18 @@ def test_bootstrap_exports_the_one_plugin_root_the_launcher_reads() -> None:
         )
 
 
+def test_the_cache_dir_helpers_keep_the_names_the_traces_assert_on() -> None:
+    # The entrypoint trace cases match these tokens in a `bash -x` trace. A
+    # rename would otherwise fail only after a cargo build and a full
+    # fetch-verify-cache round trip, reporting "probe not entered" rather than
+    # "the name moved" — and would silently void the warm-path negative
+    # assertion in the meantime.
+    for name in ("ensure_dir", "probe_exec_capable"):
+        assert name in _BOOTSTRAP_SRC.read_text(), (
+            f"{name} is asserted on by name in the entrypoint trace cases"
+        )
+
+
 def test_the_committed_vendored_shims_are_not_gitignored() -> None:
     # The staged-shim ignore pattern is digest-anchored; a `-*-*` form would
     # also match these four and block `git add` after a shim refresh.

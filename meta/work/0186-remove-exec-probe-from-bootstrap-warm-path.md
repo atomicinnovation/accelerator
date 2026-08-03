@@ -5,15 +5,23 @@ title: "Remove the Exec Probe from the Bootstrap Warm Path"
 date: "2026-07-31T10:41:51+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: in-progress
 kind: task
 priority: high
 parent: "work-item:0136"
 blocked_by: ["work-item:0182"]
 blocks: ["work-item:0169"]
-relates_to: ["work-item:0164", "work-item:0165", "work-item:0167"]
+relates_to:
+  [
+    "work-item:0164",
+    "work-item:0165",
+    "work-item:0167",
+    "work-item:0189",
+    "work-item:0190",
+    "work-item:0191",
+  ]
 tags: [shell, performance, bootstrap]
-last_updated: "2026-07-31T12:34:00+00:00"
+last_updated: "2026-08-03T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -21,9 +29,15 @@ schema_version: 1
 # 0186: Remove the Exec Probe from the Bootstrap Warm Path
 
 **Kind**: Task
-**Status**: Ready
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
+
+> **Implemented and measured 2026-08-03.** Every criterion is discharged except
+> the cross-lane observation, which needs a CI run this branch has not had yet.
+> This item's own Drafting Notes call that observation "a genuine closure
+> condition, not a formality", so the status stays short of `done` until the
+> linux lane is seen green on the new cases. Nothing else is outstanding.
 
 ## Summary
 
@@ -129,7 +143,7 @@ check (`chmod 0o555` then assert file creation inside fails; `chmod -x` then
 assert traversal fails). The check's command and output are pasted into
 Validation Results for any exclusion claimed.
 
-- [ ] **Warm path performs no fatal exec probe** — verified **behaviourally**,
+- [x] **Warm path performs no fatal exec probe** — verified **behaviourally**,
       not by looking for the probe's residue (it is created and removed within
       one invocation, so a post-hoc check passes either way). Sequence: run a
       full bootstrap against the harness to populate the cache dir,
@@ -140,7 +154,7 @@ Validation Results for any exclusion claimed.
       surviving probe fails its write and the invocation exits non-zero. It
       does **not** catch a probe kept and made non-fatal, which still exits 0;
       that variant is ruled out only by the next criterion.
-- [ ] **Probe absent from the warm path, asserted directly** — the criterion
+- [x] **Probe absent from the warm path, asserted directly** — the criterion
       that actually pins probe absence, and therefore load-bearing rather than
       supplementary. Run the bootstrap under `bash -x` with
       `PS4='+${FUNCNAME[0]}:'` and assert the **probe function's name** (as
@@ -154,7 +168,7 @@ Validation Results for any exclusion claimed.
       Note bash's xtrace prints expanded command words but **not** redirections,
       so a probe that creates its file via `>` emits no cache-dir path at all —
       another reason the function name is the only reliable observable.
-- [ ] **Positive control for the trace assertion** — the same probe function
+- [x] **Positive control for the trace assertion** — the same probe function
       name must be asserted **present** in the trace of the cold happy-path run
       (criterion 6), and the trace must additionally show the probe file being
       **executed**, not merely written and `chmod`ed. Without this the negative
@@ -162,11 +176,11 @@ Validation Results for any exclusion claimed.
       reasons. The exec half also gives the retained cold-path probe its only
       real verification — see criterion 5 for why the `chmod -x` cases cannot
       supply it.
-- [ ] **The `noexec` diagnostic survives on the cold path**: with an empty
+- [x] **The `noexec` diagnostic survives on the cold path**: with an empty
       cache dir made non-executable (`chmod -x`), a cold invocation exits
       non-zero and its combined output contains the substring
       `no writable, exec-capable cache directory` (`bin/accelerator:196`).
-- [ ] **The exec-vs-write coverage limitation is recorded.** Both `chmod -x`
+- [x] **The exec-vs-write coverage limitation is recorded.** Both `chmod -x`
       criteria create their failure by removing a directory's execute bit,
       which also blocks creating files inside it — so an implementation
       retaining only the *write* half of the probe would produce the same exit
@@ -177,21 +191,21 @@ Validation Results for any exclusion claimed.
       an attached disk image on darwin) would close it completely and is
       **explicitly out of scope here** — raise it as a follow-up if the
       cold-path probe ever regresses.
-- [ ] **Cold happy path after the split** — pins the always-run `ensure_dir`
+- [x] **Cold happy path after the split** — pins the always-run `ensure_dir`
       half: with `ACCELERATOR_CACHE_DIR` set to a path that does not yet exist,
       a cold invocation creates the directory and `bin/accelerator version`
       exits 0 with the expected output. This is the run that carries the
       positive control (criterion 3).
-- [ ] **Diagnostic preserved when a warmed cache dir becomes non-executable**:
+- [x] **Diagnostic preserved when a warmed cache dir becomes non-executable**:
       given a *warmed* cache dir subsequently made non-executable, the
       invocation exits non-zero with the same `no writable, exec-capable cache
       directory` substring. Note this is an end-state guard, not proof of
       routing — today's bootstrap produces the same result by probing before
       the branch, so the criterion cannot by itself demonstrate the
       warm-to-cold fall-through. The routing claim is carried by criterion 3.
-- [ ] `bin/accelerator` passes the bash-3.2 gate — `scripts/lint-bashisms.sh`
+- [x] `bin/accelerator` passes the bash-3.2 gate — `scripts/lint-bashisms.sh`
       plus the standard shfmt/ShellCheck checks report no findings.
-- [ ] **The warm-path saving clears its gate.** Take the median of 20 warm
+- [x] **The warm-path saving clears its gate.** Take the median of 20 warm
       `bin/accelerator version` invocations, on one darwin-arm64 host in a
       single session with no build running, using the same method for both
       figures (a bash loop over 20 runs taking the median, matching how the
@@ -209,14 +223,14 @@ Validation Results for any exclusion claimed.
       (darwin and linux) for the new cases, not only locally — these are the
       most environment-sensitive criteria in the suite. Which lanes were
       observed is recorded in Validation Results.
-- [ ] **The 0169 hand-off note is present and still accurate.** Confirm the
+- [x] **The 0169 hand-off note is present and still accurate.** Confirm the
       dated note in 0169's Dependencies still holds after the rebase and after
       the measurement lands — in particular that the quoted residual and its
       consequence for 0169's `≤ 1.1 × B` gate match the measured after-median.
       Update the figure if it moved; do not change 0169's threshold.
 - [x] The shim double-hash decision is recorded with its rationale — discharged
       during review-1; see the Validation Results entry and Open Questions.
-- [ ] `mise run` is green end to end.
+- [x] `mise run` is green end to end.
 
 ## Open Questions
 
@@ -252,9 +266,16 @@ once, in Validation Results.
   exec probe alone leaves the warm bootstrap at roughly 41 ms, while 0169
   requires a warm `accelerator vcs guard` at ≤ 1.1 × the 35.1 ms shell guard
   (≈ 38.6 ms) and pays a sub-binary exec and verify on top. The residual is the
-  verify shim's staging block — **~11.7 ms for the second `sha256_file` alone,
-  or ~23 ms if staging were skipped entirely**; neither is addressable without
-  weakening a tested trust boundary (see Validation Results). So 0169 must
+  verify shim's staging block — **measured at ~3.5 ms per `sha256_file` call
+  and ~7 ms for both on a host where `/sbin/sha256sum` resolves, or ~12 ms and
+  ~24 ms where only the Perl `shasum` fallback exists**; neither is addressable
+  without weakening a tested trust boundary (see Validation Results). The
+  ~11.7 ms / ~23 ms figures this item originally quoted describe the *fallback*
+  backend, not the one the code uses on the measuring host. The measurement also
+  moved the headline: the warm bootstrap lands at **~30 ms**, not ~41 ms, so the
+  shortfall against 0169's gate is smaller than assumed — but 0169 additionally
+  pays the launcher-side probe (0189), which this item does not remove. So 0169
+  must
   either relax its threshold or accept the cost with a stated rationale. A
   dated hand-off note in 0169's Dependencies carries this, so the obligation
   does not die with this task.
@@ -299,7 +320,9 @@ genuinely startable once the rebase baseline exists.
   source digest, and the lock directory is acquired only on the cold path. Note
   the staging `if`'s **condition** (`:255-256`) is still evaluated on every
   invocation and contains the second `sha256_file` — that reads, it does not
-  write, so the invariant stands while the ~11.7 ms cost remains. If the warm
+  write, so the invariant stands while its cost remains (**measured ~3.5 ms on
+  a host resolving `/sbin/sha256sum`, ~12 ms on the Perl `shasum` fallback**;
+  the ~11.7 ms originally quoted here is the fallback figure). If the warm
   path proves not to be write-free on some configuration, that is a finding to
   raise, **not work to absorb here** — the staging block is out of scope.
 - The latency gate assumes 0182's `bin/accelerator` changes leave warm-path
@@ -378,30 +401,238 @@ challenge:
 
 ## Validation Results
 
+All behavioural criteria are discharged by named cases in
+`tests/integration/entrypoint/test_accelerator_entrypoint.py`, so each traces to
+a permanent guard rather than a one-off observation.
+
 - **Warm-path exec-probe-free check** (non-writable populated cache dir) —
-  _pending_.
-- **Direct probe-absence check** (`bash -x`, `PS4='+${FUNCNAME[0]}:'`, probe
-  function name absent from the warm trace) — _pending_.
-- **Positive control** (probe function name present in the cold trace, and the
-  probe file observed being executed) — _pending_.
-- **`noexec` cold-path check** — _pending_.
-- **Exec-vs-write coverage limitation recorded** — _pending_.
-- **Cold happy-path (`ensure_dir`) check** — _pending_.
-- **Diagnostic preserved on a warmed-then-non-executable cache** — _pending_.
-- **Lanes observed green** (darwin, linux) — _pending_.
-- **Lane exclusions**, each with the privilege-check command and output that
-  justified it — _pending_ (none expected).
-- **Warm-path median, before** (re-measured post-0182) — _pending_; **after** —
-  _pending_; gate `after ≤ 0.5 × before` — _pending_; delta (recorded, not
-  gating) — _pending_; host and OS version — _pending_; launcher provenance
-  (release asset, locally staged, or pre-cached) and confirmation both medians
-  used the same post-0182 binary — _pending_.
-- **0169 hand-off note** — appended 2026-07-31; **re-confirmation after rebase
-  and measurement** — _pending_.
+  `test_warm_path_survives_a_non_writable_cache_dir`. Asserts stdout
+  **equality** against a direct `launcher_bin version` run rather than a literal
+  version string; see the criterion-1 amendment below.
+- **Direct probe-absence check** — `test_warm_path_does_not_enter_the_probe`.
+  `ensure_dir` and `verify_launcher` present in the warm trace,
+  `probe_exec_capable` absent. The `verify_launcher` assertion bounds the trace
+  from the far end, so a truncated trace cannot satisfy the negative assertion.
+- **Positive control** — `test_cold_path_enters_and_executes_the_probe`.
+  Asserts the probe file is executed as its own command word **exactly once**
+  (`^\++probe_exec_capable:/\S*\.accelerator-probe-\d+$`). The `:/` anchor is
+  load-bearing: the function's own `probe=/…` assignment is traced too, and an
+  unanchored pattern matches it, passing on an implementation that never execs.
+  Manually confirmed on 2026-08-03 that the assignment line is present in the
+  same trace and **not** matched, and that `+main:require_exec_capable_cache`
+  appears twice while the probe runs once — so the idempotence flag is
+  exercised, not merely present.
+- **`noexec` cold-path check** — `test_cold_path_keeps_the_noexec_diagnostic`,
+  which additionally asserts the new `is not writable` cause clause.
+- **Exec-vs-write coverage limitation recorded** — both `noexec` criteria create
+  their failure by clearing a directory's **search** bit, which blocks name
+  resolution and so fails the probe's *write* step; its exec branch is never
+  evaluated, and no directory-permission combination can produce
+  exec-without-write. The exec half is covered instead by the positive control's
+  execution assertion. Both cases are lane-deterministic: `ensure_dir`'s
+  `[[ -d ]]` guard means `mkdir` never runs on an existing directory, so no
+  BSD/GNU `mkdir -p` difference is reachable. A genuine `mount -o noexec`
+  filesystem would close the gap and stays out of scope.
+- **Cold happy-path (`ensure_dir`) check** —
+  `test_cold_happy_path_creates_a_missing_cache_dir`.
+- **Diagnostic preserved on a warmed-then-non-executable cache** —
+  `test_warmed_then_non_executable_cache_keeps_the_diagnostic`. Note this is a
+  **code-path duplicate** of the `noexec` cold-path case: clearing the search
+  bit makes the staged shim unresolvable either way, so the populated cache has
+  no observable effect. The genuinely distinct warmed-then-unusable scenario is
+  the `0o555` case below.
+- **Beyond the criteria** —
+  `test_unverifiable_launcher_in_readonly_cache_fails_fast` (the cold-branch
+  gate and its anti-hang property, the only cover for either) and
+  `test_uncreatable_cache_dir_is_a_named_error` (the retained
+  `resolve_cache_dir` failure, pinned by its `could not be created` cause).
+- **The two probe call sites, and which case guards which.** The **staging
+  gate** sits inside the shim-staging `if` body, the first required write into
+  `cache_dir` on every path, so it covers every write. Two writes sit outside
+  that invariant, both benign: `fail_integrity`'s append to
+  `.accelerator-unverified.log` (best-effort, failure paths only) and the
+  dev-override block's append (guarded by `|| true`, and it `exec`s
+  immediately). The **cold-branch gate** covers the verification-failed residual
+  where staging was skipped, and prevents a ~30 s `acquire_lock` spin.
+  Confirmed by mutation after the change (2026-08-03): deleting the staging gate
+  reds `test_cold_path_keeps_the_noexec_diagnostic`,
+  `test_warmed_then_non_executable_cache_keeps_the_diagnostic` and
+  `test_readonly_root_without_override_is_a_named_error` while
+  `test_unverifiable_launcher_in_readonly_cache_fails_fast` still passes;
+  deleting the cold-branch gate reds only the latter, via its timeout. That
+  mutation is the only demonstration the cold-branch gate is guarded at all,
+  since its case passes before the change too.
+- **Red step, recorded per case** (2026-08-03, 5 failed / 3 passed, exactly as
+  planned). Red before the change:
+  `test_warm_path_survives_a_non_writable_cache_dir` (today's fatal probe fails
+  its write under `0o555`); `test_warm_path_does_not_enter_the_probe` and
+  `test_cold_path_enters_and_executes_the_probe` (the new function names did not
+  exist); `test_uncreatable_cache_dir_is_a_named_error` and
+  `test_cold_path_keeps_the_noexec_diagnostic` (the cause clauses did not
+  exist — the latter's exit and leading substring already passed). Green before
+  and after, as preservation guards:
+  `test_cold_happy_path_creates_a_missing_cache_dir`,
+  `test_warmed_then_non_executable_cache_keeps_the_diagnostic` and
+  `test_unverifiable_launcher_in_readonly_cache_fails_fast`.
+- **Lanes observed green** (darwin, linux) — darwin observed locally
+  (2026-08-03): `test:integration:entrypoint` 54 passed,
+  `test:integration:skill-invocation` 128 passed, `mise run check` green.
+  **Linux lane pending CI.** The harness pins `BASH = "/bin/bash"`, which is
+  3.2.57 on darwin and 5.2 on `ubuntu-latest`, so the two trace cases are
+  covered on **both interpreters** by the standard CI run with no extra work.
+- **Lane exclusions** — **none**. `.github/workflows/main.yml` contains no
+  `container:` key; `test-integration` is a plain `runs-on: ${{ matrix.os }}`
+  matrix over `ubuntu-latest`/`macos-latest`, so both lanes run unprivileged and
+  the root guard will not fire. The single `docker` reference belongs to the
+  visual-regression job, which never reaches this suite. If a root lane is ever
+  introduced, the escape to add is a registered `unprivileged` pytest marker, so
+  the exclusion stays explicit and greppable rather than a silent skip.
+- **Warm-path median** — measured 2026-08-03 on darwin-arm64 (Apple M4 Max,
+  Mac16,5; macOS 26.3, build 25D125), 50 interleaved samples per variant in one
+  process, order alternated:
+
+  | Variant | min | median | p90 | median − harness floor |
+  | --- | --- | --- | --- | --- |
+  | before | 119.02 | **125.35** | 234.15 | 123.75 |
+  | after | 27.18 | **29.92** | 32.44 | 28.32 |
+
+  All figures in ms. **Gate `after ≤ 0.5 × before`: PASS** — 29.92 against a
+  62.68 ceiling, a ratio of **0.239**. Delta **95.43 ms** (recorded, not
+  gating). Instrument floors: `/usr/bin/true` **1.60 ms** (within a millisecond
+  or two of a bare fork+exec, so the harness is not measuring itself) and a
+  trivial bash script **6.10 ms**. Landing is materially better than the ~41 ms
+  expectation.
+
+  **Launcher provenance**: both variants shared one pre-cached
+  `bin/accelerator-launcher-1.24.0-pre.21-darwin-arm64` (7,999,792 bytes, inode
+  177376217) — a genuine signed release asset for the current `plugin.json`
+  version, published post-0182. Both variants resolve the same plugin root from
+  their own location (the before copy lives at `bin/.tmp-accelerator-before`,
+  covered by the existing `bin/.tmp-*` ignore rule), so the cached launcher path
+  is identical by construction. `ls -li` confirmed one inode across the run.
+
+- **Measured composition against the budget** (after-median 29.92 ms; marginal
+  costs over the relevant baseline, darwin-arm64, 2026-08-03):
+
+  | Term | ms |
+  | --- | --- |
+  | harness floor + bash interpreter startup | 6.10 |
+  | two `sha256_file` calls (`sha256sum` + `awk` each) | ~7.1 |
+  | staged shim exec + minisign verify of the 7.6 MB launcher | ~6.8 |
+  | launcher exec (`version`) | ~2.4 |
+  | two `uname` substitutions, `sed` over `plugin.json`, two `cd -P`/`pwd -P` subshells, the `resolve_cache_dir` substitution | ~4.6 |
+  | **explained total** | **~27.0** |
+  | unexplained remainder | ~2.9 (≈10%) |
+
+  The remainder is under the ~25% threshold, so no per-line `bash -x`
+  attribution was needed. Note the shim exec plus minisign is ~6.8 ms, not the
+  2.3 ms the Context table quotes for minisign alone — the shim's own startup
+  and its read of the 7.6 MB launcher dominate that term, and it is now
+  comparable to the two hashes.
+
+- **Resolved sha256 backend** — `command -v sha256sum` resolves to
+  **`/sbin/sha256sum`** on this host, an Apple-signed Mach-O universal binary,
+  so `sha256_file` never reaches its `shasum` fallback. Measured: one
+  `$(sha256sum f | awk …)` substitution costs **3.55 ms** marginal over a
+  `bash -c` baseline; `sha256sum` alone is 3.43 ms against a 1.41 ms fork+exec
+  floor, so actual hashing is well under a millisecond and the rest is process
+  startup. The Perl `shasum -a 256` fallback costs **11.99 ms** per call. **This
+  is a single-host observation, not a darwin fact** — `/sbin/sha256sum` is a
+  comparatively recent macOS addition, so an older macOS or a minimal image may
+  resolve only `shasum`. The two-hash residual is therefore **~7 ms or ~24 ms
+  depending on the host**, and the ~11.7 ms figure previously quoted throughout
+  this item describes the *fallback*, not the backend the code actually uses
+  here. 0169 is handed the range and the backend, not a point estimate.
+  Recording `command -v sha256sum` on both CI lanes costs nothing and says
+  whether the fallback is reachable in CI at all — still to be done there.
+
+- **Re-derived probe attribution** (the Context table's methodology was not
+  recorded, and its "re-exec of a pre-existing probe file | 10.6 ms" row is
+  seven times this harness's fork+exec floor). Measured directly on the same
+  harness, 2026-08-03:
+
+  | Operation | ms |
+  | --- | --- |
+  | bare fork+exec (`/usr/bin/true`) | 1.41 |
+  | re-exec of a *pre-existing* probe file | 3.72 |
+  | write + `chmod` + exec + `rm` in `/tmp` | 107.15 |
+  | write + `chmod` + exec + `rm` in the repo's `bin/` | 131.97 |
+
+  So the first-exec penalty is ~103 ms in `/tmp` and ~128 ms in the working
+  copy — the ~25 ms difference is worth knowing but was not chased. **Host
+  security-agent status**: no third-party EndpointSecurity or anti-malware agent
+  is installed (`systemextensionsctl list` shows only a Karabiner driver
+  extension; no CrowdStrike/SentinelOne/Defender/Jamf/Santa processes). Only
+  Apple's own `xprotectd` runs, with SIP enabled and Gatekeeper assessments
+  enabled. The penalty is therefore attributable to **stock macOS**, not to a
+  scanning agent — which means the ratio gate should transfer to other macOS
+  hosts and the extrapolation to the launcher-side probe (0189) holds.
+
+- **Deviations from the acceptance criteria, each deliberate**:
+  - **PS4 (criterion 2)**: the criterion mandates `PS4='+${FUNCNAME[0]}:'`,
+    which is broken under the bootstrap's `set -u` on bash 3.2 — it emits
+    `FUNCNAME[0]: unbound variable` per top-level command and leaves PS4
+    literally unexpanded, and an unbound expansion aborts a non-interactive
+    bash 5 outright. Implemented as `'+${FUNCNAME[0]:-main}:'`, defaulted inside
+    `run_bootstrap` when `xtrace` is set, which also labels the top-level frame
+    usefully.
+  - **Criterion 1's version assertion**: the harness's default launcher prints
+    nothing and the real one prints `CARGO_PKG_VERSION`, not the fixture's
+    `9.9.9-test`, so "the version the harness fixture builds, asserted exactly"
+    was unachievable as literally worded. Implemented against the real launcher,
+    asserting stdout **equality** with a direct `launcher_bin version` run —
+    which also pins the vergen commit and build stamps.
+  - **Criterion 3's positive control** rides on its own traced cold run rather
+    than on criterion 6's, because criterion 6's run uses the real launcher and
+    is not traced.
+  - **Criterion 9's method**: 50 interleaved samples from a single Python
+    process using `perf_counter`, two instrument floors and order alternation,
+    rather than a bash loop over 20. A per-call `python3` clock read would put a
+    whole interpreter startup *inside* the measured interval — comparable to the
+    ~30 ms being measured; batching either side of a working-copy swap would
+    alias jj snapshot and file-watcher drift onto the difference; and a fixed
+    within-pair order would bias whichever variant is always second. **The
+    Context table's figures are therefore not method-comparable to these
+    medians.**
+  - **`_restricted`'s mode check**: the plan's single
+    `not os.access(path, os.W_OK)` assertion is wrong for the two `0o666` cases,
+    which keep the owner write bit and clear only the search bit — it fired on
+    correctly-restricted directories. Implemented as a loop over both owner
+    bits, checking `W_OK` only when the mode clears `0o200` and `X_OK` only when
+    it clears `0o100`, which covers both shapes (`0o555` drops write, `0o666`
+    drops search).
+  - **The staging comment's `465KB`**: the plan's correction was itself wrong.
+    465,568 bytes is the **linux-x64** shim; the four vendored shims measure
+    486,672 / 496,896 / 426,400 / 465,568 bytes for darwin-arm64, darwin-x64,
+    linux-arm64 and linux-x64 respectively. The original `475KB` was already
+    right for the shipped darwin-arm64 shim (486,672 B = 475.3 KiB), so the
+    comment reads `~475KB` — approximate, because the figure is per-triple.
+- **One reordering worth knowing**: because the staging gate sits inside the
+  staging body, a cold invocation that is going to fail with the cache-dir
+  diagnostic now spends ~7 ms hashing first, where previously
+  `resolve_cache_dir` failed before any hashing.
+- **Follow-ups raised** (2026-08-03): **0189** (the launcher runs the same
+  write-chmod-exec probe on every external-subcommand dispatch, so this saving
+  does not reach `accelerator vcs guard`; necessary but not sufficient for 0169,
+  whose threshold decision must not be deferred pending it), **0190**
+  (`acquire_lock` cannot distinguish contention from an unusable directory, and
+  its dead-owner reclaim arm can spin unbounded — the cold-branch gate masks the
+  one instance reachable today), and **0191** (batch the two shim hashes into
+  one invocation, ~2.5 ms, deliberately not absorbed here). Deliberately **not**
+  raised: a faster `sha256_file` backend — the native `sha256sum` is already in
+  use here, actual hashing is sub-millisecond, `openssl dgst` is slower, and
+  dropping the two `awk` forks alone saves ~0.4 ms. Reopen if a lane resolves
+  the Perl fallback.
+- **0169 hand-off note** — appended 2026-07-31; **re-confirmed 2026-08-03**
+  against the measured after-median, with its quoted residual corrected to the
+  backend-dependent range and the launcher-side probe (0189) handed over as the
+  dominant unaddressed cost. 0169's threshold and rationale left untouched.
 - **Shim double-hash decision** — **resolved 2026-07-31: keep both hashes and
   the staging block unchanged.** The source research (§12) framed this as an
   open trade-off worth ~23 ms via two distinct changes: dropping the second
-  hash at `bin/accelerator:256` (~11.7 ms, one hash of the 475 K shim), or
+  hash at `bin/accelerator:256` (quoted at ~11.7 ms, one hash of the 475 K
+  shim — **measured at ~3.5 ms** on a host resolving `/sbin/sha256sum`; the
+  quoted figure is the Perl `shasum` fallback's), or
   skipping staging entirely when `shim_source`'s directory and `cache_dir`
   resolve to the same path (~23 ms, the default configuration where both are
   `${plugin_root}/bin`). Neither is as cheap as it looked: the planted-stub
