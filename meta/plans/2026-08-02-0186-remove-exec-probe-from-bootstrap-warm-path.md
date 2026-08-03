@@ -366,13 +366,13 @@ Both are covered by the same guard.
 
 #### Automated Verification
 
-- [ ] Entrypoint suite passes: `mise run test:integration:entrypoint`
-- [ ] Python format, lint and types pass: `mise run build-system:check`
-- [ ] Full read-only gate passes: `mise run check`
+- [x] Entrypoint suite passes: `mise run test:integration:entrypoint`
+- [x] Python format, lint and types pass: `mise run build-system:check`
+- [x] Full read-only gate passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] `_require_unprivileged` reads as a deliberate divergence from the
+- [x] `_require_unprivileged` reads as a deliberate divergence from the
       neighbouring `skipif`, so a later reader does not "fix" it back
 
 ---
@@ -502,6 +502,17 @@ The `_restricted` mode check is what the work item's acceptance-criteria
 preamble asks for beyond `id -u`: on a filesystem where `chmod` is advisory the
 permission cases would otherwise fail (or, worse for the success-asserting case,
 pass) with no hint that the environment rather than the product was at fault.
+
+**Deviation taken during implementation**: the single `not os.access(path,
+os.W_OK)` assertion above is wrong for the two `0o666` cases. `0o666` keeps the
+owner write bit and clears only the search bit, so the assertion fires on a
+correctly-restricted directory — observed as a red on
+`test_cold_path_keeps_the_noexec_diagnostic` and
+`test_warmed_then_non_executable_cache_keeps_the_diagnostic` for the harness,
+not the product. Implemented instead as a loop over the two owner bits, checking
+`W_OK` only when the mode clears `0o200` and `X_OK` only when it clears `0o100`,
+which is what the docstring's "verified to have bitten" always meant and covers
+both shapes (`0o555` drops write, `0o666` drops search).
 
 #### 3. Regression cases (written first)
 
@@ -835,8 +846,9 @@ negative assertion in the meantime.
 
 #### Automated Verification
 
-- [ ] Recorded during the red step, per case — the shape differs and the record
-      should say so rather than claim a uniform red. **Red before the change**:
+- [x] Recorded during the red step, per case — the shape differs and the record
+      should say so rather than claim a uniform red. Observed 2026-08-03,
+      exactly as predicted: 5 failed, 3 passed. **Red before the change**:
       `test_warm_path_survives_a_non_writable_cache_dir` (today's fatal probe
       fails its write under `0o555`); `test_warm_path_does_not_enter_the_probe`
       and `test_cold_path_enters_and_executes_the_probe` (the new function
@@ -850,8 +862,9 @@ negative assertion in the meantime.
       `test_warmed_then_non_executable_cache_keeps_the_diagnostic`, and
       `test_unverifiable_launcher_in_readonly_cache_fails_fast` — today's
       unconditional probe already produces its asserted exit and substring.
-- [ ] **After the change**, confirm by mutation which case guards which gate,
-      and record it: deleting the staging gate reds
+- [x] **After the change**, confirm by mutation which case guards which gate,
+      and record it. Both mutations behaved exactly as predicted (2026-08-03):
+      deleting the staging gate reds
       `test_cold_path_keeps_the_noexec_diagnostic`,
       `test_warmed_then_non_executable_cache_keeps_the_diagnostic` and
       `test_readonly_root_without_override_is_a_named_error`; deleting the
@@ -859,28 +872,29 @@ negative assertion in the meantime.
       `test_unverifiable_launcher_in_readonly_cache_fails_fast` via its
       timeout. This is the only step that demonstrates the cold-branch gate is
       guarded at all, since that case passes before the change.
-- [ ] Entrypoint suite passes: `mise run test:integration:entrypoint`
-- [ ] Skill-invocation suite unaffected:
-      `mise run test:integration:skill-invocation`
-- [ ] Launcher-edge guards still hold:
+- [x] Entrypoint suite passes: `mise run test:integration:entrypoint` (54)
+- [x] Skill-invocation suite unaffected:
+      `mise run test:integration:skill-invocation` (128)
+- [x] Launcher-edge guards still hold:
       `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Bootstrap coverage guard passes, including the two new name assertions:
+- [x] Bootstrap coverage guard passes, including the two new name assertions:
       `uv run pytest tests/unit/tasks/test_bootstrap_coverage.py`
-- [ ] Python format, lint and types pass: `mise run build-system:check`
-- [ ] Shell format, lint, bashisms and exec-bits pass:
+- [x] Python format, lint and types pass: `mise run build-system:check`
+- [x] Shell format, lint, bashisms and exec-bits pass:
       `mise run scripts:check` (which folds `lint:scripts:bashisms:check`)
-- [ ] `mise run check` is green
+- [x] `mise run check` is green
 
 #### Manual Verification
 
-- [ ] A tampered cached launcher in an unwritable cache dir fails within a
-      second, not after the ~30 s lock budget (the automated case pins this,
-      but confirm the wall-clock once by hand)
-- [ ] The cold-run trace shows `probe_exec_capable` entered *and* the probe file
-      executed as its own command word exactly once — and confirm the `probe=`
-      assignment line is present in the same trace but not matched, so the
-      anchor is doing its job
-- [ ] Warm trace shows `ensure_dir` and `verify_launcher` but no
+- [x] A tampered cached launcher in an unwritable cache dir fails within a
+      second, not after the ~30 s lock budget — measured **27 ms**, ending in
+      `no writable, exec-capable cache directory: … is not writable`
+- [x] The cold-run trace shows `probe_exec_capable` entered *and* the probe file
+      executed as its own command word exactly once (1 match), with the
+      `probe=` assignment line present in the same trace and **not** matched by
+      the anchored pattern. `+main:require_exec_capable_cache` appears twice
+      and the probe runs once, so the idempotence flag is exercised
+- [x] Warm trace shows `ensure_dir` and `verify_launcher` but no
       `probe_exec_capable`
 - [ ] Both interpreters are covered without extra work: the harness pins
       `/bin/bash`, which is 3.2.57 on darwin and 5.2 on `ubuntu-latest`, so the

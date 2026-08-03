@@ -327,6 +327,7 @@ def run_bootstrap(
     downloader: Path,
     *,
     args: tuple[str, ...] = (),
+    xtrace: bool = False,
     extra_env: dict[str, str] | None = None,
     path: str | None = None,
     entry: Path | None = None,
@@ -339,6 +340,16 @@ def run_bootstrap(
     which defaults to the installation root's own copy. `cwd` defaults to an
     empty directory, since the launcher's `config` family reads project config
     from the working directory.
+
+    `xtrace` runs the bootstrap under `bash -x` for this call only, since the
+    trace lands on the same stderr other cases assert diagnostics on. It
+    defaults `PS4` alongside, because a bare `${FUNCNAME[0]}` is unbound at top
+    level under the bootstrap's `set -u`. `SHELLOPTS=xtrace` is not an
+    equivalent: it is exported into every bash descendant, and the probe's
+    `#!/bin/sh` is bash on macOS but dash on Linux, so the trace content would
+    differ by lane. A boolean rather than an argument list, because bash reads
+    the first non-option operand as the script and an arbitrary list could
+    demote the validated `entry` to `$1`.
     """
     env = {
         "PATH": path or os.environ["PATH"],
@@ -350,6 +361,9 @@ def run_bootstrap(
     }
     if extra_env:
         env.update(extra_env)
+    bash_flags = ("-x",) if xtrace else ()
+    if xtrace:
+        env.setdefault("PS4", "+${FUNCNAME[0]:-main}:")
     entry = entry or root / "bin/accelerator"
     with contextlib.ExitStack() as stack:
         if cwd is None:
@@ -357,7 +371,7 @@ def run_bootstrap(
         assert_hermetic(env, cwd / entry)
         try:
             return subprocess.run(
-                [BASH, str(entry), *args],
+                [BASH, *bash_flags, str(entry), *args],
                 capture_output=True,
                 text=True,
                 env=env,
