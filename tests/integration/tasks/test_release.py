@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,6 +22,7 @@ from tasks.release import (
     release,
 )
 from tasks.shared.errors import SigningError
+from tasks.shared.paths import BIN_DIR, REPO_ROOT, debug_archive_path
 
 
 @pytest.fixture
@@ -163,8 +165,36 @@ class TestPrereleaseSign:
 # ── prerelease_finalise() ────────────────────────────────────────────
 
 
+def _stage_manifest(
+    mocker,
+    tmp_path,
+    *,
+    version: str = "1.21.0-pre.1",
+    binaries: tuple[str, ...] = ("visualiser",),
+):
+    """Point `tr.RELEASE_MANIFEST` at an in-test manifest.
+
+    Patch the manifest rather than the helper: patching the helper out would
+    disable it inside the one test asserting the pre-commit guards run before
+    `commit_version`.
+    """
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": version,
+                "binaries": {token: {} for token in binaries},
+            }
+        )
+    )
+    mocker.patch.object(tr, "RELEASE_MANIFEST", manifest)
+    return manifest
+
+
 class TestPrereleaseFinalise:
-    def _setup(self, mocker):
+    def _setup(self, mocker, tmp_path):
+        _stage_manifest(mocker, tmp_path)
         mocker.patch.object(
             tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
         )
@@ -173,14 +203,14 @@ class TestPrereleaseFinalise:
         mocker.patch.object(tgit, "push")
         mocker.patch.object(gh, "create_release")
 
-    def test_publish_calls_unified_upload(self, ctx, mocker):
-        self._setup(mocker)
+    def test_publish_calls_unified_upload(self, ctx, mocker, tmp_path):
+        self._setup(mocker, tmp_path)
         mock_upload = mocker.patch.object(gh, "upload_and_verify_release")
         prerelease_finalise(ctx)
         assert mock_upload.called
 
-    def test_commits_before_upload(self, ctx, mocker):
-        self._setup(mocker)
+    def test_commits_before_upload(self, ctx, mocker, tmp_path):
+        self._setup(mocker, tmp_path)
         mock_commit = mocker.patch.object(tgit, "commit_version")
         mock_upload = mocker.patch.object(gh, "upload_and_verify_release")
         prerelease_finalise(ctx)
@@ -206,13 +236,32 @@ class TestLeakedArtifactGuard:
         with pytest.raises(RuntimeError):
             _assert_no_leaked_artifacts(ctx)
 
+    def test_fires_on_a_debug_archive(self, ctx):
+        # The backstop behind the `.gitignore` rule below: it does not depend
+        # on that pattern being right.
+        ctx.run.return_value = MagicMock(
+            stdout=(
+                "?? skills/visualisation/visualise/bin/"
+                "accelerator-visualiser-linux-x64.debug.tar.gz\n"
+            )
+        )
+        with pytest.raises(RuntimeError):
+            _assert_no_leaked_artifacts(ctx)
+
+    def test_lists_untracked_files_individually(self, ctx):
+        # Porcelain's default untracked mode collapses a wholly-untracked
+        # directory to one line, which would hide the marker above.
+        _assert_no_leaked_artifacts(ctx)
+        assert "-uall" in ctx.run.call_args.args[0]
+
     def test_passes_on_the_version_bump_changes(self, ctx):
         ctx.run.return_value = MagicMock(
             stdout=" M .claude-plugin/plugin.json\n M cli/Cargo.toml\n"
         )
         _assert_no_leaked_artifacts(ctx)  # must not raise
 
-    def test_publish_runs_the_guard_before_commit(self, ctx, mocker):
+    def test_publish_runs_the_guard_before_commit(self, ctx, mocker, tmp_path):
+        _stage_manifest(mocker, tmp_path)
         mocker.patch.object(
             tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
         )
@@ -225,6 +274,59 @@ class TestLeakedArtifactGuard:
         tr._publish(ctx)
         assert mock_guard.called
         assert mock_commit.called
+
+
+class TestStagedManifestGuard:
+    def _publish(self, ctx, mocker):
+        mocker.patch.object(
+            tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
+        )
+        mocker.patch.object(tr, "_assert_no_leaked_artifacts")
+        mocker.patch.object(gh, "create_release")
+        mocker.patch.object(gh, "upload_and_verify_release")
+        mocker.patch.object(tgit, "commit_version")
+        mocker.patch.object(tgit, "tag_version")
+        mocker.patch.object(tgit, "push")
+        tr._publish(ctx)
+
+    def test_passes_when_the_manifest_agrees(self, ctx, mocker, tmp_path):
+        _stage_manifest(mocker, tmp_path)
+        self._publish(ctx, mocker)
+
+    @pytest.mark.parametrize(
+        "binaries", [("visualiser", "extra"), (), ("other",)]
+    )
+    def test_a_divergent_token_set_raises(
+        self, ctx, mocker, tmp_path, binaries
+    ):
+        _stage_manifest(mocker, tmp_path, binaries=binaries)
+        with pytest.raises(RuntimeError, match="dispatches"):
+            self._publish(ctx, mocker)
+
+    def test_a_stale_cut_raises(self, ctx, mocker, tmp_path):
+        # The token set is unchanged — the registry changes once per sub-binary
+        # story — so only the version comparison catches this.
+        _stage_manifest(mocker, tmp_path, version="1.20.0")
+        with pytest.raises(RuntimeError, match="earlier cut"):
+            self._publish(ctx, mocker)
+
+    def test_an_absent_manifest_raises(self, ctx, mocker, tmp_path):
+        mocker.patch.object(tr, "RELEASE_MANIFEST", tmp_path / "absent.json")
+        with pytest.raises(RuntimeError, match="is absent"):
+            self._publish(ctx, mocker)
+
+
+def test_the_archive_ignore_rule_matches_a_nested_bin_tree() -> None:
+    # The primary control for keeping a release artefact out of the pushed
+    # version-bump commit. A mid-string separator anchors a pattern to its own
+    # directory, so the pre-`**/` form matched only `<root>/bin/`.
+    import pathspec
+
+    spec = pathspec.GitIgnoreSpec.from_lines(
+        (REPO_ROOT / ".gitignore").read_text().splitlines()
+    )
+    archive = debug_archive_path("visualiser", "linux-x64", BIN_DIR)
+    assert spec.match_file(archive.relative_to(REPO_ROOT).as_posix())
 
 
 # ── Local-dev guard and composition ──────────────────────────────────

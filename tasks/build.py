@@ -4,18 +4,19 @@ import shutil
 import subprocess
 import tarfile
 import tomllib
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from invoke import Context, task
 
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.paths import (
-    BIN_DIR,
     CARGO_TOML,
     CLI_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
+    DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
     FRONTEND,
     PLUGIN_JSON,
@@ -30,9 +31,6 @@ from tasks.shared.paths import (
     vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS
-
-# The SKILL.md that dispatches the visualiser through the launcher.
-_VISUALISE_SKILL_RELATIVE = "skills/visualisation/visualise/SKILL.md"
 
 _CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
 
@@ -183,28 +181,6 @@ def validate_version_coherence(
     if mismatches:
         raise VersionCoherenceError(
             f"expected {expected_version!r}, found mismatches: {mismatches}"
-        )
-
-
-def validate_dispatch_coherence(repo_root: Path | None = None) -> None:
-    """Bind SKILL.md's `accelerator visualiser` invocation to the producer.
-
-    The visualise SKILL.md must invoke `accelerator visualiser` iff the release
-    producer lists `visualiser` in DISPATCHED_SUBBINARIES — otherwise a shipped
-    plugin's `start` resolves to AssetNotFound (SKILL switched, producer not) or
-    a released asset is never dispatched (producer wired, SKILL not). Catches a
-    mis-ordered co-release across the merge window.
-    """
-    root = repo_root or REPO_ROOT
-    skill = (root / _VISUALISE_SKILL_RELATIVE).read_text()
-    invokes = "accelerator visualiser" in skill
-    dispatched = "visualiser" in DISPATCHED_SUBBINARIES
-    if invokes != dispatched:
-        raise DispatchCoherenceError(
-            "visualiser dispatch is incoherent: SKILL.md invokes "
-            f"`accelerator visualiser`={invokes} but DISPATCHED_SUBBINARIES "
-            f"lists 'visualiser'={dispatched} — a release carrying the SKILL "
-            "switch must also carry the producer wiring"
         )
 
 
@@ -495,16 +471,47 @@ def vendor_verify_shims(context: Context) -> None:
     atomic_write_text(VENDOR_SHIM_MARKER, vendor_shim_marker_digest() + "\n")
 
 
+def _debug_archive_targets(
+    dirs: Mapping[str, Path] = DEBUG_ARCHIVE_DIRS,
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+    staging_dir: Path = RELEASE_STAGING,
+) -> list[tuple[Path, Path]]:
+    """Each (staged binary, archive path) pair the debug archives cover."""
+    unknown = sorted(set(dirs) - set(tokens))
+    if unknown:
+        raise RuntimeError(
+            f"debug-archive registry names undispatched token(s): {unknown} — "
+            "nothing cross-compiles them, so the archive source would be absent"
+        )
+    stray = sorted(str(d) for d in dirs.values() if d.name != "bin")
+    if stray:
+        raise RuntimeError(
+            f"debug-archive directories must be `bin/` trees: {stray} — "
+            "`.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`, so an "
+            "archive written elsewhere would be committed by `git add .`"
+        )
+    return [
+        (
+            subbinary_asset_path(token, platform, staging_dir),
+            debug_archive_path(token, platform, directory),
+        )
+        for token, directory in dirs.items()
+        for _triple, platform in TARGETS
+    ]
+
+
+def _write_debug_archives(targets: list[tuple[Path, Path]]) -> None:
+    for binary, archive in targets:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(binary, arcname=binary.name)
+
+
 @task
 def create_debug_archives(context: Context) -> None:
-    """Create .debug.tar.gz archives for the cross-compiled visualiser binary.
+    """Archive each cross-compiled sub-binary that ships symbolication data.
 
-    Archives the shared dist/release binary into bin/, keeping the debug
-    artefact under the committed skill tree where the provenance glob covers it.
+    Archives the shared dist/release binary into the sub-binary's committed
+    tree, where the provenance glob covers it.
     """
-    BIN_DIR.mkdir(parents=True, exist_ok=True)
-    for _, platform in TARGETS:
-        binary = subbinary_asset_path("visualiser", platform)
-        archive_path = debug_archive_path(platform)
-        with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(binary, arcname=binary.name)
+    _write_debug_archives(_debug_archive_targets())

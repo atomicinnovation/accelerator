@@ -24,8 +24,8 @@ cli/.pup/
 
 # Build output under the pre-`cli/` visualiser location. `cli/target/` and the
 # root-anchored `/dist/` above do not reach it, so a build here snapshots tens of
-# thousands of paths into the working copy. Only `SKILL.md` and the four
-# `bin/*.debug.tar.gz` archives under this tree are tracked; nothing generated is.
+# thousands of paths into the working copy. Only `SKILL.md` under this tree is
+# tracked; nothing generated is, including the `bin/*.debug.tar.gz` archives.
 skills/visualisation/visualise/frontend/dist/
 skills/visualisation/visualise/server/target/
 workspaces/
@@ -51,7 +51,10 @@ bin/.tmp-*
 # the committed skill tree so the provenance glob covers them, and the release
 # job attaches them to the GitHub release. They are never in manifest.json and
 # never fetched by the launcher, so nothing in the plugin package needs them.
-bin/*.debug.tar.gz
+# The `**/` is load-bearing: a mid-string separator anchors a pattern to this
+# file's own directory, so the bare `bin/` form matched only `<root>/bin/` and
+# never the skill tree the archives are actually written into.
+**/bin/*.debug.tar.gz
 
 # Dev-launcher override marker: untracked and unshippable by design, so no clone
 # or marketplace install can carry it (bin/accelerator gates on its presence).

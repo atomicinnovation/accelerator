@@ -12,7 +12,8 @@ own checks; see Architecture below.
 All dev tasks run through **`mise run <task>`** (declared in `mise.toml`,
 implemented as [invoke](https://www.pyinvoke.org/) tasks under `tasks/`). Run
 `mise tasks` for the full leaf list; `tasks/README.md` documents the *shape* of
-the task tree (learn it once).
+the task tree (learn it once) and carries the thirteen-point checklist for
+registering a dispatched sub-binary.
 
 **"Done" means `mise run` (the bare default task) exits 0 end-to-end.** That is
 the full local CI mirror: it builds the frontend + dev server, applies all

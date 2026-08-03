@@ -3,7 +3,8 @@
 The repo's dev tasks are declared in `mise.toml` (run them with
 `mise run <task>`) and implemented as [invoke](https://www.pyinvoke.org/) tasks
 in this package. `mise tasks` lists every leaf with its description; this file
-documents the *shape* of the tree so it only has to be learned once.
+documents the *shape* of the tree so it only has to be learned once, and
+carries the checklist for registering a dispatched sub-binary.
 
 ## Per-component checks
 
@@ -15,7 +16,7 @@ format + lint (+ type-check where applicable):
 | Frontend       | `frontend:check`     | format + lint + types (Biome, tsc)           |
 | Rust server    | `server:check`       | format + lint (rustfmt, clippy)              |
 | Rust cli       | `cli:check`          | format + lint (rustfmt, workspace-wide clippy) |
-| Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly)        |
+| Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly), plus workflow lint and the dispatch-coherence guard |
 | Shell          | `scripts:check`      | format + lint (shfmt, ShellCheck + bashisms) |
 
 `build-system` is the repo-root Python automation toolchain (this `tasks/`
@@ -35,7 +36,11 @@ guards over the same tree — `lint:vendor-shims:check`,
 wired into `lint:check` as well: `cli:check` is what CI runs, but the bare
 `default` task depends on `lint:check` and not on `check`, so a `cli:check`-only
 guard stays green in a full local run however badly its invariant is broken.
-`tests/unit/tasks/test_mise.py` pins both placements. Beyond `cli:check`, Rust
+`tests/unit/tasks/test_mise.py` pins both placements. `build-system:check`
+carries `lint:dispatch-coherence:check` under the same reasoning: it is a
+skills-tree guard rather than a Python one, but `build-system:check` is what CI
+runs, and it is wired into `lint:check` as well so a bare `mise run` reaches it
+too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
@@ -144,6 +149,159 @@ the env var.
 | ------------------------ | ------- | ----------------------------------------- |
 | `ACCELERATOR_PUP_MODE`   | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`. |
 | `ACCELERATOR_COVERAGE`   | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
+
+## Registering a dispatched sub-binary
+
+A **dispatched sub-binary** is a separate static binary the launcher fetches on
+demand from the signed release manifest (ADR-0054). Its **token** is the
+subcommand name in `accelerator <token>`, and the same string is also the
+`DISPATCHED_SUBBINARIES` entry, the manifest key, and the launcher's cache
+filename prefix — while the crate, its `[[bin]]` and the published asset all
+carry an `accelerator-` prefix. The registries are spelled `*_SUBBINARIES` for
+history. Each point below is tagged with where a mistake surfaces: **[PR]** a
+test or a per-PR CI gate catches it, **[release]** it fails the release job,
+**[author]** nothing catches it.
+
+1. **Add** the token to `DISPATCHED_SUBBINARIES` (`tasks/shared/paths.py`), then
+   update three things in `tests/integration/tasks/test_github.py`: the registry
+   pin (a deliberate anti-vacuity anchor, not a count to bump blindly), the
+   `assert len(uploads) == 22` count, and `_setup_release`'s staged fixture and
+   in-test manifest, which are single-token today. Converting that count to a
+   derived expression is expected of the first sibling to land. **[PR]**
+2. **Add** an entry to `_SUBBINARY_MANIFESTS` (`tasks/manifest.py`) when the
+   crate is not at `cli/<token>/`. The visualiser is the worked example:
+   `"visualiser": CLI_DIR / "visualiser/server/Cargo.toml"`. **No action when**
+   the crate is at `cli/<token>/`. **[release]**
+3. **Add** the crate's `Cargo.toml`: `[[bin]] name = "accelerator-<token>"` (the
+   asset name the manifest and signing expect), a mandatory
+   `package.description` (the manifest sources the description from it), and the
+   inherited `version.workspace`, `edition.workspace`, `rust-version.workspace`,
+   `license.workspace` and `publish.workspace`. Inherit the version so the next
+   workspace bump cannot desynchronise the member — the version-coherence check
+   in `tasks/build.py` only reports a *mismatch*, so a hardcoded current version
+   passes today and breaks at the next bump. For lints, either inherit with
+   `[lints] workspace = true` or declare a crate-local `[lints.clippy]` table if
+   you need allows, as `cli/visualiser/server/Cargo.toml` does; either way `-D
+   warnings` from `lint:cli:check` still promotes warnings to errors, and
+   without the workspace table you opt out of the shared pedantic/nursery/
+   `unwrap_used` opt-ins rather than out of lint enforcement. **[release]**
+4. **Register** the crate in `[workspace].members` in `cli/Cargo.toml`
+   (**[release]** — nothing pins the members list, so an omission surfaces as a
+   missing cross-compiled binary during signing), and commit the regenerated
+   `cli/Cargo.lock` (`lint:cli:check` runs `--locked`, so a stale lock reddens
+   `cli:check` as an apparent clippy failure).
+5. **Add** `bin/<token>-*` to `.gitignore`. The launcher caches every fetched
+   sub-binary as `bin/<token>-<version>-<sha256>` in the plugin root, so this is
+   needed whether or not anything is staged there at release time.
+   `bin/*.minisig` and `**/bin/*.debug.tar.gz` are already token-generic.
+   **[author]** — nothing catches it, and the local-dev release path's `git add
+   .` would sweep the cached binary into the version-bump commit.
+6. **Add** an entry to `cli/launcher/tests/fixtures/manifest.example.json` only
+   if you want the golden contract to stay representative of a multi-binary
+   manifest. **No action when** you are adding a new key: both co-readers —
+   `tests/unit/tasks/test_manifest_contract.py`, which iterates
+   `binaries.values()` generically, and the `include_str!` in
+   `cli/launcher/src/launch/outbound/resolve/manifest.rs`, which reads the
+   existing entry — are key-agnostic and break only if an existing entry is
+   renamed or removed. **[author]**
+7. **Add** the skill binding: a skill invoking `accelerator <token>` through the
+   `!` preprocessor, plus a `Bash(...)` rule whose subcommand segment is exactly
+   `<token>` and which covers that invocation. A rule scoped tighter than the
+   token (`Bash(…/accelerator <token> start)`) binds provided it covers the
+   invocation; a wildcarded segment (`Bash(…/accelerator <tok>*)`) does not. A
+   bare `Bash` tool, a rule authorising the bare launcher, or a rule with a
+   wildcarded token segment **anywhere** in that skill's frontmatter
+   disqualifies the whole skill as a witness, so pick or write a skill that has
+   none of them. The guard sees only `!`-preprocessor commands in
+   `skills/**/SKILL.md` naming `${CLAUDE_PLUGIN_ROOT}/bin/accelerator` —
+   invocations from `hooks/`, `scripts/` and model-driven Bash are outside its
+   reach. **[PR]**
+   - Also check: if the binding is satisfied by a *new* skill that injects
+     config context or instructions, bump `EXPECTED_INJECTION_SKILLS`
+     (`tasks/lint/skill_permissions.py`) in the same change, and keep the `!`
+     command free of shell metacharacters — both are separate guards. Authoring
+     a new skill is its own registration surface; this checklist covers only the
+     binding.
+   - Alternatively **add** an entry to `SKILL_EXEMPT_SUBBINARIES` when *no*
+     SKILL.md invokes the token. An exemption whose token is invoked is
+     rejected, as is one naming an undispatched token, and at least one
+     dispatched token must remain non-exempt.
+8. **Add** `accelerator-<token>` — the cargo `[[bin]]` name from point 3, not
+   the bare token — to `_CLI_RELEASE_BINARIES` (`tasks/build.py`).
+   `cli_cross_compile` stages via `cli_binary_path(name, platform)`, i.e.
+   `dist/release/<name>-<platform>`, which equals `subbinary_asset_path(token,
+   platform)` **only** because of that prefix; a bare token stages
+   `dist/release/<token>-<platform>` and signing then fails on a missing
+   `accelerator-<token>-<platform>`. It also gives you `_assert_magic_bytes`
+   and, for musl, `_assert_static_elf`, and `build:cli:cross-compile` is already
+   called from `prerelease_prepare` and `release_prepare` (`tasks/release.py`).
+   **No action when** you take that route — no new task and no `mise.toml` leaf
+   are needed. A crate that cannot ride that loop needs its own staging task
+   wired into **both** prepare tasks *and* a `mise.toml` leaf, and owes
+   `_assert_static_elf` explicitly for musl. **[release]**
+9. **Update** all three `attest-build-provenance` blocks in
+   `.github/workflows/main.yml`, identically, **only when** the release
+   publishes an artefact that no existing `subject-path` glob matches — today, a
+   symbolication archive written into a committed `bin/` tree (point 12). The
+   condition is about the published *artefact*, not the sub-binary: the
+   sub-binary is always staged in `dist/release/`, which
+   `dist/release/accelerator-*` covers — but `manifest.json` and
+   `manifest.minisig` live there too and were matched by nothing until they were
+   added explicitly, which is why the rule is stated this way. **[PR]** — a test
+   derives the expected coverage from `_release_uploads()`.
+10. **Update** `BUILTIN_SUBCOMMANDS` (`tasks/shared/dispatch_coherence.py`) in
+    lockstep whenever the launcher's built-in set changes in either direction.
+    **No action when** you are only adding a dispatch token — but note a name in
+    that set is unavailable as one. A test pins the set against the clap
+    `Command` enum, so the two cannot drift. **[PR]**
+11. **Document** the sub-binary for users: its own page under `docs/`, an entry
+    in the **Concepts** list under `## Documentation` in the root `README.md`,
+    and an `ACCELERATOR_<TOKEN>_BIN` override row wherever that sub-binary's
+    overrides are documented (`docs/visualiser.md` is the visualiser's).
+    `docs/*.md` form a hand-maintained prev/next chain, so inserting a page
+    means editing the footer of the page **before** and the page **after** it as
+    well as your own. `docs/internals.md`'s env-var table holds only
+    launcher-wide inputs and is already token-generic. **No action when** the
+    sub-binary is not user-facing. **[author]**
+12. **Add** an entry to `DEBUG_ARCHIVE_DIRS` (`tasks/shared/paths.py`) when the
+    sub-binary ships a symbolication archive, and update the registry pin in
+    `tests/unit/tasks/shared/test_paths.py`. The value must be a `bin/`
+    directory — `.gitignore`'s rule is `**/bin/*.debug.tar.gz`, so an archive
+    written elsewhere would be committed by the release path's `git add .`. This
+    is what triggers point 9's obligation. **No action when** the sub-binary
+    ships no symbolication archive — omitting an entry silently ships no archive
+    and nothing catches it, though the shape of an entry you *do* add is checked
+    by `_debug_archive_targets`. **[author]**
+13. **Extend** `cli/deny.toml` when the new crate's dependency graph needs a
+    licence or advisory exception, with a comment giving the justification. **No
+    action when** `mise run deny:check` is already green. **[PR]**
+
+Points 1, 2, 3, 4, 7 and 8 must land in the **same change**. The release path
+resolves them together, and only the 1↔7 pair is caught before the release job —
+by the dispatch guard, which runs from `tasks/manifest.py` on every release
+*and* as `lint:dispatch-coherence:check` in `build-system:check`.
+
+The Cargo **package** is `accelerator-<token>`; where a domain crate already
+owns `cli/<token>/`, the binary crate lives elsewhere with a
+`_SUBBINARY_MANIFESTS` entry, because `tasks/manifest.py` defaults the manifest
+path to `cli/<token>/Cargo.toml` and cargo-pup rules match on whole crate names.
+A crate carrying domain modules may also owe a `cli/pup.ron` rule; that is the
+generic add-a-Rust-crate surface, not part of this checklist.
+
+The **token** must match `^[a-z][a-z0-9-]*$`. Underscores are rejected because
+the token derives `ACCELERATOR_<TOKEN>_BIN`
+(`cli/launcher/src/launch/core.rs`), which the launcher refuses to build from a
+name outside that set — so an underscore token can never resolve an override.
+
+`verify` and `launcher` are **reserved**, and a name in `BUILTIN_SUBCOMMANDS` is
+unavailable as a token. `verify` collides on the staged asset name:
+`cli_binary_path("accelerator-verify", …)` and `subbinary_asset_path("verify",
+…)` both yield `dist/release/accelerator-verify-<platform>`, so registering it
+would sign the vendored verify shim and advertise it in the manifest. Both
+`verify` and `launcher` additionally shadow real `cli/<name>/` crates through
+`_SUBBINARY_MANIFESTS`' default. A built-in-shadowed token would be signed and
+listed in the manifest but never dispatched. All three constraints are enforced
+by the dispatch guard.
 
 ## CI job → local command
 

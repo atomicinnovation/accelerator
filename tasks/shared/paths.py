@@ -1,5 +1,7 @@
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -23,6 +25,14 @@ VENDOR_SHIM_MARKER = VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256"
 # The crates whose binaries the signed manifest lists and the launcher fetches
 # by bare token. The visualiser is the first dispatched sub-binary.
 DISPATCHED_SUBBINARIES: tuple[str, ...] = ("visualiser",)
+# Tokens whose only consumer is a hook or another binary, never a SKILL.md.
+SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
+# Sub-binaries shipping a symbolication archive, and the committed tree each is
+# staged into so the provenance glob covers it. Every value must be a `bin/`
+# directory — `.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`.
+DEBUG_ARCHIVE_DIRS: Mapping[str, Path] = MappingProxyType(
+    {"visualiser": BIN_DIR}
+)
 KEYS_DIR = REPO_ROOT / "keys"
 RELEASE_PUBLIC_KEY = KEYS_DIR / "accelerator-release.pub"
 RELEASE_SECRET_KEY = KEYS_DIR / "accelerator-release.sec"
@@ -76,5 +86,11 @@ def vendored_shim_path(
     return shim_dir / f"accelerator-verify-{platform}"
 
 
-def debug_archive_path(platform: str, bin_dir: Path = BIN_DIR) -> Path:
-    return bin_dir / f"accelerator-visualiser-{platform}.debug.tar.gz"
+def debug_archive_path(token: str, platform: str, bin_dir: Path) -> Path:
+    """Resolve one sub-binary's symbolication archive.
+
+    `bin_dir` is required: a `BIN_DIR` default is only correct for the
+    visualiser, so any other token would silently file under the visualiser's
+    skill tree and still satisfy the `bin/` constraint.
+    """
+    return bin_dir / f"accelerator-{token}-{platform}.debug.tar.gz"

@@ -5,3 +5,5 @@
 - Release/version logic enforces **version coherence**: `plugin.json`, the
   `cli/` workspace `Cargo.toml`, and any version-pinned member manifest must
   agree.
+- Registering a new dispatched sub-binary is a thirteen-point surface — see
+  `tasks/README.md#registering-a-dispatched-sub-binary` before adding one.

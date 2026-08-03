@@ -1,4 +1,5 @@
 import shutil
+import tarfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -10,13 +11,14 @@ from tasks.build import (
     VersionCoherenceError,
     _assert_no_e2e_insecure,
     _assert_static_elf,
+    _debug_archive_targets,
     _is_statically_linked,
+    _write_debug_archives,
     assert_staged_launcher_versions,
     validate_version_coherence,
     vendor_shim_marker_digest,
 )
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
-from tasks.shared.paths import cli_binary_path, vendored_shim_path
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -112,42 +114,6 @@ class TestAssertStagedLauncherVersions:
             assert_staged_launcher_versions("1.21.0-pre.4")
 
 
-# ── cli path helpers ──────────────────────────────────────────────────
-
-
-class TestValidateDispatchCoherence:
-    def test_coherent_repo_passes(self):
-        # The real repo: SKILL.md invokes `accelerator visualiser` and
-        # DISPATCHED_SUBBINARIES lists it.
-        tb.validate_dispatch_coherence()
-
-    def _seed_skill(self, root: Path, *, invokes: bool) -> None:
-        skill = root / "skills/visualisation/visualise/SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text(
-            "run `accelerator visualiser start`"
-            if invokes
-            else "no launcher invocation here"
-        )
-
-    def test_skill_switch_without_producer_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=True)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_producer_without_skill_switch_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ("visualiser",))
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_both_absent_is_coherent(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        tb.validate_dispatch_coherence(tmp_path)
-
-
 class TestAssertNoE2eInsecure:
     def test_passes_when_marker_absent(self, tmp_path):
         artifact = tmp_path / "visualiser-linux-x64"
@@ -171,19 +137,54 @@ class TestAssertNoE2eInsecure:
             _assert_no_e2e_insecure(artifact)
 
 
-class TestCliPathHelpers:
-    def test_cli_binary_path_default_staging(self):
-        path = cli_binary_path("accelerator", "linux-x64")
-        assert path.name == "accelerator-linux-x64"
-        assert path.parent == _REPO_ROOT / "dist" / "release"
+class TestDebugArchiveTargets:
+    def _dirs(self, tmp_path: Path) -> dict[str, Path]:
+        return {token: tmp_path / token / "bin" for token in ("alpha", "beta")}
 
-    def test_cli_binary_path_custom_dir(self, tmp_path):
-        path = cli_binary_path("accelerator-verify", "darwin-arm64", tmp_path)
-        assert path == tmp_path / "accelerator-verify-darwin-arm64"
+    def test_one_pair_per_token_per_target(self, tmp_path):
+        dirs = self._dirs(tmp_path)
+        targets = _debug_archive_targets(
+            dirs, ("alpha", "beta"), tmp_path / "staging"
+        )
 
-    def test_vendored_shim_path(self):
-        path = vendored_shim_path("linux-arm64")
-        assert path == _REPO_ROOT / "bin/accelerator-verify-linux-arm64"
+        assert len(targets) == len(dirs) * len(TARGETS)
+        for token, directory in dirs.items():
+            for _triple, platform in TARGETS:
+                pair = (
+                    tmp_path / "staging" / f"accelerator-{token}-{platform}",
+                    directory / f"accelerator-{token}-{platform}.debug.tar.gz",
+                )
+                assert pair in targets
+
+    def test_an_undispatched_registry_key_raises(self, tmp_path):
+        # Nothing cross-compiles it, so the archive source would be absent.
+        with pytest.raises(RuntimeError, match="undispatched token"):
+            _debug_archive_targets(self._dirs(tmp_path), ("alpha",), tmp_path)
+
+    def test_a_non_bin_directory_raises(self, tmp_path):
+        dirs = {"alpha": tmp_path / "alpha" / "artefacts"}
+        with pytest.raises(RuntimeError, match="must be `bin/` trees"):
+            _debug_archive_targets(dirs, ("alpha",), tmp_path)
+
+
+class TestWriteDebugArchives:
+    def test_writes_one_archive_per_pair(self, tmp_path):
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        targets = []
+        for index in range(3):
+            binary = staging / f"accelerator-alpha-{index}"
+            binary.write_bytes(b"\x00" * 8)
+            targets.append(
+                (binary, tmp_path / f"nested/{index}/bin/alpha.debug.tar.gz")
+            )
+
+        _write_debug_archives(targets)
+
+        for binary, archive in targets:
+            assert archive.is_file()
+            with tarfile.open(archive) as tar:
+                assert tar.getnames() == [binary.name]
 
 
 # ── vendor_shim_marker_digest() ───────────────────────────────────────

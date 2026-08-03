@@ -127,3 +127,14 @@ def test_a_clean_injecting_skill_only_trips_the_census(tmp_path: Path) -> None:
 
 def test_the_real_skills_tree_passes() -> None:
     assert skill_permissions.violations(REPO_ROOT) == []
+
+
+def test_the_private_bare_launcher_alias_is_gone() -> None:
+    # A retained alias would let a release-gating guard keep depending on a
+    # private symbol while the rename looks done.
+    offenders = [
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in sorted((REPO_ROOT / "tasks").rglob("*.py"))
+        if "_BARE_LAUNCHER" in path.read_text()
+    ]
+    assert offenders == []
