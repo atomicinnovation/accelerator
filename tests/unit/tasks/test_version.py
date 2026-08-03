@@ -72,6 +72,105 @@ class TestWrite:
         )
         assert workspace["workspace"]["package"]["version"] == "1.21.0"
 
+    def test_syncs_the_cargo_lock(self, ctx, mocker, fake_repo_tree):
+        # The lock carries a copy of the version per workspace member, so a
+        # manifest-only write leaves them disagreeing — and clippy runs
+        # `--locked`. `cargo metadata` is the minimal update; generate-lockfile
+        # would re-resolve the whole closure.
+        _patch_paths(mocker, fake_repo_tree)
+        tv.write(ctx, "1.21.0")
+
+        commands = [call.args[0] for call in ctx.run.call_args_list]
+        assert any(
+            "cargo metadata" in command and "cli/Cargo.toml" in command
+            for command in commands
+        ), f"write() did not sync the lock: {commands}"
+        assert not any("generate-lockfile" in c for c in commands), commands
+
+
+class TestLockVersionCoherence:
+    """The lock's workspace-member versions must match the manifest.
+
+    This is the guard for the drift the sync above prevents. It reads the real
+    files and needs no cargo, so it fails in `test:unit:tasks` with a named
+    diagnostic rather than as a clippy `--locked` complaint in a Rust job, far
+    from the bump that caused it.
+    """
+
+    @staticmethod
+    def _member_package_names() -> set[str]:
+        # From each member's own [package].name, not its directory: three of
+        # them differ (launcher -> accelerator, verify -> accelerator-verify,
+        # visualiser/server -> accelerator-visualiser), and the lock keys on the
+        # package name.
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        return {
+            tomllib.loads((CLI_DIR / member / "Cargo.toml").read_text())[
+                "package"
+            ]["name"]
+            for member in cargo["workspace"]["members"]
+        }
+
+    @staticmethod
+    def _locked_path_packages() -> dict[str, str]:
+        # Workspace members are the lock entries with no `source` — registry and
+        # git packages both carry one.
+        lock = tomllib.loads((CLI_DIR / "Cargo.lock").read_text())
+        return {
+            package["name"]: package["version"]
+            for package in lock["package"]
+            if "source" not in package
+        }
+
+    def test_every_member_entry_matches_the_workspace_version(self):
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        expected = cargo["workspace"]["package"]["version"]
+
+        # Every member inherits `version.workspace = true`, with no exceptions,
+        # so all of them must read alike — including accelerator-visualiser.
+        stale = {
+            name: version
+            for name, version in self._locked_path_packages().items()
+            if version != expected
+        }
+        assert not stale, (
+            f"cli/Cargo.lock disagrees with the workspace version {expected}: "
+            f"{stale}. Run `cargo metadata --manifest-path cli/Cargo.toml` to "
+            "sync it (the minimal update), never `cargo generate-lockfile`."
+        )
+
+    def test_the_assertion_covers_every_member(self):
+        # Non-vacuity: a lock that stopped listing members, or a member renamed
+        # out of it, would leave the assertion above passing over a smaller set
+        # than it claims. Equality both ways, so a member added to the workspace
+        # without reaching the lock fails here too.
+        assert self._locked_path_packages().keys() == (
+            self._member_package_names()
+        )
+
+    def test_every_member_inherits_the_workspace_version(self):
+        # The premise of the exact comparison above. A member that pinned its
+        # own version would legitimately differ, and would have to be excluded
+        # rather than silently failing.
+        # `version.workspace = true` parses to {"workspace": True}; a member
+        # that pins its own writes a plain string. That is the discriminator —
+        # not presence, which every member satisfies either way.
+        cargo = tomllib.loads((CLI_DIR / "Cargo.toml").read_text())
+        pinned = [
+            member
+            for member in cargo["workspace"]["members"]
+            if isinstance(
+                tomllib.loads((CLI_DIR / member / "Cargo.toml").read_text())[
+                    "package"
+                ].get("version"),
+                str,
+            )
+        ]
+        assert not pinned, (
+            f"these members pin their own version: {pinned}. The lock "
+            "coherence assertion assumes workspace inheritance throughout."
+        )
+
 
 # ── cli/ workspace manifest render ────────────────────────────────────
 

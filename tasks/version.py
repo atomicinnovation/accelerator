@@ -51,30 +51,54 @@ def read(_context: Context, print_to_stdout: bool = True) -> semver.Version:
     return semver.Version.parse(current_version)
 
 
+def _sync_cargo_lock(context: Context) -> None:
+    """Fold the new version into `cli/Cargo.lock`.
+
+    The lock records a version for **every** workspace member, so rewriting the
+    manifest alone leaves the two disagreeing — and clippy runs `--locked`,
+    which fails on exactly that. The failure surfaces as a Rust job complaining
+    the lock needs updating, nowhere near the bump that caused it.
+
+    `cargo metadata` performs the *minimal* update: only the entries whose
+    version moved. `cargo generate-lockfile` would re-resolve the whole
+    ~360-package closure and float every caret-bounded dependency, which is
+    never what a version bump wants.
+    """
+    context.run(
+        f"cargo metadata --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "--format-version 1",
+        hide=True,
+    )
+
+
 @task
-def write(_context: Context, version: str) -> None:
+def write(context: Context, version: str) -> None:
     """Write plugin version to plugin.json and the cli/ workspace manifest.
 
     The visualiser server inherits its version from
     [workspace.package].version, so bumping the cli/ workspace manifest covers
     it; writing the member manifest would clobber that inheritance.
+
+    The lock is synced too, because it carries a copy of the version per member
+    and would otherwise be left behind — see `_sync_cargo_lock`.
     """
     rendered_plugin_json = _render_plugin_json(version)
     rendered_workspace_cargo_toml = _render_workspace_cargo_toml(version)
 
     atomic_write_text(PLUGIN_JSON, rendered_plugin_json)
     atomic_write_text(CLI_WORKSPACE_CARGO_TOML, rendered_workspace_cargo_toml)
+    _sync_cargo_lock(context)
 
 
 @task(iterable=["bump_type"])
 def bump(
-    _context: Context, bump_type: list[BumpType] | None = None
+    context: Context, bump_type: list[BumpType] | None = None
 ) -> semver.Version:
     """Bump plugin version."""
     # "pre" is the semver pre-release token (e.g. 1.2.3-pre.4), not a secret —
     # S105's "token"-named-string heuristic is a false positive here.
     prerelease_token = "pre"  # noqa: S105
-    current_version = read(_context, print_to_stdout=False)
+    current_version = read(context, print_to_stdout=False)
     new_version = current_version
 
     bump_types = bump_type or (BumpType.PRE,)
@@ -107,6 +131,6 @@ def bump(
                     part="minor", prerelease_token=prerelease_token
                 )
 
-    write(_context, str(new_version))
+    write(context, str(new_version))
 
     return new_version
