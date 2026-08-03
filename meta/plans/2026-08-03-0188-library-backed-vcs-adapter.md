@@ -687,6 +687,55 @@ What these settle:
   directory) pairs and six queries. Every cell above reads *agree*, after the
   `PJG-i` common-dir correction noted under Query 2.
 
+#### Confirmed during implementation (2026-08-03, all 34 pairs)
+
+The delivered queries were measured against the live CLIs across the whole
+matrix. Every cell agrees except the three below, each deliberate.
+
+- **`superproject` gates on the worktree comparison, not on `kind()`.** The plan
+  proposed gating the derivation on `kind() == Submodule`. Measured, that is
+  wrong in *both* directions and the two extended fixtures added after plan
+  review are exactly what exposed it. `SM-w` (a linked worktree of a submodule)
+  reports `kind() == Submodule`, so the gate admits it and the scan returns
+  `$B/supw` where git returns **empty**. `SM-wt` (a submodule inside a linked
+  worktree) does **not** report `Submodule`, so the gate rejects it and the scan
+  never runs, where git returns `$B/supwt-wt`. The delivered gate is the
+  oracle's own discriminator — canonicalised `git_dir() != common_dir()` means
+  "linked worktree, no superproject" — after which the `modules` scan runs
+  unconditionally. All seven submodule shapes then agree.
+- **`gix::open` accepts a linked-worktree gitdir — confirmed.** This was the one
+  open question Phase 2 was asked to settle for query 3. `SM-wt` resolves
+  through `$B/supwt/.git/worktrees/supwt-wt`, whose `workdir()` is
+  `$B/supwt-wt`, matching the oracle.
+- **gix 0.85 cannot read a sha256 repository**, answering the open question.
+  `S256` returns `Err` from every gix-backed query —
+  `open::Error::Config(ConfigTypedString { key: "extensions.objectFormat" })` —
+  rather than misreading it. `Err` is the correct outcome under the partition
+  rule (a repository *is* here and the pinned library cannot answer) and is
+  precisely why the queries carry an error channel; collapsing it to `Ok(None)`
+  would report "no repository" for a valid checkout. **`RF` (reftable) reads
+  normally.** 0185 inherits the sha256 consequence, since its switch is what
+  exposes a user on such a repository.
+- **`D1` returns `Err`, not `Ok(None)` — a deliberate departure from this plan's
+  own extended-fixture cell.** A `.jj/repo` pointing at a deleted directory makes
+  jj-lib's loader fail `dunce::canonicalize` and return `WorkspaceLoadError::Path`,
+  which the partition rule maps to `Err`. The `Ok(None)` recorded above was read
+  off the *CLI's* exit code, and the CLI conflates. There **is** a jj workspace
+  at `D1` — `.jj` is a directory carrying a repo pointer — and it is broken, so
+  reporting absence is exactly the "a corrupt store must not read as no VCS
+  here" failure the error channel exists to prevent. The partition rule wins;
+  the cell was wrong. `D2` (no `.jj` at all) remains `Ok(None)`, and `D3`
+  remains `Ok(Some)` from `jj_workspace_root` with `Err` from `jj_repository`,
+  both as recorded.
+- **`superproject_of` does not canonicalise.** The plan put every returned path
+  through the canonicalisation choke point. Applied inside the scan that makes
+  the injected-probe unit tests impossible — they drive it over paths that do
+  not exist, and canonicalisation fails. Canonicalisation moved to the probe
+  closure the method supplies, which is the only place a real filesystem path
+  appears. The injected probe also returns `Result<Option<PathBuf>, Error>`
+  rather than the planned `Result<bool, Error>`, so the anchor is opened once
+  rather than twice; the three-state distinction the plan required is preserved.
+
 ---
 
 ## Phase 1: Dependencies, Policy Gates and the Boundary-Safe Ports
@@ -1644,37 +1693,42 @@ exhaustive equality assertions fail if skipped.
 
 #### Automated Verification
 
-- [ ] All six queries pass against every (fixture, start directory) pair:
+- [x] All six queries pass against every (fixture, start directory) pair:
       `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters --all-features`
-- [ ] The scrub invariant holds across the whole matrix, and the unscrubbed
+- [x] The scrub invariant holds across the whole matrix, and the unscrubbed
       control diverges under the same poisoning
-- [ ] `mise run lint:vcs-settings:check` passes
-- [ ] `mise run test:unit:tasks` passes, including the new guard tests
-- [ ] Non-vacuity: a deliberately added `UserSettings::from_config(…)` in
+- [x] `mise run lint:vcs-settings:check` passes
+- [x] `mise run test:unit:tasks` passes, including the new guard tests
+- [x] Non-vacuity: a deliberately added `UserSettings::from_config(…)` in
       `cli/vcs-adapters/src/library.rs` fails the guard, and is reverted
-- [ ] Every jj query succeeds under the hermetic environment exactly as
+- [x] Every jj query succeeds under the hermetic environment exactly as
       enumerated in the `hermetic` module (`GIT_CONFIG_NOSYSTEM=1` as a
       boolean, not a path)
-- [ ] The extended fixtures match their measured per-fixture expectations:
-      `D1`/`D2` → `Ok(None)`; `D3` → `jj_workspace_root` `Ok(Some)` but
-      `jj_repository` `Err`; `JS-in` → dual roots differ; `SM-m` → superproject
-      `$B/supm`; `SM-wt` → superproject the worktree; `SM-w` → `linked` true and
+- [x] The extended fixtures match their measured per-fixture expectations —
+      **with one amendment**: `D1` is `Err`, not `Ok(None)`, because a `.jj/repo`
+      pointing at a deleted directory is a broken workspace rather than an absent
+      one and the partition rule maps it so; the `Ok(None)` here was read off the
+      CLI's exit code, and the CLI conflates. Otherwise as recorded: `D2` →
+      `Ok(None)`; `D3` → `jj_workspace_root` `Ok(Some)` but `jj_repository`
+      `Err`; `JS-in` → dual roots differ; `SM-m` → superproject `$B/supm`;
+      `SM-wt` → superproject the worktree; `SM-w` → `linked` true and
       superproject `Ok(None)`; and none of them panics
-- [ ] `gix::open` on a linked-worktree gitdir is confirmed (the one open question
+- [x] `gix::open` on a linked-worktree gitdir is confirmed (the one open question
       `SM-wt` leaves), and `RF`/`S256` outcomes are recorded in Recorded
       divergences
-- [ ] The fixture harness fails with a named diagnostic when an ancestor of the
+- [x] The fixture harness fails with a named diagnostic when an ancestor of the
       temp base carries `.git` or `.jj`
-- [ ] `mise run` green end to end
+- [x] `mise run` green end to end
 
 #### Manual Verification
 
-- [ ] Every expected value in `queries.rs` is traceable to a cell in the mapping
+- [x] Every expected value in `queries.rs` is traceable to a cell in the mapping
       table above, and every (fixture, start directory) pair has a cell in every
       query table — no query table is partial
-- [ ] The pure-jj fixture asserts `.git` absent, not merely `.jj` present
-- [ ] Whatever gix 0.85 does with the `RF`/`S256` fixtures is recorded in
-      Recorded divergences rather than assumed
+- [x] The pure-jj fixture asserts `.git` absent, not merely `.jj` present
+- [x] Whatever gix 0.85 does with the `RF`/`S256` fixtures is recorded in
+      Recorded divergences rather than assumed — `RF` reads normally, `S256`
+      returns `Err` from every gix-backed query
 
 ---
 

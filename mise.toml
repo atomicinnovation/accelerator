@@ -409,6 +409,11 @@ description = "Keep atomic_write consolidated: no temp-and-rename outside cli/st
 depends = ["deps:install:python"]
 run = "invoke lint.store-duplication.check"
 
+[tasks."lint:vcs-settings:check"]
+description = "Keep jj UserSettings and Workspace::load out of cli/vcs-adapters (their defaults are private to jj-lib)"
+depends = ["deps:install:python"]
+run = "invoke lint.vcs-settings.check"
+
 [tasks."lint:skill-permissions:check"]
 description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
 depends = ["deps:install:python"]
@@ -426,7 +431,7 @@ run = "invoke lint.claude-coupling.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -468,7 +473,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:vcs-settings:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

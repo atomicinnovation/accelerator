@@ -138,6 +138,13 @@ fully-qualified `jj_lib::settings::UserSettings::from_config(…)` or a
 `Workspace::load` method call is invisible to it. That is the whole
 justification for the extra Python machinery over a one-line `denied` clause.
 
+`lint:vcs-settings:check` (`tasks/lint/vcs_settings.py`) is that guard: no code
+in `cli/vcs-adapters` may construct a `UserSettings` or call `Workspace::load`,
+whose defaults are private to jj-lib and were discovered one panic at a time.
+It **strips comments before matching**, so the crate can document why it avoids
+them without flagging itself. It rides both `cli:check` and `lint:check`, for
+the same bare-`default` reason as the other `cli/`-scoped guards.
+
 **Break-glass for a supply-chain failure.** Both transitive trees enter
 cargo-deny's `advisories` scope under `unmaintained = "all"` with
 `yanked = "deny"`, over a ~60-crate closure no repo code calls, and the advisory

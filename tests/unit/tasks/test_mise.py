@@ -26,6 +26,7 @@ _CLI_CHECK_GATES = [
     "lint:vendor-shims:check",
     "lint:store-duplication:check",
     "lint:claude-coupling:check",
+    "lint:vcs-settings:check",
 ]
 
 # The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES

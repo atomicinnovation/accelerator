@@ -33,6 +33,16 @@ pub fn carries_any_marker(dir: &Path) -> bool {
     dir.join(".jj").exists() || dir.join(".git").exists()
 }
 
+/// Whether `dir` is a jj workspace root.
+///
+/// The jj queries need this in place of the combined boundary test: jj-lib's
+/// loader performs no walk of its own, so feeding it a boundary found by the
+/// `.git`-inclusive walk makes it report absence on a git checkout nested
+/// inside a jj workspace — where `jj workspace root` reports a root.
+pub fn carries_jj_marker(dir: &Path) -> bool {
+    dir.join(".jj").exists()
+}
+
 /// The idiom the markers at `root` call for. `Jj` wins in a colocated
 /// checkout, because git's index lags the jj working-copy commit and a
 /// git-shaped probe would read live edits as clean.

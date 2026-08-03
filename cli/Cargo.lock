@@ -642,6 +642,7 @@ dependencies = [
  "time",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -4351,6 +4352,14 @@ dependencies = [
  "tempfile",
  "tracing",
  "vcs",
+ "vcs-test-support",
+]
+
+[[package]]
+name = "vcs-test-support"
+version = "1.24.0-pre.21"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
