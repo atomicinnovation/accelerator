@@ -15,7 +15,7 @@ relates_to: ["work-item:0125", "work-item:0168", "work-item:0187",
   "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["work-item:0169"]
 tags: [rust, vcs, dependencies]
-last_updated: "2026-08-03T14:35:24+00:00"
+last_updated: "2026-08-03T16:37:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -733,11 +733,20 @@ field) is part of the mapping established in planning.
 
 ## Open Questions
 
-Two questions are open and gate planning. Two more are closed, kept for the
-record because their answers carry consequences.
+**Both blocking questions were closed during implementation (2026-08-03).** Two
+older ones are kept below for the record because their answers carry
+consequences.
 
-- **OPEN — who owns the CI job for the strong-form zero-spawn run, and does the
-  runner actually permit it?** The criterion is deliberately non-degradable:
+- **CLOSED 2026-08-03 — who owns the CI job for the strong-form zero-spawn run,
+  and does the runner actually permit it?** **0188 owns it.** Delivered as
+  `check-zero-spawn`: `ubuntu-latest`, passwordless `sudo`, no container, in
+  `main.yml` (actionlint lints nothing else), modelled on `check-architecture`
+  so the nightly-isolation invariant still sees exactly `{check-architecture}`,
+  and wired into `prerelease.needs`. The shadow list is platform-aware and
+  resolved at run time. Original text follows.
+
+  ~~**OPEN — who owns the CI job for the strong-form zero-spawn run, and does the
+  runner actually permit it?**~~ The criterion is deliberately non-degradable:
   the strong form (replacing or bind-mounting `/usr/bin/git` and friends) must
   run somewhere, and "somewhere" is currently a Linux CI job that may not exist
   and whose provider may forbid modifying `/usr/bin` without privileged
@@ -747,7 +756,14 @@ record because their answers carry consequences.
   the provisioning into its own small item that 0188 declares as `blocked_by`,
   rather than silently weakening the criterion to `PATH`-only everywhere —
   which would leave the property unproven on any platform.
-- **OPEN — who changes `vcs_adapters::facts`, 0169 or 0185, and in what order?**
+- **CLOSED 2026-08-03 — who changes `vcs_adapters::facts`, 0169 or 0185, and in
+  what order?** **0185**, atomically with the `CommandProbe` deletion: the
+  composition root cannot switch until nothing else needs the subprocess pair.
+  0169 wires its own classifier port without touching `facts`. Recorded on 0185.
+  Original text follows.
+
+  ~~**OPEN — who changes `vcs_adapters::facts`, 0169 or 0185, and in what
+  order?**~~
   This story deliberately leaves it hard-wired. Requirements say wiring
   "belongs to 0169 and 0185"; the 0185 hand-off says the composition-root change
   is a dependant's own work. Both are currently unblocked by 0188 alone, and
@@ -905,68 +921,111 @@ verbatim per-fixture oracle comparison, are in
 
 ## Validation Results
 
-- **Platform the strong-form zero-spawn run held on** — _pending_; absolute
-  paths shadowed there — _pending_; paths not shadowable on each other platform
-  — _pending_.
-- **`gix` / `gix-*` versions resolved in `Cargo.lock`** — _pending_.
-- **`jj-lib` version resolved in `Cargo.lock`** — _pending_.
+**Implemented 2026-08-03.** Host for every figure: **darwin-arm64**, jj 0.43.0,
+git 2.54.0, Rust 1.90.0 — chosen to match 0186's `B = 35.1 ms`, since the ~97 ms
+probe delta is macOS-specific and a cross-host comparison would leave 0169's
+gate ill-posed.
+
+- **Platform the strong-form zero-spawn run held on** — the `check-zero-spawn`
+  Linux CI job is written, wired into `prerelease.needs`, and lands with this
+  branch; its first execution is on that run. Locally and on macOS the suite
+  degrades to `PATH`-only under SIP, and **records** what it could not shadow:
+  `/usr/bin/git`, `/opt/homebrew/bin/git`, `/opt/homebrew/bin/jj`, and jj's mise
+  install path plus its shim. The harness half of the contract **is** verified:
+  it fails closed on a malformed mode and hard-fails when `strong` is claimed
+  while a listed path is still executable.
+- **`gix` / `gix-*` versions resolved in `Cargo.lock`** — `gix 0.85.0`, 47
+  gix-family packages, **no duplicate versions**. Asserted by
+  `tests/integration/deny/test_vcs_library_graph.py`.
+- **`jj-lib` version resolved in `Cargo.lock`** — `0.43.0`.
 - **MSRV of `gix` 0.85 and `jj-lib` 0.43 vs the pinned Rust toolchain** —
-  _resolved 2026-08-02_: pinned Rust 1.90.0; `jj-lib` 0.43.0 MSRV 1.89; `gix`
-  0.85.0 MSRV 1.85. Both fit, with one minor version of headroom.
-- **Installed `jj` CLI version the fixtures were built with** — _bumped
-  2026-08-02_: `mise.toml` now pins **0.43.0**, matching the `jj-lib` crate pin
-  (prior state: 0.36.0, seven minor versions behind — the skew this bump
-  designs out). Outstanding: `mise install` on each machine and CI, and a
-  re-run of the jj-fixture shell suites, which were last green against 0.36 —
-  _pending_.
-- **Installed `git` CLI version the fixtures were built with** — _recorded
-  2026-08-02_: 2.54.0, against `gix` 0.85. Coherence unverified but low-risk;
-  no format-boundary concern was identified. _Spike 2026-08-03_: gix 0.85.0 read
-  bare, linked-worktree, modern-submodule, nested-submodule and old-form-nested
-  repositories written by git 2.54.0 with no format-boundary problem observed,
-  on darwin-arm64.
-- **gix API coverage for the six queries** — _spiked 2026-08-03_: queries 1 and
-  2 are served by library calls; **query 3 has no gix API and requires a
-  hand-rolled derivation** (validated against the oracle at submodule depths 1
-  and 2). Queries 4-6 not covered by this spike. See Spike Outcome.
-- **`gix` boundary containment mechanism** — _resolved 2026-08-03_:
-  `ceiling_dirs` cannot enforce the rule at any anchor; `gix::open` performs no
-  walk and is the mechanism. A paired negative assertion is available:
-  unbounded `gix::discover` from a `.jj`-only directory nested in a git
-  repository escapes to the parent repository, reproducibly.
-- **`GIT_DIR` scrub invariant, git side** — _measured 2026-08-03_: all six
-  probed gix calls stable under poisoned `GIT_DIR` + `GIT_COMMON_DIR` +
-  `GIT_CONFIG_GLOBAL`; `git rev-parse --git-dir` diverged under the same
-  poisoning (live control).
-- **`GIT_DIR` scrub invariant, jj-lib side** — _measured 2026-08-03_: stable.
-  Every gix **and** jj-lib call returned identical values across **all 25
-  (fixture, start directory) pairs** with `GIT_DIR` and `GIT_COMMON_DIR` pointed
-  at another fixture's real `.git`. The invariant therefore needs no
-  implementation on either side — it is verified, not built. Non-vacuity control
-  confirmed in the same run: `gix::discover_with_environment_overrides` returned
-  the poison target while plain `gix::discover` and `gix::open` did not.
-- **Local toolchain skew** — _found 2026-08-03_: the development machine used
-  for the spike had `jj` **0.42.0** on `PATH` from Homebrew
-  (`/opt/homebrew/bin/jj`), not the pinned 0.43.0, because `mise.toml` is
-  untrusted there and mise was not activating. Reinforces the outstanding
-  `mise install` item above, and is a reminder that on a developer's macOS
-  machine `/opt/homebrew/bin/jj` **is** the real binary — the opposite of CI,
-  where no system `jj` exists at all (see the shadow-list note in the research
-  document).
-- **Adapter/shell divergences recorded** — the `GIT_DIR` scrub asymmetry in
-  `classify_checkout` (`:206-215` unscrubbed vs `:130-135` scrubbed), which the
-  adapter deliberately does not reproduce — _confirmed 2026-08-01_; any further
-  divergence found in implementation — _pending_.
-- **Non-vacuity demonstrations** — the deliberate `std::process` import failing
-  cargo-pup — _pending_; the deliberate `UserSettings` construction failing the
-  source guard — _pending_; the unscrubbed control diverging under the poisoned
-  `GIT_DIR` run — _pending_.
-- **Cost, against this story's pure-jj fixture** (reused by 0169; median of 20,
-  host and OS): library init — _pending_; warm per-call in-process — _pending_;
-  cold per-process via the reference artefact — _pending_; `CommandProbe`
-  baseline for the port methods — _pending_.
-- **Reference artefact size**, linked vs stubbed builds and the delta —
-  _pending_.
+  _resolved 2026-08-02_: pinned 1.90.0; jj-lib 1.89, gix 1.85. Both fit. The
+  graph test additionally asserts **no** package in the closure declares a
+  `rust-version` above the pin (354 packages declare one), catching the
+  `kstring` class of trap directly rather than trusting resolver 3's
+  *preference*.
+- **Installed `jj` CLI version the fixtures were built with** — 0.43.0, matching
+  the crate pin. `mise install` done. A committed test now asserts the **binary**
+  against the **resolved library** at major.minor, not merely the two
+  declarations against each other.
+- **Installed `git` CLI version** — 2.54.0. The harness carries a 2.45 floor
+  with a named diagnostic (`--ref-format=reftable` landed there).
+- **gix API coverage for the six queries** — all six delivered. Query 3
+  (superproject) is the hand-rolled derivation, as the spike predicted, and
+  **`gix::open` accepts a linked-worktree gitdir** — the one open question the
+  spike left, now settled by the `SM-wt` fixture.
+- **`gix` boundary containment mechanism** — `gix::open`/marker-walk, as
+  designed. The paired negative assertion is committed: an unbounded
+  `gix::discover` on the same fixture escapes to the parent repository.
+- **`GIT_DIR` scrub invariant** — _verified 2026-08-03 across all 34 (fixture,
+  start directory) pairs_, over a poisoning matrix widened beyond the original
+  two variables to everything `scrub_environment` touches **plus**
+  `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES` and the
+  `GIT_CONFIG_COUNT`/`KEY_0`/`VALUE_0` triple, with a populated global config
+  asserting a divergent `core.bare`. Every value identical. Non-vacuity control
+  confirmed in the same run: `gix::discover_with_environment_overrides` resolves
+  the poison target, asserted **inside the poisoned child**.
+- **Adapter/oracle divergences recorded** — three, each deliberate:
+  1. **sha256 is unsupported by gix 0.85.** Every gix-backed query returns `Err`
+     on the `S256` fixture rather than misreading it. Correct under the partition
+     rule — a repository *is* here and the pinned library cannot answer — and the
+     reason the queries carry an error channel at all. Reftable reads normally.
+     **0185 inherits the consequence**, since its switch exposes users to it.
+  2. **`D1` returns `Err` where both CLIs report absence.** A `.jj/repo` pointing
+     at a deleted directory is a *broken* workspace, not an absent one;
+     reporting absence is exactly the failure the error channel exists to
+     prevent.
+  3. The pre-existing `GIT_DIR` scrub asymmetry in `classify_checkout`, which the
+     adapter deliberately does not reproduce.
+- **Non-vacuity demonstrations** — all three done, and all three **committed**
+  rather than shown by hand: a `std::process::Command` import fails cargo-pup
+  with *"Use of module 'std::process::Command' is denied"* naming the rule
+  (`tests/integration/pup/test_import_rule.py`, plus a compliant positive
+  control and a grouped-import case); a deliberate `UserSettings::from_config`
+  fails `lint:vcs-settings:check`; the unscrubbed control diverges under the
+  poisoned run.
+- **Reference artefact size** — delivered two-binary shape, `--release`
+  (stripped by the profile), all four release triples:
+
+  | Triple | linked | stubbed | delta | ratio |
+  | --- | --- | --- | --- | --- |
+  | `aarch64-apple-darwin` | 2,277,472 | 350,912 | 1,926,560 | **6.49x** |
+  | `x86_64-apple-darwin` | 2,308,192 | 344,224 | 1,963,968 | **6.71x** |
+  | `aarch64-unknown-linux-musl` | 2,245,528 | 360,864 | 1,884,664 | **6.22x** |
+  | `x86_64-unknown-linux-musl` | 2,426,392 | 386,504 | 2,039,888 | **6.28x** |
+
+  All four cross-compile and pass magic-byte checks; both musl builds pass
+  `_assert_static_elf`. Every triple clears the 3x ratio floor and both musl
+  builds clear the 1,500,000-byte absolute floor. The figures **exceed** the
+  prototype's (5.42x darwin / 6.19x musl), so the two-binary shape linked at
+  least as much as the feature-gated one.
+
+- **Cost, against the pure-jj fixture** (median of 20 with 3 warm-up runs):
+
+  | Measurement | Median | Min | Max |
+  | --- | --- | --- | --- |
+  | cold per-process, all six queries + both ports, pure-jj | **4.03 ms** | 3.64 | 4.67 |
+  | cold per-process, all six queries + both ports, plain git | 4.74 ms | 4.29 | 5.37 |
+  | cold per-process, single query (`jj_workspace_root`), pure-jj | **3.58 ms** | 3.33 | 4.75 |
+  | cold per-process, single query (`is_bare`), plain git | 3.96 ms | 3.48 | 4.41 |
+  | `CommandProbe` jj subprocess (`jj log -r @ -T commit_id`) | **23.84 ms** | 21.52 | 24.75 |
+  | `CommandProbe` git subprocess (`git rev-parse HEAD`) | 5.34 ms | 4.60 | 6.06 |
+
+  Warm in-process, same host, median of 20: first-call jj-lib **30.6 us**,
+  first-call gix **102.5 us**; per query `jj_workspace_root` 13.7,
+  `jj_repository` 29.7, `superproject` 35.3, `worktree` 37.8, `is_bare` 38.6,
+  `dual_roots` 50.1 us.
+
+  Read for 0169's gate: the library-backed cold per-process path costs roughly
+  **one sixth** of a single `jj` subprocess. The single-query mode inflation is
+  ~12% (3.58 vs 4.03 ms) on pure-jj, confirming amendment 4 — process startup
+  dominates and the mode is retained for 0169's convenience, not necessity.
+
+  **Not measured**: an `x86_64-unknown-linux-musl` cold per-process figure. The
+  measurement host is darwin-arm64 and cannot execute a musl binary; the
+  criterion asked for it so 0169 does not set a threshold with no Linux
+  datapoint. **Carried forward** — the `check-zero-spawn` job is the natural
+  place to take it.
 
 ## References
 

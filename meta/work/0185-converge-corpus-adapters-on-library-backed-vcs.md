@@ -12,7 +12,7 @@ parent: "work-item:0136"
 blocked_by: ["work-item:0188"]
 relates_to: ["work-item:0125", "work-item:0179"]
 tags: [rust, vcs, cleanup, tech-debt]
-last_updated: "2026-07-31T08:36:03+00:00"
+last_updated: "2026-08-03T16:37:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -142,6 +142,74 @@ the four paths.
 - Priority `medium`: nothing is broken while both implementations coexist — the
   cost is a second code path and a narrower zero-spawn guarantee, not a defect.
   It should not block epic 0136's shell-retirement work.
+
+## Amendment 2026-08-03 — 0188 has landed; corrections and inheritances
+
+**Every reference in this item that attributes the library-backed adapter or the
+zero-spawn harness to 0169 is wrong.** Both are
+[`0188`](0188-library-backed-vcs-adapter.md)'s, and both have now landed. This
+block raises the corrections rather than rewriting the sections above; where a
+statement is now false it is quoted and marked.
+
+- **The adapter exists and ships unwired.** `vcs_adapters::library::InProcessProbe`
+  implements both `vcs` ports plus six inherent taxonomy queries.
+  `vcs_adapters::facts` still names `MarkerWalkRoot`/`CommandProbe`, by design.
+- **0185 owns the `vcs_adapters::facts` switch**, and the switch and the
+  `CommandProbe` deletion are **one atomic change** — the composition root
+  cannot move until nothing else needs the subprocess pair. This closes the open
+  question 0188 recorded on the ordering; 0169 wires its own classifier port
+  without touching `facts`.
+- **The harness criterion here describes `PATH` stubs only.** What it inherits
+  is strictly larger: marker-writing stubs *plus* a platform-aware absolute-path
+  shadow list *plus* the empty-config environment, published from
+  `cli/vcs-test-support` and already proven across a crate boundary by
+  `cli/corpus-adapters/tests/zero_spawn.rs`. The strong form runs in the
+  `check-zero-spawn` CI job.
+- **The transitional dual-adapter comparison must be collapsed.**
+  `cli/vcs-adapters/tests/detection.rs` now runs every case through an injected
+  `(&dyn RepoRoot, &dyn VcsProbe)` seam against **both** implementations.
+  Deleting `CommandProbe` means collapsing it to the library-backed pair alone.
+- The assumption at `:117-121` that "0169 will need to alter this anyway" is
+  **stale**.
+- Two References anchors are stale: 0169 has no "Adapter-swap boundary"
+  heading, and its Dependencies bullet is titled "Unowned debt this story
+  creates".
+
+Four inheritances that change this item's sizing:
+
+1. **Re-home the shared walk before deleting.** `InProcessProbe` delegates to
+   the crate-private `walk_up`/`marker_kind`/`carries_any_marker` helpers rather
+   than duplicating them, and `MarkerWalkRoot`/`CommandProbe` delegate to the
+   same ones. The helpers already live in their own module (`markers.rs`) and
+   survive the deletion, so this is now a check rather than work — but deleting
+   the module along with the pair would break the adapter.
+2. **The containment delta is real and unpriced.** `CommandProbe` parses in a
+   child process with a 10-second cap, kill-on-timeout and a scrubbed
+   environment. `InProcessProbe` parses repository-controlled data in the
+   caller's address space with no time bound, no memory bound and no crash
+   isolation — and after the switch that runs inside `cli/visualiser/server` and
+   on the hook path. **Decide whether an equivalent bound is needed before
+   flipping `facts`.** The queries do distinguish failure from absence
+   (`Result<Option<T>, Error>`), so a corrupt repository is observable rather
+   than silently reported as "no VCS here"; that is containment of *meaning*,
+   not of *blast radius*.
+3. **jj `revision` transfers here, and it is not a small decision.** jj-lib 0.43
+   exposes no read-only, settings-free route to the working-copy commit id: the
+   op stores are settings-free, but the workspace name is reachable only through
+   `LocalWorkingCopy::load` (needs `&UserSettings`) or
+   `SimpleWorkspaceStore::load` (settings-free but **writes** to
+   `.jj/repo/workspace_store`, verified empirically), and `CheckoutState` is
+   private. `InProcessProbe::revision` therefore covers `VcsKind::Git` only and
+   warn-logs for jj. Options: a jj-lib version exposing the checkout state
+   publicly, an upstream request, or **retaining `CommandProbe` for `revision`
+   alone** — which makes the "atomic switch plus deletion" sizing wrong, so it
+   needs deciding early.
+4. **sha256 repositories are unsupported by gix 0.85** (measured 2026-08-03):
+   every gix-backed query returns `Err` on one, rather than misreading it.
+   `detection.rs`'s `is_full_revision_id` also asserts 40 hex, and a sha256
+   `HEAD` is 64. Any revision validation must accept both widths or record
+   sha256 as unsupported — **this item's switch is what exposes a user on such a
+   repository**, so the decision lands here. Reftable repositories read normally.
 
 ## References
 

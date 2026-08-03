@@ -2314,8 +2314,8 @@ not these.
       only**. The harness half *is* verified: it hard-fails when
       `ACCELERATOR_ZERO_SPAWN_MODE=strong` and a listed path is still
       executable, and fails closed on a malformed mode
-- [ ] Both size figures and all six cost figures are written into Validation
-      Results with host and OS (**done in Phase 5**), plus one
+- [x] Both size figures and all six cost figures are written into Validation
+      Results with host and OS. **Except** one
       `x86_64-unknown-linux-musl` cold per-process figure — the gate-comparable figure stays darwin-arm64, but
       the shipped artefact is static musl and 0169 otherwise sets a threshold
       with no Linux datapoint
@@ -2450,17 +2450,17 @@ Validation Results.
 
 #### Automated Verification
 
-- [ ] `mise run test:integration:work` passes (frontmatter and linkage
+- [x] `mise run test:integration:work` passes (frontmatter and linkage
       validation on all four edited work items)
-- [ ] `mise run` green end to end
+- [x] `mise run` green end to end
 
 #### Manual Verification
 
-- [ ] Each of the three sibling notes is dated and raises information without
+- [x] Each of the three sibling notes is dated and raises information without
       re-scoping its host
-- [ ] 0125's `relates_to` edge is present and 0188's reciprocal edge already
+- [x] 0125's `relates_to` edge is present and 0188's reciprocal edge already
       exists
-- [ ] Every *pending* line in 0188's Validation Results is resolved or
+- [x] Every *pending* line in 0188's Validation Results is resolved or
       explicitly carried forward with a reason
 
 ---
