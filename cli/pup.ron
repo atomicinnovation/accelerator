@@ -87,15 +87,6 @@
                 ),
             ],
         )),
-        // The config command's inbound hexagon must not reach the composition
-        // root's adapter crate (`config_adapters`) nor a sibling launcher
-        // module (`crate::launch`), so the injected-ports seam cannot erode.
-        // Expressed as a `denied` list rather than `allowed_only`: cargo-pup
-        // resolves a grouped `use config::{a, b}` to an empty module name,
-        // which an `allowed_only` rule would reject as unpermitted — false-
-        // positiving every legitimate grouped import the codebase uses. A
-        // `denied` list is unaffected by that resolution and states the seam
-        // prohibition directly.
         // The library-backed adapter reads git and jj in-process. A permit list
         // alone cannot express this because std::process sits inside the
         // permitted std, so the rule pairs a permit list with an explicit deny:
@@ -103,11 +94,12 @@
         // imports (cargo-pup resolves `use a::{b, c}` to an empty module name),
         // so this module writes one single-item `use` per import.
         //
-        // Scoped to the module, not the crate: the retained CommandProbe
-        // spawns by design. Two things this does NOT deliver: an inline
-        // fully-qualified std::process::Command::new() with no `use` is
-        // unaffected, and `^crate(::|$)` reaches crate::CommandProbe. The
-        // zero-spawn property itself is established by the harness.
+        // Scoped to the module, not the crate: the sibling
+        // vcs_adapters::subprocess spawns by design. Two things this does NOT
+        // deliver: an inline fully-qualified std::process::Command::new() with
+        // no `use` is unaffected, and `^crate(::|$)` reaches
+        // crate::subprocess, which spawns. The zero-spawn property itself is
+        // established by the harness.
         Module((
             name: "vcs_adapters_library_reads_in_process",
             matches: Module("^vcs_adapters::library($|::)"),
@@ -130,6 +122,15 @@
                 ),
             ],
         )),
+        // The config command's inbound hexagon must not reach the composition
+        // root's adapter crate (`config_adapters`) nor a sibling launcher
+        // module (`crate::launch`), so the injected-ports seam cannot erode.
+        // Expressed as a `denied` list rather than `allowed_only`: cargo-pup
+        // resolves a grouped `use config::{a, b}` to an empty module name,
+        // which an `allowed_only` rule would reject as unpermitted — false-
+        // positiving every legitimate grouped import the codebase uses. A
+        // `denied` list is unaffected by that resolution and states the seam
+        // prohibition directly.
         Module((
             name: "config_command_may_not_import_adapters_or_launch",
             matches: Module("^accelerator::config_command($|::)"),

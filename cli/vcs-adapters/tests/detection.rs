@@ -18,8 +18,8 @@ use vcs::RepoRoot;
 use vcs::VcsKind;
 use vcs::VcsProbe;
 use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::CommandProbe;
-use vcs_adapters::MarkerWalkRoot;
+use vcs_adapters::subprocess::CommandProbe;
+use vcs_adapters::subprocess::MarkerWalkRoot;
 
 type TestError = Box<dyn std::error::Error>;
 

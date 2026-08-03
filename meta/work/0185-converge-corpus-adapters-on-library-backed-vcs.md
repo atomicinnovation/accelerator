@@ -177,12 +177,15 @@ statement is now false it is quoted and marked.
 
 Four inheritances that change this item's sizing:
 
-1. **Re-home the shared walk before deleting.** `InProcessProbe` delegates to
-   the crate-private `walk_up`/`marker_kind`/`carries_any_marker` helpers rather
-   than duplicating them, and `MarkerWalkRoot`/`CommandProbe` delegate to the
-   same ones. The helpers already live in their own module (`markers.rs`) and
-   survive the deletion, so this is now a check rather than work — but deleting
-   the module along with the pair would break the adapter.
+1. **The deletion is a file deletion.** `InProcessProbe` delegates to the
+   crate-private `walk_up`/`marker_kind`/`carries_any_marker` helpers rather than
+   duplicating them, and `MarkerWalkRoot`/`CommandProbe` delegate to the same
+   ones. Those helpers live in their own module (`markers.rs`), and as of
+   2026-08-03 the subprocess pair does too (`subprocess.rs`) — the crate root
+   holds no adapter code, only `facts` and the module declarations. So retiring
+   the pair is: delete `subprocess.rs`, drop its `pub mod` line, repoint `facts`
+   at `InProcessProbe`, and collapse `detection.rs`'s dual comparison. Do **not**
+   delete `markers.rs` with it; the surviving adapter needs it.
 2. **The containment delta is real and unpriced.** `CommandProbe` parses in a
    child process with a 10-second cap, kill-on-timeout and a scrubbed
    environment. `InProcessProbe` parses repository-controlled data in the
