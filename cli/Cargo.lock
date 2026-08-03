@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "clap",
  "config",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "minisign-verify",
  "tempfile",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -556,7 +556,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "config"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "kernel",
  "tempfile",
@@ -564,7 +564,7 @@ dependencies = [
 
 [[package]]
 name = "config-adapters"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "config",
  "document",
@@ -586,14 +586,14 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "corpus-adapters"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "corpus",
  "document",
@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "document"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "serde",
  "serde-saphyr",
@@ -1501,7 +1501,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "thiserror",
  "tracing",
@@ -2457,7 +2457,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "store"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "rustix",
  "tempfile",
@@ -2933,11 +2933,11 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vcs"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 
 [[package]]
 name = "vcs-adapters"
-version = "1.24.0-pre.22"
+version = "1.24.0-pre.23"
 dependencies = [
  "tempfile",
  "tracing",
