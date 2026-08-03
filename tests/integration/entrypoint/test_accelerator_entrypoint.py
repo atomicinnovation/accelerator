@@ -54,6 +54,19 @@ _dumped_env = dumped_env
 _dl_lines = download_log
 
 
+def _require_unprivileged() -> None:
+    """Hard-fail rather than skip under uid 0.
+
+    Root bypasses both the write permission and the execute bit, so these
+    assertions would hold whatever the code did; a skip would report green on a
+    lane that verified nothing.
+    """
+    assert os.getuid() != 0, (
+        "these cases assert on permission bits, which are advisory for uid 0; "
+        "run them unprivileged, or exclude them with a recorded privilege check"
+    )
+
+
 @pytest.fixture(scope="module")
 def host_platform() -> str:
     return _resolve_host_platform()
@@ -256,6 +269,7 @@ def test_readonly_root_with_override_runs_from_override(
     tmp_path: Path,
     host_platform: str,
 ) -> None:
+    _require_unprivileged()
     harness = make_harness()
     root, server = harness.root, harness.server
     bin_dir = root / "bin"
@@ -279,6 +293,7 @@ def test_readonly_root_with_override_runs_from_override(
 def test_readonly_root_without_override_is_a_named_error(
     make_harness: Callable[..., Harness], downloader: Path
 ) -> None:
+    _require_unprivileged()
     harness = make_harness()
     root, server = harness.root, harness.server
     bin_dir = root / "bin"
@@ -1066,6 +1081,7 @@ def test_a_record_is_always_one_line(
     # A cache dir carrying a newline reaches the staging diagnostic verbatim,
     # so the write-site sanitiser — not any input check — is what keeps the log
     # parseable.
+    _require_unprivileged()
     harness = make_harness()
     cache_dir = tmp_path / "cache\nwith-newline"
     cache_dir.mkdir()
