@@ -5,7 +5,7 @@ title: "Remove the Exec Probe from the Bootstrap Warm Path Implementation Plan"
 date: "2026-08-02T22:01:31+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0186"
 parent: "work-item:0186"
 derived_from:
@@ -14,7 +14,7 @@ relates_to: ["work-item:0169", "work-item:0182", "work-item:0164"]
 tags: [shell, performance, bootstrap, bash-3.2, testing]
 revision: "4a68344cd2614f3bdd07223c8aeaf64583c036f0"
 repository: "accelerator"
-last_updated: "2026-08-03T10:31:13+00:00"
+last_updated: "2026-08-03T15:00:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -896,10 +896,15 @@ negative assertion in the meantime.
       and the probe runs once, so the idempotence flag is exercised
 - [x] Warm trace shows `ensure_dir` and `verify_launcher` but no
       `probe_exec_capable`
-- [ ] Both interpreters are covered without extra work: the harness pins
+- [x] Both interpreters are covered without extra work: the harness pins
       `/bin/bash`, which is 3.2.57 on darwin and 5.2 on `ubuntu-latest`, so the
-      two trace cases run under both on every CI run. Confirm the ubuntu lane
-      green on them specifically rather than assuming (Phase 4 records it)
+      two trace cases run under both on every CI run. Confirmed on the ubuntu
+      lane specifically rather than assumed — run 30821400291 (2026-08-03),
+      `test_warm_path_does_not_enter_the_probe` and
+      `test_cold_path_enters_and_executes_the_probe` both PASSED there. The
+      lanes are also demonstrably running *different* interpreters:
+      `test_the_suite_runs_the_bootstrap_on_the_bash_floor` passes on
+      macos-latest and skips on ubuntu-latest
 
 ---
 
@@ -1353,9 +1358,11 @@ rationale** — that is 0169's own work.
       attributed
 - [x] The probe attribution is re-derived on this harness and the host's
       security-agent status recorded
-- [ ] Both CI lanes observed green on the new cases, and which were observed is
+- [x] Both CI lanes observed green on the new cases, and which were observed is
       recorded — including the ubuntu lane's bash 5.2 coverage of the trace
-      cases
+      cases. Run 30821400291 (2026-08-03): macos-latest 54 passed,
+      ubuntu-latest 53 passed / 1 skipped, all eight new cases green on both,
+      no lane exclusion needed
 - [x] Every _pending_ entry in Validation Results is resolved, each behavioural
       one naming the test function that discharges it
 - [x] The stale ~11.7 ms / ~23 ms figures are corrected in 0186's Dependencies,
