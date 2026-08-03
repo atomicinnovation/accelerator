@@ -4359,7 +4359,7 @@ dependencies = [
 
 [[package]]
 name = "vcs-test-support"
-version = "1.24.0-pre.21"
+version = "1.24.0-pre.23"
 dependencies = [
  "tempfile",
 ]
