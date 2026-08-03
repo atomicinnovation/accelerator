@@ -61,6 +61,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:hooks": "shell suites run with no accelerator_env",
     "test:integration:github": "shell suites run with no accelerator_env",
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
+    "test:integration:zero-spawn:strong": "the same suite, with the real "
+    "git/jj shadowed",
 }
 
 
@@ -150,6 +152,12 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # demand.
     "test:integration:zero-spawn": "owned by its own CI job; rebuilds the "
     "whole fixture matrix",
+    # Strictly worse to put in a roll-up than its PATH-only sibling: it moves
+    # system binaries aside with sudo. Gated behind an env opt-in as well, so
+    # a stray invocation fails closed rather than leaving a developer without
+    # git. Owned by check-zero-spawn.
+    "test:integration:zero-spawn:strong": "shadows the real git/jj with "
+    "sudo; CI-only by design",
 }
 
 

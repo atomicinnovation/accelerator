@@ -210,6 +210,11 @@ description = "Prove the library-backed VCS adapter reads git and jj without spa
 depends = ["deps:install:python"]
 run = "invoke test.integration.zero-spawn"
 
+[tasks."test:integration:zero-spawn:strong"]
+description = "The strong form of the above: shadows the real git/jj with sudo for the duration, so absolute-path access cannot satisfy the adapter (CI only — gated behind ACCELERATOR_ZERO_SPAWN_SHADOW=yes)"
+depends = ["deps:install:python", "build:cli:fixture-size"]
+run = "invoke test.integration.zero-spawn-strong"
+
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]

@@ -1,8 +1,31 @@
+import os
+import shlex
+import tempfile
+from pathlib import Path
+
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 
 from .helpers import accelerator_env, run_shell_suites
+
+# The strong-form zero-spawn run moves system binaries aside with sudo, so it
+# refuses to start without this. Not a `--yes` flag: the CI step sets it in
+# `env:`, and an env gate cannot be reached by tab-completing a task name.
+_SHADOW_OPT_IN = "ACCELERATOR_ZERO_SPAWN_SHADOW"
+
+# Checked in addition to every PATH hit and to `mise which`, because a probe
+# reaching for one of these by absolute path is exactly what the strong form has
+# to defeat. These are the system locations; on CI there is no system jj at all,
+# which is why `mise which` carries the jj side.
+_ABSOLUTE_VCS_PATHS = (
+    "/usr/bin/git",
+    "/usr/local/bin/git",
+    "/opt/homebrew/bin/git",
+    "/usr/bin/jj",
+    "/usr/local/bin/jj",
+    "/opt/homebrew/bin/jj",
+)
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
 # `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
@@ -151,6 +174,163 @@ def zero_spawn(context: Context) -> None:
         "-p corpus-adapters --features bash-parity -E 'binary(zero_spawn)'",
         pty=True,
     )
+
+
+@task
+def zero_spawn_strong(context: Context) -> None:
+    """Run the zero-spawn suite in its strong form, with git and jj shadowed.
+
+    The strong form is what makes the property non-degradable: `PATH` stubs
+    alone leave the binaries reachable by absolute path, so this moves every
+    resolved `git`/`jj` aside for the duration of the run and hands the harness
+    the list, which hard-fails if any listed path is still executable.
+
+    **This moves binaries out of system directories and needs `sudo`.** It is
+    gated behind `ACCELERATOR_ZERO_SPAWN_SHADOW=yes` and stays out of every
+    roll-up, because `/opt/homebrew/bin` is user-writable — a developer who ran
+    this unaware could be left without `git` or `jj`. Ephemeral CI runners are
+    the intended host; `tasks/README.md` records the containment assumption.
+
+    Ordering is load-bearing. Everything needing a real binary happens *before*
+    the shadow window: `cli/launcher` carries a `vergen-gitcl` build dependency
+    that shells out to git, cargo may need git on a cold registry cache, and the
+    fixture matrix is built by invoking the real CLIs. The suite is therefore
+    compiled with `--no-run` first and only executed inside the window, and
+    cargo is invoked directly rather than through `mise run` — mise could
+    observe `jj` as missing inside the window and reinstall it, silently
+    restoring the binary and making the assertion vacuous.
+    """
+    if os.environ.get(_SHADOW_OPT_IN) != "yes":
+        raise Exit(
+            f"refusing to shadow the real git/jj: set {_SHADOW_OPT_IN}=yes to "
+            "confirm. This moves binaries out of system directories with sudo "
+            "and is meant for ephemeral CI runners, not a developer machine. "
+            "For the local property, run test:integration:zero-spawn instead.",
+            code=1,
+        )
+
+    _compile_zero_spawn_targets(context)
+    _build_fixture_matrix(context)
+
+    targets = _resolve_vcs_binaries(context)
+    if not targets:
+        raise Exit("found no git or jj to shadow — nothing to prove", code=1)
+
+    shadow_dir = Path(tempfile.mkdtemp(prefix="accelerator-shadowed-"))
+    shadowed: list[Path] = []
+    try:
+        for target in targets:
+            stashed = shadow_dir / str(target).replace(os.sep, "_")
+            context.run(f"sudo mv {shlex.quote(str(target))} {stashed}")
+            shadowed.append(target)
+        context.run(
+            "cargo nextest run "
+            f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+            "-p corpus-adapters --features bash-parity "
+            "-E 'binary(zero_spawn)' --no-fail-fast",
+            pty=True,
+            env={
+                "ACCELERATOR_ZERO_SPAWN_MODE": "strong",
+                "ACCELERATOR_ZERO_SPAWN_SHADOWED": ":".join(
+                    str(path) for path in shadowed
+                ),
+            },
+        )
+    finally:
+        _restore_vcs_binaries(context, shadow_dir, shadowed)
+
+
+def _compile_zero_spawn_targets(context: Context) -> None:
+    """Build the reference artefacts and compile the suite without running it.
+
+    Both need a real git, so both happen before the shadow window.
+    """
+    context.run(
+        "cargo build "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-adapters --bin vcs-adapters-fixture "
+        "--bin vcs-adapters-fixture-stub",
+        pty=True,
+    )
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p corpus-adapters --features bash-parity "
+        "-E 'binary(zero_spawn)' --no-run",
+        pty=True,
+    )
+
+
+def _build_fixture_matrix(context: Context) -> None:
+    """Exercise the matrix builders while the real CLIs are still reachable."""
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-test-support -E 'binary(matrix)'",
+        pty=True,
+    )
+
+
+def _resolve_vcs_binaries(context: Context) -> list[Path]:
+    """Resolve every `git`/`jj` on `PATH`, plus the absolute paths to check.
+
+    Every `PATH` hit rather than the first: macOS ships `git` in two
+    directories, and the enumeration keeps this honest when a runner image
+    moves things. Deduplicated, order preserved, and only what exists.
+
+    `mise which` is asked as well, and it is the load-bearing one on CI. There
+    is no system `jj` on the runner at all — the real binary lives under the
+    mise install tree, and what sits on `PATH` may be a shim pointing at it.
+    Shadowing only the shim would leave the real binary reachable by absolute
+    path, which is precisely what the strong form exists to defeat, while the
+    harness would agree the run was strong because we only told it about the
+    shim.
+    """
+    found: list[Path] = []
+
+    def remember(candidate: Path) -> None:
+        if os.access(candidate, os.X_OK) and candidate not in found:
+            found.append(candidate)
+
+    for name in ("git", "jj"):
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            if directory:
+                remember(Path(directory) / name)
+        resolved = context.run(f"mise which {name}", warn=True, hide=True)
+        if resolved is not None and resolved.exited == 0:
+            target = resolved.stdout.strip()
+            if target:
+                remember(Path(target))
+    for absolute in _ABSOLUTE_VCS_PATHS:
+        remember(Path(absolute))
+    return found
+
+
+def _restore_vcs_binaries(
+    context: Context, shadow_dir: Path, shadowed: list[Path]
+) -> None:
+    """Put every shadowed binary back, then prove it is runnable again.
+
+    Idempotent per path and it reports at the end rather than aborting on the
+    first failure, so a partial shadow does not leave the rest stranded. Raises
+    when anything is still missing: an unrestored `git` also breaks
+    `actions/checkout`'s post step, which runs git to strip its auth token.
+    """
+    still_missing: list[Path] = []
+    for target in shadowed:
+        stashed = shadow_dir / str(target).replace(os.sep, "_")
+        if stashed.exists():
+            context.run(
+                f"sudo mv -f {stashed} {shlex.quote(str(target))}", warn=True
+            )
+        if not os.access(target, os.X_OK):
+            still_missing.append(target)
+    if still_missing:
+        raise Exit(
+            "failed to restore: "
+            + ", ".join(str(path) for path in still_missing),
+            code=1,
+        )
 
 
 @task

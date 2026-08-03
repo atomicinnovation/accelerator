@@ -359,103 +359,32 @@ jobs:
         with:
           workspaces: cli
 
-      # Everything needing a real git or jj happens BEFORE the shadow window.
-      # Compilation is one: cli/launcher carries a vergen-gitcl build dependency
-      # that shells out to git, and cargo may need git on a cold registry cache.
-      - name: Compile the suite and the reference artefact
-        run: |
-          cargo build --manifest-path cli/Cargo.toml \
-            -p vcs-adapters --bin vcs-adapters-fixture --bin vcs-adapters-fixture-stub
-          cargo nextest run --manifest-path cli/Cargo.toml \
-            -p corpus-adapters --features bash-parity \
-            -E 'binary(zero_spawn)' --no-run
-
-      # Fixture construction is the other: every shape is built by invoking the
-      # real CLIs. Building them inside the window would leave the suite an
-      # empty matrix, which would pass vacuously.
-      - name: Build the fixture matrix
-        run: |
-          MATRIX_DIR="$(mktemp -d -p "$RUNNER_TEMP")"
-          echo "MATRIX_DIR=$MATRIX_DIR" >> "$GITHUB_ENV"
-          cargo nextest run --manifest-path cli/Cargo.toml \
-            -p vcs-test-support -E 'binary(matrix)'
-
-      # The host-native ratio floor, so a contributor who stops printing a query
-      # result gets PR-level feedback instead of a red release pipeline.
-      - name: Assert the reference artefact links its dependency trees
-        run: mise run build:cli:fixture-size
-
-      # Shadow, run and restore live in ONE step with a trap, so the shell
-      # rather than the scheduler guarantees the restore: a job-level timeout
-      # cancels the job, and whether trailing if:always() steps run then is not
-      # a contract a system-binary restore should rest on.
-      - name: Shadow the real binaries and run the strong-form suite
+      # One task owns the whole sequence, so the ordering that makes this
+      # meaningful lives in the build system rather than in YAML: compile and
+      # build the fixture matrix while the real binaries are still reachable,
+      # shadow them, run the prebuilt suite, restore in a `finally`. The
+      # reference artefact's size floor rides in as a `depends`.
+      #
+      # mise is entered BEFORE the window and never inside it — cargo is invoked
+      # directly from the task — because mise could otherwise observe `jj` as
+      # missing mid-run and reinstall it, silently restoring the binary and
+      # making the assertion vacuous.
+      - name: Run the strong-form zero-spawn suite
         timeout-minutes: 10
-        run: |
-          set -uo pipefail
-          SHADOW_DIR="$RUNNER_TEMP/shadowed"
-          mkdir -p "$SHADOW_DIR"
+        env:
+          # The task refuses to shadow anything without this. /opt/homebrew/bin
+          # is user-writable, so an ungated task could leave a developer without
+          # git; the gate keeps the destructive path opt-in and CI-shaped.
+          ACCELERATOR_ZERO_SPAWN_SHADOW: "yes"
+        run: mise run test:integration:zero-spawn:strong
 
-          # Resolve targets at run time, taking EVERY PATH hit rather than the
-          # first: macOS provides git in two directories, and the same
-          # enumeration keeps this honest if a runner image changes.
-          targets=""
-          for binary in git jj; do
-            while IFS= read -r hit; do
-              [ -n "$hit" ] && targets="$targets $hit"
-            done <<EOF
-          $(command -v -a "$binary" 2>/dev/null || true)
-          EOF
-          done
-          for absolute in /usr/bin/git /usr/local/bin/git /usr/bin/jj; do
-            [ -x "$absolute" ] && targets="$targets $absolute"
-          done
-
-          restore() {
-            status=0
-            for target in $targets; do
-              stashed="$SHADOW_DIR/$(echo "$target" | tr / _)"
-              # Idempotent per path: tolerate a missing source, and report at
-              # the end rather than aborting on the first one.
-              if [ -e "$stashed" ]; then
-                sudo mv -f "$stashed" "$target" || status=1
-              fi
-              if [ ! -x "$target" ]; then
-                echo "still shadowed: $target" >&2
-                status=1
-              fi
-            done
-            return $status
-          }
-          trap restore EXIT
-
-          shadowed=""
-          for target in $targets; do
-            stashed="$SHADOW_DIR/$(echo "$target" | tr / _)"
-            if [ -e "$target" ]; then
-              sudo mv "$target" "$stashed" || {
-                echo "could not shadow $target" >&2
-                exit 1
-              }
-              shadowed="${shadowed:+$shadowed:}$target"
-            fi
-          done
-
-          # The step and the harness have an explicit contract rather than each
-          # assuming the other did the work. The harness hard-fails when the
-          # mode is strong and any listed path is still executable.
-          export ACCELERATOR_ZERO_SPAWN_MODE=strong
-          export ACCELERATOR_ZERO_SPAWN_SHADOWED="$shadowed"
-
-          # The prebuilt test binary directly, NOT through `mise run`: mise may
-          # observe jj as missing inside the window and reinstall it, silently
-          # restoring the binary and making the assertion vacuous.
-          cargo nextest run --manifest-path cli/Cargo.toml \
-            -p corpus-adapters --features bash-parity \
-            -E 'binary(zero_spawn)' --no-fail-fast
-
-      # Backstop for the trap above. actions/checkout's own post step runs git
-      # to strip the auth token, so an unrestored git breaks it.
+      # Backstop for the task's own restore, for the case where the task process
+      # died before its `finally` ran. actions/checkout's post step runs git to
+      # strip the auth token, so an unrestored git breaks it.
+      #
+      # Deliberately NOT `mise run`: mise would see the missing tool and
+      # reinstall it, turning the one check that can catch a failed restore into
+      # a check that quietly repairs it. Bare commands are the point here.
       - name: Assert the restore worked
         if: always()
         run: |
