@@ -15,9 +15,10 @@ from . import (
 from .shared.paths import RELEASE_MANIFEST
 
 # git status --porcelain markers for artifacts that must never reach the
-# version-bump commit: a materialised signing secret, or anything under the
-# gitignored staging tree (present only if the .gitignore entry regressed).
-_ARTIFACT_MARKERS = (".sec", "dist/release/", "dist/")
+# version-bump commit: a materialised signing secret, anything under the
+# gitignored staging tree, or a symbolication archive (each present only if its
+# .gitignore entry regressed).
+_ARTIFACT_MARKERS = (".sec", "dist/release/", "dist/", ".debug.tar.gz")
 
 
 def _refuse_under_ci(task_name: str) -> None:
@@ -36,7 +37,10 @@ def _refuse_under_ci(task_name: str) -> None:
 
 
 def _assert_no_leaked_artifacts(context: Context) -> None:
-    result = context.run("git status --porcelain", hide=True, warn=True)
+    # `-uall` is load-bearing: porcelain's default untracked mode collapses a
+    # wholly-untracked directory to one line, so a regressed archive rule would
+    # show up as `?? skills/.../bin/` with no `.debug.tar.gz` to match on.
+    result = context.run("git status --porcelain -uall", hide=True, warn=True)
     offenders = [
         line
         for line in result.stdout.splitlines()

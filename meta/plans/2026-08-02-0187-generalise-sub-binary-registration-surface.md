@@ -1366,32 +1366,32 @@ regression evidence.
 
 #### Automated Verification
 
-- [ ] Debug-archive tests pass: `uv run pytest tests/unit/tasks/test_build.py -k
+- [x] Debug-archive tests pass: `uv run pytest tests/unit/tasks/test_build.py -k
       debug -v`
-- [ ] Path-helper tests pass: `uv run pytest
+- [x] Path-helper tests pass: `uv run pytest
       tests/unit/tasks/shared/test_paths.py -v`
-- [ ] SLSA coverage test passes: `uv run pytest
+- [x] SLSA coverage test passes: `uv run pytest
       tests/unit/tasks/test_workflows.py -v`
-- [ ] The 22-upload pin still holds, after the `_setup_release` fixture update:
+- [x] The 22-upload pin still holds, after the `_setup_release` fixture update:
       `uv run pytest tests/integration/tasks/test_github.py -v`
-- [ ] Unit + integration suites pass: `mise run test:unit:tasks && mise run
+- [x] Unit + integration suites pass: `mise run test:unit:tasks && mise run
       test:integration:tasks`
-- [ ] Build-system checks pass: `mise run build-system:check`
+- [x] Build-system checks pass: `mise run build-system:check`
 
 #### Manual Verification
 
-- [ ] `rg 'visualiser' tasks/github.py` returns nothing — both `:150` and
+- [x] `rg 'visualiser' tasks/github.py` returns nothing — both `:150` and
       `:220-222` rewritten.
-- [ ] `rg "visualiser" tasks/shared/paths.py` matches exactly: `VISUALISER`
+- [x] `rg "visualiser" tasks/shared/paths.py` matches exactly: `VISUALISER`
       (`:8`) and its comment, `SERVER` (`:14`), `FRONTEND` (`:16`),
       `subbinary_asset_path`'s docstring (`:67-68`), and the two registry
       constants with their comments — the visualiser's own paths, which this
       work does not touch.
-- [ ] The ignore fix works: in a scratch clone, `git check-ignore -v
+- [x] The ignore fix works: in a scratch clone, `git check-ignore -v
       skills/visualisation/visualise/bin/x.debug.tar.gz` matches
       `**/bin/*.debug.tar.gz`. Run it outside this jj workspace, where the
       parent's `workspaces/` rule would mask the answer.
-- [ ] Pointing a second `DEBUG_ARCHIVE_DIRS` entry at a non-`bin` directory
+- [x] Pointing a second `DEBUG_ARCHIVE_DIRS` entry at a non-`bin` directory
       raises from `_debug_archive_targets`; pointing it at a second `bin/` tree
       reddens the SLSA coverage test until `main.yml` gains the sibling
       `subject-path` line in all three blocks.

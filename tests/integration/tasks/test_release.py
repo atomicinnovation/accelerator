@@ -21,6 +21,7 @@ from tasks.release import (
     release,
 )
 from tasks.shared.errors import SigningError
+from tasks.shared.paths import BIN_DIR, REPO_ROOT, debug_archive_path
 
 
 @pytest.fixture
@@ -206,6 +207,24 @@ class TestLeakedArtifactGuard:
         with pytest.raises(RuntimeError):
             _assert_no_leaked_artifacts(ctx)
 
+    def test_fires_on_a_debug_archive(self, ctx):
+        # The backstop behind the `.gitignore` rule below: it does not depend
+        # on that pattern being right.
+        ctx.run.return_value = MagicMock(
+            stdout=(
+                "?? skills/visualisation/visualise/bin/"
+                "accelerator-visualiser-linux-x64.debug.tar.gz\n"
+            )
+        )
+        with pytest.raises(RuntimeError):
+            _assert_no_leaked_artifacts(ctx)
+
+    def test_lists_untracked_files_individually(self, ctx):
+        # Porcelain's default untracked mode collapses a wholly-untracked
+        # directory to one line, which would hide the marker above.
+        _assert_no_leaked_artifacts(ctx)
+        assert "-uall" in ctx.run.call_args.args[0]
+
     def test_passes_on_the_version_bump_changes(self, ctx):
         ctx.run.return_value = MagicMock(
             stdout=" M .claude-plugin/plugin.json\n M cli/Cargo.toml\n"
@@ -225,6 +244,19 @@ class TestLeakedArtifactGuard:
         tr._publish(ctx)
         assert mock_guard.called
         assert mock_commit.called
+
+
+def test_the_archive_ignore_rule_matches_a_nested_bin_tree() -> None:
+    # The primary control for keeping a release artefact out of the pushed
+    # version-bump commit. A mid-string separator anchors a pattern to its own
+    # directory, so the pre-`**/` form matched only `<root>/bin/`.
+    import pathspec
+
+    spec = pathspec.GitIgnoreSpec.from_lines(
+        (REPO_ROOT / ".gitignore").read_text().splitlines()
+    )
+    archive = debug_archive_path("visualiser", "linux-x64", BIN_DIR)
+    assert spec.match_file(archive.relative_to(REPO_ROOT).as_posix())
 
 
 # ── Local-dev guard and composition ──────────────────────────────────

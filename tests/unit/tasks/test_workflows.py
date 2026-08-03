@@ -19,6 +19,7 @@ observationally in CI (see the plan's Testing Strategy).
 """
 
 import copy
+import re
 from pathlib import Path
 
 import pytest
@@ -144,19 +145,80 @@ def test_prepare_steps_never_carry_the_secret(wf):
             assert not _references_secret(step)
 
 
-def test_attest_globs_include_the_launcher_binaries(wf):
-    attest_steps = [
-        step
+def _is_attest(step):
+    return str(step.get("uses", "")).startswith(
+        "actions/attest-build-provenance"
+    )
+
+
+def _subject_paths(step):
+    subject = step.get("with", {}).get("subject-path", "")
+    return frozenset(
+        line.strip() for line in subject.splitlines() if line.strip()
+    )
+
+
+def _glob_matches(path: str, pattern: str) -> bool:
+    # @actions/glob semantics, not fnmatch's: `*` does not cross `/`, so a
+    # nested staging tree cannot be matched by a top-level glob.
+    expression = "".join(
+        "[^/]*" if part == "*" else re.escape(part)
+        for part in re.split(r"(\*)", pattern)
+    )
+    return re.fullmatch(expression, path) is not None
+
+
+def _indices(steps, predicate):
+    return [i for i, step in enumerate(steps) if predicate(step)]
+
+
+def _named(prefix):
+    return lambda step: step.get("name", "").startswith(prefix)
+
+
+def test_every_signing_step_is_attested_before_it_publishes(wf):
+    # A count rather than `assert attest_steps`: one attestation per Sign* step
+    # per job survives a fourth release lane, and fails if the stable track's
+    # attest step is deleted.
+    for job_name, job in wf["jobs"].items():
+        steps = job.get("steps") or []
+        signs = _indices(steps, _named("Sign"))
+        attests = _indices(steps, _is_attest)
+        finalises = _indices(steps, _named("Finalise"))
+        assert len(attests) == len(signs), job_name
+        assert len(finalises) == len(signs), job_name
+        for sign, attest, finalise in zip(
+            signs, attests, finalises, strict=True
+        ):
+            # Otherwise a reordering could publish before attesting, or publish
+            # and then fail before attesting, leaving assets unattested.
+            assert sign < attest < finalise, job_name
+
+
+def test_every_attest_block_declares_the_same_subjects(wf):
+    subjects = {
+        _subject_paths(step)
         for _job, step in _all_steps(wf["jobs"])
-        if str(step.get("uses", "")).startswith(
-            "actions/attest-build-provenance"
-        )
+        if _is_attest(step)
+    }
+    assert len(subjects) == 1, "the attest blocks have drifted apart"
+
+
+def test_attest_globs_cover_every_published_asset(wf):
+    from tasks.github import _release_uploads
+
+    published = [
+        path.relative_to(REPO_ROOT).as_posix() for path in _release_uploads()
     ]
-    assert attest_steps
-    for step in attest_steps:
-        subject = step.get("with", {}).get("subject-path", "")
-        assert "dist/release/accelerator-*" in subject
-        assert "accelerator-visualiser-*" in subject
+    assert published, "the publish set is empty — the derivation broke"
+    for _job, step in _all_steps(wf["jobs"]):
+        if not _is_attest(step):
+            continue
+        patterns = _subject_paths(step)
+        for path in published:
+            assert any(_glob_matches(path, p) for p in patterns), (
+                f"{path} is published but matched by no subject-path glob"
+            )
 
 
 def test_workflow_topology_invariants_hold(wf):

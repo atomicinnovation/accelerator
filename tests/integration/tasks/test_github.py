@@ -252,8 +252,8 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
     mocker.patch.object(
         gh,
         "debug_archive_path",
-        side_effect=lambda p: (
-            tmp_path / f"accelerator-visualiser-{p}.debug.tar.gz"
+        side_effect=lambda token, p, _dir: (
+            tmp_path / f"accelerator-{token}-{p}.debug.tar.gz"
         ),
     )
     mocker.patch.object(

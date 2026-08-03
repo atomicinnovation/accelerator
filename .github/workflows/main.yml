@@ -423,6 +423,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise prerelease
         env:
@@ -534,6 +536,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise stable release
         env:
@@ -556,6 +560,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise post-stable prerelease
         env:

@@ -2,6 +2,7 @@ import json
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import TypedDict
 
 from tasks.build import validate_version_coherence
@@ -46,9 +47,9 @@ class BinaryEntry:
 
 # Dispatched sub-binaries whose crate manifest is not `cli/<name>/Cargo.toml`
 # (the visualiser server lives under `cli/visualiser/server/`).
-_SUBBINARY_MANIFESTS: dict[str, Path] = {
-    "visualiser": CLI_DIR / "visualiser/server/Cargo.toml",
-}
+_SUBBINARY_MANIFESTS: Mapping[str, Path] = MappingProxyType(
+    {"visualiser": CLI_DIR / "visualiser/server/Cargo.toml"}
+)
 
 
 def _default_subbinary_manifest(name: str) -> Path:

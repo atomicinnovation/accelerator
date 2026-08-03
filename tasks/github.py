@@ -13,6 +13,7 @@ from invoke import Context, task
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
+    DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
     RELEASE_MANIFEST,
     RELEASE_MANIFEST_SIG,
@@ -147,7 +148,7 @@ def download_and_verify(
         tmp_path.unlink(missing_ok=True)
 
 
-# ── unified launcher + manifest + visualiser publish ──────────────────
+# ── unified launcher + manifest + sub-binary publish ──────────────────
 
 _PRESERVE_MESSAGE = "AssetVerificationError — draft + tag PRESERVED for triage"
 
@@ -218,10 +219,11 @@ def _reverify_subbinary(
 def _release_uploads() -> list[Path]:
     uploads: list[Path] = []
     for _triple, platform in TARGETS:
-        # The visualiser binary is published once, as the shared
-        # accelerator-visualiser-{platform} manifest asset below; only its debug
-        # archive ships from the skill's bin/ tree here.
-        uploads.append(debug_archive_path(platform))
+        # Each sub-binary is published once, as the shared
+        # accelerator-<token>-<platform> manifest asset below; only its debug
+        # archive ships from the sub-binary's committed bin/ tree here.
+        for token, directory in DEBUG_ARCHIVE_DIRS.items():
+            uploads.append(debug_archive_path(token, platform, directory))
         launcher = cli_binary_path("accelerator", platform)
         uploads.append(launcher)
         uploads.append(_sig(launcher))
