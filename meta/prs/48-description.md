@@ -12,9 +12,9 @@ relates_to: ["work-item:0125", "work-item:0169", "work-item:0185"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/48"
 pr_number: 48
 tags: [rust, vcs, dependencies, gix, jj-lib]
-revision: "9a14ffe9c182ad421bc7c400ef52b4a6429f5310"
+revision: "53fe29fdd423a3f0617d9fa1a762928d88b77744"
 repository: "accelerator"
-last_updated: "2026-08-03T23:18:17+00:00"
+last_updated: "2026-08-03T23:58:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -199,8 +199,16 @@ the window.
 cost, or migrate the ~26 shell call sites. `cli/vcs/src/**` is byte-for-byte
 unmodified.
 
-**Sizing:** 14 commits, +14,356/−516 across 51 files. Roughly 6,600 lines are
+**Sizing:** 16 commits, +14,268/−528 across 51 files. Roughly 6,700 lines are
 `meta/` documents (plan, research, review, validation, work-item amendments) and
-1,449 are `cli/Cargo.lock`, whose delta is worth reading only for the
-`vcs-adapters` dependency edges. That leaves about 4,700 lines of Rust — two
-thirds of it fixtures and tests — and about 1,450 of Python task and guard code.
+1,447 are `cli/Cargo.lock`, whose delta is worth reading only for the
+`vcs-adapters` dependency edges. That leaves about 4,200 lines of Rust — two
+thirds of it fixtures and tests — and about 1,400 of Python task and guard code.
+
+**Two commits are housekeeping over this branch's own additions**, not delivered
+capability: one extracts the retained subprocess pair out of the crate root into
+`subprocess.rs` so each file holds one adapter, and one cuts the comments back
+to this repo's bar — 900 comment lines down to 635, with every reference to work
+items, ADRs, ACs and plan documents removed, since those go stale across work
+item boundaries. Neither changes behaviour, and both are worth skipping when
+reading the diff for correctness.
