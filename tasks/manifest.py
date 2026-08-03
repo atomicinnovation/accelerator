@@ -66,7 +66,7 @@ def _read_description(manifest_path: Path, name: str) -> str:
 
 
 def collect_entries(
-    subbinaries: Iterable[str] = DISPATCHED_SUBBINARIES,
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
     *,
     staging_dir: Path = RELEASE_STAGING,
     manifest_for: Callable[[str], Path] = _default_subbinary_manifest,
@@ -79,7 +79,7 @@ def collect_entries(
     bootstrap fetches it via its detached signature — so it is not collected.
     """
     entries: dict[str, BinaryEntry] = {}
-    for name in subbinaries:
+    for name in tokens:
         description = _read_description(manifest_for(name), name)
         platforms: dict[str, PlatformAsset] = {}
         for _triple, platform in TARGETS:

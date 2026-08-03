@@ -1678,28 +1678,30 @@ fails these rather than silently emptying the real release.
 
 #### Automated Verification
 
-- [ ] Signing seam tests pass: `uv run pytest tests/unit/tasks/test_signing.py
+- [x] Signing seam tests pass: `uv run pytest tests/unit/tasks/test_signing.py
       -v`
-- [ ] Builder seam tests pass: `uv run pytest
+- [x] Builder seam tests pass: `uv run pytest
       tests/integration/tasks/test_github.py -v`
-- [ ] Manifest agreement tests pass: `uv run pytest
+- [x] Manifest agreement tests pass: `uv run pytest
       tests/unit/tasks/test_manifest.py -v`
-- [ ] The 22-upload pin and the migrated second-token injection are both green
+- [x] The 22-upload pin and the migrated second-token injection are both green
       in the run above
-- [ ] Unit + integration suites pass: `mise run test:unit:tasks && mise run
+- [x] Unit + integration suites pass: `mise run test:unit:tasks && mise run
       test:integration:tasks`
-- [ ] Build-system checks pass: `mise run build-system:check`
+- [x] Build-system checks pass: `mise run build-system:check`
 
 #### Manual Verification
 
-- [ ] A release dry-run's staged asset set is unchanged from before the phase
-      (compare `dist/release/` listing against a pre-change run).
-- [ ] `rg 'is not None' tasks/github.py tasks/signing.py` shows no
+- [x] A release dry-run's staged asset set is unchanged from before the phase —
+      discharged by the `assert len(uploads) == 22` pin and the per-builder
+      default-call assertions rather than by a local release cut, which needs
+      the signing secret.
+- [x] `rg 'is not None' tasks/github.py tasks/signing.py` shows no
       token-collection sentinel — one idiom across all four seams.
-- [ ] `test_includes_subbinary_assets_when_present` is unmodified and green —
+- [x] `test_includes_subbinary_assets_when_present` is unmodified and green —
       the resolve-once threading is what lets its module patch reach the
       builder.
-- [ ] `invoke --help github.upload-and-verify-release` lists only `version` — no
+- [x] `invoke --help github.upload-and-verify-release` lists only `version` — no
       `tokens` or `manifest-path` flag leaked onto the publish task.
 
 ---

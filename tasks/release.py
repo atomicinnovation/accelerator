@@ -1,3 +1,4 @@
+import json
 import os
 
 from invoke import Context, task
@@ -12,7 +13,7 @@ from . import (
     signing,
     version,
 )
-from .shared.paths import RELEASE_MANIFEST
+from .shared.paths import DISPATCHED_SUBBINARIES, RELEASE_MANIFEST
 
 # git status --porcelain markers for artifacts that must never reach the
 # version-bump commit: a materialised signing secret, anything under the
@@ -53,6 +54,35 @@ def _assert_no_leaked_artifacts(context: Context) -> None:
         )
 
 
+def _assert_staged_manifest_is_current(version: str) -> None:
+    """Refuse to publish a manifest that describes a different release.
+
+    `*:finalise` is separately invocable and `dist/release/` is never cleaned,
+    so a manifest from an earlier cut is reachable. The version comparison is
+    what catches it — the registry changes once per sub-binary story, so a
+    stale manifest has the same token set.
+    """
+    if not RELEASE_MANIFEST.exists():
+        raise RuntimeError(
+            f"{RELEASE_MANIFEST} is absent — run the prepare and sign steps "
+            "before finalise"
+        )
+    staged = json.loads(RELEASE_MANIFEST.read_text())
+    listed = set(staged["binaries"])
+    if listed != set(DISPATCHED_SUBBINARIES):
+        raise RuntimeError(
+            f"staged manifest lists {sorted(listed)} but this release "
+            f"dispatches {sorted(DISPATCHED_SUBBINARIES)} — a signed manifest "
+            "promising an asset that was never uploaded cannot be recalled"
+        )
+    if staged["version"] != version:
+        raise RuntimeError(
+            f"staged manifest is version {staged['version']} but this "
+            f"release is {version} — dist/release/ is from an earlier cut; "
+            "re-run the prepare and sign steps"
+        )
+
+
 def _sign(context: Context) -> None:
     """Sign the staged binaries and emit the signed manifest.
 
@@ -73,6 +103,7 @@ def _sign(context: Context) -> None:
 def _publish(context: Context) -> None:
     resolved_version = str(version.read(context, print_to_stdout=False))
     _assert_no_leaked_artifacts(context)
+    _assert_staged_manifest_is_current(resolved_version)
     git.commit_version(context)
     git.tag_version(context)
     git.push(context)

@@ -16,8 +16,11 @@ from invoke import Context
 
 from tasks import signing
 from tasks.shared.errors import SigningError
+from tasks.shared.paths import DISPATCHED_SUBBINARIES, subbinary_asset_path
+from tasks.shared.targets import TARGETS
 from tasks.signing import (
     SECRET_KEY_ENV,
+    _subbinary_signing_targets,
     generate,
     resolve_secret_key,
     sign_file,
@@ -153,6 +156,67 @@ class TestSignFile:
             sign_file(
                 tmp_path / "k.sec", tmp_path / "t", tmp_path / "t.minisig"
             )
+
+
+# ── the signing expected set ──────────────────────────────────────────
+
+
+class TestSubbinarySigningTargets:
+    def test_one_path_per_token_per_target(self):
+        targets = _subbinary_signing_targets(("alpha", "beta"))
+
+        assert len(targets) == 2 * len(TARGETS)
+        for token in ("alpha", "beta"):
+            for _triple, platform in TARGETS:
+                assert subbinary_asset_path(token, platform) in targets
+
+    def test_the_default_is_todays_asset_set(self):
+        # Derived from the module constant, never from the signature default or
+        # the function's own output — either would let an empty-tuple default
+        # discharge this vacuously.
+        targets = _subbinary_signing_targets()
+
+        assert len(targets) == len(DISPATCHED_SUBBINARIES) * len(TARGETS)
+        assert all("visualiser" in path.name for path in targets)
+
+
+class TestSignStagedBinaries:
+    def test_signs_the_launchers_and_the_subbinaries(
+        self, tmp_path: Path, mocker
+    ):
+        # `expected += ...` rather than `expected = ...`: dropping the launcher
+        # binaries passes every other test in this file.
+        mocker.patch.object(
+            signing,
+            "cli_binary_path",
+            side_effect=lambda name, p: tmp_path / f"{name}-{p}",
+        )
+        mocker.patch.object(
+            signing,
+            "subbinary_asset_path",
+            side_effect=lambda token, p: tmp_path / f"accelerator-{token}-{p}",
+        )
+        signed = mocker.patch.object(signing, "sign_file")
+        staged = []
+        for _triple, platform in TARGETS:
+            for name in ("accelerator", "accelerator-visualiser"):
+                path = tmp_path / f"{name}-{platform}"
+                path.write_bytes(b"\x00" * 4)
+                staged.append(path)
+
+        signing.sign_staged_binaries(tmp_path / "key.sec")
+
+        assert {call.args[1] for call in signed.call_args_list} == set(staged)
+
+    def test_a_missing_staged_binary_fails_closed(self, tmp_path: Path, mocker):
+        mocker.patch.object(
+            signing,
+            "cli_binary_path",
+            side_effect=lambda name, p: tmp_path / f"{name}-{p}",
+        )
+        mocker.patch.object(signing, "sign_file")
+        with pytest.raises(SigningError, match="not found"):
+            signing.sign_staged_binaries(tmp_path / "key.sec")
 
 
 # ── resolve_secret_key() ──────────────────────────────────────────────
