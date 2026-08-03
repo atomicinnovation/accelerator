@@ -1,41 +1,24 @@
-//! The library-backed probe: git through `gix`, jj through `jj-lib`, both read
-//! in the calling process rather than by spawning the VCS binaries.
+//! Reads git through `gix` and jj through `jj-lib`, in-process.
 //!
-//! Two mechanisms live here and must not be confused. `RepoRoot::discover` is
-//! the marker walk followed by nothing else, because the checkout boundary is
-//! the start path or its nearest marked ancestor and never an ancestor above
-//! it. `gix::discover` deliberately *does* walk past that boundary and is used
-//! only where following a recorded link out of the checkout is the answer being
-//! asked for. A ceiling cannot enforce the boundary rule — `ceiling_dirs`
-//! computes its height as `strip_prefix(ceiling).components().count()` and
-//! discards height 0, so a ceiling at the boundary is silently ignored.
+//! Three walks, and using the wrong one is the mistake to avoid. The combined
+//! `.jj`-or-`.git` marker walk answers `RepoRoot::discover` only. A `.jj`-only
+//! walk answers the jj queries, because `DefaultWorkspaceLoaderFactory::create`
+//! performs no walk of its own and the combined boundary makes it report absence
+//! on a git checkout nested inside a jj workspace, where `jj workspace root`
+//! reports a root. `gix::discover` performs the third.
 //!
-//! Every path returned from this module is canonicalised, at the single choke
-//! point below. The sources disagree otherwise: `repo_path()` arrives already
-//! canonicalised from jj-lib while `workspace_root()` is whatever was passed
-//! in, and a linked worktree's `workdir()` is reconstructed from the absolute
-//! path git recorded at `git worktree add` time.
+//! `gix_discover::upwards::Options::ceiling_dirs` cannot confine a walk to the
+//! boundary: it derives the ceiling height from
+//! `strip_prefix(ceiling).components().count()`, discards height 0, and tests
+//! `current_height > max_height` before incrementing.
 //!
-//! Three walks live here, and using the wrong one is the mistake this module
-//! is shaped to prevent. The combined `.jj`-or-`.git` boundary walk answers
-//! `RepoRoot::discover` only. A **`.jj`-only** walk answers the jj queries,
-//! because `DefaultWorkspaceLoaderFactory::create` performs no walk of its own
-//! and feeding it the combined boundary makes it report absence on a git
-//! checkout nested inside a jj workspace — where `jj workspace root` reports a
-//! root. `gix::discover` performs the third, for the git queries.
+//! Every returned path goes through `canonicalise`/`canonical`. `repo_path()`
+//! arrives canonicalised from jj-lib while `workspace_root()` is whatever was
+//! passed in, and a linked worktree's `workdir()` is reconstructed from the path
+//! git recorded at `git worktree add` time.
 //!
-//! Queries distinguish failure from absence: `Ok(None)` is "no repository of
-//! this kind here", `Err` is "a repository is here and the pinned library could
-//! not answer". Collapsing the two would be a real regression against the
-//! subprocess probe, which runs its parse in a child process with a time cap
-//! and a scrubbed environment; this module parses repository-controlled data in
-//! the caller's address space with no time bound and no crash isolation. Only
-//! the not-found-shaped variant of each library error maps to `Ok(None)`.
-//!
-//! A cargo-pup rule (`vcs_adapters_library_reads_in_process`) restricts this
-//! module's imports to a permit list and denies `std::process`. cargo-pup
-//! resolves a grouped `use a::{b, c}` to an empty module name, which the permit
-//! list rejects — so every import here is single-item, and must stay that way.
+//! The cargo-pup import rule resolves a grouped `use a::{b, c}` to an empty
+//! module name and rejects it, so every import here is single-item.
 
 use std::fmt;
 use std::fs;
@@ -70,47 +53,34 @@ use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
 /// A repository is here and the pinned library could not answer.
-///
-/// Deliberately not `kernel::Error`: `kernel` is not a dependency of this
-/// crate, and taking one to carry an error type would couple the adapter to the
-/// launcher's error vocabulary for no gain.
 #[derive(Debug)]
 pub enum Error {
-    /// A path could not be made absolute, so the three walks would disagree.
     Absolutise {
         path: PathBuf,
         source: std::io::Error,
     },
-    /// A path could not be canonicalised, so it cannot be compared with the
-    /// others this module returns.
     Canonicalise {
         path: PathBuf,
         source: std::io::Error,
     },
-    /// A git repository was found but could not be read.
     Git {
         path: PathBuf,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    /// A jj workspace was found but could not be read.
     Jj {
         path: PathBuf,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    /// A jj store resolved to something that is not a repository layout —
-    /// either with no room for a root above it, or failing the
-    /// `<root>/.jj/repo` post-condition.
-    JjStoreLayout { store: PathBuf },
-    /// The workspace uses a working-copy backend whose on-disk layout this
-    /// module does not know how to read.
-    JjWorkingCopyBackend { backend: String },
-    /// A jj workspace's checkout state could not be read or decoded, so the
-    /// operation and workspace name it records are unavailable.
+    JjStoreLayout {
+        store: PathBuf,
+    },
+    JjWorkingCopyBackend {
+        backend: String,
+    },
     JjCheckout {
         path: PathBuf,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    /// A jj operation or view could not be read out of the operation store.
     JjOpStore {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -185,16 +155,10 @@ impl std::error::Error for Error {
 /// Whether a checkout is a linked worktree, and where its git directories are.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeFacts {
-    /// The `--git-dir` vs `--git-common-dir` comparison, canonicalised. `kind()`
-    /// is not used for this: it is a single mutually-exclusive enum, so it
-    /// cannot represent a checkout that is both a submodule and a linked
-    /// worktree, which git reports as a worktree.
     pub linked: bool,
     pub git_dir: PathBuf,
     pub common_dir: PathBuf,
-    /// `None` for a bare repository. Carries no oracle for the bare and
-    /// submodule shapes, where the shell's `dirname <common-dir>` formula does
-    /// not name a worktree root at all.
+    /// `None` for a bare repository.
     pub main_worktree_root: Option<PathBuf>,
 }
 
@@ -215,16 +179,9 @@ pub struct JjRepositoryFacts {
 /// The git repository root and the jj workspace root, each resolved by its own
 /// walk so neither is truncated by the other's marker.
 ///
-/// Infallible as a whole, with a `Result` per side. A whole-struct `Result`
-/// could not say "the git side failed but the jj side answered": a one-sided
-/// failure would either propagate as `Err` and discard a valid answer, or
-/// flatten to `None` and reinstate the absence/failure conflation on the single
-/// field that separates a colocated checkout from a nested one. A repository
-/// whose git side the pinned library cannot parse must never be observable as
-/// "jj only".
-///
-/// Callers comparing the two sides for equality must treat any `Err` as "not
-/// comparable", never as inequality.
+/// A `Result` per side rather than one for the struct, so a git-side failure
+/// cannot be observed as "jj only". Compare the sides only when both are `Ok`;
+/// an `Err` means "not comparable", not "unequal".
 #[derive(Debug)]
 pub struct DualRoots {
     pub git: Result<Option<PathBuf>, Error>,
@@ -232,9 +189,6 @@ pub struct DualRoots {
 }
 
 /// Reads a repository's root, idiom and revision in-process.
-///
-/// Ships unwired: `crate::facts` still composes the subprocess pair, and no
-/// feature flag or config switch routes a caller here.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct InProcessProbe;
 
@@ -268,8 +222,7 @@ impl InProcessProbe {
         };
 
         let git_dir = canonicalise(repository.git_dir())?;
-        // The raw value carries `../..` for a linked worktree, where the oracle
-        // reports the resolved path; they are equal only after this.
+        // Raw, this carries `../..` for a linked worktree.
         let common_dir = canonicalise(repository.common_dir())?;
 
         let main = repository.main_repo().map_err(|error| Error::Git {
@@ -289,38 +242,27 @@ impl InProcessProbe {
 
     /// The superproject's working directory, when `start` is inside a submodule.
     ///
-    /// gix exposes no API for this direction — `main_repo()` on a submodule
-    /// returns the submodule, and `submodules()` resolves superproject to
-    /// children — so it is derived from the `git_dir()` path shape.
+    /// Derived from the `git_dir()` path shape: gix has no API for this
+    /// direction, and `main_repo()` on a submodule returns the submodule.
     ///
     /// # Errors
     ///
-    /// When a candidate superproject directory exists but cannot be opened,
-    /// which must not be mistaken for "this candidate is not a repository" and
-    /// silently scanned past.
+    /// When a candidate superproject exists but cannot be opened.
     pub fn superproject(&self, start: &Path) -> Result<Option<PathBuf>, Error> {
         let start = absolutise(start)?;
         let Some(repository) = discover_git(&start)? else {
             return Ok(None);
         };
 
-        // A linked worktree *of* a submodule carries `modules` in its git dir,
-        // and git reports **no** superproject for it. `kind()` cannot express
-        // that: it is a single mutually-exclusive enum and reports `Submodule`
-        // for exactly that shape, which is why the gate is the oracle's own
-        // discriminator — the git-dir vs common-dir comparison — and not
-        // `kind()`. Gating on `kind() == Submodule` instead both admits this
-        // shape wrongly and rejects a submodule inside a linked worktree, whose
-        // git dir sits under `worktrees/<id>/modules/` and which git *does*
-        // give a superproject.
+        // Gating on `kind() == Submodule` is wrong in both directions: it
+        // admits a linked worktree *of* a submodule, for which git reports no
+        // superproject, and rejects a submodule inside a linked worktree, for
+        // which git reports one. The dirs comparison is git's own discriminator.
         let git_dir = canonicalise(repository.git_dir())?;
         if git_dir != canonicalise(repository.common_dir())? {
             return Ok(None);
         }
 
-        // Canonicalisation belongs to the probe rather than to the scan, so the
-        // scan stays pure path logic and its unit tests can drive it over paths
-        // that need not exist.
         superproject_of(&git_dir, |candidate| {
             let Some(found) = open_git(candidate)? else {
                 return Ok(None);
@@ -354,9 +296,7 @@ impl InProcessProbe {
     /// # Errors
     ///
     /// When the workspace cannot be loaded, or its store does not resolve to a
-    /// jj repository layout — the case a `.jj/repo` pointer aimed at an
-    /// arbitrary existing directory produces, which would otherwise yield a
-    /// real-looking but wrong repository root.
+    /// jj repository layout.
     pub fn jj_repository(
         &self,
         start: &Path,
@@ -369,8 +309,6 @@ impl InProcessProbe {
             return Ok(None);
         };
 
-        // jj-lib canonicalises repo_path() itself but returns workspace_root()
-        // as passed in, so both sides need it before comparison.
         let store = canonicalise(loader.repo_path())?;
         let own_store = canonicalise(&root.join(".jj").join("repo"))?;
         let role = if store == own_store {
@@ -382,8 +320,8 @@ impl InProcessProbe {
         let Some(main_root) = store.parent().and_then(Path::parent) else {
             return Err(Error::JjStoreLayout { store });
         };
-        // The shell oracle carries this post-condition explicitly, so a future
-        // jj layout change cannot silently produce a wrong-but-non-empty root.
+        // Without this, a `.jj/repo` pointing at any existing directory yields
+        // a real-looking but wrong root two levels up.
         if !main_root.join(".jj").join("repo").is_dir() {
             return Err(Error::JjStoreLayout { store });
         }
@@ -449,13 +387,11 @@ impl VcsProbe for InProcessProbe {
     }
 }
 
-/// The repository a jj working copy belongs to, resolved through the loader so
-/// the `.jj/repo`-file-means-secondary rule has one implementation.
+/// The repository a jj working copy belongs to.
 ///
 /// The store is always `<repository>/.jj/repo`, so the repository is its
-/// grandparent — for a secondary workspace that is the main repository, and for
-/// a main workspace it is the workspace itself. `None` when this is not a jj
-/// workspace at all, which is the one absence that does not log.
+/// grandparent: the main repository for a secondary workspace, the workspace
+/// itself otherwise.
 fn jj_repository_root(working_copy_root: &Path) -> Option<PathBuf> {
     let loader = match DefaultWorkspaceLoaderFactory.create(working_copy_root) {
         Ok(loader) => loader,
@@ -477,9 +413,8 @@ fn jj_repository_root(working_copy_root: &Path) -> Option<PathBuf> {
     Some(canonical(repository))
 }
 
-/// The full working-copy revision of a git checkout. `None` — unlogged — for a
-/// repository with no commits yet, since that is a legitimate absence rather
-/// than a probe that could not answer.
+/// The full working-copy revision of a git checkout. `None`, unlogged, for a
+/// repository with no commits yet.
 fn git_revision(root: &Path) -> Option<String> {
     let repository = match gix::discover(root) {
         Ok(repository) => repository,
@@ -506,37 +441,26 @@ fn git_revision(root: &Path) -> Option<String> {
 /// The full working-copy revision of a jj workspace, read without constructing
 /// any settings and without writing anything.
 ///
-/// The chain is the one jj itself walks. The workspace's `checkout` file records
-/// the operation the working copy is at and the workspace's own name; that
-/// operation's view maps every workspace name to its working-copy commit. Both
-/// links are public API: `jj_lib::protos` is a public module, so the decoded
-/// `Checkout` is a published schema rather than a private wire format, and
-/// `View::wc_commit_ids` is a public field. `SimpleOpStore::load` takes a path
-/// only — this is what makes the whole route settings-free, and it is why this
-/// crate needs no jj settings type anywhere.
+/// The workspace's `checkout` file records the operation the working copy is at
+/// and the workspace's own name; that operation's view maps every workspace name
+/// to its working-copy commit. `SimpleOpStore::load` takes a path only, which is
+/// what keeps the route settings-free — the higher-level repository loader needs
+/// a settings value, and the working-copy loader it reaches writes to the store.
 ///
-/// Deliberately not routed through the higher-level repository loader: that one
-/// requires a settings value whose defaults live in the jj CLI rather than in
-/// jj-lib, and the working-copy loader it reaches writes to the store.
+/// Indexing by name is load-bearing: a repository with several workspaces holds
+/// a different commit per workspace, so taking the sole view entry would answer
+/// for the wrong one.
 ///
-/// The name lookup is load-bearing rather than incidental. A repository with
-/// several workspaces has one view entry per workspace and they hold different
-/// commits, so taking the sole entry would answer for the wrong workspace as
-/// soon as anyone runs `jj workspace add`.
-///
-/// This reports the commit as of the **last recorded operation**. It does not
-/// snapshot, which is the one place it diverges from asking the `jj` binary:
-/// `jj log` snapshots the working copy first and so reports a newly created
-/// commit — and mutates the repository — when files have changed since the last
-/// jj command. A probe that must work on a read-only filesystem cannot do that.
+/// Reports the commit as of the last recorded operation, and does not snapshot.
+/// Asking the `jj` binary does snapshot, so it reports — and writes — a new
+/// commit when files changed since the last jj command.
 fn jj_revision(root: &Path) -> Result<Option<String>, Error> {
     let Some(loader) = load_jj_workspace(root)? else {
         return Ok(None);
     };
 
-    // The on-disk layout below belongs to the local working-copy backend. Assert
-    // it before reading, so an unfamiliar backend is a named failure rather than
-    // a missing-file error attributed to the wrong cause.
+    // The paths below belong to the local backend, so an unfamiliar one has to
+    // fail by name rather than as a missing file.
     let backend =
         loader.get_working_copy_type().map_err(|error| Error::Jj {
             path: root.to_path_buf(),
@@ -549,9 +473,8 @@ fn jj_revision(root: &Path) -> Result<Option<String>, Error> {
     let state = loader.workspace_root().join(".jj").join("working_copy");
     let checkout = read_checkout(&state)?;
 
-    // Only the root operation would consult this, and the checkout file gives a
-    // concrete operation id, so it is never read. The width matches the git
-    // backend's ids.
+    // Only the root operation consults this, and the checkout file gives a
+    // concrete id, so it is never read.
     let root_data = RootOperationData {
         root_commit_id: CommitId::from_bytes(&[0; 20]),
     };
@@ -567,10 +490,8 @@ fn jj_revision(root: &Path) -> Result<Option<String>, Error> {
         .map(ObjectId::hex))
 }
 
-/// The working copy type this module's path knowledge is valid for.
 const LOCAL_WORKING_COPY: &str = "local";
 
-/// The two fields of the workspace's checkout state this module needs.
 struct Checkout {
     operation: OperationId,
     workspace: WorkspaceNameBuf,
@@ -578,8 +499,8 @@ struct Checkout {
 
 /// Decodes `<state>/checkout` into the operation and workspace name it records.
 ///
-/// The empty-name fallback mirrors jj's own back-compatibility branch for
-/// working copies written before the field existed.
+/// The empty-name fallback mirrors jj's own, for working copies written before
+/// the field existed.
 fn read_checkout(state: &Path) -> Result<Checkout, Error> {
     let path = state.join("checkout");
     let bytes = fs::read(&path).map_err(|source| Error::JjCheckout {
@@ -603,10 +524,8 @@ fn read_checkout(state: &Path) -> Result<Checkout, Error> {
     })
 }
 
-/// Drives one of the `OpStore` trait's async reads to completion.
-///
-/// The trait is async and jj-lib drives it with `pollster` itself; there is no
-/// runtime in this process and these reads are plain file reads.
+/// Drives one of the `OpStore` trait's async reads to completion. There is no
+/// runtime in this process, and these are plain file reads.
 fn block_on_jj<T>(
     read: impl Future<Output = Result<T, OpStoreError>>,
 ) -> Result<T, Error> {
@@ -615,8 +534,8 @@ fn block_on_jj<T>(
     })
 }
 
-/// Whether the head could not be peeled because nothing has been committed yet,
-/// as opposed to the repository being unreadable.
+/// Whether the head could not be peeled because nothing is committed yet, as
+/// opposed to the repository being unreadable.
 const fn is_unborn_head(error: &gix::reference::head_commit::Error) -> bool {
     matches!(
         error,
@@ -628,22 +547,15 @@ const fn is_unborn_head(error: &gix::reference::head_commit::Error) -> bool {
 
 /// The superproject working directory implied by a submodule's git directory.
 ///
-/// The rule is: scan the `modules` components from the **innermost outward**
-/// and take the first whose parent opens as a repository. Two shapes
-/// discriminate it. At submodule depth 2 the git dir is
-/// `<super>/.git/modules/mid/modules/leaf`, and the innermost `modules` anchors
-/// on the `mid` submodule — taking the outermost would name the wrong
-/// repository. A submodule added at a path that itself contains `modules`
-/// gives `<super>/.git/modules/modules/foo`, where the innermost candidate is
-/// not a repository at all and the scan must continue outward; a bare
-/// `rposition` stops there and reports absence.
+/// Scans the `modules` components innermost outward, taking the first whose
+/// parent opens as a repository. Both directions matter: at depth 2
+/// (`<super>/.git/modules/mid/modules/leaf`) the innermost anchors on `mid`,
+/// while a submodule added under a path containing `modules`
+/// (`<super>/.git/modules/modules/foo`) has an innermost candidate that is not a
+/// repository, so a bare `rposition` reports absence.
 ///
-/// `opens` is injected and **fallible** so the unit tests can drive the
-/// derivation over known paths without building the matrix's most expensive
-/// fixtures. It must not collapse to a bool: "this candidate is not a
-/// repository" and "this candidate is a repository the pinned library could not
-/// open" have to stay distinct, or a corrupt superproject makes the scan
-/// continue outward and return a plausible wrong path.
+/// `opens` is fallible so an unopenable candidate short-circuits instead of the
+/// scan continuing outward and returning a plausible wrong path.
 fn superproject_of(
     git_dir: &Path,
     opens: impl Fn(&Path) -> Result<Option<PathBuf>, Error>,
@@ -698,9 +610,8 @@ fn open_git(path: &Path) -> Result<Option<gix::Repository>, Error> {
     }
 }
 
-/// Loads the jj workspace rooted at `root`. `Ok(None)` only for the two
-/// not-found-shaped variants; every other failure is `Err`, because a `.jj`
-/// directory that cannot be read is not the same as no jj repository here.
+/// Loads the jj workspace rooted at `root`. Only the not-found variants are
+/// `Ok(None)`: a `.jj` that cannot be read is not the same as no jj here.
 fn load_jj_workspace(
     root: &Path,
 ) -> Result<Option<Box<dyn jj_lib::workspace::WorkspaceLoader>>, Error> {
@@ -719,11 +630,9 @@ fn load_jj_workspace(
 
 /// Makes `start` absolute before any walk.
 ///
-/// The three walks disagree otherwise: `gix::discover` absolutises against the
-/// process cwd internally, whereas `walk_up` is purely lexical — for a relative
-/// `"sub"`, `Path::new("sub").parent()` is `Some("")` and that parent is
-/// `None`, so it tests one directory and stops. Given a relative start, a
-/// colocated checkout would report a git root and no jj root: the wrong arm.
+/// The walks disagree otherwise: `gix::discover` absolutises against the process
+/// cwd internally, while `walk_up` is lexical and stops after one directory for a
+/// relative path, since `Path::new("sub").parent()` is `Some("")`.
 fn absolutise(start: &Path) -> Result<PathBuf, Error> {
     absolute(start).map_err(|source| Error::Absolutise {
         path: start.to_path_buf(),
@@ -731,7 +640,6 @@ fn absolutise(start: &Path) -> Result<PathBuf, Error> {
     })
 }
 
-/// The fallible form of the canonicalisation choke point.
 fn canonicalise(path: &Path) -> Result<PathBuf, Error> {
     path.canonicalize().map_err(|source| Error::Canonicalise {
         path: path.to_path_buf(),
@@ -739,11 +647,8 @@ fn canonicalise(path: &Path) -> Result<PathBuf, Error> {
     })
 }
 
-/// The single choke point every path leaving this module passes through.
-///
-/// Falls back to the uncanonicalised path rather than dropping the answer: the
-/// callers return `Option`/`PathBuf` and cannot carry the distinction, and the
-/// paths reaching here have just been read off the filesystem.
+/// Falls back to the uncanonicalised path, because the callers returning
+/// `Option`/`PathBuf` cannot carry the distinction.
 fn canonical(path: &Path) -> PathBuf {
     match path.canonicalize() {
         Ok(canonical) => canonical,
@@ -765,8 +670,8 @@ mod tests {
     use super::superproject_of;
     use super::Error;
 
-    /// A total probe over a known set of repository git-dirs, so the derivation
-    /// is exercised without building the matrix's most expensive fixtures.
+    /// A total probe over known git-dirs, so the derivation is exercised
+    /// without building real submodule fixtures.
     fn opens(
         repositories: &'static [(&'static str, &'static str)],
     ) -> impl Fn(&Path) -> Result<Option<PathBuf>, Error> {
@@ -789,8 +694,8 @@ mod tests {
 
     #[test]
     fn a_depth_two_submodule_anchors_on_the_nearest_modules() {
-        // Taking the *outermost* `modules` would name /tmp/super, which is the
-        // superproject of `mid` rather than of `leaf`.
+        // The outermost `modules` would name /tmp/super, the superproject of
+        // `mid` rather than of `leaf`.
         let found = superproject_of(
             Path::new("/tmp/super/.git/modules/mid/modules/leaf"),
             opens(&[
@@ -803,10 +708,8 @@ mod tests {
 
     #[test]
     fn the_scan_continues_outward_past_a_candidate_that_is_not_a_repository() {
-        // A submodule added at a path that itself contains `modules` gives
-        // `.git/modules/modules/foo`. The innermost candidate,
-        // `/tmp/supm/.git/modules`, is a plain directory — a bare rposition
-        // stops there and reports absence.
+        // `/tmp/supm/.git/modules` is a plain directory, where a bare
+        // rposition would stop and report absence.
         let found = superproject_of(
             Path::new("/tmp/supm/.git/modules/modules/foo"),
             opens(&[("/tmp/supm/.git", "/tmp/supm")]),
@@ -822,10 +725,8 @@ mod tests {
 
     #[test]
     fn an_unopenable_candidate_short_circuits_rather_than_scanning_past() {
-        // The reason the probe is fallible. With a bool return, "not a
-        // repository" and "a repository the pinned library could not open" are
-        // indistinguishable, so a corrupt superproject would let the scan
-        // continue outward and return a plausible wrong path.
+        // Why the probe is fallible: with a bool, a corrupt superproject is
+        // indistinguishable from "not a repository" and the scan continues.
         let found = superproject_of(
             Path::new("/tmp/super/.git/modules/mid/modules/leaf"),
             |candidate| {

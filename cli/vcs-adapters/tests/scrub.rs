@@ -1,27 +1,22 @@
-//! The scrub invariant: every query answers identically whether or not the
-//! ambient git and jj environment is poisoned.
+//! Every query answers identically whether or not the ambient git and jj
+//! environment is poisoned.
 //!
-//! This is a property to **verify**, not to implement. `gix::discover`/
-//! `gix::open` do not consult the environment, and jj-lib's workspace loader is
-//! pure filesystem reads, so no scrub is written — but the claim is only worth
-//! anything if it is checked, and checked against a poison that would really
-//! change the answer.
+//! A property to verify rather than implement: `gix::discover`/`gix::open` do
+//! not consult the environment and jj-lib's loader is pure filesystem reads, so
+//! nothing scrubs — but the claim is only worth checking against a poison that
+//! would really change the answer.
 //!
 //! Poison means *another fixture's real `.git`*, not an empty or nonexistent
-//! path, which both git and the libraries ignore. The variable set is
-//! everything `scrub_environment` touches, **plus** the object-directory and
-//! `GIT_CONFIG_COUNT` families: `gix::open`'s default permissions do consult the
-//! environment for object directories and for system/global config discovery,
-//! and `is_bare()` reads `core.bare` *through* that config, so verifying two
-//! variables and generalising to "uniformly immune" would be broader than the
-//! evidence.
+//! path, which both git and the libraries ignore. The variable set covers the
+//! object-directory and `GIT_CONFIG_COUNT` families as well, because
+//! `gix::open`'s default permissions do consult the environment for object
+//! directories and for config discovery, and `is_bare()` reads `core.bare`
+//! through that config.
 //!
-//! Both arms run through the same child binary. Comparing an in-process value
-//! against a child's rendered output would compare two serialisation routes —
-//! producing false failures across the matrix, and the more dangerous false
-//! pass where both arms render absence identically for different reasons. A
-//! child is needed at all because libtest runs each test on a spawned thread,
-//! so in-process `set_var` is racy by construction.
+//! Both arms run through the same child binary: comparing an in-process value
+//! against a child's rendered output would compare two serialisation routes. A
+//! child is needed at all because libtest runs each test on a spawned thread, so
+//! in-process `set_var` is racy by construction.
 #![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;

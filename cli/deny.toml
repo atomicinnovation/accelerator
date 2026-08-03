@@ -64,28 +64,18 @@ allow = [
 ]
 confidence-threshold = 0.8
 
-# uluru is gix-pack's LRU pack cache, enabled by gix-odb's default features and
-# reached from both gix and gix-odb, so it is not feature-gatable out of the
-# graph. MPL-2.0 is file-level weak copyleft: we ship no modifications, so §3.1
-# is satisfied trivially. The obligation that would bind is §3.2 — distributing
-# the Executable Form requires telling recipients how to obtain the Source Form.
+# uluru is gix-pack's LRU pack cache, enabled by gix-odb's default features, so
+# it cannot be feature-gated out. MPL-2.0 is file-level weak copyleft: we ship
+# no modifications, and §3.2's notice obligation does not bind because dead-code
+# elimination removes the whole gix/jj-lib closure from the only shipped binary
+# that reaches it. Re-check that when anything makes the visualiser reach
+# vcs-adapters: once the trees link, distributing the binary requires telling
+# recipients how to obtain the source, which the release upload set carries no
+# artefact for.
 #
-# Verified 2026-08-03 that §3.2 does not bind: uluru is in the normal closure of
-# exactly one shipped binary (accelerator-visualiser; neither accelerator nor
-# accelerator-verify has it at all), and dead-code elimination removes the whole
-# gix/jj-lib closure from it. Distinctive literals — "extensions.objectFormat"
-# from gix, "There is no Jujutsu repo" from jj-lib — are present in the linked
-# reference artefact and absent from the shipped binary, which carries zero
-# symbols from gix, gix-pack, gix-odb, jj_lib or uluru against 26,247 total.
-# Nothing in the visualiser's reachable call graph enters vcs-adapters at all:
-# CommandProbe's own "rev-parse" literal is absent too.
-#
-# RE-CHECK WHEN THE VISUALISER STARTS REACHING vcs_adapters::facts — 0185's
-# composition-root switch is the expected trigger. Once the trees link, §3.2
-# binds and a third-party attribution artefact has to join the release upload
-# set, which _release_uploads() does not carry today.
-#
-# Adopted for the library-backed VCS adapter (work item 0188).
+# Verify with: an unstripped --release accelerator-visualiser carries neither
+# the `extensions.objectFormat` (gix) nor the `There is no Jujutsu repo`
+# (jj-lib) literal, both of which the linked reference artefact does carry.
 [[licenses.exceptions]]
 crate = "uluru"
 allow = ["MPL-2.0"]
@@ -100,14 +90,12 @@ allow-wildcard-paths = true
 # infra-out-of-domain ban: the YAML crate is reachable only through the
 # document wrapper, so a direct domain import violates.
 #
-# gix-credentials and curl-sys are the VCS-adapter additions: the first spawns
-# `git credential-*` helper programs, the second is the other transport stack
-# gix can be built against. Both are verified absent from the resolved graph —
-# gix-credentials only because the gix pin sets default-features = false, so
-# this ban is what keeps a later feature widening from reintroducing it
-# silently. gix-transport and gix-protocol are deliberately NOT banned: they
-# ARE in the graph via jj-lib's defaults and are kept inert by gix's network
-# client features being off, which the feature-graph test asserts instead.
+# gix-credentials spawns `git credential-*` helper programs and is absent only
+# because the gix pin sets default-features = false, so this ban is what stops a
+# later feature widening reintroducing it. curl-sys is the other transport stack
+# gix can be built against. gix-transport and gix-protocol are deliberately NOT
+# banned: they ARE in the graph via jj-lib's defaults, and are kept inert by
+# gix's network client features being off, which the feature-graph test asserts.
 deny = [
     { crate = "native-tls" },
     { crate = "openssl" },

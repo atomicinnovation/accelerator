@@ -1,25 +1,13 @@
-//! The subprocess-backed probes: an ancestor marker-walk for the repository
-//! root, and the VCS binaries themselves for the working-copy revision.
+//! The subprocess-backed probes: a marker walk for the root, and the VCS
+//! binaries themselves for the working-copy revision.
 //!
-//! The probe subprocess runs with a scrubbed environment and colour disabled,
-//! so ambient user config cannot redirect the root or inject ANSI into a
-//! revision. Every way the probe can fail to answer — an absent binary, a
-//! non-zero exit, empty output, or a run that outlives its time cap — resolves
-//! to `None` and is warn-logged, so a real failure leaves a trace instead of
-//! reading like a legitimately revision-less repository.
+//! The subprocess runs with a scrubbed environment and colour disabled, so
+//! ambient config cannot redirect the root or inject ANSI into a revision. Every
+//! way it can fail to answer resolves to `None` and is warn-logged, so a real
+//! failure does not read like a revision-less repository.
 //!
-//! This is the pair [`crate::library`] replaces. The two differ in more than
-//! mechanism: this one parses in a child process with a time cap, a
-//! kill-on-timeout and a scrubbed environment, which is containment the
-//! in-process reader cannot offer. Whether an equivalent bound is needed before
-//! the composition root switches over is a decision the switch owns.
-//!
-//! Spawning lives here and only here, and this module is deliberately unruled
-//! where [`crate::library`] carries a cargo-pup rule denying `std::process`.
-//! That rule is module-scoped, so it did not need this extraction to work — what
-//! the extraction buys is that the boundary is now visible in the file layout
-//! rather than only in `pup.ron`, and that retiring this pair is a file
-//! deletion.
+//! Spawning lives here and only here; [`crate::library`] carries an import rule
+//! denying `std::process`.
 
 use std::fs;
 use std::io::Read as _;
@@ -32,17 +20,13 @@ use vcs::{RepoRoot, VcsKind, VcsProbe};
 
 use crate::markers::{carries_any_marker, marker_kind, walk_up};
 
-/// Headroom for a legitimately slow or lock-contended repository, while still
-/// bounding metadata derivation.
+/// Headroom for a lock-contended repository, while still bounding derivation.
 const DEFAULT_CAP: Duration = Duration::from_secs(10);
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// Finds the repository root by walking ancestors for the first `.jj` or
-/// `.git` marker, testing for *existence* so a `.git` file — a worktree or
-/// submodule — counts alongside a `.git` directory.
-///
-/// The filesystem root itself is never tested, matching the bash walk.
+/// Finds the repository root by walking ancestors for the first `.jj` or `.git`
+/// marker, testing existence so a `.git` *file* counts alongside a directory.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MarkerWalkRoot;
 
@@ -57,16 +41,11 @@ impl RepoRoot for MarkerWalkRoot {
     }
 }
 
-/// Resolves a jj secondary workspace's working-copy root to the repository whose
-/// store it shares. A secondary workspace's `.jj/repo` is a file pointing at the
-/// shared `<repo>/.jj/repo` store, so the repository is the store's grandparent;
-/// the primary workspace's `.jj/repo` is that store directory. `None` when this
-/// is not a jj workspace or the pointer cannot be resolved.
+/// Resolves a jj secondary workspace to the repository whose store it shares.
 ///
-/// This reads the pointer by hand. [`crate::library`] resolves the same fact
-/// through jj-lib's workspace loader instead, so the file-versus-directory rule
-/// has one implementation per adapter rather than one shared one — the loader
-/// route needs the library this module deliberately does not depend on.
+/// A secondary workspace's `.jj/repo` is a *file* pointing at the shared
+/// `<repo>/.jj/repo`, so the repository is the store's grandparent; a primary
+/// workspace's `.jj/repo` is that store directory.
 fn jj_repository_root(working_copy_root: &Path) -> Option<PathBuf> {
     let marker = working_copy_root.join(".jj").join("repo");
     let metadata = fs::symlink_metadata(&marker).ok()?;
@@ -142,7 +121,7 @@ impl VcsProbe for CommandProbe {
 }
 
 /// Denies the subprocess the ambient config that could redirect it at another
-/// repository or dress its output up in ANSI.
+/// repository.
 fn scrub_environment(command: &mut Command) {
     for key in [
         "GIT_DIR",

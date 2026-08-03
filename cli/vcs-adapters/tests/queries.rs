@@ -1,16 +1,14 @@
-//! The six taxonomy queries against every (fixture, start directory) pair.
+//! The six taxonomy queries against every (fixture, start directory) pair,
+//! compared against values measured from the live `git`/`jj` CLIs.
 //!
-//! Every expected value below is traceable to a cell in the oracle mapping
-//! recorded in the plan, and was re-measured against the live `git`/`jj` CLIs
-//! when this suite was written. Values are compared as rendered strings so a
-//! failure names the cell rather than dumping a nested `Debug`.
+//! Values are compared as rendered strings so a failure names the cell rather
+//! than dumping a nested `Debug`.
 //!
-//! One test over the whole table rather than one test per pair: nextest is
+//! One test over the whole table rather than one per pair: nextest is
 //! process-per-test with no sharing, so a test per pair would rebuild the
-//! ~34-fixture matrix 34 times — each build driving dozens of `git`/`jj`
-//! subprocesses, on both legs of the OS matrix, against a suite with a
-//! documented flake history under parallel CI load. Every mismatch is collected
-//! and reported together, so per-cell traceability is kept.
+//! ~34-fixture matrix 34 times, each build driving dozens of `git`/`jj`
+//! subprocesses. Every mismatch is collected and reported together, so per-cell
+//! traceability is kept.
 #![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;

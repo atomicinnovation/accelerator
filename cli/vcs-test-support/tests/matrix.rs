@@ -43,9 +43,8 @@ fn every_recorded_fixture_key_is_built() -> Result<(), TestError> {
 fn the_nested_inner_shapes_carry_only_one_marker() -> Result<(), TestError> {
     let (_guard, matrix) = matrix()?;
 
-    // The jj-inside-git shapes must carry `.jj` only, or a `.git`-inclusive
-    // walk would stop at them for the wrong reason and the fixture would prove
-    // nothing about the three-walk requirement.
+    // These must carry `.jj` only, or a `.git`-inclusive walk stops at them for
+    // the wrong reason and the fixture proves nothing.
     for key in ["NJG-i", "PJG-i", "JS-in"] {
         let start = matrix.start(key)?;
         assert!(start.join(".jj").exists(), "{key} should carry .jj");

@@ -9,15 +9,12 @@ from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 
 from .helpers import accelerator_env, run_shell_suites
 
-# The strong-form zero-spawn run moves system binaries aside with sudo, so it
-# refuses to start without this. Not a `--yes` flag: the CI step sets it in
-# `env:`, and an env gate cannot be reached by tab-completing a task name.
+# An env gate rather than a `--yes` flag: a task name can be tab-completed by
+# accident, and the CI step sets this in `env:`.
 _SHADOW_OPT_IN = "ACCELERATOR_ZERO_SPAWN_SHADOW"
 
-# Checked in addition to every PATH hit and to `mise which`, because a probe
-# reaching for one of these by absolute path is exactly what the strong form has
-# to defeat. These are the system locations; on CI there is no system jj at all,
-# which is why `mise which` carries the jj side.
+# Checked alongside every PATH hit and `mise which`, because absolute-path
+# access is what the strong form has to defeat.
 _ABSOLUTE_VCS_PATHS = (
     "/usr/bin/git",
     "/usr/local/bin/git",
@@ -178,27 +175,22 @@ def zero_spawn(context: Context) -> None:
 
 @task
 def zero_spawn_strong(context: Context) -> None:
-    """Run the zero-spawn suite in its strong form, with git and jj shadowed.
+    """Run the zero-spawn suite with git and jj shadowed.
 
-    The strong form is what makes the property non-degradable: `PATH` stubs
-    alone leave the binaries reachable by absolute path, so this moves every
-    resolved `git`/`jj` aside for the duration of the run and hands the harness
-    the list, which hard-fails if any listed path is still executable.
+    `PATH` stubs alone leave the binaries reachable by absolute path, so this
+    moves every resolved `git`/`jj` aside and hands the harness the list, which
+    hard-fails if any listed path is still executable.
 
-    **This moves binaries out of system directories and needs `sudo`.** It is
-    gated behind `ACCELERATOR_ZERO_SPAWN_SHADOW=yes` and stays out of every
-    roll-up, because `/opt/homebrew/bin` is user-writable — a developer who ran
-    this unaware could be left without `git` or `jj`. Ephemeral CI runners are
-    the intended host; `tasks/README.md` records the containment assumption.
+    **Moves binaries out of system directories with `sudo`**, so it is gated
+    behind `ACCELERATOR_ZERO_SPAWN_SHADOW=yes` and stays out of every roll-up:
+    `/opt/homebrew/bin` is user-writable, and a developer running this unaware
+    could be left without `git` or `jj`. Ephemeral CI runners are the host.
 
-    Ordering is load-bearing. Everything needing a real binary happens *before*
-    the shadow window: `cli/launcher` carries a `vergen-gitcl` build dependency
-    that shells out to git, cargo may need git on a cold registry cache, and the
-    fixture matrix is built by invoking the real CLIs. The suite is therefore
-    compiled with `--no-run` first and only executed inside the window, and
-    cargo is invoked directly rather than through `mise run` — mise could
-    observe `jj` as missing inside the window and reinstall it, silently
-    restoring the binary and making the assertion vacuous.
+    Ordering is load-bearing. Compilation needs git (`vergen-gitcl`, and a cold
+    registry cache) and the fixture matrix needs both binaries, so both happen
+    before the window and the suite runs `--no-run` first. Cargo is invoked
+    directly rather than through `mise run`, which could see `jj` missing inside
+    the window and reinstall it, making the assertion vacuous.
     """
     if os.environ.get(_SHADOW_OPT_IN) != "yes":
         raise Exit(
@@ -241,10 +233,7 @@ def zero_spawn_strong(context: Context) -> None:
 
 
 def _compile_zero_spawn_targets(context: Context) -> None:
-    """Build the reference artefacts and compile the suite without running it.
-
-    Both need a real git, so both happen before the shadow window.
-    """
+    """Build the reference artefacts and compile the suite, without running."""
     context.run(
         "cargo build "
         f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
@@ -274,17 +263,11 @@ def _build_fixture_matrix(context: Context) -> None:
 def _resolve_vcs_binaries(context: Context) -> list[Path]:
     """Resolve every `git`/`jj` on `PATH`, plus the absolute paths to check.
 
-    Every `PATH` hit rather than the first: macOS ships `git` in two
-    directories, and the enumeration keeps this honest when a runner image
-    moves things. Deduplicated, order preserved, and only what exists.
-
-    `mise which` is asked as well, and it is the load-bearing one on CI. There
-    is no system `jj` on the runner at all — the real binary lives under the
-    mise install tree, and what sits on `PATH` may be a shim pointing at it.
-    Shadowing only the shim would leave the real binary reachable by absolute
-    path, which is precisely what the strong form exists to defeat, while the
-    harness would agree the run was strong because we only told it about the
-    shim.
+    Every `PATH` hit rather than the first, because macOS ships `git` in two
+    directories. `mise which` is load-bearing on CI: there is no system `jj`
+    there, and what sits on `PATH` may be a shim pointing into the mise install
+    tree. Shadowing only the shim would leave the real binary reachable by
+    absolute path while the harness agreed the run was strong.
     """
     found: list[Path] = []
 
@@ -311,10 +294,9 @@ def _restore_vcs_binaries(
 ) -> None:
     """Put every shadowed binary back, then prove it is runnable again.
 
-    Idempotent per path and it reports at the end rather than aborting on the
-    first failure, so a partial shadow does not leave the rest stranded. Raises
-    when anything is still missing: an unrestored `git` also breaks
-    `actions/checkout`'s post step, which runs git to strip its auth token.
+    Idempotent per path, reporting at the end rather than aborting on the first
+    failure, so a partial shadow does not strand the rest. An unrestored `git`
+    also breaks `actions/checkout`'s post step.
     """
     still_missing: list[Path] = []
     for target in shadowed:

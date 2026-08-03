@@ -325,15 +325,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Linux-only, and deliberately not folded into test-unit or
-    # test-integration: both are OS matrices, and a strong-form assertion on the
-    # macOS leg would fail under SIP. macOS degrades to PATH-only with the
-    # unshadowable paths recorded.
+    # Its own job rather than a leg of test-unit/test-integration: those are OS
+    # matrices, and shadowing system binaries fails under SIP on macOS.
     #
-    # The containment relies on GitHub-hosted runners being EPHEMERAL VMs, and
-    # on git at /usr/bin/git with jj under the mise install tree. A move to
-    # self-hosted, containerised or reusable runners turns a contained hazard
-    # into a persistently broken runner — see tasks/README.md.
+    # Containment assumes EPHEMERAL runners. Moving to self-hosted,
+    # containerised or reusable ones turns a contained hazard into a
+    # persistently broken runner.
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -359,32 +356,20 @@ jobs:
         with:
           workspaces: cli
 
-      # One task owns the whole sequence, so the ordering that makes this
-      # meaningful lives in the build system rather than in YAML: compile and
-      # build the fixture matrix while the real binaries are still reachable,
-      # shadow them, run the prebuilt suite, restore in a `finally`. The
-      # reference artefact's size floor rides in as a `depends`.
-      #
-      # mise is entered BEFORE the window and never inside it — cargo is invoked
-      # directly from the task — because mise could otherwise observe `jj` as
-      # missing mid-run and reinstall it, silently restoring the binary and
-      # making the assertion vacuous.
+      # One task owns the ordering that makes this meaningful. mise is entered
+      # before the shadow window and never inside it, or it could see `jj`
+      # missing mid-run and reinstall it, making the assertion vacuous.
       - name: Run the strong-form zero-spawn suite
         timeout-minutes: 10
         env:
-          # The task refuses to shadow anything without this. /opt/homebrew/bin
-          # is user-writable, so an ungated task could leave a developer without
-          # git; the gate keeps the destructive path opt-in and CI-shaped.
+          # The task refuses to shadow anything without this.
           ACCELERATOR_ZERO_SPAWN_SHADOW: "yes"
         run: mise run test:integration:zero-spawn:strong
 
-      # Backstop for the task's own restore, for the case where the task process
-      # died before its `finally` ran. actions/checkout's post step runs git to
-      # strip the auth token, so an unrestored git breaks it.
-      #
-      # Deliberately NOT `mise run`: mise would see the missing tool and
-      # reinstall it, turning the one check that can catch a failed restore into
-      # a check that quietly repairs it. Bare commands are the point here.
+      # Backstop for the case where the task died before its `finally` ran.
+      # Deliberately NOT `mise run`: that would reinstall the missing tool,
+      # turning the one check that catches a failed restore into one that
+      # quietly repairs it.
       - name: Assert the restore worked
         if: always()
         run: |

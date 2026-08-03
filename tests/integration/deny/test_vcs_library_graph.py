@@ -74,9 +74,8 @@ _FEATURES_ABSENT = (
 )
 _FEATURE_PREFIXES_ABSENT = ("blocking-http-transport",)
 
-# The work item's criterion is that the vcs-adapters *subtree* carries no TLS
-# stack — narrower than deny.toml's whole-graph bans, which cannot say this:
-# rustls is a first-party workspace dependency the launcher consumes directly.
+# Subtree-scoped, which is narrower than deny.toml's whole-graph bans and cannot
+# be expressed there: rustls is a first-party dependency the launcher consumes.
 _TLS_CRATES = ("rustls", "openssl", "openssl-sys", "native-tls", "curl-sys")
 
 # deny.toml's [graph].targets, which [bans] is evaluated against.

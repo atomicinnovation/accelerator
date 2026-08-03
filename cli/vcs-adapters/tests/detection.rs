@@ -325,10 +325,9 @@ fn a_worktree_whose_git_marker_is_a_file_is_recognised() -> Result<(), TestError
 fn a_bare_repository_has_no_facts() -> Result<(), TestError> {
     require("git")?;
 
-    // A bare repo keeps HEAD/objects/refs at its top level and has no `.git`
-    // marker at all, so the marker walk finds nothing. This is the shape the
-    // bash helpers fall through on, and the reason `facts` is an Option rather
-    // than a fabricated empty root.
+    // A bare repo keeps HEAD/objects/refs at its top level with no `.git`
+    // marker, so the marker walk finds nothing — the reason `facts` is an
+    // Option rather than a fabricated empty root.
     let bare = tempdir("bare")?;
     let bare = bare.path().canonicalize()?;
     run(

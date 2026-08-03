@@ -1,15 +1,13 @@
 //! The library-backed probe against real repository shapes, alongside the
-//! subprocess pair it will eventually replace.
+//! subprocess pair.
 //!
-//! Two properties are under test. The boundary rule: `RepoRoot::discover`
-//! reports the start path's nearest marked ancestor and never one above it,
-//! paired with the negative assertion that an unbounded `gix::discover` on the
-//! same fixture *does* escape — without which the containment claim could hold
-//! vacuously. And parity: `kind`, `repository_root` and the git half of
-//! `revision` agree with `CommandProbe`, so the swap 0185 makes is behaviour-
-//! preserving on the shapes pinned here.
+//! Two properties. The boundary rule: `RepoRoot::discover` reports the start
+//! path's nearest marked ancestor and never one above it, paired with the
+//! negative assertion that an unbounded `gix::discover` on the same fixture
+//! *does* escape — without which the containment claim holds vacuously. And
+//! parity with `CommandProbe` on every port method.
 //!
-//! These need real `jj` and `git` binaries and hard-fail when one is absent —
+//! These need real `jj` and `git` binaries and hard-fail when one is absent:
 //! Rust's harness has no skip primitive, so an early return would register as a
 //! green PASS.
 #![cfg(feature = "bash-parity")]
@@ -106,8 +104,7 @@ fn the_boundary_is_the_nearest_marker_not_an_ancestor() -> Result<(), TestError>
     require("jj")?;
     require("git")?;
 
-    // A jj secondary workspace planted inside an unrelated git repository: the
-    // inner directory carries `.jj` only, so anything walking for `.git` alone
+    // The inner directory carries `.jj` only, so anything walking for `.git`
     // sails past it into the outer repository.
     let main = colocated_repo("nested-main")?;
     let main = path_of(&main)?;
@@ -136,9 +133,8 @@ fn the_boundary_is_the_nearest_marker_not_an_ancestor() -> Result<(), TestError>
         "discover must report the boundary, not the enclosing git repository"
     );
 
-    // The paired negative: gix's own walk escapes the boundary on this very
-    // fixture, so the containment above is the adapter's doing and not an
-    // accident of the shape.
+    // The paired negative: gix's own walk escapes on this very fixture, so the
+    // containment above is not an accident of the shape.
     let escaped = gix::discover(&inner)?;
     let escaped = escaped
         .workdir()
@@ -323,10 +319,6 @@ fn a_main_workspace_resolves_to_itself() -> Result<(), TestError> {
 }
 
 // --- The jj revision route ---
-//
-// Read from the workspace's checkout state plus the operation store, with no jj
-// settings value and no write. These pin the properties that route rests on;
-// `assert_parity` above already pins agreement with the `jj` binary.
 
 /// The commit id the `jj` binary reports for `@`.
 fn jj_revision_oracle(root: &Path) -> Result<String, TestError> {
@@ -348,8 +340,7 @@ fn a_pure_jj_workspace_reports_its_working_copy_commit() -> Result<(), TestError
     fs::write(root.join("file"), "content")?;
     run("jj", &["commit", "-m", "one"], &root)?;
 
-    // The point of a --no-colocate fixture: there is no git HEAD to fall back
-    // to, so this can only have come from the jj side.
+    // No git HEAD to fall back to, so this can only have come from the jj side.
     assert!(!root.join(".git").exists(), "the fixture must be pure jj");
     assert_eq!(
         InProcessProbe.revision(&root, VcsKind::Jj),
@@ -384,9 +375,7 @@ fn each_workspace_reports_its_own_commit_not_its_neighbour_s(
 
     assert_eq!(main_revision, Some(jj_revision_oracle(&main)?));
     assert_eq!(secondary_revision, Some(jj_revision_oracle(&secondary)?));
-    // The load-bearing assertion: the route looks the commit up by the
-    // workspace's own name, so two workspaces sharing one operation store get
-    // different answers. Taking the view's sole entry would pass every
+    // The load-bearing one: taking the view's sole entry would pass every
     // single-workspace test and answer for the wrong workspace here.
     assert_ne!(
         main_revision, secondary_revision,
@@ -412,9 +401,8 @@ fn an_unreadable_checkout_state_reports_absence_rather_than_a_wrong_commit(
     );
     fs::write(&checkout, b"not a protobuf")?;
 
-    // The port method's signature carries no error channel, so a failure is
-    // warn-logged and reported as absence — the same contract the subprocess
-    // probe has always had. What must not happen is a panic or a stale answer.
+    // The port carries no error channel, so a failure is warn-logged absence.
+    // What must not happen is a panic or a stale answer.
     assert_eq!(InProcessProbe.revision(&root, VcsKind::Jj), None);
     Ok(())
 }
@@ -428,10 +416,8 @@ fn reading_the_revision_writes_nothing() -> Result<(), TestError> {
     fs::write(root.join("file"), "content")?;
     run("jj", &["commit", "-m", "one"], &root)?;
 
-    // The probe has to be usable on a read-only filesystem, and one jj store
-    // loader in this area does create directories on load. Fingerprint the whole
-    // .jj tree rather than spot-checking, so a create, delete or modify anywhere
-    // is caught.
+    // One jj store loader in this area does create directories on load, so
+    // fingerprint the whole tree rather than spot-checking.
     let before = fingerprint(&root.join(".jj"))?;
     assert!(InProcessProbe.revision(&root, VcsKind::Jj).is_some());
     assert_eq!(
@@ -459,21 +445,18 @@ fn an_unsnapshotted_edit_is_the_one_documented_divergence(
         "in sync to begin"
     );
 
-    // Change the tree without running any jj command, so the recorded operation
-    // is now behind the working copy.
+    // No jj command, so the recorded operation falls behind the working copy.
     fs::write(root.join("untracked"), "edited outside jj")?;
 
-    // The in-process route still reports the last recorded commit: it does not
-    // snapshot, because a probe that must work on a read-only filesystem cannot.
+    // Still the last recorded commit: this route does not snapshot.
     assert_eq!(
         InProcessProbe.revision(&root, VcsKind::Jj),
         recorded,
         "the in-process route must not snapshot"
     );
 
-    // The subprocess probe snapshots first, so it reports a *different* commit —
-    // and creates it. This is the divergence, and it is also a write side effect
-    // on the user's repository that the in-process route removes.
+    // The subprocess probe snapshots first, so it reports a different commit —
+    // and creates it. That write is what the in-process route removes.
     let snapshotted = CommandProbe::new().revision(&root, VcsKind::Jj);
     assert!(snapshotted.is_some());
     assert_ne!(
@@ -481,7 +464,7 @@ fn an_unsnapshotted_edit_is_the_one_documented_divergence(
         "asking the jj binary snapshots, so it should report a new commit here"
     );
 
-    // Having snapshotted, the recorded state has moved, and the two agree again.
+    // The recorded state has now moved, and the two agree again.
     assert_eq!(
         InProcessProbe.revision(&root, VcsKind::Jj),
         snapshotted,

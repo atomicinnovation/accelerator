@@ -9,10 +9,9 @@ rust = { version = "1.90.0", components = "rustfmt,clippy" }
 node = "22.22.2"
 shellcheck = "0.11.0"
 shfmt = "3.13.1"
-# Kept in lockstep with the `jj-lib` crate pin in cli/ (0.43): the
-# library-backed VCS adapter reads repositories the CLI writes, so a version
-# skew between them is a format-coherence risk. Bump both together. See
-# meta/work/0188-library-backed-vcs-adapter.md.
+# Kept in lockstep with the `jj-lib` crate pin in cli/ (0.43): the adapter reads
+# repositories this CLI writes, so a skew between them is a format-coherence
+# risk. Bump both together.
 jj = "0.43.0"
 jq = "1.7.1"
 # Exact pin + explicit backend (aqua), matching the exact-pin discipline of the

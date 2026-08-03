@@ -1,12 +1,9 @@
 //! The shared VCS test apparatus: the checkout fixture matrix, the hermetic
-//! environment it is built in, and (from the zero-spawn work) the marker
-//! stubs.
+//! environment it is built in, and the marker stubs.
 //!
-//! Published as a crate rather than a feature on `vcs-adapters` for two
-//! reasons: it keeps that crate's `[features]` at exactly `bash-parity`, and it
-//! sidesteps CI's `--all-features` turning a fixture feature on workspace-wide.
-//! It is consumed from more than one crate, so the shadow list has one
-//! definition.
+//! A crate rather than a feature on `vcs-adapters`, so that crate's `[features]`
+//! stays at exactly `bash-parity` and CI's `--all-features` cannot turn a fixture
+//! feature on workspace-wide.
 
 pub mod fixtures;
 pub mod hermetic;
@@ -14,10 +11,8 @@ pub mod stubs;
 
 use std::fmt;
 
-/// Anything that can go wrong building or describing a fixture.
-///
-/// A single opaque error on purpose: callers are test harnesses that report and
-/// abort, never branch on the cause.
+/// A single opaque error: callers are test harnesses that report and abort,
+/// never branch on the cause.
 #[derive(Debug)]
 pub struct Error(String);
 

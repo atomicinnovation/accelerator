@@ -47,17 +47,11 @@ _CLI_FIXTURE_BINARIES = (
     "vcs-adapters-fixture-stub",
 )
 
-# The floor guarding this story's headline false pass: dead-code elimination
-# letting the musl and size checks succeed while linking almost none of
-# gix/jj-lib.
-#
-# Two scoping rules, because a heuristic threshold that first executes in the
-# release pipeline can abort a whole product release. The *ratio* has wide
-# margin (measured 5.42x darwin, 6.19x musl) and is asserted everywhere. The
-# *absolute* floor is musl-only, matching how _assert_static_elf is already
-# guarded: `[profile.release] strip = true` means every triple is stripped, and
-# the darwin stripped delta clears this by only ~9%, so gating darwin on it
-# would put a 9%-margin heuristic on prerelease:prepare's critical path.
+# Catches dead-code elimination letting the musl and size checks pass while
+# linking almost none of gix/jj-lib. The ratio has wide margin and is asserted
+# everywhere; the absolute floor is musl-only, because a stripped darwin delta
+# clears it by ~9% and a 9%-margin heuristic does not belong on the release
+# path.
 _FIXTURE_SIZE_RATIO_FLOOR = 3.0
 _FIXTURE_SIZE_DELTA_FLOOR = 1_500_000
 

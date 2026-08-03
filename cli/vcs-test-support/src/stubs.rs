@@ -2,19 +2,11 @@
 //! `PATH`, and a platform-aware report of the absolute paths `PATH` cannot
 //! reach.
 //!
-//! **This module never writes outside its own temp directories.** It resolves
-//! and *reports* absolute paths; it does not move, replace or chmod them, and
-//! it never invokes `sudo`. All privileged mutation lives in the CI workflow
-//! step, which is the only thing that can move a root-owned binary anyway — but
-//! the boundary is stated because `/opt/homebrew/bin` is user-writable, so an
-//! "attempt and record the failure" design would succeed there and could leave a
-//! developer's machine without `git` or `jj`. The suite is reachable from the
-//! bare `mise run` every contributor is told to run before pushing, so this is
-//! the difference between a test and a hazard.
-//!
-//! The in-repo precedent, `strip_binary_from_path`
-//! (`hooks/test-vcs-detect.sh`), is likewise purely non-destructive: it edits a
-//! `PATH` string and touches no file.
+//! **Never writes outside its own temp directories.** It resolves and *reports*
+//! absolute paths; it does not move, replace or chmod them, and never invokes
+//! `sudo`. `/opt/homebrew/bin` is user-writable, so an "attempt and record the
+//! failure" design would succeed there and could leave a developer without `git`
+//! or `jj`. All privileged mutation lives in the task that shadows them.
 
 use std::env;
 use std::fs;
@@ -39,13 +31,9 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// Reads the mode the workflow step declared.
-    ///
-    /// **Fail-closed on malformed input**, not just on an unshadowed path: an
-    /// unrecognised value is an error rather than a silent downgrade to
-    /// `PathOnly`, and a non-empty shadow list without `strong` is an error too.
-    /// Otherwise a typo, a renamed variable or a step-ordering change that drops
-    /// the export silently weakens the one job that proves the property.
+    /// Reads the declared mode, failing closed on malformed input: an
+    /// unrecognised value, or a shadow list without `strong`, is an error rather
+    /// than a silent downgrade to `PathOnly`.
     ///
     /// # Errors
     ///
@@ -105,9 +93,8 @@ impl Stubs {
             make_executable(&stub)?;
         }
 
-        // Every directory that can resolve git or jj is dropped, not just the
-        // first: macOS commonly provides git in both /opt/homebrew/bin and
-        // /usr/bin, so stripping a single dirname leaves it resolvable.
+        // Every directory that resolves git or jj, not just the first: macOS
+        // commonly provides it in two.
         let existing = env::var("PATH").unwrap_or_default();
         let kept: Vec<&str> = existing
             .split(':')

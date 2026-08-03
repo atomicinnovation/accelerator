@@ -1,17 +1,13 @@
-//! The zero-spawn property, proven **across a crate boundary**.
+//! The zero-spawn property, proven across a crate boundary.
 //!
-//! `corpus-adapters` is the crate that will converge onto the library-backed
-//! probe, so the harness is exercised from here rather than from the crate that
-//! defines it — that is what retires the restructuring risk. Everything it uses
-//! comes from `vcs_test_support`'s public API: the fixture matrix, the stubs,
-//! the shadow list and the hermetic environment. All three parts, not one.
+//! Exercised from `corpus-adapters` — the crate that will converge onto the
+//! library-backed probe — through `vcs_test_support`'s public API only.
 //!
-//! The assertion is scoped to `git`/`jj` **specifically**, not "no subprocess at
-//! all": `SystemClock::try_new` spawns `date` unconditionally, so a blanket
-//! marker would trip on it.
+//! Scoped to `git`/`jj` specifically rather than "no subprocess at all", because
+//! `SystemClock::try_new` spawns `date` unconditionally.
 //!
-//! Two things are asserted together, because either alone is satisfiable by a
-//! broken adapter: no stub marker was written, **and** every value matches an
+//! Two things are asserted together, since either alone is satisfiable by a
+//! broken adapter: no stub marker was written, and every value matches an
 //! unrestricted run. An adapter degrading to `None` also writes no marker.
 #![cfg(feature = "bash-parity")]
 
@@ -57,8 +53,8 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
 {
     assert_git_is_recent_enough()?;
 
-    // Fail closed on a malformed contract, not just on an unshadowed path: a
-    // typo or a dropped export would otherwise silently downgrade the run.
+    // Fail closed on a malformed contract too, or a dropped export silently
+    // downgrades the run.
     let mode = Mode::from_environment()?;
     assert_shadowing_holds(mode)?;
 
@@ -68,9 +64,8 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
     let matrix = Matrix::build_in(base.path())?;
     let artefact = reference_artefact()?;
 
-    // The matrix must be built *before* the stubs take effect — building it is
-    // what needs the real binaries. A stubbed build would leave an empty matrix
-    // and the whole assertion would pass vacuously.
+    // Built before the stubs take effect: building it is what needs the real
+    // binaries, and a stubbed build would leave an empty matrix.
     let stubs = Stubs::rooted_at(base.path())?;
     assert!(
         !matrix.fixtures.is_empty(),
@@ -97,9 +92,8 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
          degraded rather than reading in-process:\n{mismatches}"
     );
 
-    // On a platform where the absolute paths could not be shadowed, record
-    // which — the property is proven in its strong form only where the mode
-    // says so.
+    // Record what stayed reachable, since the strong form is only proven where
+    // the mode says so.
     if mode == Mode::PathOnly {
         let reachable = vcs_test_support::stubs::unshadowed_paths()?;
         println!(

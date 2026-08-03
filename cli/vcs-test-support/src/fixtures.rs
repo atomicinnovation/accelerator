@@ -1,14 +1,11 @@
-//! The checkout fixture matrix.
-//!
-//! Every shape the taxonomy queries must tell apart, built with the real `git`
-//! and `jj` binaries — that is what `bash-parity` means — beneath a
-//! caller-supplied root.
+//! The checkout fixture matrix: every shape the taxonomy queries must tell
+//! apart, built with the real `git` and `jj` binaries beneath a caller-supplied
+//! root.
 //!
 //! The root is supplied rather than owned. A builder holding a
-//! `tempfile::TempDir` deletes the tree on drop, which is right for an
-//! in-process test and wrong for a CI job that builds the matrix in one step
-//! and consumes it in another. Callers that want the guard create the `TempDir`
-//! themselves and pass its path.
+//! `tempfile::TempDir` deletes the tree on drop, which is right in-process and
+//! wrong for a CI job that builds the matrix in one step and consumes it in
+//! another.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -147,8 +144,7 @@ fn add_git_shapes(
     );
     builder.add("WT-m", "linked git worktree, main", &worktree_main);
 
-    // A bare repository carries neither marker, so the boundary walk cannot
-    // reach it and query 1 needs its own entry point.
+    // Carries neither marker, so the boundary walk cannot reach it.
     let bare_repo = base.join("bare");
     fs::create_dir_all(&bare_repo)?;
     env.git(&["init", "--bare", "--quiet", "."], &bare_repo)?;
@@ -158,13 +154,11 @@ fn add_git_shapes(
     fs::create_dir_all(&loose)?;
     builder.add("NONE", "no repository", &loose.canonicalize()?);
 
-    // CR: a real `jj git init --colocate` main repository. It classifies as
-    // `main`, not `colocated`, because the shell's colocated arm additionally
-    // requires jj_secondary && git_worktree.
+    // Classifies as `main`, not `colocated`: that arm also wants a jj secondary
+    // workspace and a git linked worktree.
     builder.add("CR", "colocated, real", &colocated(base, "CR", env)?);
 
-    // CG: the only shape that classifies as `colocated` — one path that is
-    // simultaneously a jj secondary workspace and a git linked worktree.
+    // The only shape classifying as `colocated`: one path that is both.
     let grafted = grafted_colocated(
         base,
         "CG",
@@ -208,10 +202,8 @@ fn add_jj_shapes(
         &pure_secondary.canonicalize()?,
     );
 
-    // JS-in: a jj secondary workspace *inside* its own colocated main — this
-    // repo's own `workspaces/<name>` layout, and the shape where dual roots
-    // differ while the classification is `jj-secondary`, because the jj and git
-    // main roots are equal.
+    // Dual roots differ here while the classification is `jj-secondary`,
+    // because the jj and git main roots are equal. This repo's own layout.
     let host = colocated(base, "JSIN", env)?;
     let inner = host.join("workspaces/inner");
     // jj 0.43 does not create intermediate directories.
@@ -235,8 +227,8 @@ fn add_nested_shapes(
     env: &Hermetic,
     parents: &Parents,
 ) -> Result<(), Error> {
-    // The inner directory is a jj secondary workspace of a colocated main and
-    // carries `.jj` only, so a `.git`-inclusive walk sails past it.
+    // The inner directory carries `.jj` only, so a `.git`-inclusive walk sails
+    // past it.
     let jj_in_git = git_repo(base, "NJG", env)?;
     let jj_in_git_inner = jj_in_git.join("sub");
     env.jj(
@@ -250,8 +242,8 @@ fn add_nested_shapes(
     );
     builder.add("NJG-o", "nested-jj-in-git, outer", &jj_in_git);
 
-    // The two shapes where only the `.jj`-only walk agrees with the oracle:
-    // the boundary walk yields `sub`, and the loader reports no repo there.
+    // Only the `.jj`-only walk agrees here: the boundary walk yields `sub`, and
+    // the loader reports no repo there.
     let git_in_jj = colocated(base, "NGJ", env)?;
     let git_in_jj_inner = git_in_jj.join("sub");
     env.git(
@@ -312,8 +304,8 @@ fn add_submodule_shapes(
         &top,
     )?;
     builder.add("SM-1", "git submodule", &top.join("mid").canonicalize()?);
-    // Depth 2 is what proves the derivation takes the *nearest* `modules`
-    // component: taking the outermost names the superproject, not `mid`.
+    // Proves the derivation takes the *nearest* `modules`: the outermost names
+    // the superproject, not `mid`.
     builder.add(
         "SM-2",
         "git submodule, depth 2",
@@ -321,10 +313,8 @@ fn add_submodule_shapes(
     );
     builder.add("SM-s", "git submodule, superproject root", &top);
 
-    // An old-form submodule is a nested `.git` *directory*. It reports
-    // Kind::Common and git reports no superproject for it — the two agree, so a
-    // Kind::Submodule-only implementation would miss it with no oracle
-    // disagreement to reveal the omission.
+    // A nested `.git` *directory*. Reports Kind::Common and no superproject, so
+    // a Kind::Submodule-only implementation misses it silently.
     let outer = git_repo(base, "old", env)?;
     let nested = outer.join("inner");
     fs::create_dir_all(&nested)?;
@@ -335,9 +325,8 @@ fn add_submodule_shapes(
     )?;
     builder.add("SO", "old-form submodule", &nested.canonicalize()?);
 
-    // A submodule whose own path contains a `modules` segment, giving
-    // `<super>/.git/modules/modules/foo`. The innermost candidate's parent is
-    // not a repository, so a bare rposition stops there and reports absence.
+    // Gives `<super>/.git/modules/modules/foo`, where the innermost candidate's
+    // parent is not a repository and a bare rposition reports absence.
     let path_clash = git_repo(base, "supm", env)?;
     add_submodule(env, &path_clash, seed, "modules/foo")?;
     builder.add(
@@ -346,8 +335,7 @@ fn add_submodule_shapes(
         &path_clash.join("modules/foo").canonicalize()?,
     );
 
-    // A linked worktree *of* a submodule: the dirs differ so it is a worktree,
-    // and git reports **no** superproject for it.
+    // The dirs differ, so it is a worktree, and git reports no superproject.
     let with_worktree = git_repo(base, "supw", env)?;
     add_submodule(env, &with_worktree, seed, "mid")?;
     let submodule_worktree = base.join("smw");
@@ -361,9 +349,8 @@ fn add_submodule_shapes(
         &submodule_worktree.canonicalize()?,
     );
 
-    // A submodule initialised inside a linked worktree of the superproject.
-    // Git puts its git dir under `worktrees/<id>/modules/`, not under the
-    // common dir's `modules/`, and reports the *worktree* as the superproject.
+    // Git puts the git dir under `worktrees/<id>/modules/`, not the common
+    // dir's, and reports the *worktree* as the superproject.
     let host = git_repo(base, "supwt", env)?;
     let host_worktree = base.join("supwt-wt");
     env.git(&["worktree", "add", "-q", path_arg(&host_worktree)?], &host)?;
@@ -402,7 +389,6 @@ fn add_degenerate_shapes(
     builder: &mut Builder,
     base: &Path,
 ) -> Result<(), Error> {
-    // D1 and D2 report plain absence from both CLIs.
     let deleted_store = base.join("D1");
     fs::create_dir_all(deleted_store.join(".jj"))?;
     let gone = base.join("D1-store-gone");
@@ -427,9 +413,8 @@ fn add_degenerate_shapes(
         &broken_worktree.canonicalize()?,
     );
 
-    // D3 is the load-bearing degenerate: `jj workspace root` **succeeds**, so
-    // only the `<main_root>/.jj/repo` post-condition separates a real answer
-    // from a plausible wrong one.
+    // `jj workspace root` succeeds here, so only the `<main_root>/.jj/repo`
+    // post-condition separates a real answer from a plausible wrong one.
     let wrong_store = base.join("D3");
     fs::create_dir_all(wrong_store.join(".jj"))?;
     let not_a_store = base.join("D3-not-a-store");

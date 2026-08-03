@@ -1,9 +1,8 @@
 //! The empty-config environment the fixture matrix is built and measured in,
 //! and the preconditions that make its absence cells mean anything.
 //!
-//! The exact variables and value shapes here are the ones the recorded oracle
-//! mapping was measured with. They live in one place so the mapping and the
-//! shipped harness cannot drift apart per platform.
+//! The variables and value shapes live in one place so the recorded expectations
+//! and the shipped harness cannot drift apart per platform.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -15,9 +14,8 @@ use crate::Error;
 
 /// The lowest `git` the fixture matrix can be built with.
 ///
-/// `git init --ref-format=reftable` landed in 2.45; the mapping itself was
-/// calibrated against 2.54.0. `git` is pinned nowhere in this repo, so a floor
-/// with a named diagnostic beats recording a version nobody reads.
+/// `git init --ref-format=reftable` landed in 2.45, and `git` is pinned nowhere
+/// in this repo, so a floor with a named diagnostic beats recording a version.
 pub const MINIMUM_GIT: (u32, u32) = (2, 45);
 
 /// An isolated `HOME`, config and ceiling, applied to every `git` and `jj`
@@ -43,11 +41,8 @@ impl Hermetic {
         fs::create_dir_all(&home)?;
         fs::create_dir_all(&config_home)?;
 
-        // An identity is written rather than left empty: with HOME at a temp
-        // dir, GIT_CONFIG_GLOBAL at /dev/null and GIT_CONFIG_NOSYSTEM set, jj
-        // and git otherwise fall back to an auto-detected user@hostname and
-        // *refuse* the commit when the hostname carries no domain — the normal
-        // case on CI runners and in containers.
+        // Without an identity, git and jj fall back to user@hostname and refuse
+        // the commit when the hostname carries no domain — the CI norm.
         fs::write(
             &jj_config,
             "[user]\nname = \"Fixture\"\nemail = \"fixture@example.com\"\n",
@@ -67,10 +62,8 @@ impl Hermetic {
         command.env("XDG_CONFIG_HOME", &self.config_home);
         command.env("JJ_CONFIG", &self.jj_config);
         command.env("GIT_CEILING_DIRECTORIES", &self.ceiling);
-        // A boolean, not a path. This is the only thing suppressing the
-        // *system* gitconfig, which lives at /etc/gitconfig on ubuntu and
-        // inside the Command Line Tools on macOS; pointing it at a temp dir
-        // would leave host config leaking in on one platform and not the other.
+        // A boolean, not a path: this is the only thing suppressing the
+        // *system* gitconfig, whose location differs per platform.
         command.env("GIT_CONFIG_NOSYSTEM", "1");
         command.env("GIT_CONFIG_GLOBAL", "/dev/null");
         for key in [
@@ -87,10 +80,8 @@ impl Hermetic {
         }
     }
 
-    /// Runs `git` in `dir` with the identity and isolation the fixtures need.
-    ///
-    /// `protocol.file.allow` and the identity are passed per invocation rather
-    /// than written into a config file, even one under the temp `HOME`.
+    /// Runs `git` in `dir` with the identity and isolation the fixtures need,
+    /// passed per invocation rather than written into any config file.
     ///
     /// # Errors
     ///
@@ -158,13 +149,9 @@ impl Hermetic {
 
 /// Fails when any ancestor of `base` carries a `.git` or `.jj` marker.
 ///
-/// Roughly a quarter of the oracle mapping's cells assert absence for the
-/// gix-backed queries, and `gix::discover` reads **no** environment — so
-/// `GIT_CEILING_DIRECTORIES`, which produced the oracle side's exit-128s, cannot
-/// fence the library side. On a host whose `TMPDIR` resolves inside a
-/// repository, those cells would silently resolve the enclosing repository
-/// instead, and the failure would read as a mass of confusing per-cell
-/// mismatches rather than one legible message.
+/// `gix::discover` reads no environment, so `GIT_CEILING_DIRECTORIES` cannot
+/// fence it. On a host whose `TMPDIR` sits inside a repository, every cell
+/// expecting absence would silently resolve the enclosing one.
 ///
 /// # Errors
 ///
@@ -191,14 +178,11 @@ pub fn assert_no_repository_ancestor(base: &Path) -> Result<(), Error> {
 /// Fails unless the installed `jj` CLI matches `jj_lib_version` at major.minor.
 ///
 /// The pin-lockstep test compares two *declarations*; nothing else checks the
-/// binaries that write the repository formats the libraries read. This session's
-/// planning hit exactly that skew, and it would otherwise surface as an
-/// apparently wrong answer in a 24-row expected-value table.
+/// binaries that write the formats the libraries read, and a skew there surfaces
+/// as an apparently wrong answer in the expected-value table.
 ///
-/// Compared at major.minor because the tilde range deliberately permits the
-/// exact CLI pin to sit alongside a resolved patch of the library; an
-/// exact-equality assertion would fail the whole matrix on a skew the pins
-/// pre-authorise.
+/// Major.minor, because the tilde range permits the exact CLI pin to sit
+/// alongside a resolved patch of the library.
 ///
 /// # Errors
 ///

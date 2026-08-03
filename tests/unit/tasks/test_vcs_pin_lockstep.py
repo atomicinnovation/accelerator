@@ -1,17 +1,14 @@
-"""The jj CLI and the jj-lib crate are a lockstep pair, and both VCS pins carry
-their inline rationale.
+"""The jj CLI and the jj-lib crate are a lockstep pair.
 
 The CLI writes the repository format the library reads, so a skew between
 mise.toml's `jj` pin and cli/Cargo.toml's `jj-lib` pin fails in a way that reads
-as an adapter defect rather than a pin mismatch — this repo has already hit
-exactly that, with a local jj 0.42.0 against a jj-lib 0.43 design.
+as an adapter defect rather than a pin mismatch.
 
 This checks *declarations in files*. That the binary actually building fixtures
 matches the pin is asserted by the fixture harness, not here.
 
-The comment assertions are not style policing: the work item requires both, and
-comments are the first thing lost when a contributor regenerates a manifest on a
-merge conflict — which the plan's lock-contention notes anticipate happening.
+The comment assertions guard rationale that cannot be recovered from the pins
+themselves, and that a manifest regenerated on a merge conflict silently drops.
 """
 
 import re
@@ -136,8 +133,12 @@ def test_the_jj_helper_pins_record_that_they_move_with_jj_lib() -> None:
 
 
 def test_the_uluru_licence_exception_keeps_its_comment() -> None:
+    # The exception rests on a dead-code-elimination finding that has a re-check
+    # trigger. Losing the comment loses the only record of both.
     comment = _comment_above(_DENY.read_text(), "[[licenses.exceptions]]")
     assert comment, "the uluru licence exception has lost its comment"
-    assert "0188" in comment, (
-        f"the uluru exception's comment must cite its work item: {comment}"
-    )
+    for required in ("MPL-2.0", "Re-check"):
+        assert required in comment, (
+            f"the uluru exception's comment no longer records {required}: "
+            f"{comment}"
+        )
