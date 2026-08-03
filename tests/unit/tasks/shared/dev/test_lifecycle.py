@@ -22,7 +22,15 @@ from tests.unit.tasks.shared.doubles import FakeClock, FakeProcs
 
 class FakeWorld:
     def __init__(
-        self, procs, *, statuses=None, pids=None, reachable=True, quit_kills=()
+        self,
+        procs,
+        *,
+        statuses=None,
+        pids=None,
+        reachable=True,
+        quit_kills=(),
+        activate_on_start=True,
+        status_hook=None,
     ):
         self.procs = procs
         self.statuses = dict(statuses or {})
@@ -31,6 +39,13 @@ class FakeWorld:
         self.quit_kills = list(quit_kills)
         self.quit_called = 0
         self.started: list[str] = []
+        # A real `start` only confirms the arbiter accepted the command; the
+        # watcher may reach "active" later, or never. activate_on_start=False
+        # models that gap, and status_hook — run on every status() call, before
+        # the reachability check so it can toggle that too — scripts what
+        # happens next.
+        self.activate_on_start = activate_on_start
+        self.status_hook = status_hook
 
     def do_quit(self):
         self.quit_called += 1
@@ -46,6 +61,8 @@ class FakeSupervisor:
         self.world = world
 
     def status(self):
+        if self.world.status_hook:
+            self.world.status_hook(self.world)
         if not self.world.reachable:
             raise SupervisorUnreachableError("unreachable")
         return dict(self.world.statuses)
@@ -59,7 +76,8 @@ class FakeSupervisor:
         if not self.world.reachable:
             raise SupervisorUnreachableError("unreachable")
         self.world.started.append(name)
-        self.world.statuses[name] = "active"
+        if self.world.activate_on_start:
+            self.world.statuses[name] = "active"
 
     def quit(self):
         if not self.world.reachable:
@@ -395,6 +413,144 @@ class TestBringUp:
         assert result.kind == "failed"
         assert "server.log" in result.message
         assert not deps.state_path.exists()  # torn down
+
+
+# ─── bring_up: frontend activation ───────────────────────────
+
+
+def _after_start(action):
+    """Run ``action(world, poll_number)`` on each status poll after start.
+
+    Counting only post-start polls keeps a case independent of how many times
+    the earlier launch and readiness steps happen to ask for status.
+    """
+    polls = 0
+
+    def hook(world):
+        nonlocal polls
+        if "frontend" not in world.started:
+            return
+        polls += 1
+        action(world, polls)
+
+    return hook
+
+
+class TestFrontendActivation:
+    """Separating "is it up?" from "did it stay up?".
+
+    Neither question had a test: `FakeSupervisor.start` flipped the status to
+    active, so every case arrived at the poll loop with the answer already
+    yes. These are the cases the check has to tell apart on a loaded machine.
+    """
+
+    def _world(self, procs, **kwargs):
+        return FakeWorld(
+            procs,
+            statuses={"server": "active", "frontend": "stopped"},
+            pids={"server": [9001], "frontend": [9002]},
+            **kwargs,
+        )
+
+    def _deps(self, tmp_path, procs, world, **overrides):
+        deps = _orch_deps(tmp_path, procs=procs, world=world, **overrides)
+        return dataclasses_replace(
+            deps,
+            launcher=FakeLauncher(
+                procs,
+                pidfile=deps.pidfile,
+                server_info_path=deps.server_info_path,
+                state_path=deps.state_path,
+            ),
+        )
+
+    def test_a_watcher_slow_to_report_active_is_accepted(self, tmp_path):
+        procs = FakeProcs()
+
+        def activate_on_the_third_poll(world, poll):
+            if poll >= 3:
+                world.statuses["frontend"] = "active"
+
+        world = self._world(
+            procs,
+            activate_on_start=False,
+            status_hook=_after_start(activate_on_the_third_poll),
+        )
+
+        assert bring_up(self._deps(tmp_path, procs, world)).kind == "started"
+
+    def test_a_transiently_unreachable_supervisor_does_not_fail_it(
+        self, tmp_path
+    ):
+        # The CI failure this fixes. On a loaded runner the status endpoint
+        # times out from time to time; the watcher is up, the poll just could
+        # not read it. An unreadable poll must not count against the watcher —
+        # under the old rule it reset the consecutive-active counter, so a
+        # healthy frontend could be torn down for the machine being busy.
+        procs = FakeProcs()
+
+        def unreachable_for_two_polls(world, poll):
+            world.reachable = poll > 2
+
+        world = self._world(
+            procs, status_hook=_after_start(unreachable_for_two_polls)
+        )
+
+        assert bring_up(self._deps(tmp_path, procs, world)).kind == "started"
+
+    def test_a_watcher_that_never_activates_is_torn_down(self, tmp_path):
+        procs = FakeProcs()
+        world = self._world(procs, activate_on_start=False, quit_kills=[9000])
+        deps = self._deps(tmp_path, procs, world)
+
+        result = bring_up(deps)
+
+        assert result.kind == "failed"
+        assert "did not become active" in result.message
+        assert "/frontend.log" in result.message
+        assert not deps.state_path.exists()
+
+    def test_a_watcher_that_dies_during_the_settle_window_fails(self, tmp_path):
+        # Active on the first poll, gone by the confirmation poll: the
+        # respawn=false start-then-die the settle window exists to catch.
+        procs = FakeProcs()
+
+        def stop_after_the_first_poll(world, poll):
+            if poll >= 2:
+                world.statuses["frontend"] = "stopped"
+
+        world = self._world(
+            procs,
+            status_hook=_after_start(stop_after_the_first_poll),
+            quit_kills=[9000],
+        )
+        fc = FakeClock()
+        deps = self._deps(tmp_path, procs, world, clock=fc)
+
+        result = bring_up(deps)
+
+        assert result.kind == "failed"
+        assert "became active then stopped" in result.message
+        # The confirmation waited a fixed duration rather than a second poll.
+        assert deps.frontend_settle in fc.sleeps
+        assert not deps.state_path.exists()
+
+    def test_an_unreadable_settle_poll_does_not_fail_the_watcher(
+        self, tmp_path
+    ):
+        # "Could not read" is not evidence the watcher died, and failing here
+        # would reintroduce the same flake one step later. A watcher that did
+        # die is reported by do_status as degraded, which is the safety net.
+        procs = FakeProcs()
+
+        def unreachable_from_the_settle_poll(world, poll):
+            world.reachable = poll < 2
+
+        world = self._world(
+            procs, status_hook=_after_start(unreachable_from_the_settle_poll)
+        )
+
+        assert bring_up(self._deps(tmp_path, procs, world)).kind == "started"
 
 
 # ─── teardown / do_stop ──────────────────────────────────────

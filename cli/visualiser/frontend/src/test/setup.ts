@@ -1,5 +1,20 @@
 import "@testing-library/jest-dom";
+// Re-exported from @testing-library/dom, which is not a declared dependency —
+// importing it directly would be a phantom. Every spec reaches `screen` and
+// `waitFor` through this package for the same reason.
+import { configure } from "@testing-library/react";
 import { afterAll, vi } from "vitest";
+
+// `waitFor` and every `findBy*` built on it poll against their OWN budget,
+// which defaults to 1000ms — `testTimeout` in vite.config.ts does not govern
+// them. So the reasoning recorded there applies here and had to be repeated:
+// the number is a hang detector, not a latency budget. Vitest sizes its worker
+// pool to the CPU count and `mise run` schedules this suite alongside cargo
+// builds and the Python suites, so a mocked-promise render that settles in
+// ~50ms idle has been measured past 1s on a loaded CI runner — surfacing as a
+// findBy* that still sees "Loading…". A genuinely stuck query still fails,
+// 5s later, and well inside the 30s testTimeout so it reports as itself.
+configure({ asyncUtilTimeout: 5_000 });
 
 // Stub global EventSource as a safety net — prevents any test that
 // mounts a component using the production `useDocEvents` hook from

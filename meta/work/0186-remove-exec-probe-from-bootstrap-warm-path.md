@@ -5,7 +5,7 @@ title: "Remove the Exec Probe from the Bootstrap Warm Path"
 date: "2026-07-31T10:41:51+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: in-progress
+status: done
 kind: task
 priority: high
 parent: "work-item:0136"
@@ -21,7 +21,7 @@ relates_to:
     "work-item:0191",
   ]
 tags: [shell, performance, bootstrap]
-last_updated: "2026-08-03T00:00:00+00:00"
+last_updated: "2026-08-03T15:00:23+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -29,15 +29,17 @@ schema_version: 1
 # 0186: Remove the Exec Probe from the Bootstrap Warm Path
 
 **Kind**: Task
-**Status**: In Progress
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
-> **Implemented and measured 2026-08-03.** Every criterion is discharged except
-> the cross-lane observation, which needs a CI run this branch has not had yet.
-> This item's own Drafting Notes call that observation "a genuine closure
-> condition, not a formality", so the status stays short of `done` until the
-> linux lane is seen green on the new cases. Nothing else is outstanding.
+> **Done 2026-08-03.** Implemented, measured and observed green on both
+> shipped lanes. Warm `bin/accelerator version` drops from a 125.35 ms median
+> to 29.92 ms on darwin-arm64 — a ratio of 0.239 against the 0.5 gate. The
+> cross-lane observation this item's Drafting Notes call "a genuine closure
+> condition, not a formality" is discharged by CI run 30821400291, with all
+> eight new cases green on macos-latest and ubuntu-latest. Follow-ups 0189,
+> 0190 and 0191 carry the work this deliberately did not absorb.
 
 ## Summary
 
@@ -219,7 +221,7 @@ Validation Results for any exclusion claimed.
       probe cost is itself host-specific and a fast host could remove the whole
       probe yet miss a fixed 80 ms bar. Both medians, the delta, and the host
       and OS version go in Validation Results.
-- [ ] `test:integration:entrypoint` is observed green on **both shipped lanes**
+- [x] `test:integration:entrypoint` is observed green on **both shipped lanes**
       (darwin and linux) for the new cases, not only locally — these are the
       most environment-sensitive criteria in the suite. Which lanes were
       observed is recorded in Validation Results.
@@ -474,12 +476,30 @@ a permanent guard rather than a one-off observation.
   `test_cold_happy_path_creates_a_missing_cache_dir`,
   `test_warmed_then_non_executable_cache_keeps_the_diagnostic` and
   `test_unverifiable_launcher_in_readonly_cache_fails_fast`.
-- **Lanes observed green** (darwin, linux) — darwin observed locally
-  (2026-08-03): `test:integration:entrypoint` 54 passed,
+- **Lanes observed green** (darwin, linux) — **both observed**, CI run
+  [30821400291](https://github.com/atomicinnovation/accelerator/actions/runs/30821400291)
+  on 2026-08-03 (PR #41, head `f0fdeeb2`), all 16 jobs green:
+
+  | Lane | `test:integration:entrypoint` | Job |
+  | --- | --- | --- |
+  | macos-latest | 54 passed (139.29s) | 91711926312 |
+  | ubuntu-latest | 53 passed, 1 skipped (72.76s) | 91711926176 |
+
+  All eight new cases passed on **both** lanes. The one skip is
+  `test_the_suite_runs_the_bootstrap_on_the_bash_floor`, which is darwin-only —
+  and its passing on macos while skipping on ubuntu is itself the evidence that
+  the two lanes really do run different interpreters, so
+  `test_warm_path_does_not_enter_the_probe` and
+  `test_cold_path_enters_and_executes_the_probe` are genuinely covered on bash
+  3.2.57 **and** bash 5.2 rather than twice on the same one. The `PS4`
+  `:-main` default and the `^\++` trace matchers behave identically across
+  both. Also observed locally on darwin (2026-08-03):
   `test:integration:skill-invocation` 128 passed, `mise run check` green.
-  **Linux lane pending CI.** The harness pins `BASH = "/bin/bash"`, which is
-  3.2.57 on darwin and 5.2 on `ubuntu-latest`, so the two trace cases are
-  covered on **both interpreters** by the standard CI run with no extra work.
+
+  Not recorded, and worth capturing if the question ever becomes live:
+  `command -v sha256sum` on either lane. It costs nothing but needs a
+  deliberate step, so 0169 still has the backend as a range rather than a
+  per-lane fact.
 - **Lane exclusions** — **none**. `.github/workflows/main.yml` contains no
   `container:` key; `test-integration` is a plain `runs-on: ${{ matrix.os }}`
   matrix over `ubuntu-latest`/`macos-latest`, so both lanes run unprivileged and

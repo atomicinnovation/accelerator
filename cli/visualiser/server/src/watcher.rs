@@ -469,6 +469,24 @@ impl TemplateChangeHandler {
     }
 }
 
+/// How long a test waits for an event it *expects* to arrive.
+///
+/// This is a hang detector, not a latency budget. Delivery runs the whole
+/// chain: FSEvents/inotify latency, then the debounce, then `rescan` plus
+/// `compute_clusters_with_backfill` over the entire snapshot. Cargo runs
+/// this module's tests concurrently — one `current_thread` runtime each —
+/// and `mise run` schedules the suite alongside cargo builds and the
+/// frontend and Python suites. A chain that settles in tens of
+/// milliseconds idle has been measured past 500ms on a loaded CI runner,
+/// surfacing as a spurious "timed out". A genuinely stuck watcher still
+/// fails, five seconds later, and reports as itself.
+///
+/// The "expected *no* event" waits deliberately do **not** use this: there
+/// the wait *is* the assertion, so a short quiet window keeps the suite
+/// fast without weakening it. Do not unify the two.
+#[cfg(test)]
+const EVENT_BUDGET: Duration = Duration::from_secs(5);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -498,9 +516,10 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
         std::fs::write(&probe, "b").unwrap();
 
-        tokio::time::timeout(Duration::from_millis(300), rx.recv())
-            .await
-            .is_ok()
+        // Same budget as the real waits, for a sharper reason: a `false`
+        // here silently skips the caller, so a slow-but-working runner
+        // read as "not firing" turns a whole test into a false green.
+        tokio::time::timeout(EVENT_BUDGET, rx.recv()).await.is_ok()
     }
 
     async fn setup(
@@ -581,7 +600,7 @@ mod tests {
         )
         .unwrap();
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out waiting for SSE event")
             .expect("channel closed");
@@ -686,13 +705,10 @@ mod tests {
             std::fs::write(&path, format!("---\ntitle: v{i}\n---\n")).unwrap();
         }
 
-        let event = tokio::time::timeout(
-            debounce + Duration::from_millis(500),
-            rx.recv(),
-        )
-        .await
-        .expect("timed out")
-        .expect("channel closed");
+        let event = tokio::time::timeout(debounce + EVENT_BUDGET, rx.recv())
+            .await
+            .expect("timed out")
+            .expect("channel closed");
         match event {
             SsePayload::DocChanged { action, .. } => {
                 assert_eq!(action, ActionKind::Edited);
@@ -741,7 +757,7 @@ mod tests {
         )
         .unwrap();
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out")
             .expect("channel closed");
@@ -786,7 +802,7 @@ mod tests {
         )
         .unwrap();
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out")
             .expect("channel closed");
@@ -858,7 +874,7 @@ mod tests {
 
         std::fs::remove_file(&path).unwrap();
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out waiting for deletion SSE event")
             .expect("channel closed");
@@ -916,29 +932,26 @@ mod tests {
 
         // 1. Create.
         std::fs::write(&chain_path, "---\ntitle: Chain v1\n---\n").unwrap();
-        let created =
-            tokio::time::timeout(Duration::from_millis(800), rx.recv())
-                .await
-                .expect("timed out waiting for created event")
-                .expect("channel closed");
+        let created = tokio::time::timeout(EVENT_BUDGET, rx.recv())
+            .await
+            .expect("timed out waiting for created event")
+            .expect("channel closed");
 
         // 2. Edit. Pause longer than debounce so the events do not coalesce.
         tokio::time::sleep(Duration::from_millis(150)).await;
         std::fs::write(&chain_path, "---\ntitle: Chain v2\n---\n").unwrap();
-        let edited =
-            tokio::time::timeout(Duration::from_millis(800), rx.recv())
-                .await
-                .expect("timed out waiting for edited event")
-                .expect("channel closed");
+        let edited = tokio::time::timeout(EVENT_BUDGET, rx.recv())
+            .await
+            .expect("timed out waiting for edited event")
+            .expect("channel closed");
 
         // 3. Delete.
         tokio::time::sleep(Duration::from_millis(150)).await;
         std::fs::remove_file(&chain_path).unwrap();
-        let deleted =
-            tokio::time::timeout(Duration::from_millis(800), rx.recv())
-                .await
-                .expect("timed out waiting for deleted event")
-                .expect("channel closed");
+        let deleted = tokio::time::timeout(EVENT_BUDGET, rx.recv())
+            .await
+            .expect("timed out waiting for deleted event")
+            .expect("channel closed");
 
         let (a0, t0) = match &created {
             SsePayload::DocChanged {
@@ -1119,7 +1132,7 @@ mod template_change_handler_tests {
         let canon = canonicalise_path_or_ancestor(&plugin).await;
         assert!(handler.try_handle(&canon));
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out")
             .expect("channel closed");
@@ -1160,7 +1173,7 @@ mod template_change_handler_tests {
         let canon = canonicalise_path_or_ancestor(&plugin).await;
         assert!(handler.try_handle(&canon));
 
-        let event = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
             .await
             .expect("timed out")
             .expect("channel closed");
@@ -1260,11 +1273,10 @@ mod template_change_handler_tests {
 
         let mut got: Vec<String> = Vec::new();
         for _ in 0..2 {
-            let event =
-                tokio::time::timeout(Duration::from_millis(500), rx.recv())
-                    .await
-                    .expect("timed out")
-                    .expect("channel closed");
+            let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
+                .await
+                .expect("timed out")
+                .expect("channel closed");
             if let SsePayload::TemplateChanged { template, .. } = event {
                 got.push(template);
             }

@@ -13,7 +13,7 @@ import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from tasks.shared.clock import Clock
 from tasks.shared.dev.circus import (
@@ -77,6 +77,9 @@ class DevDeps:
     pidfile_timeout: float = 10.0
     readiness_timeout: float = 30.0
     frontend_active_timeout: float = 15.0
+    # How long a watcher must stay active after first reporting active before
+    # the start is accepted. Wall-clock, not a poll count: see start_frontend.
+    frontend_settle: float = 0.5
     grace_quit: float = (
         5.0  # covers circus's own 2 s graceful_timeout + reaping
     )
@@ -124,6 +127,11 @@ class LaunchedArbiter:
     frontend_port: int
     frontend_url: str
     endpoint: str
+
+
+# Cadence for the frontend-activation poll. Only an upper bound on how often
+# the supervisor is asked; the deadline is what bounds the wait.
+_FRONTEND_POLL_INTERVAL = 0.1
 
 
 class _UpAbortError(Exception):
@@ -427,42 +435,79 @@ def start_frontend(launched: LaunchedArbiter, deps: DevDeps) -> None:
                 )
             ) from exc
         # send "start" only confirms acceptance; with respawn=false a frontend
-        # that starts then dies goes active->stopped silently. Require two
-        # consecutive "active" polls so a flapping watcher is treated as failed.
+        # that starts then dies goes active->stopped silently. So wait for the
+        # watcher to report active, then confirm it is *still* active after a
+        # settle interval.
+        #
+        # The confirmation is wall-clock rather than a second consecutive poll.
+        # Poll cadence tracks how loaded the machine is, so a poll-count rule
+        # measures the wrong thing in both directions: two polls 100ms apart on
+        # an idle machine prove almost nothing about staying-power, while on a
+        # loaded runner — where one status call can take up to probe_timeout —
+        # a healthy watcher may never land two consecutive polls inside the
+        # deadline and gets torn down for it.
         deadline = deps.clock.now() + deps.frontend_active_timeout
-        consecutive_active = 0
-        while deps.clock.now() < deadline:
-            statuses = _safe_status(sup)
-            if statuses.get("frontend") == "active":
-                consecutive_active += 1
-                if consecutive_active >= 2:
-                    break
-            else:
-                consecutive_active = 0
-            deps.clock.sleep(min(0.1, deadline - deps.clock.now()))
-        if consecutive_active < 2:
-            teardown(launched.state, deps, lock_held=True)
-            log_diagnostic(deps, "frontend watcher did not stay active")
-            raise _UpAbortError(
-                UpResult(
-                    "failed",
-                    message=(
-                        f"the frontend watcher did not become active; see "
-                        f"{deps.dev_dir}/frontend.log"
-                    ),
-                    artifact=f"{deps.dev_dir}/frontend.log",
-                )
-            )
+        if not _await_frontend_active(sup, deps, deadline):
+            _abort_frontend(launched, deps, "did not become active")
+        # The settle window sits outside the activation deadline on purpose:
+        # clamping it would silently skip the check for a watcher that became
+        # active just before the deadline — exactly the slow case it is for.
+        deps.clock.sleep(deps.frontend_settle)
+        if _frontend_status(sup) not in ("active", None):
+            _abort_frontend(launched, deps, "became active then stopped")
     finally:
         _maybe_close(sup)
     _record_watcher_pid(launched, deps, "frontend")
 
 
-def _safe_status(sup: Supervisor) -> dict[str, str]:
+def _frontend_status(sup: Supervisor) -> str | None:
+    """Return the watcher's status, or None when nothing could be read.
+
+    None means "unknown", not "not running": an unreachable supervisor and a
+    watcher absent from the status map are both cases where we have learned
+    nothing, and callers must not read either as evidence the watcher is down.
+    """
     try:
-        return sup.status()
+        return sup.status().get("frontend")
     except SupervisorUnreachableError:
-        return {}
+        return None
+
+
+def _await_frontend_active(
+    sup: Supervisor, deps: DevDeps, deadline: float
+) -> bool:
+    """Whether the watcher reported active before ``deadline``.
+
+    A transiently unreachable supervisor is retried rather than counted
+    against the watcher — on a loaded machine the status endpoint times out
+    from time to time, and a watcher that is up must not fail for that.
+    """
+    while True:
+        if _frontend_status(sup) == "active":
+            return True
+        remaining = deadline - deps.clock.now()
+        if remaining <= 0:
+            return False
+        # Checked positive before sleeping: a status call can outlast the
+        # deadline, and `sleep` rejects a negative duration.
+        deps.clock.sleep(min(_FRONTEND_POLL_INTERVAL, remaining))
+
+
+def _abort_frontend(
+    launched: LaunchedArbiter, deps: DevDeps, reason: str
+) -> NoReturn:
+    teardown(launched.state, deps, lock_held=True)
+    log_diagnostic(deps, f"frontend watcher {reason}")
+    raise _UpAbortError(
+        UpResult(
+            "failed",
+            message=(
+                f"the frontend watcher {reason}; see "
+                f"{deps.dev_dir}/frontend.log"
+            ),
+            artifact=f"{deps.dev_dir}/frontend.log",
+        )
+    )
 
 
 def _record_watcher_pid(

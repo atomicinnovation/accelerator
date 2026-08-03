@@ -6,11 +6,11 @@ date: "2026-08-03T12:23:32+00:00"
 author: "Toby Clemson"
 producer: validate-plan
 status: complete
-result: "partial"
+result: "pass"
 parent: "work-item:0186"
 target: "plan:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"
 tags: [shell, performance, bootstrap, bash-3.2, testing]
-last_updated: "2026-08-03T12:23:32+00:00"
+last_updated: "2026-08-03T15:00:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -23,14 +23,16 @@ schema_version: 1
 ✓ Phase 2: Split the Probe and Relocate It Off the Warm Path — fully
 implemented (`rpzsskwo`)
 ✓ Phase 3: Documentation — fully implemented (`oqkknkry`)
-⚠️ Phase 4: Measurement and Closeout — implemented (`vwkmolqw`); one
-criterion outstanding by construction (see below)
+✓ Phase 4: Measurement and Closeout — fully implemented (`vwkmolqw`), with
+the cross-lane observation discharged by CI run 30821400291
 
-Every code, test and documentation change the plan specifies is present in the
-working tree and committed. `jj status` is clean. The single unresolved item is
-the cross-lane CI observation, which cannot be discharged locally: the change
-sits on an unnamed change with no bookmark and no pushed branch, so CI has not
-run against it at all.
+Every code, test and documentation change the plan specifies is present and
+committed, and every success criterion in the plan is now ticked. The
+cross-lane CI observation — the one item that could not be discharged locally
+when this report was first written — was confirmed on 2026-08-03.
+
+**Amended 2026-08-03** after the CI observation landed. The report below is
+otherwise as originally written; the result moves from `partial` to `pass`.
 
 ### Automated Verification Results
 
@@ -54,6 +56,32 @@ follow-ups
 Not re-run here: the bare `mise run` default task. Its constituent read-only
 gate (`mise run check`) and all three affected test suites are green, and the
 plan records it as observed green during Phase 4.
+
+**CI, run
+[30821400291](https://github.com/atomicinnovation/accelerator/actions/runs/30821400291)
+(2026-08-03, head `f0fdeeb2`) — all 16 jobs green:**
+
+✓ `Run integration tests (macos-latest)` — entrypoint suite 54 passed (139.29s)
+✓ `Run integration tests (ubuntu-latest)` — entrypoint suite 53 passed, 1
+skipped (72.76s); all eight new cases green
+✓ Both unit lanes, both E2E lanes, visual regression, and all seven `Check *`
+jobs
+
+The two trace cases are confirmed on both interpreters. The single ubuntu skip
+is `test_the_suite_runs_the_bootstrap_on_the_bash_floor`, which is darwin-only
+— and its passing on macos while skipping on ubuntu is itself the evidence the
+lanes run genuinely different bash versions, so the coverage claim is observed
+rather than inferred. `_require_unprivileged` did not fire on either lane, so
+no exclusion was needed, as predicted.
+
+An unrelated flake had to be fixed first: both mock HTTP servers installed
+their SIGTERM handler *after* writing the url file that `start_mock` treats as
+the readiness signal, so a test making no request at all (`--describe`,
+`--print-payload`) could kill the process while SIGTERM still had its default
+disposition — skipping the `finally` that writes the captured-urls file.
+Reproduced 10/10 with the window widened, 0/10 with the ordering reversed.
+Fixed in both `mock-jira-server.py` and `mock-linear-server.py`. Unrelated to
+this plan, but it blocked the observation.
 
 ### Code Review Findings
 
@@ -124,20 +152,22 @@ reasoning — none is silent.
   a direct launcher run, the positive control got its own traced cold run, and
   the measurement method became 50 interleaved single-process samples. All three
   were specified by the plan and are recorded as deviations in the work item.
-- **Work item status** — Phase 4 change 6 says "move `status` to `complete`";
-  it is `in-progress`, with an explicit note at the top of the item explaining
-  that the item's own Drafting Notes make the cross-lane observation "a genuine
-  closure condition, not a formality". This is the correct call, not a miss.
+- **Work item status** — Phase 4 change 6 says "move `status` to `complete`",
+  but `complete` is not in the schema's status vocabulary
+  (`draft | ready | in-progress | review | done | blocked | abandoned`), as
+  `scripts/validate-corpus-frontmatter.sh` reports. The item was correctly held
+  at `in-progress` pending the cross-lane observation, with a note at the top
+  explaining why; on 2026-08-03, once run 30821400291 discharged that
+  criterion, it moved to **`done`** — the terminal value the plan should have
+  named.
 
 #### Potential Issues
 
-- **The linux lane is entirely unobserved.** The two trace cases
-  (`test_warm_path_does_not_enter_the_probe`,
-  `test_cold_path_enters_and_executes_the_probe`) are the most
-  environment-sensitive in the suite, and the plan's own reasoning is that the
-  harness's pinned `/bin/bash` is 3.2.57 on darwin but 5.2 on `ubuntu-latest` —
-  so a trace-format divergence would surface only in CI. The change is not on a
-  bookmark and has not been pushed, so nothing has run there.
+- ~~**The linux lane is entirely unobserved.**~~ **Resolved 2026-08-03.** Both
+  trace cases pass on `ubuntu-latest` (bash 5.2) and `macos-latest`
+  (bash 3.2.57) in run 30821400291. No trace-format divergence exists between
+  the interpreters; the `PS4` `:-main` default and the `^\++` matchers behave
+  identically on both.
 - **The exec-vs-write coverage gap remains open**, as the plan intends. No
   directory-permission combination produces exec-without-write, so
   `probe_exec_capable`'s `return 2` branch — and the `rejected an executable
@@ -158,15 +188,18 @@ reasoning — none is silent.
 
 ### Manual Testing Required
 
-1. CI observation (the only genuinely blocking item):
-  - [ ] Push the change and confirm the `test-integration` matrix is green on
-        `ubuntu-latest`, specifically on `test_warm_path_does_not_enter_the_probe`
-        and `test_cold_path_enters_and_executes_the_probe` (bash 5.2 coverage of
-        the trace assertions)
-  - [ ] Confirm no lane exclusion was needed — `_require_unprivileged` should
-        not fire on either runner
+1. CI observation — **complete**:
+  - [x] `test-integration` green on `ubuntu-latest`, specifically on
+        `test_warm_path_does_not_enter_the_probe` and
+        `test_cold_path_enters_and_executes_the_probe` (bash 5.2 coverage of
+        the trace assertions) — run 30821400291, 2026-08-03
+  - [x] No lane exclusion needed — `_require_unprivileged` did not fire on
+        either runner
   - [ ] Record `command -v sha256sum` on both lanes, so 0169 learns whether the
-        Perl `shasum` fallback is reachable in CI at all
+        Perl `shasum` fallback is reachable in CI at all. **Not done** — it
+        needs a deliberate step in the workflow and nothing in this plan
+        required it; 0169 carries the backend as a range rather than a per-lane
+        fact.
 
 2. Optional, out of scope but worth noting if an opportunity arises:
   - [ ] Point `ACCELERATOR_CACHE_DIR` at a genuine `mount -o noexec` filesystem
@@ -175,15 +208,16 @@ reasoning — none is silent.
 
 ### Recommendations
 
-- **Push the branch and let CI discharge the last criterion**, then tick the
-  two remaining boxes (Phase 2 manual item 4, Phase 4 manual item 5), fill the
-  "Lanes observed green" entry in the work item's Validation Results, and move
-  0186 to `complete`. Nothing else stands between the change and closure.
-- **Leave the work item at `in-progress` until then.** The deliberate hold is
-  correct and the note explaining it should stay until CI replaces it with an
-  observation.
+- **The plan is complete and 0186 is closed.** All success criteria are ticked,
+  both lanes are observed, and PR #41 is green end to end. Nothing blocks merge.
 - **Consider whether the `return 2` cause clause deserves a cheap seam** rather
   than staying untested indefinitely — for example an injectable probe command
   in a test-only env var. Not required by this plan, and the trade-off (a new
   seam in a trust-root script) may well favour leaving it; worth a sentence in
   0189, which will face the same gap on the launcher side.
+- **Pick up `command -v sha256sum` on the CI lanes when 0169 needs it.** It is
+  the one recording step this work left undone, and it is 0169's input rather
+  than 0186's.
+- **`main` is currently red** on `Run unit tests (macos-latest)`, unrelated to
+  this work and predating it. Worth its own look — this branch is green on that
+  same job, so whatever it is does not reproduce here.

@@ -190,6 +190,27 @@ class TestWriteDebugArchives:
 # ── vendor_shim_marker_digest() ───────────────────────────────────────
 
 
+def _seed_digest_inputs(tmp_path: Path) -> Path:
+    """Copy just the tree `vendor_shim_marker_digest` reads into `tmp_path`.
+
+    It reads `cli/verify/**`, the `minisign-verify` pin in `cli/Cargo.toml`
+    and `cli/Cargo.lock` — three inputs, ~12 KB. Copying the whole of `cli/`
+    instead walked 46k files including the ~200 MB
+    `cli/visualiser/frontend/node_modules`, following its symlinks, so the
+    copy raced any concurrently-running frontend task and raised
+    `shutil.Error` on a link whose target moved. That was the macOS CI flake.
+
+    Each caller asserts against a baseline digest taken over the *real* tree,
+    so an input missed here shows up as a mismatch rather than a false pass.
+    """
+    cli_dst = tmp_path / "cli"
+    cli_dst.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(_REPO_ROOT / "cli" / "verify", cli_dst / "verify")
+    for name in ("Cargo.toml", "Cargo.lock"):
+        shutil.copy2(_REPO_ROOT / "cli" / name, cli_dst / name)
+    return cli_dst
+
+
 class TestVendorShimMarkerDigest:
     def test_matches_committed_marker(self):
         recorded = (
@@ -203,11 +224,7 @@ class TestVendorShimMarkerDigest:
         # Copy the cli tree, bump the accelerator-verify lock version, and
         # assert the digest is unchanged: a version bump is not shim drift.
         baseline = vendor_shim_marker_digest()
-        cli_src = _REPO_ROOT / "cli"
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            cli_src, cli_dst, ignore=shutil.ignore_patterns("target")
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         lock = cli_dst / "Cargo.lock"
         lock.write_text(
             lock.read_text().replace(
@@ -220,12 +237,7 @@ class TestVendorShimMarkerDigest:
 
     def test_detects_a_minisign_verify_bump(self, tmp_path):
         baseline = vendor_shim_marker_digest()
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            _REPO_ROOT / "cli",
-            cli_dst,
-            ignore=shutil.ignore_patterns("target"),
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         cargo = cli_dst / "Cargo.toml"
         cargo.write_text(
             cargo.read_text().replace(
@@ -239,12 +251,7 @@ class TestVendorShimMarkerDigest:
         # shim, so adding one under [dev-dependencies] (and to the lock block)
         # must not register as drift.
         baseline = vendor_shim_marker_digest()
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            _REPO_ROOT / "cli",
-            cli_dst,
-            ignore=shutil.ignore_patterns("target"),
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         manifest = cli_dst / "verify" / "Cargo.toml"
         manifest.write_text(
             manifest.read_text().rstrip() + '\nfastrand = "2"\n'
