@@ -38,14 +38,27 @@
 //! list rejects — so every import here is single-item, and must stay that way.
 
 use std::fmt;
+use std::fs;
+use std::future::Future;
 use std::path::absolute;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
+use jj_lib::backend::CommitId;
+use jj_lib::object_id::ObjectId;
+use jj_lib::op_store::OpStore as _;
+use jj_lib::op_store::OpStoreError;
+use jj_lib::op_store::OperationId;
+use jj_lib::op_store::RootOperationData;
+use jj_lib::protos::local_working_copy::Checkout as CheckoutProto;
+use jj_lib::ref_name::WorkspaceName;
+use jj_lib::ref_name::WorkspaceNameBuf;
+use jj_lib::simple_op_store::SimpleOpStore;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
+use prost::Message as _;
 use tracing::warn;
 use vcs::RepoRoot;
 use vcs::VcsKind;
@@ -88,6 +101,19 @@ pub enum Error {
     /// either with no room for a root above it, or failing the
     /// `<root>/.jj/repo` post-condition.
     JjStoreLayout { store: PathBuf },
+    /// The workspace uses a working-copy backend whose on-disk layout this
+    /// module does not know how to read.
+    JjWorkingCopyBackend { backend: String },
+    /// A jj workspace's checkout state could not be read or decoded, so the
+    /// operation and workspace name it records are unavailable.
+    JjCheckout {
+        path: PathBuf,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// A jj operation or view could not be read out of the operation store.
+    JjOpStore {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl fmt::Display for Error {
@@ -120,6 +146,22 @@ impl fmt::Display for Error {
                     store.display()
                 )
             }
+            Self::JjWorkingCopyBackend { backend } => {
+                write!(
+                    formatter,
+                    "unsupported jj working copy backend {backend:?}"
+                )
+            }
+            Self::JjCheckout { path, .. } => {
+                write!(
+                    formatter,
+                    "could not read the jj checkout state at {}",
+                    path.display()
+                )
+            }
+            Self::JjOpStore { .. } => {
+                write!(formatter, "could not read the jj operation store")
+            }
         }
     }
 }
@@ -129,10 +171,13 @@ impl std::error::Error for Error {
         match self {
             Self::Absolutise { source, .. }
             | Self::Canonicalise { source, .. } => Some(source),
-            Self::Git { source, .. } | Self::Jj { source, .. } => {
-                Some(source.as_ref())
+            Self::Git { source, .. }
+            | Self::Jj { source, .. }
+            | Self::JjCheckout { source, .. }
+            | Self::JjOpStore { source } => Some(source.as_ref()),
+            Self::JjStoreLayout { .. } | Self::JjWorkingCopyBackend { .. } => {
+                None
             }
-            Self::JjStoreLayout { .. } => None,
         }
     }
 }
@@ -389,14 +434,16 @@ impl VcsProbe for InProcessProbe {
     fn revision(&self, root: &Path, kind: VcsKind) -> Option<String> {
         match kind {
             VcsKind::Git => git_revision(root),
-            VcsKind::Jj => {
-                warn!(
-                    vcs = "jj",
-                    "jj-lib 0.43 exposes no read-only, settings-free route to \
-                     the working-copy commit id, so no revision is reported"
-                );
-                None
-            }
+            VcsKind::Jj => match jj_revision(root) {
+                Ok(revision) => revision,
+                Err(error) => {
+                    warn!(
+                        vcs = "jj",
+                        %error, "could not read the working-copy commit id"
+                    );
+                    None
+                }
+            },
             VcsKind::None => None,
         }
     }
@@ -454,6 +501,118 @@ fn git_revision(root: &Path) -> Option<String> {
             None
         }
     }
+}
+
+/// The full working-copy revision of a jj workspace, read without constructing
+/// any settings and without writing anything.
+///
+/// The chain is the one jj itself walks. The workspace's `checkout` file records
+/// the operation the working copy is at and the workspace's own name; that
+/// operation's view maps every workspace name to its working-copy commit. Both
+/// links are public API: `jj_lib::protos` is a public module, so the decoded
+/// `Checkout` is a published schema rather than a private wire format, and
+/// `View::wc_commit_ids` is a public field. `SimpleOpStore::load` takes a path
+/// only — this is what makes the whole route settings-free, and it is why this
+/// crate needs no jj settings type anywhere.
+///
+/// Deliberately not routed through the higher-level repository loader: that one
+/// requires a settings value whose defaults live in the jj CLI rather than in
+/// jj-lib, and the working-copy loader it reaches writes to the store.
+///
+/// The name lookup is load-bearing rather than incidental. A repository with
+/// several workspaces has one view entry per workspace and they hold different
+/// commits, so taking the sole entry would answer for the wrong workspace as
+/// soon as anyone runs `jj workspace add`.
+///
+/// This reports the commit as of the **last recorded operation**. It does not
+/// snapshot, which is the one place it diverges from asking the `jj` binary:
+/// `jj log` snapshots the working copy first and so reports a newly created
+/// commit — and mutates the repository — when files have changed since the last
+/// jj command. A probe that must work on a read-only filesystem cannot do that.
+fn jj_revision(root: &Path) -> Result<Option<String>, Error> {
+    let Some(loader) = load_jj_workspace(root)? else {
+        return Ok(None);
+    };
+
+    // The on-disk layout below belongs to the local working-copy backend. Assert
+    // it before reading, so an unfamiliar backend is a named failure rather than
+    // a missing-file error attributed to the wrong cause.
+    let backend =
+        loader.get_working_copy_type().map_err(|error| Error::Jj {
+            path: root.to_path_buf(),
+            source: Box::new(error),
+        })?;
+    if backend != LOCAL_WORKING_COPY {
+        return Err(Error::JjWorkingCopyBackend { backend });
+    }
+
+    let state = loader.workspace_root().join(".jj").join("working_copy");
+    let checkout = read_checkout(&state)?;
+
+    // Only the root operation would consult this, and the checkout file gives a
+    // concrete operation id, so it is never read. The width matches the git
+    // backend's ids.
+    let root_data = RootOperationData {
+        root_commit_id: CommitId::from_bytes(&[0; 20]),
+    };
+    let store =
+        SimpleOpStore::load(&loader.repo_path().join("op_store"), root_data);
+
+    let operation = block_on_jj(store.read_operation(&checkout.operation))?;
+    let view = block_on_jj(store.read_view(&operation.view_id))?;
+
+    Ok(view
+        .wc_commit_ids
+        .get(&checkout.workspace)
+        .map(ObjectId::hex))
+}
+
+/// The working copy type this module's path knowledge is valid for.
+const LOCAL_WORKING_COPY: &str = "local";
+
+/// The two fields of the workspace's checkout state this module needs.
+struct Checkout {
+    operation: OperationId,
+    workspace: WorkspaceNameBuf,
+}
+
+/// Decodes `<state>/checkout` into the operation and workspace name it records.
+///
+/// The empty-name fallback mirrors jj's own back-compatibility branch for
+/// working copies written before the field existed.
+fn read_checkout(state: &Path) -> Result<Checkout, Error> {
+    let path = state.join("checkout");
+    let bytes = fs::read(&path).map_err(|source| Error::JjCheckout {
+        path: path.clone(),
+        source: Box::new(source),
+    })?;
+    let proto =
+        CheckoutProto::decode(&*bytes).map_err(|source| Error::JjCheckout {
+            path,
+            source: Box::new(source),
+        })?;
+
+    let workspace = if proto.workspace_name.is_empty() {
+        WorkspaceName::DEFAULT.to_owned()
+    } else {
+        proto.workspace_name.into()
+    };
+    Ok(Checkout {
+        operation: OperationId::new(proto.operation_id),
+        workspace,
+    })
+}
+
+/// Drives one of the `OpStore` trait's async reads to completion.
+///
+/// The trait is async and jj-lib drives it with `pollster` itself; there is no
+/// runtime in this process and these reads are plain file reads.
+fn block_on_jj<T>(
+    read: impl Future<Output = Result<T, OpStoreError>>,
+) -> Result<T, Error> {
+    pollster::block_on(read).map_err(|source| Error::JjOpStore {
+        source: Box::new(source),
+    })
 }
 
 /// Whether the head could not be peeled because nothing has been committed yet,

@@ -116,14 +116,20 @@ fn library_facts(start: &Path) -> Option<RepoFacts> {
     facts_via(start, &InProcessProbe, &InProcessProbe)
 }
 
-/// Asserts the two implementations agree, **per `VcsKind`**.
+/// Asserts the two implementations produce identical `RepoFacts`, for every
+/// `VcsKind`.
 ///
-/// Full `RepoFacts` equality for `VcsKind::Git`. For `VcsKind::Jj` only
-/// `root`/`name`/`kind`: jj-lib 0.43 exposes no read-only, settings-free route
-/// to the working-copy commit id, so the library-backed `revision` is `None` by
-/// design while the subprocess probe returns a 40-hex id. Narrowing wholesale
-/// would also discard achievable protection on the git revision path, which this
-/// suite already pins.
+/// Full equality on both idioms: the library-backed probe reads the jj
+/// working-copy commit id out of the checkout state and the operation store, so
+/// there is no field either implementation cannot answer.
+///
+/// The one shape where the two can legitimately differ is out of reach here.
+/// Asking the `jj` binary snapshots the working copy first, so with
+/// unsnapshotted changes present it reports — and records — a *new* commit,
+/// while the in-process route reports the last recorded one. Every fixture in
+/// this suite is built and then read without an intervening edit, so the
+/// recorded operation is current and both agree. `library.rs` pins the
+/// divergence itself.
 ///
 /// Agreement between two implementations is not on its own an oracle, which is
 /// why every case below also keeps its fixed expected values. This dual
@@ -144,21 +150,7 @@ fn assert_implementations_agree(start: &Path) {
         return;
     };
 
-    assert_eq!(subprocess.root, in_process.root, "root disagreed");
-    assert_eq!(subprocess.name, in_process.name, "name disagreed");
-    assert_eq!(subprocess.kind, in_process.kind, "kind disagreed");
-    match subprocess.kind {
-        VcsKind::Git | VcsKind::None => {
-            assert_eq!(
-                subprocess.revision, in_process.revision,
-                "git revision disagreed"
-            );
-        }
-        VcsKind::Jj => assert_eq!(
-            in_process.revision, None,
-            "the jj revision mechanism is out of scope and must report absence"
-        ),
-    }
+    assert_eq!(subprocess, in_process, "the two implementations disagreed");
 }
 
 #[test]

@@ -78,6 +78,20 @@ rustix = { version = "1", features = ["process", "fs"] }
 # additions stay visible.
 jj-lib = "=0.43.0"
 gix = { version = "~0.85.0", default-features = false }
+# prost and pollster are jj-lib's own, adopted as direct edges rather than new
+# crates: both are already in the lock through jj-lib, so this adds no
+# supply-chain surface and no licence. They exist to read the jj working-copy
+# commit id without a UserSettings, which the checkout state makes possible:
+# prost decodes jj_lib::protos::local_working_copy::Checkout (a public module,
+# so this is API rather than a private wire format), and pollster drives the
+# OpStore trait's async read methods, which jj-lib itself drives with pollster.
+#
+# Both are pinned to the major jj-lib requires, because the decoded type comes
+# FROM jj-lib: a prost major mismatch would put two prost graphs in the lock and
+# the generated code would stop matching the decoder. They move with jj-lib, so
+# a jj-lib bump is now a six-pin change — see tasks/README.md.
+prost = "0.14"
+pollster = "0.4"
 
 [workspace.lints.rust]
 warnings = "deny"

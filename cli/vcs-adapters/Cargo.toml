@@ -36,6 +36,8 @@ path = "tests/fixtures/vcs_adapters_fixture_stub.rs"
 vcs = { path = "../vcs" }
 gix = { workspace = true }
 jj-lib = { workspace = true }
+pollster = { workspace = true }
+prost = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

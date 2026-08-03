@@ -121,6 +121,20 @@ def test_the_gix_pin_comment_records_why_defaults_are_off() -> None:
     )
 
 
+def test_the_jj_helper_pins_record_that_they_move_with_jj_lib() -> None:
+    # prost and pollster are jj-lib's own dependencies, adopted as direct edges
+    # to read the working-copy commit id. The non-obvious part is that they are
+    # not independent choices: the decoded protobuf type comes from jj-lib, so a
+    # prost major mismatch breaks the decode and splits the graph. A contributor
+    # regenerating this file has to be able to see that from the file.
+    comment = _comment_above(_CLI_CARGO.read_text(), "prost = ")
+    assert comment, "the prost/pollster pins have lost their comment"
+    for required in ("jj-lib", "prost", "pollster"):
+        assert required in comment, (
+            f"the helper pin comment no longer mentions {required}: {comment}"
+        )
+
+
 def test_the_uluru_licence_exception_keeps_its_comment() -> None:
     comment = _comment_above(_DENY.read_text(), "[[licenses.exceptions]]")
     assert comment, "the uluru licence exception has lost its comment"

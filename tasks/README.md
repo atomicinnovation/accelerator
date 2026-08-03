@@ -111,8 +111,9 @@ is no longer enumerated.
 `cli/vcs-adapters` reads git through `gix` and jj through `jj-lib` in-process.
 Those two pins are **not independent**, and neither is bumped alone.
 
-**The coupling is four-way**: `jj-lib` (exact, `=0.43.0`), `gix`
-(tilde, `~0.85.0`), the Rust toolchain, and `mise.toml`'s `jj` CLI pin. The CLI
+**The coupling is six-way**: `jj-lib` (exact, `=0.43.0`), `gix`
+(tilde, `~0.85.0`), `prost` and `pollster` (jj-lib's own, adopted as direct
+edges), the Rust toolchain, and `mise.toml`'s `jj` CLI pin. The CLI
 writes the repository format the library reads, so a skew between them surfaces
 as an apparently wrong detection answer rather than as a version mismatch;
 `jj-lib`'s MSRV moved 1.85 → 1.88 → 1.89 across eight releases, so a bump drags
@@ -123,11 +124,23 @@ tilde so a RustSec fix is a lock update rather than a pin edit. `gix` also sets
 helpers spawn `git credential-*` programs — out of a module that exists to avoid
 spawning. Widening that feature list is how a consumer adds a capability.
 
+`prost` and `pollster` are the newest two, and they are **jj-lib's, not ours**.
+They exist so the jj working-copy commit id can be read without constructing a
+settings value: `prost` decodes `jj_lib::protos::local_working_copy::Checkout` (a
+public module, so this is API rather than a private wire format) and `pollster`
+drives the `OpStore` trait's async reads, which jj-lib itself drives with
+pollster. Both were already in the lock through jj-lib, so adopting them added
+two edges and no packages. They are pinned to the majors jj-lib requires, because
+the decoded type comes *from* jj-lib — a major mismatch would put two `prost`
+graphs in the lock and the generated code would stop matching the decoder. Move
+them when `jj-lib` moves, never on their own.
+
 Two committed checks hold this together:
 `tests/unit/tasks/test_vcs_pin_lockstep.py` (the declarations agree and keep
 their inline rationale) and `tests/integration/deny/test_vcs_library_graph.py`
-(versions, single gix graph, the enabled feature set, no TLS in the subtree on
-any of deny.toml's five targets, MSRV, and a build-script/proc-macro snapshot).
+(versions, single gix graph, a single `prost`/`pollster` version each, the
+enabled feature set, no TLS in the subtree on any of deny.toml's five targets,
+MSRV, and a build-script/proc-macro snapshot).
 That the *binary* building fixtures matches the pin is asserted by the fixture
 harness, not by these.
 

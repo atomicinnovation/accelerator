@@ -265,6 +265,17 @@ def test_no_gix_package_is_present_at_more_than_one_version() -> None:
     assert not duplicated, f"duplicate gix-family versions: {duplicated}"
 
 
+@pytest.mark.parametrize("crate", ["prost", "pollster"])
+def test_the_jj_helper_crates_resolve_to_one_version(crate: str) -> None:
+    # vcs-adapters depends on both directly, to decode jj's checkout state and
+    # to drive the OpStore trait's async reads. The decoded type comes FROM
+    # jj-lib, so a second prost graph would mean the generated code and the
+    # decoder in use were different crates — the failure the pin comment in
+    # cli/Cargo.toml names. Both must stay single-version.
+    versions = _lock_packages().get(crate, set())
+    assert len(versions) == 1, f"{crate} resolved to {sorted(versions)}"
+
+
 # --- Features ---
 
 
