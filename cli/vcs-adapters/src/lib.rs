@@ -8,6 +8,9 @@
 //! to `None` and is warn-logged, so a real failure leaves a trace instead of
 //! reading like a legitimately revision-less repository.
 
+pub mod library;
+mod markers;
+
 use std::fs;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -16,6 +19,8 @@ use std::time::{Duration, Instant};
 
 use tracing::warn;
 use vcs::{RepoFacts, RepoRoot, VcsKind, VcsProbe};
+
+use crate::markers::{carries_any_marker, marker_kind, walk_up};
 
 /// Headroom for a legitimately slow or lock-contended repository, while still
 /// bounding metadata derivation.
@@ -33,14 +38,7 @@ pub struct MarkerWalkRoot;
 
 impl RepoRoot for MarkerWalkRoot {
     fn discover(&self, start: &Path) -> Option<PathBuf> {
-        let mut dir = start;
-        while dir.parent().is_some() {
-            if dir.join(".jj").exists() || dir.join(".git").exists() {
-                return Some(dir.to_path_buf());
-            }
-            dir = dir.parent()?;
-        }
-        None
+        walk_up(start, carries_any_marker)
     }
 
     fn repository_root(&self, working_copy_root: &Path) -> PathBuf {
@@ -95,13 +93,7 @@ impl Default for CommandProbe {
 
 impl VcsProbe for CommandProbe {
     fn kind(&self, root: &Path) -> VcsKind {
-        if root.join(".jj").exists() {
-            VcsKind::Jj
-        } else if root.join(".git").exists() {
-            VcsKind::Git
-        } else {
-            VcsKind::None
-        }
+        marker_kind(root)
     }
 
     fn revision(&self, root: &Path, kind: VcsKind) -> Option<String> {

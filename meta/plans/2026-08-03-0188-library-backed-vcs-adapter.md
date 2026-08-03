@@ -1210,36 +1210,36 @@ justification for the extra Python machinery over a one-line `denied` clause.
 
 #### Automated Verification
 
-- [ ] `mise run deny:check` passes with the `uluru` exception
-- [ ] `mise run pup:check` passes
-- [ ] `mise run cli:check` passes (clippy `--locked`, pedantic + nursery)
-- [ ] `mise run test:integration:deny` passes, including the new graph test
-- [ ] `mise run test:unit:tasks` passes, including the new lockstep test
-- [ ] Unit test: `InProcessProbe::discover` returns the boundary, never an
+- [x] `mise run deny:check` passes with the `uluru` exception
+- [x] `mise run pup:check` passes
+- [x] `mise run cli:check` passes (clippy `--locked`, pedantic + nursery)
+- [x] `mise run test:integration:deny` passes, including the new graph test
+- [x] `mise run test:unit:tasks` passes, including the new lockstep test
+- [x] Unit test: `InProcessProbe::discover` returns the boundary, never an
       ancestor, on the colocated and `.git`-file shapes `detection.rs` already
       builds — plus the paired negative assertion that an unbounded
       `gix::discover` on the same fixture *does* escape to the parent repository.
       The **both-nesting-directions** form of this criterion moves to Phase 2,
       which owns the nesting fixtures; Phase 1 must not duplicate them
-- [ ] `kind` and `repository_root` agree with `CommandProbe` on the plain-git,
+- [x] `kind` and `repository_root` agree with `CommandProbe` on the plain-git,
       colocated, commitless and jj-secondary fixtures; `revision` agrees for
       `VcsKind::Git` and returns `None` (warn-logged) for `VcsKind::Jj`, per the
       spike-resolved descope above
-- [ ] Non-vacuity is **committed**, not demonstrated by hand: probe cases in
+- [x] Non-vacuity is **committed**, not demonstrated by hand: probe cases in
       `tests/integration/pup/test_import_rule.py` for the new rule — a
       `std::process::Command` import rejected with `"is denied"` and the rule
       name present, a compliant single-item-import module as the positive
       control (catching a rule whose scope silently matched nothing, which
       0169's module rename would otherwise cause), and a grouped-import case
       pinning the `use a::{b, c}` behaviour
-- [ ] The lockstep test also asserts the `gix` pin comment in `cli/Cargo.toml`
+- [x] The lockstep test also asserts the `gix` pin comment in `cli/Cargo.toml`
       and the `uluru` exception comment in `cli/deny.toml` are present and
       non-empty
-- [ ] `mise run` green end to end
+- [x] `mise run` green end to end
 
 #### Manual Verification
 
-- [ ] `cli/vcs/src/**` is unmodified (`jj diff --stat`)
+- [x] `cli/vcs/src/**` is unmodified (`jj diff --stat`)
 - [ ] The `accelerator-visualiser` musl-static size is recorded before and after
       this phase, so a later regression has a baseline (the trees enter its
       closure via `vcs-adapters` → `corpus-adapters` → `visualiser/server`)
@@ -1248,9 +1248,9 @@ justification for the extra Python machinery over a one-line `denied` clause.
       (`.github/workflows/main.yml:125`), and the budget raised in this same
       change if the margin is thin — this plan guarantees a cold cache by
       changing the lock
-- [ ] `CommandProbe` and `MarkerWalkRoot` have no new methods
-- [ ] `vcs_adapters::facts` still names `MarkerWalkRoot`/`CommandProbe`
-- [ ] `cli/vcs-adapters/Cargo.toml` gains no `[features]` entry beyond
+- [x] `CommandProbe` and `MarkerWalkRoot` have no new methods
+- [x] `vcs_adapters::facts` still names `MarkerWalkRoot`/`CommandProbe`
+- [x] `cli/vcs-adapters/Cargo.toml` gains no `[features]` entry beyond
       `bash-parity`
 
 ---

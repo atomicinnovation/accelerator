@@ -44,7 +44,10 @@ too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
-architecture, on an isolated nightly lane).
+architecture, on an isolated nightly lane). `pup.ron` carries one rule per
+domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
+library-backed VCS adapter's imports to a permit list and denies `std::process`
+— see "Library-backed VCS dependency pins" below.
 
 ## Family aggregates
 
@@ -102,6 +105,63 @@ is no longer enumerated.
   mode and assumes an exec-bit-preserving filesystem — acceptable given the
   macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
   dev is macOS via jj workspaces).
+
+### Library-backed VCS dependency pins
+
+`cli/vcs-adapters` reads git through `gix` and jj through `jj-lib` in-process.
+Those two pins are **not independent**, and neither is bumped alone.
+
+**The coupling is four-way**: `jj-lib` (exact, `=0.43.0`), `gix`
+(tilde, `~0.85.0`), the Rust toolchain, and `mise.toml`'s `jj` CLI pin. The CLI
+writes the repository format the library reads, so a skew between them surfaces
+as an apparently wrong detection answer rather than as a version mismatch;
+`jj-lib`'s MSRV moved 1.85 → 1.88 → 1.89 across eight releases, so a bump drags
+the toolchain too. The asymmetry is deliberate: `jj-lib` is exact because the
+design leans on its declared-unstable loader internals, while `gix` takes a
+tilde so a RustSec fix is a lock update rather than a pin edit. `gix` also sets
+`default-features = false`, which is what keeps `gix-credentials` — whose
+helpers spawn `git credential-*` programs — out of a module that exists to avoid
+spawning. Widening that feature list is how a consumer adds a capability.
+
+Two committed checks hold this together:
+`tests/unit/tasks/test_vcs_pin_lockstep.py` (the declarations agree and keep
+their inline rationale) and `tests/integration/deny/test_vcs_library_graph.py`
+(versions, single gix graph, the enabled feature set, no TLS in the subtree on
+any of deny.toml's five targets, MSRV, and a build-script/proc-macro snapshot).
+That the *binary* building fixtures matches the pin is asserted by the fixture
+harness, not by these.
+
+**Two enforcement mechanisms, with a clean division of labour.** cargo-pup owns
+**import** prohibitions; the `tasks/` source guards own **usage** prohibitions
+imports cannot express — `RestrictImports` resolves `use` paths, so a
+fully-qualified `jj_lib::settings::UserSettings::from_config(…)` or a
+`Workspace::load` method call is invisible to it. That is the whole
+justification for the extra Python machinery over a one-line `denied` clause.
+
+**Break-glass for a supply-chain failure.** Both transitive trees enter
+cargo-deny's `advisories` scope under `unmaintained = "all"` with
+`yanked = "deny"`, over a ~60-crate closure no repo code calls, and the advisory
+DB is fetched fresh every run. One upstream advisory there turns
+`check-supply-chain` red for every unrelated PR — and that job is in
+`prerelease.needs`, so it also stops releases. Recovery is a scoped, dated
+`[advisories].ignore` entry following the existing `RUSTSEC-2026-0118/0119`
+precedent, with a `review-by: YYYY-MM-DD` in its `reason`;
+`tests/integration/deny/test_advisory_ignores.py` asserts every entry carries
+one and that none has lapsed.
+
+**The break-glass is scoped to the `unmaintained`, `yanked` and `notice`
+classes only.** A `vulnerability`-class advisory takes the escalation path —
+upgrade, patch or vendor — never an ignore, regardless of release pressure,
+because this closure reaches the publicly distributed signed
+`accelerator-visualiser` binary. cargo-deny's `ignore` list is flat with no
+class distinction, so the scoping has to be written down or the pre-authorised
+action silently covers every class.
+
+**The licence side has no `ignore` mechanism at all.** `[licenses].allow` is
+pruned to exactly the licences the current closure carries, so a transitive
+crate acquiring or replacing one is a hard failure needing either an `allow`
+addition (permissive) or a justified `[[licenses.exceptions]]` (copyleft), with
+the `uluru` MPL-2.0 entry as the template.
 
 ### Rust nightly lane (cargo-pup)
 

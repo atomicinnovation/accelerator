@@ -25,9 +25,20 @@ unmaintained = "all"
 yanked = "deny"
 # hickory-proto 0.25 DNS-parsing DoS advisories with no upgrade path yet
 # (reqwest 0.12 pins hickory-resolver 0.25). Remove when reqwest adopts 0.26.
+#
+# Every entry carries a `review-by: YYYY-MM-DD` in its reason, asserted by
+# tests/integration/deny/test_advisory_ignores.py — cargo-deny enforces no
+# expiry of its own, so an ignore added under release pressure would otherwise
+# outlive its justification silently. A lapsed date is a prompt to re-check the
+# upstream state and re-date or remove, not a reason to bump it blindly.
+#
+# The break-glass in tasks/README.md is scoped to unmaintained/yanked/notice
+# advisories only. A vulnerability-class advisory takes the escalation path —
+# upgrade, patch or vendor — never an ignore, because this closure reaches the
+# publicly distributed signed accelerator-visualiser binary.
 ignore = [
-    "RUSTSEC-2026-0118",
-    "RUSTSEC-2026-0119",
+    { id = "RUSTSEC-2026-0118", reason = "hickory-proto 0.25 DNS-parsing DoS; no upgrade path until reqwest adopts hickory-resolver 0.26. review-by: 2026-11-03" },
+    { id = "RUSTSEC-2026-0119", reason = "hickory-proto 0.25 DNS-parsing DoS; no upgrade path until reqwest adopts hickory-resolver 0.26. review-by: 2026-11-03" },
 ]
 
 [licenses]
@@ -53,6 +64,18 @@ allow = [
 ]
 confidence-threshold = 0.8
 
+# uluru is gix-pack's LRU object cache (reached from both gix and gix-odb) and
+# is not feature-gatable out of the graph. MPL-2.0 is file-level weak copyleft:
+# we ship no modifications, so §3.1 is satisfied trivially. The obligation that
+# binds is §3.2 — distributing the Executable Form requires telling recipients
+# how to obtain the Source Form — and this crate reaches the published
+# accelerator-visualiser binary, so it is discharged by the third-party licence
+# file staged into the release payload, not by the absence of modifications.
+# Adopted for the library-backed VCS adapter (work item 0188).
+[[licenses.exceptions]]
+crate = "uluru"
+allow = ["MPL-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
@@ -62,11 +85,22 @@ allow-wildcard-paths = true
 # musl-static build. This covers the TLS vector only. serde-saphyr is the
 # infra-out-of-domain ban: the YAML crate is reachable only through the
 # document wrapper, so a direct domain import violates.
+#
+# gix-credentials and curl-sys are the VCS-adapter additions: the first spawns
+# `git credential-*` helper programs, the second is the other transport stack
+# gix can be built against. Both are verified absent from the resolved graph —
+# gix-credentials only because the gix pin sets default-features = false, so
+# this ban is what keeps a later feature widening from reintroducing it
+# silently. gix-transport and gix-protocol are deliberately NOT banned: they
+# ARE in the graph via jj-lib's defaults and are kept inert by gix's network
+# client features being off, which the feature-graph test asserts instead.
 deny = [
     { crate = "native-tls" },
     { crate = "openssl" },
     { crate = "openssl-sys" },
     { crate = "serde-saphyr", wrappers = ["document"] },
+    { crate = "gix-credentials" },
+    { crate = "curl-sys" },
 ]
 
 [sources]

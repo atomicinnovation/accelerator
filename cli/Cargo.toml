@@ -52,6 +52,32 @@ serde-saphyr = "=0.0.29"
 tempfile = "3"
 rand = "0.9"
 rustix = { version = "1", features = ["process", "fs"] }
+# jj-lib and gix are a matched pair, pinned asymmetrically on purpose.
+#
+# jj-lib is EXACT: it declares its API unstable, the library-backed VCS adapter
+# leans on its workspace-loader internals, and a patch release can shift its
+# MSRV or its own gix requirement. Adopting one is a deliberate act, not a
+# resolution outcome.
+#
+# gix is TILDE: ~0.85.0 permits 0.85.x only, which is the range jj-lib already
+# requires (^0.85.0), so patch agility costs nothing here and a RustSec fix is a
+# lock update rather than a pin edit. gix 0.86 exists and a caret on a 0.x crate
+# will not cross it, so requesting 0.86 would put two gix graphs in the lock.
+#
+# A jj-lib bump is a coordinated four-pin change: jj-lib, gix, the Rust
+# toolchain (jj-lib's MSRV moved 1.85 -> 1.88 -> 1.89 across eight releases) and
+# the mise jj CLI pin, which writes the format jj-lib reads.
+#
+# default-features = false because gix's `default` reaches `extras` ->
+# `credentials`, which pulls gix-credentials -- the one gix subsystem that
+# spawns `git credential-*` helper programs, against a module whose whole point
+# is reading git without a subprocess. Nothing is lost: jj-lib's own selection
+# still enables attributes, blob-diff, index, max-performance-safe, sha1 and
+# zlib-rs, and every gix call the adapter makes is available without the
+# `extras` set. Widening this list is how a consumer adds a capability, so the
+# additions stay visible.
+jj-lib = "=0.43.0"
+gix = { version = "~0.85.0", default-features = false }
 
 [workspace.lints.rust]
 warnings = "deny"

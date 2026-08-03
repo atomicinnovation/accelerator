@@ -17,6 +17,8 @@ bash-parity = []
 
 [dependencies]
 vcs = { path = "../vcs" }
+gix = { workspace = true }
+jj-lib = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
