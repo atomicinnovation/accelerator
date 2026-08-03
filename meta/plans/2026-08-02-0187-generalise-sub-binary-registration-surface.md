@@ -1028,31 +1028,32 @@ class, and ruff `F401` is not relaxed for `tests/**`.
 
 #### Automated Verification
 
-- [ ] Guard suite passes: `uv run pytest
+- [x] Guard suite passes: `uv run pytest
       tests/unit/tasks/shared/test_dispatch_coherence.py -v`
-- [ ] Release call site pinned: `uv run pytest tests/unit/tasks/test_manifest.py
+- [x] Release call site pinned: `uv run pytest tests/unit/tasks/test_manifest.py
       -v`
-- [ ] New lint task green: `mise run lint:dispatch-coherence:check`
-- [ ] Task wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py -v`
-- [ ] Reachable from what CI runs — the guard fires from `mise run
+- [x] New lint task green: `mise run lint:dispatch-coherence:check`
+- [x] Task wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py -v`
+- [x] Reachable from what CI runs — the guard fires from `mise run
       build-system:check`, not only from a bare `mise run`
-- [ ] Every entry point still imports: `uv run python -c "import tasks,
+- [x] Every entry point still imports: `uv run python -c "import tasks,
       tasks.build, tasks.lint, tasks.manifest"`
-- [ ] Unit suite passes: `mise run test:unit:tasks`
-- [ ] Integration suite passes: `mise run test:integration:tasks`
-- [ ] Build-system checks pass: `mise run build-system:check`
+- [x] Unit suite passes: `mise run test:unit:tasks`
+- [x] Integration suite passes: `mise run test:integration:tasks`
+- [x] Build-system checks pass: `mise run build-system:check`
 
 #### Manual Verification
 
-- [ ] `rg 'visualiser' tasks/shared/dispatch_coherence.py` returns nothing.
-- [ ] `rg '_VISUALISE_SKILL_RELATIVE' tasks/` returns nothing.
-- [ ] `skills/visualisation/visualise/SKILL.md` is unedited (`jj diff` shows no
+- [x] `rg 'visualiser' tasks/shared/dispatch_coherence.py` returns nothing.
+- [x] `rg '_VISUALISE_SKILL_RELATIVE' tasks/` returns nothing.
+- [x] `skills/visualisation/visualise/SKILL.md` is unedited (`jj diff` shows no
       change to it) — the drafting-time permission assumption held.
-- [ ] Temporarily broadening the visualiser's rule to
+- [x] Temporarily broadening the visualiser's rule to
       `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator *)` reddens `mise run
       build-system:check` with a message naming that SKILL.md, and reverting
       restores green — the guard is non-vacuous against the real tree, not only
-      against fixtures.
+      against fixtures. Narrowing it to `… visualiser --owner-pid *` stays
+      green, which is the other half of the review-1 probe defect.
 
 ---
 

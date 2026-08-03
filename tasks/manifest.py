@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from tasks.build import (
-    validate_dispatch_coherence,
-    validate_version_coherence,
-)
+from tasks.build import validate_version_coherence
+from tasks.shared.dispatch_coherence import validate_dispatch_coherence
 from tasks.shared.errors import ManifestError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.hashing import compute_sha256
@@ -126,16 +124,20 @@ def emit_manifest(
 ) -> Path:
     """Serialise, version-check, and sign the manifest as a single artifact.
 
+    Dispatch coherence is checked before the write — it reads nothing from the
+    manifest, and failing after the write would leave a fresh unsigned
+    `manifest.json` beside a stale `manifest.minisig`.
+
     Writes the manifest once, checks `manifest.version` against every other
     version source, then signs the exact bytes on disk. The signature is written
     to `manifest.minisig` (the name the launcher fetches), never
     `manifest.json.minisig`. No re-serialisation happens between signing and
     upload, so the signature always covers the shipped bytes.
     """
+    validate_dispatch_coherence()
     manifest = build_manifest(version, entries)
     atomic_write_text(path, json.dumps(manifest, indent=2) + "\n")
     validate_version_coherence(version, manifest_path=path)
-    validate_dispatch_coherence()
     signature = path.with_name("manifest.minisig")
     sign_file(secret_key, path, signature)
     return path

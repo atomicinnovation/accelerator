@@ -15,7 +15,7 @@ from tasks.build import (
     validate_version_coherence,
     vendor_shim_marker_digest,
 )
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.paths import cli_binary_path, vendored_shim_path
 from tasks.shared.targets import TARGETS
 
@@ -110,42 +110,6 @@ class TestAssertStagedLauncherVersions:
         (tmp_path / "accelerator-linux-x64").write_bytes(b"1.21.0-pre.3")
         with pytest.raises(RuntimeError, match="does not embed"):
             assert_staged_launcher_versions("1.21.0-pre.4")
-
-
-# ── cli path helpers ──────────────────────────────────────────────────
-
-
-class TestValidateDispatchCoherence:
-    def test_coherent_repo_passes(self):
-        # The real repo: SKILL.md invokes `accelerator visualiser` and
-        # DISPATCHED_SUBBINARIES lists it.
-        tb.validate_dispatch_coherence()
-
-    def _seed_skill(self, root: Path, *, invokes: bool) -> None:
-        skill = root / "skills/visualisation/visualise/SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text(
-            "run `accelerator visualiser start`"
-            if invokes
-            else "no launcher invocation here"
-        )
-
-    def test_skill_switch_without_producer_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=True)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_producer_without_skill_switch_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ("visualiser",))
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_both_absent_is_coherent(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        tb.validate_dispatch_coherence(tmp_path)
 
 
 class TestAssertNoE2eInsecure:

@@ -15,7 +15,7 @@ format + lint (+ type-check where applicable):
 | Frontend       | `frontend:check`     | format + lint + types (Biome, tsc)           |
 | Rust server    | `server:check`       | format + lint (rustfmt, clippy)              |
 | Rust cli       | `cli:check`          | format + lint (rustfmt, workspace-wide clippy) |
-| Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly)        |
+| Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly), plus workflow lint and the dispatch-coherence guard |
 | Shell          | `scripts:check`      | format + lint (shfmt, ShellCheck + bashisms) |
 
 `build-system` is the repo-root Python automation toolchain (this `tasks/`
@@ -35,7 +35,11 @@ guards over the same tree — `lint:vendor-shims:check`,
 wired into `lint:check` as well: `cli:check` is what CI runs, but the bare
 `default` task depends on `lint:check` and not on `check`, so a `cli:check`-only
 guard stays green in a full local run however badly its invariant is broken.
-`tests/unit/tasks/test_mise.py` pins both placements. Beyond `cli:check`, Rust
+`tests/unit/tasks/test_mise.py` pins both placements. `build-system:check`
+carries `lint:dispatch-coherence:check` under the same reasoning: it is a
+skills-tree guard rather than a Python one, but `build-system:check` is what CI
+runs, and it is wired into `lint:check` as well so a bare `mise run` reaches it
+too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup

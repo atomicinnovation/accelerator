@@ -114,6 +114,9 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.claude_coupling)
 )  # lint.claude-coupling.check
+ns_lint.add_collection(
+    Collection.from_module(lint.dispatch_coherence)
+)  # lint.dispatch-coherence.check
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from invoke import Context, task
 
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.paths import (
     BIN_DIR,
@@ -16,7 +16,6 @@ from tasks.shared.paths import (
     CLI_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
-    DISPATCHED_SUBBINARIES,
     FRONTEND,
     PLUGIN_JSON,
     RELEASE_STAGING,
@@ -30,9 +29,6 @@ from tasks.shared.paths import (
     vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS
-
-# The SKILL.md that dispatches the visualiser through the launcher.
-_VISUALISE_SKILL_RELATIVE = "skills/visualisation/visualise/SKILL.md"
 
 _CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
 
@@ -183,28 +179,6 @@ def validate_version_coherence(
     if mismatches:
         raise VersionCoherenceError(
             f"expected {expected_version!r}, found mismatches: {mismatches}"
-        )
-
-
-def validate_dispatch_coherence(repo_root: Path | None = None) -> None:
-    """Bind SKILL.md's `accelerator visualiser` invocation to the producer.
-
-    The visualise SKILL.md must invoke `accelerator visualiser` iff the release
-    producer lists `visualiser` in DISPATCHED_SUBBINARIES — otherwise a shipped
-    plugin's `start` resolves to AssetNotFound (SKILL switched, producer not) or
-    a released asset is never dispatched (producer wired, SKILL not). Catches a
-    mis-ordered co-release across the merge window.
-    """
-    root = repo_root or REPO_ROOT
-    skill = (root / _VISUALISE_SKILL_RELATIVE).read_text()
-    invokes = "accelerator visualiser" in skill
-    dispatched = "visualiser" in DISPATCHED_SUBBINARIES
-    if invokes != dispatched:
-        raise DispatchCoherenceError(
-            "visualiser dispatch is incoherent: SKILL.md invokes "
-            f"`accelerator visualiser`={invokes} but DISPATCHED_SUBBINARIES "
-            f"lists 'visualiser'={dispatched} — a release carrying the SKILL "
-            "switch must also carry the producer wiring"
         )
 
 

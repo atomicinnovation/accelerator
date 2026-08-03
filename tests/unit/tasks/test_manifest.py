@@ -195,6 +195,29 @@ class TestCollectEntries:
 
 
 class TestEmitManifest:
+    @pytest.fixture(autouse=True)
+    def dispatch_guard(self, mocker):
+        """Keep these tests off the real `skills/**/SKILL.md` scan.
+
+        They already need `minisign` and the built verify shim; running the
+        guard too would let one broadened `allowed-tools` rule redden four
+        tests across two files with nothing pointing at a permission rule. The
+        real-tree assertion lives in
+        `tests/unit/tasks/shared/test_dispatch_coherence.py`.
+        """
+        return mocker.patch("tasks.manifest.validate_dispatch_coherence")
+
+    def test_calls_the_dispatch_guard_with_no_override(
+        self, tmp_path, mocker, dispatch_guard
+    ):
+        # A narrowed or stale collection at the release call site would leave
+        # every other test green. `sign_file` is patched so the assertion needs
+        # neither a key nor `minisign` and cannot degrade into a skip.
+        mocker.patch("tasks.manifest.sign_file")
+        emit_manifest(tmp_path / "manifest.json", _REAL_VERSION, {}, tmp_path)
+
+        dispatch_guard.assert_called_once_with()
+
     def test_signs_to_manifest_minisig_and_verifies(self, tmp_path, shim_bin):
         pub, sec = _keypair(tmp_path)
         out = tmp_path / "manifest.json"

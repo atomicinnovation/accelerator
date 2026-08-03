@@ -28,6 +28,12 @@ _CLI_CHECK_GATES = [
     "lint:claude-coupling:check",
 ]
 
+# The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES
+# — that would additionally force it into cli:check. It rides build-system:check
+# because that is the roll-up CI runs, and lint:check for the same
+# bare-`default` reason as the cli/-scoped guards above.
+_BUILD_SYSTEM_CHECK_GATES = ["lint:dispatch-coherence:check"]
+
 _LAUNCHER = "build:cli:dev"
 _INTEGRATION_PREFIX = "test:integration:"
 
@@ -85,7 +91,15 @@ def test_gate_wired_into_cli_check(mise, gate):
     )
 
 
-@pytest.mark.parametrize("gate", _CLI_CHECK_GATES)
+@pytest.mark.parametrize("gate", _BUILD_SYSTEM_CHECK_GATES)
+def test_gate_wired_into_build_system_check(mise, gate):
+    assert gate in _task_depends(mise, "build-system:check"), (
+        f"{gate} is not in build-system:check.depends — the guard is unwired "
+        f"from the roll-up CI runs"
+    )
+
+
+@pytest.mark.parametrize("gate", _CLI_CHECK_GATES + _BUILD_SYSTEM_CHECK_GATES)
 def test_gate_wired_into_lint_check(mise, gate):
     assert gate in _task_depends(mise, "lint:check"), (
         f"{gate} is not in lint:check.depends — the guard is unreachable from "

@@ -23,6 +23,8 @@ VENDOR_SHIM_MARKER = VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256"
 # The crates whose binaries the signed manifest lists and the launcher fetches
 # by bare token. The visualiser is the first dispatched sub-binary.
 DISPATCHED_SUBBINARIES: tuple[str, ...] = ("visualiser",)
+# Tokens whose only consumer is a hook or another binary, never a SKILL.md.
+SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
 KEYS_DIR = REPO_ROOT / "keys"
 RELEASE_PUBLIC_KEY = KEYS_DIR / "accelerator-release.pub"
 RELEASE_SECRET_KEY = KEYS_DIR / "accelerator-release.sec"
