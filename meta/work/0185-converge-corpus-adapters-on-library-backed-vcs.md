@@ -193,23 +193,52 @@ Four inheritances that change this item's sizing:
    (`Result<Option<T>, Error>`), so a corrupt repository is observable rather
    than silently reported as "no VCS here"; that is containment of *meaning*,
    not of *blast radius*.
-3. **jj `revision` transfers here, and it is not a small decision.** jj-lib 0.43
-   exposes no read-only, settings-free route to the working-copy commit id: the
-   op stores are settings-free, but the workspace name is reachable only through
-   `LocalWorkingCopy::load` (needs `&UserSettings`) or
-   `SimpleWorkspaceStore::load` (settings-free but **writes** to
-   `.jj/repo/workspace_store`, verified empirically), and `CheckoutState` is
-   private. `InProcessProbe::revision` therefore covers `VcsKind::Git` only and
-   warn-logs for jj. Options: a jj-lib version exposing the checkout state
-   publicly, an upstream request, or **retaining `CommandProbe` for `revision`
-   alone** — which makes the "atomic switch plus deletion" sizing wrong, so it
-   needs deciding early.
+3. **jj `revision` does NOT transfer here — 0188 delivers it.** An earlier draft
+   of this block said it did, on a spike finding that jj-lib 0.43 exposes no
+   read-only, settings-free route to the working-copy commit id. That finding was
+   **wrong** and was reversed on 2026-08-03: `jj_lib::protos` is a public module,
+   so the workspace's checkout state (`operation_id` + `workspace_name`) decodes
+   through published API, and `SimpleOpStore::load` takes a path only. 0188
+   implements the full chain, verified against the live CLI across pure-jj,
+   colocated, commitless, secondary-workspace and multi-workspace shapes, with a
+   fingerprint assertion that it writes nothing.
+
+   **What this changes for this story:** the "atomic switch plus deletion" sizing
+   is *right* after all — there is no reason to retain `CommandProbe` for
+   `revision` alone, and `InProcessProbe` implements `VcsProbe` **fully**, not
+   partially. `detection.rs` asserts full `RepoFacts` equality for both idioms
+   today, so the switch has no revision-shaped gap to close.
+
+   **One behavioural difference to carry knowingly**, because this story's switch
+   is what exposes users to it: asking the `jj` binary **snapshots the working
+   copy first**, so it reports — and writes — a newly created commit when files
+   changed since the last jj command. The in-process route reports the commit as
+   of the last recorded operation and writes nothing. So after the switch,
+   deriving metadata stops having a write side effect on the user's repository,
+   and a `RepoFacts.revision` taken with unsnapshotted edits present names the
+   last recorded commit rather than a fresh one. Decide whether any consumer
+   depends on the snapshot semantics; nothing in the corpus writers appears to.
 4. **sha256 repositories are unsupported by gix 0.85** (measured 2026-08-03):
    every gix-backed query returns `Err` on one, rather than misreading it.
    `detection.rs`'s `is_full_revision_id` also asserts 40 hex, and a sha256
    `HEAD` is 64. Any revision validation must accept both widths or record
    sha256 as unsupported — **this item's switch is what exposes a user on such a
    repository**, so the decision lands here. Reftable repositories read normally.
+5. **The MPL-2.0 licence exception has to be re-checked when `facts` flips.**
+   `uluru` (MPL-2.0, `gix-pack`'s LRU pack cache) is in the normal closure of the
+   published `accelerator-visualiser` binary, but 0188 verified that dead-code
+   elimination removes the whole `gix`/`jj-lib` closure from it — because nothing
+   in the visualiser's reachable call graph enters `vcs-adapters` at all today,
+   not even `CommandProbe`. §3.2's notice obligation therefore does not bind, and
+   the `cli/deny.toml` exception comment records that finding **conditionally**.
+   **This item's switch is the expected trigger that invalidates it.** Once the
+   trees link into a distributed binary, distributing the Executable Form
+   requires telling recipients how to obtain the Source Form, which means a
+   third-party attribution artefact joining `_release_uploads()` — an asset set
+   that carries no licence file today, and whose coverage `test_workflows.py`
+   derives from that function. Re-run 0188's check (unstripped `--release` build;
+   grep for `extensions.objectFormat` and `There is no Jujutsu repo`) as part of
+   the switch, not after it.
 
 ## References
 

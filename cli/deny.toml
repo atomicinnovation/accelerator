@@ -64,13 +64,27 @@ allow = [
 ]
 confidence-threshold = 0.8
 
-# uluru is gix-pack's LRU object cache (reached from both gix and gix-odb) and
-# is not feature-gatable out of the graph. MPL-2.0 is file-level weak copyleft:
-# we ship no modifications, so §3.1 is satisfied trivially. The obligation that
-# binds is §3.2 — distributing the Executable Form requires telling recipients
-# how to obtain the Source Form — and this crate reaches the published
-# accelerator-visualiser binary, so it is discharged by the third-party licence
-# file staged into the release payload, not by the absence of modifications.
+# uluru is gix-pack's LRU pack cache, enabled by gix-odb's default features and
+# reached from both gix and gix-odb, so it is not feature-gatable out of the
+# graph. MPL-2.0 is file-level weak copyleft: we ship no modifications, so §3.1
+# is satisfied trivially. The obligation that would bind is §3.2 — distributing
+# the Executable Form requires telling recipients how to obtain the Source Form.
+#
+# Verified 2026-08-03 that §3.2 does not bind: uluru is in the normal closure of
+# exactly one shipped binary (accelerator-visualiser; neither accelerator nor
+# accelerator-verify has it at all), and dead-code elimination removes the whole
+# gix/jj-lib closure from it. Distinctive literals — "extensions.objectFormat"
+# from gix, "There is no Jujutsu repo" from jj-lib — are present in the linked
+# reference artefact and absent from the shipped binary, which carries zero
+# symbols from gix, gix-pack, gix-odb, jj_lib or uluru against 26,247 total.
+# Nothing in the visualiser's reachable call graph enters vcs-adapters at all:
+# CommandProbe's own "rev-parse" literal is absent too.
+#
+# RE-CHECK WHEN THE VISUALISER STARTS REACHING vcs_adapters::facts — 0185's
+# composition-root switch is the expected trigger. Once the trees link, §3.2
+# binds and a third-party attribution artefact has to join the release upload
+# set, which _release_uploads() does not carry today.
+#
 # Adopted for the library-backed VCS adapter (work item 0188).
 [[licenses.exceptions]]
 crate = "uluru"

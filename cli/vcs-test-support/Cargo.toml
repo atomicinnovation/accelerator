@@ -17,6 +17,3 @@ workspace = true
 # separate crate rather than a feature.
 [dependencies]
 tempfile = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }

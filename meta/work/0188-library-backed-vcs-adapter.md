@@ -70,10 +70,12 @@ later epic-0136 phases migrate them.
 
 ## Requirements
 
-**Amended 2026-08-03 during planning**, on measurement rather than inference —
-eight changes, each recorded inline where it applies. Amendments 1-4 came from
-the planning measurement pass; 5-6 from plan review; 7-8 from the pin decision
-and the `revision` spike.
+**Amended 2026-08-03**, on measurement rather than inference — ten changes, each
+recorded inline where it applies. Amendments 1-4 came from the planning
+measurement pass; 5-6 from plan review; 7-8 from the pin decision and the
+`revision` spike; 9-10 from implementation and validation. **Amendment 8 is
+withdrawn by amendment 10** — the spike behind it was wrong, and the jj
+`revision` mechanism it descoped is delivered here.
 
 1. The **reference-artefact size floor** was mis-calibrated and would have failed
    on the artefact it guards; it is now a ratio floor plus a
@@ -106,12 +108,42 @@ and the `revision` spike.
    range is anyway identical to jj-lib's own `^0.85.0`, so the single-graph
    property is untouched. The coupling is jj-lib + gix + the Rust toolchain + the
    `mise.toml` jj CLI pin (Dependency policy, Dependencies).
-8. **jj `revision` is out of scope; the type implements `VcsProbe` partially.**
-   A spike established that jj-lib 0.43 exposes no read-only, settings-free route
-   to the working-copy commit id. `revision` covers `VcsKind::Git`; the jj
-   mechanism transfers to 0185. The crate-wide `UserSettings` guard **stays**
-   crate-wide — the spike is the evidence nothing in scope needs it (Delivered
-   surface, Library traps, Acceptance Criteria).
+8. ~~**jj `revision` is out of scope; the type implements `VcsProbe` partially.**~~
+   **WITHDRAWN 2026-08-03 — superseded by amendment 10.** The spike it rested on
+   was wrong. The crate-wide `UserSettings` guard does stay crate-wide, for the
+   better reason that the delivered route needs no settings either.
+9. **`gix` takes `default-features = false`, not default features.** gix's
+   `default` reaches `extras` → `credentials` → `gix-credentials`, the one gix
+   subsystem that spawns `git credential-*` helper programs — against a module
+   whose whole point is reading git without a subprocess. Nothing is lost:
+   `jj-lib`'s own selection still enables `attributes`, `blob-diff`, `index`,
+   `max-performance-safe`, `sha1` and `zlib-rs`, and the graph test asserts each
+   one present and the network-client family absent. This also makes the
+   `gix-credentials` ban a live guard against a later feature widening rather
+   than a statement about a crate that could never appear (Dependency policy).
+10. **jj `revision` is in scope after all; the type implements `VcsProbe` fully.**
+    Amendment 8's spike premise was **false**: `jj_lib::protos` is a public
+    module, so the workspace's checkout state (`operation_id` +
+    `workspace_name`) decodes through published API rather than a private wire
+    format, and `SimpleOpStore::load` takes a path only — no settings anywhere.
+    The chain is delivered and verified against the live CLI across pure-jj,
+    colocated, commitless, secondary-workspace and multi-workspace shapes, and
+    fingerprint-asserted to write nothing. `prost` and `pollster` join the pins
+    as jj-lib-coupled direct edges (already in the lock, so two new edges and no
+    new packages), making the pin coupling **six-way**. The one divergence from
+    the `jj` binary is that the binary snapshots the working copy first — and
+    writes — where this route reports the last recorded commit; that is the
+    read-only direction and is pinned by a test (Delivered surface, Dependency
+    policy, Acceptance Criteria).
+9. **`gix` takes `default-features = false`, not default features.** gix's
+   `default` reaches `extras` → `credentials` → `gix-credentials`, the one gix
+   subsystem that spawns `git credential-*` helper programs — against a module
+   whose whole point is reading git without a subprocess. Nothing is lost:
+   `jj-lib`'s own selection still enables `attributes`, `blob-diff`, `index`,
+   `max-performance-safe`, `sha1` and `zlib-rs`, and the graph test asserts each
+   one present and the network-client family absent. This also makes the
+   `gix-credentials` ban a live guard against a later feature widening rather
+   than a statement about a crate that could never appear (Dependency policy).
 
 Two assumptions also resolved in the same pass: `gix`'s gating feature *is* on
 under `jj-lib`'s defaults, so the single-graph reasoning holds; and the
@@ -134,24 +166,28 @@ the full empirical oracle mapping.
   both libraries. **The domain crate `cli/vcs` is untouched: no port is added,
   widened or changed.**
 
-  **Amended 2026-08-03 (spike) — `VcsProbe` is implemented *partially*.** `kind`
-  is complete; `revision` covers `VcsKind::Git` (via
-  `gix::discover(root)?.head_commit()?.id()`) and returns `None`, warn-logged, for
-  `VcsKind::Jj`. jj-lib 0.43 exposes no read-only, settings-free route to the
-  working-copy commit id: the op stores are settings-free
-  (`SimpleOpHeadsStore::load`, `SimpleOpStore::load`) but the workspace name
-  needed to index `View::get_wc_commit_id` is reachable only through
-  `LocalWorkingCopy::load` (requires `&UserSettings` for `TreeStateSettings`) or
-  `SimpleWorkspaceStore::load` (settings-free but **writes** to
-  `.jj/repo/workspace_store` — verified empirically, so unusable in a read-only
-  probe), and `CheckoutState` is a private struct. Reading the
-  `.jj/working_copy/checkout` protobuf by hand is the only remaining path and is
-  exactly the private-internals dependency this design avoids. **0185 inherits the
-  jj revision mechanism**, alongside the composition-root switch it already owns;
-  its options are a jj-lib version exposing the checkout state publicly, an
-  upstream request for one, or retaining `CommandProbe` for `revision` alone —
-  which would make its "atomic switch plus deletion" sizing wrong, so it needs
-  deciding early.
+  **Amended 2026-08-03 (validation) — `VcsProbe` is implemented *fully*.** `kind`
+  is complete; `revision` answers for both idioms. The git half is
+  `gix::discover(root)?.head_commit()?.id()`. The jj half reads the workspace's
+  checkout state — `<workspace_root>/.jj/working_copy/checkout`, decoded as
+  `jj_lib::protos::local_working_copy::Checkout`, a **public** module — for the
+  operation id and the workspace's own name, then reads that operation's view out
+  of `SimpleOpStore::load(<repo>/op_store, ..)` and looks the commit up in
+  `View.wc_commit_ids` by name. No settings value is constructed anywhere, so the
+  crate-wide guard is untouched, and the route writes nothing (fingerprint-asserted
+  over the whole `.jj` tree). The name lookup is load-bearing: two workspaces of
+  one repository hold different working-copy commits, so taking the view's sole
+  entry would answer for the wrong one.
+
+  An earlier amendment (8, now withdrawn) descoped the jj half to 0185 on a spike
+  finding that no read-only, settings-free route existed. That finding was wrong —
+  it treated the checkout protobuf as a private wire format when `jj_lib::protos`
+  is public, and it recorded `UserSettings::from_config` as unbounded panics when
+  it returns `Result` and needs exactly five keys. **Nothing transfers to 0185**
+  except the recorded divergence: asking the `jj` binary snapshots the working
+  copy first — and writes a new commit — where this route reports the commit as of
+  the last recorded operation. That is the read-only direction, and after 0185's
+  switch metadata derivation stops mutating the user's repository.
 - **Six taxonomy queries** as *inherent methods* on that type — not port
   methods. `CommandProbe` and `MarkerWalkRoot` gain none of them. 0169 defines
   whatever domain port its classifier needs and implements it over these; that
@@ -331,18 +367,20 @@ These are shipped artefacts, not incidental test code, and are sized as such.
   crate-wide, deliberately wider than the detection paths strictly require, so
   the guard is a simple one.
 
-  **Confirmed 2026-08-03 (spike) — the crate-wide statement holds, and it is why
-  jj `revision` is out of scope.** A spike enumerated every route to the
-  working-copy commit id and found none that is both settings-free and
-  read-only: `LocalWorkingCopy::load` needs `&UserSettings` for
+  **Confirmed 2026-08-03 (validation) — the crate-wide statement holds, and jj
+  `revision` is delivered without narrowing it.** The spike that first looked at
+  this found `LocalWorkingCopy::load` needs `&UserSettings` for
   `TreeStateSettings`; `CheckoutState` (which holds the `operation_id` +
   `workspace_name` pair) is private; and `SimpleWorkspaceStore::load`, though
   settings-free, **creates `.jj/repo/workspace_store` and writes an `index`
-  file** — verified by removing the directory and observing it recreated. The op
-  stores themselves are settings-free (`SimpleOpHeadsStore::load(dir)`,
-  `SimpleOpStore::load(path, root_data)`), so the chain fails only at the
-  workspace-name link. The guard therefore costs nothing in scope, and does not
-  need narrowing.
+  file** — verified by removing the directory and observing it recreated. All
+  three are true, and all three are avoidable: the workspace name those routes
+  were reaching for is recorded in the workspace's own `checkout` file, whose
+  schema is public (`jj_lib::protos::local_working_copy::Checkout`), and the op
+  stores are settings-free (`SimpleOpStore::load(path, root_data)`). The chain
+  never needed the blocked links. So the guard costs nothing in scope and needs
+  no narrowing — now shown by a delivered mechanism rather than by the absence of
+  one.
 
   **The loader does not walk** (verified 2026-08-03 against jj-lib 0.43
   `src/workspace.rs:564-585`): `create(workspace_root)` demands a path whose
@@ -385,8 +423,10 @@ These are shipped artefacts, not incidental test code, and are sized as such.
 - **A `[[licenses.exceptions]]` entry for `uluru`** (MPL-2.0) in
   `cli/deny.toml` — `gix-pack`'s LRU cache, not feature-gatable. It **must**
   carry an inline comment citing this work item.
-- **`gix` with default features** — network transports are excluded by default,
-  so no TLS stack enters the graph.
+- **`gix` with `default-features = false`** (*amendment 9*) — no TLS stack enters
+  the graph either way, but gix's `default` reaches `extras` → `credentials` →
+  `gix-credentials`, which spawns `git credential-*` helper programs. `jj-lib`'s
+  own feature selection supplies everything the adapter calls.
 - **A `cli/pup.ron` rule scoped to the library-backed module only** — not to
   `vcs_adapters` as a whole, since the retained `CommandProbe` legitimately
   spawns. Two clauses, because a permit-list alone cannot express this
@@ -425,15 +465,15 @@ field) is part of the mapping established in planning.
       **transitional**: 0185 deletes `CommandProbe`, and collapsing the suite to
       the library-backed type alone is part of that deletion.
 
-      **Amended 2026-08-03 (spike) — parity is asserted per `VcsKind`.** Full
-      `RepoFacts` equality for `VcsKind::Git`; `root`/`name`/`kind` only for
-      `VcsKind::Jj`, where the library-backed `revision` is `None` by design
-      while `CommandProbe` returns a 40-hex id. The jj cases therefore assert the
-      `CommandProbe` arm against the suite's fixed values as today, and the
-      library-backed arm against the three fields it owns, so neither adapter's
-      coverage is dropped. Narrowing wholesale would also have discarded
-      achievable protection on the git revision path, which
-      `detection.rs:84-86` already pins.
+      **Amended 2026-08-03 (validation) — parity is full `RepoFacts` equality
+      for every `VcsKind`.** An earlier amendment narrowed it per `VcsKind`, on
+      the descope that amendment 10 withdraws. With the jj `revision` route
+      delivered there is no field either adapter cannot answer, so all 7 cases
+      assert whole-struct equality. The one shape where the two legitimately
+      differ — an unsnapshotted edit, where asking the `jj` binary snapshots the
+      working copy and writes a new commit — is pinned separately in `library.rs`
+      rather than relaxed here; every fixture in this suite is built and then read
+      with no intervening edit.
 
       Related, measured 2026-08-03: a **sha256** repository's `HEAD` is 64 hex
       characters, so `is_full_revision_id`'s 40-hex assertion rejects it. Any
@@ -950,6 +990,33 @@ gate ill-posed.
   declarations against each other.
 - **Installed `git` CLI version** — 2.54.0. The harness carries a 2.45 floor
   with a named diagnostic (`--ref-format=reftable` landed there).
+- **jj `revision` — delivered here, not descoped** (amendment 10, reversing 8).
+  Route: the workspace's checkout state
+  (`<workspace_root>/.jj/working_copy/checkout`, decoded as the **public**
+  `jj_lib::protos::local_working_copy::Checkout`) gives the operation id and the
+  workspace's own name; `SimpleOpStore::load(<repo>/op_store, ..)` reads that
+  operation's view; `View.wc_commit_ids` is indexed by name. No settings value is
+  constructed, so `lint:vcs-settings:check` still passes crate-wide.
+
+  Verified against the live CLI, exact match on every shape tried: this repo,
+  pure jj (`--no-colocate`, so there is no git HEAD to have fallen back to),
+  colocated, commitless, a secondary workspace, and that workspace's main.
+  **The multi-workspace case is the load-bearing one** — the two report
+  *different* commits, so indexing by name is doing real work; taking the view's
+  sole entry would pass every single-workspace test and answer for the wrong
+  workspace. Writes nothing: fingerprint-asserted over the whole `.jj` tree,
+  which matters because a sibling loader in the same area does create
+  directories on load. Broken checkout state → warn-logged absence, no panic.
+
+  **`detection.rs` now asserts full `RepoFacts` equality for both idioms** — the
+  per-`VcsKind` narrowing is gone, and all 7 cases pass.
+
+  **One divergence, recorded deliberately**: asking the `jj` binary snapshots the
+  working copy first, so with unsnapshotted edits present it reports *and writes*
+  a new commit, while this route reports the commit as of the last recorded
+  operation and writes nothing. Measured both directions. After 0185's switch,
+  metadata derivation therefore stops mutating the user's repository. Pinned by
+  `an_unsnapshotted_edit_is_the_one_documented_divergence`.
 - **gix API coverage for the six queries** — all six delivered. Query 3
   (superproject) is the hand-rolled derivation, as the spike predicted, and
   **`gix::open` accepts a linked-worktree gitdir** — the one open question the
@@ -989,16 +1056,22 @@ gate ill-posed.
 
   | Triple | linked | stubbed | delta | ratio |
   | --- | --- | --- | --- | --- |
-  | `aarch64-apple-darwin` | 2,277,472 | 350,912 | 1,926,560 | **6.49x** |
-  | `x86_64-apple-darwin` | 2,308,192 | 344,224 | 1,963,968 | **6.71x** |
-  | `aarch64-unknown-linux-musl` | 2,245,528 | 360,864 | 1,884,664 | **6.22x** |
-  | `x86_64-unknown-linux-musl` | 2,426,392 | 386,504 | 2,039,888 | **6.28x** |
+  | `aarch64-apple-darwin` | 2,512,576 | 350,512 | 2,162,064 | **7.17x** |
+  | `x86_64-apple-darwin` | 2,560,820 | 347,504 | 2,213,316 | **7.37x** |
+  | `aarch64-unknown-linux-musl` | 2,476,312 | 360,864 | 2,115,448 | **6.86x** |
+  | `x86_64-unknown-linux-musl` | 2,699,320 | 386,504 | 2,312,816 | **6.98x** |
 
   All four cross-compile and pass magic-byte checks; both musl builds pass
   `_assert_static_elf`. Every triple clears the 3x ratio floor and both musl
   builds clear the 1,500,000-byte absolute floor. The figures **exceed** the
   prototype's (5.42x darwin / 6.19x musl), so the two-binary shape linked at
   least as much as the feature-gated one.
+
+  **Re-measured after the jj `revision` route landed** (amendment 10), which is
+  why these exceed the first pass (6.22x-6.71x): the op-store read and the
+  protobuf decode link more of jj-lib. All four triples were re-cross-compiled to
+  confirm the new direct `prost`/`pollster` edges break no target — they could
+  only have, and did not. Host-native ratio via `build:cli:fixture-size`: 7.16x.
 
 - **Cost, against the pure-jj fixture** (median of 20 with 3 warm-up runs):
 
@@ -1016,6 +1089,12 @@ gate ill-posed.
   `jj_repository` 29.7, `superproject` 35.3, `worktree` 37.8, `is_bare` 38.6,
   `dual_roots` 50.1 us.
 
+  **Re-measured after the jj `revision` route landed** (amendment 10), on this
+  repo's colocated workspace: all six queries + both ports **4.81 ms** (min 4.44,
+  max 6.18), single query 2.80 ms, against `jj log -r @ -T commit_id` at
+  26.54 ms. So the full surface — now including a real jj revision — still costs
+  roughly **a fifth** of one `jj` subprocess.
+
   Read for 0169's gate: the library-backed cold per-process path costs roughly
   **one sixth** of a single `jj` subprocess. The single-query mode inflation is
   ~12% (3.58 vs 4.03 ms) on pure-jj, confirming amendment 4 — process startup
@@ -1026,6 +1105,50 @@ gate ill-posed.
   criterion asked for it so 0169 does not set a threshold with no Linux
   datapoint. **Carried forward** — the `check-zero-spawn` job is the natural
   place to take it.
+
+- **Cold-cache compile cost** (measured 2026-08-03, darwin-arm64, 16 logical /
+  12 performance cores, fresh `CARGO_TARGET_DIR`, no `sccache`). This branch
+  changes `cli/Cargo.lock`, which invalidates the `Swatinem/rust-cache` key on
+  every Rust job, so the first CI run here compiles cold by construction.
+
+  | Cold build | Wall | CPU | Crates |
+  | --- | --- | --- | --- |
+  | `build:server:dev` (whole closure) | **21.20 s** | 102.97 s | 297 |
+  | `-p vcs-adapters` (the two new trees alone) | 16.92 s | 65.80 s | 198 |
+
+  So the two trees are ~64% of the server's cold CPU cost but only ~17 s of wall
+  clock here, and 46 gix-family crates. Scaled to a 4-vCPU `ubuntu-latest`
+  runner the added cost is on the order of a minute or two — comfortably inside
+  `test-visual-regression`'s `timeout-minutes: 20`, whose wall clock is dominated
+  by Playwright and Docker rather than by this build. **No budget raise needed**;
+  `check-zero-spawn` carries the same 20-minute cap and the same cold first run.
+
+- **Shipped-binary size impact: none, because the trees do not link.** Verified
+  2026-08-03 on an unstripped `--release` `accelerator-visualiser`
+  (`CARGO_PROFILE_RELEASE_STRIP=false`, darwin-arm64, 10.7 MB): dead-code
+  elimination removes the whole `gix`/`jj-lib` closure. Distinctive literals
+  (`extensions.objectFormat` from gix, `There is no Jujutsu repo` from jj-lib)
+  are present in the linked reference artefact and absent from the shipped
+  binary, which carries **zero** symbols from `gix`, `gix-pack`, `gix-odb`,
+  `jj_lib`, `clru` or `uluru` against 26,247 total. The cause is broader than
+  this story: nothing in the visualiser's reachable call graph enters
+  `vcs-adapters` at all — `CommandProbe`'s own `rev-parse` literal is absent
+  too. A formal before/after byte comparison against the pre-branch revision was
+  therefore not taken; the delta is nil by construction. **This also closes the
+  MPL-2.0 §3.2 question** (see below) and **must be re-checked when the
+  visualiser starts reaching `vcs_adapters::facts`** — 0185's composition-root
+  switch is the expected trigger, and it is recorded there.
+
+- **MPL-2.0 §3.2 — closed 2026-08-03: the notice obligation does not bind.**
+  `uluru` is in the normal closure of exactly one shipped binary
+  (`accelerator-visualiser`; neither `accelerator` nor `accelerator-verify` has
+  it at all), and the dead-code-elimination evidence above shows no `uluru` code
+  is distributed in it. §3.1 is satisfied trivially — we ship no modifications —
+  so no third-party attribution artefact is required in the release payload, and
+  `_release_uploads()` is unchanged. The `cli/deny.toml` exception comment
+  records the finding, its evidence and its re-check trigger; an earlier draft of
+  that comment asserted the obligation was discharged by a staged licence file
+  that does not exist, which is corrected.
 
 ## References
 
