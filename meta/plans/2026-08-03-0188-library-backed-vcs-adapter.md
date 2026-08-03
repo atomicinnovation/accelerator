@@ -1930,28 +1930,28 @@ on it.
 
 #### Automated Verification
 
-- [ ] `mise run test:unit:cli` passes; `detection.rs` runs every existing case
+- [x] `mise run test:unit:cli` passes; `detection.rs` runs every existing case
       through the seam against both implementations, producing identical
       `RepoFacts`
-- [ ] `cli/corpus-adapters`' `zero_spawn.rs` passes: no marker written and every
+- [x] `cli/corpus-adapters`' `zero_spawn.rs` passes: no marker written and every
       value matches the unrestricted run
-- [ ] `mise run cli:check`, `deny:check`, `pup:check` pass (the new workspace
+- [x] `mise run cli:check`, `deny:check`, `pup:check` pass (the new workspace
       member landed in Phase 2 and was gated there)
-- [ ] `cli/corpus-adapters`' metadata parity suite passes unchanged:
+- [x] `cli/corpus-adapters`' metadata parity suite passes unchanged:
       `derive_at_agrees_with_the_live_metadata_helper`
       (`cli/corpus-adapters/tests/metadata.rs:265`) — note this is
       `tests/metadata.rs`, **not** `tests/parity.rs`, which is the linkage suite
       and never touches VCS
-- [ ] `mise run` green end to end
+- [x] `mise run` green end to end
 
 #### Manual Verification
 
-- [ ] `zero_spawn.rs` imports only `vcs_test_support`'s public API — all three
+- [x] `zero_spawn.rs` imports only `vcs_test_support`'s public API — all three
       parts, not one
-- [ ] The shadow list records which absolute paths it could not shadow on the
+- [x] The shadow list records which absolute paths it could not shadow on the
       host it ran on, and `vcs-test-support` modified nothing outside `TMPDIR`
       (checksum the resolved absolute paths before and after)
-- [ ] `cli/vcs-test-support` does not depend on `cli/vcs-adapters`, so no
+- [x] `cli/vcs-test-support` does not depend on `cli/vcs-adapters`, so no
       dev-dependency cycle exists
 
 ---
@@ -2295,35 +2295,38 @@ not these.
 
 #### Automated Verification
 
-- [ ] Both fixture binaries build and print every query result
-- [ ] `mise run test:integration:zero-spawn` passes locally in `PATH`-only mode
+- [x] Both fixture binaries build and print every query result
+- [x] `mise run test:integration:zero-spawn` passes locally in `PATH`-only mode
 - [ ] The strong-form run passes in the named Linux CI job, with absolute paths
-      shadowed
-- [ ] Both binaries cross-compile to musl and pass `_assert_static_elf`
-- [ ] Size: linked ≥ 3× stubbed **and** delta ≥ 1,500,000 bytes, on the
+      shadowed — **not verifiable locally**; the job is written and lands with
+      this branch, and macOS degrades to `PATH`-only under SIP
+- [x] Both binaries cross-compile to musl and pass `_assert_static_elf`
+- [x] Size: linked ≥ 3× stubbed **and** delta ≥ 1,500,000 bytes, on the
       musl-static stripped artefact (see
       [Work-Item Amendments](#work-item-amendments))
-- [ ] `mise run test:unit:tasks` passes, including the updated
+- [x] `mise run test:unit:tasks` passes, including the updated
       `test_mise.py` and `test_workflows.py`
-- [ ] `mise run` green end to end
+- [x] `mise run` green end to end
 
 #### Manual Verification
 
-- [ ] The strong-form job's shadow step actually replaced the binaries (assert
-      `git --version` fails inside the step before restoring), and the harness
-      hard-fails when `ACCELERATOR_ZERO_SPAWN_MODE=strong` but a listed path is
-      still executable
+- [ ] The strong-form job's shadow step actually replaced the binaries — **CI
+      only**. The harness half *is* verified: it hard-fails when
+      `ACCELERATOR_ZERO_SPAWN_MODE=strong` and a listed path is still
+      executable, and fails closed on a malformed mode
 - [ ] Both size figures and all six cost figures are written into Validation
-      Results with host and OS, plus one `x86_64-unknown-linux-musl` cold
-      per-process figure — the gate-comparable figure stays darwin-arm64, but
+      Results with host and OS (**done in Phase 5**), plus one
+      `x86_64-unknown-linux-musl` cold per-process figure — the gate-comparable figure stays darwin-arm64, but
       the shipped artefact is static musl and 0169 otherwise sets a threshold
       with no Linux datapoint
-- [ ] All four release triples cross-compile, each recorded individually
-- [ ] The restore step runs `if: always()`, is idempotent per path, and is
-      followed by an `if: always()` assertion that `git --version` and
-      `jj --version` both succeed — `if: always()` alone does not establish the
+- [x] All four release triples cross-compile, each recorded individually
+- [ ] The restore step is a `trap restore EXIT` inside the single shadow-run
+      step (stronger than `if: always()`, which a job-level cancel need not
+      honour), is idempotent per path, and is followed by an `if: always()`
+      assertion that `git --version` and `jj --version` both succeed —
+      **observable only on a CI run** — `if: always()` alone does not establish the
       guarantee, and the containment additionally assumes ephemeral runners
-- [ ] Nothing was staged into `dist/release/` that `_release_uploads()` does not
+- [x] Nothing was staged into `dist/release/` that `_release_uploads()` does not
       enumerate
 
 ---

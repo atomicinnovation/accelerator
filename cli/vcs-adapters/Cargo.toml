@@ -24,6 +24,14 @@ bash-parity = []
 name = "vcs-adapters-fixture"
 path = "tests/fixtures/vcs_adapters_fixture.rs"
 
+# The stubbed twin, giving the size floor a denominator. A second [[bin]] rather
+# than a `stub` feature: the crate must gain no [features] entry beyond
+# bash-parity, and CI's --all-features would turn a fixture feature on
+# workspace-wide.
+[[bin]]
+name = "vcs-adapters-fixture-stub"
+path = "tests/fixtures/vcs_adapters_fixture_stub.rs"
+
 [dependencies]
 vcs = { path = "../vcs" }
 gix = { workspace = true }

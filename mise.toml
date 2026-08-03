@@ -127,6 +127,11 @@ description = "Cross-compile the cli launcher + verify shim for all four release
 depends = ["deps:install:rust-targets"]
 run = "invoke build.cli-cross-compile"
 
+[tasks."build:cli:fixture-size"]
+description = "Assert the host-native VCS reference artefact links its gix/jj-lib trees (ratio floor; the absolute floor is musl-only and runs in the cross-compile)"
+depends = ["deps:install:python"]
+run = "invoke build.cli-fixture-size-check"
+
 [tasks."build:vendor-verify-shims"]
 description = "Copy the cross-compiled verify shims into the committed bin/ tree and record the drift marker"
 depends = ["build:cli:cross-compile"]
@@ -199,6 +204,11 @@ run = "invoke test.integration.config"
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python"]
 run = "invoke test.integration.deny"
+
+[tasks."test:integration:zero-spawn"]
+description = "Prove the library-backed VCS adapter reads git and jj without spawning them (its own CI job, not the test roll-up)"
+depends = ["deps:install:python"]
+run = "invoke test.integration.zero-spawn"
 
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"

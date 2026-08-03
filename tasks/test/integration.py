@@ -1,6 +1,6 @@
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML
+from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 
 from .helpers import accelerator_env, run_shell_suites
 
@@ -129,6 +129,28 @@ def deny(context: Context) -> None:
 def pup(context: Context) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
     context.run("uv run pytest tests/integration/pup -v")
+
+
+@task
+def zero_spawn(context: Context) -> None:
+    """Run the zero-spawn suite (its own CI job, not the test roll-up).
+
+    Builds the reference artefact first: the suite resolves it beside its own
+    test binary, and a bare `cargo nextest run -p corpus-adapters` does not
+    build another crate's bin target.
+    """
+    context.run(
+        "cargo build "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-adapters --bin vcs-adapters-fixture",
+        pty=True,
+    )
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p corpus-adapters --features bash-parity -E 'binary(zero_spawn)'",
+        pty=True,
+    )
 
 
 @task

@@ -170,6 +170,59 @@ crate acquiring or replacing one is a hard failure needing either an `allow`
 addition (permissive) or a justified `[[licenses.exceptions]]` (copyleft), with
 the `uluru` MPL-2.0 entry as the template.
 
+### Zero-spawn strong form
+
+The library-backed VCS adapter reads git and jj **in-process**. Two mechanisms
+prove it, and they prove different things.
+
+`test:integration:zero-spawn` puts marker-writing `git`/`jj` stubs first on a
+synthetic `PATH`, drops every directory that could resolve a real one, runs the
+whole fixture matrix, and asserts **both** that no stub recorded a spawn **and**
+that every value matches an unrestricted run — an adapter degrading to absence
+also writes no marker. It is scoped to `git`/`jj` specifically, not "no
+subprocess at all": the clock spawns `date` unconditionally.
+
+That is the **weak** form: a caller reaching `/usr/bin/git` by absolute path
+never consults `PATH`. The **strong** form additionally shadows those absolute
+paths, and runs only in the `check-zero-spawn` CI job, which is in
+`prerelease.needs`. The harness and the workflow step have an explicit contract
+— `ACCELERATOR_ZERO_SPAWN_MODE` and `ACCELERATOR_ZERO_SPAWN_SHADOWED` — and the
+harness **fails closed** on a malformed mode or a path that is still executable,
+so a runner image that relocates `git` cannot turn the `sudo mv` into a silent
+no-op.
+
+`test:integration:zero-spawn` is deliberately **out of the `test:integration`
+roll-up**: membership would rebuild the ~34-fixture matrix a second time per
+run, on both OS legs and on every bare `mise run`, in a code path with a
+documented flake history under parallel CI load. It stays runnable on demand.
+
+**The harness never writes outside its own temp directories.** It resolves and
+*reports* absolute paths; it never moves, chmods or `sudo`s anything. All
+privileged mutation lives in the CI step. `/opt/homebrew/bin` is user-writable,
+so an "attempt and record the failure" design would succeed there and could
+leave a developer's machine without `git` or `jj` — and the suite is reachable
+from the bare `mise run` every contributor runs before pushing.
+
+**Containment assumes ephemeral runners.** Shadow, run and restore live in one
+step with a `trap restore EXIT` and a step-level `timeout-minutes` shorter than
+the job's, so the shell rather than the scheduler guarantees the restore; a
+trailing `if: always()` step asserts `git --version` and `jj --version` both
+succeed. The job sets `cache: false` on `mise-action` because the jj shadow
+target sits inside the tree the action saves on its post step, so a failed
+restore would otherwise persist a `jj`-less tool tree into the cache that every
+later run restores. A move to self-hosted, containerised or reusable runners
+turns a contained hazard into a persistently broken runner.
+
+`build:cli:fixture-size` is the third guard: the linked reference artefact must
+be at least 3× the stubbed twin, so a future edit that stops printing a query
+result — letting the linker drop `gix`/`jj-lib` — is caught on the PR path
+rather than first firing during a release. The cross-compile applies the same
+ratio on every triple plus an absolute byte floor on **musl only**; the darwin
+stripped delta clears that floor by ~9%, and every triple is stripped, so gating
+darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
+When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
+the drop is understood.
+
 ### Rust nightly lane (cargo-pup)
 
 Architecture enforcement (the ADR-0053 inward-dependency rule) runs via
@@ -380,3 +433,4 @@ locally with the mapped command:
 | `check-cli`                           | `mise run cli:check`                      |
 | `check-supply-chain`                  | `mise run deny:check`                     |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`) |
+| `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only locally; the strong form shadows absolute paths and runs only in CI) |
