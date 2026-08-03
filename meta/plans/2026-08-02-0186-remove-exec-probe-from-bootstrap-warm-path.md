@@ -972,6 +972,13 @@ stale, and this plan itself adds eight cases to that file):
 Also correct `475KB` to `465KB` while the line is open — the shipped shim
 measures 465,568 bytes.
 
+**Deviation taken during implementation: not applied — the plan's correction is
+wrong.** 465,568 bytes is the **linux-x64** shim. The four vendored shims
+measure 486,672 (darwin-arm64), 496,896 (darwin-x64), 426,400 (linux-arm64) and
+465,568 (linux-x64) bytes, so the figure is per-triple and the original `475KB`
+was already right for the shipped darwin-arm64 shim (486,672 B = 475.3 KiB).
+Written as `~475KB` instead, since the comment is generic across triples.
+
 #### 4. Changelog
 
 **File**: `CHANGELOG.md`
@@ -993,7 +1000,7 @@ gate input. A ratio is safe to state because the gate enforces one.
 
 #### Automated Verification
 
-- [ ] Shell format and lint pass: `mise run scripts:check` — changes 2 and 3
+- [x] Shell format and lint pass: `mise run scripts:check` — changes 2 and 3
       edit `bin/accelerator`, which `tasks/shared/sources.py:110` puts in
       shfmt/ShellCheck/bashisms/exec-bits scope
 
@@ -1003,16 +1010,17 @@ maintained by hand.
 
 #### Manual Verification
 
-- [ ] `docs/internals.md` no longer claims the probe runs on every invocation,
+- [x] `docs/internals.md` no longer claims the probe runs on every invocation,
       both paragraphs read end-to-end as complete prose, the release-base-URL
       sentence survives verbatim, the trust guidance is not narrowed to cold
-      starts, and every line is within 80 columns
-- [ ] The read-only-cache statement names the dispatch limitation in both
+      starts, and every line is within 80 columns (the only over-80 lines in
+      the section are the pre-existing variable table)
+- [x] The read-only-cache statement names the dispatch limitation in both
       `docs/internals.md` and `CHANGELOG.md`
-- [ ] The changelog entry sits under the existing `## [Unreleased]` /
+- [x] The changelog entry sits under the existing `## [Unreleased]` /
       `### Changed` heading, describes user-visible behaviour, and states no
       figure Phase 4 has not measured
-- [ ] The staging comment no longer calls the re-hash "cheap" without
+- [x] The staging comment no longer calls the re-hash "cheap" without
       qualification, and cites test function names rather than line numbers
 
 ---

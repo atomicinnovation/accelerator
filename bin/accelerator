@@ -10,6 +10,10 @@
 # before a `--` separator and passed through to the launcher unchanged. Bash 3.2
 # floor (no associative arrays, ${var,,}, mapfile).
 #
+# The cache directory must be writable and exec-capable on a cold start, which
+# is probed once. A warm start only reads and execs from it, so a populated
+# cache directory may be read-only.
+#
 # Test seams (unset in production): ACCELERATOR_UNAME_S/_M override host
 # detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER injects a `downloader <url> <dest>`.
 #
@@ -276,9 +280,14 @@ sha256_file() {
 # The plugin root may be noexec, so run the shim from the cache dir, and by
 # absolute path so a PATH-planted decoy cannot stand in for the verifier.
 # Content-addressed by the source shim's own digest: a warm call re-hashes
-# (cheap) instead of re-copying 475KB, a uniquely-named file is never torn by a
-# concurrent reader, and skip-if-exists verifies the staged bytes against that
-# digest so a planted stub is re-staged rather than trusted by name.
+# instead of re-copying ~475KB — now the largest remaining warm-path cost,
+# retained deliberately because the digest check is what makes a planted stub
+# get re-staged rather than trusted by name
+# (test_planted_staged_shim_rehashed_then_succeeds,
+# test_planted_staged_shim_is_not_trusted,
+# test_planted_staged_shim_via_cache_dir_is_not_trusted) — a uniquely-named file
+# is never torn by a concurrent reader, and skip-if-exists verifies the staged
+# bytes against that digest.
 shim_digest=$(sha256_file "${shim_source}") ||
 	fail_integrity "could not hash the verify shim source: ${shim_source}"
 shim="${cache_dir}/accelerator-verify-${platform}-${shim_digest}"
