@@ -11,10 +11,10 @@ priority: high
 parent: "work-item:0136"
 blocked_by: ["work-item:0164", "work-item:0166", "work-item:0167", "work-item:0179", "work-item:0186", "work-item:0187", "work-item:0188"]
 blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173", "work-item:0174"]
-relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
+relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "work-item:0189", "work-item:0192", "work-item:0193", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-03T16:37:02+00:00"
+last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-190"
@@ -532,6 +532,15 @@ segment matches; the first matching segment names the reported subcommand.
   script**, so despite the `blocks: 0174` edge it does not claim this.
   Separately, `hooks/launcher-link-refresh.sh` is claimed by no epic-0136 story.
   An acceptance criterion requires a follow-up item owning both.
+
+  **Resolved 2026-08-06**: [`0192`](0192-retire-vcs-common-sh-residue-and-launcher-link-refresh.md)
+  now owns both — the `find_repo_root`/`vcs_mode` residue (with
+  `classify_checkout`'s fate as part of its inventory) and
+  `hooks/launcher-link-refresh.sh`. Separately,
+  [`0193`](0193-decide-vcs-guard-log-diff-blocklist-membership.md) now owns
+  the `log`/`diff` blocklist-membership decision this story's Phase 1/Phase 7
+  declined to make (see the parity-scope note above and Phase 10 of the
+  implementation plan).
 - **Parent**: epic 0136.
 
 ## Assumptions

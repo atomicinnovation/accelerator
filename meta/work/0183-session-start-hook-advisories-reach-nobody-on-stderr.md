@@ -10,7 +10,7 @@ kind: bug
 priority: low
 relates_to: ["work-item:0182"]
 tags: [bug, hooks, session-start, diagnostics]
-last_updated: "2026-07-28T09:14:02+00:00"
+last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -36,7 +36,9 @@ neither the user nor Claude.
 
 The documented mechanism for putting a line in front of the user is the
 universal top-level `systemMessage` JSON output field, which
-[`hooks/vcs-detect.sh:14`](../../hooks/vcs-detect.sh#L14) already uses.
+`hooks/vcs-detect.sh:14` already used before 0169 (2026-08-06) retired it in
+favour of `accelerator vcs detect` — see the Dependencies amendment below for
+where that pattern lives now.
 
 ## Context
 
@@ -87,6 +89,24 @@ return only this one site.
 ## Dependencies
 
 - Related: 0182 (recorded the channel determination that surfaced this).
+- **Amendment 2026-08-06 — `accelerator vcs detect` is a new SessionStart audit
+  site, outside this item's literal `hooks/` scope.** 0169 replaced
+  `hooks/vcs-detect.sh`'s SessionStart registration with
+  `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect --format=hook --fail-safe
+  --descriptive` — a hooks.json-registered command that is no longer a file
+  under `hooks/` at all, so the Requirements' "audit every `SessionStart` hook
+  in `hooks/`" wording would silently miss it. On inspection it is already
+  compliant: `cli/vcs-cli/src/detect.rs`'s `run` renders an adapter failure via
+  `kernel::hooks::adapter_failure` (a bare top-level `systemMessage`, no
+  `hookSpecificOutput`, nothing written to stderr for user-facing text), and
+  the normal-path envelope goes through `kernel::hooks::session_start`, which
+  merges `systemMessage` into the same `additionalContext` object rather than
+  emitting two JSON values — satisfying this item's own "at most one JSON
+  object on stdout" constraint natively. `hooks/config-detect.sh` was also
+  retired the same way, onto `accelerator config summary --format=hook`
+  (`cli/launcher/src/config_command`), likewise systemMessage-based. When this
+  item's audit runs, broaden its scope statement to cover hooks.json-registered
+  binary commands, not just files physically under `hooks/`.
 
 ## Assumptions
 

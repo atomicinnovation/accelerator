@@ -7,6 +7,8 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 use crate::launch::core::ResolutionError;
 
@@ -96,11 +98,22 @@ pub fn verify_writable(dir: &Path) -> Result<(), ResolutionError> {
 
 /// Probe writability and exec-capability by writing then running a script —
 /// catching `noexec` mounts, which a write-only probe would miss.
+///
+/// The filename carries a per-process sequence number alongside the PID: two
+/// threads in one process (the launcher's own concurrent-first-use tests
+/// resolve from more than one thread) would otherwise collide on the same
+/// PID-only path and race each other's write/exec/remove cycle.
 fn probe_writable_and_executable(dir: &Path) -> bool {
+    static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
     if std::fs::create_dir_all(dir).is_err() {
         return false;
     }
-    let probe = dir.join(format!(".accelerator-probe-{}", std::process::id()));
+    let sequence = SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let probe = dir.join(format!(
+        ".accelerator-probe-{}-{sequence}",
+        std::process::id()
+    ));
     let written = std::fs::write(&probe, b"#!/bin/sh\nexit 0\n").is_ok()
         && make_executable(&probe);
     let executable = written

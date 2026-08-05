@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-06T00:15:00+00:00"
+last_updated: "2026-08-06T01:30:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1473,16 +1473,37 @@ found.
 
 #### Automated Verification
 
-- [ ] `mise run` passes end to end
-- [ ] The dated hand-off notes and both new work items exist and are
-      cross-linked (grep-verified)
+- [x] `mise run` passes end to end — the full local CI mirror (frontend +
+      server + cli builds, all formatters/lint-fixes, every lint/type-check,
+      the entire test suite including e2e) ran clean with zero task
+      failures. One genuine pre-existing bug surfaced and was fixed along
+      the way: `cache_root::probe_writable_and_executable`'s temp-file name
+      was keyed on PID alone, so two threads resolving concurrently in one
+      process (`launcher/tests/resolution.rs`'s
+      `two_concurrent_first_use_resolves_both_succeed`) could race on the
+      identical probe path under heavy scheduler contention — reproduced
+      only under this task's full-parallel load (20/20 clean in isolation,
+      and clean as part of `test:unit:cli` alone), never under Phase 5's own
+      testing. Fixed by keying the probe filename on PID plus a per-process
+      atomic sequence number
+      (`cli/launcher/src/launch/outbound/resolve/cache_root.rs`), which
+      makes every call's path unique regardless of thread interleaving.
+- [x] The dated hand-off notes and both new work items exist and are
+      cross-linked (grep-verified) — dated 2026-08-06 amendments landed on
+      0125, 0172, 0183, 0189; `work-item:0192` (vcs-common.sh residue +
+      `hooks/launcher-link-refresh.sh`) and `work-item:0193` (the guard's
+      `log`/`diff` blocklist-membership decision) created and cross-linked
+      from 0169's own Dependencies section
 
 #### Manual Verification
 
 - [ ] **Claude Code floor check**: on the actual client version in use, a
       real Bash call to a blocked git subcommand in a pure-jj repo is denied
       and the colocated warning appears in the session transcript; observed
-      version recorded in the work item's Validation Results
+      version recorded in the work item's Validation Results. **Deferred**:
+      needs a real Claude Code session against this branch with its
+      `hooks.json` actually registered as the active plugin — the same
+      external prerequisite noted on Phase 9's own manual item.
 - [ ] **Warm-call latency**: median of 20 `hooks/vcs-guard.sh` invocations
       (B) vs 20 warm `accelerator vcs guard` invocations (G) against the same
       stdin payload and pure-jj fixture on one host; `G ≤ 1.1 × B` recorded
@@ -1490,10 +1511,19 @@ found.
       measured through the real bootstrap-to-launcher-to-sub-binary dispatch
       path** (no `ACCELERATOR_VCS_BIN` override), so the recorded figure
       reflects what an installed plugin actually pays, including the Phase 5
-      cache-root fix's effect
+      cache-root fix's effect. **Deferred, not merely unattempted**: this
+      dispatch path requires the launcher's cache-hit or fetch-and-verify
+      resolution against a real, minisign-signed `accelerator-vcs` release
+      asset — neither exists pre-release, and no dev workaround satisfies
+      "no override" by construction. Phase 5/7's own manual checks already
+      proved the dispatch mechanics end to end via `ACCELERATOR_VCS_BIN`;
+      this specific criterion needs the real release artefact, not more dev
+      testing.
 - [ ] The release-cut deployment gate (Phase 9's note) is scheduled with
       whoever performs epic-0136 releases before `hooks.json`'s rewrite
-      reaches an installed-plugin path
+      reaches an installed-plugin path — **owner action, not code**: flagging
+      here rather than closing silently, since this plan's own code changes
+      cannot schedule it.
 
 ---
 
