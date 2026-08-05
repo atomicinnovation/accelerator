@@ -26,6 +26,7 @@ _CLI_CHECK_GATES = [
     "lint:vendor-shims:check",
     "lint:store-duplication:check",
     "lint:claude-coupling:check",
+    "lint:vcs-settings:check",
 ]
 
 # The dispatch guard is a skills-tree guard, so it cannot join _CLI_CHECK_GATES
@@ -59,6 +60,9 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
     "test:integration:hooks": "shell suites run with no accelerator_env",
     "test:integration:github": "shell suites run with no accelerator_env",
+    "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
+    "test:integration:zero-spawn:strong": "the same suite, with the real "
+    "git/jj shadowed",
 }
 
 
@@ -140,6 +144,20 @@ def test_the_two_launcher_sets_are_disjoint():
 # runs. Each exclusion carries its reason.
 _NOT_IN_INTEGRATION_ROLLUP = {
     "test:integration:pup": "needs the isolated nightly toolchain lane",
+    # Membership would build the ~34-fixture matrix a second time per run — on
+    # both legs of test-integration and on every bare `mise run` — on top of
+    # queries.rs, in the code path with a documented flake history under
+    # parallel CI load. It also keeps the harness that reads the shadow
+    # contract off the local path. Owned by check-zero-spawn; runnable on
+    # demand.
+    "test:integration:zero-spawn": "owned by its own CI job; rebuilds the "
+    "whole fixture matrix",
+    # Strictly worse to put in a roll-up than its PATH-only sibling: it moves
+    # system binaries aside with sudo. Gated behind an env opt-in as well, so
+    # a stray invocation fails closed rather than leaving a developer without
+    # git. Owned by check-zero-spawn.
+    "test:integration:zero-spawn:strong": "shadows the real git/jj with "
+    "sudo; CI-only by design",
 }
 
 

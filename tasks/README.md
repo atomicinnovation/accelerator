@@ -44,7 +44,10 @@ too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
-architecture, on an isolated nightly lane).
+architecture, on an isolated nightly lane). `pup.ron` carries one rule per
+domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
+library-backed VCS adapter's imports to a permit list and denies `std::process`
+— see "Library-backed VCS dependency pins" below.
 
 ## Family aggregates
 
@@ -102,6 +105,154 @@ is no longer enumerated.
   mode and assumes an exec-bit-preserving filesystem — acceptable given the
   macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
   dev is macOS via jj workspaces).
+
+### Library-backed VCS dependency pins
+
+`cli/vcs-adapters` reads git through `gix` and jj through `jj-lib` in-process.
+Those two pins are **not independent**, and neither is bumped alone.
+
+**The coupling is six-way**: `jj-lib` (exact, `=0.43.0`), `gix`
+(tilde, `~0.85.0`), `prost` and `pollster` (jj-lib's own, adopted as direct
+edges), the Rust toolchain, and `mise.toml`'s `jj` CLI pin. The CLI
+writes the repository format the library reads, so a skew between them surfaces
+as an apparently wrong detection answer rather than as a version mismatch;
+`jj-lib`'s MSRV moved 1.85 → 1.88 → 1.89 across eight releases, so a bump drags
+the toolchain too. The asymmetry is deliberate: `jj-lib` is exact because the
+design leans on its declared-unstable loader internals, while `gix` takes a
+tilde so a RustSec fix is a lock update rather than a pin edit. `gix` also sets
+`default-features = false`, which is what keeps `gix-credentials` — whose
+helpers spawn `git credential-*` programs — out of a module that exists to avoid
+spawning. Widening that feature list is how a consumer adds a capability.
+
+`prost` and `pollster` are the newest two, and they are **jj-lib's, not ours**.
+They exist so the jj working-copy commit id can be read without constructing a
+settings value: `prost` decodes `jj_lib::protos::local_working_copy::Checkout` (a
+public module, so this is API rather than a private wire format) and `pollster`
+drives the `OpStore` trait's async reads, which jj-lib itself drives with
+pollster. Both were already in the lock through jj-lib, so adopting them added
+two edges and no packages. They are pinned to the majors jj-lib requires, because
+the decoded type comes *from* jj-lib — a major mismatch would put two `prost`
+graphs in the lock and the generated code would stop matching the decoder. Move
+them when `jj-lib` moves, never on their own.
+
+Two committed checks hold this together:
+`tests/unit/tasks/test_vcs_pin_lockstep.py` (the declarations agree and keep
+their inline rationale) and `tests/integration/deny/test_vcs_library_graph.py`
+(versions, single gix graph, a single `prost`/`pollster` version each, the
+enabled feature set, no TLS in the subtree on any of deny.toml's five targets,
+MSRV, and a build-script/proc-macro snapshot).
+That the *binary* building fixtures matches the pin is asserted by the fixture
+harness, not by these.
+
+**Two enforcement mechanisms, with a clean division of labour.** cargo-pup owns
+**import** prohibitions; the `tasks/` source guards own **usage** prohibitions
+imports cannot express — `RestrictImports` resolves `use` paths, so a
+fully-qualified `jj_lib::settings::UserSettings::from_config(…)` or a
+`Workspace::load` method call is invisible to it. That is the whole
+justification for the extra Python machinery over a one-line `denied` clause.
+
+`lint:vcs-settings:check` (`tasks/lint/vcs_settings.py`) is that guard: no code
+in `cli/vcs-adapters` may construct a `UserSettings` or call `Workspace::load`,
+whose defaults are private to jj-lib and were discovered one panic at a time.
+It **strips comments before matching**, so the crate can document why it avoids
+them without flagging itself. It rides both `cli:check` and `lint:check`, for
+the same bare-`default` reason as the other `cli/`-scoped guards.
+
+**Break-glass for a supply-chain failure.** Both transitive trees enter
+cargo-deny's `advisories` scope under `unmaintained = "all"` with
+`yanked = "deny"`, over a ~60-crate closure no repo code calls, and the advisory
+DB is fetched fresh every run. One upstream advisory there turns
+`check-supply-chain` red for every unrelated PR — and that job is in
+`prerelease.needs`, so it also stops releases. Recovery is a scoped, dated
+`[advisories].ignore` entry following the existing `RUSTSEC-2026-0118/0119`
+precedent, with a `review-by: YYYY-MM-DD` in its `reason`;
+`tests/integration/deny/test_advisory_ignores.py` asserts every entry carries
+one and that none has lapsed.
+
+**The break-glass is scoped to the `unmaintained`, `yanked` and `notice`
+classes only.** A `vulnerability`-class advisory takes the escalation path —
+upgrade, patch or vendor — never an ignore, regardless of release pressure,
+because this closure reaches the publicly distributed signed
+`accelerator-visualiser` binary. cargo-deny's `ignore` list is flat with no
+class distinction, so the scoping has to be written down or the pre-authorised
+action silently covers every class.
+
+**The licence side has no `ignore` mechanism at all.** `[licenses].allow` is
+pruned to exactly the licences the current closure carries, so a transitive
+crate acquiring or replacing one is a hard failure needing either an `allow`
+addition (permissive) or a justified `[[licenses.exceptions]]` (copyleft), with
+the `uluru` MPL-2.0 entry as the template.
+
+### Zero-spawn strong form
+
+The library-backed VCS adapter reads git and jj **in-process**. Two mechanisms
+prove it, and they prove different things.
+
+`test:integration:zero-spawn` puts marker-writing `git`/`jj` stubs first on a
+synthetic `PATH`, drops every directory that could resolve a real one, runs the
+whole fixture matrix, and asserts **both** that no stub recorded a spawn **and**
+that every value matches an unrestricted run — an adapter degrading to absence
+also writes no marker. It is scoped to `git`/`jj` specifically, not "no
+subprocess at all": the clock spawns `date` unconditionally.
+
+That is the **weak** form: a caller reaching `/usr/bin/git` by absolute path
+never consults `PATH`. The **strong** form additionally shadows those absolute
+paths. It is `test:integration:zero-spawn:strong`, and it owns the whole
+sequence: compile the artefacts and build the fixture matrix while the real
+binaries are still reachable, shadow them, run the prebuilt suite, restore in a
+`finally`. Only the `check-zero-spawn` CI job invokes it, and that job is in
+`prerelease.needs`.
+
+Targets are resolved at run time from **three** sources: every `PATH` hit (macOS
+ships `git` in two directories), `mise which git`/`mise which jj`, and the known
+system paths. `mise which` is the load-bearing one on CI — there is no system
+`jj` on the runner, the real binary lives under the mise install tree, and what
+sits on `PATH` may be a shim pointing at it. Shadowing only a shim would leave
+the real binary reachable by absolute path while the harness agreed the run was
+strong, because it is only told about the paths we shadowed.
+
+The harness and the task have an explicit contract —
+`ACCELERATOR_ZERO_SPAWN_MODE` and `ACCELERATOR_ZERO_SPAWN_SHADOWED` — and the
+harness **fails closed** on a malformed mode or a path that is still executable,
+so a runner image that relocates `git` cannot turn the `sudo mv` into a silent
+no-op.
+
+`test:integration:zero-spawn` is deliberately **out of the `test:integration`
+roll-up**: membership would rebuild the ~34-fixture matrix a second time per
+run, on both OS legs and on every bare `mise run`, in a code path with a
+documented flake history under parallel CI load. It stays runnable on demand.
+
+**The Rust harness never writes outside its own temp directories.** It resolves
+and *reports* absolute paths; it never moves, chmods or `sudo`s anything. All
+privileged mutation lives in the strong-form task, which is **gated behind
+`ACCELERATOR_ZERO_SPAWN_SHADOW=yes`** and refuses to start without it.
+`/opt/homebrew/bin` is user-writable, so an ungated task would succeed there and
+could leave a developer's machine without `git` or `jj`. The gate is an
+environment variable rather than a flag precisely because a task name can be
+tab-completed by accident and an `env:` block cannot.
+
+**Containment assumes ephemeral runners.** Shadow, run and restore live in one
+task, with the restore in a `finally` and a step-level `timeout-minutes` shorter
+than the job's, so the process rather than the scheduler guarantees the restore.
+A trailing `if: always()` step then asserts `git --version` and `jj --version`
+both succeed — deliberately as bare commands, not `mise run`, because mise would
+reinstall the missing tool and turn the one check that catches a failed restore
+into one that quietly repairs it. For the same reason the task invokes cargo
+directly inside the window: mise is entered before it and never within. The job sets `cache: false` on `mise-action` because the jj shadow
+target sits inside the tree the action saves on its post step, so a failed
+restore would otherwise persist a `jj`-less tool tree into the cache that every
+later run restores. A move to self-hosted, containerised or reusable runners
+turns a contained hazard into a persistently broken runner.
+
+`build:cli:fixture-size` is the third guard: the linked reference artefact must
+be at least 3× the stubbed twin, so a future edit that stops printing a query
+result — letting the linker drop `gix`/`jj-lib` — is caught on the PR path
+rather than first firing during a release. The cross-compile applies the same
+ratio on every triple plus an absolute byte floor on **musl only**; the darwin
+stripped delta clears that floor by ~9%, and every triple is stripped, so gating
+darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
+When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
+the drop is understood.
 
 ### Rust nightly lane (cargo-pup)
 
@@ -313,3 +464,4 @@ locally with the mapped command:
 | `check-cli`                           | `mise run cli:check`                      |
 | `check-supply-chain`                  | `mise run deny:check`                     |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`) |
+| `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |

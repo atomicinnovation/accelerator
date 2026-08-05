@@ -9,10 +9,9 @@ rust = { version = "1.90.0", components = "rustfmt,clippy" }
 node = "22.22.2"
 shellcheck = "0.11.0"
 shfmt = "3.13.1"
-# Kept in lockstep with the `jj-lib` crate pin in cli/ (0.43): the
-# library-backed VCS adapter reads repositories the CLI writes, so a version
-# skew between them is a format-coherence risk. Bump both together. See
-# meta/work/0188-library-backed-vcs-adapter.md.
+# Kept in lockstep with the `jj-lib` crate pin in cli/ (0.43): the adapter reads
+# repositories this CLI writes, so a skew between them is a format-coherence
+# risk. Bump both together.
 jj = "0.43.0"
 jq = "1.7.1"
 # Exact pin + explicit backend (aqua), matching the exact-pin discipline of the
@@ -127,6 +126,11 @@ description = "Cross-compile the cli launcher + verify shim for all four release
 depends = ["deps:install:rust-targets"]
 run = "invoke build.cli-cross-compile"
 
+[tasks."build:cli:fixture-size"]
+description = "Assert the host-native VCS reference artefact links its gix/jj-lib trees (ratio floor; the absolute floor is musl-only and runs in the cross-compile)"
+depends = ["deps:install:python"]
+run = "invoke build.cli-fixture-size-check"
+
 [tasks."build:vendor-verify-shims"]
 description = "Copy the cross-compiled verify shims into the committed bin/ tree and record the drift marker"
 depends = ["build:cli:cross-compile"]
@@ -199,6 +203,16 @@ run = "invoke test.integration.config"
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
 depends = ["deps:install:python"]
 run = "invoke test.integration.deny"
+
+[tasks."test:integration:zero-spawn"]
+description = "Prove the library-backed VCS adapter reads git and jj without spawning them (its own CI job, not the test roll-up)"
+depends = ["deps:install:python"]
+run = "invoke test.integration.zero-spawn"
+
+[tasks."test:integration:zero-spawn:strong"]
+description = "The strong form of the above: shadows the real git/jj with sudo for the duration, so absolute-path access cannot satisfy the adapter (CI only — gated behind ACCELERATOR_ZERO_SPAWN_SHADOW=yes)"
+depends = ["deps:install:python", "build:cli:fixture-size"]
+run = "invoke test.integration.zero-spawn-strong"
 
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
@@ -409,6 +423,11 @@ description = "Keep atomic_write consolidated: no temp-and-rename outside cli/st
 depends = ["deps:install:python"]
 run = "invoke lint.store-duplication.check"
 
+[tasks."lint:vcs-settings:check"]
+description = "Keep jj UserSettings and Workspace::load out of cli/vcs-adapters (their defaults are private to jj-lib)"
+depends = ["deps:install:python"]
+run = "invoke lint.vcs-settings.check"
+
 [tasks."lint:skill-permissions:check"]
 description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
 depends = ["deps:install:python"]
@@ -426,7 +445,7 @@ run = "invoke lint.claude-coupling.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -468,7 +487,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:vcs-settings:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

@@ -506,3 +506,95 @@ def test_config_command_rule_passes_a_compliant_module(
     _write_config_command_probe(tmp_path, _CONFIG_COMMAND_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The library-backed VCS adapter's two-clause rule ---
+#
+# The only shipped rule pairing `allowed_only` with `denied`, because the thing
+# it prohibits (std::process) sits *inside* the permitted std. Driven against a
+# crate literally named `vcs-adapters` with a `library` module, under the
+# shipped cli/pup.ron, so a rename of the real module makes these fail.
+#
+# The grouped-import case pins behaviour rather than asserting a preference:
+# cargo-pup resolves `use a::{b, c}` to an empty module name, which an
+# allowed_only list rejects. That is why the real module writes one single-item
+# `use` per import, and this test is what would notice the constraint lifting.
+
+_VCS_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["vcs-adapters"]
+"""
+
+_VCS_ADAPTERS_MANIFEST = """\
+[package]
+name = "vcs-adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_VCS_ADAPTERS_LIB = "pub mod library;\n"
+
+# The prohibition the deny clause exists for: std::process is inside the
+# permitted std, so the permit list alone would admit it.
+_LIBRARY_SPAWNS = (
+    "use std::process::Command;\n\npub fn make() -> Command {\n"
+    '    Command::new("git")\n}\n'
+)
+# Single-item imports from the permit list — compliant (positive control).
+_LIBRARY_COMPLIANT = (
+    "use std::path::Path;\nuse std::path::PathBuf;\n\n"
+    "pub fn make(p: &Path) -> PathBuf {\n    p.to_path_buf()\n}\n"
+)
+# A grouped import of two permitted items, which cargo-pup resolves to an empty
+# module name and the permit list therefore rejects.
+_LIBRARY_GROUPED = (
+    "use std::path::{Path, PathBuf};\n\n"
+    "pub fn make(p: &Path) -> PathBuf {\n    p.to_path_buf()\n}\n"
+)
+
+
+def _write_vcs_library_probe(root: Path, library_body: str) -> None:
+    (root / "Cargo.toml").write_text(_VCS_WORKSPACE)
+    src = root / "vcs-adapters/src"
+    src.mkdir(parents=True, exist_ok=True)
+    (root / "vcs-adapters/Cargo.toml").write_text(_VCS_ADAPTERS_MANIFEST)
+    (src / "lib.rs").write_text(_VCS_ADAPTERS_LIB)
+    (src / "library.rs").write_text(library_body)
+
+
+def test_vcs_library_rule_rejects_importing_std_process(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_vcs_library_probe(tmp_path, _LIBRARY_SPAWNS)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    # "is denied" rather than "is not allowed": the deny clause is what fires,
+    # proving it wins over the permit list on overlap.
+    assert "is denied" in output, output
+    assert "vcs_adapters_library_reads_in_process" in output, output
+
+
+def test_vcs_library_rule_passes_single_item_imports(tmp_path: Path) -> None:
+    # Positive control: a green run means "evaluated and allowed", not a rule
+    # whose module scope silently matched nothing.
+    _require_tools()
+    _write_vcs_library_probe(tmp_path, _LIBRARY_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_vcs_library_rule_rejects_a_grouped_import(tmp_path: Path) -> None:
+    _require_tools()
+    _write_vcs_library_probe(tmp_path, _LIBRARY_GROUPED)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "vcs_adapters_library_reads_in_process" in output, output

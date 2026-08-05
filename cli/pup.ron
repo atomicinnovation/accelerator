@@ -87,6 +87,38 @@
                 ),
             ],
         )),
+        // A permit list alone cannot express this, because std::process sits
+        // inside the permitted std, so the rule pairs one with an explicit
+        // deny; the deny wins on overlap. The permit list rejects grouped
+        // imports (cargo-pup resolves `use a::{b, c}` to an empty module name),
+        // so that module writes one single-item `use` per import.
+        //
+        // Scoped to the module because the sibling subprocess module spawns by
+        // design. This does not stop an inline fully-qualified
+        // std::process::Command::new(), nor reaching crate::subprocess through
+        // the permitted `^crate`; the harness is what establishes zero-spawn.
+        Module((
+            name: "vcs_adapters_library_reads_in_process",
+            matches: Module("^vcs_adapters::library($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^gix(::|$)",
+                        "^jj_lib(::|$)",
+                        "^pollster(::|$)",
+                        "^prost(::|$)",
+                        "^tracing(::|$)",
+                        "^vcs(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // The config command's inbound hexagon must not reach the composition
         // root's adapter crate (`config_adapters`) nor a sibling launcher
         // module (`crate::launch`), so the injected-ports seam cannot erode.

@@ -1,8 +1,32 @@
+import os
+import shlex
+import tempfile
+from pathlib import Path
+
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML
+from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 
 from .helpers import accelerator_env, run_shell_suites
+
+# An env gate rather than a `--yes` flag: a task name can be tab-completed by
+# accident, and the CI step sets this in `env:`.
+_SHADOW_OPT_IN = "ACCELERATOR_ZERO_SPAWN_SHADOW"
+
+# Hands the prebuilt fixture matrix to the suite, which cannot build one once
+# the binaries are out of reach. Mirrors fixtures::MATRIX_ROOT_VARIABLE.
+_MATRIX_ROOT = "ACCELERATOR_ZERO_SPAWN_MATRIX"
+
+# Checked alongside every PATH hit and `mise which`, because absolute-path
+# access is what the strong form has to defeat.
+_ABSOLUTE_VCS_PATHS = (
+    "/usr/bin/git",
+    "/usr/local/bin/git",
+    "/opt/homebrew/bin/git",
+    "/usr/bin/jj",
+    "/usr/local/bin/jj",
+    "/opt/homebrew/bin/jj",
+)
 
 # The migrate subtree ships exactly these shell suites. The count is asserted in
 # `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
@@ -129,6 +153,190 @@ def deny(context: Context) -> None:
 def pup(context: Context) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
     context.run("uv run pytest tests/integration/pup -v")
+
+
+@task
+def zero_spawn(context: Context) -> None:
+    """Run the zero-spawn suite (its own CI job, not the test roll-up).
+
+    Builds the reference artefact first: the suite resolves it beside its own
+    test binary, and a bare `cargo nextest run -p corpus-adapters` does not
+    build another crate's bin target.
+    """
+    context.run(
+        "cargo build "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-adapters --bin vcs-adapters-fixture",
+        pty=True,
+    )
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p corpus-adapters --features bash-parity -E 'binary(zero_spawn)'",
+        pty=True,
+    )
+
+
+@task
+def zero_spawn_strong(context: Context) -> None:
+    """Run the zero-spawn suite with git and jj shadowed.
+
+    `PATH` stubs alone leave the binaries reachable by absolute path, so this
+    moves every resolved `git`/`jj` aside and hands the harness the list, which
+    hard-fails if any listed path is still executable.
+
+    **Moves binaries out of system directories with `sudo`**, so it is gated
+    behind `ACCELERATOR_ZERO_SPAWN_SHADOW=yes` and stays out of every roll-up:
+    `/opt/homebrew/bin` is user-writable, and a developer running this unaware
+    could be left without `git` or `jj`. Ephemeral CI runners are the host.
+
+    Ordering is load-bearing. Compilation needs git (`vergen-gitcl`, and a cold
+    registry cache) and the fixture matrix needs both binaries, so both happen
+    before the window, the suite runs `--no-run` first, and the matrix is handed
+    over by path for the suite to adopt. Cargo is invoked
+    directly rather than through `mise run`, which could see `jj` missing inside
+    the window and reinstall it, making the assertion vacuous.
+    """
+    if os.environ.get(_SHADOW_OPT_IN) != "yes":
+        raise Exit(
+            f"refusing to shadow the real git/jj: set {_SHADOW_OPT_IN}=yes to "
+            "confirm. This moves binaries out of system directories with sudo "
+            "and is meant for ephemeral CI runners, not a developer machine. "
+            "For the local property, run test:integration:zero-spawn instead.",
+            code=1,
+        )
+
+    _compile_zero_spawn_targets(context)
+    matrix_root = Path(tempfile.mkdtemp(prefix="accelerator-vcs-matrix-"))
+    _build_fixture_matrix(context, matrix_root)
+
+    targets = _resolve_vcs_binaries(context)
+    if not targets:
+        raise Exit("found no git or jj to shadow — nothing to prove", code=1)
+
+    shadow_dir = Path(tempfile.mkdtemp(prefix="accelerator-shadowed-"))
+    shadowed: list[Path] = []
+    try:
+        for target in targets:
+            stashed = shadow_dir / str(target).replace(os.sep, "_")
+            context.run(f"sudo mv {shlex.quote(str(target))} {stashed}")
+            shadowed.append(target)
+        context.run(
+            "cargo nextest run "
+            f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+            "-p corpus-adapters --features bash-parity "
+            "-E 'binary(zero_spawn)' --no-fail-fast",
+            pty=True,
+            env={
+                "ACCELERATOR_ZERO_SPAWN_MODE": "strong",
+                "ACCELERATOR_ZERO_SPAWN_SHADOWED": ":".join(
+                    str(path) for path in shadowed
+                ),
+                # Adopted, not rebuilt: there is no git or jj to build with now.
+                _MATRIX_ROOT: str(matrix_root),
+            },
+        )
+    finally:
+        _restore_vcs_binaries(context, shadow_dir, shadowed)
+
+
+def _compile_zero_spawn_targets(context: Context) -> None:
+    """Build the reference artefacts and compile the suite, without running."""
+    context.run(
+        "cargo build "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-adapters --bin vcs-adapters-fixture "
+        "--bin vcs-adapters-fixture-stub",
+        pty=True,
+    )
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p corpus-adapters --features bash-parity "
+        "-E 'binary(zero_spawn)' --no-run",
+        pty=True,
+    )
+
+
+def _build_fixture_matrix(context: Context, root: Path) -> None:
+    """Build the matrix at `root` while the real CLIs are still reachable.
+
+    One test rather than the whole binary: with a shared root, tests building
+    concurrently would race to populate it. The rest of the matrix suite runs in
+    `test:unit:cli` against its own temp roots.
+    """
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-test-support "
+        "-E 'binary(matrix) and test(every_recorded_fixture_key_is_built)'",
+        pty=True,
+        env={_MATRIX_ROOT: str(root)},
+    )
+
+
+def _resolve_vcs_binaries(context: Context) -> list[Path]:
+    """Resolve every `git`/`jj` on `PATH`, plus the absolute paths to check.
+
+    Every `PATH` hit rather than the first, because macOS ships `git` in two
+    directories. `mise which` is load-bearing on CI: there is no system `jj`
+    there, and what sits on `PATH` may be a shim pointing into the mise install
+    tree. Shadowing only the shim would leave the real binary reachable by
+    absolute path while the harness agreed the run was strong.
+    """
+    found: list[Path] = []
+    seen: set[Path] = set()
+
+    def remember(candidate: Path) -> None:
+        # Deduplicated by RESOLVED path: on a usrmerge Linux /bin is a symlink
+        # to /usr/bin, so both spellings name one file and moving it under the
+        # first name makes the second fail to stat.
+        if not os.access(candidate, os.X_OK):
+            return
+        identity = candidate.resolve()
+        if identity in seen:
+            return
+        seen.add(identity)
+        found.append(candidate)
+
+    for name in ("git", "jj"):
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            if directory:
+                remember(Path(directory) / name)
+        resolved = context.run(f"mise which {name}", warn=True, hide=True)
+        if resolved is not None and resolved.exited == 0:
+            target = resolved.stdout.strip()
+            if target:
+                remember(Path(target))
+    for absolute in _ABSOLUTE_VCS_PATHS:
+        remember(Path(absolute))
+    return found
+
+
+def _restore_vcs_binaries(
+    context: Context, shadow_dir: Path, shadowed: list[Path]
+) -> None:
+    """Put every shadowed binary back, then prove it is runnable again.
+
+    Idempotent per path, reporting at the end rather than aborting on the first
+    failure, so a partial shadow does not strand the rest. An unrestored `git`
+    also breaks `actions/checkout`'s post step.
+    """
+    still_missing: list[Path] = []
+    for target in shadowed:
+        stashed = shadow_dir / str(target).replace(os.sep, "_")
+        if stashed.exists():
+            context.run(
+                f"sudo mv -f {stashed} {shlex.quote(str(target))}", warn=True
+            )
+        if not os.access(target, os.X_OK):
+            still_missing.append(target)
+    if still_missing:
+        raise Exit(
+            "failed to restore: "
+            + ", ".join(str(path) for path in still_missing),
+            code=1,
+        )
 
 
 @task

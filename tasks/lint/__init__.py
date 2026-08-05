@@ -9,6 +9,7 @@ from . import (
     server,
     skill_permissions,
     store_duplication,
+    vcs_settings,
     vendor_shims,
     workflows,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "server",
     "skill_permissions",
     "store_duplication",
+    "vcs_settings",
     "vendor_shims",
     "workflows",
 ]

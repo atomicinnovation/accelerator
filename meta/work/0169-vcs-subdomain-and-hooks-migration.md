@@ -14,7 +14,7 @@ blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173",
 relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-07-31T11:10:05+00:00"
+last_updated: "2026-08-03T16:37:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-190"
@@ -538,6 +538,73 @@ segment matches; the first matching segment names the reported subcommand.
   expanded and argument tokens *are* split; an alternative exec form takes a
   sibling `args` array passed verbatim with no shell. Either way no wrapper is
   needed, so `hooks/config-detect.sh` is inlined and deleted here.
+
+## Amendment 2026-08-03 — 0188 has landed; what this story inherits
+
+[`0188`](0188-library-backed-vcs-adapter.md) delivered the library-backed
+adapter, the six taxonomy queries and the shared fixture matrix. This story
+builds its classifier over them.
+
+- **The six-query contract is closed.** `is_bare`, `worktree`, `superproject`,
+  `jj_workspace_root`, `jj_repository` and `dual_roots` are inherent methods on
+  `vcs_adapters::library::InProcessProbe`. Anything beyond them is a change to
+  0188, not silent growth here. This story defines whatever **domain port** its
+  classifier needs over them; 0188 deliberately defined none.
+- **Widen the cargo-pup rule** (`vcs_adapters_library_reads_in_process`) to
+  cover wherever `vcs status` / `vcs log` land. It is scoped to
+  `^vcs_adapters::library($|::)` and pairs a permit list with an explicit
+  `std::process` deny; the permit list rejects **grouped** imports, so that code
+  must write one single-item `use` per import.
+- **Reuse the named pure-jj builder** (`vcs_test_support::fixtures::pure_jj`)
+  rather than rebuilding the benchmark fixture, so the cost figures stay
+  comparable.
+- **The 0125 hand-off sub-clause is redundant** — 0188 owns that note and it has
+  been appended.
+
+Seven findings that change how the classifier must be built:
+
+1. **Three walks, not one.** Queries 4, 5 and the jj half of 6 resolve through a
+   **`.jj`-only** walk. `DefaultWorkspaceLoaderFactory::create` performs no walk
+   of its own, so feeding it the combined `.jj`-or-`.git` boundary makes it
+   report absence on both nested-git-in-jj shapes — where `jj workspace root`
+   reports a root. A classifier built on the combined walk reports absence where
+   the oracle reports presence.
+2. **Dual-root equality is necessary but not sufficient** for `colocated`, and
+   inequality is not sufficient for either `nested-` arm. A real
+   `jj git init --colocate` main has equal roots and classifies as `main`; the
+   arms also need the jj-secondary bit (query 5) and the linked-worktree bit
+   (query 2).
+3. **`JS-in` is the shape that catches a naive dual-root rule** — a jj secondary
+   workspace inside its own colocated main, which is *this repo's own*
+   `workspaces/<name>` layout. Its dual roots **differ** while
+   `classify_checkout` reports `jj-secondary`, because that arm's
+   `jj_main_root != git_main_root` guard fails. It is in the matrix.
+4. **The queries return `Result<Option<T>, Error>`**, so the classifier must
+   decide what a repository the pinned library cannot parse classifies as. It is
+   **not** `none`. `dual_roots` is infallible with a `Result` per side; callers
+   comparing the sides must treat any `Err` as "not comparable", never as
+   inequality.
+5. **`WorktreeFacts`, `JjRepositoryFacts`, `JjWorkspaceRole` and `DualRoots`
+   must move into `cli/vcs`** when this story defines its port. They are
+   domain-shaped value types currently declared in the adapter crate, and
+   `vcs_domain_imports_only_permitted` restricts `vcs` to `std`/`kernel::Error`/
+   `crate` — so a domain port structurally cannot reference them where they sit.
+   0188 could not pre-empt the move: its own criteria forbid touching
+   `cli/vcs/src/**`. Expect it to churn the `queries.rs` expected-value tables.
+6. **`superproject` gates on the git-dir vs common-dir comparison, not on
+   `kind()`.** Measured, `kind()` is wrong in both directions: a linked worktree
+   *of* a submodule reports `Submodule` and has **no** superproject, while a
+   submodule *inside* a linked worktree does not report `Submodule` and does.
+7. **gix 0.85 cannot read sha256 repositories** — every gix-backed query returns
+   `Err`. Reftable reads normally.
+
+Cost figures, for the `G <= 1.1 x B` gate (darwin-arm64, matching 0186's
+`B = 35.1 ms`): the library-backed cold per-process path is **3.6-4.7 ms** for
+all six queries plus both port methods, against **23.8 ms** for the single
+`jj log -r @` the subprocess probe ran. Warm in-process calls are 14-50 us. Two
+provenance notes carried forward: `B = 35.1 ms` is from 0186's table, not this
+story's, and the "~41 ms warm bootstrap" this item cites is **derived**
+(149.1 - 107.9), not measured.
 
 ## Validation Results
 

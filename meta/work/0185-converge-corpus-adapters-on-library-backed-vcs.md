@@ -12,7 +12,7 @@ parent: "work-item:0136"
 blocked_by: ["work-item:0188"]
 relates_to: ["work-item:0125", "work-item:0179"]
 tags: [rust, vcs, cleanup, tech-debt]
-last_updated: "2026-07-31T08:36:03+00:00"
+last_updated: "2026-08-03T16:37:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -142,6 +142,106 @@ the four paths.
 - Priority `medium`: nothing is broken while both implementations coexist — the
   cost is a second code path and a narrower zero-spawn guarantee, not a defect.
   It should not block epic 0136's shell-retirement work.
+
+## Amendment 2026-08-03 — 0188 has landed; corrections and inheritances
+
+**Every reference in this item that attributes the library-backed adapter or the
+zero-spawn harness to 0169 is wrong.** Both are
+[`0188`](0188-library-backed-vcs-adapter.md)'s, and both have now landed. This
+block raises the corrections rather than rewriting the sections above; where a
+statement is now false it is quoted and marked.
+
+- **The adapter exists and ships unwired.** `vcs_adapters::library::InProcessProbe`
+  implements both `vcs` ports plus six inherent taxonomy queries.
+  `vcs_adapters::facts` still names `MarkerWalkRoot`/`CommandProbe`, by design.
+- **0185 owns the `vcs_adapters::facts` switch**, and the switch and the
+  `CommandProbe` deletion are **one atomic change** — the composition root
+  cannot move until nothing else needs the subprocess pair. This closes the open
+  question 0188 recorded on the ordering; 0169 wires its own classifier port
+  without touching `facts`.
+- **The harness criterion here describes `PATH` stubs only.** What it inherits
+  is strictly larger: marker-writing stubs *plus* a platform-aware absolute-path
+  shadow list *plus* the empty-config environment, published from
+  `cli/vcs-test-support` and already proven across a crate boundary by
+  `cli/corpus-adapters/tests/zero_spawn.rs`. The strong form runs in the
+  `check-zero-spawn` CI job.
+- **The transitional dual-adapter comparison must be collapsed.**
+  `cli/vcs-adapters/tests/detection.rs` now runs every case through an injected
+  `(&dyn RepoRoot, &dyn VcsProbe)` seam against **both** implementations.
+  Deleting `CommandProbe` means collapsing it to the library-backed pair alone.
+- The assumption at `:117-121` that "0169 will need to alter this anyway" is
+  **stale**.
+- Two References anchors are stale: 0169 has no "Adapter-swap boundary"
+  heading, and its Dependencies bullet is titled "Unowned debt this story
+  creates".
+
+Four inheritances that change this item's sizing:
+
+1. **The deletion is a file deletion.** `InProcessProbe` delegates to the
+   crate-private `walk_up`/`marker_kind`/`carries_any_marker` helpers rather than
+   duplicating them, and `MarkerWalkRoot`/`CommandProbe` delegate to the same
+   ones. Those helpers live in their own module (`markers.rs`), and as of
+   2026-08-03 the subprocess pair does too (`subprocess.rs`) — the crate root
+   holds no adapter code, only `facts` and the module declarations. So retiring
+   the pair is: delete `subprocess.rs`, drop its `pub mod` line, repoint `facts`
+   at `InProcessProbe`, and collapse `detection.rs`'s dual comparison. Do **not**
+   delete `markers.rs` with it; the surviving adapter needs it.
+2. **The containment delta is real and unpriced.** `CommandProbe` parses in a
+   child process with a 10-second cap, kill-on-timeout and a scrubbed
+   environment. `InProcessProbe` parses repository-controlled data in the
+   caller's address space with no time bound, no memory bound and no crash
+   isolation — and after the switch that runs inside `cli/visualiser/server` and
+   on the hook path. **Decide whether an equivalent bound is needed before
+   flipping `facts`.** The queries do distinguish failure from absence
+   (`Result<Option<T>, Error>`), so a corrupt repository is observable rather
+   than silently reported as "no VCS here"; that is containment of *meaning*,
+   not of *blast radius*.
+3. **jj `revision` does NOT transfer here — 0188 delivers it.** An earlier draft
+   of this block said it did, on a spike finding that jj-lib 0.43 exposes no
+   read-only, settings-free route to the working-copy commit id. That finding was
+   **wrong** and was reversed on 2026-08-03: `jj_lib::protos` is a public module,
+   so the workspace's checkout state (`operation_id` + `workspace_name`) decodes
+   through published API, and `SimpleOpStore::load` takes a path only. 0188
+   implements the full chain, verified against the live CLI across pure-jj,
+   colocated, commitless, secondary-workspace and multi-workspace shapes, with a
+   fingerprint assertion that it writes nothing.
+
+   **What this changes for this story:** the "atomic switch plus deletion" sizing
+   is *right* after all — there is no reason to retain `CommandProbe` for
+   `revision` alone, and `InProcessProbe` implements `VcsProbe` **fully**, not
+   partially. `detection.rs` asserts full `RepoFacts` equality for both idioms
+   today, so the switch has no revision-shaped gap to close.
+
+   **One behavioural difference to carry knowingly**, because this story's switch
+   is what exposes users to it: asking the `jj` binary **snapshots the working
+   copy first**, so it reports — and writes — a newly created commit when files
+   changed since the last jj command. The in-process route reports the commit as
+   of the last recorded operation and writes nothing. So after the switch,
+   deriving metadata stops having a write side effect on the user's repository,
+   and a `RepoFacts.revision` taken with unsnapshotted edits present names the
+   last recorded commit rather than a fresh one. Decide whether any consumer
+   depends on the snapshot semantics; nothing in the corpus writers appears to.
+4. **sha256 repositories are unsupported by gix 0.85** (measured 2026-08-03):
+   every gix-backed query returns `Err` on one, rather than misreading it.
+   `detection.rs`'s `is_full_revision_id` also asserts 40 hex, and a sha256
+   `HEAD` is 64. Any revision validation must accept both widths or record
+   sha256 as unsupported — **this item's switch is what exposes a user on such a
+   repository**, so the decision lands here. Reftable repositories read normally.
+5. **The MPL-2.0 licence exception has to be re-checked when `facts` flips.**
+   `uluru` (MPL-2.0, `gix-pack`'s LRU pack cache) is in the normal closure of the
+   published `accelerator-visualiser` binary, but 0188 verified that dead-code
+   elimination removes the whole `gix`/`jj-lib` closure from it — because nothing
+   in the visualiser's reachable call graph enters `vcs-adapters` at all today,
+   not even `CommandProbe`. §3.2's notice obligation therefore does not bind, and
+   the `cli/deny.toml` exception comment records that finding **conditionally**.
+   **This item's switch is the expected trigger that invalidates it.** Once the
+   trees link into a distributed binary, distributing the Executable Form
+   requires telling recipients how to obtain the Source Form, which means a
+   third-party attribution artefact joining `_release_uploads()` — an asset set
+   that carries no licence file today, and whose coverage `test_workflows.py`
+   derives from that function. Re-run 0188's check (unstripped `--release` build;
+   grep for `extensions.objectFormat` and `There is no Jujutsu repo`) as part of
+   the switch, not after it.
 
 ## References
 

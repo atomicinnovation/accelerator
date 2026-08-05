@@ -417,3 +417,69 @@ class TestCliWorkspaceCoherence:
         with pytest.raises(VersionCoherenceError) as exc_info:
             validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
         assert "cli/launcher/Cargo.toml" in str(exc_info.value)
+
+
+class TestFixtureSizeFloor:
+    """The guard against this story's headline false pass: dead-code
+    elimination letting the musl and size checks succeed while linking almost
+    none of gix/jj-lib.
+
+    Threshold logic only — no real tb. The cross-compile that otherwise
+    exercises it runs solely in the release pipeline, which is exactly why the
+    comparison is a pure function.
+    """
+
+    MUSL = "aarch64-unknown-linux-musl"
+    DARWIN = "aarch64-apple-darwin"
+
+    def test_the_measured_musl_figures_pass(self) -> None:
+        # 2,422,864 vs 391,416 — the delivered two-binary shape.
+        tb.assert_fixture_size_floor(2_422_864, 391_416, triple=self.MUSL)
+
+    def test_the_measured_darwin_figures_pass(self) -> None:
+        tb.assert_fixture_size_floor(2_031_288, 391_416, triple=self.DARWIN)
+
+    def test_a_collapsed_ratio_fails_on_every_triple(self) -> None:
+        for triple in (self.MUSL, self.DARWIN):
+            with pytest.raises(RuntimeError, match=r"below the .* floor"):
+                tb.assert_fixture_size_floor(1_000_000, 400_000, triple=triple)
+
+    def test_the_absolute_floor_is_musl_only(self) -> None:
+        # A wide ratio but a small delta: musl rejects, darwin accepts. This is
+        # the scoping rule — `[profile.release] strip = true` means every triple
+        # is stripped and the darwin delta clears the floor by only ~9%, so
+        # gating darwin would put a 9%-margin heuristic on the release path.
+        with pytest.raises(RuntimeError, match="bytes larger"):
+            tb.assert_fixture_size_floor(1_600_000, 400_000, triple=self.MUSL)
+        tb.assert_fixture_size_floor(1_600_000, 400_000, triple=self.DARWIN)
+
+    def test_a_zero_sized_stub_is_rejected_rather_than_dividing_by_zero(
+        self,
+    ) -> None:
+        with pytest.raises(RuntimeError, match="cannot compare"):
+            tb.assert_fixture_size_floor(2_000_000, 0, triple=self.MUSL)
+
+    def test_the_fixture_binaries_are_never_release_artefacts(self) -> None:
+        # They print absolute repository paths and are not product. Keeping them
+        # out of _CLI_RELEASE_BINARIES is what keeps them out of dist/release/,
+        # the tree the signed manifest is assembled from.
+        overlap = set(tb._CLI_FIXTURE_BINARIES) & set(tb._CLI_RELEASE_BINARIES)
+        assert not overlap, f"fixture binaries staged as product: {overlap}"
+
+    def test_no_fixture_binary_carries_the_attested_prefix(self) -> None:
+        # dist/release/accelerator-* is provenance-attested by a glob.
+        for name in tb._CLI_FIXTURE_BINARIES:
+            assert not name.startswith("accelerator-"), name
+
+    def test_no_fixture_binary_is_a_release_upload(self) -> None:
+        # The direct assertion, not just the constants: _release_uploads()
+        # enumerates assets explicitly rather than globbing, so nothing would be
+        # published today — but these binaries print absolute repository paths
+        # and must stay one deliberate decision away from being product.
+        from tasks.github import _release_uploads
+
+        names = {path.name for path in _release_uploads()}
+        for fixture in tb._CLI_FIXTURE_BINARIES:
+            assert not any(fixture in name for name in names), (
+                f"{fixture} is enumerated as a release upload"
+            )
