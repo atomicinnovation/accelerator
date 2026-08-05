@@ -1,16 +1,16 @@
 ---
 type: plan
-id: "2026-07-10-0179-make-the-docs-amazing"
+id: "2026-07-10-0193-make-the-docs-amazing"
 title: "Make the Docs Amazing Implementation Plan"
 date: "2026-07-10T20:08:08+00:00"
 author: Phil Helm
 producer: create-plan
 status: ready
-work_item_id: "work-item:0179"
-parent: "work-item:0179"
+work_item_id: "work-item:0193"
+parent: "work-item:0193"
 derived_from:
   [
-    "codebase-research:2026-07-10-0179-make-the-docs-amazing",
+    "codebase-research:2026-07-10-0193-make-the-docs-amazing",
     "codebase-research:2026-07-13-docs-site-visualiser-design-alignment",
   ]
 tags: [docs, docs-site, starlight, generation, ci, design-tokens, theming]
@@ -27,7 +27,7 @@ schema_version: 1
 ## Overview
 
 Overhaul the Astro Starlight docs site (`docs-site/`) per the audiences
-in epic 0178: generated per-skill reference pages (69) built by a
+in epic 0192: generated per-skill reference pages (69) built by a
 prebuild script in the `tasks/` invoke toolchain, a CI drift guard, new
 tutorial/how-to/FAQ content, a splash landing page, a restructured
 sidebar, richer explanation pages, and Starlight polish.
@@ -81,7 +81,7 @@ A site where each audience self-serves:
 
 Verify: `mise run check` green, `docs:build` (strict, incl. link
 validation) green locally and in CI, Pages deploy succeeds, all
-acceptance criteria in work item 0179 ticked.
+acceptance criteria in work item 0193 ticked.
 
 ### Key Discoveries
 
@@ -120,7 +120,7 @@ acceptance criteria in work item 0179 ticked.
 ## What We're NOT Doing
 
 - AI-generated explanatory diagrams / hero artwork (possible follow-up).
-- A changelog page or contributor-docs overhaul (separate 0178 children).
+- A changelog page or contributor-docs overhaul (separate 0192 children).
 - Visualiser feature changes.
 - Committing generated pages — they are build-time only, gitignored.
 - Deleting the eight family pages — they become curated overviews.
@@ -1009,8 +1009,8 @@ treatment.
 
 ## References
 
-- Original work item: `meta/work/0179-make-the-docs-amazing.md`
-- Research: `meta/research/codebase/2026-07-10-0179-make-the-docs-amazing.md`
+- Original work item: `meta/work/0193-make-the-docs-amazing.md`
+- Research: `meta/research/codebase/2026-07-10-0193-make-the-docs-amazing.md`
 - Theming research: `meta/research/codebase/2026-07-13-docs-site-visualiser-design-alignment.md`
 - Canonical token sheet: `skills/visualisation/visualise/frontend/src/styles/global.css`
 - Token fixture: `skills/visualisation/visualise/frontend/src/styles/fixtures/prototype-tokens.json`
