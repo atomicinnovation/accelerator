@@ -5,7 +5,7 @@ title: "Generalise the Sub-Binary Registration Surface"
 date: "2026-07-31T10:41:51+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: high
 parent: "work-item:0136"
@@ -13,7 +13,7 @@ blocked_by: ["work-item:0168"]
 blocks: ["work-item:0169", "work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173"]
 relates_to: ["work-item:0165", "work-item:0182"]
 tags: [build-system, distribution, rust]
-last_updated: "2026-08-01T17:29:06+00:00"
+last_updated: "2026-08-05T17:36:44+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -21,7 +21,7 @@ schema_version: 1
 # 0187: Generalise the Sub-Binary Registration Surface
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
