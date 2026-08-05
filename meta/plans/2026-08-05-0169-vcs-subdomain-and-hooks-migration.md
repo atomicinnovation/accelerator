@@ -575,52 +575,45 @@ introduced.
 
 #### Automated Verification
 
-- [ ] `cargo test -p vcs --locked` passes unconditionally (no feature flag
-      needed) — the pure cascade-ordering and closed-set tests
-- [ ] A test-double `CheckoutProbe` returning `Err` from `is_bare`,
+- [x] `cargo test -p vcs --locked` passes unconditionally (no feature flag
+      needed) — the pure cascade-ordering and closed-set tests (21 tests)
+- [x] A test-double `CheckoutProbe` returning `Err` from `is_bare`,
       `worktree`, or `jj_repository` (independently, one case per method)
       asserts `classify()` propagates `Err(kernel::Error)` rather than
       degrading to a `Classification` arm — this is the mechanism Phase 5 and
       Phase 7's adapter-failure success criteria depend on
-- [ ] A test-double `CheckoutProbe` returning `Err` on exactly one side of
+- [x] A test-double `CheckoutProbe` returning `Err` on exactly one side of
       `dual_roots` (git or jj, independently) while the other three methods
       succeed asserts `classify()` still returns `Ok`, degrading to the
       correct single-VCS arm rather than propagating `Err` or misreading the
-      failed side as absent — pins the Amendment finding 4 distinction
-      directly, separate from the bulk fixture-matrix table. Two sub-cases
-      per side, not one: the *other* side reporting `Ok(Some(_))` (a present,
-      readable boundary — degrades to a single-VCS arm, as above) and the
-      *other* side reporting `Ok(None)` (definitively absent, not merely
-      unread). The second sub-case is the sharper case: finding 4 states a
-      library-unparseable repository "is not `None`", so one side being
-      `Err` (unparseable) while the other is confirmed `Ok(None)` (absent)
-      must not collapse to `Classification::None` — that would report "no
-      repository at all" for a checkout where one side is known to exist but
-      couldn't be read, silently converting a real parse failure into
-      ordinary absence. Assert this degrades to the single-VCS arm implied
-      by the *known* side, not to `None`.
-- [ ] A test-double `CheckoutProbe` returning `Err` on **both** sides of
+      failed side as absent. Two sub-cases per side implemented: the *other*
+      side reporting `Ok(Some(_))` (degrades to the other side's single-VCS
+      arm) and the *other* side reporting `Ok(None)` (degrades to `Main`,
+      not `None` — since `jj_repository`, hard-fallible, still confirms a
+      repository is present even though its secondary boundary is
+      unparseable)
+- [x] A test-double `CheckoutProbe` returning `Err` on **both** sides of
       `dual_roots` simultaneously, with the other three methods succeeding,
-      asserts the specific resulting arm explicitly (rather than leaving it
-      implicit) — an entirely plausible case (e.g. a repository state neither
-      `gix` nor `jj-lib` can walk) that the single-sided tests above don't
-      cover
-- [ ] `cargo test -p vcs-adapters --locked --features bash-parity` (or
-      `mise run test:unit:cli`, which already runs `--all-features` per
-      `tasks/test/cli.py`) iterates the ~34-fixture matrix (already used by
-      `cli/vcs-adapters/tests/queries.rs`'s oracle table) and asserts
-      `classify()` returns `Ok` with the expected arm for every one, including
-      the named ambiguous case (a colocated checkout nested inside another
-      repository classifies `Colocated`, not a `Nested*` arm)
-- [ ] A closed-set test asserts `Classification` has exactly seven variants
-      (fails on either an added or removed arm) — unaffected by the `Result`
-      wrapper, since the closed set is on `Classification` itself, not on
-      `classify()`'s return type
-- [ ] `mise run cli:check` passes
+      asserts the specific resulting arm explicitly (`Main`) rather than
+      leaving it implicit
+- [x] `cargo test -p vcs-adapters --locked --features bash-parity` iterates
+      the full 34-fixture matrix and asserts `classify()` returns `Ok` with
+      the expected arm for every one, including the named ambiguous case (CG
+      — a colocated checkout nested inside another repository classifies
+      `Colocated`, not a `Nested*` arm) and 4 error/degenerate cases
+      (S256/D1/D3 hard-fail, D2 degrades to `None`). Two expectations in the
+      original derivation were corrected empirically against real git/jj
+      rather than assumed: `SM-w` (a linked worktree of a submodule) has no
+      resolvable `main_worktree_root` (the oracle table already recorded
+      `main=absent`), so it degrades to `Main` rather than `GitWorktree`
+      with a fabricated parent
+- [x] A closed-set test asserts `Classification` has exactly seven variants
+- [x] `mise run cli:check` passes (rustfmt, clippy, cargo-pup); full
+      workspace `cargo test --workspace --all-features`: 1114 passed
 
 #### Manual Verification
 
-- [ ] None
+- [x] None
 
 ---
 

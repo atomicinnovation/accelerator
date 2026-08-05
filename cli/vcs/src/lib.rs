@@ -3,6 +3,7 @@
 //! `vcs-adapters`; this crate only composes the facts.
 
 pub mod checkout;
+pub mod classify;
 
 use std::path::Path;
 use std::path::PathBuf;

@@ -327,6 +327,30 @@ fn git_root(start: &Path) -> Result<Option<PathBuf>, Error> {
     repository.workdir().map(canonicalise).transpose()
 }
 
+impl vcs::classify::CheckoutProbe for InProcessProbe {
+    fn is_bare(&self, start: &Path) -> Result<Option<bool>, kernel::Error> {
+        self.is_bare(start).map_err(Into::into)
+    }
+
+    fn worktree(
+        &self,
+        start: &Path,
+    ) -> Result<Option<WorktreeFacts>, kernel::Error> {
+        self.worktree(start).map_err(Into::into)
+    }
+
+    fn jj_repository(
+        &self,
+        start: &Path,
+    ) -> Result<Option<JjRepositoryFacts>, kernel::Error> {
+        self.jj_repository(start).map_err(Into::into)
+    }
+
+    fn dual_roots(&self, start: &Path) -> DualRoots {
+        self.dual_roots(start)
+    }
+}
+
 impl RepoRoot for InProcessProbe {
     fn discover(&self, start: &Path) -> Option<PathBuf> {
         walk_up(start, carries_any_marker).map(|root| canonical(&root))
