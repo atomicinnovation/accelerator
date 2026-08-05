@@ -8,7 +8,7 @@ producer: refine-work-item
 status: done
 kind: story
 priority: medium
-parent: "work-item:0178"
+parent: "work-item:0192"
 tags: []
 last_updated: "2026-07-23T00:00:00+00:00"
 last_updated_by: Phil Helm
