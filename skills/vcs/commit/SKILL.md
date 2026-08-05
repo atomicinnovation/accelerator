@@ -4,14 +4,14 @@ description: Create VCS commits for session changes. Use when the user wants to
   commit their work with well-structured, atomic commits.
 argument-hint: "[optional message or flags]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
 ---
 
 # Commit Changes
 
-!`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-status.sh`
-!`${CLAUDE_PLUGIN_ROOT}/scripts/vcs-log.sh`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status --fail-safe`
+!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs log --fail-safe`
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill commit --fail-safe`
 
 ## Process:

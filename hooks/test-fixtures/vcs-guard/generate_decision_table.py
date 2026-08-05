@@ -158,7 +158,7 @@ def build_repo_modes(work: Path, env: dict[str, str]) -> dict[str, Path]:
 
 
 def normalise(raw_stdout: str) -> tuple[str, str]:
-    """Maps the shell's legacy decision shape to (decision, reason_pattern)."""
+    """Map the shell's legacy decision shape to (decision, reason_pattern)."""
     stripped = raw_stdout.strip()
     if not stripped:
         return "allow", ""
@@ -215,11 +215,12 @@ def departure_rows() -> list[dict]:
             ),
             "departure": True,
             "note": (
-                'Today\'s shell mode check ([ -d "$REPO_ROOT/.git" ]) misreads a '
-                "colocated checkout whose .git is a worktree/submodule FILE as "
-                "pure-jj, so it wrongly blocks this case. The library-backed "
-                "classifier's gix::discover-based git-presence check is file-aware, "
-                "so the corrected behaviour is warn (colocated), not block."
+                'Today\'s shell mode check ([ -d "$REPO_ROOT/.git" ]) '
+                "misreads a colocated checkout whose .git is a "
+                "worktree/submodule FILE as pure-jj, so it wrongly blocks "
+                "this case. The library-backed classifier's "
+                "gix::discover-based git-presence check is file-aware, so "
+                "the corrected behaviour is warn (colocated), not block."
             ),
         },
         {
@@ -227,17 +228,18 @@ def departure_rows() -> list[dict]:
             "command": 'git commit -m "build && test"',
             "decision": "block",
             "reason_pattern": (
-                "This is a pure jujutsu repository. Use jj instead of git commit. "
-                'Equivalent: jj commit -m "message"'
+                "This is a pure jujutsu repository. Use jj instead of git "
+                'commit. Equivalent: jj commit -m "message"'
             ),
             "departure": True,
             "note": (
                 "Today's shell compound-splitter is quote-blind (a plain "
-                "sed-then-split), so it wrongly splits inside the quoted string "
-                'and evaluates test" as a spurious second segment. The Rust '
-                "port's splitter is quote-aware: the embedded && stays inside the "
-                "quoted argument, so the whole string is evaluated as a single "
-                "`git commit` invocation and blocked accordingly."
+                "sed-then-split), so it wrongly splits inside the quoted "
+                'string and evaluates test" as a spurious second segment. '
+                "The Rust port's splitter is quote-aware: the embedded && "
+                "stays inside the quoted argument, so the whole string is "
+                "evaluated as a single `git commit` invocation and blocked "
+                "accordingly."
             ),
         },
     ]

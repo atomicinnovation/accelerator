@@ -1271,19 +1271,35 @@ item 2's fail-safe rationale.
 
 #### Automated Verification
 
-- [ ] `mise run lint:dispatch-coherence:check` passes — `vcs` is bound by
+- [x] `mise run lint:dispatch-coherence:check` passes — `vcs` is bound by
       `skills/vcs/commit`'s narrowed rule, not by an ancestor glob
-- [ ] `tests/unit/tasks/test_build.py`'s dispatch-coherence pass/fail suite
+- [x] `tests/unit/tasks/test_build.py`'s dispatch-coherence pass/fail suite
       still passes with `vcs` added to the real registry
-- [ ] `EXPECTED_INJECTION_SKILLS` in `tasks/lint/skill_permissions.py` stays
+- [x] `EXPECTED_INJECTION_SKILLS` in `tasks/lint/skill_permissions.py` stays
       at 42 (this replaces two sites within one already-counted skill)
-- [ ] `mise run cli:check`, `mise run build-system:check` pass
-- [ ] `mise run deny:check` passes (no new dependency)
+- [x] `mise run cli:check`, `mise run build-system:check` pass
+- [x] `mise run deny:check` passes (no new dependency) — plus
+      `test_github.py`/`test_signing.py`'s `DISPATCHED_SUBBINARIES`-derived
+      tests, which were not single-token-safe despite being "derived": the
+      `_setup_release` fixture staged only the visualiser's assets/manifest
+      entry, an `assert all("visualiser" in path.name for path in ...)`
+      shape assumed a single token, and a hardcoded upload count (22) baked
+      in the pre-`vcs` asset total. All updated to stage/assert both tokens;
+      the count is now 30 (the extra 4 platforms × 2 assets for `vcs`, which
+      carries no debug archive). Also fixed pre-existing `ruff`
+      lint/format/executable-bit drift in the Phase 1 generator scripts
+      (`generate_vcs_goldens.py`, `generate_decision_table.py`) and
+      `test_masks.py`, uncaught until now because `mise run build-system:check`
+      was not part of any earlier phase's own gate
 
 #### Manual Verification
 
-- [ ] `accelerator vcs status`/`vcs log` exit 0 with non-empty output in a
-      fixture repo, run through the repointed skill's invocation form
+- [x] `accelerator vcs status`/`vcs log` exit 0 with non-empty output in a
+      fixture repo, run through the repointed skill's invocation form —
+      verified via `ACCELERATOR_VCS_BIN=cli/target/debug/accelerator-vcs
+      cli/target/debug/accelerator vcs status --fail-safe` /ditto `vcs log`,
+      matching `skills/vcs/commit`'s exact repointed invocation, against this
+      workspace's own live jj checkout
 
 ---
 

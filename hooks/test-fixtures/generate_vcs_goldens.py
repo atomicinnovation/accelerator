@@ -101,9 +101,9 @@ def jj_git_init(
     )
 
 
-def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
-    states: dict[str, Path] = {}
-
+def _add_git_states(
+    states: dict[str, Path], work: Path, env: dict[str, str]
+) -> None:
     clean_git = work / "clean-git"
     clean_git.mkdir()
     git_init(clean_git, env)
@@ -120,6 +120,26 @@ def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
     run(["git", "add", "staged.txt"], dirty_git, env)
     states["dirty-git"] = dirty_git
 
+    detached = work / "detached-head-git"
+    detached.mkdir()
+    git_init(detached, env)
+    write_and_commit(detached, env, "d1.txt", "1\n", "commit-1")
+    first_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=detached,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    write_and_commit(detached, env, "d2.txt", "2\n", "commit-2")
+    run(["git", "checkout", "-q", first_sha], detached, env)
+    states["detached-head-git"] = detached
+
+
+def _add_git_ahead_behind_states(
+    states: dict[str, Path], work: Path, env: dict[str, str]
+) -> None:
     seed = work / "seed"
     seed.mkdir()
     git_init(seed, env)
@@ -139,22 +159,10 @@ def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
     run(["git", "push", "-q", str(origin), "HEAD:refs/heads/main"], seed, env)
     states["git-behind"] = git_behind
 
-    detached = work / "detached-head-git"
-    detached.mkdir()
-    git_init(detached, env)
-    write_and_commit(detached, env, "d1.txt", "1\n", "commit-1")
-    first_sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=detached,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    write_and_commit(detached, env, "d2.txt", "2\n", "commit-2")
-    run(["git", "checkout", "-q", first_sha], detached, env)
-    states["detached-head-git"] = detached
 
+def _add_jj_states(
+    states: dict[str, Path], work: Path, env: dict[str, str]
+) -> None:
     clean_jj = work / "clean-jj"
     clean_jj.mkdir()
     jj_git_init(clean_jj, env)
@@ -179,6 +187,13 @@ def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
     jj_secondary = work / "jj-secondary"
     run(["jj", "workspace", "add", "--quiet", str(jj_secondary)], jj_main, env)
     states["jj-secondary"] = jj_secondary
+
+
+def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
+    states: dict[str, Path] = {}
+    _add_git_states(states, work, env)
+    _add_git_ahead_behind_states(states, work, env)
+    _add_jj_states(states, work, env)
 
     no_repo = work / "no-repo"
     no_repo.mkdir()

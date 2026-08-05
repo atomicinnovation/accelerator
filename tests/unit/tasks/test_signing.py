@@ -177,7 +177,8 @@ class TestSubbinarySigningTargets:
         targets = _subbinary_signing_targets()
 
         assert len(targets) == len(DISPATCHED_SUBBINARIES) * len(TARGETS)
-        assert all("visualiser" in path.name for path in targets)
+        for token in DISPATCHED_SUBBINARIES:
+            assert any(token in path.name for path in targets)
 
 
 class TestSignStagedBinaries:
@@ -198,8 +199,12 @@ class TestSignStagedBinaries:
         )
         signed = mocker.patch.object(signing, "sign_file")
         staged = []
+        names = (
+            "accelerator",
+            *(f"accelerator-{token}" for token in DISPATCHED_SUBBINARIES),
+        )
         for _triple, platform in TARGETS:
-            for name in ("accelerator", "accelerator-visualiser"):
+            for name in names:
                 path = tmp_path / f"{name}-{platform}"
                 path.write_bytes(b"\x00" * 4)
                 staged.append(path)

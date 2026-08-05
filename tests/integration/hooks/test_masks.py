@@ -37,9 +37,7 @@ def test_masks_toml_defines_every_named_category() -> None:
     assert not missing, f"masks.toml is missing pattern(s): {missing}"
 
 
-def test_each_pattern_matches_its_positive_sample_and_not_its_negative_sample() -> (
-    None
-):
+def test_each_pattern_matches_its_positive_sample_and_not_negative() -> None:
     for pattern in _load_patterns():
         compiled = re.compile(pattern["regex"])
         assert compiled.search(pattern["sample_match"]), (
