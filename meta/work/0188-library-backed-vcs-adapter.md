@@ -5,7 +5,7 @@ title: "Library-Backed VCS Adapter over gix and jj-lib"
 date: "2026-07-31T10:41:51+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: story
 priority: high
 parent: "work-item:0136"
@@ -15,7 +15,7 @@ relates_to: ["work-item:0125", "work-item:0168", "work-item:0187",
   "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["work-item:0169"]
 tags: [rust, vcs, dependencies]
-last_updated: "2026-08-03T16:37:02+00:00"
+last_updated: "2026-08-05T17:36:44+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -23,7 +23,7 @@ schema_version: 1
 # 0188: Library-Backed VCS Adapter over gix and jj-lib
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

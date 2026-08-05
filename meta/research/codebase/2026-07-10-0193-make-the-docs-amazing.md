@@ -1,13 +1,13 @@
 ---
 type: codebase-research
-id: "2026-07-10-0179-make-the-docs-amazing"
-title: "Research: Make the Docs Amazing (0179) — docs site overhaul groundwork"
+id: "2026-07-10-0193-make-the-docs-amazing"
+title: "Research: Make the Docs Amazing (0193) — docs site overhaul groundwork"
 date: "2026-07-10T19:55:16+00:00"
 author: Phil Helm
 producer: research-codebase
 status: complete
-work_item_id: "0179"
-parent: "work-item:0179"
+work_item_id: "0193"
+parent: "work-item:0193"
 relates_to: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
 topic: "Docs site overhaul: generated per-skill reference, tutorials, splash landing, sidebar restructure, drift guards"
 tags: [research, codebase, docs-site, starlight, skills, tasks, ci]
@@ -18,7 +18,7 @@ last_updated_by: Phil Helm
 schema_version: 1
 ---
 
-# Research: Make the Docs Amazing (0179) — docs site overhaul groundwork
+# Research: Make the Docs Amazing (0193) — docs site overhaul groundwork
 
 **Date**: 2026-07-10T19:55:16+00:00 (UTC)
 **Author**: Phil Helm
@@ -28,7 +28,7 @@ schema_version: 1
 
 ## Research Question
 
-What does the codebase look like today for implementing work item 0179 —
+What does the codebase look like today for implementing work item 0193 —
 overhauling the Astro Starlight docs site with generated per-skill
 reference pages, new tutorial/how-to content, a splash landing page, a
 restructured sidebar, Starlight polish, and CI drift guards?
@@ -76,7 +76,7 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
   collectionBase: false }` (lines 14–17).
 - **Sidebar** — fully manual (lines 25–51): eight top-level slugs plus a
   "Skills Reference" group of nine pages; label overrides at lines 28 and
-  38–41 disambiguate the two "Development Loop" pages. 0179's Start Here
+  38–41 disambiguate the two "Development Loop" pages. 0193's Start Here
   / Guides / Reference restructure means rewriting this array; per-page
   `sidebar.*` frontmatter is used nowhere yet.
 - **Pages** — 18 files. Top level: `index.md` (39 lines, doc template,
@@ -214,7 +214,7 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
   determinism check (regenerate + diff) or a coverage check modelled on
   `validate_version_coherence`.
 - **The family pages decision reverses 0176.** 0176 deliberately chose
-  "no standalone per-skill pages"; 0179 keeps the eight family pages as
+  "no standalone per-skill pages"; 0193 keeps the eight family pages as
   curated overviews linking into generated pages — expect to rework the
   `skills/index.md` "All Skills" relationship, not just add pages.
 - **Base-path discipline**: markdown links are handled by
@@ -228,7 +228,7 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
   to conflict with.
 - **Non-invokable skills need a policy**: 23 of 69 skills are
   `user-invocable: false` internals (lenses, output-formats,
-  browser-executor, paths). The 0178 epic AC says "every skill in
+  browser-executor, paths). The 0192 epic AC says "every skill in
   plugin.json has a page" — badge them (e.g. `sidebar.badge:
   Internal`) or group them separately rather than omitting them.
 - **Starlight is pre-1.0** — minor releases can break; the site is on
@@ -239,21 +239,21 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
 - `meta/decisions/ADR-0056-astro-starlight-for-documentation-site.md` —
   Starlight rationale and rejected alternatives (don't relitigate).
 - `meta/plans/2026-07-10-0177-documentation-site-for-docs-tree.md` — what
-  0177 built; its "What We're NOT Doing" list is effectively 0179's
+  0177 built; its "What We're NOT Doing" list is effectively 0193's
   menu (no content rewrites, no theming, no MDX, no CI caching).
 - `meta/research/codebase/2026-07-10-0177-documentation-site-for-docs-tree.md`
   — anchor fragility in headings with raw `<img>`, Chromium ~150MB per
   CI run uncached (optimisation candidate as builds grow).
 - `meta/work/0176-per-skill-family-reference-docs.md` — the family-pages
-  model 0179 supersedes; its deferred open question (generate the index
-  from frontmatter with a CI consistency check) is 0179's drift-guard
+  model 0193 supersedes; its deferred open question (generate the index
+  from frontmatter with a CI consistency check) is 0193's drift-guard
   mandate.
-- `meta/work/0178-documentation.md` — the audience framing; Diátaxis is
+- `meta/work/0192-documentation.md` — the audience framing; Diátaxis is
   an influence, not a mandate; prefers generation + drift guards over
   hand-maintained duplication. Unresolved: whether 0145's in-progress
-  content is absorbed into 0178's children.
+  content is absorbed into 0192's children.
 - `meta/work/0145-documentation-improvements.md` — earlier docs epic;
-  its IA questions are effectively superseded by 0178/0179.
+  its IA questions are effectively superseded by 0192/0193.
 
 ## Related Research
 
@@ -262,7 +262,7 @@ shell-only, so a YAML dependency (or minimal parser) is needed.
 
 ## Open Questions
 
-All resolved with the user on 2026-07-10 (recorded in work item 0179's
+All resolved with the user on 2026-07-10 (recorded in work item 0193's
 Assumptions):
 
 - **Generated pages are build-time only** (gitignored output in the

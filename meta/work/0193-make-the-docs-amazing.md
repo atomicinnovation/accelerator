@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0179"
+id: "0193"
 title: "Make the Docs Amazing"
 date: "2026-07-10T19:47:43+00:00"
 author: Phil Helm
@@ -8,7 +8,7 @@ producer: create-work-item
 status: draft
 kind: story
 priority: medium
-parent: "work-item:0178"
+parent: "work-item:0192"
 relates_to: ["work-item:0177", "work-item:0145"]
 tags: [docs]
 last_updated: "2026-07-10T19:55:16+00:00"
@@ -17,7 +17,7 @@ last_updated_note: "Corrected skill count to 69; recorded generation decisions f
 schema_version: 1
 ---
 
-# 0179: Make the Docs Amazing
+# 0193: Make the Docs Amazing
 
 **Kind**: Story
 **Status**: Draft
@@ -28,7 +28,7 @@ schema_version: 1
 
 As a reader of the Accelerator docs site, I want the content, structure,
 reference coverage, and presentation overhauled, so that whichever
-audience I belong to (per epic 0178), the site gets me to my goal
+audience I belong to (per epic 0192), the site gets me to my goal
 without the authors present.
 
 Overhaul of the Astro Starlight docs site: new tutorial and how-to
@@ -55,7 +55,7 @@ the content collection.
 
 ## Requirements
 
-Organised by the audiences defined in epic 0178:
+Organised by the audiences defined in epic 0192:
 
 **Newcomers (tutorial)**
 
@@ -178,17 +178,17 @@ Organised by the audiences defined in epic 0178:
 
 ## Drafting Notes
 
-- Scoped as one story under epic 0178 rather than several items, per the
+- Scoped as one story under epic 0192 rather than several items, per the
   user's preference to break it down later if needed.
 - Out of scope by drafting decision: AI-generated explanatory diagrams
   (hero art may be a follow-up), a changelog page, contributor docs
-  overhaul (a separate child of 0178), and visualiser feature changes.
+  overhaul (a separate child of 0192), and visualiser feature changes.
 - "Amazing" is interpreted as audience outcomes (install, find, look up,
   understand) rather than visual polish alone.
 
 ## References
 
-- Parent: 0178 (Documentation epic)
+- Parent: 0192 (Documentation epic)
 - Related: 0177, 0176 (done), 0145
 - Diátaxis framework: https://diataxis.fr/
 - Starlight sidebar guide: https://starlight.astro.build/guides/sidebar/

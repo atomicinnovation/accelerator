@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0178"
+id: "0192"
 title: "Documentation"
 date: "2026-07-10T19:41:21+00:00"
 author: Phil Helm
@@ -15,7 +15,7 @@ last_updated_by: Phil Helm
 schema_version: 1
 ---
 
-# 0178: Documentation
+# 0192: Documentation
 
 **Kind**: Epic
 **Status**: Draft
