@@ -11,7 +11,7 @@ priority: medium
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 tags: [rust, cli, migration, epic]
-last_updated: "2026-08-01T16:57:37+00:00"
+last_updated: "2026-08-05T18:18:52+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-157
@@ -77,7 +77,9 @@ tracked on the items themselves.
 - 0168 — Fold the Visualiser into the cli/ Workspace
 - 0188 — Library-Backed VCS Adapter over gix and jj-lib *(precedes 0169)*
 - 0169 — VCS Subdomain and Hooks Migration
-- 0170 — Work-Item Subdomain and Sync Engine
+- 0194 — Tracker Crate and Remote Sync Engine *(split from 0170 on
+  2026-08-05; precedes 0170's `--push` flows and 0171's client adapters)*
+- 0170 — Work-Item Lifecycle Subdomain
 - 0171 — Jira and Linear Integrations
 - 0172 — Migration Engine Subdomain
 - 0173 — Remaining Subdomains: corpus, design, collaboration
@@ -97,7 +99,8 @@ ADR-0045/0046/0047/0051/0052/0053/0054.
       regressing skill behaviour, with the migration sequenced so the plugin
       stays functional at each step.
 - [ ] All child work items are completed: 0162–0174, plus 0185–0188 added by the
-      2026-07-31 split of 0169.
+      2026-07-31 split of 0169, plus 0194 added by the 2026-08-05 split of
+      0170.
 
 ## Open Questions
 
