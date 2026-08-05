@@ -11,7 +11,7 @@ priority: medium
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 tags: [rust, cli, migration, epic]
-last_updated: "2026-08-05T18:18:52+00:00"
+last_updated: "2026-08-05T22:11:33+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-157
@@ -78,7 +78,8 @@ tracked on the items themselves.
 - 0188 — Library-Backed VCS Adapter over gix and jj-lib *(precedes 0169)*
 - 0169 — VCS Subdomain and Hooks Migration
 - 0194 — Tracker Crate and Remote Sync Engine *(split from 0170 on
-  2026-08-05; precedes 0170's `--push` flows and 0171's client adapters)*
+  2026-08-05; also wires `--push` onto 0170's `create`/`update` commands,
+  and precedes 0171's client adapters)*
 - 0170 — Work-Item Lifecycle Subdomain
 - 0171 — Jira and Linear Integrations
 - 0172 — Migration Engine Subdomain

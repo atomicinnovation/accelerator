@@ -13,7 +13,7 @@ blocked_by: ["work-item:0187", "work-item:0194"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0194"]
 tags: [rust, jira, linear, integrations, reqwest]
-last_updated: "2026-08-05T18:18:52+00:00"
+last_updated: "2026-08-05T22:11:33+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-192"
@@ -82,8 +82,10 @@ granularity is wanted.
   adds a dispatch token; it does not generalise the surface. Registration
   follows the checklist 0187 adds at
   `tasks/README.md#registering-a-dispatched-sub-binary`. (2026-08-01)
-- Relates to: 0170 (the work-item lifecycle subdomain — also consumes these
-  clients' shared `RemoteTracker` port via 0194).
+- Relates to: 0170 (the work-item lifecycle subdomain — no direct
+  dependency on these clients or the `RemoteTracker` port itself; 0194
+  wires `--push` onto its `create`/`update` commands separately, using
+  0194's own port).
 - Relates to: 0194 (the sync engine consumes these clients).
 - Parent: epic 0136.
 

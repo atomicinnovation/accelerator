@@ -10,10 +10,10 @@ kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-relates_to: ["work-item:0194", "work-item:0171"]
-blocked_by: ["work-item:0194"]
+relates_to: ["work-item:0194"]
+blocks: ["work-item:0194"]
 tags: [rust, work-items]
-last_updated: "2026-08-05T18:18:52+00:00"
+last_updated: "2026-08-05T22:11:33+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-191"
@@ -30,10 +30,11 @@ external_id: "PP-191"
 
 Build the `accelerator-work` subdomain's work-item lifecycle operations —
 create, show, update, resolve, diff — over the shared `corpus`/`config`/
-`store` crates, absorbing ID allocation, remote create/update, and
-tag-mutation flows from the legacy bash scripts. `create`/`update --push`
-call through 0194's `RemoteTracker` port (faked in this story's own unit
-tests); the sync engine itself is 0194's scope.
+`store` crates, absorbing ID allocation and tag-mutation flows from the
+legacy bash scripts. These commands are local-only, with no dependency on
+the remote tracker: `--push` support for `create`/`update` and the sync
+engine itself are both 0194's scope — 0194 wires `--push` onto these
+commands once they exist, calling through its own `RemoteTracker` port.
 
 ## Context
 
@@ -42,18 +43,21 @@ normalise/next-number/section-diff/read-field. This story covers the
 lifecycle-CRUD half of that surface — create, update, show, resolve, diff —
 absorbing the ID-allocation and tag-mutation flows, so plugin maintainers
 inherit a typed, bash-3.2-independent, characterization-tested CLI in place
-of the current untested shell scripts backing the work-item skills. The sync engine and the
-`tracker` crate split off into 0194 on 2026-08-05 (see Drafting Notes)
-following a work item review that found the two efforts independently
-deliverable and the combined story epic-scale. The `RemoteTracker` port and
-the sync state machine live in their own `tracker` crate (0194), not inside
-`accelerator-work`; this story's `--push` flows call through that port,
-faking it in unit tests. The coverage gap for the previously-untested
-lifecycle scripts is closed via characterize-then-port — write a
-characterization test capturing each script's pre-port behaviour before
-replacing it (see Acceptance Criteria). 11 lifecycle-side `work-item-*`
-scripts have no dedicated test suite today; 0194 covers the 4 sync-side
-ones separately.
+of the current untested shell scripts backing the work-item skills. The sync
+engine and the `tracker` crate split off into 0194 on 2026-08-05 (see
+Drafting Notes) following a work item review that found the two efforts
+independently deliverable and the combined story epic-scale. `--push`
+support for `create`/`update` was originally scoped here too, but moved to
+0194 on a follow-up pass (see Drafting Notes): 0194 wires the flag onto
+these commands once both they and its own `RemoteTracker` port exist, so
+this story carries no remote-tracker dependency at all — every command here
+is local-only. The coverage gap for the previously-untested lifecycle
+scripts is closed via characterize-then-port — write a characterization
+test capturing each script's pre-port behaviour before replacing it (see
+Acceptance Criteria). 10 lifecycle-side `work-item-*` scripts have no
+dedicated test suite today; `work-item-push-decide.sh` moved to 0194
+alongside the push-wiring it decides for, and 0194 covers the 4 sync-side
+scripts separately.
 
 ## Requirements
 
@@ -61,22 +65,20 @@ ones separately.
   crates: lifecycle ops `create`, `show` (read-field/read-status), `update`
   (including tag mutations), `resolve`, `diff` (section-diff), plus the
   internal helpers `next-number`, `normalise`, `pattern`,
-  `template-field-hints`, `file-dirty`, `project-remote`, and
-  `push-decide`.
-- `create --push` and `update --push` call through 0194's `RemoteTracker`
-  port (faked in this story's unit tests) to create or whole-content-replace
-  the remote issue.
+  `template-field-hints`, `file-dirty`, and `project-remote`. These
+  commands are local-only — no remote calls, no `RemoteTracker` dependency;
+  `--push` support is 0194's scope (see Dependencies).
 - Preserve the `external_id`-as-remote-key convention and the JSONL/
   atomic-write semantics (via `store`).
-- Close the coverage gap: characterize-then-port the 11 previously-untested
+- Close the coverage gap: characterize-then-port the 10 previously-untested
   lifecycle scripts — `work-item-file-dirty.sh`, `work-item-next-number.sh`,
   `work-item-normalise.sh`, `work-item-project-remote.sh`,
-  `work-item-push-decide.sh`, `work-item-read-field.sh`,
-  `work-item-read-status.sh`, `work-item-resolve-id.sh`,
-  `work-item-section-diff.sh`, `work-item-template-field-hints.sh`,
-  `work-item-update-tags.sh` (none has a dedicated `test-work-item-*.sh`
-  suite today; `work-item-pattern.sh` already does and is out of scope
-  here).
+  `work-item-read-field.sh`, `work-item-read-status.sh`,
+  `work-item-resolve-id.sh`, `work-item-section-diff.sh`,
+  `work-item-template-field-hints.sh`, `work-item-update-tags.sh` (none has
+  a dedicated `test-work-item-*.sh` suite today; `work-item-pattern.sh`
+  already does and is out of scope here; `work-item-push-decide.sh` moved
+  to 0194 alongside the push-wiring it decides for).
 
 ## Acceptance Criteria
 
@@ -84,27 +86,11 @@ ones separately.
       runs, then it allocates the next ID per the configured pattern and
       writes the local file with fully populated frontmatter (every field
       the item's `kind` requires, per the `create-work-item` template
-      schema); when invoked with `--push` and the remote create call via
-      the wired (or, in unit tests, faked) `RemoteTracker` port succeeds,
-      `external_id` is substituted before the single write — no file exists
-      until success, decline, or confirmed-local-fallback resolves, per
-      `work-item-create-remote.sh`'s existing outcome table; when the
-      remote call fails, the file is still written but without
-      `external_id` (saved unsynced), with guidance matching that table's
-      retryable/terminal rows — the command never silently duplicates a
-      create on retry.
+      schema).
 - [ ] Given a work item file, when `accelerator work update` runs with
       field or tag mutations, then the local file is rewritten atomically
-      and, when `--push` targets a synced item, the remote issue is
-      replaced via the same whole-content contract as
-      `work-item-update-remote.sh`; when the remote replace call fails, the
-      command surfaces that script's existing retryable-vs-terminal exit
-      distinction (`E_DISPATCH_RETRYABLE` = provably no mutation, safe to
-      retry; `E_DISPATCH_TERMINAL` = mutation state uncertain, never
-      auto-retried) and this story defines the corresponding local-file
-      outcome for each case as part of its implementation — it must not
-      leave the local file silently diverged from a replace that may have
-      actually applied.
+      via the same whole-file replace contract as `work-item-update-tags.sh`
+      for tag mutations, with all other fields left unchanged.
 - [ ] Given a work item file, when `accelerator work show <path>` runs,
       then it prints the full rendered item; when run with `--field NAME`
       (including the `--field status` shorthand), it prints only that
@@ -117,74 +103,73 @@ ones separately.
 - [ ] Given a local and a remote work item representation, when
       `accelerator work diff <local> <remote>` runs, then it reports the
       same per-section differences as `work-item-section-diff.sh`.
-- [ ] Given each of the 11 previously-untested lifecycle scripts named in
+- [ ] Given each of the 10 previously-untested lifecycle scripts named in
       Requirements, a characterization test captures its pre-port
       behaviour — covering each documented flag/argument combination and
       at least one error path — before the Rust port replaces it.
 - [ ] The lifecycle parity suite (`accelerator work create`/`update`/
       `show`/`resolve`/`diff` against the repointed
-      `skills/work/scripts/test-work-item-{create-remote,pattern,
-      update-remote}.sh` gates and the new characterization suites) passes
-      with no live network calls in unit tests — remote calls are
-      exercised only by a separate, explicitly-tagged contract/integration
-      suite, gated behind a cargo-nextest filter excluded from the default
-      `cargo test`/`cargo nextest run` invocation.
+      `skills/work/scripts/test-work-item-pattern.sh` gate and the new
+      characterization suites) passes; this crate makes no network calls
+      at all, so no separate contract/integration suite is needed for it
+      (0194 carries that gate for the push-wiring it adds on top).
 - [ ] The migrated lifecycle `work-item-*.sh` scripts (every script named
-      in Requirements, plus `work-item-create-remote.sh`,
-      `work-item-update-remote.sh`, and `work-item-pattern.sh`) and their
-      `test-*.sh` suites are removed and the work suite floor is
-      decremented in the same change; `work-item-fetch-remote.sh` and the
-      sync-stage scripts stay until 0194 removes them (fetch-remote is a
-      dependency of `work-item-sync-apply.sh`, not of any lifecycle
-      command).
+      in Requirements, plus `work-item-pattern.sh`) and their `test-*.sh`
+      suites are removed and the work suite floor is decremented in the
+      same change; `work-item-create-remote.sh`, `work-item-update-remote.sh`,
+      `work-item-push-decide.sh`, `work-item-fetch-remote.sh`, and the
+      sync-stage scripts stay until 0194 removes them (they're 0194's
+      porting/removal responsibility now, not this story's).
 
 ## Open Questions
 
 - Whether the internal-function boundary for `work-item-pattern.sh`,
   `work-item-template-field-hints.sh`, `work-item-file-dirty.sh`,
-  `work-item-project-remote.sh`, `work-item-push-decide.sh`, and
-  `work-item-normalise.sh` (kept as private functions per Technical Notes,
-  not separate subcommands) holds once `accelerator-work` scaffolding
-  starts — a bash-era boundary may turn out to matter for a reason not
-  visible from a script's header comment alone.
+  `work-item-project-remote.sh`, and `work-item-normalise.sh` (kept as
+  private functions per Technical Notes, not separate subcommands) holds
+  once `accelerator-work` scaffolding starts — a bash-era boundary may
+  turn out to matter for a reason not visible from a script's header
+  comment alone.
 - Follow-up: this item's remote counterpart (`external_id: PP-191`) still
   reflects the pre-split title/scope and needs reconciling — via
-  `accelerator work update --push` or an equivalent sync — on the next
-  push after this split.
+  `accelerator work update --push` (once 0194 wires it onto this story's
+  `update` command) or an equivalent sync — on the next push after this
+  split.
 
 ## Dependencies
 
 - The pre-split blockers are both done as of 2026-08-05: 0166 (shared
   crates) and 0187 (generalises the sub-binary registration surface).
-- Blocked by: 0194 (tracker crate and remote sync engine) — the split
-  introduced this new blocker: `create`/`update --push` call through the
-  `RemoteTracker` port 0194 defines, so only 0194's port (not its full
-  `sync` command) needs to land first; this story fakes the port in its
-  own unit tests.
-- Relates to: 0194 (split sibling — carries the sync engine and `tracker`
-  crate that this story was originally bundled with).
-- Relates to: 0171 (Jira and Linear Integrations) — this story's own
-  Acceptance Criteria only require the faked port, but end-to-end `--push`
-  against a real tracker is gated on 0171 landing (via 0194).
+- No remaining blockers: `--push` support (the one thing that needed
+  0194's `RemoteTracker` port) moved to 0194's own scope on 2026-08-05
+  (see Drafting Notes), so this story now has zero dependency on 0194 or
+  0171 — every command here is local-only and can proceed immediately.
+- Blocks: 0194 — 0194 wires `--push` onto this story's `create`/`update`
+  commands once they exist, so that one slice of 0194's scope needs this
+  story's commands to land first; the rest of 0194 (the `tracker` crate,
+  the `sync` command, its characterization tests) doesn't depend on this
+  story at all.
+- Relates to: 0194 (split sibling — carries the sync engine, the `tracker`
+  crate, and now the `--push` wiring for this story's commands too).
 - Parent: epic 0136.
 
 ## Assumptions
 
-- 0194's `RemoteTracker` port trait is sufficient for this story's
-  `--push` behaviour; concrete provider wiring (real Jira/Linear clients)
-  happens via 0194/0171, not directly in this story.
+- This story's `create`/`update` CLI signatures (flags and arguments) are
+  stable once implemented; 0194 extends them with a `--push` flag
+  afterwards without needing this story's further involvement.
 
 ## Technical Notes
 
 - Source bash: `skills/work/scripts/work-item-common.sh`,
-  `work-item-create-remote.sh`,
   `work-item-next-number.sh`, `work-item-normalise.sh`,
   `work-item-pattern.sh`, `work-item-read-field.sh`,
   `work-item-read-status.sh`, `work-item-resolve-id.sh`,
-  `work-item-section-diff.sh`, `work-item-update-remote.sh`,
-  `work-item-update-tags.sh`, `work-item-file-dirty.sh`,
-  `work-item-project-remote.sh`, `work-item-push-decide.sh`,
-  `work-item-template-field-hints.sh`.
+  `work-item-section-diff.sh`, `work-item-update-tags.sh`,
+  `work-item-file-dirty.sh`, `work-item-project-remote.sh`,
+  `work-item-template-field-hints.sh`. `work-item-create-remote.sh`,
+  `work-item-update-remote.sh`, and `work-item-push-decide.sh` moved to
+  0194 alongside the `--push` wiring they implement (see Drafting Notes).
 - Registration follows the checklist 0187 adds at
   `tasks/README.md#registering-a-dispatched-sub-binary`. The dispatch token
   for the `accelerator work <verb>` subcommand namespace is `work` — a
@@ -192,17 +177,18 @@ ones separately.
   may not contain `_` (it derives `ACCELERATOR_<TOKEN>_BIN`) doesn't bite
   here; it would only matter if the token were ever renamed to something
   hyphenated or underscored. (2026-08-01, reconciled 2026-08-05)
-- **Subcommand vocabulary (resolved 2026-08-05)**: `accelerator work`
-  exposes six user-facing subcommands; five are this story's scope, and
-  `sync` is 0194's. The remaining scripts become private functions inside
-  the `accelerator-work`/`tracker` crates rather than separate
-  subcommands, since bash needed subprocess boundaries for testability
-  that Rust doesn't:
-  - `work create` — absorbs `work-item-next-number.sh` (ID allocation) and
-    `work-item-create-remote.sh` (`--push` flag triggers the remote
-    create).
+- **Subcommand vocabulary (resolved 2026-08-05, revised 2026-08-05)**:
+  `accelerator work` exposes six user-facing subcommands; five are this
+  story's scope, and `sync` is 0194's. The remaining scripts become
+  private functions inside the `accelerator-work`/`tracker` crates rather
+  than separate subcommands, since bash needed subprocess boundaries for
+  testability that Rust doesn't:
+  - `work create` — absorbs `work-item-next-number.sh` (ID allocation);
+    local-only in this story. 0194 later adds the `--push` flag, absorbing
+    `work-item-create-remote.sh`.
   - `work update` — absorbs `work-item-update-tags.sh` (`--add-tag`/
-    `--remove-tag` flags) and `work-item-update-remote.sh` (`--push`).
+    `--remove-tag` flags); local-only in this story. 0194 later adds the
+    `--push` flag, absorbing `work-item-update-remote.sh`.
   - `work show <path> [--field NAME]` — absorbs `work-item-read-field.sh`
     and `work-item-read-status.sh` (`--field status` shorthand).
   - `work resolve <input>` — direct port of `work-item-resolve-id.sh`.
@@ -212,10 +198,11 @@ ones separately.
   - Internal-only (no CLI subcommand), this story's scope:
     `work-item-pattern.sh`, `work-item-template-field-hints.sh`,
     `work-item-file-dirty.sh`, `work-item-project-remote.sh`,
-    `work-item-push-decide.sh`, `work-item-normalise.sh` — each becomes a
-    private function called by `create`/`update`, still unit-tested
-    directly at the function level (satisfies the characterization-test
-    acceptance criterion without needing a CLI surface).
+    `work-item-normalise.sh` — each becomes a private function called by
+    `create`/`update`, still unit-tested directly at the function level
+    (satisfies the characterization-test acceptance criterion without
+    needing a CLI surface). `work-item-push-decide.sh` moved to 0194
+    alongside the `--push` wiring it decides for.
 
 ## Drafting Notes
 
@@ -237,6 +224,16 @@ ones separately.
 - Note: 0187's own frontmatter still shows `status: ready`, not `done`, as
   of this edit — Toby confirmed it's actually done; someone should update
   0187's status field separately (out of scope for this edit).
+- Revised 2026-08-05, following a review discussion: moved `--push`
+  support for `create`/`update` (and the `work-item-create-remote.sh`,
+  `work-item-update-remote.sh`, and `work-item-push-decide.sh` scripts
+  that implement it) out of this story and into 0194, to remove this
+  story's dependency on 0194's `RemoteTracker` port entirely. This story
+  is now fully local-only and unblocked; 0194 wires `--push` onto these
+  commands once they exist, so the dependency direction flips for that one
+  slice of 0194's scope (0194 blocked by 0170), while the rest of 0194
+  (the `tracker` crate, the `sync` command) remains independent of this
+  story, as before.
 
 ## References
 
