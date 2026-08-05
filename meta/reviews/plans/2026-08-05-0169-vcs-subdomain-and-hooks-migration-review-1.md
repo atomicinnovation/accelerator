@@ -6,9 +6,7 @@ date: "2026-08-05T16:27:45+00:00"
 author: "Toby Clemson"
 producer: review-plan
 status: complete
-parent: ""
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
-relates_to: []
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: [architecture, code-quality, test-coverage, correctness, security, safety, compatibility, performance]

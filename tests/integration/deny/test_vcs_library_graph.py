@@ -114,11 +114,13 @@ _BUILD_SCRIPT_CRATES = frozenset(
         "rustversion",
         "serde",
         "serde_core",
+        "serde_json",
         "thiserror",
         "valuable",
         "wasm-bindgen",
         "wasm-bindgen-shared",
         "zerocopy",
+        "zmij",
     }
 )
 

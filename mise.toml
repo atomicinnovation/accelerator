@@ -295,6 +295,7 @@ run = "invoke test.integration.decisions"
 
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
+depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
 
 [tasks."test:integration:github"]

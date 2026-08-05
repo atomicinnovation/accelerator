@@ -1384,21 +1384,53 @@ accelerator_env"` pin is removed.
 
 #### Automated Verification
 
-- [ ] `mise run test:integration:hooks` passes, floor unchanged at 2 suites
-      (`tasks/test/integration.py:72`, `_EXPECTED_HOOKS_SUITES`)
-- [ ] The `hooks.json` golden set covers every emitted shape: SessionStart
+- [x] `mise run test:integration:hooks` passes, floor unchanged at 2 suites
+      (`tasks/test/integration.py:72`, `_EXPECTED_HOOKS_SUITES`) — the 26
+      in-process cases moved to `scripts/test-vcs-common.sh` (discovered under
+      `test:integration:config` instead, comfortably clearing that suite's own
+      floor); the repointed `hooks/test-vcs-detect.sh` keeps the hooks/
+      subtree at exactly 2
+- [x] The `hooks.json` golden set covers every emitted shape: SessionStart
       with `systemMessage`, SessionStart without, plain `vcs detect`
       (structured and `--descriptive`), plain `vcs guard`, PreToolUse deny,
-      PreToolUse warn-only
-- [ ] `git grep -n "vcs-detect.sh\|vcs-guard.sh\|config-detect.sh\|vcs-status.sh\|vcs-log.sh"`
-      returns nothing outside this diff's own history
-- [ ] `mise run check` passes end to end
+      PreToolUse warn-only — pinned by `kernel::hooks`'s own unit tests
+      (Phase 4) plus `detect_goldens.rs`/`guard_decision_table.rs`/
+      `status_log_goldens.rs` (Phases 5-7) and this phase's repointed
+      `hooks/test-vcs-detect.sh`, which exercises the real `hooks.json`
+      dispatch path end to end
+- [x] `git grep -n "vcs-detect.sh\|vcs-guard.sh\|config-detect.sh\|vcs-status.sh\|vcs-log.sh"`
+      returns nothing outside this diff's own history — outside `meta/`
+      archival documents (research/plans/reviews written before this phase,
+      left untouched as historical record — Phase 10's own narrower doc sweep
+      is scoped to `README.md`/`docs-site/`/`tasks/README.md`, already clean)
+      and the two Phase-1 golden-regeneration scripts
+      (`hooks/test-fixtures/generate_vcs_goldens.py`,
+      `hooks/test-fixtures/vcs-guard/generate_decision_table.py`,
+      `hooks/test-fixtures/vcs-detect/regenerate.sh`), which reference the
+      deleted shell scripts as their historical data source and are not
+      invoked by any task
+- [x] `mise run check` passes end to end — also fixed three unrelated
+      pre-existing gaps surfaced only now because this phase is the first to
+      run these specific gates in this story: a corpus frontmatter violation
+      in this story's own plan-review document (empty `parent`/`relates_to`
+      emitted instead of omitted), and a `tests/integration/deny/`
+      dependency-graph snapshot drift (`serde_json`/`zmij` newly reachable
+      from the `vcs-adapters` subtree via `kernel` → `tracing-subscriber`'s
+      workspace-unified `json` feature, unrelated to this story's own crate
+      graph)
 
 #### Manual Verification
 
 - [ ] A real Claude Code session against this branch shows the SessionStart
       VCS context and, on a blocked git call in a pure-jj scratch repo, the
-      PreToolUse denial — both via the new subcommands
+      PreToolUse denial — both via the new subcommands. Deferred: per the
+      Deployment note above, `hooks.json`'s rewrite has no effect on an
+      installed plugin until a release publishes `accelerator-vcs`, so this
+      genuinely needs that release rather than a dev-mode substitute — Phase
+      5/7's own manual checks already proved the dispatch path end to end via
+      `ACCELERATOR_VCS_BIN`; this item is the same proof through the actual
+      installed-plugin hook registration, owned by Phase 10's manual
+      validation alongside the Claude Code floor check and warm-call latency
 
 ---
 

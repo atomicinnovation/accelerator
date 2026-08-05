@@ -14,7 +14,7 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def accelerator_env() -> dict[str, str]:
+def accelerator_env(*, vcs_bin: bool = False) -> dict[str, str]:
     """Return the ACCELERATOR_BIN/ACCELERATOR_PLUGIN_ROOT overlay.
 
     Repointed production shell scripts read config through
@@ -31,15 +31,28 @@ def accelerator_env() -> dict[str, str]:
     ad-hoc cargo call here. A caller-supplied
     ACCELERATOR_BIN/ACCELERATOR_PLUGIN_ROOT (a stub or a release build) is
     honoured.
+
+    ``vcs_bin=True`` additionally sets ACCELERATOR_VCS_BIN, the launcher's
+    dev-only ``accelerator vcs ...`` dispatch override — needed only by the
+    repointed hooks/test-vcs-detect.sh parity gate, so it stays opt-in rather
+    than joining every subtree's overlay.
     """
     repo = repo_root()
     default_bin = str(repo / "cli" / "target" / "debug" / "accelerator")
-    return {
+    env = {
         "ACCELERATOR_BIN": os.environ.get("ACCELERATOR_BIN", default_bin),
         "ACCELERATOR_PLUGIN_ROOT": os.environ.get(
             "ACCELERATOR_PLUGIN_ROOT", str(repo)
         ),
     }
+    if vcs_bin:
+        default_vcs_bin = str(
+            repo / "cli" / "target" / "debug" / "accelerator-vcs"
+        )
+        env["ACCELERATOR_VCS_BIN"] = os.environ.get(
+            "ACCELERATOR_VCS_BIN", default_vcs_bin
+        )
+    return env
 
 
 def run_shell_suites(
