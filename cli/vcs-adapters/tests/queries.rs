@@ -14,12 +14,12 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
-use vcs_adapters::library::DualRoots;
+use vcs::checkout::DualRoots;
+use vcs::checkout::JjRepositoryFacts;
+use vcs::checkout::JjWorkspaceRole;
+use vcs::checkout::WorktreeFacts;
 use vcs_adapters::library::Error;
 use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::library::JjRepositoryFacts;
-use vcs_adapters::library::JjWorkspaceRole;
-use vcs_adapters::library::WorktreeFacts;
 use vcs_test_support::fixtures::Matrix;
 
 type TestError = Box<dyn std::error::Error>;
@@ -353,7 +353,7 @@ fn simple<T: std::fmt::Display>(value: &Result<Option<T>, Error>) -> String {
     }
 }
 
-fn path_cell(value: &Result<Option<std::path::PathBuf>, Error>) -> String {
+fn path_cell<E>(value: &Result<Option<std::path::PathBuf>, E>) -> String {
     match value {
         Ok(Some(path)) => path.display().to_string(),
         Ok(None) => "absent".to_owned(),

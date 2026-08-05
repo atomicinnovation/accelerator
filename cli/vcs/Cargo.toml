@@ -9,7 +9,9 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# No dependencies: the repo facts are plain values and the probe arrives by
-# injection. As in `corpus`, the pup rule permits `kernel::Error` for when a
-# fallible port needs the shared diagnostic; nothing does yet.
+# The repo facts are plain values and the probe arrives by injection. As in
+# `corpus`, the pup rule permits `kernel::Error` for when a fallible port needs
+# the shared diagnostic: `DualRoots`' two sides are the first use, since the
+# domain crate cannot import `vcs-adapters`'s adapter-specific `Error` type.
 [dependencies]
+kernel = { path = "../kernel" }

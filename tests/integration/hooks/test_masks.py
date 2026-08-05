@@ -11,7 +11,9 @@ import re
 import tomllib
 from pathlib import Path
 
-MASKS_PATH = Path(__file__).parents[3] / "hooks" / "test-fixtures" / "masks.toml"
+MASKS_PATH = (
+    Path(__file__).parents[3] / "hooks" / "test-fixtures" / "masks.toml"
+)
 
 EXPECTED_PATTERN_NAMES = {
     "hex_object_id",

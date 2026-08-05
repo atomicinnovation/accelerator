@@ -2,6 +2,8 @@
 //! to find out. The probing itself — filesystem walks, subprocesses — lives in
 //! `vcs-adapters`; this crate only composes the facts.
 
+pub mod checkout;
+
 use std::path::Path;
 use std::path::PathBuf;
 

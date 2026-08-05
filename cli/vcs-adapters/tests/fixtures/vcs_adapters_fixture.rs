@@ -21,13 +21,13 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use vcs::checkout::DualRoots;
+use vcs::checkout::JjRepositoryFacts;
+use vcs::checkout::JjWorkspaceRole;
+use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
 use vcs::VcsProbe;
-use vcs_adapters::library::DualRoots;
 use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::library::JjRepositoryFacts;
-use vcs_adapters::library::JjWorkspaceRole;
-use vcs_adapters::library::WorktreeFacts;
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
@@ -164,14 +164,11 @@ fn repository(facts: &JjRepositoryFacts) -> String {
 }
 
 fn dual(roots: &DualRoots) -> String {
-    let render =
-        |side: &Result<Option<PathBuf>, vcs_adapters::library::Error>| {
-            match side {
-                Ok(Some(path)) => path.display().to_string(),
-                Ok(None) => "absent".to_owned(),
-                Err(error) => format!("error: {error}"),
-            }
-        };
+    let render = |side: &Result<Option<PathBuf>, kernel::Error>| match side {
+        Ok(Some(path)) => path.display().to_string(),
+        Ok(None) => "absent".to_owned(),
+        Err(error) => format!("error: {error}"),
+    };
     format!("git={} jj={}", render(&roots.git), render(&roots.jj))
 }
 

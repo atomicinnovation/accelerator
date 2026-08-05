@@ -4392,6 +4392,9 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "vcs"
 version = "1.24.0-pre.26"
+dependencies = [
+ "kernel",
+]
 
 [[package]]
 name = "vcs-adapters"
@@ -4399,6 +4402,7 @@ version = "1.24.0-pre.26"
 dependencies = [
  "gix",
  "jj-lib",
+ "kernel",
  "pollster",
  "prost",
  "tempfile",

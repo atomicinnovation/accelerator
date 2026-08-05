@@ -47,12 +47,19 @@ def mask(text: str, patterns: list[dict]) -> str:
 
 
 def run(args: list[str], cwd: Path, env: dict[str, str]) -> None:
-    subprocess.run(args, cwd=cwd, env=env, check=True, capture_output=True, text=True)
+    subprocess.run(
+        args, cwd=cwd, env=env, check=True, capture_output=True, text=True
+    )
 
 
 def run_hook(script: Path, cwd: Path, env: dict[str, str]) -> str:
     result = subprocess.run(
-        [str(script)], cwd=cwd, env=env, capture_output=True, text=True, check=False
+        [str(script)],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return result.stdout
 
@@ -61,19 +68,27 @@ def git_init(directory: Path, env: dict[str, str]) -> None:
     run(["git", "init", "-q"], directory, env)
 
 
-def git_commit_allow_empty(directory: Path, env: dict[str, str], message: str) -> None:
+def git_commit_allow_empty(
+    directory: Path, env: dict[str, str], message: str
+) -> None:
     run(["git", "commit", "--allow-empty", "-q", "-m", message], directory, env)
 
 
 def write_and_commit(
-    directory: Path, env: dict[str, str], filename: str, content: str, message: str
+    directory: Path,
+    env: dict[str, str],
+    filename: str,
+    content: str,
+    message: str,
 ) -> None:
     (directory / filename).write_text(content)
     run(["git", "add", filename], directory, env)
     run(["git", "commit", "-q", "-m", message], directory, env)
 
 
-def jj_git_init(directory: Path, env: dict[str, str], colocate: bool = False) -> None:
+def jj_git_init(
+    directory: Path, env: dict[str, str], colocate: bool = False
+) -> None:
     # This mise-pinned jj defaults `git.colocate` to true, so a genuinely
     # pure (non-colocated, no top-level .git) repo requires the explicit
     # override rather than just omitting --colocate.
@@ -81,7 +96,9 @@ def jj_git_init(directory: Path, env: dict[str, str], colocate: bool = False) ->
     args += ["git", "init", "--quiet"]
     run(args, directory, env)
     run(["jj", "config", "set", "--repo", "user.name", "T"], directory, env)
-    run(["jj", "config", "set", "--repo", "user.email", "t@e.x"], directory, env)
+    run(
+        ["jj", "config", "set", "--repo", "user.email", "t@e.x"], directory, env
+    )
 
 
 def build_states(work: Path, env: dict[str, str]) -> dict[str, Path]:
@@ -174,16 +191,26 @@ def main() -> None:
     patterns = load_masks()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="vcs-status-log-goldens-") as raw_work:
+    with tempfile.TemporaryDirectory(
+        prefix="vcs-status-log-goldens-"
+    ) as raw_work:
         work = Path(raw_work).resolve()
-        env = {**os.environ, **GIT_IDENTITY_ENV, "GIT_CEILING_DIRECTORIES": str(work)}
+        env = {
+            **os.environ,
+            **GIT_IDENTITY_ENV,
+            "GIT_CEILING_DIRECTORIES": str(work),
+        }
         states = build_states(work, env)
 
         for name, directory in states.items():
             status_output = run_hook(STATUS_SCRIPT, directory, env)
             log_output = run_hook(LOG_SCRIPT, directory, env)
-            (OUTPUT_DIR / f"{name}-status.txt").write_text(mask(status_output, patterns))
-            (OUTPUT_DIR / f"{name}-log.txt").write_text(mask(log_output, patterns))
+            (OUTPUT_DIR / f"{name}-status.txt").write_text(
+                mask(status_output, patterns)
+            )
+            (OUTPUT_DIR / f"{name}-log.txt").write_text(
+                mask(log_output, patterns)
+            )
 
     print(f"Captured {len(states)} state pairs into {OUTPUT_DIR}")
 

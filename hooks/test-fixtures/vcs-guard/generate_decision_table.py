@@ -71,17 +71,34 @@ SEPARATORS = ["&&", "||", ";", "|"]
 def compound_commands() -> list[tuple[str, str]]:
     cases = []
     for separator in SEPARATORS:
-        cases.append((f"compound-{separator}-match-first", f"git status {separator} echo done"))
         cases.append(
-            (f"compound-{separator}-match-later", f"echo start {separator} git status")
+            (
+                f"compound-{separator}-match-first",
+                f"git status {separator} echo done",
+            )
         )
-        cases.append((f"compound-{separator}-no-match", f"echo start {separator} echo done"))
+        cases.append(
+            (
+                f"compound-{separator}-match-later",
+                f"echo start {separator} git status",
+            )
+        )
+        cases.append(
+            (
+                f"compound-{separator}-no-match",
+                f"echo start {separator} echo done",
+            )
+        )
     return cases
 
 
 def all_commands() -> list[tuple[str, str]]:
-    commands = [(f"blocked-{name}", cmd) for name, cmd in BLOCKED_COMMANDS.items()]
-    commands += [(f"allowed-{i}", cmd) for i, cmd in enumerate(ALLOWED_COMMANDS)]
+    commands = [
+        (f"blocked-{name}", cmd) for name, cmd in BLOCKED_COMMANDS.items()
+    ]
+    commands += [
+        (f"allowed-{i}", cmd) for i, cmd in enumerate(ALLOWED_COMMANDS)
+    ]
     commands.append(("gh", "gh pr view"))
     commands.append(("rtk", "rtk git status"))
     commands += compound_commands()
@@ -99,7 +116,9 @@ def git_env() -> dict[str, str]:
 
 
 def run(args: list[str], cwd: Path, env: dict[str, str]) -> None:
-    subprocess.run(args, cwd=cwd, env=env, check=True, capture_output=True, text=True)
+    subprocess.run(
+        args, cwd=cwd, env=env, check=True, capture_output=True, text=True
+    )
 
 
 def build_repo_modes(work: Path, env: dict[str, str]) -> dict[str, Path]:
@@ -107,14 +126,22 @@ def build_repo_modes(work: Path, env: dict[str, str]) -> dict[str, Path]:
 
     pure_jj = work / "pure-jj"
     pure_jj.mkdir()
-    run(["jj", "--config", "git.colocate=false", "git", "init", "--quiet"], pure_jj, env)
+    run(
+        ["jj", "--config", "git.colocate=false", "git", "init", "--quiet"],
+        pure_jj,
+        env,
+    )
     modes["pure-jj"] = pure_jj
 
     colocated = work / "colocated"
     colocated.mkdir()
     run(["git", "init", "-q"], colocated, env)
     run(["git", "commit", "--allow-empty", "-q", "-m", "init"], colocated, env)
-    run(["jj", "--config", "git.colocate=true", "git", "init", "--quiet"], colocated, env)
+    run(
+        ["jj", "--config", "git.colocate=true", "git", "init", "--quiet"],
+        colocated,
+        env,
+    )
     modes["colocated"] = colocated
 
     git_only = work / "git"
@@ -138,7 +165,9 @@ def normalise(raw_stdout: str) -> tuple[str, str]:
     payload = json.loads(stripped)
     if payload.get("decision") == "block":
         return "block", payload["reason"]
-    system_message = payload.get("hookSpecificOutput", {}).get("systemMessage", "")
+    system_message = payload.get("hookSpecificOutput", {}).get(
+        "systemMessage", ""
+    )
     if system_message:
         return "warn", system_message
     return "allow", ""
@@ -186,7 +215,7 @@ def departure_rows() -> list[dict]:
             ),
             "departure": True,
             "note": (
-                "Today's shell mode check ([ -d \"$REPO_ROOT/.git\" ]) misreads a "
+                'Today\'s shell mode check ([ -d "$REPO_ROOT/.git" ]) misreads a '
                 "colocated checkout whose .git is a worktree/submodule FILE as "
                 "pure-jj, so it wrongly blocks this case. The library-backed "
                 "classifier's gix::discover-based git-presence check is file-aware, "
@@ -215,7 +244,9 @@ def departure_rows() -> list[dict]:
 
 
 def main() -> None:
-    with tempfile.TemporaryDirectory(prefix="vcs-guard-decision-table-") as raw_work:
+    with tempfile.TemporaryDirectory(
+        prefix="vcs-guard-decision-table-"
+    ) as raw_work:
         work = Path(raw_work).resolve()
         env = {**git_env(), "GIT_CEILING_DIRECTORIES": str(work)}
         modes = build_repo_modes(work, env)

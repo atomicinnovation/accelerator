@@ -458,16 +458,21 @@ construction in the oracle-mapping table to the new `kernel::Error` type.
 
 #### Automated Verification
 
-- [ ] `mise run cli:check` passes (rustfmt, clippy, cargo-pup)
-- [ ] `cargo test -p vcs -p vcs-adapters --locked` passes (via
-      `mise run test:unit:cli` or the crate-scoped equivalent)
-- [ ] `mise run pup:check` passes — confirms `vcs` still imports only
+- [x] `mise run cli:check` passes (rustfmt, clippy, cargo-pup)
+- [x] `cargo test -p vcs -p vcs-adapters --locked` passes (via
+      `mise run test:unit:cli` or the crate-scoped equivalent) — 46 passed
+      (10 suites) with `--all-features`
+- [x] `mise run pup:check` passes — confirms `vcs` still imports only
       `std`/`kernel::Error`/`crate`
-- [ ] `mise run deny:check` passes (no dependency change)
+- [x] `mise run deny:check` passes — note: this phase *does* add a dependency
+      edge (`kernel` to both `vcs` and `vcs-adapters`, both already in the
+      workspace graph), so "no dependency change" undersells it slightly, but
+      no new external crate enters the graph and deny passes with the same
+      pre-existing duplicate-version warnings as before this phase
 
 #### Manual Verification
 
-- [ ] None — this phase is a pure mechanical relocation verifiable entirely
+- [x] None — this phase is a pure mechanical relocation verifiable entirely
       by the existing test suite
 
 ---

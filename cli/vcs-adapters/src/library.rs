@@ -43,6 +43,10 @@ use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 use prost::Message as _;
 use tracing::warn;
+use vcs::checkout::DualRoots;
+use vcs::checkout::JjRepositoryFacts;
+use vcs::checkout::JjWorkspaceRole;
+use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
 use vcs::VcsKind;
 use vcs::VcsProbe;
@@ -150,42 +154,6 @@ impl std::error::Error for Error {
             }
         }
     }
-}
-
-/// Whether a checkout is a linked worktree, and where its git directories are.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorktreeFacts {
-    pub linked: bool,
-    pub git_dir: PathBuf,
-    pub common_dir: PathBuf,
-    /// `None` for a bare repository.
-    pub main_worktree_root: Option<PathBuf>,
-}
-
-/// Whether a jj workspace owns its repository store or shares another's.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum JjWorkspaceRole {
-    Main,
-    Secondary,
-}
-
-/// Which jj repository a workspace belongs to, and in what role.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JjRepositoryFacts {
-    pub role: JjWorkspaceRole,
-    pub main_root: PathBuf,
-}
-
-/// The git repository root and the jj workspace root, each resolved by its own
-/// walk so neither is truncated by the other's marker.
-///
-/// A `Result` per side rather than one for the struct, so a git-side failure
-/// cannot be observed as "jj only". Compare the sides only when both are `Ok`;
-/// an `Err` means "not comparable", not "unequal".
-#[derive(Debug)]
-pub struct DualRoots {
-    pub git: Result<Option<PathBuf>, Error>,
-    pub jj: Result<Option<PathBuf>, Error>,
 }
 
 /// Reads a repository's root, idiom and revision in-process.
@@ -336,9 +304,15 @@ impl InProcessProbe {
     /// independently.
     pub fn dual_roots(&self, start: &Path) -> DualRoots {
         DualRoots {
-            git: git_root(start),
-            jj: self.jj_workspace_root(start),
+            git: git_root(start).map_err(Into::into),
+            jj: self.jj_workspace_root(start).map_err(Into::into),
         }
+    }
+}
+
+impl From<Error> for kernel::Error {
+    fn from(error: Error) -> Self {
+        Self::Failed(error.to_string())
     }
 }
 
