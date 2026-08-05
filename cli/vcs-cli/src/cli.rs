@@ -31,6 +31,20 @@ pub enum Command {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// `jj status`, or `git diff --cached --stat`.
+    Status {
+        /// Forwarded to the launcher's own external-dispatch resolution:
+        /// this command's own handler never fails, so the flag has no
+        /// effect here beyond being present in argv for the launcher to see.
+        #[arg(long)]
+        fail_safe: bool,
+    },
+    /// `jj log --limit 5`, or `git log --oneline -5`.
+    Log {
+        /// See `status`'s `--fail-safe` — same launcher-only effect.
+        #[arg(long)]
+        fail_safe: bool,
+    },
 }
 
 /// How `vcs detect` renders its output. `Hook` is the only rendering today —

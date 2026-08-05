@@ -3,6 +3,8 @@
 
 mod cli;
 mod detect;
+mod log;
+mod status;
 
 use std::process::ExitCode;
 
@@ -29,6 +31,16 @@ fn run_detect(descriptive: bool, fail_safe: bool) -> Result<(), kernel::Error> {
     Ok(())
 }
 
+fn run_status() -> Result<(), kernel::Error> {
+    println!("{}", status::run(&current_dir()?));
+    Ok(())
+}
+
+fn run_log() -> Result<(), kernel::Error> {
+    println!("{}", log::run(&current_dir()?));
+    Ok(())
+}
+
 fn report(error: &kernel::Error) -> ExitCode {
     let message = error.to_string();
     if !message.is_empty() {
@@ -48,6 +60,8 @@ fn main() -> ExitCode {
             descriptive,
             fail_safe,
         } => run_detect(descriptive, fail_safe),
+        Command::Status { fail_safe: _ } => run_status(),
+        Command::Log { fail_safe: _ } => run_log(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-05T23:45:00+00:00"
+last_updated: "2026-08-06T00:15:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1068,34 +1068,40 @@ repoint, which this test does not depend on.
 
 #### Automated Verification
 
-- [ ] `vcs status`/`vcs log` match the Phase 1 goldens (masked) across all
-      nine captured states
-- [ ] A slow/blocking stand-in command (mirroring `capped_stdout`'s own
+- [x] `vcs status`/`vcs log` match the Phase 1 goldens (masked) across all
+      nine captured states — implemented against all ten, since the plan's
+      own arithmetic note in Key Discoveries already flags "nine" as
+      undercounting the git-ahead/git-behind split
+- [x] A slow/blocking stand-in command (mirroring `capped_stdout`'s own
       existing timeout test style) proves `status`/`log` are bounded by the
       same cap-and-kill as `revision`, falling back to `(... unavailable)`
       rather than hanging
-- [ ] Ambient `GIT_CONFIG`/`JJ_CONFIG` pointed at a scratch file with
+- [x] Ambient `GIT_CONFIG`/`JJ_CONFIG` pointed at a scratch file with
       attacker-controlled content does not affect `status`/`log` output,
       proving `scrub_environment` reuse
-- [ ] `accelerator-vcs vcs status --fail-safe` and `vcs log --fail-safe`
+- [x] `accelerator-vcs vcs status --fail-safe` and `vcs log --fail-safe`
       parse and execute successfully (exit 0, non-empty output against a
       fixture repo) — proves the flag's clap wiring is correct and doesn't
       conflict with anything, since this is the exact form
       `skills/vcs/commit`'s repointed invocation uses (Phase 8) and nothing
       else exercises that flag combination end to end
-- [ ] `vcs status --fail-safe` and plain `vcs status` (no flag) produce
+- [x] `vcs status --fail-safe` and plain `vcs status` (no flag) produce
       byte-identical output against the same fixture when the command itself
       succeeds — pinning that the flag has no internal effect on a
       successful run, only on the launcher-level dispatch-resolution path
       (per the layering note above), so a future change can't accidentally
       wire it into the handler without a test noticing the behaviour split
-- [ ] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
+- [x] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
       passes
 
 #### Manual Verification
 
-- [ ] `accelerator-vcs vcs status`/`vcs log` run correctly against a live
-      dirty checkout and a live jj secondary workspace
+- [x] `accelerator-vcs vcs status`/`vcs log` run correctly against a live
+      dirty checkout and a live jj secondary workspace — this very workspace
+      checkout (`workspaces/build-system`) is itself a live jj secondary
+      workspace with real in-progress changes; both subcommands were run
+      directly against it and produced correct, real `jj status`/`jj log`
+      output
 
 ---
 
