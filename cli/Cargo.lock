@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "clap",
  "config",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "minisign-verify",
  "tempfile",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -592,7 +592,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "config"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "kernel",
  "tempfile",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "config-adapters"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "config",
  "document",
@@ -622,14 +622,14 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "corpus-adapters"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "corpus",
  "document",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "document"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "serde",
  "serde-saphyr",
@@ -2571,7 +2571,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "thiserror",
  "tracing",
@@ -3795,7 +3795,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "rustix",
  "tempfile",
@@ -4341,11 +4341,11 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vcs"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 
 [[package]]
 name = "vcs-adapters"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "gix",
  "jj-lib",
@@ -4359,7 +4359,7 @@ dependencies = [
 
 [[package]]
 name = "vcs-test-support"
-version = "1.24.0-pre.23"
+version = "1.24.0-pre.24"
 dependencies = [
  "tempfile",
 ]
