@@ -45,6 +45,17 @@ pub enum Command {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// Block or warn about a git VCS command with a jj equivalent, for the
+    /// `PreToolUse` hook. Reads the tool call's command from stdin.
+    Guard {
+        /// Rendering: the `PreToolUse` hook envelope.
+        #[arg(long, value_enum)]
+        format: Option<Format>,
+        /// On an adapter failure, degrade to a warning and exit 0 rather
+        /// than exiting non-zero.
+        #[arg(long)]
+        fail_safe: bool,
+    },
 }
 
 /// How `vcs detect` renders its output. `Hook` is the only rendering today —

@@ -1179,12 +1179,12 @@ chooses the envelope shape by mode — pure-jj emits
 
 #### Automated Verification
 
-- [ ] `vcs::guard::decide` unit tests run via `cargo test -p vcs --locked`,
+- [x] `vcs::guard::decide` unit tests run via `cargo test -p vcs --locked`,
       independent of any repo fixture or probe — the compound-splitting and
       blocklist-matching cases from the Phase 1 decision table's command axis
       (34 cases plus the quote-aware-split departure case), decoupled from
       the 4 repo-mode axis that only `vcs-cli`'s composition needs
-- [ ] Targeted state-boundary tests for the quote-aware splitter specifically,
+- [x] Targeted state-boundary tests for the quote-aware splitter specifically,
       beyond the one decision-table row: an unterminated/mismatched quote
       (a trailing unclosed `"`); an escaped quote character within a quoted
       segment; single-quote-containing-unescaped-double-quote (and the
@@ -1194,28 +1194,37 @@ chooses the envelope shape by mode — pure-jj emits
       quote-state-tracking splitters are exactly the class of code where
       state-transition edge cases hide real bugs that a single happy-path
       row wouldn't catch
-- [ ] All 138 rows of the Phase 1 decision table pass end to end through
+- [x] All 138 rows of the Phase 1 decision table pass end to end through
       `accelerator-vcs` (136 shell-parity rows + the 1 `.git`-as-file
-      departure row + the 1 quote-aware-split departure row)
-- [ ] `{hookSpecificOutput:{hookEventName:"PreToolUse",
+      departure row + the 1 quote-aware-split departure row) —
+      `cli/vcs-cli/tests/guard_decision_table.rs`, gated behind `bash-parity`
+- [x] `{hookSpecificOutput:{hookEventName:"PreToolUse",
       permissionDecision:"deny", permissionDecisionReason:...}}` for a
       pure-jj block; a bare top-level `{systemMessage:...}` with no
       `permissionDecision` key for colocated warn
-- [ ] Fail-open fault injection: a test-only failing mode-determination probe
+- [x] Fail-open fault injection: a test-only failing mode-determination probe
       simulating a corrupt repository (mirroring the AC's `.git/HEAD`
       truncation) exits 0 and emits exactly one `systemMessage` object, no
       `permissionDecision`
-- [ ] Release-host-unreachable and manifest-missing-entry fail-open, exercised
+- [x] Release-host-unreachable and manifest-missing-entry fail-open, exercised
       through the Phase 5 launcher mechanism with a stubbed fetcher/manifest,
-      exit 0 with no blocking envelope
-- [ ] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
+      exit 0 with no blocking envelope — already covered by Phase 5's own
+      `swallow_under_fail_safe`/`ResolutionError` success criteria, which are
+      launcher-wide and not `vcs`-specific; `vcs guard`'s `--fail-safe` flag
+      is wired the same way `vcs status`/`vcs log` are (Phase 6, item 2)
+- [x] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
       passes
 
 #### Manual Verification
 
-- [ ] A real `git status` Bash call in a scratch pure-jj repo, dispatched
+- [x] A real `git status` Bash call in a scratch pure-jj repo, dispatched
       through `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs guard`, denies
-      correctly end to end
+      correctly end to end — verified via
+      `ACCELERATOR_VCS_BIN=cli/target/debug/accelerator-vcs
+      cli/target/debug/accelerator vcs guard --format=hook` against a scratch
+      pure-jj checkout (deny) and a scratch colocated checkout (warn), both
+      through the real launcher's `ACCELERATOR_VCS_BIN` override dispatch
+      path; an allowed command (`git push`) produced no output
 
 ---
 

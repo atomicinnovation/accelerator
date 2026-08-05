@@ -4,6 +4,7 @@
 
 pub mod checkout;
 pub mod classify;
+pub mod guard;
 pub mod mode;
 
 use std::path::Path;

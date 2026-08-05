@@ -25,8 +25,8 @@ vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
 tempfile = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }
