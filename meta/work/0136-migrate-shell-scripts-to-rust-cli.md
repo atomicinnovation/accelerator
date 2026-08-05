@@ -83,7 +83,12 @@ tracked on the items themselves.
 - 0170 — Work-Item Lifecycle Subdomain
 - 0171 — Jira and Linear Integrations
 - 0172 — Migration Engine Subdomain
-- 0173 — Remaining Subdomains: corpus, design, collaboration
+- 0173 — Remaining Subdomains: corpus, design, collaboration *(abandoned
+  2026-08-05 — split into 0195/0196/0197, see Drafting Notes)*
+- 0195 — accelerator-corpus: ADR, Metadata, Frontmatter Validation, and
+  Linkage CLI
+- 0196 — accelerator-design: Design Inventory and Gap Tooling CLI
+- 0197 — accelerator-collaboration: PR Helper CLI
 
 **Cleanup (Phase 11):**
 - 0185 — Converge corpus-adapters on the Library-Backed VCS Adapter
@@ -156,6 +161,15 @@ questions are answered:)*
   subdomain, the hooks migration and the skill repoint — the parts that cannot
   be separated, since the shell hooks cannot be deleted before their
   replacements exist.
+- **Extended 2026-08-05 with 0195–0197, when 0173 was split.** A review-1 pass
+  on 0173 found it bundled three functionally independent efforts —
+  `accelerator-corpus`, `accelerator-design`, and `accelerator-collaboration` —
+  sharing no relationship beyond the registration pattern, each with its own
+  source scripts, target crate(s), skill domain, and test suite; the combined
+  scope was also judged undersized for a single `story`. 0173 is now
+  **abandoned**; 0195/0196/0197 each carry forward their slice of 0173's
+  Requirements/Acceptance Criteria (with the review's AC and Dependencies gaps
+  fixed) and are parented directly under this epic.
 
 ## References
 
