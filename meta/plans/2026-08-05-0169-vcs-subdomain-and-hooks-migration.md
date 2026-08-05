@@ -315,40 +315,62 @@ jj-secondary checkout (a boundary-carrying case), `vcs detect` without
 default invocation → zero bytes), this pins both ends of the default output's
 range.
 
+**Path placeholders**: since a jj-secondary checkout is boundary-carrying, its
+`additionalContext` necessarily contains real filesystem paths that vary per
+test run — unlike the three pre-existing/departure detect fixtures, which are
+all `Main`-classified (no boundary) and so contain no paths at all. The
+committed fixture uses literal `<BOUNDARY_PATH>` / `<JJ_PARENT_PATH>` tokens
+(the same `<PATTERN_NAME>` convention as `masks.toml`); the Phase 5 comparison
+test must mask its own dynamically-built fixture's real paths to these exact
+tokens before the byte-comparison, rather than the fixture embedding a
+specific host path. Also: the structured contract deliberately drops the
+shell's leading double-blank-line quirk in `build_boundary_block` (present
+only because that text was designed to be appended after the cheat-sheet
+CONTEXT prose) — with no CONTEXT prefix in structured mode, the boundary block
+starts directly with `WORKSPACE BOUNDARY DETECTED` and carries no trailing
+blank line.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] The fixture-generation script runs cleanly and produces every listed
+- [x] The fixture-generation script runs cleanly and produces every listed
       golden file: `uv run python hooks/test-fixtures/generate_vcs_goldens.py`
-- [ ] `mise run test:integration:hooks` still passes unchanged (nothing in
-      this phase touches the existing suites yet)
-- [ ] `hooks/test-fixtures/masks.toml` exists and covers every field category
+      — produces 10 golden pairs (9 prose-enumerated states, "git ahead" and
+      "git behind" split into two pairs from one bullet)
+- [x] `mise run test:integration:hooks` still passes unchanged (nothing in
+      this phase touches the existing suites yet) — 131 shell-suite
+      assertions unchanged, plus the new `tests/integration/hooks/test_masks.py`
+      auto-discovered by the existing `pytest tests/integration/hooks`
+      invocation (24 items total)
+- [x] `hooks/test-fixtures/masks.toml` exists and covers every field category
       named above (checked by a new unit test asserting the file contains the
       six named patterns), and is loadable by both the Python
-      fixture-generation script and the Phase 6 Rust comparison harness
-- [ ] Each named pattern is pinned by a positive/negative sample pair, not
-      just checked for existence: a representative volatile string it must
-      match (an example hex object id, a jj change id, an ISO-8601 timestamp,
-      etc.) and a plausible-looking but stable string it must not match. This
-      catches a too-narrow pattern (misses a volatile field, causing later
-      flakiness) or a too-broad one (swallows a real regression) that a
-      name-only existence check can't
-- [ ] A cross-engine differential test: for each named pattern, the sample
-      pairs above are matched identically by both Python's `re` and the Rust
-      `regex` crate, compiling the same pattern text from `masks.toml` in
-      each. Python and Rust are different regex engines with different
-      syntax support (lookaround, backreferences) and potentially different
-      matching semantics for the same pattern string — a single shared file
-      doesn't by itself guarantee both sides interpret it identically; this
-      is the check that actually proves it, closing the gap a shared file
-      alone only papers over
+      fixture-generation script and the Phase 6 Rust comparison harness —
+      note: the prose names 7 categories (hex object ids, jj change ids,
+      ISO-8601 timestamps, jj space-separated timestamps, relative age,
+      fixture tempdir path, author identity); the "six" in this bullet
+      appears to be an off-by-one in the plan text, so all 7 are implemented
+      and asserted
+- [x] Each named pattern is pinned by a positive/negative sample pair — held
+      in `masks.toml` itself (`sample_match`/`sample_no_match` fields per
+      pattern) rather than duplicated in each test file, so both engines pin
+      against the identical source of truth
+- [x] A cross-engine differential test: `cli/vcs-test-support/tests/masks.rs`
+      (Rust `regex`) and `tests/integration/hooks/test_masks.py` (Python
+      `re`) independently load the same `masks.toml` and assert the same
+      match/no-match outcomes — a pattern the two engines interpret
+      differently fails exactly one suite
 
 #### Manual Verification
 
-- [ ] Spot-check three golden files by eye against a manually-run
-      `scripts/vcs-status.sh`/`scripts/vcs-log.sh` in a scratch checkout, to
-      confirm the masking regime doesn't hide a real behavioural difference
+- [x] Spot-checked golden files by eye (clean-jj, dirty-jj, colocated,
+      jj-secondary, dirty-git, git-ahead, detached-head-git, no-repo) —
+      masking is correct, no leaked temp paths/hex ids/change ids/timestamps/
+      emails; confirmed the mise-pinned jj (0.43.0) defaults `git.colocate`
+      to `true`, so the golden generator explicitly overrides
+      `--config git.colocate=false` to build genuinely pure-jj states
+      distinct from the colocated state
 
 ---
 

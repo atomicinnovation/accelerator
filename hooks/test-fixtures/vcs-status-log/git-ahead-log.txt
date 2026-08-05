@@ -1,0 +1,3 @@
+<HEX_OBJECT_ID> commit-3
+<HEX_OBJECT_ID> commit-2
+<HEX_OBJECT_ID> commit-1

@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "WORKSPACE BOUNDARY DETECTED\nYou are inside a checkout that is NOT the main repository.\nBoundary (active workspace): <BOUNDARY_PATH>\n\nParent repository (jj): <JJ_PARENT_PATH>\ndo not edit files in <JJ_PARENT_PATH>\ndo not run VCS commands against <JJ_PARENT_PATH>\ndo not grep, find, or research files in <JJ_PARENT_PATH>"
+  }
+}

@@ -7,6 +7,7 @@
 
 pub mod fixtures;
 pub mod hermetic;
+pub mod masks;
 pub mod stubs;
 
 use std::fmt;

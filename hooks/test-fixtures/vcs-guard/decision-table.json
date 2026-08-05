@@ -1,0 +1,834 @@
+[
+  {
+    "repo_mode": "pure-jj",
+    "command": "git status",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git diff",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git diff. Equivalent: jj diff"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git diff",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git diff. Suggested equivalent: jj diff"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git diff",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git diff",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git add file.txt",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git add. Equivalent: (not needed \u2014 jj has no staging area; use jj commit directly)"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git add file.txt",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git add. Suggested equivalent: (not needed \u2014 jj has no staging area; use jj commit directly)"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git add file.txt",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git add file.txt",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git commit -m \"message\"",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git commit. Equivalent: jj commit -m \"message\""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git commit -m \"message\"",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git commit. Suggested equivalent: jj commit -m \"message\""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git commit -m \"message\"",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git commit -m \"message\"",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git log",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git log. Equivalent: jj log"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git log",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git log. Suggested equivalent: jj log"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git log",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git log",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git branch",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git branch. Equivalent: jj bookmark list"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git branch",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git branch. Suggested equivalent: jj bookmark list"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git branch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git branch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git checkout main",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git checkout. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git checkout main",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git checkout. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git checkout main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git checkout main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git switch main",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git switch. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git switch main",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git switch. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git switch main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git switch main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git merge main",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git merge. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git merge main",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git merge. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git merge main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git merge main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git rebase main",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git rebase. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git rebase main",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git rebase. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git rebase main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git rebase main",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git reset",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git reset. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git reset",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git reset. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git reset",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git reset",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git stash",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git stash. Equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git stash",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git stash. Suggested equivalent: check jj documentation for equivalent"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git stash",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git stash",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git show",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git show. Equivalent: jj show"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git show",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git show. Suggested equivalent: jj show"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git show",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git show",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git push",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git push",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git push",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git push",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git pull",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git pull",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git pull",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git pull",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git fetch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git fetch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git fetch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git fetch",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git remote -v",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git remote -v",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git remote -v",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git remote -v",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git clone https://example.com/repo.git",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git clone https://example.com/repo.git",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git clone https://example.com/repo.git",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git clone https://example.com/repo.git",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git config user.name",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git config user.name",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git config user.name",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git config user.name",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git tag",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git tag",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "git tag",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git tag",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "gh pr view",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "gh pr view",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "gh pr view",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "gh pr view",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "rtk git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "rtk git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "rtk git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "rtk git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git status && echo done",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git status && echo done",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git status && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git status && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start && git status",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start && git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start && git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start && git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start && echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git status || echo done",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git status || echo done",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git status || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git status || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start || git status",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start || git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start || git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start || git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start || echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git status ; echo done",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git status ; echo done",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git status ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git status ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start ; git status",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start ; git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start ; git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start ; git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start ; echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git status | echo done",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "git status | echo done",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "git status | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "git status | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start | git status",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status"
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start | git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status"
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start | git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start | git status",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "echo start | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated",
+    "command": "echo start | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "git",
+    "command": "echo start | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "non-repo",
+    "command": "echo start | echo done",
+    "decision": "allow",
+    "reason_pattern": ""
+  },
+  {
+    "repo_mode": "colocated-git-as-file",
+    "command": "git status",
+    "decision": "warn",
+    "reason_pattern": "This is a jj-colocated repository. Prefer jj over git status. Suggested equivalent: jj status",
+    "departure": true,
+    "note": "Today's shell mode check ([ -d \"$REPO_ROOT/.git\" ]) misreads a colocated checkout whose .git is a worktree/submodule FILE as pure-jj, so it wrongly blocks this case. The library-backed classifier's gix::discover-based git-presence check is file-aware, so the corrected behaviour is warn (colocated), not block."
+  },
+  {
+    "repo_mode": "pure-jj",
+    "command": "git commit -m \"build && test\"",
+    "decision": "block",
+    "reason_pattern": "This is a pure jujutsu repository. Use jj instead of git commit. Equivalent: jj commit -m \"message\"",
+    "departure": true,
+    "note": "Today's shell compound-splitter is quote-blind (a plain sed-then-split), so it wrongly splits inside the quoted string and evaluates test\" as a spurious second segment. The Rust port's splitter is quote-aware: the embedded && stays inside the quoted argument, so the whole string is evaluated as a single `git commit` invocation and blocked accordingly."
+  }
+]

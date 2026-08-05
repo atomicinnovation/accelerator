@@ -17,3 +17,6 @@ workspace = true
 # separate crate rather than a feature.
 [dependencies]
 tempfile = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
