@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-05T21:30:00+00:00"
+last_updated: "2026-08-05T22:15:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -660,16 +660,16 @@ through to the normal permission flow rather than being read as a decision.
 
 #### Automated Verification
 
-- [ ] New `kernel::hooks` unit tests pin each shape's literal JSON output
+- [x] New `kernel::hooks` unit tests pin each shape's literal JSON output
       (mirroring the existing `hook_envelope` test's style)
-- [ ] Existing `config_command` summary tests still pass unchanged — no
+- [x] Existing `config_command` summary tests still pass unchanged — no
       behavioural regression to the already-shipped SessionStart contract:
       `cargo test -p accelerator --locked`
-- [ ] `mise run cli:check` passes
+- [x] `mise run cli:check` passes
 
 #### Manual Verification
 
-- [ ] None
+- [x] None
 
 ---
 
