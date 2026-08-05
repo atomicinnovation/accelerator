@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-05T22:15:00+00:00"
+last_updated: "2026-08-05T23:45:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -896,22 +896,22 @@ is known to exist. Output wrapped via `kernel::hooks::session_start`.
 
 #### Automated Verification
 
-- [ ] `forwarded_fail_safe` unit tests: token present at any position before
+- [x] `forwarded_fail_safe` unit tests: token present at any position before
       `--` returns true; token after `--` or absent returns false
-- [ ] `swallow_under_fail_safe` unit tests, against literal `kernel::Error`
+- [x] `swallow_under_fail_safe` unit tests, against literal `kernel::Error`
       values, no test doubles needed: `Failed` + forwarded → `true`; `Failed`
       + not forwarded → `false`; `Refusal` + forwarded → `false` (never
       swallowed, regardless of `--fail-safe`); `LogFilter` + forwarded →
       `false` (the allowlist covers only `Failed`, so an unrelated logging
       error is never swallowed either)
-- [ ] `From<ResolutionError> for kernel::Error` unit tests: `ChecksumMismatch`,
+- [x] `From<ResolutionError> for kernel::Error` unit tests: `ChecksumMismatch`,
       `SignatureMismatch`, `ManifestSignature`, `ManifestVersionMismatch`, and
       `CorruptCacheAndRefetchFailed` each map to `Refusal`; every other
       variant maps to `Failed`. Written as an exhaustive match with no
       wildcard arm (not `_ => Self::Failed(..)`), so a future
       `ResolutionError` variant forces a compile-time classification decision
       rather than silently defaulting to `Failed`
-- [ ] `FetchVerifyCacheResolver::resolve`'s reverify-failure branch, exercised
+- [x] `FetchVerifyCacheResolver::resolve`'s reverify-failure branch, exercised
       with a stubbed fetcher: a `ChecksumMismatch`/`SignatureMismatch`
       reverify failure followed by a failed refetch produces
       `CorruptCacheAndRefetchFailed` (→ `Refusal`, never swallowed); a plain
@@ -919,7 +919,7 @@ is known to exist. Output wrapped via `kernel::hooks::session_start`.
       the refetch's own error verbatim, not wrapped — confirming a benign
       double-failure (I/O hiccup + blocked retry) stays swallowable under
       `--fail-safe` rather than being misclassified as confirmed tampering
-- [ ] This launcher-wide change is not `vcs`-scoped: a success criterion
+- [x] This launcher-wide change is not `vcs`-scoped: a success criterion
       exercises the existing `accelerator visualiser` external-dispatch path
       (the only other `DISPATCHED_SUBBINARIES` entry today) through the same
       integrity-class mapping, confirming its exit code deliberately changes
@@ -927,21 +927,24 @@ is known to exist. Output wrapped via `kernel::hooks::session_start`.
       documented as an intentional fix (integrity failures should never have
       been conflated with availability failures for any dispatched
       subcommand), not an accidental side effect
-- [ ] A `ResolveBinary`/`ExecBinary` test-double pair (matching the existing
+- [x] A `ResolveBinary`/`ExecBinary` test-double pair (matching the existing
       style in `cli/launcher/src/launch/core.rs`'s test module) confirms a
       failing resolve exits 0 when forwarded and the failure is availability
       class, and exits non-zero (2) when the failure is an integrity-class
-      `ResolutionError`, regardless of `--fail-safe`
-- [ ] `cache_root::candidate` performs no filesystem write or process spawn —
+      `ResolutionError`, regardless of `--fail-safe` — implemented in
+      `cli/launcher/src/main.rs`'s own test module (where the decision is
+      actually made) rather than `core.rs`, since `core.rs` only supplies the
+      pure `swallow_under_fail_safe` primitive
+- [x] `cache_root::candidate` performs no filesystem write or process spawn —
       asserted by a test pointing it at a directory that would fail the write
       probe (e.g. a non-existent parent with no create permission) and
       confirming it still returns the candidate path rather than an error
-- [ ] A read-only cache root directory containing an already-cached,
+- [x] A read-only cache root directory containing an already-cached,
       correctly-signed binary still resolves successfully end to end (proves
       the probe is skipped on a hit); an empty/unwritable cache root still
       fails with `CacheRootUnavailable` when a fetch is actually attempted
       (proves the probe still guards the write path)
-- [ ] The unwritable-cache-root-on-miss case above fails **fast**, not just
+- [x] The unwritable-cache-root-on-miss case above fails **fast**, not just
       correctly: pointed at a local mock HTTP server (e.g.
       `ACCELERATOR_RELEASE_BASE_URL` set to a `127.0.0.1` listener) whose
       request log is asserted empty, proving `verify_writable` runs before
@@ -949,29 +952,34 @@ is known to exist. Output wrapped via `kernel::hooks::session_start`.
       terminal `CacheRootUnavailable` error alone doesn't distinguish this
       from the pre-reordering behaviour, since both orderings reach the same
       final error
-- [ ] `vcs detect --descriptive` output matches all three `--descriptive`
+- [x] `vcs detect --descriptive` output matches all three `--descriptive`
       fixtures from Phase 1/existing `hooks/test-fixtures/vcs-detect/*.json`
       after `jq -S .` canonicalisation, including the new
-      colocated-`.git`-as-file case
-- [ ] `vcs detect` (no `--descriptive`) output matches the new
+      colocated-`.git`-as-file case — `cli/vcs-cli/tests/detect_goldens.rs`,
+      gated behind `bash-parity`, compares parsed `serde_json::Value`s
+      (order-independent) rather than shelling to `jq` directly
+- [x] `vcs detect` (no `--descriptive`) output matches the new
       `jj-secondary-structured.json` fixture (Phase 1, item 5) — boundary
       block only, no reference text
-- [ ] Success-with-nothing-to-report: in a main checkout with no boundary,
+- [x] Success-with-nothing-to-report: in a main checkout with no boundary,
       `accelerator-vcs vcs detect --format=hook --fail-safe` (no
       `--descriptive`) exits 0 and writes zero bytes to stdout
-- [ ] Adapter-failure: with a test-only failing probe on either source (the
+- [x] Adapter-failure: with a test-only failing probe on either source (the
       direct mode-determination queries, or the narrower `CheckoutProbe` port
       `classify()` uses for the boundary block), the same
       command exits 0 and writes exactly one JSON object containing
       `systemMessage`, independent of `--descriptive`
-- [ ] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
+- [x] `mise run cli:check` passes; `cargo test -p accelerator-vcs --locked`
       passes
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_VCS_BIN=$(pwd)/cli/target/debug/accelerator-vcs
+- [x] `ACCELERATOR_VCS_BIN=$(pwd)/cli/target/debug/accelerator-vcs
       ${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect` runs correctly in a
-      scratch colocated-worktree checkout
+      scratch colocated-worktree checkout — verified in a scratch
+      `git init` + `jj git init --colocate` checkout via the local debug
+      launcher build, dispatched through the real `ACCELERATOR_VCS_BIN`
+      override path; exit 0, correct `jj-colocated` envelope
 
 ---
 

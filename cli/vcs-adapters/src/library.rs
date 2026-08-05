@@ -351,6 +351,19 @@ impl vcs::classify::CheckoutProbe for InProcessProbe {
     }
 }
 
+impl vcs::mode::ModeProbe for InProcessProbe {
+    fn jj_workspace_root(
+        &self,
+        start: &Path,
+    ) -> Result<Option<PathBuf>, kernel::Error> {
+        self.jj_workspace_root(start).map_err(Into::into)
+    }
+
+    fn dual_roots(&self, start: &Path) -> DualRoots {
+        self.dual_roots(start)
+    }
+}
+
 impl RepoRoot for InProcessProbe {
     fn discover(&self, start: &Path) -> Option<PathBuf> {
         walk_up(start, carries_any_marker).map(|root| canonical(&root))

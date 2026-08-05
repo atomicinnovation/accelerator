@@ -30,6 +30,35 @@ impl CacheRootConfig {
     }
 }
 
+/// The cache root candidate: the `ACCELERATOR_CACHE_DIR` override, else
+/// `${ACCELERATOR_PLUGIN_ROOT}/bin`.
+///
+/// Selection only — no filesystem write, no process spawn — so a warm cache
+/// hit never pays the write+exec probe [`verify_writable`] performs.
+///
+/// # Errors
+///
+/// [`ResolutionError::CacheRootUnavailable`] when neither
+/// `ACCELERATOR_CACHE_DIR` nor `ACCELERATOR_PLUGIN_ROOT` is set (no XDG
+/// fallback).
+pub fn candidate(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
+    if let Some(override_dir) = &config.cache_dir_override {
+        tracing::info!(
+            path = %override_dir.display(),
+            "using ACCELERATOR_CACHE_DIR override for the cache root"
+        );
+        return Ok(override_dir.clone());
+    }
+    let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
+        ResolutionError::CacheRootUnavailable {
+            detail: "ACCELERATOR_PLUGIN_ROOT is not set and no \
+                     ACCELERATOR_CACHE_DIR override was given"
+                .to_owned(),
+        }
+    })?;
+    Ok(plugin_root.join("bin"))
+}
+
 /// Resolve a writable, exec-capable cache directory (creating it if needed).
 ///
 /// # Errors
@@ -38,41 +67,31 @@ impl CacheRootConfig {
 /// unset `ACCELERATOR_PLUGIN_ROOT` with no override, or a candidate failing the
 /// write+exec probe (with no XDG fallback).
 pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
-    if let Some(override_dir) = &config.cache_dir_override {
-        tracing::info!(
-            path = %override_dir.display(),
-            "using ACCELERATOR_CACHE_DIR override for the cache root"
-        );
-        return if probe_writable_and_executable(override_dir) {
-            Ok(override_dir.clone())
-        } else {
-            Err(ResolutionError::CacheRootUnavailable {
-                detail: format!(
-                    "ACCELERATOR_CACHE_DIR {} is not writable+exec-capable",
-                    override_dir.display()
-                ),
-            })
-        };
-    }
+    let dir = candidate(config)?;
+    verify_writable(&dir)?;
+    Ok(dir)
+}
 
-    let plugin_root = config.plugin_root.as_ref().ok_or_else(|| {
-        ResolutionError::CacheRootUnavailable {
-            detail: "ACCELERATOR_PLUGIN_ROOT is not set and no \
-                     ACCELERATOR_CACHE_DIR override was given"
-                .to_owned(),
-        }
-    })?;
-    let primary = plugin_root.join("bin");
-    if probe_writable_and_executable(&primary) {
-        return Ok(primary);
+/// Probe `dir` for writability and exec-capability, creating it if needed.
+///
+/// Only matters on the write path — a resolver that already has a cached,
+/// re-verified binary should never call this.
+///
+/// # Errors
+///
+/// [`ResolutionError::CacheRootUnavailable`] when `dir` is not
+/// writable+exec-capable.
+pub fn verify_writable(dir: &Path) -> Result<(), ResolutionError> {
+    if probe_writable_and_executable(dir) {
+        Ok(())
+    } else {
+        Err(ResolutionError::CacheRootUnavailable {
+            detail: format!(
+                "{} is not writable+exec-capable (no XDG fallback)",
+                dir.display()
+            ),
+        })
     }
-    Err(ResolutionError::CacheRootUnavailable {
-        detail: format!(
-            "{} is not writable+exec-capable and no ACCELERATOR_CACHE_DIR \
-             override was given (no XDG fallback)",
-            primary.display()
-        ),
-    })
 }
 
 /// Probe writability and exec-capability by writing then running a script —
@@ -108,10 +127,11 @@ fn make_executable(_path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::path::PathBuf;
 
     use tempfile::TempDir;
 
-    use super::{resolve, CacheRootConfig};
+    use super::{candidate, resolve, verify_writable, CacheRootConfig};
 
     fn config() -> CacheRootConfig {
         CacheRootConfig {
@@ -169,6 +189,52 @@ mod tests {
             ..config()
         });
         assert!(result.is_err(), "no XDG fallback: expected a named error");
+        Ok(())
+    }
+
+    #[test]
+    fn candidate_performs_no_filesystem_write_or_process_spawn(
+    ) -> Result<(), Box<dyn Error>> {
+        // A non-existent parent with no permission to create it: had
+        // `candidate` performed any I/O, `create_dir_all` inside the probe
+        // would fail loudly; instead it must return the path unexamined.
+        let unwritable_parent = PathBuf::from("/nonexistent-acc-parent-dir");
+        let plugin_root = unwritable_parent.join("plugin-root");
+        let resolved = candidate(&CacheRootConfig {
+            plugin_root: Some(plugin_root.clone()),
+            ..config()
+        })?;
+        assert_eq!(resolved, plugin_root.join("bin"));
+        assert!(
+            !unwritable_parent.exists(),
+            "candidate must not create any directory"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_writable_accepts_a_writable_directory(
+    ) -> Result<(), Box<dyn Error>> {
+        let temp = tempdir()?;
+        verify_writable(temp.path())?;
+        Ok(())
+    }
+
+    #[test]
+    fn verify_writable_rejects_a_read_only_directory(
+    ) -> Result<(), Box<dyn Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let temp = tempdir()?;
+        std::fs::set_permissions(
+            temp.path(),
+            std::fs::Permissions::from_mode(0o555),
+        )?;
+        let result = verify_writable(temp.path());
+        std::fs::set_permissions(
+            temp.path(),
+            std::fs::Permissions::from_mode(0o755),
+        )?;
+        assert!(result.is_err());
         Ok(())
     }
 
