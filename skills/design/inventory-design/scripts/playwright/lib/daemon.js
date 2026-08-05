@@ -50,12 +50,17 @@ export async function startDaemon({ stateDir }) {
 
     try { writeServerStopped(stateDir, reason, extra); } catch {}
 
+    // Stop being discoverable before the browser goes away. Closing the
+    // browser first leaves a window as long as Chromium takes to exit in
+    // which run.sh's reuse check still passes — the pid is live and
+    // server-info.json is present — so the next launcher dispatches onto a
+    // dead page and the caller sees `Target page, context or browser has
+    // been closed` instead of a clean respawn.
+    removeServerFiles(stateDir);
+
     try { await browser?.close(); } catch {}
 
-    server.close(() => {
-      removeServerFiles(stateDir);
-      process.exit(reason === 'wall-clock' ? 2 : 0);
-    });
+    server.close(() => process.exit(reason === 'wall-clock' ? 2 : 0));
     setTimeout(() => process.exit(reason === 'wall-clock' ? 2 : 0), 3000).unref();
   }
 
@@ -138,6 +143,19 @@ export async function startDaemon({ stateDir }) {
     if (cmd === 'daemon-stop') {
       setImmediate(() => shutdown('daemon-stop'));
       return { protocol: PROTOCOL, ok: true };
+    }
+
+    // A launcher that cleared the reuse check moments before shutdown began
+    // can still arrive on an already-open connection. Answer with a typed,
+    // retryable envelope rather than letting the closed browser surface as a
+    // Playwright exception.
+    if (shutdownInitiated) {
+      return makeError({
+        error: 'daemon-stopping',
+        message: 'The daemon is shutting down. Run the command again; run.sh will spawn a new one.',
+        category: 'browser',
+        retryable: true,
+      });
     }
 
     // All remaining commands require the browser

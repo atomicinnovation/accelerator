@@ -15,9 +15,31 @@ workspace = true
 # run. CI enables it (tasks/test/cli.py).
 bash-parity = []
 
+# Composition-root demonstration and black-box test entry point — not a shipped
+# artifact. Lives under tests/fixtures/ so it stays off the crate's normal build
+# surface. The scrub-invariant runs drive both the poisoned and the clean arm
+# through this binary, so a difference is behavioural rather than two
+# serialisation routes disagreeing.
+[[bin]]
+name = "vcs-adapters-fixture"
+path = "tests/fixtures/vcs_adapters_fixture.rs"
+
+# The stubbed twin, giving the size floor a denominator. A second [[bin]] rather
+# than a `stub` feature: the crate must gain no [features] entry beyond
+# bash-parity, and CI's --all-features would turn a fixture feature on
+# workspace-wide.
+[[bin]]
+name = "vcs-adapters-fixture-stub"
+path = "tests/fixtures/vcs_adapters_fixture_stub.rs"
+
 [dependencies]
 vcs = { path = "../vcs" }
+gix = { workspace = true }
+jj-lib = { workspace = true }
+pollster = { workspace = true }
+prost = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }

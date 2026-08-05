@@ -2,7 +2,7 @@ import os
 import stat
 import subprocess
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -47,6 +47,16 @@ def _signature_path(binary: Path) -> Path:
     return binary.with_name(binary.name + ".minisig")
 
 
+def _subbinary_signing_targets(
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+) -> list[Path]:
+    return [
+        subbinary_asset_path(token, platform)
+        for _triple, platform in TARGETS
+        for token in tokens
+    ]
+
+
 def sign_staged_binaries(secret_key: Path) -> None:
     """Sign the launcher + every dispatched sub-binary across all four targets.
 
@@ -59,11 +69,7 @@ def sign_staged_binaries(secret_key: Path) -> None:
         cli_binary_path("accelerator", platform)
         for _triple, platform in TARGETS
     ]
-    expected += [
-        subbinary_asset_path(token, platform)
-        for _triple, platform in TARGETS
-        for token in DISPATCHED_SUBBINARIES
-    ]
+    expected += _subbinary_signing_targets()
     missing = [binary for binary in expected if not binary.exists()]
     if missing:
         raise SigningError(

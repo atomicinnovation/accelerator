@@ -19,7 +19,7 @@ fn run(args: &[&str], env: &[(&str, &str)]) -> Result<Output, Box<dyn Error>> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.env_remove("ACCELERATOR_LOG");
     // Hermetic: no inherited plugin root, cache override, or release URL.
-    command.env_remove("CLAUDE_PLUGIN_ROOT");
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
     command.args(args);
@@ -175,8 +175,11 @@ fn an_unresolvable_subcommand_exits_non_zero_with_a_named_step(
         "expected a non-zero exit for an unresolvable subcommand"
     );
     let stderr = String::from_utf8(output.stderr)?;
+    // The clause is unique to CacheRootUnavailable: asserting the variable name
+    // alone would also match the plugin-root refusal, so the two named errors
+    // would be interchangeable to this test.
     assert!(
-        stderr.contains("CLAUDE_PLUGIN_ROOT"),
+        stderr.contains("no ACCELERATOR_CACHE_DIR override was given"),
         "stderr missing the named resolution step: {stderr:?}"
     );
     Ok(())

@@ -29,3 +29,9 @@ tempfile = { workspace = true }
 rand = { workspace = true }
 rustix = { workspace = true }
 serde_json = { workspace = true }
+
+# Test-only edge to the shared VCS harness. Under resolver 3 a dev-dependency's
+# features stay out of the normal build, which matters because the visualiser
+# server depends on this crate. The normal vcs-adapters edge above is untouched.
+[dev-dependencies]
+vcs-test-support = { path = "../vcs-test-support" }

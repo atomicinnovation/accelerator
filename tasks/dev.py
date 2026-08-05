@@ -42,10 +42,10 @@ _DIAGNOSTIC_LOG = _DEV_DIR / "dev.log"
 def _server_env() -> dict[str, str]:
     """Env for the arbiter and the detached daemon.
 
-    The resolved PATH lets the daemon find node; CLAUDE_PLUGIN_ROOT lets the
-    Model-1 server resolve plugin templates.
+    The resolved PATH lets the daemon find node; ACCELERATOR_PLUGIN_ROOT lets
+    the Model-1 server resolve plugin templates.
     """
-    return {**os.environ, "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+    return {**os.environ, "ACCELERATOR_PLUGIN_ROOT": str(REPO_ROOT)}
 
 
 def _dev_deps(context: Context) -> DevDeps:

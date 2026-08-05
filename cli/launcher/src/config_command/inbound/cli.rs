@@ -415,15 +415,16 @@ fn run_instructions(
 enum Failure {
     /// A read/IO failure the fail-safe boundary may absorb.
     Read(ConfigError),
-    /// A validation refusal that stays fail-closed regardless of `--fail-safe`.
+    /// A failure `--fail-safe` must never absorb.
     Refusal(ConfigError),
 }
 
 impl From<ConfigError> for Failure {
     fn from(error: ConfigError) -> Self {
-        match error {
-            ConfigError::Invalid { .. } => Self::Refusal(error),
-            _ => Self::Read(error),
+        if error.is_refusal() {
+            Self::Refusal(error)
+        } else {
+            Self::Read(error)
         }
     }
 }
@@ -436,8 +437,8 @@ enum Degrade {
 }
 
 /// Renders a scalar view to stdout-plus-warnings and dispatches it through
-/// [`finish`] with the scalar suppression policy. A [`ConfigError::Invalid`]
-/// stays a fail-closed refusal via [`From<ConfigError>`].
+/// [`finish`] with the scalar suppression policy. A refusing [`ConfigError`]
+/// stays fail-closed via [`From<ConfigError>`].
 fn finish_scalar(
     view: Result<ScalarView, ConfigError>,
     on_failure: OnFailure,
@@ -538,7 +539,7 @@ fn eject_all(
     let available = template_view::available_or_none(stack.templates());
     let mut had_error = false;
     let mut had_exists = false;
-    for key in stack.templates().template_names() {
+    for key in stack.templates().template_names()? {
         let result = stack.overrides().eject(&key, dir, force, dry_run)?;
         let text = template_render::eject_text(
             result.outcome,

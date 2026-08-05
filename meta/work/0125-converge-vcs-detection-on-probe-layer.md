@@ -8,10 +8,11 @@ producer: create-work-item
 status: draft
 kind: task
 priority: medium
-relates_to: ["work-item:0124", "work-item:0058", "work-item:0020"]
+relates_to: ["work-item:0124", "work-item:0058", "work-item:0020",
+  "work-item:0188"]
 tags: [tech-debt, scripts, vcs, git, jj, worktree, vcs-common]
-last_updated: "2026-06-22T14:38:56+00:00"
-last_updated_by: Phil Helm
+last_updated: "2026-08-03T16:37:02+00:00"
+last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-146
 ---
@@ -144,6 +145,27 @@ remains, so other categories can still bite:
   (the immediate fix), [`0058`](0058-workspace-worktree-boundary-detection.md)
   (built the probe layer), [`0020`](0020-vcs-abstraction-layer.md) (origin of
   the VCS abstraction).
+
+### Amendment 2026-08-03 — the lexical-fallback rationale is dissolved, conditionally
+
+[`0188`](0188-library-backed-vcs-adapter.md) landed a library-backed VCS adapter
+that reads git through `gix` and jj through `jj-lib` **in-process**. Two of this
+item's stated reasons for keeping the shell lexical fallback no longer hold *for
+consumers that reach that adapter*:
+
+1. Detection no longer needs `git`/`jj` on `PATH`. Proven, not asserted: a
+   cross-crate suite runs the whole checkout-shape matrix with both binaries
+   stripped from `PATH` and asserts that no stub recorded a spawn **and** that
+   every value matches an unrestricted run.
+2. Probing no longer costs 1-3 subprocesses per call. Measured on darwin-arm64:
+   ~3.6-4.7 ms cold per process for all six taxonomy queries plus both port
+   methods, against ~23.8 ms for the single `jj log -r @` the subprocess probe
+   ran; warm in-process calls are tens of microseconds.
+
+**The dissolution is conditional and this item is not closed by it.** The ~26
+shell call sites in `find_repo_root` and `vcs_mode` keep running in bash and
+cannot reach the Rust adapter until 0169 and the later epic-0136 phases migrate
+them. Constraints 3, 4 and 5 are untouched and still bind.
 
 ## References
 

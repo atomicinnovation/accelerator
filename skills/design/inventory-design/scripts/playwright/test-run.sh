@@ -164,10 +164,16 @@ if [[ -n "$LINKS_OUT" ]] && grep -q '"links"' <<<"$LINKS_OUT"; then
   LINKS_DAEMON_PID="$(tr -cd '0-9' <"$LINKS_PROJECT_TMP/.accelerator/tmp/inventory-design-playwright/server.pid" 2>/dev/null || echo "")"
   (cd "$LINKS_PROJECT_TMP" && bash "$RUN_SH" daemon-stop >/dev/null 2>&1 || true)
   if [[ -n "$LINKS_DAEMON_PID" ]]; then
-    for _ in $(seq 1 50); do
+    for _ in $(seq 1 150); do
       kill -0 "$LINKS_DAEMON_PID" 2>/dev/null || break
       sleep 0.2
     done
+    # Proceeding with the old daemon still alive would surface downstream as a
+    # confusing links error rather than as the timeout it is.
+    if kill -0 "$LINKS_DAEMON_PID" 2>/dev/null; then
+      echo "  FAIL: daemon $LINKS_DAEMON_PID did not exit within 30s of daemon-stop"
+      FAIL=$((FAIL + 1))
+    fi
   fi
   # Clear the launcher-lock dir left over by the mkdir-fallback path (the
   # trap that would normally clean it is dropped by `exec node …`). This

@@ -20,6 +20,7 @@ from tasks.github import (
     verify_release_asset,
 )
 from tasks.shared.errors import InvalidVersionError
+from tasks.shared.paths import DISPATCHED_SUBBINARIES
 from tasks.shared.targets import TARGETS
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
@@ -252,8 +253,8 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
     mocker.patch.object(
         gh,
         "debug_archive_path",
-        side_effect=lambda p: (
-            tmp_path / f"accelerator-visualiser-{p}.debug.tar.gz"
+        side_effect=lambda token, p, _dir: (
+            tmp_path / f"accelerator-{token}-{p}.debug.tar.gz"
         ),
     )
     mocker.patch.object(
@@ -431,6 +432,70 @@ class TestUploadAndVerifyRelease:
         uploads = "".join(str(c) for c in ctx.run.call_args_list)
         assert "accelerator-foo-darwin-arm64 --clobber" in uploads
         assert "accelerator-foo-darwin-arm64.minisig --clobber" in uploads
+
+
+class TestBuilderSeams:
+    """Pure list derivation — no signing key, no network."""
+
+    def test_subbinary_uploads_pairs_each_asset_with_its_signature(
+        self, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path, create=False)
+        uploads = gh._subbinary_uploads(("alpha", "beta"))
+
+        assert len(uploads) == 2 * len(_PLATFORMS) * 2
+        for token in ("alpha", "beta"):
+            for platform in _PLATFORMS:
+                asset = tmp_path / f"accelerator-{token}-{platform}"
+                assert asset in uploads
+                assert asset.with_name(asset.name + ".minisig") in uploads
+
+    def test_subbinary_uploads_defaults_to_todays_asset_set(self):
+        uploads = gh._subbinary_uploads()
+
+        assert len(uploads) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
+        assert all("visualiser" in path.name for path in uploads)
+
+    def test_subbinary_reverifies_yields_one_item_per_token_per_target(
+        self, ctx, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path, create=False)
+        (tmp_path / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "version": "1.20.0",
+                    "binaries": {
+                        token: {
+                            "description": token,
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        }
+                        for token in ("alpha", "beta")
+                    },
+                }
+            )
+        )
+
+        items = gh._subbinary_reverifies(ctx, "v1.20.0", ("alpha", "beta"))
+
+        assert len(items) == 2 * len(_PLATFORMS)
+
+    def test_subbinary_reverifies_defaults_to_todays_asset_set(
+        self, ctx, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path)
+
+        items = gh._subbinary_reverifies(ctx, "v1.20.0")
+
+        assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
+
+    def test_the_dispatched_registry_holds_the_visualiser_alone(self):
+        # A deliberate anti-vacuity anchor, not a count to bump blindly: every
+        # default-call assertion above would pass on an emptied registry.
+        assert DISPATCHED_SUBBINARIES == ("visualiser",)
 
 
 class TestReverifyViaShim:

@@ -13,8 +13,13 @@ use std::path::Path;
 use std::process::Command;
 
 use tempfile::TempDir;
+use vcs::RepoFacts;
+use vcs::RepoRoot;
 use vcs::VcsKind;
-use vcs_adapters::facts;
+use vcs::VcsProbe;
+use vcs_adapters::library::InProcessProbe;
+use vcs_adapters::subprocess::CommandProbe;
+use vcs_adapters::subprocess::MarkerWalkRoot;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -81,8 +86,71 @@ fn git_repo_with_a_commit(label: &str) -> Result<TempDir, TestError> {
 
 /// The probes ask for the *full* working-copy id — 40 hex digits from both jj
 /// (`commit_id`) and git (`rev-parse HEAD`) — so a short or decorated id fails.
+///
+/// Note this rejects a **sha256** repository's 64-hex id. That is deliberate
+/// here: no fixture in this suite uses one. Any wider revision validation has to
+/// accept both widths or record sha256 as unsupported — a decision the
+/// composition-root switch inherits, since it is what exposes users to it.
 fn is_full_revision_id(revision: &str) -> bool {
     revision.len() == 40 && revision.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// The facts for `start`, composed from an injected pair rather than the
+/// hard-wired composition root, so every case below runs against both
+/// implementations.
+fn facts_via(
+    start: &Path,
+    root: &dyn RepoRoot,
+    probe: &dyn VcsProbe,
+) -> Option<RepoFacts> {
+    vcs::facts(start, root, probe)
+}
+
+/// The retained subprocess pair — the values this suite has always pinned.
+fn facts(start: &Path) -> Option<RepoFacts> {
+    facts_via(start, &MarkerWalkRoot, &CommandProbe::new())
+}
+
+/// The library-backed pair.
+fn library_facts(start: &Path) -> Option<RepoFacts> {
+    facts_via(start, &InProcessProbe, &InProcessProbe)
+}
+
+/// Asserts the two implementations produce identical `RepoFacts`, for every
+/// `VcsKind`.
+///
+/// Full equality on both idioms: the library-backed probe reads the jj
+/// working-copy commit id out of the checkout state and the operation store, so
+/// there is no field either implementation cannot answer.
+///
+/// The one shape where the two can legitimately differ is out of reach here.
+/// Asking the `jj` binary snapshots the working copy first, so with
+/// unsnapshotted changes present it reports — and records — a *new* commit,
+/// while the in-process route reports the last recorded one. Every fixture in
+/// this suite is built and then read without an intervening edit, so the
+/// recorded operation is current and both agree. `library.rs` pins the
+/// divergence itself.
+///
+/// Agreement between two implementations is not on its own an oracle, which is
+/// why every case below also keeps its fixed expected values. This dual
+/// comparison is transitional: it collapses to the library-backed pair alone
+/// when the subprocess probe is deleted.
+fn assert_implementations_agree(start: &Path) {
+    let subprocess = facts(start);
+    let in_process = library_facts(start);
+
+    let (Some(subprocess), Some(in_process)) = (&subprocess, &in_process)
+    else {
+        assert_eq!(
+            subprocess.is_some(),
+            in_process.is_some(),
+            "the two implementations disagreed about whether a repository              exists at {}",
+            start.display()
+        );
+        return;
+    };
+
+    assert_eq!(subprocess, in_process, "the two implementations disagreed");
 }
 
 #[test]
@@ -107,6 +175,7 @@ fn a_git_repository_reports_its_root_name_and_revision() -> Result<(), TestError
         is_full_revision_id(&revision),
         "not a full revision id: {revision}"
     );
+    assert_implementations_agree(&root);
     Ok(())
 }
 
@@ -121,6 +190,7 @@ fn the_walk_finds_the_root_from_a_nested_directory() -> Result<(), TestError> {
     let derived = facts(&nested).ok_or("expected the walk to find the root")?;
 
     assert_eq!(derived.root, root);
+    assert_implementations_agree(&nested);
     Ok(())
 }
 
@@ -138,6 +208,7 @@ fn a_git_repository_with_no_commits_has_no_revision() -> Result<(), TestError> {
         derived.revision, None,
         "a commitless repo must report no revision, not an empty one"
     );
+    assert_implementations_agree(&root);
     Ok(())
 }
 
@@ -165,6 +236,7 @@ fn a_colocated_repository_is_driven_as_jj() -> Result<(), TestError> {
         is_full_revision_id(&revision),
         "not a full revision id: {revision}"
     );
+    assert_implementations_agree(&root);
     Ok(())
 }
 
@@ -205,6 +277,7 @@ fn a_secondary_jj_workspace_roots_at_its_own_marker() -> Result<(), TestError> {
         "a workspace's name is the repository it shares a store with, not the \
          ephemeral workspace directory"
     );
+    assert_implementations_agree(&secondary);
     Ok(())
 }
 
@@ -244,6 +317,7 @@ fn a_worktree_whose_git_marker_is_a_file_is_recognised() -> Result<(), TestError
         is_full_revision_id(&revision),
         "not a full revision id: {revision}"
     );
+    assert_implementations_agree(&worktree);
     Ok(())
 }
 
@@ -251,10 +325,9 @@ fn a_worktree_whose_git_marker_is_a_file_is_recognised() -> Result<(), TestError
 fn a_bare_repository_has_no_facts() -> Result<(), TestError> {
     require("git")?;
 
-    // A bare repo keeps HEAD/objects/refs at its top level and has no `.git`
-    // marker at all, so the marker walk finds nothing. This is the shape the
-    // bash helpers fall through on, and the reason `facts` is an Option rather
-    // than a fabricated empty root.
+    // A bare repo keeps HEAD/objects/refs at its top level with no `.git`
+    // marker, so the marker walk finds nothing — the reason `facts` is an
+    // Option rather than a fabricated empty root.
     let bare = tempdir("bare")?;
     let bare = bare.path().canonicalize()?;
     run(
@@ -273,5 +346,6 @@ fn a_bare_repository_has_no_facts() -> Result<(), TestError> {
         None,
         "a bare repository must resolve to no facts, not an empty root"
     );
+    assert_implementations_agree(&bare);
     Ok(())
 }

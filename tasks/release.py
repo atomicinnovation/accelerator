@@ -1,3 +1,4 @@
+import json
 import os
 
 from invoke import Context, task
@@ -12,12 +13,13 @@ from . import (
     signing,
     version,
 )
-from .shared.paths import RELEASE_MANIFEST
+from .shared.paths import DISPATCHED_SUBBINARIES, RELEASE_MANIFEST
 
 # git status --porcelain markers for artifacts that must never reach the
-# version-bump commit: a materialised signing secret, or anything under the
-# gitignored staging tree (present only if the .gitignore entry regressed).
-_ARTIFACT_MARKERS = (".sec", "dist/release/", "dist/")
+# version-bump commit: a materialised signing secret, anything under the
+# gitignored staging tree, or a symbolication archive (each present only if its
+# .gitignore entry regressed).
+_ARTIFACT_MARKERS = (".sec", "dist/release/", "dist/", ".debug.tar.gz")
 
 
 def _refuse_under_ci(task_name: str) -> None:
@@ -36,7 +38,10 @@ def _refuse_under_ci(task_name: str) -> None:
 
 
 def _assert_no_leaked_artifacts(context: Context) -> None:
-    result = context.run("git status --porcelain", hide=True, warn=True)
+    # `-uall` is load-bearing: porcelain's default untracked mode collapses a
+    # wholly-untracked directory to one line, so a regressed archive rule would
+    # show up as `?? skills/.../bin/` with no `.debug.tar.gz` to match on.
+    result = context.run("git status --porcelain -uall", hide=True, warn=True)
     offenders = [
         line
         for line in result.stdout.splitlines()
@@ -46,6 +51,35 @@ def _assert_no_leaked_artifacts(context: Context) -> None:
         raise RuntimeError(
             "refusing to commit: build artifacts or a signing secret would be "
             f"swept into the version-bump commit:\n{chr(10).join(offenders)}"
+        )
+
+
+def _assert_staged_manifest_is_current(version: str) -> None:
+    """Refuse to publish a manifest that describes a different release.
+
+    `*:finalise` is separately invocable and `dist/release/` is never cleaned,
+    so a manifest from an earlier cut is reachable. The version comparison is
+    what catches it — the registry changes once per sub-binary story, so a
+    stale manifest has the same token set.
+    """
+    if not RELEASE_MANIFEST.exists():
+        raise RuntimeError(
+            f"{RELEASE_MANIFEST} is absent — run the prepare and sign steps "
+            "before finalise"
+        )
+    staged = json.loads(RELEASE_MANIFEST.read_text())
+    listed = set(staged["binaries"])
+    if listed != set(DISPATCHED_SUBBINARIES):
+        raise RuntimeError(
+            f"staged manifest lists {sorted(listed)} but this release "
+            f"dispatches {sorted(DISPATCHED_SUBBINARIES)} — a signed manifest "
+            "promising an asset that was never uploaded cannot be recalled"
+        )
+    if staged["version"] != version:
+        raise RuntimeError(
+            f"staged manifest is version {staged['version']} but this "
+            f"release is {version} — dist/release/ is from an earlier cut; "
+            "re-run the prepare and sign steps"
         )
 
 
@@ -69,6 +103,7 @@ def _sign(context: Context) -> None:
 def _publish(context: Context) -> None:
     resolved_version = str(version.read(context, print_to_stdout=False))
     _assert_no_leaked_artifacts(context)
+    _assert_staged_manifest_is_current(resolved_version)
     git.commit_version(context)
     git.tag_version(context)
     git.push(context)

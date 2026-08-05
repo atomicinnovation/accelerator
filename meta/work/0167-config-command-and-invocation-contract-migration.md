@@ -5,7 +5,7 @@ title: "Built-in config Command and Invocation-Contract Migration"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: high
 parent: "work-item:0136"

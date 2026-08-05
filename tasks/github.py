@@ -2,7 +2,7 @@ import json
 import shlex
 import subprocess
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from pathlib import Path
 from typing import NamedTuple
@@ -13,6 +13,7 @@ from invoke import Context, task
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
+    DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
     RELEASE_MANIFEST,
     RELEASE_MANIFEST_SIG,
@@ -147,7 +148,7 @@ def download_and_verify(
         tmp_path.unlink(missing_ok=True)
 
 
-# ── unified launcher + manifest + visualiser publish ──────────────────
+# ── unified launcher + manifest + sub-binary publish ──────────────────
 
 _PRESERVE_MESSAGE = "AssetVerificationError — draft + tag PRESERVED for triage"
 
@@ -215,27 +216,43 @@ def _reverify_subbinary(
         signature.unlink(missing_ok=True)
 
 
-def _release_uploads() -> list[Path]:
+def _subbinary_uploads(
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+) -> list[Path]:
     uploads: list[Path] = []
-    for _triple, platform in TARGETS:
-        # The visualiser binary is published once, as the shared
-        # accelerator-visualiser-{platform} manifest asset below; only its debug
-        # archive ships from the skill's bin/ tree here.
-        uploads.append(debug_archive_path(platform))
-        launcher = cli_binary_path("accelerator", platform)
-        uploads.append(launcher)
-        uploads.append(_sig(launcher))
-    uploads.append(RELEASE_MANIFEST)
-    uploads.append(RELEASE_MANIFEST_SIG)
-    for name in DISPATCHED_SUBBINARIES:
+    for token in tokens:
         for _triple, platform in TARGETS:
-            asset = subbinary_asset_path(name, platform)
+            asset = subbinary_asset_path(token, platform)
             uploads.append(asset)
             uploads.append(_sig(asset))
     return uploads
 
 
-def _release_reverifies(context: Context, tag: str) -> list[_Reverify]:
+def _release_uploads(
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+    debug_dirs: Mapping[str, Path] = DEBUG_ARCHIVE_DIRS,
+) -> list[Path]:
+    uploads: list[Path] = []
+    for _triple, platform in TARGETS:
+        # Each sub-binary is published once, as the shared
+        # accelerator-<token>-<platform> manifest asset below; only its debug
+        # archive ships from the sub-binary's committed bin/ tree here.
+        for token, directory in debug_dirs.items():
+            uploads.append(debug_archive_path(token, platform, directory))
+        launcher = cli_binary_path("accelerator", platform)
+        uploads.append(launcher)
+        uploads.append(_sig(launcher))
+    uploads.append(RELEASE_MANIFEST)
+    uploads.append(RELEASE_MANIFEST_SIG)
+    uploads.extend(_subbinary_uploads(tokens))
+    return uploads
+
+
+def _release_reverifies(
+    context: Context,
+    tag: str,
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+) -> list[_Reverify]:
     items: list[_Reverify] = []
     for _triple, platform in TARGETS:
         launcher = cli_binary_path("accelerator", platform)
@@ -263,16 +280,21 @@ def _release_reverifies(context: Context, tag: str) -> list[_Reverify]:
             ),
         )
     )
-    items.extend(_subbinary_reverifies(context, tag))
+    items.extend(_subbinary_reverifies(context, tag, tokens))
     return items
 
 
-def _subbinary_reverifies(context: Context, tag: str) -> list[_Reverify]:
-    if not DISPATCHED_SUBBINARIES:
+def _subbinary_reverifies(
+    context: Context,
+    tag: str,
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+) -> list[_Reverify]:
+    names = tuple(tokens)
+    if not names:
         return []
     manifest = json.loads(RELEASE_MANIFEST.read_text())
     items: list[_Reverify] = []
-    for name in DISPATCHED_SUBBINARIES:
+    for name in names:
         entry = manifest["binaries"][name]
         for _triple, platform in TARGETS:
             asset = subbinary_asset_path(name, platform).name
@@ -310,13 +332,16 @@ def upload_and_verify_release(context: Context, version: str) -> None:
     can be re-driven to green without manual asset deletion.
     """
     tag = f"v{version}"
-    uploads = _release_uploads()
+    # Resolved once and threaded: the "every asset uploaded" and "every asset
+    # re-verified before --draft=false" lists cannot derive from two values.
+    tokens = DISPATCHED_SUBBINARIES
+    uploads = _release_uploads(tokens)
     missing = [p for p in uploads if not p.exists()]
     if missing:
         raise FileNotFoundError(
             f"Expected release artefacts not found: {[str(p) for p in missing]}"
         )
-    reverifies = _release_reverifies(context, tag)
+    reverifies = _release_reverifies(context, tag, tokens)
     try:
         for path in uploads:
             _upload_clobber(context, tag, path)

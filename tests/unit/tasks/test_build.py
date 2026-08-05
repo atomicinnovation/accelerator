@@ -1,4 +1,5 @@
 import shutil
+import tarfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -10,13 +11,14 @@ from tasks.build import (
     VersionCoherenceError,
     _assert_no_e2e_insecure,
     _assert_static_elf,
+    _debug_archive_targets,
     _is_statically_linked,
+    _write_debug_archives,
     assert_staged_launcher_versions,
     validate_version_coherence,
     vendor_shim_marker_digest,
 )
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
-from tasks.shared.paths import cli_binary_path, vendored_shim_path
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.targets import TARGETS
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -112,42 +114,6 @@ class TestAssertStagedLauncherVersions:
             assert_staged_launcher_versions("1.21.0-pre.4")
 
 
-# ── cli path helpers ──────────────────────────────────────────────────
-
-
-class TestValidateDispatchCoherence:
-    def test_coherent_repo_passes(self):
-        # The real repo: SKILL.md invokes `accelerator visualiser` and
-        # DISPATCHED_SUBBINARIES lists it.
-        tb.validate_dispatch_coherence()
-
-    def _seed_skill(self, root: Path, *, invokes: bool) -> None:
-        skill = root / "skills/visualisation/visualise/SKILL.md"
-        skill.parent.mkdir(parents=True)
-        skill.write_text(
-            "run `accelerator visualiser start`"
-            if invokes
-            else "no launcher invocation here"
-        )
-
-    def test_skill_switch_without_producer_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=True)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_producer_without_skill_switch_raises(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ("visualiser",))
-        with pytest.raises(DispatchCoherenceError):
-            tb.validate_dispatch_coherence(tmp_path)
-
-    def test_both_absent_is_coherent(self, tmp_path, mocker):
-        self._seed_skill(tmp_path, invokes=False)
-        mocker.patch.object(tb, "DISPATCHED_SUBBINARIES", ())
-        tb.validate_dispatch_coherence(tmp_path)
-
-
 class TestAssertNoE2eInsecure:
     def test_passes_when_marker_absent(self, tmp_path):
         artifact = tmp_path / "visualiser-linux-x64"
@@ -171,22 +137,78 @@ class TestAssertNoE2eInsecure:
             _assert_no_e2e_insecure(artifact)
 
 
-class TestCliPathHelpers:
-    def test_cli_binary_path_default_staging(self):
-        path = cli_binary_path("accelerator", "linux-x64")
-        assert path.name == "accelerator-linux-x64"
-        assert path.parent == _REPO_ROOT / "dist" / "release"
+class TestDebugArchiveTargets:
+    def _dirs(self, tmp_path: Path) -> dict[str, Path]:
+        return {token: tmp_path / token / "bin" for token in ("alpha", "beta")}
 
-    def test_cli_binary_path_custom_dir(self, tmp_path):
-        path = cli_binary_path("accelerator-verify", "darwin-arm64", tmp_path)
-        assert path == tmp_path / "accelerator-verify-darwin-arm64"
+    def test_one_pair_per_token_per_target(self, tmp_path):
+        dirs = self._dirs(tmp_path)
+        targets = _debug_archive_targets(
+            dirs, ("alpha", "beta"), tmp_path / "staging"
+        )
 
-    def test_vendored_shim_path(self):
-        path = vendored_shim_path("linux-arm64")
-        assert path == _REPO_ROOT / "bin/accelerator-verify-linux-arm64"
+        assert len(targets) == len(dirs) * len(TARGETS)
+        for token, directory in dirs.items():
+            for _triple, platform in TARGETS:
+                pair = (
+                    tmp_path / "staging" / f"accelerator-{token}-{platform}",
+                    directory / f"accelerator-{token}-{platform}.debug.tar.gz",
+                )
+                assert pair in targets
+
+    def test_an_undispatched_registry_key_raises(self, tmp_path):
+        # Nothing cross-compiles it, so the archive source would be absent.
+        with pytest.raises(RuntimeError, match="undispatched token"):
+            _debug_archive_targets(self._dirs(tmp_path), ("alpha",), tmp_path)
+
+    def test_a_non_bin_directory_raises(self, tmp_path):
+        dirs = {"alpha": tmp_path / "alpha" / "artefacts"}
+        with pytest.raises(RuntimeError, match="must be `bin/` trees"):
+            _debug_archive_targets(dirs, ("alpha",), tmp_path)
+
+
+class TestWriteDebugArchives:
+    def test_writes_one_archive_per_pair(self, tmp_path):
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        targets = []
+        for index in range(3):
+            binary = staging / f"accelerator-alpha-{index}"
+            binary.write_bytes(b"\x00" * 8)
+            targets.append(
+                (binary, tmp_path / f"nested/{index}/bin/alpha.debug.tar.gz")
+            )
+
+        _write_debug_archives(targets)
+
+        for binary, archive in targets:
+            assert archive.is_file()
+            with tarfile.open(archive) as tar:
+                assert tar.getnames() == [binary.name]
 
 
 # ── vendor_shim_marker_digest() ───────────────────────────────────────
+
+
+def _seed_digest_inputs(tmp_path: Path) -> Path:
+    """Copy just the tree `vendor_shim_marker_digest` reads into `tmp_path`.
+
+    It reads `cli/verify/**`, the `minisign-verify` pin in `cli/Cargo.toml`
+    and `cli/Cargo.lock` — three inputs, ~12 KB. Copying the whole of `cli/`
+    instead walked 46k files including the ~200 MB
+    `cli/visualiser/frontend/node_modules`, following its symlinks, so the
+    copy raced any concurrently-running frontend task and raised
+    `shutil.Error` on a link whose target moved. That was the macOS CI flake.
+
+    Each caller asserts against a baseline digest taken over the *real* tree,
+    so an input missed here shows up as a mismatch rather than a false pass.
+    """
+    cli_dst = tmp_path / "cli"
+    cli_dst.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(_REPO_ROOT / "cli" / "verify", cli_dst / "verify")
+    for name in ("Cargo.toml", "Cargo.lock"):
+        shutil.copy2(_REPO_ROOT / "cli" / name, cli_dst / name)
+    return cli_dst
 
 
 class TestVendorShimMarkerDigest:
@@ -202,11 +224,7 @@ class TestVendorShimMarkerDigest:
         # Copy the cli tree, bump the accelerator-verify lock version, and
         # assert the digest is unchanged: a version bump is not shim drift.
         baseline = vendor_shim_marker_digest()
-        cli_src = _REPO_ROOT / "cli"
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            cli_src, cli_dst, ignore=shutil.ignore_patterns("target")
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         lock = cli_dst / "Cargo.lock"
         lock.write_text(
             lock.read_text().replace(
@@ -219,12 +237,7 @@ class TestVendorShimMarkerDigest:
 
     def test_detects_a_minisign_verify_bump(self, tmp_path):
         baseline = vendor_shim_marker_digest()
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            _REPO_ROOT / "cli",
-            cli_dst,
-            ignore=shutil.ignore_patterns("target"),
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         cargo = cli_dst / "Cargo.toml"
         cargo.write_text(
             cargo.read_text().replace(
@@ -238,12 +251,7 @@ class TestVendorShimMarkerDigest:
         # shim, so adding one under [dev-dependencies] (and to the lock block)
         # must not register as drift.
         baseline = vendor_shim_marker_digest()
-        cli_dst = tmp_path / "cli"
-        shutil.copytree(
-            _REPO_ROOT / "cli",
-            cli_dst,
-            ignore=shutil.ignore_patterns("target"),
-        )
+        cli_dst = _seed_digest_inputs(tmp_path)
         manifest = cli_dst / "verify" / "Cargo.toml"
         manifest.write_text(
             manifest.read_text().rstrip() + '\nfastrand = "2"\n'
@@ -409,3 +417,69 @@ class TestCliWorkspaceCoherence:
         with pytest.raises(VersionCoherenceError) as exc_info:
             validate_version_coherence("1.20.0", repo_root=fake_repo_tree)
         assert "cli/launcher/Cargo.toml" in str(exc_info.value)
+
+
+class TestFixtureSizeFloor:
+    """The guard against this story's headline false pass: dead-code
+    elimination letting the musl and size checks succeed while linking almost
+    none of gix/jj-lib.
+
+    Threshold logic only — no real tb. The cross-compile that otherwise
+    exercises it runs solely in the release pipeline, which is exactly why the
+    comparison is a pure function.
+    """
+
+    MUSL = "aarch64-unknown-linux-musl"
+    DARWIN = "aarch64-apple-darwin"
+
+    def test_the_measured_musl_figures_pass(self) -> None:
+        # 2,422,864 vs 391,416 — the delivered two-binary shape.
+        tb.assert_fixture_size_floor(2_422_864, 391_416, triple=self.MUSL)
+
+    def test_the_measured_darwin_figures_pass(self) -> None:
+        tb.assert_fixture_size_floor(2_031_288, 391_416, triple=self.DARWIN)
+
+    def test_a_collapsed_ratio_fails_on_every_triple(self) -> None:
+        for triple in (self.MUSL, self.DARWIN):
+            with pytest.raises(RuntimeError, match=r"below the .* floor"):
+                tb.assert_fixture_size_floor(1_000_000, 400_000, triple=triple)
+
+    def test_the_absolute_floor_is_musl_only(self) -> None:
+        # A wide ratio but a small delta: musl rejects, darwin accepts. This is
+        # the scoping rule — `[profile.release] strip = true` means every triple
+        # is stripped and the darwin delta clears the floor by only ~9%, so
+        # gating darwin would put a 9%-margin heuristic on the release path.
+        with pytest.raises(RuntimeError, match="bytes larger"):
+            tb.assert_fixture_size_floor(1_600_000, 400_000, triple=self.MUSL)
+        tb.assert_fixture_size_floor(1_600_000, 400_000, triple=self.DARWIN)
+
+    def test_a_zero_sized_stub_is_rejected_rather_than_dividing_by_zero(
+        self,
+    ) -> None:
+        with pytest.raises(RuntimeError, match="cannot compare"):
+            tb.assert_fixture_size_floor(2_000_000, 0, triple=self.MUSL)
+
+    def test_the_fixture_binaries_are_never_release_artefacts(self) -> None:
+        # They print absolute repository paths and are not product. Keeping them
+        # out of _CLI_RELEASE_BINARIES is what keeps them out of dist/release/,
+        # the tree the signed manifest is assembled from.
+        overlap = set(tb._CLI_FIXTURE_BINARIES) & set(tb._CLI_RELEASE_BINARIES)
+        assert not overlap, f"fixture binaries staged as product: {overlap}"
+
+    def test_no_fixture_binary_carries_the_attested_prefix(self) -> None:
+        # dist/release/accelerator-* is provenance-attested by a glob.
+        for name in tb._CLI_FIXTURE_BINARIES:
+            assert not name.startswith("accelerator-"), name
+
+    def test_no_fixture_binary_is_a_release_upload(self) -> None:
+        # The direct assertion, not just the constants: _release_uploads()
+        # enumerates assets explicitly rather than globbing, so nothing would be
+        # published today — but these binaries print absolute repository paths
+        # and must stay one deliberate decision away from being product.
+        from tasks.github import _release_uploads
+
+        names = {path.name for path in _release_uploads()}
+        for fixture in tb._CLI_FIXTURE_BINARIES:
+            assert not any(fixture in name for name in names), (
+                f"{fixture} is enumerated as a release upload"
+            )

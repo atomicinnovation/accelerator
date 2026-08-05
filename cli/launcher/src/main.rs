@@ -170,10 +170,11 @@ fn compose_stack(
     ))
 }
 
-/// The plugin root from `CLAUDE_PLUGIN_ROOT`, for resolving plugin-default
-/// templates; `None` when unset (template defaults are then unavailable).
+/// The plugin root from `ACCELERATOR_PLUGIN_ROOT`, for resolving plugin-default
+/// templates; `None` when unset. `with_plugin_root` drops an empty value, so
+/// the launcher and the visualiser server inherit that rule from one place.
 fn plugin_root() -> Option<PathBuf> {
-    std::env::var_os("CLAUDE_PLUGIN_ROOT").map(PathBuf::from)
+    std::env::var_os("ACCELERATOR_PLUGIN_ROOT").map(PathBuf::from)
 }
 
 /// The directory config resolution starts from — the `config paths --doc-types`

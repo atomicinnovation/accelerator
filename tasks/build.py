@@ -4,18 +4,19 @@ import shutil
 import subprocess
 import tarfile
 import tomllib
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from invoke import Context, task
 
-from tasks.shared.errors import DispatchCoherenceError, InvalidVersionError
+from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.paths import (
-    BIN_DIR,
     CARGO_TOML,
     CLI_DIR,
     CLI_TARGET_DIR,
     CLI_WORKSPACE_CARGO_TOML,
+    DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
     FRONTEND,
     PLUGIN_JSON,
@@ -31,10 +32,28 @@ from tasks.shared.paths import (
 )
 from tasks.shared.targets import TARGETS
 
-# The SKILL.md that dispatches the visualiser through the launcher.
-_VISUALISE_SKILL_RELATIVE = "skills/visualisation/visualise/SKILL.md"
-
 _CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
+
+# The linked/stubbed pair whose size delta proves the VCS dependency trees are
+# actually linked. Deliberately NOT in _CLI_RELEASE_BINARIES: that constant
+# means "binaries we ship" and drives staging into dist/release/, the tree the
+# signed manifest is assembled from and whose `accelerator-*` members are
+# provenance-attested. Nothing would be published today, but two unshipped
+# diagnostic binaries that print absolute repository paths would sit in the
+# release staging directory on every release run, one glob change away from
+# being product. The names avoid the `accelerator-` prefix for the same reason.
+_CLI_FIXTURE_BINARIES = (
+    "vcs-adapters-fixture",
+    "vcs-adapters-fixture-stub",
+)
+
+# Catches dead-code elimination letting the musl and size checks pass while
+# linking almost none of gix/jj-lib. The ratio has wide margin and is asserted
+# everywhere; the absolute floor is musl-only, because a stripped darwin delta
+# clears it by ~9% and a 9%-margin heuristic does not belong on the release
+# path.
+_FIXTURE_SIZE_RATIO_FLOOR = 3.0
+_FIXTURE_SIZE_DELTA_FLOOR = 1_500_000
 
 
 class VersionCoherenceError(Exception): ...
@@ -159,6 +178,54 @@ def _assert_static_elf(path: Path) -> None:
         )
 
 
+def assert_fixture_size_floor(
+    linked: int,
+    stubbed: int,
+    *,
+    triple: str,
+) -> None:
+    """Fail unless the linked artefact is enough larger than the stubbed one.
+
+    Pure comparison over sizes so the thresholds are unit-testable without a
+    real cross-compile — the only path that otherwise exercises them is the
+    release pipeline.
+    """
+    if stubbed <= 0:
+        raise RuntimeError(
+            f"stubbed fixture for {triple} has size {stubbed}; cannot compare"
+        )
+    ratio = linked / stubbed
+    delta = linked - stubbed
+    if ratio < _FIXTURE_SIZE_RATIO_FLOOR:
+        raise RuntimeError(
+            f"the VCS reference artefact for {triple} is only {ratio:.2f}x the "
+            f"stubbed build ({linked} vs {stubbed} bytes), below the "
+            f"{_FIXTURE_SIZE_RATIO_FLOOR}x floor — the gix/jj-lib trees are "
+            "probably not linked. Re-measure, then adjust the floor in "
+            "tasks/build.py only if the drop is understood."
+        )
+    if "musl" in triple and delta < _FIXTURE_SIZE_DELTA_FLOOR:
+        raise RuntimeError(
+            f"the VCS reference artefact for {triple} is only {delta} bytes "
+            f"larger than the stubbed build, below the "
+            f"{_FIXTURE_SIZE_DELTA_FLOOR}-byte floor (decimal) — see above."
+        )
+
+
+def _assert_fixture_pair(directory: Path, triple: str) -> None:
+    """Assert both fixture binaries exist, are sound, and differ enough."""
+    linked, stubbed = (directory / name for name in _CLI_FIXTURE_BINARIES)
+    for path in (linked, stubbed):
+        if not path.is_file():
+            raise RuntimeError(f"fixture binary not built: {path}")
+        _assert_magic_bytes(path, triple)
+        if "musl" in triple:
+            _assert_static_elf(path)
+    assert_fixture_size_floor(
+        linked.stat().st_size, stubbed.stat().st_size, triple=triple
+    )
+
+
 def validate_version_coherence(
     expected_version: str,
     repo_root: Path | None = None,
@@ -183,28 +250,6 @@ def validate_version_coherence(
     if mismatches:
         raise VersionCoherenceError(
             f"expected {expected_version!r}, found mismatches: {mismatches}"
-        )
-
-
-def validate_dispatch_coherence(repo_root: Path | None = None) -> None:
-    """Bind SKILL.md's `accelerator visualiser` invocation to the producer.
-
-    The visualise SKILL.md must invoke `accelerator visualiser` iff the release
-    producer lists `visualiser` in DISPATCHED_SUBBINARIES — otherwise a shipped
-    plugin's `start` resolves to AssetNotFound (SKILL switched, producer not) or
-    a released asset is never dispatched (producer wired, SKILL not). Catches a
-    mis-ordered co-release across the merge window.
-    """
-    root = repo_root or REPO_ROOT
-    skill = (root / _VISUALISE_SKILL_RELATIVE).read_text()
-    invokes = "accelerator visualiser" in skill
-    dispatched = "visualiser" in DISPATCHED_SUBBINARIES
-    if invokes != dispatched:
-        raise DispatchCoherenceError(
-            "visualiser dispatch is incoherent: SKILL.md invokes "
-            f"`accelerator visualiser`={invokes} but DISPATCHED_SUBBINARIES "
-            f"lists 'visualiser'={dispatched} — a release carrying the SKILL "
-            "switch must also carry the producer wiring"
         )
 
 
@@ -310,6 +355,38 @@ def server_cross_compile(context: Context) -> None:
 
 
 @task
+def cli_fixture_size_check(context: Context) -> None:
+    """Assert the host-native VCS reference artefact links its dependency trees.
+
+    The same ratio floor the cross-compile applies, on the PR path. Without it a
+    contributor who deletes a result print — letting the linker drop gix/jj-lib
+    again — sees green everywhere they look, and the guard first fires during a
+    release.
+    """
+    context.run(
+        "cargo build --release "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        + " ".join(f"--bin {name}" for name in _CLI_FIXTURE_BINARIES),
+        pty=True,
+    )
+    directory = CLI_DIR / "target" / "release"
+    linked, stubbed = (directory / name for name in _CLI_FIXTURE_BINARIES)
+    for path in (linked, stubbed):
+        if not path.is_file():
+            raise RuntimeError(f"fixture binary not built: {path}")
+    linked_size = linked.stat().st_size
+    stubbed_size = stubbed.stat().st_size
+    # Host-native, so the ratio only — the absolute floor is calibrated on the
+    # musl-static artefact the release pipeline ships.
+    assert_fixture_size_floor(linked_size, stubbed_size, triple="host")
+    print(
+        f"vcs reference artefact: linked {linked_size} B, "
+        f"stubbed {stubbed_size} B, "
+        f"ratio {linked_size / stubbed_size:.2f}x"
+    )
+
+
+@task
 def cli_cross_compile(context: Context) -> None:
     """Cross-compile the cli launcher + verify shim for all four targets.
 
@@ -329,6 +406,10 @@ def cli_cross_compile(context: Context) -> None:
             if "musl" in triple:
                 _assert_static_elf(src)
             shutil.copy2(src, cli_binary_path(name, platform))
+
+        # Asserted in place under cli/target/, never copied into dist/release/:
+        # these are diagnostics, not product.
+        _assert_fixture_pair(CLI_DIR / "target" / triple / "release", triple)
 
 
 def _minisign_verify_pin(cargo_toml_text: str) -> str:
@@ -495,16 +576,47 @@ def vendor_verify_shims(context: Context) -> None:
     atomic_write_text(VENDOR_SHIM_MARKER, vendor_shim_marker_digest() + "\n")
 
 
+def _debug_archive_targets(
+    dirs: Mapping[str, Path] = DEBUG_ARCHIVE_DIRS,
+    tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+    staging_dir: Path = RELEASE_STAGING,
+) -> list[tuple[Path, Path]]:
+    """Each (staged binary, archive path) pair the debug archives cover."""
+    unknown = sorted(set(dirs) - set(tokens))
+    if unknown:
+        raise RuntimeError(
+            f"debug-archive registry names undispatched token(s): {unknown} — "
+            "nothing cross-compiles them, so the archive source would be absent"
+        )
+    stray = sorted(str(d) for d in dirs.values() if d.name != "bin")
+    if stray:
+        raise RuntimeError(
+            f"debug-archive directories must be `bin/` trees: {stray} — "
+            "`.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`, so an "
+            "archive written elsewhere would be committed by `git add .`"
+        )
+    return [
+        (
+            subbinary_asset_path(token, platform, staging_dir),
+            debug_archive_path(token, platform, directory),
+        )
+        for token, directory in dirs.items()
+        for _triple, platform in TARGETS
+    ]
+
+
+def _write_debug_archives(targets: list[tuple[Path, Path]]) -> None:
+    for binary, archive in targets:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(binary, arcname=binary.name)
+
+
 @task
 def create_debug_archives(context: Context) -> None:
-    """Create .debug.tar.gz archives for the cross-compiled visualiser binary.
+    """Archive each cross-compiled sub-binary that ships symbolication data.
 
-    Archives the shared dist/release binary into bin/, keeping the debug
-    artefact under the committed skill tree where the provenance glob covers it.
+    Archives the shared dist/release binary into the sub-binary's committed
+    tree, where the provenance glob covers it.
     """
-    BIN_DIR.mkdir(parents=True, exist_ok=True)
-    for _, platform in TARGETS:
-        binary = subbinary_asset_path("visualiser", platform)
-        archive_path = debug_archive_path(platform)
-        with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(binary, arcname=binary.name)
+    _write_debug_archives(_debug_archive_targets())

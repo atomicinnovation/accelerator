@@ -320,6 +320,62 @@ jobs:
       - name: Run cargo-pup behavioural regression
         run: mise run test:integration:pup
 
+  check-zero-spawn:
+    name: Check zero-spawn
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Its own job rather than a leg of test-unit/test-integration: those are OS
+    # matrices, and shadowing system binaries fails under SIP on macOS.
+    #
+    # Containment assumes EPHEMERAL runners. Moving to self-hosted,
+    # containerised or reusable ones turns a contained hazard into a
+    # persistently broken runner.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
+        with:
+          install: true
+          # cache: false on purpose. The jj shadow target sits inside the tree
+          # mise-action saves on its post step, which runs AFTER the restore, so
+          # a failed restore would persist a jj-less tool tree into the cache
+          # that every later run restores — self-perpetuating until someone
+          # bumped the prefix. This job installs one toolchain plus jj, so
+          # disabling its cache is cheap and removes the hazard outright.
+          cache: false
+          experimental: true
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: cli
+
+      # One task owns the ordering that makes this meaningful. mise is entered
+      # before the shadow window and never inside it, or it could see `jj`
+      # missing mid-run and reinstall it, making the assertion vacuous.
+      - name: Run the strong-form zero-spawn suite
+        timeout-minutes: 10
+        env:
+          # The task refuses to shadow anything without this.
+          ACCELERATOR_ZERO_SPAWN_SHADOW: "yes"
+        run: mise run test:integration:zero-spawn:strong
+
+      # Backstop for the case where the task died before its `finally` ran.
+      # Deliberately NOT `mise run`: that would reinstall the missing tool,
+      # turning the one check that catches a failed restore into one that
+      # quietly repairs it.
+      - name: Assert the restore worked
+        if: always()
+        run: |
+          git --version
+          jj --version
+
   check-visualiser-frontend:
     name: Check visualiser frontend
     runs-on: ubuntu-latest
@@ -377,6 +433,7 @@ jobs:
       - check-cli
       - check-supply-chain
       - check-architecture
+      - check-zero-spawn
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued
@@ -447,6 +504,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise prerelease
         env:
@@ -558,6 +617,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise stable release
         env:
@@ -580,6 +641,8 @@ jobs:
           subject-path: |
             skills/visualisation/visualise/bin/accelerator-visualiser-*
             dist/release/accelerator-*
+            dist/release/manifest.json
+            dist/release/manifest.minisig
 
       - name: Finalise post-stable prerelease
         env:

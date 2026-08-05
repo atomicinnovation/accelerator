@@ -4,8 +4,15 @@
 # accelerator launcher, verifies its minisign signature against the committed
 # public key via the vendored per-triple shim (a binary cannot verify itself),
 # caches it, and execs it; thereafter it re-verifies the cache and reuses it.
-# Fail-closed throughout. Bash 3.2 floor (no associative arrays, ${var,,},
-# mapfile).
+# Fail-closed unless --fail-safe is present, in which case bootstrap-layer
+# aborts exit 0 with a stderr diagnostic; trust-chain aborts additionally record
+# durably. --fail-safe is a reserved global token: it is recognised anywhere
+# before a `--` separator and passed through to the launcher unchanged. Bash 3.2
+# floor (no associative arrays, ${var,,}, mapfile).
+#
+# The cache directory must be writable and exec-capable on a cold start, which
+# is probed once. A warm start only reads and execs from it, so a populated
+# cache directory may be read-only.
 #
 # Test seams (unset in production): ACCELERATOR_UNAME_S/_M override host
 # detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER injects a `downloader <url> <dest>`.
@@ -16,15 +23,100 @@
 # apart from the seams above because it bypasses the whole verification chain
 # rather than substituting one step.
 set -uo pipefail
+CDPATH=
+
+# Resolved once into a named status rather than branched on at every gate, so
+# the contract is visible as data. The scan stops at the first `--` and the
+# first match: a token appearing as an option value, after a separator, or in a
+# sub-binary's own arguments must not switch every gate to exit 0.
+abort_status=1
+if [[ "$#" -gt 0 ]]; then
+	for arg in "$@"; do
+		if [[ "${arg}" == "--" ]]; then
+			break
+		fi
+		if [[ "${arg}" == "--fail-safe" ]]; then
+			abort_status=0
+			break
+		fi
+	done
+fi
+
+max_hops=16
+unverified_log=""
 
 fail() {
 	printf 'accelerator: %s\n' "$1" >&2
-	exit 1
+	exit "${abort_status}"
 }
 
-[[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] || fail "CLAUDE_PLUGIN_ROOT is not set"
-[[ -d "${CLAUDE_PLUGIN_ROOT}" ]] ||
-	fail "CLAUDE_PLUGIN_ROOT is not a directory: ${CLAUDE_PLUGIN_ROOT}"
+# Trust-chain gates, which degrade under --fail-safe like any other but must
+# leave a trace: nothing unverified is ever exec'd, so what this buys is
+# detectability. Without it a bad signature is byte-identical to the many
+# commands that legitimately emit nothing. Best-effort, and says so when it
+# fails, since the shim and key gates fire before the cache dir is known good.
+fail_integrity() {
+	if [[ -n "${unverified_log}" ]]; then
+		mkdir -p "$(dir_of "${unverified_log}")" 2>/dev/null
+		printf '%s pid=%s %s\n' \
+			"$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf 'unknown')" \
+			"$$" "${1//$'\n'/ }" \
+			>>"${unverified_log}" 2>/dev/null ||
+			printf 'accelerator: could not record to %s\n' "${unverified_log}" >&2
+	fi
+	fail "$1"
+}
+
+# Pure parameter expansion, so no subprocess and — with `cd --` — immune to a
+# target beginning with `-`, which dirname would read as an option before
+# printing nothing. The ${dir:-/} arm keeps `/accelerator` from yielding the
+# empty string, since `cd ""` succeeds as a no-op and `pwd -P` would then give
+# the caller's project directory.
+dir_of() {
+	case "$1" in
+	*/*)
+		dir="${1%/*}"
+		printf '%s\n' "${dir:-/}"
+		;;
+	*) printf '%s\n' "." ;;
+	esac
+}
+
+# `pwd -P` resolves symlinks among the directory components but not a final
+# symlink to the script itself, so an accelerator linked onto PATH would derive
+# the link's parent. The loop, not a single dereference, is required: the
+# documented terminal chain is two hops deep. A bound at or above either
+# kernel's SYMLOOP_MAX (32 on Darwin, 40 on Linux) would be unreachable — any
+# path bash can open has already had its chain resolved — so 16 is both testable
+# and generous.
+source_path="${BASH_SOURCE[0]}"
+self="${source_path}"
+hops=0
+while [[ -L "${self}" ]]; do
+	hops=$((hops + 1))
+	if [[ "${hops}" -gt "${max_hops}" ]]; then
+		fail "symlink loop resolving ${source_path} (exceeded ${max_hops} hops)"
+	fi
+	link_target=$(readlink "${self}") ||
+		fail "could not read the symlink target of ${self}"
+	case "${link_target}" in
+	/*) self="${link_target}" ;;
+	*)
+		link_dir=$(cd -P -- "$(dir_of "${self}")" && pwd -P) ||
+			fail "could not resolve the directory of ${self}"
+		self="${link_dir}/${link_target}"
+		;;
+	esac
+done
+# `cd -P`, not bare `cd`: logical mode collapses `..` textually, so a directory
+# symlink as the final component would yield the link's parent rather than the
+# target's.
+plugin_root=$(cd -P -- "$(dir_of "${self}")/.." && pwd -P) ||
+	fail "could not resolve the installation root from ${source_path}"
+readonly plugin_root
+unverified_log="${ACCELERATOR_CACHE_DIR:-${plugin_root}/bin}/.accelerator-unverified.log"
+
+export ACCELERATOR_PLUGIN_ROOT="${plugin_root}"
 
 # The case arms must stay in sync with tasks/shared/targets.py (coherence test).
 host_arch="${ACCELERATOR_UNAME_M:-$(uname -m)}"
@@ -41,7 +133,7 @@ Linux) os_alias=linux ;;
 esac
 platform="${os_alias}-${arch_alias}"
 
-plugin_json="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+plugin_json="${plugin_root}/.claude-plugin/plugin.json"
 [[ -f "${plugin_json}" ]] || fail "plugin.json not found: ${plugin_json}"
 version=$(sed -n \
 	's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${plugin_json}")
@@ -67,45 +159,61 @@ else
 	fail "need curl or wget on PATH to fetch the launcher"
 fi
 
-shim_source="${CLAUDE_PLUGIN_ROOT}/bin/accelerator-verify-${platform}"
+shim_source="${plugin_root}/bin/accelerator-verify-${platform}"
 [[ -x "${shim_source}" ]] ||
-	fail "verify shim missing for ${platform}: ${shim_source}"
-public_key="${CLAUDE_PLUGIN_ROOT}/keys/accelerator-release.pub"
-[[ -f "${public_key}" ]] || fail "release public key missing: ${public_key}"
+	fail_integrity "verify shim missing for ${platform}: ${shim_source}"
+public_key="${plugin_root}/keys/accelerator-release.pub"
+[[ -f "${public_key}" ]] ||
+	fail_integrity "release public key missing: ${public_key}"
 
-# Probe write AND exec (a noexec mount passes a write-only check but breaks exec).
-probe_dir() {
-	mkdir -p "$1" 2>/dev/null || return 1
-	probe="$1/.accelerator-probe-$$"
-	printf '#!/bin/sh\nexit 0\n' >"${probe}" 2>/dev/null || return 1
-	chmod +x "${probe}" 2>/dev/null || {
-		rm -f "${probe}"
-		return 1
-	}
-	if "${probe}" >/dev/null 2>&1; then
-		rm -f "${probe}"
-		return 0
-	fi
-	rm -f "${probe}"
-	return 1
+# Kept a named function because a warm-path trace assertion uses the token to
+# prove the always-run half still runs; the -d guard keeps a warm call from
+# forking mkdir for a directory the launcher is about to be exec'd out of.
+ensure_dir() {
+	[[ -d "$1" ]] || mkdir -p "$1" 2>/dev/null
 }
 
-# ${CLAUDE_PLUGIN_ROOT}/bin or the ACCELERATOR_CACHE_DIR override; no XDG
-# fallback (an XDG-resident binary would break the allowed-tools glob match).
+# Catches a noexec mount, which a write-only check would pass. Cold-path only:
+# a warm call proves the same capability for real by running the staged shim
+# and then the launcher out of this directory. 1 = cannot write, 2 = cannot
+# exec.
+probe_exec_capable() {
+	probe="$1/.accelerator-probe-$$"
+	if ! printf '#!/bin/sh\nexit 0\n' >"${probe}" 2>/dev/null ||
+		! chmod +x "${probe}" 2>/dev/null; then
+		rm -f "${probe}"
+		return 1
+	fi
+	"${probe}" >/dev/null 2>&1
+	status=$?
+	rm -f "${probe}"
+	[[ "${status}" -eq 0 ]] || return 2
+}
+
+# ${plugin_root}/bin or the ACCELERATOR_CACHE_DIR override; no XDG fallback
+# (an XDG-resident binary would break the allowed-tools glob match).
 resolve_cache_dir() {
 	if [[ -n "${ACCELERATOR_CACHE_DIR:-}" ]]; then
-		probe_dir "${ACCELERATOR_CACHE_DIR}" || return 1
+		ensure_dir "${ACCELERATOR_CACHE_DIR}" || return 1
 		printf '%s\n' "${ACCELERATOR_CACHE_DIR}"
 		return 0
 	fi
-	primary="${CLAUDE_PLUGIN_ROOT}/bin"
-	probe_dir "${primary}" || return 1
+	primary="${plugin_root}/bin"
+	ensure_dir "${primary}" || return 1
 	printf '%s\n' "${primary}"
 }
 
+# One definition of the substring, three causes: each site reports what it
+# actually detected, and the remediation hint stays attached to all of them.
+fail_no_cache_dir() {
+	fail "no writable, exec-capable cache directory: $1 $2; set \
+ACCELERATOR_CACHE_DIR to a writable, exec-capable directory (no XDG fallback)"
+}
+
 cache_dir=$(resolve_cache_dir) ||
-	fail "no writable, exec-capable cache directory: ${CLAUDE_PLUGIN_ROOT}/bin \
-is not usable and no ACCELERATOR_CACHE_DIR override was given (no XDG fallback)"
+	fail_no_cache_dir "${ACCELERATOR_CACHE_DIR:-${plugin_root}/bin}" \
+		"could not be created"
+unverified_log="${cache_dir}/.accelerator-unverified.log"
 
 # ── Local-build override (skips fetch, cache and verification entirely) ──────
 # Three gates: the opt-in variable, the untracked dev-launcher marker, and a
@@ -114,12 +222,12 @@ is not usable and no ACCELERATOR_CACHE_DIR override was given (no XDG fallback)"
 # skills and invoked unattended at every SessionStart, so an ambient env var
 # alone must not redirect it. Warns and records durably, since stderr is invisible
 # at SessionStart and behind the !-site --fail-safe contract.
-dev_launcher_marker="${CLAUDE_PLUGIN_ROOT}/.accelerator-dev-launcher"
+dev_launcher_marker="${plugin_root}/.accelerator-dev-launcher"
 
 dev_launcher_contained() {
 	bin="$1"
 	[[ -e "${bin}" && ! -L "${bin}" && -f "${bin}" && -x "${bin}" ]] || return 1
-	target_root=$(cd "${CLAUDE_PLUGIN_ROOT}/cli/target" 2>/dev/null && pwd -P) ||
+	target_root=$(cd "${plugin_root}/cli/target" 2>/dev/null && pwd -P) ||
 		return 1
 	bin_parent=$(cd "$(dirname "${bin}")" 2>/dev/null && pwd -P) || return 1
 	case "${bin_parent}/" in
@@ -132,15 +240,31 @@ if [[ "${ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER:-}" == "1" &&
 	-f "${dev_launcher_marker}" && -n "${ACCELERATOR_LAUNCHER_BIN:-}" ]]; then
 	dev_launcher_contained "${ACCELERATOR_LAUNCHER_BIN}" ||
 		fail "ACCELERATOR_LAUNCHER_BIN refused (not a regular executable inside \
-${CLAUDE_PLUGIN_ROOT}/cli/target/): ${ACCELERATOR_LAUNCHER_BIN}"
+${plugin_root}/cli/target/): ${ACCELERATOR_LAUNCHER_BIN}"
 	printf 'accelerator: WARNING execing unverified launcher: %s\n' \
 		"${ACCELERATOR_LAUNCHER_BIN}" >&2
 	printf '%s pid=%s %s\n' \
 		"$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf 'unknown')" \
 		"$$" "${ACCELERATOR_LAUNCHER_BIN}" \
-		>>"${cache_dir}/.accelerator-unverified.log" 2>/dev/null || true
+		>>"${unverified_log}" 2>/dev/null || true
 	exec "${ACCELERATOR_LAUNCHER_BIN}" "$@"
 fi
+
+# Cold-path only, and below the dev override so the contributor path pays
+# nothing for it. `probed` is set only after a successful probe, so a cold run
+# reaching both call sites probes exactly once.
+probed=""
+
+require_exec_capable_cache() {
+	[[ -z "${probed}" ]] || return 0
+	probe_exec_capable "${cache_dir}"
+	case "$?" in
+	0) probed=1 ;;
+	2) fail_no_cache_dir "${cache_dir}" \
+		"rejected an executable file — possibly a noexec mount" ;;
+	*) fail_no_cache_dir "${cache_dir}" "is not writable" ;;
+	esac
+}
 
 # Portable full-digest sha256 (detection-based backend, matching the repo idiom);
 # inlined to keep this root-of-trust entry point self-contained (it sources
@@ -156,18 +280,26 @@ sha256_file() {
 # The plugin root may be noexec, so run the shim from the cache dir, and by
 # absolute path so a PATH-planted decoy cannot stand in for the verifier.
 # Content-addressed by the source shim's own digest: a warm call re-hashes
-# (cheap) instead of re-copying 475KB, a uniquely-named file is never torn by a
-# concurrent reader, and skip-if-exists verifies the staged bytes against that
-# digest so a planted stub is re-staged rather than trusted by name.
+# instead of re-copying ~475KB — now the largest remaining warm-path cost,
+# retained deliberately because the digest check is what makes a planted stub
+# get re-staged rather than trusted by name
+# (test_planted_staged_shim_rehashed_then_succeeds,
+# test_planted_staged_shim_is_not_trusted,
+# test_planted_staged_shim_via_cache_dir_is_not_trusted) — a uniquely-named file
+# is never torn by a concurrent reader, and skip-if-exists verifies the staged
+# bytes against that digest.
 shim_digest=$(sha256_file "${shim_source}") ||
-	fail "could not hash the verify shim source: ${shim_source}"
+	fail_integrity "could not hash the verify shim source: ${shim_source}"
 shim="${cache_dir}/accelerator-verify-${platform}-${shim_digest}"
 if [[ ! -x "${shim}" ]] ||
 	[[ "$(sha256_file "${shim}" 2>/dev/null)" != "${shim_digest}" ]]; then
+	# This body is the first required write into the cache dir, so gating here
+	# covers every write. Anything that writes there earlier needs its own gate.
+	require_exec_capable_cache
 	cp "${shim_source}" "${shim}" 2>/dev/null ||
-		fail "could not stage the verify shim into ${cache_dir}"
+		fail_integrity "could not stage the verify shim into ${cache_dir}"
 	chmod +x "${shim}" 2>/dev/null ||
-		fail "could not make the verify shim executable"
+		fail_integrity "could not make the verify shim executable"
 fi
 
 # Serialise concurrent first-use sessions; a lock orphaned by a SIGKILL'd
@@ -246,17 +378,23 @@ fetch_and_verify() {
 if [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] && verify_launcher; then
 	: # cache hit — reuse without a lock or fetch
 else
+	# Staging was skipped (the staged shim already matched) but verification
+	# failed. Without this, an unwritable cache dir reaches acquire_lock, whose
+	# mkdir can never succeed and whose loop treats a missing pid file as an
+	# imminent competitor — burning its whole timeout budget and reporting a
+	# lock timeout instead of the real cause.
+	require_exec_capable_cache
 	acquire_lock
 	# Re-check under the lock in case another session populated the cache.
 	if ! { [[ -x "${launcher}" ]] && [[ -f "${launcher_sig}" ]] &&
 		verify_launcher; }; then
 		fetch_and_verify ||
-			fail "could not fetch and verify the accelerator launcher for \
-${platform}"
+			fail_integrity "could not fetch and verify the accelerator launcher \
+for ${platform}"
 	fi
 	release_lock
 fi
 
-# argv list (no shell-string interpolation); CLAUDE_PLUGIN_ROOT stays in the env
+# argv list (no shell-string interpolation); the exported root stays in the env
 # so the launcher resolves the same cache root for its sub-binaries.
 exec "${launcher}" "$@"

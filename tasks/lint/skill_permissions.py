@@ -25,12 +25,21 @@ It also carries the SKILL.md injection census (formerly in the deleted
    excluded by construction.
 """
 
-import fnmatch
 import re
 from pathlib import Path
 
 from invoke import Context, Exit, task
 
+from tasks.shared.skill_parsing import (
+    BARE_LAUNCHER,
+    covered_by,
+    frontmatter_bash_rules,
+    frontmatter_name,
+    has_bare_bash,
+    has_metacharacter,
+    is_plugin_invocation,
+    preprocessor_commands,
+)
 from tasks.shared.sources import repo_root
 
 # Injection is expected in exactly this many skills (42 at the migration's final
@@ -38,82 +47,11 @@ from tasks.shared.sources import repo_root
 # genuinely added or removed — the equality is what catches an accidental loss.
 EXPECTED_INJECTION_SKILLS = 42
 
-# A launcher command naming no subcommand — any rule matching it is too broad.
-_BARE_LAUNCHER = (
-    "${CLAUDE_PLUGIN_ROOT}/bin/accelerator zz-external-subcommand-zz"
-)
-
-_BASH_RULE = re.compile(r"Bash\(([^)]*)\)")
-_PREPROCESSOR = re.compile(r"!`([^`]*)`")
-_BARE_BASH_LINE = re.compile(r"^\s*-?\s*Bash\s*$")
-_NAME_LINE = re.compile(r'^name:\s*"?([^"\n]*?)"?\s*$')
-_METACHARACTERS = ("&&", "||", ";", "|", "$(", "`", "<(", ">(")
 _CONFIG_MARKER = "/bin/accelerator config "
 _CONTEXT_SKILL = "/bin/accelerator config context --skill "
 _CONTEXT_ANY = "/bin/accelerator config context"
 _INSTRUCTIONS = "/bin/accelerator config instructions "
-_PLUGIN_PREFIX = "${CLAUDE_PLUGIN_ROOT}/"
 _NAME_TOKEN = re.compile(r"([a-z0-9][a-z0-9-]*)")
-
-
-def _frontmatter_lines(text: str) -> list[str]:
-    """Return the frontmatter body lines (between the two ``---`` fences)."""
-    lines = text.splitlines()
-    if not lines or lines[0] != "---":
-        return []
-    out: list[str] = []
-    for line in lines[1:]:
-        if line == "---":
-            break
-        out.append(line)
-    return out
-
-
-def frontmatter_bash_rules(text: str) -> list[str]:
-    """Every ``Bash(...)`` rule inner declared in the frontmatter."""
-    rules: list[str] = []
-    for line in _frontmatter_lines(text):
-        rules.extend(_BASH_RULE.findall(line))
-    return rules
-
-
-def has_bare_bash(text: str) -> bool:
-    """Return whether the frontmatter declares a bare ``Bash`` tool."""
-    return any(_BARE_BASH_LINE.match(line) for line in _frontmatter_lines(text))
-
-
-def frontmatter_name(text: str) -> str:
-    """Return the frontmatter ``name:`` value (quotes stripped), else empty."""
-    for line in _frontmatter_lines(text):
-        match = _NAME_LINE.match(line)
-        if match:
-            return match.group(1)
-    return ""
-
-
-def preprocessor_commands(text: str) -> list[str]:
-    """Every ``!``-preprocessor command body, in document order."""
-    return _PREPROCESSOR.findall(text)
-
-
-def is_plugin_invocation(command: str) -> bool:
-    """Return whether a command invokes a plugin script or the launcher."""
-    return command.startswith(_PLUGIN_PREFIX)
-
-
-def covered_by(command: str, pattern: str) -> bool:
-    """Return whether ``command`` matches rule ``pattern`` as a prefix glob.
-
-    A rule not ending in ``*`` still matches the command plus trailing
-    arguments; ``*`` spans ``/``, matching the verified matcher semantics.
-    """
-    glob = pattern if pattern.endswith("*") else pattern + "*"
-    return fnmatch.fnmatchcase(command, glob)
-
-
-def has_metacharacter(command: str) -> bool:
-    """Return whether the command holds a metacharacter the matcher misses."""
-    return any(token in command for token in _METACHARACTERS)
 
 
 def _name_after(command: str, marker: str) -> str:
@@ -182,7 +120,7 @@ def _check_skill(path: Path, rel: str) -> tuple[list[str], bool, bool]:
         f"{rel}: rule 'Bash({rule})' authorises the launcher without a "
         "subcommand — name 'config' (or the specific subcommand)"
         for rule in rules
-        if covered_by(_BARE_LAUNCHER, rule)
+        if covered_by(BARE_LAUNCHER, rule)
     ]
     has_ctx = False
     has_instr = False

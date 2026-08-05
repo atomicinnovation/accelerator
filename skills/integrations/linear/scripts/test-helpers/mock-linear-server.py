@@ -181,15 +181,23 @@ def main():
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}"
 
-    with open(args.url_file, "w") as f:
-        f.write(url)
-
+    # Registered before the url file is written, and the ordering is
+    # load-bearing: that file is the readiness signal start_mock blocks on, so
+    # a test can SIGTERM us the instant it appears. A case that makes no
+    # request at all (the --describe and --print-payload guards) does exactly
+    # that, and if SIGTERM lands while it still has its default disposition the
+    # process dies without running the finally below — leaving the captured-*
+    # files as the empty files mktemp created, which reads as `''` rather than
+    # `[]` at the assertion.
     signal.signal(
         signal.SIGTERM,
         lambda *_: threading.Thread(
             target=server.shutdown, daemon=True
         ).start(),
     )
+
+    with open(args.url_file, "w") as f:
+        f.write(url)
 
     try:
         server.serve_forever()

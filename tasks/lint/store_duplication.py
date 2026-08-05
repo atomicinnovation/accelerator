@@ -25,6 +25,11 @@ ALLOWLIST: frozenset[str] = frozenset(
         # is a read/index module and performs no atomic writes (those route
         # through the file driver onto store::atomic_write).
         "cli/visualiser/server/src/indexer.rs",
+        # Grafts a `.jj` *directory* into the colocated fixture, mirroring the
+        # shell suite's `mv`. Both `git worktree add` and `jj workspace add`
+        # refuse an existing non-empty target, so the workspace is built
+        # elsewhere and moved — a directory relocation, not a whole-file write.
+        "cli/vcs-test-support/src/fixtures.rs",
     }
 )
 

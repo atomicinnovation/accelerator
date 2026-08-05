@@ -1,10 +1,10 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "store", "visualiser/server"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "vcs-test-support", "store", "visualiser/server"]
 
 [workspace.package]
-version = "1.24.0-pre.16"
+version = "1.24.0-pre.23"
 edition = "2021"
 rust-version = "1.90.0"
 license = "MIT"
@@ -52,6 +52,30 @@ serde-saphyr = "=0.0.29"
 tempfile = "3"
 rand = "0.9"
 rustix = { version = "1", features = ["process", "fs"] }
+# jj-lib and gix are a matched pair, pinned asymmetrically. jj-lib is EXACT
+# because it declares its API unstable and a patch can shift its MSRV or its own
+# gix requirement; gix is TILDE because ~0.85.0 is the range jj-lib already
+# requires, so a RustSec fix is a lock update rather than a pin edit. A caret on
+# a 0.x crate will not cross to the existing 0.86, which would put two gix
+# graphs in the lock.
+#
+# gix takes default-features = false because its `default` reaches `extras` ->
+# `credentials`, pulling gix-credentials — the one gix subsystem that spawns
+# helper programs. jj-lib's own selection still enables everything the adapter
+# calls. Widening this list is how a consumer adds a capability.
+#
+# A jj-lib bump moves all four of these plus the Rust toolchain and the mise jj
+# CLI pin, which writes the format jj-lib reads.
+jj-lib = "=0.43.0"
+gix = { version = "~0.85.0", default-features = false }
+# prost and pollster are jj-lib's own, adopted as direct edges: both are already
+# in the lock through it, so this adds no packages. prost decodes
+# jj_lib::protos::local_working_copy::Checkout (a public module, so API rather
+# than a private wire format) and pollster drives the OpStore trait's async
+# reads. Pinned to the majors jj-lib requires, because the decoded type comes
+# from jj-lib: a major mismatch splits the graph and breaks the decode.
+prost = "0.14"
+pollster = "0.4"
 
 [workspace.lints.rust]
 warnings = "deny"

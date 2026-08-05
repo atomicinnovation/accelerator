@@ -1,11 +1,12 @@
 """Tests for the suite-count guards in ``tasks/test/integration.py``.
 
-The ``config`` and ``migrate`` tasks assert an at-least floor on the number of
-discovered shell suites, so a dropped exec bit (which makes a fail-closed gate
-silently vanish from CI) turns the build red instead of shrinking the
-regression net. These tests cover both halves: that ``run_shell_suites``
-discovery actually shrinks when an exec bit is dropped, and that the guard
-fires when discovery falls below the baseline.
+Every guarded task asserts an at-least floor on the number of discovered shell
+suites, and some additionally require named gates, so a dropped exec bit (which
+makes a fail-closed gate silently vanish from CI) turns the build red instead of
+shrinking the regression net. These tests cover all three halves: that
+``run_shell_suites`` discovery actually shrinks when an exec bit is dropped,
+that the guard fires below the baseline, and that a named gate cannot be lost
+while the count floor still passes on filler.
 """
 
 import pytest
@@ -21,6 +22,10 @@ def _stub_accelerator_env(mocker):
     the suites; stub it to an empty overlay so the guard logic is tested without
     touching a real launcher path."""
     mocker.patch.object(integration, "accelerator_env", return_value={})
+    # `hooks` shells out to pytest before its floor check, and invoke's @task
+    # rejects a stand-in Context, so the real one has `run` stubbed instead —
+    # otherwise these unit tests would run the whole hooks suite twice.
+    mocker.patch.object(Context, "run")
 
 
 class _FakeContext:
@@ -52,75 +57,56 @@ class TestRunShellSuitesExecBit:
         assert len(reduced) == 1, "exec-bit drop must shrink the discovered set"
 
 
-class TestConfigSuiteGuard:
-    def test_guard_fires_when_below_baseline(self, mocker):
-        mocker.patch.object(
-            integration, "run_shell_suites", return_value=["scripts/test-x.sh"]
-        )
-        with pytest.raises(Exit):
-            integration.config(Context())
-
-    def test_guard_passes_at_baseline(self, mocker):
-        # The required-by-name gates must be present, with generic filler making
-        # up the rest of the count floor.
-        required = list(integration._REQUIRED_CONFIG_SUITES)
-        filler = [
-            f"scripts/test-{i}.sh"
-            for i in range(integration._EXPECTED_CONFIG_SUITES - len(required))
-        ]
-        suites = required + filler
-        mocker.patch.object(
-            integration, "run_shell_suites", return_value=suites
-        )
-        integration.config(Context())  # must not raise
+# (task name, floor constant, required-by-name tuple). Every guarded task
+# appears here, so a new floor without a paired case is a visible omission
+# rather than an untested Exit branch.
+_GUARDED = [
+    ("config", "_EXPECTED_CONFIG_SUITES", "_REQUIRED_CONFIG_SUITES"),
+    ("hooks", "_EXPECTED_HOOKS_SUITES", None),
+    ("decisions", "_EXPECTED_DECISIONS_SUITES", None),
+    ("github", "_EXPECTED_GITHUB_SUITES", None),
+    ("work", "_EXPECTED_WORK_SUITES", None),
+    ("integrations", "_EXPECTED_INTEGRATIONS_SUITES", None),
+    ("migrate", "_EXPECTED_MIGRATE_SUITES", None),
+]
 
 
-class TestMigrateSuiteGuard:
-    def test_guard_fires_when_below_baseline(self, mocker):
-        mocker.patch.object(
-            integration, "run_shell_suites", return_value=["x/test-a.sh"]
-        )
-        with pytest.raises(Exit):
-            integration.migrate(Context())
+def _at_baseline(floor_name: str, required_name: str | None) -> list[str]:
+    """A discovered set exactly at the floor, including any by-name gates."""
+    required = (
+        list(getattr(integration, required_name)) if required_name else []
+    )
+    floor = getattr(integration, floor_name)
+    filler = [f"x/test-{i}.sh" for i in range(floor - len(required))]
+    return required + filler
 
 
-class TestWorkSuiteGuard:
-    def test_guard_fires_when_below_baseline(self, mocker):
-        mocker.patch.object(
-            integration,
-            "run_shell_suites",
-            return_value=["skills/work/test-a.sh"],
-        )
-        with pytest.raises(Exit):
-            integration.work(Context())
-
-    def test_guard_passes_at_baseline(self, mocker):
-        suites = [
-            f"skills/work/test-{i}.sh"
-            for i in range(integration._EXPECTED_WORK_SUITES)
-        ]
-        mocker.patch.object(
-            integration, "run_shell_suites", return_value=suites
-        )
-        integration.work(Context())  # must not raise
+@pytest.mark.parametrize(("name", "floor_name", "required_name"), _GUARDED)
+def test_guard_fires_below_baseline(mocker, name, floor_name, required_name):
+    below = _at_baseline(floor_name, required_name)[:-1]
+    mocker.patch.object(integration, "run_shell_suites", return_value=below)
+    with pytest.raises(Exit):
+        getattr(integration, name)(Context())
 
 
-class TestIntegrationsSuiteGuard:
-    def test_guard_fires_when_below_baseline(self, mocker):
-        mocker.patch.object(
-            integration,
-            "run_shell_suites",
-            return_value=["skills/integrations/test-a.sh"],
-        )
-        with pytest.raises(Exit):
-            integration.integrations(Context())
+@pytest.mark.parametrize(("name", "floor_name", "required_name"), _GUARDED)
+def test_guard_passes_at_baseline(mocker, name, floor_name, required_name):
+    suites = _at_baseline(floor_name, required_name)
+    mocker.patch.object(integration, "run_shell_suites", return_value=suites)
+    getattr(integration, name)(Context())  # must not raise
 
-    def test_guard_passes_at_baseline(self, mocker):
-        suites = [
-            f"skills/integrations/test-{i}.sh"
-            for i in range(integration._EXPECTED_INTEGRATIONS_SUITES)
-        ]
-        mocker.patch.object(
-            integration, "run_shell_suites", return_value=suites
-        )
-        integration.integrations(Context())  # must not raise
+
+@pytest.mark.parametrize(
+    ("name", "floor_name", "required_name"),
+    [g for g in _GUARDED if g[2] is not None],
+)
+def test_guard_fires_when_a_named_gate_is_missing(
+    mocker, name, floor_name, required_name
+):
+    # At the count floor but with the by-name gates swapped for filler: the
+    # count alone cannot detect a renamed or exec-bit-stripped gate.
+    floor = getattr(integration, floor_name)
+    suites = [f"x/test-{i}.sh" for i in range(floor)]
+    mocker.patch.object(integration, "run_shell_suites", return_value=suites)
+    with pytest.raises(Exit):
+        getattr(integration, name)(Context())

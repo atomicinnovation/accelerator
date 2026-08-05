@@ -52,7 +52,8 @@ The full documentation site is published at
 - [Visualiser](https://atomicinnovation.github.io/accelerator/visualiser/) — the
   browser-based companion view of `meta/`.
 - [Internals](https://atomicinnovation.github.io/accelerator/internals/) — the
-  `meta/` directory deep-dive, the agent roster, and VCS detection.
+  `meta/` directory deep-dive, the agent roster, VCS detection, and running the
+  CLI from a terminal.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —

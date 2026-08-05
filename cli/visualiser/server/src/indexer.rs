@@ -2011,8 +2011,14 @@ mod tests {
         );
     }
 
+    // A tripwire for an algorithmic blowup in the scan, not a latency budget.
+    // The build measures 713ms on an idle machine; the ceiling sits ~40x above
+    // that because the suite runs alongside every other `mise run` task and a
+    // loaded host has been measured at 5.4s. Anything quadratic over 2000
+    // documents overruns 30s by orders of magnitude, so the headroom costs no
+    // sensitivity.
     #[tokio::test]
-    async fn scan_2000_files_completes_within_one_second() {
+    async fn scan_2000_files_does_not_blow_up() {
         let tmp = tempfile::tempdir().unwrap();
         let body =
             "---\ntitle: Filler\n---\n".to_string() + &"x".repeat(10 * 1024);
@@ -2047,8 +2053,8 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert!(
-            elapsed < std::time::Duration::from_secs(5),
-            "scan took {elapsed:?}, expected < 5 s",
+            elapsed < std::time::Duration::from_secs(30),
+            "scan took {elapsed:?}, expected < 30 s",
         );
         assert_eq!(idx.all().await.len(), 2000);
     }

@@ -9,10 +9,11 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
+blocked_by: ["work-item:0187"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0171"]
 tags: [rust, work-items, sync, tracker]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-08-01T16:57:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-191"
@@ -77,6 +78,13 @@ dedicated test suite — a coverage gap to close.
 ## Dependencies
 
 - Blocked by: 0166 (shared crates).
+- Blocked by: 0187 (generalises the sub-binary registration surface). This story
+  adds a dispatch token; it does not generalise the surface. Registration
+  follows the checklist 0187 adds at
+  `tasks/README.md#registering-a-dispatched-sub-binary`. Note the token
+  constraint that bites here specifically: the dispatch token may not contain
+  `_`, because it derives `ACCELERATOR_<TOKEN>_BIN` — so `work-item`, not
+  `work_item`. (2026-08-01)
 - Relates to: 0171 (provides the `jira-client`/`linear-client` adapters the sync
   engine wires in).
 - Parent: epic 0136.

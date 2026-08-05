@@ -1,12 +1,15 @@
 from . import (
     build_system,
     call_site_migration,
+    claude_coupling,
     cli,
+    dispatch_coherence,
     frontend,
     scripts,
     server,
     skill_permissions,
     store_duplication,
+    vcs_settings,
     vendor_shims,
     workflows,
 )
@@ -14,12 +17,15 @@ from . import (
 __all__ = [
     "build_system",
     "call_site_migration",
+    "claude_coupling",
     "cli",
+    "dispatch_coherence",
     "frontend",
     "scripts",
     "server",
     "skill_permissions",
     "store_duplication",
+    "vcs_settings",
     "vendor_shims",
     "workflows",
 ]
