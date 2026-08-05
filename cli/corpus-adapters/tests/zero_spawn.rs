@@ -15,8 +15,8 @@ use std::fmt::Write as _;
 use std::path::Path;
 use std::process::Command;
 
+use vcs_test_support::fixtures;
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::hermetic::assert_git_is_recent_enough;
 use vcs_test_support::stubs::assert_shadowing_holds;
 use vcs_test_support::stubs::reference_artefact;
 use vcs_test_support::stubs::Mode;
@@ -51,22 +51,21 @@ fn query(
 #[test]
 fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
 {
-    assert_git_is_recent_enough()?;
-
     // Fail closed on a malformed contract too, or a dropped export silently
     // downgrades the run.
     let mode = Mode::from_environment()?;
     assert_shadowing_holds(mode)?;
 
-    let base = tempfile::Builder::new()
-        .prefix("vcs-zero-spawn-")
-        .tempdir()?;
-    let matrix = Matrix::build_in(base.path())?;
+    // Adopted rather than built when a root is handed over: building needs the
+    // real binaries, which the strong form has already moved out of reach.
+    let (_matrix_guard, root) = fixtures::matrix_root()?;
+    let matrix = Matrix::build_or_adopt(&root)?;
     let artefact = reference_artefact()?;
 
-    // Built before the stubs take effect: building it is what needs the real
-    // binaries, and a stubbed build would leave an empty matrix.
-    let stubs = Stubs::rooted_at(base.path())?;
+    let stub_base = tempfile::Builder::new()
+        .prefix("vcs-zero-spawn-")
+        .tempdir()?;
+    let stubs = Stubs::rooted_at(stub_base.path())?;
     assert!(
         !matrix.fixtures.is_empty(),
         "an empty matrix would pass every assertion below while proving nothing"

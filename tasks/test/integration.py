@@ -13,6 +13,10 @@ from .helpers import accelerator_env, run_shell_suites
 # accident, and the CI step sets this in `env:`.
 _SHADOW_OPT_IN = "ACCELERATOR_ZERO_SPAWN_SHADOW"
 
+# Hands the prebuilt fixture matrix to the suite, which cannot build one once
+# the binaries are out of reach. Mirrors fixtures::MATRIX_ROOT_VARIABLE.
+_MATRIX_ROOT = "ACCELERATOR_ZERO_SPAWN_MATRIX"
+
 # Checked alongside every PATH hit and `mise which`, because absolute-path
 # access is what the strong form has to defeat.
 _ABSOLUTE_VCS_PATHS = (
@@ -188,7 +192,8 @@ def zero_spawn_strong(context: Context) -> None:
 
     Ordering is load-bearing. Compilation needs git (`vergen-gitcl`, and a cold
     registry cache) and the fixture matrix needs both binaries, so both happen
-    before the window and the suite runs `--no-run` first. Cargo is invoked
+    before the window, the suite runs `--no-run` first, and the matrix is handed
+    over by path for the suite to adopt. Cargo is invoked
     directly rather than through `mise run`, which could see `jj` missing inside
     the window and reinstall it, making the assertion vacuous.
     """
@@ -202,7 +207,8 @@ def zero_spawn_strong(context: Context) -> None:
         )
 
     _compile_zero_spawn_targets(context)
-    _build_fixture_matrix(context)
+    matrix_root = Path(tempfile.mkdtemp(prefix="accelerator-vcs-matrix-"))
+    _build_fixture_matrix(context, matrix_root)
 
     targets = _resolve_vcs_binaries(context)
     if not targets:
@@ -226,6 +232,8 @@ def zero_spawn_strong(context: Context) -> None:
                 "ACCELERATOR_ZERO_SPAWN_SHADOWED": ":".join(
                     str(path) for path in shadowed
                 ),
+                # Adopted, not rebuilt: there is no git or jj to build with now.
+                _MATRIX_ROOT: str(matrix_root),
             },
         )
     finally:
@@ -250,13 +258,20 @@ def _compile_zero_spawn_targets(context: Context) -> None:
     )
 
 
-def _build_fixture_matrix(context: Context) -> None:
-    """Exercise the matrix builders while the real CLIs are still reachable."""
+def _build_fixture_matrix(context: Context, root: Path) -> None:
+    """Build the matrix at `root` while the real CLIs are still reachable.
+
+    One test rather than the whole binary: with a shared root, tests building
+    concurrently would race to populate it. The rest of the matrix suite runs in
+    `test:unit:cli` against its own temp roots.
+    """
     context.run(
         "cargo nextest run "
         f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        "-p vcs-test-support -E 'binary(matrix)'",
+        "-p vcs-test-support "
+        "-E 'binary(matrix) and test(every_recorded_fixture_key_is_built)'",
         pty=True,
+        env={_MATRIX_ROOT: str(root)},
     )
 
 
@@ -270,10 +285,19 @@ def _resolve_vcs_binaries(context: Context) -> list[Path]:
     absolute path while the harness agreed the run was strong.
     """
     found: list[Path] = []
+    seen: set[Path] = set()
 
     def remember(candidate: Path) -> None:
-        if os.access(candidate, os.X_OK) and candidate not in found:
-            found.append(candidate)
+        # Deduplicated by RESOLVED path: on a usrmerge Linux /bin is a symlink
+        # to /usr/bin, so both spellings name one file and moving it under the
+        # first name makes the second fail to stat.
+        if not os.access(candidate, os.X_OK):
+            return
+        identity = candidate.resolve()
+        if identity in seen:
+            return
+        seen.add(identity)
+        found.append(candidate)
 
     for name in ("git", "jj"):
         for directory in os.environ.get("PATH", "").split(os.pathsep):

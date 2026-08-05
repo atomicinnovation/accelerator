@@ -21,7 +21,6 @@ use vcs_adapters::library::JjRepositoryFacts;
 use vcs_adapters::library::JjWorkspaceRole;
 use vcs_adapters::library::WorktreeFacts;
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::hermetic::assert_git_is_recent_enough;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -399,7 +398,6 @@ fn dual_cell(roots: &DualRoots) -> String {
 
 #[test]
 fn every_query_matches_the_recorded_oracle_mapping() -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-queries-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
     let probe = InProcessProbe;
@@ -465,7 +463,6 @@ fn every_query_matches_the_recorded_oracle_mapping() -> Result<(), TestError> {
 #[test]
 fn a_relative_start_resolves_the_same_as_an_absolute_one(
 ) -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-relative-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
     let probe = InProcessProbe;
@@ -511,7 +508,6 @@ fn a_relative_start_resolves_the_same_as_an_absolute_one(
 
 #[test]
 fn failure_and_absence_are_distinguishable() -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-errors-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
     let probe = InProcessProbe;
@@ -560,7 +556,6 @@ fn failure_and_absence_are_distinguishable() -> Result<(), TestError> {
 #[test]
 fn an_unsupported_object_format_fails_rather_than_misreads(
 ) -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-formats-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
     let probe = InProcessProbe;
@@ -585,7 +580,6 @@ fn an_unsupported_object_format_fails_rather_than_misreads(
 #[test]
 fn a_one_sided_failure_leaves_the_other_side_readable() -> Result<(), TestError>
 {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-onesided-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
 

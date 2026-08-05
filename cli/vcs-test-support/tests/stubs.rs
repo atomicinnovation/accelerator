@@ -6,6 +6,8 @@
 //! is the one failure mode that would leave the story's headline property
 //! unproven while every suite stayed green.
 
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
 use vcs_test_support::stubs::Mode;
@@ -22,10 +24,11 @@ fn a_spawn_through_the_stub_path_is_recorded() -> Result<(), TestError> {
 
     assert_eq!(stubs.spawns()?, None, "nothing has run yet");
 
-    // Resolve `git` through the synthetic PATH exactly as a spawning adapter
-    // would, rather than by absolute path.
-    let mut command = Command::new("sh");
-    command.arg("-c").arg("git --version >/dev/null 2>&1");
+    // Resolved through the synthetic PATH exactly as the spawning adapter does
+    // it. Not via a shell: on a usrmerge Linux both /bin and /usr/bin resolve
+    // git, so both are stripped and `sh` is no longer on the PATH at all.
+    let mut command = Command::new("git");
+    command.arg("--version");
     stubs.apply(&mut command);
     let status = command.status()?;
     assert!(status.success());
@@ -62,17 +65,25 @@ fn the_synthetic_path_drops_every_directory_that_resolves_a_real_binary(
     let base = tempfile::Builder::new().prefix("stub-strip-").tempdir()?;
     let stubs = Stubs::rooted_at(base.path())?;
 
-    let mut command = Command::new("sh");
-    command.arg("-c").arg("command -v git");
-    stubs.apply(&mut command);
-    let output = command.output()?;
-    let resolved = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let resolvable: Vec<PathBuf> = stubs
+        .path()
+        .split(':')
+        .filter(|entry| !entry.is_empty())
+        .flat_map(|entry| {
+            ["git", "jj"].map(|binary| Path::new(entry).join(binary))
+        })
+        .filter(|candidate| candidate.is_file())
+        .collect();
 
-    assert_eq!(
-        std::path::Path::new(&resolved).parent(),
-        Some(stubs.directory()),
-        "git resolved to {resolved}, not to the stub"
-    );
+    for candidate in &resolvable {
+        assert_eq!(
+            candidate.parent(),
+            Some(stubs.directory()),
+            "{} resolves a real binary",
+            candidate.display()
+        );
+    }
+    assert_eq!(resolvable.len(), 2, "both stubs should be resolvable");
     Ok(())
 }
 

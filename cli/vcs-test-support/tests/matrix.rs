@@ -6,16 +6,15 @@
 
 use std::fs;
 
+use vcs_test_support::fixtures;
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::hermetic::assert_git_is_recent_enough;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn matrix() -> Result<(tempfile::TempDir, Matrix), TestError> {
-    assert_git_is_recent_enough()?;
-    let base = tempfile::Builder::new().prefix("vcs-matrix-").tempdir()?;
-    let built = Matrix::build_in(base.path())?;
-    Ok((base, built))
+fn matrix() -> Result<(Option<tempfile::TempDir>, Matrix), TestError> {
+    let (guard, root) = fixtures::matrix_root()?;
+    let built = Matrix::build_or_adopt(&root)?;
+    Ok((guard, built))
 }
 
 #[test]

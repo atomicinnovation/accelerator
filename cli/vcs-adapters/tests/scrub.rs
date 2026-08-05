@@ -25,7 +25,6 @@ use std::path::Path;
 use std::process::Command;
 
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::hermetic::assert_git_is_recent_enough;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -85,7 +84,6 @@ impl Poison {
 
 #[test]
 fn every_query_is_unmoved_by_a_poisoned_environment() -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new().prefix("vcs-scrub-").tempdir()?;
     let matrix = Matrix::build_in(base.path())?;
 
@@ -125,7 +123,6 @@ fn every_query_is_unmoved_by_a_poisoned_environment() -> Result<(), TestError> {
 
 #[test]
 fn the_poison_is_live() -> Result<(), TestError> {
-    assert_git_is_recent_enough()?;
     let base = tempfile::Builder::new()
         .prefix("vcs-scrub-control-")
         .tempdir()?;
