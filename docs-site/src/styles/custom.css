@@ -1,0 +1,13 @@
+/* Theme-scoped image visibility (Starlight sets data-theme on <html>). */
+[data-theme='light'] .dark-only {
+  display: none;
+}
+
+[data-theme='dark'] .light-only {
+  display: none;
+}
+
+.centred-image {
+  display: block;
+  margin-inline: auto;
+}

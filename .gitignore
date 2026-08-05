@@ -21,6 +21,9 @@ meta/eval-workspaces/
 cli/target/
 cli/.pup/
 /dist/
+docs-site/dist/
+docs-site/.astro/
+docs-site/src/content/docs/reference/skills/
 
 # Build output under the pre-`cli/` visualiser location. `cli/target/` and the
 # root-anchored `/dist/` above do not reach it, so a build here snapshots tens of

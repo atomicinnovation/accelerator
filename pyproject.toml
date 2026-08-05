@@ -18,7 +18,11 @@ build = [
     "semver>=3.0.4,<4",
     "tomlkit>=0.13,<0.14",
     "ziglang>=0.16.0",
-    "cargo-zigbuild>=0.22.3"
+    "cargo-zigbuild>=0.22.3",
+    # Parses SKILL.md frontmatter for docs-page generation (tasks/shared/
+    # skill_pages.py). Exact pin: the generator's output feeds the strict docs
+    # build, so a relock must not silently move the parser under it.
+    "pyyaml==6.0.3",
 ]
 dev = [
     "pytest>=8",
@@ -26,9 +30,11 @@ dev = [
     # Parses .github/workflows/main.yml for the concurrency-topology regression
     # guard (tests/unit/tasks/test_workflows.py). Stable safe_load API, so a
     # `>=` floor suffices (unlike ruff/pyrefly, whose rule sets are pinned
-    # exactly below). Test-only — the tests/ tree is excluded from pyrefly, so
-    # PyYAML being untyped needs no replace-imports-with-any entry.
+    # exactly below); the build group's exact pin wins at resolution. PyYAML
+    # is untyped — types-PyYAML below provides the stubs pyrefly's strict
+    # preset needs for the tasks/ import.
     "pyyaml>=6",
+    "types-pyyaml>=6",
     # Validates emitted manifest.json against the frozen manifest.schema.json in
     # test_manifest.py — a shape check complementing the real serde parser.
     # Test-only (tests/ is pyrefly-excluded), so a `>=` floor suffices; the

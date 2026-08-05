@@ -77,7 +77,10 @@ _RESOLVES = (
     ("cli/Cargo.toml", "members"),
     ("mise.toml", "build:cli:cross-compile"),
     (".github/workflows/main.yml", "dist/release/accelerator-*"),
-    ("docs/visualiser.md", "ACCELERATOR_VISUALISER_BIN"),
+    (
+        "docs-site/src/content/docs/visualiser.md",
+        "ACCELERATOR_VISUALISER_BIN",
+    ),
     ("tasks/CLAUDE.md", ANCHOR),
 )
 

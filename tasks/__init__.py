@@ -6,6 +6,7 @@ from . import (
     deny,
     deps,
     dev,
+    docs,
     git,
     github,
     lint,
@@ -55,6 +56,7 @@ ns.add_collection(ns_dev)
 ns.add_collection(Collection.from_module(changelog))
 ns.add_collection(Collection.from_module(deny))
 ns.add_collection(Collection.from_module(deps))
+ns.add_collection(Collection.from_module(docs))
 ns.add_collection(Collection.from_module(git))
 ns.add_collection(Collection.from_module(github))
 ns.add_collection(Collection.from_module(marketplace))

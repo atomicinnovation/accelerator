@@ -405,13 +405,14 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
     **No action when** you are only adding a dispatch token — but note a name in
     that set is unavailable as one. A test pins the set against the clap
     `Command` enum, so the two cannot drift. **[PR]**
-11. **Document** the sub-binary for users: its own page under `docs/`, an entry
-    in the **Concepts** list under `## Documentation` in the root `README.md`,
-    and an `ACCELERATOR_<TOKEN>_BIN` override row wherever that sub-binary's
-    overrides are documented (`docs/visualiser.md` is the visualiser's).
-    `docs/*.md` form a hand-maintained prev/next chain, so inserting a page
-    means editing the footer of the page **before** and the page **after** it as
-    well as your own. `docs/internals.md`'s env-var table holds only
+11. **Document** the sub-binary for users: its own page under
+    `docs-site/src/content/docs/`, an entry in the **Concepts** list under
+    `## Documentation` in the root `README.md`, and an
+    `ACCELERATOR_<TOKEN>_BIN` override row wherever that sub-binary's overrides
+    are documented (`docs-site/src/content/docs/visualiser.md` is the
+    visualiser's). Starlight derives the sidebar and the prev/next chain from
+    `docs-site/astro.config.mjs`, so a new page means adding it there too.
+    `docs-site/src/content/docs/internals.md`'s env-var table holds only
     launcher-wide inputs and is already token-generic. **No action when** the
     sub-binary is not user-facing. **[author]**
 12. **Add** an entry to `DEBUG_ARCHIVE_DIRS` (`tasks/shared/paths.py`) when the

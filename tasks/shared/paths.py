@@ -9,6 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # moved into the cli/ workspace.
 VISUALISER = REPO_ROOT / "skills/visualisation/visualise"
 BIN_DIR = VISUALISER / "bin"
+DOCS_SITE = REPO_ROOT / "docs-site"
+DOCS_GENERATED_DIR = DOCS_SITE / "src/content/docs/reference/skills"
 CLI_DIR = REPO_ROOT / "cli"
 # The server is the 12th cli/ workspace member, so it builds into the shared
 # workspace target dir, not a crate-local one.

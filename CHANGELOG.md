@@ -8,7 +8,8 @@
   keeps a fixed path inside the plugin's data directory pointing at the current
   installation's launcher, so a symlink you create once on your `$PATH` keeps
   working across plugin upgrades. Setup, platform support and the trust-chain
-  caveats are documented under Terminal Invocation in `docs/internals.md`.
+  caveats are documented under Terminal Invocation in the
+  [Internals](https://atomicinnovation.github.io/accelerator/internals/) page.
 
 ### Changed
 

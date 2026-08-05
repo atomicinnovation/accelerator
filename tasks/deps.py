@@ -2,7 +2,7 @@ import re
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import FRONTEND
+from tasks.shared.paths import DOCS_SITE, FRONTEND
 from tasks.shared.rust import PUP_NIGHTLY, PUP_VERSION
 from tasks.shared.targets import TARGETS
 
@@ -114,4 +114,18 @@ def install_playwright(context: Context) -> None:
     """Install Playwright browser binaries (Chromium + OS-level deps)."""
     context.run(
         f"npx --prefix {FRONTEND} playwright install --with-deps chromium"
+    )
+
+
+@task
+def install_docs(context: Context) -> None:
+    """Install Node.js dependencies for the documentation site."""
+    context.run(f"npm --prefix {DOCS_SITE} ci")
+
+
+@task
+def install_docs_playwright(context: Context) -> None:
+    """Install the Chromium binary rehype-mermaid renders with."""
+    context.run(
+        f"npx --prefix {DOCS_SITE} playwright install --with-deps chromium"
     )

@@ -6,8 +6,8 @@ source "$SCRIPT_DIR/test-helpers.sh"
 
 INIT="$PLUGIN_ROOT/skills/config/init/SKILL.md"
 CONFIGURE="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
-DOCS_INTERNALS="$PLUGIN_ROOT/docs/internals.md"
-DOCS_CONFIGURATION="$PLUGIN_ROOT/docs/configuration.md"
+DOCS_INTERNALS="$PLUGIN_ROOT/docs-site/src/content/docs/internals.md"
+DOCS_CONFIGURATION="$PLUGIN_ROOT/docs-site/src/content/docs/configuration.md"
 
 echo "=== Foundation: init SKILL.md ==="
 
