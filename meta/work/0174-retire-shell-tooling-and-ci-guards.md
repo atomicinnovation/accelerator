@@ -9,7 +9,7 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0167", "work-item:0168", "work-item:0169", "work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173"]
+blocked_by: ["work-item:0167", "work-item:0168", "work-item:0169", "work-item:0170", "work-item:0171", "work-item:0172", "work-item:0195", "work-item:0196", "work-item:0197"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [shell, tooling, ci, cleanup]
 last_updated: "2026-06-28T17:01:56+00:00"
@@ -79,8 +79,9 @@ Playwright executor) and stays under the bash-3.2 floor.
 
 ## Dependencies
 
-- Blocked by: 0167, 0168, 0169, 0170, 0171, 0172, 0173 — retirement of each
-  checker follows the disappearance of the scripts it polices.
+- Blocked by: 0167, 0168, 0169, 0170, 0171, 0172, 0195, 0196, 0197 (0173's
+  successors, split 2026-08-05) — retirement of each checker follows the
+  disappearance of the scripts it polices.
 - Parent: epic 0136.
 
 ## Assumptions

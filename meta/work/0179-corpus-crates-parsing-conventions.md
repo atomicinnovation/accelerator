@@ -10,7 +10,7 @@ kind: task
 priority: high
 parent: "work-item:0166"
 external_id: PP-703
-blocks: ["work-item:0180", "work-item:0170", "work-item:0173", "work-item:0168"]
+blocks: ["work-item:0180", "work-item:0170", "work-item:0195", "work-item:0168"]
 tags: [rust, config, corpus, store, crates, dedup, frontmatter, serde, vcs, metadata]
 last_updated: "2026-07-11T11:10:04+00:00"
 last_updated_by: Toby Clemson
@@ -61,9 +61,10 @@ ways the investigation surfaced:
 3. It **consolidates duplications** that exist even inside the visualiser (two
    `{number:0Nd}` width parsers, three title-casers).
 
-Boundary with siblings: 0179 builds the **libraries**; 0173 (`accelerator-corpus`)
-is the inbound CLI that consumes them and owns corpus-frontmatter *validation*
-(out of scope here); 0168 folds the visualiser into `cli/` and touches the same
+Boundary with siblings: 0179 builds the **libraries**; 0195 (`accelerator-corpus`,
+split from the now-abandoned 0173) is the inbound CLI that consumes them and
+owns corpus-frontmatter *validation* (out of scope here); 0168 folds the
+visualiser into `cli/` and touches the same
 code this task extracts; 0170 (`accelerator-work`) is built *on top of* corpus
 and owns the work-item lifecycle and the ID pattern DSL compiler; 0180 lands the
 atomic-store primitives in `corpus-adapters`.
@@ -259,8 +260,9 @@ tag variant).
     creates.
   - 0170 (`accelerator-work`) — consumes `corpus`; cannot land its
     library-consuming work until these crates exist.
-  - 0173 (`accelerator-corpus` CLI) — consumes these libraries; owns
-    corpus-frontmatter validation (out of scope here).
+  - 0195 (`accelerator-corpus` CLI, split from the now-abandoned 0173) —
+    consumes these libraries; owns corpus-frontmatter validation (out of scope
+    here).
   - 0168 — folds the visualiser into `cli/` over the same code this task
     extracts; **0179 extracts first**, then 0168 folds the remaining server. The
     two are sequenced, not independent.
@@ -282,8 +284,9 @@ tag variant).
   pinned (`=0.0.29`), and fenced by a cargo-deny wrapper in this repo, so the
   serde-free-domain + serde-saphyr-in-adapters direction is a known-good pattern
   rather than a bet.
-- Corpus-frontmatter *validation* is 0173's concern, not 0179's; this task ships
-  the parse/convention primitives validation is later built on.
+- Corpus-frontmatter *validation* is 0195's concern (split from the
+  now-abandoned 0173), not 0179's; this task ships the parse/convention
+  primitives validation is later built on.
 
 ## Technical Notes
 
@@ -485,8 +488,8 @@ the slug bash-parity harness needing re-pathing when the crate moves into `cli/`
   Revisit only if a document legitimately needs a tag.
 - **Library-vs-CLI boundary**: interpreted 0179 as strictly the libraries and
   assigned artifact-metadata's *command* surface and corpus-frontmatter
-  *validation* to 0173. If the intent was for 0179 to also ship a CLI or the
-  validator, that boundary needs revisiting.
+  *validation* to 0173, later split into 0195. If the intent was for 0179 to
+  also ship a CLI or the validator, that boundary needs revisiting.
 - **Value-model policy**: chose config's big-int-as-`String` policy over the
   visualiser's `f64`/`Null` widening, and a no-tag-variant value model, to
   converge corpus with the already-shipped config semantics. These are
@@ -499,7 +502,8 @@ the slug bash-parity harness needing re-pathing when the crate moves into `cli/`
   `meta/work/0180-atomic-store-primitives-corpus-adapters.md`,
   `meta/work/0168-fold-visualiser-into-cli-workspace.md`,
   `meta/work/0170-work-item-subdomain-and-sync-engine.md`,
-  `meta/work/0173-remaining-subdomains-corpus-design-collaboration.md`
+  `meta/work/0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
+  (split from the now-abandoned `meta/work/0173-remaining-subdomains-corpus-design-collaboration.md`)
 - Convention specs: ADR-0034 (typed-linkage), ADR-0045 (bash/Rust duplication),
   ADR-0053; `meta/work/0060` (unified frontmatter schema), `meta/work/0061`
   (typed-linkage vocabulary), `meta/work/0064` (canonical work-item-id/author)
