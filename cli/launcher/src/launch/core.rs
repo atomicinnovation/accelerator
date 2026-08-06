@@ -166,8 +166,61 @@ impl std::error::Error for ResolutionError {}
 
 impl From<ResolutionError> for kernel::Error {
     fn from(error: ResolutionError) -> Self {
-        Self::Failed(error.to_string())
+        match error {
+            ResolutionError::ChecksumMismatch { .. }
+            | ResolutionError::SignatureMismatch { .. }
+            | ResolutionError::ManifestSignature
+            | ResolutionError::ManifestVersionMismatch { .. }
+            | ResolutionError::CorruptCacheAndRefetchFailed { .. } => {
+                let message = error.to_string();
+                Self::Refusal(message)
+            }
+            ResolutionError::EmptyCommand
+            | ResolutionError::InvalidOverrideName { .. }
+            | ResolutionError::Unresolved { .. }
+            | ResolutionError::Fetch { .. }
+            | ResolutionError::AssetNotFound { .. }
+            | ResolutionError::ReleaseUnavailable { .. }
+            | ResolutionError::UnsupportedSchema { .. }
+            | ResolutionError::Cache { .. }
+            | ResolutionError::CacheRootUnavailable { .. }
+            | ResolutionError::Exec { .. } => {
+                let message = error.to_string();
+                Self::Failed(message)
+            }
+        }
     }
+}
+
+/// Whether `--fail-safe` appears in `args` before any `--` separator,
+/// mirroring `bin/accelerator`'s own scan: the token is recognised anywhere
+/// before the separator and ignored after it or if absent.
+#[must_use]
+pub fn forwarded_fail_safe(args: &[OsString]) -> bool {
+    for arg in args {
+        if arg == "--" {
+            return false;
+        }
+        if arg == "--fail-safe" {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether a `kernel::Error` from resolving/exec'ing an external subcommand
+/// should be swallowed (exit 0) given the subcommand's forwarded `args`.
+///
+/// An explicit allowlist, not a `Refusal` exclusion: only `Failed`
+/// (availability-class failures) are swallowable. `kernel::Error` also has a
+/// `LogFilter` variant, unrelated to external-dispatch resolution, that an
+/// exclusion-based predicate would swallow too.
+#[must_use]
+pub fn swallow_under_fail_safe(
+    error: &kernel::Error,
+    args: &[OsString],
+) -> bool {
+    forwarded_fail_safe(args) && matches!(error, kernel::Error::Failed(_))
 }
 
 /// Resolves a sub-binary name to an executable path — a driven port.
@@ -247,8 +300,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        derive_override_var, run_external, ExecBinary, ExternalCommand,
-        ResolutionError, ResolveBinary,
+        derive_override_var, forwarded_fail_safe, run_external,
+        swallow_under_fail_safe, ExecBinary, ExternalCommand, ResolutionError,
+        ResolveBinary,
     };
 
     fn command(name: &str, args: &[&str]) -> ExternalCommand {
@@ -359,6 +413,141 @@ mod tests {
         };
         let kernel_error: kernel::Error = error.into();
         assert!(kernel_error.to_string().contains("frobnicate"));
+        assert!(matches!(kernel_error, kernel::Error::Failed(_)));
+    }
+
+    #[test]
+    fn integrity_class_resolution_errors_map_to_kernel_refusal() {
+        let errors = vec![
+            ResolutionError::ChecksumMismatch {
+                asset: "a".to_owned(),
+                expected: "e".to_owned(),
+                actual: "a".to_owned(),
+            },
+            ResolutionError::SignatureMismatch {
+                asset: "a".to_owned(),
+            },
+            ResolutionError::ManifestSignature,
+            ResolutionError::ManifestVersionMismatch {
+                expected: "1".to_owned(),
+                actual: "2".to_owned(),
+            },
+            ResolutionError::CorruptCacheAndRefetchFailed {
+                asset: "a".to_owned(),
+                detail: "d".to_owned(),
+            },
+        ];
+        for error in errors {
+            let kernel_error: kernel::Error = error.into();
+            assert!(
+                matches!(kernel_error, kernel::Error::Refusal(_)),
+                "expected a Refusal, got {kernel_error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn availability_class_resolution_errors_map_to_kernel_failed() {
+        let errors = vec![
+            ResolutionError::EmptyCommand,
+            ResolutionError::InvalidOverrideName {
+                name: "n".to_owned(),
+                detail: "d".to_owned(),
+            },
+            ResolutionError::Unresolved {
+                name: OsString::from("n"),
+            },
+            ResolutionError::Fetch {
+                target: "t".to_owned(),
+                url: "u".to_owned(),
+            },
+            ResolutionError::AssetNotFound {
+                target: "t".to_owned(),
+                url: "u".to_owned(),
+            },
+            ResolutionError::ReleaseUnavailable {
+                target: "t".to_owned(),
+                url: "u".to_owned(),
+            },
+            ResolutionError::UnsupportedSchema {
+                found: 2,
+                supported: 1,
+            },
+            ResolutionError::Cache {
+                path: PathBuf::from("/cache"),
+                detail: "d".to_owned(),
+            },
+            ResolutionError::CacheRootUnavailable {
+                detail: "d".to_owned(),
+            },
+            ResolutionError::Exec {
+                program: PathBuf::from("/bin/foo"),
+                source: std::io::Error::other("boom"),
+            },
+        ];
+        for error in errors {
+            let kernel_error: kernel::Error = error.into();
+            assert!(
+                matches!(kernel_error, kernel::Error::Failed(_)),
+                "expected Failed, got {kernel_error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn forwarded_fail_safe_is_true_when_present_before_the_separator() {
+        assert!(forwarded_fail_safe(&[
+            OsString::from("detect"),
+            OsString::from("--fail-safe"),
+            OsString::from("--format=hook"),
+        ]));
+    }
+
+    #[test]
+    fn forwarded_fail_safe_is_false_after_the_separator() {
+        assert!(!forwarded_fail_safe(&[
+            OsString::from("detect"),
+            OsString::from("--"),
+            OsString::from("--fail-safe"),
+        ]));
+    }
+
+    #[test]
+    fn forwarded_fail_safe_is_false_when_absent() {
+        assert!(!forwarded_fail_safe(&[OsString::from("detect")]));
+    }
+
+    #[test]
+    fn swallow_under_fail_safe_swallows_failed_when_forwarded() {
+        let args = [OsString::from("--fail-safe")];
+        let error = kernel::Error::Failed("unreachable host".to_owned());
+        assert!(swallow_under_fail_safe(&error, &args));
+    }
+
+    #[test]
+    fn swallow_under_fail_safe_never_swallows_failed_when_not_forwarded() {
+        let args = [OsString::from("detect")];
+        let error = kernel::Error::Failed("unreachable host".to_owned());
+        assert!(!swallow_under_fail_safe(&error, &args));
+    }
+
+    #[test]
+    fn swallow_under_fail_safe_never_swallows_refusal() {
+        let args = [OsString::from("--fail-safe")];
+        let error = kernel::Error::Refusal("tampered binary".to_owned());
+        assert!(!swallow_under_fail_safe(&error, &args));
+    }
+
+    #[test]
+    fn swallow_under_fail_safe_never_swallows_log_filter() {
+        let args = [OsString::from("--fail-safe")];
+        let parsed =
+            "bogus=level".parse::<tracing_subscriber::filter::EnvFilter>();
+        let Err(parse_error) = parsed else {
+            unreachable!("\"bogus=level\" is not a valid filter");
+        };
+        let error = kernel::Error::LogFilter(parse_error);
+        assert!(!swallow_under_fail_safe(&error, &args));
     }
 
     #[test]

@@ -11,10 +11,10 @@ priority: high
 parent: "work-item:0136"
 blocked_by: ["work-item:0164", "work-item:0166", "work-item:0167", "work-item:0179", "work-item:0186", "work-item:0187", "work-item:0188"]
 blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173", "work-item:0174"]
-relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
+relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "work-item:0189", "work-item:0192", "work-item:0193", "work-item:0198", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-03T16:37:02+00:00"
+last_updated: "2026-08-06T02:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-190"
@@ -137,8 +137,8 @@ segment matches; the first matching segment names the reported subcommand.
   - `vcs guard` → `hooks/vcs-guard.sh`
   - `vcs status` / `vcs log` → `scripts/vcs-status.sh` / `scripts/vcs-log.sh`
   - `classify_checkout` semantics → `scripts/vcs-common.sh`
-- **Declared behavioural changes** — exactly two departures, each tested as the
-  *new* behaviour:
+- **Declared behavioural changes** — exactly four departures, each tested as
+  the *new* behaviour:
   1. the PreToolUse envelope moves to the `permissionDecision` shape;
   2. the `.git`-as-*file* colocated misclassification is **corrected**, for `vcs
      detect` and `vcs guard` only. Those two test `-d "$REPO_ROOT/.git"`
@@ -156,10 +156,26 @@ segment matches; the first matching segment names the reported subcommand.
      | `vcs guard` | **blocks** (pure-jj) | **warns** (colocated) |
 
      Everything else is parity.
+  3. `vcs detect`'s default output narrows to structured-only (the boundary
+     block, or nothing when there is no boundary — satisfying the
+     success-with-nothing-to-report contract cleanly). The shell's
+     unconditional "VCS Command Reference" text (`vcs-detect.sh:40-82`) moves
+     behind a new `--descriptive` flag. The registered SessionStart command
+     passes `--descriptive`, so the user-visible transcript is unchanged;
+     no other caller of `vcs detect` is known to exist.
+  4. `vcs guard`'s compound-command splitter is **quote-aware**, not a port of
+     the shell's quote-blind `sed`-then-split (`hooks/vcs-guard.sh:44-70`).
+     The shell wrongly splits inside a quoted string — `git commit -m "build
+     && test"` is misread as two segments — and this is a parsing defect, not
+     a policy decision worth carrying forward under a "parity" banner. The
+     Rust splitter tracks single-/double-quote state and only treats
+     `&&`/`||`/`;`/`|` as real separators when unquoted. Tested as the new
+     behaviour with a hand-authored decision-table row (not captured from the
+     shell, which gets this case wrong) — the same treatment as departure 2.
 - Migrate the hook logic into the CLI. **The three registered command strings,
   verbatim** (the parity gate asserts the exact literal):
   - SessionStart: `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect
-    --format=hook --fail-safe`
+    --format=hook --fail-safe --descriptive`
   - SessionStart: `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config summary
     --format=hook --fail-safe`
   - PreToolUse(`Bash`): `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs guard
@@ -173,13 +189,22 @@ segment matches; the first matching segment names the reported subcommand.
   error*: any failure — a failed first-use fetch, an unreachable release host,
   an unreadable repository — must let the Bash call through. The bootstrap
   honours `--fail-safe` as a global token (`bin/accelerator:28-39`), so
-  bootstrap and trust-chain aborts inherit it.
+  bootstrap and trust-chain aborts inherit it. **Scope note**: "any failure"
+  means any *external-dispatch resolution* failure — `kernel::Error::LogFilter`
+  (a malformed `ACCELERATOR_LOG` value, surfaced by `kernel::logging::init()`
+  before dispatch even runs) is deliberately excluded, since it is a
+  pre-dispatch, developer-controlled logging setup step shared by every
+  subcommand, not a per-subcommand availability or integrity failure — see
+  the plan's Phase 5, item 1.
 - **Output contract, stated once.** `--format=hook` renders a per-hook-type
   envelope. The two non-normal outcomes are **disjoint by definition** — one is
   a success, the other an error, and no run is both:
   - **Success with nothing to report** (the adapter answered; there is simply no
     context — e.g. a main checkout with no boundary, or no repository at all):
-    **zero bytes**, exit 0.
+    **zero bytes**, exit 0. For `vcs detect` this applies to the default,
+    non-`--descriptive` invocation only — `--descriptive` always carries the
+    reference text regardless of boundary presence, per the third declared
+    departure above.
   - **Adapter failure** (the adapter could not answer — unreadable or corrupt
     repository): **exactly one JSON object containing `systemMessage`**, exit 0
     under `--fail-safe`. On stdout, not stderr, because 0183 establishes stderr
@@ -207,6 +232,12 @@ segment matches; the first matching segment names the reported subcommand.
 1. **Confirm the hook schema at the floor before designing the envelope.** If
    `permissionDecision` is not honoured at Claude Code v2.1.144, that decision
    must be revisited. Minutes-long empirical check; gates planning.
+   **RESOLVED 2026-08-05**: both `permissionDecision:"deny"` and a bare
+   top-level `systemMessage` (no `permissionDecision` key) are honoured, at
+   both the current client and the declared floor (v2.1.144, run via `npx
+   @anthropic-ai/claude-code@2.1.144`). See Validation Results. The envelope
+   design in this work item and its plan stands as specified; no exit-2
+   fallback is needed.
 2. **Capture the shell's behaviour as fixtures before deleting any of it**, in a
    commit that precedes the deletion commit so the ordering is checkable from
    history. `hooks/vcs-guard.sh` has zero coverage today and the status/log
@@ -215,22 +246,29 @@ segment matches; the first matching segment names the reported subcommand.
    parity gate** — it cannot run against a binary until the task gains
    `build:cli:dev` and `accelerator_env()`.
 4. **Do not ship the `hooks.json` rewrite ahead of a release whose manifest
-   lists `accelerator-vcs`.** The launcher's exact-version-equality
-   anti-rollback rule makes a missing entry a hard failure. The dev path
-   (`build:cli:dev` plus `ACCELERATOR_VCS_BIN`) is unaffected; the
-   installed-plugin path is not.
+   lists `accelerator-vcs`.** The dev path (`build:cli:dev` plus
+   `ACCELERATOR_VCS_BIN`) is unaffected; the installed-plugin path is not.
+   **Revised 2026-08-05**: a missing `accelerator-vcs` manifest entry is a
+   `Failed`-class `ResolutionError` (`AssetNotFound`), which the plan's
+   strengthened fail-safe fix (Phase 5) already swallows gracefully —
+   distinct from the integrity-class failures (`SignatureMismatch` etc.)
+   that fix deliberately does *not* swallow. So a premature merge degrades
+   to the guard silently not protecting anyone on that release, not a hard
+   failure across every installed plugin. The ordering constraint still
+   stands (silent non-protection is still worth avoiding), but its severity
+   is narrower than "hard failure" implies.
 
 ## Acceptance Criteria
 
-- [ ] **The envelope is honoured at the declared floor**: on Claude Code
+- [x] **The envelope is honoured at the declared floor**: on Claude Code
       v2.1.144, a real Bash call to a blocked git subcommand in a pure-jj repo
       is denied, and the colocated warning appears in the session transcript.
-      Recorded in Validation Results with the observed client version. If the
-      shapes are unsupported, the fallback taken here is **exit-2 with stderr
-      feedback**; raising the plugin's minimum version is escalated to epic
-      0136, not taken here, and the plan states which goldens survive under
-      exit-2.
-- [ ] **Shell behaviour captured as committed fixtures before any deletion**, in
+      Recorded in Validation Results with the observed client version.
+      **Confirmed 2026-08-05** via a synthetic PreToolUse hook exercising both
+      shapes directly (ahead of the guard's own implementation, which is
+      re-verified end to end in Phase 10 of the plan) — no exit-2 fallback is
+      needed.
+- [x] **Shell behaviour captured as committed fixtures before any deletion**, in
       a commit preceding the deletion commit: the `vcs status`/`vcs log` goldens
       and the `vcs guard` decision table. The volatile-field mask set is derived
       from the capture, enumerated per subcommand in the plan, committed as a
@@ -239,8 +277,8 @@ segment matches; the first matching segment names the reported subcommand.
       characters, jj change ids (32-character non-hex), ISO-8601 *and* jj's
       space-separated timestamps, relative age strings, the fixture tempdir
       path, and author identity.
-- [ ] `accelerator vcs detect` reproduces `hooks/vcs-detect.sh`, verified
-      against the repointed parity gate. The two goldens
+- [x] `accelerator vcs detect --descriptive` reproduces `hooks/vcs-detect.sh`,
+      verified against the repointed parity gate. The two goldens
       (`hooks/test-fixtures/vcs-detect/*.json`) are compared after `jq -S .`
       canonicalisation on both sides and must equal the current shell-produced
       content; a value difference fails. Separately, a **third** detect fixture
@@ -248,17 +286,26 @@ segment matches; the first matching segment names the reported subcommand.
       must report mode `jj-colocated` (today: `jj`). Its golden is **authored as
       the new expectation and marked in the fixture as a deliberate
       divergence**, not derived from the capture — the shell is not the oracle
-      for a declared behavioural change.
-- [ ] **The 42 parity-gate cases partition into four disjoint buckets**, each
-      case in exactly one, stated in the plan as a line-range partition summing
-      to 42: (a) 27 in-process `vcs-common.sh` cases → moved to
-      `scripts/test-vcs-common.sh`; (b) the subprocess cases that repoint by
-      changing the `HOOK` constant; (c) the missing-`jj`/`git`-binary cases →
+      for a declared behavioural change. A **fourth** fixture pins
+      `vcs detect`'s default (non-`--descriptive`) structured-only output,
+      which has no shell equivalent — the third declared departure.
+- [x] **The 42 parity-gate cases partition into five disjoint buckets**, each
+      case in exactly one, stated in the plan as a line-range partition
+      summing to 42 (**revised 2026-08-05** — corrected from an earlier
+      four-bucket, 27-case count that undercounted a host-artefact case the
+      plan's own Key Discoveries derives by reading the full 713-line file):
+      (a) 26 in-process `vcs-common.sh` cases → moved to
+      `scripts/test-vcs-common.sh`; (b) 8 subprocess cases that repoint by
+      changing the `HOOK` constant; (c) 5 missing-`jj`/`git`-binary cases →
       deleted, since no external binary is consulted; (d) two singletons — the
       comment-block grep case → deleted, and the `hooks.json` literal assertion
       → updated to the new registration and made order-independent rather than
-      pinned to `SessionStart[0]`.
-- [ ] `accelerator vcs status` and `accelerator vcs log` match the captured
+      pinned to `SessionStart[0]`; (e) one static golden-snapshot host-artefact
+      check (`hooks/test-vcs-detect.sh:196-202`) that calls neither a
+      `vcs-common.sh` function nor `$HOOK` — preserved in place, now asserting
+      the Rust-produced goldens are equally free of host-specific path
+      leakage. 26+8+5+2+1 = 42.
+- [x] `accelerator vcs status` and `accelerator vcs log` match the captured
       goldens across: clean git, dirty git, git ahead/behind, detached-HEAD git,
       clean jj, dirty jj, colocated, jj secondary workspace, and no repository
       at all. (No `.git`-as-file case: `vcs-status.sh:9`/`vcs-log.sh:9` branch
@@ -268,34 +315,35 @@ segment matches; the first matching segment names the reported subcommand.
       "ahead/behind" is a local clone two commits ahead and one behind upstream;
       the no-repository expectation is the shell's own behaviour, captured with
       the rest.
-- [ ] `accelerator vcs guard` reproduces the captured decision table. The row
+- [x] `accelerator vcs guard` reproduces the captured decision table. The row
       count is **34 command cases × 4 repo modes = 136**, plus the
-      `.git`-as-file colocated case: 13 blocked subcommands + 7 allowed + `gh` +
-      `rtk` + 12 compound cases (4 separators × match-first / match-later /
-      no-match) = 34; repo modes are pure-jj, colocated, git, non-repo. The
-      multiplier applies uniformly, so the total is checkable against the
-      capture.
-- [ ] The `classify_checkout` port is verified by a fixture covering every arm
+      `.git`-as-file colocated case, plus one quote-aware compound-split
+      departure case (`git commit -m "build && test"` against pure-jj — the
+      quoted `&&` must not be treated as a separator, the fourth declared
+      departure; see below) = **138**: 13 blocked subcommands + 7 allowed +
+      `gh` + `rtk` + 12 compound cases (4 separators × match-first /
+      match-later / no-match) =
+      34; repo modes are pure-jj, colocated, git, non-repo. The multiplier
+      applies uniformly, so the total is checkable against the capture.
+- [x] The `classify_checkout` port is verified by a fixture covering every arm
       in the authoritative list, asserting first-match-wins for the named
       ambiguous case: **a colocated checkout nested inside another repository
       classifies as `colocated`, not `nested-*`**. The set is asserted
       **closed** — exactly the seven named variants — so a superset taxonomy is
       detectable.
-- [ ] `hooks.json` registers the three command strings verbatim. A golden exists
+- [x] `hooks.json` registers the three command strings verbatim. A golden exists
       **per emitted output shape**; the plan enumerates the final list, which
       includes at least: SessionStart with `systemMessage`, SessionStart
-      without, plain `vcs detect`, plain `vcs guard`, PreToolUse deny, and
-      PreToolUse warn-only.
-- [ ] The PreToolUse guard emits
+      without, plain `vcs detect` (structured and `--descriptive`), plain
+      `vcs guard`, PreToolUse deny, and PreToolUse warn-only.
+- [x] The PreToolUse guard emits
       `{hookSpecificOutput:{hookEventName:"PreToolUse",
       permissionDecision:"deny", permissionDecisionReason:…}}` for a pure-jj
       block. The colocated "warn but permit" case emits a bare top-level
       `{systemMessage:…}` with **no** `permissionDecision` — `"allow"` skips the
       interactive permission prompt and would widen privilege under cover of a
       format change; `"ask"` would force a prompt where none is forced today.
-      *Applies unless the floor check selects the exit-2 fallback, in which case
-      the fallback's stderr text is pinned instead.*
-- [ ] **The guard fails open, three ways.** (a) Release host unreachable with an
+- [x] **The guard fails open, three ways.** (a) Release host unreachable with an
       empty cache — `ACCELERATOR_RELEASE_BASE_URL` at a dead address — the hook
       exits 0 and emits no blocking envelope. (b) Host reachable but serving a
       manifest with no `accelerator-vcs` entry — same outcome. (c) A corrupt
@@ -303,7 +351,7 @@ segment matches; the first matching segment names the reported subcommand.
       emits no `permissionDecision`. Fault injection is by a test-only failing
       adapter or a named env override, never by file permissions, so none of
       these can pass vacuously under root.
-- [ ] **The two non-normal outputs are pinned separately**, matching the
+- [x] **The two non-normal outputs are pinned separately**, matching the
       disjoint contract: (a) *success with nothing to report* — in a main
       checkout with no boundary, `vcs detect --format=hook --fail-safe` exits 0
       and writes exactly zero bytes to stdout; (b) *adapter failure* — with a
@@ -315,13 +363,20 @@ segment matches; the first matching segment names the reported subcommand.
       it appears in the generated manifest with a description and signature;
       `validate_dispatch_coherence` (generalised by 0187) covers the `vcs`
       token; `cargo deny`, `cargo-pup` and `--locked` clippy pass; the musl
-      build passes `_assert_static_elf`.
+      build passes `_assert_static_elf`. **Partially verified 2026-08-06**:
+      manifest/description generation, `validate_dispatch_coherence`, `cargo
+      deny`, `cargo-pup` and `--locked` clippy all confirmed green via `mise
+      run`. The musl cross-compile (`build:cli:cross-compile`) is a
+      release-pipeline-only task, not a `mise run` dependency, so
+      `_assert_static_elf` has not yet been exercised against a real
+      cross-compiled `accelerator-vcs` binary — left unchecked pending the
+      next release build alongside the release-cut criterion below.
 - [ ] **The release precedes the rewrite.** A published manifest listing
       `accelerator-vcs` exists before the `hooks.json` rewrite reaches an
       installed-plugin path, verified against the *published* manifest rather
       than the locally generated one. (The reachable-host-but-missing-entry case
       is covered by the fail-open criterion; this one covers the ordering.)
-- [ ] After first use, the guard resolves from the warmed cache — zero
+- [x] After first use, the guard resolves from the warmed cache — zero
       sub-binary fetch invocations against a stubbed fetcher across repeated
       calls.
 - [ ] **Warm-call latency**, host-relative: in one session on one darwin-arm64
@@ -332,8 +387,11 @@ segment matches; the first matching segment names the reported subcommand.
       Record B, G, the ratio, the payload, the fixture and the host in
       Validation Results. Not a CI job — which means "not automated", not "not
       required".
-- [ ] `skills/vcs/commit/SKILL.md:13-14` invoke
-      `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status` and `… vcs log`, and
+- [x] `skills/vcs/commit/SKILL.md:13-14` invoke
+      `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status --fail-safe` and
+      `… vcs log --fail-safe` (the flag lets a cold-cache dispatch failure
+      degrade the skill's injected context rather than failing the
+      invocation, per the External systems dependency note below), and
       its `allowed-tools` drops `Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*)` for
       `Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs *)`. Verified by (a) the
       permission lint and the count of SKILL.md files using `!` injection
@@ -342,7 +400,7 @@ segment matches; the first matching segment names the reported subcommand.
       already-counted skill*, so the file count is unaffected), and (b) a
       runtime check that both commands exit 0 and emit non-empty output in a
       fixture repo.
-- [ ] `hooks/vcs-detect.sh`, `hooks/vcs-guard.sh`, `hooks/config-detect.sh`,
+- [x] `hooks/vcs-detect.sh`, `hooks/vcs-guard.sh`, `hooks/config-detect.sh`,
       `scripts/vcs-status.sh` and `scripts/vcs-log.sh` are removed, and prose
       documentation naming any of them (`README.md`, `docs/internals.md`,
       `tasks/README.md`) is updated to the new subcommands — no listed guard
@@ -351,7 +409,7 @@ segment matches; the first matching segment names the reported subcommand.
       surviving suites are `hooks/test-migrate-discoverability.sh` and the
       repointed parity gate — and is re-verified green after the deletions. All
       five removed files are entrypoints, so `SHELL_LIBRARIES` needs no edit.
-- [ ] **The downstream hand-offs are raised** as a dated note appended to each
+- [x] **The downstream hand-offs are raised** as a dated note appended to each
       receiving work item's Dependencies section — 0172 (proposed `blocked_by:
       work-item:0169` plus `hooks/migrate-discoverability.sh` in its source
       list), 0183 (`accelerator vcs detect` is a new SessionStart site for its
@@ -362,16 +420,13 @@ segment matches; the first matching segment names the reported subcommand.
       `log`/`diff` leave the guard's blocked set (which would unblock
       `skills/planning/validate-plan` in pure-jj repos). Appending the notes and
       creating the two items are in scope; re-scoping existing items is not.
-- [ ] `mise run` is green end to end.
+- [x] `mise run` is green end to end.
 
 ## Open Questions
 
-- **Are `permissionDecision` and top-level `systemMessage` honoured at Claude
-  Code v2.1.144?** The documentation dates neither field, and the guard
-  migration rests on them. **Default if unresolved: do not implement the guard
-  envelope** — resolve first (Sequencing Constraint 1). The in-story fallback is
-  exit-2 with stderr feedback; raising the plugin floor is escalated to epic
-  0136.
+- ~~Are `permissionDecision` and top-level `systemMessage` honoured at Claude
+  Code v2.1.144?~~ **RESOLVED 2026-08-05** — yes, both are honoured at the
+  floor. See Sequencing Constraint 1 and Validation Results.
 - Where does the shared hook-envelope module live? 0167's renderer has no
   `systemMessage` slot, and cargo-pup forbids `config_command` importing
   `crate::launch`. **Default if unresolved: a new module in the launcher**
@@ -459,13 +514,15 @@ segment matches; the first matching segment names the reported subcommand.
   be fetched.
 - **Process prerequisite — the release cut.** Sequencing Constraint 4 forbids
   shipping the `hooks.json` rewrite ahead of a release whose manifest lists
-  `accelerator-vcs`, because the launcher's exact-version-equality anti-rollback
-  rule turns a missing entry into a hard failure for every installed plugin.
-  That release is **not** produced by this story's code changes — it requires a
-  release run and the minisign signing key. Owner: whoever performs epic-0136
-  releases. It must be scheduled as part of accepting this story, and is gated
-  by an acceptance criterion rather than left to the sequencing constraint
-  alone.
+  `accelerator-vcs`. **Severity revised 2026-08-05, see Sequencing Constraint
+  4**: a missing entry is `Failed`-class and covered by Phase 5's fail-safe
+  swallow, so this degrades to the guard silently not protecting anyone on
+  that release, not a hard failure across every installed plugin. The
+  ordering constraint still stands regardless. That release is **not**
+  produced by this story's code changes — it requires a release run and the
+  minisign signing key. Owner: whoever performs epic-0136 releases. It must
+  be scheduled as part of accepting this story, and is gated by an acceptance
+  criterion rather than left to the sequencing constraint alone.
 - **Blocks**: 0172 (its migrate-discoverability migration builds on this
   `hooks.json` rewrite; 0172 currently records **no `blocked_by` at all**);
   0170, 0171, 0173 (each ships its own sub-binary and inherits the hook-envelope
@@ -482,6 +539,19 @@ segment matches; the first matching segment names the reported subcommand.
   script**, so despite the `blocks: 0174` edge it does not claim this.
   Separately, `hooks/launcher-link-refresh.sh` is claimed by no epic-0136 story.
   An acceptance criterion requires a follow-up item owning both.
+
+  **Resolved 2026-08-06**: [`0192`](0192-retire-vcs-common-sh-residue-and-launcher-link-refresh.md)
+  now owns both — the `find_repo_root`/`vcs_mode` residue (with
+  `classify_checkout`'s fate as part of its inventory) and
+  `hooks/launcher-link-refresh.sh`. Separately,
+  [`0193`](0193-decide-vcs-guard-log-diff-blocklist-membership.md) now owns
+  the `log`/`diff` blocklist-membership decision this story's Phase 1/Phase 7
+  declined to make (see the parity-scope note above and Phase 10 of the
+  implementation plan). A third follow-up,
+  [`0198`](0198-migrate-vcs-status-log-onto-library-backed-adapters.md), owns
+  the deliberate subprocess-not-library choice for `vcs status`/`vcs log`
+  themselves — Key Discoveries' "no byte-parity guarantee" note above is
+  where that scope originates.
 - **Parent**: epic 0136.
 
 ## Assumptions
@@ -608,9 +678,16 @@ story's, and the "~41 ms warm bootstrap" this item cites is **derived**
 
 ## Validation Results
 
-- **Claude Code floor check**: observed client version — _pending_; are
-  `permissionDecision` and top-level `systemMessage` honoured — _pending_;
-  fallback taken, if any — _pending_.
+- **Claude Code floor check (schema pre-check, 2026-08-05)**: observed client
+  versions — the then-current client, and the declared floor v2.1.144 (run via
+  `npx @anthropic-ai/claude-code@2.1.144`); both `permissionDecision` and
+  top-level `systemMessage` honoured — **yes, at both versions**: a synthetic
+  PreToolUse hook returning `permissionDecision:"deny"` blocked the matching
+  Bash call, and a bare `{"systemMessage":...}` (no `permissionDecision` key)
+  let the call through while still surfacing the message; fallback taken —
+  **none needed**. This pre-checks the raw schema ahead of the guard's own
+  implementation; Phase 10's "Claude Code floor check" manual item re-verifies
+  the same shapes end to end once `vcs guard` is built.
 - **Warm-call latency**: B — _pending_; G — _pending_; ratio — _pending_;
   payload and fixture — _pending_; host and OS version — _pending_.
 

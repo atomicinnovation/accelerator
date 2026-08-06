@@ -39,10 +39,13 @@ _LAUNCHER = "build:cli:dev"
 _INTEGRATION_PREFIX = "test:integration:"
 
 # Integration tasks that reach the compiled launcher and so MUST carry the
-# build:cli:dev edge. All six drive shell suites through accelerator_env().
+# build:cli:dev edge. All drive shell suites through accelerator_env(), except
+# hooks, whose surviving bash harness dispatches accelerator-vcs through the
+# launcher directly (ACCELERATOR_VCS_BIN), not via a repointed shell script.
 _LAUNCHER_DEPENDENTS = [
     "test:integration:config",
     "test:integration:decisions",
+    "test:integration:hooks",
     "test:integration:migrate",
     "test:integration:work",
     "test:integration:integrations",
@@ -58,7 +61,6 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
-    "test:integration:hooks": "shell suites run with no accelerator_env",
     "test:integration:github": "shell suites run with no accelerator_env",
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
     "test:integration:zero-spawn:strong": "the same suite, with the real "

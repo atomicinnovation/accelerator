@@ -1,0 +1,5 @@
+@  <JJ_CHANGE_ID> <AUTHOR_IDENTITY> <JJ_SPACE_TIMESTAMP> <HEX_OBJECT_ID>
+│  (empty) (no description set)
+○  <JJ_CHANGE_ID> <AUTHOR_IDENTITY> <JJ_SPACE_TIMESTAMP> main <HEX_OBJECT_ID>
+│  (empty) init
+◆  <JJ_CHANGE_ID> root() <HEX_OBJECT_ID>

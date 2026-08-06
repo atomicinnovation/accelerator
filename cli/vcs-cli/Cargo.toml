@@ -1,0 +1,32 @@
+[package]
+name = "accelerator-vcs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "The vcs detect|status|log|guard sub-binary."
+
+[lints]
+workspace = true
+
+[features]
+# The golden-fixture comparison test builds real jj and git repositories. Same
+# contract as vcs-adapters: on, an absent binary hard-fails; off, that suite is
+# skipped entirely. CI enables it (tasks/test/cli.py).
+bash-parity = []
+
+[[bin]]
+name = "accelerator-vcs"
+path = "src/main.rs"
+
+[dependencies]
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+kernel = { path = "../kernel" }
+clap = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }

@@ -361,10 +361,13 @@ def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
     Two halves: the pytest suites (ADR-0048 — Python is the test language for
-    the non-Rust surfaces) and the two bash harnesses that predate it.
+    the non-Rust surfaces) and the two bash harnesses that predate it. The
+    surviving bash harness (test-vcs-detect.sh) dispatches the compiled
+    accelerator-vcs sub-binary through the real launcher, so it needs both on
+    ACCELERATOR_BIN/ACCELERATOR_VCS_BIN — the vcs_bin=True overlay.
     """
     context.run("uv run pytest tests/integration/hooks -v")
-    suites = run_shell_suites(context, "hooks")
+    suites = run_shell_suites(context, "hooks", accelerator_env(vcs_bin=True))
     _require_suite_floor(suites, _EXPECTED_HOOKS_SUITES, (), "hooks")
 
 

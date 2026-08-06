@@ -138,6 +138,7 @@ impl FetchVerifyCacheResolver {
         &self,
         name: &str,
     ) -> Result<PathBuf, ResolutionError> {
+        cache_root::verify_writable(&self.config.cache_root)?;
         let base = &self.config.base_url;
         let manifest = self.load_manifest()?;
         // Sub-binary release assets are `accelerator-<token>-<platform>`: the
@@ -196,13 +197,34 @@ impl ResolveBinary for FetchVerifyCacheResolver {
             // a hit; on failure self-heal by fetching a verified replacement.
             match self.reverify(&cached) {
                 Ok(()) => return Ok(cached.path),
-                Err(_) => {
+                // A confirmed integrity failure: the local detection alone is
+                // sufficient evidence, so any refetch failure is reported as
+                // confirmed tampering, regardless of why the retry failed.
+                Err(
+                    error @ (ResolutionError::ChecksumMismatch { .. }
+                    | ResolutionError::SignatureMismatch { .. }),
+                ) => {
+                    tracing::warn!(
+                        %error,
+                        "cached binary failed re-verification; refetching"
+                    );
                     return self.fetch_verify_store(name).map_err(|error| {
                         ResolutionError::CorruptCacheAndRefetchFailed {
                             asset: name.to_owned(),
                             detail: error.to_string(),
                         }
                     });
+                }
+                // A plain cache I/O error (permissions, a concurrent writer, a
+                // transient disk error) — not evidence of tampering, so a
+                // refetch failure is propagated on its own merits rather than
+                // reported as confirmed tampering.
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        "could not read the cached binary; refetching"
+                    );
+                    return self.fetch_verify_store(name);
                 }
             }
         }

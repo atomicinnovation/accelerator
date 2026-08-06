@@ -32,7 +32,7 @@ from tasks.shared.paths import (
 )
 from tasks.shared.targets import TARGETS
 
-_CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify")
+_CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify", "accelerator-vcs")
 
 # The linked/stubbed pair whose size delta proves the VCS dependency trees are
 # actually linked. Deliberately NOT in _CLI_RELEASE_BINARIES: that constant
@@ -292,16 +292,18 @@ def server_dev(context: Context) -> None:
 
 @task
 def cli_dev(context: Context) -> None:
-    """Build the debug cli launcher (cli/target/debug/accelerator).
+    """Build the debug cli launcher and accelerator-vcs sub-binary.
 
-    The local launcher the repointed shell suites and cargo integration tests
-    invoke through ACCELERATOR_BIN. Declared as a mise build dependency of the
-    test tasks so build ordering lives in the task graph, not in ad-hoc cargo
-    calls inside the suites.
+    cli/target/debug/accelerator is the local launcher the repointed shell
+    suites and cargo integration tests invoke through ACCELERATOR_BIN;
+    cli/target/debug/accelerator-vcs is the sub-binary hooks/test-vcs-detect.sh
+    dispatches through it via the ACCELERATOR_VCS_BIN dev-only override.
+    Declared as a mise build dependency of the test tasks so build ordering
+    lives in the task graph, not in ad-hoc cargo calls inside the suites.
     """
     context.run(
         f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        f"--bin accelerator"
+        f"--bin accelerator --bin accelerator-vcs"
     )
 
 

@@ -14,7 +14,7 @@ blocks: ["work-item:0174"]
 relates_to: ["work-item:0173", "work-item:0180", "work-item:0182", "work-item:0183"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, migration-engine, concurrency, interactive]
-last_updated: "2026-08-01T16:57:37+00:00"
+last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-193"
@@ -648,6 +648,26 @@ script *and* registration — here.
   the `${CLAUDE_PLUGIN_ROOT}` expansion/argument-splitting probe. It rewrites the
   `vcs-detect`/`vcs-guard` registrations and leaves `migrate-discoverability` —
   script and registration — here.
+
+  **Amendment 2026-08-06 — 0169 is done; the pattern this item inherits.**
+  `hooks.json`'s `SessionStart`/`PreToolUse` entries for `vcs detect`/`vcs guard`
+  are now verbatim command strings against the `accelerator` launcher
+  (`${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect --format=hook --fail-safe
+  --descriptive`, `... vcs guard --format=hook --fail-safe`), and the
+  `migrate-discoverability` entry was left untouched, exactly as this item
+  already anticipated. Two landed pieces are directly reusable here: a shared
+  `kernel::hooks` envelope module (`cli/kernel/src/hooks.rs` —
+  `session_start`/`pre_tool_use_deny`/`pre_tool_use_warn`/`adapter_failure`),
+  which this item's own hook envelope should build on rather than
+  re-implementing JSON escaping; and a proven `--fail-safe` launcher-dispatch
+  swallow (`cli/launcher/src/launch/core.rs`'s `swallow_under_fail_safe`,
+  generic to any `Command::External` token) that a repointed
+  `migrate-discoverability` registration can rely on for the same fail-open
+  guarantee the shell version had. The parity-gate split this item's own plan
+  should mirror: `hooks/test-vcs-detect.sh`'s hooks.json literal assertion was
+  rewritten order-independent (selects by command string, not
+  `SessionStart[N]` index) — a repointed `migrate-discoverability` registration
+  check should follow the same pattern from day one.
 - Blocked by **0166** (done): retained because 0166 declares `blocks: 0172`.
 - Blocked by **0187** (generalises the sub-binary registration surface). This
   story adds a dispatch token; it does not generalise the surface. Registration

@@ -11,7 +11,7 @@ priority: medium
 relates_to: ["work-item:0124", "work-item:0058", "work-item:0020",
   "work-item:0188"]
 tags: [tech-debt, scripts, vcs, git, jj, worktree, vcs-common]
-last_updated: "2026-08-03T16:37:02+00:00"
+last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-146
@@ -166,6 +166,27 @@ consumers that reach that adapter*:
 shell call sites in `find_repo_root` and `vcs_mode` keep running in bash and
 cannot reach the Rust adapter until 0169 and the later epic-0136 phases migrate
 them. Constraints 3, 4 and 5 are untouched and still bind.
+
+### Amendment 2026-08-06 — 0169 landed; two more consumers dissolved, the rest unchanged
+
+0169 built `accelerator vcs detect|status|log|guard` on the same
+library-backed adapter (`vcs_adapters::library::InProcessProbe`) and retired
+the two shell consumers that used to call `find_repo_root`/`vcs_mode`/
+`classify_checkout` for the SessionStart and PreToolUse hooks
+(`hooks/vcs-detect.sh`, `hooks/vcs-guard.sh` — both deleted). Those two call
+sites are no longer bash and no longer lexical; they join the "reaches the
+adapter" side of the conditional dissolution above.
+
+**Still not closed.** 0169 explicitly scoped out `scripts/vcs-common.sh`'s
+`find_repo_root`/`vcs_mode` themselves ("keep their other ~20 callers" — see
+0169's own "What We're NOT Doing"), so the bulk of the residual shell call
+sites this item's constraints 3-5 refer to are untouched, unmeasured by this
+amendment, and still bind. A new follow-up work item (created alongside this
+note, see 0169's Phase 10) now owns `scripts/vcs-common.sh`'s residue —
+`find_repo_root`/`vcs_mode` and their remaining callers — as a discrete
+successor to this item's original scope, since 0169 and epic-0136's other
+landed phases have each converged one bounded slice rather than the whole
+set at once.
 
 ## References
 

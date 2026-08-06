@@ -286,6 +286,8 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
             (
                 tmp_path / f"accelerator-visualiser-{platform}.minisig"
             ).write_text("sig")
+            (tmp_path / f"accelerator-vcs-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-vcs-{platform}.minisig").write_text("sig")
         manifest.write_text(
             json.dumps(
                 {
@@ -301,7 +303,16 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                                 p: {"sha256": "a" * 64, "signature": "sig"}
                                 for p in _PLATFORMS
                             },
-                        }
+                        },
+                        "vcs": {
+                            "description": (
+                                "The vcs detect|status|log|guard sub-binary."
+                            ),
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        },
                     },
                 }
             )
@@ -323,8 +334,8 @@ class TestUploadAndVerifyRelease:
             c for c in ctx.run.call_args_list if "gh release upload" in str(c)
         ]
         # 4x(debug + launcher + launcher.minisig) + manifest + sig
-        # + 4x(visualiser sub-binary + .minisig)
-        assert len(uploads) == 22
+        # + 4x(visualiser sub-binary + .minisig) + 4x(vcs sub-binary + .minisig)
+        assert len(uploads) == 30
         assert all("--clobber" in str(c) for c in uploads)
 
     def test_publishes_once_after_all_reverify(self, ctx, mocker, tmp_path):
@@ -454,7 +465,8 @@ class TestBuilderSeams:
         uploads = gh._subbinary_uploads()
 
         assert len(uploads) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
-        assert all("visualiser" in path.name for path in uploads)
+        for token in DISPATCHED_SUBBINARIES:
+            assert any(token in path.name for path in uploads)
 
     def test_subbinary_reverifies_yields_one_item_per_token_per_target(
         self, ctx, mocker, tmp_path
@@ -492,10 +504,10 @@ class TestBuilderSeams:
 
         assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
 
-    def test_the_dispatched_registry_holds_the_visualiser_alone(self):
+    def test_the_dispatched_registry_holds_visualiser_and_vcs(self):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
-        assert DISPATCHED_SUBBINARIES == ("visualiser",)
+        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs")
 
 
 class TestReverifyViaShim:

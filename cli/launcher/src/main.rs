@@ -13,7 +13,7 @@ use clap::{CommandFactory as _, Parser as _};
 
 use accelerator::config_command::core::ConfigStack;
 use accelerator::launch::core::{
-    ExternalCommand, ResolutionError, ResolveBinary,
+    swallow_under_fail_safe, ExternalCommand, ResolutionError, ResolveBinary,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::external_subcommands_section;
@@ -62,7 +62,7 @@ impl ResolveBinary for LazyProductionResolver {
             return Ok(path);
         }
         let _ = install_crypto_provider();
-        let cache = cache_root::resolve(&CacheRootConfig::from_env())?;
+        let cache = cache_root::candidate(&CacheRootConfig::from_env())?;
         let keys = TrustedKeys::embedded()?;
         let config = ResolverConfig::production(release_base_url(), cache);
         FetchVerifyCacheResolver::new(config, keys)?.resolve(command)
@@ -211,6 +211,23 @@ fn report(error: &kernel::Error) -> ExitCode {
     }
 }
 
+/// The exit code for a failed `run()`: an availability-class failure from
+/// resolving/exec'ing an external subcommand that forwarded `--fail-safe`
+/// exits 0 silently (bar a `tracing::warn!` diagnostic); every other failure
+/// reports and exits through [`report`] as before.
+fn handle_dispatch_error(error: &kernel::Error, command: &Command) -> ExitCode {
+    if let Command::External(args) = command {
+        if swallow_under_fail_safe(error, args) {
+            tracing::warn!(
+                %error,
+                "external dispatch failed under --fail-safe; exiting 0"
+            );
+            return ExitCode::SUCCESS;
+        }
+    }
+    report(error)
+}
+
 fn main() -> ExitCode {
     // try_parse so the top-level `--help` can be intercepted and augmented, and
     // a usage error re-mapped from clap's exit 2 to 1; a `foo --help` routes to
@@ -222,6 +239,94 @@ fn main() -> ExitCode {
 
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,
-        Err(error) => report(&error),
+        Err(error) => handle_dispatch_error(&error, &cli.command),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+    use std::process::ExitCode;
+
+    use accelerator::launch::core::{
+        run_external, ExecBinary, ExternalCommand, ResolutionError,
+        ResolveBinary,
+    };
+    use accelerator::launch::inbound::cli::Command;
+
+    use super::handle_dispatch_error;
+
+    struct FailingResolver<F>(F);
+
+    impl<F: Fn() -> ResolutionError> ResolveBinary for FailingResolver<F> {
+        fn resolve(
+            &self,
+            _command: &ExternalCommand,
+        ) -> Result<PathBuf, ResolutionError> {
+            Err((self.0)())
+        }
+    }
+
+    struct UnreachableExec;
+
+    impl ExecBinary for UnreachableExec {
+        fn exec(&self, _program: &Path, _args: &[OsString]) -> ResolutionError {
+            unreachable!("a failed resolve must never reach exec")
+        }
+    }
+
+    fn dispatch_error(
+        make_error: impl Fn() -> ResolutionError,
+    ) -> kernel::Error {
+        let command = ExternalCommand {
+            name: OsString::from("vcs"),
+            args: vec![],
+        };
+        run_external(&FailingResolver(make_error), &UnreachableExec, &command)
+            .into()
+    }
+
+    fn availability_failure() -> ResolutionError {
+        ResolutionError::Fetch {
+            target: "vcs".to_owned(),
+            url: "https://example.test/vcs".to_owned(),
+        }
+    }
+
+    fn integrity_failure() -> ResolutionError {
+        ResolutionError::ChecksumMismatch {
+            asset: "vcs".to_owned(),
+            expected: "a".repeat(64),
+            actual: "b".repeat(64),
+        }
+    }
+
+    #[test]
+    fn an_availability_failure_exits_zero_when_fail_safe_is_forwarded() {
+        let error = dispatch_error(availability_failure);
+        let command = Command::External(vec![OsString::from("--fail-safe")]);
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn an_availability_failure_exits_failure_without_fail_safe() {
+        let error = dispatch_error(availability_failure);
+        let command = Command::External(vec![]);
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::FAILURE);
+    }
+
+    #[test]
+    fn an_integrity_failure_exits_two_even_when_fail_safe_is_forwarded() {
+        let error = dispatch_error(integrity_failure);
+        let command = Command::External(vec![OsString::from("--fail-safe")]);
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    #[test]
+    fn an_integrity_failure_exits_two_without_fail_safe() {
+        let error = dispatch_error(integrity_failure);
+        let command = Command::External(vec![]);
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
     }
 }

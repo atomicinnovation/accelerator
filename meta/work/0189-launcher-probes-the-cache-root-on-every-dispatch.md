@@ -11,7 +11,7 @@ priority: high
 parent: "work-item:0136"
 relates_to: ["work-item:0186", "work-item:0169", "work-item:0164"]
 tags: [cli, launcher, performance, bootstrap]
-last_updated: "2026-08-03T00:00:00+00:00"
+last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -91,6 +91,35 @@ hosts rather than being an artefact of this machine.
   threshold decision is 0169's regardless and **must not be deferred pending
   this item**.
 - **Parent**: epic 0136.
+
+**Amendment 2026-08-06 — this item's own Requirements are now landed, as a
+side effect of unblocking 0169's Phase 10 latency gate; only the acceptance
+criteria specific to this item remain unverified.** 0169's Phase 5 (item 2,
+"Skip the cache-root write-probe on a warm cache hit") implemented exactly
+this item's split: `cache_root::candidate`
+(`cli/launcher/src/launch/outbound/resolve/cache_root.rs`) is now selection
+only (no I/O beyond env reads), and the write-chmod-exec probe
+(`verify_writable`, renamed from `probe_writable_and_executable`) runs only
+from `FetchVerifyCacheResolver::fetch_verify_store` — reached on a cache
+miss or a failed reverify, never on a warm hit. This is Requirements items 1
+and 2 above, verbatim, plus the same `CacheRootUnavailable` diagnostic
+Requirements item 3 asks be preserved (unchanged). It was pulled forward
+because 0169's own gate (`G ≤ 1.1 × B` warm-call latency, Phase 10) could not
+be meaningfully measured while every warm `vcs guard` dispatch paid the
+~132 ms probe cost this item names.
+
+**Not yet closed by that landing**: two of this item's acceptance criteria
+are still this item's own to satisfy, not 0169's — "the probe runs at most
+once per process" (not specifically asserted; the `CorruptCacheAndRefetchFailed`
+retry path can invoke `verify_writable` a second time within one process,
+which 0169 did not audit against this exact invariant) and the isolated
+before/after warm-dispatch latency measurement with the `after ≤ 0.5 ×
+before` gate (0169's Phase 10 measures the whole guard dispatch path
+end-to-end against the shell baseline, not this fix in isolation). Re-scope
+this item to those two remaining items rather than the full original
+Requirements list, and re-measure against the post-fix dispatch cost — the
+pre-fix ~132 ms figure in Context above no longer describes the code as it
+exists.
 
 ## Assumptions
 

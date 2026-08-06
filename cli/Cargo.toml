@@ -1,7 +1,7 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "vcs-test-support", "store", "visualiser/server"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "vcs", "vcs-adapters", "vcs-cli", "vcs-test-support", "store", "visualiser/server"]
 
 [workspace.package]
 version = "1.24.0-pre.26"
@@ -40,6 +40,9 @@ serde_json = "1"
 # Caret bound: regex's 1.x line is behaviour-stable, so the exact-pin discipline
 # that fences behaviour-sensitive crates is not warranted here.
 regex = "1"
+# Used to load hooks/test-fixtures/masks.toml, the volatile-field mask table
+# shared with the Python golden-generation script (vcs-test-support::masks).
+toml = "0.8"
 # 0.0.x: every patch is semver-breaking, so pin exactly and review upgrades at
 # the `document` boundary — the sole permitted wrapper (see deny.toml).
 serde-saphyr = "=0.0.29"

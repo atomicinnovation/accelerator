@@ -1,5 +1,6 @@
 //! Cross-cutting contracts shared across accelerator subdomains.
 
+pub mod hooks;
 pub mod logging;
 
 /// The error taxonomy accelerator subcommands report through.

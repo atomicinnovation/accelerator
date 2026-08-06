@@ -248,10 +248,17 @@ fn a_checksum_mismatch_is_refused() -> Result<(), Box<dyn Error>> {
         .server
         .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
 
-    assert!(matches!(
-        harness.resolve(),
-        Err(ResolutionError::ChecksumMismatch { .. })
-    ));
+    let error = harness
+        .resolve()
+        .err()
+        .ok_or("expected a checksum mismatch")?;
+    assert!(matches!(error, ResolutionError::ChecksumMismatch { .. }));
+    // `BINARY` ("visualiser") is the only other `DISPATCHED_SUBBINARIES`
+    // entry besides `vcs`: this pins that its exit code deliberately changes
+    // from 1 (Failed) to 2 (Refusal) on an integrity failure, uniformly
+    // across every dispatched sub-binary, not just `vcs`.
+    let kernel_error: kernel::Error = error.into();
+    assert!(matches!(kernel_error, kernel::Error::Refusal(_)));
     Ok(())
 }
 
@@ -283,10 +290,13 @@ fn a_non_release_key_signature_is_refused() -> Result<(), Box<dyn Error>> {
         .server
         .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
 
-    assert!(matches!(
-        harness.resolve(),
-        Err(ResolutionError::SignatureMismatch { .. })
-    ));
+    let error = harness
+        .resolve()
+        .err()
+        .ok_or("expected a signature mismatch")?;
+    assert!(matches!(error, ResolutionError::SignatureMismatch { .. }));
+    let kernel_error: kernel::Error = error.into();
+    assert!(matches!(kernel_error, kernel::Error::Refusal(_)));
     Ok(())
 }
 
@@ -500,6 +510,84 @@ fn a_poisoned_cache_entry_offline_is_a_distinct_diagnostic(
         }),
         Err(ResolutionError::CorruptCacheAndRefetchFailed { .. })
     ));
+    Ok(())
+}
+
+#[test]
+fn a_signature_read_io_error_propagates_the_refetch_error_verbatim(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.resolve()?;
+    let cached = accelerator::launch::outbound::resolve::cache::find(
+        &harness.cache,
+        BINARY,
+        VERSION,
+    )
+    .ok_or("cached entry missing")?;
+    // Invalid UTF-8 in the signature sidecar: `fs::read_to_string` fails with
+    // a plain Cache I/O error, distinct from a checksum/signature mismatch —
+    // the cached binary bytes themselves are untouched.
+    std::fs::write(&cached.signature_path, [0xFF, 0xFE, 0xFD])?;
+    let offline = FetchVerifyCacheResolver::with_fetcher(
+        harness.config("http://127.0.0.1:1".to_owned()),
+        harness.keys(),
+        Fetcher::with_backoff(std::time::Duration::from_millis(1))?,
+    );
+    let result = offline.resolve(&ExternalCommand {
+        name: OsString::from(BINARY),
+        args: vec![],
+    });
+    assert!(
+        matches!(result, Err(ResolutionError::Fetch { .. })),
+        "a benign I/O hiccup's failed refetch must propagate the refetch's \
+         own error verbatim, not CorruptCacheAndRefetchFailed: {result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn resolve_succeeds_from_a_read_only_cache_root_on_a_hit(
+) -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let harness = skip_if_no_minisign!(happy_harness());
+    let first = harness.resolve()?;
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o555),
+    )?;
+    let result = harness.resolve();
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o755),
+    )?;
+    assert_eq!(result?, first, "a cache hit must skip the write probe");
+    Ok(())
+}
+
+#[test]
+fn an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss(
+) -> Result<(), Box<dyn Error>> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let harness = skip_if_no_minisign!(happy_harness());
+    std::fs::create_dir_all(&harness.cache)?;
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o555),
+    )?;
+    let result = harness.resolve();
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o755),
+    )?;
+    assert!(
+        matches!(result, Err(ResolutionError::CacheRootUnavailable { .. })),
+        "the write probe must still guard the write path: {result:?}"
+    );
+    assert_eq!(
+        harness.server.hits("/manifest.json"),
+        0,
+        "verify_writable must run before any network round trip"
+    );
     Ok(())
 }
 

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vcs-detect.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect --format=hook --fail-safe --descriptive"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/config-detect.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator config summary --format=hook --fail-safe"
           }
         ]
       },
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/vcs-guard.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs guard --format=hook --fail-safe"
           }
         ]
       }

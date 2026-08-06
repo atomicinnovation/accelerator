@@ -22,7 +22,12 @@ from tasks.release import (
     release,
 )
 from tasks.shared.errors import SigningError
-from tasks.shared.paths import BIN_DIR, REPO_ROOT, debug_archive_path
+from tasks.shared.paths import (
+    BIN_DIR,
+    DISPATCHED_SUBBINARIES,
+    REPO_ROOT,
+    debug_archive_path,
+)
 
 
 @pytest.fixture
@@ -170,7 +175,7 @@ def _stage_manifest(
     tmp_path,
     *,
     version: str = "1.21.0-pre.1",
-    binaries: tuple[str, ...] = ("visualiser",),
+    binaries: tuple[str, ...] = DISPATCHED_SUBBINARIES,
 ):
     """Point `tr.RELEASE_MANIFEST` at an in-test manifest.
 

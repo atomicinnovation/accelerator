@@ -1,0 +1,2 @@
+ staged.txt | 1 +
+ 1 file changed, 1 insertion(+)
