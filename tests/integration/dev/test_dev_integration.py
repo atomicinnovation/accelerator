@@ -57,6 +57,21 @@ def run_driver(
     )
 
 
+def assert_ok(proc: subprocess.CompletedProcess) -> subprocess.CompletedProcess:
+    """Assert the driver succeeded, quoting BOTH streams when it did not.
+
+    The orchestrators report a refusal on stdout (the JSON result) and only
+    some paths also log to stderr, so asserting on stderr alone can produce a
+    bare `AssertionError:` that says nothing — which is exactly what an
+    intermittent failure leaves behind in a CI log.
+    """
+    assert proc.returncode == 0, (
+        f"driver exited {proc.returncode}\n"
+        f"stdout: {proc.stdout.strip()}\nstderr: {proc.stderr.strip()}"
+    )
+    return proc
+
+
 def driver_payload(proc: subprocess.CompletedProcess) -> dict:
     line = proc.stdout.strip().splitlines()[-1]
     return json.loads(line)
@@ -128,7 +143,7 @@ def workspace(tmp_path):
 
 def test_detach_readiness_and_log_routing(workspace):
     proc = run_driver(workspace, "up")
-    assert proc.returncode == 0, proc.stderr
+    assert_ok(proc)
     state = read_state(workspace)
     assert (
         state["arbiter_pid"] and state["server_pid"] and state["frontend_pid"]
@@ -152,10 +167,10 @@ def test_detach_readiness_and_log_routing(workspace):
 
 
 def test_reuse_starts_no_duplicate(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     first = read_state(workspace)["arbiter_pid"]
     proc = run_driver(workspace, "up")
-    assert proc.returncode == 0
+    assert_ok(proc)
     assert driver_payload(proc)["kind"] == "reused"
     assert read_state(workspace)["arbiter_pid"] == first
 
@@ -166,13 +181,13 @@ def test_stale_info_does_not_satisfy_gate(workspace):
     (state_dir / "server-info.json").write_text(
         json.dumps({"url": "http://127.0.0.1:1111", "port": 1111})
     )
-    assert run_driver(workspace, "up", {"api_port": 8888}).returncode == 0
+    assert_ok(run_driver(workspace, "up", {"api_port": 8888}))
     info = json.loads((state_dir / "server-info.json").read_text())
     assert info["port"] == 8888  # the fresh server's file, not the stale 1111
 
 
 def test_clean_teardown_leaves_no_orphans(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     state = read_state(workspace)
     tracked = [
         state["server_pid"],
@@ -181,14 +196,14 @@ def test_clean_teardown_leaves_no_orphans(workspace):
         *descendants(state["server_pid"]),
         *descendants(state["frontend_pid"]),
     ]
-    assert run_driver(workspace, "stop").returncode == 0
+    assert_ok(run_driver(workspace, "stop"))
     for pid in tracked:
         assert not alive(pid)
     assert read_state(workspace) is None
 
 
 def test_orphan_reach_when_arbiter_already_dead(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     state = read_state(workspace)
     server_pid, frontend_pid = state["server_pid"], state["frontend_pid"]
     os.kill(state["arbiter_pid"], signal.SIGKILL)  # children reparent to init
@@ -196,7 +211,7 @@ def test_orphan_reach_when_arbiter_already_dead(workspace):
     assert alive(
         server_pid
     )  # still alive, no longer a child of the dead arbiter
-    assert run_driver(workspace, "stop").returncode == 0
+    assert_ok(run_driver(workspace, "stop"))
     assert not alive(server_pid)  # reaped via recorded server_pid
     assert not alive(frontend_pid)  # reaped via recorded frontend_pid
 
@@ -238,7 +253,7 @@ def test_orphan_reach_with_only_server_recorded(workspace):
             "frontend_start_time": None,
         }
         (dev / "dev.json").write_text(json.dumps(state))
-        assert run_driver(workspace, "stop").returncode == 0
+        assert_ok(run_driver(workspace, "stop"))
         assert not alive(
             server.pid
         )  # server subtree reaped via recorded server_pid
@@ -250,10 +265,10 @@ def test_orphan_reach_with_only_server_recorded(workspace):
 
 
 def test_restart_round_trip(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     first = read_state(workspace)["arbiter_pid"]
     proc = run_driver(workspace, "restart")
-    assert proc.returncode == 0, proc.stderr
+    assert_ok(proc)
     state = read_state(workspace)
     assert state["arbiter_pid"] != first  # a genuinely new arbiter
     assert alive(state["arbiter_pid"])
@@ -278,15 +293,15 @@ def test_daemon_startup_failure_reaps_handle_no_retry(workspace):
 
 
 def test_discovery_survives_lost_state_file(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     arbiter = read_state(workspace)["arbiter_pid"]
     (workspace / ".accelerator/tmp/dev/dev.json").unlink()  # lose the cache
-    assert run_driver(workspace, "stop").returncode == 0
+    assert_ok(run_driver(workspace, "stop"))
     assert not alive(arbiter)  # found via recomputed deterministic ipc paths
 
 
 def test_stale_cleanup_after_out_of_band_kill(workspace):
-    assert run_driver(workspace, "up").returncode == 0
+    assert_ok(run_driver(workspace, "up"))
     state = read_state(workspace)
     for key in ("arbiter_pid", "server_pid", "frontend_pid"):
         with contextlib.suppress(Exception):
@@ -295,7 +310,7 @@ def test_stale_cleanup_after_out_of_band_kill(workspace):
     assert (
         run_driver(workspace, "status").returncode == 4
     )  # treated as not-running
-    assert run_driver(workspace, "stop").returncode == 0
+    assert_ok(run_driver(workspace, "stop"))
     endpoint_sock = ipc_socket_paths(workspace)[0]
     assert not endpoint_sock.exists()  # stale socket cleaned up
 
@@ -333,13 +348,13 @@ def test_recycled_pid_is_refused_real_psutil(workspace):
 
 def test_frontend_resolves_npm_under_stripped_path(workspace):
     proc = run_driver(workspace, "up", {"strip_path": True})
-    assert proc.returncode == 0, proc.stderr
+    assert_ok(proc)
     # frontend started despite a stripped PATH -> the absolute npm render worked
     assert read_state(workspace)["frontend_pid"]
 
 
 def test_frontend_port_and_info_wiring(workspace):
-    assert run_driver(workspace, "up", {"free_port": 45678}).returncode == 0
+    assert_ok(run_driver(workspace, "up", {"free_port": 45678}))
     ini = (workspace / ".accelerator/tmp/dev/circus.ini").read_text()
     assert "--port 45678 --strictPort" in ini
     assert "VISUALISER_INFO_PATH" in ini
@@ -348,8 +363,8 @@ def test_frontend_port_and_info_wiring(workspace):
 
 def test_status_exit_codes(workspace):
     assert run_driver(workspace, "status").returncode == 4  # neither
-    assert run_driver(workspace, "up").returncode == 0
-    assert run_driver(workspace, "status").returncode == 0  # both
+    assert_ok(run_driver(workspace, "up"))
+    assert_ok(run_driver(workspace, "status"))  # both
     state = read_state(workspace)
     os.kill(
         state["frontend_pid"], signal.SIGKILL
@@ -367,12 +382,10 @@ def test_status_exit_codes(workspace):
 
 
 def test_sigterm_ignoring_frontend_is_sigkilled(workspace):
-    assert (
-        run_driver(workspace, "up", {"fe_ignore_sigterm": True}).returncode == 0
-    )
+    assert_ok(run_driver(workspace, "up", {"fe_ignore_sigterm": True}))
     frontend_pid = read_state(workspace)["frontend_pid"]
     assert alive(frontend_pid)
-    assert run_driver(workspace, "stop", {"grace_quit": 8.0}).returncode == 0
+    assert_ok(run_driver(workspace, "stop", {"grace_quit": 8.0}))
     # circus escalated to SIGKILL past its 2 s graceful_timeout
     assert not alive(frontend_pid)
 
@@ -382,8 +395,8 @@ def test_cross_workspace_concurrency(tmp_path):
     ws_a.mkdir()
     ws_b.mkdir()
     try:
-        assert run_driver(ws_a, "up").returncode == 0
-        assert run_driver(ws_b, "up").returncode == 0
+        assert_ok(run_driver(ws_a, "up"))
+        assert_ok(run_driver(ws_b, "up"))
         a, b = read_state(ws_a), read_state(ws_b)
         assert a["frontend_port"] != b["frontend_port"]
         assert (
@@ -391,7 +404,7 @@ def test_cross_workspace_concurrency(tmp_path):
         )  # distinct per-workspace ipc sockets
         assert alive(a["arbiter_pid"]) and alive(b["arbiter_pid"])
         # stopping A leaves B untouched (structural isolation)
-        assert run_driver(ws_a, "stop").returncode == 0
+        assert_ok(run_driver(ws_a, "stop"))
         assert not alive(a["arbiter_pid"])
         assert alive(b["arbiter_pid"])
     finally:

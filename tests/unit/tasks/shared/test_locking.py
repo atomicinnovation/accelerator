@@ -75,23 +75,41 @@ class TestWorkspaceLockMkdirFallback:
             json.dumps({"pid": 2**31 - 1, "start_time": 1.0})
         )
 
-        results: list[bool] = []
-        barrier = threading.Barrier(8)
+        # The property is mutual exclusion — never two holders at once — not
+        # "exactly one of the eight ever succeeds". Acquisition is
+        # non-blocking, so a contender descheduled past the winner's hold and
+        # release finds the lock free and legitimately takes it; counting
+        # winners made that ordinary scheduling look like a lock failure, and
+        # it duly failed under parallel CI load.
+        import time
+
+        occupancy = threading.Lock()
+        held = 0
+        overlaps = 0
+        wins = 0
 
         def contend():
+            nonlocal held, overlaps, wins
             barrier.wait()
             with workspace_lock(lock) as acquired:
-                results.append(acquired)
-                if acquired:
-                    # hold briefly so the others observe a held (live) lock
-                    import time
+                if not acquired:
+                    return
+                with occupancy:
+                    wins += 1
+                    held += 1
+                    if held > 1:
+                        overlaps += 1
+                # hold briefly so any concurrent holder overlaps us here
+                time.sleep(0.05)
+                with occupancy:
+                    held -= 1
 
-                    time.sleep(0.05)
-
+        barrier = threading.Barrier(8)
         threads = [threading.Thread(target=contend) for _ in range(8)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
 
-        assert sum(1 for r in results if r) == 1  # exactly one winner
+        assert overlaps == 0, "two contenders held the lock at the same time"
+        assert wins >= 1, "the stale lock was never reclaimed"

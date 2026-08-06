@@ -132,6 +132,8 @@ class LaunchedArbiter:
 # Cadence for the frontend-activation poll. Only an upper bound on how often
 # the supervisor is asked; the deadline is what bounds the wait.
 _FRONTEND_POLL_INTERVAL = 0.1
+# How many trailing frontend.log lines a failed activation quotes back.
+_LOG_TAIL = 5
 
 
 class _UpAbortError(Exception):
@@ -421,7 +423,7 @@ def start_frontend(launched: LaunchedArbiter, deps: DevDeps) -> None:
     sup = deps.client_factory(launched.endpoint, timeout=deps.probe_timeout)
     try:
         try:
-            sup.start("frontend")
+            _request_frontend_start(sup, deps)
         except SupervisorUnreachableError as exc:
             teardown(launched.state, deps, lock_held=True)
             raise _UpAbortError(
@@ -448,16 +450,47 @@ def start_frontend(launched: LaunchedArbiter, deps: DevDeps) -> None:
         # deadline and gets torn down for it.
         deadline = deps.clock.now() + deps.frontend_active_timeout
         if not _await_frontend_active(sup, deps, deadline):
-            _abort_frontend(launched, deps, "did not become active")
+            _abort_frontend(launched, deps, "did not become active", sup=sup)
         # The settle window sits outside the activation deadline on purpose:
         # clamping it would silently skip the check for a watcher that became
         # active just before the deadline — exactly the slow case it is for.
         deps.clock.sleep(deps.frontend_settle)
         if _frontend_status(sup) not in ("active", None):
-            _abort_frontend(launched, deps, "became active then stopped")
+            _abort_frontend(
+                launched, deps, "became active then stopped", sup=sup
+            )
     finally:
         _maybe_close(sup)
     _record_watcher_pid(launched, deps, "frontend")
+
+
+def _request_frontend_start(sup: Supervisor, deps: DevDeps) -> None:
+    """Ask circus to start the watcher, retrying while the arbiter is busy.
+
+    circus serialises arbiter-level commands and refuses one issued while
+    another is in flight ("arbiter is already running arbiter_start_watchers
+    command"). The readiness gate does not exclude that: it waits for the
+    *server* to write server-info.json, which the server does from inside
+    `start_watchers`, so the arbiter is frequently still finishing that call
+    when the frontend start goes out. The refusal is transient and clears in
+    milliseconds — retrying is the whole fix.
+
+    Bounded by the same knob as activation: a refusal that never clears is a
+    stuck arbiter, and it surfaces with circus's own reason attached.
+    """
+    deadline = deps.clock.now() + deps.frontend_active_timeout
+    while True:
+        try:
+            sup.start("frontend")
+        except SupervisorUnreachableError:
+            remaining = deadline - deps.clock.now()
+            if remaining <= 0:
+                raise
+        else:
+            return
+        # Slept outside the handler so the retry does not chain every previous
+        # refusal onto the traceback of the one that finally gives up.
+        deps.clock.sleep(min(_FRONTEND_POLL_INTERVAL, remaining))
 
 
 def _frontend_status(sup: Supervisor) -> str | None:
@@ -493,16 +526,49 @@ def _await_frontend_active(
         deps.clock.sleep(min(_FRONTEND_POLL_INTERVAL, remaining))
 
 
+def _frontend_evidence(deps: DevDeps, sup: Supervisor | None) -> str:
+    """Watcher status + the tail of frontend.log, for the abort message.
+
+    A bare "did not become active" points at a log file, which is useless
+    wherever the log is not collected — a CI runner discards the workspace, so
+    the one artefact that says *why* dies with it. Folding the evidence into
+    the message is what makes an intermittent failure diagnosable from a build
+    log alone. Best-effort throughout: this runs on the failure path, and an
+    unreadable log or unreachable supervisor must not mask the real abort.
+    """
+    parts: list[str] = []
+    if sup is not None:
+        parts.append(f"watcher status={_frontend_status(sup)!r}")
+    log = deps.dev_dir / "frontend.log"
+    tail: list[str] = []
+    with contextlib.suppress(OSError):
+        tail = log.read_text(errors="replace").strip().splitlines()[-_LOG_TAIL:]
+    parts.append(
+        f"last {len(tail)} line(s) of {log}: {' | '.join(tail)}"
+        if tail
+        else f"{log} is empty or unreadable"
+    )
+    return "; ".join(parts)
+
+
 def _abort_frontend(
-    launched: LaunchedArbiter, deps: DevDeps, reason: str
+    launched: LaunchedArbiter,
+    deps: DevDeps,
+    reason: str,
+    *,
+    sup: Supervisor | None = None,
 ) -> NoReturn:
+    # Gather evidence BEFORE teardown — teardown stops the watcher, so the
+    # status it would report afterwards is "stopped" regardless of why we got
+    # here, which is exactly the distinction the message needs to preserve.
+    evidence = _frontend_evidence(deps, sup)
     teardown(launched.state, deps, lock_held=True)
-    log_diagnostic(deps, f"frontend watcher {reason}")
+    log_diagnostic(deps, f"frontend watcher {reason} ({evidence})")
     raise _UpAbortError(
         UpResult(
             "failed",
             message=(
-                f"the frontend watcher {reason}; see "
+                f"the frontend watcher {reason} ({evidence}); see "
                 f"{deps.dev_dir}/frontend.log"
             ),
             artifact=f"{deps.dev_dir}/frontend.log",

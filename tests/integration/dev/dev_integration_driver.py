@@ -176,6 +176,18 @@ def _build_deps(workspace: Path, opts: dict) -> DevDeps:
         # poll-count/timeout maths is pinned by the unit tests in test_dev.py.
         # Negative-path tests override these with small values to exercise the
         # timeout branches.
+        # Happy-path defaults are deliberately generous: these are real
+        # processes (circusd + Python fakes) started on shared CI runners that
+        # may have only a few cores under heavy parallel load. The suite
+        # asserts direction (it happened), not precise deadlines — the exact
+        # poll-count/timeout maths is pinned by the unit tests in test_dev.py.
+        # Negative-path tests override these with small values to exercise the
+        # timeout branches.
+        #
+        # These are NOT what the long-running "frontend watcher did not become
+        # active" flake needed: circus was refusing the start outright while
+        # the arbiter finished start_watchers, so no budget could have helped.
+        # See _request_frontend_start.
         probe_timeout=opts.get("probe_timeout", 5.0),
         pidfile_timeout=opts.get("pidfile_timeout", 20.0),
         readiness_timeout=opts.get("readiness_timeout", 20.0),
