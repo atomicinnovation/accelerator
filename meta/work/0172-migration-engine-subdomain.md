@@ -11,11 +11,12 @@ priority: high
 parent: "work-item:0136"
 blocked_by: ["work-item:0166", "work-item:0167", "work-item:0169", "work-item:0187"]
 blocks: ["work-item:0174"]
-relates_to: ["work-item:0173", "work-item:0180", "work-item:0182", "work-item:0183"]
+relates_to: ["work-item:0195", "work-item:0180", "work-item:0182", "work-item:0183"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, migration-engine, concurrency, interactive]
-last_updated: "2026-08-06T00:00:00+00:00"
+last_updated: "2026-08-06T08:29:24+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Reconciled against 2026-08-06 implementation-groundwork research: 0173 abandoned/split to 0195, 0167 confirmed done with --allow-legacy-layout shipped, hooks/shim-refresh.sh corrected to hooks/launcher-link-refresh.sh, confinement-guard module name corrected"
 schema_version: 1
 external_id: "PP-193"
 ---
@@ -89,18 +90,19 @@ are Rust and live inside the same binary as the engine, that API has nothing lef
 to bridge: it is retired rather than replaced, and authoring a migration becomes
 ordinary in-crate Rust.
 
-The crate foundation has largely landed: 0178 (`config`, `config-adapters`), 0179
+The crate foundation has landed in full: 0178 (`config`, `config-adapters`), 0179
 (`corpus`, `corpus-adapters`, `document`, `vcs`) and 0180 (atomic-store lock and
-JSONL record primitives in `corpus-adapters`) are all done. Two blockers remain
-live: **0167**, which carves `atomic_write` out into the standalone `cli/store`
-crate (0166's 2026-07-19 amendment: "0167 owns the carve-out, not 0180"),
-establishes the invocation contract and permission-coverage check, and is
-expected to add the `--allow-legacy-layout` flag the ported migrations need —
-though that flag is recorded only in a note 0167 wrote onto 0178, not in 0167's
-own criteria (see Dependencies); and **0169**, which
-settles the `hooks.json` registration pattern and the `${CLAUDE_PLUGIN_ROOT}`
-expansion probe, while explicitly leaving `hooks/migrate-discoverability.sh` —
-script *and* registration — here.
+JSONL record primitives in `corpus-adapters`) are all done. **0167 is also done**
+(confirmed by 2026-08-06 research — see the amendment in Dependencies): it
+carved `atomic_write` out into the standalone `cli/store` crate (0166's
+2026-07-19 amendment: "0167 owns the carve-out, not 0180"), established the
+invocation contract and permission-coverage check, and shipped the
+`--allow-legacy-layout` flag end-to-end — the ported migrations can consume it
+today. **0169 is also done** for the pieces this item needs: it settled the
+`hooks.json` registration pattern and the `${CLAUDE_PLUGIN_ROOT}` expansion
+probe, while explicitly leaving `hooks/migrate-discoverability.sh` — script
+*and* registration — here (see the 2026-08-06 amendment in Dependencies for the
+concrete pattern to follow).
 
 ## Requirements
 
@@ -248,9 +250,10 @@ script *and* registration — here.
   the `/migrate` skill's own invocations **and
   `skills/config/configure/SKILL.md:561`**, which names
   `bash run-migrations.sh --skip` and is claimed by no other story — 0167 scoped
-  this cluster's call sites out of its removal set and 0173 claims only the
-  corpus/design/collaboration sites. The confinement guard is now Python
-  (`tasks/lint/skill_permissions.py`, with
+  this cluster's call sites out of its removal set and 0195 (successor to
+  abandoned 0173 — see Dependencies) claims only the corpus/design/collaboration
+  sites. The confinement guard is now Python
+  (`tasks/lint/call_site_migration.py`, with
   `tests/unit/tasks/test_call_site_migration.py`) rather than the shell
   `check-call-site-migration.sh` earlier drafts named.
 - Register the new sub-binary: a `cli/Cargo.toml` workspace-member entry, a
@@ -324,7 +327,8 @@ script *and* registration — here.
 - [ ] Bash baselines are captured and committed as goldens **as the first ordered
       step of the work**, at a recorded commit, before any other change — the
       capture window closes irreversibly once the scripts are deleted, and it also
-      closes if 0173 removes `scripts/validate-corpus-frontmatter.sh` first (see
+      closes if 0195 (the split successor to abandoned 0173 — see Dependencies)
+      removes `scripts/validate-corpus-frontmatter.sh` first (see
       Dependencies). If the window is missed, the validator is temporarily
       restored at the capture commit rather than falling back to a self-authored
       oracle. Planning fixes the fixture × artefact table before capture;
@@ -515,11 +519,13 @@ script *and* registration — here.
 ### Legacy layout
 
 - [ ] The ported migrations obtain legacy-layout access through 0167's
-      `--allow-legacy-layout` read-subcommand flag, and a committed check asserts
-      no reintroduced `ACCELERATOR_MIGRATION_MODE` handling anywhere in `cli/` —
-      0178's negative test stays green.
+      `--allow-legacy-layout` read-subcommand flag (shipped —
+      `cli/config-adapters/src/store.rs`'s `LegacyPolicy::Allow`), and a
+      committed check asserts no reintroduced `ACCELERATOR_MIGRATION_MODE`
+      handling anywhere in `cli/` — 0178's negative test
+      (`config-adapters/tests/config_reader.rs`) stays green.
 - [ ] `0007`'s legacy access no longer routes through `doc-type-table.sh`, and the
-      confinement guard (`tasks/lint/skill_permissions.py`) is **either** updated
+      confinement guard (`tasks/lint/call_site_migration.py`) is **either** updated
       for a tree where the bash migration engine it confined no longer exists,
       **or** deleted with 0167's owner's agreement recorded — both branches
       satisfy this criterion, since which applies is an Open Question owned by
@@ -590,20 +596,26 @@ script *and* registration — here.
 
 ### Cross-item records
 
-- [ ] The golden-capture ordering constraint is recorded on **0173** — its removal
-      of `scripts/validate-corpus-frontmatter.sh` must follow this story's
-      recorded golden-capture commit — with a reciprocal edge, so 0173 cannot
-      destroy the 0007 oracle unwarned.
+- [ ] The golden-capture ordering constraint is recorded on **0195** (the split
+      successor to abandoned 0173 — see the 2026-08-06 amendment in
+      Dependencies) — its removal of `scripts/validate-corpus-frontmatter.sh`
+      must follow this story's recorded golden-capture commit — with a
+      reciprocal edge, so 0195 cannot destroy the 0007 oracle unwarned.
 - [ ] The 0180/0168 session-log-reader question is settled: either the visualiser
       does read session logs and a `relates_to` edge is recorded on both items, or
       0180's consumer claim is marked superseded by 0168's record.
 - [ ] An ADR-reconciliation follow-up work item exists and is linked from here,
       covering ADR-0023, ADR-0037 §5 and ADR-0038 against the Rust port, before
       the deletion commit.
-- [ ] The `--allow-legacy-layout` obligation — the flag itself, the crate-level
-      form this binary needs, and the confinement guard — is written into **0167's
-      own** Requirements and Acceptance Criteria before 0167 closes, so it cannot
-      be marked done without shipping what these migrations depend on.
+- [ ] The `--allow-legacy-layout` obligation is discharged in substance: the flag
+      shipped (`cli/config-adapters/src/store.rs`'s `LegacyPolicy::Allow`) and the
+      crate-level form this binary needs is directly usable
+      (`FileConfigStore::with_legacy_policy`). **0167 has since closed** (2026-08-06
+      finding), so the original phrasing of this criterion — requiring the
+      obligation be written into 0167's own Requirements/Acceptance Criteria
+      *before* it closes — can no longer gate anything; confirm at planning time
+      whether 0167's own text documents this obligation and, if not, record the
+      gap rather than treat it as blocking.
 - [ ] The 0182 coupling is recorded on 0182 (reciprocal edge) and its
       `CLAUDE_PLUGIN_ROOT` allowlist entries for the files this story deletes are
       removed in the deletion change, with the `hooks.json` entry ordering agreed
@@ -635,15 +647,38 @@ script *and* registration — here.
 
 ## Dependencies
 
-- Blocked by **0167** (`ready`, not done): carves `atomic_write` into the
+- Blocked by **0167** (`done`): carved `atomic_write` into the
   standalone `cli/store` crate (0166's 2026-07-19 amendment — "0167 owns the
-  carve-out, not 0180"); establishes the invocation contract, the bootstrap-path
+  carve-out, not 0180"); established the invocation contract, the bootstrap-path
   naming, the `allowed-tools` matcher conventions and the permission-coverage
-  check one criterion invokes; and adds the `--allow-legacy-layout` read flag the
-  ported migrations depend on. **The edge is one-sided by 0167's deliberate
-  choice**: its `blocks` is `[0169, 0173, 0174]` and it records 0170–0172 in prose
-  only. If bidirectional traversal matters, 0167's `blocks` needs amending — this
-  item does not claim a reciprocal edge exists.
+  check one criterion invokes; and shipped the `--allow-legacy-layout` read flag
+  the ported migrations depend on. **The edge remains one-sided by 0167's
+  deliberate choice**: its `blocks` is `[0169, 0173, 0174]` and it records
+  0170–0172 in prose only. If bidirectional traversal matters, 0167's `blocks`
+  needs amending — this item does not claim a reciprocal edge exists.
+
+  **Amendment 2026-08-06 — 0167 confirmed done; `--allow-legacy-layout` shipped
+  and directly consumable in-process.** 0167's frontmatter reads `status: done`
+  (its body's own status line is stale, still reading "Ready"), corroborated by
+  its merged PR description (`meta/prs/26-description.md`, PR #26, revision
+  `4af9f104c3153a6801518e43a735c6177d16d47c`): removal-set deletion complete,
+  `check-inventory.sh`/`check-call-site-migration.sh`/`check-skill-permissions.sh`
+  all green at merge. The flag itself is real and working:
+  `LegacyPolicy::{Reject, Allow}` in `cli/config-adapters/src/store.rs:29-33`,
+  wired through `FileConfigStore::with_legacy_policy`, exposed as a clap flag on
+  ~14 read actions (`cli/launcher/src/launch/inbound/cli.rs`), and covered by
+  black-box tests (`cli/launcher/tests/config_read.rs:435,1853`). Because
+  `accelerator-migrate` will consume the config crates **in-process** rather than
+  shelling out to `accelerator config`, it does not need the CLI flag at all — it
+  can construct
+  `FileConfigStore::at(root).with_legacy_policy(LegacyPolicy::Allow)` directly,
+  which resolves the "crate-level equivalent" gap the "`--allow-legacy-layout` is
+  not yet an obligation on 0167" note below raises. Not yet confirmed: whether
+  this capability is written into 0167's *own* Requirements/Acceptance Criteria
+  text (the Cross-item-records criterion above requiring this was written before
+  0167 closed) — worth a direct check of
+  `meta/work/0167-config-command-and-invocation-contract-migration.md` at
+  planning time before treating that criterion as discharged.
 - Blocked by **0169**: settles the `hooks.json` registration pattern and resolves
   the `${CLAUDE_PLUGIN_ROOT}` expansion/argument-splitting probe. It rewrites the
   `vcs-detect`/`vcs-guard` registrations and leaves `migrate-discoverability` —
@@ -697,34 +732,50 @@ script *and* registration — here.
 - **`scripts/jsonl-common.sh` is orphaned by this story.** 0180 records its only
   production caller as the migrate session log in `interactive-lib.sh`. No other
   0136 story claims it. Its disposition is a requirement above.
-- Cross-cluster coupling on **0173**. This item declares `relates_to: 0173`;
-  0173 declares nothing back, so the edge is one-sided today and recording the
-  reciprocal note is Cross-item-records work, not something already done.
+- Cross-cluster coupling, now on **0195** (see Amendment below).
+
+  **Amendment 2026-08-06 — 0173 abandoned, split into 0195/0196/0197; the
+  golden-capture race is live and unguarded.** 0173 was abandoned 2026-08-05 and
+  split into 0195 (`accelerator-corpus`), 0196 (`accelerator-design`) and 0197
+  (`accelerator-collaboration`), each a direct child of epic 0136. The
+  `scripts/validate-corpus-frontmatter.sh` deletion this item's golden-capture
+  window depends on now lives in **0195**
+  (`meta/work/0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`),
+  which is `status: ready` with no blockers recorded against this concern and
+  **no mention of 0172 anywhere in its text**. This item's `relates_to` has been
+  updated to point at 0195 instead of the now-abandoned 0173 (see frontmatter),
+  and every Requirements/Acceptance-Criteria/References mention of the
+  golden-capture ordering constraint above has been retargeted accordingly.
   *Post-port*: 0007's `self_validate_structural` gate runs against
-  `scripts/validate-corpus-frontmatter.sh`, which 0173 owns; the Rust 0007
-  self-validates through `corpus`/`document` instead, so no inversion is created.
-  *Pre-port*: bash 0007 must stay runnable to capture its golden and serve as the
-  `test-migrate-0007.sh` oracle, but 0173 is `blocked_by: [0167]` only, mentions
-  0172 nowhere, and its criteria already delete that validator — so it is
-  unblocked the moment 0167 lands. A criterion above requires recording the
-  ordering constraint on 0173.
+  `scripts/validate-corpus-frontmatter.sh` today; the Rust 0007 self-validates
+  through `corpus`/`document` instead, so no inversion is created regardless of
+  which item owns the validator's deletion. *Pre-port*: bash 0007 must stay
+  runnable to capture its golden and serve as the `test-migrate-0007.sh` oracle
+  until this item's golden-capture commit lands — the reciprocal edge onto 0195
+  required by the Cross-item-records criterion above has **not** been recorded
+  yet, so this race is currently live and unguarded.
 - Also inherited from 0167: `test-migrate-0007.sh:2208` writes an `exec` stub
   hard-coding the config resolver path, so that suite breaks at 0167's deletion
   rather than at this cutover; repointing must absorb the fix first.
-- **0182 (plugin-root rename, `ready`, high) — a live constraint on almost every
+- **0182 (plugin-root rename, `done`, high) — a live constraint on almost every
   surface this story touches.** It renames `CLAUDE_PLUGIN_ROOT` to
   `ACCELERATOR_PLUGIN_ROOT` and carries a criterion that **no tracked file under
   `cli/` contains the string `CLAUDE_`**, which the new migrate crate would
-  violate as this item is currently written. It adds `hooks/shim-refresh.sh` as a
-  fourth SessionStart entry that must be appended **at index 3**, so this story's
+  violate as this item is currently written. It adds
+  **`hooks/launcher-link-refresh.sh`** (shipped under this name — corrected
+  2026-08-06 from the `hooks/shim-refresh.sh` earlier drafts of this item named)
+  as a fourth SessionStart entry appended **at index 3**, so this story's
   `hooks.json` edit must not collide with it. Its `CLAUDE_PLUGIN_ROOT` allowlist
   enumerates `skills/config/migrate/**`, migrations `0001`–`0007`,
   `scripts/interactive-harness.sh` and `hooks/**` — every one of which this story
   deletes, so those entries must be removed with them. And it records that
   `run-migrations.sh:643` and `interactive-lib.sh:433,744` *write* the variable
   into migration environments, behaviour the Rust engine must replace under the
-  new name. 0182's `relates_to` omits 0172, so the coupling needs recording from
-  both ends.
+  new name. 0182's `relates_to` still omits 0172 as of 2026-08-06, so the
+  coupling needs recording from both ends. Note also: 0182's own
+  mise.local.toml/allowlist-invariant acceptance criterion is unchecked despite
+  its `status: done` — confirm that box is closed before this item's plan relies
+  on the allowlist being final.
 - **0183 (SessionStart advisories on stderr reach nobody, bug) — same hook.** It
   moves the migrate-discoverability advisory off stderr onto a top-level
   `systemMessage` in the single JSON object on stdout, keeps the advisory naming
@@ -735,16 +786,15 @@ script *and* registration — here.
   0183 closes as superseded, or 0183 lands first and this story inherits its
   envelope. The discoverability criterion pins no output channel until that is
   decided.
-- **`--allow-legacy-layout` is not yet an obligation on 0167.** The flag, the
-  `doc-type-table.sh` allowlisting and the confinement guard are recorded only in
-  a "Notes from 0167 (2026-07-22)" block inside **0178** — dated after 0167's own
-  last update — and appear in none of 0167's Requirements, Acceptance Criteria or
-  Dependencies. 0167 can therefore be marked done without shipping it, and because
-  0167's `blocks` deliberately omits 0172, nothing signals the loss. A further
-  shape question: the flag as described is a **CLI affordance on the `accelerator
-  config` read subcommands**, while this binary consumes the config crates
-  in-process, and no item records a crate-level equivalent. Both are Cross-item
-  records work below.
+- **`--allow-legacy-layout` — partially resolved 2026-08-06 (see the amendment on
+  the 0167 dependency bullet above).** The flag shipped and is directly usable
+  in-process via `FileConfigStore::with_legacy_policy(LegacyPolicy::Allow)`,
+  closing the "crate-level equivalent" gap this note originally raised. Still
+  open: whether 0167's *own* Requirements/Acceptance Criteria text documents this
+  obligation (it was recorded only in a "Notes from 0167 (2026-07-22)" block
+  inside **0178** as of this item's prior review) — confirm directly against
+  0167's file before treating the Cross-item-records criterion above as
+  discharged.
 - New-binary registration: 0165's pipeline and 0162's enforcement policy. Not
   optional.
 - External (Claude Code): no TTY and fd 0 at EOF under Bash-tool agent invocation
@@ -802,9 +852,14 @@ script *and* registration — here.
   notes any in-flight session log on stderr. Criteria that assert `--list` does
   not mutate the tree are asserting this property.
 - **Which `store` is which.** `cli/store` is the standalone atomic
-  whole-file-write crate (`atomic_write` only, 0167's carve-out, not yet landed);
+  whole-file-write crate (`atomic_write` only, 0167's carve-out — **landed**;
+  confirmed 2026-08-06 as `cli/store/src/lib.rs`, consumed as a path dependency
+  by both `corpus-adapters` and `config-adapters`);
   `cli/corpus-adapters/src/store.rs` holds 0180's mkdir lock and JSONL
-  compose/remove; `cli/config-adapters/src/store.rs` holds the config layout
+  compose/remove (public surface is `FileCorpusStore`, implementing the
+  `AtomicWrite`/`RecordStore` ports from `cli/corpus/src/store.rs`; the
+  lower-level `jsonl.rs`/`lock.rs` modules are crate-private);
+  `cli/config-adapters/src/store.rs` holds the config layout
   read. The "recording store port" in the criteria is a test double for the
   corpus-adapters write path. `scripts/atomic-common.sh` survives retirement —
   it has many callers beyond this cluster (config, work-item-sync, the
@@ -833,7 +888,21 @@ script *and* registration — here.
   — planning confirms where each lives or that none exists.
 - 0167 is the parity-pattern exemplar; read its Parity and Suite-lifecycle groups
   first, including its rule that a residual grep's pattern and corpus are fixed
-  in the criterion rather than chosen at verification time.
+  in the criterion rather than chosen at verification time. Its own assertion
+  extractor (`scripts/check-inventory.sh`) and two of its three inventory
+  documents did **not** survive its own cutover commit — only
+  `meta/inventories/0167-removal-set.md`, `0167-suite-audit.md` and
+  `0167-divergences.md` remain (confirmed 2026-08-06). This item's stricter
+  "every assertion mapped" requirement therefore needs its own durable
+  extractor, not a reuse of 0167's; `0167-suite-audit.md`'s table shape
+  (file/line-or-suite, classification, disposition, pinning test) is the
+  reusable part. A concrete registration and golden-test template is also
+  available: `accelerator-vcs` (`cli/vcs-cli/`) — crate shape, `cargo-pup` rule,
+  `kernel::hooks` usage, bash-golden capture
+  (`hooks/test-fixtures/vcs-detect/regenerate.sh`, `hooks/test-fixtures/masks.toml`)
+  and `#[cfg(feature = "bash-parity")]`-gated Rust replay tests
+  (`cli/vcs-cli/tests/detect_goldens.rs`, `status_log_goldens.rs`) are all
+  directly modelled examples.
 - This is the most subtle concurrency port in the epic; the repointed suites and
   the bash-derived goldens are the oracle until Rust tests replace them.
 
@@ -966,7 +1035,10 @@ script *and* registration — here.
   `meta/work/0166-shared-config-corpus-store-crates.md`
 - Blocks: `meta/work/0174-retire-shell-tooling-and-ci-guards.md`
 - Ordering constraint to record on:
-  `meta/work/0173-remaining-subdomains-corpus-design-collaboration.md`
+  `meta/work/0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli.md`
+  (successor to abandoned
+  `meta/work/0173-remaining-subdomains-corpus-design-collaboration.md` — see the
+  2026-08-06 amendment in Dependencies)
 - Live constraints to reconcile with:
   `meta/work/0182-cli-derives-plugin-root-from-own-location.md` (the
   `ACCELERATOR_PLUGIN_ROOT` rename, the `no CLAUDE_ under cli/` guard, the
@@ -992,3 +1064,7 @@ script *and* registration — here.
 - Docs: `skills/config/migrate/SKILL.md` (the authoritative lifecycle,
   interactive and agent-invocation contract), `docs/migrations.md`
 - Prior research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Implementation-groundwork research (bash lifecycle/IPC/harness/migrations in
+  full, crate-foundation state, sub-binary registration template, guard
+  misattributions, work-item status corrections):
+  `meta/research/codebase/2026-08-06-0172-migration-engine-implementation-research.md`
