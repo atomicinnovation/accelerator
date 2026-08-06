@@ -31,6 +31,7 @@ class FakeWorld:
         quit_kills=(),
         activate_on_start=True,
         status_hook=None,
+        refuse_starts=0,
     ):
         self.procs = procs
         self.statuses = dict(statuses or {})
@@ -39,6 +40,10 @@ class FakeWorld:
         self.quit_kills = list(quit_kills)
         self.quit_called = 0
         self.started: list[str] = []
+        # How many `start` calls to reject before accepting one, and what got
+        # rejected — circus refuses a command issued while the arbiter is busy.
+        self.refuse_starts = refuse_starts
+        self.refused: list[str] = []
         # A real `start` only confirms the arbiter accepted the command; the
         # watcher may reach "active" later, or never. activate_on_start=False
         # models that gap, and status_hook — run on every status() call, before
@@ -75,6 +80,16 @@ class FakeSupervisor:
     def start(self, name):
         if not self.world.reachable:
             raise SupervisorUnreachableError("unreachable")
+        # Transient refusals, mimicking circus rejecting a command issued while
+        # the arbiter is still running another one.
+        if self.world.refuse_starts > 0:
+            self.world.refuse_starts -= 1
+            self.world.refused.append(name)
+            raise SupervisorUnreachableError(
+                "circus refused to start "
+                f"{name}: arbiter is already running "
+                "arbiter_start_watchers command"
+            )
         self.world.started.append(name)
         if self.world.activate_on_start:
             self.world.statuses[name] = "active"
@@ -498,6 +513,40 @@ class TestFrontendActivation:
 
         assert bring_up(self._deps(tmp_path, procs, world)).kind == "started"
 
+    def test_a_start_refused_while_the_arbiter_is_busy_is_retried(
+        self, tmp_path
+    ):
+        # circus serialises arbiter-level commands and refuses one issued while
+        # another is in flight. The readiness gate does not exclude that — the
+        # server writes server-info.json from inside start_watchers — so the
+        # frontend start routinely lands on a busy arbiter. Left unretried this
+        # was the "did not become active" flake: the watcher was never asked to
+        # run, so no amount of polling could ever see it active.
+        procs = FakeProcs()
+        world = self._world(procs, refuse_starts=3)
+
+        result = bring_up(self._deps(tmp_path, procs, world))
+
+        assert result.kind == "started"
+        assert world.refused == ["frontend"] * 3
+        assert world.started == ["frontend"]
+
+    def test_a_start_refused_past_the_deadline_fails_with_the_reason(
+        self, tmp_path
+    ):
+        # A refusal that never clears is a stuck arbiter, not a transient, and
+        # must surface circus's own wording rather than being reported as a
+        # watcher that would not activate.
+        procs = FakeProcs()
+        world = self._world(procs, refuse_starts=10_000, quit_kills=[9000])
+
+        result = bring_up(self._deps(tmp_path, procs, world))
+
+        assert result.kind == "failed"
+        assert "could not start the frontend watcher" in result.message
+        assert "arbiter is already running" in result.message
+        assert world.started == []
+
     def test_a_watcher_that_never_activates_is_torn_down(self, tmp_path):
         procs = FakeProcs()
         world = self._world(procs, activate_on_start=False, quit_kills=[9000])
@@ -509,6 +558,37 @@ class TestFrontendActivation:
         assert "did not become active" in result.message
         assert "/frontend.log" in result.message
         assert not deps.state_path.exists()
+
+    def test_a_failed_activation_quotes_the_watcher_status_and_log(
+        self, tmp_path
+    ):
+        # The message is the only evidence that survives a CI runner, which
+        # discards the workspace (and so frontend.log) with the job.
+        procs = FakeProcs()
+        world = self._world(procs, activate_on_start=False, quit_kills=[9000])
+        deps = self._deps(tmp_path, procs, world)
+        deps.dev_dir.mkdir(parents=True, exist_ok=True)
+        (deps.dev_dir / "frontend.log").write_text(
+            "npm ERR! missing script: dev\n"
+        )
+
+        result = bring_up(deps)
+
+        assert "watcher status='stopped'" in result.message
+        assert "npm ERR! missing script: dev" in result.message
+
+    def test_a_failed_activation_survives_a_missing_log(self, tmp_path):
+        # Evidence gathering runs on the failure path; it must never mask the
+        # abort it is describing.
+        procs = FakeProcs()
+        world = self._world(procs, activate_on_start=False, quit_kills=[9000])
+        deps = self._deps(tmp_path, procs, world)
+
+        result = bring_up(deps)
+
+        assert result.kind == "failed"
+        assert "did not become active" in result.message
+        assert "empty or unreadable" in result.message
 
     def test_a_watcher_that_dies_during_the_settle_window_fails(self, tmp_path):
         # Active on the first poll, gone by the confirmation poll: the
