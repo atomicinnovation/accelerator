@@ -6,7 +6,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DEV_PRIOR_PATH_STORAGE_KEY } from "../../api/storage-keys";
 import { type DevActivation, useDevActivation } from "./use-dev-activation";
@@ -19,6 +19,13 @@ function Root() {
   return <Outlet />;
 }
 
+/** Rendered marker per route, so a wait can key on the tree, not the router. */
+const LABELS: Record<string, string> = {
+  "/library": "library",
+  "/kanban": "kanban",
+  "/dev": "dev",
+};
+
 function buildRouter(initial: string) {
   const root = createRootRoute({ component: Root });
   const mk = (path: string, label: string) =>
@@ -28,9 +35,9 @@ function buildRouter(initial: string) {
       component: () => <div>{label}</div>,
     });
   const tree = root.addChildren([
-    mk("/library", "library"),
-    mk("/kanban", "kanban"),
-    mk("/dev", "dev"),
+    mk("/library", LABELS["/library"]),
+    mk("/kanban", LABELS["/kanban"]),
+    mk("/dev", LABELS["/dev"]),
     mk("/library/$type/$fileSlug", "doc"),
   ]);
   return createRouter({
@@ -39,13 +46,39 @@ function buildRouter(initial: string) {
   });
 }
 
+/**
+ * Wait until the hook has genuinely *observed* `pathname`.
+ *
+ * `router.state.location.pathname` is the wrong thing to wait on by itself:
+ * the memory history reports the target the instant the router is built, so
+ * the assertion is already true before `render` — which returns before the
+ * async initial load has rendered anything at all. A test can therefore sail
+ * past it with the tree unmounted and `useDevActivation`'s prior-path capture
+ * effect never run, and then drive `exitDev` against an unseeded ref. That
+ * restores the `/library` fallback instead of the real prior, which is exactly
+ * the intermittent failure this suite showed under parallel load — and it is
+ * invisible when the test's own starting path is also `/library`.
+ *
+ * So: wait for the route's rendered marker (proves the tree mounted), then for
+ * the session write, which is the capture effect's only observable trace.
+ */
+async function settleAt(
+  router: ReturnType<typeof buildRouter>,
+  pathname: string,
+) {
+  await screen.findByText(LABELS[pathname]);
+  await waitFor(() => expect(router.state.location.pathname).toBe(pathname));
+  if (pathname !== "/dev") {
+    await waitFor(() =>
+      expect(sessionStorage.getItem(DEV_PRIOR_PATH_STORAGE_KEY)).toBe(pathname),
+    );
+  }
+}
+
 async function renderAt(initial: string) {
   const router = buildRouter(initial);
   render(<RouterProvider router={router} />);
-  const expectedPath = initial.split("#")[0];
-  await waitFor(() =>
-    expect(router.state.location.pathname).toBe(expectedPath),
-  );
+  await settleAt(router, initial.split("#")[0]);
   return router;
 }
 
@@ -125,7 +158,9 @@ describe("useDevActivation — enter / exit", () => {
     act(() => {
       router.navigate({ to: "/kanban" });
     });
-    await waitFor(() => expect(router.state.location.pathname).toBe("/kanban"));
+    // Must settle, not merely arrive: the assertion below distinguishes the
+    // captured prior from the fallback only if the capture actually happened.
+    await settleAt(router, "/kanban");
     act(() => captured.current?.enterDev());
     await waitFor(() => expect(router.state.location.pathname).toBe("/dev"));
     act(() => captured.current?.exitDev());
