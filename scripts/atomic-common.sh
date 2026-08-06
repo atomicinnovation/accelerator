@@ -138,8 +138,23 @@ _atomic_lock_acquire() {
   # Record ownership so a waiter can detect us dying and reclaim the lock.
   # $BASHPID is the critical-section subshell's own PID (bash 4+); on bash
   # 3.2 it is unset, so we skip ownership and fall back to spin-only.
-  [ -n "${BASHPID:-}" ] && printf '%s\n' "$BASHPID" >"$lockdir/owner" \
+  #
+  # The sentinel's NAME carries a nonce (`owner.<nonce>`), not just its
+  # contents. That is what makes reclaim safe — see
+  # _atomic_lock_reclaim_if_stale — and it is the same on-disk format the Rust
+  # implementation in cli/corpus-adapters writes, so the two can reclaim after
+  # each other on a shared `<target>.lockdir`.
+  [ -n "${BASHPID:-}" ] &&
+    printf '%s\n' "$BASHPID" >"$lockdir/owner.$(_atomic_lock_nonce)" \
     2>/dev/null || true
+}
+
+# _atomic_lock_nonce
+#   A per-holder token for the sentinel filename. Two RANDOM draws plus the
+#   subshell PID: RANDOM alone is 15 bits, which collides far too readily
+#   across the many short-lived subshells a parallel run spawns.
+_atomic_lock_nonce() {
+  printf '%04x%04x%04x' "${BASHPID:-$$}" "$RANDOM" "$RANDOM"
 }
 
 _atomic_lock_release() {
@@ -152,14 +167,89 @@ _atomic_lock_release() {
 #   Remove a lockdir whose recorded owner process is gone. Safe because a
 #   dead process cannot be inside the critical section; PID reuse only
 #   yields a false "still alive" reading, degrading to the spin-and-wait
-#   path rather than ever breaking a live lock. A lockdir with no owner
-#   file yet (holder still mid-acquisition) is treated as live.
+#   path rather than ever breaking a live lock. A lockdir with no sentinel
+#   yet (holder still mid-acquisition) is treated as live.
+#
+#   Reclaim is a read-then-act and the read can go stale: between reading a
+#   dead owner and acting on it, another waiter can reclaim, mkdir and take
+#   the lock. A bare `rm -rf` then deletes that new, LIVE holder's lockdir and
+#   two callers run the critical section at once — a lost append, since the
+#   guarded operation is a read-modify-write. So the removal is gated on
+#   winning an `mv` of the sentinel: rename(2) is atomic, which makes the step
+#   single-winner among waiters that read the same holder, while the nonce in
+#   the name makes it a no-op against any OTHER holder. Re-nonced rather than
+#   renamed to a fixed name so the same gate covers the crash-recovery case
+#   below.
+#
+#   A holder that dies between the mv and the rm leaves `reclaiming.<nonce>`.
+#   That state is picked up here too — otherwise the lockdir would be left
+#   sentinel-less and every later waiter would read it as permanently held.
 _atomic_lock_reclaim_if_stale() {
-  local lockdir="$1" owner
-  owner=$(cat "$lockdir/owner" 2>/dev/null) || return 0
-  [ -n "$owner" ] || return 0
-  kill -0 "$owner" 2>/dev/null && return 0
+  local lockdir="$1" sentinel claimed
+  sentinel=$(_atomic_lock_reclaimable "$lockdir") || return 0
+  # The winner's OWN pid goes in the name, put there atomically by the mv.
+  claimed="$lockdir/reclaiming.${BASHPID:-$$}.$(_atomic_lock_nonce)"
+  mv "$lockdir/$sentinel" "$claimed" 2>/dev/null || return 0
   rm -rf "$lockdir" 2>/dev/null || true
+}
+
+# _atomic_lock_reclaimable <lockdir>
+#   Echo the sentinel a reclaim may take, if any; non-zero when none may be.
+_atomic_lock_reclaimable() {
+  local lockdir="$1" sentinel owner pid
+  sentinel=$(_atomic_lock_sentinel "$lockdir") || return 1
+  case "$sentinel" in
+    reclaiming.*)
+      # A reclaim between its mv and its rm. Taking it over is only safe once
+      # the RECLAIMER is dead — gating on the original holder instead would
+      # let two waiters each win an mv of a different name and both proceed to
+      # rm, the slower one landing on whatever fresh, live lockdir had since
+      # replaced it. The reclaimer's pid is read from the NAME, published
+      # atomically by the mv that created it.
+      pid="${sentinel#reclaiming.}"
+      pid="${pid%%.*}"
+      [ -n "$pid" ] || return 1
+      kill -0 "$pid" 2>/dev/null && return 1
+      ;;
+    *)
+      owner=$(cat "$lockdir/$sentinel" 2>/dev/null) || return 1
+      [ -n "$owner" ] || return 1
+      kill -0 "$owner" 2>/dev/null && return 1
+      ;;
+  esac
+  printf '%s\n' "$sentinel"
+}
+
+# _atomic_lock_sentinel <lockdir>
+#   Echo the lockdir's single `owner.<nonce>` sentinel, or its
+#   `reclaiming.<nonce>` if a reclaim died mid-flight. Non-zero when there is
+#   no sentinel at all (a holder mid-acquisition), or when there is more than
+#   one of a kind — which no correct writer produces, so it is read as "do not
+#   touch" rather than guessed at.
+_atomic_lock_sentinel() {
+  local lockdir="$1" prefix name found count
+  for prefix in owner reclaiming; do
+    found=""
+    count=0
+    for name in "$lockdir/$prefix".*; do
+      [ -f "$name" ] || continue
+      found="${name##*/}"
+      count=$((count + 1))
+    done
+    if [ "$count" -eq 1 ]; then
+      printf '%s\n' "$found"
+      return 0
+    fi
+    [ "$count" -gt 1 ] && return 1
+  done
+  # A nonce-less `owner` is the pre-nonce on-disk format. Nothing writes it
+  # any more, so it can only be an orphan left by a holder that died before
+  # the upgrade — and reclaiming it is still single-winner, because the `mv`
+  # gate applies to it exactly as to a nonced sentinel. Without this the
+  # orphan would be unreadable and wedge that file's lock for the full
+  # 300 s ceiling on every append.
+  [ -f "$lockdir/owner" ] && printf 'owner\n' && return 0
+  return 1
 }
 
 # atomic_jsonl_append <target_path> <json_line>

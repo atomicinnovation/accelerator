@@ -345,6 +345,45 @@ assert_eq "stale lock reclaimed (exit 0)" "0" "$RC"
 assert_eq "stale lock reclaim wrote one line" "1" \
   "$(wc -l <"$TARGET_STALE" | tr -d ' ')"
 
+echo "Test: finishes a reclaim abandoned by a dead reclaimer"
+# The crash window: the sentinel was mv'd aside but the lockdir was never
+# removed. Left alone it has no owner sentinel and every later waiter would
+# read it as permanently held, wedging the lock for the full ceiling.
+TARGET_ABANDONED="$TMPDIR_BASE/abandoned-lock.jsonl"
+LOCKDIR_ABANDONED="${TARGET_ABANDONED}.lockdir"
+mkdir -p "$LOCKDIR_ABANDONED"
+sh -c 'exit 0' &
+DEAD_RECLAIMER=$!
+wait "$DEAD_RECLAIMER" 2>/dev/null || true
+printf '%s\n' "$DEAD_RECLAIMER" \
+  >"$LOCKDIR_ABANDONED/reclaiming.$DEAD_RECLAIMER.abc123"
+RC=0
+atomic_jsonl_append "$TARGET_ABANDONED" \
+  '{"transformation_key":"recovered","schema_version":1}' || RC=$?
+assert_eq "abandoned reclaim finished (exit 0)" "0" "$RC"
+assert_eq "abandoned reclaim wrote one line" "1" \
+  "$(wc -l <"$TARGET_ABANDONED" | tr -d ' ')"
+
+echo "Test: leaves a reclaim alone while its reclaimer is still alive"
+# The reclaimer is mid-flight, not abandoned. Taking the sentinel over would
+# give two waiters the right to rm the same lockdir.
+TARGET_INFLIGHT="$TMPDIR_BASE/inflight-lock.jsonl"
+LOCKDIR_INFLIGHT="${TARGET_INFLIGHT}.lockdir"
+mkdir -p "$LOCKDIR_INFLIGHT"
+sleep 30 &
+LIVE_RECLAIMER=$!
+printf '%s\n' "$LIVE_RECLAIMER" \
+  >"$LOCKDIR_INFLIGHT/reclaiming.$LIVE_RECLAIMER.abc123"
+RECLAIMABLE_RC=0
+_atomic_lock_reclaimable "$LOCKDIR_INFLIGHT" >/dev/null 2>&1 ||
+  RECLAIMABLE_RC=$?
+assert_eq "live reclaimer's sentinel is not reclaimable" "1" \
+  "$RECLAIMABLE_RC"
+assert_eq "the lockdir is left in place" "0" \
+  "$([ -d "$LOCKDIR_INFLIGHT" ] && echo 0 || echo 1)"
+kill "$LIVE_RECLAIMER" 2>/dev/null || true
+wait "$LIVE_RECLAIMER" 2>/dev/null || true
+
 echo "Test: unwritable target directory surfaces error (no silent fail)"
 TARGET5="$TMPDIR_BASE/nope/file.jsonl"
 mkdir -p "$TMPDIR_BASE/nope"
