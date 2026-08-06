@@ -268,7 +268,7 @@ segment matches; the first matching segment names the reported subcommand.
       shapes directly (ahead of the guard's own implementation, which is
       re-verified end to end in Phase 10 of the plan) — no exit-2 fallback is
       needed.
-- [ ] **Shell behaviour captured as committed fixtures before any deletion**, in
+- [x] **Shell behaviour captured as committed fixtures before any deletion**, in
       a commit preceding the deletion commit: the `vcs status`/`vcs log` goldens
       and the `vcs guard` decision table. The volatile-field mask set is derived
       from the capture, enumerated per subcommand in the plan, committed as a
@@ -277,7 +277,7 @@ segment matches; the first matching segment names the reported subcommand.
       characters, jj change ids (32-character non-hex), ISO-8601 *and* jj's
       space-separated timestamps, relative age strings, the fixture tempdir
       path, and author identity.
-- [ ] `accelerator vcs detect --descriptive` reproduces `hooks/vcs-detect.sh`,
+- [x] `accelerator vcs detect --descriptive` reproduces `hooks/vcs-detect.sh`,
       verified against the repointed parity gate. The two goldens
       (`hooks/test-fixtures/vcs-detect/*.json`) are compared after `jq -S .`
       canonicalisation on both sides and must equal the current shell-produced
@@ -289,7 +289,7 @@ segment matches; the first matching segment names the reported subcommand.
       for a declared behavioural change. A **fourth** fixture pins
       `vcs detect`'s default (non-`--descriptive`) structured-only output,
       which has no shell equivalent — the third declared departure.
-- [ ] **The 42 parity-gate cases partition into five disjoint buckets**, each
+- [x] **The 42 parity-gate cases partition into five disjoint buckets**, each
       case in exactly one, stated in the plan as a line-range partition
       summing to 42 (**revised 2026-08-05** — corrected from an earlier
       four-bucket, 27-case count that undercounted a host-artefact case the
@@ -305,7 +305,7 @@ segment matches; the first matching segment names the reported subcommand.
       `vcs-common.sh` function nor `$HOOK` — preserved in place, now asserting
       the Rust-produced goldens are equally free of host-specific path
       leakage. 26+8+5+2+1 = 42.
-- [ ] `accelerator vcs status` and `accelerator vcs log` match the captured
+- [x] `accelerator vcs status` and `accelerator vcs log` match the captured
       goldens across: clean git, dirty git, git ahead/behind, detached-HEAD git,
       clean jj, dirty jj, colocated, jj secondary workspace, and no repository
       at all. (No `.git`-as-file case: `vcs-status.sh:9`/`vcs-log.sh:9` branch
@@ -315,7 +315,7 @@ segment matches; the first matching segment names the reported subcommand.
       "ahead/behind" is a local clone two commits ahead and one behind upstream;
       the no-repository expectation is the shell's own behaviour, captured with
       the rest.
-- [ ] `accelerator vcs guard` reproduces the captured decision table. The row
+- [x] `accelerator vcs guard` reproduces the captured decision table. The row
       count is **34 command cases × 4 repo modes = 136**, plus the
       `.git`-as-file colocated case, plus one quote-aware compound-split
       departure case (`git commit -m "build && test"` against pure-jj — the
@@ -325,25 +325,25 @@ segment matches; the first matching segment names the reported subcommand.
       match-later / no-match) =
       34; repo modes are pure-jj, colocated, git, non-repo. The multiplier
       applies uniformly, so the total is checkable against the capture.
-- [ ] The `classify_checkout` port is verified by a fixture covering every arm
+- [x] The `classify_checkout` port is verified by a fixture covering every arm
       in the authoritative list, asserting first-match-wins for the named
       ambiguous case: **a colocated checkout nested inside another repository
       classifies as `colocated`, not `nested-*`**. The set is asserted
       **closed** — exactly the seven named variants — so a superset taxonomy is
       detectable.
-- [ ] `hooks.json` registers the three command strings verbatim. A golden exists
+- [x] `hooks.json` registers the three command strings verbatim. A golden exists
       **per emitted output shape**; the plan enumerates the final list, which
       includes at least: SessionStart with `systemMessage`, SessionStart
       without, plain `vcs detect` (structured and `--descriptive`), plain
       `vcs guard`, PreToolUse deny, and PreToolUse warn-only.
-- [ ] The PreToolUse guard emits
+- [x] The PreToolUse guard emits
       `{hookSpecificOutput:{hookEventName:"PreToolUse",
       permissionDecision:"deny", permissionDecisionReason:…}}` for a pure-jj
       block. The colocated "warn but permit" case emits a bare top-level
       `{systemMessage:…}` with **no** `permissionDecision` — `"allow"` skips the
       interactive permission prompt and would widen privilege under cover of a
       format change; `"ask"` would force a prompt where none is forced today.
-- [ ] **The guard fails open, three ways.** (a) Release host unreachable with an
+- [x] **The guard fails open, three ways.** (a) Release host unreachable with an
       empty cache — `ACCELERATOR_RELEASE_BASE_URL` at a dead address — the hook
       exits 0 and emits no blocking envelope. (b) Host reachable but serving a
       manifest with no `accelerator-vcs` entry — same outcome. (c) A corrupt
@@ -351,7 +351,7 @@ segment matches; the first matching segment names the reported subcommand.
       emits no `permissionDecision`. Fault injection is by a test-only failing
       adapter or a named env override, never by file permissions, so none of
       these can pass vacuously under root.
-- [ ] **The two non-normal outputs are pinned separately**, matching the
+- [x] **The two non-normal outputs are pinned separately**, matching the
       disjoint contract: (a) *success with nothing to report* — in a main
       checkout with no boundary, `vcs detect --format=hook --fail-safe` exits 0
       and writes exactly zero bytes to stdout; (b) *adapter failure* — with a
@@ -363,13 +363,20 @@ segment matches; the first matching segment names the reported subcommand.
       it appears in the generated manifest with a description and signature;
       `validate_dispatch_coherence` (generalised by 0187) covers the `vcs`
       token; `cargo deny`, `cargo-pup` and `--locked` clippy pass; the musl
-      build passes `_assert_static_elf`.
+      build passes `_assert_static_elf`. **Partially verified 2026-08-06**:
+      manifest/description generation, `validate_dispatch_coherence`, `cargo
+      deny`, `cargo-pup` and `--locked` clippy all confirmed green via `mise
+      run`. The musl cross-compile (`build:cli:cross-compile`) is a
+      release-pipeline-only task, not a `mise run` dependency, so
+      `_assert_static_elf` has not yet been exercised against a real
+      cross-compiled `accelerator-vcs` binary — left unchecked pending the
+      next release build alongside the release-cut criterion below.
 - [ ] **The release precedes the rewrite.** A published manifest listing
       `accelerator-vcs` exists before the `hooks.json` rewrite reaches an
       installed-plugin path, verified against the *published* manifest rather
       than the locally generated one. (The reachable-host-but-missing-entry case
       is covered by the fail-open criterion; this one covers the ordering.)
-- [ ] After first use, the guard resolves from the warmed cache — zero
+- [x] After first use, the guard resolves from the warmed cache — zero
       sub-binary fetch invocations against a stubbed fetcher across repeated
       calls.
 - [ ] **Warm-call latency**, host-relative: in one session on one darwin-arm64
@@ -380,7 +387,7 @@ segment matches; the first matching segment names the reported subcommand.
       Record B, G, the ratio, the payload, the fixture and the host in
       Validation Results. Not a CI job — which means "not automated", not "not
       required".
-- [ ] `skills/vcs/commit/SKILL.md:13-14` invoke
+- [x] `skills/vcs/commit/SKILL.md:13-14` invoke
       `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status --fail-safe` and
       `… vcs log --fail-safe` (the flag lets a cold-cache dispatch failure
       degrade the skill's injected context rather than failing the
@@ -393,7 +400,7 @@ segment matches; the first matching segment names the reported subcommand.
       already-counted skill*, so the file count is unaffected), and (b) a
       runtime check that both commands exit 0 and emit non-empty output in a
       fixture repo.
-- [ ] `hooks/vcs-detect.sh`, `hooks/vcs-guard.sh`, `hooks/config-detect.sh`,
+- [x] `hooks/vcs-detect.sh`, `hooks/vcs-guard.sh`, `hooks/config-detect.sh`,
       `scripts/vcs-status.sh` and `scripts/vcs-log.sh` are removed, and prose
       documentation naming any of them (`README.md`, `docs/internals.md`,
       `tasks/README.md`) is updated to the new subcommands — no listed guard
@@ -402,7 +409,7 @@ segment matches; the first matching segment names the reported subcommand.
       surviving suites are `hooks/test-migrate-discoverability.sh` and the
       repointed parity gate — and is re-verified green after the deletions. All
       five removed files are entrypoints, so `SHELL_LIBRARIES` needs no edit.
-- [ ] **The downstream hand-offs are raised** as a dated note appended to each
+- [x] **The downstream hand-offs are raised** as a dated note appended to each
       receiving work item's Dependencies section — 0172 (proposed `blocked_by:
       work-item:0169` plus `hooks/migrate-discoverability.sh` in its source
       list), 0183 (`accelerator vcs detect` is a new SessionStart site for its
@@ -413,7 +420,7 @@ segment matches; the first matching segment names the reported subcommand.
       `log`/`diff` leave the guard's blocked set (which would unblock
       `skills/planning/validate-plan` in pure-jj repos). Appending the notes and
       creating the two items are in scope; re-scoping existing items is not.
-- [ ] `mise run` is green end to end.
+- [x] `mise run` is green end to end.
 
 ## Open Questions
 

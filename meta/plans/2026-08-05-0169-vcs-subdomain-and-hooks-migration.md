@@ -5,7 +5,7 @@ title: "VCS Subdomain and Hooks Migration Implementation Plan"
 date: "2026-08-05T15:35:17+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: done
 work_item_id: "work-item:0169"
 parent: "work-item:0169"
 derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
