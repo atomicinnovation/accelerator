@@ -8,7 +8,6 @@ producer: validate-plan
 status: complete
 result: pass
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
-relates_to: []
 tags: [rust, vcs, hooks, migration]
 last_updated: "2026-08-06T00:45:48+00:00"
 last_updated_by: Toby Clemson
