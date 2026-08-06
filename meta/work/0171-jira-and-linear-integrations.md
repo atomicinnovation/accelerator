@@ -9,11 +9,11 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0187"]
+blocked_by: ["work-item:0187", "work-item:0194"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-relates_to: ["work-item:0170"]
+relates_to: ["work-item:0170", "work-item:0194"]
 tags: [rust, jira, linear, integrations, reqwest]
-last_updated: "2026-08-01T16:57:37+00:00"
+last_updated: "2026-08-05T22:11:33+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-192"
@@ -40,14 +40,16 @@ provider.
 implement create/update/comment/transition/search/show/attach/init flows, ADF↔markdown
 conversion, JQL/GraphQL, and auth, shelling out to `jq`/`curl`. Both have Python
 mock HTTP servers for tests. Resolved Q2: provider clients are shared crates reused
-by both the standalone binaries and the `tracker` sync engine (0170). May be split
-into separate Jira and Linear stories if finer granularity is wanted.
+by both the standalone binaries and the `tracker` sync engine (0194 — split off
+from 0170 on 2026-08-05; the `tracker` crate and `RemoteTracker` port now live
+there, not in 0170). May be split into separate Jira and Linear stories if finer
+granularity is wanted.
 
 ## Requirements
 
 - Implement `jira-client` (Jira REST + ADF↔markdown + auth) and `linear-client`
   (Linear GraphQL + auth) as adapter crates over `reqwest` + rustls + serde, each
-  `impl RemoteTracker` (the port from 0170's `tracker` crate).
+  `impl RemoteTracker` (the port from 0194's `tracker` crate).
 - Implement `accelerator-jira` and `accelerator-linear` as thin inbound CLI adapters
   exposing the user-facing flows (create/update/comment/transition/search/show/
   attach/init).
@@ -61,7 +63,7 @@ into separate Jira and Linear stories if finer granularity is wanted.
 - [ ] `accelerator jira …` and `accelerator linear …` reproduce the standalone flows,
       verified against the repointed integration suites and the mock servers.
 - [ ] Both client crates implement `RemoteTracker` and are consumable by
-      `accelerator-work`'s sync engine (0170) with no duplication of API logic.
+      `accelerator-work`'s sync engine (0194) with no duplication of API logic.
 - [ ] No production `jq`/`curl` dependency remains for the migrated integration
       skills; their `allowed-tools` entries are removed.
 - [ ] The integration suite floor is decremented in lockstep as the shell scripts
@@ -74,12 +76,17 @@ into separate Jira and Linear stories if finer granularity is wanted.
 
 ## Dependencies
 
-- Blocked by: 0166 (shared crates), and the `tracker` port from 0170.
+- Blocked by: 0166 (shared crates), and the `tracker` port from 0194
+  (split off from 0170 on 2026-08-05).
 - Blocked by: 0187 (generalises the sub-binary registration surface). This story
   adds a dispatch token; it does not generalise the surface. Registration
   follows the checklist 0187 adds at
   `tasks/README.md#registering-a-dispatched-sub-binary`. (2026-08-01)
-- Relates to: 0170 (the sync engine consumes these clients).
+- Relates to: 0170 (the work-item lifecycle subdomain — no direct
+  dependency on these clients or the `RemoteTracker` port itself; 0194
+  wires `--push` onto its `create`/`update` commands separately, using
+  0194's own port).
+- Relates to: 0194 (the sync engine consumes these clients).
 - Parent: epic 0136.
 
 ## Assumptions
@@ -99,6 +106,10 @@ into separate Jira and Linear stories if finer granularity is wanted.
 
 - Treated as the Phase 8 story; kept as one grouped item per the user's selection,
   with a noted split option.
+- Updated 2026-08-05: 0170 split into 0170 (lifecycle CRUD) and 0194
+  (`tracker` crate and remote sync engine) following a work item review. All
+  references to "the tracker port from 0170" now point at 0194, which is
+  where the `RemoteTracker` port actually lives.
 
 > Extracted from source documents without interactive enrichment.
 > Acceptance criteria, dependencies, and kind may need refinement before
