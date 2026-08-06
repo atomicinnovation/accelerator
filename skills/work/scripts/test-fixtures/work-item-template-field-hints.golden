@@ -1,0 +1,31 @@
+# work-item-template-field-hints.sh golden file.
+# Format: <field>|<template state>|<exit_code>|<expected output, one value per line, \n-encoded>
+#
+# <template state>:
+#   comment-present     — real `templates/work-item.md` (via `accelerator
+#                         config template work-item`), field line has a
+#                         trailing `# a | b | c` comment
+#   comment-absent      — field line present but with no trailing `#`
+#                         comment (falls back to hardcoded_fallback)
+#   template-unreadable — the `accelerator config template work-item`
+#                         command itself fails (falls back to
+#                         hardcoded_fallback identically to comment-absent
+#                         per work-item-template-field-hints.sh:52-56;
+#                         same code path, not separately exercised against
+#                         a real broken template at capture time)
+#
+# hardcoded_fallback is empty for any field other than kind/status/priority.
+#
+# Cross-checked against a real invocation of the real
+# templates/work-item.md at implementation time.
+
+kind|comment-present|0|story\nepic\ntask\nbug\nspike
+status|comment-present|0|draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned
+priority|comment-present|0|high\nmedium\nlow
+title|comment-absent|0|(empty)
+kind|template-unreadable|0|story\nepic\ntask\nbug\nspike
+status|template-unreadable|0|draft\nready\nin-progress\nreview\ndone\nblocked\nabandoned
+priority|template-unreadable|0|high\nmedium\nlow
+
+[USAGE_ERROR]
+(no args)|1|Usage: work-item-template-field-hints.sh <field>
