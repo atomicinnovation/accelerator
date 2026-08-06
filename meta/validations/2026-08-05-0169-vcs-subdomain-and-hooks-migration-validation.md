@@ -123,7 +123,7 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
   `docs-site/`, and `tasks/README.md` for the five retired filenames returns
   nothing.
 - **Phase 10** — Dated hand-off notes are present in `0172`, `0183`, `0125`,
-  and `0189`; the two required follow-up work items (`0192`, `0193`) exist
+  and `0189`; the two required follow-up work items (`0199`, `0200`) exist
   and are cross-linked from `0169`'s own `relates_to`; `mise run` (the
   phase's own top-line automated criterion) passes.
 
