@@ -156,7 +156,18 @@ class CircusSupervisor:
         return [int(p) for p in resp.get("pids", [])]
 
     def start(self, name: str) -> None:
-        self._call("start", name=name)
+        # circus answers a rejected command with {"status": "error", "reason":
+        # ...} rather than raising, so discarding the reply turns a refused
+        # start into a silent no-op: the caller then polls a watcher that was
+        # never asked to run until its deadline and reports it as "did not
+        # become active", pointing at an empty log. Surface it as the
+        # unreachable-supervisor error the orchestrators already handle.
+        resp = self._call("start", name=name)
+        if resp.get("status") == "error":
+            raise SupervisorUnreachableError(
+                f"circus refused to start {name}: "
+                f"{resp.get('reason', 'no reason given')}"
+            )
 
     def quit(self) -> None:
         self._call("quit")

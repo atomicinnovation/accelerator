@@ -1,4 +1,11 @@
-from tasks.shared.dev.circus import ArbiterSpec, render_circus_ini
+import pytest
+
+from tasks.shared.dev.circus import (
+    ArbiterSpec,
+    CircusSupervisor,
+    SupervisorUnreachableError,
+    render_circus_ini,
+)
 
 
 def _spec(**overrides) -> ArbiterSpec:
@@ -89,3 +96,51 @@ class TestRenderCircusIni:
         spec = _spec()
         ini = render_circus_ini(spec)
         assert f"VISUALISER_INFO_PATH = {spec.server_info_path}" in ini
+
+
+class _StubClient:
+    """Stands in for circus's `CircusClient`: records calls, replays replies."""
+
+    def __init__(self, replies: dict[str, dict]) -> None:
+        self._replies = replies
+        self.calls: list[tuple[str, dict]] = []
+
+    def send_message(self, command: str, **props) -> dict:
+        self.calls.append((command, props))
+        return self._replies.get(command, {"status": "ok"})
+
+
+def _supervisor(replies: dict[str, dict]) -> CircusSupervisor:
+    # Bypass __init__ so no real endpoint is dialled: the adapter's whole job
+    # is translating circus's wire shapes, which is what these pin.
+    sup = object.__new__(CircusSupervisor)
+    sup._client = _StubClient(replies)
+    return sup
+
+
+class TestCircusSupervisorStart:
+    def test_an_accepted_start_returns(self):
+        sup = _supervisor({"start": {"status": "ok"}})
+        sup.start("frontend")
+        assert sup._client.calls == [("start", {"name": "frontend"})]
+
+    def test_a_refused_start_raises_rather_than_passing_silently(self):
+        # circus answers a rejected command with an error *payload*, not an
+        # exception. Swallowing it left the caller polling a watcher that was
+        # never asked to run until its deadline — the "did not become active"
+        # failure with an empty frontend.log.
+        sup = _supervisor(
+            {"start": {"status": "error", "reason": "arbiter is stopping"}}
+        )
+
+        with pytest.raises(SupervisorUnreachableError) as excinfo:
+            sup.start("frontend")
+
+        assert "arbiter is stopping" in str(excinfo.value)
+        assert "frontend" in str(excinfo.value)
+
+    def test_a_refused_start_without_a_reason_still_raises(self):
+        sup = _supervisor({"start": {"status": "error"}})
+
+        with pytest.raises(SupervisorUnreachableError):
+            sup.start("frontend")
