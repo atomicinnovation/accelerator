@@ -142,6 +142,26 @@ impl WorkItemIdScheme {
         None
     }
 
+    /// True iff `id` is a legacy bare-number ID: 1 to 4 ASCII digits with at
+    /// least one non-zero digit. Dependency-free port of `wip_is_legacy_id`.
+    #[must_use]
+    pub fn is_legacy_id(id: &str) -> bool {
+        (1..=4).contains(&id.len())
+            && id.chars().all(|c| c.is_ascii_digit())
+            && id.chars().any(|c| c != '0')
+    }
+
+    /// Zero-pads `input` to 4 digits. `None` when `input` is not all-ASCII-digit
+    /// (including empty). Dependency-free port of `wip_pad_legacy_number`.
+    #[must_use]
+    pub fn pad_legacy_number(input: &str) -> Option<String> {
+        if input.is_empty() || !input.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        let number: u64 = input.parse().ok()?;
+        Some(format!("{number:04}"))
+    }
+
     /// Extracts the full work-item-ID from a filename: the injected `scanner`
     /// supplies the primary digit run; a bare-numeric fallback keys legacy files
     /// when a project code is configured.
@@ -298,6 +318,31 @@ mod tests {
         let proj = project("PROJ", 4);
         assert_eq!(proj.canonicalise_id("40").as_deref(), Some("PROJ-0040"));
         assert_eq!(proj.canonicalise_id("OTHER-9").as_deref(), Some("OTHER-9"));
+    }
+
+    #[test]
+    fn is_legacy_id_accepts_one_to_four_nonzero_digits() {
+        assert!(WorkItemIdScheme::is_legacy_id("42"));
+        assert!(WorkItemIdScheme::is_legacy_id("0042"));
+        assert!(WorkItemIdScheme::is_legacy_id("9"));
+        assert!(!WorkItemIdScheme::is_legacy_id("0000"));
+        assert!(!WorkItemIdScheme::is_legacy_id("12345"));
+        assert!(!WorkItemIdScheme::is_legacy_id(""));
+        assert!(!WorkItemIdScheme::is_legacy_id("12a4"));
+    }
+
+    #[test]
+    fn pad_legacy_number_zero_pads_to_four_digits() {
+        assert_eq!(
+            WorkItemIdScheme::pad_legacy_number("42").as_deref(),
+            Some("0042")
+        );
+        assert_eq!(
+            WorkItemIdScheme::pad_legacy_number("12345").as_deref(),
+            Some("12345")
+        );
+        assert_eq!(WorkItemIdScheme::pad_legacy_number(""), None);
+        assert_eq!(WorkItemIdScheme::pad_legacy_number("12a"), None);
     }
 
     #[test]

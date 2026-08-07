@@ -525,22 +525,24 @@ both skills have a CLI subcommand to repoint to once
 
 #### Automated Verification
 
-- [ ] `cargo test -p corpus -p corpus-adapters --locked` passes, including new
+- [x] `cargo test -p corpus -p corpus-adapters --locked` passes, including new
       unit tests for every function above, table-driven against the golden
       rows captured in Phase 1 plus the inline examples read directly from
       `work-item-common.sh` (e.g. `compile_format_string("{number:04d}", "")
       == "%04d"`, `pattern_max_number("{number:05d}") == 99999`,
       `parse_full_id("PROJ-0042", "{project}-{number:04d}")` →
       `project: Some("PROJ"), number: "0042"`)
-- [ ] `canonicalise_id` matches every row in the Phase 1
+- [x] `canonicalise_id` matches every row in the Phase 1
       `work-item-canonicalise-id.golden`, plus the missing-project and
       unrecognised-shape error arms not covered by that golden
-- [ ] `pattern_max_number("{number:020d}")` (a width that overflows `u64`)
+- [x] `pattern_max_number("{number:020d}")` (a width that overflows `u64`)
       returns `PatternError`, not a panic or a silently wrong value
-- [ ] The existing `compile_scan_regex` test suite and
+- [x] The existing `compile_scan_regex` test suite and
       `work_item_pattern_parity.rs` still pass unchanged after the `Mode`
       refactor
-- [ ] `mise run cli:check` passes (rustfmt, clippy, cargo-pup)
+- [x] `mise run cli:check` passes (rustfmt, clippy); `mise run pup:check`
+      (cargo-pup) also passes — no new pup.ron rule was needed since this
+      phase adds no new module boundary
 
 #### Manual Verification
 
