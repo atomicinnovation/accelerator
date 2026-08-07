@@ -794,18 +794,28 @@ it isn't mistaken for an oversight during review.
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus-adapters
-      -p corpus-cli` passes
-- [ ] `mise run check` passes
-- [ ] `mise run test:integration:config` passes (floor unchanged at 18)
-- [ ] `mise run lint:dispatch-coherence:check` passes with `corpus` bound by
-      at least one of the newly-rewritten skills
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus-adapters
+      -p corpus-cli` passes (`-p accelerator-corpus` — 74 corpus-adapters
+      tests incl. metadata.rs, 40 accelerator-corpus tests)
+- [x] `mise run check` passes
+- [x] `mise run test:integration:config` passes (floor unchanged at 18);
+      `bash scripts/test-metadata-helpers.sh` also passes standalone with
+      the two remaining design-domain helpers
+- [x] `mise run lint:dispatch-coherence:check` passes — `corpus` stays bound
+      via Phase 1's `adr next-number --fail-safe` eager line; none of this
+      phase's rewrites are eager (`metadata derive`'s call sites are all
+      mid-flow prose, same as bash), which is fine since only one binding is
+      required per token
 
 #### Manual Verification:
 
-- [ ] `/accelerator:create-plan`, `/accelerator:create-adr` invoked and the
-      metadata block at the top of a freshly created artifact still renders
-      correctly (ISO UTC timestamp, revision, repository name)
+- [x] `accelerator corpus metadata derive` run directly against this repo —
+      renders the ISO UTC timestamp, filename timestamp, revision, and
+      repository name correctly
+- [ ] `/accelerator:create-plan`, `/accelerator:create-adr` invoked
+      interactively and the metadata block at the top of a freshly created
+      artifact still renders correctly — not exercised (requires an
+      interactive Claude Code session)
 
 ---
 

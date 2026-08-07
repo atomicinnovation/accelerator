@@ -7,8 +7,8 @@ description: Interactively create an architecture decision record (ADR). Use
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Create Architecture Decision Record
@@ -117,10 +117,7 @@ Wait for user input before proceeding.
 ### Step 3: Draft the ADR
 
 1. **Gather metadata** by running
-   `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`. Run the bare path
-   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-   prompt).
+   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`.
 
 2. **Draft the ADR** using the template below and present it to the user for
    review:
@@ -150,7 +147,7 @@ Wait for the user's answer before writing.
    block, using the metadata captured in Step 3.
 
    1. The `Current Date/Time (UTC):` value from
-      `artifact-derive-metadata.sh` is the source for `date:` and
+      `accelerator corpus metadata derive` is the source for `date:` and
       `last_updated:`. Repository identity is not part of the ADR
       provenance bundle (ADRs are not code-state-anchored).
    2. **Substitute** every field below with the indicated value:

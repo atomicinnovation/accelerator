@@ -24,3 +24,4 @@ clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }

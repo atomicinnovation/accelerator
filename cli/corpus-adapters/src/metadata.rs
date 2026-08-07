@@ -26,6 +26,16 @@ use time::{OffsetDateTime, UtcOffset};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClockError(String);
 
+impl ClockError {
+    /// Synthesises a `ClockError` carrying `reason`, for test code that needs
+    /// to exercise a caller's failure branch without forcing a real host
+    /// tzdata failure. The field is otherwise private to this module.
+    #[must_use]
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self(reason.into())
+    }
+}
+
 impl fmt::Display for ClockError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

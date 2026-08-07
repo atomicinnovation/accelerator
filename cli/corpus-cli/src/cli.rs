@@ -20,6 +20,12 @@ pub enum Command {
         #[command(subcommand)]
         action: AdrAction,
     },
+    /// Artifact-metadata derivation (the unified frontmatter provenance
+    /// block).
+    Metadata {
+        #[command(subcommand)]
+        action: MetadataAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -51,4 +57,12 @@ pub enum AdrAction {
         /// clap's own required-argument exit code 2.
         file: Option<PathBuf>,
     },
+}
+
+#[derive(Subcommand)]
+pub enum MetadataAction {
+    /// The unified artifact-metadata provenance block: the UTC datetime, the
+    /// host-local filename timestamp, and (inside a VCS checkout) the
+    /// repository name and revision.
+    Derive,
 }

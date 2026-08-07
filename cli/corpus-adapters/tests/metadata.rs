@@ -4,19 +4,10 @@
 
 mod common;
 
-#[cfg(feature = "bash-parity")]
-use std::process::Command;
-
 use common::TestError;
-#[cfg(feature = "bash-parity")]
-use common::{repo_root, require_script};
 use corpus::{
     ArtifactMetadata, Clock, FilenameTimestampFormat, RepositoryFacts,
 };
-#[cfg(feature = "bash-parity")]
-use corpus_adapters::metadata::derive_at;
-#[cfg(feature = "bash-parity")]
-use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::metadata::{derive, render, SystemClock};
 use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
 
@@ -243,69 +234,5 @@ fn now_is_not_the_unix_epoch() -> Result<(), TestError> {
     let clock = SystemClock::try_new()?;
     let now = OffsetDateTime::now_utc();
     assert!(clock.now_utc_iso().starts_with(&now.year().to_string()));
-    Ok(())
-}
-
-#[cfg(feature = "bash-parity")]
-fn labelled(block: &str, label: &str) -> Option<String> {
-    block
-        .lines()
-        .find_map(|line| line.strip_prefix(label))
-        .map(|value| value.trim().to_owned())
-}
-
-/// The live helper is the oracle: run against this very repository, the crate
-/// must agree with it on the facts (revision, repository name) and on the shape
-/// of the lines. The timestamps are excluded — the two runs are seconds apart.
-///
-/// Shells to bash and the repo's own VCS, so it is gated with the other
-/// differential suites; the deterministic fake-port tests above are not.
-#[cfg(feature = "bash-parity")]
-#[test]
-fn derive_at_agrees_with_the_live_metadata_helper() -> Result<(), TestError> {
-    let helper = require_script("scripts/artifact-derive-metadata.sh")?;
-    let root = repo_root()?;
-
-    let output =
-        Command::new(&helper)
-            .current_dir(&root)
-            .output()
-            .map_err(|error| {
-                format!("could not run artifact-derive-metadata.sh: {error}")
-            })?;
-    if !output.status.success() {
-        return Err(format!(
-            "artifact-derive-metadata.sh failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-    let bash = String::from_utf8(output.stdout)?;
-
-    let derived = derive_at(
-        &root,
-        FilenameTimestampFormat::DateTimeUnderscored,
-        &VcsBackedRepoFactsProbe,
-    )?;
-    let rust = render(&derived, FilenameTimestampFormat::DateTimeUnderscored);
-
-    assert_eq!(
-        labelled(&rust, "Current Revision:"),
-        labelled(&bash, "Current Revision:"),
-        "the crate and the helper disagree on the revision"
-    );
-    assert_eq!(
-        labelled(&rust, "Repository Name:"),
-        labelled(&bash, "Repository Name:"),
-        "the crate and the helper disagree on the repository name"
-    );
-    assert_eq!(
-        labelled(&bash, "Repository Name:").as_deref(),
-        Some("accelerator"),
-        "the fixture assumes it runs inside the accelerator checkout"
-    );
-
-    assert_satisfies_the_helper_contract(&rust);
-    assert_satisfies_the_helper_contract(&bash);
     Ok(())
 }

@@ -6,7 +6,7 @@ description: Investigate production issues and bugs through hypothesis-driven
 argument-hint: "[issue description, stacktrace, or error message]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Research Issue
@@ -90,11 +90,8 @@ Then wait for the user's issue description.
 - Construct the causal chain from trigger to failure
 - Propose fix options with risk/effort assessment
 - Gather metadata using
-  `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh` to obtain
-  `Current Date/Time (UTC):`, `Current Revision:`, and
-  `Repository Name:`. Run the bare path **directly** as an executable;
-  never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
-  skill's `allowed-tools` permission and forces an unnecessary prompt).
+  `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to obtain
+  `Current Date/Time (UTC):`, `Current Revision:`, and `Repository Name:`.
 - Write the RCA document to the configured research directory using this
   template:
 

@@ -5,6 +5,7 @@ description: Create detailed implementation plans through interactive, iterative
 argument-hint: "[work item reference or description]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Implementation Plan
@@ -226,11 +227,9 @@ After structure approval:
 Before writing the plan file, capture metadata and substitute the
 unified base fields into the template's frontmatter block:
 
-1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
    to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
-   `Repository Name:`. Run the bare path **directly** as an executable;
-   never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
-   skill's `allowed-tools` permission and forces an unnecessary prompt).
+   `Repository Name:`.
 2. **Substitute** every field below with the indicated value:
    - `type:` ← `plan`
    - `id:` ← the filename stem (the file path computed above without

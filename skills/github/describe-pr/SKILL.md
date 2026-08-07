@@ -6,6 +6,7 @@ description: Generate a comprehensive pull request description following the
 argument-hint: "[PR number or URL]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/describe-pr/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
 ---
@@ -101,12 +102,9 @@ potential impacts)
   Before writing the artifact file, capture metadata and substitute
   the unified base fields into the template's frontmatter block:
 
-  1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
+  1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
      to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
-     `Repository Name:`. Run the bare path **directly** as an executable;
-     never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
-     skill's `allowed-tools` permission and forces an unnecessary prompt). Also
-     capture PR-specific extras via
+     `Repository Name:`. Also capture PR-specific extras via
      `gh pr view <number> --json url,number,title,mergeCommit` to
      fill `pr_url:`, `pr_number:`, `title:`, and (when the PR is
      merged) `merge_commit:`.

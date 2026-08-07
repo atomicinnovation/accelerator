@@ -36,6 +36,7 @@ dependencies = [
  "corpus-adapters",
  "kernel",
  "tempfile",
+ "vcs-test-support",
 ]
 
 [[package]]
