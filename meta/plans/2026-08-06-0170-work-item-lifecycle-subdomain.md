@@ -1307,42 +1307,53 @@ until 0194 owns the sync engine and can depend on this crate as a library.
 
 #### Automated Verification
 
-- [ ] `cargo test -p work-adapters --locked` — `project` matches every row
+- [x] `cargo test -p work-adapters --locked` — `project` matches every row
       in the Phase 1 `work-item-project-remote.golden`, including the
       ADF-canonicalisation-independent-of-key-order case; the
       unsupported-integration parse error (tested at the adapter boundary
       where `--integration` is parsed, not in `project` itself, which is
       infallible)
-- [ ] `cargo test -p work-adapters --locked --features bash-parity` (gating
+- [x] `cargo test -p work-adapters --locked --features bash-parity` (gating
       this test on the real `diff` binary being on `PATH`, mirroring
       `vcs-adapters`' own `bash-parity` convention) — `diff_shellout::render`
       compares against the Phase 1 `work-item-section-diff.golden` fixtures
       byte-for-byte
-- [ ] `cargo test -p accelerator-work --locked --features bash-parity` — the
+- [x] `cargo test -p accelerator-work --locked --features bash-parity` — the
       full `work diff` CLI path (section selection via `work::section_diff`,
       output assembly, the no-differing-sections fallback) is exercised
       end-to-end against the same golden fixtures
-- [ ] The frontmatter-only-`last_updated`-change fixture (Phase 3's
+- [x] The frontmatter-only-`last_updated`-change fixture (Phase 3's
       characterization test) is re-exercised at the CLI boundary, confirming
       the un-stripped-`IGNORE_KEYS` behaviour survives end to end
-- [ ] `work diff`'s exit codes match the contract stated above: 0 for both
+- [x] `work diff`'s exit codes match the contract stated above: 0 for both
       the differences-found and no-differences cases, 2 for a missing
       argument and for a non-file argument, 1 for a simulated missing-`diff`
       environment (e.g. `PATH` overridden in the test), with the clear
       "`diff` is required on PATH..." message on stderr rather than a raw
       I/O error
-- [ ] The capped-wait behaviour is exercised directly, not just documented
+- [x] The capped-wait behaviour is exercised directly, not just documented
       in prose: substitute a deliberately slow/blocking script in place of
       `diff` on `PATH` in the test and confirm `diff_shellout::render`
       still terminates (with a clear timeout error, not a hang) within a
       bounded time — proving the reused/local capped-wait wrapper is
       actually wired around this spawn, not just described as intended
-- [ ] `mise run cli:check` passes
+- [x] `mise run cli:check` passes
 
 #### Manual Verification
 
-- [ ] None — `diff -u`'s output is deterministic and covered by the golden
+- [x] None — `diff -u`'s output is deterministic and covered by the golden
       comparison
+
+**Implementation-time note**: `SectionDiff.local`/`.remote` (Phase 3) carry
+the *trimmed* section content, not the raw pre-trim text `_wisd_section`
+extracts in bash — the diff rendered here is therefore always against the
+trimmed/canonical comparison basis, not byte-identical to a hypothetical
+diff of the raw section text. For every case this section's own golden
+fixtures cover, trimmed and raw are identical wherever a real difference is
+rendered (the only place they'd diverge — whitespace-only differences
+inside an otherwise-differing section — doesn't occur in any captured
+fixture), so this is a latent, documented simplification, not a behaviour
+change observed in practice.
 
 ---
 

@@ -2,6 +2,7 @@
 //! sub-binary, dispatched by the `accelerator` launcher.
 
 mod cli;
+mod diff;
 mod resolve;
 mod show;
 mod template_hints;
@@ -141,11 +142,32 @@ fn run_show(path: &Path, field: Option<&str>) -> ExitCode {
     }
 }
 
+fn run_diff(local: &Path, remote: &Path) -> ExitCode {
+    match diff::run(local, remote) {
+        diff::RunOutcome::Rendered(output) => {
+            print!("{output}");
+            ExitCode::SUCCESS
+        }
+        diff::RunOutcome::NonFileArgument => {
+            eprintln!("work-item-section-diff: both arguments must be files");
+            ExitCode::from(2)
+        }
+        diff::RunOutcome::DiffUnavailable => {
+            eprintln!(
+                "`diff` is required on PATH for `work diff`; install it or \
+                 check PATH"
+            );
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Resolve { input } => run_resolve(&input),
         Command::TemplateHints { field } => run_template_hints(&field),
         Command::Show { path, field } => run_show(&path, field.as_deref()),
+        Command::Diff { local, remote } => run_diff(&local, &remote),
     }
 }

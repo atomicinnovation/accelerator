@@ -39,4 +39,13 @@ pub enum Command {
         #[arg(long)]
         field: Option<String>,
     },
+    /// Show a per-section diff between two work-item-shaped files, for
+    /// conflict-resolution review. `local` is the `-` side, `remote` is the
+    /// `+` side.
+    Diff {
+        /// The baseline (`-`) file.
+        local: PathBuf,
+        /// The changed (`+`) file.
+        remote: PathBuf,
+    },
 }
