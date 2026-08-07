@@ -344,20 +344,20 @@ explicit "do not loosen a pattern to make a failing golden pass" header as
 
 #### Automated Verification:
 
-- [ ] `scripts/validate-corpus-frontmatter.sh` confirmed present immediately
+- [x] `scripts/validate-corpus-frontmatter.sh` confirmed present immediately
       before the capture script runs, and the golden-capture-ordering edge
       confirmed recorded on 0195 (point 0 above) — capture does not proceed
       otherwise
-- [ ] `bash cli/migrate-cli/tests/fixtures/regenerate.sh` runs cleanly against
+- [x] `bash cli/migrate-cli/tests/fixtures/regenerate.sh` runs cleanly against
       every bash suite still green (`mise run test:integration:migrate`)
-- [ ] Every fixture directory contains its `CAPTURE-SOURCE.txt` pinning this
+- [x] Every fixture directory contains its `CAPTURE-SOURCE.txt` pinning this
       phase's commit revision
-- [ ] `git status` / `jj status` shows only new files under
+- [x] `git status` / `jj status` shows only new files under
       `cli/migrate-cli/tests/fixtures/` — no bash source touched
 
 #### Manual Verification:
 
-- [ ] Spot-check three fixtures' captured transcripts against a live manual
+- [x] Spot-check three fixtures' captured transcripts against a live manual
       run of `run-migrations.sh` to confirm the capture harness didn't
       silently truncate multi-line output
 

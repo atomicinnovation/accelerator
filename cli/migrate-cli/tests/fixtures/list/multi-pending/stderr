@@ -1,0 +1,1 @@
+Note: 2 interactive migrations pending; resume one at a time with --decisions-file per '# migration <id>' section — a single multi-migration decisions file is not yet supported.

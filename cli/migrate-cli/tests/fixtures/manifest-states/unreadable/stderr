@@ -1,0 +1,2 @@
+Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.
+Commit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check.

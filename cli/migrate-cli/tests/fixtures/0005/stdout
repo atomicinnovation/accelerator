@@ -1,0 +1,11 @@
+About to apply 1 migration(s):
+  0005-rename-work-item-type-to-kind — Rename work-item type field to kind in frontmatter and body labels.
+    To skip: bash /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/skills/config/migrate/scripts/run-migrations.sh --skip 0005-rename-work-item-type-to-kind
+
+Migrations rewrite files and may make repo-wide changes; commit
+your working tree before running so VCS revert is available as
+rollback. The pre-flight will refuse to run on a dirty tree
+unless ACCELERATOR_MIGRATE_FORCE=1 is set.
+
+
+Migration complete. applied: 1.

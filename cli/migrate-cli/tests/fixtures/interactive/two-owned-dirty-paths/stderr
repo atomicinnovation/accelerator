@@ -1,0 +1,26 @@
+Resuming over this run's own partial migration output:
+  .accelerator/state/migrations-0099-session.jsonl
+    interactive migration — resuming: replays 1 decided transformation(s) and re-prompts only undecided ones
+    (with no decisions channel it re-stalls — resume non-interactively via --decisions-file).
+    To discard instead: rm /tmp/migrate-capture-qw8ch7/two-owned-8fzuaA/.accelerator/state/migrations-0099-session.jsonl  (loses 1 decisions)
+  meta/work/mech.md
+[0001-rename-tickets-to-work] running
+[0001-rename-tickets-to-work] applied
+[0002-rename-work-items-with-project-prefix] running
+[0002-rename-work-items-with-project-prefix] no-op (stays pending)
+[0003-relocate-accelerator-state] running
+MIGRATION_RESULT: applied
+[0003-relocate-accelerator-state] applied
+[0004-restructure-meta-research-into-subject-subcategories] running
+[0004-restructure-meta-research-into-subject-subcategories] applied
+[0005-rename-work-item-type-to-kind] running
+0005: rewrote 0 file(s) under meta/work
+[0005-rename-work-item-type-to-kind] applied
+[0006-canonicalise-work-item-id-and-author] running
+Warning: 0006: plans directory does not exist: meta/plans
+0006: rewrote 0 file(s) under meta/plans
+Warning: 0006: research_codebase directory does not exist: meta/research/codebase
+0006: rewrote 0 file(s) under meta/research/codebase
+Warning: 0006: research_issues directory does not exist: meta/research/issues
+0006: rewrote 0 file(s) under meta/research/issues
+[0006-canonicalise-work-item-id-and-author] applied
