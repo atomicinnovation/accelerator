@@ -3,8 +3,10 @@
 
 mod cli;
 mod resolve;
+mod show;
 mod template_hints;
 
+use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser as _;
@@ -94,10 +96,56 @@ fn run_template_hints(field: &str) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+fn run_show(path: &Path, field: Option<&str>) -> ExitCode {
+    use crate::show::RunOutcome as ShowOutcome;
+    let basename = path.file_name().map_or_else(
+        || path.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    );
+    match show::run(path, field) {
+        ShowOutcome::FullFile(content) => {
+            print!("{content}");
+            ExitCode::SUCCESS
+        }
+        ShowOutcome::FieldValue(value) => {
+            println!("{value}");
+            ExitCode::SUCCESS
+        }
+        ShowOutcome::MissingFile => {
+            eprintln!("Error: File not found: {}", path.display());
+            ExitCode::FAILURE
+        }
+        ShowOutcome::NoFrontmatter => {
+            eprintln!(
+                "Error: No YAML frontmatter in {basename}. Add a '---' \
+                 line as the first line of the file."
+            );
+            ExitCode::FAILURE
+        }
+        ShowOutcome::UnclosedFrontmatter => {
+            eprintln!(
+                "Error: YAML frontmatter opened but not closed in \
+                 {basename}. Add a '---' line after the last frontmatter \
+                 key."
+            );
+            ExitCode::FAILURE
+        }
+        ShowOutcome::FieldMissing => {
+            let field = field.unwrap_or_default();
+            eprintln!(
+                "Error: No '{field}' field found in frontmatter of \
+                 {basename}."
+            );
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Resolve { input } => run_resolve(&input),
         Command::TemplateHints { field } => run_template_hints(&field),
+        Command::Show { path, field } => run_show(&path, field.as_deref()),
     }
 }

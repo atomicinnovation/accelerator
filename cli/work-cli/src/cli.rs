@@ -1,5 +1,7 @@
 //! The clap inbound adapter: the `accelerator-work` command-line surface.
 
+use std::path::PathBuf;
+
 use clap::Parser;
 use clap::Subcommand;
 
@@ -27,5 +29,14 @@ pub enum Command {
     TemplateHints {
         /// The frontmatter field to extract hints for.
         field: String,
+    },
+    /// Print a work item: the whole file, or a single frontmatter field.
+    Show {
+        /// The work-item file to read.
+        path: PathBuf,
+        /// Print only this frontmatter field's raw value instead of the
+        /// whole file.
+        #[arg(long)]
+        field: Option<String>,
     },
 }

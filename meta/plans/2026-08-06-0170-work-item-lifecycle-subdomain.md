@@ -1157,20 +1157,21 @@ usage-error or ambiguity code distinct from a plain miss).
 
 #### Automated Verification
 
-- [ ] `read_field_raw`'s own unit tests are already covered by Phase 3's
+- [x] `read_field_raw`'s own unit tests are already covered by Phase 3's
       success criteria (it's defined there); this phase adds no new domain
       tests, only adapter/binary-boundary ones below
-- [ ] `cargo test -p accelerator-work --locked` — `work show <path>` (no
+- [x] `cargo test -p accelerator-work --locked` — `work show <path>` (no
       flag) prints the file byte-for-byte; `work show <path> --field status`
       matches `work-item-read-status.sh`'s output for the same fixture;
       missing-file/no-frontmatter/unclosed-frontmatter error messages match
       the bash originals verbatim; every exit code matches the contract
       stated above (0 success, 1 every failure)
-- [ ] `mise run cli:check` passes
+- [x] `mise run cli:check` passes
 
 #### Manual Verification
 
-- [ ] None — fully covered by golden-driven automated tests
+- [x] None — fully covered by golden-driven automated tests; also smoke
+      tested by hand against the compiled binary
 
 ---
 
