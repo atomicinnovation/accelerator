@@ -1,0 +1,6 @@
+# migration 0002-predicate
+1	k1	original-value	f:a
+# migration 0006-decisions-bridge
+1	relates_to	work-item:0042	meta/work/0050-example-a.md:body/relates_to
+2	parent	work-item:0031	meta/work/0051-example-b.md:body/parent
+3	relates_to	work-item:0099	meta/work/0052-example-c.md:body/relates_to

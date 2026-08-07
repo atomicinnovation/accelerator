@@ -10,9 +10,11 @@ kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
+relates_to: ["work-item:0172"]
 tags: [rust, corpus, cli, adr, frontmatter, linkage]
 last_updated: "2026-08-07T16:56:38+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Recorded the golden-capture-ordering edge work-item:0172's plan requires as a precondition of its Phase 0 bash-golden capture."
 schema_version: 1
 ---
 
@@ -105,6 +107,14 @@ decrement its floors), both benefit from this migration.
   PR #42).
 - Blocks: work-item:0174 (shell/CI-guard retirement — floor decrements from
   this item's script removals feed its lockstep requirement).
+- **Golden-capture ordering constraint, recorded here reciprocally per
+  work-item:0172's plan (2026-08-07):** `scripts/validate-corpus-frontmatter.sh`
+  must not be deleted by this item until work-item:0172's Phase 0 bash-golden
+  capture commit has landed — that capture is the only oracle for its own
+  migration 0007 port, and the window closes irreversibly once this script is
+  gone. Check `meta/plans/2026-08-07-0172-migration-engine-subdomain.md`
+  (Phase 0) for whether that capture commit has landed before removing this
+  script as part of the `frontmatter validate` noun group.
 - Note: the compiled work-item-id scan regex needed by `linkage-parser`/
   `validate-corpus-frontmatter` has no runtime dependency on work-item:0170.
   `config` already models `work.id_pattern`/`work.default_project_code`

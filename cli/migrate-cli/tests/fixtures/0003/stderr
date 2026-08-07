@@ -1,0 +1,17 @@
+[0003-relocate-accelerator-state] running
+MIGRATION_RESULT: applied
+[0003-relocate-accelerator-state] applied
+[0004-restructure-meta-research-into-subject-subcategories] running
+[0004-restructure-meta-research-into-subject-subcategories] applied
+[0005-rename-work-item-type-to-kind] running
+Warning: 0005: work directory does not exist: meta/work
+0005: rewrote 0 file(s) under meta/work
+[0005-rename-work-item-type-to-kind] applied
+[0006-canonicalise-work-item-id-and-author] running
+Warning: 0006: plans directory does not exist: meta/plans
+0006: rewrote 0 file(s) under meta/plans
+Warning: 0006: research_codebase directory does not exist: meta/research/codebase
+0006: rewrote 0 file(s) under meta/research/codebase
+Warning: 0006: research_issues directory does not exist: meta/research/issues
+0006: rewrote 0 file(s) under meta/research/issues
+[0006-canonicalise-work-item-id-and-author] applied
