@@ -3,7 +3,6 @@
     warn(clippy::unwrap_used, clippy::expect_used, clippy::panic)
 )]
 
-use std::path::PathBuf;
 use std::process::ExitCode;
 
 use accelerator_visualiser::{compose, log, orchestration, server};
@@ -66,11 +65,10 @@ fn resolve_host() -> String {
 }
 
 fn run_serve(owner_pid: i32, owner_start_time: Option<u64>) -> ExitCode {
-    let Some(plugin_root) = std::env::var_os("ACCELERATOR_PLUGIN_ROOT") else {
+    let Some(plugin_root) = config_adapters::plugin_root_from_env() else {
         eprintln!("ACCELERATOR_PLUGIN_ROOT is not set");
         return ExitCode::from(2);
     };
-    let plugin_root = PathBuf::from(plugin_root);
     let cwd = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(e) => {
