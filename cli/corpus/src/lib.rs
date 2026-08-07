@@ -9,6 +9,7 @@
 pub mod adr;
 pub mod cluster;
 pub mod doc_type;
+pub mod frontmatter_validation;
 pub mod linkage;
 pub mod metadata;
 pub mod record;

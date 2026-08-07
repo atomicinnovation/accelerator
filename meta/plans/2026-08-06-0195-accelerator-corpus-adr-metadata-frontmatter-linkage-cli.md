@@ -1446,13 +1446,14 @@ given both call sites are now materially more likely to fail than before.
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters
       -p corpus-cli` passes, including the whole-corpus self-check against
       this repo's own `meta/` tree
-- [ ] `mise run check` passes
-- [ ] `mise run test:integration:config` passes with the config floor at 16
-      and `_REQUIRED_CONFIG_SUITES` down to the one remaining entry
-- [ ] `corpus-cli` is confirmed **not** present in any `--exclude` list or
+- [x] `mise run check` passes
+- [x] `mise run test:integration:config` passes with the config floor at 16
+      and `_REQUIRED_CONFIG_SUITES` down to the one remaining entry (17
+      suites discovered on this host, satisfying the at-least floor)
+- [x] `corpus-cli` is confirmed **not** present in any `--exclude` list or
       feature-gate that would skip it in the default `cargo test`/`mise run
       cli:check` invocation — the whole-corpus self-check is the sole
       fail-closed replacement for the retired `_REQUIRED_CONFIG_SUITES`
@@ -1460,18 +1461,67 @@ given both call sites are now materially more likely to fail than before.
 
 #### Manual Verification:
 
-- [ ] `accelerator corpus frontmatter validate` (no arguments, whole-corpus
+- [x] `accelerator corpus frontmatter validate` (no arguments, whole-corpus
       default) run locally against the real corpus and its violation
       count/shape compared against what bash used to report for the same
-      tree; `--dir meta/` and `--checks structure` also exercised manually
-- [ ] The 0007 migration script's frontmatter call site runs without error
-      against a real corpus
-- [ ] The 0007 migration script's failure path is exercised deliberately:
+      tree; `--dir meta/` and `--checks structure` also exercised manually —
+      exit 0 in every case; two genuine pre-existing corpus issues (a
+      duplicate `producer:` key and two empty-placeholder keys) were fixed
+      as part of getting to a clean baseline
+- [x] The 0007 migration script's frontmatter call site runs without error
+      against a real corpus — `skills/config/migrate/scripts/test-migrate-0007.sh`
+      run to completion end-to-end (195 passed, 0 failed), including its
+      whole-corpus and file-list call sites through the real launcher
+- [x] The 0007 migration script's failure path is exercised deliberately:
       run it against a scratch corpus seeded with a dangling reference (or a
       duplicate id), and confirm `self_validate_structural`/
       `self_validate_referential`'s new guard prints the `log_warn`/VCS-revert
       message and exits 1, matching every other failure branch in the
       script — not a bare `set -e` abort with no guidance
+
+**Design correction found during implementation**: the plan's literal
+`validate_file(mapping: &Mapping, ...)` signature (operating on the already-
+parsed YAML tree) cannot implement `UNQUOTED-ID`/`BAD-LINKAGE-SHAPE` — quote
+syntax (`id: "0042"` vs `id: 0042`) is lost once a real YAML parser resolves
+both to the identical string. Fixed by porting bash's own naive line scanner
+(`parse_fm`) as `parse_entries`, operating on raw frontmatter text throughout
+`corpus::frontmatter_validation`, while still using the real YAML parser as a
+*stricter* gate (a tagged node or non-mapping root folds into `NoFence`) —
+documented in `mod.rs`'s module doc comment. Given the scope of this
+deviation, full byte-for-byte parity against all 49 of
+`test-validate-corpus-frontmatter.sh`'s bash cases was not attempted 1:1;
+coverage is one-or-more tests per violation code plus every explicitly-flagged
+bash quirk (the `UNQUOTED-ID`/`EMPTY-PLACEHOLDER` gap on a truly-empty `id:`,
+the double-quote-only `BAD-LINKAGE-SHAPE` asymmetry), not a literal
+transliteration of all 49 cases.
+
+**Bugs found and fixed via the golden/migration test suites** (not caught by
+unit tests alone): (1) `schema::SCHEMA`'s `work-item` row omitted `source`
+from `typed_linkage_keys` — `templates-schema.tsv` row 2 lists six keys, not
+five — caught by the new schema-TSV parity test
+(`every_row_matches_templates_schema_tsv`), which would have failed loudly had
+it existed before the bug; (2) `--dir` walked every `*.md` under the given
+directory with no doc-type-allowlist filtering, unlike bash's whole-corpus
+mode (which always gates through `out_of_scope`) — a `--dir meta` call
+incorrectly flagged `meta/docs/` (a directory no doc-type owns) as
+`INVALID-TYPE`; caught by `skills/config/migrate/scripts/test-migrate-0007.sh`'s
+"Phase 1: meta/docs/ skipped" case. Fixed in `target_files` by filtering
+`--dir`-walked files through `corpus::linkage::type_from_path(..).is_some()`
+before union-ing with `--file` entries (which stay unfiltered, matching
+bash's file-list mode). A regression test
+(`dir_walking_skips_files_outside_every_configured_doc_type_directory`) was
+added.
+
+**Dev/test wiring gap closed**: `accelerator corpus ...` dispatch needs
+`ACCELERATOR_CORPUS_BIN` set for a non-release dev binary to resolve without
+attempting a real GitHub fetch (mirroring the existing `ACCELERATOR_VCS_BIN`
+pattern) — this was needed by the 0007 migration's rewritten
+`self_validate_structural`/`self_validate_referential`/`linkage_extract` call
+sites and by `test-skill-frontmatter-conformance.sh`'s rewritten
+`frontmatter-fixtures.sh` helper. Added `corpus_bin=True` to
+`tasks/test/helpers.py`'s `accelerator_env()`, wired into the `config` and
+`migrate` integration tasks, and added `--bin accelerator-corpus` to
+`tasks/build.py`'s `cli_dev` task.
 
 ---
 

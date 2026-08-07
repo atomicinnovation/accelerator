@@ -13,7 +13,7 @@ source "$PLUGIN_ROOT/scripts/test-helpers.sh"
 export LC_ALL=C
 MIGRATION="$PLUGIN_ROOT/skills/config/migrate/migrations/0007-unify-meta-corpus-frontmatter.sh"
 DRIVER="$SCRIPT_DIR/run-migrations.sh"
-VALIDATOR="$PLUGIN_ROOT/scripts/validate-corpus-frontmatter.sh"
+CORPUS_BIN="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 FRAG="$SCRIPT_DIR/frontmatter-frag.awk"
 BODY="$SCRIPT_DIR/0007-frontmatter-rewrite.awk"
 
@@ -56,13 +56,29 @@ run_0007_direct() { # $1 = repo root
     bash "$MIGRATION" 2>&1 >/dev/null))" || DIRECT_RC=$?
 }
 
+# Runs the compiled validator over $@, dispatching the same way bash's own
+# validator did: a single directory argument is whole-corpus mode (both check
+# categories); anything else is file-list mode (structural checks only — no
+# corpus context to check references against).
+run_corpus_validate() {
+  if [ "$#" -eq 1 ] && [ -d "$1" ]; then
+    "$CORPUS_BIN" corpus frontmatter validate --dir "$1"
+    return $?
+  fi
+  local flags=() f
+  for f in "$@"; do
+    flags+=(--file "$f")
+  done
+  "$CORPUS_BIN" corpus frontmatter validate --checks structure "${flags[@]}"
+}
+
 # Assert the corpus dir (or file list) validates clean. Wraps the inline
 # validator-clean idiom so the suite has one gate implementation.
 assert_validates() { # $1=test_name $2..=dir|files
   local name="$1"
   shift
   local out rc=0
-  out="$("$VALIDATOR" "$@" 2>&1)" || rc=$?
+  out="$(run_corpus_validate "$@" 2>&1)" || rc=$?
   if [ "$rc" -eq 0 ]; then
     echo "  PASS: $name"
     PASS=$((PASS + 1))
@@ -82,7 +98,7 @@ assert_violation() { # $1=test_name $2=code $3..=files
   local name="$1" code="$2"
   shift 2
   local out rc=0
-  out="$("$VALIDATOR" "$@" 2>&1)" || rc=$?
+  out="$(run_corpus_validate "$@" 2>&1)" || rc=$?
   if [ "$rc" -ne 0 ] && grep -qF -- "$code" <<<"$out"; then
     echo "  PASS: $name"
     PASS=$((PASS + 1))
@@ -499,15 +515,14 @@ run_0007 "$P1"
 assert_empty "Phase 1 second run is an empty meta/ diff" \
   "$(git -C "$P1" status --porcelain meta/ || true)"
 
-# Both surfaces single-source path classification (no local definitions remain).
+# The migration single-sources path classification (no local definition
+# remains). The corpus validator's equivalent of this guard no longer applies
+# — it is compiled Rust, not a bash script that could reimplement the helper
+# locally instead of sourcing it.
 assert_not_contains "migration defines no local infer_type_from_path" \
   "$(grep -E '^infer_type_from_path\(\)' "$MIGRATION" || true)" "infer_type_from_path()"
-assert_not_contains "validator defines no local out_of_scope" \
-  "$(grep -E '^out_of_scope\(\)' "$VALIDATOR" || true)" "out_of_scope()"
 assert_contains "migration sources doc-type-inference.sh" \
   "$(cat "$MIGRATION")" "doc-type-inference.sh"
-assert_contains "validator sources doc-type-inference.sh" \
-  "$(cat "$VALIDATOR")" "doc-type-inference.sh"
 
 # Linkage-target alignment (table-driven, full id): the awk path_to_typed encodes
 # the id-derivation halves the shared helper does not. Pin one representative path
@@ -870,9 +885,11 @@ RC_EXT=0
   ACCELERATOR_MIGRATIONS_DIR="$ONLY_0007" ACCELERATOR_MIGRATE_FORCE=1 \
   SCHEMA_TSV="$SCHEMA_EXT" bash "$DRIVER" >/dev/null 2>&1 </dev/null) || RC_EXT=$?
 assert_eq "Phase 2 extended schema: migration accepts (exits 0)" "0" "$RC_EXT"
-RC_EXTV=0
-(SCHEMA_TSV="$SCHEMA_EXT" "$VALIDATOR" "$EXT/meta" >/dev/null 2>&1) || RC_EXTV=$?
-assert_eq "Phase 2 extended schema: validator accepts (exits 0)" "0" "$RC_EXTV"
+# The corpus validator's own SCHEMA_TSV override seam has no Rust equivalent
+# (its schema table is compiled in, not parsed from a TSV at runtime), so only
+# the migration's own forward-compatible column tolerance is asserted here;
+# the migrated corpus's overall validity is covered by the whole-corpus
+# assert_validates calls elsewhere in this suite.
 
 # ── Phase 3: unconditional ticket/ticket_id drop ────────────────────────────
 echo "=== Phase 3: ticket/ticket_id dropped on any type ==="
@@ -1427,7 +1444,7 @@ assert_not_contains "Phase 4 INCIDENT: optional merge_commit left absent (not st
 # than a tolerated-but-rejected one. Exit-0 acceptance of this fixture is
 # already covered by the corpus-wide `assert_validates "$P4/meta"` below (which
 # now includes it), so no separate per-file assert_validates is needed.
-INCIDENT_VOUT="$("$VALIDATOR" "$INCIDENT" 2>&1)" || true
+INCIDENT_VOUT="$(run_corpus_validate "$INCIDENT" 2>&1)" || true
 assert_not_contains "Phase 4 INCIDENT: no MISSING-EXTRA for present sentinel" \
   "$INCIDENT_VOUT" "MISSING-EXTRA"
 

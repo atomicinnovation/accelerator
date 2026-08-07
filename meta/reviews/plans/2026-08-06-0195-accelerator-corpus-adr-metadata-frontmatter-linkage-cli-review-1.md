@@ -6,9 +6,7 @@ date: "2026-08-06T09:35:21+00:00"
 author: Toby Clemson
 producer: review-plan
 status: complete
-parent: ""
 target: "plan:2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli"
-relates_to: []
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, standards, compatibility, safety, usability]

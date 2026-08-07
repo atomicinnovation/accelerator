@@ -8,6 +8,7 @@
 pub mod assemble;
 pub mod doc_type;
 pub mod document;
+pub mod frontmatter_validation;
 pub mod fs;
 mod jsonl;
 pub mod lock;

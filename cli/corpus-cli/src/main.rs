@@ -4,6 +4,7 @@
 mod adr;
 mod cli;
 mod config;
+mod frontmatter;
 mod linkage;
 mod metadata;
 mod outcome;
@@ -13,11 +14,14 @@ use std::process::ExitCode;
 
 use clap::Parser as _;
 use corpus::FilenameTimestampFormat;
+use corpus_adapters::frontmatter_validation::Checks;
 use corpus_adapters::RealFs;
 
 use crate::cli::AdrAction;
+use crate::cli::CheckKind;
 use crate::cli::Cli;
 use crate::cli::Command;
+use crate::cli::FrontmatterAction;
 use crate::cli::LinkageAction;
 use crate::cli::MetadataAction;
 use crate::outcome::Outcome;
@@ -91,6 +95,34 @@ fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
     }
 }
 
+fn resolve_checks(kinds: &[CheckKind]) -> Checks {
+    Checks {
+        structure: kinds.contains(&CheckKind::Structure),
+        references: kinds.contains(&CheckKind::References),
+    }
+}
+
+fn run_frontmatter(
+    action: FrontmatterAction,
+) -> Result<Outcome, kernel::Error> {
+    match action {
+        FrontmatterAction::Validate { dir, file, checks } => {
+            let composed = config::compose(&current_dir()?)?;
+            let table: Vec<_> = config::table_from_config(&composed.service)?
+                .into_iter()
+                .map(|(kind, dir)| (kind, composed.project_root.join(dir)))
+                .collect();
+            frontmatter::run_validate(
+                &dir,
+                &file,
+                resolve_checks(&checks),
+                &table,
+                &RealFs,
+            )
+        }
+    }
+}
+
 fn report(error: &kernel::Error) -> ExitCode {
     let message = error.to_string();
     if !message.is_empty() {
@@ -108,6 +140,7 @@ fn main() -> ExitCode {
         Command::Adr { action } => run_adr(action),
         Command::Metadata { action } => run_metadata(&action),
         Command::Linkage { action } => run_linkage(action),
+        Command::Frontmatter { action } => run_frontmatter(action),
     };
     match result {
         Ok(outcome) => {

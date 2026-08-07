@@ -12,7 +12,6 @@ tags: [design, frontend, tokens, radius]
 last_updated: "2026-06-04T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
-producer: validate-plan
 ---
 
 ## Validation Report: Radius Tokens Consumption Implementation Plan

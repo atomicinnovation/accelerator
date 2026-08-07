@@ -35,14 +35,17 @@ _EXPECTED_MIGRATE_SUITES = 4
 
 # The config subtree (scripts/) discoverable shell suites. Like the migrate
 # guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
-# (e.g. validate-corpus-frontmatter.sh — the AC-1 corpus validator) can't
-# silently vanish from CI. Bumped as suites are added under scripts/. Dropped
-# from 21 to 18: 0177 retired test-skills-index.sh (superseded by
-# docs:generate) and 0167 retired test-config.sh and
-# test-config-read-doc-type-paths.sh alongside the removal set. Dropped from
-# 18 to 17: 0195 Phase 3 retired test-linkage-parser.sh (linkage-parser.sh
-# ported to `accelerator corpus linkage extract`).
-_EXPECTED_CONFIG_SUITES = 17
+# (e.g. test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
+# Bumped as suites are added under scripts/. Dropped from 21 to 18: 0177
+# retired test-skills-index.sh (superseded by docs:generate) and 0167 retired
+# test-config.sh and test-config-read-doc-type-paths.sh alongside the removal
+# set. Dropped from 18 to 17: 0195 Phase 3 retired test-linkage-parser.sh
+# (linkage-parser.sh ported to `accelerator corpus linkage extract`). Dropped
+# from 17 to 16: 0195 Phase 4 retired test-validate-corpus-frontmatter.sh
+# (validate-corpus-frontmatter.sh ported to `accelerator corpus frontmatter
+# validate`; the migration-completion gate is now the unconditional
+# `this_repositorys_own_corpus_is_clean` cargo test in corpus-cli).
+_EXPECTED_CONFIG_SUITES = 16
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
@@ -59,13 +62,12 @@ _EXPECTED_INTEGRATIONS_SUITES = 32
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
 # still passes via other suites. The producer-conformance guard (work item
-# 0103) is the gate that "cannot drift undetected"; the corpus validator (work
-# item 0102) hosts the migration-completion gate (its whole-corpus sanity run is
-# the migration-complete signal). Both presences are asserted by identity.
-_REQUIRED_CONFIG_SUITES = (
-    "scripts/test-skill-frontmatter-conformance.sh",
-    "scripts/test-validate-corpus-frontmatter.sh",
-)
+# 0103) is the gate that "cannot drift undetected". The corpus validator's own
+# migration-completion gate (work item 0102) moved with it to
+# `corpus-cli`'s unconditional `this_repositorys_own_corpus_is_clean` cargo
+# test (0195 Phase 4) — a `cargo test` failure already fails CI
+# unconditionally, so no bash-style required-suite registration applies there.
+_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 
 # The three previously-unguarded subtrees, each at its current size. hooks/
 # holds only the two bash harnesses that predate ADR-0048; the link-refresh
@@ -345,7 +347,9 @@ def _restore_vcs_binaries(
 @task
 def config(context: Context) -> None:
     """Integration tests for the plugin-wide config scripts."""
-    suites = run_shell_suites(context, "scripts", accelerator_env())
+    suites = run_shell_suites(
+        context, "scripts", accelerator_env(corpus_bin=True)
+    )
     _require_suite_floor(
         suites, _EXPECTED_CONFIG_SUITES, _REQUIRED_CONFIG_SUITES, "config"
     )
@@ -400,6 +404,6 @@ def integrations(context: Context) -> None:
 def migrate(context: Context) -> None:
     """Integration tests for the meta-directory migration framework."""
     suites = run_shell_suites(
-        context, "skills/config/migrate", accelerator_env()
+        context, "skills/config/migrate", accelerator_env(corpus_bin=True)
     )
     _require_suite_floor(suites, _EXPECTED_MIGRATE_SUITES, (), "migrate")

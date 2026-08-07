@@ -46,7 +46,7 @@ source "$SCRIPT_DIR/frontmatter-emission-rules.sh"
 export LC_ALL=C
 
 # shellcheck disable=SC2034  # consumed by frontmatter-fixtures.sh (sourced below)
-VALIDATOR="$SCRIPT_DIR/validate-corpus-frontmatter.sh"
+CORPUS_BIN="${ACCELERATOR_BIN:-$ROOT/bin/accelerator}"
 # shellcheck source=frontmatter-fixtures.sh
 source "$SCRIPT_DIR/frontmatter-fixtures.sh"
 

@@ -81,7 +81,10 @@ def _at_baseline(floor_name: str, required_name: str | None) -> list[str]:
     return required + filler
 
 
-@pytest.mark.parametrize(("name", "floor_name", "required_name"), _GUARDED)
+@pytest.mark.parametrize(
+    ("name", "floor_name", "required_name"),
+    [g for g in _GUARDED if getattr(integration, g[1]) > 0],
+)
 def test_guard_fires_below_baseline(mocker, name, floor_name, required_name):
     below = _at_baseline(floor_name, required_name)[:-1]
     mocker.patch.object(integration, "run_shell_suites", return_value=below)

@@ -31,6 +31,11 @@ pub enum Command {
         #[command(subcommand)]
         action: LinkageAction,
     },
+    /// Structural and referential frontmatter conformance checking.
+    Frontmatter {
+        #[command(subcommand)]
+        action: FrontmatterAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -88,4 +93,34 @@ pub enum LinkageAction {
         #[arg(long)]
         source_type: Option<String>,
     },
+}
+
+#[derive(Subcommand)]
+pub enum FrontmatterAction {
+    /// Every in-scope file's structural and referential-integrity
+    /// violations.
+    Validate {
+        /// A directory to walk for markdown files, in addition to `--file`.
+        ///
+        /// When both `--dir` and `--file` are omitted, every file under the
+        /// configured doc-type table is validated.
+        #[arg(long)]
+        dir: Vec<PathBuf>,
+        /// A single file to validate, in addition to `--dir`.
+        #[arg(long)]
+        file: Vec<PathBuf>,
+        /// Which check categories to run.
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "structure,references"
+        )]
+        checks: Vec<CheckKind>,
+    },
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
+pub enum CheckKind {
+    Structure,
+    References,
 }
