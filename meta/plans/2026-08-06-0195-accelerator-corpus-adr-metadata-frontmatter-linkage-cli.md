@@ -1569,17 +1569,17 @@ concrete instances feeding work-item:0174's lockstep requirement.
 
 #### Automated Verification:
 
-- [ ] `mise run` (the bare default task, full local CI mirror) passes end to
+- [x] `mise run` (the bare default task, full local CI mirror) passes end to
       end
-- [ ] A repo-wide grep for the five removed script names' executable
+- [x] A repo-wide grep for the five removed script names' executable
       invocation forms returns nothing outside documentation/ADR prose
 
 #### Manual Verification:
 
-- [ ] All five subcommands (`adr next-number`, `adr read-status`, `metadata
+- [x] All five subcommands (`adr next-number`, `adr read-status`, `metadata
       derive`, `linkage extract`, `frontmatter validate`) run back to back
       in a real checkout without error
-- [ ] The new `docs-site` page renders correctly via `mise run docs:build`
+- [x] The new `docs-site` page renders correctly via `mise run docs:build`
 
 ## Testing Strategy
 

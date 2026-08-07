@@ -54,6 +54,9 @@ The full documentation site is published at
 - [Internals](https://atomicinnovation.github.io/accelerator/internals/) — the
   `meta/` directory deep-dive, the agent roster, VCS detection, and running the
   CLI from a terminal.
+- [Corpus CLI](https://atomicinnovation.github.io/accelerator/corpus/) — the
+  `accelerator corpus` sub-binary skills and migrations use to read and write
+  `meta/`.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —
