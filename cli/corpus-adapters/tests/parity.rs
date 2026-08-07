@@ -1,9 +1,9 @@
-//! Differential parity: the Rust linkage extractor must agree, record for
-//! record, with the live bash `linkage-parser.sh` over a fixture corpus.
+//! Differential parity: the Rust doc-type matcher and work-item scan-regex
+//! compiler must agree with their live bash oracles.
 //!
-//! The bash script is the oracle. An absent script or bash hard-fails rather
-//! than skipping: Rust's harness has no skip primitive, so a silent early
-//! return would register as a green PASS.
+//! The bash scripts are the oracle. An absent script or bash hard-fails
+//! rather than skipping: Rust's harness has no skip primitive, so a silent
+//! early return would register as a green PASS.
 #![cfg(feature = "bash-parity")]
 
 mod common;
@@ -12,121 +12,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use common::{
-    doc_type_table, launcher_binary, require_file, require_script, TestError,
-};
+use common::{require_file, TestError};
 use corpus::DocTypeKey;
 use tempfile::TempDir;
-
-const FIXTURES: [(&str, &str); 8] = [
-    (
-        "meta/plans/2026-01-01-0001-refs.md",
-        "## References\n\
-         - Sibling component plans: `meta/plans/2026-01-03-0003-other.md`\n\
-         - Source: `meta/work/0063-owning.md`\n\
-         - A plain ref `meta/plans/2026-02-03-0065-bare.md`\n\
-         - The template `meta/decisions/ADR-NNNN-description.md` is not a link\n",
-    ),
-    (
-        "meta/work/0050-deps.md",
-        "## Dependencies\n\
-         - Blocks: 0061\n\
-         - Blocked by: 0062\n\
-         - Related: 0030\n\
-         - The code-block rendering is unrelated to dependencies\n",
-    ),
-    (
-        "meta/decisions/ADR-0067-hist.md",
-        "## Historical Context\n\
-         - Supersedes `meta/decisions/ADR-0026-old.md`\n",
-    ),
-    (
-        "meta/plans/2026-02-04-0066-research.md",
-        "## Related Research\n\
-         - `meta/research/codebase/2026-02-04-rr.md`\n\
-         - `meta/research/issues/2026-02-05-issue.md`\n",
-    ),
-    (
-        "meta/reviews/prs/42-review-1.md",
-        "## References\n- Reviews `pr:42` and `pr:43`\n",
-    ),
-    (
-        "meta/work/0081-note.md",
-        "## References\n\
-         - `meta/notes/2026-01-01-some-note.md`\n\
-         ## Source References\n\
-         - Source: https://example.com/spec\n",
-    ),
-    (
-        "meta/notes/2026-03-01-a-note.md",
-        "## Summary\n\
-         - This section does not qualify: `meta/work/0099-ignored.md`\n\
-         ## References\n\
-         - But this one does: `meta/work/0098-counted.md`\n",
-    ),
-    (
-        "meta/plans/2026-04-01-0070-multi.md",
-        "## References\n\
-         - Supersedes `meta/decisions/ADR-0026-old.md` and ADR-0026 again\n\
-         - Two refs: `meta/work/0001-a.md` and `meta/work/0002-b.md`\n",
-    ),
-];
 
 fn tempdir() -> Result<TempDir, TestError> {
     Ok(tempfile::Builder::new()
         .prefix("corpus-parity-")
         .tempdir()?)
-}
-
-fn bash_records(script: &Path, file: &Path) -> Result<Vec<String>, TestError> {
-    // linkage-parser.sh sources doc-type-table.sh, whose resolver is
-    // `${ACCELERATOR_BIN:-…/bin/accelerator} config paths --doc-types`. Point it
-    // at the compiled launcher so the oracle never falls through to the
-    // bootstrap (which needs ACCELERATOR_PLUGIN_ROOT or a signed release).
-    let output = Command::new(script)
-        .arg(file)
-        .env("ACCELERATOR_BIN", launcher_binary()?)
-        .output()
-        .map_err(|error| {
-            format!(
-                "could not run linkage-parser.sh (is bash present?): {error}"
-            )
-        })?;
-    if !output.status.success() {
-        return Err(format!(
-            "linkage-parser.sh failed for {}: {}",
-            file.display(),
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-    Ok(String::from_utf8(output.stdout)?
-        .lines()
-        .map(str::to_owned)
-        .collect())
-}
-
-fn rust_records(
-    file: &Path,
-    content: &str,
-    table: &[(DocTypeKey, PathBuf)],
-) -> Vec<String> {
-    let path = file.to_string_lossy();
-    let source_type =
-        corpus::linkage::type_from_path(&path, table).unwrap_or("unknown");
-    corpus::linkage::parse_document(source_type, content, table)
-        .into_iter()
-        .map(|record| {
-            format!(
-                "{}\t{}\t{}\t{}\t{}",
-                record.source_type,
-                record.key,
-                record.target_ref,
-                record.anchor,
-                record.band.as_str()
-            )
-        })
-        .collect()
 }
 
 #[test]
@@ -316,34 +209,5 @@ fn doc_type_inference_matches_the_bash_matcher() -> Result<(), TestError> {
         ],
         "the bash matcher did not resolve the shapes this suite exists to pin"
     );
-    Ok(())
-}
-
-#[test]
-fn linkage_extraction_matches_the_bash_parser() -> Result<(), TestError> {
-    let script = require_script("scripts/linkage-parser.sh")?;
-    let table = doc_type_table()?;
-    let root = tempdir()?;
-    let root = root.path().to_path_buf();
-
-    let mut compared = 0usize;
-    for (relative, content) in FIXTURES {
-        let file = root.join(relative);
-        if let Some(parent) = file.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&file, content)?;
-
-        let expected = bash_records(&script, &file)?;
-        let actual = rust_records(&file, content, &table);
-        assert_eq!(
-            actual,
-            expected,
-            "linkage drift for {relative}\n  rust: {actual:#?}\n  bash: {expected:#?}"
-        );
-        compared += 1;
-    }
-
-    assert_eq!(compared, FIXTURES.len(), "every fixture must be compared");
     Ok(())
 }

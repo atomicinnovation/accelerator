@@ -657,8 +657,16 @@ build_corpus_index() {
 corpus_index_has() { grep -qxF -- "$1" <<<"$CORPUS_INDEX"; }
 
 # ── Interactive hooks: body-section typed linkage ───────────────────────────
-PARSER="$PLUGIN_ROOT/scripts/linkage-parser.sh"
+CORPUS_BIN="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 MERGE_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/frontmatter-merge.awk"
+
+# `corpus linkage extract` resolves the doc-type table through config
+# against its own working directory, and the migration's CWD is not
+# necessarily the corpus root — run it from the tree being migrated.
+linkage_extract() {
+  (cd "$PROJECT_ROOT" && "$CORPUS_BIN" corpus linkage extract "$1") \
+    2>/dev/null || true
+}
 
 # Cardinality of a linkage key (single vs list), per ADR-0034.
 linkage_card() {
@@ -682,9 +690,7 @@ migration_emit_transformations() {
     out_of_scope "$f" && continue
     has_strict_fence "$f" || continue
     rel="${f#"$PROJECT_ROOT"/}"
-    # The parser resolves the doc-type table through config, and the migration's
-    # CWD is not necessarily the corpus root — point it at the tree being migrated.
-    recs="$(LP_PROJECT_ROOT="$PROJECT_ROOT" bash "$PARSER" "$f" 2>/dev/null || true)"
+    recs="$(linkage_extract "$f")"
     [ -n "$recs" ] || continue
     # shellcheck disable=SC2034  # `src` is the leading TSV column, read past but unused here
     while IFS=$'\t' read -r src key target anchor band; do

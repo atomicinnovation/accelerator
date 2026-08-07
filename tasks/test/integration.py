@@ -39,8 +39,10 @@ _EXPECTED_MIGRATE_SUITES = 4
 # silently vanish from CI. Bumped as suites are added under scripts/. Dropped
 # from 21 to 18: 0177 retired test-skills-index.sh (superseded by
 # docs:generate) and 0167 retired test-config.sh and
-# test-config-read-doc-type-paths.sh alongside the removal set.
-_EXPECTED_CONFIG_SUITES = 18
+# test-config-read-doc-type-paths.sh alongside the removal set. Dropped from
+# 18 to 17: 0195 Phase 3 retired test-linkage-parser.sh (linkage-parser.sh
+# ported to `accelerator corpus linkage extract`).
+_EXPECTED_CONFIG_SUITES = 17
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the

@@ -278,7 +278,6 @@ _RECONCILED_LIBRARIES = frozenset(
 # Pinning them is the regression net for the single most error-prone
 # classification.
 _DUAL_USE_SCRIPTS = (
-    "scripts/linkage-parser.sh",
     "skills/design/inventory-design/scripts/validate-source.sh",
     "skills/integrations/jira/scripts/jira-fields.sh",
 )

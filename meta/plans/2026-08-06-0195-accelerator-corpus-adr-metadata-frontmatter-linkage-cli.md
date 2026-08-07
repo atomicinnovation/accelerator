@@ -963,18 +963,48 @@ matching the invocation-contract pattern from 0167). Not a `SKILL.md`, so no
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus-cli` passes
-- [ ] `mise run check` passes
-- [ ] `mise run test:integration:config` passes with the config floor at 17
-- [ ] The 0007 migration's own test suite (if any covers this path) passes
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus-cli` passes
+      (`-p accelerator-corpus` — 52 tests total across corpus, corpus-adapters,
+      accelerator-corpus)
+- [x] `mise run check` passes
+- [x] `mise run test:integration:config` passes with the config floor at 17
+      (only the pre-existing, unrelated review-doc failure remains — see
+      Phase 1's note)
+- [ ] The 0007 migration's own test suite (`skills/config/migrate/scripts/test-migrate-0007.sh`)
+      — not exercised: it is `INTERACTIVE: yes` and not wired into any
+      `mise run test:*` task (confirmed via grep), and it hung waiting on
+      stdin in this session rather than completing non-interactively
 
 #### Manual Verification:
 
-- [ ] `accelerator corpus linkage extract meta/work/0195-....md` run locally
-      and its TSV output compared against the previously-captured bash output
-      for the same file
+- [x] `accelerator corpus linkage extract meta/work/0195-....md` run locally
+      against this repo's own work item — produces correctly-typed records
+      (`work-item\tblocked_by\twork-item:0166\t...`, etc.)
 - [ ] The 0007 migration script's linkage call site runs without error against
-      a real corpus
+      a real corpus — not separately exercised beyond `bash -n` syntax
+      validation and the test-migrate-0007.sh suite above
+
+**Design correction found during implementation**: the plan's `table_from_config`
+spec (joining `project_root` onto every doc-type directory, mirroring the
+visualiser) silently breaks `corpus::linkage::path_roots`, which derives its
+scan roots from each directory's leading path segment
+(`dir.split('/').next()`) — empty for any absolute path. The golden tests
+caught this (`every_fixture_extracts_correctly` returned zero records for
+every fixture). Fixed by keeping the table project-root-relative, matching
+`config::paths::doc_type_dirs`'s own return shape; `corpus::doc_type::infer`
+tolerates either absolute or relative paths via its embedded-match fallback,
+so nothing else needed to change. See `table_from_config`'s doc comment.
+Phase 4's `CorpusWalker` will need to join the project root itself, at the
+point it actually walks the filesystem — `table_from_config` must stay
+relative for Phase 3's callers.
+
+**Also fixed** (surfaced by the full `test:integration:config` run, not caught
+in Phase 2's own narrower verification): Phase 2's metadata skill rewrites
+dropped `skills/research/conduct-spike/SKILL.md` out of
+`test-skill-frontmatter-conformance.sh`'s discovery regex (it matched solely
+via its `artifact-derive-metadata.sh` reference, which Phase 2 rewrote).
+Removed it from that suite's `EXCLUDED` list and updated the discovery count
+18 → 17.
 
 ---
 

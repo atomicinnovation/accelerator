@@ -106,12 +106,17 @@ EMITTERS=(
   skills/notes/create-note/SKILL.md
 )
 # Surfaced by the discovery grep but out of scope: migrate is a corpus
-# transformer; conduct-spike only touches last_updated/last_updated_by on an
-# existing artifact (no full-block emission) and matches solely via its
-# artifact-derive-metadata.sh reference.
+# transformer with no full-block emission.
+#
+# conduct-spike used to be excluded here too — it only touches
+# last_updated/last_updated_by on an existing artifact (no full-block
+# emission) and matched solely via its artifact-derive-metadata.sh
+# reference. 0195 Phase 2 replaced that reference with `accelerator corpus
+# metadata derive`, which the discovery regex does not match, so
+# conduct-spike no longer surfaces at all — dropping the discovery count
+# from 18 to 17.
 EXCLUDED=(
   skills/config/migrate/SKILL.md
-  skills/research/conduct-spike/SKILL.md
 )
 # Status-transition mutators: not surfaced by the discovery grep (no full-block
 # marker reaches them); tracked by hand, asserted on the status axis only.
@@ -241,7 +246,7 @@ assert_true() { # $1 name; remaining = test command
 echo "=== Producer-set reconciliation (liveness gate) ==="
 discovered=$(grep -rlE "$DISCOVERY_RE" skills --include='SKILL.md' | sort -u)
 disc_count=$(printf '%s\n' "$discovered" | wc -l | tr -d '[:space:]')
-assert_eq "discovery returns 18 producing SKILL.md files" "18" "$disc_count"
+assert_eq "discovery returns 17 producing SKILL.md files" "17" "$disc_count"
 assert_eq "EMITTERS array holds 16 full-block emitters" "16" "${#EMITTERS[@]}"
 allowlist=$(printf '%s\n' "${EMITTERS[@]}" "${EXCLUDED[@]}" | sort -u)
 unexpected=$(comm -23 <(printf '%s\n' "$discovered") <(printf '%s\n' "$allowlist"))

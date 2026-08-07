@@ -26,6 +26,11 @@ pub enum Command {
         #[command(subcommand)]
         action: MetadataAction,
     },
+    /// Body-section typed-linkage extraction.
+    Linkage {
+        #[command(subcommand)]
+        action: LinkageAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -65,4 +70,22 @@ pub enum MetadataAction {
     /// host-local filename timestamp, and (inside a VCS checkout) the
     /// repository name and revision.
     Derive,
+}
+
+#[derive(Subcommand)]
+pub enum LinkageAction {
+    /// Every typed-linkage record in a document's body sections, as TSV:
+    /// `source_type<TAB>key<TAB>target_ref<TAB>anchor<TAB>band`.
+    Extract {
+        /// The document to extract linkage from.
+        file: PathBuf,
+        /// The source document's own type, overriding path-based inference.
+        ///
+        /// A named flag rather than a second bare positional (bash's
+        /// `lp_parse_file <file> [source_type_override]` shape) — this CLI's
+        /// argument shape is not held to bash parity, and a named flag is
+        /// more discoverable in `--help` and harder to invoke by mistake.
+        #[arg(long)]
+        source_type: Option<String>,
+    },
 }

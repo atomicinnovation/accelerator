@@ -4,6 +4,7 @@
 mod adr;
 mod cli;
 mod config;
+mod linkage;
 mod metadata;
 mod outcome;
 
@@ -17,6 +18,7 @@ use corpus_adapters::RealFs;
 use crate::cli::AdrAction;
 use crate::cli::Cli;
 use crate::cli::Command;
+use crate::cli::LinkageAction;
 use crate::cli::MetadataAction;
 use crate::outcome::Outcome;
 
@@ -79,6 +81,16 @@ fn run_metadata(action: &MetadataAction) -> Result<Outcome, kernel::Error> {
     }
 }
 
+fn run_linkage(action: LinkageAction) -> Result<Outcome, kernel::Error> {
+    match action {
+        LinkageAction::Extract { file, source_type } => {
+            let composed = config::compose(&current_dir()?)?;
+            let table = config::table_from_config(&composed.service)?;
+            linkage::run_extract(&file, source_type.as_deref(), &table, &RealFs)
+        }
+    }
+}
+
 fn report(error: &kernel::Error) -> ExitCode {
     let message = error.to_string();
     if !message.is_empty() {
@@ -95,6 +107,7 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Adr { action } => run_adr(action),
         Command::Metadata { action } => run_metadata(&action),
+        Command::Linkage { action } => run_linkage(action),
     };
     match result {
         Ok(outcome) => {
