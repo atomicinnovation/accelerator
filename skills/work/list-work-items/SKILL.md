@@ -232,8 +232,13 @@ Apply the parsed filter from Step 1 to the scanned work items.
   field do not match (and are not errors).
 - **Parent filter** (`under X`): normalise both the filter value and
   each work item's `parent` field via
-  `work-item-common.sh:wip_canonicalise_id` before comparison. The
-  canonicaliser strips quotes, accepts short and long forms, and
+
+  ```
+  ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work canonicalise-id <input>
+  ```
+
+  before comparison. The canonicaliser strips quotes, accepts short and
+  long forms, and
   zero-pads to the configured pattern's width (or pre-pends the
   default project code when the pattern requires `{project}` and the
   input is a bare number). So under default config `parent: "0042"`,

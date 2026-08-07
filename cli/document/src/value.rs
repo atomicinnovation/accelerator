@@ -8,7 +8,7 @@
 use std::fmt;
 
 use serde::de::{Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
-use serde::ser::{Serialize, SerializeMap, SerializeSeq, Serializer};
+use serde::ser::{Serialize, SerializeMap, Serializer};
 
 /// A value in a parsed frontmatter tree.
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +48,18 @@ impl Mapping {
 
     pub fn push(&mut self, key: String, value: Yaml) {
         self.0.push((key, value));
+    }
+
+    /// Replaces `key`'s value in place when already present (preserving
+    /// its position), otherwise appends it as a new entry — the
+    /// "set, creating the key if absent" mapping write callers editing an
+    /// existing document's frontmatter need.
+    pub fn set(&mut self, key: String, value: Yaml) {
+        if let Some(existing) = self.0.iter_mut().find(|(k, _)| *k == key) {
+            existing.1 = value;
+        } else {
+            self.0.push((key, value));
+        }
     }
 
     #[must_use]
@@ -162,11 +174,7 @@ impl Serialize for Yaml {
                 serializer.serialize_str(value)
             }
             Self::Sequence(items) => {
-                let mut seq = serializer.serialize_seq(Some(items.len()))?;
-                for item in items {
-                    seq.serialize_element(item)?;
-                }
-                seq.end()
+                serde_saphyr::FlowSeq(items).serialize(serializer)
             }
             Self::Mapping(mapping) => {
                 let entries = mapping.entries();

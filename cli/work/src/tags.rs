@@ -69,8 +69,11 @@ fn build_canonical(tags: &[String]) -> String {
 ///
 /// Preserved quirk, not a bug: a comma-quoted existing tag (`"c,d"`) is
 /// mis-split into two tokens (`c`, `d`) on the next add/remove — this is
-/// the shell's actual behaviour and is reproduced as-is.
-fn parse_current_tags(raw_tags: &str) -> Vec<String> {
+/// the shell's actual behaviour and is reproduced as-is. Public so the
+/// adapter layer can parse [`TagMutation::Changed`]'s own canonical-array
+/// output back into a list when splicing it into a `document::Yaml` tree.
+#[must_use]
+pub fn parse_current_tags(raw_tags: &str) -> Vec<String> {
     let stripped = raw_tags.strip_prefix('[').unwrap_or(raw_tags);
     let stripped = stripped.strip_suffix(']').unwrap_or(stripped);
     if stripped.is_empty() {

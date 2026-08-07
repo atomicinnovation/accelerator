@@ -2079,14 +2079,14 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
 
 #### Automated Verification
 
-- [ ] `cargo test -p work --locked` — `validate_set_key` rejects `id` and
+- [x] `cargo test -p work --locked` — `validate_set_key` rejects `id` and
       `work_item_id` and rejects `tags`/every `LIST_FIELDS` member
       (`ScalarSetOnListField`), accepting every other key, table-driven, no
       filesystem or `document` dependency; `mutate_list` covers add
       (new/duplicate) and remove (present/absent) for each of the four
       `LIST_FIELDS`, including the missing-key-treated-as-empty case,
       table-driven, no filesystem dependency
-- [ ] `cargo test -p accelerator-work --locked` — `work update --set
+- [x] `cargo test -p accelerator-work --locked` — `work update --set
       status=ready --set priority=high` on a fixture file changes exactly
       those two frontmatter *values* (parsed equality, not byte-identity —
       `document::render` re-serialises the whole tree, so this does not
@@ -2104,18 +2104,18 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
       message via `validate_set_key`, failing before any `--set` is applied
       even when other valid `--set` flags are present in the same
       invocation
-- [ ] `work update` exits 0 on every success path and 1 on every failure
+- [x] `work update` exits 0 on every success path and 1 on every failure
       path (`IdImmutable`, `BlockStyleTags`, an unrecognised `--append`/
       `--remove` key, missing/unparseable file), matching the exit-code
       contract stated above
-- [ ] Two `work update` invocations launched concurrently against the same
+- [x] Two `work update` invocations launched concurrently against the same
       target file (real separate processes) never both succeed silently
       overwriting each other — the second either blocks on the first's lock
       and applies its own change afterward against the now-current content,
       or the test otherwise confirms neither change is silently lost;
       genuine mutual exclusion via `<path>.lockdir`, not a narrowed race
       window
-- [ ] A CLI-surface snapshot test asserts **every** `Command` variant's
+- [x] A CLI-surface snapshot test asserts **every** `Command` variant's
       clap-generated argument list (flag names, arity, `--set`'s repeatable
       `KEY=VALUE` shape) against a single committed golden, not just
       `Create`/`Update` — `Resolve`, `Show`, `Diff`, `TemplateHints`,
@@ -2130,7 +2130,7 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
       implemented); the snapshot makes a future accidental change to any
       command's flags a visible, deliberate diff instead of a silent break
       for 0194 to discover later
-- [ ] A dedicated formatting-preservation test runs `work update` against a
+- [x] A dedicated formatting-preservation test runs `work update` against a
       fixture frontmatter block containing an inline comment, a CRLF line
       ending, and a flow-style array (`tags: [a, b]`), asserting only which
       properties survive the round trip (parsed values) and pinning, not
@@ -2138,15 +2138,15 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
       dropped — `document::Yaml` has no comment representation — so this test
       documents the actual behaviour rather than leaving it to be discovered
       by a surprised user)
-- [ ] `work template-hints kind` matches the Phase 1
+- [x] `work template-hints kind` matches the Phase 1
       `work-item-template-field-hints.golden` rows, including the
       hardcoded-fallback path
-- [ ] `work canonicalise-id` matches every row in the Phase 1
+- [x] `work canonicalise-id` matches every row in the Phase 1
       `work-item-canonicalise-id.golden` at the CLI boundary, plus the
       missing-project and unrecognised-shape error messages verbatim
-- [ ] `cargo test -p work` — `is_dirty` matches every case in the Phase 1
+- [x] `cargo test -p work` — `is_dirty` matches every case in the Phase 1
       `work-item-file-dirty.golden`
-- [ ] `cargo test -p accelerator-work --locked` — a **behavioural**
+- [x] `cargo test -p accelerator-work --locked` — a **behavioural**
       (not source-grep) confirmation that `update`'s dirtiness guard is
       unwired: `work update` against a target file with simulated
       uncommitted VCS changes (a dirty `jj`/`git` working copy in the test
@@ -2155,24 +2155,24 @@ pub fn is_dirty(mode: VcsMode, path_relative: &str, status_text: &str) -> bool {
       the source text — a behavioural check survives a refactor that makes
       `file_dirty` reachable indirectly (a re-export, a trait object) in a
       way a grep would miss
-- [ ] `work next-number --project PROJ --count 3` prints exactly 3
+- [x] `work next-number --project PROJ --count 3` prints exactly 3
       sequential IDs matching `work-item-next-number.sh --project PROJ
       --count 3`'s output for the same fixture directory, and a repeated
       invocation prints the *same* starting number again (display-only —
       confirms no file is written and no number is committed)
-- [ ] `work next-number --count N` against a fixture directory pre-seeded
+- [x] `work next-number --count N` against a fixture directory pre-seeded
       at/over the cap prints the partial IDs that fit before exiting 1,
       matching `work-item-next-number.sh:127-134`'s partial-emission
       behaviour exactly — this is the case Phase 7's `create` (always
       `count=1`) cannot exercise, since its `partial` field is always empty
-- [ ] `mise run cli:check` passes
+- [x] `mise run cli:check` passes
 - [ ] `mise run lint:skills:check` passes for both repointed skills, plus
       `extract-work-items` and `sync-work-items` (repointed to `work
       next-number` in Phase 9)
 
 #### Manual Verification
 
-- [ ] `accelerator work update <path> --set priority=high` on a scratch work
+- [x] `accelerator work update <path> --set priority=high` on a scratch work
       item under `meta/work/` (real files, which carry no comments or
       non-default formatting today) shows only a single-line `jj diff`/`git
       diff` change in practice; this is an expected outcome given today's

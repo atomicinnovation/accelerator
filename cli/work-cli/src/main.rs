@@ -1,13 +1,16 @@
 //! `accelerator-work` — the `work create|show|resolve|diff|update`
 //! sub-binary, dispatched by the `accelerator` launcher.
 
+mod canonicalise_id;
 mod cli;
 mod config;
 mod create;
 mod diff;
+mod next_number;
 mod resolve;
 mod show;
 mod template_hints;
+mod update;
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -217,6 +220,81 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     }
 }
 
+fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
+    match update::run(cli_args) {
+        update::RunOutcome::Updated => ExitCode::SUCCESS,
+        update::RunOutcome::Failed(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_canonicalise_id(input: &str) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    match canonicalise_id::run(service, input) {
+        canonicalise_id::RunOutcome::Canonicalised(id) => {
+            println!("{id}");
+            ExitCode::SUCCESS
+        }
+        canonicalise_id::RunOutcome::Failed(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    match next_number::run(&start, service, project, count) {
+        next_number::RunOutcome::Allocated(ids) => {
+            for id in ids {
+                println!("{id}");
+            }
+            ExitCode::SUCCESS
+        }
+        next_number::RunOutcome::Overflow { partial, message } => {
+            for id in partial {
+                println!("{id}");
+            }
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+        next_number::RunOutcome::Failed(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
@@ -225,5 +303,10 @@ fn main() -> ExitCode {
         Command::Show { path, field } => run_show(&path, field.as_deref()),
         Command::Diff { local, remote } => run_diff(&local, &remote),
         Command::Create(args) => run_create(*args),
+        Command::Update(args) => run_update(&args),
+        Command::CanonicaliseId { input } => run_canonicalise_id(&input),
+        Command::NextNumber { project, count } => {
+            run_next_number(project.as_deref(), count)
+        }
     }
 }

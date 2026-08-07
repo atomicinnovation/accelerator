@@ -52,6 +52,64 @@ pub enum Command {
     /// Atomically create a new work item under the configured pattern,
     /// self-allocating its own ID.
     Create(Box<CreateArgs>),
+    /// Atomically apply field/tag/list-field edits to an existing work
+    /// item's frontmatter.
+    Update(Box<UpdateArgs>),
+    /// Canonicalise a work-item ID under the configured pattern (zero-pads
+    /// a bare number, prepends the default project when the pattern needs
+    /// one).
+    CanonicaliseId {
+        /// The ID or bare number to canonicalise.
+        input: String,
+    },
+    /// Print the next N sequential IDs the configured pattern would
+    /// allocate. Display-only: never writes a file or commits a number.
+    NextNumber {
+        /// The project code, when the configured pattern needs one.
+        #[arg(long)]
+        project: Option<String>,
+        /// How many sequential IDs to print.
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+    },
+}
+
+/// Parses a `KEY=VALUE` argument into its two halves.
+///
+/// # Errors
+///
+/// A message string when `raw` has no `=`.
+fn parse_key_value(raw: &str) -> Result<(String, String), String> {
+    raw.split_once('=').map_or_else(
+        || Err(format!("expected KEY=VALUE, got '{raw}'")),
+        |(key, value)| Ok((key.to_owned(), value.to_owned())),
+    )
+}
+
+/// `work update`'s flags — boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+pub struct UpdateArgs {
+    /// The work-item file to update.
+    pub path: PathBuf,
+    /// A `KEY=VALUE` scalar field to set; repeatable. Rejects `id`/
+    /// `work_item_id` and every list-typed field (use `--append`/
+    /// `--remove`/`--add-tag`/`--remove-tag` for those instead).
+    #[arg(long = "set", value_parser = parse_key_value)]
+    pub sets: Vec<(String, String)>,
+    /// A tag to add; repeatable.
+    #[arg(long = "add-tag")]
+    pub add_tags: Vec<String>,
+    /// A tag to remove; repeatable.
+    #[arg(long = "remove-tag")]
+    pub remove_tags: Vec<String>,
+    /// A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY`
+    /// (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable.
+    #[arg(long = "append", value_parser = parse_key_value)]
+    pub appends: Vec<(String, String)>,
+    /// A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`;
+    /// repeatable.
+    #[arg(long = "remove", value_parser = parse_key_value)]
+    pub removes: Vec<(String, String)>,
 }
 
 /// `work create`'s flags — a separate [`Args`] struct (boxed at the
