@@ -5,7 +5,7 @@ title: "Work-Item Lifecycle Subdomain"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"
@@ -13,7 +13,7 @@ derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-a
 relates_to: ["work-item:0194"]
 blocks: ["work-item:0194"]
 tags: [rust, work-items]
-last_updated: "2026-08-05T22:11:33+00:00"
+last_updated: "2026-08-07T23:26:37+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-191"
@@ -82,38 +82,38 @@ scripts separately.
 
 ## Acceptance Criteria
 
-- [ ] Given a fresh work item directory, when `accelerator work create`
+- [x] Given a fresh work item directory, when `accelerator work create`
       runs, then it allocates the next ID per the configured pattern and
       writes the local file with fully populated frontmatter (every field
       the item's `kind` requires, per the `create-work-item` template
       schema).
-- [ ] Given a work item file, when `accelerator work update` runs with
+- [x] Given a work item file, when `accelerator work update` runs with
       field or tag mutations, then the local file is rewritten atomically
       via the same whole-file replace contract as `work-item-update-tags.sh`
       for tag mutations, with all other fields left unchanged.
-- [ ] Given a work item file, when `accelerator work show <path>` runs,
+- [x] Given a work item file, when `accelerator work show <path>` runs,
       then it prints the full rendered item; when run with `--field NAME`
       (including the `--field status` shorthand), it prints only that
       field's value, matching `work-item-read-field.sh`/
       `work-item-read-status.sh`'s output.
-- [ ] Given a path, full ID, or bare number, when `accelerator work resolve
+- [x] Given a path, full ID, or bare number, when `accelerator work resolve
       <input>` runs, then it resolves to the same absolute path (or the
       same exit codes for unrecognised/ambiguous/no-match input) as
       `work-item-resolve-id.sh`.
-- [ ] Given a local and a remote work item representation, when
+- [x] Given a local and a remote work item representation, when
       `accelerator work diff <local> <remote>` runs, then it reports the
       same per-section differences as `work-item-section-diff.sh`.
-- [ ] Given each of the 10 previously-untested lifecycle scripts named in
+- [x] Given each of the 10 previously-untested lifecycle scripts named in
       Requirements, a characterization test captures its pre-port
       behaviour — covering each documented flag/argument combination and
       at least one error path — before the Rust port replaces it.
-- [ ] The lifecycle parity suite (`accelerator work create`/`update`/
+- [x] The lifecycle parity suite (`accelerator work create`/`update`/
       `show`/`resolve`/`diff` against the repointed
       `skills/work/scripts/test-work-item-pattern.sh` gate and the new
       characterization suites) passes; this crate makes no network calls
       at all, so no separate contract/integration suite is needed for it
       (0194 carries that gate for the push-wiring it adds on top).
-- [ ] The migrated lifecycle `work-item-*.sh` scripts (every script named
+- [x] The migrated lifecycle `work-item-*.sh` scripts (every script named
       in Requirements, plus `work-item-pattern.sh`) and their `test-*.sh`
       suites are removed and the work suite floor is decremented in the
       same change; `work-item-create-remote.sh`, `work-item-update-remote.sh`,
@@ -206,6 +206,13 @@ scripts separately.
 
 ## Drafting Notes
 
+- Validated 2026-08-07 against `meta/plans/2026-08-06-0170-work-item-lifecycle-subdomain.md`
+  (`meta/validations/2026-08-06-0170-work-item-lifecycle-subdomain-validation.md`,
+  result: pass) — all 9 plan phases implemented and committed, all 8
+  acceptance criteria above confirmed met, status moved to `done`. One
+  unrelated `mise run` failure was found at HEAD (a later,
+  non-0170-scoped commit) and is tracked separately, not against this
+  item.
 - Split on 2026-08-05 into this item (lifecycle CRUD) and 0194 (tracker
   crate and remote sync engine) following work item review 1
   (`meta/reviews/work/0170-work-item-subdomain-and-sync-engine-review-1.md`),
