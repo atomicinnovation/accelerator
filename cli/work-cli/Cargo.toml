@@ -1,0 +1,27 @@
+[package]
+name = "accelerator-work"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "The work create|show|resolve|diff|update sub-binary."
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-work"
+path = "src/main.rs"
+
+[dependencies]
+work = { path = "../work" }
+work-adapters = { path = "../work-adapters" }
+corpus = { path = "../corpus" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+kernel = { path = "../kernel" }
+clap = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

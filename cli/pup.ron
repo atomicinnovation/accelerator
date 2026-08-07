@@ -105,6 +105,28 @@
                 ),
             ],
         )),
+        // Isolates work-adapters' pure-read filesystem module from the
+        // subprocess-spawning modules a later phase adds (diff_shellout,
+        // author) — same shape as vcs_adapters_library_reads_in_process
+        // below, scoped to this one module so the sibling modules can spawn
+        // by design.
+        Module((
+            name: "work_adapters_filesystem_reads_in_process",
+            matches: Module("^work_adapters::filesystem($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^work(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // A permit list alone cannot express this, because std::process sits
         // inside the permitted std, so the rule pairs one with an explicit
         // deny; the deny wins on overlap. The permit list rejects grouped

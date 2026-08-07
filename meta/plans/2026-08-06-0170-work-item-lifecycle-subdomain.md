@@ -1063,37 +1063,59 @@ documentation scope this story's sibling doesn't carry.
 
 #### Automated Verification
 
-- [ ] `accelerator work --help` and `accelerator work resolve --help` print
+- [x] `accelerator work --help` and `accelerator work resolve --help` print
       a non-empty description for the top-level command and for `resolve`'s
       `input` argument — a smoke check that clap doc strings are present,
       not placeholder-empty
-- [ ] `cargo test -p accelerator-work --locked` passes: exit-code mapping for
+- [x] `cargo test -p accelerator-work --locked` passes: exit-code mapping for
       all four `InputClass` outcomes, exercised against a real temp directory
       (not domain-level doubles — this is the adapter/binary boundary test):
       `Path` resolved directly by `resolve.rs` without calling
       `work::resolve::resolve`, exiting **3** (not 1) on a miss; `Invalid`
       rejected immediately with exit 1; `FullId`/`BareNumber` routed through
       `work::resolve::resolve`
-- [ ] `cargo test -p work-adapters --locked` passes: the `DirectoryLister`
+- [x] `cargo test -p work-adapters --locked` passes: the `DirectoryLister`
       impl in `filesystem.rs` is exercised against a real temp directory
-- [ ] `mise run cli:check` passes; `cargo build --locked` produces
+- [x] `mise run cli:check` passes; `cargo build --locked` produces
       `accelerator-work`; cargo-pup confirms `work_adapters::filesystem`
       imports only `std`/`core`/`alloc`/`work`/`crate` and never
       `std::process`
-- [ ] `mise run lint:dispatch-coherence:check` (or the task it rolls into)
+- [x] `mise run lint:dispatch-coherence:check` (or the task it rolls into)
       passes — confirms the `work` token is valid, unreserved, and not
-      builtin-shadowed
-- [ ] `tests/integration/tasks/test_github.py` passes with the updated
-      registry pin
-- [ ] `mise run lint:skills:check` (or equivalent skill-permissions gate)
-      passes for the repointed `update-work-item` skill
+      builtin-shadowed. **Implementation-time correction**: this required
+      more than the registry edit the plan describes. The guard requires a
+      genuine `!`-preprocessor invocation of `accelerator work` somewhere in
+      `skills/**/SKILL.md` (model-driven Bash — the shape Step 1's resolver
+      call and every other five-command-family invocation in this plan
+      takes — is explicitly outside the guard's reach); `resolve`/`show`/
+      `diff`/`create`/`update` all require a caller-decided argument, so
+      none can be that static call. `work template-hints` (originally Phase
+      8, item 4) was pulled forward into this phase and wired as three
+      static `!`-preprocessor calls in `list-work-items/SKILL.md` (fixed
+      `kind`/`status`/`priority` field names, no dynamic argument — see that
+      skill's diff), which is what the token is actually bound through.
+      `test_the_real_skills_tree_passes` (`tests/unit/tasks/shared/
+      test_dispatch_coherence.py`) exists specifically to reject papering
+      over a missing binding with `SKILL_EXEMPT_SUBBINARIES`, which was
+      tried first and correctly rejected by that test.
+- [x] `tests/integration/tasks/test_github.py` passes with the updated
+      registry pin. **Correction**: the plan's claim that `bin/work-*` is
+      "already matched by the existing token-generic `bin/*.minisig`/
+      `**/bin/*.debug.tar.gz` entries" is wrong for the cached binary asset
+      itself — only the signature and debug-archive globs are token-generic;
+      `.gitignore` needs its own `bin/work-*` line, matching `bin/vcs-*`/
+      `bin/visualiser-*` exactly. Added.
+- [x] `mise run lint:skills:check` (or equivalent skill-permissions gate)
+      passes for the repointed `update-work-item` and `list-work-items`
+      skills
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_WORK_BIN=$(pwd)/cli/target/debug/accelerator-work
+- [x] `ACCELERATOR_WORK_BIN=$(pwd)/cli/target/debug/accelerator-work
       ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve 1` resolves correctly
       in a scratch work directory, dispatched through the real launcher
-      override path
+      override path — verified against both a scratch directory and the
+      real repo's `meta/work/`
 
 ---
 

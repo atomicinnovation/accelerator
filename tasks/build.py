@@ -32,7 +32,12 @@ from tasks.shared.paths import (
 )
 from tasks.shared.targets import TARGETS
 
-_CLI_RELEASE_BINARIES = ("accelerator", "accelerator-verify", "accelerator-vcs")
+_CLI_RELEASE_BINARIES = (
+    "accelerator",
+    "accelerator-verify",
+    "accelerator-vcs",
+    "accelerator-work",
+)
 
 # The linked/stubbed pair whose size delta proves the VCS dependency trees are
 # actually linked. Deliberately NOT in _CLI_RELEASE_BINARIES: that constant

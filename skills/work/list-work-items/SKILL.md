@@ -6,6 +6,7 @@ description: List and filter work items from the configured work directory.
 argument-hint: "[filter description]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
@@ -34,10 +35,19 @@ configured*.
 ## Work Item Template
 
 The following template defines the work item schema and field defaults.
-Hint values for filter parsing are extracted at runtime via
-`work-item-template-field-hints.sh`.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+
+**Known kind values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints kind`
+**Known status values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints status`
+**Known priority values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints priority`
+
+Each line above lists one value per line. Collect these into three sets:
+known kinds, known statuses, and known priorities. These hints inform
+the filter shorthand rules below but do not restrict what values may
+appear on work items — legacy values like `todo`, `done`, or
+`adr-creation-task` are matchable only via the explicit structured form
+(rule 2).
 
 You are tasked with listing and filtering work items from the configured
 work items directory. This is a **read-only** skill — never write any files
@@ -47,23 +57,8 @@ companion scripts listed in `allowed-tools`.
 ## Step 1: Resolve Filter
 
 If an argument was provided, parse it as a filter expression using the
-following precedence rules. The first rule that matches wins.
-
-Before applying rules 3–4, call `work-item-template-field-hints.sh` for
-each of `kind`, `status`, and `priority` to populate the known
-template-comment values:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh kind
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh status
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh priority
-```
-
-Each call outputs one value per line. Collect these into three sets:
-known kinds, known statuses, and known priorities. These hints inform
-the shorthand rules below but do not restrict what values may appear on
-work items — legacy values like `todo`, `done`, or `adr-creation-task` are
-matchable only via the explicit structured form (rule 2).
+following precedence rules (rules 3–4 use the known kind/status/priority
+sets collected above). The first rule that matches wins.
 
 ### Filter Precedence Rules
 

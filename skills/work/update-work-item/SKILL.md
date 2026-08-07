@@ -7,6 +7,7 @@ description: Update fields (status, priority, tags, parent, etc.) of an
 argument-hint: "[work-item-ref] [field-op...]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
@@ -43,7 +44,7 @@ Parse the first argument and resolve via the configured pattern's
 resolver:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
 ```
 
 The resolver respects `work.id_pattern` and accepts paths, full IDs
