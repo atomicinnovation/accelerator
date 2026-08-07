@@ -560,6 +560,24 @@ next-number's allocation, section-diff's extraction/comparison, tag-array
 mutation, template-hint-comment parsing, and the own-identity predicate — all
 test-driven against hand-rolled doubles, no filesystem or regex dependency.
 
+**Implementation-time correction to items 2 and 3 below**: the prose as
+originally drafted said `resolve`'s classification and `allocate`'s
+formatting/cap logic would reuse `corpus_adapters::work_item_pattern`'s
+`compile_format_string`/`pattern_max_number`/`parse_full_id`. That is not
+possible: `corpus_adapters` depends on the `regex` crate, and `work`'s own
+`work_domain_imports_only_permitted` pup.ron rule (item 1) permits only
+`std`/`kernel::Error`/`corpus`/`crate` — `corpus_adapters` is not on that
+list, deliberately, and adding it would defeat the point of the rule this
+same phase introduces. `resolve.rs` and `next_number.rs` therefore each
+carry a small, regex-free, dependency-free equivalent (a greedy
+literal/token walker for full-ID matching, and a local `{number:0Nd}`-width
+parser for the numeric cap), and reuse the existing
+`corpus::WorkItemIdScheme::canonicalise_id`/`pad_legacy_number` for
+formatting wherever that already covers the need. This duplicates a small
+amount of logic across the `corpus-adapters`/`work` boundary but keeps both
+crates' own import-restriction rules intact rather than punching a hole in
+either.
+
 ### Changes Required
 
 #### 1. Crate scaffold
@@ -875,35 +893,35 @@ domain logic is added there.
 
 #### Automated Verification
 
-- [ ] `cargo test -p work --locked` passes unconditionally — every module's
+- [x] `cargo test -p work --locked` passes unconditionally — every module's
       unit tests, table-driven against the Phase 1 goldens, using hand-rolled
       `DirectoryLister`/`IdScanner` doubles (no fixtures, no filesystem)
-- [ ] `resolve`'s four-candidate-source priority ordering and de-duplication
+- [x] `resolve`'s four-candidate-source priority ordering and de-duplication
       is exercised with an in-memory filename list covering all four sources
       simultaneously, asserting the exact `Ambiguous` tag list and order
-- [ ] `allocate`'s overflow guard is exercised with a filename list at/over
+- [x] `allocate`'s overflow guard is exercised with a filename list at/over
       the cap, asserting the exact partial-emission-then-error behaviour from
       `work-item-next-number.sh:120-135`, covering **both** overflow arms
       distinctly: a stray out-of-width file (`highest > cap`) and ordinary
       number-space exhaustion (`highest <= cap`), asserting `Overflow`
       carries the right `highest`/`cap`/`highest_file` combination for each
-- [ ] `read_field_raw` is table-driven against the Phase 1
+- [x] `read_field_raw` is table-driven against the Phase 1
       `work-item-read-field.golden` (own-identity alias, quoted/unquoted
       values, array-verbatim value, missing field) — this is Phase 5's
       parity oracle, exercised here since the function now lives in this
       phase
-- [ ] `differing_sections` is exercised with a frontmatter-only change limited
+- [x] `differing_sections` is exercised with a frontmatter-only change limited
       to `last_updated`, asserting the section is still reported as differing
       (confirms the Key Discoveries finding is reproduced, not silently
       "fixed")
-- [ ] `mutate_tags` given a block-style frontmatter returns
+- [x] `mutate_tags` given a block-style frontmatter returns
       `Err(TagError::BlockStyleTags)` without needing a separate pre-check
       call — asserting the check is now internal to the function, not a
       caller-side convention; a comma-containing existing tag (`"c,d"`) is
       re-split into two tokens on the next add/remove, matching the
       preserved-quirk decision in Key Discoveries exactly, not a "corrected"
       single-token result
-- [ ] `mise run cli:check` passes (rustfmt, clippy, cargo-pup); confirms
+- [x] `mise run cli:check` passes (rustfmt, clippy, cargo-pup); confirms
       `work` imports only `std`/`kernel::Error`/`corpus`/`crate`
 
 #### Manual Verification
