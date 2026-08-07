@@ -129,36 +129,16 @@ fn rust_records(
         .collect()
 }
 
-/// Compiles a work-item id pattern into its scan regex using the real bash DSL
-/// compiler — the regex `corpus` takes by injection.
-fn compile_scan(pattern: &str, project: &str) -> Result<String, TestError> {
-    let script = require_script("skills/work/scripts/work-item-pattern.sh")?;
-    let output = Command::new(&script)
-        .arg("--compile-scan")
-        .arg(pattern)
-        .arg(project)
-        .output()
-        .map_err(|error| {
-            format!("could not run work-item-pattern.sh: {error}")
-        })?;
-    if !output.status.success() {
-        return Err(format!(
-            "--compile-scan failed for {pattern}: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-    Ok(String::from_utf8(output.stdout)?.trim().to_owned())
-}
-
 #[test]
 #[allow(clippy::literal_string_with_formatting_args)]
 fn the_compiled_scan_regex_drives_slug_and_id_extraction(
 ) -> Result<(), TestError> {
     use corpus::{DocTypeKey, WorkItemIdScheme};
+    use corpus_adapters::compile_scan_regex;
     use corpus_adapters::RegexScanner;
 
-    let scanner = RegexScanner::compile(&compile_scan("{number:04d}", "")?)?;
+    let scanner =
+        RegexScanner::compile(&compile_scan_regex("{number:04d}", "")?)?;
     let scheme = WorkItemIdScheme::numeric();
     assert_eq!(
         corpus::slug::derive(
@@ -175,7 +155,7 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
         Some("0042")
     );
 
-    let scanner = RegexScanner::compile(&compile_scan(
+    let scanner = RegexScanner::compile(&compile_scan_regex(
         "{project}-{number:04d}",
         "PROJ",
     )?)?;

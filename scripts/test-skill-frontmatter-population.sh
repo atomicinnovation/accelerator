@@ -6,7 +6,7 @@ set -euo pipefail
 # mandatory unified base field (and provenance fields, when applicable).
 #
 # The assertion accepts a field as "populated" when its name appears in
-# one of two instruction contexts inside the SKILL.md:
+# one of three instruction contexts inside the SKILL.md:
 #
 #   1. Fenced-block context — the field name appears as a YAML key
 #      (^<field>:) inside a triple-backtick fenced code block that is NOT
@@ -15,6 +15,15 @@ set -euo pipefail
 #      that contains one of [Ss]ubstitute|[Pp]opulate|[Ss]et|[Ww]rite|[Ee]mit
 #      AND that line lies inside a section whose heading matches
 #      (persistence|metadata|frontmatter|populate|capture metadata|step \d).
+#   3. CLI-delegation context — a skill that writes via a dispatched
+#      `accelerator work create`/`accelerator work update` invocation
+#      doesn't restate "populate field X" in prose; the compiled binary's
+#      own (separately tested) flag-handling IS the population
+#      instruction. A field counts as populated when its CLI flag (see
+#      `cli_flag_for`) appears in a fenced block invoking that command, or
+#      — for the handful of fields the binary sets unconditionally with no
+#      flag at all (`CLI_MANAGED_NO_FLAG`) — when such an invocation
+#      exists anywhere in the file.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -130,6 +139,97 @@ in_imperative_section() {
   ' "$file"
 }
 
+# Fields the compiled binary sets unconditionally with no corresponding CLI
+# flag at all — schema_version is always `1`, last_updated{,_by} are always
+# derived from the write itself. There is no lever for the skill prose to
+# instruct, so any work-create/work-update invocation in the SKILL.md
+# satisfies these by construction.
+CLI_MANAGED_NO_FLAG=(schema_version last_updated last_updated_by)
+
+is_cli_managed_no_flag() {
+  local field="$1" candidate
+  for candidate in "${CLI_MANAGED_NO_FLAG[@]}"; do
+    [ "$candidate" = "$field" ] && return 0
+  done
+  return 1
+}
+
+has_cli_delegated_invocation() {
+  grep -qE 'accelerator work (create|update)' "$1"
+}
+
+# A handful of frontmatter field names don't spell their CLI flag as a
+# literal hyphenation of the field name (the CLI's flag vocabulary was
+# chosen for its own ergonomics, not to mirror the schema 1:1) — this is
+# the one place that mapping lives, so `in_cli_delegated_block` and
+# `in_cli_delegated_omit_guidance` cannot drift apart on it.
+cli_flag_for() {
+  case "$1" in
+    blocks) echo "block" ;;
+    *) echo "${1//_/-}" ;;
+  esac
+}
+
+# Check CLI-delegation context: a work-create/work-update SKILL.md doesn't
+# restate "populate field X" in prose — it invokes the compiled binary with
+# a flag, and the binary's own (tested) logic decides what gets written. A
+# field counts as populated when its CLI flag appears inside a fenced code
+# block that also invokes `accelerator work create`/`accelerator work
+# update`; the invocation itself is the population instruction.
+in_cli_delegated_block() {
+  local file="$1" field="$2" flag
+  flag=$(cli_flag_for "$field")
+  awk -v flag="$flag" '
+    /^[[:space:]]*```/ {
+      in_block = !in_block
+      if (in_block) { has_cli = 0; has_flag = 0 }
+      next
+    }
+    in_block {
+      if ($0 ~ /accelerator work (create|update)/) has_cli = 1
+      if ($0 ~ ("--" flag "([^-]|$)")) has_flag = 1
+      if (has_cli && has_flag) { found = 1; exit }
+    }
+    END { exit (found ? 0 : 1) }
+  ' "$file"
+}
+
+# Check CLI-delegation omit-guidance: an omit-when-empty field populated via
+# a `[--flag ...]` (bracketed = optional) CLI argument satisfies its
+# fill/omit contract when a nearby sentence explains the bracket
+# convention generically (the compiled binary's `--field`-absent-omits-
+# the-key behaviour is its own tested contract — see `work::create` — so
+# the skill only needs to establish that convention once, not per field),
+# OR when the field has no flag at all and the prose says so explicitly.
+# Scans the fenced block plus the next 15 lines after it closes, so a
+# trailing explanatory paragraph is in scope without unbounded reach.
+in_cli_delegated_omit_guidance() {
+  local file="$1" field="$2" flag
+  flag=$(cli_flag_for "$field")
+  awk -v flag="$flag" -v field="$field" '
+    /^[[:space:]]*```/ {
+      in_block = !in_block
+      if (in_block) { has_cli = 0; has_flag = 0; bracketed = 0 }
+      else if (has_cli) { after = 15 }
+      next
+    }
+    in_block {
+      if ($0 ~ /accelerator work (create|update)/) has_cli = 1
+      if ($0 ~ ("--" flag "([^-]|$)")) has_flag = 1
+      if ($0 ~ ("\\[--" flag "([^-]|$)")) bracketed = 1
+      next
+    }
+    after > 0 {
+      omit_phrase = "only when|omits the corresponding|no flag|never writes"
+      fieldpat = "(^|[^[:alnum:]_])" field "([^[:alnum:]_]|$)"
+      if (bracketed && match($0, omit_phrase)) { found = 1; exit }
+      if ($0 ~ fieldpat && match($0, omit_phrase)) { found = 1; exit }
+      after--
+    }
+    END { exit (found ? 0 : 1) }
+  ' "$file"
+}
+
 # Check that the named field's OWN bullet, inside a Populate-frontmatter-ish
 # section (located via the shared $POPULATE_HEADING_RE), carries a whole-word
 # fill/omit guidance keyword. The keyword is bound to the field's own bullet
@@ -189,7 +289,10 @@ while IFS=$'\t' read -r skill_path producer_name fields omit_when_empty; do
 
   for field in $fields; do
     if in_fenced_block "$stripped" "$field" ||
-      in_imperative_section "$stripped" "$field"; then
+      in_imperative_section "$stripped" "$field" ||
+      in_cli_delegated_block "$stripped" "$field" ||
+      (is_cli_managed_no_flag "$field" &&
+        has_cli_delegated_invocation "$stripped"); then
       echo "  PASS: $skill_path: instructs population of '$field'"
       PASS=$((PASS + 1))
     else
@@ -199,11 +302,14 @@ while IFS=$'\t' read -r skill_path producer_name fields omit_when_empty; do
   done
 
   # Omit-when-empty fields (ADR-0040): each must appear in a
-  # Populate-frontmatter section AND carry its own fill/omit guidance note.
+  # Populate-frontmatter section AND carry its own fill/omit guidance note,
+  # or be delegated to a `[--flag ...]` CLI argument whose bracket
+  # convention is explained generically (see in_cli_delegated_omit_guidance).
   # `-` sentinel = no omit-when-empty fields on this row (skipped).
   for fld in $omit_when_empty; do
     [ "$fld" = "-" ] && continue
-    if in_populate_section_with_guidance "$stripped" "$fld"; then
+    if in_populate_section_with_guidance "$stripped" "$fld" ||
+      in_cli_delegated_omit_guidance "$stripped" "$fld"; then
       echo "  PASS: $skill_path: instructs population of omit-when-empty field '$fld' with fill/omit guidance"
       PASS=$((PASS + 1))
     else

@@ -7,7 +7,7 @@ description: Interactively refine a work item by decomposing it into children,
 argument-hint: "[work item number or path]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
 ---
 
 # Refine Work Item
@@ -172,8 +172,8 @@ options. State the allocation count and warn about partial state:
 
 **On approval**:
 
-1. Call `work-item-next-number.sh --count N` exactly once to allocate N
-   consecutive numbers.
+1. Call `${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --count N`
+   exactly once to allocate N consecutive numbers.
 
 2. For each child, write `NNNN-kebab-slug.md`, populating every unified
    frontmatter field as specified under **Populate frontmatter** below.

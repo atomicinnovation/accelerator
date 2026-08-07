@@ -8,7 +8,7 @@ description: Extract work items in batch from existing documents (specs, PRDs,
 argument-hint: "[document paths...] or leave empty to scan all"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
 ---
 
 # Extract Work Items from Meta Documents
@@ -323,9 +323,9 @@ applying the same skeleton + assumptions note as 3.4. Do not ask
 further questions. Already-skipped candidates stay skipped. Jump to
 Step 4.
 
-#### 3.7 No `work-item-next-number.sh` calls in Step 3
+#### 3.7 No `accelerator work next-number` calls in Step 3
 
-`work-item-next-number.sh` is not called at any point during Step 3,
+`accelerator work next-number` is not called at any point during Step 3,
 regardless of which option the user picks. Writing happens exclusively
 in Step 4 after all approvals — enriched and thin — are collected.
 
@@ -334,7 +334,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
 1. **Count approved (non-skipped) items: N.**
 
 2. **If N is 0**: print "No work items approved — nothing written." and exit
-   cleanly. Do NOT call `work-item-next-number.sh`.
+   cleanly. Do NOT call `accelerator work next-number`.
 
 3. **Otherwise**:
 
@@ -363,7 +363,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
       Compute *display-only* projected IDs by calling, per distinct
       project code:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --project <code> --count <count-for-that-project>
+      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --project <code> --count <count-for-that-project>
       ```
       These calls do not commit numbers; the same call is re-issued after
       every amendment to keep the table accurate.
@@ -431,7 +431,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
    f. **Allocate per distinct project code**, in original presentation
       order:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --project <code> --count <count>
+      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --project <code> --count <count>
       ```
       One call per distinct project code; `--project` is omitted when
       the pattern lacks `{project}`. If any allocator call exits
@@ -530,15 +530,15 @@ Under the default `{number:04d}` pattern the ID column shows
 
 ## Quality Guidelines
 
-- Never call `work-item-next-number.sh` before all approvals are collected.
+- Never call `accelerator work next-number` before all approvals are collected.
   The number space is shared and finite; consuming numbers for drafts the
   user might still skip creates gaps that are impossible to clean up later.
-- Never call `work-item-next-number.sh` when N=0. An all-skipped session must
+- Never call `accelerator work next-number` when N=0. An all-skipped session must
   exit cleanly with no side effects.
-- If `work-item-next-number.sh` exits non-zero, abort immediately and surface
+- If `accelerator work next-number` exits non-zero, abort immediately and surface
   the script's error output verbatim — even if it emitted some numbers on
   stdout before failing, treat the entire batch as failed.
-- Verify all target slugs are free BEFORE calling `work-item-next-number.sh` —
+- Verify all target slugs are free BEFORE calling `accelerator work next-number` —
   collision checks happen before number allocation, by slug pattern, since
   numbers are not yet known. Under a `{project}` pattern the collision
   check is **project-aware**: the same slug under two different project
@@ -581,7 +581,7 @@ Under the default `{number:04d}` pattern the ID column shows
   before writing the batch. Never write `[author]` or any placeholder.
 - "Accept remaining as-is" only marks unreviewed candidates as approved
   (thin) — it does not resurrect skipped candidates, and writing still
-  happens exclusively in Step 4 after the single `work-item-next-number.sh`
+  happens exclusively in Step 4 after the single `accelerator work next-number`
   call.
 - Source-derived content stays faithful to what the source documents say.
   Do not silently invent requirements. When you make an interpretation while

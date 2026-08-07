@@ -545,17 +545,17 @@
     {
       "id": 22,
       "name": "numbering-consumed-eagerly-ledger-emitted",
-      "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-12/work-item.md\n\nSimulate both agents returned results. User selects decompose. Simulate proposal of 3 children already accepted with 'approve all'. User confirms pre-write warning with 'y'.\n\nSimulate work-item-next-number.sh --count 3 returns: 0043, 0044, 0045.\nSimulate writing all three child files succeeds.\nSimulate parent Edit succeeds.\n\nShow the completion ledger.",
-      "expected_output": "work-item-next-number.sh --count 3 called exactly once. After all writes: ledger shows 'Wrote 0043 — title', 'Wrote 0044 — title', 'Wrote 0045 — title', followed by 'Allocated 3 numbers, wrote 3 files.'",
+      "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-12/work-item.md\n\nSimulate both agents returned results. User selects decompose. Simulate proposal of 3 children already accepted with 'approve all'. User confirms pre-write warning with 'y'.\n\nSimulate accelerator work next-number --count 3 returns: 0043, 0044, 0045.\nSimulate writing all three child files succeeds.\nSimulate parent Edit succeeds.\n\nShow the completion ledger.",
+      "expected_output": "accelerator work next-number --count 3 called exactly once. After all writes: ledger shows 'Wrote 0043 — title', 'Wrote 0044 — title', 'Wrote 0045 — title', followed by 'Allocated 3 numbers, wrote 3 files.'",
       "files": [
         "skills/work/refine-work-item/evals/files/scenario-12/work-item.md"
       ],
       "assertions": [
         {
           "name": "work-item-next-number-called-once",
-          "description": "work-item-next-number.sh called with --count 3",
+          "description": "accelerator work next-number called with --count 3",
           "type": "llm",
-          "value": "The skill calls work-item-next-number.sh with --count 3 (or equivalent count) exactly once, not once per child"
+          "value": "The skill calls accelerator work next-number with --count 3 (or equivalent count) exactly once, not once per child"
         },
         {
           "name": "ledger-emitted",

@@ -1,6 +1,6 @@
 ---
 type: work-item                              # artifact-type discriminator
-id: "NNNN"                                   # local own-identity from work-item-next-number.sh; always a quoted string
+id: "NNNN"                                   # local own-identity from accelerator work create; always a quoted string
 title: "Title as Short Noun Phrase"
 date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: Author Name

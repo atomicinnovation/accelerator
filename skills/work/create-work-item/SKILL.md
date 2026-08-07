@@ -77,7 +77,7 @@ When this command is invoked:
    work item** by invoking the resolver:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
    ```
 
    The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -104,12 +104,12 @@ When this command is invoked:
    resolved). Run:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <path>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <path> --field id
    ```
 
    The own-identity field is `id` on unified-shape files and
-   `work_item_id` on legacy files; `work-item-read-field.sh` resolves
-   both transparently, so either key name passed here would return the
+   `work_item_id` on legacy files; `work show` resolves both
+   transparently, so either key name passed here would return the
    same value.
 
    If it exits non-zero (frontmatter missing or unclosed), print:
@@ -352,7 +352,7 @@ requirements, etc.) applies equally to existing and proposed content.
 
 1. **Draft a complete work item** from the agreed proposal using the template
    structure loaded at the top of this skill. Use `NNNN` as the placeholder
-   work item number throughout. Do NOT call `work-item-next-number.sh` at this step.
+   work item number throughout. Do NOT call `accelerator work next-number` at this step.
 
 2. **Kind-specific content placement**:
    - story/epic: open the `Summary` section with a user story statement —
@@ -384,8 +384,8 @@ changes before I write it to disk:
 
 6. **Continue to challenge** during the review loop — flag untestable criteria,
    vague requirements, or gaps surfaced by research that remain unaddressed.
-   Iterate until the user explicitly approves. **`work-item-next-number.sh` is
-   never called during this loop.**
+   Iterate until the user explicitly approves. **`accelerator work
+   next-number` is never called during this loop.**
 
 ### In enrich-existing mode
 
@@ -412,11 +412,11 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-1. **Call `work-item-next-number.sh`** to get the next full ID under the
+1. **Call `accelerator work next-number`** to get the next full ID under the
    configured pattern:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
@@ -425,7 +425,7 @@ The output is the full ID (`0001` under default `{number:04d}`,
 and default project code from configuration; pass `--project CODE` if
 the user explicitly wants a non-default project.
 
-If the script exits non-zero (e.g., overflow, missing project value),
+If the command exits non-zero (e.g., overflow, missing project value),
 abort immediately and surface the error message verbatim — do not
 proceed.
 
@@ -578,21 +578,21 @@ Work item created: `<path>`
 
 ### In enrich-existing mode
 
-1. Do **not** call `work-item-next-number.sh`. The target path is the resolved
-   `existing_work_item_path` cached in Step 0.
+1. Do **not** call `accelerator work next-number`. The target path is the
+   resolved `existing_work_item_path` cached in Step 0.
 
 2. **At-write identity-swap check** (best-effort guard): immediately before
    the confirmation prompt, re-read the target file's own identity from
    disk via:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <existing_work_item_path>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <existing_work_item_path> --field id
    ```
 
-   (The script returns the value of `id:` on unified-shape files and falls
+   (This returns the value of `id:` on unified-shape files and falls
    back to `work_item_id:` on legacy files.)
 
-   - If the script exits non-zero (file gone or frontmatter unparseable since
+   - If the command exits non-zero (file gone or frontmatter unparseable since
      Step 0), abort with:
      `"Error: <path> is no longer present or its frontmatter is unparseable.
      Your proposed draft is below — copy it before re-running
@@ -660,7 +660,7 @@ Work item created: `<path>`
 ## Quality Guidelines
 
 - Never write a file without explicit user approval.
-- Never call `work-item-next-number.sh` before the user approves the draft.
+- Never call `accelerator work next-number` before the user approves the draft.
 - The slug must be a meaningful kebab-case title, not raw input text.
 - Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
@@ -685,9 +685,9 @@ Work item created: `<path>`
   `id: "PROJ-0001"`. This contract is uniform so consumers can read
   the field as a string without coercion. See
   `skills/config/configure/SKILL.md > work` for the full contract.
-  Legacy files carry the same value under `work_item_id:`;
-  `work-item-read-field.sh` returns either key transparently so
-  consumers do not need to know which shape is on disk.
+  Legacy files carry the same value under `work_item_id:`; `work show`
+  returns either key transparently so consumers do not need to know
+  which shape is on disk.
 
 **Identity Field Rules** (apply in enrich-existing mode):
 
@@ -717,8 +717,8 @@ using the cached immutable `id` (the full ID produced by the configured
 pattern, never a placeholder; sourced from `work_item_id` on legacy
 files) and the title as confirmed or replaced in Step 3.
 
-**Script avoidance** (enrich-existing mode): `work-item-next-number.sh` is
-never called. The number is already cached. The path-existence guard in Step 5
+**Script avoidance** (enrich-existing mode): `accelerator work
+next-number` is never called. The number is already cached. The path-existence guard in Step 5
 does not apply — overwrite is the intended behaviour once the at-write
 identity-swap check passes.
 
@@ -755,7 +755,7 @@ identity-swap check passes.
   industry standards, external technology, or otherwise. When in doubt,
   prefer to spawn research — over-asking is cheaper than producing a
   vague or poorly-grounded proposal.
-- If `work-item-next-number.sh` exits non-zero, abort and surface the error
-  message verbatim.
+- If `accelerator work next-number` exits non-zero, abort and surface the
+  error message verbatim.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-work-item --fail-safe`

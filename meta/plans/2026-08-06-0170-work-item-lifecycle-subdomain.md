@@ -2194,6 +2194,56 @@ the scripts and their characterization coverage (splitting, not deleting,
 `test-work-item-scripts.sh`), and decrements the work suite floor — landed
 together per the AC.
 
+**Implementation-time corrections found via the full grep sweep and the
+full-corpus parity sweep**, beyond the plan's own stated scope:
+
+- The plan's item 1 asserted `work-item-common.sh` had no consumer once the
+  8 scripts were gone. Two more were found: `skills/config/migrate/
+  migrations/0002-rename-work-items-with-project-prefix.sh` sourced it for
+  `wip_compile_format`, and `list-work-items/SKILL.md` shelled out to
+  `wip_is_work_item_file`. The migration was **not** repointed to
+  `accelerator work canonicalise-id` — a manual full-`mise run` caught that
+  dispatching to a not-yet-released `accelerator-work` sub-binary fails
+  outside a dev environment (`no accelerator-work-darwin-arm64 asset
+  published...`), which would have broken the migration for every real user
+  running it before a release ships the `work` sub-binary. It instead
+  carries a small self-contained `{project}-{number:0Nd}` format compiler
+  (`compile_legacy_rename_format`), scoped to only what this one migration
+  needs, not the full pattern-DSL grammar. `list-work-items` was repointed
+  to a post-filter on its own single-pass frontmatter extraction instead
+  (cheaper than the pre-filter subprocess it replaced).
+- `cli/corpus-adapters/tests/work_item_pattern_parity.rs` and one test in
+  `parity.rs` shelled out to the just-deleted `work-item-pattern.sh` as
+  their bash oracle. The dedicated parity file (its job — guarding Phase
+  2's port — is done) was deleted; the one test in `parity.rs` was rewired
+  to call `corpus_adapters::compile_scan_regex` directly, since its actual
+  purpose (verifying `slug::derive`/`extract_id` against a realistic
+  compiled regex) doesn't need bash at all.
+- Two pre-existing schema-conformance test scripts
+  (`scripts/test-skill-frontmatter-population.sh`,
+  `scripts/test-skill-frontmatter-conformance.sh`) assumed every producing
+  skill spelled out a bulleted `Populate frontmatter` section — a Phase 7
+  regression, not a Phase 9 one: `create-work-item`'s Step 5 delegates
+  population to `accelerator work create`'s CLI flags and never had this
+  checked by `mise run test:unit:templates`/`test:integration:config`
+  during Phase 7. Both scripts gained a CLI-delegation recognition context
+  (flag presence, or a small `CLI_MANAGED_NO_FLAG` allowlist for the
+  fields the binary sets unconditionally) rather than reverting the Step 5
+  design.
+- The full-corpus parity sweep (the plan's own required pre-deletion gate)
+  found a real bug in `work-item-section-diff.sh`: it crashes with SIGPIPE
+  (exit 141) on ~7% of real `meta/work/` files (larger ones with several
+  sections) — confirmed independent of self-diff via a synthetic two-file
+  diff. `work diff`'s Rust port does not share this bug. Deleting the bash
+  fallback is a reliability improvement on this axis, not just parity.
+- `meta/reviews/plans/2026-08-06-0170-work-item-lifecycle-subdomain-
+  review-1.md` (the review that approved this plan) emitted `parent: ""`
+  and `relates_to: []` instead of omitting those keys, failing the
+  corpus-wide ADR-0040 sanity check `mise run test:integration:config`
+  runs against the real `meta/` tree. Unrelated to this story — unfixed by
+  anything in Phases 1-8 — corrected as a two-line frontmatter edit (no
+  content change) since it blocked `mise run` end to end.
+
 ### Changes Required
 
 #### 1. Remaining skill repoints
@@ -2333,13 +2383,13 @@ noting they replace the 8 bash scripts this phase deletes.
 
 #### Automated Verification
 
-- [ ] `mise run test:integration:work` passes with the new floor of 5
-- [ ] `grep -rn "work-item-\(common\|next-number\|pattern\|read-field\|read-status\|resolve-id\|section-diff\|update-tags\|template-field-hints\)\.sh" skills/`
+- [x] `mise run test:integration:work` passes with the new floor of 5
+- [x] `grep -rn "work-item-\(common\|next-number\|pattern\|read-field\|read-status\|resolve-id\|section-diff\|update-tags\|template-field-hints\)\.sh" skills/`
       returns zero matches outside `meta/` history/plan documents (the three
       deferred scripts — `file-dirty`, `project-remote`, `normalise` —
       deliberately excluded from this pattern; confirm their only remaining
       references are the intact `sync-work-items/SKILL.md:120,136,311` calls)
-- [ ] Before this phase's script deletion lands, run `accelerator work
+- [x] Before this phase's script deletion lands, run `accelerator work
       show`/`resolve`/`diff` against every real file in `meta/work/` (not
       just the Phase 1 curated goldens) and diff the output against the
       bash originals invoked the same way — a one-off, full-corpus parity
@@ -2351,10 +2401,10 @@ noting they replace the 8 bash scripts this phase deletes.
       unexercised by any live path until 0194 wires them in, so a drift
       between the Rust port and its still-live bash original is otherwise
       invisible until 0194 depends on it
-- [ ] `mise run` (the full bare default task) passes end to end
-- [ ] `mise run lint:scripts:check` passes (no dangling references, exec-bit
+- [x] `mise run` (the full bare default task) passes end to end
+- [x] `mise run lint:scripts:check` passes (no dangling references, exec-bit
       invariant intact for whatever remains)
-- [ ] `mise run lint:skills:check` passes for every skill repointed in this
+- [x] `mise run lint:skills:check` passes for every skill repointed in this
       phase, confirming the `allowed-tools` updates in item 1 are complete
 
 #### Manual Verification

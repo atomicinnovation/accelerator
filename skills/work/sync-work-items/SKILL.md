@@ -7,6 +7,7 @@ description: Reconcile local work items in meta/work/ with the active remote
 argument-hint: "[--push-only|--pull-only] [--preview] [--all] [filter-flags…]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
@@ -196,7 +197,7 @@ When `decide` returns `prompt`, resolve the conflict interactively. First render
 baseline side, remote is the `+` side (the recommended/default-accept side):
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-section-diff.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work diff \
   <local-file> <remote-reconstructed-file>
 ```
 
@@ -301,7 +302,7 @@ work directory and exhausting IDs.
 hand every pulled item the same number until each file lands):
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh --count N
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --count N
 ```
 
 For each issue, build the full frontmatter (incl. `external_id` = remote key and

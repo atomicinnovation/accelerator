@@ -513,12 +513,13 @@ The `id_pattern` value is a small DSL with two tokens:
 A work item carries two distinct identity fields:
 
 - **`id`** — the **local own-identity**, allocated locally by
-  `work-item-next-number.sh` under the configured `id_pattern`. It is
-  **always a quoted YAML string**, regardless of the pattern: new work
-  items write `id: "0001"` under the default pattern and `id: "PROJ-0001"`
-  under `{project}-{number:04d}`. Consumers must treat it as a string; do
-  not coerce to integer. (Legacy work items carry the same own-identity
-  value under `work_item_id:`; `work-item-read-field.sh` bridges the two
+  `accelerator work create` (via `accelerator work next-number`) under
+  the configured `id_pattern`. It is **always a quoted YAML string**,
+  regardless of the pattern: new work items write `id: "0001"` under
+  the default pattern and `id: "PROJ-0001"` under
+  `{project}-{number:04d}`. Consumers must treat it as a string; do not
+  coerce to integer. (Legacy work items carry the same own-identity
+  value under `work_item_id:`; `accelerator work show` bridges the two
   names transparently, so a consumer asking for `id` against a legacy file
   still gets the value.)
 - **`external_id`** — the **remote tracker's identifier** (e.g. a Jira or

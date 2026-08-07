@@ -6,9 +6,7 @@ date: "2026-08-06T09:51:24+00:00"
 author: Toby Clemson
 producer: review-plan
 status: complete
-parent: ""
 target: "plan:2026-08-06-0170-work-item-lifecycle-subdomain"
-relates_to: []
 reviewer: Toby Clemson
 verdict: "APPROVE"
 lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, compatibility, safety]
