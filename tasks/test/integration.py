@@ -70,7 +70,7 @@ _REQUIRED_CONFIG_SUITES = (
 # suite is pytest, where a lost file is a collection error rather than a
 # silently smaller run, so no by-name entry is needed.
 _EXPECTED_HOOKS_SUITES = 2
-_EXPECTED_DECISIONS_SUITES = 1
+_EXPECTED_DECISIONS_SUITES = 0
 _EXPECTED_GITHUB_SUITES = 3
 
 

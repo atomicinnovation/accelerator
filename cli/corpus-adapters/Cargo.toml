@@ -20,6 +20,7 @@ bash-parity = []
 [dependencies]
 corpus = { path = "../corpus" }
 document = { path = "../document" }
+kernel = { path = "../kernel" }
 store = { path = "../store" }
 vcs-adapters = { path = "../vcs-adapters" }
 regex = { workspace = true }

@@ -8,7 +8,7 @@ argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr *)
 ---
 
 # Create Architecture Decision Record
@@ -23,6 +23,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**Next ADR number**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number --fail-safe`
 
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
@@ -53,19 +54,15 @@ Then wait for the user's input.
 
 ### Step 1: Determine ADR Number
 
-1. Run the companion script to get the next ADR number:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh
-```
+1. Use the "Next ADR number" value shown above.
 
 2. If `--supersedes ADR-NNNN` was specified:
    - Find the target ADR file by matching `{decisions directory}/ADR-NNNN-*.md`
    - Verify exactly one file matches the glob pattern (error if zero or
      multiple matches)
-   - Read the target ADR's status using the companion script:
+   - Read the target ADR's status using the corpus CLI:
      ```
-     ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-read-status.sh <resolved-path>
+     ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status <resolved-path>
      ```
    - Verify the target ADR is in `accepted` status (only accepted ADRs can be
      superseded). This is an early-fail check to avoid wasted effort — the
@@ -254,9 +251,9 @@ When drafting ADRs, follow these principles:
   file reads in the main context
 - **Dual status fields**: The template includes status in both YAML frontmatter
   (`status: proposed`) and the body (`**Status**: Proposed`). The frontmatter
-  is the authoritative source of truth — `adr-read-status.sh` reads only
-  frontmatter. The body line is for human readability. When updating status,
-  ALWAYS update both locations.
+  is the authoritative source of truth — `accelerator corpus adr read-status`
+  reads only frontmatter. The body line is for human readability. When
+  updating status, ALWAYS update both locations.
 - Before writing a new ADR file, verify the target path does not already exist
   to prevent accidental overwrites from concurrent invocations
 

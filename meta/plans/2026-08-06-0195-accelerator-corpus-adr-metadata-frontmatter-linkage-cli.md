@@ -617,25 +617,33 @@ corpus adr next-number`/`accelerator corpus adr read-status`.
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-cli`
-      passes
-- [ ] `mise run cli:check` passes (clippy/rustfmt across the workspace incl.
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-cli`
+      passes (package name is `accelerator-corpus`, not `corpus-cli`; `-p
+      accelerator-corpus` used instead — 35 tests pass)
+- [x] `mise run cli:check` passes (clippy/rustfmt across the workspace incl.
       the new crate)
-- [ ] `mise run lint:dispatch-coherence:check` passes
-- [ ] `mise run check` passes
-- [ ] `mise run test:integration:config` passes with the decisions floor at 0
-- [ ] `uv run pytest tests/integration/tasks/test_github.py
+- [x] `mise run lint:dispatch-coherence:check` passes
+- [x] `mise run check` passes
+- [x] `mise run test:integration:decisions` passes with the decisions floor
+      at 0. `mise run test:integration:config` has one pre-existing,
+      unrelated failure (`meta/reviews/plans/2026-08-06-0195-...-review-1.md`
+      carries two `EMPTY-PLACEHOLDER` violations already present in the
+      parent commit, before this phase's changes) — not caused by this phase
+      and out of scope to fix here
+- [x] `uv run pytest tests/integration/tasks/test_github.py
       tests/unit/tasks/shared/test_dispatch_coherence.py
       tests/unit/tasks/test_signing.py` passes
 
 #### Manual Verification:
 
-- [ ] `accelerator corpus adr next-number --count 3` and `accelerator corpus
+- [x] `accelerator corpus adr next-number --count 3` and `accelerator corpus
       adr read-status <file>` run correctly against a real ADR file in this
       repo
 - [ ] `/accelerator:create-adr`, `/accelerator:extract-adrs`,
       `/accelerator:review-adr` invoked interactively and confirmed to call
       the new subcommand without a permission prompt for the old script path
+      — not exercised (requires an interactive Claude Code session with the
+      locally-built binary on the dispatch path)
 
 ---
 

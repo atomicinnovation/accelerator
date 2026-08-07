@@ -47,6 +47,7 @@ bin/accelerator-verify-*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
 bin/visualiser-*
 bin/vcs-*
 bin/work-*
+bin/corpus-*
 bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log

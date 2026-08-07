@@ -68,11 +68,21 @@ pub fn resolve(
     let key = Key::parse(&full)?;
     let mut warnings = Vec::new();
     warnings.extend(legacy_alias_warning(config, raw_key)?);
-    let fallback = path_fallback(default, raw_key, &full, &mut warnings);
-    let value = match config.get(&key, level)? {
-        Resolved::Found(value) => config::render_value(&value),
-        Resolved::Absent => fallback,
-    };
+    let value =
+        if let Some(explicit) = default.filter(|value| !value.is_empty()) {
+            match config.get(&key, level)? {
+                Resolved::Found(value) => config::render_value(&value),
+                Resolved::Absent => explicit.to_owned(),
+            }
+        } else {
+            // `path_fallback`'s bash-mirrored quirk: the warning fires whenever
+            // the catalogue has no default for this key, even when the value
+            // itself resolves from config and the fallback is never used.
+            if catalogue::default_for(&full).is_none() {
+                warnings.push(unknown_path_key_warning(raw_key));
+            }
+            config::paths::resolve_with_fallback(config, raw_key, level)?
+        };
     warnings.extend(super::explain_lines(config, &key, level, explain)?);
     Ok(ScalarView { value, warnings })
 }
@@ -100,24 +110,6 @@ fn legacy_alias_warning(
              ignored. Run /accelerator:migrate"
         )
     }))
-}
-
-/// The value a `path` miss falls back to: an explicit non-empty default wins,
-/// else the catalogue default, else empty with a stderr warning naming the key.
-fn path_fallback(
-    default: Option<&str>,
-    raw_key: &str,
-    full_key: &str,
-    warnings: &mut Vec<String>,
-) -> String {
-    if let Some(explicit) = default.filter(|value| !value.is_empty()) {
-        return explicit.to_owned();
-    }
-    if let Some(value) = catalogue::default_for(full_key) {
-        return config::render_value(&value);
-    }
-    warnings.push(unknown_path_key_warning(raw_key));
-    String::new()
 }
 
 fn unknown_path_key_warning(key: &str) -> String {

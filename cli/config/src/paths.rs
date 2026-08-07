@@ -7,8 +7,10 @@
 use crate::catalogue;
 use crate::error::ConfigError;
 use crate::key::Key;
+use crate::level::Level;
 use crate::render::render_value;
 use crate::service::ConfigAccess;
+use crate::service::Resolved;
 
 /// A resolved doc-type directory: the type, its `paths.<path_key>`, the
 /// normalised safe relative directory, and whether a blank config value fell
@@ -66,6 +68,36 @@ pub fn doc_type_dirs(
     Ok(resolved)
 }
 
+/// Resolves `paths.<path_key>`, falling back to the catalogue default.
+///
+/// Falls back when the key is absent at the requested level (or, for
+/// `level: None`, absent from both config levels). The core `Key::parse` →
+/// `config.get` → catalogue-default-on-absent sequence shared by
+/// `accelerator config path` and a one-shot CLI command that needs a
+/// configured directory with no further layering (no explicit-default
+/// override, no legacy-alias warning, no `--explain`) — callers wanting that
+/// layering build it on top, as
+/// `cli/launcher/src/config_command/core/paths.rs`'s `resolve` does.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when `path_key` doesn't parse as a key segment or a
+/// config level cannot be read.
+pub fn resolve_with_fallback(
+    config: &dyn ConfigAccess,
+    path_key: &str,
+    level: Option<Level>,
+) -> Result<String, ConfigError> {
+    let full = format!("paths.{path_key}");
+    let key = Key::parse(&full)?;
+    Ok(match config.get(&key, level)? {
+        Resolved::Found(value) => render_value(&value),
+        Resolved::Absent => catalogue::default_for(&full)
+            .map(|value| render_value(&value))
+            .unwrap_or_default(),
+    })
+}
+
 /// Whether a configured directory is unsafe: empty, `.`, `..`, absolute, or
 /// carrying a `..`/interior-`.` segment. A leading `./` alone is safe — it is
 /// normalised away by [`normalise`].
@@ -102,7 +134,79 @@ pub fn normalise(dir: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_unsafe, normalise};
+    use super::{is_unsafe, normalise, resolve_with_fallback};
+    use crate::error::ConfigError;
+    use crate::level::Level;
+    use crate::node::{Node, Scalar};
+    use crate::service::{ConfigService, ReadConfigLevel, WriteConfigLevel};
+
+    struct FakeReader(Option<Node>);
+
+    impl ReadConfigLevel for FakeReader {
+        fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
+            Ok(match level {
+                Level::Personal => self.0.clone(),
+                Level::Team => None,
+            })
+        }
+    }
+
+    struct NullWriter;
+
+    impl WriteConfigLevel for NullWriter {
+        fn write(
+            &self,
+            _level: Level,
+            _document: &Node,
+        ) -> Result<(), ConfigError> {
+            Ok(())
+        }
+    }
+
+    fn mapping(entries: Vec<(&str, Node)>) -> Node {
+        Node::Mapping(
+            entries
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn resolve_with_fallback_prefers_a_configured_value(
+    ) -> Result<(), ConfigError> {
+        let service = ConfigService::new(
+            FakeReader(Some(mapping(vec![(
+                "paths",
+                mapping(vec![(
+                    "decisions",
+                    Node::Scalar(Scalar::String("adr".to_owned())),
+                )]),
+            )]))),
+            NullWriter,
+        );
+        assert_eq!(resolve_with_fallback(&service, "decisions", None)?, "adr");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_with_fallback_falls_back_to_the_catalogue_default_on_absence(
+    ) -> Result<(), ConfigError> {
+        let service = ConfigService::new(FakeReader(None), NullWriter);
+        assert_eq!(
+            resolve_with_fallback(&service, "decisions", None)?,
+            "meta/decisions"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_with_fallback_is_empty_for_an_unknown_key(
+    ) -> Result<(), ConfigError> {
+        let service = ConfigService::new(FakeReader(None), NullWriter);
+        assert_eq!(resolve_with_fallback(&service, "no-such-key", None)?, "");
+        Ok(())
+    }
 
     #[test]
     fn normalise_collapses_slashes_and_strips_dot_slash_and_trailing() {

@@ -8,7 +8,7 @@ description: Review an architecture decision record for quality and
 argument-hint: "[path to ADR] [--deprecate reason]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status)
 ---
 
 # Review Architecture Decision Record
@@ -74,7 +74,7 @@ Wait for user selection.
 Before making ANY changes to an ADR, check its status using:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-read-status.sh <adr-path>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status <adr-path>
 ```
 
 Then apply these rules:
