@@ -15,6 +15,7 @@ use corpus_adapters::compile_scan_regex;
 use corpus_adapters::lock::acquire;
 use corpus_adapters::lock::LockOptions;
 use corpus_adapters::metadata::derive_at;
+use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RegexScanner;
 use document::Mapping;
@@ -255,9 +256,12 @@ fn try_run(
         .or_else(|| scheme.default_project_code.clone());
     let id = allocate_id(&scheme, &work_dir, project.as_deref())?;
 
-    let metadata =
-        derive_at(&root, FilenameTimestampFormat::DateTimeUnderscored)
-            .map_err(|error| error.to_string())?;
+    let metadata = derive_at(
+        &root,
+        FilenameTimestampFormat::DateTimeUnderscored,
+        &VcsBackedRepoFactsProbe,
+    )
+    .map_err(|error| error.to_string())?;
     let author =
         resolve_author(args.author.as_deref(), &VcsBackedIdentityProbe)?;
     let resolved_template = resolve_and_check_template(config, templates)?;

@@ -670,7 +670,6 @@ dependencies = [
  "store",
  "tempfile",
  "time",
- "vcs",
  "vcs-adapters",
  "vcs-test-support",
 ]
