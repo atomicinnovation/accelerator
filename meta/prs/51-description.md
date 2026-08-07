@@ -8,7 +8,7 @@ producer: describe-pr
 status: complete
 work_item_id: "0169"
 parent: "work-item:0169"
-relates_to: ["work-item:0125", "work-item:0172", "work-item:0183", "work-item:0189", "work-item:0192", "work-item:0193", "work-item:0198"]
+relates_to: ["work-item:0125", "work-item:0172", "work-item:0183", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/51"
 pr_number: 51
 tags: [rust, vcs, hooks, migration]
@@ -35,7 +35,7 @@ Implements ADR-0048 for the VCS subsystem: builds `accelerator-vcs`, a new dispa
 - **Sub-binary registration**: `vcs` is added to `DISPATCHED_SUBBINARIES`/`_SUBBINARY_MANIFESTS`/the cli workspace/`.gitignore`/`_CLI_RELEASE_BINARIES` per 0187's checklist; `skills/vcs/commit` is repointed at the new subcommands and its broad `scripts/*` permission narrowed to the `vcs *` subcommand.
 - **`hooks.json` rewrite and shell deletion**: SessionStart and PreToolUse now register three verbatim `accelerator vcs ...`/`accelerator config ...` command strings instead of five shell scripts; `hooks/vcs-detect.sh`, `hooks/vcs-guard.sh`, `hooks/config-detect.sh`, `scripts/vcs-status.sh`, and `scripts/vcs-log.sh` are deleted; the 42-case shell parity gate is repointed onto the compiled binary and its surviving in-process cases move to a new `scripts/test-vcs-common.sh`.
 - **Fixture and golden capture** (`hooks/test-fixtures/`): a shared `masks.toml` (loaded by both a Rust and a Python differential test), status/log goldens for 10 checkout states, a 138-row guard decision table, and detect fixtures for the two declared behavioural departures.
-- **Hand-offs**: dated notes appended to 0125, 0172, 0183, and 0189; two new follow-up work items created — 0192 (the `scripts/vcs-common.sh` residue and `hooks/launcher-link-refresh.sh`) and 0193 (the `log`/`diff` blocklist-membership decision) — plus 0198 (deferring `vcs status`/`vcs log` off subprocess execution onto the library adapters, opened after landing).
+- **Hand-offs**: dated notes appended to 0125, 0172, 0183, and 0189; two new follow-up work items created — 0199 (the `scripts/vcs-common.sh` residue and `hooks/launcher-link-refresh.sh`) and 0200 (the `log`/`diff` blocklist-membership decision) — plus 0198 (deferring `vcs status`/`vcs log` off subprocess execution onto the library adapters, opened after landing).
 
 ### Four declared behavioural departures from the shell
 

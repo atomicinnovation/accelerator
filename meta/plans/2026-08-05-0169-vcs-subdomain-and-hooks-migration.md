@@ -1490,8 +1490,8 @@ found.
       makes every call's path unique regardless of thread interleaving.
 - [x] The dated hand-off notes and both new work items exist and are
       cross-linked (grep-verified) — dated 2026-08-06 amendments landed on
-      0125, 0172, 0183, 0189; `work-item:0192` (vcs-common.sh residue +
-      `hooks/launcher-link-refresh.sh`) and `work-item:0193` (the guard's
+      0125, 0172, 0183, 0189; `work-item:0199` (vcs-common.sh residue +
+      `hooks/launcher-link-refresh.sh`) and `work-item:0200` (the guard's
       `log`/`diff` blocklist-membership decision) created and cross-linked
       from 0169's own Dependencies section
 

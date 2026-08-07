@@ -32,9 +32,24 @@ def preview(context: Context) -> None:
 
 
 @task
-def audit(context: Context) -> None:
+def audit_check(context: Context) -> None:
     """Fail on high/critical npm advisories in the docs-site tree."""
-    context.run(f"npm --prefix {DOCS_SITE} audit --audit-level=high")
+    result = context.run(
+        f"npm --prefix {DOCS_SITE} audit --audit-level=high", warn=True
+    )
+    if result.exited != 0:
+        raise Exit(
+            "npm audit reported high or critical advisories — run "
+            "`mise run docs:audit:fix` for the non-breaking subset, then "
+            "resolve the rest by hand",
+            code=1,
+        )
+
+
+@task
+def audit_fix(context: Context) -> None:
+    """Apply npm's non-breaking advisory fixes to the docs-site lockfile."""
+    context.run(f"npm --prefix {DOCS_SITE} audit fix")
 
 
 @task

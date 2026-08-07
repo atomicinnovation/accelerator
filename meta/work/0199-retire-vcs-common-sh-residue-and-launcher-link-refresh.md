@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0192"
+id: "0199"
 title: "Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh"
 date: "2026-08-06T00:00:00+00:00"
 author: Toby Clemson
@@ -17,7 +17,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0192: Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh
+# 0199: Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh
 
 **Kind**: Task
 **Status**: Draft

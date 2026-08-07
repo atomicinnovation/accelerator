@@ -118,16 +118,23 @@ description = "Verify every plugin.json skill has a generated docs page"
 depends = ["docs:generate"]
 run = "invoke docs.generate-check"
 
-[tasks."docs:audit"]
+[tasks."docs:audit:check"]
 description = "Fail on high/critical npm advisories in the docs-site tree"
 depends = ["deps:install:docs"]
-run = "invoke docs.audit"
+run = "invoke docs.audit-check"
+
+# Deliberately NOT in the aggregate `fix`: it needs network and rewrites
+# docs-site/package-lock.json, so it stays in the docs lane like its siblings.
+[tasks."docs:audit:fix"]
+description = "Apply npm's non-breaking advisory fixes to the docs-site lockfile"
+depends = ["deps:install:docs"]
+run = "invoke docs.audit-fix"
 
 # Deliberately NOT in the aggregate `check`: it writes gitignored artefacts
 # and needs network + a Chromium install, so the docs CI lane owns it.
 [tasks."docs:check"]
 description = "Docs gate: strict site build incl. link validation + npm audit (CI-owned; needs network + Chromium)"
-depends = ["docs:build", "docs:generate:check", "docs:audit"]
+depends = ["docs:build", "docs:generate:check", "docs:audit:check"]
 
 [tasks."docs:serve"]
 description = "Serve the documentation site locally with live reload"

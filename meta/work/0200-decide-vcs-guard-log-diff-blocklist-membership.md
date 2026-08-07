@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0193"
+id: "0200"
 title: "Decide whether git log/diff belong in vcs guard's blocked subcommand set"
 date: "2026-08-06T00:00:00+00:00"
 author: Toby Clemson
@@ -17,7 +17,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0193: Decide whether git log/diff belong in vcs guard's blocked subcommand set
+# 0200: Decide whether git log/diff belong in vcs guard's blocked subcommand set
 
 **Kind**: Spike
 **Status**: Draft
