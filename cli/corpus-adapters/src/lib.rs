@@ -9,7 +9,7 @@ pub mod assemble;
 pub mod doc_type;
 pub mod document;
 mod jsonl;
-mod lock;
+pub mod lock;
 pub mod metadata;
 pub mod patcher;
 pub mod scanner;
@@ -18,6 +18,7 @@ pub mod work_item_pattern;
 
 pub use crate::assemble::{assemble, AssembledDocument};
 pub use crate::document::{parse, FrontmatterState, ParsedDocument};
+pub use crate::lock::{acquire, LockGuard, LockOptions};
 pub use crate::metadata::{derive, derive_at, ClockError, SystemClock};
 pub use crate::patcher::{patch_status, PatchError};
 pub use crate::scanner::RegexScanner;

@@ -98,6 +98,8 @@ dependencies = [
  "config",
  "config-adapters",
  "corpus",
+ "corpus-adapters",
+ "document",
  "kernel",
  "tempfile",
  "work",
@@ -4428,6 +4430,8 @@ dependencies = [
 name = "vcs-adapters"
 version = "1.24.0-pre.30"
 dependencies = [
+ "dunce",
+ "etcetera",
  "gix",
  "jj-lib",
  "kernel",
@@ -4904,6 +4908,8 @@ dependencies = [
  "kernel",
  "serde_json",
  "tempfile",
+ "vcs",
+ "vcs-adapters",
  "work",
 ]
 

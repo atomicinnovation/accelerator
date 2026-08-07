@@ -40,6 +40,8 @@ jj-lib = { workspace = true }
 pollster = { workspace = true }
 prost = { workspace = true }
 tracing = { workspace = true }
+etcetera = { workspace = true }
+dunce = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

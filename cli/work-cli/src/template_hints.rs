@@ -3,30 +3,11 @@
 //! named field's hint values. Exact behavioural match for
 //! `work-item-template-field-hints.sh`: always exits 0.
 
-use config::ConfigAccess;
-use config::Key;
-use config::ReadTemplate;
+use ::config::ConfigAccess;
+use ::config::ReadTemplate;
 
-fn templates_dir(config: &dyn ConfigAccess) -> Result<String, kernel::Error> {
-    let key = Key::parse("paths.templates")
-        .map_err(|error| kernel::Error::Failed(error.to_string()))?;
-    Ok(config
-        .effective_nonempty(&key, None)
-        .map_err(|error| kernel::Error::Failed(error.to_string()))?
-        .rendered())
-}
-
-fn configured_override(
-    config: &dyn ConfigAccess,
-    key: &str,
-) -> Result<Option<String>, kernel::Error> {
-    let parsed = Key::parse(key)
-        .map_err(|error| kernel::Error::Failed(error.to_string()))?;
-    Ok(config
-        .effective_nonempty(&parsed, None)
-        .map_err(|error| kernel::Error::Failed(error.to_string()))?
-        .configured_value())
-}
+use crate::config::configured_override;
+use crate::config::templates_dir;
 
 /// Prints one hint value per line for `field`, resolving the `work-item`
 /// template through `templates` and falling back to

@@ -1686,58 +1686,67 @@ code level — failure kind is conveyed by the stderr message.
 
 #### Automated Verification
 
-- [ ] `cargo test -p work-adapters --locked` — `current_vcs_user` returns
+- [x] `cargo test -p work-adapters --locked` — `current_vcs_user` returns
       `Some(name)` in a fixture jj/git repo with `user.name` configured,
-      and `None` (not an error) outside a repo or with no `user.name` set
-- [ ] `cargo test -p work --locked` — `compose_frontmatter` is table-driven
+      and `None` (not an error) outside a repo or with no `user.name` set —
+      the repo-kind-detection and command-failure halves are unit-tested in
+      `work-adapters`; the full end-to-end resolution (real subprocess,
+      real cwd) is exercised at the CLI boundary instead
+      (`creates_a_work_item_with_the_template_schema` asserts `author:
+      Test User` with no `--author` flag), since `current_vcs_user` reads
+      the process's real `std::env::current_dir()` and mutating that
+      process-globally inside a unit test would race other tests
+- [x] `cargo test -p work --locked` — `compose_frontmatter` is table-driven
       against every combination of optional-field presence/absence (parent
       given/omitted, tags empty/non-empty), asserting the exact key set and
       omit-when-empty behaviour, with no filesystem or `document` dependency
-- [ ] `cargo test -p work --locked` — `assert_matches_template_schema` fails
+- [x] `cargo test -p work --locked` — `assert_matches_template_schema` fails
       when given a template key list `compose_frontmatter` doesn't produce,
       and passes against the real `templates/work-item.md`'s current key set
       (this second case is the drift guard: it fails the moment the template
       and `compose_frontmatter` diverge)
-- [ ] `cargo test -p accelerator-work --locked` — a fresh `work create`
+- [x] `cargo test -p accelerator-work --locked` — a fresh `work create`
       invocation produces a file whose frontmatter parses back via
       `document::parse` into exactly the fields supplied plus the derived
       ones, with every typed-linkage slot the AC's "fully populated
       frontmatter" language requires present; a second invocation in the same
       directory allocates the next sequential ID, not a duplicate
-- [ ] `--block`/`--blocked-by`/`--derived-from`/`--relates-to`/`--source`
+- [x] `--block`/`--blocked-by`/`--derived-from`/`--relates-to`/`--source`
       each populate their corresponding frontmatter key when given and are
       omitted when not, matching `parent`/`tags`' existing omit-when-empty
       treatment
-- [ ] `--body-file <path>` writes the file's content as the body, including
+- [x] `--body-file <path>` writes the file's content as the body, including
       multi-section content (Summary, Requirements, Acceptance Criteria,
       ...), with every literal `NNNN` occurrence in that content replaced
       by the actual allocated ID — not verbatim, and not just a title/H1
       substitution; without `--body-file`, the template-skeleton fallback
       gets the identical substitution treatment via the same code path
-- [ ] The frontmatter's `id:` and every `NNNN`-derived occurrence in the
+- [x] The frontmatter's `id:` and every `NNNN`-derived occurrence in the
       body are the *same* value in every case, including when a second
       `work create` is allocated concurrently (see the concurrent-process
       lock test below) — there is no code path where the two could diverge,
       since both come from the one `allocate` call this invocation made
-- [ ] `--producer custom-skill-name` writes that value as `producer:`,
+- [x] `--producer custom-skill-name` writes that value as `producer:`,
       confirming the default (`accelerator-work`, for direct CLI use) is
       overridable, not hardcoded
-- [ ] Two `work create` invocations launched concurrently against the same
+- [x] Two `work create` invocations launched concurrently against the same
       `WORK_DIR` (spawned as real separate processes, not sequential calls
       in one test) never both succeed with the same allocated ID — the
       second either blocks until the first's lock releases and then
       allocates the next number, or observes the first's write and
       allocates past it; genuine mutual exclusion, not a narrowed race
-      window
-- [ ] The overflow-guard path (Phase 3's `AllocationError::Overflow`) surfaces
+      window — tested with 5 concurrent processes, all 5 got distinct IDs
+- [x] The overflow-guard path (Phase 3's `AllocationError::Overflow`) surfaces
       as a clear CLI error, not a partial write, with both the
       out-of-width-file and number-space-exhausted message wordings matching
       the bash originals verbatim, interpolating `highest`/`cap`/`highest_file`
-      from the error variant's fields
-- [ ] `work create` exits 0 on every success path and 1 on every failure
+      from the error variant's fields — plus `pattern`, threaded in
+      separately at the CLI layer since `AllocationError` itself doesn't
+      carry the pattern string
+- [x] `work create` exits 0 on every success path and 1 on every failure
       path (`AllocationError`, a lock-acquisition timeout, template
       resolution), matching the exit-code contract stated above
-- [ ] `mise run cli:check` passes; cargo-pup confirms `work::create` stays
+- [x] `mise run cli:check` passes; cargo-pup confirms `work::create` stays
       within the existing `work_domain_imports_only_permitted` rule
       (`std`/`kernel::Error`/`corpus`/`crate` — no new import needed, since
       `compose_frontmatter` returns the crate-local `FieldValue`, not
@@ -1745,13 +1754,24 @@ code level — failure kind is conveyed by the stderr message.
 
 #### Manual Verification
 
-- [ ] `accelerator work create --title "Test item" --kind task --priority
+- [x] `accelerator work create --title "Test item" --kind task --priority
       medium` in a scratch `meta/work/` directory produces a file that opens
       cleanly and whose frontmatter matches the template schema field-for-field
 - [ ] Drive `create-work-item` end to end with no integration configured,
       confirming its Step 5 write now goes through `accelerator work create`
       rather than a manual `Write` call, and that the integration-configured
-      path (still manual, untouched) continues to work unchanged
+      path (still manual, untouched) continues to work unchanged —
+      `create-work-item/SKILL.md`'s Step 5 is repointed (items 5-8:
+      resolve author, no-integration write via `accelerator work create`,
+      the renumbered push-state-machine and confirmation steps), `XXXX`
+      renamed to `NNNN` throughout to match the template's own placeholder
+      and `work create --body-file`'s substitution contract, and
+      `allowed-tools` granted `accelerator work *`. **Not live-tested**:
+      this session cannot drive an interactive skill invocation through
+      Claude Code's own prompt-processing engine; the edit was made
+      carefully against the existing text and cross-checked for internal
+      step-number consistency, but a real run of `/create-work-item`
+      end to end is still owed before this line can be checked off
 
 ---
 

@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 
@@ -48,4 +49,58 @@ pub enum Command {
         /// The changed (`+`) file.
         remote: PathBuf,
     },
+    /// Atomically create a new work item under the configured pattern,
+    /// self-allocating its own ID.
+    Create(Box<CreateArgs>),
+}
+
+/// `work create`'s flags — a separate [`Args`] struct (boxed at the
+/// `Command::Create` call site) so this, by far the largest variant,
+/// doesn't inflate every other variant's size.
+#[derive(Args)]
+pub struct CreateArgs {
+    /// The title (a short noun phrase).
+    pub title: String,
+    /// The kind (e.g. `story`, `epic`, `task`, `bug`, `spike`).
+    pub kind: String,
+    /// The priority (e.g. `high`, `medium`, `low`).
+    pub priority: String,
+    /// The initial status.
+    #[arg(long, default_value = "draft")]
+    pub status: String,
+    /// The parent work item reference (`work-item:NNNN`).
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// A tag to add; repeatable.
+    #[arg(long = "tag")]
+    pub tags: Vec<String>,
+    /// A work item this one blocks; repeatable.
+    #[arg(long = "block")]
+    pub blocks: Vec<String>,
+    /// A work item that blocks this one; repeatable.
+    #[arg(long = "blocked-by")]
+    pub blocked_by: Vec<String>,
+    /// A document this item was derived from; repeatable.
+    #[arg(long = "derived-from")]
+    pub derived_from: Vec<String>,
+    /// A related work item; repeatable.
+    #[arg(long = "relates-to")]
+    pub relates_to: Vec<String>,
+    /// The source document reference.
+    #[arg(long)]
+    pub source: Option<String>,
+    /// The project code, when the configured pattern needs one.
+    #[arg(long)]
+    pub project: Option<String>,
+    /// The author. Falls back to the current VCS identity when omitted.
+    #[arg(long)]
+    pub author: Option<String>,
+    /// The producer name recorded in the frontmatter.
+    #[arg(long, default_value = "accelerator-work")]
+    pub producer: String,
+    /// A file whose content becomes the body (with `NNNN` and the title
+    /// placeholder substituted), instead of the template's own skeleton
+    /// body.
+    #[arg(long = "body-file")]
+    pub body_file: Option<PathBuf>,
 }

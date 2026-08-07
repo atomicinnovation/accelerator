@@ -71,6 +71,30 @@ pub trait VcsProbe {
     fn revision(&self, root: &Path, kind: VcsKind) -> Option<String>;
 }
 
+/// Reports a repository's configured user identity.
+pub trait UserIdentityProbe {
+    /// The configured `user.name` for the repository at `root`, given its
+    /// `kind`, or `None` when unconfigured, absent, or unanswerable. A caller
+    /// cannot distinguish the three; an adapter is expected to log the
+    /// failure.
+    fn user_name(&self, root: &Path, kind: VcsKind) -> Option<String>;
+}
+
+/// The configured VCS user name for the repository containing `start`.
+///
+/// `None` outside a repository and when the probe cannot answer.
+#[must_use]
+pub fn user_name(
+    start: &Path,
+    root: &dyn RepoRoot,
+    probe: &dyn VcsProbe,
+    identity: &dyn UserIdentityProbe,
+) -> Option<String> {
+    let root_path = root.discover(start)?;
+    let kind = probe.kind(&root_path);
+    identity.user_name(&root_path, kind)
+}
+
 /// The facts for the repository containing `start`.
 ///
 /// `None` when no repository contains `start`, so a marker-less tree is
@@ -99,7 +123,10 @@ pub fn facts(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::{facts, RepoFacts, RepoRoot, VcsKind, VcsProbe};
+    use super::{
+        facts, user_name, RepoFacts, RepoRoot, UserIdentityProbe, VcsKind,
+        VcsProbe,
+    };
 
     struct FixedRoot(Option<PathBuf>);
 
@@ -194,5 +221,53 @@ mod tests {
                 revision: None,
             })
         );
+    }
+
+    struct FixedIdentity(Option<&'static str>);
+
+    impl UserIdentityProbe for FixedIdentity {
+        fn user_name(&self, _root: &Path, _kind: VcsKind) -> Option<String> {
+            self.0.map(str::to_owned)
+        }
+    }
+
+    #[test]
+    fn composes_the_user_name_of_the_discovered_repository() {
+        let root = FixedRoot(Some(PathBuf::from("/tmp/some-repo")));
+
+        assert_eq!(
+            user_name(
+                Path::new("/tmp/some-repo/meta/work"),
+                &root,
+                &probe(VcsKind::Jj, None),
+                &FixedIdentity(Some("Toby Clemson")),
+            ),
+            Some("Toby Clemson".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_tree_with_no_repository_has_no_user_name() {
+        let derived = user_name(
+            Path::new("/tmp/loose"),
+            &FixedRoot(None),
+            &probe(VcsKind::None, None),
+            &FixedIdentity(Some("Toby Clemson")),
+        );
+
+        assert_eq!(derived, None);
+    }
+
+    #[test]
+    fn an_unanswerable_identity_is_none() {
+        let root = FixedRoot(Some(PathBuf::from("/tmp/unconfigured")));
+        let derived = user_name(
+            Path::new("/tmp/unconfigured"),
+            &root,
+            &probe(VcsKind::Git, None),
+            &FixedIdentity(None),
+        );
+
+        assert_eq!(derived, None);
     }
 }

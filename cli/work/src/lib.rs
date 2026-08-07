@@ -3,6 +3,7 @@
 //! template-hint parsing, own-identity, and raw field reads. No filesystem,
 //! no subprocess, no regex — those live in the adapter/binary layers.
 
+pub mod create;
 pub mod next_number;
 pub mod normalise;
 pub mod own_identity;

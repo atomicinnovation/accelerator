@@ -18,6 +18,8 @@ bash-parity = []
 [dependencies]
 work = { path = "../work" }
 kernel = { path = "../kernel" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 

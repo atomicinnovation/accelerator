@@ -171,6 +171,18 @@ impl FileConfigStore {
     }
 }
 
+/// The plugin installation root from `ACCELERATOR_PLUGIN_ROOT`, for
+/// [`FileConfigStore::with_plugin_root`]; `None` when unset.
+///
+/// The one place this crate reads the environment — every composition root
+/// calls this explicitly rather than reading the variable itself, so the
+/// store's own construction stays caller-supplied, matching
+/// [`LegacyPolicy`]'s own rule against reading the environment implicitly.
+#[must_use]
+pub fn plugin_root_from_env() -> Option<PathBuf> {
+    std::env::var_os("ACCELERATOR_PLUGIN_ROOT").map(PathBuf::from)
+}
+
 impl ReadConfigLevel for FileConfigStore {
     fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
         let path = self.level_path(level);

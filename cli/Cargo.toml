@@ -79,6 +79,13 @@ gix = { version = "~0.85.0", default-features = false }
 # from jj-lib: a major mismatch splits the graph and breaks the decode.
 prost = "0.14"
 pollster = "0.4"
+# etcetera and dunce are jj-cli's own config-path discovery helpers, adopted
+# the same way: both are already in the lock through jj-lib, so this adds no
+# packages. Pinned to the exact versions jj-lib's own tree resolves, since
+# replicating jj-cli's discovery logic is only faithful at the version it was
+# read from.
+etcetera = "0.11.0"
+dunce = "1.0.5"
 
 [workspace.lints.rust]
 warnings = "deny"
