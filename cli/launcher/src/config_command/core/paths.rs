@@ -50,13 +50,15 @@ pub fn configured(
 
 /// Resolves a single `paths.<key>`, prefixing the `paths.` section.
 ///
-/// On a miss an explicit non-empty `--default` wins over the catalogue, which
-/// wins over empty-plus-warning. The fallback is computed eagerly, so an
-/// unknown-key warning can accompany a value that resolves from config.
+/// `raw_key` must name a path the catalogue recognises — a key with no
+/// catalogue entry is refused, whether or not it happens to carry a value in
+/// config. On a miss for a recognised key, an explicit non-empty `--default`
+/// wins over the catalogue default.
 ///
 /// # Errors
 ///
-/// A [`ConfigError`] when the key is malformed or a config level cannot be read.
+/// [`ConfigError::Invalid`] when `raw_key` has no catalogue entry. A
+/// [`ConfigError`] when the key is malformed or a config level cannot be read.
 pub fn resolve(
     config: &dyn ConfigAccess,
     raw_key: &str,
@@ -66,6 +68,9 @@ pub fn resolve(
 ) -> Result<ScalarView, ConfigError> {
     let full = format!("paths.{raw_key}");
     let key = Key::parse(&full)?;
+    if catalogue::default_for(&full).is_none() {
+        return Err(unknown_path_key_error(raw_key));
+    }
     let mut warnings = Vec::new();
     warnings.extend(legacy_alias_warning(config, raw_key)?);
     let value =
@@ -75,12 +80,6 @@ pub fn resolve(
                 Resolved::Absent => explicit.to_owned(),
             }
         } else {
-            // `path_fallback`'s bash-mirrored quirk: the warning fires whenever
-            // the catalogue has no default for this key, even when the value
-            // itself resolves from config and the fallback is never used.
-            if catalogue::default_for(&full).is_none() {
-                warnings.push(unknown_path_key_warning(raw_key));
-            }
             config::paths::resolve_with_fallback(config, raw_key, level)?
         };
     warnings.extend(super::explain_lines(config, &key, level, explain)?);
@@ -112,15 +111,18 @@ fn legacy_alias_warning(
     }))
 }
 
-fn unknown_path_key_warning(key: &str) -> String {
+/// The refusal for an unrecognised `paths.<key>` lookup — a distinct,
+/// actionable message for the two keys migration 0004 renamed, else the
+/// generic catalogue-membership refusal.
+fn unknown_path_key_error(key: &str) -> ConfigError {
     match key {
-        "design_inventories" | "design_gaps" => format!(
-            "Warning: key '{key}' was renamed by migration 0004 to \
-             'research_{key}'; run /accelerator:migrate"
-        ),
-        _ => format!(
-            "Warning: unknown key 'paths.{key}' — no centralized default"
-        ),
+        "design_inventories" | "design_gaps" => ConfigError::Invalid {
+            detail: format!(
+                "key '{key}' was renamed by migration 0004 to \
+                 'research_{key}'; run /accelerator:migrate"
+            ),
+        },
+        _ => config::paths::unknown_path_key_error(key),
     }
 }
 

@@ -81,8 +81,10 @@ pub fn doc_type_dirs(
 ///
 /// # Errors
 ///
-/// A [`ConfigError`] when `path_key` doesn't parse as a key segment or a
-/// config level cannot be read.
+/// [`ConfigError::Invalid`] when `path_key` has no catalogue entry — a path
+/// key is only ever one the catalogue recognises, whether or not a value
+/// happens to be set for it in config. A [`ConfigError`] when `path_key`
+/// doesn't parse as a key segment or a config level cannot be read.
 pub fn resolve_with_fallback(
     config: &dyn ConfigAccess,
     path_key: &str,
@@ -90,12 +92,23 @@ pub fn resolve_with_fallback(
 ) -> Result<String, ConfigError> {
     let full = format!("paths.{path_key}");
     let key = Key::parse(&full)?;
+    let Some(catalogue_default) = catalogue::default_for(&full) else {
+        return Err(unknown_path_key_error(path_key));
+    };
     Ok(match config.get(&key, level)? {
         Resolved::Found(value) => render_value(&value),
-        Resolved::Absent => catalogue::default_for(&full)
-            .map(|value| render_value(&value))
-            .unwrap_or_default(),
+        Resolved::Absent => render_value(&catalogue_default),
     })
+}
+
+/// The refusal for a `paths.<key>` lookup the catalogue has no entry for.
+#[must_use]
+pub fn unknown_path_key_error(key: &str) -> ConfigError {
+    ConfigError::Invalid {
+        detail: format!(
+            "unknown path key 'paths.{key}' — no centralized default"
+        ),
+    }
 }
 
 /// Whether a configured directory is unsafe: empty, `.`, `..`, absolute, or
@@ -201,11 +214,33 @@ mod tests {
     }
 
     #[test]
-    fn resolve_with_fallback_is_empty_for_an_unknown_key(
-    ) -> Result<(), ConfigError> {
+    fn resolve_with_fallback_refuses_an_unknown_key_even_when_set_in_config() {
+        let service = ConfigService::new(
+            FakeReader(Some(mapping(vec![(
+                "paths",
+                mapping(vec![(
+                    "no-such-key",
+                    Node::Scalar(Scalar::String("somewhere".to_owned())),
+                )]),
+            )]))),
+            NullWriter,
+        );
+        let result = resolve_with_fallback(&service, "no-such-key", None);
+        assert!(matches!(&result, Err(error) if error.is_refusal()));
+    }
+
+    #[test]
+    fn resolve_with_fallback_refuses_an_unknown_key() {
         let service = ConfigService::new(FakeReader(None), NullWriter);
-        assert_eq!(resolve_with_fallback(&service, "no-such-key", None)?, "");
-        Ok(())
+        let result = resolve_with_fallback(&service, "no-such-key", None);
+        assert!(matches!(
+            &result,
+            Err(error)
+                if error.is_refusal()
+                    && error.to_string()
+                        == "unknown path key 'paths.no-such-key' — no \
+                            centralized default"
+        ));
     }
 
     #[test]
