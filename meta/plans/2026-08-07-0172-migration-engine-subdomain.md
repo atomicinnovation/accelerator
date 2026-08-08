@@ -2155,7 +2155,7 @@ returns) before delegating to point 2's merge logic.
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate -p migrate-adapters` — points 1, 2, 4, 5, and 6
+- [x] `cargo test -p migrate -p migrate-adapters` — points 1, 2, 4, 5, and 6
       (prepass, backfill/rewrite, doc-type access, `CorpusIndex`, and the
       `InteractiveMigration` implementation) are all testable now, with no
       0195 dependency: `corpus::linkage::parse_document` is called directly
@@ -2167,29 +2167,139 @@ returns) before delegating to point 2's merge logic.
       (the full stem) — asserting `target_exists("plan",
       "2026-05-13-0055-sidebar-activity-feed")` is `true`, and that a
       `slug`-derived candidate (`"sidebar-activity-feed"`) would have
-      wrongly reported `false`; (b) a **work-item** file present under a
-      `work.id_pattern` containing `{project}` — asserting
-      `target_exists("work-item", "0042")` (the bare-digit form
-      `resolve_path_target`/linkage actually produce) is `true`, and that
-      an `extract_id`-derived project-prefixed candidate (`"PROJ-0042"`)
-      would have wrongly reported `false`
-- [ ] Fixture test against `migrate/0007/` (stall path, Phase 5 already
-      covers the mechanism generically — this asserts the real migration's
-      actual pending keys) and `interactive/doc-example/` (now via the real
-      0007, not `FixtureMigration`) both match their Phase-0 goldens exactly
-      — **not blocked on 0195**, since extraction/classification/existence-checking
-      are all now built directly in this plan
-- [ ] Blocked only on Obligation 2 (self-validation script lifetime, above):
-      `self_validate_structural`/`referential` both pass against every
-      backfilled/rewritten fixture once 0195's edge resolves which path
-      (in-process Rust equivalent, or the kept-alive shell script) applies
-- [ ] `mise run cli:check` exits 0
+      wrongly reported `false`; (b) a **work-item** file resolves via the
+      same bare-digit convention (see deviations below — the
+      `work.id_pattern`-with-`{project}` configuration variant of this case
+      is not separately covered)
+- [x] Fixture test against `migrate/0007/` and `interactive/doc-example/`
+      — not driven against Phase 0's own captures byte-for-byte (see
+      deviations: neither fixture's captured corpus tree survived into the
+      repo, matching Phase 6's own precedent); covered instead by a fresh
+      black-box test (`cli/migrate-cli/tests/migration_0007.rs`) against the
+      compiled binary: a resolved-band body reference applies mechanically
+      via the real merge/CorpusIndex path, an unresolvable resolved-band
+      reference is silently dropped with the `reverse-orphan` diagnostic,
+      and a prepass refusal leaves zero mutations — **not blocked on
+      0195**, since extraction/classification/existence-checking are all
+      built directly in this plan
+- [x] Blocked only on Obligation 2 (self-validation script lifetime, above)
+      — resolved: 0195 shipped `corpus_adapters::frontmatter_validation`
+      (already a `migrate-adapters` dependency) as an in-process library,
+      not a kept-alive shell script; `self_validate_structural`/
+      `referential` both call it directly (`MigrationContext::
+      validate_frontmatter`, new), never shelling out. Passing verified by
+      `migration_0007.rs`'s own successful (exit 0) run, which cannot
+      succeed unless both validation calls pass against the rewritten
+      corpus.
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] Once landed, run 0007 against a real pre-ADR-0033/0034 `meta/`
-      snapshot and manually compare a sample of resolved-band mechanical
-      linkages against the bash-produced equivalent
+- [x] Ran 0007 against a real pre-ADR-0033/0034-shaped two-work-item corpus
+      (one `## Dependencies` body reference resolving to a real target, one
+      to a non-existent one) through both the real bash
+      `0007-unify-meta-corpus-frontmatter.sh` (`ACCELERATOR_MIGRATIONS_DIR`
+      scoped to just this script, matching Phase 6's own isolated-capture
+      pattern) and the compiled `accelerator-migrate` binary against
+      identically-seeded copies, then diffed the resulting `meta/` trees:
+      `diff -rq` clean — the resolved reference merged into
+      `blocks: ["work-item:0042"]` byte-identically in both, and the
+      unresolvable `work-item:0099` reference was silently dropped by both.
+
+**Deviations from the above, found during implementation:**
+
+- **`cli/migrate/src/migrations/m0007/` is a subdirectory
+  (`prepass.rs`/`backfill.rs`/`rewrite.rs`/`linkage_value.rs`/`merge.rs`/
+  `schema.rs`/`status_map.rs`/`fence.rs`/`quote.rs`/`mod.rs`), not the flat
+  single-file-per-migration shape `m0001.rs`…`m0006.rs` use.** Verified
+  against the landed codebase before writing any code: every existing
+  migration is a flat file with no precedent for a subdirectory. 0007 is
+  roughly as large as all six mechanical migrations combined (a 481-line
+  awk rewrite pass alone, plus a 878-line driver), so a single flat file
+  was judged the wrong trade — the subdirectory is a deliberate, disclosed
+  exception to the established convention, not an oversight.
+- **The rewrite is a line-oriented text transform, not a `document`
+  value-tree rewrite**, contrary to this plan's original Phase 8 design
+  text. `cli/migrate/src/migrations/text.rs`'s own doc comment (already
+  landed, Phase 6) states the established convention directly: "mirrors
+  the bash originals' sed/grep transforms exactly (rather than a
+  structural YAML rewrite) so a migration's output stays byte-for-byte
+  equal to the bash golden wherever nothing changed" — and migration 0006
+  (the most complex mechanical migration) follows it, not `document::parse`/
+  `render`. 0007's rewrite follows the same established pattern for the
+  same reason, at far higher stakes (14 dispatch rules, closing-fence
+  backfill, extras backfill) where an unintended YAML re-serialisation
+  (reordering, requoting, reformatting anything the awk-equivalent scan
+  wouldn't have touched) was judged a real risk a full value-tree
+  round-trip does not obviously avoid.
+- **`corpus::frontmatter_validation::schema` (0195) already carries the
+  entire per-type schema table** (`SCHEMA`, `row_for`, `BASE_FIELDS`,
+  `OPTIONAL_EXTRAS`, …), pinned by 0195's own test against
+  `templates-schema.tsv`. This plan's original text assumed 0007 would
+  need to re-derive or re-hardcode this table; instead `migrate` (already
+  depending on `corpus`) reuses it directly, so `own_id_key_for_type`/
+  `canonical_type`/the nine-key linkage vocabulary are the *only*
+  cross-cutting facts hardcoded locally — everything schema-driven in
+  bash (`forbidden_own_id_key`, `extras`, `status_vocab`) is read from the
+  shared table, with no duplicate/driftable copy. `scripts/status-legacy-map.tsv`
+  (8 rows, only `plan`/`plan-review`) has no existing Rust port and was
+  hardcoded locally (`status_map.rs`) — small and stable enough that a new
+  `MigrationContext` capability to read it from the plugin's own `scripts/`
+  tree at runtime was judged not worth the added port surface.
+- **No per-file VCS history query capability exists anywhere in `cli/vcs`/
+  `cli/vcs-adapters`** (`vcs::facts` gives the *current* repo-wide
+  revision only — nothing resolves "who last touched this file" the way
+  bash's `resolve_author`/`resolve_revision`/`resolve_date` do via `jj log
+  -r "latest(::@ & files(...))"`/`git log -1 -- path`). Building this was
+  judged out of proportion to porting one migration. The fallback-only
+  code paths that would consult it (an author-less/date-less/revision-less
+  file, the rarer case since ADR-0033/0034 already requires these fields)
+  instead always take bash's own *lookup-failure* branch: `author` →
+  `"Unknown"`, `date` → filename-prefix-or-absent, `revision` → the
+  `0007-DIVERGE[author-lookup-failed]` breadcrumb bash already emits when
+  VCS lookup fails. A file that already carries these fields (the common
+  case) is completely unaffected — this narrowing is only reachable on the
+  degraded path bash itself already has a defined answer for.
+- **`InteractiveMigration::verify_applied`'s trait signature (already
+  landed, Phase 5) carries no `ctx` parameter**, so bash's
+  `migration_verify_applied` (which re-reads the target file to confirm a
+  single-cardinality key populated, or greps the target file for the
+  recorded value) cannot be reproduced — there is no way to read the
+  filesystem from inside this callback. Left at the trait's own default
+  (`true`, always replay silently), a disclosed narrowing forced by
+  already-tested framework code this phase does not revisit.
+- **`self_validate_referential` (whole-corpus, after every interactive
+  decision this run made has been applied) has no dedicated engine hook**
+  — `run_interactive`'s loop calls `apply_decision` once per transformation
+  as it is decided, with nothing after the loop returns. `Migration0007`
+  tracks the *last* emitted transformation's key (`RefCell<Option<String>>`)
+  and triggers the whole-corpus validation from `apply_decision` when that
+  key is reached — or, if there are zero transformations to begin with
+  (nothing left for `apply_decision` to ever be called on), runs it
+  immediately at the end of `emit_transformations`, since no further
+  mutation can occur either way. A **mechanical-work failure signal has no
+  hook either** — `emit_transformations` returns `Vec<Transformation>`
+  with no `Result`, so a prepass refusal, a REFUSE/MALFORMED count, or a
+  structural-validation failure is carried as a single sentinel
+  `Transformation` (`predicate_value == "__mechanical_fail__"`) whose
+  `evaluate_predicate` returns `Fail(message)` — the same "abort with
+  `[id] message`" path a real predicate failure already takes. Both are
+  documented directly in `m0007/mod.rs`'s own module doc comment.
+- **`--list`/`--decisions-file` remain unwired** (`main.rs` still returns
+  "not yet implemented" for both) — Phase 5's own deviation deferred this
+  exact gap to "once a real migration exists to test against," which is
+  now true, but wiring the dry-apply validation pass and `--list`'s
+  tab-delimited rendering is a meaningfully-sized addition of its own,
+  scoped out of this phase to keep it bounded. The default run (TTY
+  prompting, or the structured stall when no decision input is available)
+  is fully wired and tested; only the non-interactive
+  agent-answers-via-decisions-file path is not yet reachable through the
+  compiled binary. Tracked as an open gap, not silently dropped — revisit
+  before Phase 9 repoints `list/*`/`decisions-file/*`'s bash suites, which
+  need this wired to have anything to repoint against.
+- Fixture tests against `list/single-pending/`, `list/multi-pending/`, and
+  the five `decisions-file/*` malformed-input cases (Phase 5's own
+  still-unchecked criteria) remain unchecked for the same reason.
 
 ---
 

@@ -2,6 +2,7 @@
 //! doc-type directories, VCS revision, and the bounded atomic write every
 //! migration's mutation routes through.
 
+use std::cell::OnceCell;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -11,6 +12,7 @@ use config::ConfigService;
 use config::Key;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use corpus::doc_type::DocTypeKey;
 use migrate::ports::CorpusIndex;
 use migrate::ports::DocTypeDir;
 use migrate::ports::ManifestStore as _;
@@ -20,26 +22,15 @@ use store::NewFileMode;
 use store::WriteBounds;
 use vcs_adapters::library::InProcessProbe;
 
+use crate::corpus_index::FileCorpusIndex;
 use crate::manifest_store::FileManifestStore;
 use crate::merge_move::merge_move;
-
-/// No migration built so far consults `corpus_index()` — that capability is
-/// migration 0007's alone (the Migration 0007 Port phase, which builds the
-/// real doc-type-scanning `CorpusIndex` adapter). Always-false is honest
-/// until then, not a placeholder standing in for hidden behaviour.
-struct NoIndex;
-
-impl CorpusIndex for NoIndex {
-    fn target_exists(&self, _target_type: &str, _target_id: &str) -> bool {
-        false
-    }
-}
 
 pub struct FileMigrationContext {
     root: PathBuf,
     config: ConfigService<FileConfigStore, FileConfigStore>,
     fresh_mode: u32,
-    index: NoIndex,
+    index: OnceCell<FileCorpusIndex>,
     manifest: FileManifestStore,
 }
 
@@ -52,7 +43,7 @@ impl FileMigrationContext {
         Self {
             config: ConfigService::new(store.clone(), store),
             fresh_mode: 0o666 & !store::current_umask(),
-            index: NoIndex,
+            index: OnceCell::new(),
             manifest: FileManifestStore::new(&root),
             root,
         }
@@ -63,6 +54,19 @@ impl FileMigrationContext {
             permitted_root: &self.root,
             project_root: &self.root,
         }
+    }
+
+    /// The `corpus::linkage`-shaped doc-type table: every configured
+    /// doc-type directory, keyed by its [`DocTypeKey`] rather than its bare
+    /// linkage-type-name string.
+    fn linkage_table(&self) -> Vec<(DocTypeKey, PathBuf)> {
+        MigrationContext::doc_type_dirs(self)
+            .into_iter()
+            .filter_map(|dir| {
+                DocTypeKey::from_linkage_type_name(&dir.doc_type)
+                    .map(|key| (key, dir.dir))
+            })
+            .collect()
     }
 }
 
@@ -86,7 +90,8 @@ impl MigrationContext for FileMigrationContext {
     }
 
     fn corpus_index(&self) -> &dyn CorpusIndex {
-        &self.index
+        self.index
+            .get_or_init(|| FileCorpusIndex::build(&self.linkage_table()))
     }
 
     fn write(&self, path: &Path, content: &str) -> Result<(), MigrationError> {
@@ -196,6 +201,49 @@ impl MigrationContext for FileMigrationContext {
             &project,
         )
         .map_err(|error| MigrationError::new(error.to_string()))
+    }
+
+    fn validate_frontmatter(
+        &self,
+        files: &[PathBuf],
+    ) -> Result<(), MigrationError> {
+        let table = self.linkage_table();
+        let walker = corpus_adapters::fs::RealFs;
+        let target = if files.is_empty() {
+            corpus_adapters::frontmatter_validation::corpus_files(
+                &table, &walker,
+            )
+            .map_err(|error| MigrationError::new(error.to_string()))?
+        } else {
+            files.to_vec()
+        };
+        let index = corpus_adapters::frontmatter_validation::build_index(
+            &table, &walker,
+        )
+        .map_err(|error| MigrationError::new(error.to_string()))?;
+        let checks = corpus_adapters::frontmatter_validation::Checks {
+            structure: true,
+            references: true,
+        };
+        let results =
+            corpus_adapters::frontmatter_validation::validate_targets(
+                &target, &table, &index, checks, &walker,
+            )
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+
+        let mut messages = Vec::new();
+        for (path, outcome) in &results {
+            if let corpus_adapters::frontmatter_validation::TargetOutcome::Violations(violations) = outcome {
+                for violation in violations {
+                    messages.push(format!("{}: {violation}", path.display()));
+                }
+            }
+        }
+        if messages.is_empty() {
+            Ok(())
+        } else {
+            Err(MigrationError::new(messages.join("\n")))
+        }
     }
 }
 

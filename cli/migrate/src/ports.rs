@@ -178,6 +178,25 @@ pub trait MigrationContext {
         ))
     }
 
+    /// Runs `accelerator corpus frontmatter validate` in-process (no
+    /// subprocess) over `files` — an empty slice validates the whole
+    /// configured corpus, matching the CLI's own "no `--dir`/`--file`"
+    /// convention. Only migration 0007 calls this, so it defaults to an
+    /// error rather than requiring every test double to implement
+    /// frontmatter validation.
+    ///
+    /// # Errors
+    /// [`MigrationError`] naming every structural or referential violation
+    /// found.
+    fn validate_frontmatter(
+        &self,
+        _files: &[PathBuf],
+    ) -> Result<(), MigrationError> {
+        Err(MigrationError::new(
+            "validate_frontmatter is not implemented by this context",
+        ))
+    }
+
     /// Moves `src` onto `dst`, merging directories recursively — mirrors
     /// `scripts/fs-common.sh`'s `merge_move`: an absent destination is a
     /// plain move; a type mismatch or same-named leaf collision is

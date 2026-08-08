@@ -33,7 +33,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0002-rename-work-items-with-project-prefix\n\
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n",
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
     )
 }
 
@@ -156,6 +157,7 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n\
          a\nb\n\
          0003-relocate-accelerator-state\n"
     );
@@ -206,6 +208,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n\
          x\ny\n",
     )?;
     write(root, "meta/.migrations-applied", "y\nz\n")?;
@@ -220,6 +223,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n\
          x\ny\nz\n\
          0003-relocate-accelerator-state\n"
     );
