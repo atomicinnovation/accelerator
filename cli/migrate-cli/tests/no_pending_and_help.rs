@@ -26,7 +26,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
     fs::write(
         dir.path().join(".accelerator/state/migrations-applied"),
         "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n",
+         0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n",
     )?;
     Ok(dir)
 }

@@ -89,6 +89,14 @@ pub trait MigrationContext {
         None
     }
 
+    /// Like [`Self::config_value`], but `None` when `key` resolves only to
+    /// its catalogue default rather than an explicit team/personal override
+    /// — the "is this pinned?" question migration 0003's pinned-override
+    /// warnings need, distinct from "what's the effective value?".
+    fn configured_path_override(&self, _key: &str) -> Option<String> {
+        None
+    }
+
     /// `Ok(None)` when `path` does not exist.
     ///
     /// # Errors
@@ -97,12 +105,40 @@ pub trait MigrationContext {
         Ok(None)
     }
 
+    /// Whether `path` exists and is a directory.
+    fn dir_exists(&self, _path: &Path) -> bool {
+        false
+    }
+
+    /// Removes `path` if present; a no-op (not an error) when it is absent
+    /// — mirrors `rm -f`.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a present file cannot be removed.
+    fn remove_file(&self, _path: &Path) -> Result<(), MigrationError> {
+        Ok(())
+    }
+
     /// Every `.md` file under `dir`, recursively, sorted.
     ///
     /// # Errors
     /// [`MigrationError`] when the walk itself fails (an absent `dir` is
     /// `Ok(Vec::new())`, not an error).
     fn list_md_files(
+        &self,
+        _dir: &Path,
+    ) -> Result<Vec<PathBuf>, MigrationError> {
+        Ok(Vec::new())
+    }
+
+    /// Every file and directory under `dir`, recursively, sorted — the
+    /// unfiltered counterpart to [`Self::list_md_files`], for a scaffold
+    /// presence check that must see non-`.md` entries too.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the walk itself fails (an absent `dir` is
+    /// `Ok(Vec::new())`, not an error).
+    fn list_all_under(
         &self,
         _dir: &Path,
     ) -> Result<Vec<PathBuf>, MigrationError> {

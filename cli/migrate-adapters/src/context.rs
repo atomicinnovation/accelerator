@@ -114,10 +114,29 @@ impl MigrationContext for FileMigrationContext {
         Some(resolution.rendered())
     }
 
+    fn configured_path_override(&self, key: &str) -> Option<String> {
+        let key = Key::parse(key).ok()?;
+        self.config.effective(&key, None).ok()?.configured_value()
+    }
+
     fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
         let bytes = store::read_within(path, &self.bounds())
             .map_err(|error| MigrationError::new(error.to_string()))?;
         Ok(bytes.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+    }
+
+    fn dir_exists(&self, path: &Path) -> bool {
+        fs::metadata(path).is_ok_and(|metadata| metadata.is_dir())
+    }
+
+    fn remove_file(&self, path: &Path) -> Result<(), MigrationError> {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(())
+            }
+            Err(error) => Err(MigrationError::new(error.to_string())),
+        }
     }
 
     fn list_md_files(
@@ -125,10 +144,21 @@ impl MigrationContext for FileMigrationContext {
         dir: &Path,
     ) -> Result<Vec<PathBuf>, MigrationError> {
         let mut files = Vec::new();
-        walk_md_files(dir, &mut files)
+        walk(dir, &mut files, true)
             .map_err(|error| MigrationError::new(error.to_string()))?;
         files.sort();
         Ok(files)
+    }
+
+    fn list_all_under(
+        &self,
+        dir: &Path,
+    ) -> Result<Vec<PathBuf>, MigrationError> {
+        let mut entries = Vec::new();
+        walk(dir, &mut entries, false)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        entries.sort();
+        Ok(entries)
     }
 
     fn merge_move(&self, src: &Path, dst: &Path) -> Result<(), MigrationError> {
@@ -153,7 +183,15 @@ impl MigrationContext for FileMigrationContext {
     }
 }
 
-fn walk_md_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+/// Recursively collects entries under `dir`. `md_only` selects between
+/// [`MigrationContext::list_md_files`]'s `.md`-file-only listing and
+/// [`MigrationContext::list_all_under`]'s unfiltered file-and-directory
+/// listing.
+fn walk(
+    dir: &Path,
+    out: &mut Vec<PathBuf>,
+    md_only: bool,
+) -> std::io::Result<()> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -166,9 +204,12 @@ fn walk_md_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
         let path = entry.path();
         let file_type = entry.file_type()?;
         if file_type.is_dir() {
-            walk_md_files(&path, out)?;
+            if !md_only {
+                out.push(path.clone());
+            }
+            walk(&path, out, md_only)?;
         } else if file_type.is_file()
-            && path.extension().is_some_and(|ext| ext == "md")
+            && (!md_only || path.extension().is_some_and(|ext| ext == "md"))
         {
             out.push(path);
         }
