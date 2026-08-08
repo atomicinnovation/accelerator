@@ -104,6 +104,163 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_type_key_with_no_type_body_label_renames_without_inserting_one(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        "meta/work/a.md",
+        "---\ntype: adr-creation-task\ntitle: A\n---\n\nNo body label \
+         here at all.\n",
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let rewritten = fs::read_to_string(root.join("meta/work/a.md"))?;
+    assert!(rewritten.contains("kind: adr-creation-task"), "{rewritten}");
+    assert!(!rewritten.contains("**Type**:"), "{rewritten}");
+    assert!(!rewritten.contains("**Kind**:"), "{rewritten}");
+    Ok(())
+}
+
+#[test]
+fn a_custom_work_path_is_honoured_and_the_default_never_created(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        ".claude/accelerator.md",
+        "---\npaths:\n  work: docs/work\n---\n",
+    )?;
+    write(
+        root,
+        "docs/work/a.md",
+        "---\ntype: story\ntitle: A\n---\n\n**Type**: story\n",
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        fs::read_to_string(root.join("docs/work/a.md"))?,
+        "---\nkind: story\ntitle: A\n---\n\n**Kind**: story\n"
+    );
+    assert!(!root.join("meta/work").exists());
+    Ok(())
+}
+
+#[test]
+fn a_missing_custom_work_path_is_named_in_the_warning() -> Result<(), TestError>
+{
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        ".claude/accelerator.md",
+        "---\npaths:\n  work: docs/work\n---\n",
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "Warning: 0005: work directory does not exist: docs/work"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_empty_work_dir_rewrites_zero_with_no_absence_warning(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    fs::create_dir_all(root.join("meta/work"))?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("0005: rewrote 0 file(s) under meta/work"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("does not exist"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_second_run_against_the_now_migrated_tree_is_byte_identical(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        "meta/work/a.md",
+        "---\ntype: work-item\ntitle: A\n---\n\n**Type**: work-item\n\n\
+         Body.\n",
+    )?;
+    write(
+        root,
+        "meta/work/b.md",
+        "---\ntype: work-item\nkind: bug\n---\n\n**Type**: work-item\n\
+         **Kind**: bug\n",
+    )?;
+    write(
+        root,
+        "meta/work/c.md",
+        "---\nkind: work-item\n---\n\nAlready migrated.\n",
+    )?;
+    already_applied(root)?;
+
+    Command::new(BIN).current_dir(root).output()?;
+    let after_first = [
+        fs::read_to_string(root.join("meta/work/a.md"))?,
+        fs::read_to_string(root.join("meta/work/b.md"))?,
+        fs::read_to_string(root.join("meta/work/c.md"))?,
+    ];
+    write(
+        root,
+        ".accelerator/state/migrations-applied",
+        "0001-rename-tickets-to-work\n\
+         0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        [
+            fs::read_to_string(root.join("meta/work/a.md"))?,
+            fs::read_to_string(root.join("meta/work/b.md"))?,
+            fs::read_to_string(root.join("meta/work/c.md"))?,
+        ],
+        after_first
+    );
+    Ok(())
+}
+
+#[test]
 fn refuses_a_dangerous_configured_work_path() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     write(

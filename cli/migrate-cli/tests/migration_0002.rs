@@ -199,6 +199,78 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_second_run_against_the_now_migrated_tree_is_byte_identical(
+) -> Result<(), TestError> {
+    let dir = setup_repo()?;
+    let root = dir.path();
+
+    Command::new(BIN).current_dir(root).output()?;
+    let after_first =
+        fs::read_to_string(root.join("meta/work/PROJ-0001-add-foo.md"))?;
+    write(
+        root,
+        ".accelerator/state/migrations-applied",
+        "0001-rename-tickets-to-work\n\
+         0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8(output.stdout)?,
+        "No pending migrations.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("meta/work/PROJ-0001-add-foo.md"))?,
+        after_first
+    );
+    Ok(())
+}
+
+#[test]
+fn an_already_prefixed_tree_forced_pending_again_does_not_double_prefix(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        ".claude/accelerator.md",
+        "---\nwork:\n  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: PROJ\n---\n",
+    )?;
+    let already_prefixed = "---\nwork_item_id: \"PROJ-0001\"\ntitle: Add \
+         foo feature\nstatus: in-progress\n---\n\n# 0001 Add foo \
+         feature\n\nThis is the foo work item.\n";
+    write(root, "meta/work/PROJ-0001-add-foo.md", already_prefixed)?;
+    write(
+        root,
+        ".accelerator/state/migrations-applied",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(!root.join("meta/work/PROJ-PROJ-0001-add-foo.md").exists());
+    assert_eq!(
+        fs::read_to_string(root.join("meta/work/PROJ-0001-add-foo.md"))?,
+        already_prefixed
+    );
+    Ok(())
+}
+
+#[test]
 fn no_project_token_in_pattern_is_a_no_op_pending() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     write(
