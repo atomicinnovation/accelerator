@@ -1,0 +1,11 @@
+//! The six mechanical migrations (0001-0006), each an ordinary
+//! `Migration` implementation, plus 0007's `InteractiveMigration`.
+
+pub mod m0001;
+pub mod m0002;
+pub mod m0003;
+pub mod m0004;
+pub mod m0005;
+pub mod m0006;
+pub mod m0007;
+pub mod text;

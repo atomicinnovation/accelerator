@@ -1,0 +1,13 @@
+[0002-predicate] running
+Session log: /tmp/migrate-capture-qw8ch7/three-decision-9sLqed/.accelerator/state/migrations-0002-predicate-session.jsonl  (resume from this file by re-running /accelerator:migrate)
+
+── Transformation 1 ────────────────────────
+Proposed:  v3
+Source:    f3:a
+Predicate: ambiguous
+
+Proposed value: v3
+Surrounding prose: p
+
+[accept | edit <new-value> | skip] > [decisions] consumed line 1: accept
+[0002-predicate] applied

@@ -1,0 +1,23 @@
+[0002-predicate] running
+Session log: /tmp/migrate-capture-qw8ch7/validator-rejecting-QgU78P/.accelerator/state/migrations-0002-predicate-session.jsonl  (resume from this file by re-running /accelerator:migrate)
+
+── Transformation 1 ────────────────────────
+Proposed:  original-value
+Source:    f:a
+Predicate: ambiguous
+
+Proposed value: original-value
+Surrounding prose: p
+
+[accept | edit <new-value> | skip] > [decisions] consumed line 1: edit
+[interactive] empty value not allowed
+── Transformation 1 ────────────────────────
+Proposed:  original-value
+Source:    f:a
+Predicate: ambiguous
+
+Proposed value: original-value
+Surrounding prose: p
+
+[accept | edit <new-value> | skip] > [decisions] consumed line 2: edit
+[0002-predicate] applied

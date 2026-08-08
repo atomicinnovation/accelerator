@@ -1,0 +1,11 @@
+0004: moved meta/research/2026-01-01-example.md → meta/research/codebase/2026-01-01-example.md
+0004: moved meta/research/2026-01-02-sibling.md → meta/research/codebase/2026-01-02-sibling.md
+0004: moved meta/design-inventories/2026-05-06-x → meta/research/design-inventories/2026-05-06-x
+0004: moved meta/design-gaps/2026-05-06-x.md → meta/research/design-gaps/2026-05-06-x.md
+0004: removed empty legacy directory meta/design-inventories
+0004: removed empty legacy directory meta/design-gaps
+0004: created meta/research/codebase/.gitkeep
+0004: created meta/research/issues/.gitkeep
+0004: created meta/research/design-inventories/.gitkeep
+0004: created meta/research/design-gaps/.gitkeep
+0004 Step 3: scanning 4 configured paths for inbound references…

@@ -1,0 +1,26 @@
+[package]
+name = "migrate-adapters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+migrate = { path = "../migrate" }
+kernel = { path = "../kernel" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+store = { path = "../store" }
+corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
+tracing = { workspace = true }
+time = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
