@@ -39,7 +39,8 @@ fn setup_old_repo() -> Result<TempDir, TestError> {
     fs::create_dir_all(dir.path().join(".accelerator/state"))?;
     fs::write(
         dir.path().join(".accelerator/state/migrations-applied"),
-        "0002-rename-work-items-with-project-prefix\n",
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n",
     )?;
     Ok(dir)
 }
@@ -89,7 +90,9 @@ fn matches_the_bash_golden_byte_for_byte() -> Result<(), TestError> {
         fs::read_to_string(
             dir.path().join(".accelerator/state/migrations-applied")
         )?,
-        "0002-rename-work-items-with-project-prefix\n0001-rename-tickets-to-work\n"
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0001-rename-tickets-to-work\n"
     );
     assert!(!dir.path().join("meta/tickets").exists());
     assert!(!dir.path().join("meta/reviews/tickets").exists());
@@ -108,6 +111,12 @@ fn preserves_a_pinned_non_default_tickets_directory() -> Result<(), TestError> {
     fs::write(
         dir.path().join(".claude/accelerator.md"),
         "---\npaths:\n  tickets: meta/custom-tickets\n---\n",
+    )?;
+    fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -142,16 +151,21 @@ fn running_it_twice_converges_and_the_second_run_reports_no_op(
     Ok(())
 }
 
-/// The transform's own idempotency, independent of the ledger filter: erase
-/// the ledger between two runs so the second run's `apply()` body actually
-/// executes again, and confirm it converges (no duplicated/mangled output)
-/// rather than relying solely on the ledger to prevent a second pass.
+/// The transform's own idempotency, independent of the ledger filter: drop
+/// just 0001's own ledger entry between two runs (leaving 0002/0003 marked
+/// applied, so only 0001's `apply()` body actually executes again) and
+/// confirm it converges (no duplicated/mangled output) rather than relying
+/// solely on the ledger to prevent a second pass.
 #[test]
 fn the_transform_itself_converges_without_the_ledger_filter(
 ) -> Result<(), TestError> {
     let dir = setup_old_repo()?;
     Command::new(BIN).current_dir(dir.path()).output()?;
-    fs::remove_file(dir.path().join(".accelerator/state/migrations-applied"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n",
+    )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
 

@@ -67,7 +67,6 @@ pub fn run_pending(
         .collect();
     reporter.preview(&preview);
 
-    let mut current_applied = applied_ids;
     let mut applied_count = 0usize;
     for entry in &pending {
         reporter.migration_running(entry.id());
@@ -80,8 +79,15 @@ pub fn run_pending(
             reporter,
         ) {
             Ok(ApplyOutcome::Applied) => {
-                current_applied =
-                    ledger::append_unique(current_applied, entry.id());
+                // Re-read rather than reuse the loop-start snapshot: a
+                // migration's own `apply()` may have written directly to
+                // this same ledger file (0003 merges legacy
+                // `meta/.migrations-*` into it) — matching bash's
+                // `atomic_append_unique`, which always appends onto
+                // whatever is currently on disk, never a stale in-memory
+                // list.
+                let current_applied =
+                    ledger::append_unique(ledger_store.applied()?, entry.id());
                 ledger_store.write_applied(&current_applied)?;
                 reporter.migration_applied(entry.id());
                 applied_count += 1;
