@@ -198,6 +198,31 @@ fn a_guarded_resume_renders_the_affordance_with_the_decision_count(
 }
 
 #[test]
+fn a_foreign_dirty_file_under_accelerator_refuses() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-accelerator-dirty")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join(".accelerator"))?;
+    env.git(&["init", "--quiet"], &root)?;
+    fs::write(root.join(".accelerator/config.md"), "---\n---\n")?;
+    env.git(&["add", "-A"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nchanged: yes\n---\n",
+    )?;
+
+    let (stdout, stderr, code) = run(&root, &[])?;
+
+    assert_eq!(code, 1);
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("dirty working tree"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn a_foreign_dirty_jj_file_refuses() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
     let work = tempdir("jj-refuse")?;
