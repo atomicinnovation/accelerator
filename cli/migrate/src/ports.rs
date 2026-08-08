@@ -109,6 +109,25 @@ pub trait MigrationContext {
         Ok(Vec::new())
     }
 
+    /// Renders `bare_number` (e.g. `"0001"`) as a canonical work-item ID
+    /// under the configured `work.id_pattern`/`work.default_project_code` —
+    /// the Rust equivalent of `wip_compile_format` + `printf`. Only
+    /// migration 0002 calls this; other migrations have no need for it, so
+    /// it defaults to an error rather than requiring every test double to
+    /// implement pattern compilation.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the configured pattern is malformed or this
+    /// context does not implement pattern rendering.
+    fn canonicalise_work_item_id(
+        &self,
+        _bare_number: &str,
+    ) -> Result<String, MigrationError> {
+        Err(MigrationError::new(
+            "canonicalise_work_item_id is not implemented by this context",
+        ))
+    }
+
     /// Moves `src` onto `dst`, merging directories recursively — mirrors
     /// `scripts/fs-common.sh`'s `merge_move`: an absent destination is a
     /// plain move; a type mismatch or same-named leaf collision is
