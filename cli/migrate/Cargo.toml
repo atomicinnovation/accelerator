@@ -1,0 +1,21 @@
+[package]
+name = "migrate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# `corpus` because `migrate` reuses `corpus::Record`/`RecordStore`/`linkage`
+# directly throughout — its own session log is a `corpus`-typed record, not a
+# new record type. `document` because it is itself zero-infrastructure (only
+# `serde`/`serde-saphyr`, no `kernel`, no I/O), so depending on it doesn't
+# compromise this crate's own zero-infrastructure invariant. Both widenings are
+# mirrored in `cli/pup.ron`'s `migrate_domain_imports_only_permitted` rule.
+[dependencies]
+corpus = { path = "../corpus" }
+document = { path = "../document" }
+kernel = { path = "../kernel" }

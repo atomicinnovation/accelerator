@@ -161,6 +161,52 @@
                 ),
             ],
         )),
+        // The whole migrate crate is domain (no adapter modules live in it).
+        // Unlike corpus/vcs, it also reuses `corpus`'s own `Record`/
+        // `RecordStore`/`linkage` directly (its session log is a
+        // `corpus`-typed record, not a new record type) and `document`'s
+        // zero-infrastructure value tree — both narrow, justified widenings
+        // beyond the std/kernel::Error/crate baseline every other domain
+        // crate here is held to. `config`/`vcs` stay excluded: migrate
+        // reaches them only through its own locally-declared port traits,
+        // bridged by migrate-adapters.
+        Module((
+            name: "migrate_domain_imports_only_permitted",
+            matches: Module("^migrate($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate(::|$)",
+                        "^corpus(::|$)",
+                        "^document(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // Mirrors vcs_adapters_library_reads_in_process's "no spawn" intent,
+        // scoped to the whole crate rather than one submodule: unlike
+        // vcs-adapters (library vs. subprocess, deliberately split so one
+        // side can spawn), every migrate-adapters module — ledger/manifest
+        // I/O, the session log, the DecisionSource pair, VCS staleness,
+        // legacy-layout config access — is in-process by design; none of
+        // them shell out.
+        Module((
+            name: "migrate_adapters_decision_source_reads_in_process",
+            matches: Module("^migrate_adapters($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // The config command's inbound hexagon must not reach the composition
         // root's adapter crate (`config_adapters`) nor a sibling launcher
         // module (`crate::launch`), so the injected-ports seam cannot erode.

@@ -40,6 +40,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-migrate"
+version = "1.24.0-pre.32"
+dependencies = [
+ "clap",
+ "kernel",
+ "migrate",
+]
+
+[[package]]
 name = "accelerator-vcs"
 version = "1.24.0-pre.32"
 dependencies = [
@@ -2799,6 +2808,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "migrate"
+version = "1.24.0-pre.32"
+dependencies = [
+ "corpus",
+ "document",
+ "kernel",
+]
+
+[[package]]
+name = "migrate-adapters"
+version = "1.24.0-pre.32"
+dependencies = [
+ "kernel",
+ "migrate",
 ]
 
 [[package]]
