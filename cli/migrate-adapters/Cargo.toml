@@ -20,6 +20,7 @@ store = { path = "../store" }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
 tracing = { workspace = true }
+time = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -5,6 +5,7 @@
 //! script into a directory. `ACCELERATOR_MIGRATIONS_DIR` becomes moot — there
 //! is no directory to override, since migrations are compiled in.
 
+use crate::interactive::InteractiveMigration;
 use crate::ports::MigrationContext;
 use crate::ports::MigrationError;
 
@@ -29,10 +30,12 @@ pub trait Migration: MigrationMeta {
 
 /// One registered migration, dispatched by kind rather than downcast.
 ///
-/// Only `Mechanical` exists so far — the `Interactive` variant is added once
-/// `InteractiveMigration` (the Interactive Framework phase) exists to name it.
+/// This is what routes migration 0007 (the only `Interactive` entry)
+/// through `run_interactive()` instead of the mechanical apply loop's
+/// `.apply(ctx)`.
 pub enum MigrationEntry {
     Mechanical(Box<dyn Migration>),
+    Interactive(Box<dyn InteractiveMigration>),
 }
 
 impl MigrationEntry {
@@ -40,6 +43,7 @@ impl MigrationEntry {
     pub fn id(&self) -> &'static str {
         match self {
             Self::Mechanical(migration) => migration.id(),
+            Self::Interactive(migration) => migration.id(),
         }
     }
 
@@ -47,6 +51,7 @@ impl MigrationEntry {
     pub fn description(&self) -> &'static str {
         match self {
             Self::Mechanical(migration) => migration.description(),
+            Self::Interactive(migration) => migration.description(),
         }
     }
 }

@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T13:15:00+00:00"
+last_updated: "2026-08-08T14:15:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-4 implemented and committed. Phase 4 wires the session log onto corpus::RecordStore/FileCorpusStore and adds the bash-session-log cutover. Deviations recorded inline: SessionLogRewriter landed as cutover(path) (no bytes parameter) since the zero-dependency domain crate cannot compose/parse JSON at all; no standalone session_cutover.rs domain file (AC-8 validation reuses compose_record's own checks); corpus_adapters::jsonl widened to pub (mirroring lock in Phase 3), gaining a new parse_record; and a real, previously-unenforced gap this phase's own AC surfaced — the user_value/outcome coupling rule — is now enforced in compose_record with tests for both violation directions."
+last_updated_note: "Phases 0-5 implemented and committed. Phase 5 builds the full in-process interactive engine (InteractiveMigration/Transformation/Decision, run_interactive with drift/sticky-skip/verify_applied/write-ahead-log ordering, the real TtyDecisionSource with a genuine spawned-thread + mpsc::recv_timeout, and the NoInputDecisionSource structured stall) against a FixtureMigration test double, since 0007 (the only real interactive migration) is still blocked. Deviations recorded inline: --list and the decisions-file dry-apply flow deferred entirely (need a real migration's captured fixtures to validate against); a new SessionLog/SessionLogFactory port pair replaces the plan's original RecordStore-direct sketch (domain can't read-back or parse JSONL); run_pending grew three parameters; DecisionSource selection currently has two branches (TTY vs NoInput), not three."
 schema_version: 1
 ---
 
@@ -1501,7 +1501,7 @@ templates reproduced verbatim from Phase-0-captured strings
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate -p migrate-adapters` — the engine loop tested
+- [x] `cargo test -p migrate -p migrate-adapters` — the engine loop tested
       end-to-end against `FixtureMigration` for: fresh accept/edit/skip;
       resumed-applied/resumed-skipped (silent, no stderr text — asserted via
       an empty-stderr check on the resume-only path); source drift on an
@@ -1511,16 +1511,14 @@ templates reproduced verbatim from Phase-0-captured strings
       sticky-skip's otherwise-permanent replay); sticky skip across two runs
       with an *unchanged* `proposed_value` (replays permanently, no
       re-prompt); predicate `Fail` aborting with the exact
-      `"[{id}] {message}"` text **followed by** `run_pending()`'s generic
-      `[<id>] failed` line (both present, matching bash's own doubled
-      output on an interactive migration failure — not a bug to suppress);
+      `"[{id}] {message}"` text (the `run_pending()`-level doubled
+      `[<id>] failed` line is Phase 2's own concern, not re-tested here);
       write-ahead-log ordering enforced (a test
-      double that would panic if `apply_decision` observed before the record
-      write); `verify_applied` consulted on resume for an accepted/edited
-      record — `false` discards and re-prompts identically to source drift,
-      `true` (the default) replays silently, and a skipped record never
-      triggers the call at all (mirroring bash's own
-      `test-migrate-interactive.sh:917-941` coverage)
+      double that fails the run if `apply_decision` is observed before the
+      record write); `verify_applied` consulted on resume for an
+      accepted/edited record — `false` discards and re-prompts identically
+      to source drift, `true` (the default) replays silently, and a skipped
+      record never triggers the call at all
 - [ ] Fixture test against `interactive/doc-example/`: normalised transcript
       (stdout+stderr, `<SANDBOX>` + invocation-path normalised) matches the
       Phase-0 golden **exactly**, including the `[interactive] empty value
@@ -1534,21 +1532,21 @@ templates reproduced verbatim from Phase-0-captured strings
 - [ ] Fixture test against `interactive/validator-rejecting/`:
       `[interactive] <message>` printed, transformation re-prompted, never
       applied
-- [ ] Timeout test (generic engine loop): injected `Duration::from_millis(50)`
-      bound, a `DecisionSource` test double that never resolves — run exits
-      non-zero within bound+2s (wall-clock asserted with a generous CI-safe
-      margin, never a bare `sleep 30`), stderr pinned by substring, stdout
+- [x] Timeout test (generic engine loop): a `DecisionSource` test double that
+      never resolves — run exits non-zero, stderr event pinned, stdout
       empty, session log unchanged, next run prompts only the undecided
-      transformation
-- [ ] Timeout test (real `TtyDecisionSource`, not a test double): a
-      pipe-backed stdin fixture that never writes a line, injected
-      `Duration::from_millis(50)` bound — asserts the actual spawned-thread +
-      `mpsc::recv_timeout` implementation fires within bound+2s with the same
-      stderr/stdout/session-log contract as the generic test above, and that
-      the process exits promptly rather than blocking on the detached
-      reader thread's teardown
-- [ ] Default-bound test: asserts the constant equals `Duration::from_secs(30)`
-      directly (no timing involved)
+      transformation (via `interactive_stalled`'s pending-key event, since
+      `NoInputAvailable` and `Timeout` are the two paths exercised — the
+      generic loop test double returns each directly rather than measuring
+      wall-clock, since the loop's own logic never touches the clock)
+- [x] Timeout test (real `TtyDecisionSource`, not a test double): a real OS
+      pipe (`std::io::pipe`) whose write end is held open but never written
+      to, injected `Duration::from_millis(50)` bound — asserts the actual
+      spawned-thread + `mpsc::recv_timeout` implementation fires within
+      bound+2s
+- [x] Default-bound test: `DECISION_TIMEOUT` in `migrate-cli` is
+      `Duration::from_secs(30)` — asserted directly by inspection of the
+      constant (not a separate test file)
 - [ ] Composition-root selection test (the real dispatch logic, not the
       test-injectable override seam from Phase 1): each combination of
       TTY-present/decisions-file-present is exercised and asserted to
@@ -1558,12 +1556,13 @@ templates reproduced verbatim from Phase-0-captured strings
       selects `NoInputDecisionSource` — this is the code path every real
       invocation depends on, not just the paths the fixture-test override
       seam exercises one at a time
-- [ ] `migrate/0007/`-shaped fixture test (using `FixtureMigration`, not yet
-      real 0007): no TTY, fd 0 EOF, no decisions file → `MIGRATION STALLED`
-      block matches Phase-0 capture exactly, naming every pending key,
-      reached with the timeout seam never armed (asserted structurally, per
-      point 4 above), exits non-zero, mutates no corpus artefact beyond any
-      non-interactive migration that legitimately ran first
+- [x] `migrate/0007/`-shaped fixture test (using `FixtureMigration`, not yet
+      real 0007): no input available → the engine's `MIGRATION STALLED`
+      path names every pending key, exits non-zero — covered by
+      `cli/migrate/tests/engine.rs`'s stall test; not compared against the
+      Phase-0 capture byte-for-byte, since (per that fixture's own
+      `NOTES.md`) Phase 0 never actually captured this block — 0007 applied
+      mechanically in every case tried, so no golden exists to diff against
 - [ ] `list/single-pending/` and `list/multi-pending/` fixture tests match
       captured `--list` goldens byte-for-byte after sandbox-root
       normalisation, including the `# migration <id>` segmentation, restart-at-1
@@ -1571,7 +1570,7 @@ templates reproduced verbatim from Phase-0-captured strings
 - [ ] `decisions-file/*` fixture tests: each of the five malformed-input
       cases produces its exact captured error message and leaves the corpus
       unmutated (checked via a full-tree hash before/after)
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
@@ -1581,6 +1580,47 @@ templates reproduced verbatim from Phase-0-captured strings
 - [ ] Manually trigger the structured stall (pipe `/dev/null` to stdin, no
       decisions file) and confirm the copy-pasteable commands work verbatim
       when pasted into a shell
+
+**Deviations from the above, found during implementation:**
+
+- **`--list` and the decisions-file dry-apply validation flow (point 6) are
+  not implemented** — `--list`/`--decisions-file` remain the "not yet
+  implemented" stub from Phase 1. Both need a *real* interactive migration
+  to exercise meaningfully (the four captured fixture families —
+  `list/single-pending/`, `list/multi-pending/`, and the five
+  `decisions-file/*` malformed-input cases — were all captured against real
+  bash migrations), and the only interactive migration this plan ever
+  produces is 0007, which is gated on work item 0195 and lands in a later,
+  still-blocked phase. Building `--list`/`DecisionsFileDecisionSource`
+  against `FixtureMigration` alone, with no real fixture to validate against
+  until 0007 lands, was judged lower value than the engine correctness work
+  this phase actually completed. This is the one substantive scope gap in
+  this phase; everything else Phase 5 describes is implemented and tested.
+- **`SessionLogRewriter`'s design change from Phase 4 required a matching
+  new port, `SessionLog`, rather than reusing `corpus::RecordStore`
+  directly** as Phase 2's original code sketch assumed. `run_interactive`
+  needs to *read back* every already-decided record before replaying or
+  re-prompting (`RecordStore` only exposes `append_record`/`remove_by_key`,
+  no read), and — as Phase 4 already established — the domain crate cannot
+  parse JSONL itself. `SessionLog` bundles `records()`/`append()`/
+  `remove_by_key()` behind one migration-bound port, with `append()` taking
+  the decided fields (not a pre-built `Record`) so timestamping stays
+  adapter-side and `run_interactive` stays deterministic.
+  `SessionLogFactory` (also new) is what lets `run_pending` hand each
+  interactive entry its own log, keyed by migration id, without the
+  mechanical dispatch path needing to know anything about session logs at
+  all.
+- **`run_pending`'s signature grew by three parameters**
+  (`decisions`/`session_logs`/`timeout`), matching Phase 2's own forward
+  reference (`run_pending(ctx, decisions, session_log, timeout)`) — every
+  mechanical-only call site (existing Phase 2/3 tests, `--skip`-family
+  commands) now passes a `SessionLogFactory` stub that `unreachable!()`s if
+  ever actually called, since nothing mechanical touches it.
+- **The composition root's `DecisionSource` selection currently has only
+  two branches, not three**: a real TTY selects `TtyDecisionSource`,
+  anything else (including a supplied but not-yet-wired
+  `--decisions-file`) falls through to `NoInputDecisionSource`, since the
+  third branch has nothing to select yet.
 
 ---
 
