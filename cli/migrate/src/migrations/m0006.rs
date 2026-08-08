@@ -92,7 +92,7 @@ fn walk_configured_corpora(
                  ({raw_rel} -> {}) — skipping duplicate walk",
                 canon.display()
             );
-            println!("0006: skipping duplicate walk for paths.{key}");
+            eprintln!("0006: skipping duplicate walk for paths.{key}");
             continue;
         }
         walked.push((canon, key));
@@ -107,13 +107,13 @@ fn walk_corpus(
     key: &str,
 ) -> Result<(), MigrationError> {
     let Some(rel) = resolve_corpus_path(ctx, key) else {
-        println!("0006: rewrote 0 file(s) under <unresolved {key}>");
+        eprintln!("0006: rewrote 0 file(s) under <unresolved {key}>");
         return Ok(());
     };
     let abs = root.join(&rel);
     if !ctx.dir_exists(&abs) {
         eprintln!("Warning: 0006: {key} directory does not exist: {rel}");
-        println!("0006: rewrote 0 file(s) under {rel}");
+        eprintln!("0006: rewrote 0 file(s) under {rel}");
         return Ok(());
     }
     let mut rewrote = 0usize;
@@ -122,7 +122,7 @@ fn walk_corpus(
             rewrote += 1;
         }
     }
-    println!("0006: rewrote {rewrote} file(s) under {rel}");
+    eprintln!("0006: rewrote {rewrote} file(s) under {rel}");
     Ok(())
 }
 
@@ -173,7 +173,7 @@ fn rewrite_userspace_templates(
         }
         resolved.push((path.clone(), name));
         let touched = rewrite_file(ctx, &path)?;
-        println!(
+        eprintln!(
             "0006: template {name} (tier-resolved {}): touched={}",
             path.display(),
             u8::from(touched)

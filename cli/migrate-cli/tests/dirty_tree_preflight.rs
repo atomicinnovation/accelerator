@@ -18,6 +18,26 @@ fn tempdir(tag: &str) -> Result<TempDir, TestError> {
         .tempdir()?)
 }
 
+/// The compiled binary always runs the full registry (unlike bash's
+/// `ACCELERATOR_MIGRATIONS_DIR` isolation), so every real migration is
+/// pre-marked applied here to reach the same "nothing pending" state these
+/// tests were written against when the registry was still empty.
+fn mark_all_migrations_applied(
+    root: &std::path::Path,
+) -> Result<(), TestError> {
+    fs::create_dir_all(root.join(".accelerator/state"))?;
+    fs::write(
+        root.join(".accelerator/state/migrations-applied"),
+        "0001-rename-tickets-to-work\n\
+         0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n",
+    )?;
+    Ok(())
+}
+
 fn run(
     root: &std::path::Path,
     env_extra: &[(&str, &str)],
@@ -71,6 +91,7 @@ fn force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel(
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
 
     fs::write(root.join("meta/a.md"), "two\n")?;
+    mark_all_migrations_applied(&root)?;
 
     let (stdout, _stderr, code) =
         run(&root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
@@ -92,6 +113,7 @@ fn a_clean_git_tree_proceeds_to_the_empty_registry_sentinel(
     fs::write(root.join("meta/a.md"), "one\n")?;
     env.git(&["add", "meta/a.md"], &root)?;
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+    mark_all_migrations_applied(&root)?;
 
     let (stdout, stderr, code) = run(&root, &[])?;
 

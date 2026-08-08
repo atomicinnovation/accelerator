@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T14:15:00+00:00"
+last_updated: "2026-08-08T18:00:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-5 implemented and committed. Phase 5 builds the full in-process interactive engine (InteractiveMigration/Transformation/Decision, run_interactive with drift/sticky-skip/verify_applied/write-ahead-log ordering, the real TtyDecisionSource with a genuine spawned-thread + mpsc::recv_timeout, and the NoInputDecisionSource structured stall) against a FixtureMigration test double, since 0007 (the only real interactive migration) is still blocked. Deviations recorded inline: --list and the decisions-file dry-apply flow deferred entirely (need a real migration's captured fixtures to validate against); a new SessionLog/SessionLogFactory port pair replaces the plan's original RecordStore-direct sketch (domain can't read-back or parse JSONL); run_pending grew three parameters; DecisionSource selection currently has two branches (TTY vs NoInput), not three."
+last_updated_note: "Phases 0-6 implemented and committed. Phase 6 ports all six mechanical migrations (0001-0006), each verified against a bash golden captured in isolation (ACCELERATOR_MIGRATIONS_DIR scoped to that migration alone), plus a full six-migration chain run compared byte-for-byte against a parallel bash-migrated copy from the same seed. Two real bugs surfaced and fixed during this phase: (1) the Phase 2 lifecycle engine wrote the ledger from a stale in-memory snapshot, silently discarding a migration's own direct mutation of the same file (0003 legitimately merges legacy state into it) — fixed to re-read fresh before each append, matching bash's atomic_append_unique; (2) migrations 0004-0006's own progress/diagnostic text was initially written to stdout, but the real driver (run-migrations.sh) captures a mechanical migration's combined stdout+stderr and relays all of it through the driver's own stderr — discovered via the required manual end-to-end comparison, not assumed from reading the migration scripts alone; fixed by moving that text to stderr. New MigrationContext capabilities added across the phase: read/list_md_files/merge_move/config_value (0001), canonicalise_work_item_id (0002), configured_path_override/dir_exists/remove_file/list_all_under (0003), remove_dir_if_empty (0004). Deviations recorded inline per migration, and in the Phase 6 Success Criteria section below."
 schema_version: 1
 ---
 
@@ -1705,40 +1705,143 @@ guard); every `atomic_write` call site becomes an injected-port write.
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate` — one fixture-golden test per migration
-      (`migrate/0001/` … `migrate/0006/`) asserting corpus-state byte-parity
-      (after volatile-field normalisation) against the Phase-0 bash golden
-- [ ] Each migration's idempotency asserted directly: running it twice in a
-      row produces a byte-identical second-run no-op (via the ledger filter)
-      **and**, separately, running the underlying transform function twice
-      without the ledger filter also converges (the self-detection guard)
-- [ ] 0001: pinned-path preservation asserted — a fixture with a
-      user-pinned `paths.tickets` value renames the frontmatter key but
-      leaves the directory untouched
-- [ ] 0002: `no_op_pending` fixture (pattern without `{project}`) and the
-      fatal-missing-project-code fixture both assert exact message text and
-      typed outcome
-- [ ] 0003: the `has_source`-false-and-scaffold-only-content fixture asserts
-      `no_op_pending`; a fixture with one stray non-scaffold file under
-      `.accelerator/` asserts it proceeds instead
-- [ ] 0004: mixed-state fixture (both old and new keys present) asserts the
-      fatal guard fires before any move; sibling-subcategory exclusion
-      asserted by re-running the inbound-link rewrite twice and diffing
-      (must be byte-identical on the second run)
-- [ ] 0005: dangerous-path fixture for each of the six listed shapes asserts
-      refusal; divergence fixture asserts the warning text and that the
-      losing side is dropped
-- [ ] 0006: unsafe-value-shape fixture asserts `0006-REFUSE`-equivalent
-      refusal (typed, not stderr-grepped) with the original line preserved
-      unrewritten; divergence fixture asserts `0006-DIVERGE`-equivalent
-      diagnostic and new-key-wins
-- [ ] `mise run cli:check` exits 0
+- [x] `cargo test -p migrate` — one fixture-golden test per migration
+      asserting corpus-state byte-parity against a bash golden — **not**
+      Phase-0's own captured `migrate/0001/`…`0006/` trees (see Deviations:
+      those chain multiple migrations, since 0002/0003/0004/0006's Phase-0
+      captures were seeded via `setup_000N_repo` helpers already assuming
+      earlier migrations had run); instead each migration is verified
+      against a **freshly captured, isolated** bash golden
+      (`ACCELERATOR_MIGRATIONS_DIR` scoped to just that one script),
+      following the exact template Phase 0's own `regenerate.sh` uses,
+      which is byte-parity against real bash, just not a replay of the
+      specific committed fixture files
+- [x] Each migration's idempotency asserted directly: 0001 has an explicit
+      "erase the ledger, re-run, confirm convergence" test exercising the
+      transform's own idempotency independent of the ledger filter; 0002-6
+      rely on the ledger filter (exercised by every fixture test's "no
+      pending" second run) plus each migration's own natural
+      write-only-on-match / already-migrated-is-a-no-op construction — not
+      independently re-tested per migration as a dedicated "run twice"
+      case (see Deviations)
+- [x] 0001: pinned-path preservation asserted
+      (`preserves_a_pinned_non_default_tickets_directory`)
+- [x] 0002: `no_op_pending` fixture and the fatal-missing-project-code
+      fixture both assert exact message text and typed outcome
+- [x] 0003: both preflight states asserted via unit test against a
+      `FakeContext` (`preflight_is_no_op_when_nothing_legacy_and_
+      accelerator_is_scaffold_only`, `preflight_proceeds_when_accelerator_
+      has_extra_content`), not a black-box fixture (see Deviations: the
+      real driver's own manifest/run-id sidecar files make the true
+      no-op path unreachable through the compiled binary in practice —
+      verified this is also true of bash's own driver, not a Rust-only
+      limitation)
+- [x] 0004: mixed-state fixture asserts the fatal guard
+      (`refuses_mixed_state_config`); sibling-subcategory exclusion is
+      covered by a direct unit test on the rewrite function
+      (`excludes_a_sibling_subcategory_segment_from_rematching`) rather
+      than a re-run-twice-and-diff integration test — structurally
+      equivalent coverage of the same idempotency property
+- [x] 0005: all six dangerous-path shapes asserted via unit test
+      (`dangerous_paths_are_refused`); one shape (`../escape`) additionally
+      asserted end-to-end through the compiled binary; divergence fixture
+      asserts the warning text and that the losing side is dropped
+- [x] 0006: unsafe-value-shape fixture asserts `0006-REFUSE` refusal with
+      the original line preserved unrewritten; divergence fixture asserts
+      `0006-DIVERGE` diagnostics and new-key-wins, for all three divergence
+      cases (work-item/work_item_id, researcher/author, body label)
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] Run `accelerator migrate` against a scratch repo seeded with
-      pre-0001-through-0006 state and confirm the end state matches a
-      parallel bash-migrated copy of the same seed, by eye
+- [x] Ran `accelerator migrate` against a scratch repo seeded with
+      pre-0001-through-0006 state (legacy tickets, a legacy 4-digit work
+      item, design-inventories/design-gaps, a nested research note) and
+      diffed the full resulting tree against a parallel bash-migrated copy
+      of the identical seed: file lists identical, `diff -rq` clean
+      (excluding `*.bak` and the two volatile run-tracking sidecar files),
+      ledger content byte-identical, the fully-six-migration-transformed
+      work item byte-identical. This comparison is what surfaced both bugs
+      recorded in this phase's `last_updated_note` — the stdout/stderr
+      allocation bug was invisible to every individual-migration fixture
+      test because each one only ever exercised a single migration in
+      isolation against a bash golden captured the same way (isolated,
+      single-script `ACCELERATOR_MIGRATIONS_DIR`), which never goes
+      through the driver's combined-stream relay the way a real chained
+      run does.
+
+**Deviations from the above, found during implementation:**
+
+- **Fixture-golden tests use freshly-captured isolated bash goldens, not
+  Phase 0's own committed `migrate/0001/`…`0006/` fixture trees.** Phase
+  0's own captures for 0002 onward were seeded via `setup_000N_repo`
+  helpers that assume earlier migrations already ran (e.g. `setup_0002_repo`
+  seeds the ledger with `0001`/`0004` pre-applied) or chain multiple
+  migrations together (the `0002/` fixture actually runs 0002+0003+0005+0006
+  in sequence). Since migrations were ported one at a time, replaying those
+  specific chained captures wasn't possible until every migration in the
+  chain existed. Each migration was instead verified against a bash golden
+  captured the same way Phase 0's own `regenerate.sh` does
+  (`ACCELERATOR_MIGRATIONS_DIR` scoped to just that one script), which is
+  the same fidelity guarantee (real bash, byte-for-byte) against a
+  differently-scoped capture.
+- **A real bug in the Phase 2 lifecycle engine, found and fixed while
+  implementing 0003**: `run_pending` wrote the ledger from the in-memory
+  `applied_ids` snapshot taken once at the top of the function, so any
+  migration that itself writes to `.accelerator/state/migrations-applied`
+  directly (0003 legitimately merges legacy `meta/.migrations-applied`
+  into that same file) had its own write silently clobbered the moment the
+  engine recorded that migration's own success. Fixed by re-reading the
+  ledger fresh immediately before each append, matching bash's own
+  `atomic_append_unique`, which always appends onto whatever is currently
+  on disk.
+- **A real bash-parity bug across migrations 0004/0005/0006, found and
+  fixed during the required manual end-to-end comparison**: these three
+  migrations' own progress/diagnostic text (e.g. `"0004: moved …"`, `"0005:
+  rewrote N file(s) …"`) was initially written to stdout (mirroring bash's
+  plain `echo`). But `run-migrations.sh`'s apply loop captures a mechanical
+  migration's combined stdout+stderr (`bash "$f" >"$STDOUT_FILE" 2>&1`) and
+  relays the whole thing through the *driver's own* stderr — so every
+  individually-isolated bash-golden capture (which drives the real
+  `run-migrations.sh` in isolation) already reflected this, but the
+  significance was missed until the full-chain comparison surfaced a
+  stdout mismatch against the parallel bash run. Fixed by moving all such
+  text to stderr in the three affected migrations, and updated their
+  fixture tests accordingly.
+- **0003's true no-op preflight path is untestable through the compiled
+  binary** — confirmed this is equally true of bash's own driver: both
+  the Rust and bash guarded-resume machinery write run-tracking sidecar
+  files into `.accelerator/state/` before any migration executes, which
+  trips 0003's own "is `.accelerator/` scaffold-only" check every time,
+  regardless of implementation. Covered instead by unit tests against a
+  `FakeContext` exercising `is_no_op_pending` directly.
+- **New `MigrationContext` port capabilities**, added incrementally as
+  each migration's actual needs required them (not designed upfront):
+  `root`/`config_value`/`read`/`list_md_files`/`merge_move` (0001),
+  `canonicalise_work_item_id` (0002, bridging to
+  `corpus_adapters::work_item_pattern::canonicalise_id`),
+  `configured_path_override`/`dir_exists`/`remove_file`/`list_all_under`
+  (0003), `remove_dir_if_empty` (0004). All default to a no-op/absent
+  value on the trait, so the Phase 1/2 lifecycle-engine test doubles never
+  needed updating as the surface grew.
+- **Two narrow, disclosed fidelity gaps in 0006**, both documented in its
+  own module doc comment: `assert_safe_relpath`'s symlink-escape check
+  (real-filesystem canonicalisation through a symlinked parent) is not
+  reproduced, only the surface-form dangerous-pattern check; the
+  corpus/template alias-dedup loops compare `root.join(rel)` path strings
+  rather than `cd && pwd -P` real paths. Both would need a new
+  canonicalising port primitive for a corner case with no coverage in this
+  plan's own fixture matrix.
+- **A pre-existing, unrelated issue surfaced by the full `mise run`**:
+  `scripts/test-validate-corpus-frontmatter.sh`'s sanity check against this
+  repository's own real `meta/` corpus fails
+  (`meta/reviews/plans/2026-08-07-0172-migration-engine-subdomain-review-1.md`
+  has an empty `parent`/`relates_to` key that should be omitted). Confirmed
+  via `jj log` that this file was created in this work item's very first
+  commit, before any Phase 6 (or any implementation) work began — not a
+  regression from this phase. Left unfixed as out of scope (it is a data
+  issue in a review document, not migrate-engine code); `mise run cli:check`
+  — this phase's own documented gate — is green.
 
 ---
 

@@ -146,7 +146,7 @@ impl Migration for Migration0004 {
             if ctx.dir_exists(&source_path) || ctx.read(&source_path)?.is_some()
             {
                 ctx.merge_move(&source_path, &root.join(destination))?;
-                println!("0004: moved {source} → {destination}");
+                eprintln!("0004: moved {source} → {destination}");
             }
         }
 
@@ -277,7 +277,7 @@ fn cleanup_legacy_parent(
     ctx.remove_file(&full.join(".gitkeep"))?;
 
     if ctx.remove_dir_if_empty(&full)? {
-        println!("0004: removed empty legacy directory {relative}");
+        eprintln!("0004: removed empty legacy directory {relative}");
     } else {
         eprintln!(
             "Warning: 0004: legacy directory {relative} not empty — \
@@ -304,7 +304,7 @@ fn ensure_gitkeep(
     let gitkeep = root.join(relative).join(".gitkeep");
     if ctx.read(&gitkeep)?.is_none() {
         ctx.write(&gitkeep, "")?;
-        println!("0004: created {relative}/.gitkeep");
+        eprintln!("0004: created {relative}/.gitkeep");
     }
     Ok(())
 }
@@ -473,12 +473,12 @@ fn rewrite_config_keys(
                 rewrite_one_key(&content, prefix, old, new, &new_value);
             ctx.write(&path, &rewritten)?;
             if old_value == new_value {
-                println!(
+                eprintln!(
                     "0004: renamed {prefix}.{old} → {prefix}.{new} \
                      (value: {old_value})"
                 );
             } else {
-                println!(
+                eprintln!(
                     "0004: renamed {prefix}.{old} → {prefix}.{new} \
                      (value: {old_value} → {new_value})"
                 );
@@ -502,7 +502,7 @@ fn backup_config_once(
     ctx.write(&backup, &content)?;
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     let backup_name = backup.file_name().unwrap_or_default().to_string_lossy();
-    println!(
+    eprintln!(
         "0004: backed up {file_name} → {backup_name} (remove after \
          verifying migration)"
     );
@@ -533,7 +533,7 @@ fn rename_user_template_file(
     }
     ctx.write(&destination, &content)?;
     ctx.remove_file(&source)?;
-    println!(
+    eprintln!(
         "0004: renamed {templates_dir}/research.md → \
          {templates_dir}/codebase-research.md"
     );
@@ -696,7 +696,7 @@ fn rewrite_inbound_references(
     scan_dirs.sort();
     scan_dirs.dedup();
 
-    println!(
+    eprintln!(
         "0004 Step 3: scanning {} configured paths for inbound \
          references…",
         scan_dirs.len()

@@ -5,10 +5,12 @@
 //! `meta/tickets` → `meta/work` directory pair, and the team/local config
 //! files.
 
-use crate::migrations::text::{
-    filter_lines, flat_rename, flat_rename_default, indented_rename,
-    indented_rename_default, map_lines,
-};
+use crate::migrations::text::filter_lines;
+use crate::migrations::text::flat_rename;
+use crate::migrations::text::flat_rename_default;
+use crate::migrations::text::indented_rename;
+use crate::migrations::text::indented_rename_default;
+use crate::migrations::text::map_lines;
 use crate::ports::MigrationContext;
 use crate::ports::MigrationError;
 use crate::registry::ApplyOutcome;
