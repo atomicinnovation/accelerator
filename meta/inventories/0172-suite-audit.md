@@ -375,14 +375,9 @@ listed once, in the "Confirmed real bugs" section, not repeated per-phase.)
     pin against the *old* bash SKILL.md; not actionable until Phase 10's
     rewrite lands (same as Phase 7 above).
 
-### `test-migrate.sh` — 522 assertions, corrected to **164 distinct scenarios** (the `# ── ─` header count of ~87 undercounts — many scenarios use bare `echo "Test: ..."` with no header): 77 covered, 9 moot, **78 genuine gaps**
+### `test-migrate.sh` — 522 assertions, corrected to **164 distinct scenarios** (the `# ── ─` header count of ~87 undercounts — many scenarios use bare `echo "Test: ..."` with no header): 77 covered, 9 moot, **80 genuine gaps** (reconciling Section F to item-level granularity surfaced 80, not the 78 the section tally below implies — two idempotency sub-checks embedded inside named blocks weren't separately "spent" against the scenario census)
 
-Full per-scenario detail (line ranges, exact suggested fixtures) is
-preserved in this session's agent transcript
-(`aa3daa25badcf7811`) and should be pulled from there when the work is
-picked up — reproducing all 78 verbatim here would roughly double this
-document's length for marginal benefit over the tally below. Summary by
-section (bash line ranges):
+Summary by section (bash line ranges):
 
 | Section | Scenarios | Covered | Moot | **Gaps** |
 |---|---|---|---|---|
@@ -391,41 +386,83 @@ section (bash line ranges):
 | C. Migration 0003, L1060-1423 | 22 | 8 | 0 | **14** |
 | D. Migration 0005, L1734-1945 | 11 | 6 | 0 | **5** |
 | E. Migration 0004, L1423-1734 | 35 | 17 | 3 | **15** |
-| F. Migration 0006, L1945-2593 | 38 | 11 | 3 | **24** |
-| **Total** | **164** | **77** | **9** | **78** |
+| F. Migration 0006, L1945-2593 | 38 | 11 | 3 | **26** |
+| **Total** | **164** | **77** | **9** | **80** |
 
-Highest-priority individual gaps worth naming here even without full
-per-item detail (the rest lives in the agent transcript):
+Full itemized gap list (pulled from agent `aa3daa25badcf7811`'s
+transcript, one Rust-test suggestion per bash scenario):
 
-- **Section A**: no end-to-end test chains multiple *real* migrations
-  through one invocation from a pristine repo (every current black-box
-  test pre-marks all-but-one migration applied to isolate it); the path
-  manifest's write-during-execution behaviour (append, dedup,
-  survives-a-failing-migration) is entirely untested — only its
-  read/classify side is; `ManifestStore::clear()` is never asserted to be
-  called after a successful run; several `Reporter` event wirings
-  (`unknown_applied_id`, `unknown_skipped_id`, `applied_and_skipped`) are
-  unit-tested as pure functions but never proven to actually fire during a
-  real `run_pending` call.
-- **Section C (0003)**: thinnest black-box coverage of any migration (3
-  integration tests vs 22 bash scenarios) — `paths.tmp` override handling
-  (3 variants), partial-prior-manual-move idempotency (2 variants),
-  destination-collision merge semantics, and the pinned-override warning
-  for `paths.integrations` (only `paths.templates` is currently exercised)
-  are all untested.
-- **Section E (0004)**: `cli/migrate-adapters/src/merge_move.rs` — the
-  shared collision-resolution primitive multiple migrations depend on —
-  **has no tests of any kind, in any crate**; config-key-rename
-  notifications (`"0004: renamed ..."`), the `.bak` backup-file creation,
-  and three independent `paths.*` override branches are all unreached by
-  any currently-passing test.
-- **Section F (0006)**: the entire userspace-template-rewriting code path
-  (`rewrite_userspace_templates`/`resolve_user_template_path` — tier-1
-  vs tier-2 resolution, precedence, alias dedup) has **zero coverage** —
-  the single largest gap in this section; the quoted-value/trailing-whitespace/
-  empty-value normalisation branches of `normalise_value` are untested;
-  the corpus-path-alias dedup warning is untested. Also surfaced the
-  confirmed config-read-error-swallowing regression (finding 4 above).
+#### Section A — Generic driver/ledger/preflight/manifest/skip/banner mechanics (18 gaps)
+
+1. **L81** — No test runs the *real, full 7-migration registry* end to end from a pristine repo through one invocation (every black-box test pre-marks all-but-one migration applied). New `migrate-cli/tests/full_registry_e2e.rs` seeding only the legacy pre-0001 layout + an empty ledger.
+2. **L176** — A truly empty repo (no `meta/tickets/`, no config) still applies migration 0001 and records it. `migration_0001.rs`, seed only `.git/`+`meta/`, assert exit 0 + ledger entry.
+3. **L213** — Pre-existing `meta/work/` *and* `meta/tickets/` both present with overlapping filenames: source wins on collision, dest-only survives; same for the `reviews/tickets`↔`reviews/work` pair. `migration_0001.rs`, seed both dirs with a colliding file + a dest-only file.
+4. **L256** — Malformed frontmatter in `.claude/accelerator.md` aborts 0001 with zero partial writes (`m0001.rs`'s `document::parse(...).is_err()` branch). `migration_0001.rs`, seed unclosed frontmatter + a pending `meta/tickets/` file, assert exit 1 and the ticket file byte-unchanged.
+5. **L271** — Unknown applied ledger IDs are preserved and warned about during a real run that also applies new migrations (`ledger.rs` only tests the pure `warnings()` function; `Reporter::unknown_applied_id` is never triggered). `lifecycle.rs` + a `migrate-cli` black-box test.
+6. **L306** — Filenames containing spaces rename/rewrite correctly (low risk, no regression test). `migration_0001.rs`, extend the fixture with `"0001-with space.md"`.
+7. **L351** — Bash pins the exact byte-for-byte dirty-tree refusal text incl. the `ACCELERATOR_MIGRATE_FORCE` hint; `dirty_tree_preflight.rs` only checks `contains("dirty working tree")`. Strengthen to assert the full string.
+8. **L396** — Manifest recording *during a live run*: a write appends the path, deduplicated even across two write points, and a failing migration's own partial writes are still recorded. `ManifestStore`/context decorator test with a double writing twice then failing.
+9. **L437** — After a fully successful run, the manifest and run-id sidecar are cleared (`ManifestStore::clear()` is never invoked in any test). `preflight.rs`/`lifecycle.rs`, assert `manifest()?==None` and `run_id()?==None` post-run.
+10. **L460** — A clean tree with a *stale, non-empty* leftover manifest from a prior run gets truncated and a fresh run-id minted (existing test starts from an empty store). `preflight.rs`, `InMemoryManifestStore::seeded(...)` + empty `StubScanner`.
+11. **L564** — Guarded resume on a fully-owned dirty tree against a *real* git/jj adapter (only the in-memory unit test covers this). `dirty_tree_preflight.rs`, seed a manifest+run-id matching HEAD, dirty exactly the manifested path, assert proceed-not-refuse.
+12. **L618** — An empty (not absent) run-id sidecar file — does it parse to `None` the same as missing? `migrate-adapters` test writing an empty `migrations-run.id`.
+13. **L628** — Stale base revision: recorded and current revisions are two distinct non-`None` values under `force: false` (existing test only covers `None` vs `None`). `preflight.rs`, seeded revision `rev-1` vs current `rev-2`.
+14. **L649** — Guarded resume that fails again accumulates correctly: manifest re-asserted from empty baseline each resume, so run-1's path survives into run-2's manifest. Extend #8's test to run twice.
+15. **L740** — `--unskip` removes the ID (tested), but a *subsequent run* actually applying the now-unskipped migration is not verified end to end. Extend `skip_unskip_unapply.rs`'s unskip test with a third run.
+16. **L784** — Skipping an *unknown* migration ID: the warning prints on the next run (same wiring gap as #5, skip-side). Pair with #5's fix.
+17. **L795** — `ACCELERATOR_MIGRATE_FORCE=1` bypasses dirty-tree only — must not also un-skip a skipped migration. `dirty_tree_preflight.rs`, skip + dirty + force, assert the skipped migration stays skipped.
+18. **L811** — Applied+skipped same ID: applied wins, and a `"BOTH"`-style warning actually prints during a real run (`Reporter::applied_and_skipped` never exercised). Pair with #5's fix.
+
+#### Section B — Migration 0002 (2 gaps)
+
+1. **L1016** — Idempotency: re-running against an already-migrated tree is byte-identical (only a pure-function unit test exists, no integration proof). `migration_0002.rs`, run the binary twice, diff the tree.
+2. **L1024** — Already-rewritten input (`PROJ-NNNN` form, not one this run produced) is a no-op — doesn't double-prefix. `migration_0002.rs`, seed `meta/work/PROJ-0001-add-foo.md` directly.
+
+#### Section C — Migration 0003 (14 gaps)
+
+1. **L1100** — Dirty-tree refusal scope covers `.accelerator/`, not just `meta/` (every current test dirties under `meta/`). `dirty_tree_preflight.rs`, dirty `.accelerator/state/migrations-applied`.
+2. **L1182/1193/1204** — `paths.tmp` overridden (`custom/tmp`, the literal default value explicitly set, and with a trailing slash) all leave `meta/tmp/` untouched. `migration_0003.rs`, table-driven 3-case test.
+3. **L1214** — A `tmp:` key nested under an *unrelated* block must NOT be detected as an override — `meta/tmp/` still moves. Same test file, false-positive-scope case.
+4. **L1225/1246** — Idempotency: re-running 0003 reports "no pending migrations" cleanly and doesn't duplicate the `.gitignore` rule. Extend the golden test with a second run.
+5. **L1296/1308** — Partial-state idempotency: config already manually moved but `skills/`/`lenses/` still pending; and all sources moved but the legacy `.migrations-applied` file not yet merged. Two new `migration_0003.rs` tests.
+6. **L1333** — Both `.claude/accelerator.md` (source) and `.accelerator/config.md` (dest) exist with different content — merge, source wins. New test.
+7. **L1348** — `meta/tmp/` merges recursively into a pre-existing `.accelerator/tmp/`: leaf-collision source-wins, dest-only survives. New test.
+8. **L1385** — When `meta/templates/` doesn't exist as a source, `.accelerator/templates/` is not spuriously created. New test.
+9. **L1394/1412** — Pinned-override warning fires for *both* `paths.templates` and `paths.integrations` together (existing golden only sets one); and is *absent* when neither is pinned. Extend the golden's config fixture + a negative assertion.
+
+#### Section D — Migration 0005 (5 gaps)
+
+1. **L1786** — A work item with frontmatter `type:` but no `**Type**:` body label: renames the key, does NOT spuriously insert `**Kind**:`. New `migration_0005.rs` test.
+2. **L1873/1888** — A *valid* custom `paths.work` (e.g. `docs/work`) is honored (rewrite happens there, default never created); when the configured path is missing, the warning names the configured path, not the default. Two cases, one new test.
+3. **L1917** — `empty-work-dir`: dir exists with zero `.md` files → `"rewrote 0 file(s)"` with no "does not exist" warning (distinct branch from absent-dir). New test.
+4. **L1932** — Idempotency: second run against an already-migrated tree is byte-identical. Extend the golden test with a second run.
+
+#### Section E — Migration 0004 (15 gaps)
+
+1. **L1484-1493** — `.DS_Store` files are swept from moves, never carried into the new layout; `paths.research` override targets moves at `<override>/codebase`. Two new tests.
+2. **L1495-1504** — `paths.design_inventories`/`paths.design_gaps` overrides suppress those specific moves entirely (default dir never created). Extend the override test.
+3. **L1516-1528** — Destination collision on move is source-wins per `merge_move`'s contract — `cli/migrate-adapters/src/merge_move.rs` itself now has tests (closed this session), but no `migration_0004.rs`-level collision case yet.
+4. **L1530-1536** — Idempotency: second run against an already-migrated repo produces zero further changes (distinct from the "nothing ever existed" no-op test). Hash-compare across two runs.
+5. **L1538-1542** — `local-config-only`: an override present only in `.accelerator/config.local.md` (not `config.md`) is honored. New test.
+6. **L1612-1618** — `config.md` with an *empty* `paths:` block is left byte-unchanged, no spurious `research_issues` injection. New test.
+7. **L1620-1630** — A `"0004: renamed X → Y"` stderr notification per rewritten config key, and its absence when no overrides are present. Extend the override test + a negative assertion on the default-layout golden.
+8. **L1632-1644** — `local-config-only`'s independence from `config.md` (rewriting one doesn't touch the other); a `config.md.0004.bak` backup file is created holding pre-rewrite content. Extend #5's test.
+9. **L1646-1652** — The config-key rewrite itself is idempotent: second run leaves `config.md` byte-unchanged. Fold into the #4 double-run test.
+10. **L1711-1729** — A *moved* file's own internal cross-link to a sibling (also-moved) file is rewritten after both moves complete (proves the scan re-includes files at their new location); the richer multi-reference-form fixture is idempotent on a second run. Two new tests.
+
+#### Section F — Migration 0006 (26 gaps)
+
+1. **L2029-2038** — `normalise_value`'s single-quoted branch (`work-item: '0042'` → `work_item_id: "0042"`, incl. escaped embedded quotes) has zero coverage. New `m0006.rs` unit test.
+2. **L2097-2136** — Trailing whitespace after an already-quoted value must be trimmed before the double-quote check runs (else falsely REFUSEs); an empty value (with or without trailing whitespace) normalizes to a bare `work_item_id:`. Three `m0006.rs` unit tests (can be table-driven).
+3. **L2151-2270** — Matching-value (not divergent) partial-prior-run cases for `work-item:`/`work_item_id:`, `researcher:`/`author:`, and the `**Researcher**:`/`**Author**:` body-label pair all drop silently with no DIVERGE (only the divergent side is currently tested). Three new `m0006.rs` unit tests.
+4. **L2169-2184** — A survivor `work_item_id:` left unquoted by a prior partial run, next to a quoted legacy key with the same value: no DIVERGE (quote-stripped comparison) and the survivor gets normalized to quoted form. New unit test.
+5. **L2203-2218** — An unsafe-shaped legacy line coexisting with an already-valid canonical line: both survive, REFUSE fires, but no DIVERGE (a refused line skips the divergence comparison). New unit test.
+6. **L2315-2326** — Two pre-H2 `**Researcher**:` occurrences with no pre-existing `**Author**:` (`has_ab: false`): BOTH convert, no dedup (distinct from the existing `has_ab: true` drop-first-keep-second test). New unit test.
+7. **L2341-2389** — `paths.plans`/`paths.research_codebase`/`paths.research_issues` overrides are honored (rewrite-at-override-path, correct naming); a configured-but-missing corpus path names itself (not the default) in the warning, still exits 0. Four new `migration_0006.rs` tests.
+8. **L2401-2461** — Userspace template tier-2 fallback (`paths.templates`-relative) resolution for plan/research/RCA templates; tier-1 explicit `templates.<name>` resolution; when both tiers are present, only tier-1 is touched. **Zero coverage of this entire code path** — five new `migration_0006.rs` tests.
+9. **L2463-2473** — Tier-1 configured but the file is missing: warning fires, and there is deliberately no fallthrough to a valid tier-2 file. New test.
+10. **L2490-2538** — Two corpus-path keys (or two template names) resolving to the same file are walked/rewritten exactly once with a dedup warning; a REFUSE-preserving fixture is stable (byte-identical, same diagnostics) across 2-3 repeated runs, both for the inline-comment and embedded-quote shapes; a clean-rewrite golden fixture converges to a byte-stable fixed point across 3 runs. Five new tests total (2 dedup, 3 idempotency variants).
+11. **L2542-2589** `failing-stub` — **architectural, already fixed**: this session's own config-read-error-propagation fix (`FileMigrationContext::config_value` now returns `Result`, restoring 0006's hard-abort) closes the design gap this scenario was protecting; only a regression test proving a malformed config file makes 0006 fail non-zero and stay unrecorded remains open (0006 already has one malformed-config test from this session's earlier "highest-value" pass — verify it covers this exact shape before treating this item as fully closed).
 
 ### What this audit does *not* cover
 
@@ -435,13 +472,13 @@ suites above). The audit did not attempt to close any of the ~100 gaps
 found — Phase 9's remaining work (closing the confirmed regressions,
 writing the highest-value new tests) is scoped separately.
 
-### Gaps closed this session (a first pass, not exhaustive)
+### Gaps closed this session
 
 All five confirmed real bugs/design questions above are resolved (✅ marked
-inline). Beyond those, a small set of the highest-value *test* gaps (not
-design questions) were also closed, chosen for being both high-risk
-(zero coverage on a widely-depended-on primitive, or on the largest file
-in the whole port) and cheaply testable in isolation:
+inline). Beyond those, two batches of *test* gaps were closed.
+
+**First batch** (highest-value only — zero coverage on a widely-depended-on
+primitive, or on the largest file in the whole port):
 
 - **`cli/migrate-adapters/src/merge_move.rs`** — had zero tests despite
   being the shared collision-resolution primitive `merge_move` migrations
@@ -469,6 +506,40 @@ in the whole port) and cheaply testable in isolation:
   belonged to. Also covers work-item/plan/pr-description id derivation, a
   path outside every configured directory, and a custom-configured
   directory override.
+
+**Second batch** (all remaining `test-migrate-0007.sh` gaps, per the
+user's explicit "close the rest of the test gaps" instruction):
+
+- **`cli/migrate/src/migrations/m0007/rewrite.rs`** — 17 more unit tests:
+  the full required-extras-backfill cluster (`topic` backfill incl. a
+  semicolon-bearing title, the quoted `verdict`/`lenses` sentinel with its
+  `backfilled-extra` diagnostic, `pr_number`'s derive-vs-bare-sentinel
+  split, numeric/boolean extras staying unquoted, the string/enum sentinel
+  bundle, populated extras never clobbered, backfill completing rather
+  than aborting), the `ticket_id` drop, all four `pr_title`→`title` fold
+  cases (correcting the audit's own assumption along the way — the bash
+  original, and this port, discard a non-empty `pr_title` unconditionally
+  whenever a `title:` already exists, with **no** equal-value special
+  case; verified by reading the retired bash awk source directly, not
+  just the test suite), path-based type inference plus the structural
+  `meta/docs/` non-membership case, `pr_number_of`'s stem-derivation
+  boundary cases, and a frozen required-extras-per-type contract guard.
+- **`cli/migrate/src/migrations/m0007/prepass.rs`** — one test proving a
+  shared stem across two *different* linkage types never collides
+  (`seen_ids` is type-scoped; only the same-type collision was
+  previously tested).
+- **`cli/migrate/src/migrations/m0007/linkage_value.rs`** — one test for
+  a plan-path list value resolving to its full stem.
+- **`cli/migrate-cli/tests/migration_0007.rs`** — three black-box tests: a
+  multi-type corpus (pr-description/note/pr-review/docs) rewriting
+  cleanly with zero refusals, an unconfigured subtree (`meta/arbitrary/`)
+  left byte-unchanged, and a run against the checked-in
+  `migrate-byte-equiv` fixture asserted byte-for-byte against its bash
+  golden.
+
+This closes all 17 `test-migrate-0007.sh` gaps. `test-migrate-interactive.sh`
+(7 phases) and `test-migrate.sh` (80 items, now fully itemized above) remain
+open.
 
 The remaining gaps (the bulk of the ~100 found, including the
 required-extras-backfill cluster in `rewrite.rs`, the userspace-template
