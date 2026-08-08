@@ -66,6 +66,13 @@ fn matches_the_isolated_bash_golden_for_default_layout() -> Result<(), TestError
         stdout.ends_with("Migration complete. applied: 1.\n"),
         "{stdout}"
     );
+    // The driver relays a mechanical migration's own combined
+    // stdout+stderr through *its own* stderr (`run-migrations.sh`
+    // captures `bash "$f" >"$STDOUT_FILE" 2>&1` then relays via `>&2`),
+    // so bash's plain `echo` progress lines are observable on stderr,
+    // never stdout — verified against a live combined-chain run, not
+    // assumed from reading the migration script alone.
+    let stderr = String::from_utf8(output.stderr)?;
     for line in [
         "0004: moved meta/research/2026-01-01-a.md → \
          meta/research/codebase/2026-01-01-a.md",
@@ -80,7 +87,7 @@ fn matches_the_isolated_bash_golden_for_default_layout() -> Result<(), TestError
         "0004: created meta/research/design-inventories/.gitkeep",
         "0004: created meta/research/design-gaps/.gitkeep",
     ] {
-        assert!(stdout.contains(line), "missing {line:?} in {stdout}");
+        assert!(stderr.contains(line), "missing {line:?} in {stderr}");
     }
 
     assert_eq!(

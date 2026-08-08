@@ -78,9 +78,12 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
         ) && stderr.contains("kept Kind=bug, dropped Type=work-item"),
         "{stderr}"
     );
+    // The driver relays a mechanical migration's own combined
+    // stdout+stderr through *its own* stderr, so this progress line is
+    // observable on stderr, never stdout.
     assert!(
-        stdout.contains("0005: rewrote 2 file(s) under meta/work"),
-        "{stdout}"
+        stderr.contains("0005: rewrote 2 file(s) under meta/work"),
+        "{stderr}"
     );
 
     assert_eq!(
@@ -129,12 +132,11 @@ fn warns_and_counts_zero_when_the_work_dir_is_absent() -> Result<(), TestError>
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
 
     assert_eq!(output.status.code(), Some(0));
-    let stdout = String::from_utf8(output.stdout)?;
-    assert!(
-        stdout.contains("0005: rewrote 0 file(s) under meta/work"),
-        "{stdout}"
-    );
     let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("0005: rewrote 0 file(s) under meta/work"),
+        "{stderr}"
+    );
     assert!(
         stderr.contains(
             "Warning: 0005: work directory does not exist: meta/work"

@@ -83,16 +83,14 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
         stdout.ends_with("Migration complete. applied: 1.\n"),
         "{stdout}"
     );
+    // The driver relays a mechanical migration's own combined
+    // stdout+stderr through *its own* stderr, so these progress lines
+    // are observable on stderr, never stdout.
+    let stderr = String::from_utf8(output.stderr)?;
     for line in [
         "0006: rewrote 2 file(s) under meta/plans",
         "0006: rewrote 2 file(s) under meta/research/codebase",
         "0006: rewrote 0 file(s) under meta/research/issues",
-    ] {
-        assert!(stdout.contains(line), "missing {line:?} in {stdout}");
-    }
-
-    let stderr = String::from_utf8(output.stderr)?;
-    for line in [
         "Warning: 0006: 0006-DIVERGE:",
         "work-item=0042 vs work_item_id=\"0099\" (kept work_item_id)",
         "researcher=bob vs author=carol (kept author)",
@@ -151,10 +149,9 @@ fn skips_a_dangerous_configured_corpus_path() -> Result<(), TestError> {
         stderr.contains("refusing dangerous paths.plans value: ../escape"),
         "{stderr}"
     );
-    let stdout = String::from_utf8(output.stdout)?;
     assert!(
-        stdout.contains("0006: rewrote 0 file(s) under <unresolved plans>"),
-        "{stdout}"
+        stderr.contains("0006: rewrote 0 file(s) under <unresolved plans>"),
+        "{stderr}"
     );
     Ok(())
 }

@@ -49,7 +49,7 @@ impl Migration for Migration0005 {
                 "Warning: 0005: work directory does not exist: \
                  {work_dir_rel}"
             );
-            println!("0005: rewrote 0 file(s) under {work_dir_rel}");
+            eprintln!("0005: rewrote 0 file(s) under {work_dir_rel}");
             return Ok(ApplyOutcome::Applied);
         }
 
@@ -92,7 +92,7 @@ impl Migration for Migration0005 {
             }
         }
 
-        println!("0005: rewrote {rewrote} file(s) under {work_dir_rel}");
+        eprintln!("0005: rewrote {rewrote} file(s) under {work_dir_rel}");
         Ok(ApplyOutcome::Applied)
     }
 }
