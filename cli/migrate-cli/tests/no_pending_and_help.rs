@@ -27,7 +27,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
         dir.path().join(".accelerator/state/migrations-applied"),
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n",
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )?;
     Ok(dir)
 }
