@@ -34,10 +34,7 @@ DISPATCHED_SUBBINARIES: tuple[str, ...] = (
     "migrate",
 )
 # Tokens whose only consumer is a hook or another binary, never a SKILL.md.
-# "migrate" is an interim entry: no SKILL.md invokes `accelerator migrate` yet
-# (skills/config/migrate/SKILL.md still shells out to run-migrations.sh) —
-# remove it once that skill's invocation is rebound.
-SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ("migrate",)
+SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
 # Sub-binaries shipping a symbolication archive, and the committed tree each is
 # staged into so the provenance glob covers it. Every value must be a `bin/`
 # directory — `.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`.

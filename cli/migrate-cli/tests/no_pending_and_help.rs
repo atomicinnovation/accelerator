@@ -75,12 +75,35 @@ The `accelerator-migrate` command-line surface
 Usage: accelerator-migrate [OPTIONS]
 
 Options:
-      --skip <id>              Mark migration <ID> skipped; do not run it
-      --unskip <id>            Remove migration <ID> from the skip list
-      --unapply <id>           Remove migration <ID> from the applied ledger so a half-applied migration can be re-run
-      --list                   Dry-emit pending interactive transformations, one tab-delimited line each, then exit without mutating anything
-      --decisions-file <path>  Scripted decisions for interactive migrations, one per line: accept | skip | edit <value>
-  -h, --help                   Print help
+      --skip <id>
+          Mark migration <ID> skipped; do not run it
+
+      --unskip <id>
+          Remove migration <ID> from the skip list
+
+      --unapply <id>
+          Remove migration <ID> from the applied ledger so a half-applied migration can be re-run
+
+      --list
+          Dry-emit pending interactive transformations, one tab-delimited line each, then exit without mutating anything
+
+      --decisions-file <path>
+          Scripted decisions for interactive migrations, one per line: accept | skip | edit <value>
+
+      --discoverability-hook
+          Print the `SessionStart` discoverability advisory, then exit. Not part of the flag-for-flag migration surface — a hook-only entry point, matching bash's separate `hooks/migrate-discoverability.sh` script under one dispatch token
+
+      --format <FORMAT>
+          Rendering for `--discoverability-hook`: the `SessionStart` hook envelope
+
+          Possible values:
+          - hook: The `SessionStart` `additionalContext`/`systemMessage` JSON envelope
+
+      --fail-safe
+          On an adapter failure, degrade to a warning and exit 0 rather than exiting non-zero. Forwarded for the launcher's own external-dispatch resolution — `--discoverability-hook`'s own handler never fails, so the flag has no further effect here
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 Environment:
   ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>  Same as --decisions-file.

@@ -2,6 +2,7 @@
 //! dispatched by the `accelerator` launcher.
 
 mod cli;
+mod discoverability;
 mod render;
 
 use std::io::IsTerminal as _;
@@ -72,6 +73,15 @@ fn session_log_decision_count(root: &Path) -> impl Fn(&str) -> usize + '_ {
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
+    if cli.discoverability_hook {
+        let root = project_root()?;
+        let entries = migrate::registry::registry();
+        if let Some(output) = discoverability::run(&root, &entries) {
+            println!("{output}");
+        }
+        return Ok(());
+    }
+
     let root = project_root()?;
     let ledger_store = FileLedgerStore::new(&root);
     let run_lock = FileRunLock::new(&root);

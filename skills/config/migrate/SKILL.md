@@ -5,7 +5,7 @@ allowed-tools:
   - Read
   - Write
   - Edit
-  - Bash
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate *)
 ---
 
 > **Warning: this skill rewrites files in `meta/` and `.claude/accelerator*.md`.** Recovery is via VCS revert. Before running, ensure your repo is committed and you understand what each pending migration does. The safety guards (clean-tree check, preview) exist to give you a moment to stop — they are not a substitute for understanding the changes.
@@ -69,13 +69,13 @@ Both files are human-readable and constitute the audit trail. Do not edit them m
 Skip a migration to defer it indefinitely:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh" --skip <migration-id>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --skip <migration-id>
 ```
 
 Unskip a previously skipped migration so it becomes pending again:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh" --unskip <migration-id>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --unskip <migration-id>
 ```
 
 Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_MIGRATE_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
@@ -229,7 +229,7 @@ stall does not show), so the realistic order is run → stall (learn the `<id>` 
 path) → `--list` (see proposed values) → write → resume. The `<id>` comes from the
 stall/preview, not from `--list` output.
 
-1. **list** — `bash …/run-migrations.sh --list` dry-emits every pending
+1. **list** — `accelerator migrate --list` dry-emits every pending
    interactive transformation, one tab-delimited line each, without mutating the
    corpus:
 
@@ -300,10 +300,10 @@ case); decisions files are consumed per migration.
 Invoke via Bash:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh"
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate
 ```
 
-The driver script resolves `PROJECT_ROOT` automatically from the current working directory. Run it from within the consumer repository. Run `/accelerator:migrate` from a single shell at a time; it does not acquire a lock.
+`accelerator migrate` resolves the project root automatically from the current working directory. Run it from within the consumer repository. A run-level advisory lock (`.accelerator/state/`) refuses a second concurrent invocation fast rather than racing it.
 
 ## Cross-references
 
