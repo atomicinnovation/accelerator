@@ -352,6 +352,64 @@ fn list_pending_reports_no_in_flight_session_when_the_log_is_empty(
     Ok(())
 }
 
+struct TwoLogs {
+    a: Rc<InMemorySessionLog>,
+    b: Rc<InMemorySessionLog>,
+}
+
+impl SessionLogFactory for TwoLogs {
+    fn for_migration(&self, id: &str) -> Box<dyn SessionLog> {
+        if id == "0098-fixture" {
+            Box::new(SharedLog(Rc::clone(&self.a)))
+        } else {
+            Box::new(SharedLog(Rc::clone(&self.b)))
+        }
+    }
+}
+
+#[test]
+fn two_pending_interactive_migrations_each_get_their_own_list_group(
+) -> Result<(), TestError> {
+    let first = FixtureMigration::prompting(
+        "0098-fixture",
+        vec![transformation("k1", "relates_to", "work-item:0001")],
+    );
+    let second = FixtureMigration::prompting(
+        "0099-fixture",
+        vec![
+            transformation("k2", "parent", "work-item:0002"),
+            transformation("k3", "relates_to", "work-item:0003"),
+        ],
+    );
+    let entries = vec![
+        MigrationEntry::Interactive(Box::new(first)),
+        MigrationEntry::Interactive(Box::new(second)),
+    ];
+    let session_logs = TwoLogs {
+        a: Rc::new(InMemorySessionLog::default()),
+        b: Rc::new(InMemorySessionLog::default()),
+    };
+
+    let groups = list_pending(
+        &entries,
+        &[],
+        &[],
+        &StubContext,
+        &session_logs,
+        &NoOpReporter,
+    )?;
+
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].id, "0098-fixture");
+    assert_eq!(groups[0].transformations.len(), 1);
+    assert_eq!(groups[0].transformations[0].key, "k1");
+    assert_eq!(groups[1].id, "0099-fixture");
+    assert_eq!(groups[1].transformations.len(), 2);
+    assert_eq!(groups[1].transformations[0].key, "k2");
+    assert_eq!(groups[1].transformations[1].key, "k3");
+    Ok(())
+}
+
 #[test]
 fn list_pending_propagates_a_fail_predicate() {
     let migration = FixtureMigration {
@@ -373,6 +431,68 @@ fn list_pending_propagates_a_fail_predicate() {
     );
 
     assert!(result.is_err());
+}
+
+#[test]
+fn a_drifted_record_still_needs_a_decision_and_is_not_a_false_surplus(
+) -> Result<(), TestError> {
+    let migration = FixtureMigration::prompting(
+        "0099-fixture",
+        vec![
+            transformation("k1", "relates_to", "v1"),
+            transformation("parent", "parent", "work-item:0031"),
+            transformation("k3", "relates_to", "v3"),
+        ],
+    );
+    let session_log = Rc::new(InMemorySessionLog::default());
+    // A stale, drifted proposed_value — the live emission now proposes
+    // work-item:0031, not this record's work-item:9999-STALE.
+    session_log.append(
+        "parent",
+        Outcome::Skipped,
+        "work-item:9999-STALE",
+        None,
+    )?;
+    let list_entries = vec![MigrationEntry::Interactive(Box::new(
+        FixtureMigration::prompting(
+            "0099-fixture",
+            vec![
+                transformation("k1", "relates_to", "v1"),
+                transformation("parent", "parent", "work-item:0031"),
+                transformation("k3", "relates_to", "v3"),
+            ],
+        ),
+    ))];
+    let session_logs = SingleLog(session_log);
+
+    let groups = list_pending(
+        &list_entries,
+        &[],
+        &[],
+        &StubContext,
+        &session_logs,
+        &NoOpReporter,
+    )?;
+
+    assert_eq!(groups.len(), 1);
+    let keys: Vec<&str> = groups[0]
+        .transformations
+        .iter()
+        .map(|t| t.key.as_str())
+        .collect();
+    assert_eq!(
+        keys.len(),
+        3,
+        "the drifted record must not be filtered out as already-decided: \
+         {keys:?}"
+    );
+
+    decisions_file::validate(
+        &migration,
+        &groups[0].transformations,
+        "accept\nskip\nedit work-item:0100\n",
+    )?;
+    Ok(())
 }
 
 fn prompts_for(migration: &FixtureMigration) -> Vec<Transformation> {

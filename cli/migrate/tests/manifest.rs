@@ -45,6 +45,22 @@ fn a_session_artefact_is_owned_by_pattern_only_when_the_base_revision_matches()
 }
 
 #[test]
+fn a_hyphenated_migration_id_is_still_a_session_artefact() {
+    // Every real migration id (e.g. `0007-unify-meta-corpus-frontmatter`)
+    // carries hyphens throughout, not just digits — this pins the bug where
+    // an `all(char)` check silently excluded every real id.
+    let runner = runner();
+    let path =
+        ".accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl";
+
+    assert_eq!(
+        classify(path, &runner, &[], true),
+        Ownership::SessionArtefact
+    );
+    assert!(is_session_log(path));
+}
+
+#[test]
 fn the_three_session_artefact_suffixes_are_all_recognised() {
     for suffix in ["-session.jsonl", "-stderr.log", "-resume-state.tmp"] {
         let path = format!(".accelerator/state/migrations-0099{suffix}");

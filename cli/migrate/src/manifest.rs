@@ -52,13 +52,14 @@ const SESSION_PREFIX: &str = ".accelerator/state/migrations-";
 const SESSION_SUFFIXES: [&str; 3] =
     ["-session.jsonl", "-stderr.log", "-resume-state.tmp"];
 
+/// Mirrors bash's own `.accelerator/state/migrations-[0-9a-z]*-session.jsonl`
+/// glob: the id's *first* character must be a lowercase letter or digit —
+/// the rest is unconstrained (real ids like `0007-unify-meta-corpus-frontmatter`
+/// carry hyphens throughout).
 fn migration_id<'a>(rest: &'a str, suffix: &str) -> Option<&'a str> {
     let id = rest.strip_suffix(suffix)?;
-    (!id.is_empty()
-        && id
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
-    .then_some(id)
+    id.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        .then_some(id)
 }
 
 #[must_use]

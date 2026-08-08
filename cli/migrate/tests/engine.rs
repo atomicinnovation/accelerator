@@ -744,6 +744,117 @@ fn write_ahead_log_ordering_is_enforced() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_mid_run_apply_failure_leaves_every_record_up_to_and_including_it_durable(
+) -> Result<(), TestError> {
+    struct FailsOnThirdKey;
+
+    impl MigrationMeta for FailsOnThirdKey {
+        fn id(&self) -> &'static str {
+            "0099-fixture"
+        }
+        fn description(&self) -> &'static str {
+            "fails apply_decision on the third transformation only"
+        }
+    }
+
+    impl InteractiveMigration for FailsOnThirdKey {
+        fn emit_transformations(
+            &self,
+            _ctx: &dyn MigrationContext,
+        ) -> Vec<Transformation> {
+            vec![
+                transformation("k1", "v1"),
+                transformation("k2", "v2"),
+                transformation("k3", "v3"),
+            ]
+        }
+
+        fn evaluate_predicate(&self, _t: &Transformation) -> PredicateOutcome {
+            PredicateOutcome::Prompt
+        }
+
+        fn validate_edit(
+            &self,
+            _t: &Transformation,
+            _value: &str,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn apply_decision(
+            &self,
+            transformation: &Transformation,
+            _d: &Decision,
+            _ctx: &dyn MigrationContext,
+        ) -> Result<(), String> {
+            if transformation.key == "k3" {
+                Err("apply exploded on k3".to_owned())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    let migration = FailsOnThirdKey;
+    let decisions = ScriptedDecisions::new(vec![
+        Decision::Accept,
+        Decision::Accept,
+        Decision::Accept,
+    ]);
+    let session_log = InMemorySessionLog::default();
+    let reporter = SpyReporter::default();
+
+    let result = run_interactive(
+        &migration,
+        &StubContext,
+        &decisions,
+        &session_log,
+        Duration::from_secs(1),
+        &reporter,
+    );
+
+    assert!(result.is_err());
+    let records = session_log.records()?;
+    let keys: Vec<&str> = records
+        .iter()
+        .map(|r| r.transformation_key.as_str())
+        .collect();
+    assert_eq!(keys, ["k1", "k2", "k3"], "{keys:?}");
+    Ok(())
+}
+
+#[test]
+fn an_orphan_resume_record_for_a_no_longer_emitted_key_survives_the_run(
+) -> Result<(), TestError> {
+    let migration =
+        FixtureMigration::prompting(vec![transformation("k1", "v1")]);
+    let decisions = ScriptedDecisions::new(vec![Decision::Accept]);
+    let session_log = InMemorySessionLog::default();
+    session_log.append("orphan-key", Outcome::Accepted, "old-v", None)?;
+    let reporter = SpyReporter::default();
+
+    let outcome = run_interactive(
+        &migration,
+        &StubContext,
+        &decisions,
+        &session_log,
+        Duration::from_secs(1),
+        &reporter,
+    )?;
+
+    assert!(matches!(outcome, ApplyOutcome::Applied));
+    let records = session_log.records()?;
+    assert!(
+        records
+            .iter()
+            .any(|record| record.transformation_key == "orphan-key"),
+        "an orphan record for a key the migration no longer emits must \
+         survive the run untouched: {records:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_timeout_reports_and_leaves_the_session_log_unchanged() {
     let migration =
         FixtureMigration::prompting(vec![transformation("k1", "v1")]);

@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
 
 use tempfile::TempDir;
 
@@ -334,6 +335,68 @@ fn an_unconfigured_subtree_is_left_byte_unchanged() -> Result<(), TestError> {
     assert_eq!(
         fs::read_to_string(root.join("meta/arbitrary/thing.md"))?,
         arbitrary
+    );
+    Ok(())
+}
+
+#[test]
+fn an_ambiguous_band_prompt_stalls_with_no_decision_input_available(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        "meta/work/0001-source.md",
+        &work_item("0001", "Source", "\n## Dependencies\n\n- Related: 0042\n"),
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    let decisions_path = fs::canonicalize(root)?.join(
+        ".accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-decisions.txt",
+    );
+    let decisions_path = decisions_path.display();
+    assert!(
+        stderr.contains(
+            "[0007-unify-meta-corpus-frontmatter] MIGRATION STALLED: no \
+             decision input available"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "[0007-unify-meta-corpus-frontmatter]   pending decision: \
+             meta/work/0001-source.md#body:dependencies#0"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(&format!(
+            "accelerator migrate --decisions-file {decisions_path}"
+        )),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(&format!(
+            "ACCELERATOR_MIGRATE_DECISIONS_FILE={decisions_path} \
+             accelerator migrate"
+        )),
+        "{stderr}"
+    );
+    assert!(
+        !root.join(".accelerator/state/migrations-applied").exists()
+            || !fs::read_to_string(
+                root.join(".accelerator/state/migrations-applied")
+            )?
+            .contains("0007"),
+        "a stalled run must not record 0007 as applied"
     );
     Ok(())
 }

@@ -125,6 +125,79 @@ fn a_clean_git_tree_proceeds_to_the_empty_registry_sentinel(
 }
 
 #[test]
+fn a_guarded_resume_renders_the_affordance_with_the_decision_count(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-resume")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join(".accelerator/state"))?;
+    fs::create_dir_all(root.join("meta"))?;
+    let session_log = root.join(
+        ".accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl",
+    );
+    // gix's dirty-path scan excludes untracked files (mirroring `git status
+    // --porcelain` filtered to tracked changes only) — every path this test
+    // needs "dirty" must first be committed, then modified.
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    fs::write(root.join(".accelerator/state/migrations-run-paths.txt"), "")?;
+    fs::write(root.join(".accelerator/state/migrations-run.id"), "")?;
+    fs::write(&session_log, "")?;
+    env.git(&["init", "--quiet"], &root)?;
+    env.git(&["add", "-A"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+    let head = env.git(&["rev-parse", "HEAD"], &root)?;
+    let head = head.trim();
+    mark_all_migrations_applied(&root)?;
+
+    fs::write(
+        root.join(".accelerator/state/migrations-run.id"),
+        format!("{head}\n"),
+    )?;
+    fs::write(
+        &session_log,
+        "{\"transformation_key\":\"k1\",\"schema_version\":1,\
+         \"outcome\":\"accepted\",\"proposed_value\":\"v1\",\
+         \"timestamp\":\"2026-01-01T00:00:00+00:00\"}\n\
+         {\"transformation_key\":\"k2\",\"schema_version\":1,\
+         \"outcome\":\"skipped\",\"proposed_value\":\"v2\",\
+         \"timestamp\":\"2026-01-01T00:00:00+00:00\"}\n",
+    )?;
+
+    let (stdout, stderr, code) = run(&root, &[])?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(stdout, "No pending migrations.\n");
+    assert!(
+        stderr
+            .contains("Resuming over this run's own partial migration output:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "  .accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "interactive migration — resuming: replays 2 decided \
+             transformation(s) and re-prompts only undecided ones"
+        ),
+        "{stderr}"
+    );
+    let session_log_display =
+        fs::canonicalize(&session_log)?.display().to_string();
+    assert!(
+        stderr.contains(&format!(
+            "To discard instead: rm {session_log_display}  (loses 2 decisions)"
+        )),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_foreign_dirty_jj_file_refuses() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
     let work = tempdir("jj-refuse")?;

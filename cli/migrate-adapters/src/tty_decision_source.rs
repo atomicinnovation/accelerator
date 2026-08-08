@@ -209,6 +209,10 @@ mod tests {
             "{rendered}"
         );
         assert!(rendered.contains("predicate: ambiguous"), "{rendered}");
+        assert!(
+            rendered.contains("accept | skip | edit <value>: "),
+            "the inline-help prompt line must be shown: {rendered}"
+        );
         Ok(())
     }
 
