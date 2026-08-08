@@ -306,7 +306,7 @@ highest-priority items in the whole audit.
     Phase 8's "no per-file VCS history query capability" deviation — not a
     fresh gap.
 
-### `test-migrate-interactive.sh` — 265 assertions, 13 phases: 5 covered, 1 mostly-moot, **7 phases carry genuine gaps**
+### `test-migrate-interactive.sh` — 265 assertions, 13 phases: 5 covered, 1 mostly-moot, **7 phases carry genuine gaps** — CLOSED, all 7 actionable phases done (items 2, 3, 4, 6, 7, 8, 9 below); items 1, 5, 10 remain explicitly blocked on a product decision / Phase 10's SKILL.md rewrite
 
 (The five architectural findings above were discovered via this audit;
 listed once, in the "Confirmed real bugs" section, not repeated per-phase.)
@@ -537,9 +537,55 @@ user's explicit "close the rest of the test gaps" instruction):
   `migrate-byte-equiv` fixture asserted byte-for-byte against its bash
   golden.
 
-This closes all 17 `test-migrate-0007.sh` gaps. `test-migrate-interactive.sh`
-(7 phases) and `test-migrate.sh` (80 items, now fully itemized above) remain
-open.
+This closes all 17 `test-migrate-0007.sh` gaps.
+
+**Third batch** (all actionable `test-migrate-interactive.sh` gaps):
+
+- **`cli/migrate/tests/engine.rs`** — four tests: the write-ahead-log
+  invariant holding across a 3-transformation run where `apply_decision`
+  fails on the third (all three records are durably written before the
+  failure surfaces), an orphan resume record (a key the migration no
+  longer emits) surviving a run untouched, and a rejected edit with no
+  further input stalling rather than looping forever.
+- **`cli/migrate/tests/list_and_decisions_file.rs`** — two tests: two
+  pending interactive migrations each getting their own
+  independently-1-indexed `ListGroup`, and a drifted (stale
+  `proposed_value`) resumed record correctly still counting as needing a
+  decision in `decisions_file::validate` rather than triggering a false
+  "surplus decision" error.
+- **`cli/migrate-adapters/src/tty_decision_source.rs`** — extended the
+  existing display-elements test with the inline-help prompt line
+  (`accept | skip | edit <value>: `).
+- **`cli/migrate-cli/tests/migration_0007.rs`** — one black-box test: a
+  genuinely ambiguous body reference (`- Related: 0042` under
+  `## Dependencies`, resolved via `corpus::linkage::classify_band`'s
+  `explicit == false` path) stalling with the byte-exact "MIGRATION
+  STALLED" block, including the copy-pasteable resume command and its
+  env-var equivalent.
+- **`cli/migrate-cli/tests/dirty_tree_preflight.rs`** — one black-box test
+  over a real hermetic git repository: a guarded resume (manifest + run-id
+  at current `HEAD`, a dirty session-log path) renders
+  `render::resume_affordance`'s exact text, including the correct decided-
+  transformation count.
+
+The guarded-resume test surfaced a sixth real bug (🔴, now fixed):
+**`cli/migrate/src/manifest.rs`'s `migration_id()` required every
+character of a migration id to be lowercase-or-digit**, but every real
+migration id (e.g. `0007-unify-meta-corpus-frontmatter`) carries hyphens
+throughout — so no real migration's session log was ever recognised as a
+session artefact, and a resumed run always hit the generic dirty-tree
+refusal instead of the resume affordance. Bash's own equivalent is a
+`[0-9a-z]*` glob, which only constrains the *first* character;
+`migration_id()` now does the same, with a regression test
+(`a_hyphenated_migration_id_is_still_a_session_artefact`) pinning it —
+the two existing tests only ever used the all-digit id `"0099"`, which is
+exactly why this was never caught.
+
+This closes all 7 actionable `test-migrate-interactive.sh` phases (2, 3,
+4, 6, 7, 8, 9 in the itemised list above). Phases 1, 5, 10 remain
+explicitly blocked (a product decision on the dirty-tree steer message;
+Phase 10's SKILL.md rewrite for the doc-example-drift and invoker-contract
+tests). `test-migrate.sh` (80 items, fully itemized above) remains open.
 
 The remaining gaps (the bulk of the ~100 found, including the
 required-extras-backfill cluster in `rewrite.rs`, the userspace-template

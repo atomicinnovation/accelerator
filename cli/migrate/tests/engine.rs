@@ -647,6 +647,35 @@ fn a_rejected_edit_is_reprompted_and_never_recorded() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_rejected_edit_with_no_further_input_stalls_rather_than_looping() {
+    let mut migration =
+        FixtureMigration::prompting(vec![transformation("k1", "v1")]);
+    migration.reject_edit = true;
+    let decisions = ScriptedDecisions::new(vec![Decision::Edit(String::new())]);
+    let session_log = InMemorySessionLog::default();
+    let reporter = SpyReporter::default();
+
+    let result = run_interactive(
+        &migration,
+        &StubContext,
+        &decisions,
+        &session_log,
+        Duration::from_secs(1),
+        &reporter,
+    );
+
+    assert!(result.is_err());
+    assert_eq!(
+        reporter.events.borrow().as_slice(),
+        [
+            "rejected:empty value not allowed".to_owned(),
+            "stalled:0099-fixture:k1".to_owned(),
+        ]
+    );
+    assert!(session_log.records.borrow().is_empty());
+}
+
+#[test]
 fn write_ahead_log_ordering_is_enforced() -> Result<(), TestError> {
     struct OrderCheckingSessionLog {
         apply_seen: RefCell<bool>,
