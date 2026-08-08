@@ -29,7 +29,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
         ".accelerator/state/migrations-applied",
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n",
+         0003-relocate-accelerator-state\n\
+         0005-rename-work-item-type-to-kind\n",
     )
 }
 
@@ -133,6 +134,7 @@ fn is_a_true_no_op_when_no_legacy_directories_exist() -> Result<(), TestError> {
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
+         0005-rename-work-item-type-to-kind\n\
          0004-restructure-meta-research-into-subject-subcategories\n"
     );
     Ok(())
