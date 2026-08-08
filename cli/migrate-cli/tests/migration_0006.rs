@@ -31,7 +31,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
          0004-restructure-meta-research-into-subject-subcategories\n\
-         0005-rename-work-item-type-to-kind\n",
+         0005-rename-work-item-type-to-kind\n\
+         0007-unify-meta-corpus-frontmatter\n",
     )
 }
 

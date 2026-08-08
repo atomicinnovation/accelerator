@@ -3,6 +3,7 @@
 //! access, and interactive decision sources.
 
 pub mod context;
+pub mod corpus_index;
 pub mod dirty_path_scanner;
 pub mod ledger_store;
 pub mod manifest_store;
