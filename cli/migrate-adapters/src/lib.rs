@@ -7,3 +7,4 @@ pub mod dirty_path_scanner;
 pub mod ledger_store;
 pub mod manifest_store;
 pub mod run_lock;
+pub mod session_log;

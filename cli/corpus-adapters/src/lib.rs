@@ -8,7 +8,7 @@
 pub mod assemble;
 pub mod doc_type;
 pub mod document;
-mod jsonl;
+pub mod jsonl;
 pub mod lock;
 pub mod metadata;
 pub mod patcher;

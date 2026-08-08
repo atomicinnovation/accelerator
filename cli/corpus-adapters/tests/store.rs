@@ -15,7 +15,7 @@ fn record(key: &str) -> Record {
     Record {
         transformation_key: key.to_owned(),
         schema_version: 1,
-        outcome: Outcome::Edited,
+        outcome: Outcome::Accepted,
         proposed_value: "value".to_owned(),
         user_value: None,
         timestamp: "2026-07-19T00:00:00+00:00".to_owned(),
