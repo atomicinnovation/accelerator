@@ -434,3 +434,46 @@ are out of `test-migrate.sh`'s scope entirely (covered by the other three
 suites above). The audit did not attempt to close any of the ~100 gaps
 found — Phase 9's remaining work (closing the confirmed regressions,
 writing the highest-value new tests) is scoped separately.
+
+### Gaps closed this session (a first pass, not exhaustive)
+
+All five confirmed real bugs/design questions above are resolved (✅ marked
+inline). Beyond those, a small set of the highest-value *test* gaps (not
+design questions) were also closed, chosen for being both high-risk
+(zero coverage on a widely-depended-on primitive, or on the largest file
+in the whole port) and cheaply testable in isolation:
+
+- **`cli/migrate-adapters/src/merge_move.rs`** — had zero tests despite
+  being the shared collision-resolution primitive `merge_move` migrations
+  0001/0003/0004 all depend on (test-migrate.sh Section E gap #5). Added 7
+  tests: absent-source no-op, plain move (file and directory), leaf
+  collision (source wins, including a source-file-replaces-a-destination-directory
+  case), two-directory merge (source wins on collision, destination-only
+  entries survive), and a root-escaping destination refusal.
+- **`cli/migrate/src/migrations/m0007/rewrite.rs`** — the 772-line single
+  largest file in the port, previously with *zero* tests of its own
+  (test-migrate-0007.sh gaps #1/#2, 🔴 both). Added 3 tests: the mechanical
+  happy path in one pass (own-id-key canonicalisation, `skill:`→`producer:`,
+  `git_commit:`→`revision:`, `ticket:` drop with its diagnostic, all
+  together — matching bash's own combined scenario rather than each rule
+  in isolation), byte-for-byte idempotency (rewriting an already-rewritten
+  document is a pure no-op, no fresh diagnostics), and the empty-`pr_title`-with-no-title
+  fallback (confirms no `title: ""` placeholder is ever left behind).
+- **`cli/corpus/src/linkage.rs`'s `resolve_path_target`** — zero direct
+  tests despite being the function both `CorpusIndex::target_exists` and
+  the value-rewrite path depend on (test-migrate-0007.sh gap #4, 🔴).
+  Added 6 tests, most notably **two nested `design-inventory` manifests
+  literally both named `inventory.md` correctly deriving distinct ids from
+  their parent directory names** — the exact regression class this
+  session's own `linkage_table()` bug (documented earlier in this plan)
+  belonged to. Also covers work-item/plan/pr-description id derivation, a
+  path outside every configured directory, and a custom-configured
+  directory override.
+
+The remaining gaps (the bulk of the ~100 found, including the
+required-extras-backfill cluster in `rewrite.rs`, the userspace-template
+tier-1/tier-2 resolution in `m0006.rs`, and the resume-affordance/structured-stall
+rendering black-box tests in the interactive suite) are recorded above in
+full detail and were **not** closed this session — left as a work list for
+a follow-up pass, per this session's own "highest-value only" scoping
+decision rather than attempting all ~100 in one sitting.

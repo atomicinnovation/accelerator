@@ -770,3 +770,113 @@ fn extra_default(name: &str, stem: &str, cur_title: &str) -> String {
         _ => String::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use corpus::doc_type::DocTypeKey;
+
+    use super::rewrite;
+    use super::RewriteInput;
+
+    fn table() -> Vec<(DocTypeKey, PathBuf)> {
+        vec![(DocTypeKey::WorkItems, PathBuf::from("meta/work"))]
+    }
+
+    fn input<'a>(
+        relpath: &'a str,
+        table: &'a [(DocTypeKey, PathBuf)],
+    ) -> RewriteInput<'a> {
+        RewriteInput {
+            file_display: relpath,
+            relpath,
+            repo_name: "repo",
+            table,
+        }
+    }
+
+    #[test]
+    fn the_mechanical_rewrite_happy_path_matches_every_bash_rule_at_once() {
+        let content = "---\nwork_item_id: 0042\nkind: task\npriority: medium\n\
+             skill: create-work-item\ngit_commit: deadbeef123\ndate: \
+             2026-01-01\nticket: LEGACY-1\n---\n\n# 0042: A Work Item\n";
+        let table = table();
+
+        let (rewritten, diagnostics) =
+            rewrite(content, &input("meta/work/0042-a-work-item.md", &table));
+
+        assert!(
+            rewritten.contains("id: \"0042\"\n"),
+            "own id key not canonicalised: {rewritten}"
+        );
+        assert!(
+            !rewritten.contains("work_item_id:"),
+            "the old own-id key must not survive: {rewritten}"
+        );
+        assert!(
+            rewritten.contains("producer: create-work-item\n"),
+            "skill: must fold to producer:: {rewritten}"
+        );
+        assert!(
+            rewritten.contains("revision: \"deadbeef123\"\n"),
+            "git_commit: must fold to revision:: {rewritten}"
+        );
+        assert!(
+            !rewritten.contains("git_commit:"),
+            "the old git_commit: key must not survive: {rewritten}"
+        );
+        assert!(
+            !rewritten.contains("ticket:"),
+            "ticket: must be dropped: {rewritten}"
+        );
+        assert!(
+            diagnostics.iter().any(|line| line
+                .starts_with("0007-DIVERGE[dropped-legacy-key]:")
+                && line.contains("ticket: LEGACY-1")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn rewriting_an_already_rewritten_document_is_a_byte_for_byte_no_op() {
+        let content = "---\nwork_item_id: 0042\nkind: task\npriority: medium\n\
+             skill: create-work-item\ngit_commit: deadbeef123\ndate: \
+             2026-01-01\nticket: LEGACY-1\n---\n\n# 0042: A Work Item\n";
+        let table = table();
+
+        let (once, _) =
+            rewrite(content, &input("meta/work/0042-a-work-item.md", &table));
+        let (twice, diagnostics_twice) =
+            rewrite(&once, &input("meta/work/0042-a-work-item.md", &table));
+
+        assert_eq!(once, twice, "a second pass must be a pure no-op");
+        assert!(
+            diagnostics_twice.is_empty(),
+            "a second pass must raise no fresh diagnostics: {diagnostics_twice:?}"
+        );
+    }
+
+    #[test]
+    fn an_empty_pr_title_with_no_existing_title_falls_back_to_the_default() {
+        let content = "---\nwork_item_id: 0042\nkind: task\n\
+             priority: medium\npr_title:\n---\n\n# 0042: Fallback Title\n";
+        let table = table();
+
+        let (rewritten, _) = rewrite(
+            content,
+            &input("meta/work/0042-fallback-title.md", &table),
+        );
+
+        assert!(
+            rewritten.contains("title: \"0042: Fallback Title\"\n"),
+            "expected the H1-derived default title (verbatim, ID prefix \
+             included): {rewritten}"
+        );
+        assert!(
+            !rewritten.contains("title: \"\"\n"),
+            "an empty pr_title must never leave an empty placeholder: \
+             {rewritten}"
+        );
+    }
+}

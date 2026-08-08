@@ -658,6 +658,90 @@ mod tests {
         .collect()
     }
 
+    #[test]
+    fn a_work_item_resolves_to_its_leading_digits() {
+        assert_eq!(
+            super::resolve_path_target("meta/work/0042-foo.md", &table()),
+            Some(("work-item", "0042".to_owned()))
+        );
+    }
+
+    #[test]
+    fn a_plan_resolves_to_its_full_stem_not_a_stripped_slug() {
+        assert_eq!(
+            super::resolve_path_target(
+                "meta/plans/2026-05-13-0055-sidebar-activity-feed.md",
+                &table()
+            ),
+            Some(("plan", "2026-05-13-0055-sidebar-activity-feed".to_owned()))
+        );
+    }
+
+    #[test]
+    fn two_nested_design_inventory_manifests_derive_distinct_ids() {
+        // Both are literally named `inventory.md` — the identity has to
+        // come from the *parent directory*, not the file's own basename,
+        // or these two would silently collapse onto the same target (the
+        // exact regression class this session's linkage_table() bug was).
+        let first = super::resolve_path_target(
+            "meta/research/design-inventories/auth-module/inventory.md",
+            &table(),
+        );
+        let second = super::resolve_path_target(
+            "meta/research/design-inventories/billing-module/inventory.md",
+            &table(),
+        );
+
+        assert_eq!(first, Some(("design-inventory", "auth-module".to_owned())));
+        assert_eq!(
+            second,
+            Some(("design-inventory", "billing-module".to_owned()))
+        );
+        assert_ne!(first, second, "must not collapse onto one target");
+    }
+
+    #[test]
+    fn a_pr_description_resolves_by_its_pr_number_falling_back_to_stem() {
+        assert_eq!(
+            super::resolve_path_target(
+                "meta/prs/2026-06-17-pr-430-add-thing.md",
+                &table()
+            ),
+            Some(("pr-description", "430".to_owned()))
+        );
+        assert_eq!(
+            super::resolve_path_target(
+                "meta/prs/no-pr-number-here.md",
+                &table()
+            ),
+            Some(("pr-description", "no-pr-number-here".to_owned()))
+        );
+    }
+
+    #[test]
+    fn a_path_outside_every_configured_dir_resolves_to_none() {
+        assert_eq!(
+            super::resolve_path_target("meta/docs/logging-guide.md", &table()),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_path_target_respects_a_custom_configured_directory() {
+        let table =
+            vec![(DocTypeKey::WorkItems, PathBuf::from("custom/work-items"))];
+
+        assert_eq!(
+            super::resolve_path_target("custom/work-items/0042-foo.md", &table),
+            Some(("work-item", "0042".to_owned()))
+        );
+        assert_eq!(
+            super::resolve_path_target("meta/work/0042-foo.md", &table),
+            None,
+            "the default dir must not resolve once it's unconfigured"
+        );
+    }
+
     fn parse_document(source: &str, content: &str) -> Vec<LinkageRecord> {
         super::parse_document(source, content, &table())
     }
