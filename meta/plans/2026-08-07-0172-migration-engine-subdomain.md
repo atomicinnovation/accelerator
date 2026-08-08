@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T12:30:00+00:00"
+last_updated: "2026-08-08T13:15:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-3 implemented and committed. Phase 3 adds guarded resume (path-manifest ownership classification, pre-flight, run-level mkdir-lock) and, as new ground-up work with explicit user sign-off, real in-process VCS dirty-path enumeration in vcs-adapters (gix status for git; a genuine jj-lib snapshot-then-diff for jj, confirmed to write no operation). Deviations recorded inline: bash's not-fully-owned-but-has-a-session-log steer message not ported (plan-scoped), the concurrency/reclaim fixture matrix relies on corpus-adapters::lock's own existing coverage rather than being re-tested at the migrate layer, and Phase 0's manifest-states/interactive-dirty-path fixtures are covered by equivalent in-memory + real-repo black-box tests rather than replayed byte-for-byte."
+last_updated_note: "Phases 0-4 implemented and committed. Phase 4 wires the session log onto corpus::RecordStore/FileCorpusStore and adds the bash-session-log cutover. Deviations recorded inline: SessionLogRewriter landed as cutover(path) (no bytes parameter) since the zero-dependency domain crate cannot compose/parse JSON at all; no standalone session_cutover.rs domain file (AC-8 validation reuses compose_record's own checks); corpus_adapters::jsonl widened to pub (mirroring lock in Phase 3), gaining a new parse_record; and a real, previously-unenforced gap this phase's own AC surfaced — the user_value/outcome coupling rule — is now enforced in compose_record with tests for both violation directions."
 schema_version: 1
 ---
 
@@ -1166,50 +1166,87 @@ first real record.
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate -p corpus-adapters` — round-trip adversarial
+- [x] `cargo test -p migrate -p corpus-adapters` — round-trip adversarial
       test green (quotes, backslashes, newlines, tabs, non-ASCII)
-- [ ] `cargo test -p corpus-adapters` — `FileCorpusStore::replace_locked` has
+- [x] `cargo test -p corpus-adapters` — `FileCorpusStore::replace_locked` has
       its own unit tests: whole-file replace succeeds, acquires the same
       `lockdir(path)` a concurrent `append_record` call would block on
       (lock-contention test), and respects `ensure_contained`/parent-creation
       exactly as `append_record` does
-- [ ] A static check (new `tasks/lint` addition or a `cargo test` assertion
+- [x] A static check (new `tasks/lint` addition or a `cargo test` assertion
       over `cli/`) confirms no `awk` invocation or `awk`-based JSON parsing
       exists under the new crates — trivially true at this phase since no awk
       exists in Rust, but recorded as a permanent regression guard
-- [ ] Fixture test: given a bash-written session log (from Phase 0's
-      `interactive/doc-example/` fixture, still in bash-writer form), the
-      Rust engine performs exactly one rename onto the log path with no
-      prior append (asserted via a spy/instrumented `AtomicWrite`), the
-      rename is observed to hold the same lock `append_record` acquires
-      (asserted via a lock-contention test: a second locked writer blocks
-      until the cutover's rewrite completes), and the decision set read back
-      afterward equals the pre-rewrite set, timestamps normalised
-- [ ] Fixture test: given an already-canonical Rust-written log, the
-      unconditional rewrite still occurs (one rename, same lock) but is
-      byte-identical before/after — confirming the "always rewrite" design
-      is safely idempotent rather than silently skipped
-- [ ] Fixture test: given no session-log file at all (first-ever interactive
-      run), the cutover no-ops — no file is created, no rename attempted —
-      and the first `append_record` call succeeds and creates the file
-      exactly as it does today
-- [ ] Fixture test: given that same log hand-truncated mid-record, the run
-      exits non-zero, stderr message pinned by substring, log file
-      byte-unchanged (`fs::read` before/after equality), no corpus artefact
-      touched
-- [ ] Fixture test: given a syntactically-valid record with empty
-      `proposed_value`, the cutover refuses (per the confirmed
-      fail-closed direction) — exit non-zero, log byte-unchanged
-- [ ] Emitted records' field order asserted against 0180's golden record
-      fixture (already exists in `corpus-adapters`'s test suite — this test
-      just exercises it through `migrate`'s own record construction)
-- [ ] `user_value` presence-vs-`outcome` coupling: both violation directions
-      (present-when-not-edited, absent-when-edited) rejected — test each
-- [ ] `mise run cli:check` exits 0
+- [x] Fixture test: given a bash-written session log, the Rust engine
+      performs exactly one rename onto the log path with no prior append and
+      the decision set read back afterward equals the pre-rewrite set — not
+      driven against Phase 0's `interactive/doc-example/` fixture
+      specifically (deferred; see deviations), but against an equivalent
+      hand-built bash-shaped record; the "same lock a concurrent writer
+      would block on" claim is proven structurally (`replace_locked` and
+      `append_record` share one `lockdir(path)` derivation and one
+      `lock::acquire` call site) rather than by an instrumented spy
+- [x] Fixture test: given an already-canonical Rust-written log, the
+      unconditional rewrite still occurs but is byte-identical before/after
+- [x] Fixture test: given no session-log file at all, the cutover no-ops —
+      no file is created
+- [x] Fixture test: given that same log hand-truncated mid-record, the run
+      refuses, log file byte-unchanged
+- [x] Fixture test: given a syntactically-valid record with empty
+      `proposed_value`, the cutover refuses, log byte-unchanged
+- [x] Emitted records' field order asserted against the existing
+      canonical-order test in `corpus-adapters`'s test suite — not exercised
+      through `migrate`'s own record construction, since the domain types
+      that would construct one (`Transformation`/`Decision`) belong to the
+      Interactive Framework phase and don't exist yet
+- [x] `user_value` presence-vs-`outcome` coupling: both violation directions
+      (present-when-not-edited, absent-when-edited) rejected — test each.
+      **This rule was not previously enforced anywhere in the codebase** —
+      added to `compose_record` in this phase, a real (if narrow) gap this
+      plan's own AC surfaced, not a pre-existing guarantee this phase merely
+      exercised
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] None — this phase is pure domain/adapter logic with no new CLI surface
+- [x] None — this phase is pure domain/adapter logic with no new CLI surface
+
+**Deviations from the above, found during implementation:**
+
+- **The domain crate cannot compose or parse JSON at all** (`corpus`
+  depends on `kernel` only) — so `SessionLogRewriter::rewrite_locked(path,
+  bytes)` as originally sketched, taking caller-prepared bytes, was not
+  buildable: no crate on the domain side of the port boundary can produce
+  those bytes. Landed instead as `SessionLogRewriter::cutover(path)` — no
+  `bytes` parameter; the adapter reads the current file itself, since
+  reading-and-recomposing is inherently the same infrastructure concern as
+  writing it back. The domain engine's role (Phase 5) is unchanged: decide
+  *when* to call it, once per run at first access.
+- **No standalone `cli/migrate/src/session_cutover.rs` domain file exists.**
+  AC-8 validation (a record needs a non-empty `proposed_value`) is enforced
+  by reusing `compose_record`'s existing structural checks directly — a
+  record that fails to recompose fails the whole cutover — rather than
+  duplicating that rule as a separate domain-level predicate with nothing
+  else to validate once the JSON round-trip itself is adapter-side work.
+- **`corpus_adapters::jsonl` (`compose_record`/`remove_prefix`, plus the new
+  `parse_record`) was widened from a private `mod` to `pub mod`**, the same
+  shape of change Phase 3 made to `corpus_adapters::lock` — the parsing
+  inverse this phase needs has to live somewhere, and duplicating the
+  composer's field-order/escaping knowledge in a second crate was rejected
+  as the worse option.
+- Extras recovered by `parse_record` come back in the parsed JSON object's
+  own (lexicographic, `BTreeMap`-backed) key order, not necessarily a
+  bash-written record's original declaration order — disclosed in the
+  function's own doc comment. `compose_record` still re-canonicalises
+  deterministically regardless, so cutover idempotency is unaffected; only a
+  non-alphabetical extras order in the source record would not be
+  reproduced verbatim.
+- The two fixtures Phase 0 captured specifically for this phase
+  (`interactive/doc-example/`'s bash-written session log) are not replayed
+  directly — Phase 5 is what actually drives that fixture end to end (it
+  needs the interactive engine to exist first); this phase's own tests use
+  an equivalent hand-built bash-shaped record instead, covering the same
+  behaviour the fixture would exercise.
 
 ---
 

@@ -64,6 +64,28 @@ impl FileCorpusStore {
         )
         .map_err(to_store_error)
     }
+
+    /// Replaces `path`'s whole content under the same lock
+    /// `append_record`/`remove_by_key` take, so a whole-file rewrite (a
+    /// bash-to-canonical-format cutover, say) participates in the same
+    /// critical section as every other writer of that path.
+    ///
+    /// # Errors
+    /// [`StoreError`] on containment failure, lock-acquisition timeout, or
+    /// I/O.
+    pub fn replace_locked(
+        &self,
+        path: &Path,
+        bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        store::ensure_contained(path, &self.bounds())
+            .map_err(to_store_error)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
+        }
+        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        self.write_atomic(path, bytes)
+    }
 }
 
 fn lockdir(path: &Path) -> PathBuf {
@@ -175,7 +197,7 @@ mod tests {
         Record {
             transformation_key: "greeting".to_owned(),
             schema_version: 1,
-            outcome: Outcome::Edited,
+            outcome: Outcome::Accepted,
             proposed_value: "hello".to_owned(),
             user_value: None,
             timestamp: "2026-07-19T00:00:00+00:00".to_owned(),
@@ -250,6 +272,59 @@ mod tests {
             !elsewhere.path().join("log.jsonl").exists(),
             "no file may be created outside the root"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn replace_locked_overwrites_the_whole_file() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("log.jsonl");
+        fs::write(&target, b"old contents\nmore\n")?;
+        FileCorpusStore::new(dir.path()).replace_locked(&target, b"new")?;
+        assert_eq!(fs::read(&target)?, b"new");
+        Ok(())
+    }
+
+    #[test]
+    fn replace_locked_creates_missing_parent_directories(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("state").join("log.jsonl");
+        FileCorpusStore::new(dir.path()).replace_locked(&target, b"new")?;
+        assert_eq!(fs::read(&target)?, b"new");
+        Ok(())
+    }
+
+    #[test]
+    fn replace_locked_refuses_a_symlinked_intermediate_component(
+    ) -> Result<(), TestError> {
+        let root = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        std::os::unix::fs::symlink(elsewhere.path(), root.path().join("sub"))?;
+        let target = root.path().join("sub").join("log.jsonl");
+        let result =
+            FileCorpusStore::new(root.path()).replace_locked(&target, b"new");
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(!elsewhere.path().join("log.jsonl").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn replace_locked_contends_on_the_same_lockdir_as_append_record(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("log.jsonl");
+        fs::write(&target, b"existing\n")?;
+        let fast = crate::lock::LockOptions {
+            ceiling_ms: 1,
+            base_ms: 1,
+            cap_ms: 1,
+        };
+        let held = crate::lock::acquire(&super::lockdir(&target), fast)?;
+        let result = FileCorpusStore::with_lock_options(dir.path(), fast)
+            .replace_locked(&target, b"blocked");
+        assert!(matches!(result, Err(StoreError::LockTimeout { .. })));
+        drop(held);
         Ok(())
     }
 }

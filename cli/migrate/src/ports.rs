@@ -154,6 +154,27 @@ pub trait ManifestStore {
     fn clear(&self) -> Result<(), MigrationError>;
 }
 
+/// The bash-session-log-to-canonical-format cutover's one whole-file rewrite.
+///
+/// Distinct from `corpus::RecordStore` (which the session log itself is —
+/// migrations append/remove through it directly): this is the one-time,
+/// unconditional re-canonicalisation that must land in the *same* critical
+/// section a concurrent `append_record`/`remove_by_key` call would take, so
+/// it participates in the same lock rather than racing it. Parsing and
+/// re-composing the JSONL bytes is necessarily adapter-side work — `migrate`
+/// carries no JSON dependency — so, unlike every other port here, the
+/// implementation reads the current file itself rather than being handed
+/// bytes to write; the domain engine only decides *when* to call it (once
+/// per run, at first access).
+pub trait SessionLogRewriter {
+    /// A no-op when `path` does not exist yet.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a record fails validation (the file is left
+    /// byte-unchanged) or the write itself fails.
+    fn cutover(&self, path: &Path) -> Result<(), MigrationError>;
+}
+
 pub struct PreviewEntry<'a> {
     pub id: &'a str,
     pub description: &'a str,
