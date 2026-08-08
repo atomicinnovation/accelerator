@@ -1,12 +1,18 @@
-//! The non-interactive lifecycle contract: preview, mechanical apply loop,
-//! ledger append, and summary.
+//! The lifecycle contract: preview, the apply loop (mechanical entries
+//! dispatched directly, interactive entries routed through
+//! `engine::run_interactive`), ledger append, and summary.
 
+use std::time::Duration;
+
+use crate::engine;
 use crate::ledger;
+use crate::ports::DecisionSource;
 use crate::ports::LedgerStore;
 use crate::ports::MigrationContext;
 use crate::ports::MigrationError;
 use crate::ports::PreviewEntry;
 use crate::ports::Reporter;
+use crate::ports::SessionLogFactory;
 use crate::registry::ApplyOutcome;
 use crate::registry::MigrationEntry;
 
@@ -21,11 +27,15 @@ use crate::registry::MigrationEntry;
 /// # Errors
 /// The first [`MigrationError`] a pending entry's `apply()` returns, or one
 /// from the injected `LedgerStore`.
+#[allow(clippy::too_many_arguments)]
 pub fn run_pending(
     entries: &[MigrationEntry],
     ctx: &dyn MigrationContext,
     ledger_store: &dyn LedgerStore,
     reporter: &dyn Reporter,
+    decisions: &dyn DecisionSource,
+    session_logs: &dyn SessionLogFactory,
+    timeout: Duration,
 ) -> Result<(), MigrationError> {
     let applied_ids = ledger_store.applied()?;
     let skipped_ids = ledger_store.skipped()?;
@@ -61,7 +71,14 @@ pub fn run_pending(
     let mut applied_count = 0usize;
     for entry in &pending {
         reporter.migration_running(entry.id());
-        match dispatch_entry(entry, ctx) {
+        match dispatch_entry(
+            entry,
+            ctx,
+            decisions,
+            session_logs,
+            timeout,
+            reporter,
+        ) {
             Ok(ApplyOutcome::Applied) => {
                 current_applied =
                     ledger::append_unique(current_applied, entry.id());
@@ -87,8 +104,23 @@ pub fn run_pending(
 fn dispatch_entry(
     entry: &MigrationEntry,
     ctx: &dyn MigrationContext,
+    decisions: &dyn DecisionSource,
+    session_logs: &dyn SessionLogFactory,
+    timeout: Duration,
+    reporter: &dyn Reporter,
 ) -> Result<ApplyOutcome, MigrationError> {
     match entry {
         MigrationEntry::Mechanical(migration) => migration.apply(ctx),
+        MigrationEntry::Interactive(migration) => {
+            let session_log = session_logs.for_migration(migration.id());
+            engine::run_interactive(
+                migration.as_ref(),
+                ctx,
+                decisions,
+                session_log.as_ref(),
+                timeout,
+                reporter,
+            )
+        }
     }
 }

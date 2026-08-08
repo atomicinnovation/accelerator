@@ -36,7 +36,13 @@ pub fn resume_affordance(root: &Path, affordance: &[AffordanceEntry]) {
     }
 }
 
-pub struct StdoutReporter;
+pub struct StdoutReporter {
+    pub root: std::path::PathBuf,
+}
+
+fn decisions_path(root: &Path, id: &str) -> std::path::PathBuf {
+    root.join(format!(".accelerator/state/migrations-{id}-decisions.txt"))
+}
 
 impl Reporter for StdoutReporter {
     fn preview(&self, pending: &[PreviewEntry<'_>]) {
@@ -98,6 +104,66 @@ impl Reporter for StdoutReporter {
             eprintln!("{message}");
         }
         eprintln!("[{id}] failed");
+    }
+
+    fn interactive_fail(&self, id: &str, message: &str) {
+        eprintln!("[{id}] {message}");
+    }
+
+    fn interactive_validation_rejected(&self, message: &str) {
+        eprintln!("[interactive] {message}");
+    }
+
+    fn interactive_stalled(&self, id: &str, pending_keys: &[String]) {
+        let path = decisions_path(&self.root, id);
+        let path = path.display();
+        eprintln!("[{id}] MIGRATION STALLED: no decision input available");
+        for key in pending_keys {
+            eprintln!("[{id}]   pending decision: {key}");
+        }
+        eprintln!(
+            "[{id}]   No decisions file, terminal, or piped input was available to"
+        );
+        eprintln!(
+            "[{id}]   answer this prompt, so the migration cannot proceed."
+        );
+        eprintln!("[{id}]");
+        eprintln!(
+            "[{id}]   This migration may have already partially modified the"
+        );
+        eprintln!("[{id}]   working tree. Re-running /accelerator:migrate resumes this");
+        eprintln!(
+            "[{id}]   partial run when the base revision is unchanged (decided"
+        );
+        eprintln!("[{id}]   transformations are replayed, not re-applied).");
+        eprintln!("[{id}]");
+        eprintln!(
+            "[{id}]   To resume: each run answers the current prompt only (you"
+        );
+        eprintln!(
+            "[{id}]   may be stalled again for the next undecided transformation):"
+        );
+        eprintln!(
+            "[{id}]     1. write the decision (accept | skip | edit <value>),"
+        );
+        eprintln!("[{id}]        one per line, to: {path}");
+        eprintln!(
+            "[{id}]        (create this file yourself; do not overwrite existing"
+        );
+        eprintln!("[{id}]        migrations-{id}-* state files)");
+        eprintln!("[{id}]     2. then run (copy-pasteable):");
+        eprintln!();
+        eprintln!("accelerator migrate --decisions-file {path}");
+        eprintln!();
+        eprintln!("[{id}]   equivalent env-var form:");
+        eprintln!();
+        eprintln!(
+            "ACCELERATOR_MIGRATE_DECISIONS_FILE={path} accelerator migrate"
+        );
+    }
+
+    fn interactive_timeout(&self, id: &str) {
+        eprintln!("[{id}] timed out waiting for a decision");
     }
 
     fn summary(

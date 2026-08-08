@@ -4,15 +4,19 @@
 mod cli;
 mod render;
 
+use std::io::IsTerminal as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
 use clap::Parser as _;
 use config_adapters::FileConfigStore;
 use migrate::ledger;
+use migrate::ports::DecisionSource;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext as _;
+use migrate::ports::NoInputDecisionSource;
 use migrate::ports::RunLock as _;
 use migrate::preflight::Preflight;
 use migrate::preflight::PreflightError;
@@ -22,6 +26,8 @@ use migrate_adapters::dirty_path_scanner::VcsDirtyPathScanner;
 use migrate_adapters::ledger_store::FileLedgerStore;
 use migrate_adapters::manifest_store::FileManifestStore;
 use migrate_adapters::run_lock::FileRunLock;
+use migrate_adapters::session_log_factory::FileSessionLogFactory;
+use migrate_adapters::tty_decision_source::TtyDecisionSource;
 use vcs::VcsKind;
 
 use crate::cli::Cli;
@@ -31,6 +37,7 @@ const RUNNER_APPLIED: &str = ".accelerator/state/migrations-applied";
 const RUNNER_SKIPPED: &str = ".accelerator/state/migrations-skipped";
 const RUNNER_RUN_PATHS: &str = ".accelerator/state/migrations-run-paths.txt";
 const RUNNER_RUN_ID: &str = ".accelerator/state/migrations-run.id";
+const DECISION_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn project_root() -> Result<PathBuf, kernel::Error> {
     let cwd = std::env::current_dir().map_err(|error| {
@@ -123,13 +130,24 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
         Err(PreflightError::Failed(error)) => return Err(error.into()),
     };
 
-    let reporter = StdoutReporter;
+    let reporter = StdoutReporter { root: root.clone() };
     let entries = migrate::registry::registry();
+    let session_logs = FileSessionLogFactory::new(&root);
+    let tty_decisions = TtyDecisionSource;
+    let no_input = NoInputDecisionSource;
+    let decisions: &dyn DecisionSource = if std::io::stdin().is_terminal() {
+        &tty_decisions
+    } else {
+        &no_input
+    };
     let result = migrate::lifecycle::run_pending(
         &entries,
         &ctx,
         &ledger_store,
         &reporter,
+        decisions,
+        &session_logs,
+        DECISION_TIMEOUT,
     );
     if result.is_ok() {
         manifest_store.clear()?;
