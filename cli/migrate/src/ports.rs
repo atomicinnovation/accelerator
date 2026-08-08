@@ -85,16 +85,38 @@ pub trait MigrationContext {
     /// config lookup, matching `accelerator config get --allow-legacy-layout
     /// <key> ""` — including keys the catalogue no longer recognises, since
     /// migrations read pre-rename legacy key names.
-    fn config_value(&self, _key: &str) -> Option<String> {
-        None
+    ///
+    /// `Ok(None)` never means "genuinely unreadable" — an unset key still
+    /// resolves `Ok` (to its catalogue default, rendered, possibly empty).
+    /// `Err` is reserved for a real config-read failure (a corrupted
+    /// `.accelerator/config.md`, for instance) — bash hard-aborted on
+    /// exactly this; a config-reading migration must too, not silently
+    /// treat corruption as "key absent."
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the config file itself cannot be read or
+    /// parsed.
+    fn config_value(
+        &self,
+        _key: &str,
+    ) -> Result<Option<String>, MigrationError> {
+        Ok(None)
     }
 
-    /// Like [`Self::config_value`], but `None` when `key` resolves only to
-    /// its catalogue default rather than an explicit team/personal override
-    /// — the "is this pinned?" question migration 0003's pinned-override
-    /// warnings need, distinct from "what's the effective value?".
-    fn configured_path_override(&self, _key: &str) -> Option<String> {
-        None
+    /// Like [`Self::config_value`], but `Ok(None)` when `key` resolves only
+    /// to its catalogue default rather than an explicit team/personal
+    /// override — the "is this pinned?" question migration 0003's
+    /// pinned-override warnings need, distinct from "what's the effective
+    /// value?". Same `Err` reservation as `config_value`.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the config file itself cannot be read or
+    /// parsed.
+    fn configured_path_override(
+        &self,
+        _key: &str,
+    ) -> Result<Option<String>, MigrationError> {
+        Ok(None)
     }
 
     /// `Ok(None)` when `path` does not exist.

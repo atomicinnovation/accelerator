@@ -133,59 +133,66 @@ These surfaced from reading the suites and the Rust source side by side, not
 from counting assertions. Ranked by how directly they change observable
 behaviour:
 
-1. **`Decision::Skip` now reaches `apply_decision` unconditionally.** Bash's
-   harness structurally never calls `migration_apply_decision` for a skip
-   — the guarantee lived in the harness, not the author's callback. Rust's
-   `engine::prompt_and_decide`'s `Accept | Skip` arm
-   (`cli/migrate/src/engine.rs`) calls `record_then_apply` — and therefore
-   `apply_decision` — for both. Every future `InteractiveMigration`
-   implementer must remember to treat `Decision::Skip` as a no-op
-   themselves; nothing enforces or even observes this today (migration 0007
-   happens to do it correctly; `FixtureMigration`'s `apply_decision` happens
-   to always be a no-op, which is why no existing test caught the
-   difference — nothing spies on what `Decision` was actually passed).
-   **Needs a decision**: restore the structural guarantee (skip the
-   `apply_decision` call in the engine itself), or accept the weaker
-   per-author convention and document it explicitly in the
-   `InteractiveMigration` trait's own doc comment. Either way, add a spy
-   test proving whichever contract is chosen.
-2. **`schema_version` validation on session-log resume is unimplemented**,
-   despite being named explicitly in this plan's own "must reproduce
-   byte-for-byte" inventory (Overview, Key Discoveries). Bash fails closed
-   on an unsupported `schema_version` with a discard hint
-   (`interactive-lib.sh:100-109`); `corpus_adapters::jsonl::parse_record`
-   only checks the field is numeric, never checks it's a *supported* value.
-   A hand-edited or future-schema-bumped session log is silently accepted
-   today. **Needs**: a supported-version check in `parse_record` (or a
-   resume-time check in `migrate`), plus a unit test and an end-to-end
-   black-box test seeding `schema_version: 99`.
-3. **The interactive TTY prompt's session-log banner and author-declared
-   `extras` display line don't exist in Rust at all** — not a missing
-   test, a missing feature. Bash's prompt names the session-log path so a
-   stalled/interrupted user knows where to resume from
-   (`interactive-lib.sh:206`); `TtyDecisionSource::render_prompt`
-   (`cli/migrate-adapters/src/tty_decision_source.rs`) never prints it, and
-   never iterates `Transformation.extras` for display (`extras` is only
-   consumed by `short_key()` today). `render_prompt` itself also has zero
-   test coverage of any kind. **Needs**: a product decision on whether to
-   restore the banner/extras display (they're real author-facing/UX
-   features, not internals), then tests once implemented — `render_prompt`
-   would need to accept an injectable writer (mirroring how
-   `read_one_line_bounded` was made testable) to be testable at all.
-4. **Migration 0006's config-read failure handling silently weakens a
-   safety net.** Bash stubs a failing `accelerator config path` call and
-   asserts the whole migration aborts non-zero, unrecorded. Rust's
-   `FileMigrationContext::config_value` (`cli/migrate-adapters/src/context.rs:116-120`)
-   collapses *any* config-read error into `None` via `.ok()?` —
-   indistinguishable from "key legitimately absent," which 0006's own
-   corpus/template resolution already treats as "skip this corpus, warn,
-   keep going." A corrupted `.accelerator/config.md` would today get a soft
-   warning and 0006 would still be recorded applied — bash's hard-abort
-   safety net is gone. **Needs a decision**: propagate config-read errors
-   as `Result::Err` through the `MigrationContext` boundary so 0006 can
-   abort fatally (matching bash), or explicitly accept the narrowing and
-   document it in `m0006.rs`'s own module doc comment. Not yet decided
-   either way.
+1. ✅ **RESOLVED, this session.** `Decision::Skip` reached `apply_decision`
+   unconditionally — bash's harness never called `migration_apply_decision`
+   for a skip. Fixed: `record_then_apply` now stops after recording a skip,
+   before ever calling `apply_decision`; a spy test
+   (`a_skip_never_reaches_apply_decision`, `cli/migrate/tests/engine.rs`)
+   pins it. Fixing this surfaced a real interaction: migration 0007's own
+   whole-corpus `self_validate_referential` trigger relied on
+   `apply_decision` being called for every transformation, including skips,
+   to detect "this was the last one." Rather than patch around it, added
+   `InteractiveMigration::finalise` — called once by the engine after the
+   whole interactive loop completes, mirroring bash's actual placement
+   (once, after `harness_run`, not per-transformation) — and rewired 0007
+   onto it, deleting its old `RefCell`-based last-transformation tracking
+   entirely. A more faithful port, not just a fix.
+2. ✅ **RESOLVED, this session.** `schema_version` validation on
+   session-log resume was unimplemented, despite being named explicitly in
+   this plan's own "must reproduce byte-for-byte" inventory. Fixed:
+   `FileSessionLog::records()` (`cli/migrate-adapters/src/session_log_factory.rs`)
+   now checks the parsed value against the one supported version and
+   refuses with bash's own `"[resume] unknown schema_version N — supported:
+   {1}."` message plus the `rm <path>` discard hint, naming the real
+   session log path. Unit-tested plus an end-to-end black-box test seeding
+   `schema_version: 99` against the compiled binary
+   (`cli/migrate-cli/tests/migration_0007.rs`).
+3. ✅ **RESOLVED, this session — with a correction.** The session-log
+   banner was genuinely missing (bash prints "Session log: `<path>` (resume
+   from this file by re-running /accelerator:migrate)" once, before the
+   first prompt) — now implemented in `TtyDecisionSource`, guarded so it
+   prints exactly once per run, tested via an injectable-writer
+   `render_prompt`. **The "author-declared `extras` display line" this
+   audit item also named turned out not to exist as a separate bash
+   feature** — rereading `interactive-lib.sh:189-224` directly shows bash's
+   own `render_prompt` never renders its `extras_tsv` parameter at all;
+   extras are session-log-storage-only in bash too. The free-text `display`
+   field Rust already printed verbatim (unchanged by this fix) is the
+   complete equivalent — no new extras-display mechanism was needed. The
+   original audit finding conflated the two.
+4. ✅ **RESOLVED, this session.** Migration 0006's config-read failure
+   handling silently weakened bash's safety net — a corrupted config file
+   got a soft warning where bash hard-aborted. `MigrationContext::config_value`/
+   `configured_path_override` changed signature from `Option<String>` to
+   `Result<Option<String>, MigrationError>` — `Ok(None)` still means "key
+   legitimately absent, falls back to the catalogue default" (unchanged),
+   but a genuine read/parse failure (a malformed `.accelerator/config.md`)
+   now surfaces as `Err` instead of being collapsed into `None` by
+   `FileMigrationContext`'s old `.ok()?` chain. This is not 0006-specific —
+   every mechanical migration that reads config (0001, 0002, 0004, 0005,
+   0006) now aborts on a genuinely corrupted config file, matching bash's
+   own uniform behaviour (every migration shelled out to the same
+   `accelerator config` subprocess, so a corrupted file aborted whichever
+   migration happened to read it, not just 0006). Every call site across
+   the five migration files, `ports.rs`'s default trait method, and one
+   test double (`m0003.rs`'s `FakeContext`) updated to propagate via `?`;
+   two non-`Result`-returning helpers (`m0004.rs`'s `resolve_layout`,
+   `m0006.rs`'s `resolve_corpus_path`, `m0003.rs`'s `warn_pinned_overrides`)
+   changed to return `Result` so they could. Black-box test
+   (`a_malformed_config_file_aborts_rather_than_silently_skipping`,
+   `cli/migrate-cli/tests/migration_0006.rs`) seeds an unterminated YAML
+   list in `paths.plans` and asserts a non-zero exit with 0006 never
+   recorded applied.
 5. **Bash's richer "in-flight session, not fully owned" dirty-tree steer is
    a *documented*, deliberate drop** (Phase 3's own deviation note already
    says so) — repeated here because the interactive-suite audit

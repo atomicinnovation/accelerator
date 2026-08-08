@@ -51,7 +51,7 @@ impl Migration for Migration0001 {
         }
 
         let pinned_tickets =
-            ctx.config_value("paths.tickets").unwrap_or_default();
+            ctx.config_value("paths.tickets")?.unwrap_or_default();
         let tickets_is_default =
             pinned_tickets.is_empty() || pinned_tickets == "meta/tickets";
         let tickets_dir = if tickets_is_default {
@@ -60,8 +60,9 @@ impl Migration for Migration0001 {
             root.join(&pinned_tickets)
         };
 
-        let pinned_review_tickets =
-            ctx.config_value("paths.review_tickets").unwrap_or_default();
+        let pinned_review_tickets = ctx
+            .config_value("paths.review_tickets")?
+            .unwrap_or_default();
         let review_tickets_is_default = pinned_review_tickets.is_empty()
             || pinned_review_tickets == "meta/reviews/tickets";
         let review_tickets_dir = if review_tickets_is_default {

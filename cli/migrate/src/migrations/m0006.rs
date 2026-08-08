@@ -80,7 +80,7 @@ fn walk_configured_corpora(
     let mut walked: Vec<(PathBuf, &str)> = Vec::new();
     for key in CORPUS_KEYS {
         let raw_rel = ctx
-            .config_value(&format!("paths.{key}"))
+            .config_value(&format!("paths.{key}"))?
             .unwrap_or_default();
         if raw_rel.is_empty() {
             continue;
@@ -106,7 +106,7 @@ fn walk_corpus(
     root: &Path,
     key: &str,
 ) -> Result<(), MigrationError> {
-    let Some(rel) = resolve_corpus_path(ctx, key) else {
+    let Some(rel) = resolve_corpus_path(ctx, key)? else {
         eprintln!("0006: rewrote 0 file(s) under <unresolved {key}>");
         return Ok(());
     };
@@ -129,16 +129,16 @@ fn walk_corpus(
 fn resolve_corpus_path(
     ctx: &dyn MigrationContext,
     key: &str,
-) -> Option<String> {
+) -> Result<Option<String>, MigrationError> {
     let rel = ctx
-        .config_value(&format!("paths.{key}"))
+        .config_value(&format!("paths.{key}"))?
         .unwrap_or_default();
     if rel.is_empty() {
         eprintln!(
             "Warning: 0006: config path returned empty for '{key}' — \
              skipping corpus"
         );
-        return None;
+        return Ok(None);
     }
     if is_dangerous_path(&rel) {
         eprintln!("Warning: 0006: refusing dangerous paths.{key} value: {rel}");
@@ -146,9 +146,9 @@ fn resolve_corpus_path(
             "Warning: 0006: skipping unsafe paths.{key} — other corpora \
              will still migrate"
         );
-        return None;
+        return Ok(None);
     }
-    Some(rel)
+    Ok(Some(rel))
 }
 
 const TEMPLATE_NAMES: [&str; 3] = ["plan", "codebase-research", "rca"];
@@ -188,7 +188,7 @@ fn resolve_user_template_path(
     name: &str,
 ) -> Result<Option<PathBuf>, MigrationError> {
     let tier1 = ctx
-        .config_value(&format!("templates.{name}"))
+        .config_value(&format!("templates.{name}"))?
         .unwrap_or_default();
     if !tier1.is_empty() {
         if is_dangerous_path(&tier1) {
@@ -209,7 +209,7 @@ fn resolve_user_template_path(
         return Ok(None);
     }
 
-    let tdir_rel = ctx.config_value("paths.templates").unwrap_or_default();
+    let tdir_rel = ctx.config_value("paths.templates")?.unwrap_or_default();
     if !tdir_rel.is_empty() {
         let tier2_abs = root.join(&tdir_rel).join(format!("{name}.md"));
         if ctx.read(&tier2_abs)?.is_some() {

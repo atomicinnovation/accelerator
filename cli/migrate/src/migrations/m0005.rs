@@ -30,7 +30,7 @@ impl Migration for Migration0005 {
         &self,
         ctx: &dyn MigrationContext,
     ) -> Result<ApplyOutcome, MigrationError> {
-        let work_dir_rel = ctx.config_value("paths.work").unwrap_or_default();
+        let work_dir_rel = ctx.config_value("paths.work")?.unwrap_or_default();
         if work_dir_rel.is_empty() {
             return Err(MigrationError::new(
                 "0005: config path returned empty for 'work'",

@@ -113,15 +113,30 @@ impl MigrationContext for FileMigrationContext {
         &self.root
     }
 
-    fn config_value(&self, key: &str) -> Option<String> {
-        let key = Key::parse(key).ok()?;
-        let resolution = self.config.effective(&key, None).ok()?;
-        Some(resolution.rendered())
+    fn config_value(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, MigrationError> {
+        let key = Key::parse(key)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        let resolution = self
+            .config
+            .effective(&key, None)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        Ok(Some(resolution.rendered()))
     }
 
-    fn configured_path_override(&self, key: &str) -> Option<String> {
-        let key = Key::parse(key).ok()?;
-        self.config.effective(&key, None).ok()?.configured_value()
+    fn configured_path_override(
+        &self,
+        key: &str,
+    ) -> Result<Option<String>, MigrationError> {
+        let key = Key::parse(key)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        let resolution = self
+            .config
+            .effective(&key, None)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        Ok(resolution.configured_value())
     }
 
     fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
@@ -190,10 +205,10 @@ impl MigrationContext for FileMigrationContext {
         &self,
         bare_number: &str,
     ) -> Result<String, MigrationError> {
-        let pattern = MigrationContext::config_value(self, "work.id_pattern")
+        let pattern = MigrationContext::config_value(self, "work.id_pattern")?
             .unwrap_or_else(|| "{number:04d}".to_owned());
         let project =
-            MigrationContext::config_value(self, "work.default_project_code")
+            MigrationContext::config_value(self, "work.default_project_code")?
                 .unwrap_or_default();
         corpus_adapters::work_item_pattern::canonicalise_id(
             bare_number,

@@ -41,10 +41,10 @@ impl Migration for Migration0002 {
     ) -> Result<ApplyOutcome, MigrationError> {
         let root = ctx.root().to_path_buf();
         let pattern = ctx
-            .config_value("work.id_pattern")
+            .config_value("work.id_pattern")?
             .unwrap_or_else(|| "{number:04d}".to_owned());
         let default_project = ctx
-            .config_value("work.default_project_code")
+            .config_value("work.default_project_code")?
             .unwrap_or_default();
 
         if !pattern.contains("{project}") {

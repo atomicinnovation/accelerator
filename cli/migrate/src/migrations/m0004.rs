@@ -49,10 +49,12 @@ fn strip_trailing_slash(value: &str) -> String {
     value.trim_end_matches('/').to_owned()
 }
 
-fn resolve_layout(ctx: &dyn MigrationContext) -> Layout {
-    let research = ctx.configured_path_override("paths.research");
-    let inv = ctx.configured_path_override("paths.design_inventories");
-    let gaps = ctx.configured_path_override("paths.design_gaps");
+fn resolve_layout(
+    ctx: &dyn MigrationContext,
+) -> Result<Layout, MigrationError> {
+    let research = ctx.configured_path_override("paths.research")?;
+    let inv = ctx.configured_path_override("paths.design_inventories")?;
+    let gaps = ctx.configured_path_override("paths.design_gaps")?;
 
     let research_had_override = research.is_some();
     let inv_had_override = inv.is_some();
@@ -81,7 +83,7 @@ fn resolve_layout(ctx: &dyn MigrationContext) -> Layout {
         format!("{old_research}/design-gaps")
     };
 
-    Layout {
+    Ok(Layout {
         old_research,
         old_inv,
         old_gaps,
@@ -92,7 +94,7 @@ fn resolve_layout(ctx: &dyn MigrationContext) -> Layout {
         research_had_override,
         inv_had_override,
         gaps_had_override,
-    }
+    })
 }
 
 const MIXED_STATE_TRIPLES: [(&str, &str, &str); 4] = [
@@ -107,10 +109,10 @@ fn assert_no_mixed_state(
 ) -> Result<(), MigrationError> {
     for (prefix, old, new) in MIXED_STATE_TRIPLES {
         let old_present = ctx
-            .configured_path_override(&format!("{prefix}.{old}"))
+            .configured_path_override(&format!("{prefix}.{old}"))?
             .is_some();
         let new_present = ctx
-            .configured_path_override(&format!("{prefix}.{new}"))
+            .configured_path_override(&format!("{prefix}.{new}"))?
             .is_some();
         if old_present && new_present {
             return Err(MigrationError::new(format!(
@@ -129,7 +131,7 @@ impl Migration for Migration0004 {
         ctx: &dyn MigrationContext,
     ) -> Result<ApplyOutcome, MigrationError> {
         let root = ctx.root().to_path_buf();
-        let layout = resolve_layout(ctx);
+        let layout = resolve_layout(ctx)?;
 
         assert_no_mixed_state(ctx)?;
 
@@ -513,7 +515,7 @@ fn rename_user_template_file(
     ctx: &dyn MigrationContext,
     root: &Path,
 ) -> Result<(), MigrationError> {
-    let Some(templates_dir) = ctx.config_value("paths.templates") else {
+    let Some(templates_dir) = ctx.config_value("paths.templates")? else {
         return Ok(());
     };
     if templates_dir.is_empty() {

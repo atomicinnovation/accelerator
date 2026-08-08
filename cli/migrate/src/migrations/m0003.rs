@@ -53,7 +53,7 @@ impl Migration for Migration0003 {
 
         init_scaffold(ctx, &root)?;
         rewrite_root_gitignore(ctx, &root)?;
-        warn_pinned_overrides(ctx);
+        warn_pinned_overrides(ctx)?;
         move_sources(ctx, &root)?;
         relocate_state_files(ctx, &root)?;
         inner_jira_gitignore(ctx, &root)?;
@@ -82,7 +82,7 @@ fn is_no_op_pending(
         .any(|relative| exists(ctx, &root.join(relative)));
 
     let has_source = has_source
-        || (ctx.configured_path_override("paths.tmp").is_none()
+        || (ctx.configured_path_override("paths.tmp")?.is_none()
             && exists(ctx, &root.join("meta/tmp")));
 
     if has_source {
@@ -186,19 +186,22 @@ fn rewrite_root_gitignore(
 /// Bash's `log_warn` only ever prints its first argument — the migration
 /// calls it with four, so only the first is observable. Reproduced exactly,
 /// not "fixed" into the evidently-intended full sentence.
-fn warn_pinned_overrides(ctx: &dyn MigrationContext) {
-    if let Some(value) = ctx.configured_path_override("paths.templates") {
+fn warn_pinned_overrides(
+    ctx: &dyn MigrationContext,
+) -> Result<(), MigrationError> {
+    if let Some(value) = ctx.configured_path_override("paths.templates")? {
         eprintln!(
             "Warning: paths.templates is explicitly set to '{value}'. The \
              migration"
         );
     }
-    if let Some(value) = ctx.configured_path_override("paths.integrations") {
+    if let Some(value) = ctx.configured_path_override("paths.integrations")? {
         eprintln!(
             "Warning: paths.integrations is explicitly set to '{value}'. \
              The migration"
         );
     }
+    Ok(())
 }
 
 const MOVE_PAIRS: [(&str, &str); 6] = [
@@ -220,7 +223,7 @@ fn move_sources(
     ctx: &dyn MigrationContext,
     root: &Path,
 ) -> Result<(), MigrationError> {
-    let tmp_configured = ctx.configured_path_override("paths.tmp").is_some();
+    let tmp_configured = ctx.configured_path_override("paths.tmp")?.is_some();
 
     for (source, destination) in MOVE_PAIRS {
         ctx.merge_move(&root.join(source), &root.join(destination))?;
@@ -383,8 +386,11 @@ mod tests {
             &self.root
         }
 
-        fn configured_path_override(&self, key: &str) -> Option<String> {
-            self.configured.get(key).cloned()
+        fn configured_path_override(
+            &self,
+            key: &str,
+        ) -> Result<Option<String>, crate::ports::MigrationError> {
+            Ok(self.configured.get(key).cloned())
         }
 
         fn read(
@@ -506,11 +512,12 @@ mod tests {
     }
 
     #[test]
-    fn warn_pinned_overrides_prints_only_bash_own_truncated_message() {
+    fn warn_pinned_overrides_prints_only_bash_own_truncated_message(
+    ) -> TestResult {
         // No panics/errors — the printed text is asserted by the
         // black-box fixture test, since this fn only writes to stderr.
         let ctx = FakeContext::new()
             .with_configured("paths.templates", "custom/templates");
-        warn_pinned_overrides(&ctx);
+        warn_pinned_overrides(&ctx)
     }
 }

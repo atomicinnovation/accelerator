@@ -133,6 +133,36 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_malformed_config_file_aborts_rather_than_silently_skipping(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    write(
+        dir.path(),
+        ".claude/accelerator.md",
+        "---\npaths:\n  plans: [unterminated\n---\n",
+    )?;
+    already_applied(dir.path())?;
+
+    let output = Command::new(BIN).current_dir(dir.path()).output()?;
+
+    assert_ne!(
+        output.status.code(),
+        Some(0),
+        "stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !fs::read_to_string(
+            dir.path().join(".accelerator/state/migrations-applied")
+        )?
+        .contains("0006"),
+        "a config-read failure must not record 0006 as applied"
+    );
+    Ok(())
+}
+
+#[test]
 fn skips_a_dangerous_configured_corpus_path() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     write(
