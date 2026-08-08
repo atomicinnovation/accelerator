@@ -175,6 +175,7 @@ mod tests {
         vec![
             (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
             (DocTypeKey::Decisions, PathBuf::from("meta/decisions")),
+            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
         ]
     }
 
@@ -239,5 +240,20 @@ mod tests {
             &table(),
         );
         assert_eq!(outcome.value, "[\"work-item:0042\", \"work-item:0099\"]");
+    }
+
+    #[test]
+    fn a_plan_path_in_a_list_value_resolves_to_its_full_stem() {
+        let outcome = normalise(
+            "[\"meta/plans/2026-05-13-0055-sidebar-activity-feed.md\"]",
+            "work-item",
+            "relates_to",
+            &table(),
+        );
+        assert_eq!(
+            outcome.value,
+            "[\"plan:2026-05-13-0055-sidebar-activity-feed\"]"
+        );
+        assert!(!outcome.unmapped_path);
     }
 }

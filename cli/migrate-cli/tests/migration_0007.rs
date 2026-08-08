@@ -8,7 +8,9 @@
 //! deviations), so a real ambiguous-band scenario against the compiled
 //! binary is not driven here.
 
+use std::collections::BTreeMap;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 use tempfile::TempDir;
@@ -26,6 +28,44 @@ fn write(
     fs::create_dir_all(path.parent().ok_or("no parent")?)?;
     fs::write(path, content)?;
     Ok(())
+}
+
+fn copy_tree(src: &Path, dst: &Path) -> Result<(), TestError> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let target = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            fs::create_dir_all(&target)?;
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+fn read_tree(root: &Path) -> Result<BTreeMap<String, String>, TestError> {
+    fn walk(
+        dir: &Path,
+        root: &Path,
+        out: &mut BTreeMap<String, String>,
+    ) -> Result<(), TestError> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if entry.file_type()?.is_dir() {
+                walk(&path, root, out)?;
+            } else {
+                let relative =
+                    path.strip_prefix(root)?.to_string_lossy().into_owned();
+                out.insert(relative, fs::read_to_string(&path)?);
+            }
+        }
+        Ok(())
+    }
+    let mut out = BTreeMap::new();
+    walk(root, root, &mut out)?;
+    Ok(out)
 }
 
 fn work_item(id: &str, title: &str, body: &str) -> String {
@@ -186,5 +226,134 @@ fn a_work_item_missing_kind_refuses_with_zero_mutations(
     assert!(stderr.contains(
         "0007-REFUSE: meta/work/0042-foo.md — work-item missing kind:"
     ));
+    Ok(())
+}
+
+#[test]
+fn a_multi_type_corpus_rewrites_cleanly_with_no_refusals(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    write(
+        root,
+        "meta/prs/240-description.md",
+        "---\ntype:\nid: \"240-description\"\n\
+         title: \"PR 240 Description\"\n\
+         date: \"2026-06-01T00:00:00+00:00\"\nauthor: Toby\n\
+         status: complete\nrelates_to: [\"PR #416\"]\npr_number: 240\n\
+         tags: []\nrevision: \"abc123\"\nrepository: \"accelerator\"\n\
+         last_updated: \"2026-06-01T00:00:00+00:00\"\n\
+         last_updated_by: Toby\nschema_version: 1\n---\n\
+         # PR 240 Description\n",
+    )?;
+    write(
+        root,
+        "meta/notes/2026-06-20-ticketed.md",
+        "---\ntype: note\nid: \"2026-06-20-ticketed\"\n\
+         title: \"Ticketed; with semicolon\"\n\
+         date: \"2026-06-20T00:00:00+00:00\"\nauthor: Toby\n\
+         producer: create-note\nstatus: captured\n\
+         ticket: \"PROJ-1234\"\ntags: []\nrevision: \"abc123\"\n\
+         repository: \"accelerator\"\n\
+         last_updated: \"2026-06-20T00:00:00+00:00\"\n\
+         last_updated_by: Toby\nschema_version: 1\n---\n\
+         # Ticketed; with semicolon\n",
+    )?;
+    write(
+        root,
+        "meta/reviews/prs/2026-06-17-pr-430-review.md",
+        "---\ntype: pr-review\nid: \"2026-06-17-pr-430-review\"\n\
+         title: \"PR 430 Review\"\ndate: \"2026-06-17T00:00:00+00:00\"\n\
+         author: Toby\nstatus: complete\ntags: []\n\
+         last_updated: \"2026-06-17T00:00:00+00:00\"\n\
+         last_updated_by: Toby\nschema_version: 1\n---\n\
+         # PR 430 Review\n",
+    )?;
+    write(
+        root,
+        "meta/docs/logging-guide.md",
+        "---\ntitle: Logging Guide\nfoo: bar\n---\n\n# Logging Guide\n\n\
+         Freeform documentation the plugin does not own.\n",
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(!stderr.contains("0007-REFUSE"), "{stderr}");
+
+    let prs = fs::read_to_string(root.join("meta/prs/240-description.md"))?;
+    assert!(prs.contains("type: pr-description\n"), "{prs}");
+    assert!(prs.contains("relates_to: [\"pr:416\"]\n"), "{prs}");
+
+    let notes =
+        fs::read_to_string(root.join("meta/notes/2026-06-20-ticketed.md"))?;
+    assert!(
+        notes.contains("topic: \"Ticketed; with semicolon\"\n"),
+        "{notes}"
+    );
+    assert!(!notes.contains("ticket:"), "{notes}");
+
+    let review = fs::read_to_string(
+        root.join("meta/reviews/prs/2026-06-17-pr-430-review.md"),
+    )?;
+    assert!(review.contains("pr_number: 430\n"), "{review}");
+
+    // meta/docs/ isn't a configured corpus directory — left byte-unchanged.
+    assert_eq!(
+        fs::read_to_string(root.join("meta/docs/logging-guide.md"))?,
+        "---\ntitle: Logging Guide\nfoo: bar\n---\n\n# Logging Guide\n\n\
+         Freeform documentation the plugin does not own.\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unconfigured_subtree_is_left_byte_unchanged() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    let arbitrary = "---\nsomething: else\n---\n\n# Not ours\n";
+    write(root, "meta/arbitrary/thing.md", arbitrary)?;
+    write(
+        root,
+        "meta/work/0042-foo.md",
+        "---\ntype: work-item\nid: \"0042\"\ntitle: t\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
+         kind: task\nstatus: draft\npriority: medium\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
+         schema_version: 1\n---\n\nbody\n",
+    )?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        fs::read_to_string(root.join("meta/arbitrary/thing.md"))?,
+        arbitrary
+    );
+    Ok(())
+}
+
+#[test]
+fn matches_the_checked_in_byte_equivalence_golden() -> Result<(), TestError> {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../skills/config/migrate/scripts/test-fixtures/migrate-byte-equiv",
+    );
+    let dir = TempDir::new()?;
+    let root = dir.path();
+
+    copy_tree(&fixture.join("input"), root)?;
+    already_applied(root)?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let actual = read_tree(&root.join("meta"))?;
+    let expected = read_tree(&fixture.join("golden/meta"))?;
+    assert_eq!(actual, expected);
     Ok(())
 }

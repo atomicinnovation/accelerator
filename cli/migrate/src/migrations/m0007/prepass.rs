@@ -172,6 +172,28 @@ mod tests {
     }
 
     #[test]
+    fn a_shared_stem_across_different_types_does_not_collide() {
+        let work_item = "---\ntype: work-item\nid: \"0099\"\ntitle: t\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
+             kind: task\nstatus: draft\npriority: medium\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\n\
+             last_updated_by: a\nschema_version: 1\n---\nbody\n";
+        let plan = "---\ntype: plan\nid: \"0099\"\ntitle: t\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\n\
+             last_updated_by: a\nschema_version: 1\n---\nbody\n";
+        let files = vec![
+            ("meta/work/0099-foo.md".to_owned(), work_item.to_owned()),
+            ("meta/plans/0099-foo.md".to_owned(), plan.to_owned()),
+        ];
+        let table = vec![
+            (DocTypeKey::WorkItems, PathBuf::from("meta/work")),
+            (DocTypeKey::Plans, PathBuf::from("meta/plans")),
+        ];
+        assert!(precondition_prepass(&files, &table).is_empty());
+    }
+
+    #[test]
     fn two_work_items_sharing_a_post_rewrite_id_are_refused() {
         let a = work_item("kind: task\nstatus: draft\npriority: medium\n")
             .replace("id: \"0042\"", "id: \"0099\"");

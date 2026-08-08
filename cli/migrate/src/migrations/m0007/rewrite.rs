@@ -879,4 +879,385 @@ mod tests {
              {rewritten}"
         );
     }
+
+    #[test]
+    fn a_nonempty_pr_title_folds_to_title_when_no_title_exists() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\npr_number: 42\n\
+             pr_title: The Real Title\n---\n\n# Stem\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) =
+            rewrite(content, &input("meta/reviews/prs/pr-42-stem.md", &table));
+
+        assert!(
+            rewritten.contains("title: \"The Real Title\"\n"),
+            "{rewritten}"
+        );
+        assert!(!rewritten.contains("pr_title:"), "{rewritten}");
+        assert!(
+            !diagnostics.iter().any(|line| line.contains("pr_title")),
+            "a clean fold must not raise a diagnostic: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_differing_pr_title_is_dropped_with_a_diverge_diagnostic() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\npr_number: 42\n\
+             title: Kept Title\npr_title: Discarded Title\n---\n\n# Stem\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) =
+            rewrite(content, &input("meta/reviews/prs/pr-42-stem.md", &table));
+
+        assert!(rewritten.contains("title: Kept Title\n"), "{rewritten}");
+        assert!(!rewritten.contains("pr_title:"), "{rewritten}");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|line| line.starts_with("0007-DIVERGE[discarded-key]:")
+                    && line.contains("pr_title")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn an_equal_pr_title_is_still_dropped_with_a_diverge_diagnostic() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\npr_number: 42\n\
+             title: \"Same Title\"\npr_title: \"Same Title\"\n---\n\n\
+             # Stem\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) =
+            rewrite(content, &input("meta/reviews/prs/pr-42-stem.md", &table));
+
+        assert!(rewritten.contains("title: \"Same Title\"\n"), "{rewritten}");
+        assert!(!rewritten.contains("pr_title:"), "{rewritten}");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|line| line.starts_with("0007-DIVERGE[discarded-key]:")
+                    && line.contains("pr_title")),
+            "the bash original discards on any pre-existing title:, with no \
+             equal-value special case: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_ticket_id_key_is_dropped_with_its_own_diverge_diagnostic() {
+        let content = "---\nwork_item_id: 0042\nkind: task\n\
+             priority: medium\nticket_id: LEGACY-2\n---\n\n# Stem\n";
+        let table = table();
+
+        let (rewritten, diagnostics) =
+            rewrite(content, &input("meta/work/0042-stem.md", &table));
+
+        assert!(!rewritten.contains("ticket_id:"), "{rewritten}");
+        assert!(
+            diagnostics.iter().any(|line| line
+                .starts_with("0007-DIVERGE[dropped-legacy-key]:")
+                && line.contains("ticket_id: LEGACY-2")),
+            "{diagnostics:?}"
+        );
+    }
+
+    fn note_table() -> Vec<(DocTypeKey, PathBuf)> {
+        vec![(DocTypeKey::Notes, PathBuf::from("meta/notes"))]
+    }
+
+    fn pr_review_table() -> Vec<(DocTypeKey, PathBuf)> {
+        vec![(DocTypeKey::PrReviews, PathBuf::from("meta/reviews/prs"))]
+    }
+
+    fn design_inventory_table() -> Vec<(DocTypeKey, PathBuf)> {
+        vec![(
+            DocTypeKey::DesignInventories,
+            PathBuf::from("meta/research/design-inventories"),
+        )]
+    }
+
+    #[test]
+    fn topic_backfills_silently_from_the_title_when_absent() {
+        let content = "---\ntitle: My Note\n---\n\n# My Note\n\nSome body.\n";
+        let table = note_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input("meta/notes/2026-01-01-my-note.md", &table),
+        );
+
+        assert!(rewritten.contains("topic: \"My Note\"\n"), "{rewritten}");
+        assert!(
+            !diagnostics.iter().any(|line| line.contains("topic")),
+            "a derivable topic must not raise its own diagnostic: \
+             {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_semicolon_bearing_title_survives_into_the_backfilled_topic() {
+        let content = "---\ntitle: \"Fix; then ship\"\n---\n\n\
+             # Fix; then ship\n\nBody.\n";
+        let table = note_table();
+
+        let (rewritten, _) =
+            rewrite(content, &input("meta/notes/2026-01-01-fix.md", &table));
+
+        assert!(
+            rewritten.contains("topic: \"Fix; then ship\"\n"),
+            "{rewritten}"
+        );
+    }
+
+    #[test]
+    fn verdict_and_lenses_get_the_quoted_unknown_sentinel_with_a_diagnostic() {
+        let content = "---\nreview_number: 1\npr_number: 42\n---\n\n\
+             # Review\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input("meta/reviews/prs/pr-42-review.md", &table),
+        );
+
+        assert!(rewritten.contains("verdict: \"unknown\"\n"), "{rewritten}");
+        assert!(rewritten.contains("lenses: [\"unknown\"]\n"), "{rewritten}");
+        for extra in ["verdict", "lenses"] {
+            assert!(
+                diagnostics.iter().any(|line| line
+                    .starts_with("0007-DIVERGE[backfilled-extra]:")
+                    && line.contains(extra)),
+                "missing backfilled-extra diagnostic for {extra}: \
+                 {diagnostics:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn pr_number_derives_from_a_pr_token_not_the_date_prefix_year() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\n---\n\n# Review\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input("meta/reviews/prs/2026-06-17-pr-430-review.md", &table),
+        );
+
+        assert!(rewritten.contains("pr_number: 430\n"), "{rewritten}");
+        assert!(
+            !diagnostics.iter().any(|line| line.contains("pr_number")),
+            "a derivable pr_number must not raise a diagnostic: \
+             {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn pr_number_falls_back_to_the_bare_unquoted_unknown_sentinel() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\n---\n\n# Review\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input("meta/reviews/prs/2026-06-17-no-number-here.md", &table),
+        );
+
+        assert!(
+            rewritten.contains("pr_number: unknown\n"),
+            "expected a bare, unquoted sentinel: {rewritten}"
+        );
+        assert!(
+            !rewritten.contains("pr_number: \"unknown\"\n"),
+            "pr_number must never be quoted: {rewritten}"
+        );
+        assert!(
+            diagnostics.iter().any(|line| line
+                .starts_with("0007-DIVERGE[backfill-sentinel]:")
+                && line.contains("pr_number")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn numeric_and_boolean_extras_are_emitted_bare_not_quoted() {
+        let content = "---\nsource: known\nsource_kind: repo\n\
+             source_location: \"https://example.com\"\ncrawler: manual\n\
+             ---\n\n# Inventory\n";
+        let table = design_inventory_table();
+
+        let (rewritten, _) = rewrite(
+            content,
+            &input(
+                "meta/research/design-inventories/auth/inventory.md",
+                &table,
+            ),
+        );
+
+        assert!(rewritten.contains("sequence: 1\n"), "{rewritten}");
+        assert!(
+            rewritten.contains("screenshots_incomplete: true\n"),
+            "{rewritten}"
+        );
+        assert!(
+            !rewritten.contains("sequence: \"1\"\n"),
+            "sequence must never be quoted: {rewritten}"
+        );
+    }
+
+    #[test]
+    fn the_string_enum_sentinel_bundle_routes_to_quoted_unknown() {
+        let content = "---\nsequence: 1\nscreenshots_incomplete: true\n\
+             ---\n\n# Inventory\n";
+        let table = design_inventory_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input(
+                "meta/research/design-inventories/auth/inventory.md",
+                &table,
+            ),
+        );
+
+        for extra in ["source", "source_kind", "source_location", "crawler"] {
+            assert!(
+                rewritten.contains(&format!("{extra}: \"unknown\"\n")),
+                "expected {extra} to get the quoted sentinel: {rewritten}"
+            );
+            assert!(
+                diagnostics.iter().any(|line| line
+                    .starts_with("0007-DIVERGE[backfill-sentinel]:")
+                    && line.contains(extra)),
+                "missing backfill-sentinel diagnostic for {extra}: \
+                 {diagnostics:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn populated_extras_are_not_clobbered_and_raise_no_diagnostics() {
+        let content = "---\nverdict: approved\nlenses: [\"correctness\"]\n\
+             review_number: 2\npr_number: 42\n---\n\n# Review\n";
+        let table = pr_review_table();
+
+        let (rewritten, diagnostics) = rewrite(
+            content,
+            &input("meta/reviews/prs/pr-42-review.md", &table),
+        );
+
+        assert!(rewritten.contains("verdict: approved\n"), "{rewritten}");
+        assert!(
+            rewritten.contains("lenses: [\"correctness\"]\n"),
+            "{rewritten}"
+        );
+        assert!(rewritten.contains("review_number: 2\n"), "{rewritten}");
+        assert!(rewritten.contains("pr_number: 42\n"), "{rewritten}");
+        assert!(
+            diagnostics.is_empty(),
+            "a fully-populated document must raise no backfill \
+             diagnostics: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn an_absent_type_key_infers_from_the_configured_path() {
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\npr_number: 42\n---\n\n# Stem\n";
+        let table = pr_review_table();
+
+        let resolved =
+            super::resolve_type(content, "meta/reviews/prs/pr-42.md", &table);
+
+        assert_eq!(resolved, Some("pr-review"));
+    }
+
+    #[test]
+    fn a_path_outside_every_configured_directory_has_no_resolved_type() {
+        let content = "---\ntitle: A doc\n---\n\n# A doc\n";
+        let table = table();
+
+        let resolved =
+            super::resolve_type(content, "meta/docs/logging-guide.md", &table);
+
+        assert_eq!(resolved, None);
+    }
+
+    #[test]
+    fn pr_number_of_derives_from_a_pr_token_or_a_bare_leading_number() {
+        for (stem, expected) in [
+            ("2026-06-17-pr-416-review", Some("416")),
+            ("2026-06-17-summary", None),
+            ("2026-06-17-0114-foo", None),
+            ("240-description", Some("240")),
+            ("expr-3-foo", None),
+        ] {
+            assert_eq!(
+                super::pr_number_of(stem),
+                expected.map(str::to_owned),
+                "stem {stem}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_required_extras_contract_has_not_silently_drifted() {
+        use corpus::frontmatter_validation::schema as fm_schema;
+
+        let required_for = |linkage_type: &str| -> Vec<&'static str> {
+            fm_schema::row_for(linkage_type)
+                .map(|row| {
+                    row.extras
+                        .iter()
+                        .copied()
+                        .filter(|extra| {
+                            !fm_schema::OPTIONAL_EXTRAS.contains(extra)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        let pr_review_required = required_for("pr-review");
+        for extra in ["verdict", "lenses", "review_number", "pr_number"] {
+            assert!(
+                pr_review_required.contains(&extra),
+                "expected {extra} to remain a required pr-review extra: \
+                 {pr_review_required:?}"
+            );
+        }
+
+        for linkage_type in ["note", "codebase-research", "issue-research"] {
+            let required = required_for(linkage_type);
+            assert!(
+                required.contains(&"topic"),
+                "expected topic to remain required for {linkage_type}: \
+                 {required:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn backfill_completes_rather_than_aborting_when_underivable() {
+        // The sentinel path, not a hard failure — distinct from a prepass
+        // REFUSE, which does abort the whole migration.
+        let content = "---\nreview_number: 1\nverdict: approved\n\
+             lenses: [\"correctness\"]\n---\n\n# Review\n";
+        let table = pr_review_table();
+
+        let (_, diagnostics) = rewrite(
+            content,
+            &input("meta/reviews/prs/no-number-anywhere.md", &table),
+        );
+
+        // rewrite() itself never fails — it always returns; the migration
+        // only aborts on REFUSE/MALFORMED, which this scenario never raises.
+        assert!(
+            diagnostics
+                .iter()
+                .any(|line| line.contains("backfill-sentinel")),
+            "{diagnostics:?}"
+        );
+    }
 }
