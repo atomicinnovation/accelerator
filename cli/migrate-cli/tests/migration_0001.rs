@@ -14,7 +14,11 @@ type TestError = Box<dyn std::error::Error>;
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
 
 /// Mirrors `regenerate.sh`'s `setup_old_repo`: the pre-0001 legacy ticket
-/// structure, no VCS directory.
+/// structure, no VCS directory. The compiled binary always runs the full
+/// registry (unlike bash's `ACCELERATOR_MIGRATIONS_DIR` isolation), so every
+/// other real migration is pre-marked applied here to keep this fixture
+/// scoped to 0001's own observable behaviour — update this list as later
+/// migrations are registered.
 fn setup_old_repo() -> Result<TempDir, TestError> {
     let dir = TempDir::new()?;
     fs::create_dir_all(dir.path().join("meta/tickets"))?;
@@ -31,6 +35,11 @@ fn setup_old_repo() -> Result<TempDir, TestError> {
     fs::write(
         dir.path().join(".claude/accelerator.md"),
         "---\npaths:\n  tickets: meta/tickets\n---\n",
+    )?;
+    fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0002-rename-work-items-with-project-prefix\n",
     )?;
     Ok(dir)
 }
@@ -80,7 +89,7 @@ fn matches_the_bash_golden_byte_for_byte() -> Result<(), TestError> {
         fs::read_to_string(
             dir.path().join(".accelerator/state/migrations-applied")
         )?,
-        "0001-rename-tickets-to-work\n"
+        "0002-rename-work-items-with-project-prefix\n0001-rename-tickets-to-work\n"
     );
     assert!(!dir.path().join("meta/tickets").exists());
     assert!(!dir.path().join("meta/reviews/tickets").exists());

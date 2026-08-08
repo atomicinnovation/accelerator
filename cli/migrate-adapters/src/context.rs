@@ -134,6 +134,23 @@ impl MigrationContext for FileMigrationContext {
     fn merge_move(&self, src: &Path, dst: &Path) -> Result<(), MigrationError> {
         merge_move(src, dst, &self.root)
     }
+
+    fn canonicalise_work_item_id(
+        &self,
+        bare_number: &str,
+    ) -> Result<String, MigrationError> {
+        let pattern = MigrationContext::config_value(self, "work.id_pattern")
+            .unwrap_or_else(|| "{number:04d}".to_owned());
+        let project =
+            MigrationContext::config_value(self, "work.default_project_code")
+                .unwrap_or_default();
+        corpus_adapters::work_item_pattern::canonicalise_id(
+            bare_number,
+            &pattern,
+            &project,
+        )
+        .map_err(|error| MigrationError::new(error.to_string()))
+    }
 }
 
 fn walk_md_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {

@@ -25,7 +25,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
     fs::create_dir_all(dir.path().join(".accelerator/state"))?;
     fs::write(
         dir.path().join(".accelerator/state/migrations-applied"),
-        "0001-rename-tickets-to-work\n",
+        "0001-rename-tickets-to-work\n\
+         0002-rename-work-items-with-project-prefix\n",
     )?;
     Ok(dir)
 }
