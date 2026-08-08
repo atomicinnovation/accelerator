@@ -5,7 +5,7 @@ title: "accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage C
 date: "2026-08-06T08:41:17+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0195"
 parent: "work-item:0195"
 derived_from: ["codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface"]
