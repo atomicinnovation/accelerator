@@ -292,6 +292,12 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
             (tmp_path / f"accelerator-work-{platform}.minisig").write_text(
                 "sig"
             )
+            (tmp_path / f"accelerator-migrate-{platform}").write_bytes(
+                b"\x00" * 4
+            )
+            (tmp_path / f"accelerator-migrate-{platform}.minisig").write_text(
+                "sig"
+            )
         manifest.write_text(
             json.dumps(
                 {
@@ -321,6 +327,16 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                             "description": (
                                 "The work create|show|resolve|diff|update "
                                 "sub-binary."
+                            ),
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        },
+                        "migrate": {
+                            "description": (
+                                "Apply pending meta-directory schema "
+                                "migrations."
                             ),
                             "platforms": {
                                 p: {"sha256": "a" * 64, "signature": "sig"}
@@ -525,10 +541,17 @@ class TestBuilderSeams:
 
         assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
 
-    def test_the_dispatched_registry_holds_visualiser_and_vcs(self):
+    def test_the_dispatched_registry_holds_visualiser_vcs_work_and_migrate(
+        self,
+    ):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
-        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs", "work")
+        assert DISPATCHED_SUBBINARIES == (
+            "visualiser",
+            "vcs",
+            "work",
+            "migrate",
+        )
 
 
 class TestReverifyViaShim:

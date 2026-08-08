@@ -1,0 +1,20 @@
+[package]
+name = "accelerator-migrate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Apply pending meta-directory schema migrations."
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-migrate"
+path = "src/main.rs"
+
+[dependencies]
+migrate = { path = "../migrate" }
+kernel = { path = "../kernel" }
+clap = { workspace = true }

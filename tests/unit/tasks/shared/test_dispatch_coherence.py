@@ -430,10 +430,26 @@ class TestRegistryBounds:
         assert violations(tmp_path, tokens=(token,), exempt=()) == []
 
 
+# Tracked, individually-justified tokens with a real, planned SKILL.md
+# consumer that is not wired yet — distinct from SKILL_EXEMPT_SUBBINARIES,
+# whose own docstring reserves it for a token no SKILL.md will ever invoke.
+# Each entry here must name the work landing the real binding, so this stays a
+# visible, deliberate carve-out rather than a place a careless exemption can
+# hide: adding a token to SKILL_EXEMPT_SUBBINARIES does NOT exempt it here.
+#
+# migrate: work-item:0172 Phase 1 registers the sub-binary ahead of Phase 7's
+# skill rebinding (skills/config/migrate/SKILL.md still shells out to
+# run-migrations.sh, which Phase 7 replaces once migrations are registered
+# and interactive support lands). Remove once that rebinding lands.
+_KNOWN_PENDING_SKILL_BINDINGS = ("migrate",)
+
+
 def test_the_real_skills_tree_passes() -> None:
-    # `exempt=()` explicitly, so no future addition to
-    # SKILL_EXEMPT_SUBBINARIES can make the one production binding vacuous.
-    assert violations(REPO_ROOT, exempt=()) == []
+    # Every dispatched token not in the tracked-pending set above must have a
+    # real skill binding, regardless of what SKILL_EXEMPT_SUBBINARIES says —
+    # so no future addition to that constant can make the one production
+    # binding vacuous.
+    assert violations(REPO_ROOT, exempt=_KNOWN_PENDING_SKILL_BINDINGS) == []
 
 
 def test_validate_raises_with_every_problem(tmp_path: Path) -> None:

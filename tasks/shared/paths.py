@@ -26,9 +26,17 @@ VENDORED_SHIM_DIR = REPO_ROOT / "bin"
 VENDOR_SHIM_MARKER = VENDORED_SHIM_DIR / "accelerator-verify.vendored.sha256"
 # The crates whose binaries the signed manifest lists and the launcher fetches
 # by bare token. The visualiser is the first dispatched sub-binary.
-DISPATCHED_SUBBINARIES: tuple[str, ...] = ("visualiser", "vcs", "work")
+DISPATCHED_SUBBINARIES: tuple[str, ...] = (
+    "visualiser",
+    "vcs",
+    "work",
+    "migrate",
+)
 # Tokens whose only consumer is a hook or another binary, never a SKILL.md.
-SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
+# "migrate" is an interim entry: no SKILL.md invokes `accelerator migrate` yet
+# (skills/config/migrate/SKILL.md still shells out to run-migrations.sh) —
+# remove it once that skill's invocation is rebound.
+SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ("migrate",)
 # Sub-binaries shipping a symbolication archive, and the committed tree each is
 # staged into so the provenance glob covers it. Every value must be a `bin/`
 # directory — `.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`.
