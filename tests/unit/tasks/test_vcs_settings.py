@@ -72,6 +72,30 @@ def test_ignores_other_crates(tmp_path: Path) -> None:
     assert vcs_settings.violations(tmp_path) == []
 
 
+def test_the_dirty_paths_snapshot_module_is_individually_exempt(
+    tmp_path: Path,
+) -> None:
+    # Snapshotting genuinely cannot avoid UserSettings — unlike the
+    # settings-free detection paths this guard otherwise protects.
+    _write(
+        tmp_path,
+        "cli/vcs-adapters/src/library/dirty_paths.rs",
+        "let settings = UserSettings::from_config(config)?;\n",
+    )
+    assert vcs_settings.violations(tmp_path) == []
+
+
+def test_the_exemption_does_not_widen_to_a_sibling_file(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "cli/vcs-adapters/src/library/other.rs",
+        "UserSettings::new()\n",
+    )
+    assert vcs_settings.violations(tmp_path) == [
+        "cli/vcs-adapters/src/library/other.rs:1"
+    ]
+
+
 def test_a_line_comment_may_name_the_prohibition(tmp_path: Path) -> None:
     # Without the strip it is impossible to document *why* UserSettings is
     # avoided in the very crate the guard covers, and an implementer works

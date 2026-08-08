@@ -63,6 +63,8 @@ use crate::markers::carries_jj_marker;
 use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
+mod dirty_paths;
+
 /// A repository is here and the pinned library could not answer.
 #[derive(Debug)]
 pub enum Error {
@@ -96,6 +98,10 @@ pub enum Error {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     JjConfig {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    JjDirtyPaths {
+        path: PathBuf,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 }
@@ -149,6 +155,13 @@ impl fmt::Display for Error {
             Self::JjConfig { .. } => {
                 write!(formatter, "could not read the jj configuration")
             }
+            Self::JjDirtyPaths { path, .. } => {
+                write!(
+                    formatter,
+                    "could not compute the jj working-copy diff at {}",
+                    path.display()
+                )
+            }
         }
     }
 }
@@ -162,7 +175,8 @@ impl std::error::Error for Error {
             | Self::Jj { source, .. }
             | Self::JjCheckout { source, .. }
             | Self::JjOpStore { source }
-            | Self::JjConfig { source } => Some(source.as_ref()),
+            | Self::JjConfig { source }
+            | Self::JjDirtyPaths { source, .. } => Some(source.as_ref()),
             Self::JjStoreLayout { .. } | Self::JjWorkingCopyBackend { .. } => {
                 None
             }
@@ -320,6 +334,27 @@ impl InProcessProbe {
         DualRoots {
             git: git_root(start).map_err(Into::into),
             jj: self.jj_workspace_root(start).map_err(Into::into),
+        }
+    }
+
+    /// Every repo-relative path that differs from the last committed tree —
+    /// git via `gix::Repository::status` (untracked files excluded, mirroring
+    /// `git status --porcelain` filtered to tracked changes only), jj via a
+    /// real snapshot-then-diff (untracked files included, since jj auto-tracks
+    /// by default, mirroring `jj diff --name-only`).
+    ///
+    /// # Errors
+    ///
+    /// When `root` is present but its status/diff cannot be computed.
+    pub fn dirty_paths(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<Vec<String>, Error> {
+        match kind {
+            VcsKind::Git => dirty_paths::git_dirty_paths(root),
+            VcsKind::Jj => dirty_paths::jj_dirty_paths(root),
+            VcsKind::None => Ok(Vec::new()),
         }
     }
 }
