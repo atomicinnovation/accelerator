@@ -107,14 +107,6 @@ EMITTERS=(
 )
 # Surfaced by the discovery grep but out of scope: migrate is a corpus
 # transformer with no full-block emission.
-#
-# conduct-spike used to be excluded here too — it only touches
-# last_updated/last_updated_by on an existing artifact (no full-block
-# emission) and matched solely via its artifact-derive-metadata.sh
-# reference. 0195 Phase 2 replaced that reference with `accelerator corpus
-# metadata derive`, which the discovery regex does not match, so
-# conduct-spike no longer surfaces at all — dropping the discovery count
-# from 18 to 17.
 EXCLUDED=(
   skills/config/migrate/SKILL.md
 )

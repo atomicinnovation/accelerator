@@ -126,9 +126,9 @@ pub fn build_index<W: CorpusWalker + FileReader>(
 /// Validates one file's structural conformance.
 ///
 /// `Ok(None)` for the missing/unreadable-file case degrading to
-/// [`Violation::NoFence`] — matching bash's `has_fence`, which treats a
-/// nonexistent file identically to one with no fence, never surfacing a
-/// distinct "file not found" message.
+/// [`Violation::NoFence`] — matching the retired bash implementation's own
+/// fence check, which treats a nonexistent file identically to one with no
+/// fence, never surfacing a distinct "file not found" message.
 ///
 /// # Errors
 ///

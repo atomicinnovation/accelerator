@@ -86,10 +86,10 @@ pub enum LinkageAction {
         file: PathBuf,
         /// The source document's own type, overriding path-based inference.
         ///
-        /// A named flag rather than a second bare positional (bash's
-        /// `lp_parse_file <file> [source_type_override]` shape) — this CLI's
-        /// argument shape is not held to bash parity, and a named flag is
-        /// more discoverable in `--help` and harder to invoke by mistake.
+        /// A named flag rather than a second bare positional (the retired
+        /// bash implementation's own shape) — this CLI's argument shape is
+        /// not held to bash parity, and a named flag is more discoverable
+        /// in `--help` and harder to invoke by mistake.
         #[arg(long)]
         source_type: Option<String>,
     },

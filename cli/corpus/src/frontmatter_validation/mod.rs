@@ -9,12 +9,12 @@
 //! YAML parser (the quoting is pure syntax, not semantics, for any value
 //! that would resolve to a string either way), so a parsed
 //! [`crate::Mapping`] cannot recover the distinction a byte-for-byte port
-//! needs. [`parse_entries`] instead replicates bash's own naive line
-//! scanner (`parse_fm`) exactly, including its quirks: first-occurrence-
-//! wins on a duplicate key, and no awareness of block-style (multi-line)
-//! YAML lists — only flow-style (`[a, b]`) lists are ever correctly
-//! scanned, matching every template's actual emission convention and
-//! bash's own limitation.
+//! needs. [`parse_entries`] instead replicates the retired bash
+//! implementation's own naive line scanner exactly, including its quirks:
+//! first-occurrence-wins on a duplicate key, and no awareness of
+//! block-style (multi-line) YAML lists — only flow-style (`[a, b]`) lists
+//! are ever correctly scanned, matching every template's actual emission
+//! convention and the retired implementation's own limitation.
 //!
 //! Whether the frontmatter is well-formed YAML at all (a tagged node, or a
 //! non-mapping root) is a separate, stricter concern the adapter layer
@@ -33,11 +33,12 @@ pub use crate::frontmatter_validation::violation::Violation;
 
 /// One `key: value` line per entry, value whitespace-trimmed.
 ///
-/// Mirrors bash's `parse_fm`: a line qualifies iff it starts with a letter
-/// or underscore and carries a `:` later on the same line, with everything
-/// before that colon a valid `[A-Za-z0-9_]+` key. Indented lines
-/// (block-list items, nested mapping keys) never qualify — this is a flat,
-/// single-line-per-key scan, not a YAML parser.
+/// Mirrors the retired bash implementation's own line scanner: a line
+/// qualifies iff it starts with a letter or underscore and carries a `:`
+/// later on the same line, with everything before that colon a valid
+/// `[A-Za-z0-9_]+` key. Indented lines (block-list items, nested mapping
+/// keys) never qualify — this is a flat, single-line-per-key scan, not a
+/// YAML parser.
 #[must_use]
 pub fn parse_entries(raw_frontmatter: &str) -> Vec<(String, String)> {
     let mut entries = Vec::new();
@@ -64,7 +65,7 @@ pub fn parse_entries(raw_frontmatter: &str) -> Vec<(String, String)> {
 }
 
 /// The first value for `key`, or `None` if absent — first-occurrence-wins,
-/// matching bash's `bk_value`.
+/// matching the retired bash implementation's own lookup.
 #[must_use]
 pub fn raw_value<'a>(
     entries: &'a [(String, String)],
@@ -76,8 +77,8 @@ pub fn raw_value<'a>(
         .map(|(_, value)| value.as_str())
 }
 
-/// Whether `key` is present (regardless of value) — matches bash's
-/// `bk_present`.
+/// Whether `key` is present (regardless of value) — matches the retired
+/// bash implementation's own check.
 #[must_use]
 pub fn is_present(entries: &[(String, String)], key: &str) -> bool {
     entries.iter().any(|(existing, _)| existing == key)
@@ -86,8 +87,8 @@ pub fn is_present(entries: &[(String, String)], key: &str) -> bool {
 /// Strips exactly one layer of surrounding double or single quotes.
 ///
 /// Leaves any trailing content (inline comment, stray characters)
-/// untouched. Mirrors bash's `fm_inner` exactly — deliberately not a
-/// general-purpose unquoter.
+/// untouched. Mirrors the retired bash implementation's own unwrapper
+/// exactly — deliberately not a general-purpose unquoter.
 #[must_use]
 pub fn strip_surrounding_quote(raw: &str) -> &str {
     if let Some(rest) = raw.strip_prefix('"') {

@@ -1,12 +1,12 @@
 //! `accelerator-corpus adr` against pre-captured expected values,
-//! transliterated from `skills/decisions/scripts/test-adr-scripts.sh`.
+//! transliterated from the retired bash implementation's own golden suite.
 //!
 //! Unconditional: unlike this codebase's other binary-spawning golden suites
 //! (which compare against a live bash process under the `bash-parity`
 //! feature), these compare against values captured once, during development,
-//! from the bash scripts this phase deletes — there is no bash left to
-//! compare against once it's gone, so this suite runs in the default `cargo
-//! test` invocation with no feature gate.
+//! from a bash implementation that no longer exists — there is no bash left
+//! to compare against, so this suite runs in the default `cargo test`
+//! invocation with no feature gate.
 
 use std::fs;
 use std::path::Path;

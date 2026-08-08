@@ -158,8 +158,8 @@ impl Violation {
 }
 
 impl fmt::Display for Violation {
-    /// `<CODE> — <message>`, with a literal em dash (U+2014), matching
-    /// bash's `violation()` formatter byte for byte.
+    /// `<CODE> — <message>`, with a literal em dash (U+2014), matching the
+    /// retired bash implementation's own formatter byte for byte.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} — {}", self.code(), self.message())
     }

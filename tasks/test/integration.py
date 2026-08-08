@@ -39,12 +39,8 @@ _EXPECTED_MIGRATE_SUITES = 4
 # Bumped as suites are added under scripts/. Dropped from 21 to 18: 0177
 # retired test-skills-index.sh (superseded by docs:generate) and 0167 retired
 # test-config.sh and test-config-read-doc-type-paths.sh alongside the removal
-# set. Dropped from 18 to 17: 0195 Phase 3 retired test-linkage-parser.sh
-# (linkage-parser.sh ported to `accelerator corpus linkage extract`). Dropped
-# from 17 to 16: 0195 Phase 4 retired test-validate-corpus-frontmatter.sh
-# (validate-corpus-frontmatter.sh ported to `accelerator corpus frontmatter
-# validate`; the migration-completion gate is now the unconditional
-# `this_repositorys_own_corpus_is_clean` cargo test in corpus-cli).
+# set. Dropped to 16 as the shell-based frontmatter and linkage validators
+# retired in favour of `accelerator corpus`.
 _EXPECTED_CONFIG_SUITES = 16
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
@@ -63,10 +59,10 @@ _EXPECTED_INTEGRATIONS_SUITES = 32
 # a guard renamed off the `test-*.sh` convention would vanish while the count
 # still passes via other suites. The producer-conformance guard (work item
 # 0103) is the gate that "cannot drift undetected". The corpus validator's own
-# migration-completion gate (work item 0102) moved with it to
-# `corpus-cli`'s unconditional `this_repositorys_own_corpus_is_clean` cargo
-# test (0195 Phase 4) — a `cargo test` failure already fails CI
-# unconditionally, so no bash-style required-suite registration applies there.
+# migration-completion gate (work item 0102) moved with it to `corpus-cli`'s
+# unconditional `this_repositorys_own_corpus_is_clean` cargo test — a `cargo
+# test` failure already fails CI unconditionally, so no bash-style
+# required-suite registration applies there.
 _REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 
 # The three previously-unguarded subtrees, each at its current size. hooks/

@@ -236,8 +236,8 @@ pub const OPTIONAL_EXTRAS: [&str; 6] = [
     "work_item_id",
 ];
 
-/// Mirrors `OBSOLETE_LEGACY_KEYS` — fully-obsolete legacy linkage keys,
-/// forbidden on every typed/type-inferable document.
+/// Fully-obsolete legacy linkage keys, forbidden on every
+/// typed/type-inferable document.
 pub const OBSOLETE_LEGACY_KEYS: [&str; 2] = ["ticket", "ticket_id"];
 
 #[cfg(test)]

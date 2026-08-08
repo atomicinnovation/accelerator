@@ -36,8 +36,8 @@ pub fn compose(cwd: &Path) -> Result<Composed, kernel::Error> {
 }
 
 /// Resolves `paths.decisions`, absolute paths used as-is and relative paths
-/// resolved against the discovered project root — matching
-/// `adr-next-number.sh`'s own resolution rule.
+/// resolved against the discovered project root — matching the retired bash
+/// implementation's own resolution rule.
 ///
 /// # Errors
 ///

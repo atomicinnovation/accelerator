@@ -1,7 +1,7 @@
 //! `accelerator-corpus frontmatter validate` black-box CLI coverage: target-
 //! set resolution, `--checks` gating, and the exit-code contract, plus the
-//! unconditional whole-corpus self-check that replaces
-//! `scripts/test-validate-corpus-frontmatter.sh`'s required-suite role.
+//! unconditional whole-corpus self-check that is now this validator's
+//! required-by-name completion gate.
 //!
 //! Unconditional, like the other `*_goldens.rs` suites: no `bash-parity`
 //! feature gate.
