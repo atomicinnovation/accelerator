@@ -29,11 +29,9 @@ fn leading_number(rest: &str) -> Option<u32> {
 /// when the fence is missing or unclosed, or the fence carries no `status:`
 /// line.
 ///
-/// Replicates the bash reference's line-by-line state machine exactly: the
-/// first bare `---` opens the fence, the second closes it and the scan stops
-/// immediately, and value extraction runs quote-stripping before
-/// whitespace-trimming — an intentional quirk, not a bug, that this port
-/// preserves (see [`unwrap_status_value`]).
+/// Replicates the bash reference's line-by-line state machine: the first
+/// bare `---` opens the fence, the second closes it and the scan stops
+/// immediately.
 #[must_use]
 pub fn read_status(content: &str) -> Option<String> {
     let mut in_fence = false;
@@ -61,23 +59,18 @@ pub fn read_status(content: &str) -> Option<String> {
     }
 }
 
-/// Strips the `status:` prefix's leading whitespace, then one leading and one
-/// trailing quote char (independently, and in that order — a quote-stripped
-/// buffer's trailing whitespace has not been trimmed yet), then trailing
-/// whitespace. Because quote-stripping runs before whitespace-trimming, a
-/// value like `"foo" ` (trailing space after the closing quote) unwraps to
-/// `foo"`, not `foo`: the trailing-quote check sees a trailing space, not a
-/// quote, so only the leading quote is stripped, and the later
-/// whitespace-trim leaves the stray closing quote behind.
+/// Strips the `status:` prefix's surrounding whitespace, then one leading
+/// and one trailing quote char, so a trailing space after a closing quote
+/// (`"foo" `) unwraps to `foo`, not `foo"`.
 fn unwrap_status_value(raw: &str) -> String {
-    let mut value = raw.trim_start().to_owned();
+    let mut value = raw.trim().to_owned();
     if value.starts_with('"') || value.starts_with('\'') {
         value.remove(0);
     }
     if value.ends_with('"') || value.ends_with('\'') {
         value.pop();
     }
-    value.trim_end().to_owned()
+    value
 }
 
 #[cfg(test)]
@@ -166,17 +159,15 @@ mod tests {
     }
 
     #[test]
-    fn read_status_a_trailing_space_after_a_closing_double_quote_leaves_a_stray_quote(
-    ) {
+    fn read_status_a_trailing_space_after_a_closing_double_quote_is_stripped() {
         let content = "---\nstatus: \"foo\" \n---\n";
-        assert_eq!(read_status(content), Some("foo\"".to_owned()));
+        assert_eq!(read_status(content), Some("foo".to_owned()));
     }
 
     #[test]
-    fn read_status_a_trailing_space_after_a_closing_single_quote_leaves_a_stray_quote(
-    ) {
+    fn read_status_a_trailing_space_after_a_closing_single_quote_is_stripped() {
         let content = "---\nstatus: 'foo' \n---\n";
-        assert_eq!(read_status(content), Some("foo'".to_owned()));
+        assert_eq!(read_status(content), Some("foo".to_owned()));
     }
 
     #[test]
