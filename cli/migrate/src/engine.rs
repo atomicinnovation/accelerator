@@ -89,6 +89,11 @@ pub fn run_interactive(
         }
     }
 
+    migration.finalise(ctx).map_err(|message| {
+        reporter.interactive_fail(id, &message);
+        MigrationError::new(format!("[{id}] {message}"))
+    })?;
+
     Ok(ApplyOutcome::Applied)
 }
 
@@ -170,8 +175,13 @@ fn apply(
 }
 
 /// The write-ahead-log invariant: `session_log`'s record write must return
-/// `Ok` before `apply_decision` is invoked, for every decided outcome —
-/// accept, edit, and skip alike.
+/// `Ok` before `apply_decision` is invoked, for every outcome that reaches
+/// it — accept and edit.
+///
+/// A skip is recorded but never calls `apply_decision` at all — matching
+/// bash's own harness, which never invoked `migration_apply_decision` for a
+/// skip either. This is a structural guarantee the engine itself enforces,
+/// not a convention every `InteractiveMigration` author has to remember.
 fn record_then_apply(
     id: &str,
     transformation: &Transformation,
@@ -192,6 +202,9 @@ fn record_then_apply(
         &transformation.proposed,
         user_value,
     )?;
+    if matches!(decision, Decision::Skip) {
+        return Ok(());
+    }
     apply(id, transformation, decision, migration, ctx, reporter)
 }
 

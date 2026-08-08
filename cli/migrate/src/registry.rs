@@ -73,6 +73,6 @@ pub fn registry() -> Vec<MigrationEntry> {
         MigrationEntry::Mechanical(Box::new(Migration0004)),
         MigrationEntry::Mechanical(Box::new(Migration0005)),
         MigrationEntry::Mechanical(Box::new(Migration0006)),
-        MigrationEntry::Interactive(Box::new(Migration0007::default())),
+        MigrationEntry::Interactive(Box::new(Migration0007)),
     ]
 }

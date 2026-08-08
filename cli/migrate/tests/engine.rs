@@ -85,6 +85,7 @@ struct FixtureMigration {
     reject_edit: bool,
     fail_apply: bool,
     verify_applied_result: bool,
+    apply_decision_calls: RefCell<Vec<Decision>>,
 }
 
 impl FixtureMigration {
@@ -95,6 +96,7 @@ impl FixtureMigration {
             reject_edit: false,
             fail_apply: false,
             verify_applied_result: true,
+            apply_decision_calls: RefCell::new(Vec::new()),
         }
     }
 
@@ -164,9 +166,12 @@ impl InteractiveMigration for FixtureMigration {
     fn apply_decision(
         &self,
         _transformation: &Transformation,
-        _decision: &Decision,
+        decision: &Decision,
         _ctx: &dyn MigrationContext,
     ) -> Result<(), String> {
+        self.apply_decision_calls
+            .borrow_mut()
+            .push(decision.clone());
         if self.fail_apply {
             return Err("apply exploded".to_owned());
         }
@@ -385,6 +390,32 @@ fn a_fresh_skip_is_recorded_with_no_user_value() -> Result<(), TestError> {
     let records = session_log.records()?;
     assert_eq!(records[0].outcome, Outcome::Skipped);
     assert_eq!(records[0].user_value, None);
+    Ok(())
+}
+
+#[test]
+fn a_skip_never_reaches_apply_decision() -> Result<(), TestError> {
+    let migration = FixtureMigration::prompting(vec![
+        transformation("k1", "v1"),
+        transformation("k2", "v2"),
+    ]);
+    let decisions =
+        ScriptedDecisions::new(vec![Decision::Skip, Decision::Accept]);
+    let session_log = InMemorySessionLog::default();
+    let reporter = SpyReporter::default();
+
+    run_interactive(
+        &migration,
+        &StubContext,
+        &decisions,
+        &session_log,
+        Duration::from_secs(1),
+        &reporter,
+    )?;
+
+    let calls = migration.apply_decision_calls.borrow();
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    assert!(matches!(calls[0], Decision::Accept));
     Ok(())
 }
 

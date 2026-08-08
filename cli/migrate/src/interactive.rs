@@ -64,6 +64,11 @@ pub trait InteractiveMigration: MigrationMeta {
         value: &str,
     ) -> Result<(), String>;
 
+    /// Never called for `Decision::Skip` — the engine records a skip and
+    /// stops there, matching bash's own harness, which never invoked
+    /// `migration_apply_decision` for a skip either. `decision` is always
+    /// `Accept` or `Edit` here.
+    ///
     /// # Errors
     /// The failure message, relayed verbatim as `"[{id}] {message}"`.
     fn apply_decision(
@@ -82,5 +87,20 @@ pub trait InteractiveMigration: MigrationMeta {
         _recorded: &corpus::Record,
     ) -> bool {
         true
+    }
+
+    /// Called once, unconditionally, after every transformation this run
+    /// decided has been applied (or immediately if there were none to
+    /// begin with) — never per-transformation, and never skipped just
+    /// because the last decision happened to be a skip. Mirrors bash's own
+    /// `self_validate_referential`, run once after the whole interactive
+    /// apply loop completes, not threaded through any one transformation's
+    /// own callback. The default is a no-op; only a migration with
+    /// whole-corpus post-apply validation (0007) needs to override it.
+    ///
+    /// # Errors
+    /// The failure message, relayed verbatim as `"[{id}] {message}"`.
+    fn finalise(&self, _ctx: &dyn MigrationContext) -> Result<(), String> {
+        Ok(())
     }
 }

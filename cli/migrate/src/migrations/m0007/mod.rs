@@ -11,14 +11,12 @@
 //! `evaluate_predicate` returns `Fail` — the same "abort the whole
 //! migration with `[id] message`" path a real predicate failure takes.
 //!
-//! `self_validate_referential` (whole-corpus, post-interactive-apply) has
-//! no dedicated engine hook either: it must run once, after every
-//! transformation this run decided has been applied, before the migration
-//! reports success. This migration tracks the *last* transformation's key
-//! and triggers it from `apply_decision` when that key is reached — or, if
-//! there were no transformations to begin with (nothing to apply), it runs
-//! immediately at the end of `emit_transformations`, since no further
-//! mutation will occur either way.
+//! `self_validate_referential` (whole-corpus, post-interactive-apply) runs
+//! via [`InteractiveMigration::finalise`] — the engine calls it once,
+//! unconditionally, after every transformation this run decided has been
+//! applied (or immediately if there were none to begin with), mirroring
+//! bash's own placement: once, after the whole interactive apply loop
+//! completes, not threaded through any one transformation's own callback.
 
 mod backfill;
 mod fence;
@@ -30,7 +28,6 @@ mod rewrite;
 mod schema;
 mod status_map;
 
-use std::cell::RefCell;
 use std::path::PathBuf;
 
 use corpus::doc_type::DocTypeKey;
@@ -46,17 +43,7 @@ use crate::registry::MigrationMeta;
 
 const MECHANICAL_FAIL: &str = "__mechanical_fail__";
 
-pub struct Migration0007 {
-    final_key: RefCell<Option<String>>,
-}
-
-impl Default for Migration0007 {
-    fn default() -> Self {
-        Self {
-            final_key: RefCell::new(None),
-        }
-    }
-}
+pub struct Migration0007;
 
 impl MigrationMeta for Migration0007 {
     fn id(&self) -> &'static str {
@@ -283,17 +270,7 @@ impl InteractiveMigration for Migration0007 {
         ctx: &dyn MigrationContext,
     ) -> Vec<Transformation> {
         match run_mechanical(ctx) {
-            Ok(transformations) => {
-                if let Some(last) = transformations.last() {
-                    *self.final_key.borrow_mut() = Some(last.key.clone());
-                } else if let Err(message) = ctx.validate_frontmatter(&[]) {
-                    return mechanical_fail(format!(
-                        "{}: {message}",
-                        referential_error()
-                    ));
-                }
-                transformations
-            }
+            Ok(transformations) => transformations,
             Err(message) => mechanical_fail(message),
         }
     }
@@ -340,7 +317,9 @@ impl InteractiveMigration for Migration0007 {
         let value = match decision {
             Decision::Accept => Some(transformation.proposed.as_str()),
             Decision::Edit(value) => Some(value.as_str()),
-            Decision::Skip => None,
+            Decision::Skip => {
+                unreachable!("the engine never calls apply_decision for a skip")
+            }
         };
         if let Some(value) = value {
             if let Some((key, target)) = value.split_once('=') {
@@ -349,22 +328,10 @@ impl InteractiveMigration for Migration0007 {
                 }
             }
         }
-        self.finalise_if_last(transformation, ctx)
+        Ok(())
     }
-}
 
-impl Migration0007 {
-    fn finalise_if_last(
-        &self,
-        transformation: &Transformation,
-        ctx: &dyn MigrationContext,
-    ) -> Result<(), String> {
-        let is_last = self.final_key.borrow().as_deref()
-            == Some(transformation.key.as_str());
-        if !is_last {
-            return Ok(());
-        }
-        *self.final_key.borrow_mut() = None;
+    fn finalise(&self, ctx: &dyn MigrationContext) -> Result<(), String> {
         ctx.validate_frontmatter(&[])
             .map_err(|_| referential_error())
     }
