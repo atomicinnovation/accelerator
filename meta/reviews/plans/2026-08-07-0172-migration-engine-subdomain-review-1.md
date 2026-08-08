@@ -6,9 +6,7 @@ date: "2026-08-07T10:18:07+00:00"
 author: Toby Clemson
 producer: review-plan
 status: complete
-parent: ""
 target: "plan:2026-08-07-0172-migration-engine-subdomain"
-relates_to: []
 reviewer: Toby Clemson
 verdict: "APPROVE"
 lenses: [architecture, code-quality, test-coverage, correctness, safety, compatibility, usability, documentation]
