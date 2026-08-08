@@ -41,6 +41,7 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
         "collaboration": (
             "The collaboration pr base-repo|update-body sub-binary."
         ),
+        "migrate": "Apply pending meta-directory schema migrations.",
     }
 )
 
@@ -304,6 +305,23 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                 ).write_bytes(b"\x00" * 8)
             (tmp_path / f"accelerator-{platform}").write_bytes(b"\x00" * 4)
             (tmp_path / f"accelerator-{platform}.minisig").write_text("sig")
+            # The shared accelerator-visualiser-{platform} binary (staged above)
+            # doubles as the manifest-flow sub-binary asset; sign it once.
+            (
+                tmp_path / f"accelerator-visualiser-{platform}.minisig"
+            ).write_text("sig")
+            (tmp_path / f"accelerator-vcs-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-vcs-{platform}.minisig").write_text("sig")
+            (tmp_path / f"accelerator-work-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-work-{platform}.minisig").write_text(
+                "sig"
+            )
+            (tmp_path / f"accelerator-migrate-{platform}").write_bytes(
+                b"\x00" * 4
+            )
+            (tmp_path / f"accelerator-migrate-{platform}.minisig").write_text(
+                "sig"
+            )
         manifest.write_text(
             json.dumps(
                 {
@@ -516,9 +534,7 @@ class TestBuilderSeams:
 
         assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
 
-    def test_the_dispatched_registry_holds_the_five_current_subbinaries(
-        self,
-    ):
+    def test_the_dispatched_registry_holds_all_sub_binary_tokens(self):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
         assert DISPATCHED_SUBBINARIES == (
@@ -527,6 +543,7 @@ class TestBuilderSeams:
             "work",
             "corpus",
             "collaboration",
+            "migrate",
         )
 
 
