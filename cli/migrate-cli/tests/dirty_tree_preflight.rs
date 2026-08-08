@@ -74,7 +74,13 @@ fn a_foreign_dirty_git_file_refuses() -> Result<(), TestError> {
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
-    assert!(stderr.contains("dirty working tree"), "{stderr}");
+    assert_eq!(
+        stderr,
+        "Error: dirty working tree — uncommitted changes detected in \
+         meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or \
+         discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 \
+         to skip this check.\n"
+    );
     Ok(())
 }
 
@@ -219,6 +225,77 @@ fn a_foreign_dirty_file_under_accelerator_refuses() -> Result<(), TestError> {
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
     assert!(stderr.contains("dirty working tree"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_successful_run_clears_the_manifest_and_run_id_sidecar(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-clear")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &root)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "meta/a.md"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+    mark_all_migrations_applied(&root)?;
+
+    let (stdout, stderr, code) = run(&root, &[])?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(stdout, "No pending migrations.\n");
+    assert!(
+        !root
+            .join(".accelerator/state/migrations-run-paths.txt")
+            .exists(),
+        "the manifest sidecar must be cleared after a successful run"
+    );
+    assert!(
+        !root.join(".accelerator/state/migrations-run.id").exists(),
+        "the run-id sidecar must be cleared after a successful run"
+    );
+    Ok(())
+}
+
+#[test]
+fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-force-skip")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &root)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "meta/a.md"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+    fs::write(root.join("meta/a.md"), "two\n")?;
+    fs::create_dir_all(root.join(".accelerator/state"))?;
+    fs::write(
+        root.join(".accelerator/state/migrations-applied"),
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
+    )?;
+    fs::write(
+        root.join(".accelerator/state/migrations-skipped"),
+        "0001-rename-tickets-to-work\n",
+    )?;
+
+    let (stdout, _stderr, code) =
+        run(&root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+
+    assert_eq!(code, 0, "{stdout}");
+    assert!(stdout.starts_with("No pending migrations.\n"), "{stdout}");
+    assert!(
+        stdout.contains("Skipped: 0001-rename-tickets-to-work"),
+        "FORCE must not silently un-skip a skipped migration: {stdout}"
+    );
     Ok(())
 }
 

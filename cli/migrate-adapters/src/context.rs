@@ -295,3 +295,35 @@ fn walk(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::FileMigrationContext;
+    use crate::manifest_store::FileManifestStore;
+    use migrate::ports::ManifestStore as _;
+    use migrate::ports::MigrationContext as _;
+
+    type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn a_write_records_the_path_once_even_across_two_write_points(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let ctx = FileMigrationContext::new(dir.path());
+
+        ctx.write(&dir.path().join("meta/work/a.md"), "one")?;
+        ctx.write(&dir.path().join("meta/work/a.md"), "two")?;
+        ctx.write(&dir.path().join("meta/work/b.md"), "three")?;
+
+        let manifest = FileManifestStore::new(dir.path());
+        let mut recorded = manifest.manifest()?.unwrap_or_default();
+        recorded.sort();
+        assert_eq!(
+            recorded,
+            vec!["meta/work/a.md".to_owned(), "meta/work/b.md".to_owned()]
+        );
+        Ok(())
+    }
+}

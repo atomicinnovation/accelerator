@@ -126,3 +126,28 @@ impl ManifestStore for FileManifestStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::FileManifestStore;
+    use migrate::ports::ManifestStore;
+
+    type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn an_empty_run_id_sidecar_parses_the_same_as_an_absent_one(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let store = FileManifestStore::new(dir.path());
+        std::fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+        std::fs::write(
+            dir.path().join(".accelerator/state/migrations-run.id"),
+            "",
+        )?;
+
+        assert_eq!(store.run_id()?, None);
+        Ok(())
+    }
+}

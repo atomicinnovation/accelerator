@@ -117,6 +117,89 @@ fn unapply_removes_the_id_from_the_applied_ledger() -> Result<(), TestError> {
 }
 
 #[test]
+fn unskipping_a_real_migration_lets_a_subsequent_run_actually_apply_it(
+) -> Result<(), TestError> {
+    let dir = project()?;
+    fs::create_dir_all(dir.path().join("meta/tickets"))?;
+    fs::write(
+        dir.path().join("meta/tickets/0001-foo.md"),
+        "---\nticket_id: 0001\n---\n",
+    )?;
+    fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n",
+    )?;
+    run(&dir, &["--skip", "0001-rename-tickets-to-work"])?;
+
+    let (stdout, _stderr, code) = run(&dir, &[])?;
+    assert_eq!(code, 0);
+    assert!(stdout.starts_with("No pending migrations.\n"), "{stdout}");
+    assert!(dir.path().join("meta/tickets").exists());
+
+    run(&dir, &["--unskip", "0001-rename-tickets-to-work"])?;
+    let (stdout, _stderr, code) = run(&dir, &[])?;
+
+    assert_eq!(code, 0);
+    assert!(
+        stdout.ends_with("Migration complete. applied: 1.\n"),
+        "{stdout}"
+    );
+    assert!(!dir.path().join("meta/tickets").exists());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("meta/work/0001-foo.md"))?,
+        "---\nwork_item_id: 0001\n---\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unknown_applied_or_skipped_id_is_warned_about_during_a_real_run(
+) -> Result<(), TestError> {
+    let dir = project()?;
+    fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0001-rename-tickets-to-work\n\
+         0002-rename-work-items-with-project-prefix\n\
+         0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n\
+         9999-unknown-applied\n",
+    )?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-skipped"),
+        "9999-unknown-skipped\n",
+    )?;
+
+    let (_stdout, stderr, code) = run(&dir, &[])?;
+
+    assert_eq!(code, 0, "{stderr}");
+    assert!(
+        stderr.contains(
+            "migrations-applied references unknown migration \
+             9999-unknown-applied"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "migrations-skipped references unknown migration \
+             9999-unknown-skipped"
+        ),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
 fn no_id_validation_against_the_registry_matches_bash() -> Result<(), TestError>
 {
     let dir = project()?;

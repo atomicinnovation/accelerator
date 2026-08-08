@@ -261,6 +261,58 @@ fn a_recorded_revision_of_none_never_matches_even_a_current_none() {
 }
 
 #[test]
+fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
+) -> Result<(), TestError> {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(Vec::new());
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["stale/path.md".to_owned()],
+        Some("old-rev"),
+    );
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-2".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    let (_guard, outcome) = preflight.run()?;
+
+    assert!(matches!(outcome, PreflightOutcome::Clean));
+    assert_eq!(manifest.manifest()?, Some(Vec::new()));
+    assert_eq!(manifest.run_id()?, Some("rev-2".to_owned()));
+    Ok(())
+}
+
+#[test]
+fn two_distinct_non_none_revisions_are_a_stale_base_and_refuse() {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(vec!["meta/work/owned.md".to_owned()]);
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["meta/work/owned.md".to_owned()],
+        Some("rev-1"),
+    );
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-2".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    let outcome = preflight.run();
+
+    assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
+}
+
+#[test]
 fn force_bypasses_the_dirty_check_and_mints_a_fresh_manifest(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;

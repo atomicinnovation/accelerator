@@ -281,6 +281,97 @@ fn an_empty_pending_set_reports_no_pending_migrations_and_touches_no_ledger(
 }
 
 #[test]
+fn an_unknown_applied_id_is_reported_and_the_real_pending_entry_still_runs(
+) -> Result<(), TestError> {
+    let entries =
+        vec![MigrationEntry::Mechanical(Box::new(AlwaysApplies("0001")))];
+    let ledger = InMemoryLedgerStore::default();
+    ledger.write_applied(&["9999-future".to_owned()])?;
+    let reporter = SpyReporter::default();
+
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+        None,
+    )?;
+
+    assert!(reporter
+        .events
+        .borrow()
+        .contains(&"unknown_applied:9999-future".to_owned()));
+    assert!(reporter
+        .events
+        .borrow()
+        .contains(&"applied:0001".to_owned()));
+    assert!(ledger.applied()?.contains(&"9999-future".to_owned()));
+    Ok(())
+}
+
+#[test]
+fn an_unknown_skipped_id_is_reported() -> Result<(), TestError> {
+    let entries: Vec<MigrationEntry> = Vec::new();
+    let ledger = InMemoryLedgerStore::default();
+    ledger.write_skipped(&["9999-future".to_owned()])?;
+    let reporter = SpyReporter::default();
+
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+        None,
+    )?;
+
+    assert!(reporter
+        .events
+        .borrow()
+        .contains(&"unknown_skipped:9999-future".to_owned()));
+    Ok(())
+}
+
+#[test]
+fn an_id_that_is_both_applied_and_skipped_reports_both_and_applied_wins(
+) -> Result<(), TestError> {
+    let entries =
+        vec![MigrationEntry::Mechanical(Box::new(AlwaysApplies("0001")))];
+    let ledger = InMemoryLedgerStore::default();
+    ledger.write_applied(&["0001".to_owned()])?;
+    ledger.write_skipped(&["0001".to_owned()])?;
+    let reporter = SpyReporter::default();
+
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+        None,
+    )?;
+
+    assert!(reporter.events.borrow().contains(&"both:0001".to_owned()));
+    assert!(
+        !reporter
+            .events
+            .borrow()
+            .contains(&"applied:0001".to_owned()),
+        "an id already applied is not pending — applied wins by \
+         exclusion, not by re-running: {:?}",
+        reporter.events.borrow()
+    );
+    Ok(())
+}
+
+#[test]
 fn applied_and_no_op_entries_are_dispatched_and_reported_in_order(
 ) -> Result<(), TestError> {
     let entries = vec![
