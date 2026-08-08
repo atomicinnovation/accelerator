@@ -1,17 +1,26 @@
-//! Artifact-metadata derivation: the clock adapter, and the composition of a
-//! clock and a repository probe into the block the authoring skills stamp
-//! artifacts with.
+//! Artifact-metadata derivation.
 //!
-//! This subsumes the three bash metadata helpers, which differ only in the
-//! filename timestamp they render.
+//! The clock adapter, the `vcs`/`vcs-adapters`-backed implementation of
+//! `corpus::RepoFactsProbe`, and the composition of a clock and a
+//! repository probe into the block the authoring skills stamp artifacts
+//! with. This subsumes the three bash metadata helpers, which differ only
+//! in the filename timestamp they render.
+//!
+//! [`VcsBackedRepoFactsProbe`] is the only place in this module that
+//! depends on `vcs`/`vcs-adapters` — `derive_at` takes its facts probe by
+//! injection, so a caller (or a test) can supply a double instead, and
+//! [`derive`] never sees a VCS-specific type at all.
 
 use std::fmt;
 use std::path::Path;
 use std::process::Command;
 
-use corpus::{ArtifactMetadata, Clock, FilenameTimestampFormat};
+use corpus::ArtifactMetadata;
+use corpus::Clock;
+use corpus::FilenameTimestampFormat;
+use corpus::RepoFactsProbe;
+use corpus::RepositoryFacts;
 use time::{OffsetDateTime, UtcOffset};
-use vcs::RepoFacts;
 
 /// The host's UTC offset could not be resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -176,7 +185,7 @@ impl Clock for SystemClock {
 #[must_use]
 pub fn derive(
     clock: &dyn Clock,
-    facts: Option<&RepoFacts>,
+    facts: Option<&RepositoryFacts>,
     format: FilenameTimestampFormat,
 ) -> ArtifactMetadata {
     ArtifactMetadata {
@@ -187,8 +196,21 @@ pub fn derive(
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VcsBackedRepoFactsProbe;
+
+impl RepoFactsProbe for VcsBackedRepoFactsProbe {
+    fn facts(&self, start: &Path) -> Option<RepositoryFacts> {
+        let facts = vcs_adapters::facts(start)?;
+        Some(RepositoryFacts {
+            name: facts.name,
+            revision: facts.revision,
+        })
+    }
+}
+
 /// Derives the metadata for an artifact authored under `start`, against the
-/// real clock and the real repository.
+/// real clock and `facts_probe`.
 ///
 /// # Errors
 ///
@@ -196,9 +218,10 @@ pub fn derive(
 pub fn derive_at(
     start: &Path,
     format: FilenameTimestampFormat,
+    facts_probe: &dyn RepoFactsProbe,
 ) -> Result<ArtifactMetadata, ClockError> {
     let clock = SystemClock::try_new()?;
-    let facts = vcs_adapters::facts(start);
+    let facts = facts_probe.facts(start);
     Ok(derive(&clock, facts.as_ref(), format))
 }
 

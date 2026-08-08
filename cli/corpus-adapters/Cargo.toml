@@ -21,7 +21,6 @@ bash-parity = []
 corpus = { path = "../corpus" }
 document = { path = "../document" }
 store = { path = "../store" }
-vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 regex = { workspace = true }
 time = { workspace = true }

@@ -62,7 +62,9 @@ impl ResolveBinary for LazyProductionResolver {
             return Ok(path);
         }
         let _ = install_crypto_provider();
-        let cache = cache_root::candidate(&CacheRootConfig::from_env())?;
+        let cache = cache_root::candidate(&CacheRootConfig::from_env(
+            config_adapters::plugin_root_from_env(),
+        ))?;
         let keys = TrustedKeys::embedded()?;
         let config = ResolverConfig::production(release_base_url(), cache);
         FetchVerifyCacheResolver::new(config, keys)?.resolve(command)
@@ -158,7 +160,9 @@ fn compose_stack(
         })?,
     };
     let composed = config_adapters::compose(&start, policy)?;
-    let store = composed.store.with_plugin_root(plugin_root());
+    let store = composed
+        .store
+        .with_plugin_root(config_adapters::plugin_root_from_env());
     Ok(ConfigStack::new(
         Box::new(composed.service),
         Box::new(store.clone()),
@@ -168,13 +172,6 @@ fn compose_stack(
         Box::new(store.clone()),
         Box::new(store),
     ))
-}
-
-/// The plugin root from `ACCELERATOR_PLUGIN_ROOT`, for resolving plugin-default
-/// templates; `None` when unset. `with_plugin_root` drops an empty value, so
-/// the launcher and the visualiser server inherit that rule from one place.
-fn plugin_root() -> Option<PathBuf> {
-    std::env::var_os("ACCELERATOR_PLUGIN_ROOT").map(PathBuf::from)
 }
 
 /// The directory config resolution starts from — the `config paths --doc-types`

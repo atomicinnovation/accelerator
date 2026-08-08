@@ -6,7 +6,7 @@ description: Review a work item through multiple quality lenses and
 argument-hint: "[path to work item file]"
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
 ---
 
 # Review Work Item
@@ -44,7 +44,7 @@ When this command is invoked:
    resolver:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
    ```
 
    The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -357,7 +357,7 @@ Once all reviews are complete:
    ```
 
    Extract the work item's stable 4-digit identifier from its filename using
-   `${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id {path}`
+   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show {path} --field id`
    (or parse the 4-digit prefix from the filename directly).
 
 #### Populate frontmatter

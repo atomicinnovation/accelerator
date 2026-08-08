@@ -1,0 +1,6 @@
+differing sections (in order): Summary, Open Questions
+not differing (byte-identical after normalisation, omitted): Requirements
+heading union order: Summary, Requirements, Open Questions
+Open Questions is present only on the remote side; its local extraction
+is empty, and the empty-vs-"new section" comparison still counts as
+differing.

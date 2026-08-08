@@ -23,6 +23,8 @@ pub use crate::linkage::LinkageRecord;
 pub use crate::metadata::ArtifactMetadata;
 pub use crate::metadata::Clock;
 pub use crate::metadata::FilenameTimestampFormat;
+pub use crate::metadata::RepoFactsProbe;
+pub use crate::metadata::RepositoryFacts;
 pub use crate::record::Outcome;
 pub use crate::record::Record;
 pub use crate::store::AtomicWrite;

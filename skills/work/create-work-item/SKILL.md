@@ -5,6 +5,7 @@ description: Interactively create a well-formed work item. Use when capturing a
 argument-hint: "[topic or existing work item path/number]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
@@ -76,7 +77,7 @@ When this command is invoked:
    work item** by invoking the resolver:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
    ```
 
    The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -103,12 +104,12 @@ When this command is invoked:
    resolved). Run:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <path>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <path> --field id
    ```
 
    The own-identity field is `id` on unified-shape files and
-   `work_item_id` on legacy files; `work-item-read-field.sh` resolves
-   both transparently, so either key name passed here would return the
+   `work_item_id` on legacy files; `work show` resolves both
+   transparently, so either key name passed here would return the
    same value.
 
    If it exits non-zero (frontmatter missing or unclosed), print:
@@ -350,8 +351,8 @@ requirements, etc.) applies equally to existing and proposed content.
 ## Step 4: Draft Work Item
 
 1. **Draft a complete work item** from the agreed proposal using the template
-   structure loaded at the top of this skill. Use `XXXX` as the placeholder
-   work item number throughout. Do NOT call `work-item-next-number.sh` at this step.
+   structure loaded at the top of this skill. Use `NNNN` as the placeholder
+   work item number throughout. Do NOT call `accelerator work next-number` at this step.
 
 2. **Kind-specific content placement**:
    - story/epic: open the `Summary` section with a user story statement —
@@ -383,8 +384,8 @@ changes before I write it to disk:
 
 6. **Continue to challenge** during the review loop — flag untestable criteria,
    vague requirements, or gaps surfaced by research that remain unaddressed.
-   Iterate until the user explicitly approves. **`work-item-next-number.sh` is
-   never called during this loop.**
+   Iterate until the user explicitly approves. **`accelerator work
+   next-number` is never called during this loop.**
 
 ### In enrich-existing mode
 
@@ -411,11 +412,11 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
-1. **Call `work-item-next-number.sh`** to get the next full ID under the
+1. **Call `accelerator work next-number`** to get the next full ID under the
    configured pattern:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-next-number.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
@@ -424,7 +425,7 @@ The output is the full ID (`0001` under default `{number:04d}`,
 and default project code from configuration; pass `--project CODE` if
 the user explicitly wants a non-default project.
 
-If the script exits non-zero (e.g., overflow, missing project value),
+If the command exits non-zero (e.g., overflow, missing project value),
 abort immediately and surface the error message verbatim — do not
 proceed.
 
@@ -441,67 +442,53 @@ concurrently. Please re-run /create-work-item.
 
 4. **Create the work items directory** if it does not exist.
 
-5. **Populate frontmatter**: before writing the artifact file, capture
-   metadata and substitute the unified base fields into the template's
-   frontmatter block.
+5. **Resolve `author`**: configuration if present, then the current git/jj
+   user identity, then — only if both fail — ask the user once. Never pass
+   a placeholder. This value feeds both branches below.
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
-      `Repository Name:`. Run the bare path **directly** as an executable;
-      never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the
-      skill's `allowed-tools` permission and forces an unnecessary prompt).
-   2. **Substitute** every field below with the indicated value:
-      - `type:` ← `work-item`
-      - `id:` ← the full ID produced by `work-item-next-number.sh`,
-        always quoted as a YAML string (e.g. `id: "0001"` or
-        `id: "PROJ-0001"`)
-      - `title:` ← the body H1 title
-      - `date:` ← the `Current Date/Time (UTC):` value
-      - `author:` ← the author value resolved per the rules below
-        (config → VCS user → prompt)
-      - `producer:` ← `create-work-item`
-      - `status:` ← `draft`
-      - `last_updated:` ← the same `Current Date/Time (UTC):` value
-      - `last_updated_by:` ← the same value resolved for `author`
-      - `schema_version:` ← `1` (bare integer, not quoted)
+6. **No integration configured — write via `accelerator work create`.**
+   Skip this step (go to step 7) when an integration *is* configured; the
+   push state machine in step 8 governs that case's single write instead.
 
-      Optional linkage/foreign-ref keys are omit-by-default:
-      the template shows each as `""`/`[]`, but write a key into the
-      artifact **only** when it has a value, and omit it entirely
-      otherwise (do not carry the empty placeholder through). By default
-      a new draft names none of them.
+   1. Write the drafted body (H1 through References, everything approved
+      across Steps 1–4) to a scratch file, with the `NNNN` placeholder
+      still literally present everywhere it appears (the H1 line and
+      anywhere else) — do **not** substitute it yourself. `work create`
+      performs the one real `NNNN` → allocated-ID substitution as part of
+      the same atomic write that decides the ID, so the approved content
+      can never end up with an id/H1 mismatch.
+   2. Call the dispatcher directly (never a wrapper, never
+      `work-item-*.sh` — those are the scripts this command replaces):
 
-      - `parent:` ← the parent work item's ID as a typed-linkage ref
-        (`"work-item:NNNN"`). Fill when the user names a parent at draft
-        time; otherwise omit the key entirely.
-      - `blocks:` ← list of typed-linkage refs to work items this work
-        item blocks (`["work-item:NNNN", ...]`). Fill when blocking edges
-        are explicit at draft time; otherwise omit the key.
-      - `blocked_by:` ← list of typed-linkage refs to work items that
-        block this one. Prefer writing the canonical `blocks:` on the
-        other side; emit `blocked_by:` only when the canonical side
-        cannot be written, and omit it otherwise.
-      - `derived_from:` ← list of typed-linkage refs to artifacts this
-        work item is derived from (`["plan:NNNN", ...]`). Fill when
-        derivation is explicit; otherwise omit the key.
-      - `relates_to:` ← list of typed-linkage refs to related artifacts.
-        Fill when relationships are explicit; otherwise omit the key.
-      - `source:` ← typed-linkage ref to the originating source artifact
-        (`"issue-research:NNNN"`). Fill when the source is explicit;
-        otherwise omit the key.
-      - `external_id:` ← cross-system pointer (e.g. a Jira/Linear key).
-        Fill when the work item is linked to an external tracker;
-        otherwise omit the key.
-   3. Substitute `XXXX` with the full ID throughout the draft body (in
-      the H1 line). The H1 line reads `# <full-id>: <title>`.
-   4. **Do not Write yet if an integration is configured** — the push state
-      machine in Step 6 governs the single Write (so `external_id` can be
-      substituted in before it). If **no** integration is configured, Write the
-      file now with the substituted frontmatter block and skip to step 7.
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work create "<title>" <kind> <priority> \
+     --status draft \
+     --author "<resolved author>" \
+     --producer create-work-item \
+     --body-file <scratch-file> \
+     [--parent "work-item:NNNN"] \
+     [--tag <value>]... [--block "work-item:NNNN"]... \
+     [--blocked-by "work-item:NNNN"]... \
+     [--derived-from "plan:NNNN"]... [--relates-to <ref>]... \
+     [--source "issue-research:NNNN"] [--project <code>]
+   ```
 
-6. **Push state machine** (only when **Active integration** is non-empty;
+      Include each bracketed flag only when that field has a value —
+      `work create` itself omits the corresponding frontmatter key when
+      the flag is absent, matching the template's own omit-when-empty
+      convention, so no separate omission logic is needed here. `--tag`/
+      `--block`/`--blocked-by`/`--derived-from`/`--relates-to` are each
+      repeatable for multiple values. `external_id` has no flag — `work
+      create` never writes it (nothing to sync yet); this matches today's
+      behaviour of omitting it from a fresh draft.
+   3. If the command exits non-zero, surface its stderr message verbatim
+      and abort — do not retry and do not attempt a manual `Write`.
+      Otherwise its stdout is the path of the written file. Skip to
+      step 8.
+
+7. **Push state machine** (only when **Active integration** is non-empty;
    otherwise this whole step is skipped and the file was already written in
-   step 5.4). The drafted frontmatter is held **in memory** — no file exists yet.
+   step 6). The drafted frontmatter is held **in memory** — no file exists yet.
 
    1. **Offer the push** using the fail-safe gate (copied from the
       enrich-mode gate): present the target tracker, the title, and the
@@ -534,7 +521,7 @@ concurrently. Please re-run /create-work-item.
       skill on the saved file (it shares this `external_id` contract).
 
    2. **On decline** → write the file now with `external_id` omitted (unsynced),
-      then go to step 7.
+      then go to step 8.
 
    3. **On accept** → write the work item's Markdown body to a temp file and call
       the dispatcher with the tracker from the **Active integration** read above
@@ -576,32 +563,36 @@ concurrently. Please re-run /create-work-item.
    across every row, including the Write-failure row (the failure leaves no
    partial file and hands recovery to the user).
 
-7. **Print a confirmation**:
+8. **Print a confirmation**:
 
 ```
-Work item created: `{work_dir}/<full-id>-kebab-slug.md`
+Work item created: `<path>`
 ```
 
-   When the item was saved unsynced (decline / fallback), say so:
-   `Work item created (unsynced): … — push later with /create-<tracker>-issue <path>`.
+   `<path>` is `accelerator work create`'s own stdout when step 6 wrote the
+   file (its slugification is authoritative — do not re-derive or assume
+   it matches step 2's preview path), or the step-2-resolved path when
+   step 7 wrote it. When the item was saved unsynced (decline / fallback),
+   say so: `Work item created (unsynced): … — push later with
+   /create-<tracker>-issue <path>`.
 
 ### In enrich-existing mode
 
-1. Do **not** call `work-item-next-number.sh`. The target path is the resolved
-   `existing_work_item_path` cached in Step 0.
+1. Do **not** call `accelerator work next-number`. The target path is the
+   resolved `existing_work_item_path` cached in Step 0.
 
 2. **At-write identity-swap check** (best-effort guard): immediately before
    the confirmation prompt, re-read the target file's own identity from
    disk via:
 
    ```
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-read-field.sh id <existing_work_item_path>
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <existing_work_item_path> --field id
    ```
 
-   (The script returns the value of `id:` on unified-shape files and falls
+   (This returns the value of `id:` on unified-shape files and falls
    back to `work_item_id:` on legacy files.)
 
-   - If the script exits non-zero (file gone or frontmatter unparseable since
+   - If the command exits non-zero (file gone or frontmatter unparseable since
      Step 0), abort with:
      `"Error: <path> is no longer present or its frontmatter is unparseable.
      Your proposed draft is below — copy it before re-running
@@ -669,7 +660,7 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
 ## Quality Guidelines
 
 - Never write a file without explicit user approval.
-- Never call `work-item-next-number.sh` before the user approves the draft.
+- Never call `accelerator work next-number` before the user approves the draft.
 - The slug must be a meaningful kebab-case title, not raw input text.
 - Work item kind must come from the work item template's `kind` field (loaded at
   the top of this skill), not a hardcoded list. Default to `story` when the
@@ -694,9 +685,9 @@ Work item created: `{work_dir}/<full-id>-kebab-slug.md`
   `id: "PROJ-0001"`. This contract is uniform so consumers can read
   the field as a string without coercion. See
   `skills/config/configure/SKILL.md > work` for the full contract.
-  Legacy files carry the same value under `work_item_id:`;
-  `work-item-read-field.sh` returns either key transparently so
-  consumers do not need to know which shape is on disk.
+  Legacy files carry the same value under `work_item_id:`; `work show`
+  returns either key transparently so consumers do not need to know
+  which shape is on disk.
 
 **Identity Field Rules** (apply in enrich-existing mode):
 
@@ -726,8 +717,8 @@ using the cached immutable `id` (the full ID produced by the configured
 pattern, never a placeholder; sourced from `work_item_id` on legacy
 files) and the title as confirmed or replaced in Step 3.
 
-**Script avoidance** (enrich-existing mode): `work-item-next-number.sh` is
-never called. The number is already cached. The path-existence guard in Step 5
+**Script avoidance** (enrich-existing mode): `accelerator work
+next-number` is never called. The number is already cached. The path-existence guard in Step 5
 does not apply — overwrite is the intended behaviour once the at-write
 identity-swap check passes.
 
@@ -764,7 +755,7 @@ identity-swap check passes.
   industry standards, external technology, or otherwise. When in doubt,
   prefer to spawn research — over-asking is cheaper than producing a
   vague or poorly-grounded proposal.
-- If `work-item-next-number.sh` exits non-zero, abort and surface the error
-  message verbatim.
+- If `accelerator work next-number` exits non-zero, abort and surface the
+  error message verbatim.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-work-item --fail-safe`

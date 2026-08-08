@@ -1,0 +1,4 @@
+differing sections (in order): frontmatter
+Pins the Key Discoveries finding: --stdin normalisation only trims, it
+does not strip IGNORE_KEYS, so a frontmatter change limited to
+last_updated is still reported as a differing section.

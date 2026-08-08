@@ -288,6 +288,10 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
             ).write_text("sig")
             (tmp_path / f"accelerator-vcs-{platform}").write_bytes(b"\x00" * 4)
             (tmp_path / f"accelerator-vcs-{platform}.minisig").write_text("sig")
+            (tmp_path / f"accelerator-work-{platform}").write_bytes(b"\x00" * 4)
+            (tmp_path / f"accelerator-work-{platform}.minisig").write_text(
+                "sig"
+            )
         manifest.write_text(
             json.dumps(
                 {
@@ -307,6 +311,16 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                         "vcs": {
                             "description": (
                                 "The vcs detect|status|log|guard sub-binary."
+                            ),
+                            "platforms": {
+                                p: {"sha256": "a" * 64, "signature": "sig"}
+                                for p in _PLATFORMS
+                            },
+                        },
+                        "work": {
+                            "description": (
+                                "The work create|show|resolve|diff|update "
+                                "sub-binary."
                             ),
                             "platforms": {
                                 p: {"sha256": "a" * 64, "signature": "sig"}
@@ -333,9 +347,16 @@ class TestUploadAndVerifyRelease:
         uploads = [
             c for c in ctx.run.call_args_list if "gh release upload" in str(c)
         ]
-        # 4x(debug + launcher + launcher.minisig) + manifest + sig
-        # + 4x(visualiser sub-binary + .minisig) + 4x(vcs sub-binary + .minisig)
-        assert len(uploads) == 30
+        debug_and_launcher_uploads = len(_PLATFORMS) * 3
+        manifest_and_signature_uploads = 2
+        dispatched_subbinary_uploads = (
+            len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
+        )
+        assert len(uploads) == (
+            debug_and_launcher_uploads
+            + manifest_and_signature_uploads
+            + dispatched_subbinary_uploads
+        )
         assert all("--clobber" in str(c) for c in uploads)
 
     def test_publishes_once_after_all_reverify(self, ctx, mocker, tmp_path):
@@ -507,7 +528,7 @@ class TestBuilderSeams:
     def test_the_dispatched_registry_holds_visualiser_and_vcs(self):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
-        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs")
+        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs", "work")
 
 
 class TestReverifyViaShim:

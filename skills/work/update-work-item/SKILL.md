@@ -7,7 +7,7 @@ description: Update fields (status, priority, tags, parent, etc.) of an
 argument-hint: "[work-item-ref] [field-op...]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
 ---
 
 # Update Work Item
@@ -26,7 +26,7 @@ accelerator:web-search-researcher.
 ## Work Item Template
 
 The following template defines the work item schema and field defaults.
-Hint values are extracted at runtime via `work-item-template-field-hints.sh`.
+Hint values are extracted at runtime via `work template-hints`.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
 
@@ -43,7 +43,7 @@ Parse the first argument and resolve via the configured pattern's
 resolver:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-resolve-id.sh <argument>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
 ```
 
 The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -81,43 +81,50 @@ Parse the remaining arguments (after the work item reference) as one or
 more field operations. If no operation arguments were provided, show the
 current frontmatter and ask which field(s) to change.
 
+Each recognised operation is recorded as a pending `work update` flag
+(`--set`, `--add-tag`, `--remove-tag`, `--append`, or `--remove`) rather
+than applied immediately — Step 4 previews the combined effect, and
+Step 5 issues the single `work update` call that actually writes.
+
 Arguments are parsed left-to-right using these rules:
 
 ### 3.1 Tag operations
-`add tag <value>` / `remove tag <value>` — delegate to
-`work-item-update-tags.sh`:
+`add tag <value>` / `remove tag <value>` — record a pending
+`--add-tag <value>` / `--remove-tag <value>` flag. Preview the effect
+against the current `tags` list already read in Step 2 (add: append if
+absent; remove: drop if present). The "No-op detection" rule below
+applies the same way as for any other field.
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-update-tags.sh <path> add|remove <value>
-```
+### 3.2 List-field operations
+`add <field> <value>` / `remove <field> <value>` where `<field>` is one
+of `blocks`, `blocked_by`, `derived_from`, `relates_to` — record a
+pending `--append <field>=<value>` / `--remove <field>=<value>` flag.
+Preview against the current list already read in Step 2, the same way
+as tag operations.
 
-The script handles parsing, mutation, canonical re-serialisation, and
-no-op detection. If it exits 1 (e.g. block-style tags), print the
-stderr message and exit without writing. If it prints `no-change`,
-report "No change needed" and exit cleanly.
+### 3.3 Structured field operations
+`<field> <value>` where `<field>` is a known **scalar** frontmatter
+field name from the template (e.g. `status ready`, `priority high`,
+`parent 0001`, `title "New title"`) — record a pending
+`--set <field>=<value>` flag. The next token after the field name is
+consumed as the value. Quoted strings are treated as a single value.
 
-### 3.2 Structured field operations
-`<field> <value>` where `<field>` is a known frontmatter field name
-from the template (e.g. `status ready`, `priority high`, `parent 0001`,
-`title "New title"`). The next token after the field name is consumed
-as the value. Quoted strings are treated as a single value.
-
-### 3.3 Field-only hint elicitation
+### 3.4 Field-only hint elicitation
 A known field name as the **last token** with no following value
-triggers hint elicitation. Call `work-item-template-field-hints.sh`:
+triggers hint elicitation. Call `work template-hints`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh <field>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints <field>
 ```
 
 Present the returned values as examples: "Common statuses: draft,
 ready, in-progress, review, done, blocked, abandoned. What would you
 like to set?" Accept any value the user provides, including values not
-in the hint list. If the script returns no hints, skip the hint list
+in the hint list. If the command returns no hints, skip the hint list
 and simply ask for a value.
 
-### 3.4 Natural language
-Anything that does not match rules 3.1–3.3 (e.g. "mark as done",
+### 3.5 Natural language
+Anything that does not match rules 3.1–3.4 (e.g. "mark as done",
 "set priority to high", "add backend tag") — interpret into one of the
 structured shapes above and echo the interpretation explicitly:
 `"Interpreted as: status → done"` so the user can correct before
@@ -130,14 +137,12 @@ user choose.
 
 ### Special field rules
 
-**`id` (own-identity) — hard-blocked**: print `"Error: own-identity
-(id) cannot be changed — the filename prefix is the authoritative
-work item ID. To renumber a work item, rename the file (e.g. jj mv)
-and update the id field to match. The id field is always a quoted
-string."` No diff, no write, no confirmation prompt. The same hard
-block applies if the user names the field as `work_item_id` (the
-legacy alias accepted on read for files predating the unified
-schema).
+**`id` (own-identity) — hard-blocked**: recognise an attempted edit to
+`id` (or the legacy `work_item_id` alias) before gathering a diff
+preview. Run `accelerator work update <path> --set id=<value>`
+directly and print its stderr verbatim — the CLI rejects it with the
+own-identity error, pointing to file rename (`jj mv`) as the correct
+approach. No diff, no confirmation prompt.
 
 **`date` — warned**: inform the user that `date` records the work item's
 creation time and is typically not edited, then use the `AskUserQuestion` tool
@@ -147,9 +152,13 @@ with two options:
 2. **No, cancel** — print "No changes applied." and exit
 
 **`parent` — canonicalised**: normalise the value via
-`work-item-common.sh:wip_canonicalise_id` before writing. The
-canonicaliser produces the full ID under the configured pattern,
-quoted as a string. Examples:
+
+```
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work canonicalise-id <input>
+```
+
+before writing. The canonicaliser produces the full ID under the
+configured pattern, quoted as a string. Examples:
 
 - Default `{number:04d}`: `1` → `"0001"`, `42` → `"0042"`.
 - `{project}-{number:04d}` with `default_project_code: PROJ`:
@@ -233,13 +242,23 @@ addition: `+priority: high`.
 
 ## Step 5: Write
 
-Apply edits using the Edit tool:
+1. **Frontmatter changes first** — issue one call assembling every
+   pending operation accumulated in Step 3:
 
-1. **Frontmatter changes first** — each field change is a separate Edit
-   call. For field insertion (field absent from frontmatter), insert
-   the new field as the last line before the closing `---` delimiter.
-2. **Body label syncs second** — update the matching body lines.
-3. **Title H1 sync** — if the title changed, update the body H1.
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work update <path> \
+     --set <field>=<value> ... \
+     --add-tag <value> ... --remove-tag <value> ... \
+     --append <field>=<value> ... --remove <field>=<value> ...
+   ```
+
+   Omit any flag category with no pending operations. A non-zero exit
+   means nothing was written (the CLI validates every key before
+   applying any of them) — print the stderr message and exit.
+2. **Body label syncs second** — update the matching body lines using
+   the Edit tool. `work update` only ever touches frontmatter.
+3. **Title H1 sync** — if the title changed, update the body H1 using
+   the Edit tool.
 
 If a body sync Edit fails after frontmatter was already written, print:
 `"Warning: frontmatter updated but body sync failed for **<Label>**: —
@@ -260,25 +279,25 @@ Updated <filename>:
   acceptable. Arbitrary transitions (draft → done, skipping
   intermediate states) are allowed without warning.
 - **Hint values are suggestions, not constraints**: when surfacing
-  field hints via `work-item-template-field-hints.sh`, present them as
-  examples. Accept any value the user provides.
+  field hints via `work template-hints`, present them as examples.
+  Accept any value the user provides.
 - **Own-identity is immutable**: hard-block edits to `id` (or to
-  `work_item_id` on legacy files) with an error pointing to file
-  rename (`jj mv`) as the correct approach.
+  `work_item_id` on legacy files) before gathering a diff preview, and
+  let `work update`'s own exit-1 error surface directly.
 - **`date` is guarded**: warn before editing the creation timestamp;
   allow if the user confirms.
-- **Tags via script**: delegate all tag operations to
-  `work-item-update-tags.sh`. The script owns parsing, mutation, and
-  canonical re-serialisation. If the script exits 1 (block-style),
-  print stderr and exit. If it prints `no-change`, report "No change
-  needed" and exit.
+- **All frontmatter mutation via `work update`**: scalar fields,
+  tags, and typed-linkage lists are all applied in the single Step 5
+  `work update` call, which owns parsing, mutation, and canonical
+  re-serialisation. A non-zero exit means nothing was written — print
+  stderr and exit.
 - **Body label sync scope**: only update the first non-code-fence
   occurrence of `**Status**:`, `**Kind**:`, `**Priority**:`, or
   `**Author**:`. Do not inject labels into work items that lack them.
   Do not update occurrences inside code fences.
 - **Resilient to malformed frontmatter**: abort cleanly on missing or
   unclosed frontmatter. Error messages use the resolved filename and
-  match `work-item-read-field.sh` phrasing.
+  match `work show`'s phrasing.
 - **Legacy work items supported**: work items with unusual kind or status
   values (e.g. `kind: adr-creation-task`, `status: todo`) are fully
   updatable. No migration is offered or required.

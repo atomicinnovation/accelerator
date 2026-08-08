@@ -4,6 +4,13 @@
 
 ### Added
 
+- **A new `accelerator work` command family replaces the bash work-item
+  lifecycle scripts.** `work create`, `show`, `resolve`, `diff`, and `update`
+  cover the full create/read/resolve/diff/update lifecycle for work items,
+  alongside the `template-hints`, `canonicalise-id`, and `next-number` utility
+  subcommands the skills that orchestrate them rely on. These replace eight
+  `skills/work/scripts/work-item-*.sh` scripts and the shared library they
+  depended on.
 - **The CLI can be run from an ordinary terminal.** A new `SessionStart` hook
   keeps a fixed path inside the plugin's data directory pointing at the current
   installation's launcher, so a symlink you create once on your `$PATH` keeps

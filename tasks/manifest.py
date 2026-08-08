@@ -53,6 +53,7 @@ _SUBBINARY_MANIFESTS: Mapping[str, Path] = MappingProxyType(
     {
         "visualiser": CLI_DIR / "visualiser/server/Cargo.toml",
         "vcs": CLI_DIR / "vcs-cli/Cargo.toml",
+        "work": CLI_DIR / "work-cli/Cargo.toml",
     }
 )
 

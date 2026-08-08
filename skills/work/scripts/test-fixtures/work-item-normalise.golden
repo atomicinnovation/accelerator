@@ -1,0 +1,22 @@
+# work-item-normalise.sh golden index.
+# Per-case fixture content lives under
+# test-fixtures/work-item-normalise/case-*/{input,expected}.{md,txt} —
+# richer per-case-directory format (see Phase 1 of the 0170 plan for why:
+# this script's fixture state is file/stdin content, not just filenames).
+#
+# case-file-mode: <file> mode, IGNORE_KEYS-stripped
+#   (last_updated/revision dropped from the frontmatter, body trimmed).
+# case-stdin-mode: --stdin mode, trim-only (no IGNORE_KEYS stripping).
+# case-nbsp-not-trimmed: a trailing U+00A0 (NBSP) is NOT stripped by
+#   --stdin's trim — pins the ASCII-only ([[:space:]] under LANG=C)
+#   trim semantics from Phase 3, item 6; a Unicode-aware trim() would
+#   strip this and silently diverge from the bash original.
+#
+# Cross-checked against a real invocation at implementation time.
+
+[MISSING_FILE]
+<file>|1|work-item-normalise.sh: no such file: <path>
+
+[USAGE_ERRORS]
+(no args)|1|Usage:\n  work-item-normalise.sh <file>\n  work-item-normalise.sh --stdin
+--bogus|1|Usage:\n  work-item-normalise.sh <file>\n  work-item-normalise.sh --stdin

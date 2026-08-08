@@ -91,6 +91,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-work"
+version = "1.24.0-pre.30"
+dependencies = [
+ "clap",
+ "config",
+ "config-adapters",
+ "corpus",
+ "corpus-adapters",
+ "document",
+ "kernel",
+ "tempfile",
+ "work",
+ "work-adapters",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -654,7 +670,6 @@ dependencies = [
  "store",
  "tempfile",
  "time",
- "vcs",
  "vcs-adapters",
  "vcs-test-support",
 ]
@@ -4414,6 +4429,8 @@ dependencies = [
 name = "vcs-adapters"
 version = "1.24.0-pre.30"
 dependencies = [
+ "dunce",
+ "etcetera",
  "gix",
  "jj-lib",
  "kernel",
@@ -4874,6 +4891,26 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "work"
+version = "1.24.0-pre.30"
+dependencies = [
+ "corpus",
+ "kernel",
+]
+
+[[package]]
+name = "work-adapters"
+version = "1.24.0-pre.30"
+dependencies = [
+ "kernel",
+ "serde_json",
+ "tempfile",
+ "vcs",
+ "vcs-adapters",
+ "work",
+]
 
 [[package]]
 name = "writeable"

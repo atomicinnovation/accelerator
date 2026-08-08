@@ -4,19 +4,21 @@
 
 mod common;
 
-use std::path::PathBuf;
 #[cfg(feature = "bash-parity")]
 use std::process::Command;
 
 use common::TestError;
 #[cfg(feature = "bash-parity")]
 use common::{repo_root, require_script};
-use corpus::{ArtifactMetadata, Clock, FilenameTimestampFormat};
+use corpus::{
+    ArtifactMetadata, Clock, FilenameTimestampFormat, RepositoryFacts,
+};
 #[cfg(feature = "bash-parity")]
 use corpus_adapters::metadata::derive_at;
+#[cfg(feature = "bash-parity")]
+use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::metadata::{derive, render, SystemClock};
 use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
-use vcs::{RepoFacts, VcsKind};
 
 const FORMATS: [FilenameTimestampFormat; 3] = [
     FilenameTimestampFormat::DateTimeUnderscored,
@@ -44,11 +46,9 @@ impl Clock for FakeClock {
     }
 }
 
-fn facts(revision: Option<&str>) -> RepoFacts {
-    RepoFacts {
-        root: PathBuf::from("/somewhere/accelerator"),
+fn facts(revision: Option<&str>) -> RepositoryFacts {
+    RepositoryFacts {
         name: "accelerator".to_owned(),
-        kind: VcsKind::Jj,
         revision: revision.map(str::to_owned),
     }
 }
@@ -282,8 +282,11 @@ fn derive_at_agrees_with_the_live_metadata_helper() -> Result<(), TestError> {
     }
     let bash = String::from_utf8(output.stdout)?;
 
-    let derived =
-        derive_at(&root, FilenameTimestampFormat::DateTimeUnderscored)?;
+    let derived = derive_at(
+        &root,
+        FilenameTimestampFormat::DateTimeUnderscored,
+        &VcsBackedRepoFactsProbe,
+    )?;
     let rust = render(&derived, FilenameTimestampFormat::DateTimeUnderscored);
 
     assert_eq!(

@@ -20,6 +20,7 @@
 //! The cargo-pup import rule resolves a grouped `use a::{b, c}` to an empty
 //! module name and rejects it, so every import here is single-item.
 
+use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::future::Future;
@@ -28,7 +29,12 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
+use etcetera::BaseStrategy as _;
 use jj_lib::backend::CommitId;
+use jj_lib::config::ConfigGetError;
+use jj_lib::config::ConfigLayer;
+use jj_lib::config::ConfigSource;
+use jj_lib::config::StackedConfig;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStore as _;
 use jj_lib::op_store::OpStoreError;
@@ -48,6 +54,7 @@ use vcs::checkout::JjRepositoryFacts;
 use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
+use vcs::UserIdentityProbe;
 use vcs::VcsKind;
 use vcs::VcsProbe;
 
@@ -86,6 +93,9 @@ pub enum Error {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     JjOpStore {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    JjConfig {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 }
@@ -136,6 +146,9 @@ impl fmt::Display for Error {
             Self::JjOpStore { .. } => {
                 write!(formatter, "could not read the jj operation store")
             }
+            Self::JjConfig { .. } => {
+                write!(formatter, "could not read the jj configuration")
+            }
         }
     }
 }
@@ -148,7 +161,8 @@ impl std::error::Error for Error {
             Self::Git { source, .. }
             | Self::Jj { source, .. }
             | Self::JjCheckout { source, .. }
-            | Self::JjOpStore { source } => Some(source.as_ref()),
+            | Self::JjOpStore { source }
+            | Self::JjConfig { source } => Some(source.as_ref()),
             Self::JjStoreLayout { .. } | Self::JjWorkingCopyBackend { .. } => {
                 None
             }
@@ -398,6 +412,25 @@ impl VcsProbe for InProcessProbe {
     }
 }
 
+impl UserIdentityProbe for InProcessProbe {
+    fn user_name(&self, root: &Path, kind: VcsKind) -> Option<String> {
+        match kind {
+            VcsKind::Git => git_user_name(root),
+            VcsKind::Jj => match jj_user_name() {
+                Ok(name) => name,
+                Err(error) => {
+                    warn!(
+                        vcs = "jj",
+                        %error, "could not read the configured user name"
+                    );
+                    None
+                }
+            },
+            VcsKind::None => None,
+        }
+    }
+}
+
 /// The repository a jj working copy belongs to.
 ///
 /// The store is always `<repository>/.jj/repo`, so the repository is its
@@ -447,6 +480,28 @@ fn git_revision(root: &Path) -> Option<String> {
             None
         }
     }
+}
+
+/// The configured `user.name` of a git repository, read from whichever config
+/// file `gix` resolves it from (system, global, local, worktree — in that
+/// precedence). `None`, unlogged, when the key is unset.
+fn git_user_name(root: &Path) -> Option<String> {
+    let repository = match gix::discover(root) {
+        Ok(repository) => repository,
+        Err(error) => {
+            warn!(
+                vcs = "git",
+                %error, "could not open the repository for its configured \
+                 user name"
+            );
+            return None;
+        }
+    };
+
+    repository
+        .config_snapshot()
+        .string("user.name")
+        .map(|value| value.to_string())
 }
 
 /// The full working-copy revision of a jj workspace, read without constructing
@@ -533,6 +588,129 @@ fn read_checkout(state: &Path) -> Result<Checkout, Error> {
         operation: OperationId::new(proto.operation_id),
         workspace,
     })
+}
+
+/// The configured `user.name` for the ambient jj configuration, read without
+/// constructing `UserSettings` — which additionally requires
+/// `operation.hostname`, `signing.behavior`, and other fields unrelated to
+/// identity to resolve.
+///
+/// Replicates jj-cli's own config-stack precedence for the layers that can
+/// affect `user.name`: system config, user config (either `$JJ_CONFIG`'s
+/// paths, or the legacy `~/.jjconfig.toml` plus the platform
+/// `config.toml`/`conf.d`), and the `JJ_USER` override — the same layers
+/// `jj config get user.name` would consult for this key. The built-in default
+/// layers (colours, merge tools, revsets, ...) never set `user.name` so are
+/// skipped, as is the `EnvBase` layer (hostname/username/editor). Repo and
+/// workspace config are skipped too: jj's repo-config indirection — a config
+/// ID stored in the repo, resolving to content in the user's own config
+/// directory — is disproportionate machinery to replicate for a rarely-used
+/// per-repository override.
+fn jj_user_name() -> Result<Option<String>, Error> {
+    let mut config = StackedConfig::empty();
+    let env_jj_config = std::env::var_os("JJ_CONFIG");
+
+    if env_jj_config.is_none() {
+        for path in jj_system_config_paths() {
+            load_jj_config_path(&mut config, ConfigSource::System, &path)?;
+        }
+    }
+    for path in jj_user_config_paths(env_jj_config.as_deref()) {
+        load_jj_config_path(&mut config, ConfigSource::User, &path)?;
+    }
+    if let Ok(user) = std::env::var("JJ_USER") {
+        let mut layer = ConfigLayer::empty(ConfigSource::EnvOverrides);
+        layer.set_value("user.name", user).map_err(|error| {
+            Error::JjConfig {
+                source: Box::new(error),
+            }
+        })?;
+        config.add_layer(layer);
+    }
+
+    match config.get::<String>("user.name") {
+        Ok(name) => Ok(Some(name)),
+        Err(ConfigGetError::NotFound { .. }) => Ok(None),
+        Err(error) => Err(Error::JjConfig {
+            source: Box::new(error),
+        }),
+    }
+}
+
+/// Loads `path` into `config` at `source`, as a directory of `*.toml` layers
+/// or a single file, matching jj-cli's own dispatch. A path that is neither
+/// (does not exist) is silently skipped, since the candidate lists below
+/// carry paths that may not exist yet.
+fn load_jj_config_path(
+    config: &mut StackedConfig,
+    source: ConfigSource,
+    path: &Path,
+) -> Result<(), Error> {
+    let outcome = if path.is_dir() {
+        config.load_dir(source, path)
+    } else if path.is_file() {
+        config.load_file(source, path)
+    } else {
+        return Ok(());
+    };
+    outcome.map_err(|error| Error::JjConfig {
+        source: Box::new(error),
+    })
+}
+
+/// `/etc/jj/config.toml` and `/etc/jj/conf.d`, jj-cli's system-config
+/// candidates on Unix. Windows has none.
+fn jj_system_config_paths() -> Vec<PathBuf> {
+    if cfg!(unix) {
+        vec![
+            PathBuf::from("/etc/jj/config.toml"),
+            PathBuf::from("/etc/jj/conf.d"),
+        ]
+    } else {
+        Vec::new()
+    }
+}
+
+/// jj-cli's user-config candidates: `$JJ_CONFIG`'s paths when set (used
+/// exclusively), else the legacy `~/.jjconfig.toml` (only when it exists, or
+/// when the platform config directory could not be resolved at all), the
+/// platform `config.toml` (always a candidate, whether or not it exists yet),
+/// and the platform `conf.d` (only when it exists).
+fn jj_user_config_paths(env_jj_config: Option<&OsStr>) -> Vec<PathBuf> {
+    if let Some(paths) = env_jj_config {
+        return std::env::split_paths(paths)
+            .filter(|path| !path.as_os_str().is_empty())
+            .collect();
+    }
+
+    let home_dir = etcetera::home_dir()
+        .ok()
+        .map(|dir| dunce::canonicalize(&dir).unwrap_or(dir));
+    let user_config_dir = etcetera::choose_base_strategy()
+        .ok()
+        .map(|strategy| strategy.config_dir());
+
+    let home_config_path = home_dir.map(|dir| dir.join(".jjconfig.toml"));
+    let platform_config_path = user_config_dir
+        .clone()
+        .map(|dir| dir.join("jj").join("config.toml"));
+    let platform_config_dir =
+        user_config_dir.map(|dir| dir.join("jj").join("conf.d"));
+
+    let mut paths = Vec::new();
+    match home_config_path {
+        Some(path) if path.exists() || platform_config_path.is_none() => {
+            paths.push(path);
+        }
+        Some(_) | None => {}
+    }
+    if let Some(path) = platform_config_path {
+        paths.push(path);
+    }
+    if let Some(path) = platform_config_dir.filter(|path| path.exists()) {
+        paths.push(path);
+    }
+    paths
 }
 
 /// Drives one of the `OpStore` trait's async reads to completion. There is no

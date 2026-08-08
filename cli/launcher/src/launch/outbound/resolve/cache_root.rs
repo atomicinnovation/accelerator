@@ -19,15 +19,17 @@ pub struct CacheRootConfig {
 }
 
 impl CacheRootConfig {
+    /// Reads `ACCELERATOR_CACHE_DIR` itself; `plugin_root` is injected rather
+    /// than read here, so `main` stays the launcher's one module that names
+    /// `config_adapters` (`config_adapters::plugin_root_from_env`).
     #[must_use]
-    pub fn from_env() -> Self {
+    pub fn from_env(plugin_root: Option<PathBuf>) -> Self {
         Self {
             cache_dir_override: std::env::var_os("ACCELERATOR_CACHE_DIR")
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from),
-            plugin_root: std::env::var_os("ACCELERATOR_PLUGIN_ROOT")
-                .filter(|value| !value.is_empty())
-                .map(PathBuf::from),
+            plugin_root: plugin_root
+                .filter(|value| !value.as_os_str().is_empty()),
         }
     }
 }

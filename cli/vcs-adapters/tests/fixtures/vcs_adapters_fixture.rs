@@ -26,6 +26,7 @@ use vcs::checkout::JjRepositoryFacts;
 use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
+use vcs::UserIdentityProbe;
 use vcs::VcsProbe;
 use vcs_adapters::library::InProcessProbe;
 
@@ -51,6 +52,11 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
+// `kind_and_user_name` is deliberately absent: it reads the ambient
+// configured identity (`HOME`, `JJ_CONFIG`, `XDG_CONFIG_HOME`, ...), so
+// `scrub.rs`'s invariant — that these queries answer identically regardless
+// of a poisoned environment — does not hold for it by design. It is reached
+// only through `only kind_and_user_name`, exercised by `tests/user_name.rs`.
 const ALL: [&str; 8] = [
     "is_bare",
     "worktree",
@@ -115,6 +121,22 @@ fn report(query: &str, start: &Path) -> Result<(), String> {
                         "{} {}",
                         kind.as_str(),
                         revision.unwrap_or_else(|| "none".to_owned())
+                    )
+                },
+            );
+            print(query, &rendered);
+        }
+        "kind_and_user_name" => {
+            let root = probe.discover(start);
+            let rendered = root.map_or_else(
+                || "absent".to_owned(),
+                |root| {
+                    let kind = probe.kind(&root);
+                    let name = probe.user_name(&root, kind);
+                    format!(
+                        "{} {}",
+                        kind.as_str(),
+                        name.unwrap_or_else(|| "absent".to_owned())
                     )
                 },
             );

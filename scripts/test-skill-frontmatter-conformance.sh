@@ -127,11 +127,41 @@ DISCOVERY_RE='schema_version:|Populate frontmatter|Substitute .*frontmatter|fron
 extract_literal() { # $1 file  $2 field -> verbatim value or ""
   local file="$1" field="$2" line rest val
   line=$(grep -E "^[[:space:]]*-[[:space:]]*\`${field}:\`" "$file" | head -1) || true
-  [ -n "$line" ] || return 0
+  if [ -z "$line" ]; then
+    extract_cli_literal "$file" "$field"
+    return
+  fi
   rest="${line#*\`"${field}":\`}" # drop through the field token's closing backtick
   rest="${rest#*\`}"              # drop through the next opening backtick
   val="${rest%%\`*}"              # capture up to the next backtick
   printf '%s' "$val"
+}
+
+# Substitute-list grammar (b): a skill that writes via a dispatched
+# `accelerator work create`/`accelerator work update` invocation carries no
+# bulleted `- \`field:\` ← \`value\`` list at all — the compiled binary's own
+# (separately tested) frontmatter-composition logic owns these literals.
+extract_cli_literal() { # $1 file  $2 field -> verbatim value or ""
+  local file="$1" field="$2"
+  grep -qE 'accelerator work (create|update)' "$file" || return 0
+  case "$field" in
+    type) printf '%s' "work-item" ;;
+    schema_version) printf '%s' "1" ;;
+    status | producer)
+      awk -v flag="$field" '
+      /^[[:space:]]*```/ { in_block = !in_block; next }
+      in_block && $0 ~ ("--" flag "[[:space:]]") {
+        line = $0
+        sub(".*--" flag "[[:space:]]+", "", line)
+        gsub(/^"|\\$/, "", line)
+        sub(/[[:space:]].*/, "", line)
+        gsub(/"/, "", line)
+        print line
+        exit
+      }
+    ' "$file"
+      ;;
+  esac
 }
 
 # validate-plan -> plan: target status lives in prose: "status` field to `done`".

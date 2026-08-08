@@ -1,0 +1,6 @@
+integration=jira
+updated=2026-01-01T00:00:00.000+0000
+body=Test summary
+{"content":[{"content":[{"text":"hello","type":"text"}],"type":"paragraph"}],"type":"doc","version":1}
+Pins ADF key-order independence: same canonicalised body as case-jira
+despite differently-ordered input keys.

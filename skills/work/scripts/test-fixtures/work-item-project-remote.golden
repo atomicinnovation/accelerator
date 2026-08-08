@@ -1,0 +1,14 @@
+# work-item-project-remote.sh golden index.
+# Per-case fixture content lives under
+# test-fixtures/work-item-project-remote/case-*/{remote.json,expected.txt}.
+# Cross-checked against a real invocation (jq-backed) at implementation
+# time — see Phase 1 of the 0170 implementation plan.
+#
+# case-jira / case-jira-reordered: jira `updated` and `body` (summary +
+#   jq -cS-canonicalised ADF description); the reordered case pins that
+#   canonicalisation is independent of input key order.
+# case-linear: linear `updated` and `body` (title + description
+#   verbatim, no canonicalisation — the bash's own asymmetry vs. jira).
+
+[UNSUPPORTED_INTEGRATION]
+bogus|updated|2|work-item-project-remote.sh: unsupported integration: bogus

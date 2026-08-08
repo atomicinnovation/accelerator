@@ -7,7 +7,6 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$MIGRATION_DIR/../../../.." && pwd)}"
 ACCELERATOR="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 source "$PLUGIN_ROOT/scripts/config-common.sh"
 source "$PLUGIN_ROOT/scripts/atomic-common.sh"
-source "$PLUGIN_ROOT/skills/work/scripts/work-item-common.sh"
 
 if [ -z "${PROJECT_ROOT:-}" ]; then
   PROJECT_ROOT="$(config_project_root)"
@@ -38,7 +37,20 @@ fi
 
 # ── Step 2: build_rename_map ────────────────────────────────────────────────
 
-FORMAT=$(wip_compile_format "$PATTERN" "$DEFAULT_PROJECT")
+# Deliberately self-contained rather than dispatching to `accelerator work
+# canonicalise-id`: this migration must keep working via plain bash with no
+# dependency on a released sub-binary, and PATTERN is already known (by the
+# {project} guard above) to be one of this migration's supported shapes — it
+# does not need the full pattern-DSL grammar a dispatched sub-binary
+# implements for every caller.
+compile_legacy_rename_format() { # $1 pattern $2 project -> printf format
+  local pattern="$1" project="$2" width
+  width=$(printf '%s' "$pattern" |
+    sed -E 's/.*\{number:0([0-9]+)d\}.*/\1/')
+  printf '%s' "$pattern" |
+    sed -E "s/\{project\}/${project}/; s/\{number:0${width}d\}/%0${width}d/"
+}
+FORMAT=$(compile_legacy_rename_format "$PATTERN" "$DEFAULT_PROJECT")
 
 declare -a OLD_PATHS=()
 declare -a NEW_PATHS=()

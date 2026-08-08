@@ -20,10 +20,7 @@ _BASHISMS = _REPO_ROOT / "scripts/lint-bashisms.sh"
 _BUILD_RS = _REPO_ROOT / "cli/launcher/build.rs"
 _BOOTSTRAP_SRC = _REPO_ROOT / "bin/accelerator"
 _PLUGIN_ROOT = "ACCELERATOR_PLUGIN_ROOT"
-_LAUNCHER_MAIN = _REPO_ROOT / "cli/launcher/src/main.rs"
-_CACHE_ROOT = (
-    _REPO_ROOT / "cli/launcher/src/launch/outbound/resolve/cache_root.rs"
-)
+_PLUGIN_ROOT_READER = _REPO_ROOT / "cli/config-adapters/src/store.rs"
 
 
 def test_bootstrap_is_in_the_shfmt_and_shellcheck_discovery() -> None:
@@ -55,6 +52,12 @@ def test_bootstrap_exports_the_one_plugin_root_the_launcher_reads() -> None:
     # A one-sided rename otherwise surfaces as a missing sentinel deep in an
     # integration suite rather than here, in seconds. Exact equality on both
     # sides also catches a second, transitional export left behind.
+    #
+    # `config_adapters::plugin_root_from_env` is the one production call site
+    # that reads the variable — every composition root (the launcher, the
+    # visualiser server) calls through it rather than reading the
+    # environment itself, so it's the only source this test pins against the
+    # bootstrap's export.
     exported = set(
         re.findall(
             r"^export ([A-Z0-9_]*PLUGIN_ROOT)=",
@@ -65,15 +68,15 @@ def test_bootstrap_exports_the_one_plugin_root_the_launcher_reads() -> None:
     assert exported == {_PLUGIN_ROOT}, (
         f"the bootstrap exports {sorted(exported)}, not just {_PLUGIN_ROOT}"
     )
-    for source in (_LAUNCHER_MAIN, _CACHE_ROOT):
-        read = set(
-            re.findall(
-                r'var_os\("([A-Z0-9_]*PLUGIN_ROOT)"\)', source.read_text()
-            )
+    read = set(
+        re.findall(
+            r'var_os\("([A-Z0-9_]*PLUGIN_ROOT)"\)',
+            _PLUGIN_ROOT_READER.read_text(),
         )
-        assert read == {_PLUGIN_ROOT}, (
-            f"{source.name} reads {sorted(read)}, not {_PLUGIN_ROOT}"
-        )
+    )
+    assert read == {_PLUGIN_ROOT}, (
+        f"{_PLUGIN_ROOT_READER.name} reads {sorted(read)}, not {_PLUGIN_ROOT}"
+    )
 
 
 def test_the_cache_dir_helpers_keep_the_names_the_traces_assert_on() -> None:

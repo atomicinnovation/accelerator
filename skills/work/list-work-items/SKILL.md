@@ -6,6 +6,7 @@ description: List and filter work items from the configured work directory.
 argument-hint: "[filter description]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
@@ -34,10 +35,19 @@ configured*.
 ## Work Item Template
 
 The following template defines the work item schema and field defaults.
-Hint values for filter parsing are extracted at runtime via
-`work-item-template-field-hints.sh`.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+
+**Known kind values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints kind`
+**Known status values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints status`
+**Known priority values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints priority`
+
+Each line above lists one value per line. Collect these into three sets:
+known kinds, known statuses, and known priorities. These hints inform
+the filter shorthand rules below but do not restrict what values may
+appear on work items — legacy values like `todo`, `done`, or
+`adr-creation-task` are matchable only via the explicit structured form
+(rule 2).
 
 You are tasked with listing and filtering work items from the configured
 work items directory. This is a **read-only** skill — never write any files
@@ -47,23 +57,8 @@ companion scripts listed in `allowed-tools`.
 ## Step 1: Resolve Filter
 
 If an argument was provided, parse it as a filter expression using the
-following precedence rules. The first rule that matches wins.
-
-Before applying rules 3–4, call `work-item-template-field-hints.sh` for
-each of `kind`, `status`, and `priority` to populate the known
-template-comment values:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh kind
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh status
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-template-field-hints.sh priority
-```
-
-Each call outputs one value per line. Collect these into three sets:
-known kinds, known statuses, and known priorities. These hints inform
-the shorthand rules below but do not restrict what values may appear on
-work items — legacy values like `todo`, `done`, or `adr-creation-task` are
-matchable only via the explicit structured form (rule 2).
+following precedence rules (rules 3–4 use the known kind/status/priority
+sets collected above). The first rule that matches wins.
 
 ### Filter Precedence Rules
 
@@ -119,10 +114,10 @@ If no argument was provided: filter is "all work items, no filter".
    from a literal numeric prefix to `*.md` because the work-item ID
    pattern is configurable (`work.id_pattern`) and legacy `NNNN-*.md`
    files may coexist with project-coded files (`PROJ-NNNN-*.md`) during
-   a pattern transition. A file is treated as a work item iff
-   `work-item-common.sh:wip_is_work_item_file` returns success — that is,
-   the file has YAML frontmatter and a non-empty `id` field (or
-   `work_item_id` on legacy files).
+   a pattern transition. A file is treated as a work item iff it has
+   YAML frontmatter and a non-empty `id` field (or `work_item_id` on
+   legacy files) — applied as a post-filter on the single-pass
+   extraction in step 4 below, not a separate per-file check.
    Files lacking either are silently excluded; files with malformed
    frontmatter emit a one-line warning to stderr and are skipped.
 
@@ -140,10 +135,6 @@ If no argument was provided: filter is "all work items, no filter".
    Example approach — run one `awk` command across all `*.md` files:
    ```bash
    for f in {work_dir}/*.md; do
-     # Filter to true work items via wip_is_work_item_file
-     if ! bash -c "source ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-common.sh && wip_is_work_item_file '$f'"; then
-       continue
-     fi
      awk -v file="$f" '
        NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
        NR==1 { print file "\tERROR\tno frontmatter"; exit }
@@ -162,14 +153,19 @@ If no argument was provided: filter is "all work items, no filter".
      `"<filename>: skipped — no frontmatter"` and exclude the file.
    - Lines containing `ERROR	unclosed frontmatter`: warn
      `"<filename>: skipped — unclosed frontmatter"` and exclude.
-   - For each valid file, derive the work item ID from the filename via
-     `wip_extract_id_from_filename`. The compiled scan regex respects
-     the configured `work.id_pattern`; a legacy `0042-foo.md` file
-     under a `{project}-{number:04d}` pattern is matched by a
-     legacy-fallback path so the file remains visible in the listing.
-     The filename prefix remains the authoritative work item ID, even
-     if the `id` field (or `work_item_id` on legacy files) in frontmatter
-     differs.
+   - For each file with well-formed frontmatter, check its extracted
+     lines for a non-empty `id` field (or `work_item_id` on legacy
+     files, stripping surrounding quotes and trailing whitespace). A
+     file with neither is **silently** excluded (not a warning — it is
+     simply not a work item, e.g. a `README.md` dropped into the
+     directory). This is the "is a work item" predicate from step 2.
+   - For each remaining file, derive the work item ID from the
+     filename by matching it against the configured `work.id_pattern`'s
+     compiled scan regex, with a legacy-fallback path so a bare
+     `0042-foo.md` file remains visible even under a
+     `{project}-{number:04d}` pattern. The filename prefix remains the
+     authoritative work item ID, even if the `id` field (or
+     `work_item_id` on legacy files) in frontmatter differs.
 
 5. **Mixed-prefix discoverability hint**: when the listing detects both
    files matching the legacy `[0-9]{4}-` shape AND files matching the
@@ -237,8 +233,13 @@ Apply the parsed filter from Step 1 to the scanned work items.
   field do not match (and are not errors).
 - **Parent filter** (`under X`): normalise both the filter value and
   each work item's `parent` field via
-  `work-item-common.sh:wip_canonicalise_id` before comparison. The
-  canonicaliser strips quotes, accepts short and long forms, and
+
+  ```
+  ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work canonicalise-id <input>
+  ```
+
+  before comparison. The canonicaliser strips quotes, accepts short and
+  long forms, and
   zero-pads to the configured pattern's width (or pre-pends the
   default project code when the pattern requires `{project}` and the
   input is a bare number). So under default config `parent: "0042"`,
@@ -457,13 +458,12 @@ All work items (29 total)
   `adr-creation-task` are reachable.
 - **Resilient to malformed work items**: missing or unclosed frontmatter
   must not crash the listing — warn using the resolved filename and
-  continue. Warning phrasing should match `work-item-read-field.sh`:
+  continue. Warning phrasing should match `work show`'s own errors:
   "no frontmatter" / "unclosed frontmatter".
-- **Filename is authoritative**: the ID extracted from the filename
-  (via `wip_extract_id_from_filename`) is the work item ID, even if
-  the `id` field (or `work_item_id` on legacy files) in frontmatter
-  differs. This applies to both legacy bare-number filenames and
-  project-coded filenames.
+- **Filename is authoritative**: the ID extracted from the filename is
+  the work item ID, even if the `id` field (or `work_item_id` on
+  legacy files) in frontmatter differs. This applies to both legacy
+  bare-number filenames and project-coded filenames.
 - **Hierarchy safety**: hierarchy rendering must terminate in bounded
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.
