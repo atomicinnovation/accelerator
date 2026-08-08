@@ -659,4 +659,133 @@ mod tests {
         assert_eq!(rewritten, content);
         assert!(diagnostics.iter().any(|d| d.starts_with("0006-MALFORMED")));
     }
+
+    #[test]
+    fn a_single_quoted_work_item_value_is_normalised_to_double_quotes() {
+        let content = "---\nwork-item: '0042'\n---\n";
+        let (rewritten, _) = transform(content, "f.md", &no_op_flags());
+        assert_eq!(rewritten, "---\nwork_item_id: \"0042\"\n---\n");
+    }
+
+    #[test]
+    fn a_single_quoted_value_with_an_embedded_quote_is_escaped() {
+        let content = "---\nwork-item: 'the \"best\"'\n---\n";
+        let (rewritten, _) = transform(content, "f.md", &no_op_flags());
+        assert_eq!(rewritten, "---\nwork_item_id: \"the \\\"best\\\"\"\n---\n");
+    }
+
+    #[test]
+    fn trailing_whitespace_after_an_already_quoted_value_is_trimmed() {
+        let content = "---\nwork-item: \"0042\"   \n---\n";
+        let (rewritten, diagnostics) =
+            transform(content, "f.md", &no_op_flags());
+        assert_eq!(rewritten, "---\nwork_item_id: \"0042\"\n---\n");
+        assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn an_empty_work_item_value_normalises_to_a_bare_key() {
+        let content = "---\nwork-item:\n---\n";
+        let (rewritten, _) = transform(content, "f.md", &no_op_flags());
+        assert_eq!(rewritten, "---\nwork_item_id:\n---\n");
+    }
+
+    #[test]
+    fn an_empty_work_item_value_with_trailing_whitespace_still_normalises_to_a_bare_key(
+    ) {
+        let content = "---\nwork-item:   \n---\n";
+        let (rewritten, _) = transform(content, "f.md", &no_op_flags());
+        assert_eq!(rewritten, "---\nwork_item_id:\n---\n");
+    }
+
+    #[test]
+    fn a_matching_legacy_and_canonical_work_item_value_drops_silently() {
+        let content = "---\nwork-item: \"0042\"\nwork_item_id: \"0042\"\n---\n";
+        let flags = Flags {
+            has_id: true,
+            ..no_op_flags()
+        };
+        let (rewritten, diagnostics) = transform(content, "f.md", &flags);
+        assert_eq!(rewritten, "---\nwork_item_id: \"0042\"\n---\n");
+        assert!(
+            !diagnostics.iter().any(|d| d.contains("work-item")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_matching_legacy_and_canonical_value_normalises_the_survivor_even_when_unquoted(
+    ) {
+        let content = "---\nwork-item: \"0042\"\nwork_item_id: 0042\n---\n";
+        let flags = Flags {
+            has_id: true,
+            ..no_op_flags()
+        };
+        let (rewritten, diagnostics) = transform(content, "f.md", &flags);
+        assert_eq!(rewritten, "---\nwork_item_id: \"0042\"\n---\n");
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+
+    #[test]
+    fn a_refused_line_coexisting_with_a_valid_canonical_line_is_not_also_diverged(
+    ) {
+        let content =
+            "---\nwork-item: 0042 # note\nwork_item_id: \"0042\"\n---\n";
+        let flags = Flags {
+            has_id: true,
+            ..no_op_flags()
+        };
+        let (rewritten, diagnostics) = transform(content, "f.md", &flags);
+        assert_eq!(rewritten, content);
+        assert!(
+            diagnostics.iter().any(|d| d.starts_with("0006-REFUSE")),
+            "{diagnostics:?}"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.contains("DIVERGE")),
+            "a refused line must skip the divergence comparison: \
+             {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_matching_researcher_and_author_value_drops_silently() {
+        let content = "---\nresearcher: bob\nauthor: bob\n---\n";
+        let flags = Flags {
+            has_a: true,
+            ..no_op_flags()
+        };
+        let (rewritten, diagnostics) = transform(content, "f.md", &flags);
+        assert_eq!(rewritten, "---\nauthor: bob\n---\n");
+        assert!(
+            !diagnostics.iter().any(|d| d.contains("researcher")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn a_matching_body_researcher_and_author_label_drops_silently() {
+        let content = "---\n---\n\n**Researcher**: bob\n**Author**: bob\n";
+        let flags = Flags {
+            has_ab: true,
+            ..no_op_flags()
+        };
+        let (rewritten, diagnostics) = transform(content, "f.md", &flags);
+        assert_eq!(rewritten, "---\n---\n\n**Author**: bob\n");
+        assert!(
+            !diagnostics.iter().any(|d| d.contains("Researcher")),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn two_pre_h2_researcher_labels_both_convert_when_no_author_exists() {
+        let content =
+            "---\n---\n\n**Researcher**: alice\n**Researcher**: bob\n";
+        let (rewritten, _) = transform(content, "f.md", &no_op_flags());
+        assert_eq!(
+            rewritten,
+            "---\n---\n\n**Author**: alice\n**Author**: bob\n"
+        );
+    }
 }
