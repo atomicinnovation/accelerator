@@ -11,6 +11,7 @@ from invoke import Context, task
 
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
+from tasks.shared.limits import raise_descriptor_limit
 from tasks.shared.paths import (
     CARGO_TOML,
     CLI_DIR,
@@ -352,6 +353,7 @@ def server_cross_compile(context: Context) -> None:
     the manifest flow signs and the launcher fetches), after asserting the
     artifact carries no dev-frontend insecure-bypass symbol.
     """
+    raise_descriptor_limit()
     RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
     for triple, platform in TARGETS:
         context.run(
@@ -404,6 +406,7 @@ def cli_cross_compile(context: Context) -> None:
     Stages each `accelerator-{platform}` and `accelerator-verify-{platform}`
     into dist/release/ after magic-byte and (musl) static-linking assertions.
     """
+    raise_descriptor_limit()
     RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
     for triple, platform in TARGETS:
         context.run(
