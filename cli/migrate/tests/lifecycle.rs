@@ -3,19 +3,46 @@
 
 use std::cell::RefCell;
 use std::path::Path;
+use std::time::Duration;
 
+use migrate::interactive::Decision;
+use migrate::interactive::Transformation;
 use migrate::lifecycle::run_pending;
 use migrate::ports::CorpusIndex;
+use migrate::ports::DecisionError;
+use migrate::ports::DecisionSource;
 use migrate::ports::DocTypeDir;
 use migrate::ports::LedgerStore;
 use migrate::ports::MigrationContext;
 use migrate::ports::MigrationError;
 use migrate::ports::PreviewEntry;
 use migrate::ports::Reporter;
+use migrate::ports::SessionLog;
+use migrate::ports::SessionLogFactory;
 use migrate::registry::ApplyOutcome;
 use migrate::registry::Migration;
 use migrate::registry::MigrationEntry;
 use migrate::registry::MigrationMeta;
+
+struct NeverDecides;
+
+impl DecisionSource for NeverDecides {
+    fn next_decision(
+        &self,
+        _transformation: &Transformation,
+        _timeout: Duration,
+    ) -> Result<Decision, DecisionError> {
+        Err(DecisionError::NoInputAvailable)
+    }
+}
+
+struct NoSessionLogs;
+
+impl SessionLogFactory for NoSessionLogs {
+    fn for_migration(&self, _id: &str) -> Box<dyn SessionLog> {
+        unreachable!("no interactive entry in this test needs a session log")
+    }
+}
 
 struct StubContext;
 
@@ -126,6 +153,31 @@ impl Reporter for SpyReporter {
             .push(format!("failed:{id}:{error}"));
     }
 
+    fn interactive_fail(&self, id: &str, message: &str) {
+        self.events
+            .borrow_mut()
+            .push(format!("interactive_fail:{id}:{message}"));
+    }
+
+    fn interactive_validation_rejected(&self, message: &str) {
+        self.events
+            .borrow_mut()
+            .push(format!("interactive_validation_rejected:{message}"));
+    }
+
+    fn interactive_stalled(&self, id: &str, pending_keys: &[String]) {
+        self.events.borrow_mut().push(format!(
+            "interactive_stalled:{id}:{}",
+            pending_keys.join(",")
+        ));
+    }
+
+    fn interactive_timeout(&self, id: &str) {
+        self.events
+            .borrow_mut()
+            .push(format!("interactive_timeout:{id}"));
+    }
+
     fn summary(
         &self,
         applied: usize,
@@ -210,7 +262,15 @@ fn an_empty_pending_set_reports_no_pending_migrations_and_touches_no_ledger(
     let ledger = InMemoryLedgerStore::default();
     let reporter = SpyReporter::default();
 
-    run_pending(&entries, &StubContext, &ledger, &reporter)?;
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+    )?;
 
     assert_eq!(
         reporter.events.borrow().as_slice(),
@@ -229,7 +289,15 @@ fn applied_and_no_op_entries_are_dispatched_and_reported_in_order(
     let ledger = InMemoryLedgerStore::default();
     let reporter = SpyReporter::default();
 
-    run_pending(&entries, &StubContext, &ledger, &reporter)?;
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+    )?;
 
     assert_eq!(ledger.applied()?, vec!["0001".to_owned()]);
     assert_eq!(
@@ -257,7 +325,15 @@ fn a_failure_stops_the_run_leaving_the_ledger_at_the_last_success(
     let ledger = InMemoryLedgerStore::default();
     let reporter = SpyReporter::default();
 
-    let result = run_pending(&entries, &StubContext, &ledger, &reporter);
+    let result = run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+    );
 
     assert!(result.is_err());
     assert_eq!(ledger.applied()?, vec!["0001".to_owned()]);
@@ -282,7 +358,15 @@ fn an_id_already_applied_is_not_re_run() -> Result<(), TestError> {
     ledger.write_applied(&["0001".to_owned()])?;
     let reporter = SpyReporter::default();
 
-    run_pending(&entries, &StubContext, &ledger, &reporter)?;
+    run_pending(
+        &entries,
+        &StubContext,
+        &ledger,
+        &reporter,
+        &NeverDecides,
+        &NoSessionLogs,
+        Duration::from_secs(30),
+    )?;
 
     assert_eq!(
         reporter.events.borrow().as_slice(),

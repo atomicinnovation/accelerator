@@ -7,6 +7,10 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
+
+use crate::interactive::Decision;
+use crate::interactive::Transformation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrationError(pub String);
@@ -175,6 +179,84 @@ pub trait SessionLogRewriter {
     fn cutover(&self, path: &Path) -> Result<(), MigrationError>;
 }
 
+/// One migration's interactive session log, bound to its own path at
+/// construction.
+///
+/// Timestamping a record is the adapter's job — the domain engine supplies
+/// only what it actually decided, not a wall-clock reading, keeping
+/// `run_interactive` deterministic and independent of `SystemTime`.
+pub trait SessionLog {
+    /// # Errors
+    /// [`MigrationError`] when the log is present but unreadable or invalid.
+    fn records(&self) -> Result<Vec<corpus::Record>, MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the write fails.
+    fn append(
+        &self,
+        key: &str,
+        outcome: corpus::Outcome,
+        proposed_value: &str,
+        user_value: Option<&str>,
+    ) -> Result<(), MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the removal fails.
+    fn remove_by_key(&self, key: &str) -> Result<(), MigrationError>;
+}
+
+/// Each interactive migration owns its own session log, at its own path —
+/// this is what binds a fresh [`SessionLog`] to the right one for a given
+/// migration id.
+pub trait SessionLogFactory {
+    fn for_migration(&self, id: &str) -> Box<dyn SessionLog>;
+}
+
+/// `Eof` is distinct from `Timeout`.
+///
+/// It's what a TTY source returns if stdin closes mid-session (the reader
+/// thread's channel disconnects rather than timing out) — a real, different
+/// code path, not a spare variant. The engine treats it identically to
+/// `Timeout`'s terminal contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DecisionError {
+    NoInputAvailable,
+    Timeout,
+    Eof,
+}
+
+pub trait DecisionSource {
+    /// # Errors
+    /// [`DecisionError`] when no decision is available within `timeout`, or
+    /// at all.
+    fn next_decision(
+        &self,
+        transformation: &Transformation,
+        timeout: Duration,
+    ) -> Result<Decision, DecisionError>;
+}
+
+/// Selected when stdin is not a TTY and no decisions file was supplied.
+///
+/// Returns `NoInputAvailable` synchronously on the very first call, without
+/// reading or otherwise consulting `timeout` at all — no `Instant`, no
+/// sleep, no channel wait. This is what gives the structured-stall path its
+/// "timeout never armed" guarantee: the engine's call site is genuinely
+/// generic (it always calls `next_decision(t, timeout)` the same way
+/// regardless of which source is active), so the guarantee has to come from
+/// this implementation, not a call-site special case.
+pub struct NoInputDecisionSource;
+
+impl DecisionSource for NoInputDecisionSource {
+    fn next_decision(
+        &self,
+        _transformation: &Transformation,
+        _timeout: Duration,
+    ) -> Result<Decision, DecisionError> {
+        Err(DecisionError::NoInputAvailable)
+    }
+}
+
 pub struct PreviewEntry<'a> {
     pub id: &'a str,
     pub description: &'a str,
@@ -203,4 +285,19 @@ pub trait Reporter {
         skipped: &[String],
         pending_remaining: usize,
     );
+
+    /// A predicate's `Fail(message)`, relayed verbatim — matching bash's
+    /// `FAIL` frame relay, the message is NOT re-wrapped.
+    fn interactive_fail(&self, id: &str, message: &str);
+
+    /// A `validate_edit` rejection: `"[interactive] {message}"`.
+    fn interactive_validation_rejected(&self, message: &str);
+
+    /// The structured stall (0116): no decision input was available for
+    /// `id`, and `pending_keys` names every undecided transformation from
+    /// the stalled one onward, in emission order.
+    fn interactive_stalled(&self, id: &str, pending_keys: &[String]);
+
+    /// A `DecisionSource::Timeout`/`Eof`.
+    fn interactive_timeout(&self, id: &str);
 }
