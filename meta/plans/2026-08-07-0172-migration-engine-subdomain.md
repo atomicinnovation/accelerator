@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T19:10:00+00:00"
+last_updated: "2026-08-08T21:40:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-8 implemented and committed (Phases 9-10 remain, both gated behind this note's own caveats). Phase 6's own note (six mechanical migrations, two real bugs fixed, new MigrationContext capabilities) is preserved below in the Phase 6 section itself. Phase 7 (this session): ported the discoverability hook to `accelerator migrate --discoverability-hook --format=hook --fail-safe`, delivering its advisory via kernel::hooks::session_start's systemMessage (absorbing work-item:0183, now abandoned), rebound skills/config/migrate/SKILL.md's invocation call sites, and cleared the SKILL_EXEMPT_SUBBINARIES/_KNOWN_PENDING_SKILL_BINDINGS interim carve-outs. Phase 8 (this session): ported migration 0007 (the largest, only-interactive migration), unblocked because work-item:0195 shipped `accelerator corpus frontmatter validate` as an in-process corpus_adapters library (not a kept-alive shell script) — self_validate_structural/referential call it directly via a new MigrationContext::validate_frontmatter method. The rewrite is a line-oriented text transform (matching migration 0006's established convention, not the document value-tree design this plan originally sketched), and reuses corpus::frontmatter_validation::schema's already-landed per-type table directly rather than re-deriving it — cli/migrate/src/migrations/m0007/ is a subdirectory, a disclosed exception to the flat-file-per-migration convention given 0007's size. Verified byte-identical against real bash on a seeded corpus. Full deviation list is in the Phase 8 Success Criteria section below. **Known gap carried into Phase 9**: --list/--decisions-file remain unwired in migrate-cli (main.rs still returns \"not yet implemented\") — the default TTY/no-input-stall path is fully wired and tested, but Phase 9 cannot repoint the list/*/decisions-file/* bash suites until this is built. Phases 9 (suite classification/black-box rewrites) and 10 (the single indivisible bash-deletion cutover commit) have not been started this session."
+last_updated_note: "Phases 0-8 implemented and committed (Phases 9-10 remain, both gated behind this note's own caveats). Phase 6's own note (six mechanical migrations, two real bugs fixed, new MigrationContext capabilities) is preserved below in the Phase 6 section itself. Phase 7 (this session): ported the discoverability hook to `accelerator migrate --discoverability-hook --format=hook --fail-safe`, delivering its advisory via kernel::hooks::session_start's systemMessage (absorbing work-item:0183, now abandoned), rebound skills/config/migrate/SKILL.md's invocation call sites, and cleared the SKILL_EXEMPT_SUBBINARIES/_KNOWN_PENDING_SKILL_BINDINGS interim carve-outs. Phase 8 (this session): ported migration 0007 (the largest, only-interactive migration), unblocked because work-item:0195 shipped `accelerator corpus frontmatter validate` as an in-process corpus_adapters library (not a kept-alive shell script) — self_validate_structural/referential call it directly via a new MigrationContext::validate_frontmatter method. The rewrite is a line-oriented text transform (matching migration 0006's established convention, not the document value-tree design this plan originally sketched), and reuses corpus::frontmatter_validation::schema's already-landed per-type table directly rather than re-deriving it — cli/migrate/src/migrations/m0007/ is a subdirectory, a disclosed exception to the flat-file-per-migration convention given 0007's size. Verified byte-identical against real bash on a seeded corpus. Full deviation list is in the Phase 8 Success Criteria section below. **Follow-up session (this update), ahead of Phase 9**: closed the --list/--decisions-file gap Phase 8 flagged as a precondition of Phase 9's suite repointing — migrate::list, migrate::decisions_file, migrate-adapters::decisions_file_decision_source, and migrate-cli's env-var/flag resolution and existence checks are now real and tested end to end against migration 0007 (the registry's only interactive entry). While building this, found and fixed a real bug in Phase 8's landed m0007/mod.rs: linkage_table() fed corpus::linkage's prose-token-matching functions an absolute, root-joined table instead of a repo-relative one, silently dropping every path-shaped body reference (e.g. `## References` sections) that wasn't already carrying an explicit frontmatter type: hint — full detail in the note appended to the end of the Phase 5 section. Phase 9 (suite classification/black-box rewrites) and Phase 10 (the single indivisible bash-deletion cutover commit) have not been started."
 schema_version: 1
 ---
 
@@ -2300,6 +2300,61 @@ returns) before delegating to point 2's merge logic.
 - Fixture tests against `list/single-pending/`, `list/multi-pending/`, and
   the five `decisions-file/*` malformed-input cases (Phase 5's own
   still-unchecked criteria) remain unchecked for the same reason.
+
+**Follow-up session, ahead of Phase 9: `--list`/`--decisions-file` wired.**
+Closed the gap Phase 8's own deviations flagged as a precondition of Phase 9
+repointing the `list/*`/`decisions-file/*` bash suites. `migrate::list`,
+`migrate::decisions_file` (the dry-apply validation pass — a new
+`engine::pending_transformations` helper factors the decided/drift/
+`verify_applied` filter out of `run_interactive` so both share one
+definition of "what would this run prompt for right now"), and
+`migrate-adapters::decisions_file_decision_source::DecisionsFileDecisionSource`
+are now real; `migrate-cli`'s `main.rs` resolves `--decisions-file`/
+`ACCELERATOR_MIGRATE_DECISIONS_FILE` (flag wins, matching bash's
+overwrite-during-parsing order), validates existence/directory/readability
+verbatim, and dispatches `--list` before pre-flight, exactly as bash. Every
+migration 0007 is the only real exerciser available (the compiled registry's
+only `Interactive` entry) — black-box tests in
+`cli/migrate-cli/tests/list_and_decisions_file.rs` drive it end to end
+(ambiguous-band `--list` emission, a valid `--decisions-file` accept, a
+missing-decision refusal, the confirmed-real `#`-comment-is-not-tolerated
+bash behaviour, env-var honouring with flag precedence, and the two
+existence-check refusals); `cli/migrate/tests/list_and_decisions_file.rs`
+covers the parsing/filtering contract generically against `FixtureMigration`.
+Byte-for-byte replay of Phase 0's own `list/*`/`decisions-file/*` captures
+remains out of reach for the same reason Phase 6/8 both record: those
+fixtures were captured against bash-only synthetic migrations with no Rust
+counterpart in the compiled registry (`0006-decisions-bridge`, etc.), so
+those specific checkboxes above stay unchecked — this is equivalent-behaviour
+coverage, not a byte-parity replay. The composition-root
+TTY/decisions-file/neither dispatch checkbox also stays unchecked: the
+decisions-file-supplied branch is now covered by the black-box tests above,
+but the real-TTY branch has no CI-safe way to force `stdin().is_terminal()`
+true without a real pty, so it remains asserted only at the
+`TtyDecisionSource` unit level (Phase 5's own coverage), not at the
+composition-root dispatch site.
+
+**A real bug found and fixed while building this**: `m0007/mod.rs`'s own
+`linkage_table()` fed `corpus::linkage`'s text-matching functions
+(`parse_document`'s internal `path_roots`/`extract_doc_paths`, and
+`rewrite::resolve_type`'s `type_from_path` fallback) an *absolute*,
+root-joined table — correct for the file-walking use `corpus_files` needs,
+wrong for prose-token matching, which needs directories relative to the
+repo root the way a reference actually appears in body text
+(`meta/work/0042.md`, never an absolute host path). Every existing test
+only exercised the bare-4-digit-ID `## Dependencies`/`Blocks:` pathway
+(`extract_bare_ids`, which never consults `roots` at all) or relied on an
+explicit frontmatter `type:` field (masking `resolve_type`'s own broken
+fallback), so the bug was silent until this session's `## References`-based
+ambiguous-band fixture — a real, common linkage shape in this repo's own
+corpus — exercised `path_roots` for the first time. Fixed by having
+`linkage_table()` strip `ctx.root()` back off before the table reaches any
+`corpus::linkage` call, while `corpus_files()` now joins `ctx.root()`
+itself when it needs an absolute directory to actually walk. `ctx.corpus_index()`
+was never affected — its own table (built separately, in
+`migrate-adapters::context::FileMigrationContext::linkage_table`) is
+absolute-to-absolute self-consistent, matching `RealFs.walk_markdown`'s own
+absolute file listings.
 
 ---
 

@@ -4,6 +4,7 @@
 
 pub mod context;
 pub mod corpus_index;
+pub mod decisions_file_decision_source;
 pub mod dirty_path_scanner;
 pub mod ledger_store;
 pub mod manifest_store;

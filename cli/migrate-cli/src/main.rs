@@ -15,6 +15,7 @@ use clap::Parser as _;
 use config_adapters::FileConfigStore;
 use migrate::ledger;
 use migrate::ports::DecisionSource;
+use migrate::ports::LedgerStore as _;
 use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext as _;
 use migrate::ports::NoInputDecisionSource;
@@ -23,6 +24,7 @@ use migrate::preflight::Preflight;
 use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
 use migrate_adapters::context::FileMigrationContext;
+use migrate_adapters::decisions_file_decision_source::DecisionsFileDecisionSource;
 use migrate_adapters::dirty_path_scanner::VcsDirtyPathScanner;
 use migrate_adapters::ledger_store::FileLedgerStore;
 use migrate_adapters::manifest_store::FileManifestStore;
@@ -72,6 +74,47 @@ fn session_log_decision_count(root: &Path) -> impl Fn(&str) -> usize + '_ {
     }
 }
 
+/// The flag, falling back to `ACCELERATOR_MIGRATE_DECISIONS_FILE` — matching
+/// bash, where `--decisions-file <path>` simply overwrites the same env var
+/// during arg parsing, so a supplied flag always wins over a pre-existing
+/// one.
+fn resolve_decisions_file(cli: &Cli) -> Option<PathBuf> {
+    cli.decisions_file.clone().or_else(|| {
+        std::env::var("ACCELERATOR_MIGRATE_DECISIONS_FILE")
+            .ok()
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+    })
+}
+
+/// Reproduces `run-migrations.sh`'s three decisions-file existence checks
+/// verbatim, in the same order, run unconditionally whenever the var is set
+/// — including under `--list`, which never ends up reading it.
+///
+/// # Errors
+/// [`kernel::Error::Failed`] naming which check failed, exactly as bash.
+fn validate_decisions_file_exists(path: &Path) -> Result<(), kernel::Error> {
+    if path.is_dir() {
+        return Err(kernel::Error::Failed(format!(
+            "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is a directory: {}",
+            path.display()
+        )));
+    }
+    if !path.exists() {
+        return Err(kernel::Error::Failed(format!(
+            "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE does not exist: {}",
+            path.display()
+        )));
+    }
+    if std::fs::File::open(path).is_err() {
+        return Err(kernel::Error::Failed(format!(
+            "Error: ACCELERATOR_MIGRATE_DECISIONS_FILE is not readable: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     if cli.discoverability_hook {
         let root = project_root()?;
@@ -104,16 +147,64 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
         println!("Unapplied migration: {id}");
         return Ok(());
     }
-    if cli.list || cli.decisions_file.is_some() {
-        return Err(kernel::Error::Failed("not yet implemented".to_owned()));
+
+    let decisions_file = resolve_decisions_file(cli);
+    if let Some(path) = &decisions_file {
+        validate_decisions_file_exists(path)?;
     }
 
-    let ctx = FileMigrationContext::new(&root);
-    let manifest_store = FileManifestStore::new(&root);
-    let scanner = VcsDirtyPathScanner::new(&root, vcs_kind(&root));
-    let session_log_decisions = session_log_decision_count(&root);
+    if cli.list {
+        return run_list(&root, &ledger_store);
+    }
+
+    run_default(&root, &run_lock, &ledger_store, decisions_file.as_deref())
+}
+
+fn run_list(
+    root: &Path,
+    ledger_store: &FileLedgerStore,
+) -> Result<(), kernel::Error> {
+    let ctx = FileMigrationContext::new(root);
+    let session_logs = FileSessionLogFactory::new(root);
+    let entries = migrate::registry::registry();
+    let applied = ledger_store.applied()?;
+    let skipped = ledger_store.skipped()?;
+    let reporter = StdoutReporter {
+        root: root.to_path_buf(),
+    };
+    let groups = migrate::list::list_pending(
+        &entries,
+        &applied,
+        &skipped,
+        &ctx,
+        &session_logs,
+        &reporter,
+    )?;
+    render::render_list(root, &groups);
+    Ok(())
+}
+
+fn run_default(
+    root: &Path,
+    run_lock: &FileRunLock,
+    ledger_store: &FileLedgerStore,
+    decisions_file: Option<&Path>,
+) -> Result<(), kernel::Error> {
+    let decisions_file_content = decisions_file
+        .map(std::fs::read_to_string)
+        .transpose()
+        .map_err(|error| {
+            kernel::Error::Failed(format!(
+                "could not read the decisions file: {error}"
+            ))
+        })?;
+
+    let ctx = FileMigrationContext::new(root);
+    let manifest_store = FileManifestStore::new(root);
+    let scanner = VcsDirtyPathScanner::new(root, vcs_kind(root));
+    let session_log_decisions = session_log_decision_count(root);
     let preflight = Preflight {
-        lock: &run_lock,
+        lock: run_lock,
         scanner: &scanner,
         manifest: &manifest_store,
         runner: migrate::manifest::RunnerPaths {
@@ -130,7 +221,7 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     let _guard = match preflight.run() {
         Ok((guard, PreflightOutcome::Clean)) => guard,
         Ok((guard, PreflightOutcome::Resumed { affordance })) => {
-            render::resume_affordance(&root, &affordance);
+            render::resume_affordance(root, &affordance);
             guard
         }
         Err(PreflightError::ForeignDirt) => {
@@ -140,24 +231,33 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
         Err(PreflightError::Failed(error)) => return Err(error.into()),
     };
 
-    let reporter = StdoutReporter { root: root.clone() };
+    let reporter = StdoutReporter {
+        root: root.to_path_buf(),
+    };
     let entries = migrate::registry::registry();
-    let session_logs = FileSessionLogFactory::new(&root);
+    let session_logs = FileSessionLogFactory::new(root);
+    let decisions_file_source = decisions_file_content
+        .as_deref()
+        .map(DecisionsFileDecisionSource::new);
     let tty_decisions = TtyDecisionSource;
     let no_input = NoInputDecisionSource;
-    let decisions: &dyn DecisionSource = if std::io::stdin().is_terminal() {
-        &tty_decisions
-    } else {
-        &no_input
-    };
+    let decisions: &dyn DecisionSource =
+        if let Some(source) = &decisions_file_source {
+            source
+        } else if std::io::stdin().is_terminal() {
+            &tty_decisions
+        } else {
+            &no_input
+        };
     let result = migrate::lifecycle::run_pending(
         &entries,
         &ctx,
-        &ledger_store,
+        ledger_store,
         &reporter,
         decisions,
         &session_logs,
         DECISION_TIMEOUT,
+        decisions_file_content.as_deref(),
     );
     if result.is_ok() {
         manifest_store.clear()?;

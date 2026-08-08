@@ -4,6 +4,7 @@
 
 use std::time::Duration;
 
+use crate::decisions_file;
 use crate::engine;
 use crate::ledger;
 use crate::ports::DecisionSource;
@@ -24,9 +25,17 @@ use crate::registry::MigrationEntry;
 /// first failure, leaving the ledger at the last success — matching
 /// `run-migrations.sh`'s fail-fast apply loop.
 ///
+/// When `decisions_file_content` is `Some`, every pending interactive entry
+/// is validated against it — dry, no `apply_decision` call, no session-log
+/// write — immediately after the preview banner and before the apply loop
+/// begins, matching bash's own "validate every pending interactive
+/// migration before the live run" ordering
+/// (`run-migrations.sh`'s fail-closed decisions-file block).
+///
 /// # Errors
-/// The first [`MigrationError`] a pending entry's `apply()` returns, or one
-/// from the injected `LedgerStore`.
+/// The first [`MigrationError`] a pending entry's `apply()` returns, one
+/// from the injected `LedgerStore`, or the first decisions-file validation
+/// failure (naming the offending position).
 #[allow(clippy::too_many_arguments)]
 pub fn run_pending(
     entries: &[MigrationEntry],
@@ -36,6 +45,7 @@ pub fn run_pending(
     decisions: &dyn DecisionSource,
     session_logs: &dyn SessionLogFactory,
     timeout: Duration,
+    decisions_file_content: Option<&str>,
 ) -> Result<(), MigrationError> {
     let applied_ids = ledger_store.applied()?;
     let skipped_ids = ledger_store.skipped()?;
@@ -66,6 +76,22 @@ pub fn run_pending(
         })
         .collect();
     reporter.preview(&preview);
+
+    if let Some(content) = decisions_file_content {
+        for entry in &pending {
+            let MigrationEntry::Interactive(migration) = entry else {
+                continue;
+            };
+            let session_log = session_logs.for_migration(migration.id());
+            let prompts = engine::pending_transformations(
+                migration.as_ref(),
+                ctx,
+                session_log.as_ref(),
+                reporter,
+            )?;
+            decisions_file::validate(migration.as_ref(), &prompts, content)?;
+        }
+    }
 
     let mut applied_count = 0usize;
     for entry in &pending {

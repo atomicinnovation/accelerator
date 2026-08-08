@@ -5,6 +5,7 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
+use migrate::list::ListGroup;
 use migrate::ports::MigrationError;
 use migrate::ports::PreviewEntry;
 use migrate::ports::Reporter;
@@ -33,6 +34,62 @@ pub fn resume_affordance(root: &Path, affordance: &[AffordanceEntry]) {
                 abs.display()
             );
         }
+    }
+}
+
+/// `--list`: the multi-migration/in-flight-session stderr notes (verbatim,
+/// `run-migrations.sh:506-508` and its neighbouring in-flight-session
+/// block), then every group's tab-delimited lines
+/// (`<pos>\t<key>\t<proposed>\t<path>:<anchor>`), segmented by a
+/// `# migration <id>` header — and position restarting at 1 — only when
+/// more than one interactive migration is pending. `"no pending
+/// transformations"` (stdout, lowercase, no trailing punctuation) when
+/// nothing was emitted at all.
+pub fn render_list(root: &Path, groups: &[ListGroup]) {
+    let multi = groups.len() > 1;
+    if multi {
+        eprintln!(
+            "Note: {} interactive migrations pending; resume one at a time \
+             with --decisions-file per '# migration <id>' section — a \
+             single multi-migration decisions file is not yet supported.",
+            groups.len()
+        );
+    }
+    for group in groups {
+        if group.had_in_flight_session {
+            let path =
+                migrate_adapters::session_log::session_log_path(root, group.id);
+            eprintln!(
+                "Note: migration {} has an in-flight session log; --list \
+                 shows only the remaining (undecided) transformations. \
+                 Re-run /accelerator:migrate to resume, or rm {} to \
+                 discard.",
+                group.id,
+                path.display()
+            );
+        }
+    }
+
+    let mut emitted = 0usize;
+    for group in groups {
+        if multi {
+            println!("# migration {}", group.id);
+        }
+        for (index, transformation) in group.transformations.iter().enumerate()
+        {
+            emitted += 1;
+            println!(
+                "{}\t{}\t{}\t{}:{}",
+                index + 1,
+                transformation.short_key(),
+                transformation.proposed,
+                transformation.path,
+                transformation.anchor
+            );
+        }
+    }
+    if emitted == 0 {
+        println!("no pending transformations");
     }
 }
 

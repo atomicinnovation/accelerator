@@ -4,6 +4,7 @@
 use crate::ports::MigrationContext;
 use crate::registry::MigrationMeta;
 
+#[derive(Clone)]
 pub struct Transformation {
     pub key: String,
     pub path: String,
@@ -12,6 +13,23 @@ pub struct Transformation {
     pub predicate_value: String,
     pub display: String,
     pub extras: Vec<(String, String)>,
+}
+
+impl Transformation {
+    /// The short, human-facing identifier `--list` and the decisions-file
+    /// dry-apply validation pass name a position by — bash's own
+    /// `harness_emit_transformation key=`, distinct from `key` above (which
+    /// is this port's session-log identity, `{path}#{anchor}`). Migrations
+    /// that supply one via an `extras` entry named `linkage_key` (0007's
+    /// convention) get it named precisely; anything else falls back to the
+    /// full session-log key.
+    #[must_use]
+    pub fn short_key(&self) -> &str {
+        self.extras
+            .iter()
+            .find(|(name, _)| name == "linkage_key")
+            .map_or(self.key.as_str(), |(_, value)| value.as_str())
+    }
 }
 
 pub enum PredicateOutcome {

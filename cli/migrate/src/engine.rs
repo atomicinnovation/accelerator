@@ -92,6 +92,67 @@ pub fn run_interactive(
     Ok(ApplyOutcome::Applied)
 }
 
+/// The transformations that would currently prompt for a decision.
+///
+/// Every emitted transformation whose predicate evaluates to `Prompt` and
+/// that has no already-decided, non-drifted session-log record, in emission
+/// order.
+///
+/// Read-only: never writes to `session_log` (a drifted record is simply not
+/// treated as decided, not removed) and never calls `apply_decision`. Shares
+/// the exact decided/drift/`verify_applied` check `run_interactive` applies
+/// live, so `--list` and the decisions-file dry-apply validation pass see
+/// precisely the positions a live run would actually prompt for.
+///
+/// `emit_transformations` itself may still perform real mutations — a
+/// migration's mechanical work (0007's backfill/rewrite passes) runs
+/// unconditionally inside it, matching bash's own per-migration fork, which
+/// runs the identical unconditional passes before enumerating in list mode.
+///
+/// # Errors
+/// The predicate's `Fail` message, reported and formatted `"[{id}] {message}"`
+/// — matching `run_interactive`'s own FAIL relay.
+pub fn pending_transformations(
+    migration: &dyn InteractiveMigration,
+    ctx: &dyn MigrationContext,
+    session_log: &dyn SessionLog,
+    reporter: &dyn Reporter,
+) -> Result<Vec<Transformation>, MigrationError> {
+    let id = migration.id();
+    let transformations = migration.emit_transformations(ctx);
+    let recorded = session_log.records()?;
+
+    let mut pending = Vec::new();
+    for transformation in transformations {
+        let existing = recorded
+            .iter()
+            .find(|record| record.transformation_key == transformation.key);
+
+        let already_decided = existing.is_some_and(|record| {
+            record.proposed_value == transformation.proposed
+                && match record.outcome {
+                    Outcome::Skipped => true,
+                    Outcome::Accepted | Outcome::Edited => {
+                        migration.verify_applied(&transformation, record)
+                    }
+                }
+        });
+        if already_decided {
+            continue;
+        }
+
+        match migration.evaluate_predicate(&transformation) {
+            PredicateOutcome::Mechanical => {}
+            PredicateOutcome::Fail(message) => {
+                reporter.interactive_fail(id, &message);
+                return Err(MigrationError::new(format!("[{id}] {message}")));
+            }
+            PredicateOutcome::Prompt => pending.push(transformation),
+        }
+    }
+    Ok(pending)
+}
+
 fn apply(
     id: &str,
     transformation: &Transformation,

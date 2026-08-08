@@ -270,6 +270,7 @@ fn an_empty_pending_set_reports_no_pending_migrations_and_touches_no_ledger(
         &NeverDecides,
         &NoSessionLogs,
         Duration::from_secs(30),
+        None,
     )?;
 
     assert_eq!(
@@ -297,6 +298,7 @@ fn applied_and_no_op_entries_are_dispatched_and_reported_in_order(
         &NeverDecides,
         &NoSessionLogs,
         Duration::from_secs(30),
+        None,
     )?;
 
     assert_eq!(ledger.applied()?, vec!["0001".to_owned()]);
@@ -333,6 +335,7 @@ fn a_failure_stops_the_run_leaving_the_ledger_at_the_last_success(
         &NeverDecides,
         &NoSessionLogs,
         Duration::from_secs(30),
+        None,
     );
 
     assert!(result.is_err());
@@ -366,6 +369,7 @@ fn an_id_already_applied_is_not_re_run() -> Result<(), TestError> {
         &NeverDecides,
         &NoSessionLogs,
         Duration::from_secs(30),
+        None,
     )?;
 
     assert_eq!(

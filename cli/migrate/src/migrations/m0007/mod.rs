@@ -70,11 +70,23 @@ impl MigrationMeta for Migration0007 {
     }
 }
 
-fn linkage_table(dirs: &[DocTypeDir]) -> Vec<(DocTypeKey, PathBuf)> {
+/// The corpus-relative table `corpus::linkage`'s text-matching functions
+/// need (`path_roots`/`extract_doc_paths` scan prose for repo-relative
+/// tokens like `meta/work/0042.md`, never an absolute filesystem path) —
+/// `ctx.doc_type_dirs()` returns directories already joined against the
+/// project root (Phase 2's `MigrationContext` contract, matching what
+/// `ctx.list_md_files` needs for real filesystem walking), so this strips
+/// that root back off before the dirs reach any text-matching call.
+fn linkage_table(
+    dirs: &[DocTypeDir],
+    root: &std::path::Path,
+) -> Vec<(DocTypeKey, PathBuf)> {
     dirs.iter()
         .filter_map(|dir| {
-            DocTypeKey::from_linkage_type_name(&dir.doc_type)
-                .map(|key| (key, dir.dir.clone()))
+            DocTypeKey::from_linkage_type_name(&dir.doc_type).map(|key| {
+                let relative = dir.dir.strip_prefix(root).unwrap_or(&dir.dir);
+                (key, relative.to_path_buf())
+            })
         })
         .collect()
 }
@@ -85,8 +97,10 @@ fn corpus_files(
 ) -> Result<Vec<(String, String)>, String> {
     let mut paths: Vec<PathBuf> = Vec::new();
     for (_, dir) in table {
-        paths
-            .extend(ctx.list_md_files(dir).map_err(|error| error.to_string())?);
+        paths.extend(
+            ctx.list_md_files(&ctx.root().join(dir))
+                .map_err(|error| error.to_string())?,
+        );
     }
     paths.sort();
     paths.dedup();
@@ -123,7 +137,7 @@ fn mechanical_fail(message: impl Into<String>) -> Vec<Transformation> {
 fn run_mechanical(
     ctx: &dyn MigrationContext,
 ) -> Result<Vec<Transformation>, String> {
-    let table = linkage_table(&ctx.doc_type_dirs());
+    let table = linkage_table(&ctx.doc_type_dirs(), ctx.root());
     let files = corpus_files(ctx, &table)?;
 
     let refusals = prepass::precondition_prepass(&files, &table);
