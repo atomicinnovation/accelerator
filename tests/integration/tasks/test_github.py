@@ -347,15 +347,15 @@ class TestUploadAndVerifyRelease:
         uploads = [
             c for c in ctx.run.call_args_list if "gh release upload" in str(c)
         ]
-        # len(_PLATFORMS)x(debug + launcher + launcher.minisig) + manifest +
-        # sig + one (sub-binary + .minisig) pair per platform per dispatched
-        # sub-binary — derived, not a literal, so a future sibling landing
-        # this same registration checklist does not have to rediscover and
-        # re-hardcode this count.
+        debug_and_launcher_uploads = len(_PLATFORMS) * 3
+        manifest_and_signature_uploads = 2
+        dispatched_subbinary_uploads = (
+            len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
+        )
         assert len(uploads) == (
-            len(_PLATFORMS) * 3
-            + 2
-            + len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
+            debug_and_launcher_uploads
+            + manifest_and_signature_uploads
+            + dispatched_subbinary_uploads
         )
         assert all("--clobber" in str(c) for c in uploads)
 

@@ -196,8 +196,6 @@ pub fn derive(
     }
 }
 
-/// The real, `vcs`/`vcs-adapters`-backed implementation of
-/// `corpus::RepoFactsProbe`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct VcsBackedRepoFactsProbe;
 

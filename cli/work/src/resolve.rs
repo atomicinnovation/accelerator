@@ -6,8 +6,9 @@
 //! (`work_domain_imports_only_permitted` in `cli/pup.ron`) keeps this crate
 //! dependency-free, so pattern matching here is a small, regex-free,
 //! greedy token-walker — sufficient for the DSL's own grammar, since
-//! adjacent dynamic tokens are already forbidden (rule 3), so a digit or
-//! letter run never needs to backtrack against what follows it.
+//! adjacent dynamic tokens are already forbidden by the pattern grammar,
+//! so a digit or letter run never needs to backtrack against what follows
+//! it.
 
 use corpus::WorkItemIdScheme;
 
@@ -263,7 +264,6 @@ fn resolve_bare_number(
     let pattern_has_project = scheme.id_pattern.contains("{project}");
     let mut candidates: Vec<TaggedCandidate> = Vec::new();
 
-    // (a) project-prepended
     if pattern_has_project && scheme.default_project_code.is_some() {
         if let Some(full_id) = scheme.canonicalise_id(input) {
             let prefix = format!("{full_id}-");
@@ -279,7 +279,6 @@ fn resolve_bare_number(
         }
     }
 
-    // (b) legacy (only if input has <= 4 digits)
     if input.len() <= 4 {
         if let Some(legacy_padded) = WorkItemIdScheme::pad_legacy_number(input)
         {
@@ -292,7 +291,6 @@ fn resolve_bare_number(
         }
     }
 
-    // (c) pattern-shape (only if pattern lacks {project})
     if !pattern_has_project {
         if let Some(full_id) = scheme.canonicalise_id(input) {
             let prefix = format!("{full_id}-");
@@ -304,7 +302,6 @@ fn resolve_bare_number(
         }
     }
 
-    // (d) cross-project scan (only if pattern has {project})
     if pattern_has_project {
         let width = width_with_default(scheme);
         if let Ok(number) = input.parse::<u64>() {

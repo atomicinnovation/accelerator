@@ -1,8 +1,8 @@
 //! CLI-boundary tests for `work template-hints`, cross-checked against the
-//! Phase 1 `work-item-template-field-hints.golden` fixture's
-//! comment-present rows (the `template-unreadable` rows exercise the same
-//! hardcoded-fallback code path as `comment-absent`, per that golden's own
-//! note, so are not separately re-exercised here).
+//! `work-item-template-field-hints.golden` fixture's comment-present rows
+//! (the `template-unreadable` rows exercise the same hardcoded-fallback
+//! code path as `comment-absent`, per that golden's own note, so are not
+//! separately re-exercised here).
 
 use std::fs;
 use std::path::Path;

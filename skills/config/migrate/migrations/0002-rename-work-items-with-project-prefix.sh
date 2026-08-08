@@ -37,13 +37,12 @@ fi
 
 # ── Step 2: build_rename_map ────────────────────────────────────────────────
 
-# Compiles a `{project}-{number:0Nd}`-shaped pattern into a printf format
-# string, given a project value. Deliberately self-contained rather than
-# dispatching to `accelerator work canonicalise-id`: this migration must
-# keep working via plain bash with no dependency on a released sub-binary,
-# and PATTERN is already known (by the {project} guard above) to be one of
-# this migration's supported shapes — it does not need the full pattern-DSL
-# grammar `corpus_adapters::work_item_pattern` implements for every caller.
+# Deliberately self-contained rather than dispatching to `accelerator work
+# canonicalise-id`: this migration must keep working via plain bash with no
+# dependency on a released sub-binary, and PATTERN is already known (by the
+# {project} guard above) to be one of this migration's supported shapes — it
+# does not need the full pattern-DSL grammar a dispatched sub-binary
+# implements for every caller.
 compile_legacy_rename_format() { # $1 pattern $2 project -> printf format
   local pattern="$1" project="$2" width
   width=$(printf '%s' "$pattern" |

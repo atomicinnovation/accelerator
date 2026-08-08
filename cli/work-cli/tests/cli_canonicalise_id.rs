@@ -1,5 +1,5 @@
 //! CLI-boundary tests for `work canonicalise-id`, cross-checked against the
-//! Phase 1 `work-item-canonicalise-id.golden` fixture.
+//! `work-item-canonicalise-id.golden` fixture.
 
 // The `{project}`/`{number:04d}` DSL tokens in test literals are not
 // formatting args.

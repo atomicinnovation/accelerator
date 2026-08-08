@@ -2,7 +2,7 @@
 //! variant's flag names, arity, and help text, against one committed
 //! golden. A future accidental change to any command's flags becomes a
 //! visible, deliberate diff instead of a silent break for downstream
-//! consumers (e.g. 0194) to discover later.
+//! consumers to discover later.
 
 use std::fmt::Write as _;
 use std::process::Command;

@@ -74,11 +74,6 @@ pub enum Command {
     },
 }
 
-/// Parses a `KEY=VALUE` argument into its two halves.
-///
-/// # Errors
-///
-/// A message string when `raw` has no `=`.
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
     raw.split_once('=').map_or_else(
         || Err(format!("expected KEY=VALUE, got '{raw}'")),

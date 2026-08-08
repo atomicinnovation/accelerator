@@ -170,12 +170,10 @@ cli_flag_for() {
   esac
 }
 
-# Check CLI-delegation context: a work-create/work-update SKILL.md doesn't
-# restate "populate field X" in prose — it invokes the compiled binary with
-# a flag, and the binary's own (tested) logic decides what gets written. A
-# field counts as populated when its CLI flag appears inside a fenced code
-# block that also invokes `accelerator work create`/`accelerator work
-# update`; the invocation itself is the population instruction.
+# A work-create/work-update SKILL.md doesn't restate "populate field X" in
+# prose — it invokes the compiled binary with a flag, and the binary's own
+# (tested) logic decides what gets written; the invocation itself is the
+# population instruction.
 in_cli_delegated_block() {
   local file="$1" field="$2" flag
   flag=$(cli_flag_for "$field")
@@ -194,15 +192,14 @@ in_cli_delegated_block() {
   ' "$file"
 }
 
-# Check CLI-delegation omit-guidance: an omit-when-empty field populated via
-# a `[--flag ...]` (bracketed = optional) CLI argument satisfies its
-# fill/omit contract when a nearby sentence explains the bracket
-# convention generically (the compiled binary's `--field`-absent-omits-
-# the-key behaviour is its own tested contract — see `work::create` — so
-# the skill only needs to establish that convention once, not per field),
-# OR when the field has no flag at all and the prose says so explicitly.
-# Scans the fenced block plus the next 15 lines after it closes, so a
-# trailing explanatory paragraph is in scope without unbounded reach.
+# An omit-when-empty field populated via a `[--flag ...]` (bracketed =
+# optional) CLI argument satisfies its fill/omit contract when a nearby
+# sentence explains the bracket convention generically — the compiled
+# binary's flag-absent-omits-the-key behaviour is its own tested contract,
+# so the skill only needs to establish the convention once, not per field —
+# or when the field has no flag at all and the prose says so explicitly.
+# The 15-line lookahead keeps a trailing explanatory paragraph in scope
+# without unbounded reach.
 in_cli_delegated_omit_guidance() {
   local file="$1" field="$2" flag
   flag=$(cli_flag_for "$field")

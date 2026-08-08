@@ -1,6 +1,5 @@
-//! Full `work diff` CLI path against the Phase 1
-//! `work-item-section-diff` golden fixtures, gated on the real `diff`
-//! binary being on `PATH`.
+//! Full `work diff` CLI path against the `work-item-section-diff` golden
+//! fixtures, gated on the real `diff` binary being on `PATH`.
 #![cfg(feature = "bash-parity")]
 
 use std::path::Path;

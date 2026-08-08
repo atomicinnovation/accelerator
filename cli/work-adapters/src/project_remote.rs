@@ -6,10 +6,9 @@
 //! decision, and typing it against `serde_json::Value` would need a
 //! dependency `work`'s own import-restriction rule does not permit.
 //!
-//! Characterization-tested per the AC but not called from any of this
-//! story's five commands — its only consumer is `sync-work-items`'
-//! bidirectional diff/apply flow, which today shells out to the bash
-//! script directly and stays that way until 0194 owns the sync engine.
+//! Not called by any of the five user-facing commands — its only consumer
+//! is `sync-work-items`' bidirectional diff/apply flow, which today shells
+//! out to the bash script directly rather than calling this projection.
 
 use serde_json::Value;
 

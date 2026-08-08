@@ -1,8 +1,7 @@
 //! Golden-fixture comparison: `diff_shellout::render`'s output structure
-//! against the Phase 1 `work-item-section-diff` fixtures, gated on the
-//! real `diff` binary being on `PATH` (mirrors `vcs-adapters`' own
-//! `bash-parity` convention — CI enables it, local dev does not need it by
-//! default).
+//! against the `work-item-section-diff` fixtures, gated on the real `diff`
+//! binary being on `PATH` (mirrors `vcs-adapters`' own `bash-parity`
+//! convention — CI enables it, local dev does not need it by default).
 #![cfg(feature = "bash-parity")]
 
 use std::path::Path;

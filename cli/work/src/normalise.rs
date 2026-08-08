@@ -75,9 +75,8 @@ fn top_level_key(line: &str) -> Option<&str> {
 /// does.
 ///
 /// Port of `_win_filter_frontmatter` (`work-item-normalise.sh:62-80`) — the
-/// `<file>`-mode normaliser. Consumed by none of the five user-facing
-/// commands (0194's sync-engine change-detection is its only future
-/// caller); characterization-tested per the AC regardless.
+/// `<file>`-mode normaliser. Not yet called by any user-facing command;
+/// the future sync-engine's change-detection flow is its intended caller.
 #[must_use]
 pub fn filter_frontmatter_keys(frontmatter_raw: &str) -> String {
     let mut lines: Vec<String> = Vec::new();

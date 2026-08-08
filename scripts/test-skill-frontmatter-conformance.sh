@@ -140,10 +140,7 @@ extract_literal() { # $1 file  $2 field -> verbatim value or ""
 # Substitute-list grammar (b): a skill that writes via a dispatched
 # `accelerator work create`/`accelerator work update` invocation carries no
 # bulleted `- \`field:\` ← \`value\`` list at all — the compiled binary's own
-# (separately tested) frontmatter-composition logic owns these literals; see
-# `cli/work/src/create.rs`. `type` and `schema_version` are unconditional
-# constants there (never a CLI flag); `status`/`producer` come from the
-# `--status`/`--producer` flag values in the invocation itself.
+# (separately tested) frontmatter-composition logic owns these literals.
 extract_cli_literal() { # $1 file  $2 field -> verbatim value or ""
   local file="$1" field="$2"
   grep -qE 'accelerator work (create|update)' "$file" || return 0

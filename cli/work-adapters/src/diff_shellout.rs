@@ -1,7 +1,7 @@
 //! Shells the real `diff -u` per differing section, for byte-identical
 //! output.
 //!
-//! The same "shell the real tool" adapter pattern 0169 established for
+//! The same "shell the real tool" adapter pattern already established for
 //! `vcs status`/`vcs log`. Port of `work-item-section-diff.sh:104-109`'s
 //! exact header format.
 //!
