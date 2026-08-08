@@ -375,7 +375,7 @@ listed once, in the "Confirmed real bugs" section, not repeated per-phase.)
     pin against the *old* bash SKILL.md; not actionable until Phase 10's
     rewrite lands (same as Phase 7 above).
 
-### `test-migrate.sh` — 522 assertions, corrected to **164 distinct scenarios** (the `# ── ─` header count of ~87 undercounts — many scenarios use bare `echo "Test: ..."` with no header): 77 covered, 9 moot, **80 genuine gaps** (reconciling Section F to item-level granularity surfaced 80, not the 78 the section tally below implies — two idempotency sub-checks embedded inside named blocks weren't separately "spent" against the scenario census)
+### `test-migrate.sh` — 522 assertions, corrected to **164 distinct scenarios** (the `# ── ─` header count of ~87 undercounts — many scenarios use bare `echo "Test: ..."` with no header): 77 covered, 9 moot, **80 genuine gaps** (reconciling Section F to item-level granularity surfaced 80, not the 78 the section tally below implies — two idempotency sub-checks embedded inside named blocks weren't separately "spent" against the scenario census) — CLOSED (Sections B–F fully; Section A all but one minor sub-item — see "Gaps closed" below)
 
 Summary by section (bash line ranges):
 
@@ -585,7 +585,72 @@ This closes all 7 actionable `test-migrate-interactive.sh` phases (2, 3,
 4, 6, 7, 8, 9 in the itemised list above). Phases 1, 5, 10 remain
 explicitly blocked (a product decision on the dirty-tree steer message;
 Phase 10's SKILL.md rewrite for the doc-example-drift and invoker-contract
-tests). `test-migrate.sh` (80 items, fully itemized above) remains open.
+tests).
+
+**Fourth batch** (`test-migrate.sh`'s six sections, B through F fully,
+Section A all but one minor sub-item):
+
+- **Section B (0002)** — idempotency (second run byte-identical) and an
+  already-prefixed tree forced pending again not double-prefixing.
+- **Section C (0003)** — all three `paths.tmp` override shapes, the
+  false-positive nested-block scope guard, second-run idempotency
+  (no-op + no duplicated `.gitignore` rule), two partial-manual-move
+  idempotency cases, a destination-collision config merge, `meta/tmp/`
+  merging recursively into a pre-existing `.accelerator/tmp/`, the
+  absent-`meta/templates/`-never-spuriously-created case, and the
+  pinned-override warning firing for both keys together / neither.
+  Plus a `dirty_tree_preflight.rs` case proving the refusal scope
+  covers `.accelerator/` itself, not just `meta/`.
+- **Section D (0005)** — a `type:` key with no body label not spuriously
+  inserting one, a valid custom `paths.work` honoured with the default
+  never created, a missing custom path naming itself in its warning, an
+  empty-but-existing work dir reporting rewrote-0 with no absence
+  warning, and second-run idempotency.
+- **Section E (0004)** — `.DS_Store` sweeping plus a `paths.research`
+  override targeting `<override>/codebase`, `paths.design_inventories`/
+  `paths.design_gaps` overrides suppressing those specific moves, a
+  destination-collision move (source wins), full-tree second-run
+  idempotency, a `local-config-only` override honoured independently of
+  `config.md`'s content (confirming both files still get the
+  unconditional `.0004.bak` per bash's own gated backup loop), an empty
+  `paths:` block left byte-unchanged, the `"0004: renamed"` notification
+  firing only on an actual rewrite, and a moved file's own cross-link to
+  a sibling also-moved file rewritten at the new location.
+- **Section F (0006)** — the entire `transform()` gap cluster (11 new
+  unit tests: single-quoted values, trailing-whitespace trimming, empty-
+  value bare-key normalisation, three matching-value silent-drop cases,
+  a normalises-even-when-unquoted survivor, a refused-line-skips-
+  divergence case, and the no-existing-author both-convert case) plus
+  the entire userspace-template tier-1/tier-2 resolution path
+  (previously zero coverage — 5 new tests), corpus-path overrides/
+  missing-path naming/alias dedup (3 new tests), and REFUSE-preserving
+  plus clean-rewrite byte-stability across repeated runs.
+- **Section A (generic driver)** — a new `full_registry_e2e.rs` chaining
+  the real, full 7-migration registry through one invocation from a
+  pristine pre-0001 layout (every other black-box test isolates a
+  single migration by pre-marking the rest applied; this is the one
+  place the whole chain runs together); an empty-repo still-applies
+  case, a collision-across-tickets/work case, a malformed-config
+  zero-partial-writes case, and a space-in-filename case for migration
+  0001; the dirty-tree refusal text pinned byte-for-byte; a successful
+  run clearing both manifest sidecars; FORCE bypassing only the dirty
+  check and never silently un-skipping; `--unskip` followed by a real
+  subsequent apply; an unknown applied/skipped id warned about during a
+  real run (plus the underlying `Reporter` wiring, previously dead —
+  three new `lifecycle.rs` tests); a stale non-empty manifest truncated
+  on a clean tree; two distinct non-`None` revisions correctly refusing
+  as a stale base; an empty run-id sidecar parsing the same as an
+  absent one; and the manifest-recording write decorator itself
+  (append + dedup across two write points), previously untested at any
+  level. The sole item **not** closed: Section A gap #14 (a guarded
+  resume that fails twice accumulating both runs' paths into one
+  manifest) — structurally implied by preflight's Resumed branch never
+  resetting the manifest plus the now-tested append/dedup decorator,
+  but not pinned by a dedicated end-to-end test.
+
+`test-migrate.sh` is now closed for all practical purposes — 79 of 80
+itemised gaps have a test; the 80th is a low-risk composition of two
+already-tested mechanisms.
 
 The remaining gaps (the bulk of the ~100 found, including the
 required-extras-backfill cluster in `rewrite.rs`, the userspace-template
