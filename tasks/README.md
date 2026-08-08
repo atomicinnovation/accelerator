@@ -290,6 +290,24 @@ mise-pinned stable `1.90.0`.
   build or the rustup nightly (an accepted unverified surface for the isolated
   lane).
 
+### File-descriptor limit on the cross-compiles
+
+`cargo zigbuild` links through zig, which opens **every** object file of a link
+at once, and a release link of the `cli/` workspace passes it several hundred
+(~640 for `accelerator`). macOS's launchd default soft limit is **256**
+descriptors, so from a stock shell the link dies partway through with
+`ProcessFdQuotaExceeded` on an object it cannot open — a failure that reads like
+a broken build but is purely an environment limit.
+
+Both cross-compile tasks therefore call `raise_descriptor_limit()`
+(`tasks/shared/limits.py`) before their first `cargo zigbuild`. `setrlimit` is
+inherited across `fork`/`exec`, so raising it once in the task process covers
+cargo, rustc and the zig wrapper beneath them, and no contributor needs a
+`ulimit -n` in their shell profile. The raise is best-effort: it never lowers an
+adequate limit, clamps to the hard limit (finite on Linux, `RLIM_INFINITY` on
+macOS), and warns rather than aborting if `setrlimit` is refused — the link
+itself fails loudly if the limit really was the constraint.
+
 ### Contributor environment variables
 
 Local-only toolchain escape hatches. **CI ignores both** (it runs the
