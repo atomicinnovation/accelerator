@@ -117,6 +117,44 @@ fn a_resolved_band_reference_applies_mechanically_and_an_unresolvable_one_is_dro
 }
 
 #[test]
+fn an_unsupported_session_log_schema_version_refuses_naming_the_discard_command(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    already_applied(root)?;
+    let session_log_path =
+        root.join(".accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl");
+    write(
+        root,
+        session_log_path
+            .strip_prefix(root)?
+            .to_str()
+            .ok_or("path")?,
+        "{\"transformation_key\":\"k1\",\"schema_version\":99,\
+         \"outcome\":\"accepted\",\"proposed_value\":\"v1\",\
+         \"timestamp\":\"2026-01-01T00:00:00+00:00\"}\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("[resume] unknown schema_version 99 — supported: {1}."),
+        "{stderr}"
+    );
+    assert!(stderr.contains("[resume]   rm "), "{stderr}");
+    assert!(
+        !fs::read_to_string(
+            root.join(".accelerator/state/migrations-applied")
+        )?
+        .contains("0007"),
+        "a refused resume must not add 0007 to the applied ledger"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_work_item_missing_kind_refuses_with_zero_mutations(
 ) -> Result<(), TestError> {
     let dir = TempDir::new()?;
