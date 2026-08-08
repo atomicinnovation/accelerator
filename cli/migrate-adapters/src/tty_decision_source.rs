@@ -7,8 +7,11 @@
 //! splitting render-vs-read across the crate boundary the rest of this
 //! engine uses would force this one seam to straddle it for no benefit.
 
+use std::cell::Cell;
 use std::io::BufRead as _;
-use std::io::Write as _;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -17,19 +20,55 @@ use migrate::interactive::Transformation;
 use migrate::ports::DecisionError;
 use migrate::ports::DecisionSource;
 
-pub struct TtyDecisionSource;
+/// Bound to the one session log a run's own `Interactive` entry writes to.
+///
+/// The compiled registry can never hold more than one `Interactive` entry,
+/// so there is only ever one path to announce.
+pub struct TtyDecisionSource {
+    session_log_path: PathBuf,
+    banner_printed: Cell<bool>,
+}
 
-fn render_prompt(transformation: &Transformation) {
-    println!();
-    println!("{}", transformation.display);
-    println!("  proposed: {}", transformation.proposed);
-    println!(
+impl TtyDecisionSource {
+    #[must_use]
+    pub const fn new(session_log_path: PathBuf) -> Self {
+        Self {
+            session_log_path,
+            banner_printed: Cell::new(false),
+        }
+    }
+}
+
+/// Bash's own `render_prompt` (`interactive-lib.sh:189-224`): a one-time
+/// session-log banner (so an interrupted user knows where to resume from),
+/// then the three mandatory display elements (ADR-0037) plus the author's
+/// own `display` content and the accept/skip/edit prompt.
+fn render_prompt(
+    out: &mut impl Write,
+    transformation: &Transformation,
+    session_log_path: &Path,
+    banner_printed: &Cell<bool>,
+) {
+    if !banner_printed.get() {
+        let _ = writeln!(
+            out,
+            "Session log: {}  (resume from this file by re-running \
+             /accelerator:migrate)\n",
+            session_log_path.display()
+        );
+        banner_printed.set(true);
+    }
+    let _ = writeln!(out);
+    let _ = writeln!(out, "{}", transformation.display);
+    let _ = writeln!(out, "  proposed: {}", transformation.proposed);
+    let _ = writeln!(
+        out,
         "  source: {}:{}",
         transformation.path, transformation.anchor
     );
-    println!("  predicate: {}", transformation.predicate_value);
-    print!("accept | skip | edit <value>: ");
-    let _ = std::io::stdout().flush();
+    let _ = writeln!(out, "  predicate: {}", transformation.predicate_value);
+    let _ = write!(out, "accept | skip | edit <value>: ");
+    let _ = out.flush();
 }
 
 impl DecisionSource for TtyDecisionSource {
@@ -38,7 +77,12 @@ impl DecisionSource for TtyDecisionSource {
         transformation: &Transformation,
         timeout: Duration,
     ) -> Result<Decision, DecisionError> {
-        render_prompt(transformation);
+        render_prompt(
+            &mut std::io::stdout(),
+            transformation,
+            &self.session_log_path,
+            &self.banner_printed,
+        );
         read_one_line_bounded(std::io::stdin(), timeout)
     }
 }
@@ -84,16 +128,89 @@ fn parse_decision(line: &str) -> Decision {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::path::Path;
     use std::time::Duration;
     use std::time::Instant;
 
+    use migrate::interactive::Transformation;
     use migrate::ports::DecisionError;
 
     use super::parse_decision;
     use super::read_one_line_bounded;
+    use super::render_prompt;
     use migrate::interactive::Decision;
 
     type TestError = Box<dyn std::error::Error>;
+
+    fn transformation() -> Transformation {
+        Transformation {
+            key: "meta/work/0001.md#body/relates_to".to_owned(),
+            path: "meta/work/0001.md".to_owned(),
+            anchor: "body/relates_to".to_owned(),
+            proposed: "relates_to=work-item:0042".to_owned(),
+            predicate_value: "ambiguous".to_owned(),
+            display: "Proposed linkage: relates_to: \"work-item:0042\""
+                .to_owned(),
+            extras: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn the_session_log_banner_prints_once_before_the_first_prompt(
+    ) -> Result<(), TestError> {
+        let path =
+            Path::new("/repo/.accelerator/state/migrations-0007-session.jsonl");
+        let banner_printed = Cell::new(false);
+        let mut out = Vec::new();
+
+        render_prompt(&mut out, &transformation(), path, &banner_printed);
+        let after_first = String::from_utf8(out.clone())?;
+        render_prompt(&mut out, &transformation(), path, &banner_printed);
+        let after_second = String::from_utf8(out)?;
+
+        assert!(
+            after_first.starts_with(
+                "Session log: /repo/.accelerator/state/migrations-0007-session.jsonl  \
+                 (resume from this file by re-running /accelerator:migrate)\n"
+            ),
+            "{after_first}"
+        );
+        assert_eq!(
+            after_second.matches("Session log:").count(),
+            1,
+            "{after_second}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_prompt_shows_the_three_mandatory_elements_and_the_display_content(
+    ) -> Result<(), TestError> {
+        let path =
+            Path::new("/repo/.accelerator/state/migrations-0007-session.jsonl");
+        let banner_printed = Cell::new(true);
+        let mut out = Vec::new();
+
+        render_prompt(&mut out, &transformation(), path, &banner_printed);
+        let rendered = String::from_utf8(out)?;
+
+        assert!(
+            rendered
+                .contains("Proposed linkage: relates_to: \"work-item:0042\""),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("proposed: relates_to=work-item:0042"),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("source: meta/work/0001.md:body/relates_to"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("predicate: ambiguous"), "{rendered}");
+        Ok(())
+    }
 
     #[test]
     fn a_pipe_that_never_writes_times_out_within_bound_plus_two_seconds(

@@ -184,6 +184,31 @@ fn run_list(
     Ok(())
 }
 
+/// The session log path a real TTY prompt banner names — the compiled
+/// registry never holds more than one `Interactive` entry, so there is
+/// only ever one path to find. A placeholder when none exists is harmless:
+/// the banner only ever prints once a `Prompt`-outcome transformation is
+/// reached, which only an `Interactive` entry can produce.
+fn interactive_session_log_path(
+    root: &Path,
+    entries: &[migrate::registry::MigrationEntry],
+) -> PathBuf {
+    entries
+        .iter()
+        .find_map(|entry| match entry {
+            migrate::registry::MigrationEntry::Interactive(migration) => {
+                Some(migrate_adapters::session_log::session_log_path(
+                    root,
+                    migration.id(),
+                ))
+            }
+            migrate::registry::MigrationEntry::Mechanical(_) => None,
+        })
+        .unwrap_or_else(|| {
+            root.join(".accelerator/state/migrations-session.jsonl")
+        })
+}
+
 fn run_default(
     root: &Path,
     run_lock: &FileRunLock,
@@ -239,7 +264,8 @@ fn run_default(
     let decisions_file_source = decisions_file_content
         .as_deref()
         .map(DecisionsFileDecisionSource::new);
-    let tty_decisions = TtyDecisionSource;
+    let tty_decisions =
+        TtyDecisionSource::new(interactive_session_log_path(root, &entries));
     let no_input = NoInputDecisionSource;
     let decisions: &dyn DecisionSource =
         if let Some(source) = &decisions_file_source {
