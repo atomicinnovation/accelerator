@@ -139,6 +139,22 @@ impl MigrationContext for FileMigrationContext {
         }
     }
 
+    fn remove_dir_if_empty(&self, path: &Path) -> Result<bool, MigrationError> {
+        match fs::remove_dir(path) {
+            Ok(()) => Ok(true),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::NotFound
+                        | std::io::ErrorKind::DirectoryNotEmpty
+                ) =>
+            {
+                Ok(false)
+            }
+            Err(error) => Err(MigrationError::new(error.to_string())),
+        }
+    }
+
     fn list_md_files(
         &self,
         dir: &Path,

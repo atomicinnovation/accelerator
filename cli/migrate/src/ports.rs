@@ -119,6 +119,20 @@ pub trait MigrationContext {
         Ok(())
     }
 
+    /// Removes `path` if it is an empty directory; returns whether it was
+    /// removed. A non-empty directory is left in place (`Ok(false)`, not an
+    /// error) — mirrors `rmdir 2>/dev/null`'s soft-fail contract.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when `path` exists but is not a directory, or the
+    /// removal fails for a reason other than non-emptiness.
+    fn remove_dir_if_empty(
+        &self,
+        _path: &Path,
+    ) -> Result<bool, MigrationError> {
+        Ok(false)
+    }
+
     /// Every `.md` file under `dir`, recursively, sorted.
     ///
     /// # Errors

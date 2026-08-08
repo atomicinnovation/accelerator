@@ -101,7 +101,8 @@ fn setup_repo() -> Result<TempDir, TestError> {
     write(
         root,
         ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )?;
     Ok(dir)
 }
@@ -200,7 +201,8 @@ fn no_project_token_in_pattern_is_a_no_op_pending() -> Result<(), TestError> {
     write(
         dir.path(),
         ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -230,7 +232,8 @@ fn missing_default_project_code_is_a_fatal_error() -> Result<(), TestError> {
     write(
         dir.path(),
         ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -267,7 +270,8 @@ fn a_rename_collision_refuses_without_mutating() -> Result<(), TestError> {
     write(
         dir.path(),
         ".accelerator/state/migrations-applied",
-        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;

@@ -30,7 +30,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
         dir,
         ".accelerator/state/migrations-applied",
         "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n",
+         0002-rename-work-items-with-project-prefix\n\
+         0004-restructure-meta-research-into-subject-subcategories\n",
     )
 }
 
@@ -150,6 +151,7 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
         fs::read_to_string(root.join(".accelerator/state/migrations-applied"))?,
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
          a\nb\n\
          0003-relocate-accelerator-state\n"
     );
@@ -197,6 +199,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
         ".accelerator/state/migrations-applied",
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
          x\ny\n",
     )?;
     write(root, "meta/.migrations-applied", "y\nz\n")?;
@@ -208,6 +211,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
         fs::read_to_string(root.join(".accelerator/state/migrations-applied"))?,
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
          x\ny\nz\n\
          0003-relocate-accelerator-state\n"
     );

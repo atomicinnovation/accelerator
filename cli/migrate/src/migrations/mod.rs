@@ -4,4 +4,5 @@
 pub mod m0001;
 pub mod m0002;
 pub mod m0003;
+pub mod m0004;
 pub mod text;
