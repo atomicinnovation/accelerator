@@ -23,7 +23,6 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
-**Next ADR number**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number --fail-safe`
 
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
@@ -54,7 +53,11 @@ Then wait for the user's input.
 
 ### Step 1: Determine ADR Number
 
-1. Use the "Next ADR number" value shown above.
+1. Run the corpus CLI to get the next ADR number:
+
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number
+   ```
 
 2. If `--supersedes ADR-NNNN` was specified:
    - Find the target ADR file by matching `{decisions directory}/ADR-NNNN-*.md`

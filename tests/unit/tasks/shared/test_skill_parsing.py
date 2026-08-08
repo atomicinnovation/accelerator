@@ -15,6 +15,7 @@ from tasks.shared.skill_parsing import (
     LAUNCHER,
     PLUGIN_PREFIX,
     covered_by,
+    fenced_block_commands,
     frontmatter_bash_rules,
     frontmatter_name,
     has_bare_bash,
@@ -152,6 +153,36 @@ def test_frontmatter_name(line: str, expected: str) -> None:
 def test_preprocessor_commands_are_returned_in_document_order() -> None:
     text = "!`first one`\n\nprose\n\n!`second one`\n"
     assert preprocessor_commands(text) == ["first one", "second one"]
+
+
+def test_fenced_block_commands_are_returned_in_document_order() -> None:
+    text = "```\nfirst one\n```\n\nprose\n\n```\nsecond one\n```\n"
+    assert fenced_block_commands(text) == ["first one", "second one"]
+
+
+def test_fenced_block_commands_takes_the_first_non_blank_line() -> None:
+    text = "```\n\n  first one  \nignored second line\n```\n"
+    assert fenced_block_commands(text) == ["first one"]
+
+
+def test_fenced_block_commands_strips_indentation() -> None:
+    # The real shape: a fence nested under a numbered list item.
+    text = "1. Do the thing:\n\n   ```\n   indented command\n   ```\n"
+    assert fenced_block_commands(text) == ["indented command"]
+
+
+def test_fenced_block_commands_tolerates_a_language_tag() -> None:
+    text = "```bash\ncommand\n```\n"
+    assert fenced_block_commands(text) == ["command"]
+
+
+def test_fenced_block_commands_ignores_a_blank_block() -> None:
+    text = "```\n\n\n```\n"
+    assert fenced_block_commands(text) == []
+
+
+def test_fenced_block_commands_finds_none_with_no_fence() -> None:
+    assert fenced_block_commands("just prose, no fences here\n") == []
 
 
 def test_is_plugin_invocation() -> None:

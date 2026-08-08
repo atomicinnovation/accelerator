@@ -5,6 +5,12 @@ a skill invoking a token the producer never ships resolves to AssetNotFound at
 run time. Both directions are checked here, against the same SKILL.md parsing
 the permissions lint rule uses, so the two cannot drift to different notions of
 an authorised invocation.
+
+A binding is a `!`-preprocessor command (runs unconditionally at load) or a
+fenced code block in a numbered step (a live invocation the model chooses to
+run, e.g. because its result would otherwise go stale between the skill's
+start and the point it is actually needed) — either way, gated on the same
+`Bash(...)` coverage a real invocation needs.
 """
 
 import re
@@ -21,6 +27,7 @@ from tasks.shared.skill_parsing import (
     BARE_LAUNCHER,
     LAUNCHER,
     covered_by,
+    fenced_block_commands,
     frontmatter_bash_rules,
     has_bare_bash,
     has_metacharacter,
@@ -82,7 +89,11 @@ def _bindings(root: Path) -> tuple[set[str], dict[str, str]]:
         rules = frontmatter_bash_rules(text)
         over_broad = _is_over_broad(text, rules)
         rel = path.relative_to(root).as_posix()
-        for command in preprocessor_commands(text):
+        # A `!`-preprocessor command runs unconditionally at load; a fenced
+        # code block is a numbered-step instruction the model must still
+        # choose to run. Both count as a binding — see the module docstring.
+        commands = preprocessor_commands(text) + fenced_block_commands(text)
+        for command in commands:
             for token in _every_token(command):
                 invoked.setdefault(token, rel)
             if not is_plugin_invocation(command):
@@ -152,10 +163,11 @@ def violations(
     meaningless, so they are reported alone.
 
     A token is bound when at least one SKILL.md invokes `accelerator <token>`
-    through the `!` preprocessor and carries a `Bash(...)` rule whose subcommand
-    segment is exactly that token and which covers the invocation, in a skill
-    that declares no bare `Bash` tool, no rule authorising the bare launcher and
-    no rule with a wildcarded token segment.
+    — through the `!` preprocessor or a fenced code block in a numbered step —
+    and carries a `Bash(...)` rule whose subcommand segment is exactly that
+    token and which covers the invocation, in a skill that declares no bare
+    `Bash` tool, no rule authorising the bare launcher and no rule with a
+    wildcarded token segment.
 
     An exemption declares that no SKILL.md invokes the token; one that is
     invoked, or that names an undispatched token, or that covers every token, is
@@ -184,8 +196,9 @@ def violations(
         if token not in invoked:
             problems.append(
                 f"{token}: no skill invokes `accelerator {token}` through the "
-                "`!` preprocessor — add a consuming skill, or an entry in "
-                "SKILL_EXEMPT_SUBBINARIES if its only consumer is a hook"
+                "`!` preprocessor or a fenced code block — add a consuming "
+                "skill, or an entry in SKILL_EXEMPT_SUBBINARIES if its only "
+                "consumer is a hook"
             )
         else:
             problems.append(
