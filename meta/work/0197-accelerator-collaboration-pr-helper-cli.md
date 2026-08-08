@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, collaboration, cli, github, gh]
-last_updated: "2026-08-08T15:30:23+00:00"
+last_updated: "2026-08-08T16:30:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -62,6 +62,12 @@ this item does not depend on it and does not rename the skill directory
   runtime requirement that `gh` be installed and authenticated locally. The
   body-update subcommand accepts the PR body via a `--body-file <path>`
   argument, mirroring the source script's file-based interface.
+  Base-repo resolution replicates `gh`'s own cross-fork-safe default: the
+  `origin` remote's owner/repo is looked up via `GET /repos/{owner}/{repo}`,
+  and if that repository has a `parent` (i.e. `origin` is a fork), the
+  parent's owner/repo is used as the base instead — never the response's
+  echoed-back `url`/self-link fields, which cannot carry base-repo
+  information distinct from what was already queried (see Technical Notes).
   Authenticates via the `github.token`/`github.token_cmd`
   config pairing (the same mechanism already used by `jira`/`linear`), with
   `GH_TOKEN` then `GITHUB_TOKEN` (in that order, matching `gh`'s own
@@ -106,17 +112,25 @@ this item does not depend on it and does not rename the skill directory
       collaboration …` reproduces the PR-helper behaviours via direct
       in-process calls to the GitHub REST API using `octocrab` — not by
       shelling out to `gh` — specifically: resolving a PR's base repository
-      via `GET /repos/{owner}/{repo}/pulls/{pull_number}`, where
-      `{owner}/{repo}` is the *local* repository's own owner/repo, resolved
-      by parsing the `origin` git remote's URL via new `vcs`/`vcs-adapters`
-      parsing logic (see Requirements — this capability does not exist
-      today; supported URL forms and the missing-remote error path are
-      enumerated there) rather than `gh`'s implicit git-remote inference;
-      the *base* owner/repo is then derived from the response's top-level
-      `url` field (replacing `gh pr view <pr> --json url`); and updating a
-      PR's body via `PATCH /repos/{owner}/{repo}/pulls/{pull_number}` with a
-      JSON `{"body": ...}` payload (replacing `gh api --method PATCH ...
-      --input <file>`).
+      by (1) parsing the `origin` git remote's URL via new `vcs`/
+      `vcs-adapters` parsing logic (see Requirements — this capability does
+      not exist today; supported URL forms and the missing-remote error
+      path are enumerated there) to get a candidate owner/repo, rather than
+      `gh`'s implicit git-remote inference; (2) calling
+      `GET /repos/{owner}/{repo}` against that candidate and checking its
+      `parent` field — if present (the candidate is a fork), the parent's
+      owner/repo becomes the base, replicating `gh`'s own default
+      fork-to-parent resolution (replacing `gh pr view <pr> --json url`,
+      whose cross-fork-safety comes from this same `gh`-internal
+      resolution, not from the field it happens to read back); and (3)
+      confirming the PR exists at the resolved base via
+      `GET /repos/{base_owner}/{base_repo}/pulls/{pull_number}` (a 404 here
+      means the PR is not at the resolved base — e.g. it was opened
+      directly against the fork rather than upstream — and is surfaced as a
+      failure rather than a silently wrong repo). Updating a PR's body via
+      `PATCH /repos/{owner}/{repo}/pulls/{pull_number}` with a JSON
+      `{"body": ...}` payload (replacing `gh api --method PATCH ...
+      --input <file>`) is unchanged.
 - [ ] **Authentication**: Authenticates via the existing `token`/`token_cmd`
       config pairing (`github.token` / `github.token_cmd`), following the
       same resolution precedence and shared-config `token_cmd` ban (`token_cmd`
@@ -127,26 +141,43 @@ this item does not depend on it and does not rename the skill directory
       `github.token_cmd` output, then the `GH_TOKEN` env var, then the
       `GITHUB_TOKEN` env var (`GH_TOKEN` over `GITHUB_TOKEN` matches `gh`'s
       own documented env-var precedence) — no dependency on the `gh` CLI
-      being installed or authenticated locally.
-- [ ] **Verification strategy**: Verified via repointed suites (existing
-      suites redirected to invoke `accelerator collaboration` instead of the
-      bash scripts, with HTTP-level stubbing replacing the PATH-`gh`-stub
-      harness), with one dedicated characterization test per branch
+      being installed or authenticated locally. This item also adds the
+      Rust-native equivalent of `jira-auth.sh`/`linear-auth.sh`'s personal
+      config-file permission check (`config.local.md` must be mode 0600 or
+      stricter, never a symlink, to be read at all) — the first Rust
+      credential-resolution path in this codebase, so this protection does
+      not yet exist in Rust anywhere. Encapsulated inside `config-adapters`
+      (`FileConfigStore`) rather than `collaboration`-specific, so every
+      `Level::Personal` config read benefits, not just `github.token`; no
+      bypass gate is needed since `config-adapters` already clamps every
+      personal-level write to 0600, so the check only ever trips on
+      external tampering.
+- [ ] **Verification strategy**: Verified by the new Rust characterization
+      tests plus `mise run test:integration:skill-invocation`, which
+      together supersede the two bash suites' PATH-`gh`-stub-based
+      coverage rather than repointing those suites to HTTP-level stubbing
+      from bash (see Technical Notes for why deletion, not repointing, is
+      the deliberate choice here). One dedicated characterization test per
+      branch
       enumerated in Technical Notes for `pr-base-repo.sh`'s resolver
-      subcommand (7 branches) and `pr-update-body.sh`'s body-update
-      subcommand (5 branches) — 12 characterization tests, restated as
-      target Rust behaviour rather than the source bash/`jq` implementation
-      detail (so branches with no Rust analog, e.g. `jq`-missing, are
-      excluded from the count rather than tested vacuously), written
-      regardless of whether a repointed suite case already exercises the
-      same branch. Branch (2) in the resolver subcommand's checklist and
-      branch (4) in the body-update subcommand's checklist also verify the
-      fail-fast REST-error-surfacing behaviour stated in Dependencies (a
+      subcommand (8 branches — see Technical Notes for why this is 8, not
+      7: the fork-aware resolution design adds a repository-metadata lookup
+      step with its own failure/malformed-response branches, and splits
+      success into a non-fork and a fork-resolved case) and
+      `pr-update-body.sh`'s body-update subcommand (5 branches) — 13
+      characterization tests, restated as target Rust behaviour rather than
+      the source bash/`jq` implementation detail (so branches with no Rust
+      analog, e.g. `jq`-missing, are excluded from the count rather than
+      tested vacuously), written regardless of whether a deleted bash
+      suite case already exercised the same branch. The resolver subcommand's
+      repository-metadata-lookup-failure and PR-existence-check-failure
+      branches, and the body-update subcommand's branch (4), also verify
+      the fail-fast REST-error-surfacing behaviour stated in Dependencies (a
       non-zero exit code with the REST error's status and message on
       stderr). Additionally — since this is new behaviour with no bash-script
       branch to characterize — one test per supported remote-URL form (the
       four forms enumerated in Requirements), confirming each resolves to
-      the correct `{owner}/{repo}` pair. 16 tests total (12 + 4).
+      the correct `{owner}/{repo}` pair. 17 tests total (13 + 4).
 - [ ] All skills previously invoking `skills/github/scripts/pr-base-repo.sh` and
       `skills/github/describe-pr/scripts/pr-update-body.sh` now call the
       corresponding `accelerator collaboration` subcommand, with
@@ -225,47 +256,87 @@ into this item's own delivery (see Requirements) rather than left open.
 - Source bash: `skills/github/scripts/pr-base-repo.sh`,
   `skills/github/describe-pr/scripts/pr-update-body.sh`.
 - `gh` call-shape being replaced: `gh pr view <pr> --json url` →
-  `GET /repos/{owner}/{repo}/pulls/{pull_number}` (base-repo resolution);
-  `gh api --method PATCH repos/<repo>/pulls/<pr> --input <file>` →
-  `PATCH /repos/{owner}/{repo}/pulls/{pull_number}` with a `{"body": ...}`
-  JSON payload (body update). `pr-update-body.sh` also shells out to
-  `pr-base-repo.sh` internally to resolve the base repo first.
+  a two-step resolution, `GET /repos/{owner}/{repo}` (repository metadata,
+  checked for a `parent`) followed by
+  `GET /repos/{base_owner}/{base_repo}/pulls/{pull_number}` (PR-existence
+  confirmation at the resolved base) — see below for why this replaces a
+  single call; `gh api --method PATCH repos/<repo>/pulls/<pr> --input
+  <file>` → `PATCH /repos/{owner}/{repo}/pulls/{pull_number}` with a
+  `{"body": ...}` JSON payload (body update). `pr-update-body.sh` also
+  shells out to `pr-base-repo.sh` internally to resolve the base repo
+  first.
 - Local-repo owner/repo resolution moves from `gh`'s implicit git-remote
-  inference to new `origin`-remote-URL parsing added to `vcs`/`vcs-adapters`
-  as part of this item (supported URL forms and the missing-remote error
-  path are enumerated in Requirements). No such capability exists in these
-  crates today: `vcs`'s `RepoFacts.name` (`cli/vcs/src/lib.rs:110`) derives
-  from the local directory name only, not any remote, and `vcs-adapters`'
-  existing probes (`subprocess.rs`, `library.rs`) have no remote-reading
-  port to extend.
+  inference to two new capabilities added as part of this item: (1)
+  `origin`-remote-URL parsing added to `vcs`/`vcs-adapters` (supported URL
+  forms and the missing-remote error path are enumerated in Requirements)
+  — no such capability exists in these crates today: `vcs`'s
+  `RepoFacts.name` (`cli/vcs/src/lib.rs:110`) derives from the local
+  directory name only, not any remote, and `vcs-adapters`' existing probes
+  (`subprocess.rs`, `library.rs`) have no remote-reading port to extend;
+  and (2) a repository-metadata lookup in `collaboration`/
+  `collaboration-adapters` that checks the parsed candidate for a `parent`
+  repository, replicating `gh`'s own default fork-to-parent resolution.
+  Both are needed together: `origin`-URL parsing alone only recovers the
+  *local checkout's own* repo, which is the fork itself for a contributor
+  working from a fork — exactly the case `gh repo view` gets wrong and
+  `gh pr view`'s implicit resolution gets right (see below).
+- **Why a single `GET .../pulls/{pull_number}` call cannot resolve the base
+  repo on its own.** An earlier draft of this item's design derived the
+  base owner/repo from that endpoint's response `url` field. This is
+  incorrect: `GET /repos/{owner}/{repo}/pulls/{pull_number}` only ever
+  returns PRs scoped to the exact `{owner}/{repo}` supplied in the request
+  — the response cannot reveal a *different* repo than what was queried,
+  regardless of which field is read (`url`, or `base.repo.full_name`), so
+  parsing owner/repo back out of it is circular. `gh pr view <pr> --json
+  url`'s actual cross-fork-safety comes from `gh`'s own pre-call
+  resolution (it targets the parent repo by default when the local
+  checkout is a fork), not from anything in the response. This item's
+  design must therefore resolve the fork-parent relationship itself,
+  before making any PR-number-scoped call — hence the two-step
+  `GET /repos/{owner}/{repo}` (parent check) then
+  `GET /repos/{base_owner}/{base_repo}/pulls/{pull_number}` (existence
+  confirmation) shape above.
 - Characterization-test completion checklist (a *characterization test*
   pins down existing observable behaviour as a safety net during a
   rewrite, rather than testing new design intent), restated as the *target
   Rust behaviour* each source-script branch maps to (not the literal bash/`jq`
   implementation detail, since branches that are artefacts of the bash/`jq`
-  toolchain have no analog in the `octocrab`-based rewrite and are dropped):
-  `pr-base-repo.sh`'s resolver subcommand — (1) invalid CLI invocation
-  (wrong/missing arguments), (2) `GET /repos/.../pulls/{pull_number}`
-  request failure (network error or non-2xx response — replaces the
-  script's generic `gh pr view` failure branch), (3) missing `origin` git
-  remote when resolving the local repo (a `vcs`-level error, replacing the
-  script's `gh`-specific "no default remote repository" remediation), (4)
-  malformed/non-JSON REST response body, (5) empty/null `url` field in the
-  PR response, (6) `url` field present but not matching the expected
-  PR-URL shape, (7) success — 7 branches (the script's `jq`-missing branch
-  is dropped; the Rust binary has no `jq` dependency). `pr-update-body.sh`'s
-  body-update subcommand — (1) invalid CLI invocation (wrong/missing
-  arguments), (2) missing/unreadable `--body-file` input, (3) base-repo
-  resolution failure propagated in-process (replacing the script's
-  subprocess exit-code propagation from calling `pr-base-repo.sh`), (4)
+  toolchain have no analog in the `octocrab`-based rewrite and are dropped).
+  `pr-base-repo.sh`'s resolver subcommand's branches are restated against
+  the fork-aware two-call design (see above) rather than the single-call
+  design an earlier draft of this item assumed — (1) invalid CLI invocation
+  (wrong/missing arguments), (2) missing `origin` git remote when resolving
+  the local repo (a `vcs`-level error, resolved before any network call,
+  replacing the script's `gh`-specific "no default remote repository"
+  remediation), (3) `GET /repos/{owner}/{repo}` repository-metadata lookup
+  request failure (network error or non-2xx response), (4) malformed/
+  non-JSON repository-metadata response body, (5) repository-metadata
+  response indicates a fork (`parent` present) but the parent's owner/name
+  fields are missing or malformed, (6) `GET /repos/{base_owner}/
+  {base_repo}/pulls/{pull_number}` PR-existence-check request failure
+  (network error or non-2xx response, including a 404 when the resolved
+  base does not actually hold this PR — replaces the script's generic
+  `gh pr view` failure branch), (7) success with no `parent` (the `origin`
+  repo is its own base), (8) success with a `parent` (the `origin` repo is
+  a fork; its parent is the base) — 8 branches (the script's `jq`-missing
+  branch is dropped; the Rust binary has no `jq` dependency). This
+  supersedes an earlier version of this checklist that assumed a single
+  `GET .../pulls/{pull_number}` call and derived owner/repo from its `url`
+  field — see the "why a single call cannot resolve the base repo" note
+  above for why that design was replaced.
+  `pr-update-body.sh`'s body-update subcommand — (1) invalid CLI invocation
+  (wrong/missing arguments), (2) missing/unreadable `--body-file` input, (3)
+  base-repo resolution failure propagated in-process (replacing the
+  script's subprocess exit-code propagation from calling `pr-base-repo.sh`;
+  covers any of resolver branches (2)-(6) above), (4)
   `PATCH /repos/.../pulls/{pull_number}` request failure (network error or
   non-2xx response), (5) success — 5 branches (the script's two `jq`
   branches — missing `jq` and encode failure — are dropped for the same
-  reason). 12 characterization tests total (7 + 5), plus 4 further tests
+  reason). 13 characterization tests total (8 + 5), plus 4 further tests
   (one per supported remote-URL form — see Requirements) for the new
   origin-remote parsing behaviour itself, which has no bash-script branch
   to characterize since `gh`'s remote inference was implicit rather than a
-  manual parse. 16 tests total.
+  manual parse. 17 tests total.
 - New external dependency: `octocrab` (not yet in `cli/Cargo.toml`) for the
   GitHub REST client; likely needs a `cli/deny.toml` justification entry
   (registration checklist item 13).
@@ -280,13 +351,25 @@ into this item's own delivery (see Requirements) rather than left open.
   `skills/github/describe-pr/SKILL.md` (invokes both scripts); each has an
   `allowed-tools` `Bash(...)` glob scoped to the script path that must become
   a `collaboration` subcommand glob.
-- Test suites to repoint/replace: `skills/github/scripts/test-pr-base-repo-scripts.sh`
-  (15 cases, PATH-stubbed `gh`), `skills/github/describe-pr/scripts/test-pr-update-body-scripts.sh`
-  (23 cases, PATH-stubbed `gh`) — both need their stubbing swapped from a
-  PATH `gh` stub to HTTP-level stubbing; `skills/github/scripts/test-pr-base-repo-real-gh.sh`
-  (real-`gh` smoke test guarding the work-item:0071 regression) becomes moot
-  once `gh --json` is no longer invoked and is a candidate for retirement
-  rather than porting.
+- Test suites superseded, not repointed:
+  `skills/github/scripts/test-pr-base-repo-scripts.sh` (15 cases,
+  PATH-stubbed `gh`) and
+  `skills/github/describe-pr/scripts/test-pr-update-body-scripts.sh` (23
+  cases, PATH-stubbed `gh`) are deleted rather than repointed to
+  HTTP-level stubbing from bash. Reworking a bash suite to stand up and
+  assert against a mock HTTP server is disproportionate effort compared
+  to the Rust-native mock-server tests `collaboration-adapters` already
+  builds (Phase 4), and largely redundant with them: the 38 old cases
+  exercise the same underlying branches the 17 new Rust characterization
+  tests cover, and a meaningful share of the 38 are bash/regex artifacts
+  (e.g. exhaustively probing malformed-URL shapes against a hand-rolled
+  regex) that collapse into a single Rust branch once the parser is a
+  typed function rather than a regex — porting them case-for-case would
+  test the old implementation's incidental structure, not new behaviour.
+  `skills/github/scripts/test-pr-base-repo-real-gh.sh` (real-`gh` smoke
+  test guarding the work-item:0071 regression) becomes moot once `gh
+  --json` is no longer invoked and is a candidate for retirement rather
+  than porting.
 - Structural precedent: `vcs` → `vcs-cli` (package `accelerator-vcs`) and
   `work` → `work-cli` (package `accelerator-work`) are the actually-dispatched
   sub-binaries to mirror (domain crate + adapters crate + thin `-cli` crate
