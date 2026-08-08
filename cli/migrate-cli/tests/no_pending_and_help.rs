@@ -1,5 +1,5 @@
-//! The empty-registry default run and the `--help` surface, driven end to
-//! end against the compiled binary.
+//! The fully-applied-registry default run and the `--help` surface, driven
+//! end to end against the compiled binary.
 
 use std::fs;
 use std::process::Command;
@@ -16,9 +16,24 @@ fn project() -> Result<TempDir, TestError> {
     Ok(dir)
 }
 
-#[test]
-fn an_empty_registry_prints_no_pending_migrations() -> Result<(), TestError> {
+/// A project with every registered migration already applied — the
+/// no-op-empty-registry case Phase 1 tested is no longer reachable now the
+/// registry is populated (Phase 6), so these tests instead seed the ledger
+/// to reach the same "nothing pending" state against the real registry.
+fn fully_applied_project() -> Result<TempDir, TestError> {
     let dir = project()?;
+    fs::create_dir_all(dir.path().join(".accelerator/state"))?;
+    fs::write(
+        dir.path().join(".accelerator/state/migrations-applied"),
+        "0001-rename-tickets-to-work\n",
+    )?;
+    Ok(dir)
+}
+
+#[test]
+fn a_fully_applied_registry_prints_no_pending_migrations(
+) -> Result<(), TestError> {
+    let dir = fully_applied_project()?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
 
@@ -32,8 +47,9 @@ fn an_empty_registry_prints_no_pending_migrations() -> Result<(), TestError> {
 }
 
 #[test]
-fn an_empty_registry_with_a_skip_list_reports_it() -> Result<(), TestError> {
-    let dir = project()?;
+fn a_fully_applied_registry_with_a_skip_list_reports_it(
+) -> Result<(), TestError> {
+    let dir = fully_applied_project()?;
     Command::new(BIN)
         .args(["--skip", "0001-example"])
         .current_dir(dir.path())

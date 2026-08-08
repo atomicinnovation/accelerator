@@ -2,10 +2,13 @@
 //! doc-type directories, VCS revision, and the bounded atomic write every
 //! migration's mutation routes through.
 
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::ConfigAccess as _;
 use config::ConfigService;
+use config::Key;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use migrate::ports::CorpusIndex;
@@ -18,6 +21,7 @@ use store::WriteBounds;
 use vcs_adapters::library::InProcessProbe;
 
 use crate::manifest_store::FileManifestStore;
+use crate::merge_move::merge_move;
 
 /// No migration built so far consults `corpus_index()` — that capability is
 /// migration 0007's alone (the Migration 0007 Port phase, which builds the
@@ -99,4 +103,58 @@ impl MigrationContext for FileMigrationContext {
         }
         Ok(())
     }
+
+    fn root(&self) -> &Path {
+        &self.root
+    }
+
+    fn config_value(&self, key: &str) -> Option<String> {
+        let key = Key::parse(key).ok()?;
+        let resolution = self.config.effective(&key, None).ok()?;
+        Some(resolution.rendered())
+    }
+
+    fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
+        let bytes = store::read_within(path, &self.bounds())
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        Ok(bytes.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+    }
+
+    fn list_md_files(
+        &self,
+        dir: &Path,
+    ) -> Result<Vec<PathBuf>, MigrationError> {
+        let mut files = Vec::new();
+        walk_md_files(dir, &mut files)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        files.sort();
+        Ok(files)
+    }
+
+    fn merge_move(&self, src: &Path, dst: &Path) -> Result<(), MigrationError> {
+        merge_move(src, dst, &self.root)
+    }
+}
+
+fn walk_md_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(())
+        }
+        Err(error) => return Err(error),
+    };
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            walk_md_files(&path, out)?;
+        } else if file_type.is_file()
+            && path.extension().is_some_and(|ext| ext == "md")
+        {
+            out.push(path);
+        }
+    }
+    Ok(())
 }

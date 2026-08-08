@@ -53,10 +53,20 @@ pub trait CorpusIndex {
 /// The capabilities every migration's `apply()`/`apply_decision()`
 /// implementation receives.
 ///
-/// `write` is the only mutation path available to a migration — routing
-/// every write through one method is what lets the path manifest be recorded
-/// as a side effect of the call itself, rather than as a discipline each
-/// migration author must remember.
+/// `write` is the only *content-mutation* path available to a migration —
+/// routing every write through one method is what lets the path manifest be
+/// recorded as a side effect of the call itself, rather than as a discipline
+/// each migration author must remember. `merge_move` is the one other
+/// mutation primitive (whole-file/whole-directory relocation, needed by the
+/// directory-rename and state-relocation migrations); it is not
+/// content-writing, so it is not manifest-tracked the same way — the
+/// migrations that use it own their own idempotency self-check instead,
+/// matching bash's own belt-and-suspenders discipline (ADR-0023).
+///
+/// `read`/`list_md_files`/`config_value` default to the empty/absent case so
+/// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
+/// `engine.rs`), which never exercise a real migration, do not need updating
+/// every time a migration's own needs grow this trait.
 pub trait MigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
     fn revision(&self) -> Option<String>;
@@ -65,6 +75,56 @@ pub trait MigrationContext {
     /// # Errors
     /// [`MigrationError`] when the write is refused or fails.
     fn write(&self, path: &Path, content: &str) -> Result<(), MigrationError>;
+
+    /// The project root every migration-relative path is joined against.
+    fn root(&self) -> &Path {
+        Path::new(".")
+    }
+
+    /// A full-stack (personal-over-team, catalogue-default-falling-back)
+    /// config lookup, matching `accelerator config get --allow-legacy-layout
+    /// <key> ""` — including keys the catalogue no longer recognises, since
+    /// migrations read pre-rename legacy key names.
+    fn config_value(&self, _key: &str) -> Option<String> {
+        None
+    }
+
+    /// `Ok(None)` when `path` does not exist.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a present file cannot be read.
+    fn read(&self, _path: &Path) -> Result<Option<String>, MigrationError> {
+        Ok(None)
+    }
+
+    /// Every `.md` file under `dir`, recursively, sorted.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the walk itself fails (an absent `dir` is
+    /// `Ok(Vec::new())`, not an error).
+    fn list_md_files(
+        &self,
+        _dir: &Path,
+    ) -> Result<Vec<PathBuf>, MigrationError> {
+        Ok(Vec::new())
+    }
+
+    /// Moves `src` onto `dst`, merging directories recursively — mirrors
+    /// `scripts/fs-common.sh`'s `merge_move`: an absent destination is a
+    /// plain move; a type mismatch or same-named leaf collision is
+    /// source-wins; two directories merge entry-by-entry, then the
+    /// now-empty source is removed. A no-op when `src` does not exist.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the destination is unsafe (empty, root, or
+    /// path-escaping) or the underlying filesystem operation fails.
+    fn merge_move(
+        &self,
+        _src: &Path,
+        _dst: &Path,
+    ) -> Result<(), MigrationError> {
+        Ok(())
+    }
 }
 
 /// The applied/skipped ledger's file-backed persistence.
