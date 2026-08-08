@@ -2,7 +2,7 @@
 type: note                                   # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "{Note title}"
-date: "{ISO timestamp from artifact-derive-metadata.sh}"
+date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: create-note
 status: captured                             # captured
@@ -11,8 +11,8 @@ parent: ""                                   # typed-linkage ref: "work-item:NNN
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
 topic: "{Note topic}"
 tags: []
-revision: "{commit hash from artifact-derive-metadata.sh}"
-repository: "{repo name from artifact-derive-metadata.sh}"
+revision: "{commit hash from accelerator corpus metadata derive}"
+repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
 schema_version: 1

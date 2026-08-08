@@ -2,7 +2,7 @@
 type: codebase-research                      # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "Research: {User's Question/Topic}"
-date: "{ISO timestamp from artifact-derive-metadata.sh}"
+date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: research-codebase
 status: complete                             # complete
@@ -12,8 +12,8 @@ parent: ""                                   # typed-linkage ref: "work-item:NNN
 relates_to: []                               # typed-linkage list: ["codebase-research:NNNN", ...] or []
 topic: "{User's Question/Topic}"
 tags: [research, codebase, relevant-component-names]
-revision: "{commit hash from artifact-derive-metadata.sh}"
-repository: "{repo name from artifact-derive-metadata.sh}"
+revision: "{commit hash from accelerator corpus metadata derive}"
+repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"
 last_updated_by: "{Researcher name}"
 schema_version: 1
