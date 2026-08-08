@@ -6,11 +6,14 @@
 //! The convention algorithms take infra-sourced data (a compiled scanner, a
 //! doc-type table, a parsed frontmatter value) by injection.
 
+pub mod adr;
 pub mod cluster;
 pub mod doc_type;
+pub mod frontmatter_validation;
 pub mod linkage;
 pub mod metadata;
 pub mod record;
+pub mod scan;
 pub mod slug;
 pub mod store;
 pub mod typed_ref;

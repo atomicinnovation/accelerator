@@ -7,8 +7,8 @@ description: Extract architecture decision records from existing meta documents
 argument-hint: "[research doc paths...] or leave empty to scan all"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Extract ADRs from Meta Documents
@@ -117,10 +117,7 @@ Wait for user selection.
 ### Step 3: Generate ADRs
 
 1. **Gather metadata** by running
-   `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`. Run the bare path
-   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-   prompt).
+   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`.
 
 2. **For each selected decision**, generate a draft ADR using the create-adr
    template with:
@@ -146,7 +143,7 @@ Wait for user selection.
 
 4. **Assign final ADR numbers** to approved ADRs only, by running:
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh --count N
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number --count N
    ```
    where N is the number of approved (not skipped) ADRs. Replace placeholder
    numbers with the assigned sequential numbers. This ensures no gaps from
@@ -160,11 +157,8 @@ Wait for user selection.
    file, capture metadata and substitute the unified base fields into
    the template's frontmatter block:
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`
-      once for the batch to obtain `Current Date/Time (UTC):`. Run the bare path
-      **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-      prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-      prompt).
+   1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+      once for the batch to obtain `Current Date/Time (UTC):`.
    2. For each approved ADR, **substitute** every field below with the
       indicated value:
       - `type:` ← `adr`

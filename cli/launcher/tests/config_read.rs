@@ -215,12 +215,14 @@ fn path_prefers_an_explicit_default_over_the_catalogue() -> TestResult {
 }
 
 #[test]
-fn path_of_an_unknown_key_warns_on_stderr_and_prints_empty() -> TestResult {
+fn path_of_an_unknown_key_is_refused() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
     let output = fixture.run(&["config", "path", "bogus"])?;
-    assert_eq!(output.stdout, b"\n");
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown key"));
-    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, b"");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("unknown path key")
+    );
+    assert_eq!(code(&output), 1);
     Ok(())
 }
 
@@ -266,20 +268,19 @@ fn agent_of_a_name_outside_the_catalogue_still_prefixes_the_default(
     Ok(())
 }
 
-/// The eager-fallback subtlety: `path_fallback` runs before the value is known,
-/// so a config-set key with no catalogue default emits the unknown-key warning
-/// even though the value resolves from config.
+/// A path key with no catalogue entry is refused even when the user has set
+/// a value for it in config — the catalogue, not config, decides which
+/// `paths.*` keys exist.
 #[test]
-fn path_of_a_config_set_unknown_key_warns_even_though_the_value_resolves(
-) -> TestResult {
+fn path_of_a_config_set_unknown_key_is_still_refused() -> TestResult {
     let fixture =
         Fixture::new()?.team("---\npaths:\n  bogus: from-config\n---\n")?;
     let output = fixture.run(&["config", "path", "bogus"])?;
-    assert_eq!(output.stdout, b"from-config\n");
-    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, b"");
+    assert_eq!(code(&output), 1);
     assert_eq!(
         String::from_utf8(output.stderr)?,
-        "Warning: unknown key 'paths.bogus' — no centralized default\n"
+        "unknown path key 'paths.bogus' — no centralized default\n"
     );
     Ok(())
 }
@@ -305,28 +306,32 @@ fn path_with_an_empty_default_falls_through_to_the_catalogue() -> TestResult {
 }
 
 #[test]
-fn path_default_present_suppresses_the_unknown_key_warning() -> TestResult {
+fn path_default_does_not_bypass_the_unknown_key_refusal() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
     let output = fixture.run(&["config", "path", "bogus", "somewhere"])?;
-    assert_eq!(output.stdout, b"somewhere\n");
-    assert!(output.stderr.is_empty());
-    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, b"");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("unknown path key")
+    );
+    assert_eq!(code(&output), 1);
     Ok(())
 }
 
 #[test]
-fn path_of_a_renamed_alias_key_emits_the_migration_nudge() -> TestResult {
+fn path_of_a_renamed_alias_key_is_refused_with_the_migration_nudge(
+) -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
     for (key, canonical) in [
         ("design_inventories", "research_design_inventories"),
         ("design_gaps", "research_design_gaps"),
     ] {
         let output = fixture.run(&["config", "path", key])?;
-        assert_eq!(output.stdout, b"\n");
+        assert_eq!(output.stdout, b"");
+        assert_eq!(code(&output), 1);
         assert_eq!(
             String::from_utf8(output.stderr)?,
             format!(
-                "Warning: key '{key}' was renamed by migration 0004 to \
+                "key '{key}' was renamed by migration 0004 to \
                  '{canonical}'; run /accelerator:migrate\n"
             )
         );

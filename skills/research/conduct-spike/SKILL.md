@@ -9,7 +9,7 @@ description: Interactively conduct a time-boxed spike — collaboratively reduce
 argument-hint: "[path to spike work item or brief, or work item number]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Conduct Spike
@@ -202,11 +202,8 @@ recording it, with two options:
 if it explicitly names another destination — honour additions like feeding an
 ADR or updating a downstream item *as well*).
 
-- Use `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh` to obtain the
-  `Current Date/Time (UTC):` value and the resolved author. Run the bare path
-  **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a
-  wrapper prefix escapes the skill's `allowed-tools` permission and forces an
-  unnecessary prompt).
+- Use `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to obtain
+  the `Current Date/Time (UTC):` value and the resolved author.
 - With the Edit tool, add (or update) outcome sections in the work item body.
   Match the section name the brief asks for — e.g. if the acceptance criteria
   call for a **Recommendation** section, write exactly that. A typical shape:

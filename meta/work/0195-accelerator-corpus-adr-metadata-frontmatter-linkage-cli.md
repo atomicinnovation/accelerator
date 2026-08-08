@@ -5,13 +5,13 @@ title: "accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage C
 date: "2026-08-05T19:03:35+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, corpus, cli, adr, frontmatter, linkage]
-last_updated: "2026-08-06T00:06:12+00:00"
+last_updated: "2026-08-07T16:56:38+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -19,7 +19,7 @@ schema_version: 1
 # 0195: accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -70,7 +70,7 @@ decrement its floors), both benefit from this migration.
 
 ## Acceptance Criteria
 
-- [ ] For each of the five subcommands (`adr next-number`, `adr read-status`,
+- [x] For each of the five subcommands (`adr next-number`, `adr read-status`,
       `metadata derive`, `frontmatter validate`, `linkage extract`):
       characterization tests snapshot the source bash script's stdout, exit
       code, and stderr (where the script writes to it) for the same inputs as
@@ -79,7 +79,7 @@ decrement its floors), both benefit from this migration.
       repointed at the new subcommand and must cover at least one success and
       one failure path. Where none exists, a new characterization test is
       written meeting the same bar.
-- [ ] All callers of `skills/decisions/scripts/adr-*.sh`,
+- [x] All callers of `skills/decisions/scripts/adr-*.sh`,
       `scripts/artifact-derive-metadata.sh`, `scripts/validate-corpus-frontmatter.sh`,
       and `scripts/linkage-parser.sh` — skills, CI workflows, `tasks/` build
       tasks, and other scripts alike — now call the corresponding `accelerator
@@ -90,10 +90,10 @@ decrement its floors), both benefit from this migration.
       calls, `allowed-tools` entries, shell `source`/exec sites) — not bare
       string mentions in documentation, ADRs, or other work items, which are
       excluded from this criterion.
-- [ ] The migrated `skills/decisions/scripts/*`, `artifact-derive-metadata.sh`,
+- [x] The migrated `skills/decisions/scripts/*`, `artifact-derive-metadata.sh`,
       `validate-corpus-frontmatter.sh`, and `linkage-parser.sh` are removed, with
       the affected suite floors decremented in lockstep (see work-item:0174).
-- [ ] `accelerator-corpus` passes every item of the sub-binary registration
+- [x] `accelerator-corpus` passes every item of the sub-binary registration
       checklist at `tasks/README.md#registering-a-dispatched-sub-binary`.
 
 ## Dependencies

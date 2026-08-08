@@ -41,6 +41,7 @@ def _skill(
     *,
     rules: tuple[str, ...] = (),
     commands: tuple[str, ...] = (),
+    fenced: tuple[str, ...] = (),
     prose: str = "",
     bare_bash: bool = False,
 ) -> None:
@@ -50,7 +51,13 @@ def _skill(
     if bare_bash:
         allowed.insert(0, "Bash")
     tools = "".join(f"\n  - {entry}" for entry in allowed)
-    body = "\n".join([*(f"!`{command}`" for command in commands), prose])
+    body = "\n".join(
+        [
+            *(f"!`{command}`" for command in commands),
+            *(f"```\n{command}\n```" for command in fenced),
+            prose,
+        ]
+    )
     path.write_text(f"---\nname: {rel}\nallowed-tools:{tools}\n---\n{body}\n")
 
 
@@ -63,11 +70,28 @@ def _bound_skill(root: Path, token: str = _TOK, rel: str = "consumer") -> None:
     )
 
 
+def _fenced_bound_skill(
+    root: Path, token: str = _TOK, rel: str = "consumer"
+) -> None:
+    _skill(
+        root,
+        rel,
+        rules=(f"{LAUNCHER} {token} *",),
+        fenced=(f"{LAUNCHER} {token} start",),
+    )
+
+
 class TestBinding:
     def test_a_scoped_rule_and_a_real_invocation_bind(
         self, tmp_path: Path
     ) -> None:
         _bound_skill(tmp_path)
+        assert violations(tmp_path, tokens=(_TOK,), exempt=()) == []
+
+    def test_a_fenced_block_with_a_covering_rule_binds(
+        self, tmp_path: Path
+    ) -> None:
+        _fenced_bound_skill(tmp_path)
         assert violations(tmp_path, tokens=(_TOK,), exempt=()) == []
 
     def test_a_rule_scoped_tighter_than_the_token_binds(
@@ -146,7 +170,9 @@ class TestMissingBinding:
         assert _TOK in problems[0]
         assert _OTHER not in problems[0]
 
-    def test_prose_and_backticks_do_not_bind(self, tmp_path: Path) -> None:
+    def test_inline_backtick_prose_does_not_bind(self, tmp_path: Path) -> None:
+        """Only a fenced block or a `!` command binds — an inline code span
+        naming the same command is indistinguishable from a passing mention."""
         _skill(
             tmp_path,
             "consumer",
@@ -155,6 +181,28 @@ class TestMissingBinding:
         )
         problems = violations(tmp_path, tokens=(_TOK,), exempt=())
         assert any("no skill invokes" in p for p in problems)
+
+    def test_a_fenced_block_without_a_covering_rule_does_not_bind(
+        self, tmp_path: Path
+    ) -> None:
+        _skill(
+            tmp_path,
+            "consumer",
+            fenced=(f"{LAUNCHER} {_TOK} start",),
+        )
+        problems = violations(tmp_path, tokens=(_TOK,), exempt=())
+        assert any("declares no Bash(...) rule" in p for p in problems)
+
+    def test_a_chained_fenced_block_does_not_bind(self, tmp_path: Path) -> None:
+        """Kills a dropped `has_metacharacter` skip on the fenced-block path."""
+        _skill(
+            tmp_path,
+            "consumer",
+            rules=(f"{LAUNCHER} {_TOK} *",),
+            fenced=(f"{LAUNCHER} {_TOK} status && rm -rf x",),
+        )
+        problems = violations(tmp_path, tokens=(_TOK,), exempt=())
+        assert any("declares no Bash(...) rule" in p for p in problems)
 
     def test_a_different_bound_token_does_not_bind_the_target(
         self, tmp_path: Path
@@ -467,6 +515,7 @@ class TestSourceScans:
         names = (
             "LAUNCHER",
             "preprocessor_commands",
+            "fenced_block_commands",
             "frontmatter_bash_rules",
             "has_bare_bash",
             "has_metacharacter",

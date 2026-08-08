@@ -7,8 +7,8 @@ description: Interactively create an architecture decision record (ADR). Use
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/artifact-*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
 ---
 
 # Create Architecture Decision Record
@@ -53,19 +53,19 @@ Then wait for the user's input.
 
 ### Step 1: Determine ADR Number
 
-1. Run the companion script to get the next ADR number:
+1. Run the corpus CLI to get the next ADR number:
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-next-number.sh
-```
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number
+   ```
 
 2. If `--supersedes ADR-NNNN` was specified:
    - Find the target ADR file by matching `{decisions directory}/ADR-NNNN-*.md`
    - Verify exactly one file matches the glob pattern (error if zero or
      multiple matches)
-   - Read the target ADR's status using the companion script:
+   - Read the target ADR's status using the corpus CLI:
      ```
-     ${CLAUDE_PLUGIN_ROOT}/skills/decisions/scripts/adr-read-status.sh <resolved-path>
+     ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status <resolved-path>
      ```
    - Verify the target ADR is in `accepted` status (only accepted ADRs can be
      superseded). This is an early-fail check to avoid wasted effort — the
@@ -120,10 +120,7 @@ Wait for user input before proceeding.
 ### Step 3: Draft the ADR
 
 1. **Gather metadata** by running
-   `${CLAUDE_PLUGIN_ROOT}/scripts/artifact-derive-metadata.sh`. Run the bare path
-   **directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-   prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-   prompt).
+   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`.
 
 2. **Draft the ADR** using the template below and present it to the user for
    review:
@@ -153,7 +150,7 @@ Wait for the user's answer before writing.
    block, using the metadata captured in Step 3.
 
    1. The `Current Date/Time (UTC):` value from
-      `artifact-derive-metadata.sh` is the source for `date:` and
+      `accelerator corpus metadata derive` is the source for `date:` and
       `last_updated:`. Repository identity is not part of the ADR
       provenance bundle (ADRs are not code-state-anchored).
    2. **Substitute** every field below with the indicated value:
@@ -254,9 +251,9 @@ When drafting ADRs, follow these principles:
   file reads in the main context
 - **Dual status fields**: The template includes status in both YAML frontmatter
   (`status: proposed`) and the body (`**Status**: Proposed`). The frontmatter
-  is the authoritative source of truth — `adr-read-status.sh` reads only
-  frontmatter. The body line is for human readability. When updating status,
-  ALWAYS update both locations.
+  is the authoritative source of truth — `accelerator corpus adr read-status`
+  reads only frontmatter. The body line is for human readability. When
+  updating status, ALWAYS update both locations.
 - Before writing a new ADR file, verify the target path does not already exist
   to prevent accidental overwrites from concurrent invocations
 

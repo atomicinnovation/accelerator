@@ -8,10 +8,12 @@
 # linkage cardinality table, the optional-extra carve-out, and the
 # `"doc-type:id"` typed-reference value shape.
 #
-# It is sourced by BOTH:
-#   - scripts/test-template-frontmatter.sh   (asserts templates carry the slots)
-#   - scripts/validate-corpus-frontmatter.sh (asserts generated artifacts conform)
-# so the two surfaces cannot drift. The PER-TYPE tabular facts (type set, extras,
+# It is sourced by:
+#   - scripts/test-template-frontmatter.sh (asserts templates carry the slots)
+#   - scripts/test-skill-frontmatter-conformance.sh (asserts skill-authored
+#     frontmatter conforms, driving the compiled `accelerator corpus
+#     frontmatter validate` as the real validator)
+# so the surfaces cannot drift. The PER-TYPE tabular facts (type set, extras,
 # status_vocab, code_state_anchored, forbidden_own_id_key, typed_linkage_keys)
 # stay in templates-schema.tsv; only the cross-cutting rules live here.
 #

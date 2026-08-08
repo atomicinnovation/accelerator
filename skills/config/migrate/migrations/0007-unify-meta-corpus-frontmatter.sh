@@ -608,24 +608,35 @@ run_rewrite() {
 }
 
 # ── Self-validation (structural, file-list mode) ─────────────────────────────
-VALIDATOR="$PLUGIN_ROOT/scripts/validate-corpus-frontmatter.sh"
+CORPUS_BIN="${ACCELERATOR_BIN:-$PLUGIN_ROOT/bin/accelerator}"
 self_validate_structural() {
-  local files=()
+  local files=() flags=()
   local f
   while IFS= read -r -d '' f; do
     out_of_scope "$f" && continue
     files+=("$f")
   done < <(corpus_files)
   [ "${#files[@]}" -gt 0 ] || return 0
-  # Pin CWD to PROJECT_ROOT so the spawned validator resolves the same allowlist
-  # that scoped the mutation (even though file-list mode does not filter by it).
-  (cd "$PROJECT_ROOT" && bash "$VALIDATOR" "${files[@]}") >&2
+  for f in "${files[@]}"; do
+    flags+=(--file "$f")
+  done
+  # Pin CWD to PROJECT_ROOT so the spawned validator resolves the same
+  # doc-type table that scoped the mutation. A single invocation carrying
+  # every file's --file flag, not a per-file loop: under set -e a loop would
+  # abort at the first violation, silently skipping the rest of the corpus.
+  # Stdin pinned to /dev/null: under the interactive harness this function's
+  # ambient stdin is the runner<->migration FIFO, which a spawned child must
+  # never inherit — the validator reads no input, but an inherited FIFO with
+  # no EOF in sight is a standing hang risk for anything that so much as
+  # probes fd 0.
+  (cd "$PROJECT_ROOT" && "$CORPUS_BIN" corpus frontmatter validate "${flags[@]}" </dev/null) >&2
 }
 self_validate_referential() {
   # Pin CWD to PROJECT_ROOT so the whole-corpus self-check observes the SAME
   # doc-type allowlist that drove the mutation — a CWD != PROJECT_ROOT invocation
-  # cannot make it validate a different file set than was mutated.
-  (cd "$PROJECT_ROOT" && bash "$VALIDATOR" "$META_ABS") >&2
+  # cannot make it validate a different file set than was mutated. Stdin
+  # pinned to /dev/null — see self_validate_structural.
+  (cd "$PROJECT_ROOT" && "$CORPUS_BIN" corpus frontmatter validate --dir "$META_ABS" </dev/null) >&2
 }
 
 # ── Corpus identity index (for existence-checking resolved inferences) ───────
@@ -657,8 +668,15 @@ build_corpus_index() {
 corpus_index_has() { grep -qxF -- "$1" <<<"$CORPUS_INDEX"; }
 
 # ── Interactive hooks: body-section typed linkage ───────────────────────────
-PARSER="$PLUGIN_ROOT/scripts/linkage-parser.sh"
 MERGE_AWK="$PLUGIN_ROOT/skills/config/migrate/scripts/frontmatter-merge.awk"
+
+# `corpus linkage extract` resolves the doc-type table through config
+# against its own working directory, and the migration's CWD is not
+# necessarily the corpus root — run it from the tree being migrated.
+linkage_extract() {
+  (cd "$PROJECT_ROOT" && "$CORPUS_BIN" corpus linkage extract "$1") \
+    2>/dev/null || true
+}
 
 # Cardinality of a linkage key (single vs list), per ADR-0034.
 linkage_card() {
@@ -682,9 +700,7 @@ migration_emit_transformations() {
     out_of_scope "$f" && continue
     has_strict_fence "$f" || continue
     rel="${f#"$PROJECT_ROOT"/}"
-    # The parser resolves the doc-type table through config, and the migration's
-    # CWD is not necessarily the corpus root — point it at the tree being migrated.
-    recs="$(LP_PROJECT_ROOT="$PROJECT_ROOT" bash "$PARSER" "$f" 2>/dev/null || true)"
+    recs="$(linkage_extract "$f")"
     [ -n "$recs" ] || continue
     # shellcheck disable=SC2034  # `src` is the leading TSV column, read past but unused here
     while IFS=$'\t' read -r src key target anchor band; do
@@ -831,7 +847,10 @@ if [ "${ACCELERATOR_0007_NO_RUN:-}" = "1" ]; then return 0 2>/dev/null || exit 0
     log_warn "0007: $REFUSE_COUNT REFUSE / $MALFORMED_COUNT MALFORMED — failing — revert meta/ via your VCS to recover, then re-run" >&2
     exit 1
   fi
-  self_validate_structural
+  if ! self_validate_structural; then
+    log_warn "0007: structural frontmatter validation failed after rewrite — revert meta/ via your VCS to recover, then re-run" >&2
+    exit 1
+  fi
   # Build the identity index over the final (post-rewrite) corpus so the
   # emitter can existence-check resolved inferences before harness_run.
   build_corpus_index
@@ -853,4 +872,7 @@ harness_run
 # Stage-2: full validation (incl. referential integrity) AFTER harness_run so
 # the interactive apply path's writes are covered. Non-zero exit here makes the
 # runner withhold the ledger entry.
-self_validate_referential
+if ! self_validate_referential; then
+  log_warn "0007: referential-integrity frontmatter validation failed after the interactive apply — revert meta/ via your VCS to recover, then re-run" >&2
+  exit 1
+fi

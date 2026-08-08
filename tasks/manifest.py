@@ -46,14 +46,16 @@ class BinaryEntry:
 
 
 # Dispatched sub-binaries whose crate manifest is not `cli/<name>/Cargo.toml`
-# (the visualiser server lives under `cli/visualiser/server/`; the `vcs` token's
-# binary crate lives under `cli/vcs-cli/`, not `cli/vcs/`, which is the domain
-# crate).
+# (the visualiser server lives under `cli/visualiser/server/`; the `vcs`,
+# `work` and `corpus` tokens' binary crates live under
+# `cli/vcs-cli/`/`cli/work-cli/`/`cli/corpus-cli/`, not
+# `cli/vcs/`/`cli/work/`/`cli/corpus/`, which are the domain crates).
 _SUBBINARY_MANIFESTS: Mapping[str, Path] = MappingProxyType(
     {
         "visualiser": CLI_DIR / "visualiser/server/Cargo.toml",
         "vcs": CLI_DIR / "vcs-cli/Cargo.toml",
         "work": CLI_DIR / "work-cli/Cargo.toml",
+        "corpus": CLI_DIR / "corpus-cli/Cargo.toml",
     }
 )
 

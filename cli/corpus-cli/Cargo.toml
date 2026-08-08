@@ -1,0 +1,27 @@
+[package]
+name = "accelerator-corpus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "The corpus adr|metadata|linkage|frontmatter sub-binary."
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-corpus"
+path = "src/main.rs"
+
+[dependencies]
+corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+kernel = { path = "../kernel" }
+clap = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }

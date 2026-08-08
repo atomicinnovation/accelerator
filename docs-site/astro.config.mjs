@@ -122,6 +122,7 @@ export default defineConfig({
             'reference/agents',
             'reference/meta-directory',
             'internals',
+            'corpus',
           ],
         },
       ],

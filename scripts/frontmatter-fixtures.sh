@@ -2,11 +2,8 @@
 # Shared frontmatter fixture synthesiser + validator-assertion helpers.
 #
 # Single source for the "synthesise a minimal valid artifact, then drive the
-# corpus validator over it" pattern. Sourced by BOTH:
-#   - scripts/test-validate-corpus-frontmatter.sh   (validator behaviour suite)
-#   - scripts/test-skill-frontmatter-conformance.sh (producer-conformance guard)
-# so the two suites share one fixture authority — a schema tightening lands in
-# one place, not two.
+# corpus validator over it" pattern. Sourced by
+# scripts/test-skill-frontmatter-conformance.sh (producer-conformance guard).
 #
 # Named WITHOUT a `test-` prefix so the run_shell_suites() discovery glob
 # (scripts/**/test-*.sh) never tries to execute it as a suite.
@@ -15,7 +12,7 @@
 # arrays). Preconditions the sourcing suite must satisfy BEFORE calling these:
 #   - source scripts/test-helpers.sh            (PASS / FAIL counters)
 #   - source scripts/frontmatter-emission-rules.sh  (FM_OPTIONAL_EXTRAS)
-#   - set VALIDATOR=<path to validate-corpus-frontmatter.sh>
+#   - set CORPUS_BIN=<path to the accelerator launcher>
 
 # ---- Fixture generation ---------------------------------------------------
 # Emit a minimal *valid* artifact for a schema row. Required (non-optional)
@@ -65,11 +62,18 @@ emit_valid() {
   } >"$outfile"
 }
 
-# Capture the validator's stderr+rc for a set of args.
+# Capture the validator's stderr+rc for a set of files. Structure checks only
+# (no --checks references) — file-list fixtures carry no real corpus context,
+# so referential integrity is out of scope here, matching the retired bash
+# validator's own file-list mode (which never ran referential checks either).
 run_validator() {
   VALIDATOR_RC=0
-  # shellcheck disable=SC2154 # VALIDATOR set by the caller before sourcing (see header preconditions)
-  VALIDATOR_ERR="$("$VALIDATOR" "$@" 2>&1 >/dev/null)" || VALIDATOR_RC=$?
+  local flags=() f
+  for f in "$@"; do
+    flags+=(--file "$f")
+  done
+  # shellcheck disable=SC2154 # CORPUS_BIN set by the caller before sourcing (see header preconditions)
+  VALIDATOR_ERR="$("$CORPUS_BIN" corpus frontmatter validate --checks structure "${flags[@]}" 2>&1 >/dev/null)" || VALIDATOR_RC=$?
 }
 
 assert_rejects() { # $1=name $2=code; remaining args = validator args

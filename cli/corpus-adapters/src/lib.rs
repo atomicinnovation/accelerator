@@ -8,6 +8,8 @@
 pub mod assemble;
 pub mod doc_type;
 pub mod document;
+pub mod frontmatter_validation;
+pub mod fs;
 mod jsonl;
 pub mod lock;
 pub mod metadata;
@@ -18,6 +20,7 @@ pub mod work_item_pattern;
 
 pub use crate::assemble::{assemble, AssembledDocument};
 pub use crate::document::{parse, FrontmatterState, ParsedDocument};
+pub use crate::fs::RealFs;
 pub use crate::lock::{acquire, LockGuard, LockOptions};
 pub use crate::metadata::{
     derive, derive_at, ClockError, SystemClock, VcsBackedRepoFactsProbe,

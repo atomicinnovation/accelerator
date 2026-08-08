@@ -2,7 +2,9 @@ import json
 import os
 import shutil
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import MagicMock
 
 import pytest
@@ -20,11 +22,24 @@ from tasks.github import (
     verify_release_asset,
 )
 from tasks.shared.errors import InvalidVersionError
-from tasks.shared.paths import DISPATCHED_SUBBINARIES
+from tasks.shared.paths import DEBUG_ARCHIVE_DIRS, DISPATCHED_SUBBINARIES
 from tasks.shared.targets import TARGETS
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+
+# Descriptions the hand-written manifest fixture below carries per token —
+# real releases source these from each sub-binary crate's own
+# `package.description` (see `tasks.manifest._read_description`); this fixture
+# just needs a stable string per token, not the crate's literal text.
+_SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
+    {
+        "visualiser": "Launch the interactive meta-directory visualiser",
+        "vcs": "The vcs detect|status|log|guard sub-binary.",
+        "work": "The work create|show|resolve|diff|update sub-binary.",
+        "corpus": "The corpus adr|metadata|linkage|frontmatter sub-binary.",
+    }
+)
 
 
 @pytest.fixture
@@ -273,60 +288,33 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
     mocker.patch.object(gh, "RELEASE_MANIFEST_SIG", manifest_sig)
     if create:
         for platform in _PLATFORMS:
-            (tmp_path / f"accelerator-visualiser-{platform}").write_bytes(
-                b"\x00" * 4
-            )
-            (
-                tmp_path / f"accelerator-visualiser-{platform}.debug.tar.gz"
-            ).write_bytes(b"\x00" * 8)
+            for token in DISPATCHED_SUBBINARIES:
+                (tmp_path / f"accelerator-{token}-{platform}").write_bytes(
+                    b"\x00" * 4
+                )
+                (
+                    tmp_path / f"accelerator-{token}-{platform}.minisig"
+                ).write_text("sig")
+            for token in DEBUG_ARCHIVE_DIRS:
+                (
+                    tmp_path / f"accelerator-{token}-{platform}.debug.tar.gz"
+                ).write_bytes(b"\x00" * 8)
             (tmp_path / f"accelerator-{platform}").write_bytes(b"\x00" * 4)
             (tmp_path / f"accelerator-{platform}.minisig").write_text("sig")
-            # The shared accelerator-visualiser-{platform} binary (staged above)
-            # doubles as the manifest-flow sub-binary asset; sign it once.
-            (
-                tmp_path / f"accelerator-visualiser-{platform}.minisig"
-            ).write_text("sig")
-            (tmp_path / f"accelerator-vcs-{platform}").write_bytes(b"\x00" * 4)
-            (tmp_path / f"accelerator-vcs-{platform}.minisig").write_text("sig")
-            (tmp_path / f"accelerator-work-{platform}").write_bytes(b"\x00" * 4)
-            (tmp_path / f"accelerator-work-{platform}.minisig").write_text(
-                "sig"
-            )
         manifest.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
                     "version": "1.20.0",
                     "binaries": {
-                        "visualiser": {
-                            "description": (
-                                "Launch the interactive meta-directory "
-                                "visualiser"
-                            ),
+                        token: {
+                            "description": _SUBBINARY_DESCRIPTIONS[token],
                             "platforms": {
                                 p: {"sha256": "a" * 64, "signature": "sig"}
                                 for p in _PLATFORMS
                             },
-                        },
-                        "vcs": {
-                            "description": (
-                                "The vcs detect|status|log|guard sub-binary."
-                            ),
-                            "platforms": {
-                                p: {"sha256": "a" * 64, "signature": "sig"}
-                                for p in _PLATFORMS
-                            },
-                        },
-                        "work": {
-                            "description": (
-                                "The work create|show|resolve|diff|update "
-                                "sub-binary."
-                            ),
-                            "platforms": {
-                                p: {"sha256": "a" * 64, "signature": "sig"}
-                                for p in _PLATFORMS
-                            },
-                        },
+                        }
+                        for token in DISPATCHED_SUBBINARIES
                     },
                 }
             )
@@ -525,10 +513,12 @@ class TestBuilderSeams:
 
         assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
 
-    def test_the_dispatched_registry_holds_visualiser_and_vcs(self):
+    def test_the_dispatched_registry_holds_visualiser_vcs_work_and_corpus(
+        self,
+    ):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
-        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs", "work")
+        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs", "work", "corpus")
 
 
 class TestReverifyViaShim:

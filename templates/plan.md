@@ -16,8 +16,8 @@ derived_from: []                             # typed-linkage list: ["codebase-re
 relates_to: []                               # typed-linkage list: ["plan:NNNN", ...] or []
 reviewer: ""                                 # omitted until reviewed
 tags: []
-revision: "{commit hash from artifact-derive-metadata.sh}"
-repository: "{repo name from artifact-derive-metadata.sh}"
+revision: "{commit hash from accelerator corpus metadata derive}"
+repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
 schema_version: 1

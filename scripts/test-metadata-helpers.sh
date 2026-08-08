@@ -19,7 +19,6 @@ cd "$ROOT"
 echo "=== Metadata-helper output ==="
 
 HELPERS=(
-  "$ROOT/scripts/artifact-derive-metadata.sh"
   "$ROOT/skills/design/inventory-design/scripts/inventory-metadata.sh"
   "$ROOT/skills/design/analyse-design-gaps/scripts/gap-metadata.sh"
 )

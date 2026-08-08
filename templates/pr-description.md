@@ -14,8 +14,8 @@ pr_url: ""                                   # omitted until populated from `gh 
 pr_number: {number}                          # bare integer
 merge_commit: ""                             # omitted until merged
 tags: []
-revision: "{commit hash from artifact-derive-metadata.sh}"
-repository: "{repo name from artifact-derive-metadata.sh}"
+revision: "{commit hash from accelerator corpus metadata derive}"
+repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
 schema_version: 1

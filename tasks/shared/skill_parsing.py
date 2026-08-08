@@ -14,6 +14,7 @@ import re
 
 _BASH_RULE = re.compile(r"Bash\(([^)]*)\)")
 _PREPROCESSOR = re.compile(r"!`([^`]*)`")
+_FENCED_BLOCK = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
 _BARE_BASH_LINE = re.compile(r"^\s*-?\s*Bash\s*$")
 _NAME_LINE = re.compile(r'^name:\s*"?([^"\n]*?)"?\s*$')
 _METACHARACTERS = ("&&", "||", ";", "|", "$(", "`", "<(", ">(")
@@ -65,6 +66,26 @@ def frontmatter_name(text: str) -> str:
 def preprocessor_commands(text: str) -> list[str]:
     """Every ``!``-preprocessor command body, in document order."""
     return _PREPROCESSOR.findall(text)
+
+
+def fenced_block_commands(text: str) -> list[str]:
+    """Every fenced code block's first non-blank line, in document order.
+
+    A numbered-step instruction to run a command, one command per block —
+    the established convention for a live, in-step invocation (the model
+    must still choose to run it, unlike a ``!``-preprocessor command, which
+    runs unconditionally at load). Returned unfiltered, same as
+    ``preprocessor_commands``: a block that is not a launcher invocation is
+    still returned, for a caller's own `is_plugin_invocation` to discard.
+    """
+    commands: list[str] = []
+    for block in _FENCED_BLOCK.findall(text):
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped:
+                commands.append(stripped)
+                break
+    return commands
 
 
 def is_plugin_invocation(command: str) -> bool:
