@@ -1,9 +1,19 @@
 """Guard: no code in cli/vcs-adapters constructs a jj ``UserSettings``.
 
 ``Workspace::load`` needs a fully-populated ``UserSettings`` whose defaults are
-private to jj-lib and were discovered one panic at a time. Nothing here needs
-it: ``DefaultWorkspaceLoaderFactory`` is public, and the checkout state and
-operation store are both reachable without settings.
+private to jj-lib and were discovered one panic at a time. The root/kind/
+revision detection paths need neither: ``DefaultWorkspaceLoaderFactory`` is
+public, and the checkout state and operation store are both reachable without
+settings.
+
+One narrow, deliberate exception: ``library/dirty_paths.rs``'s jj snapshot
+genuinely cannot avoid ``UserSettings`` — snapshotting is not a read of
+already-recorded state (what the settings-free routes above cover), it is
+jj-lib re-deriving on-disk changes since the last operation, and that requires
+a real ``TreeStateSettings`` (conflict-marker style, eol/exec-bit handling,
+fsmonitor backend) that only ``UserSettings`` supplies. Confirmed against
+jj-lib 0.43.0 and the real `jj` CLI's own snapshot path — there is no
+lower-ceremony construction that reaches ``LockedWorkingCopy::snapshot``.
 
 Not a cargo-pup ``denied`` clause because ``RestrictImports`` resolves ``use``
 paths, so it cannot see a fully-qualified
@@ -22,6 +32,8 @@ from invoke import Context, Exit, task
 from tasks.shared.sources import repo_root
 
 CRATE = "cli/vcs-adapters"
+
+_EXEMPT = frozenset({f"{CRATE}/src/library/dirty_paths.rs"})
 
 _FORBIDDEN = re.compile(r"\bUserSettings\b|\bWorkspace::load\b")
 
@@ -47,6 +59,8 @@ def violations(root: Path) -> list[str]:
     found: list[str] = []
     for path in sorted((root / CRATE).rglob("*.rs")):
         rel = path.relative_to(root).as_posix()
+        if rel in _EXEMPT:
+            continue
         source = strip_comments(path.read_text())
         for number, line in enumerate(source.splitlines(), start=1):
             if _FORBIDDEN.search(line):

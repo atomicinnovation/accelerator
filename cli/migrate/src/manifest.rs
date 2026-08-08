@@ -1,0 +1,85 @@
+//! Path-manifest ownership classification.
+//!
+//! Three classes, exactly as documented — runner-managed bookkeeping,
+//! current-run interactive session artefacts, and everything else, which
+//! must appear in the manifest verbatim.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ownership {
+    RunnerManaged,
+    SessionArtefact,
+    Manifested,
+    Foreign,
+}
+
+pub struct RunnerPaths<'a> {
+    pub applied: &'a str,
+    pub skipped: &'a str,
+    pub run_paths: &'a str,
+    pub run_id: &'a str,
+}
+
+/// Classifies one repo-relative dirty path.
+///
+/// `base_revision_matches` gates class (b) only — a stale run's session
+/// artefacts are never owned by pattern, and fall through to the manifest
+/// check (which a stale run's artefacts also fail, since they were never
+/// entered into a fresh run's manifest).
+#[must_use]
+pub fn classify(
+    path: &str,
+    runner: &RunnerPaths<'_>,
+    manifest: &[String],
+    base_revision_matches: bool,
+) -> Ownership {
+    if path == runner.applied
+        || path == runner.skipped
+        || path == runner.run_paths
+        || path == runner.run_id
+    {
+        return Ownership::RunnerManaged;
+    }
+    if base_revision_matches && is_session_artefact(path) {
+        return Ownership::SessionArtefact;
+    }
+    if manifest.iter().any(|manifested| manifested == path) {
+        return Ownership::Manifested;
+    }
+    Ownership::Foreign
+}
+
+const SESSION_PREFIX: &str = ".accelerator/state/migrations-";
+const SESSION_SUFFIXES: [&str; 3] =
+    ["-session.jsonl", "-stderr.log", "-resume-state.tmp"];
+
+fn migration_id<'a>(rest: &'a str, suffix: &str) -> Option<&'a str> {
+    let id = rest.strip_suffix(suffix)?;
+    (!id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
+    .then_some(id)
+}
+
+#[must_use]
+pub fn is_session_artefact(path: &str) -> bool {
+    let Some(rest) = path.strip_prefix(SESSION_PREFIX) else {
+        return false;
+    };
+    SESSION_SUFFIXES
+        .iter()
+        .any(|suffix| migration_id(rest, suffix).is_some())
+}
+
+/// True only for the canonical interactive session log.
+///
+/// Never the stderr capture or the resume-state tmp —
+/// `is_session_artefact`'s stricter sibling, used wherever the caller
+/// specifically wants the decided-transformation count (`wc -l`-equivalent)
+/// a log, and only a log, gives.
+#[must_use]
+pub fn is_session_log(path: &str) -> bool {
+    path.strip_prefix(SESSION_PREFIX)
+        .and_then(|rest| migration_id(rest, "-session.jsonl"))
+        .is_some()
+}

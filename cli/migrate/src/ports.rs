@@ -85,6 +85,75 @@ pub trait LedgerStore {
     fn write_skipped(&self, ids: &[String]) -> Result<(), MigrationError>;
 }
 
+/// A held run-level advisory lock, released on `Drop` by whatever concrete
+/// guard the adapter wraps — the domain crate never names that type.
+pub struct RunLockGuard(#[allow(dead_code)] Box<dyn std::any::Any>);
+
+impl RunLockGuard {
+    pub fn new(guard: impl std::any::Any) -> Self {
+        Self(Box::new(guard))
+    }
+}
+
+/// Held for the whole of a default run — every migration's ledger append,
+/// not just the first — so two concurrent `accelerator migrate` invocations
+/// never interleave writes.
+pub trait RunLock {
+    /// # Errors
+    /// [`MigrationError`] naming the current holder when acquisition times
+    /// out.
+    fn acquire(&self) -> Result<RunLockGuard, MigrationError>;
+}
+
+/// Every repo-relative path with uncommitted changes under the given root
+/// prefixes.
+pub trait DirtyPathScanner {
+    /// # Errors
+    /// [`MigrationError`] when the scan itself fails (not: when it finds
+    /// dirt).
+    fn dirty_paths(
+        &self,
+        roots: &[&str],
+    ) -> Result<Vec<String>, MigrationError>;
+}
+
+/// The per-run path manifest and its run-id sidecar.
+///
+/// Bash's usability gate is modelled directly in the return shape:
+/// `Ok(None)` is "absent, unreadable, or (run-id only) empty" — never
+/// distinguished further, since every one of those states resolves toward
+/// the same fail-closed treatment.
+pub trait ManifestStore {
+    /// # Errors
+    /// [`MigrationError`] when the manifest is present but unreadable.
+    fn manifest(&self) -> Result<Option<Vec<String>>, MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the manifest cannot be written.
+    fn write_manifest(&self, paths: &[String]) -> Result<(), MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the manifest cannot be appended to.
+    fn append_manifest_path(&self, path: &str) -> Result<(), MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the sidecar is present but unreadable.
+    fn run_id(&self) -> Result<Option<String>, MigrationError>;
+
+    /// # Errors
+    /// [`MigrationError`] when the sidecar cannot be written.
+    fn write_run_id(
+        &self,
+        revision: Option<&str>,
+    ) -> Result<(), MigrationError>;
+
+    /// Deletes both the manifest and its run-id sidecar.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when either cannot be removed.
+    fn clear(&self) -> Result<(), MigrationError>;
+}
+
 pub struct PreviewEntry<'a> {
     pub id: &'a str,
     pub description: &'a str,

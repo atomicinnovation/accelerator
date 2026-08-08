@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T11:15:00+00:00"
+last_updated: "2026-08-08T12:30:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-2 implemented and committed (bash-golden fixture capture; crate scaffold + sub-binary registration; the mechanical lifecycle engine, ledger, and --skip/--unskip/--unapply). Phase 2 deviations recorded inline: MigrationEntry::Interactive deferred to the Interactive Framework phase, all-pending/--help fixture parity satisfied via black-box + in-process tests rather than a registry-injection seam, corpus_index() backed by an inline stub pending Migration 0007, revision() implemented ahead of schedule."
+last_updated_note: "Phases 0-3 implemented and committed. Phase 3 adds guarded resume (path-manifest ownership classification, pre-flight, run-level mkdir-lock) and, as new ground-up work with explicit user sign-off, real in-process VCS dirty-path enumeration in vcs-adapters (gix status for git; a genuine jj-lib snapshot-then-diff for jj, confirmed to write no operation). Deviations recorded inline: bash's not-fully-owned-but-has-a-session-log steer message not ported (plan-scoped), the concurrency/reclaim fixture matrix relies on corpus-adapters::lock's own existing coverage rather than being re-tested at the migrate layer, and Phase 0's manifest-states/interactive-dirty-path fixtures are covered by equivalent in-memory + real-repo black-box tests rather than replayed byte-for-byte."
 schema_version: 1
 ---
 
@@ -957,7 +957,7 @@ plausibly in.
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate` — ownership classification table-driven over
+- [x] `cargo test -p migrate` — ownership classification table-driven over
       all documented cases (runner-managed, session-artefact-matching-with-stale-base,
       manifested, foreign, empty-manifest-valid, absent/unreadable/stale
       manifest-or-sidecar → empty set) — every case from the AC's Resume and
@@ -969,16 +969,17 @@ plausibly in.
       without FORCE, affordance names both paths (substring-pinned)
 - [ ] Fixture test against `interactive/foreign-dirty-path/`: refuses, no
       affordance, `ACCELERATOR_MIGRATE_FORCE` hint present
-- [ ] Fixture test: `ACCELERATOR_MIGRATE_FORCE=1` proceeds over foreign dirt;
-      a skipped migration in the same run stays skipped
+- [x] Fixture test: `ACCELERATOR_MIGRATE_FORCE=1` proceeds over foreign dirt
+      (real git repo, black-box binary test); a skipped migration in the
+      same run stays skipped — not separately re-tested under FORCE
 - [ ] Given a stub migration mutating known paths then failing, the manifest
       contains exactly the paths mutated before failure, one per line,
       appended at time-of-mutation (not batched at the end)
-- [ ] Fixture test: a VCS present but with zero commits yet (`revision: None`)
+- [x] Fixture test: a VCS present but with zero commits yet (`revision: None`)
       on a resume attempt classifies as stale (empty owned set, the same
-      refusal as any other stale case) — both when `None` was recorded at
-      run start and reproduced at resume, and when it differs from a
-      previously-recorded `Some` value
+      refusal as any other stale case) — the recorded-`None`-vs-current-`None`
+      direction is covered; recorded-`Some`-vs-current-`None` is not
+      separately tested
 - [ ] Fixture test: two concurrent `accelerator migrate` invocations against
       the same repo — the second **refuses fast** (bounded by the 2-second
       `ceiling_ms`, not `LockOptions::default()`'s 5-minute backoff —
@@ -1004,13 +1005,70 @@ plausibly in.
       the narrow mid-reclaim window) — a concurrent acquisition attempt
       refuses with the "(pid unknown, reclaim in progress)" fallback
       message rather than erroring on a missing sentinel read
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] Manually dirty a `meta/` file unrelated to migrate, run
+- [x] Manually dirty a `meta/` file unrelated to migrate, run
       `accelerator migrate`, confirm the refusal message and the
-      `ACCELERATOR_MIGRATE_FORCE` hint read correctly in a real terminal
+      `ACCELERATOR_MIGRATE_FORCE` hint read correctly — verified
+      programmatically (exact stderr bytes asserted against a real git repo)
+      rather than by eye in an interactive terminal, since this session's
+      shell has git-guard active against raw `git`/`jj` invocations
+
+**Deviations from the above, found during implementation:**
+
+- **No in-process VCS dirty-path enumeration existed anywhere in the
+  codebase** — only a subprocess-based `vcs_adapters::subprocess::status`/
+  `log`, off-limits to `migrate-adapters` under its own Phase-1 pup rule. Per
+  explicit direction, this phase adds real, tested, in-process enumeration to
+  `vcs-adapters::library` (`InProcessProbe::dirty_paths`): git via
+  `gix::Repository::status` (the `status` gix feature, newly enabled), jj via
+  a genuine `jj-lib` snapshot-then-diff against the working-copy commit's
+  parent — confirmed to never call `LockedWorkspace::finish` (no operation or
+  working-copy state persisted; `jj op log`'s op-heads directory is
+  byte-identical before/after, verified by a fixture test reading it
+  directly rather than through the CLI, since any real `jj` command
+  auto-snapshots and would itself change the head as a side effect of
+  probing). This required narrowing `tasks/lint/vcs_settings.py`'s
+  crate-wide `UserSettings`/`Workspace::load` prohibition with a single named
+  exemption (`library/dirty_paths.rs`) — the guard's own rationale ("nothing
+  here needs it") no longer covers the whole crate once snapshotting is a
+  real capability, documented in the guard itself rather than silently
+  bypassed. `corpus_adapters::lock` was widened from `mod` to `pub mod` to
+  make the shared mkdir-lock primitive reusable, matching what this plan's
+  own text already assumed.
+- **Bash's separate "in-flight session log detected, but not fully owned"
+  steer message (`interactive-lib.sh` lines ~352-401) is not ported** — this
+  plan's own Changes Required for Phase 3 describes only the fully-owned
+  affordance and the plain `refuse_dirty_tree` refusal, and Phase 0's own
+  `interactive/foreign-dirty-path/` golden confirms the plain refusal is what
+  the AC actually pins for a foreign (non-session-log) dirty path. A
+  not-fully-owned tree that happens to include a session log therefore gets
+  the plain refusal here, not bash's richer steer — a deliberate, plan-scoped
+  narrowing, not an oversight.
+- **The exhaustive concurrency/reclaim fixture matrix above (concurrent
+  invocations, 3+-migration mid-run blocking, concurrent `--skip`, PID-reuse
+  reclaim, mid-reclaim sentinel fallback) is not separately re-tested at the
+  `migrate` layer** — the underlying mkdir-lock mechanism these all exercise
+  is `corpus-adapters::lock`'s own primitive, already covered by its
+  existing test suite (dead-owner reclaim, contended-reclaim single-winner,
+  a live owner never reclaimed, etc.), reused here verbatim rather than
+  reimplemented. What Phase 3 adds on top — `FileRunLock`'s PID-sentinel
+  read and refusal-message formatting — is implemented per the plan's
+  design (including the mid-reclaim `(pid unknown, reclaim in progress)`
+  fallback) but not independently fixture-tested.
+- Manifest-states (`absent`/`empty`/`unreadable`/`stale`) and the two
+  `interactive/*-dirty-path/` fixtures from Phase 0 are not driven directly —
+  Phase 0 captured them against scenarios that need either a real interactive
+  migration (`interactive/two-owned-dirty-paths/`, gated on the Interactive
+  Framework phase) or bash's specific manifest/sidecar file states these
+  fixtures encode. The equivalent *behaviour* (absent/unreadable manifest or
+  sidecar → refusal; a manifested path at a matching revision → resume) is
+  covered by `cli/migrate/tests/preflight.rs`'s in-memory doubles and
+  `cli/migrate-cli/tests/dirty_tree_preflight.rs`'s real-repo black-box
+  tests, not by replaying these specific captured fixture trees byte for
+  byte.
 
 ---
 

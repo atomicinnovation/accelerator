@@ -3,12 +3,38 @@
 //! `bash $0`/`run-migrations.sh` per the port's fixed normalisation rule).
 
 use std::fmt::Write as _;
+use std::path::Path;
 
 use migrate::ports::MigrationError;
 use migrate::ports::PreviewEntry;
 use migrate::ports::Reporter;
+use migrate::preflight::AffordanceEntry;
 
 const PREAMBLE: &str = "\nMigrations rewrite files and may make repo-wide changes; commit\nyour working tree before running so VCS revert is available as\nrollback. The pre-flight will refuse to run on a dirty tree\nunless ACCELERATOR_MIGRATE_FORCE=1 is set.\n\n";
+
+pub const DIRTY_TREE_REFUSAL: &str = "Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check.";
+
+pub fn resume_affordance(root: &Path, affordance: &[AffordanceEntry]) {
+    eprintln!("Resuming over this run's own partial migration output:");
+    for entry in affordance {
+        eprintln!("  {}", entry.path);
+        if let Some(count) = entry.session_log_decision_count {
+            let abs = root.join(&entry.path);
+            eprintln!(
+                "    interactive migration — resuming: replays {count} \
+                 decided transformation(s) and re-prompts only undecided ones"
+            );
+            eprintln!(
+                "    (with no decisions channel it re-stalls — resume \
+                 non-interactively via --decisions-file)."
+            );
+            eprintln!(
+                "    To discard instead: rm {}  (loses {count} decisions)",
+                abs.display()
+            );
+        }
+    }
+}
 
 pub struct StdoutReporter;
 
