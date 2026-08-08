@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T18:00:00+00:00"
+last_updated: "2026-08-08T17:40:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-6 implemented and committed. Phase 6 ports all six mechanical migrations (0001-0006), each verified against a bash golden captured in isolation (ACCELERATOR_MIGRATIONS_DIR scoped to that migration alone), plus a full six-migration chain run compared byte-for-byte against a parallel bash-migrated copy from the same seed. Two real bugs surfaced and fixed during this phase: (1) the Phase 2 lifecycle engine wrote the ledger from a stale in-memory snapshot, silently discarding a migration's own direct mutation of the same file (0003 legitimately merges legacy state into it) — fixed to re-read fresh before each append, matching bash's atomic_append_unique; (2) migrations 0004-0006's own progress/diagnostic text was initially written to stdout, but the real driver (run-migrations.sh) captures a mechanical migration's combined stdout+stderr and relays all of it through the driver's own stderr — discovered via the required manual end-to-end comparison, not assumed from reading the migration scripts alone; fixed by moving that text to stderr. New MigrationContext capabilities added across the phase: read/list_md_files/merge_move/config_value (0001), canonicalise_work_item_id (0002), configured_path_override/dir_exists/remove_file/list_all_under (0003), remove_dir_if_empty (0004). Deviations recorded inline per migration, and in the Phase 6 Success Criteria section below."
+last_updated_note: "Phases 0-6 implemented and committed. Phase 6 ports all six mechanical migrations (0001-0006), each verified against a bash golden captured in isolation (ACCELERATOR_MIGRATIONS_DIR scoped to that migration alone), plus a full six-migration chain run compared byte-for-byte against a parallel bash-migrated copy from the same seed. Two real bugs surfaced and fixed during this phase: (1) the Phase 2 lifecycle engine wrote the ledger from a stale in-memory snapshot, silently discarding a migration's own direct mutation of the same file (0003 legitimately merges legacy state into it) — fixed to re-read fresh before each append, matching bash's atomic_append_unique; (2) migrations 0004-0006's own progress/diagnostic text was initially written to stdout, but the real driver (run-migrations.sh) captures a mechanical migration's combined stdout+stderr and relays all of it through the driver's own stderr — discovered via the required manual end-to-end comparison, not assumed from reading the migration scripts alone; fixed by moving that text to stderr. New MigrationContext capabilities added across the phase: read/list_md_files/merge_move/config_value (0001), canonicalise_work_item_id (0002), configured_path_override/dir_exists/remove_file/list_all_under (0003), remove_dir_if_empty (0004). Deviations recorded inline per migration, and in the Phase 6 Success Criteria section below. A pre-existing, unrelated meta/ frontmatter validation failure the full mise run surfaced (an empty parent/relates_to pair in this work item's own review document, predating any implementation) was also fixed on request, so mise run — not just mise run cli:check — is green."
 schema_version: 1
 ---
 
@@ -1832,16 +1832,17 @@ guard); every `atomic_write` call site becomes an injected-port write.
   rather than `cd && pwd -P` real paths. Both would need a new
   canonicalising port primitive for a corner case with no coverage in this
   plan's own fixture matrix.
-- **A pre-existing, unrelated issue surfaced by the full `mise run`**:
-  `scripts/test-validate-corpus-frontmatter.sh`'s sanity check against this
-  repository's own real `meta/` corpus fails
+- **A pre-existing, unrelated issue surfaced by the full `mise run`, since
+  fixed**: `scripts/test-validate-corpus-frontmatter.sh`'s sanity check
+  against this repository's own real `meta/` corpus was failing
   (`meta/reviews/plans/2026-08-07-0172-migration-engine-subdomain-review-1.md`
-  has an empty `parent`/`relates_to` key that should be omitted). Confirmed
-  via `jj log` that this file was created in this work item's very first
-  commit, before any Phase 6 (or any implementation) work began — not a
-  regression from this phase. Left unfixed as out of scope (it is a data
-  issue in a review document, not migrate-engine code); `mise run cli:check`
-  — this phase's own documented gate — is green.
+  had an empty `parent`/`relates_to` key that should have been omitted).
+  Confirmed via `jj log` that this file was created in this work item's
+  very first commit, before any Phase 6 (or any implementation) work began
+  — not a regression from this phase, but fixed anyway on request by
+  dropping both empty keys (no other plan-review document in the corpus
+  carries either key when absent). The full `mise run` is now green too,
+  not just `cli:check`.
 
 ---
 
