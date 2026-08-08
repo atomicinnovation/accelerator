@@ -10,7 +10,7 @@ pub mod doc_type;
 pub mod document;
 pub mod frontmatter_validation;
 pub mod fs;
-mod jsonl;
+pub mod jsonl;
 pub mod lock;
 pub mod metadata;
 pub mod patcher;
