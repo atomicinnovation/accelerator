@@ -6,6 +6,7 @@ pub mod context;
 pub mod dirty_path_scanner;
 pub mod ledger_store;
 pub mod manifest_store;
+pub mod merge_move;
 pub mod run_lock;
 pub mod session_log;
 pub mod session_log_factory;

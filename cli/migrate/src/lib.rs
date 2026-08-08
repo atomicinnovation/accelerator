@@ -8,6 +8,7 @@ pub mod interactive;
 pub mod ledger;
 pub mod lifecycle;
 pub mod manifest;
+pub mod migrations;
 pub mod ports;
 pub mod preflight;
 pub mod registry;
