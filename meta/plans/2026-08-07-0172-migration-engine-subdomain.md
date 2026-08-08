@@ -1946,26 +1946,39 @@ Blocked for the reason stated in this phase's Overview.
 
 #### Automated Verification:
 
-- [ ] `hooks/test-migrate-discoverability.sh` (still bash, still the oracle)
+- [x] `hooks/test-migrate-discoverability.sh` (still bash, still the oracle)
       repointed to invoke the compiled `accelerator-migrate` binary and
       passes — required by the AC as a precondition of that suite's later
       retirement in Phase 10
-- [ ] A new Rust test asserts the `systemMessage` envelope's exact JSON
+- [x] A new Rust test asserts the `systemMessage` envelope's exact JSON
       shape via `kernel::hooks::session_start`, matching the pattern already
       tested for `vcs detect`/`config summary`
-- [ ] A `hooks.json`-parsing test selects the migrate-discoverability entry
+- [x] A `hooks.json`-parsing test selects the migrate-discoverability entry
       by command-string substring match (not index) and asserts it invokes
       `accelerator migrate --discoverability-hook`
-- [ ] `mise run lint:skill-permissions:check` (or equivalent) passes with
+- [x] `mise run lint:skill-permissions:check` (or equivalent) passes with
       the new invocation covered
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] Start a fresh Claude Code session in a repo with a pending migration
+- [x] Start a fresh Claude Code session in a repo with a pending migration
       and confirm the advisory appears as a system message (not silently
       swallowed on stderr) — this is the concrete, observable fix for
-      0183's original bug
+      0183's original bug — verified programmatically (the compiled
+      `accelerator-migrate --discoverability-hook --format=hook --fail-safe`
+      binary's stdout parsed as JSON and asserted to carry a top-level
+      `systemMessage` field, exactly what Claude Code's `SessionStart` hook
+      contract surfaces to the user) rather than by eye in a live session,
+      matching Phase 3's own precedent for this session's tooling
+      constraints
+
+**Deviations from the above, found during implementation:**
+
+- No deviations. `--discoverability-hook --format=hook --fail-safe` is
+  exposed as flat flags alongside the flag-for-flag migration surface
+  (Phase 1's `Cli` struct), not a subcommand, per the Overview's own
+  resolution.
 
 ---
 

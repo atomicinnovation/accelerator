@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/migrate-discoverability.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --discoverability-hook --format=hook --fail-safe"
           }
         ]
       },

@@ -35,4 +35,31 @@ pub struct Cli {
     /// skip | edit <value>.
     #[arg(long, value_name = "path")]
     pub decisions_file: Option<PathBuf>,
+    /// Print the `SessionStart` discoverability advisory, then exit. Not
+    /// part of the flag-for-flag migration surface — a hook-only entry
+    /// point, matching bash's separate `hooks/migrate-discoverability.sh`
+    /// script under one dispatch token.
+    #[arg(long)]
+    pub discoverability_hook: bool,
+    /// Rendering for `--discoverability-hook`: the `SessionStart` hook
+    /// envelope.
+    #[arg(long, value_enum)]
+    pub format: Option<Format>,
+    /// On an adapter failure, degrade to a warning and exit 0 rather than
+    /// exiting non-zero. Forwarded for the launcher's own external-dispatch
+    /// resolution — `--discoverability-hook`'s own handler never fails, so
+    /// the flag has no further effect here.
+    #[arg(long)]
+    pub fail_safe: bool,
+}
+
+/// How `--discoverability-hook` renders its output. `Hook` is the only
+/// rendering today — carried as a flag (rather than always assumed) so a
+/// future plain-text rendering has somewhere to attach without a breaking
+/// CLI change.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum Format {
+    /// The `SessionStart` `additionalContext`/`systemMessage` JSON
+    /// envelope.
+    Hook,
 }

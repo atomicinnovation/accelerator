@@ -484,12 +484,7 @@ class TestRegistryBounds:
 # Each entry here must name the work landing the real binding, so this stays a
 # visible, deliberate carve-out rather than a place a careless exemption can
 # hide: adding a token to SKILL_EXEMPT_SUBBINARIES does NOT exempt it here.
-#
-# migrate: work-item:0172 Phase 1 registers the sub-binary ahead of Phase 7's
-# skill rebinding (skills/config/migrate/SKILL.md still shells out to
-# run-migrations.sh, which Phase 7 replaces once migrations are registered
-# and interactive support lands). Remove once that rebinding lands.
-_KNOWN_PENDING_SKILL_BINDINGS = ("migrate",)
+_KNOWN_PENDING_SKILL_BINDINGS: tuple[str, ...] = ()
 
 
 def test_the_real_skills_tree_passes() -> None:
