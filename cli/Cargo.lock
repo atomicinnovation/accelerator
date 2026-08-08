@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-migrate"
-version = "1.24.0-pre.32"
+version = "1.24.0-pre.33"
 dependencies = [
  "clap",
  "config-adapters",
@@ -66,6 +66,8 @@ dependencies = [
  "migrate",
  "migrate-adapters",
  "tempfile",
+ "vcs",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -1385,6 +1387,7 @@ dependencies = [
  "gix-config",
  "gix-date",
  "gix-diff",
+ "gix-dir",
  "gix-discover",
  "gix-error",
  "gix-features",
@@ -1408,6 +1411,7 @@ dependencies = [
  "gix-revwalk",
  "gix-sec",
  "gix-shallow",
+ "gix-status",
  "gix-submodule",
  "gix-tempfile",
  "gix-trace",
@@ -1545,16 +1549,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92c6d56c94edf92d78203a1cd416f770e35e10b6955ede6b9d7d0c22ff88a5f3"
 dependencies = [
  "bstr",
+ "gix-attributes",
  "gix-command",
  "gix-filter",
  "gix-fs",
  "gix-hash",
  "gix-imara-diff",
+ "gix-index",
  "gix-object",
  "gix-path",
+ "gix-pathspec",
  "gix-tempfile",
  "gix-trace",
  "gix-traverse",
+ "gix-worktree",
+ "thiserror",
+]
+
+[[package]]
+name = "gix-dir"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20098fba2b9c6e29361ccb4c0379d42dfb81fc7f86f7ab11f2dff4528c0bf01f"
+dependencies = [
+ "bstr",
+ "gix-discover",
+ "gix-fs",
+ "gix-ignore",
+ "gix-index",
+ "gix-object",
+ "gix-path",
+ "gix-pathspec",
+ "gix-trace",
+ "gix-utils",
  "gix-worktree",
  "thiserror",
 ]
@@ -1959,6 +1986,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "gix-status"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aec3293f75db1212f99217832cbc70c30faeb95cefc97c7f1a17fd3bcf13a72e"
+dependencies = [
+ "bstr",
+ "filetime",
+ "gix-diff",
+ "gix-dir",
+ "gix-features",
+ "gix-filter",
+ "gix-fs",
+ "gix-hash",
+ "gix-index",
+ "gix-object",
+ "gix-path",
+ "gix-pathspec",
+ "gix-worktree",
+ "portable-atomic",
+ "thiserror",
+]
+
+[[package]]
 name = "gix-submodule"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2043,6 +2093,7 @@ version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1795bd2a970ca8b2185318c2abb97d955c71992f1cf28de73ad3b593a9f3ce8"
 dependencies = [
+ "bstr",
  "fastrand",
  "getrandom 0.4.3",
  "unicode-normalization",
@@ -2969,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "migrate"
-version = "1.24.0-pre.32"
+version = "1.24.0-pre.33"
 dependencies = [
  "corpus",
  "document",
@@ -2978,14 +3029,17 @@ dependencies = [
 
 [[package]]
 name = "migrate-adapters"
-version = "1.24.0-pre.32"
+version = "1.24.0-pre.33"
 dependencies = [
  "config",
  "config-adapters",
+ "corpus",
+ "corpus-adapters",
  "kernel",
  "migrate",
  "store",
  "tempfile",
+ "tracing",
  "vcs",
  "vcs-adapters",
 ]

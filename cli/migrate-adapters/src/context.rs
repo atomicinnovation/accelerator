@@ -10,11 +10,14 @@ use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use migrate::ports::CorpusIndex;
 use migrate::ports::DocTypeDir;
+use migrate::ports::ManifestStore as _;
 use migrate::ports::MigrationContext;
 use migrate::ports::MigrationError;
 use store::NewFileMode;
 use store::WriteBounds;
 use vcs_adapters::library::InProcessProbe;
+
+use crate::manifest_store::FileManifestStore;
 
 /// No migration built so far consults `corpus_index()` — that capability is
 /// migration 0007's alone (the Migration 0007 Port phase, which builds the
@@ -33,6 +36,7 @@ pub struct FileMigrationContext {
     config: ConfigService<FileConfigStore, FileConfigStore>,
     fresh_mode: u32,
     index: NoIndex,
+    manifest: FileManifestStore,
 }
 
 impl FileMigrationContext {
@@ -45,6 +49,7 @@ impl FileMigrationContext {
             config: ConfigService::new(store.clone(), store),
             fresh_mode: 0o666 & !store::current_umask(),
             index: NoIndex,
+            manifest: FileManifestStore::new(&root),
             root,
         }
     }
@@ -87,6 +92,11 @@ impl MigrationContext for FileMigrationContext {
             &self.bounds(),
             NewFileMode::PreserveOr(self.fresh_mode),
         )
-        .map_err(|error| MigrationError::new(error.to_string()))
+        .map_err(|error| MigrationError::new(error.to_string()))?;
+        if let Ok(relative) = path.strip_prefix(&self.root) {
+            self.manifest
+                .append_manifest_path(&relative.to_string_lossy())?;
+        }
+        Ok(())
     }
 }

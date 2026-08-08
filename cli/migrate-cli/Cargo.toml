@@ -10,6 +10,9 @@ description = "Apply pending meta-directory schema migrations."
 [lints]
 workspace = true
 
+[features]
+bash-parity = []
+
 [[bin]]
 name = "accelerator-migrate"
 path = "src/main.rs"
@@ -18,8 +21,10 @@ path = "src/main.rs"
 migrate = { path = "../migrate" }
 migrate-adapters = { path = "../migrate-adapters" }
 config-adapters = { path = "../config-adapters" }
+vcs = { path = "../vcs" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }

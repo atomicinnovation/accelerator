@@ -3,8 +3,8 @@
 //! `mkdir` is the exclusive-acquisition mutex (POSIX, unlike `flock`), the
 //! lockdir carries an `owner.<nonce>` PID sentinel, a dead holder is
 //! reclaimed single-winner, and contention backs off with jitter up to an
-//! injectable ceiling. POSIX-only, matching the bash source and the
-//! darwin + musl target set.
+//! injectable ceiling. POSIX-only, matching the bash source and the darwin +
+//! musl target set.
 //!
 //! `scripts/atomic-common.sh` implements the same protocol over the same
 //! `<target>.lockdir` convention, so the two can hold against and reclaim after
@@ -59,10 +59,9 @@ impl Drop for LockGuard {
 /// until it is free or `opts.ceiling_ms` is exceeded.
 ///
 /// # Errors
-///
-/// A [`StoreError`] when `lockdir`'s parent cannot be created, the lock
-/// cannot be claimed for a reason other than contention, or the ceiling is
-/// exceeded while still contended.
+/// [`StoreError::NotWritable`] or [`StoreError::Io`] when `mkdir` itself
+/// fails for a reason other than the lockdir already existing;
+/// [`StoreError::LockTimeout`] when contention outlives `opts.ceiling_ms`.
 pub fn acquire(
     lockdir: &Path,
     opts: LockOptions,
