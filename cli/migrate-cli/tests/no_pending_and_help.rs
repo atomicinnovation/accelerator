@@ -28,7 +28,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
         "0001-rename-tickets-to-work\n\
          0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n",
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n",
     )?;
     Ok(dir)
 }

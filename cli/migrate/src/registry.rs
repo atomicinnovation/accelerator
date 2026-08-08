@@ -10,6 +10,7 @@ use crate::migrations::m0001::Migration0001;
 use crate::migrations::m0002::Migration0002;
 use crate::migrations::m0003::Migration0003;
 use crate::migrations::m0004::Migration0004;
+use crate::migrations::m0005::Migration0005;
 use crate::ports::MigrationContext;
 use crate::ports::MigrationError;
 
@@ -68,5 +69,6 @@ pub fn registry() -> Vec<MigrationEntry> {
         MigrationEntry::Mechanical(Box::new(Migration0002)),
         MigrationEntry::Mechanical(Box::new(Migration0003)),
         MigrationEntry::Mechanical(Box::new(Migration0004)),
+        MigrationEntry::Mechanical(Box::new(Migration0005)),
     ]
 }

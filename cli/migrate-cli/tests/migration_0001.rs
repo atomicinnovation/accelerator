@@ -41,7 +41,8 @@ fn setup_old_repo() -> Result<TempDir, TestError> {
         dir.path().join(".accelerator/state/migrations-applied"),
         "0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n",
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n",
     )?;
     Ok(dir)
 }
@@ -94,6 +95,7 @@ fn matches_the_bash_golden_byte_for_byte() -> Result<(), TestError> {
         "0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
          0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
          0001-rename-tickets-to-work\n"
     );
     assert!(!dir.path().join("meta/tickets").exists());
@@ -119,7 +121,8 @@ fn preserves_a_pinned_non_default_tickets_directory() -> Result<(), TestError> {
         dir.path().join(".accelerator/state/migrations-applied"),
         "0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n",
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -168,7 +171,8 @@ fn the_transform_itself_converges_without_the_ledger_filter(
         dir.path().join(".accelerator/state/migrations-applied"),
         "0002-rename-work-items-with-project-prefix\n\
          0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n",
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
