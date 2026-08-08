@@ -30,7 +30,12 @@ pub struct ListGroup {
 
 /// # Errors
 /// The first pending interactive migration's `Fail` predicate message (see
-/// [`engine::pending_transformations`]).
+/// [`engine::pending_transformations`]), or the first transformation whose
+/// key/proposed/path/anchor carries an embedded tab or newline — bash's own
+/// `_enum_handle_frame` (`interactive-lib.sh:552-566`) refuses these before
+/// joining fields with tabs, since `--list`'s output is otherwise undefined
+/// for such a value; the tab-delimited `render_list` line has the identical
+/// corruption risk, so this port carries the identical fail-closed check.
 pub fn list_pending(
     entries: &[MigrationEntry],
     applied: &[String],
@@ -55,6 +60,15 @@ pub fn list_pending(
             session_log.as_ref(),
             reporter,
         )?;
+        if let Some(unsafe_field) =
+            transformations.iter().find_map(unsafe_list_field)
+        {
+            return Err(MigrationError::new(format!(
+                "[{id}] --list field for key '{unsafe_field}' contains a \
+                 tab or newline; --list output is undefined for such \
+                 values."
+            )));
+        }
         if transformations.is_empty() {
             continue;
         }
@@ -65,4 +79,17 @@ pub fn list_pending(
         });
     }
     Ok(groups)
+}
+
+/// The transformation's own `short_key()`, when any of its `--list`-rendered
+/// fields (`short_key`/`proposed`/`path`/`anchor`) carries an embedded tab
+/// or newline — `None` when the transformation is safe to render.
+fn unsafe_list_field(transformation: &Transformation) -> Option<&str> {
+    let carries_tab_or_newline =
+        |value: &str| value.contains('\t') || value.contains('\n');
+    let unsafe_ = carries_tab_or_newline(transformation.short_key())
+        || carries_tab_or_newline(&transformation.proposed)
+        || carries_tab_or_newline(&transformation.path)
+        || carries_tab_or_newline(&transformation.anchor);
+    unsafe_.then(|| transformation.short_key())
 }

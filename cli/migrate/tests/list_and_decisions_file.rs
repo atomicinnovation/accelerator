@@ -277,6 +277,57 @@ fn list_pending_excludes_a_decided_key_and_reports_the_rest(
 }
 
 #[test]
+fn list_pending_refuses_a_proposed_value_carrying_an_embedded_tab() {
+    let migration = FixtureMigration::prompting(
+        "0099-fixture",
+        vec![transformation("k1", "relates_to", "work-item:0042\tsneaky")],
+    );
+    let entries = vec![MigrationEntry::Interactive(Box::new(migration))];
+    let session_log = Rc::new(InMemorySessionLog::default());
+    let session_logs = SingleLog(session_log);
+
+    let result = list_pending(
+        &entries,
+        &[],
+        &[],
+        &StubContext,
+        &session_logs,
+        &NoOpReporter,
+    );
+
+    assert_eq!(
+        result.err().map(|error| error.to_string()),
+        Some(
+            "[0099-fixture] --list field for key 'relates_to' contains a \
+             tab or newline; --list output is undefined for such values."
+                .to_owned()
+        )
+    );
+}
+
+#[test]
+fn list_pending_refuses_a_key_carrying_an_embedded_newline() {
+    let migration = FixtureMigration::prompting(
+        "0099-fixture",
+        vec![transformation("k1", "relates_to\nsneaky", "work-item:0042")],
+    );
+    let entries = vec![MigrationEntry::Interactive(Box::new(migration))];
+    let session_log = Rc::new(InMemorySessionLog::default());
+    let session_logs = SingleLog(session_log);
+
+    let result = list_pending(
+        &entries,
+        &[],
+        &[],
+        &StubContext,
+        &session_logs,
+        &NoOpReporter,
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
 fn list_pending_reports_no_in_flight_session_when_the_log_is_empty(
 ) -> Result<(), TestError> {
     let migration = FixtureMigration::prompting(
