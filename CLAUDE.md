@@ -1,11 +1,11 @@
 ## What this repo is
 
 Accelerator is a **Claude Code plugin** — not a conventional application. The
-shipped product is the set of **skills** (Markdown `SKILL.md` files), **agents**,
-**hooks**, **templates**, and **scripts** that Claude Code loads. Alongside them
-lives a **visualiser** (a Rust HTTP server + React frontend) distributed as a
-pre-compiled binary. Four language toolchains coexist in one repo, each with its
-own checks; see Architecture below.
+shipped product is the set of **skills** (Markdown `SKILL.md` files),
+**agents**, **hooks**, **templates**, and **scripts** that Claude Code loads.
+Alongside them lives a **visualiser** (a Rust HTTP server + React frontend)
+distributed as a pre-compiled binary. Four language toolchains coexist in one
+repo, each with its own checks; see Architecture below.
 
 ## Build, test, and check
 
@@ -35,8 +35,8 @@ Two faster entry points exist and should be your inner loop:
   `lint:<c>:fix` tasks. Rust enforcement beyond `cli:check` (cargo-deny,
   cargo-pup) is documented in `tasks/README.md`. The docs site tasks
   (`docs:check`, `docs:build`) are deliberately in **neither** the aggregate
-  `check` nor the bare `default` task — they write gitignored artefacts and
-  need network + a Chromium install, so the docs CI lane owns them; run
+  `check` nor the bare `default` task — they write gitignored artefacts and need
+  network + a Chromium install, so the docs CI lane owns them; run
   `docs:check` manually when touching `docs-site/`.
 
 Enforcement is **CI-only — there are no pre-commit hooks.** Run `mise run fix &&
@@ -71,20 +71,43 @@ directories.
 
 ### Shell scripts (`scripts/`, `hooks/`)
 
-A large bash library backs the skills (config reading, VCS detection, frontmatter
-parsing, migrations). A custom **bashisms** linter
+A large bash library backs the skills (config reading, VCS detection,
+frontmatter parsing, migrations). A custom **bashisms** linter
 (`scripts/lint-bashisms.sh`) guards a **bash 3.2 floor**
 — macOS ships bash 3.2, so bash-4 constructs (associative arrays, `${var,,}`,
 etc.) are banned. Suspect the 3.2 floor first for any macOS-only shell failure.
 `hooks/` contains `SessionStart`/`PreToolUse` hooks (config detection, VCS
 detection + git-guard, migration reminders).
 
+## How we write code
+
+These are non-negotiable. They override convenience.
+
+- **Test-driven development, in its purest form.** Follow the red-green-refactor
+  loop: write a failing test first (red), write the minimum code to pass it
+  (green), then refactor with the safety net in place. Never write production
+  code without a failing test demanding it. Test behaviour, not implementation.
+- **Strict domain-driven design.** Model the domain explicitly. Prefer code that
+  is clear, readable, and expresses intent through rich domain language — names
+  and abstractions that mirror how the domain is spoken about, not technical
+  incidental detail.
+- **Comments are a last resort.** A comment is a signal that the code failed to
+  express its own intent. Before writing one, do the work to make the code
+  itself clear — rename, extract, restructure. Only keep a comment when it
+  captures something genuinely non-obvious to a skilled developer that no amount
+  of refactoring could convey (e.g. *why* an unusual choice was made, an
+  external constraint, a subtle invariant). Never include comments that
+  describe what code could otherwise express — we have a *very* low tolerance
+  for comments. Actively remove them from plans you create. References to
+  ADRs, work items, acceptance criteria, plan phases etc. in comments can go 
+  stale fast, so don't include them.
+
 ## Conventions and gotchas
 
 - **Line width is 80 everywhere**, set in `.editorconfig` and **duplicated by
-  hand** into `pyproject.toml` (ruff) and `server/rustfmt.toml` (rustfmt) because
-  those tools don't read `.editorconfig`. Biome and shfmt read it natively. Keep
-  the copies in sync — there is no automated check.
+  hand** into `pyproject.toml` (ruff) and `server/rustfmt.toml` (rustfmt)
+  because those tools don't read `.editorconfig`. Biome and shfmt read it
+  natively. Keep the copies in sync — there is no automated check.
 - **Shell has no autofixer** — `scripts` is absent from `lint:fix`; ShellCheck
   findings are fixed by hand or with a justified `# shellcheck disable=`.
 - **Executable-bit invariant** — a tracked `.sh` is executable (`0755`) iff it
