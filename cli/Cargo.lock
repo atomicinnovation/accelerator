@@ -30,8 +30,11 @@ name = "accelerator-migrate"
 version = "1.24.0-pre.30"
 dependencies = [
  "clap",
+ "config-adapters",
  "kernel",
  "migrate",
+ "migrate-adapters",
+ "tempfile",
 ]
 
 [[package]]
@@ -2808,8 +2811,14 @@ dependencies = [
 name = "migrate-adapters"
 version = "1.24.0-pre.30"
 dependencies = [
+ "config",
+ "config-adapters",
  "kernel",
  "migrate",
+ "store",
+ "tempfile",
+ "vcs",
+ "vcs-adapters",
 ]
 
 [[package]]
