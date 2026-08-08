@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T21:40:00+00:00"
+last_updated: "2026-08-08T22:30:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-8 implemented and committed (Phases 9-10 remain, both gated behind this note's own caveats). Phase 6's own note (six mechanical migrations, two real bugs fixed, new MigrationContext capabilities) is preserved below in the Phase 6 section itself. Phase 7 (this session): ported the discoverability hook to `accelerator migrate --discoverability-hook --format=hook --fail-safe`, delivering its advisory via kernel::hooks::session_start's systemMessage (absorbing work-item:0183, now abandoned), rebound skills/config/migrate/SKILL.md's invocation call sites, and cleared the SKILL_EXEMPT_SUBBINARIES/_KNOWN_PENDING_SKILL_BINDINGS interim carve-outs. Phase 8 (this session): ported migration 0007 (the largest, only-interactive migration), unblocked because work-item:0195 shipped `accelerator corpus frontmatter validate` as an in-process corpus_adapters library (not a kept-alive shell script) — self_validate_structural/referential call it directly via a new MigrationContext::validate_frontmatter method. The rewrite is a line-oriented text transform (matching migration 0006's established convention, not the document value-tree design this plan originally sketched), and reuses corpus::frontmatter_validation::schema's already-landed per-type table directly rather than re-deriving it — cli/migrate/src/migrations/m0007/ is a subdirectory, a disclosed exception to the flat-file-per-migration convention given 0007's size. Verified byte-identical against real bash on a seeded corpus. Full deviation list is in the Phase 8 Success Criteria section below. **Follow-up session (this update), ahead of Phase 9**: closed the --list/--decisions-file gap Phase 8 flagged as a precondition of Phase 9's suite repointing — migrate::list, migrate::decisions_file, migrate-adapters::decisions_file_decision_source, and migrate-cli's env-var/flag resolution and existence checks are now real and tested end to end against migration 0007 (the registry's only interactive entry). While building this, found and fixed a real bug in Phase 8's landed m0007/mod.rs: linkage_table() fed corpus::linkage's prose-token-matching functions an absolute, root-joined table instead of a repo-relative one, silently dropping every path-shaped body reference (e.g. `## References` sections) that wasn't already carrying an explicit frontmatter type: hint — full detail in the note appended to the end of the Phase 5 section. Phase 9 (suite classification/black-box rewrites) and Phase 10 (the single indivisible bash-deletion cutover commit) have not been started."
+last_updated_note: "Phases 0-8 implemented and committed (Phase 9 started this session, not complete; Phase 10 not started). Phase 6's own note (six mechanical migrations, two real bugs fixed, new MigrationContext capabilities) is preserved below in the Phase 6 section itself. Phase 7 (an earlier session): ported the discoverability hook to `accelerator migrate --discoverability-hook --format=hook --fail-safe`, delivering its advisory via kernel::hooks::session_start's systemMessage (absorbing work-item:0183, now abandoned), rebound skills/config/migrate/SKILL.md's invocation call sites, and cleared the SKILL_EXEMPT_SUBBINARIES/_KNOWN_PENDING_SKILL_BINDINGS interim carve-outs. Phase 8 (an earlier session): ported migration 0007 (the largest, only-interactive migration), unblocked because work-item:0195 shipped `accelerator corpus frontmatter validate` as an in-process corpus_adapters library (not a kept-alive shell script) — self_validate_structural/referential call it directly via a new MigrationContext::validate_frontmatter method. Full deviation list is in the Phase 8 Success Criteria section below. **This session, part 1 (ahead of Phase 9)**: closed the --list/--decisions-file gap Phase 8 flagged as a precondition of Phase 9's suite repointing — migrate::list, migrate::decisions_file, migrate-adapters::decisions_file_decision_source, and migrate-cli's env-var/flag resolution and existence checks are now real and tested end to end against migration 0007. Found and fixed a real bug in Phase 8's landed m0007/mod.rs while doing so: linkage_table() fed corpus::linkage's prose-token-matching functions an absolute, root-joined table instead of a repo-relative one, silently dropping every path-shaped body reference that wasn't already carrying an explicit frontmatter type: hint — full detail in the note appended to the end of the Phase 5 section. **This session, part 2 (Phase 9 point 1 only)**: built `tasks/lint/migrate_suite_inventory.py`, unit-tested against synthetic tmp_path trees (not a committed fixtures/ directory — see this phase's own deviation note for why), and ran it: **1,010** assertion sites across the six retiring suites, comfortably over the 400 threshold, recorded in `meta/inventories/0172-suite-audit.md` along with the threshold decision (narrow to test-migrate-0007.sh/test-migrate-interactive.sh/scripts/test-interactive-protocol.sh, repoint the other three wholesale). Found and disclosed a real limitation in the classification heuristic — see this phase's own deviation note — that changes the shape of the remaining points 3/4 work from a short black-box-rewrite list to a suite-level coverage audit against Phase 5's existing FixtureMigration tests. Points 2 (repointing)/3 (black-box rewrites)/4 (repointing the rest) and Phase 10 have not been started — paused here to report the measured scope back before committing to that larger effort."
 schema_version: 1
 ---
 
@@ -2436,14 +2436,14 @@ mapped to a named test in the inventory.
 
 #### Automated Verification:
 
-- [ ] `tasks/lint/tests/fixtures/migrate_suite_inventory/`'s synthetic
+- [x] `tasks/lint/tests/fixtures/migrate_suite_inventory/`'s synthetic
       corpus test passes — the extractor finds exactly the expected
       assertion set against known-form and known-tricky-non-match fixtures,
       run before the extractor is trusted against the real six suites
-- [ ] `tasks/lint/migrate_suite_inventory.py` runs in CI, asserts no
+- [x] `tasks/lint/migrate_suite_inventory.py` runs in CI, asserts no
       duplicate and no gap against a fresh extraction over every suite and
       retiring file named in Technical Notes
-- [ ] The recorded total and threshold decision are committed in
+- [x] The recorded total and threshold decision are committed in
       `meta/inventories/0172-suite-audit.md`
 - [ ] Every suite/assertion classified `repointable` is green in CI at a
       recorded commit, before any script it covers is deleted (an actual CI
@@ -2458,6 +2458,48 @@ mapped to a named test in the inventory.
 - [ ] Spot-review the inventory table for a handful of assertions to confirm
       the repointable/not-repointable classification reads correctly against
       the actual suite source
+
+**Deviations from the above, found during implementation (point 1 and the
+threshold decision only — points 3/4 and the remaining checkboxes above are
+not started):**
+
+- **The synthetic fixture corpus is `tmp_path`-based, inline in
+  `tests/unit/tasks/test_migrate_suite_inventory.py`, not a committed
+  directory at `tasks/lint/tests/fixtures/migrate_suite_inventory/`.**
+  Verified against the landed codebase before writing any test: this repo's
+  own closest analogue for a walk-and-classify gate
+  (`tasks/lint/call_site_migration.py`, tested by
+  `tests/unit/tasks/test_call_site_migration.py`) uses synthetic `tmp_path`
+  trees built inline via a `_write` helper, not a committed fixture
+  directory — no `tasks/lint/tests/` directory exists anywhere in the repo.
+  Followed the real, established convention rather than the plan's
+  pre-verification guess at one.
+- **The extractor's total (1,010 assertions) confirms the `>400` threshold
+  fires**, narrowing the exhaustive mapping to `test-migrate-0007.sh`,
+  `test-migrate-interactive.sh`, and `scripts/test-interactive-protocol.sh`,
+  with the other three suites repointed wholesale (point 4) rather than
+  exhaustively classified — recorded in
+  `meta/inventories/0172-suite-audit.md`.
+- **A real limitation in the classification heuristic, found and disclosed
+  rather than patched over**: it found zero not-repointable assertions in
+  `test-migrate-interactive.sh`, because it only inspects an assertion's own
+  statement text for a wire-protocol marker — it has no way to detect that
+  a whole *test*, not just one assertion, has no Rust equivalent because its
+  *fixture* is a synthetic bash migration script (`harness_emit_transformation`/
+  `migration_apply_decision` heredoc'd to disk and driven through
+  `run-migrations.sh`), a pattern `test-migrate-interactive.sh` uses
+  throughout instead of `test_*`-function decomposition. Widening the marker
+  list would only manufacture false confidence; the honest finding — full
+  detail in `meta/inventories/0172-suite-audit.md`'s "Classification
+  method, and its known limitation" section — is that confirming this
+  suite's ~265 assertions are covered requires reading each of its ~13
+  phase sections against the `FixtureMigration`-driven coverage already
+  landed in `cli/migrate/tests/engine.rs`/`list_and_decisions_file.rs`
+  (Phase 5's established pattern for exactly this class of scenario), not a
+  further mechanical extraction pass. This materially changes the shape of
+  points 3/4's remaining work from "black-box-rewrite a short not-repointable
+  list" to "audit the whole suite's coverage against existing Rust tests" —
+  flagged here rather than discovered only once that work was underway.
 
 ---
 
