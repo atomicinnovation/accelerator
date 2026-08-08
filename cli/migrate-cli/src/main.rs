@@ -2,29 +2,55 @@
 //! dispatched by the `accelerator` launcher.
 
 mod cli;
+mod render;
 
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use config_adapters::FileConfigStore;
+use migrate::ledger;
+use migrate_adapters::context::FileMigrationContext;
+use migrate_adapters::ledger_store::FileLedgerStore;
 
 use crate::cli::Cli;
+use crate::render::StdoutReporter;
 
-/// The state-mutating and enumeration flags all route through machinery later
-/// phases add (the ledger, the interactive engine); with an empty registry
-/// there is nothing yet for any of them to do, so each names itself rather
-/// than silently behaving like a default run.
+fn project_root() -> Result<std::path::PathBuf, kernel::Error> {
+    let cwd = std::env::current_dir().map_err(|error| {
+        kernel::Error::Failed(format!(
+            "could not read the current directory: {error}"
+        ))
+    })?;
+    Ok(FileConfigStore::discover_root(&cwd))
+}
+
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
-    if cli.skip.is_some()
-        || cli.unskip.is_some()
-        || cli.unapply.is_some()
-        || cli.list
-        || cli.decisions_file.is_some()
-    {
+    let root = project_root()?;
+    let ledger_store = FileLedgerStore::new(&root);
+
+    if let Some(id) = &cli.skip {
+        ledger::skip(&ledger_store, id)?;
+        println!("Skipped migration: {id}");
+        return Ok(());
+    }
+    if let Some(id) = &cli.unskip {
+        ledger::unskip(&ledger_store, id)?;
+        println!("Unskipped migration: {id}");
+        return Ok(());
+    }
+    if let Some(id) = &cli.unapply {
+        ledger::unapply(&ledger_store, id)?;
+        println!("Unapplied migration: {id}");
+        return Ok(());
+    }
+    if cli.list || cli.decisions_file.is_some() {
         return Err(kernel::Error::Failed("not yet implemented".to_owned()));
     }
-    if migrate::registry::registry().is_empty() {
-        println!("No pending migrations.");
-    }
+
+    let ctx = FileMigrationContext::new(&root);
+    let reporter = StdoutReporter;
+    let entries = migrate::registry::registry();
+    migrate::lifecycle::run_pending(&entries, &ctx, &ledger_store, &reporter)?;
     Ok(())
 }
 

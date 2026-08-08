@@ -11,7 +11,11 @@ use clap::Parser;
 
 /// The `accelerator-migrate` command-line surface.
 #[derive(Parser)]
-#[command(name = "accelerator-migrate", disable_version_flag = true)]
+#[command(
+    name = "accelerator-migrate",
+    disable_version_flag = true,
+    after_help = "Environment:\n  ACCELERATOR_MIGRATE_DECISIONS_FILE=<path>  Same as --decisions-file.\n  ACCELERATOR_MIGRATE_FORCE=1                Bypass the dirty-tree pre-flight."
+)]
 pub struct Cli {
     /// Mark migration <ID> skipped; do not run it.
     #[arg(long, value_name = "id")]

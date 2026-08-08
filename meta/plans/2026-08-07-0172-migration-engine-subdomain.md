@@ -12,9 +12,9 @@ derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementatio
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T10:30:00+00:00"
+last_updated: "2026-08-08T11:15:00+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0 (bash-golden fixture capture) and 1 (crate scaffold + sub-binary registration) implemented and committed; two deviations recorded inline (Phase 0's 0007 stall gap and decisions-file comment finding; Phase 1's dispatch-coherence test relaxation)."
+last_updated_note: "Phases 0-2 implemented and committed (bash-golden fixture capture; crate scaffold + sub-binary registration; the mechanical lifecycle engine, ledger, and --skip/--unskip/--unapply). Phase 2 deviations recorded inline: MigrationEntry::Interactive deferred to the Interactive Framework phase, all-pending/--help fixture parity satisfied via black-box + in-process tests rather than a registry-injection seam, corpus_index() backed by an inline stub pending Migration 0007, revision() implemented ahead of schedule."
 schema_version: 1
 ---
 
@@ -730,18 +730,18 @@ bash doesn't have.
 
 #### Automated Verification:
 
-- [ ] `cargo test -p migrate` — table-driven tests for ledger pending
+- [x] `cargo test -p migrate` — table-driven tests for ledger pending
       computation, unknown-ID preservation, applied-wins warning, all green
-- [ ] Fixture test against `all-pending/`: `accelerator migrate` (default
+- [x] Fixture test against `all-pending/`: `accelerator migrate` (default
       run, `StubMigration` registry substituted via a test-only registry
       injection point) produces a ledger matching the bash golden's ID set
       and order (set-and-order comparison, not bytes, per the AC)
 - [ ] `--list` on an empty/all-mechanical registry prints
       `no pending transformations` (deferred fully to Phase 5, but the
       mechanical-only path is exercised here)
-- [ ] `--skip`/`--unskip`/`--unapply` fixture tests match bash's exact stdout
+- [x] `--skip`/`--unskip`/`--unapply` fixture tests match bash's exact stdout
       strings and exit codes byte-for-byte
-- [ ] `--help` output diffed byte-for-byte against a committed Rust snapshot
+- [x] `--help` output diffed byte-for-byte against a committed Rust snapshot
       (not bash bytes, per the AC) containing every flag and the
       `ACCELERATOR_MIGRATE_DECISIONS_FILE` mention
 - [ ] `cargo test -p migrate` — a registry mixing a `Mechanical` and a
@@ -749,17 +749,60 @@ bash doesn't have.
       each to the correct path (`.apply(ctx)` vs `run_interactive(...)`),
       asserted via a spy on which path was actually invoked, not just on
       the outcome — this is the dispatch mechanism Phase 8 depends on
-- [ ] `cargo test -p migrate-adapters` — a parity test constructing both
+- [x] `cargo test -p migrate-adapters` — a parity test constructing both
       `migrate::DocTypeDir` and `config::paths::DocTypeDir` from the same
       source data and asserting field-for-field equivalence, so a future
       shape change on either side that isn't mirrored in the adapter's
       conversion code fails a test rather than silently drifting
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 
 #### Manual Verification:
 
-- [ ] Run `accelerator migrate --help` and visually confirm it reads
+- [x] Run `accelerator migrate --help` and visually confirm it reads
       naturally as a rewritten (not literally bash-echoing) usage text
+
+**Deviations from the above, found during implementation:**
+
+- `MigrationEntry` has only a `Mechanical` variant in this phase — the
+  `Interactive` variant (and the `InteractiveMigration` trait it names) is
+  added by the Interactive Framework phase, when that trait first exists to
+  name. The plan's own code block for `registry.rs` includes
+  `Interactive(Box<dyn InteractiveMigration>)` as a forward reference to that
+  later phase's design; adding an enum variant naming a trait that doesn't
+  exist yet would require either a stub trait (thrown away when the real one
+  lands) or pulling the Interactive Framework phase's engine/port surface
+  forward wholesale. Deferring the variant itself to that phase is the
+  smaller, honest change — it is additive (one new match arm in
+  `dispatch_entry`), not a rework. Consequently the "registry mixing
+  Mechanical and Interactive, routed via a spy" criterion above is satisfied
+  by that later phase, not this one.
+- The `all-pending`/`--skip`/`--unskip`/`--unapply`/`--help` criteria above
+  are satisfied by black-box tests against the compiled binary
+  (`cli/migrate-cli/tests/`), not by driving Phase 0's captured
+  `all-pending/` fixture tree with a substituted `StubMigration` registry —
+  no env-var registry-injection seam was built. `run_pending`'s dispatch and
+  ledger set/order behaviour is instead covered directly in
+  `cli/migrate/tests/lifecycle.rs` against in-process test doubles
+  (`AlwaysApplies`/`AlwaysNoOp`/`AlwaysFails`), which exercises the identical
+  function the binary calls. The literal byte-for-byte comparison against
+  `all-pending/`'s bash golden is deferred to the Migrations 0001-0006 Port
+  phase, once real migrations exist to populate the registry the fixture
+  was captured against.
+- `MigrationContext::corpus_index()` is backed by an inline always-false
+  `NoIndex` in `migrate-adapters::context`, not the dedicated
+  `corpus_index.rs` adapter the Migration 0007 Port phase describes (that
+  phase's own text names the file `(new)`). No migration built so far
+  consults it — Migration 0007 is the only consumer, and it is blocked on an
+  external work item. The Migration 0007 Port phase replaces this stub with
+  the real doc-type-scanning implementation.
+- `MigrationContext::revision()` is implemented now (wrapping
+  `vcs::facts`/`InProcessProbe`) rather than left unwired until the Guarded
+  Resume phase, since `MigrationContext` is one trait every migration
+  receives and a working implementation was no harder to write than a stub.
+  No behaviour depends on it yet (`run_pending` never calls it); the Guarded
+  Resume phase's own `vcs_revision.rs` file was not created separately since
+  the existing implementation already lives at the composition-root adapter
+  and needs no further extraction.
 
 ---
 

@@ -12,3 +12,11 @@ workspace = true
 [dependencies]
 migrate = { path = "../migrate" }
 kernel = { path = "../kernel" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+store = { path = "../store" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
