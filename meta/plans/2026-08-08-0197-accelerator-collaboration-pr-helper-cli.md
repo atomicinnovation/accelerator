@@ -1497,17 +1497,21 @@ a zero floor, not removed, mirroring how `decisions` was handled.
 
 #### Automated Verification:
 
-- [ ] `mise run test:integration:github` passes (exits 0, discovers 0
+- [x] `mise run test:integration:github` passes (exits 0, discovers 0
       shell suites, floor is 0)
-- [ ] A repo-wide grep confirms no remaining reference to either removed
+- [x] A repo-wide grep confirms no remaining reference to either removed
       script outside `meta/` planning documents:
       `grep -rn 'pr-base-repo.sh\|pr-update-body.sh' skills/ hooks/ scripts/`
       returns nothing
-- [ ] `mise run check`
+- [x] `mise run check` (found and fixed one thing not named in this plan:
+      `tasks/lint/scripts.py`'s `SHELL_LIBRARIES` carried a
+      `skills/github/scripts/test-helpers.sh` entry that became stale the
+      moment the file was deleted — `lint:scripts:exec-bits:check` catches
+      exactly this, per its own design; removed the entry)
 
 #### Manual Verification:
 
-- [ ] None beyond Phase 6's — this phase only deletes now-dead code.
+- [x] None beyond Phase 6's — this phase only deletes now-dead code.
 
 ---
 

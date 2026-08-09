@@ -261,7 +261,6 @@ _RECONCILED_LIBRARIES = frozenset(
         "scripts/test-helpers.sh",
         "scripts/accelerator-scaffold.sh",
         "skills/config/migrate/scripts/interactive-lib.sh",
-        "skills/github/scripts/test-helpers.sh",
         "skills/work/scripts/work-item-bridge-codes.sh",
         "skills/integrations/jira/scripts/jira-common.sh",
         "skills/integrations/jira/scripts/jira-auth.sh",
