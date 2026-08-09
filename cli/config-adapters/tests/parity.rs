@@ -32,6 +32,15 @@ fn materialise(name: &str) -> TempDir {
         &fixtures().join(name).join(".accelerator"),
         &dir.path().join(".accelerator"),
     );
+    let local = dir.path().join(".accelerator/config.local.md");
+    if local.is_file() {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(
+            &local,
+            std::fs::Permissions::from_mode(0o600),
+        )
+        .unwrap();
+    }
     dir
 }
 

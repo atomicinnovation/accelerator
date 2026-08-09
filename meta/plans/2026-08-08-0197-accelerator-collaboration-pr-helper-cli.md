@@ -365,7 +365,7 @@ single machine).
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `mise run test:unit:cli` (new `EXTRA_KEYS` test;
+- [x] Unit tests pass: `mise run test:unit:cli` (new `EXTRA_KEYS` test;
       new `FileConfigStore` tests covering **both** `ReadConfigLevel::read`
       and `ReadContent::config_body`: a `Level::Personal` read at exactly
       0600 succeeds, a read at a stricter-than-0600 mode (e.g. 0400) also
@@ -373,22 +373,22 @@ single machine).
       variant, a symlinked personal file fails the same way, a missing
       personal file is unaffected, and `Level::Team` reads are unaffected
       regardless of mode)
-- [ ] Component check passes: `mise run cli:check`
-- [ ] Config drift/dump behaviour unaffected:
+- [x] Component check passes: `mise run cli:check`
+- [x] Config drift/dump behaviour unaffected:
       `mise run test:integration:config`
 
 #### Manual Verification:
 
-- [ ] `accelerator config dump` shows `github.token`/`github.token_cmd` as
+- [x] `accelerator config dump` shows `github.token`/`github.token_cmd` as
       `*(set — hidden)*` once a value is configured, and unset otherwise
       (the existing leaf-name-based hiding in
       `cli/launcher/src/config_command/core/dump.rs`'s `extra_row` applies
       automatically — no code change needed there, only verify it).
-- [ ] Setting a value via `accelerator config set --local` produces a
+- [x] Setting a value via `accelerator config set --local` produces a
       `config.local.md` at mode 0600 (already true today — verify, not
       implement), and any `accelerator config`/dispatched sub-binary
       command that reads it succeeds.
-- [ ] Manually widening `config.local.md`'s permissions (e.g. `chmod 640`)
+- [x] Manually widening `config.local.md`'s permissions (e.g. `chmod 640`)
       and confirming any command that reads personal-level config fails
       clearly, naming the required `chmod 600` fix; restoring 0600
       resolves it.

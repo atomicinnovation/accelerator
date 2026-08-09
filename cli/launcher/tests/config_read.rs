@@ -45,6 +45,18 @@ impl Fixture {
         Ok(self)
     }
 
+    /// Writes the personal-level config file at the mode a real
+    /// `accelerator config set --local` always produces, so a fixture read
+    /// exercises ordinary resolution rather than the permission guard.
+    fn local(self, body: &str) -> Result<Self, Box<dyn Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::create_dir_all(self.root.join(".accelerator"))?;
+        let path = self.root.join(".accelerator/config.local.md");
+        fs::write(&path, body)?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        Ok(self)
+    }
+
     fn legacy(self, body: &str) -> Result<Self, Box<dyn Error>> {
         fs::create_dir_all(self.root.join(".claude"))?;
         fs::write(self.root.join(".claude/accelerator.md"), body)?;
@@ -101,7 +113,12 @@ fn workspace(name: &str) -> Result<Workspace, Box<dyn Error>> {
     for name in ["config.md", "config.local.md"] {
         let file = src.join(name);
         if file.exists() {
-            fs::copy(&file, root.join(".accelerator").join(name))?;
+            let dest = root.join(".accelerator").join(name);
+            fs::copy(&file, &dest)?;
+            if name == "config.local.md" {
+                use std::os::unix::fs::PermissionsExt as _;
+                fs::set_permissions(&dest, fs::Permissions::from_mode(0o600))?;
+            }
         }
     }
     for subtree in ["skills", "lenses", "tmp"] {
@@ -1514,11 +1531,7 @@ const OVERRIDE_LOCAL: &str = "---\ncore:\n  key: personalval\n---\n";
 
 #[test]
 fn explain_names_both_files_and_attributes_to_personal() -> TestResult {
-    let fixture = Fixture::new()?.team(OVERRIDDEN)?;
-    fs::write(
-        fixture.root.join(".accelerator/config.local.md"),
-        OVERRIDE_LOCAL,
-    )?;
+    let fixture = Fixture::new()?.team(OVERRIDDEN)?.local(OVERRIDE_LOCAL)?;
     let with = fixture.run(&["config", "get", "core.key", "--explain"])?;
     let without = fixture.run(&["config", "get", "core.key"])?;
     // stdout is byte-identical with and without --explain.

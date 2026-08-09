@@ -13,6 +13,8 @@ fn repo_root() -> PathBuf {
 
 /// A throwaway project whose config overrides exercise both levels.
 fn seed_project(dir: &Path) {
+    use std::os::unix::fs::PermissionsExt as _;
+
     let acc = dir.join(".accelerator");
     std::fs::create_dir_all(acc.join("tmp")).unwrap();
     std::fs::write(acc.join("tmp/.gitignore"), "").unwrap();
@@ -25,11 +27,11 @@ fn seed_project(dir: &Path) {
          work:\n  id_pattern: \"{project}-{number:04d}\"\n  default_project_code: ENG\n---\n",
     )
     .unwrap();
-    std::fs::write(
-        acc.join("config.local.md"),
-        "---\ntemplates:\n  adr: local/adr.md\n---\n",
-    )
-    .unwrap();
+    let local = acc.join("config.local.md");
+    std::fs::write(&local, "---\ntemplates:\n  adr: local/adr.md\n---\n")
+        .unwrap();
+    std::fs::set_permissions(&local, std::fs::Permissions::from_mode(0o600))
+        .unwrap();
 }
 
 fn compose(dir: &Path) -> accelerator_visualiser::config::Config {

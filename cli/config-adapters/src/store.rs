@@ -171,6 +171,27 @@ impl FileConfigStore {
     }
 }
 
+/// A personal-level config file is treated as sensitive-by-convention as a
+/// whole (like SSH keys or `.netrc`): every read refuses a file that is a
+/// symlink or whose mode grants any group/other access, regardless of which
+/// key or body content is being read. A missing file is not an error here —
+/// it means no personal-level values, exactly as today.
+///
+/// The actual permission/symlink check is `store`'s (infrastructure, not
+/// domain), since it is a POSIX-specific concept the `config` domain crate
+/// itself must not need to know about — only `to_config_error` (below)
+/// translates its `WriteError::InsecurePermissions` into this crate's own
+/// `ConfigError::Invalid`.
+fn require_secure_personal_file(
+    level: Level,
+    path: &Path,
+) -> Result<(), ConfigError> {
+    if level != Level::Personal {
+        return Ok(());
+    }
+    store::require_owner_only_permissions(path).map_err(to_config_error)
+}
+
 /// The plugin installation root from `ACCELERATOR_PLUGIN_ROOT`, for
 /// [`FileConfigStore::with_plugin_root`]; `None` when unset.
 ///
@@ -186,6 +207,7 @@ pub fn plugin_root_from_env() -> Option<PathBuf> {
 impl ReadConfigLevel for FileConfigStore {
     fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
         let path = self.level_path(level);
+        require_secure_personal_file(level, &path)?;
         let permitted_root = self.permitted_root();
         store::ensure_contained(&path, &self.bounds(&permitted_root))
             .map_err(to_config_error)?;
@@ -235,6 +257,7 @@ impl WriteConfigLevel for FileConfigStore {
 impl ReadContent for FileConfigStore {
     fn config_body(&self, level: Level) -> Result<Option<String>, ConfigError> {
         let path = self.level_path(level);
+        require_secure_personal_file(level, &path)?;
         let permitted_root = self.permitted_root();
         Ok(read_within(&path, &self.bounds(&permitted_root))?
             .map(|content| extract_body(&content)))
@@ -722,6 +745,15 @@ fn to_config_error(error: WriteError) -> ConfigError {
             detail: "atomic rename crossed a filesystem boundary".to_owned(),
         },
         WriteError::Io { path, detail } => ConfigError::Io { path, detail },
+        // A caller-fixable local-environment problem (the same category as
+        // `ConfigError::Invalid`), not a transient/degradable `Io` failure —
+        // needs its own arm ahead of the catch-all below, which maps to
+        // `Io` and would otherwise misclassify it as non-refusal.
+        error @ WriteError::InsecurePermissions { .. } => {
+            ConfigError::Invalid {
+                detail: error.to_string(),
+            }
+        }
         other => ConfigError::Io {
             path: String::new(),
             detail: other.to_string(),
@@ -1002,7 +1034,7 @@ mod tests {
     }
 
     #[test]
-    fn a_personal_write_clamps_a_preexisting_wider_mode(
+    fn a_personal_write_against_an_insecure_preexisting_file_is_refused(
     ) -> Result<(), TestError> {
         use std::os::unix::fs::PermissionsExt as _;
         let root = tempdir()?;
@@ -1013,15 +1045,18 @@ mod tests {
             fs::Permissions::from_mode(0o644),
         )?;
         let store = FileConfigStore::at(&root);
-        service(&store).set(
-            &Key::parse("jira.token")?,
-            "new",
-            Level::Personal,
-        )?;
+        assert!(matches!(
+            service(&store).set(
+                &Key::parse("jira.token")?,
+                "new",
+                Level::Personal,
+            ),
+            Err(ConfigError::Invalid { .. })
+        ));
         assert_eq!(
             mode_of(&root.join(".accelerator/config.local.md"))?,
-            0o600,
-            "a personal write must clamp a world-readable file to 0600"
+            0o644,
+            "a refused write must not touch the existing file's mode"
         );
         Ok(())
     }
@@ -1082,8 +1117,171 @@ mod tests {
         let store = FileConfigStore::at(&root);
         assert!(matches!(
             store.read(Level::Personal),
-            Err(ConfigError::UnsafePath { .. })
+            Err(ConfigError::Invalid { .. })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_read_at_exactly_0600_succeeds() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(&root, "config.local.md", "---\njira:\n  token: x\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o600),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(store.read(Level::Personal)?.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_read_stricter_than_0600_succeeds() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(&root, "config.local.md", "---\njira:\n  token: x\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o400),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(store.read(Level::Personal)?.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_read_looser_than_0600_is_refused() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(&root, "config.local.md", "---\njira:\n  token: x\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o644),
+        )?;
+        let store = FileConfigStore::at(&root);
+        let Err(error) = store.read(Level::Personal) else {
+            return Err("expected an insecure-permissions refusal".into());
+        };
+        assert!(matches!(error, ConfigError::Invalid { .. }));
+        assert!(error.to_string().contains("644"), "{error}");
+        Ok(())
+    }
+
+    #[test]
+    fn a_missing_personal_file_read_is_unaffected_by_the_permission_check(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let store = FileConfigStore::at(root.path());
+        assert!(store.read(Level::Personal)?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn a_team_read_is_unaffected_by_a_loose_mode() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(&root, "config.md", "---\ncore:\n  example: x\n---\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.md"),
+            fs::Permissions::from_mode(0o644),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(store.read(Level::Team)?.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_config_body_read_at_0600_succeeds() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(
+            &root,
+            "config.local.md",
+            "---\njira:\n  token: x\n---\nbody\n",
+        )?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o600),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert_eq!(
+            store.config_body(Level::Personal)?,
+            Some("body".to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_personal_config_body_read_looser_than_0600_is_refused(
+    ) -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(
+            &root,
+            "config.local.md",
+            "---\njira:\n  token: x\n---\nbody\n",
+        )?;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o640),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.config_body(Level::Personal),
+            Err(ConfigError::Invalid { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_symlinked_personal_file_is_refused_on_config_body_read(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        let outside = root.join("outside.md");
+        fs::write(&outside, "---\njira:\n  token: stolen\n---\nbody\n")?;
+        fs::create_dir_all(root.join(".accelerator"))?;
+        std::os::unix::fs::symlink(
+            &outside,
+            root.join(".accelerator/config.local.md"),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert!(matches!(
+            store.config_body(Level::Personal),
+            Err(ConfigError::Invalid { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_missing_personal_file_config_body_read_is_unaffected_by_the_permission_check(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let store = FileConfigStore::at(root.path());
+        assert!(store.config_body(Level::Personal)?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn a_team_config_body_read_is_unaffected_by_a_loose_mode(
+    ) -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(&root, "config.md", "---\ncore:\n  example: x\n---\nbody\n")?;
+        fs::set_permissions(
+            root.join(".accelerator/config.md"),
+            fs::Permissions::from_mode(0o644),
+        )?;
+        let store = FileConfigStore::at(&root);
+        assert_eq!(store.config_body(Level::Team)?, Some("body".to_owned()));
         Ok(())
     }
 

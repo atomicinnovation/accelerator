@@ -125,6 +125,8 @@ pub const EXTRA_KEYS: &[&str] = &[
     "jira.token_cmd",
     "linear.token",
     "linear.token_cmd",
+    "github.token",
+    "github.token_cmd",
     "visualiser.editor",
     "visualiser.editor_project",
     "visualiser.binary",
@@ -248,8 +250,8 @@ mod tests {
     use std::process::Command;
 
     use super::{
-        default_for, Default, AGENT_KEYS, DOC_TYPES, PATH_KEYS, REVIEW_KEYS,
-        TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
+        default_for, Default, AGENT_KEYS, DOC_TYPES, EXTRA_KEYS, PATH_KEYS,
+        REVIEW_KEYS, TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
     };
     use crate::node::Scalar;
     use crate::service::Value;
@@ -319,6 +321,12 @@ mod tests {
     #[test]
     fn default_for_an_unrecognised_key_is_none() {
         assert_eq!(default_for("no.such.key"), None);
+    }
+
+    #[test]
+    fn extra_keys_declares_the_github_credential_keys() {
+        assert!(EXTRA_KEYS.contains(&"github.token"));
+        assert!(EXTRA_KEYS.contains(&"github.token_cmd"));
     }
 
     #[test]

@@ -31,6 +31,7 @@ pub enum WriteError {
     CrossFilesystem { path: String },
     UnsafePath { path: String },
     Io { path: String, detail: String },
+    InsecurePermissions { path: String, mode: u32 },
 }
 
 impl std::fmt::Display for WriteError {
@@ -50,6 +51,12 @@ impl std::fmt::Display for WriteError {
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")
             }
+            Self::InsecurePermissions { path, mode } => write!(
+                formatter,
+                "refusing to read '{path}': mode {mode:03o} is wider than \
+                 0600 or the path is a symlink; run 'chmod 600 {path}' to \
+                 fix it"
+            ),
         }
     }
 }
@@ -154,6 +161,33 @@ pub fn read_within(
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         Err(error) => Err(io(path, &error)),
     }
+}
+
+/// Refuses `path` if it is a symlink or its mode grants any group/other
+/// access.
+///
+/// This is the personal-config-file security convention, factored out here
+/// so any future caller treating a file as secret-by-convention can share
+/// it. `Ok(())` when `path` does not exist: absence is not insecurity.
+///
+/// # Errors
+/// Returns [`WriteError::InsecurePermissions`] when the check fails, or
+/// [`WriteError::Io`] when the metadata cannot be read for any other
+/// reason.
+pub fn require_owner_only_permissions(path: &Path) -> Result<(), WriteError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(io(path, &error)),
+    };
+    let mode = metadata.permissions().mode() & 0o777;
+    if metadata.is_symlink() || mode & 0o077 != 0 {
+        return Err(WriteError::InsecurePermissions {
+            path: show(path),
+            mode,
+        });
+    }
+    Ok(())
 }
 
 /// Canonicalises `path` by resolving its deepest existing ancestor and
@@ -299,7 +333,8 @@ mod tests {
 
     use super::{
         atomic_write, classify_persist_error, ensure_contained, read_within,
-        stage, NewFileMode, WriteBounds, WriteError,
+        require_owner_only_permissions, stage, NewFileMode, WriteBounds,
+        WriteError,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -623,6 +658,82 @@ mod tests {
             NewFileMode::PreserveOr(0o644),
         )?;
         assert_eq!(fs::read(real.join(".accelerator/config.md"))?, b"x");
+        Ok(())
+    }
+
+    #[test]
+    fn owner_only_permissions_at_exactly_0600_are_accepted(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("secret.md");
+        fs::write(&path, b"x")?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        require_owner_only_permissions(&path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn owner_only_permissions_stricter_than_0600_are_accepted(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("secret.md");
+        fs::write(&path, b"x")?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o400))?;
+        require_owner_only_permissions(&path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn a_missing_path_is_accepted() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        require_owner_only_permissions(&dir.path().join("absent.md"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn group_or_other_permissions_are_refused_with_the_mode(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("secret.md");
+        fs::write(&path, b"x")?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644))?;
+        assert!(matches!(
+            require_owner_only_permissions(&path),
+            Err(WriteError::InsecurePermissions { mode: 0o644, .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_symlink_is_refused_regardless_of_its_target_mode(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("real.md");
+        fs::write(&target, b"x")?;
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o600))?;
+        let link = dir.path().join("secret.md");
+        std::os::unix::fs::symlink(&target, &link)?;
+        assert!(matches!(
+            require_owner_only_permissions(&link),
+            Err(WriteError::InsecurePermissions { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn the_insecure_permissions_message_names_the_path_mode_and_fix(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("secret.md");
+        fs::write(&path, b"x")?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644))?;
+        let Err(error) = require_owner_only_permissions(&path) else {
+            return Err("expected an insecure-permissions refusal".into());
+        };
+        let rendered = error.to_string();
+        assert!(rendered.contains(&path.display().to_string()));
+        assert!(rendered.contains("644"));
+        assert!(rendered.contains(&format!("chmod 600 {}", path.display())));
         Ok(())
     }
 }

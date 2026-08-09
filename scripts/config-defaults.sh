@@ -212,6 +212,8 @@ EXTRA_KEYS=(
   "jira.token_cmd"
   "linear.token"
   "linear.token_cmd"
+  "github.token"
+  "github.token_cmd"
   "visualiser.editor"
   "visualiser.editor_project"
   "visualiser.binary"
