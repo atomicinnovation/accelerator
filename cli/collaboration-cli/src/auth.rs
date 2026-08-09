@@ -18,6 +18,9 @@ pub enum TokenSource {
 
 pub struct ResolvedToken {
     pub value: String,
+    /// Which precedence step resolved the token — asserted per-branch by
+    /// this module's own tests; not yet read by any caller.
+    #[allow(dead_code)]
     pub source: TokenSource,
 }
 

@@ -7,8 +7,7 @@ argument-hint: "[PR number or URL]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/describe-pr/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr update-body *)
 ---
 
 # Generate PR Description
@@ -168,19 +167,19 @@ potential impacts)
   3. Ensure the tmp directory exists: `mkdir -p {tmp directory}`
   4. Write everything after the closing `---` line to
      `{tmp directory}/pr-body-{number}.md`
-  5. Post the body via the helper script, which resolves the base
+  5. Post the body via the helper binary, which resolves the base
      (upstream) repository for cross-fork safety and PATCHes via the
-     GitHub REST API:
-     `${CLAUDE_PLUGIN_ROOT}/skills/github/describe-pr/scripts/pr-update-body.sh {number} {tmp directory}/pr-body-{number}.md`
-     If the helper exits non-zero, surface its stderr verbatim to the
-     user — it includes preserved `gh` error text and, where applicable,
-     a `gh repo set-default` remediation hint. Exit codes:
-     - **Exit 1** → encode failed (`pr-update-body.sh:` stderr prefix)
-       OR resolver-resolution failed (`pr-base-repo.sh:` prefix)
-     - **Exit 2** → usage error / missing jq
-     - **Exit 4** → PATCH failed
-     The stderr prefix identifies which stage failed when exit code
-     alone is ambiguous.
+     GitHub REST API in-process:
+     ```bash
+     ${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr update-body {number} --body-file {tmp directory}/pr-body-{number}.md
+     ```
+     If the command exits non-zero, surface its stderr verbatim to the
+     user. Exit codes:
+     - **Exit 2** → usage/refusal — e.g. missing `--body-file`, no
+       `origin` remote configured
+     - **Exit 1** → any other failure — base-repo resolution failure,
+       body-file read failure, GitHub REST API failure
+     stderr always names which stage failed.
   6. Clean up `{tmp directory}/pr-body-{number}.md`
 - Confirm the update was successful
 - If any verification steps remain unchecked, remind the user to complete

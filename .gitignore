@@ -48,6 +48,7 @@ bin/visualiser-*
 bin/vcs-*
 bin/work-*
 bin/corpus-*
+bin/collaboration-*
 bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log

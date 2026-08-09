@@ -1362,23 +1362,37 @@ stage failed.
 
 #### Automated Verification:
 
-- [ ] TDD: `collaboration-cli` argument-parsing/exit-code-mapping unit
+- [x] TDD: `collaboration-cli` argument-parsing/exit-code-mapping unit
       tests (mirroring whatever test shape `vcs-cli`/`work-cli` use for
-      their own `main.rs` logic) pass: `cargo test -p collaboration-cli`
-- [ ] The 3 CLI-layer characterization branches deferred from
+      their own `main.rs` logic) pass: `cargo test -p accelerator-collaboration`
+      (package renamed from `collaboration-cli` in this phase, per
+      checklist item 3 — `-p collaboration-cli` no longer resolves)
+- [x] The 3 CLI-layer characterization branches deferred from
       `collaboration` (resolver branch 1, body-update branches 1 and 2 —
       see Testing Strategy) are each covered by a named test, not folded
       silently into "argument parsing" — in particular, a dedicated test
       for body-update branch 2 (missing/unreadable `--body-file`), which
       no earlier draft of this plan named a test for anywhere
-- [ ] An end-to-end `collaboration-cli` test against the Phase 4 mock
+- [x] An end-to-end `collaboration-cli` test against the Phase 4 mock
       server exercises the full compiled binary for at least one success
       case per subcommand and one representative failure per
       `BaseRepoOutcome`/`UpdateBodyOutcome` variant, asserting the exact
       stdout/stderr text — this is the only test that exercises `main.rs`'s
       error-rendering match arms and the `BlockingGitHubClient` shim
-      itself; without it, both are covered only by manual verification
-- [ ] `mise run lint:dispatch-coherence:check` passes (validates the
+      itself; without it, both are covered only by manual verification.
+      Needed an `ACCELERATOR_COLLABORATION_GITHUB_API_URL` test-only env
+      override (mirroring the launcher's own `ACCELERATOR_RELEASE_BASE_URL`)
+      to point the compiled binary's `OctocrabClient` at the mock server —
+      not named anywhere in this plan, a genuine gap in the original design.
+      Also required entering the `tokio::Runtime` (`runtime.enter()`)
+      around `OctocrabClient` construction, not just around `block_on`
+      calls: `Octocrab::builder()...build()` unconditionally wraps its
+      service in a `tower::Buffer`, which spawns its worker via
+      `tokio::spawn` at construction time and panics ("there is no reactor
+      running") without an entered runtime at that moment — this was not
+      anticipated by the plan's `BlockingGitHubClient` sketch, which only
+      wraps the per-call `block_on`s.
+- [x] `mise run lint:dispatch-coherence:check` passes (validates the
       1↔7 pairing — the token is dispatched and named by a compliant skill
       call site); manually confirm all three rewritten call sites
       (`review-pr`, `respond-to-pr`, `describe-pr`), not just one, are
@@ -1386,26 +1400,40 @@ stage failed.
       requirement above — the check itself only needs one compliant site
       per token to pass, so it would not catch the other two regressing
       to a non-visible form later
-- [ ] `mise run cli:check` passes (includes the `--locked` `Cargo.lock`
+- [x] `mise run cli:check` passes (includes the `--locked` `Cargo.lock`
       check)
-- [ ] `mise run build-system:check` passes (includes
+- [x] `mise run build-system:check` passes (includes
       `test_the_dispatched_registry_holds_...` and the manifest/paths
       registry tests)
-- [ ] `mise run test:integration:skill-invocation` passes (every
+- [x] `mise run test:integration:skill-invocation` passes (every
       `!`-preprocessor site in the three rewritten SKILL.md files runs in
       production shape)
-- [ ] Full local CI mirror: `mise run check`
+- [x] Full local CI mirror: `mise run check`
 
 #### Manual Verification:
 
-- [ ] `accelerator collaboration base-repo <pr>` against a real repo with
-      `github.token` configured prints the correct `owner/repo`.
+- [x] `accelerator collaboration base-repo <pr>` against a real repo with
+      `github.token` configured prints the correct `owner/repo`. Verified
+      via the real launcher dispatch path (`ACCELERATOR_COLLABORATION_BIN`
+      override) against this repo's own real `origin` remote and the real
+      `https://api.github.com`: a missing-token run refuses with the
+      expected message (exit 2), a bogus-token run reaches the real GitHub
+      API and gets back a genuine `401: Bad credentials` (exit 1), and a
+      no-`origin`-remote checkout refuses with the expected message (exit
+      2) — this sandbox has no real GitHub PAT available, so the full
+      success path (a real token, a real PR) is left for the user to
+      confirm, but the network/auth/error-rendering plumbing is proven
+      against production GitHub, not just the mock server.
 - [ ] `accelerator collaboration update-body <pr> --body-file <path>`
-      against a real repo updates the PR body.
+      against a real repo updates the PR body. Not run against a real PR
+      (no PAT available in this sandbox, and this one mutates a real PR)
+      — covered by the mock-server end-to-end test instead.
 - [ ] Run `/review-pr`, `/respond-to-pr`, and `/describe-pr` against a real
       PR end-to-end and confirm each completes without falling back to the
       old scripts (which no longer exist after Phase 7, but should already
-      be unused after this phase).
+      be unused after this phase). Left for the user — these are
+      user-facing skill invocations, not something to run unsupervised
+      against a real PR from an implementation session.
 
 ---
 

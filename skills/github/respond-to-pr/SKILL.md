@@ -6,7 +6,7 @@ description: Respond to pull request review feedback interactively, working
 argument-hint: "[PR number or URL]"
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo *)
 ---
 
 # Respond to PR
@@ -64,7 +64,7 @@ the user's input.
 
 3. **Get repo info and current user**:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/pr-base-repo.sh {number}
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo {number}
    gh api user --jq '.login'
    ```
 

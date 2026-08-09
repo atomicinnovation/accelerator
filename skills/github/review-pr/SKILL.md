@@ -7,7 +7,7 @@ argument-hint: "[PR number or URL]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/*)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo *)
 ---
 
 # Review PR
@@ -122,7 +122,9 @@ the user's input.
 5. **Fetch additional metadata for the Reviews API**:
    ```bash
    gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {tmp directory}/pr-review-{number}/head-sha.txt
-   ${CLAUDE_PLUGIN_ROOT}/skills/github/scripts/pr-base-repo.sh {number} > {tmp directory}/pr-review-{number}/repo-info.txt
+   ```
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo {number} > {tmp directory}/pr-review-{number}/repo-info.txt
    ```
 
    Where `{owner}` and `{repo}` are extracted from the PR metadata already
@@ -132,13 +134,15 @@ the user's input.
 
 - **`gh` not installed or not authenticated**: Inform the user that the `gh`
   CLI is required and suggest running `gh auth login` to authenticate.
-- **No default remote repository**: Instruct the user to run
+- **No default remote repository (`gh`-specific)**: Instruct the user to run
   `gh repo set-default` and select the appropriate repository (mirrors the
-  pattern in `/describe-pr`).
-- **Cannot determine base repo owner/name**: If `pr-base-repo.sh` exits
-  non-zero, surface its stderr verbatim — it preserves the underlying
-  `gh` error and includes a `gh repo set-default` remediation hint when
-  applicable.
+  pattern in `/describe-pr`) — this is `gh`'s own default-repo setting,
+  distinct from the `collaboration` binary's own `origin`-remote-based
+  resolution below.
+- **Cannot determine base repo owner/name**: If `accelerator collaboration
+  pr base-repo` exits non-zero, surface its stderr verbatim (non-zero exit;
+  exit code 2 for a usage/refusal such as no `origin` remote configured,
+  1 for any other failure, e.g. a GitHub API error).
 - **Invalid PR number or PR not found**: Inform the user that the PR could not
   be found and suggest checking the number. If on a branch with no PR, list
   open PRs with `gh pr list --limit 10` and ask the user to select one.

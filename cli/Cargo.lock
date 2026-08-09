@@ -26,6 +26,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-collaboration"
+version = "1.24.0-pre.33"
+dependencies = [
+ "clap",
+ "collaboration",
+ "config",
+ "config-adapters",
+ "github",
+ "http",
+ "kernel",
+ "tempfile",
+ "tokio",
+ "vcs",
+ "vcs-adapters",
+]
+
+[[package]]
 name = "accelerator-corpus"
 version = "1.24.0-pre.33"
 dependencies = [
@@ -675,14 +692,6 @@ version = "1.24.0-pre.33"
 dependencies = [
  "kernel",
  "vcs",
-]
-
-[[package]]
-name = "collaboration-cli"
-version = "1.24.0-pre.33"
-dependencies = [
- "config",
- "kernel",
 ]
 
 [[package]]
@@ -3142,7 +3151,6 @@ dependencies = [
  "cfg-if",
  "chrono",
  "futures",
- "futures-util",
  "getrandom 0.2.17",
  "http",
  "http-body",
