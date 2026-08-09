@@ -98,6 +98,7 @@ export default defineConfig({
             'migrations',
             'releases-and-compatibility',
             'visualiser',
+            'collaboration',
           ],
         },
         {

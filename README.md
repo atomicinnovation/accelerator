@@ -57,6 +57,10 @@ The full documentation site is published at
 - [Corpus CLI](https://atomicinnovation.github.io/accelerator/corpus/) — the
   `accelerator corpus` sub-binary skills and migrations use to read and write
   `meta/`.
+- [Collaboration
+  CLI](https://atomicinnovation.github.io/accelerator/collaboration/) — the
+  `accelerator collaboration` sub-binary the GitHub PR skills use to resolve a
+  PR's base repository and update its body.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —

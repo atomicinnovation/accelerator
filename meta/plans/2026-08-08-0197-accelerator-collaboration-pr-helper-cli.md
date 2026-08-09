@@ -5,14 +5,14 @@ title: "accelerator-collaboration: PR Helper CLI Implementation Plan"
 date: "2026-08-08T16:10:01+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0197"
 parent: "work-item:0197"
 derived_from: ["codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"]
 tags: [rust, collaboration, cli, github, gh, octocrab]
 revision: "32ea3631c3796388be454a7eceeecf9c0d9c26be"
 repository: accelerator
-last_updated: "2026-08-08T21:49:24+00:00"
+last_updated: "2026-08-09T09:15:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1586,17 +1586,25 @@ first time is likely to land on.
 
 #### Automated Verification:
 
-- [ ] `mise run docs:check` passes (not part of the aggregate `check`
-      task — run manually per project convention)
+- [x] `mise run docs:check` passes (not part of the aggregate `check`
+      task — run manually per project convention). Includes `astro build`'s
+      own link validator: "All internal links are valid", 101 pages built
+      including the new `/collaboration/index.html`.
 
 #### Manual Verification:
 
-- [ ] The new docs page renders correctly via `mise run docs:build` and a
-      local preview.
-- [ ] `review-a-pr.mdx`'s Prerequisites section lists both the `gh` auth
+- [x] The new docs page renders correctly via `mise run docs:build` and a
+      local preview — confirmed via `docs:check`'s `astro build` run
+      (static HTML generated, search index built, sitemap generated, zero
+      broken internal links); a full browser preview is left for the user.
+- [x] `review-a-pr.mdx`'s Prerequisites section lists both the `gh` auth
       requirement and the new `github.token`/env-var requirement, and a
       reader following only the old bullets would still hit a clear,
-      actionable error (not a confusing one) if they skipped the new one.
+      actionable error (not a confusing one) if they skipped the new one
+      — confirmed against Phase 6's manual verification, where an
+      unconfigured token produces "no github.token configured: set
+      github.token or github.token_cmd in .accelerator/config.local.md,
+      or export GH_TOKEN/GITHUB_TOKEN".
 
 ---
 
