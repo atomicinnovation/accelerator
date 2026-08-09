@@ -1,0 +1,20 @@
+[package]
+name = "github"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+collaboration = { path = "../collaboration" }
+octocrab = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+http = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

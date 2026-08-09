@@ -140,7 +140,9 @@ jira:
 ```
 
 Credentials are personal — put them in `.accelerator/config.local.md`,
-never the shared file:
+never the shared file. That file must be mode `0600` or stricter and not
+a symlink, or every value in it is refused on read — see [Config
+Files](../configuration.md#config-files):
 
 ```yaml
 ---

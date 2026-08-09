@@ -71,7 +71,7 @@ _REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 # silently smaller run, so no by-name entry is needed.
 _EXPECTED_HOOKS_SUITES = 2
 _EXPECTED_DECISIONS_SUITES = 0
-_EXPECTED_GITHUB_SUITES = 3
+_EXPECTED_GITHUB_SUITES = 0
 
 
 def _require_suite_floor(

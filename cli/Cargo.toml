@@ -1,7 +1,7 @@
 # resolver 3 so rust-version drives MSRV-aware dependency selection.
 [workspace]
 resolver = "3"
-members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "corpus-cli", "vcs", "vcs-adapters", "vcs-cli", "vcs-test-support", "store", "visualiser/server", "work", "work-adapters", "work-cli"]
+members = ["launcher", "kernel", "verify", "document", "config", "config-adapters", "corpus", "corpus-adapters", "corpus-cli", "vcs", "vcs-adapters", "vcs-cli", "vcs-test-support", "store", "visualiser/server", "work", "work-adapters", "work-cli", "collaboration", "github", "collaboration-cli"]
 
 [workspace.package]
 version = "1.24.0-pre.33"
@@ -86,6 +86,49 @@ pollster = "0.4"
 # read from.
 etcetera = "0.11.0"
 dunce = "1.0.5"
+# Exact-pinned since octocrab is a young, actively-evolving crate whose
+# builder API (base_uri, the mock-server test seam) and Error enum shape
+# (the error-mapping code in the github crate depends on
+# octocrab::Error::GitHub's exact fields) this workspace's own code and
+# tests assume. default-features = false drops octocrab's default
+# `follow-redirect` (an unexpected redirect must surface as an error, not be
+# silently followed — see the github crate) and its default `retry`:
+# `tower::retry`'s `Buffer` service spawns its worker task via
+# `tokio::spawn` at construction time, which requires an *entered* Tokio
+# runtime context, not merely a `Runtime` value to `block_on` with later —
+# collaboration-cli's `BlockingGitHubClient` shim builds the `Octocrab`
+# client outside any `block_on` call, so retry's spawn panics with "there
+# is no reactor running"; this client has no hand-rolled retry logic to
+# test either way, so dropping the feature is simpler than restructuring
+# construction to happen inside a `block_on`. Also swaps the default
+# `jwt-rust-crypto` for `jwt-aws-lc-rs`: octocrab hard-requires one of the
+# two (a compile_error! otherwise, for its GitHub-App JWT auth path, unused
+# by this workspace — only personal-access-token auth is ever performed),
+# and `jwt-rust-crypto`'s `jsonwebtoken/rust_crypto` backend pulls in `rsa`,
+# which `cargo deny check` flags as RUSTSEC-2023-0071; `jwt-aws-lc-rs` avoids
+# it. The remaining explicit features restore the rest of the default set so
+# the default build path (`Octocrab::builder()...build()`) still works:
+# `rustls`+`rustls-ring` mirror this workspace's own reqwest/rustls TLS
+# backend (ring, not aws-lc-rs — the JWT backend and the TLS backend are
+# independent choices) and keep native-tls/openssl out of the graph per
+# deny.toml; `timeout`, `tracing`, `default-client` are octocrab's own
+# remaining defaults.
+octocrab = { version = "=0.54.1", default-features = false, features = [
+    "rustls",
+    "rustls-ring",
+    "timeout",
+    "tracing",
+    "default-client",
+    "jwt-aws-lc-rs",
+] }
+# Minimal runtime: collaboration-cli is octocrab's only consumer of an async
+# runtime in this workspace; rt for the current-thread executor, net for the
+# HTTP client's sockets, time for backoff/timeouts.
+tokio = { version = "1", default-features = false, features = [
+    "rt",
+    "net",
+    "time",
+] }
 
 [workspace.lints.rust]
 warnings = "deny"

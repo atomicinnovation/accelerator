@@ -38,6 +38,9 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
         "vcs": "The vcs detect|status|log|guard sub-binary.",
         "work": "The work create|show|resolve|diff|update sub-binary.",
         "corpus": "The corpus adr|metadata|linkage|frontmatter sub-binary.",
+        "collaboration": (
+            "The collaboration pr base-repo|update-body sub-binary."
+        ),
     }
 )
 
@@ -513,12 +516,18 @@ class TestBuilderSeams:
 
         assert len(items) == len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS)
 
-    def test_the_dispatched_registry_holds_visualiser_vcs_work_and_corpus(
+    def test_the_dispatched_registry_holds_the_five_current_subbinaries(
         self,
     ):
         # A deliberate anti-vacuity anchor, not a count to bump blindly: every
         # default-call assertion above would pass on an emptied registry.
-        assert DISPATCHED_SUBBINARIES == ("visualiser", "vcs", "work", "corpus")
+        assert DISPATCHED_SUBBINARIES == (
+            "visualiser",
+            "vcs",
+            "work",
+            "corpus",
+            "collaboration",
+        )
 
 
 class TestReverifyViaShim:

@@ -93,16 +93,17 @@ mod tests {
     #[test]
     fn allow_suppresses_the_refusal_and_reads_the_legacy_pair(
     ) -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+
         let root = tempdir()?;
         fs::create_dir_all(root.path().join(".claude"))?;
         fs::write(
             root.path().join(".claude/accelerator.md"),
             "---\npaths:\n  work: legacy-team\n---\n",
         )?;
-        fs::write(
-            root.path().join(".claude/accelerator.local.md"),
-            "---\npaths:\n  work: legacy-local\n---\n",
-        )?;
+        let local = root.path().join(".claude/accelerator.local.md");
+        fs::write(&local, "---\npaths:\n  work: legacy-local\n---\n")?;
+        fs::set_permissions(&local, fs::Permissions::from_mode(0o600))?;
         let service = compose(root.path(), LegacyPolicy::Allow)?.service;
         assert_eq!(
             service.get(&Key::parse("paths.work")?, None)?,

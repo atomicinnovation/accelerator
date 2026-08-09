@@ -63,6 +63,8 @@
 | `jira.token_cmd` | *(not set)* | default |
 | `linear.token` | *(not set)* | default |
 | `linear.token_cmd` | *(not set)* | default |
+| `github.token` | *(not set)* | default |
+| `github.token_cmd` | *(not set)* | default |
 | `visualiser.editor` | *(not set)* | default |
 | `visualiser.editor_project` | *(not set)* | default |
 | `visualiser.binary` | *(not set)* | default |

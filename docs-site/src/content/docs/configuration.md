@@ -18,6 +18,17 @@ for paste-able examples of common customisations, see the
 Local settings override team settings for the same key. Markdown bodies from
 both files are concatenated (team context first, then personal).
 
+The personal file (`.accelerator/config.local.md`) must be mode `0600` or
+stricter and must not be a symlink, or it — and every value in it — is
+refused on read. This applies to the whole file, not just credential keys
+like `github.token`, since a personal config file is treated as
+sensitive-by-convention as a whole (matching how SSH keys or `.netrc` are
+handled). The remedy is `chmod 600 .accelerator/config.local.md`; there is
+no bypass. A file created via `accelerator config set` (which always
+writes personal-level values at `0600`) already satisfies this — the check
+can only trip on external tampering (a manual `chmod`, a tarball restore,
+a stray umask elsewhere).
+
 ## File Format
 
 Both files use YAML frontmatter for structured settings and a markdown body for

@@ -53,6 +53,7 @@ use vcs::checkout::DualRoots;
 use vcs::checkout::JjRepositoryFacts;
 use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
+use vcs::origin_remote::OriginRemote;
 use vcs::RepoRoot;
 use vcs::UserIdentityProbe;
 use vcs::VcsKind;
@@ -322,6 +323,35 @@ impl InProcessProbe {
             jj: self.jj_workspace_root(start).map_err(Into::into),
         }
     }
+
+    /// The `origin` remote's configured URL, read from whichever config file
+    /// `gix` resolves it from. `Ok(None)` only for a repository that opens
+    /// cleanly but carries no `origin` remote.
+    ///
+    /// Unlike [`Self::worktree`]/[`Self::is_bare`]'s use of [`discover_git`]
+    /// (which folds "no repository here at all" to `Ok(None)`, right for a
+    /// query that walks from an arbitrary start point), `root` here is
+    /// always a repository root the caller already discovered — so `gix`
+    /// failing to find one there at all is itself an inconsistency worth
+    /// surfacing, not a clean absence. Unlike this crate's
+    /// `UserIdentityProbe`-facing `git_user_name`, which folds every
+    /// `gix::discover` failure to `None`, every failure here propagates as
+    /// `Err`, per [`vcs::origin_remote::OriginRemote`]'s contract.
+    ///
+    /// # Errors
+    ///
+    /// When the repository cannot be opened.
+    pub fn origin_url(&self, start: &Path) -> Result<Option<String>, Error> {
+        let start = absolutise(start)?;
+        let repository = gix::discover(&start).map_err(|error| Error::Git {
+            path: start.clone(),
+            source: Box::new(error),
+        })?;
+        Ok(repository
+            .config_snapshot()
+            .string("remote.origin.url")
+            .map(|value| value.to_string()))
+    }
 }
 
 impl From<Error> for kernel::Error {
@@ -428,6 +458,12 @@ impl UserIdentityProbe for InProcessProbe {
             },
             VcsKind::None => None,
         }
+    }
+}
+
+impl OriginRemote for InProcessProbe {
+    fn origin_url(&self, root: &Path) -> Result<Option<String>, kernel::Error> {
+        self.origin_url(root).map_err(Into::into)
     }
 }
 
@@ -931,5 +967,106 @@ mod tests {
             found.is_err(),
             "an unopenable candidate must not be scanned past"
         );
+    }
+
+    type TestError = Box<dyn std::error::Error>;
+
+    fn origin_repo() -> Result<(tempfile::TempDir, PathBuf), TestError> {
+        use vcs_test_support::hermetic::Hermetic;
+
+        let dir = tempfile::Builder::new()
+            .prefix("vcs-library-origin-")
+            .tempdir()?;
+        let env = Hermetic::rooted_at(dir.path())?;
+        let root = dir.path().join("repo");
+        std::fs::create_dir_all(&root)?;
+        env.git(&["init", "--quiet"], &root)?;
+        Ok((dir, root))
+    }
+
+    #[test]
+    fn a_configured_origin_is_reported() -> Result<(), TestError> {
+        use vcs_test_support::hermetic::Hermetic;
+
+        use super::InProcessProbe;
+
+        let (dir, root) = origin_repo()?;
+        let env = Hermetic::rooted_at(dir.path())?;
+        env.git(
+            &[
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/atomicinnovation/accelerator.git",
+            ],
+            &root,
+        )?;
+
+        let probe = InProcessProbe;
+        assert_eq!(
+            probe.origin_url(&root)?,
+            Some(
+                "https://github.com/atomicinnovation/accelerator.git"
+                    .to_owned()
+            )
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn no_origin_remote_is_reported_as_none() -> Result<(), TestError> {
+        use super::InProcessProbe;
+
+        let (_dir, root) = origin_repo()?;
+        let probe = InProcessProbe;
+        assert_eq!(probe.origin_url(&root)?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_directory_with_no_repository_is_an_error() -> Result<(), TestError> {
+        use super::InProcessProbe;
+
+        let dir = tempfile::Builder::new()
+            .prefix("vcs-library-origin-none-")
+            .tempdir()?;
+
+        let probe = InProcessProbe;
+        assert!(
+            probe.origin_url(dir.path()).is_err(),
+            "a caller-supplied root that gix cannot open at all must be an \
+             error, not a clean absence"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_unreadable_repository_is_an_error() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        use super::InProcessProbe;
+
+        let (dir, root) = origin_repo()?;
+        let git_dir = root.join(".git");
+        let original_mode = std::fs::metadata(&git_dir)?.permissions().mode();
+        std::fs::set_permissions(
+            &git_dir,
+            std::fs::Permissions::from_mode(0o000),
+        )?;
+
+        let probe = InProcessProbe;
+        let result = probe.origin_url(&root);
+
+        std::fs::set_permissions(
+            &git_dir,
+            std::fs::Permissions::from_mode(original_mode),
+        )?;
+        drop(dir);
+
+        assert!(
+            result.is_err(),
+            "an unreadable .git directory must be an error, not a clean absence"
+        );
+        Ok(())
     }
 }
