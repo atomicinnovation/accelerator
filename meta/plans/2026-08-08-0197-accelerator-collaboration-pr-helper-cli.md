@@ -730,7 +730,7 @@ keeping the domain crate free of concrete I/O.)
 
 #### Automated Verification:
 
-- [ ] TDD: write each characterization test first (red), then the minimum
+- [x] TDD: write each characterization test first (red), then the minimum
       code to pass it (green). **10 of the 13 characterization branches are
       domain-level** and covered here against hand-written fakes
       (`FixedOriginRemote`, `FixedRepositoryLookup`,
@@ -743,11 +743,11 @@ keeping the domain crate free of concrete I/O.)
       tested. (The prior draft of this bullet claimed "all 13" here,
       which contradicted the branch-1/branch-2 CLI-layer notes already in
       this phase's Composition-functions text — corrected.)
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] None — this crate has no I/O and no CLI surface yet.
+- [x] None — this crate has no I/O and no CLI surface yet.
 
 ---
 

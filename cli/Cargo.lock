@@ -611,6 +611,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "collaboration"
+version = "1.24.0-pre.33"
+dependencies = [
+ "kernel",
+ "vcs",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
