@@ -86,6 +86,45 @@ file-level rule classifies correctly and completely). This gap is
 disclosed here rather than papered over with a wider marker list that would
 only produce a false sense of completeness.
 
+### Spot-review (Phase 9 manual-verification checkbox)
+
+Sampled seven rows across four suites and both classifications, reading
+each cited `<file>:<line>` directly. Six of seven confirmed correct
+(`scripts/test-interactive-protocol.sh:76,105` correctly not-repointable;
+`test-migrate.sh:958,1701` and `hooks/test-migrate-discoverability.sh:58`
+correctly repointable — each asserts on real captured CLI stdout/stderr/file
+state; `test-migrate-interactive.sh:404` is the already-disclosed
+protocol-log-derived false negative above).
+
+**One further, previously undisclosed classification-tool blind spot
+found**: `test-migrate-0007.sh`'s "packed-channel parser edge cases (awk
+probe)" block (`emit_backfill_extras`, around line 1556 onward) drives the
+`frontmatter-frag.awk`/`0007-frontmatter-rewrite.awk` helpers directly via a
+`BEGIN{}` probe, bypassing the CLI/driver entirely — the tool's marker list
+has no rule for awk-probe invocations, so these assertions are counted
+`repointable` when they are, by the plan's own Phase 9 design text, meant to
+be `not-repointable` (one of the three named awk helpers). This does not
+change the >400 threshold decision or the three-suite narrowing. It also
+does not indicate a functional gap in the port: the bash awk implementation
+had to pack multiple extras values into a single string across the awk
+subprocess boundary (hence "packed-channel"), a constraint the in-process
+Rust `required_extras_backfill`/`emit_backfill_extra`
+(`cli/migrate/src/migrations/m0007/rewrite.rs`) does not have — there is no
+packed channel to parse in Rust, so the bash test's parsing edge cases
+(`=`-in-value splitting, multi-record via a unit separator, space-preserving
+values) have no analogous Rust-side risk. What genuinely remains thin is
+direct unit coverage of `required_extras_backfill`/`emit_backfill_extra`
+itself beyond the three existing `*backfill*`-named tests in `rewrite.rs`
+(`topic_backfills_silently_from_the_title_when_absent`,
+`a_semicolon_bearing_title_survives_into_the_backfilled_topic`,
+`backfill_completes_rather_than_aborting_when_underivable`) — the other
+extras kinds (`pr_number`, `review_number`, `sequence`, `review_pass`,
+`screenshots_incomplete`, `lenses`, `verdict`) and multi-extras-in-one-run
+ordering are exercised only incidentally through fixture/black-box tests,
+not directly. Tracked as a real but non-blocking follow-up; not required by
+Phase 9's own criteria, which asks for spot-review, not exhaustive
+re-classification.
+
 ## Coverage audit (2026-08-08, this session)
 
 Five agent-driven read-throughs — one per suite except `test-migrate-snapshot.sh`

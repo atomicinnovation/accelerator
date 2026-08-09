@@ -16,12 +16,10 @@ if [ -z "${BASH_VERSION:-}" ]; then
   echo "hooks/test-migrate-discoverability.sh requires bash" >&2
   exit 1
 fi
-for tool in jq; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "hooks/test-migrate-discoverability.sh requires $tool on PATH (run via 'mise run test:integration:hooks' or install $tool)" >&2
-    exit 77 # autotools 'skip' convention; harness reports as skipped
-  fi
-done
+if ! command -v jq >/dev/null 2>&1; then
+  echo "hooks/test-migrate-discoverability.sh requires jq on PATH (run via 'mise run test:integration:hooks' or install jq)" >&2
+  exit 77 # autotools 'skip' convention; harness reports as skipped
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
