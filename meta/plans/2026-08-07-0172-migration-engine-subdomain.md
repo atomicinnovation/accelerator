@@ -5,16 +5,16 @@ title: "Migration Engine Subdomain (accelerator-migrate) Implementation Plan"
 date: "2026-08-07T09:08:23+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: done
 work_item_id: "work-item:0172"
 parent: "work-item:0172"
 derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementation-research"]
 tags: [rust, migration-engine, concurrency, interactive, cli]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
-last_updated: "2026-08-08T22:30:00+00:00"
+last_updated: "2026-08-09T19:01:08+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Phases 0-8 implemented and committed (Phase 9 started this session, not complete; Phase 10 not started). Phase 6's own note (six mechanical migrations, two real bugs fixed, new MigrationContext capabilities) is preserved below in the Phase 6 section itself. Phase 7 (an earlier session): ported the discoverability hook to `accelerator migrate --discoverability-hook --format=hook --fail-safe`, delivering its advisory via kernel::hooks::session_start's systemMessage (absorbing work-item:0183, now abandoned), rebound skills/config/migrate/SKILL.md's invocation call sites, and cleared the SKILL_EXEMPT_SUBBINARIES/_KNOWN_PENDING_SKILL_BINDINGS interim carve-outs. Phase 8 (an earlier session): ported migration 0007 (the largest, only-interactive migration), unblocked because work-item:0195 shipped `accelerator corpus frontmatter validate` as an in-process corpus_adapters library (not a kept-alive shell script) — self_validate_structural/referential call it directly via a new MigrationContext::validate_frontmatter method. Full deviation list is in the Phase 8 Success Criteria section below. **This session, part 1 (ahead of Phase 9)**: closed the --list/--decisions-file gap Phase 8 flagged as a precondition of Phase 9's suite repointing — migrate::list, migrate::decisions_file, migrate-adapters::decisions_file_decision_source, and migrate-cli's env-var/flag resolution and existence checks are now real and tested end to end against migration 0007. Found and fixed a real bug in Phase 8's landed m0007/mod.rs while doing so: linkage_table() fed corpus::linkage's prose-token-matching functions an absolute, root-joined table instead of a repo-relative one, silently dropping every path-shaped body reference that wasn't already carrying an explicit frontmatter type: hint — full detail in the note appended to the end of the Phase 5 section. **This session, part 2 (Phase 9 point 1 only)**: built `tasks/lint/migrate_suite_inventory.py`, unit-tested against synthetic tmp_path trees (not a committed fixtures/ directory — see this phase's own deviation note for why), and ran it: **1,010** assertion sites across the six retiring suites, comfortably over the 400 threshold, recorded in `meta/inventories/0172-suite-audit.md` along with the threshold decision (narrow to test-migrate-0007.sh/test-migrate-interactive.sh/scripts/test-interactive-protocol.sh, repoint the other three wholesale). Found and disclosed a real limitation in the classification heuristic — see this phase's own deviation note — that changes the shape of the remaining points 3/4 work from a short black-box-rewrite list to a suite-level coverage audit against Phase 5's existing FixtureMigration tests. Points 2 (repointing)/3 (black-box rewrites)/4 (repointing the rest) and Phase 10 have not been started — paused here to report the measured scope back before committing to that larger effort."
+last_updated_note: "All ten phases (0-10) implemented and committed; re-validated 2026-08-09 (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phases 0-8 completed across earlier sessions per the phase-by-phase notes preserved in each phase's own section below. Phase 9 (assertion inventory + suite coverage) closed via a 4-agent coverage audit rather than a mechanical 1:1 black-box rewrite (its own disclosed, reasoned deviation) — 1,010 assertions inventoried, 79/80 test-migrate.sh gaps and all 17 test-migrate-0007.sh gaps closed with new Rust tests, recorded in meta/inventories/0172-suite-audit.md. Phase 10 (retirement cutover) landed at commit 5f0c6e8a9e8c: every retiring bash/awk file, the six shell suites, and jsonl-common.sh deleted; call sites, guards, and suite floors rewritten; skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract; the ADR-reconciliation follow-up (work-item:0202) created and linked; cross-item records on 0180/0168/0182/0183/0167 confirmed or closed out. This pass's changes, made to close out the first validation's findings: (1) recorded the self-validation-obligation resolution on work-item:0195 itself, not just on 0172; (2) reconciled the Phase 9 deviation note, the Phase 10 overview, and the Phase 5 deviation note's stale \"still outstanding\"/\"not implemented\" language against the later, more detailed checkbox write-ups and commits that had already superseded them; (3) audited all 58 of work-item:0172's acceptance criteria against the live codebase and test suite and ticked the 53 genuinely satisfied, leaving 5 honestly unticked (see the work item's own last_updated_note for the list) rather than ticking by assertion; (4) transitioned work-item:0172 to status: done to match 0195's precedent, with its 5 open criteria disclosed rather than silently dropped."
 schema_version: 1
 ---
 
@@ -1583,19 +1583,23 @@ templates reproduced verbatim from Phase-0-captured strings
 
 **Deviations from the above, found during implementation:**
 
-- **`--list` and the decisions-file dry-apply validation flow (point 6) are
-  not implemented** — `--list`/`--decisions-file` remain the "not yet
-  implemented" stub from Phase 1. Both need a *real* interactive migration
-  to exercise meaningfully (the four captured fixture families —
-  `list/single-pending/`, `list/multi-pending/`, and the five
-  `decisions-file/*` malformed-input cases — were all captured against real
-  bash migrations), and the only interactive migration this plan ever
-  produces is 0007, which is gated on work item 0195 and lands in a later,
-  still-blocked phase. Building `--list`/`DecisionsFileDecisionSource`
-  against `FixtureMigration` alone, with no real fixture to validate against
-  until 0007 lands, was judged lower value than the engine correctness work
-  this phase actually completed. This is the one substantive scope gap in
-  this phase; everything else Phase 5 describes is implemented and tested.
+- **`--list` and the decisions-file dry-apply validation flow (point 6) were
+  not implemented at the time this note was first written** — at that point
+  `--list`/`--decisions-file` remained the "not yet implemented" stub from
+  Phase 1, deferred because both need a *real* interactive migration to
+  exercise meaningfully and the only one this plan produces, 0007, was still
+  gated on work item 0195. **Superseded**: once 0195 shipped and Phase 8
+  ported 0007, this gap was closed in the same pre-Phase-9 session that
+  built the suite-assertion inventory — `migrate::list`, `migrate::decisions_file`,
+  `migrate-adapters::decisions_file_decision_source`, and `migrate-cli`'s
+  env-var/flag resolution are real and tested end to end against 0007
+  (`cli/migrate-cli/tests/list_and_decisions_file.rs`), and the composition
+  root now selects `DecisionsFileDecisionSource` as its first real branch
+  (`cli/migrate-cli/src/main.rs`). This is no longer a scope gap in this
+  phase; the "Composition-root selection test" and the literal
+  `list/`/`decisions-file/` fixture-byte-comparisons remain open, but as
+  Phase 9's coverage audit's own remaining-gaps list, not as this note's
+  "not implemented" claim.
 - **`SessionLogRewriter`'s design change from Phase 4 required a matching
   new port, `SessionLog`, rather than reusing `corpus::RecordStore`
   directly** as Phase 2's original code sketch assumed. `run_interactive`
@@ -1616,11 +1620,18 @@ templates reproduced verbatim from Phase-0-captured strings
   mechanical-only call site (existing Phase 2/3 tests, `--skip`-family
   commands) now passes a `SessionLogFactory` stub that `unreachable!()`s if
   ever actually called, since nothing mechanical touches it.
-- **The composition root's `DecisionSource` selection currently has only
-  two branches, not three**: a real TTY selects `TtyDecisionSource`,
-  anything else (including a supplied but not-yet-wired
-  `--decisions-file`) falls through to `NoInputDecisionSource`, since the
-  third branch has nothing to select yet.
+- **The composition root's `DecisionSource` selection had only two branches,
+  not three, at the time this note was first written** — a real TTY
+  selected `TtyDecisionSource`, anything else (including a supplied but
+  not-yet-wired `--decisions-file`) fell through to `NoInputDecisionSource`,
+  since the third branch had nothing to select yet. **Superseded**: the
+  composition root now has all three real branches, decisions-file checked
+  first (`cli/migrate-cli/src/main.rs`). No dedicated composition-root
+  selection *test* was built, though (the plan's own env-var test seam,
+  `ACCELERATOR_MIGRATE_TEST_FORCE_TTY`, was never implemented either) — that
+  specific success criterion stays open, tracked in Phase 9's remaining-gaps
+  list and in work item 0172's own unticked acceptance criteria, not
+  silently dropped.
 
 ---
 
@@ -2551,12 +2562,16 @@ mapped to a named test in the inventory.
   structurally implied by two already-tested mechanisms (preflight's
   `Resumed` branch never resets the manifest; the manifest-append decorator
   dedupes) but not pinned by its own end-to-end test.
-- **The "green in CI at a recorded commit" and "spot-review the inventory
-  table" checkboxes remain open** — no CI run's commit SHA has been recorded
-  against the classification table, and no manual spot-review pass has
-  happened. Neither blocks Phase 10 on its own merits (the underlying
-  coverage is real and locally green), but both are still unticked
-  obligations from this phase's original success criteria.
+- **Superseded by later work in this same phase**: at the point this note was
+  first written, the "green in CI at a recorded commit" and "spot-review the
+  inventory table" checkboxes were open — no CI run's commit SHA had been
+  recorded against the classification table, and no manual spot-review pass
+  had happened. Both were closed out later in this same session; see the two
+  checkboxes themselves above (the CI-flake investigation against commit
+  `c94c5dfa`, and the 6-of-7-confirmed spot-review with its one disclosed
+  classification-tool blind spot) for the closing detail. This note is kept
+  for the record of how the phase actually proceeded, not as an outstanding
+  obligation.
 
 **Deviations found earlier in this phase (point 1 and the threshold decision
 only):**
@@ -2606,11 +2621,11 @@ only):**
 ### Overview
 
 **Blocked on Phase 8 (0195) and Phase 9.** Phase 8 is done (work item 0195
-landed). Phase 9's coverage work is done (see its deviations above); its two
-remaining open checkboxes — a CI run's commit SHA recorded against the
-classification table, and a manual spot-review pass — are still outstanding
-and worth closing (or consciously waiving) before treating this phase as
-unblocked. The one indivisible commit: delete
+landed). Phase 9's coverage work is done, including its two success criteria
+that were open earlier in the phase — a CI run's commit SHA recorded against
+the classification table, and a manual spot-review pass — both closed out
+later in the same session (see Phase 9's own checkboxes and deviations
+above). This phase is unblocked. The one indivisible commit: delete
 every retiring bash/awk file, rewrite every remaining call site, adjust every
 guard/floor, retire `jsonl-common.sh` in full, and close out every cross-item
 record the AC requires. Everything here lands together — CI must never go

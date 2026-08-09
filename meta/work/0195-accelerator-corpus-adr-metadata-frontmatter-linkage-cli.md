@@ -12,9 +12,9 @@ parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 relates_to: ["work-item:0172"]
 tags: [rust, corpus, cli, adr, frontmatter, linkage]
-last_updated: "2026-08-07T16:56:38+00:00"
+last_updated: "2026-08-09T18:52:21+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Recorded the golden-capture-ordering edge work-item:0172's plan requires as a precondition of its Phase 0 bash-golden capture."
+last_updated_note: "Recorded the golden-capture-ordering edge work-item:0172's plan requires as a precondition of its Phase 0 bash-golden capture. Also recording, retroactively, the self-validation-obligation resolution work-item:0172's Phase 8 named as its only remaining dependency on this item: `accelerator corpus frontmatter validate` shipped here as an in-process corpus_adapters library (not a kept-alive shell script), which unblocked 0172's Rust port of migration 0007 — its self_validate_structural/referential gate calls this library directly via a new MigrationContext::validate_frontmatter method rather than shelling out to scripts/validate-corpus-frontmatter.sh."
 schema_version: 1
 ---
 
