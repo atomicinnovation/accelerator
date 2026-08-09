@@ -6,9 +6,7 @@ date: "2026-08-08T16:30:32+00:00"
 author: Toby Clemson
 producer: review-plan
 status: complete
-parent: ""
 target: "plan:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
-relates_to: []
 reviewer: Toby Clemson
 verdict: "APPROVE"
 lenses: [architecture, code-quality, test-coverage, correctness, security, standards, compatibility, documentation]
