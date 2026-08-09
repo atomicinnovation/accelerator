@@ -245,6 +245,40 @@ fn scrub_environment(command: &mut Command) {
     command.env("GIT_CONFIG_SYSTEM", "/dev/null");
 }
 
+/// Waits for `child` to exit, polling at [`POLL_INTERVAL`] until `cap`
+/// elapses. `None` — warn-logged — when awaiting fails or the cap is
+/// exceeded, in which case `child` is killed first.
+fn wait_capped(
+    child: &mut std::process::Child,
+    cap: Duration,
+    vcs: &str,
+) -> Option<std::process::ExitStatus> {
+    let deadline = Instant::now() + cap;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Some(status),
+            Ok(None) => {}
+            Err(error) => {
+                warn!(vcs, %error, "could not await the probe");
+                return None;
+            }
+        }
+
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            warn!(
+                vcs,
+                cap = ?cap,
+                "the probe outlived its time cap and was killed"
+            );
+            return None;
+        }
+
+        std::thread::sleep(POLL_INTERVAL);
+    }
+}
+
 /// Runs `command` and returns its trimmed stdout, or `None` — warn-logged —
 /// when it cannot be spawned, exits non-zero, or outlives `cap`.
 ///
@@ -269,30 +303,7 @@ fn run_capped(
         }
     };
 
-    let deadline = Instant::now() + cap;
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {}
-            Err(error) => {
-                warn!(vcs, %error, "could not await the probe");
-                return None;
-            }
-        }
-
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            warn!(
-                vcs,
-                cap = ?cap,
-                "the probe outlived its time cap and was killed"
-            );
-            return None;
-        }
-
-        std::thread::sleep(POLL_INTERVAL);
-    };
+    let status = wait_capped(&mut child, cap, vcs)?;
 
     if !status.success() {
         warn!(vcs, %status, "the probe exited non-zero");
@@ -310,6 +321,38 @@ fn run_capped(
     // Trailing-only: a leading space is significant in `git diff --stat`'s
     // output (` file.txt | 1 +`), so a full `.trim()` would corrupt it.
     Some(stdout.trim_end().to_owned())
+}
+
+/// [`wait_capped`]'s `Result`-returning twin, for callers that must
+/// distinguish a probe malfunction (wait failure, cap exceeded) from every
+/// other outcome rather than folding it to `None`.
+fn wait_capped_checked(
+    child: &mut std::process::Child,
+    cap: Duration,
+    vcs: &str,
+) -> Result<std::process::ExitStatus, kernel::Error> {
+    let deadline = Instant::now() + cap;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => {}
+            Err(error) => {
+                return Err(kernel::Error::Failed(format!(
+                    "could not await {vcs}: {error}"
+                )))
+            }
+        }
+
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(kernel::Error::Failed(format!(
+                "{vcs} outlived its {cap:?} time cap and was killed"
+            )));
+        }
+
+        std::thread::sleep(POLL_INTERVAL);
+    }
 }
 
 /// Runs `command` and returns its trimmed stdout, distinguishing a clean
@@ -330,28 +373,7 @@ fn run_checked(
         kernel::Error::Failed(format!("could not run {vcs}: {error}"))
     })?;
 
-    let deadline = Instant::now() + cap;
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {}
-            Err(error) => {
-                return Err(kernel::Error::Failed(format!(
-                    "could not await {vcs}: {error}"
-                )))
-            }
-        }
-
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(kernel::Error::Failed(format!(
-                "{vcs} outlived its {cap:?} time cap and was killed"
-            )));
-        }
-
-        std::thread::sleep(POLL_INTERVAL);
-    };
+    let status = wait_capped_checked(&mut child, cap, vcs)?;
 
     let mut stderr = String::new();
     if let Some(mut pipe) = child.stderr.take() {

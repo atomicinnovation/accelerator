@@ -952,29 +952,29 @@ only being tested in isolation from each other.
 
 #### Automated Verification:
 
-- [ ] TDD: write adapter tests first for the branches genuinely HTTP-shaped
+- [x] TDD: write adapter tests first for the branches genuinely HTTP-shaped
       (resolver branches 3 and 6 — repository-lookup and PR-existence-check
       request failure/non-2xx; branch 4 in body-update — PATCH failure; all
       three also verifying the AC's fail-fast status-code +
       message-on-stderr surfacing), then the adapter code:
       `cargo test -p collaboration-adapters`
-- [ ] `mise run deny:check` passes with `octocrab` in the graph, including
+- [x] `mise run deny:check` passes with `octocrab` in the graph, including
       the `timeout` feature (react to any reported issue before
       proceeding — checklist item 13)
-- [ ] A test confirms `OctocrabClient` does not follow a redirect response
+- [x] A test confirms `OctocrabClient` does not follow a redirect response
       (e.g. the mock server responds `3xx` with a `Location` header; the
       client surfaces this as a `GitHubApiError`, not a followed request)
-- [ ] A test confirms the token passed to `OctocrabClient::with_base_uri`
+- [x] A test confirms the token passed to `OctocrabClient::with_base_uri`
       reaches the outbound request as an `Authorization` header, asserted
       against the mock server's recorded header — proving credential
       resolution and HTTP dispatch compose correctly, not just each in
       isolation (addresses the AC's "Authentication" criterion, which
       Phase 5's precedence tests alone do not cover end-to-end)
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] None — no CLI surface yet; covered end-to-end in Phase 6.
+- [x] None — no CLI surface yet; covered end-to-end in Phase 6.
 
 ---
 
