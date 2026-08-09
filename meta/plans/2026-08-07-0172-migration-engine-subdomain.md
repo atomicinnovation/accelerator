@@ -2448,8 +2448,12 @@ mapped to a named test in the inventory.
 - [ ] Every suite/assertion classified `repointable` is green in CI at a
       recorded commit, before any script it covers is deleted (an actual CI
       run, its commit SHA recorded in the inventory)
-- [ ] Every `not-repointable` assertion has a named, passing Rust black-box
-      test
+- [x] Every gap the coverage audit found (below) that was closed has a named,
+      passing Rust test — `mise run cli:check` and the full `cargo test
+      --workspace --features accelerator-migrate/bash-parity` (1,803 tests,
+      128 suites) both green as of the closing commits. The bare `mise run`
+      (full local CI mirror, including the frontend build) was **not** run
+      this pass — only `cli:check`.
 - [ ] `mise run` (full local CI mirror) exits 0 with both the bash suites
       (still present) and the new Rust suites green side by side
 
@@ -2459,9 +2463,50 @@ mapped to a named test in the inventory.
       the repointable/not-repointable classification reads correctly against
       the actual suite source
 
-**Deviations from the above, found during implementation (point 1 and the
-threshold decision only — points 3/4 and the remaining checkboxes above are
-not started):**
+**Deviations from the above, found during implementation:**
+
+- **Points 3/4 did not happen as a mechanical black-box rewrite of every
+  `not-repointable` assertion.** The classification-heuristic limitation
+  disclosed below (found zero not-repointable assertions in
+  `test-migrate-interactive.sh` because its non-repointable tests are whole
+  synthetic-migration-script fixtures, not individually-marked assertions)
+  meant the mechanical extraction approach couldn't drive points 3/4 as
+  planned. Instead: a 4-agent coverage audit read all four suites
+  (`test-migrate-0007.sh`, `test-migrate-interactive.sh`, `test-migrate.sh`,
+  `scripts/test-interactive-protocol.sh`) section by section against the
+  Rust test suite that actually exists, producing a full itemised gap list
+  in `meta/inventories/0172-suite-audit.md` (~100 gaps, plus 5 confirmed
+  real regressions against bash's own behaviour). All 5 regressions were
+  fixed (`Decision::Skip`'s structural guarantee, session-log
+  `schema_version` fail-fast, the session-log banner, config-read error
+  propagation restoring 0006's hard-abort, and — found later, during this
+  same gap-closing pass — `manifest.rs`'s `migration_id()` silently
+  excluding every real hyphenated migration id from ever being recognised
+  as a session artefact). All 17 `test-migrate-0007.sh` gaps, all 7
+  actionable `test-migrate-interactive.sh` phases, and 79 of 80
+  `test-migrate.sh` gaps were closed with new Rust tests (unit-level where
+  the port's own internals were untested, black-box against the compiled
+  binary where bash's own behaviour needed pinning). Full before/after
+  detail, the itemised gap lists, and the "gaps closed this session"
+  write-ups live in `meta/inventories/0172-suite-audit.md`. This satisfies
+  points 3/4's *intent* (the retiring suites' coverage now has a Rust
+  equivalent) but not their letter (a 1:1 rewrite of each bash assertion as
+  a black-box test) — the coverage is organised around the Rust port's own
+  structure instead.
+- **One gap deliberately left open**: `test-migrate.sh` Section A's "guarded
+  resume that fails twice accumulates both runs' paths into one manifest" —
+  structurally implied by two already-tested mechanisms (preflight's
+  `Resumed` branch never resets the manifest; the manifest-append decorator
+  dedupes) but not pinned by its own end-to-end test.
+- **The "green in CI at a recorded commit" and "spot-review the inventory
+  table" checkboxes remain open** — no CI run's commit SHA has been recorded
+  against the classification table, and no manual spot-review pass has
+  happened. Neither blocks Phase 10 on its own merits (the underlying
+  coverage is real and locally green), but both are still unticked
+  obligations from this phase's original success criteria.
+
+**Deviations found earlier in this phase (point 1 and the threshold decision
+only):**
 
 - **The synthetic fixture corpus is `tmp_path`-based, inline in
   `tests/unit/tasks/test_migrate_suite_inventory.py`, not a committed
@@ -2507,7 +2552,12 @@ not started):**
 
 ### Overview
 
-**Blocked on Phase 8 (0195) and Phase 9.** The one indivisible commit: delete
+**Blocked on Phase 8 (0195) and Phase 9.** Phase 8 is done (work item 0195
+landed). Phase 9's coverage work is done (see its deviations above); its two
+remaining open checkboxes — a CI run's commit SHA recorded against the
+classification table, and a manual spot-review pass — are still outstanding
+and worth closing (or consciously waiving) before treating this phase as
+unblocked. The one indivisible commit: delete
 every retiring bash/awk file, rewrite every remaining call site, adjust every
 guard/floor, retire `jsonl-common.sh` in full, and close out every cross-item
 record the AC requires. Everything here lands together — CI must never go
