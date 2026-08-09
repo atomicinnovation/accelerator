@@ -77,9 +77,9 @@ inspection (not just by the work item's own claim):
   `token_cmd` ban) is implemented independently in bash in
   `skills/integrations/jira/scripts/jira-auth.sh` and
   `skills/integrations/linear/scripts/linear-auth.sh`. There is nothing to
-  reuse in Rust — only a behavioural contract to mirror, and 0197's own
-  precedence order (config-first, env-last) deliberately differs from
-  jira/linear's (env-first).
+  reuse in Rust — only a behavioural contract to mirror. 0197's own
+  precedence order matches jira/linear's (env-first) — an earlier
+  config-first draft was reversed post-review; see Phase 5's addendum.
 - **Origin-remote-URL-to-owner/repo parsing.** `vcs`'s `RepoFacts` has no
   remote-derived field at all — `name` is the local directory basename
   (`cli/vcs/src/lib.rs:42-120`) — and neither `vcs-adapters` backend reads a
@@ -983,17 +983,29 @@ only being tested in isolation from each other.
 ### Overview
 
 A `collaboration-cli`-local module implementing the four-way precedence
-chain the work item specifies (config `github.token` → `github.token_cmd`
-output → `GH_TOKEN` env → `GITHUB_TOKEN` env), plus the shared-config
+chain the work item specifies (`GH_TOKEN` env → `GITHUB_TOKEN` env →
+config `github.token` → `github.token_cmd` output), plus the shared-config
 `token_cmd` ban already established for `jira`/`linear` in bash. This
-precedence order (config-first) is a **deliberate departure** from
-`jira-auth.sh`/`linear-auth.sh`'s env-first order — stated explicitly here
-so it is not "corrected" to match them later. Unlike `jira-auth.sh`/
-`linear-auth.sh`, this resolver carries no personal-config-file permission
-check of its own — Phase 1 encapsulates that inside `FileConfigStore`, so
-every `ConfigAccess::get` call this resolver makes against `Level::
-Personal` already fails closed on an insecure `config.local.md` before
-this module ever sees a value.
+precedence order (env-first) matches `jira-auth.sh`/`linear-auth.sh`'s own
+order: an ambient env var reliably escapes a stale or over-broad
+on-filesystem config value, rather than being shadowed by it. Unlike
+`jira-auth.sh`/`linear-auth.sh`, this resolver carries no
+personal-config-file permission check of its own — Phase 1 encapsulates
+that inside `FileConfigStore`, so every `ConfigAccess::get` call this
+resolver makes against `Level::Personal` already fails closed on an
+insecure `config.local.md` before this module ever sees a value.
+
+**Addendum (reversed after initial implementation):** this phase originally
+shipped a **config-first** order (config `github.token` → `github.token_cmd`
+→ `GH_TOKEN` → `GITHUB_TOKEN`), stated at the time as a deliberate departure
+from `jira`/`linear`'s env-first precedent. That departure was reconsidered
+and reversed post-review: consistency with the existing `jira`/`linear`
+resolvers, and the general principle that an env var should be able to
+escape a stale on-filesystem config value rather than be shadowed by it,
+outweighed the original (undocumented) reason for reordering. The resolver,
+this plan's code sketch below, `docs-site`, and the work item's own
+Requirements/Acceptance Criteria were all updated to the env-first order
+reflected above.
 
 ### Changes Required:
 
@@ -1007,10 +1019,10 @@ PR-helper business logic).
 
 ```rust
 pub enum TokenSource {
-    Config,
-    ConfigCmd,
     GhTokenEnv,
     GithubTokenEnv,
+    Config,
+    ConfigCmd,
 }
 
 pub struct ResolvedToken {
@@ -1020,8 +1032,8 @@ pub struct ResolvedToken {
 
 /// Resolves the `github.token` credential.
 ///
-/// Precedence: `github.token` config value, then `github.token_cmd`
-/// output (executed via `bash -c`), then `GH_TOKEN`, then `GITHUB_TOKEN`.
+/// Precedence: `GH_TOKEN`, then `GITHUB_TOKEN`, then the `github.token`
+/// config value, then `github.token_cmd` output (executed via `bash -c`).
 /// A `token_cmd` configured in the shared/team config file (rather than
 /// local overrides) is rejected with a clear error — mirroring
 /// `jira`/`linear`'s shared-config `token_cmd` ban — rather than silently
@@ -1054,9 +1066,9 @@ config files directly as the bash resolvers do.
 
 #### Manual Verification:
 
-- [ ] Setting `github.token` in `config.local.md`, then `github.token_cmd`,
-      then `GH_TOKEN`, then `GITHUB_TOKEN` individually and confirming each
-      resolves in the stated precedence order.
+- [ ] Setting `GH_TOKEN`, then `GITHUB_TOKEN`, then `github.token` in
+      `config.local.md`, then `github.token_cmd` individually and confirming
+      each resolves in the stated precedence order.
 - [ ] Confirming a `github.token_cmd` in the shared `config.md` produces
       the ban error rather than executing.
 

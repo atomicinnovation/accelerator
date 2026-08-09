@@ -68,10 +68,12 @@ this item does not depend on it and does not rename the skill directory
   parent's owner/repo is used as the base instead — never the response's
   echoed-back `url`/self-link fields, which cannot carry base-repo
   information distinct from what was already queried (see Technical Notes).
-  Authenticates via the `github.token`/`github.token_cmd`
-  config pairing (the same mechanism already used by `jira`/`linear`), with
-  `GH_TOKEN` then `GITHUB_TOKEN` (in that order, matching `gh`'s own
-  documented env-var precedence) as fallbacks below both config keys.
+  Authenticates via `GH_TOKEN` then `GITHUB_TOKEN` (in that order, matching
+  `gh`'s own documented env-var precedence), ahead of the `github.token`/
+  `github.token_cmd` config pairing (the same mechanism already used by
+  `jira`/`linear`) as a fallback — env-first, matching `jira`/`linear`'s own
+  credential-resolution precedent, so an ambient env var reliably escapes a
+  stale or over-broad on-filesystem config value.
   Domain named `collaboration`, not `github`.
 - Add `github.token`/`github.token_cmd` entries to the config catalogue — no
   such entries exist today; `cli/config/src/catalogue.rs`'s `EXTRA_KEYS` list
@@ -137,11 +139,14 @@ this item does not depend on it and does not rename the skill directory
       may not be set in the checked-in/shared config file, only in local
       overrides) already implemented for `jira.token`/`jira.token_cmd` and
       `linear.token`/`linear.token_cmd` in `cli/config/src/catalogue.rs`.
-      Precedence, highest first: `github.token` config value, then
-      `github.token_cmd` output, then the `GH_TOKEN` env var, then the
+      Precedence, highest first: the `GH_TOKEN` env var, then the
       `GITHUB_TOKEN` env var (`GH_TOKEN` over `GITHUB_TOKEN` matches `gh`'s
-      own documented env-var precedence) — no dependency on the `gh` CLI
-      being installed or authenticated locally. This item also adds the
+      own documented env-var precedence), then the `github.token` config
+      value, then `github.token_cmd` output — env-first, matching
+      `jira-auth.sh`/`linear-auth.sh`'s own precedence order, so an ambient
+      env var reliably escapes a stale or over-broad on-filesystem config
+      value; no dependency on the `gh` CLI being installed or authenticated
+      locally. This item also adds the
       Rust-native equivalent of `jira-auth.sh`/`linear-auth.sh`'s personal
       config-file permission check (`config.local.md` must be mode 0600 or
       stricter, never a symlink, to be read at all) — the first Rust
@@ -238,9 +243,8 @@ into this item's own delivery (see Requirements) rather than left open.
 - External: the GitHub REST API (`api.github.com`), called in-process via
   `octocrab` — this migration removes the `gh` CLI runtime dependency
   carried by the bash scripts, replacing it with `octocrab`-based GitHub REST
-  API calls authenticated via the `github.token`/`github.token_cmd`
-  config pairing (or `GH_TOKEN` then `GITHUB_TOKEN` env vars as a fallback,
-  in that order). On
+  API calls authenticated via `GH_TOKEN` then `GITHUB_TOKEN` env vars, ahead
+  of the `github.token`/`github.token_cmd` config pairing as a fallback. On
   API errors (rate-limiting, outage, or auth failure), `accelerator
   collaboration` surfaces the REST error to the caller rather than retrying
   or degrading silently: a non-zero exit code, with the REST error's status
@@ -341,11 +345,11 @@ into this item's own delivery (see Requirements) rather than left open.
   GitHub REST client; likely needs a `cli/deny.toml` justification entry
   (registration checklist item 13).
 - Auth: `github.token` / `github.token_cmd`, reusing the
-  existing config pairing and precedence/shared-config `token_cmd` ban
-  already implemented for `jira`/`linear` in
+  existing config pairing and shared-config `token_cmd` ban already
+  implemented for `jira`/`linear` in
   `cli/config/src/catalogue.rs:124-127` and `cli/config-adapters/src/store.rs`;
-  `GH_TOKEN` then `GITHUB_TOKEN` env vars as lower-precedence fallbacks (see
-  Acceptance Criteria for the full four-way precedence order).
+  `GH_TOKEN` then `GITHUB_TOKEN` env vars take precedence over both config
+  keys (see Acceptance Criteria for the full four-way precedence order).
 - Call sites to repoint: `skills/github/review-pr/SKILL.md`,
   `skills/github/respond-to-pr/SKILL.md` (both invoke `pr-base-repo.sh`), and
   `skills/github/describe-pr/SKILL.md` (invokes both scripts); each has an
