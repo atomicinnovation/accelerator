@@ -505,18 +505,18 @@ failure, defeating the point of the two backends being interchangeable.
 
 #### Automated Verification:
 
-- [ ] Domain-level unit tests pass (TDD: write first) —
+- [x] Domain-level unit tests pass (TDD: write first) —
       `parse_github_remote_url` covers all four supported forms plus
       rejection of an unsupported shape; `resolve_origin_owner_repo`
       covers "no origin configured" (`Ok(None)` from the port → `Err`),
       "probe failure" (`Err` from the port → propagated), and success, via
       a hand-written `StubProbe` (mirroring `classify.rs`'s pattern):
       `cargo test -p vcs`
-- [ ] Adapter-level tests pass for both backends against real fixture
+- [x] Adapter-level tests pass for both backends against real fixture
       repos with an `origin` remote set to each of the four URL forms, and
       one with no `origin` remote configured:
       `cargo test -p vcs-adapters`
-- [ ] For **both** backends, a test against an inaccessible/broken
+- [x] For **both** backends, a test against an inaccessible/broken
       repository fixture (e.g. a directory with no `.git` at all, or one
       with unreadable permissions) confirms `origin_url` returns `Err`,
       not `Ok(None)` — this is the case the library (`gix`) adapter's
@@ -525,11 +525,11 @@ failure, defeating the point of the two backends being interchangeable.
       "no origin remote configured" fixture (a valid repo genuinely
       missing the remote) to exercise it, since the two are different
       code paths
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] In a real checkout with an `origin` remote, a small ad-hoc call
+- [x] In a real checkout with an `origin` remote, a small ad-hoc call
       through both adapters resolves the same owner/repo pair.
 
 ---

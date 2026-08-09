@@ -16,6 +16,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use tracing::warn;
+use vcs::origin_remote::OriginRemote;
 use vcs::{RepoRoot, VcsKind, VcsProbe};
 
 use crate::markers::{carries_any_marker, marker_kind, walk_up};
@@ -124,6 +125,16 @@ impl VcsProbe for CommandProbe {
             return None;
         }
         Some(stdout)
+    }
+}
+
+impl OriginRemote for CommandProbe {
+    fn origin_url(&self, root: &Path) -> Result<Option<String>, kernel::Error> {
+        let mut command = Command::new("git");
+        command.args(["remote", "get-url", "origin"]);
+        command.current_dir(root);
+        scrub_environment(&mut command);
+        run_checked(command, self.cap, "git")
     }
 }
 
@@ -301,17 +312,92 @@ fn run_capped(
     Some(stdout.trim_end().to_owned())
 }
 
+/// Runs `command` and returns its trimmed stdout, distinguishing a clean
+/// "no such remote" exit from every other failure — unlike [`run_capped`],
+/// which folds every failure to `None` alike, callers of this need to tell
+/// "cleanly absent" apart from "the probe itself malfunctioned".
+fn run_checked(
+    mut command: Command,
+    cap: Duration,
+    vcs: &str,
+) -> Result<Option<String>, kernel::Error> {
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = command.spawn().map_err(|error| {
+        kernel::Error::Failed(format!("could not run {vcs}: {error}"))
+    })?;
+
+    let deadline = Instant::now() + cap;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {}
+            Err(error) => {
+                return Err(kernel::Error::Failed(format!(
+                    "could not await {vcs}: {error}"
+                )))
+            }
+        }
+
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(kernel::Error::Failed(format!(
+                "{vcs} outlived its {cap:?} time cap and was killed"
+            )));
+        }
+
+        std::thread::sleep(POLL_INTERVAL);
+    };
+
+    let mut stderr = String::new();
+    if let Some(mut pipe) = child.stderr.take() {
+        let _ = pipe.read_to_string(&mut stderr);
+    }
+
+    if !status.success() {
+        if stderr.contains("No such remote") {
+            return Ok(None);
+        }
+        return Err(kernel::Error::Failed(format!(
+            "{vcs} exited with {status}: {}",
+            stderr.trim()
+        )));
+    }
+
+    let mut stdout = String::new();
+    if let Some(mut pipe) = child.stdout.take() {
+        pipe.read_to_string(&mut stdout).map_err(|error| {
+            kernel::Error::Failed(format!(
+                "could not read {vcs}'s output: {error}"
+            ))
+        })?;
+    }
+
+    let trimmed = stdout.trim().to_owned();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(trimmed))
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;
     use std::fs;
     use std::os::unix::fs::PermissionsExt as _;
+    use std::path::PathBuf;
     use std::process::Command;
     use std::time::Duration;
 
     use vcs::VcsKind;
 
-    use super::{run_capped, run_vcs_text, scrub_environment, StatusOrLog};
+    use super::{
+        run_capped, run_vcs_text, scrub_environment, CommandProbe, StatusOrLog,
+    };
 
     type TestError = Box<dyn Error>;
 
@@ -457,5 +543,69 @@ mod tests {
             run_capped(command, Duration::from_secs(1), "test").as_deref(),
             Some("unset")
         );
+    }
+
+    fn origin_repo() -> Result<(tempfile::TempDir, PathBuf), TestError> {
+        use vcs_test_support::hermetic::Hermetic;
+
+        let dir = tempfile::Builder::new()
+            .prefix("vcs-subprocess-origin-")
+            .tempdir()?;
+        let env = Hermetic::rooted_at(dir.path())?;
+        let root = dir.path().join("repo");
+        fs::create_dir_all(&root)?;
+        env.git(&["init", "--quiet"], &root)?;
+        Ok((dir, root))
+    }
+
+    #[test]
+    fn a_configured_origin_is_reported() -> Result<(), TestError> {
+        use vcs::origin_remote::OriginRemote as _;
+        use vcs_test_support::hermetic::Hermetic;
+
+        let (dir, root) = origin_repo()?;
+        let env = Hermetic::rooted_at(dir.path())?;
+        env.git(
+            &[
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/atomicinnovation/accelerator.git",
+            ],
+            &root,
+        )?;
+
+        let probe = CommandProbe::new();
+        assert_eq!(
+            probe.origin_url(&root)?,
+            Some(
+                "https://github.com/atomicinnovation/accelerator.git"
+                    .to_owned()
+            )
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn no_origin_remote_is_reported_as_none() -> Result<(), TestError> {
+        use vcs::origin_remote::OriginRemote as _;
+
+        let (_dir, root) = origin_repo()?;
+        let probe = CommandProbe::new();
+        assert_eq!(probe.origin_url(&root)?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_directory_with_no_repository_is_an_error() -> Result<(), TestError> {
+        use vcs::origin_remote::OriginRemote as _;
+
+        let dir = tempfile::Builder::new()
+            .prefix("vcs-subprocess-origin-none-")
+            .tempdir()?;
+
+        let probe = CommandProbe::new();
+        assert!(probe.origin_url(dir.path()).is_err());
+        Ok(())
     }
 }

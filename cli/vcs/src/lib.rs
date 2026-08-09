@@ -6,6 +6,7 @@ pub mod checkout;
 pub mod classify;
 pub mod guard;
 pub mod mode;
+pub mod origin_remote;
 
 use std::path::Path;
 use std::path::PathBuf;
