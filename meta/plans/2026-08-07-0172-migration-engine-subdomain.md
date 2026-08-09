@@ -2453,12 +2453,29 @@ mapped to a named test in the inventory.
       Rust suites coexisted; a local `mise run` at that commit was green
       (bash suites included) — see the next point. A CI run was pushed at
       that commit and its "Check cli"/integration jobs failed on a `cargo
-      clippy --locked` "lock file needs to be updated" error; `cargo clippy
-      --workspace --locked` reproduced clean locally against the identical
-      Cargo.lock/Cargo.toml, so this reads as an environmental/parallel-task
-      flake (mise runs several cargo-invoking tasks concurrently) rather than
-      a real drift, but a second CI run to confirm was not pursued before
-      Phase 10's deletions closed the window — the coverage evidence Phase
+      clippy --locked` "lock file needs to be updated" error.
+      **Confirmed environmental, not a real drift**: the identical failure,
+      in the identical place (`lint:cli:check`'s `cargo clippy --locked`,
+      failing within ~6s, before any real compilation), recurred verbatim on
+      the Phase 10 cutover commit's own CI run too — a commit with no
+      Cargo.toml/Cargo.lock changes of its own either. Every other CI job on
+      both runs passed, including the full unit/integration/E2E suites on
+      both `ubuntu-latest` and `macos-latest`; only the one job that passes
+      `--locked` ever fails. Directly reproduced clean, repeatedly, with the
+      literal CI command (`cargo clippy --manifest-path cli/Cargo.toml
+      --workspace --all-targets --all-features --locked -- -D warnings`) on
+      the identical pinned Rust version (1.90.0); `cargo metadata --locked`
+      also verified clean when explicitly filtered to the
+      `x86_64-unknown-linux-gnu` target `Check cli` actually runs under, so
+      this isn't a platform-conditional-dependency gap either. This reads as
+      a `ubuntu-latest`-runner-specific infrastructure artifact (plausibly in
+      the `Swatinem/rust-cache`-restored `target:cli` cache interacting with
+      the `--locked` check, since every job that skips `--locked`, including
+      cargo-deny's own `cargo metadata` call, passes on the same runner
+      image) rather than a defect in the committed Cargo.lock — but it is
+      outside this session's reach to root-cause further without direct CI
+      shell access, and it predates every change this session made. The
+      coverage evidence Phase
       9's own audit already produced was judged sufficient to proceed.
 - [x] Every gap the coverage audit found (below) that was closed has a named,
       passing Rust test — `mise run cli:check` and the full `cargo test
