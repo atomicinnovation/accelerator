@@ -17,9 +17,9 @@ pub fn own_id_key_for_type(linkage_type: &str) -> Option<&'static str> {
     }
 }
 
-/// Legacy artifact-type alias folded to its ADR-0033 canonical type.
-/// Work-item kind-values (story/bug/…) are not handled here — migration
-/// 0005 owns those.
+/// Legacy artifact-type alias folded to its canonical type. Work-item
+/// kind-values (story/bug/…) are not handled here — migration 0005 owns
+/// those.
 pub fn canonical_type(linkage_type: &str) -> &str {
     if linkage_type == "validation" {
         "plan-validation"

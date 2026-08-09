@@ -1,6 +1,5 @@
-//! The four quote primitives the retired bash rewrite's shared fragment
-//! carried: `fm_is_fence`, `fm_normalise_value`, `fm_semantic_inner`,
-//! `fm_refuses`.
+//! Quote-handling primitives shared by the m0007 mechanical passes: fence
+//! detection, YAML-scalar quote normalisation, and quoted-value inspection.
 
 /// A strict fence line: exactly `---`, no trailing whitespace tolerated —
 /// deliberately stricter than "carries a fence somewhere", so a

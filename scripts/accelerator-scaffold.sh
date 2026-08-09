@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Shared scaffold/gitignore helpers for the .accelerator/ tree.
 #
-# No current sourcer: `skills/config/init/scripts/init.sh` and migration
-# 0003 (`skills/config/migrate/migrations/0003-relocate-accelerator-state.sh`)
-# both named this file as a consumer, but `init` no longer has a bash
-# script (config/init is a Rust-dispatched skill now) and migration 0003
+# No current sourcer: this file's two former consumers have both moved off
+# bash — `config/init` is a Rust-dispatched skill now, and migration 0003
 # was ported to Rust (`cli/migrate/src/migrations/m0003.rs`, which
 # reimplements this file's helpers natively rather than sourcing bash).
 #

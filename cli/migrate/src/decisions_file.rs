@@ -1,11 +1,10 @@
 //! Decisions-file parsing and the dry-apply validation pass.
 //!
 //! Blank lines and CRLF line endings are tolerated; `#`-prefixed lines are
-//! NOT comments — bash's own `read_decision` treats a `#`-prefixed line as
-//! an unrecognised verb (confirmed against a captured bash golden,
+//! NOT comments — a `#`-prefixed line is treated as an unrecognised verb
+//! rather than silently ignored (confirmed against the captured golden
+//! fixture at
 //! `cli/migrate-cli/tests/fixtures/decisions-file/blank-crlf-comments/`).
-//! This parser matches that behaviour exactly, not the aspirational
-//! "comments ignored" description an earlier planning pass assumed.
 
 use crate::interactive::Decision;
 use crate::interactive::InteractiveMigration;
@@ -72,8 +71,7 @@ fn unknown_verb_error(position: usize, verb: &str) -> MigrationError {
 /// `prompts` is the exact set `--list`/a live run would prompt for, in order
 /// (see [`crate::engine::pending_transformations`]) — this replays every
 /// position against `validate_edit`, with no `apply_decision` call and no
-/// session-log write. Fails closed, naming the offending position, exactly
-/// as bash's `dry_apply_interactive_migration`.
+/// session-log write. Fails closed, naming the offending position.
 ///
 /// # Errors
 /// The first position-naming validation failure: a missing decision, an

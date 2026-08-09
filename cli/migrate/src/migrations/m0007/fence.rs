@@ -1,5 +1,4 @@
-//! Strict-fence frontmatter extraction and single-key lookup, mirroring
-//! `has_strict_fence`/`fm_get` from the bash source. Reuses
+//! Strict-fence frontmatter extraction and single-key lookup. Reuses
 //! `corpus::frontmatter_validation::parse_entries` for the actual line scan
 //! once the frontmatter region is sliced out.
 

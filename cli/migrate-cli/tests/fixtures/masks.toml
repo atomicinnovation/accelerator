@@ -8,8 +8,7 @@
 # hand-duplicating samples in two languages.
 #
 # Closed once committed: do not add a pattern, or loosen an existing one, to
-# make a failing golden pass — see Phase 0 of
-# meta/plans/2026-08-07-0172-migration-engine-subdomain.md.
+# make a failing golden pass.
 
 [[pattern]]
 name = "sandbox_root"
@@ -21,7 +20,7 @@ sample_no_match = "/Users/toby/project/tmp-notes"
 [[pattern]]
 name = "invocation_form"
 regex = '\bbash \S*run-migrations\.sh\b'
-description = "bash's own invocation form, normalised to `accelerator migrate` — the one substitution Phase 0 permits beyond <SANDBOX> and timestamps"
+description = "bash's own invocation form, normalised to `accelerator migrate` — the one substitution permitted beyond <SANDBOX> and timestamps"
 sample_match = "bash $0 --skip 0001-rename-tickets-to-work"
 sample_no_match = "accelerator migrate --skip 0001-rename-tickets-to-work"
 

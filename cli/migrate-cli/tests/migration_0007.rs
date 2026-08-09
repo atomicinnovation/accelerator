@@ -1,12 +1,12 @@
 //! Migration 0007 (`unify-meta-corpus-frontmatter`) driven end to end
-//! against the compiled binary — the mechanical path only (a
-//! resolved-band body reference applying without a prompt, and an
-//! unresolvable resolved-band reference silently dropped). The ambiguous
-//! prompt path is exercised generically against `FixtureMigration` in
-//! `cli/migrate/tests/engine.rs`; `--list`/`--decisions-file` are not yet
-//! wired (Phase 5's own deferred scope — see this phase's plan
-//! deviations), so a real ambiguous-band scenario against the compiled
-//! binary is not driven here.
+//! against the compiled binary — the mechanical path (a resolved-band
+//! body reference applying without a prompt, and an unresolvable
+//! resolved-band reference silently dropped), plus the ambiguous prompt
+//! path's structured stall when no decision input is available.
+//! `--list`/`--decisions-file` resolving an ambiguous prompt end to end is
+//! exercised separately in `list_and_decisions_file.rs`; the ambiguous
+//! prompt path itself is exercised generically against `FixtureMigration`
+//! in `cli/migrate/tests/engine.rs`.
 
 use std::collections::BTreeMap;
 use std::fs;

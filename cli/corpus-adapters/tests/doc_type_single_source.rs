@@ -3,12 +3,12 @@
 //! each declare a related fact independently, so this suite cross-checks the
 //! crate against them.
 //!
-//! The 0007 migration's own awk rewrite (`0007-frontmatter-rewrite.awk`) used
-//! to be cross-checked here too, as a second independent dir→type matcher —
-//! removed once that awk file was retired in favour of the native
-//! `accelerator-migrate` port, which calls `corpus::doc_type::infer`/
-//! `corpus::linkage::resolve_path_target` directly rather than re-deriving the
-//! mapping; there is no longer a second surface to disagree with.
+//! The 0007 migration's own awk rewrite used to be cross-checked here too,
+//! as a second independent dir→type matcher — removed once that awk was
+//! retired in favour of the native `accelerator-migrate` port, which calls
+//! `corpus::doc_type::infer`/`corpus::linkage::resolve_path_target` directly
+//! rather than re-deriving the mapping; there is no longer a second surface
+//! to disagree with.
 //!
 //! bash is asserted present and hard-fails with a naming diagnostic; Rust's
 //! harness has no skip primitive, so a silent early return would register as

@@ -25,10 +25,9 @@ impl VcsDirtyPathScanner {
 }
 
 impl DirtyPathScanner for VcsDirtyPathScanner {
-    /// Mirrors `enumerate_scoped_dirty`'s trailing `|| true`: a status/diff
-    /// read that fails (an unreadable or half-initialised `.git`/`.jj`) is
-    /// logged and treated as no dirty paths found, not a hard error —
-    /// exactly as the bash pipeline's suppressed exit status did.
+    /// A status/diff read that fails (an unreadable or half-initialised
+    /// `.git`/`.jj`) is logged and treated as no dirty paths found, rather
+    /// than surfaced as a hard error.
     fn dirty_paths(
         &self,
         roots: &[&str],

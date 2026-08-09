@@ -5,18 +5,15 @@
 # relying on errexit, which would abort the whole run on the first such case.
 set -uo pipefail
 
-# Regenerate the bash-golden fixture matrix for accelerator-migrate (0172,
-# Phase 0). Drives the real, still-live bash migration engine
-# (skills/config/migrate/scripts/run-migrations.sh) as a black box and
-# captures its observable artefacts (stdout, stderr, exit code, ledger/state
+# Regenerated the bash-golden fixture matrix for accelerator-migrate by
+# driving the bash migration engine (since retired) as a black box and
+# capturing its observable artefacts (stdout, stderr, exit code, ledger/state
 # files, and the resulting corpus tree where relevant) into this directory's
-# fixture subdirectories, so the Rust port has a byte-level oracle.
+# fixture subdirectories, giving the Rust port a byte-level oracle. Kept for
+# provenance; the driver it invokes no longer exists in this repository.
 #
-# No Rust code exists yet at this point in the plan — this script's only job
-# is faithful capture. Fixture-tree-building helpers below are adapted
-# directly from the existing bash test suites (test-migrate.sh,
-# test-migrate-interactive.sh) rather than reinvented, per this phase's own
-# "modelled on the committed test driver" instruction.
+# Fixture-tree-building helpers below mirrored the fixture setup used by the
+# historical bash test suites, rather than being invented fresh.
 #
 # Determinism guarantees, mirroring hooks/test-fixtures/vcs-detect/regenerate.sh:
 #   - TMPDIR is explicitly /tmp (or realpath-resolved).
@@ -80,10 +77,9 @@ snapshot_tree() {
   done
 }
 
-# ── Shared fixture inputs, adapted from test-migrate.sh / test-migrate-interactive.sh ──
+# ── Shared fixture inputs, adapted from the historical bash test suites ──
 
-# All bundled mechanical (non-INTERACTIVE) migrations, copied once — mirrors
-# test-migrate.sh's MECHANICAL_MIGRATIONS_DIR.
+# All bundled mechanical (non-INTERACTIVE) migrations, copied once.
 MECHANICAL_DIR="$WORK/mechanical-migrations"
 mkdir -p "$MECHANICAL_DIR"
 for f in "$BASH_MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
@@ -91,10 +87,10 @@ for f in "$BASH_MIGRATIONS_DIR"/[0-9][0-9][0-9][0-9]-*.sh; do
     cp "$f" "$MECHANICAL_DIR/"
   fi
 done
-# Default every subsequent invocation to the mechanical-only set (mirrors
-# test-migrate.sh:29's global export) so an individual migration's fixture
-# capture isn't derailed by 0007 (interactive) also being pending. Sections
-# that need a narrower or different set override this inline.
+# Default every subsequent invocation to the mechanical-only set so an
+# individual migration's fixture capture isn't derailed by 0007
+# (interactive) also being pending. Sections that need a narrower or
+# different set override this inline.
 export ACCELERATOR_MIGRATIONS_DIR="$MECHANICAL_DIR"
 
 only_dir_for() { # only_dir_for <migration-basename.sh...> -> echoes new dir path
@@ -109,7 +105,6 @@ only_dir_for() { # only_dir_for <migration-basename.sh...> -> echoes new dir pat
 
 # setup_old_repo: temp dir with the pre-0001 legacy ticket structure, no VCS
 # dir (find_repo_root falls back to $PWD; VCS clean-tree check is skipped).
-# Verbatim adaptation of test-migrate.sh:63-75.
 setup_old_repo() {
   local repo_dir
   repo_dir=$(mktemp -d "$WORK/repo-XXXXXX")
@@ -170,14 +165,14 @@ setup_0006_repo() {
   echo "$repo"
 }
 
-setup_sandbox() { # setup_sandbox <name> — matches test-migrate-interactive.sh:21-27
+setup_sandbox() { # setup_sandbox <name>
   local name="$1" sandbox
   sandbox=$(mktemp -d "$WORK/$name-XXXXXX")
   mkdir -p "$sandbox/.git" "$sandbox/.accelerator/state"
   printf '%s\n' "$sandbox"
 }
 
-seed_predicate_sandbox() { # test-migrate-interactive.sh:360-369
+seed_predicate_sandbox() {
   local sandbox="$1"
   shift
   mkdir -p "$sandbox/.fixture"
@@ -188,7 +183,7 @@ seed_predicate_sandbox() { # test-migrate-interactive.sh:360-369
   done
 }
 
-seed_bridge_corpus() { # test-migrate-interactive.sh:1552-1557
+seed_bridge_corpus() {
   local sbx="$1"
   mkdir -p "$sbx/meta/work"
   printf -- '---\nid: "0050"\n---\n' >"$sbx/meta/work/0050-example-a.md"
@@ -200,7 +195,7 @@ BRIDGE_DIR="$INTERACTIVE_FIXTURES/0006-decisions-bridge/migrations"
 PREDICATE_DIR="$INTERACTIVE_FIXTURES/0002-predicate/migrations"
 
 # gr_int_repo <vcs> — jj/git repo with an empty owned manifest seeded at the
-# current base revision. Adapted from test-migrate-interactive.sh:1319-1332.
+# current base revision.
 gr_base_rev() {
   local repo="$1" vcs="$2"
   if [ "$vcs" = jj ]; then
@@ -408,10 +403,9 @@ snapshot_state "$OUT" "$SBX"
 capture_source "$OUT"
 
 echo "  interactive/foreign-dirty-path/ + interactive/two-owned-dirty-paths/ (git)"
-# Both adapted from test-migrate-interactive.sh's near-miss (1469-1496) and
-# mixed-owned (1499-1540) cases: a manifest listing meta/work/mech.md plus an
-# owned session log; one variant dirties ALSO a path outside the manifest
-# (foreign, refuses), the other dirties only manifest-owned paths (resumes).
+# A manifest listing meta/work/mech.md plus an owned session log; one
+# variant dirties ALSO a path outside the manifest (foreign, refuses), the
+# other dirties only manifest-owned paths (resumes).
 build_dirty_repo() {
   local name="$1"
   local repo
@@ -537,8 +531,8 @@ echo "  list/multi-pending/"
 # Two already-committed interactive fixture migrations (0006-decisions-bridge,
 # 0002-predicate), copied in rather than authored inline — lint:claude-
 # coupling:check forbids this file (it lives under cli/) from naming the
-# legacy plugin-root variable a self-authored migration sourcing
-# interactive-harness.sh would need to read.
+# legacy plugin-root variable a self-authored, interactive-capable migration
+# would need to read.
 MULTI_DIR=$(mktemp -d "$WORK/multi-migs-XXXXXX")
 cp "$BRIDGE_DIR/0006-decisions-bridge.sh" "$MULTI_DIR/0006-decisions-bridge.sh"
 cp "$PREDICATE_DIR/0002-predicate.sh" "$MULTI_DIR/0002-predicate.sh"

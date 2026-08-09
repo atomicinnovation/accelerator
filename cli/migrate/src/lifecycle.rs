@@ -22,15 +22,12 @@ use crate::registry::MigrationEntry;
 ///
 /// Reports the preview banner (or the no-pending sentinel), applies each
 /// pending entry in order, and reports the summary. Returns `Err` on the
-/// first failure, leaving the ledger at the last success — matching
-/// `run-migrations.sh`'s fail-fast apply loop.
+/// first failure, leaving the ledger at the last success.
 ///
 /// When `decisions_file_content` is `Some`, every pending interactive entry
 /// is validated against it — dry, no `apply_decision` call, no session-log
 /// write — immediately after the preview banner and before the apply loop
-/// begins, matching bash's own "validate every pending interactive
-/// migration before the live run" ordering
-/// (`run-migrations.sh`'s fail-closed decisions-file block).
+/// begins.
 ///
 /// # Errors
 /// The first [`MigrationError`] a pending entry's `apply()` returns, one
@@ -107,9 +104,8 @@ pub fn run_pending(
             Ok(ApplyOutcome::Applied) => {
                 // Re-read rather than reuse the loop-start snapshot: a
                 // migration's own `apply()` may have written directly to
-                // this same ledger file (0003 merges legacy
-                // `meta/.migrations-*` into it) — matching bash's
-                // `atomic_append_unique`, which always appends onto
+                // this same ledger file (m0003 merges legacy
+                // `meta/.migrations-*` into it), so the append must land on
                 // whatever is currently on disk, never a stale in-memory
                 // list.
                 let current_applied =

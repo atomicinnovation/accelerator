@@ -60,8 +60,7 @@ pub trait CorpusIndex {
 /// mutation primitive (whole-file/whole-directory relocation, needed by the
 /// directory-rename and state-relocation migrations); it is not
 /// content-writing, so it is not manifest-tracked the same way — the
-/// migrations that use it own their own idempotency self-check instead,
-/// matching bash's own belt-and-suspenders discipline (ADR-0023).
+/// migrations that use it own their own idempotency self-check instead.
 ///
 /// `read`/`list_md_files`/`config_value` default to the empty/absent case so
 /// the lifecycle-engine test doubles (`migrate/tests/lifecycle.rs`,
@@ -89,9 +88,9 @@ pub trait MigrationContext {
     /// `Ok(None)` never means "genuinely unreadable" — an unset key still
     /// resolves `Ok` (to its catalogue default, rendered, possibly empty).
     /// `Err` is reserved for a real config-read failure (a corrupted
-    /// `.accelerator/config.md`, for instance) — bash hard-aborted on
-    /// exactly this; a config-reading migration must too, not silently
-    /// treat corruption as "key absent."
+    /// `.accelerator/config.md`, for instance) — a config-reading migration
+    /// must hard-abort on exactly this, not silently treat corruption as
+    /// "key absent."
     ///
     /// # Errors
     /// [`MigrationError`] when the config file itself cannot be read or
@@ -182,11 +181,10 @@ pub trait MigrationContext {
     }
 
     /// Renders `bare_number` (e.g. `"0001"`) as a canonical work-item ID
-    /// under the configured `work.id_pattern`/`work.default_project_code` —
-    /// the Rust equivalent of `wip_compile_format` + `printf`. Only
-    /// migration 0002 calls this; other migrations have no need for it, so
-    /// it defaults to an error rather than requiring every test double to
-    /// implement pattern compilation.
+    /// under the configured `work.id_pattern`/`work.default_project_code`.
+    /// Only migration 0002 calls this; other migrations have no need for
+    /// it, so it defaults to an error rather than requiring every test
+    /// double to implement pattern compilation.
     ///
     /// # Errors
     /// [`MigrationError`] when the configured pattern is malformed or this
@@ -293,7 +291,7 @@ pub trait DirtyPathScanner {
 
 /// The per-run path manifest and its run-id sidecar.
 ///
-/// Bash's usability gate is modelled directly in the return shape:
+/// The usability gate is modelled directly in the return shape:
 /// `Ok(None)` is "absent, unreadable, or (run-id only) empty" — never
 /// distinguished further, since every one of those states resolves toward
 /// the same fail-closed treatment.
@@ -456,16 +454,16 @@ pub trait Reporter {
         pending_remaining: usize,
     );
 
-    /// A predicate's `Fail(message)`, relayed verbatim — matching bash's
-    /// `FAIL` frame relay, the message is NOT re-wrapped.
+    /// A predicate's `Fail(message)`, relayed verbatim — the message is
+    /// NOT re-wrapped.
     fn interactive_fail(&self, id: &str, message: &str);
 
     /// A `validate_edit` rejection: `"[interactive] {message}"`.
     fn interactive_validation_rejected(&self, message: &str);
 
-    /// The structured stall (0116): no decision input was available for
-    /// `id`, and `pending_keys` names every undecided transformation from
-    /// the stalled one onward, in emission order.
+    /// The structured stall: no decision input was available for `id`,
+    /// and `pending_keys` names every undecided transformation from the
+    /// stalled one onward, in emission order.
     fn interactive_stalled(&self, id: &str, pending_keys: &[String]);
 
     /// A `DecisionSource::Timeout`/`Eof`.

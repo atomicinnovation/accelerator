@@ -1,8 +1,8 @@
 //! Line-oriented text helpers shared by the mechanical migrations.
 //!
-//! Mirrors the bash originals' `sed`/`grep` transforms exactly (rather than a
+//! Applies `sed`/`grep`-style line transforms exactly (rather than a
 //! structural YAML rewrite) so a migration's output stays byte-for-byte
-//! equal to the bash golden wherever nothing changed.
+//! equal to the captured golden fixtures wherever nothing changed.
 
 /// Applies `transform` to every line, preserving whether `content` ends with
 /// a trailing newline.

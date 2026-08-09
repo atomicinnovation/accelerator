@@ -1,10 +1,10 @@
-//! Port of `0003-relocate-accelerator-state.sh`.
-//!
 //! Relocates Accelerator-owned files from `.claude/`/`meta/` onto
-//! `.accelerator/`: the scaffold (`.accelerator/.gitignore`,
-//! `.accelerator/state/`), the root `.gitignore` rewrite, the six
-//! source→destination moves, the legacy `meta/.migrations-*` merge, and the
-//! Jira integration's inner `.gitignore`.
+//! `.accelerator/`.
+//!
+//! Sets up the `.accelerator/` scaffold (`.accelerator/.gitignore`,
+//! `.accelerator/state/`), rewrites the root `.gitignore`, performs the six
+//! source→destination moves, merges the legacy `meta/.migrations-*` files,
+//! and writes the Jira integration's inner `.gitignore`.
 
 use std::path::Path;
 

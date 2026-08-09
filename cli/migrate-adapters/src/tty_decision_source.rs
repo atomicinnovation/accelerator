@@ -39,10 +39,11 @@ impl TtyDecisionSource {
     }
 }
 
-/// Bash's own `render_prompt` (`interactive-lib.sh:189-224`): a one-time
-/// session-log banner (so an interrupted user knows where to resume from),
-/// then the three mandatory display elements (ADR-0037) plus the author's
-/// own `display` content and the accept/skip/edit prompt.
+/// Renders a one-time session-log banner (so an interrupted user knows
+/// where to resume from), then the mandatory display elements — the
+/// proposed transformation, its source location, and the trigger
+/// predicate's evaluated value — plus the author's own `display` content
+/// and the accept/skip/edit prompt.
 fn render_prompt(
     out: &mut impl Write,
     transformation: &Transformation,

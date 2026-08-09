@@ -1,9 +1,9 @@
 //! `--list`: the read-only enumeration of pending interactive decisions.
 //!
-//! Skips the whole pre-flight (no manifest/run-id setup, no lock — matching
-//! `--list`'s bash treatment exactly), never writes to a session log, and
-//! never calls `apply_decision`. Mechanical migrations are not visited at
-//! all — only `MigrationEntry::Interactive` entries have anything to list.
+//! Skips the whole pre-flight (no manifest/run-id setup, no lock), never
+//! writes to a session log, and never calls `apply_decision`. Mechanical
+//! migrations are not visited at all — only `MigrationEntry::Interactive`
+//! entries have anything to list.
 //! Rendering (position numbering, `# migration <id>` segmentation, the
 //! multi-migration/in-flight-session stderr notes) is the caller's job —
 //! this module only computes the data those notes are a pure function of.
@@ -23,7 +23,7 @@ pub struct ListGroup {
     pub transformations: Vec<Transformation>,
     /// Whether this migration's session log already had at least one
     /// record — `--list` excludes decided keys via the same resume filter
-    /// a live run applies, so a caller renders bash's "in-flight session"
+    /// a live run applies, so a caller renders the "in-flight session"
     /// note from this rather than re-deriving it.
     pub had_in_flight_session: bool,
 }
@@ -31,11 +31,9 @@ pub struct ListGroup {
 /// # Errors
 /// The first pending interactive migration's `Fail` predicate message (see
 /// [`engine::pending_transformations`]), or the first transformation whose
-/// key/proposed/path/anchor carries an embedded tab or newline — bash's own
-/// `_enum_handle_frame` (`interactive-lib.sh:552-566`) refuses these before
-/// joining fields with tabs, since `--list`'s output is otherwise undefined
-/// for such a value; the tab-delimited `render_list` line has the identical
-/// corruption risk, so this port carries the identical fail-closed check.
+/// key/proposed/path/anchor carries an embedded tab or newline: `--list`'s
+/// output is otherwise undefined for such a value, since the tab-delimited
+/// `render_list` line has an unresolvable corruption risk.
 pub fn list_pending(
     entries: &[MigrationEntry],
     applied: &[String],

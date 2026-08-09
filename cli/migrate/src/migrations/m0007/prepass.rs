@@ -1,6 +1,5 @@
 //! The read-only precondition prepass: every refusal aborts the whole
-//! migration before any mutation. A line-oriented port of
-//! `precondition_prepass`.
+//! migration before any mutation.
 
 use std::path::PathBuf;
 

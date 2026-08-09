@@ -1,4 +1,4 @@
-//! Port of `0004-restructure-meta-research-into-subject-subcategories.sh`.
+//! Restructures `meta/research/` into subject subcategories.
 //!
 //! Restructures `meta/research/` (plus `meta/design-inventories/`,
 //! `meta/design-gaps/`) into `meta/research/{codebase,issues,

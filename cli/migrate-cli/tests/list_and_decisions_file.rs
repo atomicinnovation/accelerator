@@ -1,11 +1,9 @@
 //! `--list` and `--decisions-file` driven end to end against the compiled
 //! binary, exercised through migration 0007's own ambiguous-band prompt —
 //! the only interactive migration the compiled registry ever contains, so
-//! it is the sole real exerciser of this surface (Phase 5's own deferred
-//! scope, unblocked once 0007 registered — see the 0172 plan's Phase 8
-//! deviations for why no literal Phase-0 fixture replay applies here: those
-//! were captured against bash-only fixture migrations with no Rust
-//! equivalent in the compiled registry).
+//! it is the sole real exerciser of this surface. The fixture migrations
+//! used to capture the bash-golden matrix have no Rust equivalent in the
+//! compiled registry, so no literal fixture replay applies here.
 
 use std::fs;
 use std::path::Path;

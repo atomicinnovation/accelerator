@@ -1,4 +1,4 @@
-//! Port of `0005-rename-work-item-type-to-kind.sh`.
+//! Renames the work-item `type` field to `kind`.
 //!
 //! Renames the `type:` frontmatter key and the `**Type**:` body label to
 //! `kind:`/`**Kind**:` across every `.md` file under the configured work

@@ -1,5 +1,5 @@
 //! Migration 0001 (`rename-tickets-to-work`) driven end to end against the
-//! compiled binary, asserted against the Phase-0-captured bash golden at
+//! compiled binary, asserted against the bash golden captured at
 //! `tests/fixtures/0001/` (after the invocation-path normalisation
 //! `masks.toml` documents: `bash .../run-migrations.sh` → `accelerator
 //! migrate`).
@@ -15,10 +15,10 @@ const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
 
 /// Mirrors `regenerate.sh`'s `setup_old_repo`: the pre-0001 legacy ticket
 /// structure, no VCS directory. The compiled binary always runs the full
-/// registry (unlike bash's `ACCELERATOR_MIGRATIONS_DIR` isolation), so every
-/// other real migration is pre-marked applied here to keep this fixture
-/// scoped to 0001's own observable behaviour — update this list as later
-/// migrations are registered.
+/// registry and has no way to isolate a subset of migrations for a test, so
+/// every other real migration is pre-marked applied here to keep this
+/// fixture scoped to 0001's own observable behaviour — update this list as
+/// later migrations are registered.
 fn setup_old_repo() -> Result<TempDir, TestError> {
     let dir = TempDir::new()?;
     fs::create_dir_all(dir.path().join("meta/tickets"))?;

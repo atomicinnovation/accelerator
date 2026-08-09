@@ -1,6 +1,5 @@
 //! The clap inbound adapter: the `accelerator-migrate` command-line surface.
 //!
-//! Flat — no subcommand — matching bash's `run-migrations.sh` flag shape:
 //! `--skip`/`--unskip`/`--unapply` each short-circuit with their own exit
 //! before any migration logic runs; `--list` and `--decisions-file` fall
 //! through to a run.
@@ -37,8 +36,7 @@ pub struct Cli {
     pub decisions_file: Option<PathBuf>,
     /// Print the `SessionStart` discoverability advisory, then exit. Not
     /// part of the flag-for-flag migration surface — a hook-only entry
-    /// point, matching bash's separate `hooks/migrate-discoverability.sh`
-    /// script under one dispatch token.
+    /// point folded into this binary's single dispatch token.
     #[arg(long)]
     pub discoverability_hook: bool,
     /// Rendering for `--discoverability-hook`: the `SessionStart` hook

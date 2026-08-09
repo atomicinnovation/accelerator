@@ -1,6 +1,5 @@
-//! Port of `0007-unify-meta-corpus-frontmatter.sh`: the mechanical
-//! base-field/identity/provenance/status rewrite plus the interactive
-//! body-section typed-linkage contract (ADR-0033/0034/0037/0038).
+//! The mechanical base-field/identity/provenance/status rewrite plus the
+//! interactive body-section typed-linkage contract.
 //!
 //! The mechanical work (precondition prepass, fence-less backfill, the
 //! single-pass rewrite, structural self-validation) all happens inside
@@ -11,12 +10,11 @@
 //! `evaluate_predicate` returns `Fail` — the same "abort the whole
 //! migration with `[id] message`" path a real predicate failure takes.
 //!
-//! `self_validate_referential` (whole-corpus, post-interactive-apply) runs
-//! via [`InteractiveMigration::finalise`] — the engine calls it once,
+//! The whole-corpus, post-interactive-apply referential-integrity check
+//! runs via [`InteractiveMigration::finalise`] — the engine calls it once,
 //! unconditionally, after every transformation this run decided has been
-//! applied (or immediately if there were none to begin with), mirroring
-//! bash's own placement: once, after the whole interactive apply loop
-//! completes, not threaded through any one transformation's own callback.
+//! applied (or immediately if there were none to begin with), not threaded
+//! through any one transformation's own callback.
 
 mod backfill;
 mod fence;
@@ -61,7 +59,7 @@ impl MigrationMeta for Migration0007 {
 /// need (`path_roots`/`extract_doc_paths` scan prose for repo-relative
 /// tokens like `meta/work/0042.md`, never an absolute filesystem path) —
 /// `ctx.doc_type_dirs()` returns directories already joined against the
-/// project root (Phase 2's `MigrationContext` contract, matching what
+/// project root (the `MigrationContext` contract, matching what
 /// `ctx.list_md_files` needs for real filesystem walking), so this strips
 /// that root back off before the dirs reach any text-matching call.
 fn linkage_table(

@@ -67,12 +67,11 @@ fn matches_the_isolated_bash_golden_for_default_layout() -> Result<(), TestError
         stdout.ends_with("Migration complete. applied: 1.\n"),
         "{stdout}"
     );
-    // The driver relays a mechanical migration's own combined
-    // stdout+stderr through *its own* stderr (`run-migrations.sh`
-    // captures `bash "$f" >"$STDOUT_FILE" 2>&1` then relays via `>&2`),
-    // so bash's plain `echo` progress lines are observable on stderr,
-    // never stdout — verified against a live combined-chain run, not
-    // assumed from reading the migration script alone.
+    // A mechanical migration's own combined stdout+stderr is relayed
+    // through this binary's stderr, so its plain progress lines are
+    // observable on stderr, never stdout — verified against a live
+    // combined-chain run, not assumed from reading the migration script
+    // alone.
     let stderr = String::from_utf8(output.stderr)?;
     for line in [
         "0004: moved meta/research/2026-01-01-a.md → \
@@ -272,9 +271,9 @@ fn a_local_config_only_override_is_honoured_independently_of_config_md(
         "---\nauthor: Toby\n---\n"
     );
     // Both existing config files are unconditionally backed up once a
-    // research override is in play anywhere — matching bash's own
-    // `RESEARCH_HAD_OVERRIDE`-gated backup loop, which does not check
-    // whether each individual file actually contains the overridden key.
+    // research override is in play anywhere, regardless of whether each
+    // individual file actually contains the overridden key — preserving a
+    // historical bash quirk rather than tightening the condition.
     assert!(root.join(".accelerator/config.local.md.0004.bak").exists());
     assert!(root.join(".accelerator/config.md.0004.bak").exists());
     let rewritten_local =

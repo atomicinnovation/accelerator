@@ -1,5 +1,4 @@
-//! Inject-or-replace-or-append-if-absent linkage merge, a line-oriented
-//! port of the retired bash rewrite's own merge pass. A single key is
+//! Inject-or-replace-or-append-if-absent linkage merge. A single key is
 //! always replaced outright; a list key gains `value` only if not already
 //! a member, preserving existing member order.
 

@@ -16,10 +16,10 @@ fn project() -> Result<TempDir, TestError> {
     Ok(dir)
 }
 
-/// A project with every registered migration already applied — the
-/// no-op-empty-registry case Phase 1 tested is no longer reachable now the
-/// registry is populated (Phase 6), so these tests instead seed the ledger
-/// to reach the same "nothing pending" state against the real registry.
+/// A project with every registered migration already applied. An
+/// empty-registry "nothing pending" case is no longer reachable now the
+/// registry is populated, so these tests instead seed the ledger to reach
+/// the same "nothing pending" state against the real registry.
 fn fully_applied_project() -> Result<TempDir, TestError> {
     let dir = project()?;
     fs::create_dir_all(dir.path().join(".accelerator/state"))?;
@@ -92,7 +92,7 @@ Options:
           Scripted decisions for interactive migrations, one per line: accept | skip | edit <value>
 
       --discoverability-hook
-          Print the `SessionStart` discoverability advisory, then exit. Not part of the flag-for-flag migration surface — a hook-only entry point, matching bash's separate `hooks/migrate-discoverability.sh` script under one dispatch token
+          Print the `SessionStart` discoverability advisory, then exit. Not part of the flag-for-flag migration surface — a hook-only entry point folded into this binary's single dispatch token
 
       --format <FORMAT>
           Rendering for `--discoverability-hook`: the `SessionStart` hook envelope

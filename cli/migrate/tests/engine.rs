@@ -1,8 +1,9 @@
 //! `run_interactive` exercised end to end against a `FixtureMigration` test
 //! double and in-memory ports — the write-ahead-log invariant, source
 //! drift, sticky skip, `verify_applied`, and predicate `Fail` are all
-//! asserted here since no real interactive migration exists yet (0007 lands
-//! once its own phase is unblocked).
+//! asserted here against the fixture rather than a real interactive
+//! migration, keeping this suite independent of any one migration's own
+//! behaviour.
 
 use std::cell::RefCell;
 use std::path::Path;

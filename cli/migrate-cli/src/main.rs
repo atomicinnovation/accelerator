@@ -74,10 +74,6 @@ fn session_log_decision_count(root: &Path) -> impl Fn(&str) -> usize + '_ {
     }
 }
 
-/// The flag, falling back to `ACCELERATOR_MIGRATE_DECISIONS_FILE` — matching
-/// bash, where `--decisions-file <path>` simply overwrites the same env var
-/// during arg parsing, so a supplied flag always wins over a pre-existing
-/// one.
 fn resolve_decisions_file(cli: &Cli) -> Option<PathBuf> {
     cli.decisions_file.clone().or_else(|| {
         std::env::var("ACCELERATOR_MIGRATE_DECISIONS_FILE")
@@ -87,12 +83,12 @@ fn resolve_decisions_file(cli: &Cli) -> Option<PathBuf> {
     })
 }
 
-/// Reproduces `run-migrations.sh`'s three decisions-file existence checks
-/// verbatim, in the same order, run unconditionally whenever the var is set
-/// — including under `--list`, which never ends up reading it.
+/// Three decisions-file existence checks, run in a fixed order,
+/// unconditionally whenever the var is set — including under `--list`,
+/// which never ends up reading the file.
 ///
 /// # Errors
-/// [`kernel::Error::Failed`] naming which check failed, exactly as bash.
+/// [`kernel::Error::Failed`] naming which check failed.
 fn validate_decisions_file_exists(path: &Path) -> Result<(), kernel::Error> {
     if path.is_dir() {
         return Err(kernel::Error::Failed(format!(

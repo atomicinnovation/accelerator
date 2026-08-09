@@ -1,4 +1,4 @@
-//! Port of `0001-rename-tickets-to-work.sh`.
+//! Renames tickets terminology to work-item terminology.
 //!
 //! Renames `ticket_id:`/`tickets`/`ticket_revise_*` terminology to
 //! `work_item_id:`/`work`/`work_item_revise_*` across frontmatter, the

@@ -1,10 +1,9 @@
 //! The three-stage linkage-value normalisation pipeline: path → typed ref,
 //! non-canonical PR reference → `pr:N`, single-candidate bare number →
-//! `type:N`. A line-oriented port of the retired bash rewrite's own
-//! `normalize_paths`/`normalize_pr_ref`/`normalize_bare` passes — each
-//! scans every double-quoted token in the raw value text (a bare scalar or
-//! a `[...]` list are the same shape here: quoted tokens embedded in
-//! surrounding text) and replaces only the tokens its own shape matches.
+//! `type:N`. Each stage scans every double-quoted token in the raw value
+//! text (a bare scalar or a `[...]` list are the same shape here: quoted
+//! tokens embedded in surrounding text) and replaces only the tokens its
+//! own shape matches.
 
 use std::path::PathBuf;
 
@@ -141,9 +140,8 @@ fn normalise_bare_token(
 }
 
 /// The deterministic target doc-type for a bare-number value on
-/// `(source_type, key)`, per ADR-0034's table — only the single-candidate
-/// pairings; a multi-candidate or loose key is left for the interactive
-/// hook.
+/// `(source_type, key)` — only the single-candidate pairings; a
+/// multi-candidate or loose key is left for the interactive hook.
 fn bare_target_type(source_type: &str, key: &str) -> Option<&'static str> {
     match key {
         "parent" => {

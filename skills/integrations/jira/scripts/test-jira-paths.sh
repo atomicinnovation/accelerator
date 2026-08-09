@@ -38,10 +38,10 @@ fi
 
 echo ""
 
-# Phase 6 / 4b: JIRA_INNER_GITIGNORE_RULES in jira-common.sh must match
-# the JIRA_INNER_GITIGNORE_RULES constant in accelerator-migrate's Rust port
-# of migration 0003 (skills/config/migrate/migrations/0003-relocate-accelerator-state.sh's
-# bash original retired in the migration engine's Rust cutover).
+# JIRA_INNER_GITIGNORE_RULES in jira-common.sh must match the
+# JIRA_INNER_GITIGNORE_RULES constant in accelerator-migrate's Rust port of
+# migration 0003 — the bash original was retired in the migration engine's
+# Rust cutover.
 echo "=== Jira gitignore rules: jira-common.sh matches migration 0003 ==="
 echo ""
 

@@ -681,8 +681,7 @@ mod tests {
     fn two_nested_design_inventory_manifests_derive_distinct_ids() {
         // Both are literally named `inventory.md` — the identity has to
         // come from the *parent directory*, not the file's own basename,
-        // or these two would silently collapse onto the same target (the
-        // exact regression class this session's linkage_table() bug was).
+        // or these two would silently collapse onto the same target.
         let first = super::resolve_path_target(
             "meta/research/design-inventories/auth-module/inventory.md",
             &table(),

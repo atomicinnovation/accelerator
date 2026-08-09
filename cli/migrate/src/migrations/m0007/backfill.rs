@@ -1,7 +1,7 @@
 //! The fence-less backfill: synthesises a canonical frontmatter block for a
 //! file with no strict leading fence (including a *loose*-fenced file, e.g.
 //! a legacy note whose `---` carries trailing whitespace), preserving the
-//! original body. A line-oriented port of `backfill_file`.
+//! original body.
 
 use std::path::PathBuf;
 
@@ -156,11 +156,10 @@ mod tests {
         let content = "--- \nold: stuff\n--- \n\nBody kept.\n";
         let (result, _) =
             backfill(content, "meta/notes/note.md", &table(), "repo");
-        // The retired bash source this mirrors reproduces every line after
-        // the second fence verbatim, including the original blank
-        // separator line — the synthesised frontmatter's own trailing blank
-        // line (`---\n\n`) is therefore followed by that preserved blank
-        // line, not collapsed into it.
+        // Every line after the second fence is reproduced verbatim,
+        // including the original blank separator line — the synthesised
+        // frontmatter's own trailing blank line (`---\n\n`) is therefore
+        // followed by that preserved blank line, not collapsed into it.
         assert!(result.ends_with("---\n\n\nBody kept.\n"));
         assert!(!result.contains("old: stuff"));
     }

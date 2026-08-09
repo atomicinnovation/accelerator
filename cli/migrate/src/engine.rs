@@ -110,9 +110,9 @@ pub fn run_interactive(
 /// precisely the positions a live run would actually prompt for.
 ///
 /// `emit_transformations` itself may still perform real mutations — a
-/// migration's mechanical work (0007's backfill/rewrite passes) runs
-/// unconditionally inside it, matching bash's own per-migration fork, which
-/// runs the identical unconditional passes before enumerating in list mode.
+/// migration's mechanical work (m0007's backfill/rewrite passes) runs
+/// unconditionally inside it, even when only enumerating pending
+/// transformations for `--list` or dry-apply.
 ///
 /// # Errors
 /// The predicate's `Fail` message, reported and formatted `"[{id}] {message}"`
@@ -178,10 +178,9 @@ fn apply(
 /// `Ok` before `apply_decision` is invoked, for every outcome that reaches
 /// it — accept and edit.
 ///
-/// A skip is recorded but never calls `apply_decision` at all — matching
-/// bash's own harness, which never invoked `migration_apply_decision` for a
-/// skip either. This is a structural guarantee the engine itself enforces,
-/// not a convention every `InteractiveMigration` author has to remember.
+/// A skip is recorded but never calls `apply_decision` at all. This is a
+/// structural guarantee the engine itself enforces, not a convention every
+/// `InteractiveMigration` author has to remember.
 fn record_then_apply(
     id: &str,
     transformation: &Transformation,

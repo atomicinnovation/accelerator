@@ -7,11 +7,9 @@
 //!
 //! Only ever exercised with at most one `Interactive` registry entry
 //! (migration 0007 today — the compiled-in registry never contains a
-//! second one). A single shared cursor across more than one interactive
-//! migration in the same run is therefore unexercised and undefined; bash's
-//! own dry-apply reopens the decisions file from the start for each
-//! migration it validates, which this adapter does not reproduce, since no
-//! registry this plan ever produces can exercise the difference.
+//! second one). Sharing a single cursor across more than one interactive
+//! migration in the same run is therefore unexercised and undefined
+//! behaviour.
 
 use std::cell::Cell;
 use std::time::Duration;

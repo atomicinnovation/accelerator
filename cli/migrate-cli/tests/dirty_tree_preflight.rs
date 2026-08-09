@@ -18,10 +18,10 @@ fn tempdir(tag: &str) -> Result<TempDir, TestError> {
         .tempdir()?)
 }
 
-/// The compiled binary always runs the full registry (unlike bash's
-/// `ACCELERATOR_MIGRATIONS_DIR` isolation), so every real migration is
+/// The compiled binary always runs the full registry and has no way to
+/// isolate a subset of migrations for a test, so every real migration is
 /// pre-marked applied here to reach the same "nothing pending" state these
-/// tests were written against when the registry was still empty.
+/// tests were originally written against with an empty registry.
 fn mark_all_migrations_applied(
     root: &std::path::Path,
 ) -> Result<(), TestError> {

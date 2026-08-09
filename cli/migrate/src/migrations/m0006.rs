@@ -1,4 +1,4 @@
-//! Port of `0006-canonicalise-work-item-id-and-author.sh`.
+//! Canonicalises the work-item-id and author/researcher fields.
 //!
 //! A single-pass, six-pattern frontmatter/body-label rewrite
 //! (`work-item:`/`work_item_id:`/`researcher:`/`author:` in frontmatter,
@@ -7,15 +7,14 @@
 //! userspace-overridden templates, with REFUSE/DIVERGE/MALFORMED
 //! diagnostics preserved as stable substrings.
 //!
-//! `assert_safe_relpath`'s symlink-escape check (resolving the configured
-//! path's parent through the real filesystem and confirming it stays under
-//! the project root) is not reproduced — only the surface-form dangerous-
-//! pattern check is. A configured path that is itself safe-looking but
-//! escapes the project root only via a symlinked parent is the sole case
-//! this narrows; ordinary traversal (`../`, absolute paths) is still
-//! refused. Reproducing the symlink check would need a new canonicalising
-//! port primitive for a corner case with no coverage in this plan's own
-//! fixture matrix.
+//! A symlink-escape check — resolving a configured path's parent through
+//! the real filesystem and confirming it stays under the project root — is
+//! not reproduced; only the surface-form dangerous-pattern check is. A
+//! configured path that is itself safe-looking but escapes the project
+//! root only via a symlinked parent is the sole case this narrows;
+//! ordinary traversal (`../`, absolute paths) is still refused.
+//! Reproducing the symlink check would need a new canonicalising port
+//! primitive for a corner case with no fixture coverage.
 //!
 //! Likewise, the corpus-alias and template-alias dedup loops compare
 //! `root.join(rel)` path strings rather than `cd && pwd -P` real paths —
@@ -338,12 +337,12 @@ fn extract_value<'a>(line: &'a str, prefix: &str) -> &'a str {
     line[prefix.len()..].trim_matches([' ', '\t'])
 }
 
-/// `_rb`/`_ab`/`_r`/`_wi` etc. deliberately mirror the bash original's own
-/// variable names one-for-one, for traceability against the source —
-/// not renamed for `similar_names`, and not split apart for cognitive
-/// complexity, since this is a direct line-by-line port of one bash
-/// state machine (splitting it would obscure rather than clarify the
-/// correspondence a reviewer needs to check fidelity against the source).
+/// `_rb`/`_ab`/`_r`/`_wi` etc. deliberately mirror the original bash state
+/// machine's variable names one-for-one rather than being renamed for
+/// `similar_names`, and the function is not split apart for cognitive
+/// complexity: this is a direct line-by-line port of a single bash state
+/// machine, and splitting it would fragment one coherent transformation
+/// across several functions.
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::similar_names)]
 #[allow(clippy::cognitive_complexity)]

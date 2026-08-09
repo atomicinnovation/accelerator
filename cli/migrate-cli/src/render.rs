@@ -1,6 +1,5 @@
-//! Every user-facing string this binary emits, reproduced byte-for-byte from
-//! `run-migrations.sh` (the `accelerator migrate` invocation form replacing
-//! `bash $0`/`run-migrations.sh` per the port's fixed normalisation rule).
+//! Every user-facing string this binary emits is reproduced byte-for-byte
+//! to match already-captured golden fixtures.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -37,9 +36,8 @@ pub fn resume_affordance(root: &Path, affordance: &[AffordanceEntry]) {
     }
 }
 
-/// `--list`: the multi-migration/in-flight-session stderr notes (verbatim,
-/// `run-migrations.sh:506-508` and its neighbouring in-flight-session
-/// block), then every group's tab-delimited lines
+/// `--list`: the multi-migration/in-flight-session stderr notes, then
+/// every group's tab-delimited lines
 /// (`<pos>\t<key>\t<proposed>\t<path>:<anchor>`), segmented by a
 /// `# migration <id>` header — and position restarting at 1 — only when
 /// more than one interactive migration is pending. `"no pending

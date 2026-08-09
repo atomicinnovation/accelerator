@@ -12,10 +12,9 @@ pub struct Warnings {
     pub both: Vec<String>,
 }
 
-/// Unknown-ID and cross-state warnings, in the same order bash emits them.
-///
-/// Every unknown applied ID (applied order), then every unknown skipped ID
-/// (skipped order), then every ID present in both (applied order).
+/// Unknown-ID and cross-state warnings, in a fixed order: every unknown
+/// applied ID (applied order), then every unknown skipped ID (skipped
+/// order), then every ID present in both (applied order).
 #[must_use]
 pub fn warnings(
     entries: &[MigrationEntry],
@@ -85,9 +84,9 @@ pub fn remove_line(mut ids: Vec<String>, id: &str) -> Vec<String> {
     ids
 }
 
-/// No ID validation against the registry, matching bash exactly: an
-/// unrecognised ID is silently accepted (it surfaces later as an unknown-ID
-/// warning on the next default run).
+/// No ID validation against the registry — an unrecognised ID is silently
+/// accepted (it surfaces later as an unknown-ID warning on the next default
+/// run).
 ///
 /// # Errors
 /// [`MigrationError`] when the skip list cannot be read or written.

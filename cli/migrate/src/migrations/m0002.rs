@@ -1,9 +1,10 @@
-//! Port of `0002-rename-work-items-with-project-prefix.sh`.
+//! Renames legacy `NNNN-*.md` work items to the configured project-prefix
+//! pattern.
 //!
-//! Renames legacy `NNNN-*.md` work items under `meta/work/` to the
-//! configured project-prefix pattern, then rewrites every corpus-wide
-//! frontmatter reference, Markdown link, and prose reference (heading
-//! `#NNNN` and fenced-code-block path literals) that named the old ID.
+//! Renames every legacy `NNNN-*.md` work item under `meta/work/`, then
+//! rewrites every corpus-wide frontmatter reference, Markdown link, and
+//! prose reference (heading `#NNNN` and fenced-code-block path literals)
+//! that named the old ID.
 
 use std::path::PathBuf;
 
@@ -309,8 +310,7 @@ fn is_reference_value(value: &str, old_id: &str) -> bool {
 
 /// Wraps a bare (unquoted) `old_id` occurrence immediately preceded by
 /// `before_char` (`[` or `,`) and followed by optional whitespace then `]`
-/// or `,`, in double quotes with `new_id` — mirrors the two bracket-aware
-/// sed passes over an inline-list line.
+/// or `,`, in double quotes with `new_id`.
 fn wrap_bare_id_after(
     line: &str,
     before_char: char,
@@ -357,9 +357,9 @@ fn rewrite_inline_list_line(line: &str, old_id: &str, new_id: &str) -> String {
 }
 
 /// One `old_id` → `new_id` pass over every reference-field frontmatter line
-/// in `content` — inline lists, single-line scalars, and (matching bash's
-/// own structure, which never actually reaches this branch for any of the
-/// seven known field names) multi-line dash-item continuations.
+/// in `content` — inline lists, single-line scalars, and multi-line
+/// dash-item continuations. The dash-item branch is structurally complete
+/// but never actually reached for any of the seven known field names.
 fn rewrite_frontmatter_refs(
     content: &str,
     old_id: &str,

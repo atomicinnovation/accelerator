@@ -1,6 +1,5 @@
 //! `migrate --discoverability-hook`: a `SessionStart` advisory when the
-//! applied-migration ledger lags the compiled-in registry, reproducing
-//! `hooks/migrate-discoverability.sh`.
+//! applied-migration ledger lags the compiled-in registry.
 
 use std::path::Path;
 use std::path::PathBuf;

@@ -21,12 +21,11 @@
 # bash 3.2 safe (no associative arrays, no ${var,,}, no ${var//} slash
 # replacement); safe to source under `set -euo pipefail`.
 #
-# NB: the awk rewrite (0007-frontmatter-rewrite.awk:path_to_typed) encodes the
-# SAME directory→type fact for a DIFFERENT input — the referenced meta-path
-# inside a linkage value, not the current file — so it cannot consume the
-# file-level `-v type` channel and must stay a third, in-runtime copy. The two
-# encodings MUST be kept aligned; a fixture in test-migrate-0007.sh asserts a
-# meta/prs/ path resolves to pr-description in both surfaces.
+# NB: `corpus::linkage::type_from_path` (cli/corpus/src/linkage.rs) encodes
+# the SAME directory→type fact for a DIFFERENT input — the referenced
+# meta-path inside a linkage value, not the current file — so it cannot
+# consume the file-level `-v type` channel and must stay a third, in-runtime
+# copy. The two encodings MUST be kept aligned.
 
 # Default the injected arrays so the functions are set -u safe and shellcheck
 # sees them assigned; load_doc_type_table (doc-type-table.sh) overwrites them

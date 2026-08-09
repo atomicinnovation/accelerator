@@ -1,15 +1,12 @@
-//! The single-pass frontmatter rewrite, a line-oriented port of the retired
-//! bash rewrite pass (matching `migrations::text`'s own stated convention:
-//! a line-oriented port, not a structural YAML rewrite, so a migration's
-//! output stays byte-for-byte equal to the bash golden wherever nothing
-//! changed). Only the frontmatter fence region is rewritten; the body
-//! passes through verbatim. Presumes `content` already carries a strict
-//! leading fence — the caller routes fence-less files to the backfill
-//! instead.
+//! The single-pass frontmatter rewrite: a line-oriented rewrite, not a
+//! structural YAML rewrite, so a migration's output stays byte-for-byte
+//! equal to the captured golden fixtures wherever nothing changed. Only
+//! the frontmatter fence region is rewritten; the body passes through
+//! verbatim. Presumes `content` already carries a strict leading fence —
+//! the caller routes fence-less files to the backfill instead.
 //!
-//! Every `has_*` presence flag (`has_title`, `has_date`, …) is a snapshot of
-//! the file's *original* state, taken once before the rewrite begins —
-//! mirroring the bash source, where these are shell-precomputed inputs,
+//! Every `has_*` presence flag (`has_title`, `has_date`, …) is a snapshot
+//! of the file's *original* state, taken once before the rewrite begins,
 //! never scan-local state. Only what *this pass itself decides to emit*
 //! (`emitted_id`, `emitted_revision`, `emitted_title`, the seeded
 //! `date`/`author` values) is tracked while scanning.
@@ -152,9 +149,8 @@ fn filename_date_prefix(stem: &str) -> Option<String> {
     is_date_prefixed(stem).then(|| format!("{}T00:00:00+00:00", &stem[..10]))
 }
 
-/// The inputs a caller (the migration's mechanical apply step) must compute
-/// per file before calling [`rewrite`] — mirrors `rewrite_file`'s own local
-/// variables in the bash source.
+/// The inputs a caller (the migration's mechanical apply step) must
+/// compute per file before calling [`rewrite`].
 pub struct RewriteInput<'a> {
     pub file_display: &'a str,
     pub relpath: &'a str,
@@ -163,9 +159,9 @@ pub struct RewriteInput<'a> {
 }
 
 /// Applies the single-pass rewrite, returning the rewritten content and
-/// every diagnostic emitted (REFUSE/DIVERGE/MALFORMED, without the bash
-/// driver's own incidental `0007: ` relay-wrap — nothing downstream parses
-/// these strings, so only the tagged text itself is reproduced).
+/// every diagnostic emitted (REFUSE/DIVERGE/MALFORMED) without any
+/// `0007: ` relay-wrap — nothing downstream parses these strings, so only
+/// the tagged text itself is reproduced.
 #[must_use]
 pub fn rewrite(content: &str, input: &RewriteInput) -> (String, Vec<String>) {
     let Some(linkage_type) = resolve_type(content, input.relpath, input.table)

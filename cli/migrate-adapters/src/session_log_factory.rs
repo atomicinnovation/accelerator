@@ -15,8 +15,9 @@ use time::UtcOffset;
 
 use crate::session_log::session_log_path;
 
-/// The only session-log `schema_version` this port understands — matching
-/// bash's own `interactive-lib.sh:100-109` fail-closed check.
+/// The only session-log `schema_version` this port understands. A record
+/// carrying any other value fails the read closed rather than being
+/// silently reinterpreted or discarded.
 const SUPPORTED_SCHEMA_VERSION: u32 = 1;
 
 pub struct FileSessionLog {
