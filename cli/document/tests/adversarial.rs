@@ -36,7 +36,12 @@ fn trailing_whitespace_quoted_scalar() -> String {
 
 const STRUCTURALLY_MALFORMED: &str = "---\nkey: : :\n  - broken\n---\nbody\n";
 
-const BOUND: Duration = Duration::from_secs(10);
+// Matches the bound `config-adapters/tests/parity.rs`'s own adversarial-hang
+// test uses (30s) — long enough that scheduler contention from nextest's
+// parallel test binaries doesn't spuriously trip it, short enough that an
+// actual algorithmic-complexity regression (e.g. a removed alias-expansion
+// budget) still fails fast relative to a real hang.
+const BOUND: Duration = Duration::from_secs(30);
 
 fn parse_ok_within(input: &str) -> Option<bool> {
     let (sender, receiver) = mpsc::channel();
