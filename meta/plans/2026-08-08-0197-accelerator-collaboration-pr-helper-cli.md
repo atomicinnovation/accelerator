@@ -1045,12 +1045,12 @@ config files directly as the bash resolvers do.
 
 #### Automated Verification:
 
-- [ ] TDD: one test per precedence step, plus the shared-config
+- [x] TDD: one test per precedence step, plus the shared-config
       `token_cmd` ban, modelled on `test-jira-auth.sh` Test 6 (the ban) and
       Test 5a (shared token blocked when local file exists but has no
       token entry) as a checklist — not ported, since nothing there is
       directly reusable: `cargo test -p collaboration-cli`
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
@@ -1059,6 +1059,13 @@ config files directly as the bash resolvers do.
       resolves in the stated precedence order.
 - [ ] Confirming a `github.token_cmd` in the shared `config.md` produces
       the ban error rather than executing.
+
+Manual verification deferred to Phase 6: `collaboration-cli` has no `[[bin]]`
+yet (Phase 5 lands the resolver as a library-only crate ahead of Phase 6's
+full sub-binary scaffold, since the crate itself doesn't exist before this
+phase and its own test suite needs `-p collaboration-cli` to run against
+something), so there is no compiled binary to run these checks against
+yet.
 
 ---
 
