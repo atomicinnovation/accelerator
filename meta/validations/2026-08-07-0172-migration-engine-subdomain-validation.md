@@ -8,7 +8,6 @@ producer: validate-plan
 status: complete
 result: "pass"
 target: "plan:2026-08-07-0172-migration-engine-subdomain"
-relates_to: []
 tags: [rust, migration-engine, concurrency, interactive, cli]
 last_updated: "2026-08-09T19:02:03+00:00"
 last_updated_by: Toby Clemson
