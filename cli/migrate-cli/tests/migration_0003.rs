@@ -50,6 +50,16 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
         "---\npaths:\n  templates: custom/templates\n---\n",
     )?;
     write(root, ".claude/accelerator.local.md", "---\n---\n")?;
+    // The permission guard refuses to read a personal-level config file
+    // whose mode grants any group/other access, so the fixture must match
+    // the mode a real `accelerator config set --local` always produces.
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(
+            root.join(".claude/accelerator.local.md"),
+            fs::Permissions::from_mode(0o600),
+        )?;
+    }
     write(root, ".claude/accelerator/skills/foo.md", "team skill\n")?;
     write(root, ".claude/accelerator/lenses/bar.md", "team lens\n")?;
     write(root, "meta/templates/t.md", "tmpl\n")?;

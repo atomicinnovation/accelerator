@@ -256,6 +256,16 @@ fn a_local_config_only_override_is_honoured_independently_of_config_md(
         ".accelerator/config.local.md",
         "---\npaths:\n  research: docs/research\n---\n",
     )?;
+    // The permission guard refuses to read a personal-level config file
+    // whose mode grants any group/other access, so the fixture must match
+    // the mode a real `accelerator config set --local` always produces.
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(
+            root.join(".accelerator/config.local.md"),
+            fs::Permissions::from_mode(0o600),
+        )?;
+    }
     write(root, "docs/research/a.md", "x\n")?;
     already_applied(root)?;
 
