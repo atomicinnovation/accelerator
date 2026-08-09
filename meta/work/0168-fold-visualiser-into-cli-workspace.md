@@ -11,10 +11,11 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 blocks: ["work-item:0187"]
-relates_to: ["work-item:0165", "work-item:0166"]
+relates_to: ["work-item:0165", "work-item:0166", "work-item:0180"]
 tags: [rust, visualiser, frontend, workspace]
-last_updated: "2026-08-01T16:57:37+00:00"
+last_updated: "2026-08-09T00:00:00+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Reciprocal relates_to edge to 0180, added while closing out 0172's Phase 10: this item's own Dependencies note ('0180's extra JSONL/lock primitives are not on this story's path') is the record that settles 0180's session-log-reader question — the visualiser does not read a migration session log."
 schema_version: 1
 external_id: "PP-189"
 ---

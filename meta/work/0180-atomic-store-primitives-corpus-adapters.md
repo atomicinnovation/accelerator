@@ -10,11 +10,12 @@ kind: task
 priority: high
 parent: "work-item:0166"
 blocked_by: ["work-item:0179"]
-relates_to: ["work-item:0172"]
+relates_to: ["work-item:0172", "work-item:0168"]
 external_id: PP-704
 tags: [rust, config, corpus, store, crates, dedup]
-last_updated: "2026-07-18T22:02:04+00:00"
+last_updated: "2026-08-09T00:00:00+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "0172's Phase 10 closeout settled the session-log-reader question this item's Dependencies section left open: 0168's own record states the visualiser fold-in does not consume 0180's JSONL/lock primitives, and a repository-wide search finds no visualiser code path reading a migrate session log. The 'visualiser/0168 refactor... reads jsonl_compose_record's canonical field order' claim in this item's Dependencies section is therefore superseded by 0168's own record, not confirmed — the visualiser never reads a migration session log."
 schema_version: 1
 ---
 

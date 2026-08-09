@@ -310,11 +310,6 @@ description = "Run github skills integration tests (shell harnesses)"
 run = "invoke test.integration.github"
 env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
-[tasks."test:integration:migrate"]
-description = "Run meta-directory migration framework tests (shell harnesses)"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.migrate"
-
 [tasks."test:integration:work"]
 description = "Run work-management skill script tests (shell harnesses)"
 depends = ["build:cli:dev"]
@@ -338,7 +333,6 @@ depends = [
     "test:integration:tasks",
     "test:integration:hooks",
     "test:integration:github",
-    "test:integration:migrate",
     "test:integration:work",
     "test:integration:integrations",
 ]
@@ -505,16 +499,6 @@ description = "Keep jj UserSettings and Workspace::load out of cli/vcs-adapters 
 depends = ["deps:install:python"]
 run = "invoke lint.vcs-settings.check"
 
-[tasks."lint:migrate-suite-inventory:check"]
-description = "Guard the 0172 migrate-suite assertion inventory extractor against a duplicate site or a raw/inventoried count mismatch"
-depends = ["deps:install:python"]
-run = "invoke lint.migrate-suite-inventory.check"
-
-[tasks."lint:migrate-suite-inventory:report"]
-description = "Print the 0172 migrate-suite assertion inventory's total count and threshold decision"
-depends = ["deps:install:python"]
-run = "invoke lint.migrate-suite-inventory.report"
-
 [tasks."lint:skill-permissions:check"]
 description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
 depends = ["deps:install:python"]
@@ -574,7 +558,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:vcs-settings:check", "lint:migrate-suite-inventory:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:vcs-settings:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

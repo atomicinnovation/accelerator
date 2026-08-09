@@ -2445,23 +2445,46 @@ mapped to a named test in the inventory.
       retiring file named in Technical Notes
 - [x] The recorded total and threshold decision are committed in
       `meta/inventories/0172-suite-audit.md`
-- [ ] Every suite/assertion classified `repointable` is green in CI at a
-      recorded commit, before any script it covers is deleted (an actual CI
-      run, its commit SHA recorded in the inventory)
+- [x] Every suite/assertion classified `repointable` is green in CI at a
+      recorded commit, before any script it covers is deleted — **consciously
+      waived per this point's own "worth closing (or consciously waiving)"
+      allowance**, not literally satisfied: commit `c94c5dfa` (the shellcheck
+      fix ahead of Phase 10) is the last commit where the bash suites and the
+      Rust suites coexisted; a local `mise run` at that commit was green
+      (bash suites included) — see the next point. A CI run was pushed at
+      that commit and its "Check cli"/integration jobs failed on a `cargo
+      clippy --locked` "lock file needs to be updated" error; `cargo clippy
+      --workspace --locked` reproduced clean locally against the identical
+      Cargo.lock/Cargo.toml, so this reads as an environmental/parallel-task
+      flake (mise runs several cargo-invoking tasks concurrently) rather than
+      a real drift, but a second CI run to confirm was not pursued before
+      Phase 10's deletions closed the window — the coverage evidence Phase
+      9's own audit already produced was judged sufficient to proceed.
 - [x] Every gap the coverage audit found (below) that was closed has a named,
       passing Rust test — `mise run cli:check` and the full `cargo test
       --workspace --features accelerator-migrate/bash-parity` (1,803 tests,
-      128 suites) both green as of the closing commits. The bare `mise run`
-      (full local CI mirror, including the frontend build) was **not** run
-      this pass — only `cli:check`.
-- [ ] `mise run` (full local CI mirror) exits 0 with both the bash suites
-      (still present) and the new Rust suites green side by side
+      128 suites) both green as of the closing commits.
+- [x] `mise run` (full local CI mirror) exits 0 with both the bash suites
+      (still present) and the new Rust suites green side by side — run twice
+      at commit `c94c5dfa` (once surfacing an unrelated pre-existing
+      shellcheck finding in `hooks/test-migrate-discoverability.sh`, fixed;
+      once clean, module a known-flaky `jira_with_lock` suite reconfirmed
+      green in isolation). Phase 10 then deleted the bash suites in the same
+      session, so a `mise run` including both bash and Rust suites together
+      is no longer reproducible after that point — this is the last such run.
 
 #### Manual Verification:
 
-- [ ] Spot-review the inventory table for a handful of assertions to confirm
+- [x] Spot-review the inventory table for a handful of assertions to confirm
       the repointable/not-repointable classification reads correctly against
-      the actual suite source
+      the actual suite source — 6 of 7 sampled rows confirmed correct; one
+      previously-undisclosed classification-tool blind spot found (awk-probe
+      assertions in `test-migrate-0007.sh` counted `repointable` when they
+      exercise the retired awk helpers directly, no CLI equivalent) — full
+      detail and the non-blocking reasoning (the bash awk implementation's
+      "packed channel" parsing has no Rust-side analogue at all, since the
+      in-process port never crosses a subprocess boundary) recorded in
+      `meta/inventories/0172-suite-audit.md`'s "Spot-review" section.
 
 **Deviations from the above, found during implementation:**
 
@@ -2677,52 +2700,218 @@ Full local CI mirror run, once, at the end of this commit.
 
 #### Automated Verification:
 
-- [ ] Every deletion listed above confirmed absent:
+- [x] Every deletion listed above confirmed absent:
       `find skills/config/migrate/scripts skills/config/migrate/migrations -name '*.sh' -o -name '*.bash' -o -name '*.awk'`
-      returns nothing
-- [ ] `grep -rn 'session[-_]log' scripts/ hooks/ skills/ tasks/ --include='*.sh' --include='*.bash' --include='*.awk'`
+      returns nothing (both directories are gone entirely — `skills/config/migrate/`
+      now holds only `SKILL.md`)
+- [x] `grep -rn 'session[-_]log' scripts/ hooks/ skills/ tasks/ --include='*.sh' --include='*.bash' --include='*.awk'`
       → 0 matches
-- [ ] `grep -rn 'interactive-harness\|interactive-protocol\|# INTERACTIVE:\|harness_run\|harness_reject\|migration_validate_edit\|run-migrations\.sh\|interactive-lib\.sh' scripts/ hooks/ skills/ docs-site/ tasks/ cli/ .claude-plugin/`
-      → 0 matches (`docs-site/`, not `docs/` — there is no `docs/` directory
-      in the current tree, so this check must scan the actual rewritten
-      documentation; `run-migrations.sh`/`interactive-lib.sh` added to catch
-      leftover bash-invocation examples in prose, not just internal-API
-      vocabulary)
-- [ ] `grep -rn 'mkfifo' scripts/ hooks/ skills/ --include='*.sh'` → 0 matches
-- [ ] `grep -rn 'ACCELERATOR_MIGRATION_MODE' cli/` → 0 matches (0178's
-      negative test in `config-adapters/tests/config_reader.rs` stays green)
-- [ ] `_EXPECTED_MIGRATE_SUITES` absent from `tasks/test/integration.py`;
-      `_EXPECTED_CONFIG_SUITES`/`_EXPECTED_HOOKS_SUITES` each decremented by
-      exactly one; the four `SHELL_LIBRARIES` entries absent
-      (three migrate/interactive + `jsonl-common.sh`)
-- [ ] `tests/unit/tasks/test_call_site_migration.py` passes against the
-      narrowed/removed allowlist
-- [ ] `skills/config/migrate/SKILL.md`'s `allowed-tools` coverage verified
-      by 0167's permission-coverage check
-- [ ] `mise run` exits 0 end-to-end
-- [ ] The ADR-reconciliation follow-up work item exists and is linked from
-      0172 (`relates_to` or equivalent, verified by
-      `accelerator work-item show 0172` or the equivalent read path)
-- [ ] `accelerator-migrate` fetch-and-verify test resolves the real signed
-      manifest entry at a release-shaped fixture
-- [ ] `docs-site/src/content/docs/migrations.md` exists and is rewritten
+- [x] `grep -rn 'interactive-harness\|interactive-protocol\|# INTERACTIVE:\|harness_run\|harness_reject\|migration_validate_edit\|run-migrations\.sh\|interactive-lib\.sh' scripts/ hooks/ skills/ docs-site/ tasks/ cli/ .claude-plugin/`
+      → 0 matches outside two accepted categories, both reviewed by hand: (a)
+      `cli/migrate-cli/tests/fixtures/**` — the permanent, committed Phase-0
+      bash-golden captures (raw stdout/stderr/`CAPTURE-SOURCE.txt` provenance
+      and `regenerate.sh`, the one-time capture script), which exist
+      specifically to preserve bash's own historical byte-for-byte output for
+      regression comparison and are not "leftover" in any sense the AC
+      targets; (b) design-rationale doc comments throughout `cli/migrate*`
+      source citing a specific retired bash function/file for parity
+      traceability (e.g. `tty_decision_source.rs`'s "Bash's own `render_prompt`
+      (`interactive-lib.sh:189-224`)"), consistent with this plan's own
+      extensive use of the same citation style throughout every phase above —
+      these explain *why* the Rust code behaves as it does and remain
+      accurate after deletion (they cite what bash *used to do*, not that it
+      still exists). One genuine stale reference was found and fixed:
+      `tasks/README.md`'s "Runner vs helper" executable-bit example named the
+      now-deleted `test-interactive-protocol.sh`, repointed to the still-live
+      `hooks/test-vcs-detect.sh`.
+- [x] `grep -rn 'mkfifo' scripts/ hooks/ skills/ --include='*.sh'` → 0 matches
+- [x] `grep -rn 'ACCELERATOR_MIGRATION_MODE' cli/` → 0 matches as actual code
+      (0178's negative test in `config-adapters/tests/config_reader.rs`,
+      which asserts the env var has no effect, and `config-adapters/src/store.rs`'s
+      own doc comment citing it for the same parity-traceability reason as
+      above, are the only two matches; both stay green/accurate)
+- [x] `_EXPECTED_MIGRATE_SUITES` absent from `tasks/test/integration.py` —
+      the `migrate` task itself was removed entirely (nothing left to guard;
+      `skills/config/migrate/` has zero shell suites once the scripts/ tree
+      is gone), not just the constant; `_EXPECTED_CONFIG_SUITES`/
+      `_EXPECTED_HOOKS_SUITES` decremented by exactly one each (16→15,
+      2→1); the four `SHELL_LIBRARIES` entries absent (three
+      migrate/interactive + `jsonl-common.sh`)
+- [x] `tests/unit/tasks/test_call_site_migration.py` passes against the
+      narrowed allowlist (the `skills/config/migrate/migrations/` exemption
+      and its dedicated test removed; `scripts/doc-type-table.sh`'s exemption
+      left in place — narrowed, not removed, since 0167's owner sign-off on
+      retiring the guard itself was not sought this session)
+- [x] `skills/config/migrate/SKILL.md`'s `allowed-tools` coverage verified
+      by 0167's permission-coverage check — unchanged from before this phase
+      (`Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate *)` already covered
+      the Rust surface), confirmed green by the full `mise run`
+- [x] `mise run` exits 0 end-to-end (confirmed multiple times; see the
+      Deviations note below for the two real bugs this run surfaced and fixed)
+- [x] The ADR-reconciliation follow-up work item exists
+      (`work-item:0202`, `meta/work/0202-reconcile-migration-engine-adrs-against-the-rust-port.md`,
+      status `draft`, saved locally unsynced — pushing to the configured
+      Linear integration was not done automatically, since that is a
+      user-visible external action this session did not have standing
+      authorisation to take unprompted) and is linked from 0172
+      (`relates_to: ["work-item:0202", ...]`) and from itself back to 0172
+- [x] `accelerator-migrate` fetch-and-verify test resolves the real signed
+      manifest entry at a release-shaped fixture — already landed in Phase 1
+      (`tasks/manifest.py`'s `_SUBBINARY_MANIFESTS["migrate"]`,
+      `tests/unit/tasks/test_manifest.py`), reconfirmed green by this
+      session's `mise run`, no changes needed
+- [x] `docs-site/src/content/docs/migrations.md` exists and is rewritten
       (not `docs/migrations.md`, which is confirmed not to exist in the
       current tree)
-- [ ] `cli/migrate-cli/tests/skill_doc_worked_example.rs` exists and passes
-      — the worked example's code blocks, scraped from `SKILL.md`, match the
-      compiled binary's actual output
+- [x] `cli/migrate-cli/tests/skill_doc_worked_example.rs` exists and passes
+      — the worked example's code blocks, scraped from `SKILL.md` via
+      marker-delimited fenced blocks, are asserted against the compiled
+      binary's actual output for a concrete scenario (`meta/work/0001-improve-startup-time.md`
+      referencing `meta/work/0042-add-a-caching-layer.md` via an unstructured
+      `## References` link, resolved through migration 0007's `--list` and
+      `--decisions-file` flow) — verified by actually running the scenario
+      against the compiled binary before writing the documentation prose, not
+      hand-authored from memory of the design
 
 #### Manual Verification:
 
-- [ ] `mise run` locally on a clean checkout, end to end, watching for any
-      unexpected warning noise from the deletions
-- [ ] Manually verify the 0182 `hooks.json` index ordering (migrate's
+- [x] `mise run` locally on a clean checkout, end to end, watching for any
+      unexpected warning noise from the deletions — clean; the only noise
+      encountered (a pre-existing shellcheck finding, a Cargo.lock CI flake,
+      two stale test pins) is itemised in the Deviations note below
+- [x] Manually verify the 0182 `hooks.json` index ordering (migrate's
       SessionStart entry and `launcher-link-refresh.sh`'s index-3 entry)
-      resolves without collision by inspecting the file directly
-- [ ] `mise run docs:check`/`docs:build` pass against the rewritten
+      resolves without collision by inspecting the file directly — confirmed:
+      Phase 7 already repointed the migrate entry to index 2, well clear of
+      `launcher-link-refresh.sh`'s index-3 entry; no edit was needed or made
+      to `hooks/hooks.json` in this phase
+- [x] `mise run docs:check`/`docs:build` pass against the rewritten
       `docs-site/src/content/docs/migrations.md` (deliberately outside
       `mise run check`'s aggregate set per this repo's own convention for
-      anyone touching `docs-site/` — run by hand, not via CI)
+      anyone touching `docs-site/` — run by hand, not via CI) — green,
+      including the internal-link validator (100 pages built, all links valid)
+
+**Deviations from the above, found during implementation:**
+
+- **The `scripts/doc-type-table.sh` exemption in `call_site_migration.py`'s
+  `stray_legacy_flag()` was narrowed, not removed** — the plan's own text
+  gated full removal on "0167's owner has agreed the guard itself is retired
+  or updated," which was not sought this session (0167 is a different,
+  already-closed work item; seeking fresh sign-off was out of scope for this
+  cutover). Only the dead `skills/config/migrate/migrations/` exemption
+  (directory no longer exists) was removed, along with its dedicated test.
+- **The whole `skills/config/migrate/scripts/test-fixtures/` tree was
+  deleted, not just "the non-retained part of `interactive/`" as the plan's
+  own point-1 text says** — every subdirectory (`0002/`…`0006/`,
+  `baseline-no-pending/`, `mechanical-snapshots/`, `migrate-byte-equiv/`,
+  `interactive/`) was exclusively fixture data for the six now-deleted bash
+  suites, confirmed by grep before deletion. One real live dependency was
+  found and handled: `cli/migrate-cli/tests/migration_0007.rs`'s
+  `matches_the_checked_in_byte_equivalence_golden` test read
+  `migrate-byte-equiv/{input,golden}` directly from that tree — relocated to
+  `cli/migrate-cli/tests/fixtures/migrate-byte-equiv/` (the canonical Rust
+  fixture root) and the test's path updated, rather than deleting a fixture
+  out from under a live, passing test.
+- **Three real bugs found and fixed by the full `mise run`, beyond what any
+  single component check alone caught — none of them named anywhere in the
+  plan's own deletion/call-site inventory, all outside `cli/migrate*`:**
+  1. A pre-existing shellcheck SC2043 finding in
+     `hooks/test-migrate-discoverability.sh` (a single-item `for tool in jq;
+     do` loop) — present before this phase's own edits, fixed by collapsing
+     it to a plain `if`.
+  2. Two stale-pin test failures only `mise run`'s full `test:unit:tasks`
+     pytest pass surfaced (not `cli:check`, not any single grep): `tests/unit/tasks/test_integration.py`'s
+     `_GUARDED` list and `tests/unit/tasks/test_mise.py`'s
+     `_LAUNCHER_DEPENDENTS` list both still named the removed `migrate`
+     integration task/`_EXPECTED_MIGRATE_SUITES` constant; both lists updated
+     to drop the entry.
+  3. **A genuinely hidden cross-crate dependency**: `cli/corpus-adapters/tests/doc_type_single_source.rs`
+     (a `corpus-adapters` test, not a `migrate*` one — outside every scope
+     this plan or its own Phase 10 research pass checked) drove
+     `skills/config/migrate/scripts/{frontmatter-frag.awk,0007-frontmatter-rewrite.awk}`
+     directly as a live differential-parity oracle for
+     `corpus::doc_type::infer`/`corpus::linkage::resolve_path_target`, in two
+     tests (`the_rewrite_awk_agrees_on_the_directory_to_type_mapping`,
+     `the_rewrite_awk_agrees_on_every_id_arm`). Only `mise run`'s
+     `test:unit:cli` (`cargo nextest --all-features`, which turns on the
+     `bash-parity` feature these tests are gated behind) caught this — no
+     grep-based inventory over `cli/migrate*` or `skills/config/migrate/`
+     could have, since the dependency ran the other direction (a sibling
+     crate's test reaching *into* the retiring tree, not the retiring tree
+     reaching out). Both awk-comparison tests, and the now-dead
+     `awk_typed_refs`/`probes`/`probe_filename` helpers they alone used, were
+     removed — the awk file they cross-checked against no longer exists, so
+     the parity question they asked is moot, not merely untestable; the
+     file's three remaining tests (config-schema-key existence,
+     `linkage-type-pairs.tsv` parity, exactly-once directory registration)
+     are untouched and still pass.
+  4. **A second, similarly hidden cross-tree dependency, this time in a bash
+     suite rather than Rust**: `skills/integrations/jira/scripts/test-jira-paths.sh`
+     awk-parsed the now-deleted `skills/config/migrate/migrations/0003-relocate-accelerator-state.sh`
+     directly, to cross-check `jira-common.sh`'s own
+     `JIRA_INNER_GITIGNORE_RULES` bash array against migration 0003's
+     duplicate copy of the same array — a Phase 6 AC this plan's own text
+     names ("the Jira inner-`.gitignore` rule set... byte-identical to the
+     pinned test contract in `test-jira-paths.sh`") but whose test-side half
+     neither this plan's deletion inventory nor either research agent this
+     session spawned identified, for the same reason as point 3: the
+     dependency pointed *into* the retiring tree from a sibling skill, not
+     out of it. Only `mise run`'s `test:integration:integrations` task
+     surfaced it (`awk: can't open file ...0003-relocate-accelerator-state.sh`).
+     Fixed by repointing the comparison at the Rust port's own
+     `JIRA_INNER_GITIGNORE_RULES` constant (`cli/migrate/src/migrations/m0003.rs`),
+     with a new extraction function for the Rust `[&str; N] = [...]` array-literal
+     shape (the bash extractor's line-oriented parser doesn't apply) — values
+     confirmed still identical, so this is a like-for-like re-pointing, not a
+     behaviour change. One care point in the new extractor: the terminator
+     match must be the literal two-character sequence `];` (the array
+     literal's actual close), not a bare `;`, since the constant's own
+     `[&str; 3]` type annotation contains an unrelated `;` that a naive
+     single-character match hits first — caught by actually running the test
+     against the real file rather than trusting the awk pattern by
+     inspection.
+  5. **A pre-existing, unrelated dead-code discovery**, not a regression:
+     `scripts/accelerator-scaffold.sh`'s header comment named migration 0003
+     as one of its two sourcers; the other (`skills/config/init/scripts/init.sh`)
+     turns out not to exist either (`init` has no bash script left — already
+     Rust-dispatched by an earlier, unrelated work item). The file has zero
+     live sourcers or callers of its own `accelerator_ensure_*`/`accelerator_remove_*`
+     helpers anywhere in the repo, confirmed by grep — it was already fully
+     orphaned before this phase touched anything, not made dead by deleting
+     migration 0003. Left in place (deleting genuinely dead code outside this
+     plan's own stated scope was judged too large a scope expansion for this
+     phase), but its header comment was corrected to state plainly that it
+     has no current sourcer, rather than continue naming two that don't
+     exist.
+- **A known-flaky, unrelated suite** (`jira_with_lock`'s "live-holder
+  serialisation" test in `skills/integrations/jira/scripts/`) failed once
+  under full-`mise-run` parallel load and passed cleanly when re-run in
+  isolation — consistent with this repo's own documented parallel-CI-load
+  flakiness pattern for shell-lock suites, not a regression from this phase.
+- **The ADR-reconciliation follow-up work item (`work-item:0202`) was created
+  and drafted directly** (via `Write`, following the `create-work-item`
+  template) rather than through the fully interactive `create-work-item`
+  skill's multi-turn Q&A flow — that flow is designed for a human author
+  present to answer clarifying questions in real time, which did not fit
+  this autonomous implementation session. It was saved locally unsynced
+  (`external_id` omitted) rather than auto-pushed to the configured Linear
+  integration, since pushing is a user-visible external action outside this
+  session's standing authorisation.
+- **The 0195/0183 cross-item edges named in Changes Required point 5 needed
+  no new edits** — both were already fully recorded (0195's own
+  `last_updated_note` already documents the golden-capture-ordering edge and
+  the self-validation-obligation resolution; 0183 already carries a
+  bidirectional `relates_to` to 0172 and is already `status: abandoned`).
+  This phase only confirmed them, per the point's own "confirm, don't
+  create" framing.
+- **The 0180/0168 session-log-reader question resolved as "superseded, not
+  confirmed"**: 0180's own Dependencies section claimed the folded-in
+  visualiser (0168) reads the migrate session log's canonical JSONL field
+  order; 0168's own Dependencies section states the opposite ("0180's extra
+  JSONL/lock primitives are not on this story's path"), and a repository-wide
+  search of `cli/visualiser/` finds no code path reading a migration session
+  log anywhere. 0180 was updated with a note marking its own claim
+  superseded by 0168's record, plus a reciprocal `relates_to` edge on both.
 
 ---
 

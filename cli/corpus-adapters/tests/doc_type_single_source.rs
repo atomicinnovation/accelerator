@@ -1,117 +1,27 @@
-//! The dir→type fact is declared once, in `DocTypeKey`. Two other surfaces
-//! consume it — the bash doc-type registry and the 0007 rewrite awk — and both
-//! are *matchers* resolved at runtime, not static tables to scrape. So this
-//! suite executes them and asserts the mapping they produce equals the crate's.
+//! The dir→type fact is declared once, in `DocTypeKey`. The bash
+//! `config-defaults.sh` `PATH_KEYS` registry and `scripts/linkage-type-pairs.tsv`
+//! each declare a related fact independently, so this suite cross-checks the
+//! crate against them.
 //!
-//! bash and awk are asserted present and hard-fail with a naming diagnostic;
-//! Rust's harness has no skip primitive, so a silent early return would register
-//! as a green PASS.
+//! The 0007 migration's own awk rewrite (`0007-frontmatter-rewrite.awk`) used
+//! to be cross-checked here too, as a second independent dir→type matcher —
+//! removed once that awk file was retired in favour of the native
+//! `accelerator-migrate` port, which calls `corpus::doc_type::infer`/
+//! `corpus::linkage::resolve_path_target` directly rather than re-deriving the
+//! mapping; there is no longer a second surface to disagree with.
+//!
+//! bash is asserted present and hard-fails with a naming diagnostic; Rust's
+//! harness has no skip primitive, so a silent early return would register as
+//! a green PASS.
 #![cfg(feature = "bash-parity")]
 
 mod common;
 
-use std::fmt::Write as _;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::process::Command;
 
 use common::{doc_type_table, require_file, TestError};
 use corpus::DocTypeKey;
-
-const RECORD_SEPARATOR: char = '\u{1e}';
-
-static PROBES_WRITTEN: AtomicU64 = AtomicU64::new(0);
-
-/// A representative filename per type, exercising each id-derivation arm: the
-/// work-item numeric prefix, the ADR prefix, the design-inventory nested
-/// manifest, the pr-description PR number, and the whole-stem default.
-const fn probe_filename(kind: DocTypeKey) -> &'static str {
-    match kind {
-        DocTypeKey::WorkItems => "0030-target.md",
-        DocTypeKey::Decisions => "ADR-0050-some-decision.md",
-        DocTypeKey::DesignInventories => "2026-01-01-buttons/inventory.md",
-        DocTypeKey::PrDescriptions => "240-description.md",
-        _ => "2026-05-13-0055-feature.md",
-    }
-}
-
-/// One probe path per configured directory, so a re-pathed corpus still probes
-/// the directories the config actually resolves.
-fn probes(table: &[(DocTypeKey, PathBuf)]) -> Vec<(DocTypeKey, String)> {
-    table
-        .iter()
-        .map(|(kind, dir)| {
-            (
-                *kind,
-                format!("{}/{}", dir.display(), probe_filename(*kind)),
-            )
-        })
-        .collect()
-}
-
-/// Runs the 0007 rewrite awk's `path_to_typed` over `paths`, feeding it a
-/// doc-type table whose type names come from `DocTypeKey`.
-fn awk_typed_refs(
-    table: &[(DocTypeKey, PathBuf)],
-    paths: &[String],
-) -> Result<Vec<String>, TestError> {
-    let frag =
-        require_file("skills/config/migrate/scripts/frontmatter-frag.awk")?;
-    let body = require_file(
-        "skills/config/migrate/scripts/0007-frontmatter-rewrite.awk",
-    )?;
-
-    let mut rows = Vec::new();
-    for (kind, dir) in table {
-        let name = kind
-            .linkage_type_name()
-            .ok_or("a virtual type reached the awk table")?;
-        rows.push(format!("{name}\t{}", dir.display()));
-    }
-    let channel = rows.join(&RECORD_SEPARATOR.to_string());
-
-    let mut program = String::from("BEGIN {\n");
-    for path in paths {
-        writeln!(program, "  print path_to_typed(\"{path}\")")?;
-    }
-    program.push_str("}\n");
-
-    let probe = std::env::temp_dir().join(format!(
-        "corpus-doc-type-probe-{}-{}.awk",
-        std::process::id(),
-        PROBES_WRITTEN.fetch_add(1, Ordering::Relaxed)
-    ));
-    fs::write(&probe, program)?;
-
-    let output = Command::new("awk")
-        .arg("-v")
-        .arg(format!("doc_type_table={channel}"))
-        .arg("-f")
-        .arg(&frag)
-        .arg("-f")
-        .arg(&body)
-        .arg("-f")
-        .arg(&probe)
-        .stdin(Stdio::null())
-        .output()
-        .map_err(|error| {
-            format!("could not run awk (is awk present?): {error}")
-        })?;
-    fs::remove_file(&probe)?;
-
-    if !output.status.success() {
-        return Err(format!(
-            "the 0007 rewrite awk failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-    Ok(String::from_utf8(output.stdout)?
-        .lines()
-        .map(str::to_owned)
-        .collect())
-}
 
 #[test]
 fn every_non_virtual_type_is_registered_exactly_once() -> Result<(), TestError>
@@ -138,47 +48,6 @@ fn every_non_virtual_type_is_registered_exactly_once() -> Result<(), TestError>
          non-virtual types",
         table.len(),
         declared.len()
-    );
-    Ok(())
-}
-
-#[test]
-fn the_rewrite_awk_agrees_on_the_directory_to_type_mapping(
-) -> Result<(), TestError> {
-    let table = doc_type_table()?;
-    let probes = probes(&table);
-    let paths: Vec<String> =
-        probes.iter().map(|(_, path)| path.clone()).collect();
-
-    let expected: Vec<&str> = probes
-        .iter()
-        .map(|(kind, path)| {
-            corpus::doc_type::infer(Path::new(path), &table)
-                .and_then(DocTypeKey::linkage_type_name)
-                .ok_or_else(|| {
-                    format!("{kind:?} probe {path} resolved to no type")
-                })
-        })
-        .collect::<Result<_, String>>()?;
-
-    let actual: Vec<String> = awk_typed_refs(&table, &paths)?
-        .iter()
-        .map(|typed| {
-            typed
-                .split_once(':')
-                .map_or_else(|| typed.clone(), |(name, _)| name.to_owned())
-        })
-        .collect();
-
-    assert_eq!(
-        actual, expected,
-        "the 0007 rewrite awk and the crate disagree on dir→type\n  \
-         probes: {paths:#?}"
-    );
-    assert_eq!(
-        expected.len(),
-        table.len(),
-        "every configured directory must be probed"
     );
     Ok(())
 }
@@ -272,38 +141,6 @@ fn the_type_pair_table_matches_the_tsv() -> Result<(), TestError> {
     assert_eq!(
         compiled, rows,
         "the crate's TYPE_PAIRS and linkage-type-pairs.tsv have drifted apart"
-    );
-    Ok(())
-}
-
-/// Every id-derivation arm, across every configured directory: the work-item
-/// numeric prefix, the ADR prefix, the design-inventory parent directory (a
-/// nested manifest, whose basename is always `inventory`), the pr-description PR
-/// number, and the whole-stem default.
-#[test]
-fn the_rewrite_awk_agrees_on_every_id_arm() -> Result<(), TestError> {
-    let table = doc_type_table()?;
-    let probes = probes(&table);
-    let paths: Vec<String> =
-        probes.iter().map(|(_, path)| path.clone()).collect();
-
-    let expected: Vec<String> = probes
-        .iter()
-        .map(|(kind, path)| {
-            let (name, id) = corpus::linkage::resolve_path_target(path, &table)
-                .ok_or_else(|| {
-                    format!("{kind:?} probe {path} resolved to no target")
-                })?;
-            Ok(format!("{name}:{id}"))
-        })
-        .collect::<Result<_, String>>()?;
-
-    let actual = awk_typed_refs(&table, &paths)?;
-
-    assert_eq!(
-        actual, expected,
-        "the 0007 rewrite awk and the crate disagree on type:id\n  \
-         probes: {paths:#?}"
     );
     Ok(())
 }

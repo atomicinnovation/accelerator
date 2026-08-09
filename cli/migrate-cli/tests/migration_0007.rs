@@ -403,9 +403,8 @@ fn an_ambiguous_band_prompt_stalls_with_no_decision_input_available(
 
 #[test]
 fn matches_the_checked_in_byte_equivalence_golden() -> Result<(), TestError> {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(
-        "../../skills/config/migrate/scripts/test-fixtures/migrate-byte-equiv",
-    );
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/migrate-byte-equiv");
     let dir = TempDir::new()?;
     let root = dir.path();
 

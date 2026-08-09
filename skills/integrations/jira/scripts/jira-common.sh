@@ -47,8 +47,8 @@ source "$_JIRA_PLUGIN_ROOT/scripts/atomic-common.sh"
 # committed: per-developer site identity, refresh timestamp sidecar (not
 # byte-idempotent), transient lock dir.
 # Must stay byte-equal to JIRA_INNER_GITIGNORE_RULES in
-# 0003-relocate-accelerator-state.sh. Both copies are pinned to equality by a
-# test in test-jira-paths.sh (Phase 6 / 4b).
+# cli/migrate/src/migrations/m0003.rs. Both copies are pinned to equality by
+# a test in test-jira-paths.sh.
 # shellcheck disable=SC2034 # consumed by sourcing scripts and pinned by test-jira-paths.sh
 JIRA_INNER_GITIGNORE_RULES=(
   site.json

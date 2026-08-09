@@ -1,4 +1,0 @@
----
-paths:
-  work: docs/wrok
----

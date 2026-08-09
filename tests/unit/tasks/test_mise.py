@@ -46,7 +46,6 @@ _LAUNCHER_DEPENDENTS = [
     "test:integration:config",
     "test:integration:decisions",
     "test:integration:hooks",
-    "test:integration:migrate",
     "test:integration:work",
     "test:integration:integrations",
     "test:integration:visualiser",

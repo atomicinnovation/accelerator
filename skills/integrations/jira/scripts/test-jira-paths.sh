@@ -39,21 +39,36 @@ fi
 echo ""
 
 # Phase 6 / 4b: JIRA_INNER_GITIGNORE_RULES in jira-common.sh must match
-# the rules array in migration 0003-relocate-accelerator-state.sh.
+# the JIRA_INNER_GITIGNORE_RULES constant in accelerator-migrate's Rust port
+# of migration 0003 (skills/config/migrate/migrations/0003-relocate-accelerator-state.sh's
+# bash original retired in the migration engine's Rust cutover).
 echo "=== Jira gitignore rules: jira-common.sh matches migration 0003 ==="
 echo ""
 
 JIRA_COMMON="$JIRA_SCRIPTS_DIR/jira-common.sh"
-MIGRATION="$PLUGIN_ROOT/skills/config/migrate/migrations/0003-relocate-accelerator-state.sh"
+MIGRATION="$PLUGIN_ROOT/cli/migrate/src/migrations/m0003.rs"
 
-# Extract JIRA_INNER_GITIGNORE_RULES values: lines between the opening '(' and ')' only
-extract_rules() {
+# Extract JIRA_INNER_GITIGNORE_RULES values from a bash array declaration:
+# lines between the opening '(' and ')' only.
+extract_bash_rules() {
   local file="$1"
   awk '/JIRA_INNER_GITIGNORE_RULES=\(/{found=1; next} found && /^\)/{exit} found{gsub(/[[:space:]'"'"']/, ""); print}' "$file" | sort
 }
 
-COMMON_RULES=$(extract_rules "$JIRA_COMMON")
-MIGRATION_RULES=$(extract_rules "$MIGRATION")
+# Extract JIRA_INNER_GITIGNORE_RULES values from the Rust `[&str; N] = [...]`
+# array literal: every double-quoted string between the constant's name and
+# the literal's closing `];` (NOT the constant's own `[&str; N]` type
+# annotation, whose `;` precedes its `]` rather than following it).
+extract_rust_rules() {
+  local file="$1"
+  awk '/const JIRA_INNER_GITIGNORE_RULES/{found=1} found{print; if (/\];/) exit}' "$file" |
+    grep -o '"[^"]*"' |
+    tr -d '"' |
+    sort
+}
+
+COMMON_RULES=$(extract_bash_rules "$JIRA_COMMON")
+MIGRATION_RULES=$(extract_rust_rules "$MIGRATION")
 
 if [ "$COMMON_RULES" = "$MIGRATION_RULES" ]; then
   echo "  PASS: JIRA_INNER_GITIGNORE_RULES matches between jira-common.sh and migration 0003"

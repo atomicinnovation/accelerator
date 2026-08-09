@@ -67,7 +67,6 @@ _GUARDED = [
     ("github", "_EXPECTED_GITHUB_SUITES", None),
     ("work", "_EXPECTED_WORK_SUITES", None),
     ("integrations", "_EXPECTED_INTEGRATIONS_SUITES", None),
-    ("migrate", "_EXPECTED_MIGRATE_SUITES", None),
 ]
 
 

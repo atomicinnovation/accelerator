@@ -46,14 +46,5 @@ def test_stray_legacy_flag_is_flagged(tmp_path: Path) -> None:
     assert "scripts/rogue.sh" in gate.stray_legacy_flag(tmp_path)
 
 
-def test_legacy_flag_in_migrations_is_permitted(tmp_path: Path) -> None:
-    _write(
-        tmp_path,
-        "skills/config/migrate/migrations/0001-x.sh",
-        "accelerator config path --allow-legacy-layout paths.tickets\n",
-    )
-    assert gate.stray_legacy_flag(tmp_path) == []
-
-
 def test_the_real_tree_has_no_gated_violation() -> None:
     assert gate.violations(REPO_ROOT) == []

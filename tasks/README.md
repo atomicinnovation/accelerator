@@ -92,7 +92,7 @@ is no longer enumerated.
 - **Maintenance:** a new sourced-only library must be **added** to
   `SHELL_LIBRARIES` (or the guard demands `+x`); a removed/renamed library must
   be **deleted/updated** there (or the stale-entry check fails).
-- **Runner vs helper:** `test-interactive-protocol.sh` is a test *runner* →
+- **Runner vs helper:** `hooks/test-vcs-detect.sh` is a test *runner* →
   entrypoint → `0755`; `test-helpers.sh` is a sourced *helper* → on the list →
   `0644`.
 - **Fixtures are a third category.** Scripts under `test-fixtures/**` are

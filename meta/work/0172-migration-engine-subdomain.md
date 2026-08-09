@@ -11,12 +11,12 @@ priority: high
 parent: "work-item:0136"
 blocked_by: ["work-item:0166", "work-item:0167", "work-item:0169", "work-item:0187"]
 blocks: ["work-item:0174"]
-relates_to: ["work-item:0195", "work-item:0180", "work-item:0182", "work-item:0183"]
+relates_to: ["work-item:0195", "work-item:0180", "work-item:0182", "work-item:0183", "work-item:0202"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, migration-engine, concurrency, interactive]
-last_updated: "2026-08-06T08:29:24+00:00"
+last_updated: "2026-08-09T08:00:32+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Reconciled against 2026-08-06 implementation-groundwork research: 0173 abandoned/split to 0195, 0167 confirmed done with --allow-legacy-layout shipped, hooks/shim-refresh.sh corrected to hooks/launcher-link-refresh.sh, confinement-guard module name corrected"
+last_updated_note: "Phase 10 (retirement cutover) closed out: all bash source deleted, call sites/guards/floors rewritten, skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract, the ADR-reconciliation follow-up (work-item:0202) created and linked, and the 0180/0168/0182/0167 cross-item records confirmed or closed out per the plan's Phase 10 point 5."
 schema_version: 1
 external_id: "PP-193"
 ---

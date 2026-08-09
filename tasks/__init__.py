@@ -122,9 +122,6 @@ ns_lint.add_collection(
 ns_lint.add_collection(
     Collection.from_module(lint.vcs_settings)
 )  # lint.vcs-settings.check
-ns_lint.add_collection(
-    Collection.from_module(lint.migrate_suite_inventory)
-)  # lint.migrate-suite-inventory.check / .report
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")

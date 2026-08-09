@@ -9,11 +9,12 @@ status: done
 kind: bug
 priority: high
 blocks: ["work-item:0186"]
-relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "work-item:0184", "work-item:0186", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
+relates_to: ["work-item:0164", "work-item:0167", "work-item:0136", "work-item:0183", "work-item:0184", "work-item:0186", "work-item:0172", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"]
 source: "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
 tags: [bug, cli, launcher, bootstrap, plugin-root, skills]
-last_updated: "2026-07-29T00:00:00+00:00"
+last_updated: "2026-08-09T00:00:00+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Reciprocal relates_to edge to 0172, added while closing out 0172's Phase 10 (retirement cutover): 0172 removed the CLAUDE_PLUGIN_ROOT-allowlist entries this item's rename set covered for the retired bash migration engine, and repointed hooks/hooks.json's migrate SessionStart entry, which coordinates with this item's own launcher-link-refresh.sh entry ordering."
 schema_version: 1
 ---
 

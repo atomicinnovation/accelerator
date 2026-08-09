@@ -1,10 +1,10 @@
 //! Migration 0002 (`rename-work-items-with-project-prefix`) driven end to
 //! end against the compiled binary, asserted against a bash golden captured
 //! in isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to just 0002's script)
-//! against `skills/config/migrate/scripts/test-fixtures/0002/` — the same
-//! fixture tree `regenerate.sh`'s `setup_0002_repo` uses, replayed here
-//! standalone since Phase 0's own `0002/` fixture captures 0002 chained with
-//! 0003/0005/0006, none of which are ported yet.
+//! against the bash-era `skills/config/migrate/scripts/test-fixtures/0002/`
+//! tree (since retired) — the same fixture `regenerate.sh`'s
+//! `setup_0002_repo` used, replayed here standalone since Phase 0's own
+//! `0002/` fixture captures 0002 chained with 0003/0005/0006.
 #![allow(clippy::literal_string_with_formatting_args)]
 
 use std::fs;
@@ -27,8 +27,8 @@ fn write(
     Ok(())
 }
 
-/// Mirrors `skills/config/migrate/scripts/test-fixtures/0002/`, with 0001
-/// pre-applied (via the ledger) so only 0002 is pending.
+/// Mirrors the retired `skills/config/migrate/scripts/test-fixtures/0002/`
+/// tree, with 0001 pre-applied (via the ledger) so only 0002 is pending.
 fn setup_repo() -> Result<TempDir, TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Shared scaffold/gitignore helpers for the .accelerator/ tree.
 #
-# Sourced by:
-#   - skills/config/init/scripts/init.sh (Phase 4)
-#   - skills/config/migrate/migrations/0003-relocate-accelerator-state.sh
+# No current sourcer: `skills/config/init/scripts/init.sh` and migration
+# 0003 (`skills/config/migrate/migrations/0003-relocate-accelerator-state.sh`)
+# both named this file as a consumer, but `init` no longer has a bash
+# script (config/init is a Rust-dispatched skill now) and migration 0003
+# was ported to Rust (`cli/migrate/src/migrations/m0003.rs`, which
+# reimplements this file's helpers natively rather than sourcing bash).
 #
 # Idempotency contract: every helper is a no-op when its post-condition
-# already holds. Helpers do not depend on any config-resolution layer and
-# may be safely sourced from the migration even on legacy-only repos.
+# already holds. Helpers do not depend on any config-resolution layer.
 #
 # Public helpers: accelerator_ensure_*  / accelerator_remove_*
 # Implementation helpers: _accelerator_*
