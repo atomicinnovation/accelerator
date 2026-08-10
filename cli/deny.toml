@@ -66,16 +66,33 @@ confidence-threshold = 0.8
 
 # uluru is gix-pack's LRU pack cache, enabled by gix-odb's default features, so
 # it cannot be feature-gated out. MPL-2.0 is file-level weak copyleft: we ship
-# no modifications, and §3.2's notice obligation does not bind because dead-code
-# elimination removes the whole gix/jj-lib closure from the only shipped binary
-# that reaches it. Re-check that when anything makes the visualiser reach
-# vcs-adapters: once the trees link, distributing the binary requires telling
-# recipients how to obtain the source, which the release upload set carries no
-# artefact for.
+# no modifications, but §3.2's notice obligation binds wherever the closure is
+# actually linked — distributing such a binary requires telling recipients how
+# to obtain the source, which the release upload set carries no artefact for.
 #
-# Verify with: an unstripped --release accelerator-visualiser carries neither
-# the `extensions.objectFormat` (gix) nor the `There is no Jujutsu repo`
-# (jj-lib) literal, both of which the linked reference artefact does carry.
+# Measured across all six dispatched sub-binaries, unstripped --release,
+# aarch64-apple-darwin, by counting `gix_`/`jj_lib`/`uluru` symbols:
+#
+#   accelerator-vcs, -work, -collaboration, -migrate  uluru linked
+#   accelerator-corpus                                uluru linked
+#   accelerator-visualiser                            no gix, jj-lib or uluru
+#
+# The first four are a pre-existing finding, not a new one: each constructs
+# InProcessProbe directly, and each already carried the closure before the
+# metadata-read path moved onto it. accelerator-corpus is the one this switch
+# caused — it carried none of the three before and carries all of them after.
+# So the notice obligation is live today for five shipped binaries, and a
+# third-party attribution artefact is owed by the release upload set.
+#
+# The visualiser alone still links none of it, so its original exception
+# rationale stands unchanged. Re-check when any code under
+# cli/visualiser/server calls vcs_adapters::facts or derive_at.
+#
+# Verify by symbol count, not by string literal: `extensions.objectFormat`
+# (gix) and `There is no Jujutsu repo` (jj-lib) prove presence when found, but
+# both are absent from binaries that demonstrably link the closure, so absence
+# proves nothing. Plain `grep` over a Mach-O binary reports false positives
+# here; use `nm -a` or `strings -a` piped to grep.
 [[licenses.exceptions]]
 crate = "uluru"
 allow = ["MPL-2.0"]

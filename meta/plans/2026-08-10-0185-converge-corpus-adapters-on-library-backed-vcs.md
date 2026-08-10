@@ -766,28 +766,33 @@ item's stated scope of re-running the check.
 
 #### Automated Verification:
 
-- [ ] `cargo build --release --config profile.release.strip=false -p
+- [x] `cargo build --release --config profile.release.strip=false -p
       accelerator-visualiser -p accelerator-vcs -p accelerator-work -p
       accelerator-corpus -p accelerator-collaboration -p
       accelerator-migrate` succeeds
-- [ ] `mise run build-system:check` passes (if `deny.toml`'s comment is the
+- [x] `mise run build-system:check` passes (if `deny.toml`'s comment is the
       only change, this only needs to stay green, not gain new coverage)
-- [ ] `mise run check` passes
-- [ ] `mise run` passes end to end
+- [x] `mise run check` passes
+- [x] `mise run` passes end to end
 
 #### Manual Verification:
 
-- [ ] The grep-for-literals procedure was actually run against each of the
+- [x] The grep-for-literals procedure was actually run against each of the
       six built binaries, and its outcome (present/absent for each
-      literal, per binary) is recorded in the updated comment
-- [ ] If `accelerator-vcs`, `accelerator-collaboration`,
+      literal, per binary) is recorded in the updated comment — **deviation**:
+      the literals proved unsound as an absence test (both are missing from
+      binaries that demonstrably link the closure), so the recorded finding
+      is a `gix_`/`jj_lib`/`uluru` symbol count via `nm -a`, with the
+      literals' unreliability itself recorded in the comment
+- [x] If `accelerator-vcs`, `accelerator-collaboration`,
       `accelerator-migrate`, or `accelerator-work` are found to already
       carry the closure, each is called out explicitly as a pre-existing
       finding rather than folded silently into a comment scoped to the
-      visualiser or attributed incorrectly to this plan's switch
-- [ ] If any binary's closure is found reachable, a follow-up work item is
+      visualiser or attributed incorrectly to this plan's switch — all four
+      measured against a pre-switch build, not inferred
+- [x] If any binary's closure is found reachable, a follow-up work item is
       filed for the attribution artefact rather than attempting it inline
-      here
+      here — `work-item:0203`
 
 ---
 
