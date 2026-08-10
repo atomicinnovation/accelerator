@@ -1,0 +1,425 @@
+---
+type: work-item
+id: "0203"
+title: "RemoteTracker Port"
+date: "2026-08-10T16:34:11+00:00"
+author: Toby Clemson
+producer: review-work-item
+status: ready
+kind: story
+priority: medium
+parent: "work-item:0136"
+derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+blocks: ["work-item:0171", "work-item:0194"]
+tags: [rust, tracker, sync, port]
+last_updated: "2026-08-10T17:04:12+00:00"
+last_updated_by: Toby Clemson
+schema_version: 1
+---
+
+# 0203: RemoteTracker Port
+
+**Kind**: Story
+**Status**: Ready
+**Priority**: Medium
+**Author**: Toby Clemson
+
+## Summary
+
+Build the `tracker` crate — the `RemoteTracker` trait, the value types
+`ExternalId`, `RemoteIssue` and `RemoteTimestamp`, the `TrackerError`
+type, and the cargo-pup rule that keeps the crate narrow — and nothing
+else. It holds no logic. Its whole purpose is to be a stable,
+cheap-to-reach milestone that unblocks two larger stories at once: 0171's
+per-provider client adapters and 0194's sync engine both build against
+this signature, and neither should wait on the other for it.
+
+## Context
+
+Accelerator syncs work items to a remote tracker — Jira or Linear — and
+that sync is moving from the bash bridge scripts into the Rust CLI. The
+port defined here is the seam between the two halves of that move: the
+sync engine on one side, the per-provider HTTP clients on the other,
+neither knowing the other's types.
+
+Split out of 0194 on 2026-08-10 after its third review pass. As 0194 then
+stood, it carried this crate as the first of four phases while also
+carrying the sync state machine, the `accelerator work sync` command and
+the `--push` wiring — and its own Dependencies section conceded that
+0171's real blocking milestone was "only the port signature (end of Phase
+A), not this item's full acceptance gate". A downstream story blocked on a
+fragment of another story is a coupling the dependency graph cannot
+express: in practice 0171 either waits for work it does not need, or
+starts against an unaccepted branch whose signature can still churn
+underneath it. (0194 has since been restructured, so those phase labels
+describe its pre-split shape only.)
+
+Three review lenses independently recommended the extraction. The crate is
+the right size for it — a trait, three value types, an error type and a
+lint rule, with no runtime behaviour to test — so the milestone is cheap
+to reach and easy to hold stable once reached.
+
+## Requirements
+
+- Implement the `tracker` crate as the port and its vocabulary only, with
+  no provider-specific or HTTP types anywhere in its public API. The
+  public API is exactly these five items and nothing else:
+  `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp` and
+  `TrackerError`.
+- Define the port with these signatures verbatim. They are the contract
+  0171 and 0194 build against, so they are stated here rather than left to
+  the implementer — an unstated signature is how a frozen signature stops
+  being frozen.
+
+  ```rust
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  pub struct ExternalId(String);
+
+  impl ExternalId {
+      pub fn new(value: String) -> Self;
+      pub fn as_str(&self) -> &str;
+  }
+
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  pub struct RemoteTimestamp(String);
+
+  impl RemoteTimestamp {
+      pub fn new(value: String) -> Self;
+      pub fn as_str(&self) -> &str;
+  }
+
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  pub struct RemoteIssue {
+      pub updated: RemoteTimestamp,
+      pub body: String,
+  }
+
+  #[derive(Debug)]
+  pub enum TrackerError {
+      Retryable { detail: String },
+      Terminal { detail: String },
+  }
+
+  impl std::fmt::Display for TrackerError { /* ... */ }
+  impl std::error::Error for TrackerError {}
+
+  pub trait RemoteTracker {
+      fn create(&self, title: &str, body: &str, kind: &str)
+          -> Result<ExternalId, TrackerError>;
+
+      fn update(&self, id: &ExternalId, title: &str, body: &str)
+          -> Result<(), TrackerError>;
+
+      fn show(&self, id: &ExternalId)
+          -> Result<RemoteIssue, TrackerError>;
+
+      fn fetch_all(&self)
+          -> Result<Vec<(ExternalId, RemoteIssue)>, TrackerError>;
+  }
+  ```
+
+  This block is the whole of the freeze: five public items, their fields,
+  variants, derives, inherent methods and method signatures. `Display` and
+  `Error` on `TrackerError` are the sole permitted impls with bodies —
+  without them the type is not usable as an error — and they are named
+  here so the no-logic rule below has an unambiguous edge.
+
+  `ExternalId` holds the same value the local work item carries in its
+  `external_id` frontmatter field. The port takes it as opaque: it does
+  not parse, validate or interpret the string.
+
+  The four operations mirror the three bash bridge scripts:
+  `create` is `work-item-create-remote.sh`; `update` is
+  `work-item-update-remote.sh` and is a whole-content replace returning
+  nothing on success; `show` and `fetch_all` are the single-item and bulk
+  modes of `work-item-fetch-remote.sh`. `fetch_all` pairs each issue with
+  its `ExternalId` because the bulk mode has no other way to associate a
+  record with a local work item.
+- Keep the trait synchronous, taking `&self`, and dyn-compatible. 0194
+  selects the active client at its composition root from the
+  `work.integration` config key, which needs `Box<dyn RemoteTracker>`;
+  and the `RestrictImports` rule below forbids the `async-trait`
+  dependency that would otherwise be needed to keep an async trait
+  object-safe. Fixing this after 0171 has begun would break the freeze,
+  so it is pinned now.
+- Define `TrackerError` as a closed two-class enum, deliberately *not*
+  `#[non_exhaustive]`: adding a third class must be a compile-breaking
+  change for consumers, which is the opposite of what `#[non_exhaustive]`
+  provides. The two classes are retryable, meaning no remote mutation
+  provably occurred and the call is safe to repeat; and terminal, meaning
+  the remote mutation state is unknown or the failure is permanent. They
+  correspond one-for-one to `E_DISPATCH_RETRYABLE` and
+  `E_DISPATCH_TERMINAL` as defined in `work-item-bridge-codes.sh`, which
+  remains authoritative until 0171 retires it. Both consumers need the
+  distinction: 0194's `update --push` gives each class a different local
+  outcome, and 0171's clients are what raise it. A port whose error
+  cannot express it forces every consumer to reconstruct it from the
+  provider detail the port exists to hide.
+- Commit a parity fixture enumerating `work-item-bridge-codes.sh`'s two
+  dispatch codes, and a test asserting the 1:1 mapping onto
+  `TrackerError`'s classes that fails if either side gains, loses or
+  renames one. This is the artefact 0171's criterion to delete the script
+  "and its parity fixture" refers to, so it is owned here rather than
+  left to 0194.
+- Define `RemoteTimestamp` as an opaque newtype over `String` holding the
+  tracker's own last-modified stamp verbatim, compared by equality and
+  never parsed or ordered — hence no `PartialOrd`/`Ord` derive and no
+  conversion surface beyond construction and byte read-back. It is the
+  value persisted as `remote_updated_at` in the sync baseline — the two
+  names refer to one thing. Preserving the exact bytes is what keeps
+  items whose baselines the bash sync path already wrote classifying as
+  `synced` after the port lands; a lossy conversion at that boundary
+  silently reclassifies them.
+- Capture a `remote_updated_at` string from a bash-written
+  `last-sync.json` and commit it under `tracker/tests/fixtures/` as this
+  item's own round-trip input. It is a single opaque string, so capturing
+  it needs no tracker credentials and no tenant — this item stays
+  genuinely unblocked and does not wait on the baseline corpus 0194
+  commits.
+- Specify `RemoteIssue.body` as the already-projected domain body, not
+  raw tracker JSON — the output of the projection recipe
+  `work-item-project-remote.sh` defines. Projection sits behind the port,
+  so each of 0171's clients owns reproducing its provider's recipe
+  exactly. A body differing by so much as whitespace reclassifies every
+  synced item as `remotely-modified`, which is why the obligation belongs
+  in the contract rather than only in the consumer.
+- Treat `create`'s `kind` as an opaque caller-supplied string that the
+  port does not interpret. Mapping it onto a Jira issue type or its
+  Linear equivalent is each client's business (0171). This is what keeps
+  the one parameter carrying work-domain meaning from dragging `work`
+  across the boundary.
+- Keep `tracker` free of any dependency on `work`. The crate exists to
+  give 0171's clients a narrow edge; the moment it needs work-item
+  identity types, 0171 pulls the whole lifecycle domain in transitively
+  and the crate stops earning its place. The signatures above are
+  expressible in `&str`, `String`, `Vec` and the crate's own types, so
+  the invariant is achievable — and it must be enforced, not assumed.
+- Add the cargo-pup whole-crate `RestrictImports` rule to `pup.ron`,
+  matching the shape used for `config`, `corpus`, `vcs` and `work` and
+  permitting only `std`/`core`/`alloc`, `kernel::Error` and `crate`. The
+  `kernel::Error` allowance is inherited from that shared rule shape and
+  is headroom, not a used edge: `TrackerError` is crate-local, so
+  `tracker` takes no crate dependency at all and its `Cargo.toml`
+  dependency list is empty.
+- Ship no logic and no adapter. `tracker` is deliberately the workspace's
+  first domain crate without a matching `-adapters` sibling: the sync
+  state machine lives in `work`/`work-adapters` (0194) and the provider
+  clients in their own crates (0171).
+- Carry the verification artefacts as part of this crate rather than as a
+  second workspace member: a fake `RemoteTracker` and a consumer
+  exercising both error classes, plus a signature probe, all living in
+  `tracker/tests/`. An integration test there links against `tracker` as
+  an external consumer, so it sees only the public API and stops
+  compiling if any signature widens — the same guard a probe crate would
+  give, without a second manifest to register. These fixtures are private
+  to this item's verification; the shared, reusable fake and the
+  parameterised `RemoteTracker` contract test are 0194's deliverable.
+- Give the port no lookup operation. `create --push` retry idempotency is
+  resolved locally in `work` instead, so the four-operation surface is
+  final at acceptance rather than provisional. The mechanism and its
+  implementation belong to 0194 — see Dependencies.
+
+## Acceptance Criteria
+
+- [ ] The `tracker` crate exists in the `cli/` workspace and compiles.
+      `tracker/src/lib.rs` declares exactly five `pub` items —
+      `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp` and
+      `TrackerError` — each carrying only the derives, fields, variants
+      and inherent methods given in the Requirements block, and nothing
+      else. A `cargo public-api` snapshot committed under `tracker/tests/`
+      fails on any addition, removal or change.
+- [ ] The four trait methods match the signatures in the Requirements
+      block exactly, including `fetch_all`'s
+      `Result<Vec<(ExternalId, RemoteIssue)>, TrackerError>` — verified by
+      an integration test in `tracker/tests/` that implements
+      `RemoteTracker` and therefore stops compiling if any signature
+      changes. `RemoteTracker` declares exactly four methods, none with a
+      default body, so a fifth operation cannot be added additively
+      without failing the public-API snapshot.
+- [ ] A test constructs `Box<dyn RemoteTracker>` from the fake and invokes
+      all four operations through it, so the trait is object-safe and
+      usable from 0194's composition root. Making the trait async or
+      otherwise dyn-incompatible fails this test.
+- [ ] `TrackerError` declares exactly two variants and is not
+      `#[non_exhaustive]`, demonstrated by an integration test in
+      `tracker/tests/` whose match over it has no wildcard arm and routes
+      each class to a distinct outcome. Adding a third class is therefore
+      a compile-breaking change for every consumer.
+- [ ] A committed fixture under `tracker/tests/fixtures/` enumerates
+      `work-item-bridge-codes.sh`'s `E_DISPATCH_RETRYABLE` and
+      `E_DISPATCH_TERMINAL`, and a test asserts a 1:1 mapping onto
+      `TrackerError`'s two classes, failing if either side gains, loses or
+      renames a class.
+- [ ] `RemoteIssue.updated` is a `RemoteTimestamp`; a test round-trips the
+      `remote_updated_at` value committed under `tracker/tests/fixtures/`
+      through the field and back out byte-identically; and
+      `RemoteTimestamp` derives no `PartialOrd`/`Ord` and exposes no
+      parsing or conversion method beyond `new` and `as_str`, so two
+      values differing only in whitespace compare unequal.
+- [ ] `RemoteIssue.body`'s doc comment states that the value is the
+      already-projected domain body per the `work-item-project-remote.sh`
+      recipe, and that reproducing it per provider is the implementing
+      client's obligation — giving 0171's projection-fidelity criterion a
+      referent in the contract rather than only in its own text.
+- [ ] `tracker` does not depend on `work`, enforced mechanically rather
+      than by review: its `Cargo.toml` declares no dependencies at all,
+      and the cargo-pup `RestrictImports` rule in `pup.ron` permits only
+      `std`/`core`/`alloc`, `kernel::Error` and `crate`. Enforcement is
+      demonstrated, not asserted: a scratch edit importing a `work` type
+      is shown to fail `mise run pup:check` — the nightly lane that runs
+      cargo-pup, which `cli:check` does not.
+- [ ] The crate carries no behavioural logic: `tracker/src/` contains no
+      `#[cfg(test)]` module and no function body other than the four
+      inherent methods and the `Display`/`Error` impls named in
+      Requirements, and the workspace manifest lists no
+      `tracker-adapters` member.
+- [ ] `mise run cli:check`, `mise run pup:check` and `mise run deny:check`
+      all pass with the new crate registered, and the `tracker/tests/`
+      fixtures are built and run by the workspace's `cargo nextest run`
+      invocation rather than being excluded from it.
+
+## Open Questions
+
+None outstanding. The one question that could have reopened the frozen
+surface — whether `create --push` retry idempotency needs a lookup
+operation — is settled in Requirements: it is resolved locally in `work`
+via a pending-push marker, and the port stays at four operations.
+
+## Dependencies
+
+- No blockers, and every artefact this item copies or registers against
+  already exists. The `cli/` workspace and the `kernel` crate came from
+  the foundation items (0163/0164); 0166 delivered the shared config,
+  corpus and store crates, none of which this crate uses; the `pup.ron`
+  rule shape this item copies was established by the `config`, `corpus`,
+  `vcs` and `work` subdomain stories (0178/0179/0169/0170); and the
+  registration checklist comes from 0187. All are complete. The crate
+  holds no logic that could depend on anything else.
+- Blocks: 0171 (Jira and Linear Integrations) — specifically its client
+  adapter crates and thin binaries, which `impl RemoteTracker`. That half
+  of 0171 waits on nothing but this item. 0171's cutover half — the
+  script removal, skill repointing, conversational conflict flow and
+  contract-suite run — remains blocked by 0194, as 0171's own
+  `blocked_by` records.
+- Blocks: 0194 (Tracker Crate and Remote Sync Engine) — its state machine
+  and `sync` command call through this port. Two obligations pass to it
+  with the unblock: implementing the pending-push marker that keeps
+  `create --push` retries idempotent without a port lookup, and building
+  the shared reusable fake and the parameterised `RemoteTracker` contract
+  test. 0194 must record both, so the reason the port has no lookup
+  operation is written where the alternative would be built.
+- Reverse coupling on 0194: 0194 describes itself as the port's first
+  consumer and design driver, so it is the item most likely to want the
+  surface changed. The signature is frozen at this item's acceptance, and
+  any later need is an additive change carried as a new item rather than
+  a reopening of 0203 — otherwise 0171 is again building against a
+  moving contract, which is what the split existed to prevent. 0194's
+  Requirements record the same protocol, so both halves of the split
+  respond to unmet surface needs the same way.
+- 0194 owns the sync baseline storage contract (`last-sync.json` and its
+  `remote_updated_at` values, written today by the live bash sync path).
+  `RemoteTimestamp` must round-trip the values already on users' disks;
+  0194's classification-stability criterion is what would otherwise catch
+  a mismatch, and it runs after this signature is frozen. This item does
+  not wait on 0194's baseline corpus: it commits a single captured
+  `remote_updated_at` string of its own, which needs no tracker
+  credentials and no tenant to obtain.
+- `work-item-bridge-codes.sh` remains the authoritative
+  retryable/terminal taxonomy in the interim. This item owns the parity
+  fixture holding `TrackerError`'s two classes to it — carried as a
+  requirement and a criterion here, not only as a note — so 0171's
+  criterion to delete the script "and its parity fixture" has an artefact
+  to refer to, and 0194 should not build a second one.
+- External systems: Jira REST and Linear GraphQL. Both must be able to
+  satisfy the frozen signature, and their constraints shaped it —
+  `fetch_all` returns an owned `Vec` rather than a cursor because bulk
+  retrieval and per-tenant rate limits are the client's concern to
+  handle behind the port, not the caller's.
+- Parent: epic 0136.
+
+## Assumptions
+
+- The four operations are sufficient for both consumers. The one case
+  that looked like it might need a fifth — `create --push` retry
+  idempotency — is decided against the port: 0194 resolves it locally
+  with a pending-push marker. If some later need does emerge, it is
+  additive and lands as a new item, not as a reopening of this one.
+
+## Technical Notes
+
+- `tracker` is an addition to a live workspace, not a green field: `work`
+  and `work-adapters` already exist and are substantially built from 0170.
+- The alternatives were weighed when this crate was still part of 0194
+  and are unchanged: putting the port in `work` is simplest but makes
+  every 0171 client depend on the whole lifecycle domain — the one thing
+  the crate exists to prevent; a full `tracker` + `tracker-adapters` pair
+  matches the workspace's usual shape but adds two crates and a second
+  home for adapter code `work-adapters` already hosts.
+- Of the registration checklist 0187 added at
+  `tasks/README.md#registering-a-dispatched-sub-binary`, only the steps
+  that apply to a plain library crate are in scope: workspace membership
+  and cargo-deny/cargo-pup coverage. This crate has no dispatch token, no
+  binary and no launcher wiring, so the dispatch-specific steps do not
+  apply.
+- The fake is deliberately built twice — a private one here, a shared
+  reusable one in 0194. Shipping the shared fake from `tracker` would
+  either put test-support code in a crate whose emptiness is
+  mechanically policed, or add the `test-support` feature and second
+  consumer this item exists to avoid. The duplication is a four-method
+  stub against a signature that cannot drift, so it costs less than the
+  coupling would.
+
+## Drafting Notes
+
+- Split from 0194 on 2026-08-10 following work item review 2 pass 3
+  (`meta/reviews/work/0194-tracker-crate-and-remote-sync-engine-review-2.md`),
+  in which the clarity, scope and dependency lenses independently
+  recommended it. The trigger was structural rather than about size alone:
+  0194 recorded 0171's blocking milestone as the end of its own Phase A,
+  which no dependency graph can represent, so the edge was either
+  over-blocking or fiction someone had to manage informally.
+- Three gaps the review found in 0194's version of this crate are fixed
+  here rather than carried over: `fetch_all()` had no signature at all
+  while the signature was what 0171 waited on; the port's error type never
+  said whether it distinguishes retryable from terminal failure, which
+  both consumers depend on; and `RemoteIssue.updated` was never typed nor
+  connected to the baseline's `remote_updated_at`, the field it becomes.
+- Review 1 of this item (2026-08-10) found the first draft had restated
+  those three gaps as instructions to the implementer rather than closing
+  them, so the verbatim trait definition and the four types were written
+  into Requirements. Four decisions were settled at the same time, each
+  because leaving it open would have unfrozen the signature after 0171
+  began: the trait is synchronous and dyn-compatible (`async-trait` is a
+  dependency the pup rule forbids, and native async fn in traits is not
+  object-safe, but 0194's composition root needs
+  `Box<dyn RemoteTracker>`); `TrackerError` is crate-local rather than a
+  widening of the shared `kernel::Error`; `RemoteTimestamp` is opaque over
+  `String` so existing bash-written baselines round-trip byte-identically;
+  and retry idempotency is resolved in `work`, keeping the port at four
+  operations.
+- The signature probe is an integration test in `tracker/tests/` rather
+  than the separate probe crate the first draft's criteria implied. An
+  integration test links against the crate as an external consumer, so it
+  sees only the public API and catches widening just as a probe crate
+  would — without a second manifest to register, and without contradicting
+  this item's own one-crate framing.
+- Review 1 pass 2 (2026-08-10) corrected three defects the first revision
+  introduced. `TrackerError` had been specified as both "closed" and
+  `#[non_exhaustive]`, which are opposites — `#[non_exhaustive]` exists
+  to let variants be added *without* breaking consumers, and it also
+  makes the wildcard-free match the criterion demanded impossible for a
+  `tracker/tests/` consumer; the attribute is dropped, since a
+  compile-breaking third class is the property both consumers want.
+  `ExternalId` and `RemoteTimestamp` were named as frozen public items
+  but never defined, so the freeze did not cover the type carrying remote
+  identity; all five items are now given verbatim, derives and inherent
+  methods included. And enforcement was attributed to `cli:check`, which
+  runs workspace rustfmt and clippy only — cargo-pup lives on the
+  separate nightly `pup:check` lane, so the criteria now name it.
+
+## References
+
+- Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
+- Split from: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
+- ADRs: ADR-0045, ADR-0052, ADR-0053
