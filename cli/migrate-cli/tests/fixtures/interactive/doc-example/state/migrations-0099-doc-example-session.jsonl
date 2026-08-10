@@ -1,0 +1,2 @@
+{"transformation_key":"link-A","schema_version":1,"outcome":"edited","proposed_value":"0034-foo","user_value":"0123-renamed","timestamp":"2026-08-08T11:42:40Z","band":"ambiguous","prose":"the linkage paragraph"}
+{"transformation_key":"link-C","schema_version":1,"outcome":"skipped","proposed_value":"0007-baz","timestamp":"2026-08-08T11:42:40Z"}

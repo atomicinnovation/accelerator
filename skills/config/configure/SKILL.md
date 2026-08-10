@@ -559,7 +559,7 @@ Use `/accelerator:migrate` to apply migration `0002-rename-work-items-with-proje
 which renames legacy `NNNN-*.md` files to the configured pattern with
 your `default_project_code`. The migration stays pending until both
 the pattern includes `{project}` and `default_project_code` is set; if
-neither applies, you can opt out via `bash run-migrations.sh --skip
+neither applies, you can opt out via `accelerator migrate --skip
 0002-rename-work-items-with-project-prefix`.
 
 #### Recognised keys

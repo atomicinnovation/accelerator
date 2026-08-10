@@ -1,0 +1,32 @@
+[0099-doc-example] running
+Session log: /tmp/migrate-capture-qw8ch7/doc-example-yrODfi/.accelerator/state/migrations-0099-doc-example-session.jsonl  (resume from this file by re-running /accelerator:migrate)
+
+── Transformation 1 ────────────────────────
+Proposed:  0034-foo
+Source:    meta/work/example-A.md:14
+Predicate: ambiguous
+
+Proposed value: 0034-foo
+Surrounding prose: the linkage paragraph
+
+[accept | edit <new-value> | skip] > [decisions] consumed line 1: edit
+[interactive] empty value not allowed
+── Transformation 1 ────────────────────────
+Proposed:  0034-foo
+Source:    meta/work/example-A.md:14
+Predicate: ambiguous
+
+Proposed value: 0034-foo
+Surrounding prose: the linkage paragraph
+
+[accept | edit <new-value> | skip] > [decisions] consumed line 2: edit
+── Transformation 2 ────────────────────────
+Proposed:  0007-baz
+Source:    meta/work/example-C.md:21
+Predicate: ambiguous
+
+Proposed value: 0007-baz
+Surrounding prose: the paragraph the author wants to revise
+
+> [decisions] consumed line 3: skip
+[0099-doc-example] applied

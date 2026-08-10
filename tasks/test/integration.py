@@ -28,20 +28,17 @@ _ABSOLUTE_VCS_PATHS = (
     "/opt/homebrew/bin/jj",
 )
 
-# The migrate subtree ships exactly these shell suites. The count is asserted in
-# `migrate` below so a dropped exec bit (e.g. on an exec-bit-lossy filesystem)
-# fails the build loudly instead of silently shrinking the regression net.
-_EXPECTED_MIGRATE_SUITES = 4
-
-# The config subtree (scripts/) discoverable shell suites. Like the migrate
-# guard, this is an at-least floor so a dropped exec bit on a fail-closed gate
-# (e.g. test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
-# Bumped as suites are added under scripts/. Dropped from 21 to 18: 0177
-# retired test-skills-index.sh (superseded by docs:generate) and 0167 retired
-# test-config.sh and test-config-read-doc-type-paths.sh alongside the removal
-# set. Dropped to 16 as the shell-based frontmatter and linkage validators
-# retired in favour of `accelerator corpus`.
-_EXPECTED_CONFIG_SUITES = 16
+# The config subtree (scripts/) discoverable shell suites. This is an
+# at-least floor so a dropped exec bit on a fail-closed gate (e.g.
+# test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
+# Bumped as suites are added under scripts/. Dropped from 21 to 18 as
+# test-skills-index.sh (superseded by docs:generate) and
+# test-config.sh/test-config-read-doc-type-paths.sh (retired alongside the
+# removal set) went away. Dropped to 16 as the shell-based frontmatter and
+# linkage validators retired in favour of `accelerator corpus`. Dropped to 15
+# as the meta-directory migration engine's interactive wire-protocol harness
+# retired in favour of the native accelerator-migrate port.
+_EXPECTED_CONFIG_SUITES = 15
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
@@ -66,10 +63,13 @@ _EXPECTED_INTEGRATIONS_SUITES = 32
 _REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
 
 # The three previously-unguarded subtrees, each at its current size. hooks/
-# holds only the two bash harnesses that predate ADR-0048; the link-refresh
-# suite is pytest, where a lost file is a collection error rather than a
-# silently smaller run, so no by-name entry is needed.
-_EXPECTED_HOOKS_SUITES = 2
+# holds only the one bash harness that predates Python becoming the standard
+# test language (test-vcs-detect.sh — the meta-directory migration
+# discoverability hook's own harness retired alongside the bash migration
+# engine it gated); the link-refresh suite is pytest, where a lost file is a
+# collection error rather than a silently smaller run, so no by-name entry is
+# needed.
+_EXPECTED_HOOKS_SUITES = 1
 _EXPECTED_DECISIONS_SUITES = 0
 _EXPECTED_GITHUB_SUITES = 0
 
@@ -362,10 +362,10 @@ def decisions(context: Context) -> None:
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
-    Two halves: the pytest suites (ADR-0048 — Python is the test language for
-    the non-Rust surfaces) and the two bash harnesses that predate it. The
-    surviving bash harness (test-vcs-detect.sh) dispatches the compiled
-    accelerator-vcs sub-binary through the real launcher, so it needs both on
+    Two halves: the pytest suites and the one remaining bash harness that
+    predates Python becoming the test language for the non-Rust surfaces.
+    That harness (test-vcs-detect.sh) dispatches the compiled accelerator-vcs
+    sub-binary through the real launcher, so it needs both on
     ACCELERATOR_BIN/ACCELERATOR_VCS_BIN — the vcs_bin=True overlay.
     """
     context.run("uv run pytest tests/integration/hooks -v")
@@ -394,12 +394,3 @@ def integrations(context: Context) -> None:
     _require_suite_floor(
         suites, _EXPECTED_INTEGRATIONS_SUITES, (), "integrations"
     )
-
-
-@task
-def migrate(context: Context) -> None:
-    """Integration tests for the meta-directory migration framework."""
-    suites = run_shell_suites(
-        context, "skills/config/migrate", accelerator_env(corpus_bin=True)
-    )
-    _require_suite_floor(suites, _EXPECTED_MIGRATE_SUITES, (), "migrate")

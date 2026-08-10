@@ -9,11 +9,11 @@ writers that feed those readers — names ``ACCELERATOR_PLUGIN_ROOT`` instead,
 and this makes that non-negotiable.
 
 Everything outside the rename set is out of scope by construction, not by
-exemption: the adapter layer (``hooks/``, ``skills/config/migrate/**``, the
-interactive harnesses), the Claude Code matcher model in
-``skill_permissions.py``, and the SKILL.md substitution tokens all legitimately
-name the variable. That is why there is no allowlist — the first exemption
-added under pressure could be the very file the bug was in.
+exemption: the adapter layer (``hooks/``, the SKILL.md-owned skill scripts),
+the Claude Code matcher model in ``skill_permissions.py``, and the SKILL.md
+substitution tokens all legitimately name the variable. That is why there is
+no allowlist — the first exemption added under pressure could be the very
+file the bug was in.
 """
 
 import re

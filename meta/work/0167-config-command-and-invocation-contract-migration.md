@@ -12,10 +12,11 @@ parent: "work-item:0136"
 blocked_by: ["work-item:0164", "work-item:0166", "work-item:0178", "work-item:0179"]
 blocks: ["work-item:0169", "work-item:0173", "work-item:0174"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-relates_to: ["work-item:0106", "work-item:0107", "work-item:0180"]
+relates_to: ["work-item:0106", "work-item:0107", "work-item:0180", "work-item:0172"]
 tags: [rust, config, skills, invocation-contract, allowed-tools, cli, migration]
-last_updated: "2026-07-19T21:06:21+00:00"
+last_updated: "2026-08-09T00:00:00+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Documentation-completeness note, added while closing out 0172's Phase 10: this item's own Requirements/AC text never documents the crate-level FileConfigStore::with_legacy_policy(LegacyPolicy::Allow) capability that 0172's migration engine relies on for in-process legacy-layout access (config-adapters/src/store.rs). This does not gate or reopen this item — it is closed — but the gap is recorded here since 0172's plan flagged it as worth checking."
 schema_version: 1
 external_id: "PP-188"
 ---

@@ -1,0 +1,60 @@
+# Volatile-field mask patterns for accelerator-migrate golden fixtures.
+#
+# Loaded identically by cli/migrate-cli/tests/fixtures/regenerate.sh (bash, at
+# capture time, to confirm a golden is stable across two captures) and the
+# Rust fixture-comparison harness (cli/migrate-cli/tests/), so both sides mask
+# the same bytes. Each pattern carries its own positive/negative sample so
+# both engines can be pinned against the identical source of truth rather than
+# hand-duplicating samples in two languages.
+#
+# Closed once committed: do not add a pattern, or loosen an existing one, to
+# make a failing golden pass.
+
+[[pattern]]
+name = "sandbox_root"
+regex = '(/private)?/(tmp|var/folders)/\S+?(?=/(meta|\.accelerator|\.claude)\b|$)'
+description = "the fixture builder's mktemp sandbox root, normalised to <SANDBOX>"
+sample_match = "/private/var/folders/xy/ab12cd/T/migrate-capture-xyz"
+sample_no_match = "/Users/toby/project/tmp-notes"
+
+[[pattern]]
+name = "invocation_form"
+regex = '\bbash \S*run-migrations\.sh\b'
+description = "bash's own invocation form, normalised to `accelerator migrate` — the one substitution permitted beyond <SANDBOX> and timestamps"
+sample_match = "bash $0 --skip 0001-rename-tickets-to-work"
+sample_no_match = "accelerator migrate --skip 0001-rename-tickets-to-work"
+
+[[pattern]]
+name = "program_name"
+regex = '\brun-migrations\.sh\b'
+description = "bash's bare program name in --help/usage lines, normalised to `accelerator migrate`"
+sample_match = "Usage: run-migrations.sh [FLAG]"
+sample_no_match = "Usage: accelerator migrate [FLAG]"
+
+[[pattern]]
+name = "session_log_id"
+regex = 'migrations-[0-9a-z]+-session\.jsonl'
+description = "session-log basenames, keyed on migration id, normalised to <ID>"
+sample_match = "migrations-0007-unify-meta-corpus-frontmatter-session.jsonl"
+sample_no_match = "migrations-applied"
+
+[[pattern]]
+name = "iso8601_timestamp"
+regex = '\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?\b'
+description = "session-log record ISO-8601 timestamps — never byte-compared, per 0180's carve-out"
+sample_match = "2026-08-07T14:23:11Z"
+sample_no_match = "2026-08-07"
+
+[[pattern]]
+name = "hex_or_jj_revision"
+regex = '\b([0-9a-f]{7,40}|[k-z]{8,32})\b'
+description = "git commit hex object ids / jj change ids recorded as a run's base revision"
+sample_match = "kvwrmzxy"
+sample_no_match = "0007-unify-meta-corpus-frontmatter"
+
+[[pattern]]
+name = "decision_count"
+regex = '\(loses \d+ decisions\)'
+description = "the resume-affordance discard hint's decision count, which depends on capture-time session-log length"
+sample_match = "(loses 2 decisions)"
+sample_no_match = "(loses N decisions)"

@@ -5,7 +5,7 @@ allowed-tools:
   - Read
   - Write
   - Edit
-  - Bash
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate *)
 ---
 
 > **Warning: this skill rewrites files in `meta/` and `.claude/accelerator*.md`.** Recovery is via VCS revert. Before running, ensure your repo is committed and you understand what each pending migration does. The safety guards (clean-tree check, preview) exist to give you a moment to stop — they are not a substitute for understanding the changes.
@@ -26,26 +26,46 @@ You can also run it proactively — if no migrations are pending, it prints `No 
 
 ## How it works
 
-The driver script `skills/config/migrate/scripts/run-migrations.sh` orchestrates the migration lifecycle:
+`accelerator migrate` (the `accelerator-migrate` sub-binary) runs the migration lifecycle in-process — there is no forked child per migration and no wire protocol to a subprocess.
 
-1. **Clean-tree pre-flight.** Checks `meta/`, `.claude/accelerator*.md`, and `.accelerator/` for uncommitted changes. Aborts if any are found. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass (advanced users only).
+1. **Clean-tree pre-flight.** Scans `meta/`, `.claude/accelerator*.md`, and `.accelerator/` for uncommitted changes. A clean tree proceeds with a fresh run. A dirty tree where every dirty path belongs to this run's own prior partial output (a resumable interactive session log, in-flight manifest-tracked writes) proceeds too, printing a one-line resume affordance. A dirty tree carrying anything else aborts. Set `ACCELERATOR_MIGRATE_FORCE=1` to bypass entirely (advanced users only) — skipped migrations stay skipped even under FORCE. A run-level advisory lock (`.accelerator/state/`) refuses a second concurrent invocation fast rather than racing it.
 2. **Read state.** Loads `.accelerator/state/migrations-applied` and `.accelerator/state/migrations-skipped` — newline-delimited lists of migration IDs. If either file is absent, its set is empty. Unknown IDs (from a newer plugin version) are preserved verbatim and warned about. An ID appearing in both files triggers a warning; applied takes precedence.
-3. **Discover migrations.** Globs `skills/config/migrate/migrations/[0-9][0-9][0-9][0-9]-*.sh` in sorted order. The directory can be overridden via `ACCELERATOR_MIGRATIONS_DIR` (used in tests).
+3. **The registry.** Migrations are not discovered by scanning a directory of scripts — they are a fixed, compile-time-ordered list (`migrate::registry::registry()`) baked into the binary. `ACCELERATOR_MIGRATIONS_DIR` is not recognised; there is no directory to override.
 4. **Compute pending.** A migration is pending if its ID is in neither the applied nor the skipped set.
 5. **Preview banner.** Prints one line per pending migration — `<ID> — <description>` — with a per-migration skip hint (`--skip <id>`). If nothing is pending, prints `No pending migrations.` (plus any skipped names) and exits 0 immediately.
-6. **Apply in order.** For each pending migration: runs it with `PROJECT_ROOT` exported; on success atomically appends its ID to `.accelerator/state/migrations-applied`; on failure prints the migration's output to stderr, exits 1, and leaves the state file at the last successful migration. If the migration emits `MIGRATION_RESULT: no_op_pending` on stdout, it is treated as a soft skip — the migration stays pending and will be retried on future runs.
+6. **Apply in order.** For each pending migration: a mechanical migration's `apply()` runs to completion in one call; an interactive migration (see below) runs the full accept/edit/skip prompt loop. On success, atomically appends its ID to `.accelerator/state/migrations-applied` and prints `[<id>] applied`. On failure, prints the error and `[<id>] failed`, exits 1, and leaves the state file at the last successful migration. A migration whose `apply()` returns `NoOpPending` is treated as a soft skip — it stays pending, printing `[<id>] no-op (stays pending)`, and will be retried on future runs.
 7. **Summary.** Prints counts of applied, skipped, and pending (no-op) migrations.
 
-## Per-migration contract
+## Authoring a migration
 
-Each migration script under `migrations/` must:
+A migration is ordinary Rust, not a bash script — there is no opt-in header, no published shell hook set, and nothing to source. Add a module under `cli/migrate/src/migrations/` and register it in `cli/migrate/src/registry::registry()`.
 
-- Start with `#!/usr/bin/env bash` then `# DESCRIPTION: <short imperative description>` on line 2
-- Receive `PROJECT_ROOT` as an exported env var pointing to the consumer repo
-- Self-detect and exit 0 on already-applied state (idempotent)
-- Use atomic write patterns (source `scripts/atomic-common.sh` for `atomic_write`, `atomic_append_unique`, `atomic_remove_line`) for any file rewrites
-- NOT honour any `DRY_RUN` env var — this framework has no dry-run mode
-- Optionally emit `MIGRATION_RESULT: no_op_pending` on stdout to signal that preconditions are not met and the migration should remain pending (retried on future runs)
+```rust
+pub trait MigrationMeta {
+    fn id(&self) -> &'static str;
+    fn description(&self) -> &'static str;
+}
+
+pub enum ApplyOutcome { Applied, NoOpPending }
+
+pub trait Migration: MigrationMeta {
+    fn apply(&self, ctx: &dyn MigrationContext) -> Result<ApplyOutcome, MigrationError>;
+}
+```
+
+`ctx: &dyn MigrationContext` is the only way a migration touches the outside world — `migrate` itself carries no filesystem, config, or VCS dependency. The capabilities it exposes (all in `cli/migrate/src/ports.rs`, with a full doc comment on each):
+
+- `doc_type_dirs()` — the configured doc-type → directory table (the in-process replacement for shelling out to read config).
+- `revision()` — the current VCS revision, used for guarded-resume staleness checks.
+- `corpus_index()` — target-existence checking (`target_exists(type, id)`), for migrations that validate cross-references.
+- `write(path, content)` — the **only** content-mutation path. Every write routes through the path manifest as a side effect of the call itself, so "recorded at time-of-mutation" is structural, not a discipline to remember.
+- `config_value(key)` / `configured_path_override(key)` — full-stack config lookup, including legacy key names migrations still read.
+- `read(path)`, `dir_exists(path)`, `remove_file(path)`, `remove_dir_if_empty(path)`, `list_md_files(dir)`, `list_all_under(dir)` — filesystem access, sandboxed and manifest-aware.
+- `merge_move(src, dst)` — whole-file/whole-directory relocation (directory renames, state relocation).
+- `canonicalise_work_item_id(bare_number)` — renders a bare number under the configured `work.id_pattern`.
+- `validate_frontmatter(files)` — runs `accelerator corpus frontmatter validate` in-process.
+
+A mechanical migration must self-detect and no-op on already-applied state (idempotent) — the ledger filter is not the only guard, matching ADR-0023's belt-and-suspenders requirement. Return `ApplyOutcome::NoOpPending` when its preconditions are not yet met and it should stay pending, retried on future runs; guarantee no destructive work happened before returning it. There is no `DRY_RUN` concept — this framework has no dry-run mode.
 
 ## State file format
 
@@ -69,167 +89,143 @@ Both files are human-readable and constitute the audit trail. Do not edit them m
 Skip a migration to defer it indefinitely:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh" --skip <migration-id>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --skip <migration-id>
 ```
 
 Unskip a previously skipped migration so it becomes pending again:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh" --unskip <migration-id>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --unskip <migration-id>
 ```
 
 Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_MIGRATE_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
 
-## MIGRATION_RESULT contract
-
-A migration that exits 0 and emits `MIGRATION_RESULT: no_op_pending` on stdout is treated as a soft deferral — it stays pending and will be retried on future runs. The sentinel line is stripped from user-visible output.
-
-Migrations emitting this sentinel MUST guarantee they performed no destructive operations before the line was emitted. Migrations doing destructive work must either succeed (recorded as applied) or fail non-zero.
-
 ## Optional interactive contract
 
-Mechanical migrations are the default — they run start-to-finish with no user interaction. A migration that needs to **ask the user about ambiguous transformations** can opt in to the interactive contract by adding `# INTERACTIVE: yes` to its header. The framework then drives a per-transformation accept / edit / skip prompt loop, persists each decision durably before any artefact mutation, and resumes from the on-disk session log on subsequent runs.
+Mechanical migrations are the default — they implement `Migration` and run start-to-finish with no user interaction. A migration that needs to **ask the user about ambiguous transformations** implements `InteractiveMigration` instead:
 
-### API reference at a glance
+```rust
+pub struct Transformation {
+    pub key: String,           // session-log identity, "{path}#{anchor}"
+    pub path: String,
+    pub anchor: String,
+    pub proposed: String,
+    pub predicate_value: String,
+    pub display: String,       // author-declared prompt content
+    pub extras: Vec<(String, String)>,
+}
 
-| Name | When called | Args | Returns | Side effects |
-|---|---|---|---|---|
-| `migration_emit_transformations` | once at handshake | none (uses `harness_emit_transformation` to emit each record) | (no return contract) | accumulates extras via `harness_extras_set` (reset after each emission) |
-| `migration_evaluate_predicate` | per transformation | TSV line on stdin (use `harness_field`) | exit 0 = prompt; exit 1 = mechanical; other non-zero = FAIL | none |
-| `migration_validate_edit` | per edit decision | positional: `key path anchor proposed user_value` | exit 0 = valid; non-zero (via `harness_reject`) = invalid | should write error to stderr |
-| `migration_apply_decision` | per accept/edit, AFTER runner persists; never for skip | positional: `key path anchor decision value` | exit 0 = success; non-zero = FAIL aborts migration | mutates the artefact at (path, anchor) |
-| `migration_session_log_path` *(optional)* | once at handshake | none | path string on stdout | none |
-| `migration_verify_applied` *(optional)* | per resumed-accepted/edited key | positional: `key path anchor recorded_outcome recorded_proposed [recorded_user_value]` | exit 0 = mutation present; non-zero = absent → re-prompt | none |
-| `harness_emit_transformation` | inside `migration_emit_transformations` | named: `key= path= anchor= proposed= predicate_value= display=` | (helper) | emits one TSV transformation; auto-clears extras after |
-| `harness_extras_set` | inside `migration_emit_transformations` | positional: `key value` | (helper) | accumulates one extras pair for the next emission |
-| `harness_extras_clear` | optional inside `migration_emit_transformations` | none | (helper) | drops accumulated extras |
-| `harness_field` | inside `migration_evaluate_predicate` (TSV on stdin) | positional: `field name` | value on stdout | none |
-| `harness_reject` | inside `migration_validate_edit` | positional: `message` | (helper, exits non-zero) | prints `[interactive] <message>` to stderr |
-| `harness_run` | last line of the migration | none | (drives the protocol loop) | the entire interactive protocol |
+pub enum PredicateOutcome { Prompt, Mechanical, Fail(String) }
 
-### Header marker
+pub enum Decision { Accept, Edit(String), Skip }
 
-A migration declares the hook by adding `# INTERACTIVE: yes` somewhere in its first five header-comment lines. Template skeleton:
-
-```bash
-#!/usr/bin/env bash
-# DESCRIPTION: <short imperative>
-# INTERACTIVE: yes
-
-set -euo pipefail
-source "$CLAUDE_PLUGIN_ROOT/scripts/atomic-common.sh"
-source "$CLAUDE_PLUGIN_ROOT/scripts/interactive-harness.sh"
-
-migration_emit_transformations() { ... }
-migration_evaluate_predicate()   { ... }
-migration_validate_edit()        { ... }
-migration_apply_decision()       { ... }
-
-harness_run
+pub trait InteractiveMigration: MigrationMeta {
+    fn emit_transformations(&self, ctx: &dyn MigrationContext) -> Vec<Transformation>;
+    fn evaluate_predicate(&self, t: &Transformation) -> PredicateOutcome;
+    fn validate_edit(&self, t: &Transformation, value: &str) -> Result<(), String>;
+    fn apply_decision(&self, t: &Transformation, d: &Decision, ctx: &dyn MigrationContext) -> Result<(), String>;
+    fn verify_applied(&self, t: &Transformation, recorded: &corpus::Record) -> bool { true }
+    fn finalise(&self, ctx: &dyn MigrationContext) -> Result<(), String> { Ok(()) }
+}
 ```
 
-### Author-facing helpers
-
-Authors NEVER hand-write TSV positional fields, base64-encode display blocks, or hand-write JSON. The helpers exposed by `scripts/interactive-harness.sh` cover every wire-protocol concern:
-
-- `harness_emit_transformation key=K path=P anchor=A proposed=V predicate_value=PV display=$'multi\nline'` — emits one transformation. Extras from `harness_extras_set` are attached then cleared.
-- `harness_extras_set <key> <value>` — accumulate one extras pair. Keys must match `^[a-z][a-z0-9_]*$` and cannot collide with framework-mandatory names (`transformation_key`, `schema_version`, `outcome`, `proposed_value`, `user_value`, `timestamp`). Extras are **auto-cleared after each `harness_emit_transformation`** — set them inside the emit loop, not once before it.
-- `harness_extras_clear` — drop all accumulated extras.
-- `harness_field <name>` — inside `migration_evaluate_predicate`, extract a field by name from the TSV transformation line on stdin.
-- `harness_reject "<message>"` — inside `migration_validate_edit`, reject the user's input in a uniform format (`[interactive] <message>`). Always return non-zero from the validator after calling this.
+There is no wire protocol, no TSV frames, no base64 display blocks, and no hand-written JSON — every callback is a plain Rust function call against typed values.
 
 ### Callback contracts
 
-- `migration_evaluate_predicate` exits 0 to route the transformation through the prompt loop, exit 1 to apply it mechanically (no prompt), or any other non-zero status to abort the migration with `FAIL`.
-- `migration_apply_decision` is called once per `accept` or `edit` decision, **after** the runner has durably persisted the JSONL session-log record (write-ahead-log invariant). It is **not** called for `skip`. A non-zero exit aborts the migration without ledger append.
-- `migration_verify_applied` (optional) is called on resume *before* emitting `RESUMED_APPLIED`. Returning non-zero tells the framework the recorded mutation is absent (e.g. from a partial-apply crash); the framework removes the stale record via DRIFT and re-prompts.
+- `emit_transformations` runs once, unconditionally, before any prompting — mechanical work (a precondition pass, a rewrite pass) happens here. It has no `Result` of its own; a mechanical failure is carried as a single sentinel `Transformation` whose `evaluate_predicate` returns `Fail(message)`.
+- `evaluate_predicate` routes a transformation to the prompt loop (`Prompt`), applies it mechanically with no prompt (`Mechanical`), or aborts the whole migration with `[<id>] <message>` (`Fail`).
+- `validate_edit` returns `Err(message)` to reject a user's edit; the engine prints `"[interactive] {message}"` and re-prompts. No record is persisted for a rejected attempt.
+- `apply_decision` is called once per `accept` or `edit` decision, **after** the engine has durably persisted the session-log record (write-ahead-log invariant) — enforced structurally, never the reverse. It is **never** called for `skip`.
+- `verify_applied` (optional; defaults to `true`) is consulted on resume, before replaying an accepted/edited record. `false` is handled identically to source drift: the stale record is discarded and re-prompted. Never consulted for a skipped record.
+- `finalise` (optional; defaults to a no-op) is called exactly once, unconditionally, after every transformation this run decided has been applied — or immediately if there were none to begin with. This is where whole-corpus post-apply validation belongs; it is not threaded through any one transformation's own callback.
 
-> **Callbacks may be invoked more than once per run, so they must be deterministic and side-effect-free.** A `--decisions-file` run runs `migration_emit_transformations` and `migration_evaluate_predicate` during `--list` enumeration and again during the dry-apply validation pass before the live run, and runs `migration_validate_edit` during dry-apply and again at live apply. In particular `migration_validate_edit` **must be a pure function of its arguments** — it must **not** read corpus state that an earlier transformation in the same run could mutate. (If it did, dry-apply could pass against the unmutated corpus while the live run fails validation at a later position after earlier files changed, re-opening the partial-mutation hole dry-apply closes.) A validator that depends on mutable corpus state is **unsupported**; this is documented rather than enforced.
+> **Callbacks may be invoked more than once per run, so they must be deterministic and side-effect-free.** A `--decisions-file` run calls `emit_transformations`/`evaluate_predicate` during `--list` enumeration and again during the dry-apply validation pass before the live run, and calls `validate_edit` during dry-apply and again at live apply. `validate_edit` in particular **must be a pure function of its arguments** — it must not read corpus state an earlier transformation in the same run could mutate, or dry-apply could pass against the unmutated corpus while the live run fails later after earlier files changed.
 
-### Runner guarantees (ADR-0037 §§1–4)
+### Runner guarantees
 
-- **§1 Predicate routing**: each transformation is routed to either the prompt loop or the mechanical path based on the predicate's exit code.
-- **§2 Display elements**: every prompt shows the proposed mutation target and value, the source location as `path:anchor`, and the predicate's evaluated value, plus any author-declared `display=` content.
-- **§3 Resumability**: every prompted decision is durably persisted to `.accelerator/state/migrations-<id>-session.jsonl` **before** the artefact is mutated (write-ahead-log invariant). On re-entry, already-decided keys emit `RESUMED_APPLIED` / `RESUMED_SKIPPED` and skip the prompt. A migration completes (and the ID is appended to `migrations-applied`) only when the harness emits `DONE`.
-- **§4 Decision verbs**: `accept` applies the proposed value; `edit <value>` substitutes a user-provided value (validated by `migration_validate_edit`); `skip` records the user's decision but does not mutate the artefact.
+- **Predicate routing**: each transformation is routed to the prompt loop or the mechanical path based on `evaluate_predicate`'s outcome.
+- **Display elements**: every prompt shows the proposed value, the source location as `path:anchor`, the predicate's evaluated value, plus the author's own `display` content.
+- **Resumability**: every prompted decision is durably persisted to `.accelerator/state/migrations-<id>-session.jsonl` **before** the artefact is mutated. On re-entry, already-decided keys replay silently (`verify_applied` consulted for accepted/edited keys only) and skip the prompt. A migration completes (its ID is appended to `migrations-applied`) only when every transformation has a terminal record.
+- **Decision verbs**: `accept` applies the proposed value; `edit <value>` substitutes a user-provided value (validated by `validate_edit`); `skip` records the decision but does not mutate the artefact.
 
 ### Runner-level decisions
 
-- **Source-drift**: if a recorded record's `proposed_value` differs from the live emission's, the runner re-prompts and the old record is discarded via `atomic_jsonl_remove_by_key`. Because the write-ahead-log invariant guarantees persistence before mutation, DRIFT unambiguously means "the migration source changed" — partial-apply crashes resume via `RESUMED_APPLIED` (or via `migration_verify_applied` if declared).
-- **Transformation ordering**: emission order from `migration_emit_transformations` is the canonical iteration order.
-- **Sticky skip semantics**: a transformation skipped on a prior run remains skipped on every subsequent run, even if its predicate would have changed. Users who want to re-prompt a previously-skipped key delete the corresponding session-log line and re-run.
+- **Source drift**: if a recorded record's `proposed_value` differs from the live emission's, the engine discards the old record and re-prompts — this applies to every resumed record regardless of outcome (accepted, edited, or skipped alike), and takes priority over everything else, including sticky skip.
+- **Transformation ordering**: emission order from `emit_transformations` is the canonical iteration order.
+- **Sticky skip**: a transformation skipped on a prior run remains skipped on every subsequent run, unless its source drifts. Delete the corresponding session-log line to re-prompt it.
+- **The 30-second decision timeout**: a live TTY prompt that receives no answer within 30 seconds fails the run (stderr message, exit non-zero, session log left as of the last completed decision — the next run prompts only what's still undecided). This is new behaviour the Rust port introduces, not a port of anything bash did — bash's own terminal read had no timeout at all. It is not user-configurable (no flag, no config key). When there is no TTY and no decisions file at all, the run stalls immediately without arming any timeout — see the structured stall below.
 
 ### Session log
 
-- Path: `.accelerator/state/migrations-<id>-session.jsonl` (override via `migration_session_log_path`). Relative paths are resolved against `PROJECT_ROOT`.
-- One JSON object per line, canonical field order: `transformation_key`, `schema_version: 1`, `outcome` ∈ `{accepted, edited, skipped}`, `proposed_value`, optional `user_value` (only for `edited`), `timestamp`, followed by any author-declared extras in receipt order.
+- Path: `.accelerator/state/migrations-<id>-session.jsonl`. Relative paths in `--decisions-file`/stall messages are resolved against the project root.
+- One JSON object per line, canonical field order: `transformation_key`, `schema_version: 1`, `outcome` ∈ `{accepted, edited, skipped}`, `proposed_value`, optional `user_value` (only for `edited`), `timestamp`. Author-declared `extras` on a `Transformation` are not persisted to the session log — they exist only within the run (e.g. `--list`'s short-key display reads a `linkage_key` extra).
 - The session log is retained as an audit artefact after full completion; users may delete it manually. The runner refuses to resume from a log with an unknown `schema_version` and prints a clear recovery instruction.
 
-### Worked example
+## Worked example
 
-The fixture in `scripts/test-fixtures/interactive/doc-example/` ships with the plugin and is exercised by `test-migrate-interactive.sh` (AC-13). Three transformations are emitted — one ambiguous (prompted), one resolved (mechanical), one ambiguous with an empty-value validator. With the scripted decisions `edit ` (empty), `edit 0123-renamed`, `skip`, the user-facing transcript is:
+`meta/work/0001-improve-startup-time.md` references another work item in an unstructured `## References` section:
 
-<!-- @transcript-start -->
+```markdown
+## References
+- `meta/work/0042-add-a-caching-layer.md`
 ```
-Session log: <SANDBOX>/.accelerator/state/migrations-0099-doc-example-session.jsonl  (resume from this file by re-running /accelerator:migrate)
 
-── Transformation 1 ────────────────────────
-Proposed:  0034-foo
-Source:    meta/work/example-A.md:14
-Predicate: ambiguous
+Migration `0007-unify-meta-corpus-frontmatter` recognises this as an ambiguous body-section linkage — a `relates_to` reference it can propose but must not apply without confirmation. `--list` reveals it, dry-emitting the pending transformation without mutating anything:
 
-Proposed value: 0034-foo
-Surrounding prose: the linkage paragraph
-
-[accept | edit <new-value> | skip] >
-[interactive] empty value not allowed
-── Transformation 1 ────────────────────────
-Proposed:  0034-foo
-Source:    meta/work/example-A.md:14
-Predicate: ambiguous
-
-Proposed value: 0034-foo
-Surrounding prose: the linkage paragraph
-
-[accept | edit <new-value> | skip] >
-── Transformation 2 ────────────────────────
-Proposed:  0007-baz
-Source:    meta/work/example-C.md:21
-Predicate: ambiguous
-
-Proposed value: 0007-baz
-Surrounding prose: the paragraph the author wants to revise
-
->
+<!-- @list-output-start -->
 ```
-<!-- @transcript-end -->
+1	relates_to	relates_to=work-item:0042	meta/work/0001-improve-startup-time.md:body:references#0
+```
+<!-- @list-output-end -->
 
-And the on-disk session log (with timestamps redacted) is:
+Writing `accept` to a decisions file and resuming with `--decisions-file` applies it:
+
+<!-- @decisions-file-start -->
+```
+accept
+```
+<!-- @decisions-file-end -->
+
+```bash
+accelerator migrate --decisions-file decisions.txt
+```
+
+The frontmatter gains a typed `relates_to` reference, and the session log records the decision:
+
+<!-- @after-frontmatter-start -->
+```
+relates_to: ["work-item:0042"]
+```
+<!-- @after-frontmatter-end -->
 
 <!-- @session-log-start -->
 ```
-{"transformation_key":"link-A","schema_version":1,"outcome":"edited","proposed_value":"0034-foo","user_value":"0123-renamed","timestamp":"<REDACTED>","band":"ambiguous","prose":"the linkage paragraph"}
-{"transformation_key":"link-C","schema_version":1,"outcome":"skipped","proposed_value":"0007-baz","timestamp":"<REDACTED>"}
+{"transformation_key":"meta/work/0001-improve-startup-time.md#body:references#0","schema_version":1,"outcome":"accepted","proposed_value":"relates_to=work-item:0042","timestamp":"<REDACTED>"}
 ```
 <!-- @session-log-end -->
 
-The middle transformation (`link-B`, band `resolved`) routed through the mechanical path — predicate exited 1, the harness emitted `MECHANICAL_APPLIED`, no record was persisted, the artefact was mutated unconditionally.
+At a real terminal (no `--decisions-file`), the same transformation renders as a live prompt instead:
+
+```
+Session log: <SANDBOX>/.accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-session.jsonl  (resume from this file by re-running /accelerator:migrate)
+
+Proposed linkage: relates_to: "work-item:0042"
+Section anchor: body:references#0
+Band: ambiguous
+  proposed: relates_to=work-item:0042
+  source: meta/work/0001-improve-startup-time.md:body:references#0
+  predicate: ambiguous
+accept | skip | edit <value>: 
+```
 
 ## Answering prompts as an agent (the invoker contract)
 
-When `/accelerator:migrate` runs without a human at a terminal, an agent answers
-the interactive prompts with a **decisions file**, following the four steps
-`list → decide → write → resume`:
+When `/accelerator:migrate` runs without a human at a terminal, an agent answers the interactive prompts with a **decisions file**, following the four steps `list → decide → write → resume`:
 
-In practice the agent first runs the migration and hits the **structured stall**,
-which names the exact decisions-file path — including the migration `<id>` —
-(`.accelerator/state/migrations-<id>-decisions.txt`) and a copy-pasteable resume
-command. `--list` is then the step that **reveals the proposed values** (which the
-stall does not show), so the realistic order is run → stall (learn the `<id>` and
-path) → `--list` (see proposed values) → write → resume. The `<id>` comes from the
-stall/preview, not from `--list` output.
+In practice the agent first runs the migration and hits the **structured stall**, which names the exact decisions-file path — including the migration `<id>` — (`.accelerator/state/migrations-<id>-decisions.txt`) and a copy-pasteable resume command. `--list` is then the step that **reveals the proposed values** (which the stall does not show), so the realistic order is run → stall (learn the `<id>` and path) → `--list` (see proposed values) → write → resume. The `<id>` comes from the stall/preview, not from `--list` output.
 
-1. **list** — `bash …/run-migrations.sh --list` dry-emits every pending
+1. **list** — `accelerator migrate --list` dry-emits every pending
    interactive transformation, one tab-delimited line each, without mutating the
    corpus:
 
@@ -252,45 +248,70 @@ stall/preview, not from `--list` output.
    skipped/mechanical transformations consume no line). Create the file yourself
    at a path that exists and is readable — the stall message points at
    `.accelerator/state/migrations-<id>-decisions.txt`; do not overwrite existing
-   `migrations-<id>-*` state files. For example:
+   `migrations-<id>-*` state files. `#`-prefixed lines are **not** comments —
+   they parse as an unknown verb, matching bash's own behaviour exactly. For
+   example:
 
    ```bash
    printf 'accept\nskip\nedit work-item:0100\n' \
      > .accelerator/state/migrations-<id>-decisions.txt
    ```
 4. **resume** — re-run with `--decisions-file <path>` (or the equivalent
-   `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`). The
+   `ACCELERATOR_MIGRATE_DECISIONS_FILE` env var, discoverable via `--help`; a
+   supplied flag always wins over a pre-existing env var). The
    stall's copy-pasteable command is exactly this bare form — **no
    `ACCELERATOR_MIGRATE_FORCE=1` is needed** in the normal case. A partial
    interactive run dirties the tree only with files this run owns (the
    interactive session log, plus any frontmatter already written), and the
-   **guarded resume** shipped in 0119 lets the re-run proceed over that own
-   output without `FORCE` when the base revision is unchanged, printing a
+   **guarded resume** lets the re-run proceed over that own output without
+   `FORCE` when the base revision is unchanged, printing a
    one-line affordance listing the owned paths being resumed over. `FORCE` is
    required **only** when the pre-flight refuses — i.e. the tree carries dirt this
    run does *not* own (foreign changes, or you have committed since the partial
    run so the base revision moved). In that case, re-run once without `FORCE`
-   first to read the refusal / in-flight-session guidance, confirm via `jj
+   first to read the refusal guidance, confirm via `jj
    status`/`git status` that the dirty paths really are this migration's own, and
-   only then add `ACCELERATOR_MIGRATE_FORCE=1`. (The guarded-resume behaviour is
-   owned by `meta/work/0119-resume-safe-partial-migration-failure.md`, now
-   landed.)
+   only then add `ACCELERATOR_MIGRATE_FORCE=1`.
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
 and fails closed**: an unknown verb, a count mismatch (too few or too many
 verbs), or a rejected `edit` value that no following line corrects exits
 non-zero, names the offending position, and leaves the corpus **unmutated** —
-validation never partially applies. (The dry-apply pass mirrors the live run, so
-a `migration_validate_edit` rejection followed by a corrected value on the next
-line is accepted just as it would apply.) Once validation passes and the live
+validation never partially applies. Once validation passes and the live
 apply begins, transformations are applied in order without rollback, so an
 apply-time failure can leave a partial corpus; recover with VCS revert, then
-re-run — 0119's guarded resume replays the run's own partial output without
+re-run — guarded resume replays the run's own partial output without
 `FORCE` when the base revision is unchanged.
 
 When no decision input is available at all, the run emits the structured stall
 (`MIGRATION STALLED: no decision input available`) and stops without further
-mutation — see `meta/work/0116-structured-stall-on-no-decision-input.md`.
+mutation:
+
+```
+[0007-unify-meta-corpus-frontmatter] MIGRATION STALLED: no decision input available
+[0007-unify-meta-corpus-frontmatter]   pending decision: meta/work/0001-improve-startup-time.md#body:references#0
+[0007-unify-meta-corpus-frontmatter]   No decisions file, terminal, or piped input was available to
+[0007-unify-meta-corpus-frontmatter]   answer this prompt, so the migration cannot proceed.
+[0007-unify-meta-corpus-frontmatter]
+[0007-unify-meta-corpus-frontmatter]   This migration may have already partially modified the
+[0007-unify-meta-corpus-frontmatter]   working tree. Re-running /accelerator:migrate resumes this
+[0007-unify-meta-corpus-frontmatter]   partial run when the base revision is unchanged (decided
+[0007-unify-meta-corpus-frontmatter]   transformations are replayed, not re-applied).
+[0007-unify-meta-corpus-frontmatter]
+[0007-unify-meta-corpus-frontmatter]   To resume: each run answers the current prompt only (you
+[0007-unify-meta-corpus-frontmatter]   may be stalled again for the next undecided transformation):
+[0007-unify-meta-corpus-frontmatter]     1. write the decision (accept | skip | edit <value>),
+[0007-unify-meta-corpus-frontmatter]        one per line, to: <path>
+[0007-unify-meta-corpus-frontmatter]        (create this file yourself; do not overwrite existing
+[0007-unify-meta-corpus-frontmatter]        migrations-0007-unify-meta-corpus-frontmatter-* state files)
+[0007-unify-meta-corpus-frontmatter]     2. then run (copy-pasteable):
+
+accelerator migrate --decisions-file <path>
+
+[0007-unify-meta-corpus-frontmatter]   equivalent env-var form:
+
+ACCELERATOR_MIGRATE_DECISIONS_FILE=<path> accelerator migrate
+```
 
 This contract is scoped to a single pending interactive migration (the realistic
 case); decisions files are consumed per migration.
@@ -300,10 +321,10 @@ case); decisions files are consumed per migration.
 Invoke via Bash:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/config/migrate/scripts/run-migrations.sh"
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate
 ```
 
-The driver script resolves `PROJECT_ROOT` automatically from the current working directory. Run it from within the consumer repository. Run `/accelerator:migrate` from a single shell at a time; it does not acquire a lock.
+`accelerator migrate` resolves the project root automatically from the current working directory. Run it from within the consumer repository.
 
 ## Cross-references
 

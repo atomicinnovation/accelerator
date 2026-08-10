@@ -87,12 +87,6 @@ atomic_remove_line() {
 # filesystem, so a successful mkdir on the sidecar lockdir is exclusive
 # acquisition. Held for the duration of a single read-modify-write
 # critical section (a few ms on local filesystems).
-#
-# Source the shared JSONL composition helpers (single source of truth
-# shared with the runner's session-log composition).
-_ATOMIC_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./jsonl-common.sh
-source "$_ATOMIC_COMMON_DIR/jsonl-common.sh"
 
 # _atomic_lock_acquire <lockdir>
 #   Spin until mkdir succeeds. Each subshell re-seeds bash's RANDOM
@@ -296,42 +290,5 @@ atomic_jsonl_append() {
       fi
       printf '%s\n' "$line"
     } | atomic_write "$target"
-  )
-}
-
-# atomic_jsonl_remove_by_key <target_path> <transformation_key>
-#   Rewrite <target_path> atomically, dropping every JSONL record
-#   whose canonical first field "transformation_key" equals
-#   <transformation_key>. Absence or empty file is a no-op.
-#
-#   Match is line-anchored against the canonical writer output: every
-#   record begins exactly with the literal bytes
-#     {"transformation_key":"<JSON-escaped-key>",
-#   The writer (jsonl_compose_record) is responsible for enforcing this
-#   ordering; this helper assumes it.
-atomic_jsonl_remove_by_key() {
-  local target="$1" key="$2"
-  if [ -z "$target" ] || [ -z "$key" ]; then
-    echo "atomic_jsonl_remove_by_key: missing target or key" >&2
-    return 1
-  fi
-  if [ ! -f "$target" ] || [ ! -s "$target" ]; then
-    return 0
-  fi
-  local lockdir="${target}.lockdir"
-  # Critical section in a subshell (see atomic_jsonl_append for rationale).
-  (
-    _atomic_lock_acquire "$lockdir" || exit 1
-    trap '_atomic_lock_release "'"$lockdir"'"' EXIT
-    local escaped_key prefix
-    escaped_key=$(jsonl_json_escape "$key")
-    prefix=$(printf '{"transformation_key":"%s",' "$escaped_key")
-    # Pass the prefix via ENVIRON (NOT -v): awk's -v processes backslash
-    # escapes in the assigned value, which would re-interpret \" and \\
-    # inside the JSON-escaped key and silently break the match. ENVIRON
-    # values are passed through unmodified.
-    JSONL_REMOVE_PREFIX="$prefix" \
-      awk 'BEGIN{p=ENVIRON["JSONL_REMOVE_PREFIX"]} index($0,p)!=1{print}' "$target" |
-      atomic_write "$target"
   )
 }

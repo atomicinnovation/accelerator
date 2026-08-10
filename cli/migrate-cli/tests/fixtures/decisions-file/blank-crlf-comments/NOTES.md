@@ -1,0 +1,3 @@
+Real finding, not a authoring mistake: the historical bash decisions-file reader (`read_decision`, formerly in `interactive-lib.sh`, since retired) tolerated CRLF line endings and blank lines, but did **not** tolerate `#`-prefixed comment lines — a `#`-prefixed line was parsed as an unknown verb and rejected (`decisions file position 2: unknown verb '# a comment line'`).
+
+The Rust port keeps this refusal rather than adding comment support: a `#`-prefixed line is rejected as an unknown verb, matching the bash engine's actual behaviour rather than a since-superseded design intent to ignore such lines. The CRLF + blank-line tolerance this fixture also exercises **was** real bash behaviour and stays byte-parity-checked.

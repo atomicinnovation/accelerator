@@ -1,0 +1,17 @@
+About to apply 4 migration(s):
+  0003-relocate-accelerator-state — Relocate Accelerator-owned files from .claude/ and meta/ to .accelerator/
+    To skip: bash /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/skills/config/migrate/scripts/run-migrations.sh --skip 0003-relocate-accelerator-state
+  0004-restructure-meta-research-into-subject-subcategories — Restructure meta/research/ into subject subcategories
+    To skip: bash /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/skills/config/migrate/scripts/run-migrations.sh --skip 0004-restructure-meta-research-into-subject-subcategories
+  0005-rename-work-item-type-to-kind — Rename work-item type field to kind in frontmatter and body labels.
+    To skip: bash /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/skills/config/migrate/scripts/run-migrations.sh --skip 0005-rename-work-item-type-to-kind
+  0006-canonicalise-work-item-id-and-author — Canonicalise plan work-item -> work_item_id and research/RCA researcher -> author. Unconditional within frontmatter; body-label rewrite is anchored to the post-frontmatter / pre-first-H2 region.
+    To skip: bash /Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/skills/config/migrate/scripts/run-migrations.sh --skip 0006-canonicalise-work-item-id-and-author
+
+Migrations rewrite files and may make repo-wide changes; commit
+your working tree before running so VCS revert is available as
+rollback. The pre-flight will refuse to run on a dirty tree
+unless ACCELERATOR_MIGRATE_FORCE=1 is set.
+
+
+Migration complete. applied: 4.
