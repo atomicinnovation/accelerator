@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-migrate"
-version = "1.24.0-pre.33"
+version = "1.24.0-pre.34"
 dependencies = [
  "clap",
  "config-adapters",
@@ -3020,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "migrate"
-version = "1.24.0-pre.33"
+version = "1.24.0-pre.34"
 dependencies = [
  "corpus",
  "document",
@@ -3029,7 +3029,7 @@ dependencies = [
 
 [[package]]
 name = "migrate-adapters"
-version = "1.24.0-pre.33"
+version = "1.24.0-pre.34"
 dependencies = [
  "config",
  "config-adapters",
