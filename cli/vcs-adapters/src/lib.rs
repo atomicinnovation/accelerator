@@ -1,13 +1,14 @@
-//! The outbound VCS adapters, and the composition root that picks one.
+//! The outbound VCS adapters, and the composition root over them.
 //!
-//! [`library`] reads both idioms in the calling process and is what [`facts`]
-//! uses; it additionally carries the taxonomy queries the subprocess side has
-//! no equivalent for. [`subprocess`] runs the `jj`/`git` binaries in a child
-//! process. Keeping them apart is what lets [`library`] carry an import rule
-//! denying `std::process` while [`subprocess`] spawns by design.
+//! [`library`] answers every port a repository is probed through — including
+//! [`facts`] — by reading both idioms in the calling process, and carries the
+//! taxonomy queries besides. [`subprocess`] survives only for `status`/`log`,
+//! the two human-facing renderings with no library equivalent. Keeping them
+//! apart is what lets [`library`] carry an import rule denying `std::process`
+//! while [`subprocess`] spawns by design.
 //!
-//! What both agree on — the ancestor walk and the marker reading — lives in a
-//! third, private module that each delegates *to*.
+//! The ancestor walk and the marker reading live in a third, private module
+//! that [`library`] delegates *to*.
 
 pub mod library;
 mod markers;

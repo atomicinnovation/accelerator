@@ -678,23 +678,23 @@ comparison; only the one test that also carries the new
 
 #### Automated Verification:
 
-- [ ] No `CommandProbe` reference remains: `grep -r CommandProbe cli/
+- [x] No `CommandProbe` reference remains: `grep -r CommandProbe cli/
       --include=*.rs` returns no matches
-- [ ] No `MarkerWalkRoot` reference remains: `grep -r MarkerWalkRoot cli/
+- [x] No `MarkerWalkRoot` reference remains: `grep -r MarkerWalkRoot cli/
       --include=*.rs` returns no matches
-- [ ] No `Command::new` for `jj`/`git` remains in `vcs-adapters`'s non-test
+- [x] No `Command::new` for `jj`/`git` remains in `vcs-adapters`'s non-test
       code serving `facts`: manual review of `cli/vcs-adapters/src/*.rs`
       confirms `run_vcs_text` (0198's path) is the only surviving
       `std::process::Command` use
-- [ ] `cargo test -p vcs-adapters --features bash-parity` passes, including
+- [x] `cargo test -p vcs-adapters --features bash-parity` passes, including
       the reworked `tests/library.rs` and `tests/detection.rs`
-- [ ] `cli` component check passes: `mise run cli:check`
-- [ ] `mise run check` passes
-- [ ] `mise run` passes end to end
+- [x] `cli` component check passes: `mise run cli:check`
+- [x] `mise run check` passes
+- [x] `mise run` passes end to end
 
 #### Manual Verification:
 
-- [ ] `an_unsnapshotted_edit_is_the_one_documented_divergence`'s rewritten
+- [x] `an_unsnapshotted_edit_is_the_one_documented_divergence`'s rewritten
       form still fails if the "does not snapshot" behaviour regresses (spot
       check by temporarily reverting the assertion's expected value)
 

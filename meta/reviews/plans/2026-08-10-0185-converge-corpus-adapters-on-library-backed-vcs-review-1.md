@@ -8,7 +8,6 @@ producer: review-plan
 status: complete
 parent: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
 target: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
-relates_to: []
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [architecture, code-quality, test-coverage, correctness, security, safety, compatibility]
