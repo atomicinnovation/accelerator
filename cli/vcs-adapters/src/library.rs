@@ -186,6 +186,27 @@ impl std::error::Error for Error {
 }
 
 /// Reads a repository's root, idiom and revision in-process.
+///
+/// Parses repository-controlled data in the caller's address space — no
+/// subprocess boundary, no time bound, no memory bound, no crash isolation.
+///
+/// This removes a protection that existed at the [`crate::facts`] call site
+/// before the composition root moved here: the subprocess probe it replaced
+/// ran under a 10-second cap with kill-on-timeout. The sharpest blast radius
+/// reached through `facts` is `work create`, which holds a work-item creation
+/// lock for the duration of the derivation this port serves — the lock's
+/// reclaim mechanism only reclaims a dead holder, so a hang here fails every
+/// subsequent `work create` after its own five-minute lock-acquisition wait,
+/// until an operator kills the hung process.
+///
+/// This is a deliberate decision, not an oversight: the same unbounded
+/// exposure already runs in production for the `vcs detect`/`vcs guard` hook
+/// path, no crash-isolation precedent exists anywhere in this workspace, and
+/// adding one here would be a first-of-its-kind primitive introduced ahead of
+/// any incident that demonstrates the need. Revisit when any code under
+/// `cli/visualiser/server` calls [`crate::facts`] — this was priced against a
+/// single-shot CLI/hook caller, not a persistent multi-request one — or if a
+/// lock-holding hang is observed in practice.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct InProcessProbe;
 

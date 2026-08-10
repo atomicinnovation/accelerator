@@ -206,6 +206,21 @@ pub fn derive(
     }
 }
 
+/// Resolves repository facts through the library-backed VCS adapter.
+///
+/// No `corpus-adapters` write path depends on the CLI's snapshot-on-read side
+/// effect (writing a new commit for unsnapshotted working-copy changes): the
+/// one production write path that persists frontmatter (`work create`) reads
+/// only the derived timestamp, never the revision or repository name.
+///
+/// This does not extend to the authoring skills that call `corpus metadata
+/// derive` directly and copy its printed `Current Revision:` line into
+/// committed `meta/` frontmatter. Those consumers inherit a staleness window:
+/// an artifact authored with unsnapshotted working-copy edits present records
+/// the last recorded operation's commit rather than a freshly snapshotted one.
+/// Accepted as a best-effort provenance degradation, not a correctness
+/// regression — nothing downstream treats these fields as exact — but it is a
+/// real, if narrow, change to persisted data, not only to stdout.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct VcsBackedRepoFactsProbe;
 

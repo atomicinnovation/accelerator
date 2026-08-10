@@ -352,18 +352,18 @@ pub struct VcsBackedRepoFactsProbe;
 
 #### Automated Verification:
 
-- [ ] Workspace builds: `cargo build --workspace` (run from `cli/`)
-- [ ] New sha256 `revision()` test passes and demonstrably calls `revision`
+- [x] Workspace builds: `cargo build --workspace` (run from `cli/`)
+- [x] New sha256 `revision()` test passes and demonstrably calls `revision`
       (not only `is_bare`/`worktree`/`dual_roots`/`classify`):
       `cargo test -p vcs-adapters --features bash-parity --test queries`
-- [ ] New malformed-git-ref `revision()` test passes:
+- [x] New malformed-git-ref `revision()` test passes:
       `cargo test -p vcs-adapters --features bash-parity --test library`
-- [ ] `cli` component check passes: `mise run cli:check`
-- [ ] Full check suite passes: `mise run check`
+- [x] `cli` component check passes: `mise run cli:check`
+- [x] Full check suite passes: `mise run check`
 
 #### Manual Verification:
 
-- [ ] Each doc comment reads as a decision record (states the choice and the
+- [x] Each doc comment reads as a decision record (states the choice and the
       reason), not a description of what the code already shows
 
 ---

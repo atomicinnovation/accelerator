@@ -408,6 +408,23 @@ fn an_unreadable_checkout_state_reports_absence_rather_than_a_wrong_commit(
 }
 
 #[test]
+fn unreadable_git_ref_data_reports_absence_rather_than_a_wrong_commit(
+) -> Result<(), TestError> {
+    require("git")?;
+    let dir = git_repo_with_a_commit("revision-broken-head")?;
+    let root = path_of(&dir)?;
+
+    assert!(
+        InProcessProbe.revision(&root, VcsKind::Git).is_some(),
+        "the fixture must answer before it is broken, or this proves nothing"
+    );
+    fs::write(root.join(".git/HEAD"), b"\xff\xfe truncated")?;
+
+    assert_eq!(InProcessProbe.revision(&root, VcsKind::Git), None);
+    Ok(())
+}
+
+#[test]
 fn reading_the_revision_writes_nothing() -> Result<(), TestError> {
     require("jj")?;
     let dir = tempdir("revision-readonly")?;
