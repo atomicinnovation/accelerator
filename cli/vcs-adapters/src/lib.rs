@@ -1,10 +1,10 @@
 //! The outbound VCS adapters, and the composition root that picks one.
 //!
-//! [`subprocess`] runs the `jj`/`git` binaries in a child process and is what
-//! [`facts`] uses. [`library`] reads both idioms in the calling process and
-//! additionally carries the taxonomy queries the subprocess pair has no
-//! equivalent for. Keeping them apart is what lets [`library`] carry an import
-//! rule denying `std::process` while [`subprocess`] spawns by design.
+//! [`library`] reads both idioms in the calling process and is what [`facts`]
+//! uses; it additionally carries the taxonomy queries the subprocess side has
+//! no equivalent for. [`subprocess`] runs the `jj`/`git` binaries in a child
+//! process. Keeping them apart is what lets [`library`] carry an import rule
+//! denying `std::process` while [`subprocess`] spawns by design.
 //!
 //! What both agree on — the ancestor walk and the marker reading — lives in a
 //! third, private module that each delegates *to*.
@@ -17,12 +17,12 @@ use std::path::Path;
 
 use vcs::RepoFacts;
 
-use crate::subprocess::{CommandProbe, MarkerWalkRoot};
+use crate::library::InProcessProbe;
 
 /// The facts for the repository containing `start`.
 #[must_use]
 pub fn facts(start: &Path) -> Option<RepoFacts> {
-    vcs::facts(start, &MarkerWalkRoot, &CommandProbe::new())
+    vcs::facts(start, &InProcessProbe, &InProcessProbe)
 }
 
 #[cfg(test)]

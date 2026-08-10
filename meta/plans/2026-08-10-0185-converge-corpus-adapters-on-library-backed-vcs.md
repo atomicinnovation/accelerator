@@ -465,19 +465,19 @@ Confirm Phase 2's new tests now pass (green), alongside every existing
 
 #### Automated Verification:
 
-- [ ] Both new zero-spawn tests fail before the composition-root change
+- [x] Both new zero-spawn tests fail before the composition-root change
       (verified manually during implementation, not a lasting CI state)
-- [ ] Both new zero-spawn tests pass after the composition-root change:
+- [x] Both new zero-spawn tests pass after the composition-root change:
       `cargo test -p corpus-adapters --features bash-parity --test
       zero_spawn`
-- [ ] Existing corpus-adapters suites pass unchanged: `cargo test -p
+- [x] Existing corpus-adapters suites pass unchanged: `cargo test -p
       corpus-adapters --test parity --test metadata`
-- [ ] `cli` component check passes: `mise run cli:check`
-- [ ] `mise run check` passes
+- [x] `cli` component check passes: `mise run cli:check`
+- [x] `mise run check` passes
 
 #### Manual Verification:
 
-- [ ] `corpus metadata derive` run against a real jj repository still
+- [x] `corpus metadata derive` run against a real jj repository still
       prints the expected `Repository Name:`/`Current Revision:` lines
 
 ---
