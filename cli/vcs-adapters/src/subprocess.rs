@@ -1,149 +1,36 @@
-//! The subprocess-backed probes: a marker walk for the root, and the VCS
-//! binaries themselves for the working-copy revision.
+//! The VCS binaries' own `status` and `log` text, from a child process.
+//!
+//! Every port a repository is *probed* through is implemented in-process by
+//! [`crate::library`]; this module answers only for the two human-facing
+//! renderings that have no library equivalent.
 //!
 //! The subprocess runs with a scrubbed environment and colour disabled, so
-//! ambient config cannot redirect the root or inject ANSI into a revision. Every
-//! way it can fail to answer resolves to `None` and is warn-logged, so a real
-//! failure does not read like a revision-less repository.
+//! ambient config cannot redirect it or inject ANSI into its output. Every way
+//! it can fail to answer resolves to the literal `(... unavailable)` text and
+//! is warn-logged, so a real failure does not read like a clean repository.
 //!
 //! Spawning lives here and only here; [`crate::library`] carries an import rule
 //! denying `std::process`.
 
-use std::fs;
 use std::io::Read as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use tracing::warn;
-use vcs::origin_remote::OriginRemote;
-use vcs::{RepoRoot, VcsKind, VcsProbe};
-
-use crate::markers::{carries_any_marker, marker_kind, walk_up};
+use vcs::VcsKind;
 
 /// Headroom for a lock-contended repository, while still bounding derivation.
 const DEFAULT_CAP: Duration = Duration::from_secs(10);
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// Finds the repository root by walking ancestors for the first `.jj` or `.git`
-/// marker, testing existence so a `.git` *file* counts alongside a directory.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct MarkerWalkRoot;
-
-impl RepoRoot for MarkerWalkRoot {
-    fn discover(&self, start: &Path) -> Option<PathBuf> {
-        walk_up(start, carries_any_marker)
-    }
-
-    fn repository_root(&self, working_copy_root: &Path) -> PathBuf {
-        jj_repository_root(working_copy_root)
-            .unwrap_or_else(|| working_copy_root.to_path_buf())
-    }
-}
-
-/// Resolves a jj secondary workspace to the repository whose store it shares.
+/// `jj status`, or `git diff --cached --stat` for `Git`/`None` — git is the
+/// fallback when no repository is found at all.
 ///
-/// A secondary workspace's `.jj/repo` is a *file* pointing at the shared
-/// `<repo>/.jj/repo`, so the repository is the store's grandparent; a primary
-/// workspace's `.jj/repo` is that store directory.
-fn jj_repository_root(working_copy_root: &Path) -> Option<PathBuf> {
-    let marker = working_copy_root.join(".jj").join("repo");
-    let metadata = fs::symlink_metadata(&marker).ok()?;
-    if !metadata.is_file() {
-        return None;
-    }
-    let pointer = fs::read_to_string(&marker).ok()?;
-    let store =
-        fs::canonicalize(working_copy_root.join(".jj").join(pointer.trim()))
-            .ok()?;
-    Some(store.parent()?.parent()?.to_path_buf())
-}
-
-/// Reads the repository's idiom from its markers and its revision by running
-/// the matching VCS binary.
-#[derive(Debug, Clone, Copy)]
-pub struct CommandProbe {
-    cap: Duration,
-}
-
-impl CommandProbe {
-    #[must_use]
-    pub const fn new() -> Self {
-        Self { cap: DEFAULT_CAP }
-    }
-
-    /// A probe bounded by `cap` rather than the default.
-    #[must_use]
-    pub const fn with_cap(cap: Duration) -> Self {
-        Self { cap }
-    }
-}
-
-impl Default for CommandProbe {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl VcsProbe for CommandProbe {
-    fn kind(&self, root: &Path) -> VcsKind {
-        marker_kind(root)
-    }
-
-    fn revision(&self, root: &Path, kind: VcsKind) -> Option<String> {
-        let mut command = match kind {
-            VcsKind::Jj => {
-                let mut command = Command::new("jj");
-                command.args([
-                    "--color=never",
-                    "--no-pager",
-                    "log",
-                    "-r",
-                    "@",
-                    "--no-graph",
-                    "-T",
-                    "commit_id",
-                ]);
-                command
-            }
-            VcsKind::Git => {
-                let mut command = Command::new("git");
-                command.args(["-c", "color.ui=false", "rev-parse", "HEAD"]);
-                command
-            }
-            VcsKind::None => return None,
-        };
-
-        command.current_dir(root);
-        scrub_environment(&mut command);
-
-        let vcs = kind.as_str();
-        let stdout = run_capped(command, self.cap, vcs)?;
-        if stdout.is_empty() {
-            warn!(vcs, "the revision probe reported no revision");
-            return None;
-        }
-        Some(stdout)
-    }
-}
-
-impl OriginRemote for CommandProbe {
-    fn origin_url(&self, root: &Path) -> Result<Option<String>, kernel::Error> {
-        let mut command = Command::new("git");
-        command.args(["remote", "get-url", "origin"]);
-        command.current_dir(root);
-        scrub_environment(&mut command);
-        run_checked(command, self.cap, "git")
-    }
-}
-
-/// `jj status`, or `git diff --cached --stat` for `Git`/`None` (matching the
-/// shell's implicit git fallback when no repository is found at all).
-///
-/// Never fails: falls back to the shell's literal `(... unavailable)` text on
-/// any [`run_capped`] failure, which is already `warn!`-logged internally and
-/// so diagnosable via `ACCELERATOR_LOG` rather than silently indistinguishable
+/// Never fails: falls back to the literal `(... unavailable)` text on any
+/// [`run_capped`] failure, which is already `warn!`-logged internally and so
+/// diagnosable via `ACCELERATOR_LOG` rather than silently indistinguishable
 /// from a clean, empty repository.
 #[must_use]
 pub fn status(root: &Path, kind: VcsKind) -> String {
@@ -282,9 +169,10 @@ fn wait_capped(
 /// Runs `command` and returns its trimmed stdout, or `None` — warn-logged —
 /// when it cannot be spawned, exits non-zero, or outlives `cap`.
 ///
-/// Unlike [`CommandProbe::revision`], empty output is not itself treated as a
-/// failure here: a clean `git diff --cached --stat` or an empty `jj status`
-/// are legitimate, common results for [`status`]/[`log`], not failures.
+/// Empty output is not itself treated as a failure: a clean `git diff --cached
+/// --stat` or an empty `jj status` are legitimate, common results for
+/// [`status`]/[`log`], so only a spawn failure, a non-zero exit or the cap
+/// folds to `None`.
 fn run_capped(
     mut command: Command,
     cap: Duration,
@@ -323,103 +211,17 @@ fn run_capped(
     Some(stdout.trim_end().to_owned())
 }
 
-/// [`wait_capped`]'s `Result`-returning twin, for callers that must
-/// distinguish a probe malfunction (wait failure, cap exceeded) from every
-/// other outcome rather than folding it to `None`.
-fn wait_capped_checked(
-    child: &mut std::process::Child,
-    cap: Duration,
-    vcs: &str,
-) -> Result<std::process::ExitStatus, kernel::Error> {
-    let deadline = Instant::now() + cap;
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => return Ok(status),
-            Ok(None) => {}
-            Err(error) => {
-                return Err(kernel::Error::Failed(format!(
-                    "could not await {vcs}: {error}"
-                )))
-            }
-        }
-
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(kernel::Error::Failed(format!(
-                "{vcs} outlived its {cap:?} time cap and was killed"
-            )));
-        }
-
-        std::thread::sleep(POLL_INTERVAL);
-    }
-}
-
-/// Runs `command` and returns its trimmed stdout, distinguishing a clean
-/// "no such remote" exit from every other failure — unlike [`run_capped`],
-/// which folds every failure to `None` alike, callers of this need to tell
-/// "cleanly absent" apart from "the probe itself malfunctioned".
-fn run_checked(
-    mut command: Command,
-    cap: Duration,
-    vcs: &str,
-) -> Result<Option<String>, kernel::Error> {
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let mut child = command.spawn().map_err(|error| {
-        kernel::Error::Failed(format!("could not run {vcs}: {error}"))
-    })?;
-
-    let status = wait_capped_checked(&mut child, cap, vcs)?;
-
-    let mut stderr = String::new();
-    if let Some(mut pipe) = child.stderr.take() {
-        let _ = pipe.read_to_string(&mut stderr);
-    }
-
-    if !status.success() {
-        if stderr.contains("No such remote") {
-            return Ok(None);
-        }
-        return Err(kernel::Error::Failed(format!(
-            "{vcs} exited with {status}: {}",
-            stderr.trim()
-        )));
-    }
-
-    let mut stdout = String::new();
-    if let Some(mut pipe) = child.stdout.take() {
-        pipe.read_to_string(&mut stdout).map_err(|error| {
-            kernel::Error::Failed(format!(
-                "could not read {vcs}'s output: {error}"
-            ))
-        })?;
-    }
-
-    let trimmed = stdout.trim().to_owned();
-    if trimmed.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(trimmed))
-}
-
 #[cfg(test)]
 mod tests {
     use std::error::Error;
     use std::fs;
     use std::os::unix::fs::PermissionsExt as _;
-    use std::path::PathBuf;
     use std::process::Command;
     use std::time::Duration;
 
     use vcs::VcsKind;
 
-    use super::{
-        run_capped, run_vcs_text, scrub_environment, CommandProbe, StatusOrLog,
-    };
+    use super::{run_capped, run_vcs_text, scrub_environment, StatusOrLog};
 
     type TestError = Box<dyn Error>;
 
@@ -502,36 +304,34 @@ mod tests {
     }
 
     #[test]
-    fn a_probe_that_outlives_its_cap_reports_no_revision() {
+    fn a_command_that_outlives_its_cap_is_killed_and_reports_nothing() {
         let mut command = Command::new("sleep");
         command.arg("30");
 
         let started = std::time::Instant::now();
-        let revision = run_capped(command, Duration::from_millis(100), "test");
+        let output = run_capped(command, Duration::from_millis(100), "test");
 
-        assert_eq!(revision, None);
+        assert_eq!(output, None);
         assert!(
             started.elapsed() < Duration::from_secs(5),
-            "the probe should have been killed at its cap, not waited out"
+            "it should have been killed at its cap, not waited out"
         );
     }
 
     #[test]
-    fn a_probe_that_cannot_be_spawned_reports_no_revision() {
+    fn a_command_that_cannot_be_spawned_reports_nothing() {
         let command = Command::new("accelerator-no-such-binary");
         assert_eq!(run_capped(command, Duration::from_secs(1), "test"), None);
     }
 
     #[test]
-    fn a_probe_that_exits_non_zero_reports_no_revision() {
+    fn a_command_that_exits_non_zero_reports_nothing() {
         let command = Command::new("false");
         assert_eq!(run_capped(command, Duration::from_secs(1), "test"), None);
     }
 
     #[test]
-    fn a_probe_that_says_nothing_reports_empty_output_not_failure() {
-        // Unlike `revision`, `run_capped` itself does not treat empty output
-        // as a failure — a clean `status`/`log` legitimately says nothing.
+    fn an_empty_output_is_not_itself_a_failure() {
         let command = Command::new("true");
         assert_eq!(
             run_capped(command, Duration::from_secs(1), "test").as_deref(),
@@ -565,69 +365,5 @@ mod tests {
             run_capped(command, Duration::from_secs(1), "test").as_deref(),
             Some("unset")
         );
-    }
-
-    fn origin_repo() -> Result<(tempfile::TempDir, PathBuf), TestError> {
-        use vcs_test_support::hermetic::Hermetic;
-
-        let dir = tempfile::Builder::new()
-            .prefix("vcs-subprocess-origin-")
-            .tempdir()?;
-        let env = Hermetic::rooted_at(dir.path())?;
-        let root = dir.path().join("repo");
-        fs::create_dir_all(&root)?;
-        env.git(&["init", "--quiet"], &root)?;
-        Ok((dir, root))
-    }
-
-    #[test]
-    fn a_configured_origin_is_reported() -> Result<(), TestError> {
-        use vcs::origin_remote::OriginRemote as _;
-        use vcs_test_support::hermetic::Hermetic;
-
-        let (dir, root) = origin_repo()?;
-        let env = Hermetic::rooted_at(dir.path())?;
-        env.git(
-            &[
-                "remote",
-                "add",
-                "origin",
-                "https://github.com/atomicinnovation/accelerator.git",
-            ],
-            &root,
-        )?;
-
-        let probe = CommandProbe::new();
-        assert_eq!(
-            probe.origin_url(&root)?,
-            Some(
-                "https://github.com/atomicinnovation/accelerator.git"
-                    .to_owned()
-            )
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn no_origin_remote_is_reported_as_none() -> Result<(), TestError> {
-        use vcs::origin_remote::OriginRemote as _;
-
-        let (_dir, root) = origin_repo()?;
-        let probe = CommandProbe::new();
-        assert_eq!(probe.origin_url(&root)?, None);
-        Ok(())
-    }
-
-    #[test]
-    fn a_directory_with_no_repository_is_an_error() -> Result<(), TestError> {
-        use vcs::origin_remote::OriginRemote as _;
-
-        let dir = tempfile::Builder::new()
-            .prefix("vcs-subprocess-origin-none-")
-            .tempdir()?;
-
-        let probe = CommandProbe::new();
-        assert!(probe.origin_url(dir.path()).is_err());
-        Ok(())
     }
 }

@@ -5,7 +5,7 @@ title: "accelerator-collaboration: PR Helper CLI"
 date: "2026-08-05T19:03:35+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"

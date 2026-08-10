@@ -186,6 +186,14 @@ impl std::error::Error for Error {
 }
 
 /// Reads a repository's root, idiom and revision in-process.
+///
+/// Parses repository-controlled data in the caller's address space, with no
+/// time, memory or crash bound. That is deliberate, and priced against
+/// single-shot CLI and hook callers only. The sharpest exposure is `work
+/// create`, which holds a creation lock across [`crate::facts`] and whose
+/// reclaim only frees a dead holder, so a hang there blocks every later
+/// `work create` until an operator intervenes. Revisit if a persistent,
+/// multi-request caller reaches this, or if such a hang is ever observed.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct InProcessProbe;
 

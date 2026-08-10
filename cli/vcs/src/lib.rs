@@ -69,6 +69,10 @@ pub trait VcsProbe {
     /// The full working-copy revision, or `None` when the repository has none
     /// and when the probe cannot answer. A caller cannot distinguish the two;
     /// an adapter is expected to log the failure.
+    ///
+    /// A sha256-format repository is unsupported: the underlying `gix` query
+    /// fails to read one at all, so this folds to `None` like any other probe
+    /// failure, rather than misreading the revision.
     fn revision(&self, root: &Path, kind: VcsKind) -> Option<String>;
 }
 

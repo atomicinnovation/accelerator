@@ -17,6 +17,13 @@ workspace = true
 # on a machine without the toolchain. CI enables it (tasks/test/cli.py).
 bash-parity = []
 
+# Black-box entry point for the zero-spawn proof over the metadata-read path —
+# not a shipped artifact. Lives under tests/fixtures/ so it stays off the
+# crate's normal build surface, mirroring vcs-adapters-fixture.
+[[bin]]
+name = "corpus-adapters-fixture"
+path = "tests/fixtures/corpus_adapters_fixture.rs"
+
 [dependencies]
 corpus = { path = "../corpus" }
 document = { path = "../document" }

@@ -18,6 +18,8 @@ use vcs::checkout::DualRoots;
 use vcs::checkout::JjRepositoryFacts;
 use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
+use vcs::VcsKind;
+use vcs::VcsProbe as _;
 use vcs_adapters::library::Error;
 use vcs_adapters::library::InProcessProbe;
 use vcs_test_support::fixtures::Matrix;
@@ -569,6 +571,10 @@ fn an_unsupported_object_format_fails_rather_than_misreads(
     assert!(probe.is_bare(sha256).is_err());
     assert!(probe.worktree(sha256).is_err());
     assert!(probe.dual_roots(sha256).git.is_err());
+
+    // `revision` carries no error channel, so the same unreadable repository
+    // folds to absence there — sha256 is unsupported rather than misread.
+    assert_eq!(probe.revision(sha256, VcsKind::Git), None);
 
     // The reftable backend, by contrast, reads normally.
     let reftable = matrix.start("RF")?;
