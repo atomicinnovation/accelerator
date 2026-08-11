@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, design, cli, playwright, distribution]
-last_updated: "2026-08-11T11:12:16+00:00"
+last_updated: "2026-08-11T15:52:23+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -275,26 +275,25 @@ of assumed present on the host.
 
 ## Open Questions
 
-- Layout: the assembled bundle ships `playwright-core`, whereas `run.sh`
-  hard-checks for a `node_modules/playwright/` layout and
-  `playwright-loader.js` throws rather than falling back. A shim layout, a
-  loader change, or retargeting `lib/*.js` at `playwright-core` is required.
-  Deliberately left to planning and implementation — the three routes are all
-  workable and the choice needs the code in front of it. (The *version* half of
-  this question is closed by ADR-0059: the vendored core is the exact version
-  `package.json` declares, and AC10 guards it.)
+None. The layout question — the assembled bundle ships `playwright-core`,
+whereas `run.sh` hard-checks for a `node_modules/playwright/` layout and
+`playwright-loader.js` throws rather than falling back — was closed during
+planning on 2026-08-11 in favour of retargeting `lib/*.js` at `playwright-core`
+directly, matching Microsoft's own bindings. See Drafting Notes. (The *version*
+half was already closed by ADR-0059: the vendored core is the exact version
+`package.json` declares, and AC10 guards it.)
 
 ## Dependencies
 
-- Blocked by: confirmation that the release-artifact hosting
-  infrastructure serving `manifest.json` and its binaries can accommodate
-  **both** per-platform tree artifacts ADR-0059 introduces — the
+- Blocked by: nothing. The release-artifact hosting capacity coupling —
+  whether the infrastructure serving `manifest.json` and its binaries can
+  accommodate **both** per-platform tree artifacts ADR-0059 introduces, the
   ~117-118MB driver bundle (see Technical Notes precedent sizes) plus the
-  177MB headless shell — across every platform `accelerator-design` supports.
-  That is roughly 294MB per platform and about 1.2GB per release, so this is
-  load-bearing rather than a formality; measure the real assembled sizes as
-  part of confirming it. Must be confirmed before the release-pipeline
-  requirement ships. Prior blockers are resolved: work-item:0166 (shared
+  177MB headless shell, across every platform `accelerator-design` supports,
+  roughly 294MB per platform and about 1.2GB per release — was **confirmed on
+  2026-08-11**. The real assembled sizes are still measured during the
+  release-pipeline work, as a recorded figure rather than a gate. Prior
+  blockers are likewise resolved: work-item:0166 (shared
   crates, done), work-item:0167 (invocation-contract pattern, done —
   subsumes the earlier launcher/dispatch scaffold), work-item:0187
   (sub-binary registration surface, merged via PR #42).
@@ -609,6 +608,52 @@ of assumed present on the host.
   **Browser choice**: `chromium-headless-shell` for now — the daemon launches
   headless and the shell is 177MB across 14 files against 297MB across 327.
   **Layout** stays open by choice, deferred to planning and implementation.
+- 2026-08-11 (planning): **the subcommand mapping AC1 requires is recorded
+  here**, resolved against the nine scripts codebase research enumerated. The
+  set is seven:
+
+  ```
+  accelerator design validate-source <location> [--allow-internal] [--allow-insecure-scheme]
+  accelerator design resolve-auth
+  accelerator design scrub-secrets <file>
+  accelerator design notify-downgrade --reason <enum> [--from <mode>] [--to <mode>]
+  accelerator design audit-cue-phrases <file>
+  accelerator design executor <command> [json-args]
+  accelerator design notices [--artifact driver|browser]
+  ```
+
+  Four scripts map to no subcommand: `inventory-metadata.sh` and
+  `gap-metadata.sh` are deleted in favour of `corpus metadata derive` (AC15);
+  `ensure-playwright.sh` is deleted with no replacement, since ADR-0059 moves
+  its whole job to build time and only its downgrade vocabulary survives, into
+  the executor path and the platform guard; and
+  `regenerate-notify-downgrade-fixtures.sh` — a maintainer dev tool invoked by
+  no SKILL.md — is deleted with its fixtures, regeneration becoming a test
+  affordance on the Rust goldens. `notices` is new rather than ported, and
+  exists to make AC16 reachable. AC14's repair path is **not** a design
+  subcommand: it lands as the launcher built-in `accelerator cache
+  verify|repair`, per ADR-0060's decision that the launcher owns tree
+  resolution and holds the signing key alone.
+- 2026-08-11 (planning): the remaining open questions were closed so the plan
+  carries none. **Layout** — `lib/*.js` is retargeted at `playwright-core`
+  directly (route c), matching what Microsoft's own bindings do;
+  `playwright-loader.js` and its three fixture trees retire, and the 0072
+  property is re-pinned as "`chromium` is a defined export of the resolved
+  module". **Exit codes** — `scrub-secrets` and `audit-cue-phrases` split usage
+  error onto exit 2, a deliberate behaviour change aligning them with
+  `validate-source`, `notify-downgrade` and the `kernel::Error::Refusal`
+  mapping every other sub-binary uses. **Downgrade vocabulary** — replaced, not
+  retained: `executor-ping-failed` survives, the four reasons that can no
+  longer arise plus `bootstrap-failed` are dropped, and
+  `unsupported-platform` and `artifact-unavailable` are added. **Archive
+  format** — `tar.gz`, flat in `dist/release/`, because `@actions/glob`'s `*`
+  does not cross `/` and a nested staging tree would silently miss the
+  provenance globs. **Design test suites** — the four bash suites and
+  `scripts/test-design.sh` are deleted rather than wired into CI; the eleven
+  retained `node --test` suites gain a `test:unit:design-automation` task, so
+  AC1 and AC2 have CI-observable meaning. **Hosting capacity** — confirmed by
+  the user on 2026-08-11; the plan assumes it and adds a `timeout-minutes` and
+  a disk guard to the release job rather than a capacity gate.
 
 ## References
 
