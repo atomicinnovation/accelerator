@@ -39,7 +39,11 @@ experimental = true
 # Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
 # + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
 # aqua:rhysd/actionlint. Does NOT cover the from-source cargo-pup build or the
-# rustup-managed nightly (an accepted unverified surface for the isolated lane).
+# rustup-managed nightly (an accepted unverified surface for the isolated lane),
+# nor the from-source cargo-public-api build installed by
+# deps:install:public-api (a second accepted exception, on the same lane): it
+# has no publishable binary suited to an aqua/ubi pin, unlike every other
+# third-party tool here.
 lockfile = true
 
 [hooks]
@@ -60,6 +64,10 @@ run = "invoke deps.install-rust-components"
 [tasks."deps:install:pup"]
 description = "Provision the cargo-pup nightly toolchain + pinned cargo-pup (rustup-managed, not a mise [tool])"
 run = "invoke deps.install-pup"
+
+[tasks."deps:install:public-api"]
+description = "Provision the pinned cargo-public-api (builds on stable; no rustc_private driver, so no toolchain of its own)"
+run = "invoke deps.install-public-api"
 
 [tasks."deps:install:node"]
 description = "Install Node.js dependencies for the visualiser frontend"
@@ -527,6 +535,16 @@ description = "Enforce intra-crate module-import rules with cargo-pup (blocking 
 depends = ["deps:install:pup", "build:frontend:stub"]
 run = "invoke pup.check"
 
+[tasks."public-api:check"]
+description = "Pin each named crate's public API against its committed snapshot with cargo-public-api (reuses the pinned cargo-pup nightly's rustdoc)"
+depends = ["deps:install:public-api", "deps:install:pup"]
+run = "invoke public-api.check"
+
+[tasks."public-api:update"]
+description = "Regenerate every pinned crate's public-API snapshot with cargo-public-api"
+depends = ["deps:install:public-api", "deps:install:pup"]
+run = "invoke public-api.update"
+
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
 depends = ["deps:install:node"]
@@ -574,11 +592,11 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "public-api:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "test"]
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "public-api:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

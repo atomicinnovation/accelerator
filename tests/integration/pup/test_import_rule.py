@@ -598,3 +598,93 @@ def test_vcs_library_rule_rejects_a_grouped_import(tmp_path: Path) -> None:
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert "vcs_adapters_library_reads_in_process" in output, output
+
+
+# --- The tracker domain rule ---
+#
+# Driven against a workspace whose crates are literally named `tracker` and
+# `work`, so the shipped `^tracker($|::)` regex is exercised directly. The
+# violation is the one the crate exists to prevent: a port crate reaching for
+# the lifecycle domain would make every provider client depend on it
+# transitively.
+
+_TRACKER_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["tracker", "work"]
+"""
+
+_TRACKER_MANIFEST = """\
+[package]
+name = "tracker"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+work = { path = "../work" }
+"""
+
+_WORK_MANIFEST = """\
+[package]
+name = "work"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_TRACKER_LIB = "pub mod port;\n\npub struct Marker;\n"
+_WORK_LIB = "pub struct WorkItem;\n"
+
+_TRACKER_PORT_VIOLATION = (
+    "use work::WorkItem;\n\npub fn make() -> WorkItem {\n    WorkItem\n}\n"
+)
+_TRACKER_PORT_COMPLIANT = (
+    "use std::path::Path;\n\n"
+    "use crate::Marker;\n\n"
+    "pub fn make(path: &Path) -> (usize, Marker) {\n"
+    "    (path.as_os_str().len(), Marker)\n"
+    "}\n"
+)
+
+
+def _write_tracker_probe(root: Path, port_body: str) -> None:
+    (root / "Cargo.toml").write_text(_TRACKER_WORKSPACE)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB)
+    (tracker_src / "port.rs").write_text(port_body)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+
+def test_real_tracker_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_probe(tmp_path, _TRACKER_PORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "tracker_domain_imports_only_permitted" in output, output
+
+
+def test_real_tracker_rule_permits_std_and_crate_imports(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_probe(tmp_path, _TRACKER_PORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)

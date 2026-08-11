@@ -346,14 +346,21 @@ def test_invariants_reject_known_bad_shapes(wf, mutate):
         _invariants(bad)
 
 
-# --- Nightly-lane isolation: cargo-pup runs on a pinned nightly, and that
-#     toolchain must stay confined to a single job so a nightly break gates the
-#     architecture check alone, never a stable-lane check or the product build.
+# --- Nightly-lane isolation: cargo-pup and cargo-public-api both run on the
+#     pinned nightly, and that toolchain must stay confined to a single job so
+#     a nightly break gates the architecture check alone, never a stable-lane
+#     check or the product build.
 
 # A job consumes the nightly iff its steps run any of these (name-agnostic
 # detection, so renaming the job cannot smuggle a second consumer past the
 # guard).
-_NIGHTLY_MARKERS = ("pup:check", "deps:install:pup", "+nightly")
+_NIGHTLY_MARKERS = (
+    "pup:check",
+    "deps:install:pup",
+    "public-api:check",
+    "deps:install:public-api",
+    "+nightly",
+)
 _NIGHTLY_JOB = "check-architecture"
 # The release-pipeline aggregators MAY gate on check-architecture (you should
 # not ship with a red required check); everything else must not couple to it.
@@ -381,12 +388,16 @@ def _isolation_invariants(wf):
         f"nightly consumers must be exactly {{{_NIGHTLY_JOB}}}, got {consumers}"
     )
 
-    # The sole regression cannot be silently dropped: the one host job invokes
-    # BOTH pup:check and its behavioural regression.
+    # None of the three nightly-lane steps can be silently dropped: the one
+    # host job invokes pup:check, its behavioural regression, and
+    # public-api:check.
     text = _job_run_text(jobs[_NIGHTLY_JOB])
     assert "pup:check" in text, "check-architecture must run pup:check"
     assert "test:integration:pup" in text, (
         "check-architecture must run the pup regression"
+    )
+    assert "public-api:check" in text, (
+        "check-architecture must run public-api:check"
     )
 
     # No stable-lane / product job couples to the nightly lane via needs.

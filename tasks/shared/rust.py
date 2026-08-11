@@ -3,8 +3,16 @@ import os
 LAUNCHER_CRATE = "accelerator"  # cli/launcher/Cargo.toml [package] name
 # PUP_NIGHTLY + PUP_VERSION are a matched pair (cargo-pup's rustc-driver only
 # loads under the nightly it was built against); bump them together.
+#
+# public-api:check also shells out to this nightly's `rustdoc` to produce the
+# JSON cargo-public-api reads, but that pairing is looser: cargo-public-api has
+# no rustc_private driver, so it builds on stable and only needs the nightly's
+# rustdoc-JSON *format* to stay within its supported range. After bumping
+# PUP_NIGHTLY, re-verify PUBLIC_API_VERSION against the new nightly before
+# accepting any resulting snapshot diff as toolchain-induced.
 PUP_NIGHTLY = "nightly-2026-01-22"  # cargo-pup v0.1.8 rust-toolchain.toml
 PUP_VERSION = "0.1.8"
+PUBLIC_API_VERSION = "0.52.0"
 
 _FALSEY = {"off", "false", "0", "no"}
 _PUP_MODES = {"deny", "warn"}

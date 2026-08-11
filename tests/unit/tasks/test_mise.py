@@ -3,7 +3,8 @@
 Textual-structure assertions (mirroring test_workflows.py's style) that the
 Rust enforcement gates are wired into the aggregate `check` task, so a gate
 cannot be silently unwired from the read-only CI-mirror. Extended per phase as
-each gate lands (cli:check here; deny:check / pup:check in Phases 3-4).
+each gate lands (cli:check here; deny:check / pup:check in Phases 3-4;
+public-api:check with the tracker crate's surface pin).
 """
 
 import tomllib
@@ -15,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
 # Gates that MUST be reachable from the aggregate `check` task.
-_CHECK_GATES = ["cli:check", "deny:check", "pup:check"]
+_CHECK_GATES = ["cli:check", "deny:check", "pup:check", "public-api:check"]
 
 # cli/-scoped Python guards ride in cli:check, which is what CI runs, *and* in
 # lint:check, which is the only path the bare `default` task reaches: `default`

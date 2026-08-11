@@ -1,9 +1,10 @@
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from invoke import Context, Exit
 
-from tasks import pup
+from tasks import public_api, pup
 from tasks.shared import rust
 from tasks.shared.rust import PUP_NIGHTLY
 from tasks.test import cli as test_cli
@@ -135,3 +136,87 @@ class TestTestUnitCli:
         ctx.run.return_value = MagicMock(exited=1)
         with pytest.raises(Exit):
             test_cli.run(ctx)
+
+
+# ── public_api.check() / public_api.update() leaf branches ────────────
+
+
+@pytest.fixture
+def snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(public_api, "_PINNED_CRATES", ("widget",))
+    monkeypatch.setattr(public_api, "CLI_DIR", tmp_path)
+    path = tmp_path / "widget" / "tests" / "fixtures" / "public-api.txt"
+    path.parent.mkdir(parents=True)
+    return path
+
+
+class TestPublicApiCheck:
+    def test_runs_on_the_pinned_nightly_with_parameter_names(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        snapshot.write_text("pub struct widget::Thing\n")
+        ctx.run.return_value = MagicMock(
+            exited=0, stdout="pub struct widget::Thing\n"
+        )
+        public_api.check(ctx)
+        assert ctx.run.call_args.args[0] == (
+            f"cargo +{PUP_NIGHTLY} public-api "
+            "--omit blanket-impls,auto-trait-impls "
+            "--include function-parameter-names -p widget"
+        )
+
+    def test_raises_when_snapshot_is_missing(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        with pytest.raises(Exit) as exc_info:
+            public_api.check(ctx)
+        assert str(snapshot) in str(exc_info.value)
+
+    def test_raises_when_snapshot_is_empty(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        snapshot.write_text("")
+        with pytest.raises(Exit):
+            public_api.check(ctx)
+
+    def test_raises_when_the_render_fails(self, ctx: MagicMock, snapshot: Path):
+        snapshot.write_text("pub struct widget::Thing\n")
+        ctx.run.return_value = MagicMock(exited=1, stdout="")
+        with pytest.raises(Exit):
+            public_api.check(ctx)
+
+    def test_passes_when_the_render_matches_the_snapshot(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        snapshot.write_text("pub struct widget::Thing\n")
+        ctx.run.return_value = MagicMock(
+            exited=0, stdout="pub struct widget::Thing\n"
+        )
+        public_api.check(ctx)
+
+    def test_raises_when_the_render_diverges_from_the_snapshot(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        snapshot.write_text("pub struct widget::Thing\n")
+        ctx.run.return_value = MagicMock(
+            exited=0, stdout="pub struct widget::Other\n"
+        )
+        with pytest.raises(Exit) as exc_info:
+            public_api.check(ctx)
+        assert str(snapshot) in str(exc_info.value)
+
+
+class TestPublicApiUpdate:
+    def test_writes_the_render_to_the_snapshot(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        ctx.run.return_value = MagicMock(
+            exited=0, stdout="pub struct widget::Thing\n"
+        )
+        public_api.update(ctx)
+        assert snapshot.read_text() == "pub struct widget::Thing\n"
+
+    def test_raises_when_the_render_fails(self, ctx: MagicMock, snapshot: Path):
+        ctx.run.return_value = MagicMock(exited=1, stdout="")
+        with pytest.raises(Exit):
+            public_api.update(ctx)

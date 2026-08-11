@@ -1627,39 +1627,39 @@ Phase 2 extends this file with `FetchOutcome` and `RemoteTracker`.
 
 #### Automated Verification
 
-- [ ] `tracker` compiles as a workspace member: `mise run cli:check`
-- [ ] The snapshot was hand-written from 0204's amended block and was red before
+- [x] `tracker` compiles as a workspace member: `mise run cli:check`
+- [x] The snapshot was hand-written from 0204's amended block and was red before
       `src/lib.rs` existed
-- [ ] `mise run public-api:check` passes, and the four vocabulary items plus
+- [x] `mise run public-api:check` passes, and the four vocabulary items plus
       their derive-generated impls appear in
       `cli/tracker/tests/fixtures/public-api.txt`
-- [ ] `mise run public-api:update` regenerates that file byte-identically —
+- [x] `mise run public-api:update` regenerates that file byte-identically —
       check and update share one invocation, so they cannot drift
-- [ ] The structural guards pass: `cd cli && cargo nextest run -p tracker`
+- [x] The structural guards pass: `cd cli && cargo nextest run -p tracker`
       covers no test module, no dependency tables, no adapter sibling
-- [ ] `mise run test:unit:tasks` passes — §10 edits three guards
+- [x] `mise run test:unit:tasks` passes — §10 edits three guards
       (`test_workflows.py`, `test_mise.py`, and the new task coverage in
       `test_deps.py`/`test_rust.py`) and §9 edits a region
       `test_registration_docs.py` parses; `build-system:check` does not run
       tests
-- [ ] The lockfile is current — `cli:check` runs clippy `--locked`, so a stale
+- [x] The lockfile is current — `cli:check` runs clippy `--locked`, so a stale
       `Cargo.lock` fails here rather than silently
-- [ ] Vocabulary and error tests pass:
+- [x] Vocabulary and error tests pass:
       `cd cli && cargo nextest run -p tracker`
-- [ ] Both committed stamps round-trip byte-identically, including the Jira
+- [x] Both committed stamps round-trip byte-identically, including the Jira
       `+0000` form, and the fixture-shape test fails if either form is removed
-- [ ] `mise run pup:check` passes, i.e. the real `tracker` crate satisfies its
+- [x] `mise run pup:check` passes, i.e. the real `tracker` crate satisfies its
       own rule. This is a positive check only — a compliant crate cannot
       demonstrate the rule's discriminating power, which is what the probe pair
       is for
-- [ ] `mise run test:integration:pup` passes — the mise task the
+- [x] `mise run test:integration:pup` passes — the mise task the
       `check-architecture` CI lane runs. Prefer it over raw pytest: the suite
       *skips* rather than fails when cargo-pup is absent, so
       `uv run pytest … -k tracker` can exit 0 having asserted nothing unless
       `mise run deps:install:pup` has run. If using the raw form for the inner
       loop, confirm it reports passed rather than skipped
-- [ ] `mise run deny:check` passes with the new member
-- [ ] `mise run build-system:check` passes (the probe additions are Python)
+- [x] `mise run deny:check` passes with the new member
+- [x] `mise run build-system:check` passes (the probe additions are Python)
 
 #### Manual Verification
 
@@ -1667,45 +1667,69 @@ These are one-shot mutation checks: they establish that the guards discriminate,
 but they are performed once and never re-run, so record the outcome of each in
 the implementation notes rather than leaving a later reader to assume it.
 
-- [ ] The parity test fails when a fifth code is added to
+- [x] The parity test fails when a fifth code is added to
       `work-item-bridge-codes.sh` — add one temporarily, in a shape the parser
       does not expect (a trailing comment) as well as the usual one
-- [ ] The parity test fails when a `TrackerError` variant is renamed — it reads
+- [x] The parity test fails when a `TrackerError` variant is renamed — it reads
       the name from `Debug`, so the rename must propagate rather than being
       absorbed by a match arm
-- [ ] The parity test fails when the `Retryable`/`Terminal` resolution words are
+- [x] The parity test fails when the `Retryable`/`Terminal` resolution words are
       swapped between the 70 and 71 rows — not when the lines are reordered,
       since the fixture is keyed by name
-- [ ] Deleting the `tracker` rule from `cli/pup.ron` makes the probe pair fail
-- [ ] Corrupting an `allowed_only` anchor makes the compliant control fail —
+- [x] Deleting the `tracker` rule from `cli/pup.ron` makes the probe pair fail
+- [x] Corrupting an `allowed_only` anchor makes the compliant control fail —
       misspell the path segment, or narrow `^(std|core|alloc)(::|$)` to
       `^std$`. Two mutations do **not** work: a swapped alternation
       (`^crate($|::)`) is the same regex, and dropping the `^` *widens* the
       pattern rather than narrowing it, so nothing is rejected
-- [ ] `cargo public-api` renders parameter *names*, not only types — the
+- [x] `cargo public-api` renders parameter *names*, not only types — the
       same-typed `create(title, body)` swap is caught by the snapshot alone, so
       confirm this before relying on it (run the tool once against any existing
       workspace crate)
 
-- [ ] The `pup.ron` rule's `matches:` and `allowed_only:` anchors are
+- [x] The `pup.ron` rule's `matches:` and `allowed_only:` anchors are
       character-identical to the sibling rules apart from the crate name and
       the omitted `kernel::Error` line
-- [ ] The committed `Cargo.lock` diff contains only the `tracker` package entry
+- [x] The committed `Cargo.lock` diff contains only the `tracker` package entry
       and its member line — no unrelated dependency movement
-- [ ] `TrackerError::Terminal`'s doc comment states that `Retryable` requires
+- [x] `TrackerError::Terminal`'s doc comment states that `Retryable` requires
       provable absence of a remote *change* — not of transmission — and that
       everything unproven is terminal. This is the part a client author will
       otherwise get wrong, so it is checked here rather than assumed
-- [ ] `RemoteIssue.body`'s doc comment states the projection contract, names it
+- [x] `RemoteIssue.body`'s doc comment states the projection contract, names it
       as distinct from `create`/`update`'s `body` parameter, and assigns
       reproduction to the implementing client
-- [ ] `RemoteTimestamp`'s doc comment states that the empty stamp means
+- [x] `RemoteTimestamp`'s doc comment states that the empty stamp means
       *unknown* and must not be read as equal to another empty stamp
-- [ ] `dispatch-codes.txt` records why 72 and 73 resolve above the port
-- [ ] `TrackerError` carries no `#[non_exhaustive]`
-- [ ] No doc comment in `src/lib.rs` names an item this phase does not declare
+- [x] `dispatch-codes.txt` records why 72 and 73 resolve above the port
+- [x] `TrackerError` carries no `#[non_exhaustive]`
+- [x] No doc comment in `src/lib.rs` names an item this phase does not declare
       — `FetchOutcome` and the trait arrive in Phase 2 and their cross-
       references arrive with them
+
+**Implementation notes (recorded 2026-08-12):**
+
+- Deviation 7 confirmed empirically: `missing_const_for_fn` under the
+  workspace's `warnings = "deny"` DOES fire on `pub fn new(value: String) ->
+  Self`, contrary to the plan's "historically declined to fire on a
+  `Drop`-carrying parameter" hypothesis. `const fn` on both `new`
+  constructors is therefore required, not a gratuitous forward commitment —
+  confirmed by temporarily reverting to non-`const` and observing clippy
+  reject it, then restoring.
+- `cargo public-api` 0.52.0 omits function parameter names **by default**
+  (a behaviour change from the version the plan assumed) — the
+  `create(title, body)`-swap guard the plan relies on requires the
+  `--include function-parameter-names` flag explicitly. Added it to both
+  `public-api:check` and `public-api:update`'s shared invocation in
+  `tasks/public_api.py`; without it the two-parameter-swap case would not
+  have been caught.
+- The pinned nightly's `--profile minimal` install already ships `rustdoc`
+  bundled with the `rustc` component — no separate component needed, and no
+  install-task change was required.
+- `cargo-public-api` has no published GitHub release binary assets, so
+  `deps:install:public-api` builds it from source via `cargo install`,
+  mirroring `deps:install:pup`'s presence-probe pattern; recorded as a second
+  accepted unverified surface in `mise.toml`'s `[settings]` comment.
 
 Every check that concerns `lib.rs` sits in this phase, not Phase 2, because
 that is where the file ships and the phases are independently mergeable. No

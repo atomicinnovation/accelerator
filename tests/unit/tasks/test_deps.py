@@ -5,7 +5,7 @@ import pytest
 from invoke import Context, Exit
 
 from tasks import deps
-from tasks.shared.rust import PUP_NIGHTLY, PUP_VERSION
+from tasks.shared.rust import PUBLIC_API_VERSION, PUP_NIGHTLY, PUP_VERSION
 
 _PUP_COMPONENTS = ("rustc-dev", "rust-src", "llvm-tools-preview")
 _PRESENT_VERSION = (
@@ -13,15 +13,28 @@ _PRESENT_VERSION = (
 )
 _ABSENT_VERSION = "cargo-pup version 0.0.0"
 
+_PUBLIC_API_PRESENT_VERSION = f"cargo-public-api {PUBLIC_API_VERSION}"
+_PUBLIC_API_ABSENT_VERSION = "cargo-public-api 0.0.0"
+
 
 def _commands(ctx: MagicMock) -> list[str]:
     return [call.args[0] for call in ctx.run.call_args_list]
 
 
-def _runner(*, version_stdout: str, fail: str | None = None):
+def _runner(
+    *,
+    version_stdout: str = "",
+    public_api_version_stdout: str = "",
+    fail: str | None = None,
+):
     def run(command: str, **_kwargs: Any) -> MagicMock:
         exited = 1 if fail is not None and fail in command else 0
-        stdout = version_stdout if "pup --version" in command else ""
+        if "pup --version" in command:
+            stdout = version_stdout
+        elif command == "cargo public-api --version":
+            stdout = public_api_version_stdout
+        else:
+            stdout = ""
         return MagicMock(exited=exited, stdout=stdout)
 
     return run
@@ -97,3 +110,45 @@ class TestInstallPup:
         )
         with pytest.raises(Exit):
             deps.install_pup(ctx)
+
+
+class TestInstallPublicApi:
+    def test_skips_install_when_pinned_version_already_present(
+        self, ctx: MagicMock
+    ):
+        ctx.run.side_effect = _runner(
+            public_api_version_stdout=_PUBLIC_API_PRESENT_VERSION
+        )
+        deps.install_public_api(ctx)
+        assert not any("install cargo-public-api" in c for c in _commands(ctx))
+
+    def test_installs_pinned_cargo_public_api_when_absent(self, ctx: MagicMock):
+        ctx.run.side_effect = _runner(
+            public_api_version_stdout=_PUBLIC_API_ABSENT_VERSION
+        )
+        deps.install_public_api(ctx)
+        assert (
+            f"cargo install cargo-public-api --version {PUBLIC_API_VERSION} "
+            "--locked"
+        ) in _commands(ctx)
+
+    def test_install_failure_reraised_as_exit_naming_pin(self, ctx: MagicMock):
+        ctx.run.side_effect = _runner(
+            public_api_version_stdout=_PUBLIC_API_ABSENT_VERSION,
+            fail="cargo install cargo-public-api",
+        )
+        with pytest.raises(Exit) as exc_info:
+            deps.install_public_api(ctx)
+        assert PUBLIC_API_VERSION in str(exc_info.value)
+
+    def test_version_probe_does_not_substring_match(self, ctx: MagicMock):
+        # PUBLIC_API_VERSION must be a whole token: a probe reporting a
+        # version carrying the pin as a strict prefix (e.g. "0.52.01" against
+        # a "0.52.0" pin) must not be read as present.
+        ctx.run.side_effect = _runner(
+            public_api_version_stdout=(
+                f"cargo-public-api {PUBLIC_API_VERSION}1"
+            )
+        )
+        deps.install_public_api(ctx)
+        assert any("install cargo-public-api" in c for c in _commands(ctx))

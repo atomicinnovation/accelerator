@@ -3,7 +3,7 @@ import re
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import DOCS_SITE, FRONTEND
-from tasks.shared.rust import PUP_NIGHTLY, PUP_VERSION
+from tasks.shared.rust import PUBLIC_API_VERSION, PUP_NIGHTLY, PUP_VERSION
 from tasks.shared.targets import TARGETS
 
 _CROSS_TARGETS = tuple(triple for triple, _ in TARGETS)
@@ -99,6 +99,37 @@ def install_pup(context: Context) -> None:
         raise Exit(
             f"`cargo +{PUP_NIGHTLY}` does not resolve — is ~/.cargo/bin "
             "(rustup's proxies) on PATH ahead of any cargo shim?",
+            code=1,
+        )
+
+
+def _public_api_already_installed(context: Context) -> bool:
+    # Token equality on the version line, not a substring match (0.52.10 would
+    # false-match 0.52.1): strip ANSI, then split so PUBLIC_API_VERSION must be
+    # a whole token.
+    probe = context.run("cargo public-api --version", warn=True, pty=False)
+    return PUBLIC_API_VERSION in _ANSI.sub("", probe.stdout).split()
+
+
+@task
+def install_public_api(context: Context) -> None:
+    """Provision the pinned cargo-public-api.
+
+    Builds on stable and shells out to nightly `rustdoc` only at check time, so
+    unlike cargo-pup it needs no toolchain of its own here. Idempotent — no-ops
+    when the pinned version is already present.
+    """
+    if _public_api_already_installed(context):
+        return
+    install = context.run(
+        f"cargo install cargo-public-api --version {PUBLIC_API_VERSION} "
+        "--locked",
+        warn=True,
+        pty=False,
+    )
+    if install.exited != 0:
+        raise Exit(
+            f"failed to install cargo-public-api {PUBLIC_API_VERSION}",
             code=1,
         )
 

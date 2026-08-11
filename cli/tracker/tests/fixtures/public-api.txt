@@ -1,0 +1,56 @@
+pub mod tracker
+pub enum tracker::TrackerError
+pub tracker::TrackerError::Retryable
+pub tracker::TrackerError::Retryable::detail: alloc::string::String
+pub tracker::TrackerError::Terminal
+pub tracker::TrackerError::Terminal::detail: alloc::string::String
+impl core::clone::Clone for tracker::TrackerError
+pub fn tracker::TrackerError::clone(&self) -> tracker::TrackerError
+impl core::cmp::Eq for tracker::TrackerError
+impl core::cmp::PartialEq for tracker::TrackerError
+pub fn tracker::TrackerError::eq(&self, other: &tracker::TrackerError) -> bool
+impl core::error::Error for tracker::TrackerError
+impl core::fmt::Debug for tracker::TrackerError
+pub fn tracker::TrackerError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker::TrackerError
+pub fn tracker::TrackerError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::TrackerError
+pub struct tracker::ExternalId(_)
+impl tracker::ExternalId
+pub fn tracker::ExternalId::as_str(&self) -> &str
+pub const fn tracker::ExternalId::new(value: alloc::string::String) -> Self
+impl core::clone::Clone for tracker::ExternalId
+pub fn tracker::ExternalId::clone(&self) -> tracker::ExternalId
+impl core::cmp::Eq for tracker::ExternalId
+impl core::cmp::PartialEq for tracker::ExternalId
+pub fn tracker::ExternalId::eq(&self, other: &tracker::ExternalId) -> bool
+impl core::fmt::Debug for tracker::ExternalId
+pub fn tracker::ExternalId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker::ExternalId
+pub fn tracker::ExternalId::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for tracker::ExternalId
+pub fn tracker::ExternalId::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for tracker::ExternalId
+pub struct tracker::RemoteIssue
+pub tracker::RemoteIssue::body: alloc::string::String
+pub tracker::RemoteIssue::updated: tracker::RemoteTimestamp
+impl core::clone::Clone for tracker::RemoteIssue
+pub fn tracker::RemoteIssue::clone(&self) -> tracker::RemoteIssue
+impl core::cmp::Eq for tracker::RemoteIssue
+impl core::cmp::PartialEq for tracker::RemoteIssue
+pub fn tracker::RemoteIssue::eq(&self, other: &tracker::RemoteIssue) -> bool
+impl core::fmt::Debug for tracker::RemoteIssue
+pub fn tracker::RemoteIssue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::RemoteIssue
+pub struct tracker::RemoteTimestamp(_)
+impl tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::as_str(&self) -> &str
+pub const fn tracker::RemoteTimestamp::new(value: alloc::string::String) -> Self
+impl core::clone::Clone for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::clone(&self) -> tracker::RemoteTimestamp
+impl core::cmp::Eq for tracker::RemoteTimestamp
+impl core::cmp::PartialEq for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::eq(&self, other: &tracker::RemoteTimestamp) -> bool
+impl core::fmt::Debug for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
