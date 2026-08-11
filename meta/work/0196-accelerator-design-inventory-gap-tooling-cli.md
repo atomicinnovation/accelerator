@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, design, cli, playwright, distribution]
-last_updated: "2026-08-10T17:23:38+00:00"
+last_updated: "2026-08-11T11:12:16+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -104,17 +104,53 @@ of assumed present on the host.
   introducing a parallel distribution mechanism. The CLI gains no new
   verification primitive; all upstream-signature checking lives in the
   pipeline.
+- Per ADR-0060 that extension takes a specific shape. Tree artifacts
+  are carried in a **new top-level `artifacts` map** in `manifest.json`,
+  additive under `schema_version: 1` so no other sub-binary sees a flag day,
+  and `binaries` keeps meaning one key, one executable. The **launcher**
+  resolves them, so the embedded signing key keeps a single holder. Digest and
+  signature are checked over the fetched archive **before extraction**;
+  extraction lands in a temp directory that is **renamed into place in one
+  syscall**; and the tree is then **sealed read-only** with a sentinel
+  recording the verified digest and release version, placed beside the tree
+  rather than inside it. Tree entries are addressed by release version and
+  digest, so an upgrade materialises a new tree rather than mutating one.
+- Also per ADR-0060, tree artifacts are **exempt from per-exec
+  re-verification**. Single-file sub-binaries keep theirs unchanged; a warm
+  browser command checks the sentinel instead of re-hashing hundreds of
+  megabytes, which is what keeps a crawl inside its budget. Because automatic
+  self-healing goes with it, a **user-invocable repair path** (re-verify and
+  refetch) is required to restore recovery from a corrupt or partial tree.
 - `accelerator-design`'s Playwright executor launches browser automation via
   the assembled driver (its Node binary + `playwright-core`'s CLI/driver
   entrypoint), removing the system Node.js ≥20 prerequisite currently
   enforced by `ensure-playwright.sh`
   (`skills/design/inventory-design/scripts/ensure-playwright.sh`).
 - No browser download happens on the user's machine. `npx playwright install
-  chromium` disappears with `ensure-playwright.sh`, and the current
-  `<lockfile-hash>` cache key under
-  `${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cache/accelerator/playwright}` needs a
-  new basis, since the `package-lock.json` it hashes goes away with `npm ci`.
-  Cache growth across upgrades needs a pruning story per ADR-0059.
+  chromium` disappears with `ensure-playwright.sh`, and its
+  `<lockfile-hash>` namespace under
+  `${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cache/accelerator/playwright}` goes
+  with it — the `package-lock.json` it hashed does not survive `npm ci`'s
+  removal.
+- Tree artifacts cache under the launcher's existing plugin-root-scoped cache
+  root (`resolve/cache_root.rs`, `ACCELERATOR_CACHE_DIR` override, no XDG
+  fallback because an XDG-resident binary would break the plugin-root
+  `allowed-tools` glob match). Since that root is inside the versioned plugin
+  tree, artifacts are scoped per plugin version and are pruned when Claude Code
+  prunes old plugin versions — no bespoke eviction logic. The cost is that a
+  plugin upgrade discards them: at roughly 117MB of driver plus 177MB of
+  headless shell, each upgrade refetches ~294MB per platform, and this plugin
+  pre-releases often. `ACCELERATOR_CACHE_DIR` is the escape for anyone who
+  wants a longer-lived location, and because ADR-0060 addresses tree entries by
+  version and digest, sharing them across plugin versions later would need no
+  redesign.
+- The browser artifact is `chromium-headless-shell`, not full Chromium. The
+  daemon launches headless (`lib/daemon.js:106`), and the shell is 177MB across
+  14 files against 297MB across 327 — materially cheaper to host, fetch,
+  extract and seal. Implementation note: `lib/daemon.js:120-125` resolves
+  `executablePath()` and reports `chromium-not-found` against the full Chromium
+  path, so that diagnostic needs revisiting. Revisit the choice if a rendered
+  inventory proves to need the full browser's fidelity.
 - Browser automation is scoped to Playwright's own supported platforms per
   ADR-0057; on a host outside that matrix the Playwright path emits the
   existing structured downgrade reason and the default and hybrid crawler
@@ -128,6 +164,20 @@ of assumed present on the host.
   runtime crawler. Per ADR-0057 the hatch substitutes the browser only — the
   vendored driver's Node binary stays glibc-linked, so it does not bring the
   runtime crawler to musl hosts.
+- Artifact metadata is not reimplemented in the design domain. `accelerator
+  corpus metadata derive` already emits the same four lines with the same
+  labels in the same order, and `FilenameTimestampFormat::CompactTime` already
+  renders `inventory-metadata.sh`'s exact `%Y-%m-%d-%H%M%S` shape. The action
+  gains a `--filename-timestamp-format` flag to expose the variant, the
+  `inventory-design` skill calls corpus directly for its frontmatter
+  provenance, and `inventory-metadata.sh` is deleted with no design-side
+  replacement. **Scope note**: this touches `cli/corpus-cli`, outside the
+  design subdomain this item otherwise owns.
+- Redistribution notices ship with the artifacts: each component's
+  `LICENSE`/`NOTICE` (Node and its bundled dependencies, `playwright-core`,
+  and Chromium's credits) is assembled into the artifact set and reachable by
+  a user. No formal legal review gates the release — see Drafting Notes for the
+  position taken and its basis.
 
 ## Acceptance Criteria
 
@@ -141,11 +191,16 @@ of assumed present on the host.
       in Drafting Notes is a precondition of this criterion — it must happen
       before implementation begins, not merely "once known."
 - [ ] **AC2.** Invoking the `inventory-design` subcommand's Playwright-driven path
-      launches the bundled driver and exits 0, producing a report artefact
-      that is byte-identical to the one the current shell invocation produces
-      for a fixed fixture input. Restructuring the report format is out of
-      scope for this item; if a future need to restructure it arises, it is
-      tracked as a separate follow-up item.
+      launches the driver and exits 0, and each subcommand's stdout/stderr
+      envelope is byte-identical to a golden fixture for a fixed fixture input.
+      The volatile inputs (clock, VCS facts, ephemeral port, absolute paths)
+      are supplied through injected ports so the output is deterministic by
+      construction rather than by normalisation. The model-authored report is
+      **not** in scope: no script in `skills/design/**` produces it today, so
+      it is not part of the binary's contract. Any screenshot assertion covers
+      count, dimensions and non-emptiness rather than bytes, which do not
+      reproduce across runs. Restructuring the report format remains out of
+      scope for this item.
 - [ ] **AC3.** All skills previously invoking `skills/design/**/scripts/*` now call the
       corresponding `accelerator design` subcommand, with `allowed-tools`
       updated to match, per the work-item:0167 contract.
@@ -162,13 +217,18 @@ of assumed present on the host.
 - [ ] **AC6.** On a machine with no system Node.js installed (verified in CI or a
       container fixture with Node absent from `PATH`), the
       `inventory-design` subcommand's Playwright-driven path fetches the driver
-      bundle and the browser artifact on first run, launches Chromium, and
-      produces a report artefact byte-identical to the fixed-fixture output
-      required by AC2.
+      bundle and the browser artifact on first run, launches the headless
+      shell, and emits the same byte-identical envelopes AC2 pins for that
+      fixture.
 - [ ] **AC7.** The driver-bundle and browser artifacts are each sha256- and
-      minisign-verified and cached following the same trust model as existing
-      sub-binary fetches (`manifest.json` + `.minisig`, embedded public key) —
-      no unverified binary is executed.
+      minisign-verified against `manifest.json` with the embedded public key
+      **before extraction**, extracted to a temp directory, renamed into place
+      in a single syscall, and sealed read-only with a sentinel beside the tree
+      — so no unverified byte is ever written into a materialised tree and a
+      concurrent invocation never observes a partial one. Per ADR-0060 tree
+      artifacts are then **exempt** from the per-exec re-verification
+      single-file sub-binaries keep; verification happens at materialisation,
+      not per invocation.
 - [ ] **AC8.** The release pipeline's assembly step (`tasks/release.py`; see
       Requirements) runs successfully for every platform `accelerator-design`
       supports, producing a driver-bundle artifact and a browser artifact per
@@ -199,57 +259,42 @@ of assumed present on the host.
       the release otherwise: `playwright-core` against its npm registry
       signature and SLSA provenance attestation, the Node runtime against the
       GPG signature on `SHASUMS256.txt`. Per ADR-0059.
+- [ ] **AC14.** A user-invocable repair path re-verifies and refetches a tree
+      artifact, restoring the recovery that automatic per-exec self-healing
+      provided. Verified against a deliberately corrupted and a deliberately
+      truncated tree, each of which the repair returns to a working state. Per
+      ADR-0060.
+- [ ] **AC15.** `corpus metadata derive` accepts `--filename-timestamp-format`, and
+      the `compact-time` variant reproduces `inventory-metadata.sh`'s output
+      byte-for-byte for a fixed clock and VCS fixture. The `inventory-design`
+      skill calls it for frontmatter provenance and the script is deleted.
+- [ ] **AC16.** Each distributed artifact carries the redistribution notices for
+      what it contains — Node and its bundled dependencies, `playwright-core`,
+      and Chromium's credits — reachable by a user without unpacking the
+      artifact by hand.
 
 ## Open Questions
 
-- Manifest schema shape for directory-tree artifacts — does the existing
-  `Manifest.binaries: BTreeMap<String, BinaryEntry>` shape need a new
-  `BinaryEntry` variant, or a parallel map alongside it? ADR-0059 constrains
-  this: the manifest must address **several artifacts of differing kinds** per
-  platform (driver bundle and browser, separately fetchable), which argues
-  against a single special-cased variant. Still a design decision for
-  implementation time.
 - Layout: the assembled bundle ships `playwright-core`, whereas `run.sh`
   hard-checks for a `node_modules/playwright/` layout and
   `playwright-loader.js` throws rather than falling back. A shim layout, a
   loader change, or retargeting `lib/*.js` at `playwright-core` is required.
-  (The *version* half of this question is closed by ADR-0059: the vendored
-  core is the exact version `package.json` declares, and AC10 guards it.)
-- **AC2/AC6 determinism**: research established that the report artefact is
-  not deterministic — its body is model-authored prose, and its frontmatter
-  carries second-granularity timestamps, VCS revisions, ephemeral localhost
-  ports, absolute paths, and a filesystem-derived `sequence`, under a
-  wall-clock-bounded crawl. Two runs of the *current shell pipeline* already
-  differ, so a byte-identical criterion cannot pass. Do AC2/AC6 retarget onto
-  byte-deterministic surfaces (the `notify-downgrade` golden-fixture pattern
-  is the existing precedent), or onto a normalised comparison?
-- **Tree integrity model**: 0164 froze "re-verify before every exec, including
-  cache hits", and rename-by-inode has no directory-tree equivalent. A full
-  re-hash is far outside the warm-path budget work-item:0186 established, and
-  ADR-0059 makes this harder rather than easier: there are now two tree
-  artifacts per platform, the browser one of comparable size to the ~117MB
-  driver bundle. What replaces per-exec re-verification without weakening AC7?
-  Warrants its own ADR.
-- **Cache key and pruning**: the current Playwright namespace derives from
-  `sha256(package-lock.json)[0:8]`, which disappears with `npm ci`. AC9's
-  idempotency depends on a replacement, and ADR-0059 adds a second half —
-  every upgraded release leaves another browser tree of this size behind, so
-  the replacement needs a pruning story, not just a key.
-- Manifest extension must be **additive under `schema_version: 1`** — the
-  launcher's schema gate is strictly-higher-rejects and `manifest.json` is a
-  single global document every deployed launcher consumes, so a bump to `2`
-  is a flag-day for every sub-binary, not just this one.
+  Deliberately left to planning and implementation — the three routes are all
+  workable and the choice needs the code in front of it. (The *version* half of
+  this question is closed by ADR-0059: the vendored core is the exact version
+  `package.json` declares, and AC10 guards it.)
 
 ## Dependencies
 
 - Blocked by: confirmation that the release-artifact hosting
   infrastructure serving `manifest.json` and its binaries can accommodate
   **both** per-platform tree artifacts ADR-0059 introduces — the
-  ~117-118MB driver bundle (see Technical Notes precedent sizes) plus a browser
-  of comparable order — across every platform `accelerator-design` supports.
-  That is plausibly approaching a gigabyte per release, so this is load-bearing
-  rather than a formality; measure the real sizes as part of confirming it.
-  Must be confirmed before the release-pipeline requirement ships. Prior blockers are resolved: work-item:0166 (shared
+  ~117-118MB driver bundle (see Technical Notes precedent sizes) plus the
+  177MB headless shell — across every platform `accelerator-design` supports.
+  That is roughly 294MB per platform and about 1.2GB per release, so this is
+  load-bearing rather than a formality; measure the real assembled sizes as
+  part of confirming it. Must be confirmed before the release-pipeline
+  requirement ships. Prior blockers are resolved: work-item:0166 (shared
   crates, done), work-item:0167 (invocation-contract pattern, done —
   subsumes the earlier launcher/dispatch scaffold), work-item:0187
   (sub-binary registration surface, merged via PR #42).
@@ -260,9 +305,9 @@ of assumed present on the host.
   assembled in CI, then served from our own release host through the CLI's
   fetch-verify-cache mechanism. The build-time dependencies are
   `registry.npmjs.org`, `nodejs.org/dist` and `cdn.playwright.dev`, plus a
-  maintained set of Node release keys. Resolution of the manifest schema shape
-  is tracked in Open Questions above; the release-pipeline publishing design is
-  resolved (see Requirements and Drafting Notes).
+  maintained set of Node release keys. The manifest schema shape and the
+  release-pipeline publishing design are both resolved (ADR-0059, ADR-0060;
+  see Requirements and Drafting Notes).
 - Coordination: this item now touches shared launcher infrastructure
   (`cli/launcher/src/launch/outbound/resolve/`) and the shared release
   pipeline (`tasks/release.py`), not only `accelerator-design` — flag to
@@ -529,6 +574,41 @@ of assumed present on the host.
   for Node, `playwright-core` and Chromium rather than something to note.
   Per-exec re-verification and the AC2/AC6 determinism basis remain open, and
   the cache-key question gained a pruning half.
+- 2026-08-11: the four remaining blockers were worked through and decided, and
+  the open questions they left behind were closed with them.
+  **Tree integrity** (ADR-0060): permissions are the boundary.
+  Measurement drove it — hardware sha256 runs at ~2.5GB/s, `chromium-1193` is
+  297MB across 327 files and the driver bundle ~117MB, and a crawl bounded at
+  50 routes makes 100–200 executor invocations, so per-exec re-verification
+  would burn 16–33s per crawl re-hashing immutable bytes to close a window
+  against an attacker who already holds the user's privileges. Verification
+  moves to materialisation behind an atomic directory rename, the tree is
+  sealed read-only, and a repair path (AC14) replaces the self-healing that
+  goes with it.
+  **Manifest shape** (ADR-0060): a new top-level `artifacts` map,
+  launcher-resolved. The feared flag-day was never real — `manifest.rs` ignores
+  unknown fields by design and the schema gate rejects only versions above the
+  supported one — so the question was only ever where the entries live.
+  **Determinism**: AC2/AC6 retarget onto the binary's own envelopes. AC2 was
+  aimed at an artefact no script produces — the report is written by the model,
+  and what the scripts emit is envelopes plus four lines of clock and VCS
+  output. **Metadata**: rather than reimplement those four lines, the skill
+  calls `corpus metadata derive`, which already renders the same labels in the
+  same order and already has `CompactTime` matching the shell script's exact
+  format; only a flag is missing (AC15). **Licensing**: notices ship with the
+  artifacts (AC16) and no formal legal review gates the release, on the basis
+  that Electron and Playwright redistribute these same components the same way.
+  The reviewer's recommendation was a legal gate; the decision was notices
+  only, recorded here so the position reads as taken rather than overlooked.
+  **Caching**: artifacts live under the launcher's existing plugin-root-scoped
+  cache root, which is already where sub-binaries cache and already has no XDG
+  fallback (an XDG-resident binary would break the plugin-root `allowed-tools`
+  glob). Being inside the versioned plugin tree, they are pruned when Claude
+  Code prunes old plugin versions, so no bespoke eviction is needed; the cost
+  is a ~294MB per-platform refetch on every plugin upgrade.
+  **Browser choice**: `chromium-headless-shell` for now — the daemon launches
+  headless and the shell is 177MB across 14 files against 297MB across 327.
+  **Layout** stays open by choice, deferred to planning and implementation.
 
 ## References
 
@@ -539,7 +619,7 @@ of assumed present on the host.
 - ADRs: ADR-0048, ADR-0053, ADR-0057 (accepted — browser automation as a
   glibc-only capability), ADR-0058 (accepted — shell-free CLI-to-Node
   delegation), ADR-0059 (accepted — build-time assembly of vendored browser
-  artifacts)
+  artifacts), ADR-0060 (accepted — launcher-resolved tree artifacts)
 - Playwright license (Apache-2.0):
   https://github.com/microsoft/playwright/blob/main/LICENSE
 - playwright-python driver-bundling precedent (`setup.py` /
