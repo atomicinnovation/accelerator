@@ -4,15 +4,15 @@ id: "0204"
 title: "RemoteTracker Port"
 date: "2026-08-10T16:34:11+00:00"
 author: Toby Clemson
-producer: review-work-item
+producer: review-plan
 status: ready
 kind: story
 priority: medium
 parent: "work-item:0136"
-derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-11-0204-remote-tracker-port"]
 blocks: ["work-item:0171", "work-item:0194"]
 tags: [rust, tracker, sync, port]
-last_updated: "2026-08-10T17:04:12+00:00"
+last_updated: "2026-08-12T00:05:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -63,28 +63,30 @@ to reach and easy to hold stable once reached.
 
 - Implement the `tracker` crate as the port and its vocabulary only, with
   no provider-specific or HTTP types anywhere in its public API. The
-  public API is exactly these five items and nothing else:
-  `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp` and
-  `TrackerError`.
+  public API is exactly these six items and nothing else:
+  `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp`,
+  `FetchOutcome` and `TrackerError`.
 - Define the port with these signatures verbatim. They are the contract
   0171 and 0194 build against, so they are stated here rather than left to
   the implementer — an unstated signature is how a frozen signature stops
   being frozen.
 
   ```rust
-  #[derive(Debug, Clone, PartialEq, Eq)]
+  #[derive(Debug, Clone, PartialEq, Eq, Hash)]
   pub struct ExternalId(String);
 
   impl ExternalId {
-      pub fn new(value: String) -> Self;
+      pub const fn new(value: String) -> Self;
       pub fn as_str(&self) -> &str;
   }
+
+  impl std::fmt::Display for ExternalId { /* ... */ }
 
   #[derive(Debug, Clone, PartialEq, Eq)]
   pub struct RemoteTimestamp(String);
 
   impl RemoteTimestamp {
-      pub fn new(value: String) -> Self;
+      pub const fn new(value: String) -> Self;
       pub fn as_str(&self) -> &str;
   }
 
@@ -94,7 +96,14 @@ to reach and easy to hold stable once reached.
       pub body: String,
   }
 
-  #[derive(Debug)]
+  #[derive(Debug, Clone, PartialEq, Eq)]
+  pub struct FetchOutcome {
+      pub found: Vec<(ExternalId, RemoteTimestamp)>,
+      pub absent: Vec<ExternalId>,
+      pub indeterminate: Vec<ExternalId>,
+  }
+
+  #[derive(Debug, Clone, PartialEq, Eq)]
   pub enum TrackerError {
       Retryable { detail: String },
       Terminal { detail: String },
@@ -113,28 +122,73 @@ to reach and easy to hold stable once reached.
       fn show(&self, id: &ExternalId)
           -> Result<RemoteIssue, TrackerError>;
 
-      fn fetch_all(&self)
-          -> Result<Vec<(ExternalId, RemoteIssue)>, TrackerError>;
+      fn fetch_all(&self, ids: &[ExternalId])
+          -> Result<FetchOutcome, TrackerError>;
   }
   ```
 
-  This block is the whole of the freeze: five public items, their fields,
-  variants, derives, inherent methods and method signatures. `Display` and
-  `Error` on `TrackerError` are the sole permitted impls with bodies —
-  without them the type is not usable as an error — and they are named
-  here so the no-logic rule below has an unambiguous edge.
+  This block is the whole of the freeze: six public items, their fields,
+  variants, derives, inherent methods, method signatures and trait impls.
+  Three impls carry bodies and no others may: `Display` and `Error` on
+  `TrackerError` — without them the type is not usable as an error — and
+  `Display` on `ExternalId`, which keeps `as_str()` out of every format
+  site in both consumers. They are named here so the no-logic rule below
+  has an unambiguous edge.
+
+  `const` on the two `new` constructors is expected rather than settled:
+  nursery's `missing_const_for_fn` under `warnings = "deny"` should reject
+  the plain form, but the lint has historically not fired on a parameter
+  carrying a `Drop` impl, which `String` does. Confirm before
+  implementation; if it does not fire, drop `const` from both rather than
+  keeping a forward commitment nothing compels.
 
   `ExternalId` holds the same value the local work item carries in its
   `external_id` frontmatter field. The port takes it as opaque: it does
   not parse, validate or interpret the string.
 
-  The four operations mirror the three bash bridge scripts:
+  The four operations mirror the bash bridge scripts:
   `create` is `work-item-create-remote.sh`; `update` is
   `work-item-update-remote.sh` and is a whole-content replace returning
-  nothing on success; `show` and `fetch_all` are the single-item and bulk
-  modes of `work-item-fetch-remote.sh`. `fetch_all` pairs each issue with
-  its `ExternalId` because the bulk mode has no other way to associate a
-  record with a local work item.
+  nothing on success; `show` and `fetch_all` are the single-item and
+  key-scoped bulk modes of `work-item-fetch-remote.sh`. That script's
+  third mode — the unkeyed discovery `search` — has no port operation
+  and is deliberately left above the port; 0171 owns its fate at
+  cutover.
+  `fetch_all` pairs each stamp with its `ExternalId` because the bulk mode
+  has no other way to associate a record with a local work item. It is
+  key-scoped and returns a partition rather than a flat list, because the
+  bash bulk mode is both — see the `FetchOutcome` requirement below.
+- Define `FetchOutcome` as a total three-way partition over the ids
+  passed to `fetch_all`: every distinct requested id appears in exactly
+  one of `found`, `absent` and `indeterminate`. Duplicates in the request
+  are ignored, an empty request yields an empty outcome, and the three
+  vectors are unordered — callers index rather than zip.
+
+  `found` carries a `RemoteTimestamp`, not a `RemoteIssue`. Bulk
+  retrieval establishes *whether* an issue changed; `show` fetches the
+  body for the minority that did. No provider's bulk query returns a
+  projected body — Linear's selection set has no `description` field at
+  all — so a `RemoteIssue` here could only ever be filled with a
+  fabricated one, and a fabricated body reclassifies every synced item.
+  An issue the tracker returns without a timestamp still belongs in
+  `found`, paired with an empty `RemoteTimestamp`; dropping it would make
+  a live issue read as absent.
+
+  `absent` carries the weight. An
+  id belongs there only when the retrieval was provably complete; a
+  truncated page, an exhausted rate limit or a partial failure puts its
+  unseen ids in `indeterminate` instead, and an implementation that
+  cannot tell the two apart must report every unseen id as
+  indeterminate. A partial retrieval is therefore an `Ok` whose unproven
+  ids are indeterminate, never an `Err`. This mirrors
+  `work-item-fetch-remote.sh`, whose own contract states that absent is
+  only ever drawn from a complete fetch, and whose consumer
+  `work-item-sync-classify.sh` routes the two classes to different
+  user-visible states. A flat `Vec` would force the caller to compute
+  absence as requested minus returned, which is exactly the unsound
+  inference the bash path exists to avoid — and the risk is not
+  hypothetical: Linear's bulk path caps at 250 issues team-wide against
+  roughly 180 synced items today.
 - Keep the trait synchronous, taking `&self`, and dyn-compatible. 0194
   selects the active client at its composition root from the
   `work.integration` config key, which needs `Box<dyn RemoteTracker>`;
@@ -147,7 +201,23 @@ to reach and easy to hold stable once reached.
   change for consumers, which is the opposite of what `#[non_exhaustive]`
   provides. The two classes are retryable, meaning no remote mutation
   provably occurred and the call is safe to repeat; and terminal, meaning
-  the remote mutation state is unknown or the failure is permanent. They
+  the remote mutation state is unknown or the failure is permanent. The
+  rule is asymmetric and the asymmetry must reach the doc comment:
+  retryable requires provable absence of a remote *change* — not of
+  transmission — and everything unproven is terminal. The distinction is
+  load-bearing. `work-item-bridge-codes.sh:9` scopes code 70 to "failure
+  provably BEFORE any remote mutation", and the Jira retryable set
+  includes 4xx rejects, auth failures and rate limits that plainly
+  reached the tracker and were refused. A transmission-based reading
+  would reclassify all of those as terminal, so the sync would refuse to
+  retry calls that provably changed nothing.
+
+  Classification is therefore operation-scoped rather than a property of
+  the wire condition, and the per-operation mapping tables are
+  authoritative where they are more conservative than the rule. Every
+  bash bridge closes with a catch-all
+  `*) return "$E_DISPATCH_TERMINAL"`. That conservative default is the
+  part a client author will otherwise get wrong. The two classes
   correspond one-for-one to `E_DISPATCH_RETRYABLE` and
   `E_DISPATCH_TERMINAL` as defined in `work-item-bridge-codes.sh`, which
   remains authoritative until 0171 retires it. Both consumers need the
@@ -155,12 +225,20 @@ to reach and easy to hold stable once reached.
   outcome, and 0171's clients are what raise it. A port whose error
   cannot express it forces every consumer to reconstruct it from the
   provider detail the port exists to hide.
-- Commit a parity fixture enumerating `work-item-bridge-codes.sh`'s two
-  dispatch codes, and a test asserting the 1:1 mapping onto
-  `TrackerError`'s classes that fails if either side gains, loses or
-  renames one. This is the artefact 0171's criterion to delete the script
-  "and its parity fixture" refers to, so it is owned here rather than
-  left to 0194.
+- Commit a parity fixture enumerating all four of
+  `work-item-bridge-codes.sh`'s dispatch codes, and a test asserting that
+  exactly two of them map 1:1 onto `TrackerError`'s classes. It must fail
+  if either side gains, loses or renames a code. Four rather than two:
+  the script defines `E_DISPATCH_NOT_AVAILABLE` (72) and
+  `E_DISPATCH_UNRECOGNISED` (73) alongside the retryable and terminal
+  pair, and a fixture holding only two cannot fail when the script gains
+  a fifth — which is the property this criterion exists to give. The two
+  extra codes are dispatch-routing outcomes that resolve above the port,
+  at the composition root selecting the client from `work.integration`:
+  if the config names an unbuilt tracker there is no `RemoteTracker` to
+  call. The fixture records that reasoning. This is the artefact 0171's
+  criterion to delete the script "and its parity fixture" refers to, so
+  it is owned here rather than left to 0194.
 - Define `RemoteTimestamp` as an opaque newtype over `String` holding the
   tracker's own last-modified stamp verbatim, compared by equality and
   never parsed or ordered — hence no `PartialOrd`/`Ord` derive and no
@@ -170,12 +248,19 @@ to reach and easy to hold stable once reached.
   items whose baselines the bash sync path already wrote classifying as
   `synced` after the port lands; a lossy conversion at that boundary
   silently reclassifies them.
-- Capture a `remote_updated_at` string from a bash-written
-  `last-sync.json` and commit it under `tracker/tests/fixtures/` as this
-  item's own round-trip input. It is a single opaque string, so capturing
-  it needs no tracker credentials and no tenant — this item stays
-  genuinely unblocked and does not wait on the baseline corpus 0194
-  commits.
+- Commit one real `remote_updated_at` string per provider under
+  `tracker/tests/fixtures/` as this item's own round-trip input. Both
+  formats, not one: the providers emit incompatible shapes — Linear
+  `2026-06-21T00:06:10.647Z` and Jira `2026-07-09T08:00:00.000+0000`,
+  whose numeric offset carries no colon — and a fixture holding only the
+  Linear form leaves the shape a date-library round-trip would silently
+  rewrite untested. Take the Linear value from the tracked bash-written
+  baseline at `.accelerator/state/integrations/linear/last-sync.json` and
+  the Jira value from the integration test fixtures under
+  `skills/integrations/jira/scripts/test-fixtures/`. These are opaque
+  strings, so capturing them needs no tracker credentials and no tenant —
+  this item stays genuinely unblocked and does not wait on the baseline
+  corpus 0194 commits.
 - Specify `RemoteIssue.body` as the already-projected domain body, not
   raw tracker JSON — the output of the projection recipe
   `work-item-project-remote.sh` defines. Projection sits behind the port,
@@ -195,12 +280,20 @@ to reach and easy to hold stable once reached.
   expressible in `&str`, `String`, `Vec` and the crate's own types, so
   the invariant is achievable — and it must be enforced, not assumed.
 - Add the cargo-pup whole-crate `RestrictImports` rule to `pup.ron`,
-  matching the shape used for `config`, `corpus`, `vcs` and `work` and
-  permitting only `std`/`core`/`alloc`, `kernel::Error` and `crate`. The
-  `kernel::Error` allowance is inherited from that shared rule shape and
-  is headroom, not a used edge: `TrackerError` is crate-local, so
-  `tracker` takes no crate dependency at all and its `Cargo.toml`
-  dependency list is empty.
+  matching the shape used for `config`, `corpus`, `vcs` and `work` but
+  permitting only `std`/`core`/`alloc` and `crate`. Those four siblings
+  also permit `kernel::Error`; `tracker` drops that line because it
+  declares no dependencies at all, so `use kernel::Error;` could not
+  compile and the allowance would misdescribe the crate. `TrackerError`
+  is crate-local, which is what makes the empty dependency list possible.
+- Prove the rule rather than assert it. Commit a probe pair in
+  `tests/integration/pup/test_import_rule.py` that drives the shipped
+  `cli/pup.ron` against a synthetic workspace whose crates are literally
+  named `tracker` and `work` — a violation case importing a `work` type,
+  and a compliant positive control — matching the pattern the `config`
+  rule already uses. There is no coverage guard for `pup.ron`, so a rule
+  that is deleted or mistyped is otherwise silent; an automated probe is
+  also re-runnable, where a one-off manual demonstration is not.
 - Ship no logic and no adapter. `tracker` is deliberately the workspace's
   first domain crate without a matching `-adapters` sibling: the sync
   state machine lives in `work`/`work-adapters` (0194) and the provider
@@ -222,20 +315,39 @@ to reach and easy to hold stable once reached.
 ## Acceptance Criteria
 
 - [ ] The `tracker` crate exists in the `cli/` workspace and compiles.
-      `tracker/src/lib.rs` declares exactly five `pub` items —
-      `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp` and
-      `TrackerError` — each carrying only the derives, fields, variants
-      and inherent methods given in the Requirements block, and nothing
-      else. A `cargo public-api` snapshot committed under `tracker/tests/`
-      fails on any addition, removal or change.
+      `tracker/src/lib.rs` declares exactly six `pub` items —
+      `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp`,
+      `FetchOutcome` and `TrackerError` — each carrying only the derives,
+      fields, variants, inherent methods and trait impls given in the
+      Requirements block, and nothing else. `cargo public-api` pins that
+      surface against a committed snapshot at
+      `cli/tracker/tests/fixtures/public-api.txt`, checked by
+      `mise run public-api:check` and regenerated by
+      `mise run public-api:update`. It reads rustdoc JSON, so the pin is
+      immune to source formatting and catches a derive semantically, as
+      the impls it generates. The tool reuses the pinned nightly the
+      cargo-pup lane already provisions; it needs no new toolchain.
+      The snapshot's contract half — declarations, fields, variants,
+      signatures and `impl <Trait> for <Type>` lines — is hand-written
+      from the Requirements block before `src/lib.rs` exists, so it
+      starts red; the derive-generated method lines, whose names the
+      expansion chooses, are captured once.
 - [ ] The four trait methods match the signatures in the Requirements
       block exactly, including `fetch_all`'s
-      `Result<Vec<(ExternalId, RemoteIssue)>, TrackerError>` — verified by
-      an integration test in `tracker/tests/` that implements
-      `RemoteTracker` and therefore stops compiling if any signature
-      changes. `RemoteTracker` declares exactly four methods, none with a
-      default body, so a fifth operation cannot be added additively
-      without failing the public-API snapshot.
+      `(&self, ids: &[ExternalId]) -> Result<FetchOutcome, TrackerError>`
+      — verified by an integration test in `tracker/tests/` that
+      implements `RemoteTracker` and therefore stops compiling if any
+      signature changes. `RemoteTracker` declares exactly four methods,
+      so a fifth operation cannot be added additively without failing the
+      public-API snapshot. None of the four carries a default body —
+      confirm whether the snapshot distinguishes a provided from a
+      required trait method, and if it does not, record that clause as
+      unguarded rather than assuming it is covered.
+- [ ] A test proves `fetch_all`'s partition is total and that an
+      incomplete retrieval never reads as absence: given a fake that
+      cannot account for one requested id, every requested id appears in
+      exactly one of `found`, `absent` and `indeterminate`, and the
+      unaccounted id lands in `indeterminate` with `absent` empty.
 - [ ] A test constructs `Box<dyn RemoteTracker>` from the fake and invokes
       all four operations through it, so the trait is object-safe and
       usable from 0194's composition root. Making the trait async or
@@ -245,14 +357,21 @@ to reach and easy to hold stable once reached.
       `tracker/tests/` whose match over it has no wildcard arm and routes
       each class to a distinct outcome. Adding a third class is therefore
       a compile-breaking change for every consumer.
-- [ ] A committed fixture under `tracker/tests/fixtures/` enumerates
-      `work-item-bridge-codes.sh`'s `E_DISPATCH_RETRYABLE` and
-      `E_DISPATCH_TERMINAL`, and a test asserts a 1:1 mapping onto
-      `TrackerError`'s two classes, failing if either side gains, loses or
-      renames a class.
-- [ ] `RemoteIssue.updated` is a `RemoteTimestamp`; a test round-trips the
-      `remote_updated_at` value committed under `tracker/tests/fixtures/`
-      through the field and back out byte-identically; and
+- [ ] A committed fixture under `tracker/tests/fixtures/` enumerates all
+      four of `work-item-bridge-codes.sh`'s dispatch codes and records
+      which of them resolve above the port. One test reads the script
+      itself and fails if the two sides disagree; a second asserts that
+      exactly two codes map 1:1 onto `TrackerError`'s classes. Adding,
+      removing or renaming a code on either side fails the build.
+- [ ] `RemoteIssue.updated` is a `RemoteTimestamp`; a test round-trips
+      every `remote_updated_at` value committed under
+      `tracker/tests/fixtures/` through the field and back out
+      byte-identically. The fixture holds one real stamp per provider —
+      Linear's `Z`-suffixed form and Jira's numeric-offset
+      `+0000` form — because a single-format fixture leaves the shape most
+      at risk of a lossy conversion untested. The empty string is covered
+      too: it is what the sync path stores when a post-push read fails, so
+      `new` must not validate. And
       `RemoteTimestamp` derives no `PartialOrd`/`Ord` and exposes no
       parsing or conversion method beyond `new` and `as_str`, so two
       values differing only in whitespace compare unequal.
@@ -262,21 +381,35 @@ to reach and easy to hold stable once reached.
       client's obligation — giving 0171's projection-fidelity criterion a
       referent in the contract rather than only in its own text.
 - [ ] `tracker` does not depend on `work`, enforced mechanically rather
-      than by review: its `Cargo.toml` declares no dependencies at all,
-      and the cargo-pup `RestrictImports` rule in `pup.ron` permits only
-      `std`/`core`/`alloc`, `kernel::Error` and `crate`. Enforcement is
-      demonstrated, not asserted: a scratch edit importing a `work` type
-      is shown to fail `mise run pup:check` — the nightly lane that runs
-      cargo-pup, which `cli:check` does not.
+      than by review: its `Cargo.toml` declares neither a
+      `[dependencies]` nor a `[dev-dependencies]` table, and the cargo-pup
+      `RestrictImports` rule in `pup.ron` permits only
+      `std`/`core`/`alloc` and `crate`. Enforcement is demonstrated, not
+      asserted, and by an automated probe pair rather than a one-off: a
+      synthetic crate named `tracker` importing one named `work` fails the
+      shipped rule by name, and a compliant control — carrying real
+      `std::` and `crate::` imports, so a green run means "evaluated and
+      allowed" rather than "nothing was imported" — passes. Deleting the
+      rule from `pup.ron`, or corrupting either permit anchor, makes the
+      pair fail. The pair runs under `mise run test:integration:pup`, not
+      `mise run pup:check`: the latter is a different task that checks
+      the real workspace positively and cannot demonstrate the rule's
+      discriminating power. Both sit on the `check-architecture` CI job,
+      which `cli:check` does not cover.
 - [ ] The crate carries no behavioural logic: `tracker/src/` contains no
       `#[cfg(test)]` module and no function body other than the four
-      inherent methods and the `Display`/`Error` impls named in
-      Requirements, and the workspace manifest lists no
-      `tracker-adapters` member.
-- [ ] `mise run cli:check`, `mise run pup:check` and `mise run deny:check`
-      all pass with the new crate registered, and the `tracker/tests/`
-      fixtures are built and run by the workspace's `cargo nextest run`
-      invocation rather than being excluded from it.
+      inherent methods, the two `Display` impls and the `Error` impl
+      named in Requirements, and the workspace manifest lists no
+      `tracker-adapters` member. The first and third are checked by
+      `tracker/tests/structure.rs`, which also asserts the absent
+      dependency tables of the criterion above — none of them is visible
+      to rustdoc JSON, so the public-API snapshot cannot see them. The
+      no-extra-function-body half stays a manual read.
+- [ ] `mise run cli:check`, `mise run pup:check`, `mise run deny:check`
+      and `mise run public-api:check` all pass with the new crate
+      registered, and the `tracker/tests/` fixtures are built and run by
+      the workspace's `cargo nextest run` invocation rather than being
+      excluded from it.
 
 ## Open Questions
 
@@ -344,6 +477,15 @@ via a pending-push marker, and the port stays at four operations.
   idempotency — is decided against the port: 0194 resolves it locally
   with a pending-push marker. If some later need does emerge, it is
   additive and lands as a new item, not as a reopening of this one.
+- Several bash-bridge capabilities are deliberately left above the port
+  rather than ported: the unkeyed discovery `search` mode, the create
+  bridge's `--dry-run` field-resolution preview, the update bridge's
+  `--dry-run` payload validation (what `/sync-work-items --preview` uses
+  today), the identifier-safety check that keeps a malformed remote key
+  out of YAML frontmatter, per-call timeouts, and the pagination cap.
+  Each is a client or caller obligation, not a port operation. 0171 owns
+  deciding, at cutover, whether each is re-sited, dropped or carried as
+  an additive item — see its Requirements.
 
 ## Technical Notes
 
@@ -357,10 +499,12 @@ via a pending-push marker, and the port stays at four operations.
   home for adapter code `work-adapters` already hosts.
 - Of the registration checklist 0187 added at
   `tasks/README.md#registering-a-dispatched-sub-binary`, only the steps
-  that apply to a plain library crate are in scope: workspace membership
-  and cargo-deny/cargo-pup coverage. This crate has no dispatch token, no
-  binary and no launcher wiring, so the dispatch-specific steps do not
-  apply.
+  that apply to a plain library crate are in scope: workspace membership,
+  cargo-deny/cargo-pup coverage, and — new with this item — a public-API
+  snapshot. This crate has no dispatch token, no binary and no launcher
+  wiring, so the dispatch-specific steps do not apply. The library-crate
+  steps are being written up as their own `## Registering a library
+  crate` section, with `cli/tracker/` as the worked example.
 - The fake is deliberately built twice — a private one here, a shared
   reusable one in 0194. Shipping the shared fake from `tracker` would
   either put test-support code in a crate whose emptiness is
@@ -368,6 +512,33 @@ via a pending-push marker, and the port stays at four operations.
   consumer this item exists to avoid. The duplication is a four-method
   stub against a signature that cannot drift, so it costs less than the
   coupling would.
+- One constraint the port cannot resolve passes to 0171 with the unblock:
+  `cli/work-adapters/src/project_remote.rs` already implements the
+  projection recipe in Rust, but it sits behind a `work` dependency and
+  projects the `show` payload shape rather than the bulk one, so no
+  client can reuse it as it stands. This item does not move it; 0171 owns
+  the answer.
+
+  A second constraint has been retired. Linear's bulk GraphQL selection
+  set (`linear-search-flow.sh:157-165`) requests no `description` field,
+  which would have made `RemoteIssue.body` unobtainable from its bulk
+  query — but `FetchOutcome.found` now carries a `RemoteTimestamp`, which
+  `updatedAt` already supplies, so no client needs to widen the query or
+  meet Linear's complexity cap.
+- One trap for a client author: Linear code 34 is retryable on `create`
+  but terminal on `update` (`work-item-update-remote.sh:59-65`). The same
+  wire condition maps to two classes depending on the operation, so a
+  single status-to-class table is wrong. Nor are the two operations'
+  provable sets nested in either direction — Linear codes 18, 23, 25, 27
+  and 29 run the other way, retryable on `update` and terminal on
+  `create` — so each must be derived from its own table. `TrackerError`'s
+  two classes are operation-agnostic, but their *application* is not, and
+  the doc comments say so.
+- The house recipe puts one `Display` test per arm in an inline
+  `#[cfg(test)] mod tests` (`cli/corpus/src/store.rs:81-148`), which the
+  no-logic criterion forbids here. `Display` is public surface, so those
+  tests move to `tracker/tests/` unchanged. The deviation is deliberate,
+  not an oversight.
 
 ## Drafting Notes
 
@@ -416,10 +587,52 @@ via a pending-push marker, and the port stays at four operations.
   methods included. And enforcement was attributed to `cli:check`, which
   runs workspace rustfmt and clippy only — cargo-pup lives on the
   separate nightly `pup:check` lane, so the criteria now name it.
+- Planning on 2026-08-11
+  (`meta/plans/2026-08-11-0204-remote-tracker-port.md`, backed by
+  `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`)
+  reopened the frozen block across three passes, deliberately and before
+  either consumer began. Eight changes in total, each cheap now and
+  expensive after acceptance. `fetch_all` could not express "the fetch
+  was incomplete", so it gains `FetchOutcome` and an `ids` parameter and
+  the surface
+  becomes six items — the only one of the four that could have made the
+  port give a wrong answer, and live rather than theoretical because
+  Linear truncates at 250 against roughly 180 synced items. AC 1 named
+  `cargo public-api`, which is absent from this repository and would be
+  its third Rust toolchain — the same criterion had been written into
+  three work items without the tooling ever landing — so a self-reading
+  surface golden replaces it. The pup rule's `kernel::Error` allowance is
+  dropped as inert. And the parity fixture holds all four dispatch codes
+  rather than two, because the script defines four and a two-code fixture
+  cannot fail when a fifth arrives.
+
+  Four more followed from plan review (five passes, verdict APPROVE on
+  2026-08-11, `meta/reviews/plans/2026-08-11-0204-remote-tracker-port-review-1.md`).
+  `FetchOutcome.found` carries a `RemoteTimestamp` rather than a
+  `RemoteIssue`: no provider's bulk query returns a projected body, so
+  the original shape could only have been satisfied by fabricating one,
+  which would reclassify every synced item. `TrackerError` gains
+  `Clone, PartialEq, Eq` and `ExternalId` gains `Hash` and `Display` —
+  every sibling error type in the workspace derives the first set, no
+  consumer could `assert_eq!` over a `Result` without it, and 0194 joins
+  on `ExternalId` every sync run. Both `new` constructors become
+  `const fn`, pending the lint check recorded in Requirements. And AC 1's
+  self-reading golden becomes a `cargo public-api` snapshot: the
+  hand-rolled parser failed three review passes on four distinct source
+  shapes, because a contract pinned by line-shape heuristics over text
+  cannot be verified by reading it. The tool reads rustdoc JSON and needs
+  no new toolchain — the earlier objection that it would mean a third was
+  wrong twice over, since the nightly already exists and cargo-public-api
+  has no `rustc_private` driver to build against it.
+
+  The freeze protocol itself is unchanged, and applies from this revision
+  onward.
 
 ## References
 
 - Source: `meta/research/codebase/2026-06-28-0136-rust-cli-migration-scope-and-architecture.md`
+- Implementation research: `meta/research/codebase/2026-08-11-0204-remote-tracker-port.md`
+- Plan: `meta/plans/2026-08-11-0204-remote-tracker-port.md`
 - Parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
 - Split from: `meta/work/0194-tracker-crate-and-remote-sync-engine.md`
 - ADRs: ADR-0045, ADR-0052, ADR-0053

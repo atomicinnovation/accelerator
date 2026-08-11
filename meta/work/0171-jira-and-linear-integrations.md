@@ -13,7 +13,7 @@ blocked_by: ["work-item:0187", "work-item:0204", "work-item:0194"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0194", "work-item:0174"]
 tags: [rust, jira, linear, integrations, reqwest, sync]
-last_updated: "2026-08-10T16:04:28+00:00"
+last_updated: "2026-08-12T00:25:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-192"
@@ -63,14 +63,66 @@ granularity is wanted.
 - Run 0194's shared `RemoteTracker` contract test — the harness it delivers,
   parameterised over implementations — against both real clients under the
   tagged, network-touching filter, so the fake 0194 verified against and the
-  real clients are held to one contract.
+  real clients are held to one contract. That harness asserts
+  `fetch_all`'s partition totality and the read-never-`Terminal` rule as
+  well as the create/update round trips; both are port obligations no
+  test in `tracker` can hold.
+- Port **four** exit-code mapping tables, not two, and derive each
+  operation's classification from its own: `_wicr_map_jira` and
+  `_wiur_map_jira` for Jira, `_wiur_map_linear` and
+  `_linear_map_no_file_failure` (inside `linear-create-flow.sh`) for
+  Linear. The two operations' provable sets are **not nested in either
+  direction** — Linear code 34 is retryable on `create` and terminal on
+  `update`, while codes 18, 23, 25, 27 and 29 run the other way — so a
+  single status-to-class table is wrong in both directions.
+
+  The tables are deliberately more conservative than the rule they
+  encode: several codes are provably pre-transmission yet mapped
+  terminal. Where the two disagree, **the tables win** — port them rather
+  than reasoning from `TrackerError`'s doc comment and arriving somewhere
+  more precise.
+- Carry over the identifier-safety check the create bridge performs
+  (`work-item-create-remote.sh:62-87,238-246`): reject a returned
+  identifier carrying control characters, a newline, or a leading `---`
+  or `#`, because the value is written unquoted into a work item's YAML
+  frontmatter. It is the one tracker-agnostic check the dispatcher does,
+  and the dispatcher dissolves at the port — `ExternalId::new` is
+  infallible by freeze, so the type cannot carry it. An unsafe identifier
+  is a `Terminal` failure, not an `Ok`.
+- Bound the port's calls from inside. `RemoteTracker` is synchronous with
+  no deadline or cancellation, so the per-request timeouts the bridges
+  carry today (`curl --max-time 30` for Jira, `--max-time 60` for the
+  Linear flows) and the `_WIFR_PAGE_CAP=20` pagination backstop must be
+  reproduced behind the seam. A caller has no way to add them, and
+  `/list-work-items` relies on the read path not hanging.
+- Decide the fate of four bridge capabilities that have **no port
+  operation**, each deliberately left above the port by 0204 rather than
+  overlooked. For each: re-site it above the port, drop it, or carry it
+  as an additive port item.
+  - The unkeyed discovery `search` mode of `work-item-fetch-remote.sh` —
+    used by `/sync-work-items` to list remote issues with no local work
+    item. `fetch_all(ids)` is key-scoped and cannot express it.
+  - The create bridge's `--dry-run` field-resolution preview, which
+    surfaces an unresolvable Jira project *before* the confirm gate.
+  - The update bridge's `--dry-run` payload validation, which is what
+    `/sync-work-items --preview` uses to validate every push against the
+    live tracker today. 0194's `--preview` routes mutations to no-ops and
+    makes no port call, so it does not discharge this.
+  - Dropping any of them silently is a user-visible regression at
+    cutover.
 - Reproduce the existing per-provider projection recipes exactly (jira —
   summary line then the description in Atlassian Document Format through
   key-sorted `jq -S`; linear — title line then Markdown description
   verbatim), verified against the bash-generated baseline corpus 0194
-  commits under `test-fixtures/`. A projected body differing by even
-  whitespace reclassifies every synced item as `remotely-modified` on the
-  first run after the cutover.
+  commits under `test-fixtures/`. Title line, then description, with **no
+  blank line between them** and a trailing newline. The value returned is
+  the *un-normalised* projection; the caller normalises before hashing.
+
+  The case a JSON deserialiser will get wrong: an **absent** description
+  projects as the literal token `null` for Jira (`jq -cS '… // null'`)
+  and as an empty line for Linear (`// ""`). Neither is what `serde` would
+  naturally produce, and either wrong choice reclassifies every such item
+  as `remotely-modified` on the first run after cutover.
 - **Perform the work-item cutover**, which 0194 deliberately left undone because
   the flows cannot resolve a real tracker until these clients exist. In one
   change: remove `work-item-sync-{apply,baseline,classify,decide}.sh`,
@@ -105,6 +157,16 @@ granularity is wanted.
       skills; their `allowed-tools` entries are removed.
 - [ ] The integration suite floor is decremented in lockstep as the shell scripts
       are removed.
+- [ ] Each of the four bridge capabilities with no port operation — unkeyed
+      `search`, both `--dry-run` modes, and the identifier-safety check — is
+      re-sited, dropped or carried forward as a recorded decision, and none
+      is lost silently at cutover.
+- [ ] The doc comments in `tracker` that name bash artefacts are updated in
+      the same change that deletes them: `RemoteIssue.body`'s projection
+      reference, `errors.rs`'s module doc, `show`'s `# Errors` note about
+      the read bridge, and `RemoteTimestamp`'s note about the bash-written
+      baseline. The contracts they state outlive the scripts; the
+      references do not.
 - [ ] 0194's shared `RemoteTracker` contract test passes against both real
       clients under the tagged filter, asserting round-trip `create` → `show`
       and whole-content `update` → `show`; the default
@@ -138,7 +200,7 @@ granularity is wanted.
 
 - Blocked by: 0166 (shared crates), and 0204 (the `RemoteTracker` port) —
   split out of 0194 on 2026-08-10 precisely so the client crates wait on a
-  trait, three value types and an error type rather than on a whole sync
+  trait, four value types and an error type rather than on a whole sync
   engine. 0204 freezes that signature at its acceptance, so the clients
   build against a contract that will not move. The client work needs
   nothing else from 0194.

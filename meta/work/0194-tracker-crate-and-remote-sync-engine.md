@@ -13,7 +13,7 @@ derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-a
 relates_to: ["work-item:0170", "work-item:0174"]
 blocked_by: ["work-item:0204"]
 tags: [rust, work-items, sync, tracker]
-last_updated: "2026-08-10T16:04:28+00:00"
+last_updated: "2026-08-12T00:20:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -96,10 +96,22 @@ and the per-tracker projection seam. See Drafting Notes.
 - Site the sync state machine in the existing `work` / `work-adapters`
   pair rather than in `tracker`: classify and decide are pure functions
   over hashes and enums that reason about work-item state, so they belong
-  in the `work` domain crate and satisfy its existing import rule without
-  widening it; apply and baseline touch `store`, which no domain crate
-  may import, so they belong in `work-adapters` alongside the client
-  adapters.
+  in the `work` domain crate; apply and baseline touch `store`, which no
+  domain crate may import, so they belong in `work-adapters` alongside
+  the client adapters.
+
+  **One boundary question is open and must be decided before classify is
+  written.** The classifier takes a pre-fetched remote record, which is a
+  `tracker` type — but `work_domain_imports_only_permitted`
+  (`cli/pup.ron`) permits only `std`/`core`/`alloc`, `kernel::Error`,
+  `corpus` and `crate`, so `work` cannot import `tracker` as it stands.
+  Either widen that rule with `^tracker(::|$)`, justified as a port-crate
+  allowance and probed like its siblings, or have `work-adapters`
+  translate `RemoteTimestamp`/`RemoteIssue` into work-domain values at
+  the boundary and keep `work` unwidened. Decide deliberately: this will
+  otherwise surface as a red `pup:check` mid-implementation, where the
+  cheapest fix is the one that erodes the boundary `tracker` exists to
+  draw.
 - Place per-tracker projection **behind** the port: adapters return an
   already-projected `RemoteIssue { updated, body }` in domain terms rather
   than raw tracker JSON. This is what makes the no-provider-types
@@ -107,9 +119,12 @@ and the per-tracker projection seam. See Drafting Notes.
   anti-drift property `work-item-project-remote.sh` currently holds by
   convention — that the path writing a `remote_hash` and the path later
   reading it use one recipe. `work-adapters/src/project_remote.rs`
-  already implements this projection and already sites it in the adapter
-  layer for the same reason; this story wires it to the port and to the
-  sync flow, which today still shells out to the bash script.
+  implements the projection in Rust, but **this story does not wire it to
+  the port**: it sits behind a `work` dependency, so a 0171 client
+  reusing it would acquire the whole lifecycle domain, and it projects
+  the `show` payload shape rather than the bulk one. Each provider client
+  owns reproducing its own recipe (0171); this story consumes the
+  already-projected `RemoteIssue` the port returns.
 - Implement the classifier over the full **seven**-keyword vocabulary:
   `synced`, `unsynced`, `locally-modified`, `remotely-modified`,
   `conflict`, `remote-absent`, `indeterminate`. Five carry a label
@@ -117,8 +132,15 @@ and the per-tracker projection seam. See Drafting Notes.
   are deliberately caller-handled — the listing shows only whether an
   `external_id` is present, without judging sync state, and `sync` skips
   the item. The classifier never fetches — the caller hands it a
-  pre-fetched remote record and owns the choice between one bulk
-  `fetch_all()` and per-item `show()` calls.
+  pre-fetched remote record.
+
+  That read is now **two tiers of one operation**, not a choice between
+  two. `fetch_all()` returns stamps only (`FetchOutcome.found` pairs an
+  `ExternalId` with a `RemoteTimestamp`), because no provider's bulk
+  query carries a projected body; the caller compares each stamp against
+  the baseline and then calls `show()` for the minority whose stamp
+  moved. A per-item mode that calls `show()` for everything remains
+  available, but bulk mode is bulk-then-`show`, not bulk-instead-of.
 - Implement the decision table over its three inputs — (mode × state ×
   local-dirty) → `push | pull | skip-conflict | skip-dirty | prompt |
   noop` — preserving every forbidden-write cell: a conflict or
@@ -376,9 +398,11 @@ and the per-tracker projection seam. See Drafting Notes.
       the classification-stability check below survives 0171's removal of
       its generator.
 - [ ] Given a sync over N items in bulk mode, then the fake tracker
-      records exactly one `fetch_all` call and zero `show` calls; given
-      per-item mode, exactly N `show` calls and no `fetch_all` — so the
-      classifier is shown never to fetch on its own behalf.
+      records exactly one `fetch_all` call and at most one `show` call
+      per item whose stamp differs from its baseline — zero when nothing
+      changed; given per-item mode, exactly N `show` calls and no
+      `fetch_all`. Either way the classifier itself records no calls, so
+      it is shown never to fetch on its own behalf.
 - [ ] `work-item-sync-label.sh` and its Rust port are both asserted
       against a new `test-fixtures/work-item-sync-label.golden` covering
       each of the seven classified states, and `work-item-normalise.sh`
@@ -390,16 +414,26 @@ and the per-tracker projection seam. See Drafting Notes.
       excluded from the default `cargo test`/`cargo nextest run`
       invocation. This story delivers the harness — a shared
       `RemoteTracker` contract test parameterised over implementations,
-      asserting round-trip `create` → `show` and whole-content `update` →
-      `show` — and passes it against the fake. Running it against each real
-      client is 0171's criterion, not this one's.
+      asserting round-trip `create` → `show`, whole-content `update` →
+      `show`, and two properties the port documents but cannot enforce:
+      that `fetch_all`'s partition is total over the requested ids, with
+      an unaccounted id landing in `indeterminate` rather than `absent`;
+      and that a failing read yields `Retryable`, never `Terminal`. Both
+      are obligations on every client that no test in `tracker` can hold
+      — 0204 hands them here explicitly, and
+      `tracker/tests/port.rs::partitions_totally` is the shape to lift.
+      This story passes the harness against the fake; running it against
+      each real client is 0171's criterion, not this one's.
 - [ ] Projection lives behind the port: the fake and any adapter this
       story wires return domain `RemoteIssue` values, never raw tracker
       JSON, so no provider-shaped data reaches the state machine.
-- [ ] The sync state machine is sited per the crate boundary: classify and
-      decide live in `work` and compile under its existing unwidened
-      import rule; apply and baseline live in `work-adapters`. No `store`
-      dependency is added to any domain crate.
+- [ ] The sync state machine is sited per the crate boundary: classify
+      and decide live in `work`; apply and baseline live in
+      `work-adapters`. No `store` dependency is added to any domain
+      crate. The `work` → `tracker` edge is resolved deliberately and
+      recorded — either `work`'s import rule is widened with
+      `^tracker(::|$)` and probed like its siblings, or `work-adapters`
+      translates at the boundary and `work` stays unwidened.
 - [ ] Given `work.integration` set to `jira` and separately to `linear`,
       the composition root resolves the corresponding client; given the
       key unset or naming an unknown provider, the command fails with a
@@ -428,7 +462,7 @@ Criteria and Drafting Notes.
 ## Dependencies
 
 - Blocked by: 0204 (the `RemoteTracker` port), split out of this item on
-  2026-08-10. It is a trait, three value types (`ExternalId`,
+  2026-08-10. It is a trait, four value types (`ExternalId`,
   `RemoteIssue`, `RemoteTimestamp`), the `TrackerError` type and a lint
   rule, with no logic — so it is cheap to discharge, but the state
   machine and both `--push` flows compile against it, so it lands first.
@@ -474,6 +508,28 @@ Criteria and Drafting Notes.
   bash/Rust duplication this story leaves behind
   (`work-item-sync-label.sh`, `work-item-normalise.sh`) retires there,
   once `/list-work-items` and the two integration scripts are ported.
+- **Inherited from 0204's frozen port** (plan review, verdict APPROVE
+  2026-08-11). Four obligations the port documents but cannot enforce,
+  and which no test in `tracker` can hold:
+  - `FetchOutcome`'s totality. The type has three public `Vec` fields and
+    no validating constructor — 0204's no-logic criterion forbids one —
+    so an unsound partition is representable. The contract test above is
+    the only mechanism that will ever catch it, and 0171's clients are
+    written before it exists.
+  - The empty-`RemoteTimestamp` trap. An empty stamp means *unknown*, and
+    derived `PartialEq` reports two unknowns as equal. Comparing them and
+    concluding "unchanged" marks an item whose baseline was never written
+    as already synced — `work-item-sync-classify.sh:177` guards this with
+    `[ -n "$base_remote_updated" ] &&` before its equality short-circuit,
+    and the Rust classifier must reproduce that guard.
+  - The normalisation recipe. `RemoteIssue.body` is the *un-normalised*
+    projection; this story owns normalising before hashing, and must
+    reproduce `work-item-normalise.sh` exactly — per-line trim, trailing
+    blanks stripped, interior blank lines surviving into the hash. If the
+    two sides disagree by a byte, every synced item reclassifies.
+  - A `show` per pushed item. `create` returns only an `ExternalId` and
+    `update` returns `()`, so the post-push baseline write needs a read
+    back. This matches the bash path and is accepted, not overlooked.
 - Parent: epic 0136.
 
 ## Assumptions
@@ -651,7 +707,7 @@ Criteria and Drafting Notes.
   Phase A), not this item's full acceptance gate" — a dependency no graph
   can express, leaving 0171 to either wait for work it does not need or
   build against an unaccepted branch whose signature could still move. The
-  port is a trait, three value types, an error type and a lint rule, so
+  port is a trait, four value types, an error type and a lint rule, so
   it makes a cheap item and a milestone that is easy to hold stable once
   reached. Three defects the review found in the port survive as 0204's
   requirements rather than being carried here: `fetch_all()` had no
