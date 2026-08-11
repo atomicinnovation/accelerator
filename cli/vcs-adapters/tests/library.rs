@@ -1,11 +1,12 @@
-//! The library-backed probe against real repository shapes, alongside the
-//! subprocess pair.
+//! The library-backed probe against real repository shapes.
 //!
-//! Two properties. The boundary rule: `RepoRoot::discover` reports the start
+//! Three groups. The boundary rule: `RepoRoot::discover` reports the start
 //! path's nearest marked ancestor and never one above it, paired with the
 //! negative assertion that an unbounded `gix::discover` on the same fixture
-//! *does* escape — without which the containment claim holds vacuously. And
-//! parity with `CommandProbe` on every port method.
+//! *does* escape — without which the containment claim holds vacuously. The
+//! probe's `kind`/`repository_root` behaviour across real checkout shapes,
+//! against fixed expected values. And revision agreement with the real `jj` and
+//! `git` binaries, asked directly as oracles.
 //!
 //! These need real `jj` and `git` binaries and hard-fail when one is absent:
 //! Rust's harness has no skip primitive, so an early return would register as a
@@ -22,8 +23,6 @@ use vcs::RepoRoot;
 use vcs::VcsKind;
 use vcs::VcsProbe;
 use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::subprocess::CommandProbe;
-use vcs_adapters::subprocess::MarkerWalkRoot;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -206,48 +205,35 @@ fn the_walk_finds_the_boundary_from_a_nested_directory() -> Result<(), TestError
     Ok(())
 }
 
-// --- Parity with the subprocess pair ---
+// --- The probe against real checkout shapes ---
 
-/// Asserts the two implementations agree on every port method, both idioms
-/// included.
-///
-/// `revision` is compared unconditionally. The fixtures are built and then read
-/// with no intervening edit, so the jj working copy's recorded operation is
-/// current and the snapshot the `jj` binary takes is a no-op; the one shape
-/// where the two legitimately differ is pinned separately by
-/// `an_unsnapshotted_edit_is_the_one_documented_divergence`.
-fn assert_parity(root: &Path) {
-    let kind = InProcessProbe.kind(root);
-    assert_eq!(kind, CommandProbe::new().kind(root), "kind disagreed");
-    assert_eq!(
-        InProcessProbe.repository_root(root),
-        MarkerWalkRoot.repository_root(root),
-        "repository_root disagreed"
-    );
-    assert_eq!(
-        InProcessProbe.revision(root, kind),
-        CommandProbe::new().revision(root, kind),
-        "revision disagreed"
-    );
+fn git_revision_oracle(root: &Path) -> Result<String, TestError> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(root)
+        .output()?;
+    assert!(output.status.success(), "the git oracle failed: {output:?}");
+    Ok(String::from_utf8(output.stdout)?.trim().to_owned())
 }
 
 #[test]
-fn a_plain_git_repository_agrees_with_the_subprocess_pair(
-) -> Result<(), TestError> {
+fn a_plain_git_repository_reports_git_kind() -> Result<(), TestError> {
     require("git")?;
-    let root = git_repo_with_a_commit("parity-git")?;
+    let root = git_repo_with_a_commit("shape-git")?;
     let root = path_of(&root)?;
 
     assert_eq!(InProcessProbe.kind(&root), VcsKind::Git);
-    assert_parity(&root);
+    assert_eq!(
+        InProcessProbe.revision(&root, VcsKind::Git),
+        Some(git_revision_oracle(&root)?),
+    );
     Ok(())
 }
 
 #[test]
-fn a_commitless_repository_agrees_and_reports_no_revision(
-) -> Result<(), TestError> {
+fn a_commitless_repository_reports_no_revision() -> Result<(), TestError> {
     require("git")?;
-    let root = tempdir("parity-commitless")?;
+    let root = tempdir("shape-commitless")?;
     let root = path_of(&root)?;
     run("git", &["init", "--quiet"], &root)?;
 
@@ -256,16 +242,14 @@ fn a_commitless_repository_agrees_and_reports_no_revision(
         None,
         "a commitless repository has no revision, and that is not a failure"
     );
-    assert_parity(&root);
     Ok(())
 }
 
 #[test]
-fn a_colocated_repository_agrees_and_is_driven_as_jj() -> Result<(), TestError>
-{
+fn a_colocated_checkout_is_driven_as_jj_in_process() -> Result<(), TestError> {
     require("jj")?;
     require("git")?;
-    let root = colocated_repo("parity-colocated")?;
+    let root = colocated_repo("shape-colocated")?;
     let root = path_of(&root)?;
 
     assert_eq!(
@@ -273,7 +257,6 @@ fn a_colocated_repository_agrees_and_is_driven_as_jj() -> Result<(), TestError>
         VcsKind::Jj,
         "jj must win over git in a colocated checkout"
     );
-    assert_parity(&root);
     Ok(())
 }
 
@@ -282,9 +265,9 @@ fn a_secondary_workspace_resolves_to_the_repository_it_shares(
 ) -> Result<(), TestError> {
     require("jj")?;
     require("git")?;
-    let main = colocated_repo("parity-main")?;
+    let main = colocated_repo("shape-main")?;
     let main = path_of(&main)?;
-    let secondary_root = tempdir("parity-secondary")?;
+    let secondary_root = tempdir("shape-secondary")?;
     let secondary = path_of(&secondary_root)?.join("workspace");
     run(
         "jj",
@@ -302,7 +285,6 @@ fn a_secondary_workspace_resolves_to_the_repository_it_shares(
         "a secondary workspace resolves through the loader to its main \
          repository, not to its own working copy"
     );
-    assert_parity(&secondary);
     Ok(())
 }
 
@@ -310,17 +292,15 @@ fn a_secondary_workspace_resolves_to_the_repository_it_shares(
 fn a_main_workspace_resolves_to_itself() -> Result<(), TestError> {
     require("jj")?;
     require("git")?;
-    let root = colocated_repo("parity-main-workspace")?;
+    let root = colocated_repo("shape-main-workspace")?;
     let root = path_of(&root)?;
 
     assert_eq!(InProcessProbe.repository_root(&root), root);
-    assert_parity(&root);
     Ok(())
 }
 
 // --- The jj revision route ---
 
-/// The commit id the `jj` binary reports for `@`.
 fn jj_revision_oracle(root: &Path) -> Result<String, TestError> {
     let output = Command::new("jj")
         .args(["log", "-r", "@", "--no-graph", "-T", "commit_id"])
@@ -408,6 +388,23 @@ fn an_unreadable_checkout_state_reports_absence_rather_than_a_wrong_commit(
 }
 
 #[test]
+fn unreadable_git_ref_data_reports_absence_rather_than_a_wrong_commit(
+) -> Result<(), TestError> {
+    require("git")?;
+    let dir = git_repo_with_a_commit("revision-broken-head")?;
+    let root = path_of(&dir)?;
+
+    assert!(
+        InProcessProbe.revision(&root, VcsKind::Git).is_some(),
+        "the fixture must answer before it is broken, or this proves nothing"
+    );
+    fs::write(root.join(".git/HEAD"), b"\xff\xfe truncated")?;
+
+    assert_eq!(InProcessProbe.revision(&root, VcsKind::Git), None);
+    Ok(())
+}
+
+#[test]
 fn reading_the_revision_writes_nothing() -> Result<(), TestError> {
     require("jj")?;
     let dir = tempdir("revision-readonly")?;
@@ -455,19 +452,19 @@ fn an_unsnapshotted_edit_is_the_one_documented_divergence(
         "the in-process route must not snapshot"
     );
 
-    // The subprocess probe snapshots first, so it reports a different commit —
-    // and creates it. That write is what the in-process route removes.
-    let snapshotted = CommandProbe::new().revision(&root, VcsKind::Jj);
-    assert!(snapshotted.is_some());
+    // Asking the binary snapshots first, so it reports a different commit — and
+    // creates it. That write is what the in-process route removes.
+    let snapshotted = jj_revision_oracle(&root)?;
     assert_ne!(
-        snapshotted, recorded,
+        Some(snapshotted.clone()),
+        recorded,
         "asking the jj binary snapshots, so it should report a new commit here"
     );
 
     // The recorded state has now moved, and the two agree again.
     assert_eq!(
         InProcessProbe.revision(&root, VcsKind::Jj),
-        snapshotted,
+        Some(snapshotted),
         "after the binary snapshots, the recorded commit is the new one"
     );
     Ok(())

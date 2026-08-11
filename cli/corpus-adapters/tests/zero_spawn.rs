@@ -1,7 +1,10 @@
 //! The zero-spawn property, proven across a crate boundary.
 //!
-//! Exercised from `corpus-adapters` — the crate that will converge onto the
-//! library-backed probe — through `vcs_test_support`'s public API only.
+//! Two levels, each through its own black-box binary: the individual taxonomy
+//! queries via `vcs-adapters`' reference artefact, and the metadata-read path
+//! this crate composes out of them — `VcsBackedRepoFactsProbe` into
+//! `vcs_adapters::facts` — via this crate's own. Both idioms for the latter,
+//! since `facts` dispatches per `VcsKind`.
 //!
 //! Scoped to `git`/`jj` specifically rather than "no subprocess at all", because
 //! `SystemClock::try_new` spawns `date` unconditionally.
@@ -100,5 +103,71 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
              path: {reachable:?}"
         );
     }
+    Ok(())
+}
+
+fn derived_facts(
+    start: &Path,
+    stubs: Option<&Stubs>,
+) -> Result<String, TestError> {
+    let mut command =
+        Command::new(env!("CARGO_BIN_EXE_corpus-adapters-fixture"));
+    command.arg(start);
+    if let Some(stubs) = stubs {
+        stubs.apply(&mut command);
+    }
+    let output = command.output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "the metadata fixture failed for {}: {}",
+            start.display(),
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+/// One plain-git and one pure-jj shape, because `facts` resolves the revision
+/// through a different route per `VcsKind`. Drawn from the shared matrix rather
+/// than built here: building needs the real binaries, which the strong form has
+/// already moved out of reach by the time a test body runs.
+const IDIOMS: [&str; 2] = ["PG-r", "PJ"];
+
+#[test]
+fn the_metadata_read_resolves_both_idioms_without_spawning_them(
+) -> Result<(), TestError> {
+    let mode = Mode::from_environment()?;
+    assert_shadowing_holds(mode)?;
+
+    let (_matrix_guard, root) = fixtures::matrix_root()?;
+    let matrix = Matrix::build_or_adopt(&root)?;
+
+    let stub_base = tempfile::Builder::new()
+        .prefix("corpus-zero-spawn-metadata-")
+        .tempdir()?;
+    let stubs = Stubs::rooted_at(stub_base.path())?;
+
+    let mut mismatches = String::new();
+    for key in IDIOMS {
+        let start = matrix.start(key)?;
+        let unrestricted = derived_facts(start, None)?;
+        let stubbed = derived_facts(start, Some(&stubs))?;
+        if unrestricted != stubbed {
+            writeln!(mismatches, "  {key}: {unrestricted} != {stubbed}")?;
+        }
+    }
+
+    assert_eq!(
+        stubs.spawns()?,
+        None,
+        "a git or jj subprocess was spawned; the stub recorded it"
+    );
+    assert!(
+        mismatches.is_empty(),
+        "the facts changed when the real binaries were removed, so the \
+         metadata-read path degraded rather than reading in-process:\n\
+         {mismatches}"
+    );
     Ok(())
 }

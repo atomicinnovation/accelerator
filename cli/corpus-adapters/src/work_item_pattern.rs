@@ -1,12 +1,10 @@
 //! Compiles a work-item `id_pattern` (the token DSL) into the ERE scan regex
 //! whose first capture group is the id number run.
 //!
-//! This is a Rust port of `_wip_compile` (scan mode) in
-//! `skills/work/scripts/work-item-common.sh`; a parity test cross-checks the
-//! output against that script so the two implementations cannot drift. It lives
-//! beside [`RegexScanner`](crate::RegexScanner) — the adapter that compiles the
-//! scan-regex string this produces — so the whole `work.id_pattern` → scanner
-//! pipeline sits in the corpus adapter layer, shared by every Rust consumer.
+//! It lives beside [`RegexScanner`](crate::RegexScanner) — the adapter that
+//! compiles the scan-regex string this produces — so the whole
+//! `work.id_pattern` → scanner pipeline sits in the corpus adapter layer,
+//! shared by every Rust consumer.
 
 // DSL pattern strings such as "{project}" are literal token markers, not
 // format args.
@@ -217,9 +215,8 @@ fn compile_token(
 }
 
 /// Internal pattern compiler shared by [`compile_scan_regex`] and
-/// [`compile_format_string`]. Port of `_wip_compile`
-/// (`work-item-common.sh:43-207`), mode-driven exactly like the shell
-/// original rather than duplicating the token-walking loop per mode.
+/// [`compile_format_string`], mode-driven rather than duplicating the
+/// token-walking loop per mode.
 fn compile(
     pattern: &str,
     project_value: &str,
@@ -316,8 +313,7 @@ pub fn compile_scan_regex(
     compile(pattern, project_value, Mode::Scan)
 }
 
-/// Compile `pattern` into its `printf`-style format string. Port of
-/// `wip_compile_format` (`work-item-common.sh:231-237`).
+/// Compile `pattern` into its `printf`-style format string.
 ///
 /// # Errors
 ///
@@ -329,8 +325,7 @@ pub fn compile_format_string(
     compile(pattern, project_value, Mode::Format)
 }
 
-/// The configured `{number}` width's cap: `10^N - 1`. Port of
-/// `wip_pattern_max_number` (`work-item-common.sh:239-265`).
+/// The configured `{number}` width's cap: `10^N - 1`.
 ///
 /// # Errors
 ///
@@ -355,9 +350,8 @@ pub fn pattern_max_number(pattern: &str) -> Result<u64, PatternError> {
     cap.checked_sub(1).ok_or(PatternError::WidthOverflow(width))
 }
 
-/// Finds the width `N` of a `{number:0Nd}` token anywhere in `pattern` — a
-/// blind substring search mirroring the shell's own
-/// `[[ "$pattern" =~ \{number:0([1-9][0-9]*)d\} ]]`, not a full token walk.
+/// Finds the width `N` of a `{number:0Nd}` token anywhere in `pattern`, by
+/// blind substring search rather than a full token walk.
 fn explicit_number_width(pattern: &str) -> Option<usize> {
     let idx = pattern.find("{number:0")?;
     let rest = &pattern[idx + "{number:0".len()..];
@@ -382,9 +376,7 @@ enum TokenKind {
 }
 
 /// Builds a capturing regex for `pattern` plus the ordered list of which
-/// capture group is `{project}` vs `{number...}`, mirroring
-/// `wip_parse_full_id`'s own literal-substitution approach
-/// (`work-item-common.sh:289-347`).
+/// capture group is `{project}` vs `{number...}`.
 fn build_full_id_regex(
     pattern: &str,
 ) -> Result<(String, Vec<TokenKind>), PatternError> {
@@ -435,8 +427,7 @@ pub struct ParsedId {
     pub number: String,
 }
 
-/// Parses `id` against `pattern`. Port of `wip_parse_full_id`
-/// (`work-item-common.sh:289-347`).
+/// Parses `id` against `pattern`.
 ///
 /// # Errors
 ///
@@ -519,8 +510,7 @@ fn apply_number_format(format: &str, number: u64) -> String {
 }
 
 /// Canonicalises a work-item ID, composing [`parse_full_id`] and
-/// [`compile_format_string`] — no new parsing logic of its own. Port of
-/// `wip_canonicalise_id` (`work-item-common.sh:356-425`).
+/// [`compile_format_string`] — no new parsing logic of its own.
 ///
 /// # Errors
 ///
@@ -649,7 +639,7 @@ mod tests {
             Err(PatternError::UnknownToken(_))
         ));
         // `number:` with nothing after the colon is an unknown token, not a
-        // bad-spec, matching the shell's `^number(:(.+))?$` match.
+        // bad-spec: a spec has to be non-empty to be judged malformed.
         assert!(matches!(
             compile_scan_regex("{number:}", ""),
             Err(PatternError::UnknownToken(_))
