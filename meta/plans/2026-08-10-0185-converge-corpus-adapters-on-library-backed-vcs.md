@@ -5,7 +5,7 @@ title: "Converge corpus-adapters on the Library-Backed VCS Adapter Implementatio
 date: "2026-08-10T15:52:48+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0185"
 parent: "work-item:0185"
 derived_from: ["codebase-research:2026-08-10-0185-converge-corpus-adapters-library-backed-vcs"]
