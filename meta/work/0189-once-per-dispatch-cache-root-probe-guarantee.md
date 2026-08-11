@@ -271,9 +271,10 @@ cross-test interference.
 - Memoisation was ruled out in favour of a test on the author's instruction, and
   carries its own criterion because every *other* per-path count criterion
   passes under a memoising implementation.
-- Retracting the stale "dominant unaddressed cost" framing inside 0169 and 0186
-  is recorded here under Blocks but has not been applied to those documents;
-  that edit is deliberately left as a separate change.
+- The stale "dominant unaddressed cost" framing inside 0169 and 0186 was
+  retracted in place on 2026-08-11. Both retractions are dated notes appended
+  beside the original text rather than edits to it, so each document still
+  records what was believed when it was written.
 
 ## References
 

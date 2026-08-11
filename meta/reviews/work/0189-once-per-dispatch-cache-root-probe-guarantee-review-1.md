@@ -562,3 +562,14 @@ sentence, and an ownership gap for work that sits outside this item entirely.
 The first two are edits to 0189. The third is a decision about where the epic's
 latency verification lives now that 0169 is closed, which cannot be settled
 inside this work item.
+
+### Disposition — 2026-08-11
+
+All pass-2 findings were applied to 0189 after this pass, and **not
+re-reviewed** — the verdict above stands unverified against the current text.
+The ownership question was resolved by the author bringing the latency
+measurement back into 0189, which now inherits 0169's `G ≤ 1.1 × B` gate, names
+0191 as a co-requisite, and records that the item cannot close before the
+epic-0136 release cut. The stale "dominant unaddressed cost" prose in 0169 and
+0186 was retracted in place the same day, as dated notes beside the original
+text.
