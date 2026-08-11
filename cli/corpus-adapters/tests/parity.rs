@@ -1,9 +1,11 @@
-//! Differential parity: the Rust doc-type matcher and work-item scan-regex
-//! compiler must agree with their live bash oracles.
-//!
-//! The bash scripts are the oracle. An absent script or bash hard-fails
+//! Differential parity: the Rust doc-type matcher must agree with the live
+//! bash matcher, which is the oracle. An absent script or bash hard-fails
 //! rather than skipping: Rust's harness has no skip primitive, so a silent
 //! early return would register as a green PASS.
+//!
+//! The scan-regex case alongside it has no bash oracle left — the shell
+//! implementation it was measured against is gone — so it pins the compiled
+//! regex's own behaviour end to end instead.
 #![cfg(feature = "bash-parity")]
 
 mod common;

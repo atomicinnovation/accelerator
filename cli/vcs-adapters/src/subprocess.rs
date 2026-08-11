@@ -25,12 +25,12 @@ const DEFAULT_CAP: Duration = Duration::from_secs(10);
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// `jj status`, or `git diff --cached --stat` for `Git`/`None` (matching the
-/// shell's implicit git fallback when no repository is found at all).
+/// `jj status`, or `git diff --cached --stat` for `Git`/`None` — git is the
+/// fallback when no repository is found at all.
 ///
-/// Never fails: falls back to the shell's literal `(... unavailable)` text on
-/// any [`run_capped`] failure, which is already `warn!`-logged internally and
-/// so diagnosable via `ACCELERATOR_LOG` rather than silently indistinguishable
+/// Never fails: falls back to the literal `(... unavailable)` text on any
+/// [`run_capped`] failure, which is already `warn!`-logged internally and so
+/// diagnosable via `ACCELERATOR_LOG` rather than silently indistinguishable
 /// from a clean, empty repository.
 #[must_use]
 pub fn status(root: &Path, kind: VcsKind) -> String {
@@ -304,36 +304,34 @@ mod tests {
     }
 
     #[test]
-    fn a_probe_that_outlives_its_cap_reports_no_revision() {
+    fn a_command_that_outlives_its_cap_is_killed_and_reports_nothing() {
         let mut command = Command::new("sleep");
         command.arg("30");
 
         let started = std::time::Instant::now();
-        let revision = run_capped(command, Duration::from_millis(100), "test");
+        let output = run_capped(command, Duration::from_millis(100), "test");
 
-        assert_eq!(revision, None);
+        assert_eq!(output, None);
         assert!(
             started.elapsed() < Duration::from_secs(5),
-            "the probe should have been killed at its cap, not waited out"
+            "it should have been killed at its cap, not waited out"
         );
     }
 
     #[test]
-    fn a_probe_that_cannot_be_spawned_reports_no_revision() {
+    fn a_command_that_cannot_be_spawned_reports_nothing() {
         let command = Command::new("accelerator-no-such-binary");
         assert_eq!(run_capped(command, Duration::from_secs(1), "test"), None);
     }
 
     #[test]
-    fn a_probe_that_exits_non_zero_reports_no_revision() {
+    fn a_command_that_exits_non_zero_reports_nothing() {
         let command = Command::new("false");
         assert_eq!(run_capped(command, Duration::from_secs(1), "test"), None);
     }
 
     #[test]
-    fn a_probe_that_says_nothing_reports_empty_output_not_failure() {
-        // Unlike `revision`, `run_capped` itself does not treat empty output
-        // as a failure — a clean `status`/`log` legitimately says nothing.
+    fn an_empty_output_is_not_itself_a_failure() {
         let command = Command::new("true");
         assert_eq!(
             run_capped(command, Duration::from_secs(1), "test").as_deref(),

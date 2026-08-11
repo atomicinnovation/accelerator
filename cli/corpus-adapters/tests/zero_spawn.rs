@@ -109,9 +109,6 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
     Ok(())
 }
 
-/// The metadata-read path's own entry point: `VcsBackedRepoFactsProbe` into
-/// `vcs_adapters::facts`, the composition the tests below prove rather than the
-/// individual queries the reference artefact above covers.
 fn derived_facts(
     start: &Path,
     stubs: Option<&Stubs>,

@@ -3,8 +3,7 @@
 //! The clock adapter, the `vcs`/`vcs-adapters`-backed implementation of
 //! `corpus::RepoFactsProbe`, and the composition of a clock and a
 //! repository probe into the block the authoring skills stamp artifacts
-//! with. This subsumes the three bash metadata helpers, which differ only
-//! in the filename timestamp they render.
+//! with.
 //!
 //! [`VcsBackedRepoFactsProbe`] is the only place in this module that
 //! depends on `vcs`/`vcs-adapters` — `derive_at` takes its facts probe by
@@ -64,9 +63,8 @@ pub fn format_utc_iso(instant: OffsetDateTime) -> String {
     )
 }
 
-/// Renders `instant` in the shape the given helper's filenames use. `instant`
-/// is rendered in whatever offset it already carries, so a caller wanting a
-/// host-local stamp passes a host-local instant.
+/// Rendered in whatever offset `instant` already carries, so a caller wanting
+/// a host-local stamp passes a host-local instant.
 #[must_use]
 pub fn format_filename_timestamp(
     instant: OffsetDateTime,
@@ -91,8 +89,8 @@ pub fn format_filename_timestamp(
     }
 }
 
-/// The label the helpers give the filename line. The date-only helper calls it
-/// a date; the two that carry a time call it a timestamp.
+/// A format carrying no time of day is labelled a date; the two that carry one
+/// are labelled timestamps.
 const fn filename_label(format: FilenameTimestampFormat) -> &'static str {
     match format {
         FilenameTimestampFormat::DateOnly => "Date For Filename",
@@ -101,8 +99,7 @@ const fn filename_label(format: FilenameTimestampFormat) -> &'static str {
     }
 }
 
-/// The real clock: UTC for the ISO line, host-local for the filename stamp,
-/// matching bash's `date -u` and plain `date` respectively.
+/// The real clock: UTC for the ISO line, host-local for the filename stamp.
 #[derive(Debug, Clone, Copy)]
 pub struct SystemClock {
     offset: UtcOffset,
@@ -120,8 +117,7 @@ impl SystemClock {
     ///
     /// Returns [`ClockError`] when the offset cannot be resolved, rather than
     /// falling back to UTC and stamping artifacts with a wrong-zone
-    /// provenance. This is a deliberate divergence from the bash helpers, which
-    /// degrade silently; `tzdata` or `TZ` is a runtime prerequisite.
+    /// provenance. `tzdata` or `TZ` is a runtime prerequisite.
     pub fn try_new() -> Result<Self, ClockError> {
         let output = Command::new("date")
             .arg("+%z")
@@ -206,21 +202,12 @@ pub fn derive(
     }
 }
 
-/// Resolves repository facts through the library-backed VCS adapter.
+/// Reading the revision does not snapshot the working copy.
 ///
-/// No `corpus-adapters` write path depends on the CLI's snapshot-on-read side
-/// effect (writing a new commit for unsnapshotted working-copy changes): the
-/// one production write path that persists frontmatter (`work create`) reads
-/// only the derived timestamp, never the revision or repository name.
-///
-/// This does not extend to the authoring skills that call `corpus metadata
-/// derive` directly and copy its printed `Current Revision:` line into
-/// committed `meta/` frontmatter. Those consumers inherit a staleness window:
-/// an artifact authored with unsnapshotted working-copy edits present records
-/// the last recorded operation's commit rather than a freshly snapshotted one.
-/// Accepted as a best-effort provenance degradation, not a correctness
-/// regression — nothing downstream treats these fields as exact — but it is a
-/// real, if narrow, change to persisted data, not only to stdout.
+/// An artifact authored with unsnapshotted edits present therefore records the
+/// last recorded commit. No write path here reads the revision, but the
+/// authoring skills copy the printed one into committed frontmatter, and that
+/// staleness is accepted as a best-effort provenance degradation.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct VcsBackedRepoFactsProbe;
 
@@ -250,8 +237,8 @@ pub fn derive_at(
     Ok(derive(&clock, facts.as_ref(), format))
 }
 
-/// Renders the metadata as the labelled block the bash helpers print and the
-/// authoring skills read. Absent facts drop their line entirely, as in bash.
+/// Renders the metadata as the labelled block the authoring skills read.
+/// Absent facts drop their line entirely.
 #[must_use]
 pub fn render(
     metadata: &ArtifactMetadata,
@@ -308,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn each_helper_s_filename_format_is_pinned() -> Result<(), TestError> {
+    fn each_filename_format_is_pinned() -> Result<(), TestError> {
         let instant = instant()?;
         assert_eq!(
             format_filename_timestamp(

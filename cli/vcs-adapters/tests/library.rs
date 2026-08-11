@@ -207,7 +207,6 @@ fn the_walk_finds_the_boundary_from_a_nested_directory() -> Result<(), TestError
 
 // --- The probe against real checkout shapes ---
 
-/// The commit id the `git` binary reports for `HEAD`.
 fn git_revision_oracle(root: &Path) -> Result<String, TestError> {
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])
@@ -302,7 +301,6 @@ fn a_main_workspace_resolves_to_itself() -> Result<(), TestError> {
 
 // --- The jj revision route ---
 
-/// The commit id the `jj` binary reports for `@`.
 fn jj_revision_oracle(root: &Path) -> Result<String, TestError> {
     let output = Command::new("jj")
         .args(["log", "-r", "@", "--no-graph", "-T", "commit_id"])

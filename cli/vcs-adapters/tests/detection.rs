@@ -81,18 +81,13 @@ fn git_repo_with_a_commit(label: &str) -> Result<TempDir, TestError> {
 }
 
 /// The probe asks for the *full* working-copy id — 40 hex digits from both jj
-/// (`commit_id`) and git (`rev-parse HEAD`) — so a short or decorated id fails.
-///
-/// Note this rejects a **sha256** repository's 64-hex id. That is deliberate:
-/// no fixture in this suite uses one, and such a repository is unsupported —
-/// `gix` cannot read it at all, so `revision` reports absence rather than a
-/// wider id.
+/// and git — so a short or decorated id fails. A sha256 repository's 64-hex id
+/// is rejected deliberately: no fixture here uses one, and such a repository
+/// reports no revision at all.
 fn is_full_revision_id(revision: &str) -> bool {
     revision.len() == 40 && revision.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-/// The facts for `start`, composed the way the crate's own composition root
-/// composes them.
 fn facts(start: &Path) -> Option<RepoFacts> {
     vcs::facts(start, &InProcessProbe, &InProcessProbe)
 }

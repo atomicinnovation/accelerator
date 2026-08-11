@@ -1,11 +1,8 @@
-//! The metadata-read path as a black-box entry point: resolves a start
-//! directory's repository facts through the real composition —
-//! [`VcsBackedRepoFactsProbe`] into `vcs_adapters::facts` — and **prints
-//! them**.
+//! The metadata-read path as a black-box entry point.
 //!
-//! Printing is what makes the zero-spawn assertion meaningful: the comparison
-//! is between a run with the real `git`/`jj` reachable and one without, so a
-//! probe degrading to absence has to show up as a changed value rather than as
+//! Printing is what makes the zero-spawn assertion meaningful: it compares a
+//! run with the real `git`/`jj` reachable against one without, so a probe
+//! degrading to absence has to show up as a changed value rather than as
 //! silence.
 //!
 //! Usage: `corpus-adapters-fixture <start-dir>`.
