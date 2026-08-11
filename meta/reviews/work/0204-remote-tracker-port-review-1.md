@@ -1,15 +1,15 @@
 ---
 type: work-item-review
-id: "0203-remote-tracker-port-review-1"
+id: "0204-remote-tracker-port-review-1"
 title: "Work Item Review: RemoteTracker Port"
 date: "2026-08-10T17:04:12+00:00"
 author: Toby Clemson
 producer: review-work-item
 status: complete
 parent: "work-item:0136"
-target: "work-item:0203"
+target: "work-item:0204"
 relates_to: ["work-item-review:0194"]
-work_item_id: "0203"
+work_item_id: "0204"
 reviewer: Toby Clemson
 verdict: APPROVE
 lenses: [clarity, completeness, dependency, scope, testability]
@@ -25,7 +25,7 @@ schema_version: 1
 
 **Verdict:** REVISE
 
-0203 is a well-motivated, genuinely atomic extraction: all five lenses agree
+0204 is a well-motivated, genuinely atomic extraction: all five lenses agree
 the split from 0194 was structurally right, the unit is coherent, every
 requirement carries its rationale, the negative scope is explicit, and the
 `work`-dependency invariant is mechanically enforced rather than asserted.
@@ -75,10 +75,10 @@ the frozen surface to reopen after acceptance while Open Questions records
   *silently*.
 
 - **The dependency record disagrees with its neighbours** (flagged by:
-  dependency, scope) — 0171 records `blocked_by: [0187, 0203, 0194]` and says
+  dependency, scope) — 0171 records `blocked_by: [0187, 0204, 0194]` and says
   its cutover half still waits on 0194, contradicting this item's "0171 no
   longer needs anything from 0194"; and parent epic 0136 has no entry for
-  0203 while still recording 0194 as preceding 0171's clients.
+  0204 while still recording 0194 as preceding 0171's clients.
 
 ### Findings
 
@@ -168,16 +168,16 @@ the frozen surface to reopen after acceptance while Open Questions records
 - 🟡 **Dependency**: Dependencies claims this is the whole of 0171's wait,
   contradicting 0171's own record
   **Location**: Dependencies
-  0171 carries `blocked_by: [0187, 0203, 0194]` and states it is blocked by
+  0171 carries `blocked_by: [0187, 0204, 0194]` and states it is blocked by
   0194 "for the **cutover half only** — the script removal, skill repointing,
   conversational conflict flow and contract-suite run". Only 0171's client
-  crates are freed by 0203.
+  crates are freed by 0204.
 
-- 🟡 **Dependency**: Parent epic 0136 has no entry for 0203 and still records
+- 🟡 **Dependency**: Parent epic 0136 has no entry for 0204 and still records
   0194 as preceding 0171's clients
   **Location**: Frontmatter: parent / Dependencies
-  The epic can satisfy its own completion criterion with 0203 unbuilt, and its
-  ordering record still points 0171 at 0194 for a milestone 0203 now owns.
+  The epic can satisfy its own completion criterion with 0204 unbuilt, and its
+  ordering record still points 0171 at 0194 for a milestone 0204 now owns.
 
 - 🟡 **Completeness**: The `RemoteIssue.updated` requirement has no acceptance
   criterion
@@ -264,13 +264,13 @@ the frozen surface to reopen after acceptance while Open Questions records
 - 🔵 **Clarity**: The retryable/terminal distinction is named in two
   vocabularies without a stated mapping
   **Location**: Requirements
-  0194 expresses it as `E_DISPATCH_RETRYABLE`/`E_DISPATCH_TERMINAL`; 0203
+  0194 expresses it as `E_DISPATCH_RETRYABLE`/`E_DISPATCH_TERMINAL`; 0204
   never says whether the port's classes must correspond.
 
 - 🔵 **Completeness**: 0194 is listed under both `relates_to` and `blocks`
   **Location**: Frontmatter: relates_to / blocks
   Duplicate edges of differing strength make the graph ambiguous for
-  traversing consumers. 0194 itself lists 0203 under `blocked_by` only.
+  traversing consumers. 0194 itself lists 0204 under `blocked_by` only.
 
 - 🔵 **Scope**: The probe crate is a second workspace crate no Requirement
   scopes in
@@ -279,7 +279,7 @@ the frozen surface to reopen after acceptance while Open Questions records
   justify the split as "cheap to reach".
 
 - 🔵 **Scope**: Ownership of the fake `RemoteTracker` is unassigned between
-  0203 and 0194
+  0204 and 0194
   **Location**: Acceptance Criteria / Dependencies
   0194 separately requires a fake plus a shared parameterised contract test;
   neither item says whether these are one artefact or two.
@@ -326,7 +326,7 @@ the frozen surface to reopen after acceptance while Open Questions records
   lint rule
   **Location**: Frontmatter: kind
 
-- 🔵 **Scope**: Parent epic 0136's decomposition does not list 0203
+- 🔵 **Scope**: Parent epic 0136's decomposition does not list 0204
   **Location**: Dependencies
 
 - 🔵 **Testability**: No criterion exercises the sufficiency Assumptions names
@@ -336,7 +336,7 @@ the frozen surface to reopen after acceptance while Open Questions records
 ### Strengths
 
 - ✅ The extraction rationale is structural rather than size-driven, and is
-  documented on both sides — 0194 records `blocked_by: 0203` and explains the
+  documented on both sides — 0194 records `blocked_by: 0204` and explains the
   split, so the new unit is agreed by both items rather than asserted by one.
 - ✅ Exceptional coherence: all seven Requirements and seven Acceptance
   Criteria serve a single deliverable, with nothing that could be delivered or
@@ -389,7 +389,7 @@ the frozen surface to reopen after acceptance while Open Questions records
    explicitly, so it forbids provider and work-domain types rather than
    everything outside the four named items.
 
-3. **Close the retry-idempotency question inside 0203** (addresses: the
+3. **Close the retry-idempotency question inside 0204** (addresses: the
    contract is frozen and not-frozen at once; Open Questions vs Assumptions;
    post-acceptance widening has no ordering constraint)
    Either decide the port carries a lookup operation (making it five) or
@@ -409,10 +409,10 @@ the frozen surface to reopen after acceptance while Open Questions records
    throwaway fixture and the shared parameterised contract test is 0194's.
 
 5. **Correct the dependency record against its neighbours** (addresses: "the
-   whole of 0171's wait"; epic 0136 missing 0203; 0194 double-linked; 0166 not
+   whole of 0171's wait"; epic 0136 missing 0204; 0194 double-linked; 0166 not
    the `kernel` source)
    Narrow the Blocks claim to 0171's client adapter crates, noting the cutover
-   half remains blocked by 0194. Add 0203 to epic 0136's Decomposition and
+   half remains blocked by 0194. Add 0204 to epic 0136's Decomposition and
    completion criterion, and rewrite 0194's decomposition entry so it no
    longer claims to precede 0171's client adapters. Drop `work-item:0194` from
    `relates_to`, and name the correct upstream for `kernel`.
@@ -445,7 +445,7 @@ the frozen surface to reopen after acceptance while Open Questions records
 
 ### Clarity
 
-**Summary**: 0203 is short, consistently voiced and mostly unambiguous:
+**Summary**: 0204 is short, consistently voiced and mostly unambiguous:
 pronouns resolve cleanly, every requirement names the implementer as actor,
 each port operation is anchored to a named bash script, and "port" is used
 only in its hexagonal sense (fixing the overloading a prior review found in
@@ -548,10 +548,10 @@ made for.
   opaque caller-supplied string the port does not interpret.
 
 - **minor / medium** — *The retryable/terminal distinction is named in two
-  vocabularies across 0203 and its consumer without a stated mapping* —
+  vocabularies across 0204 and its consumer without a stated mapping* —
   **Location**: Requirements
   0194 expresses the same distinction as `E_DISPATCH_RETRYABLE` and
-  `E_DISPATCH_TERMINAL`, owned by `work-item-bridge-codes.sh`; 0203 never names
+  `E_DISPATCH_TERMINAL`, owned by `work-item-bridge-codes.sh`; 0204 never names
   those codes or says whether its two classes correspond.
   **Impact**: A reader cannot tell whether the port must reproduce the existing
   taxonomy's semantics; 0194's criteria are written against that reading.
@@ -577,7 +577,7 @@ made for.
 
 ### Completeness
 
-**Summary**: 0203 is structurally complete — every expected section is present
+**Summary**: 0204 is structurally complete — every expected section is present
 and substantively populated, the frontmatter is intact and kind-appropriate for
 a story, six of its seven Requirements have a matching Acceptance Criterion,
 and the Drafting Notes carry a dated trail naming the three defects it
@@ -589,7 +589,7 @@ to deliver: the frozen port contract.
 - Every expected section is present and substantively populated, with no
   placeholder sections.
 - Frontmatter is complete and kind-appropriate, and the `blocks: work-item:0194`
-  edge is bidirectionally consistent with 0194's `blocked_by: work-item:0203`.
+  edge is bidirectionally consistent with 0194's `blocked_by: work-item:0204`.
 - Requirements→Acceptance Criteria coverage is near-complete (six of seven),
   and the criteria are mechanised rather than left to inspection.
 - Each Requirements bullet carries its rationale rather than just an
@@ -665,7 +665,7 @@ to deliver: the frozen port contract.
 - **minor / medium** — *0194 is listed under both `relates_to` and `blocks`* —
   **Location**: Frontmatter: relates_to / blocks
   The same target expressed twice under two linkage keys of differing strength.
-  0194 itself lists 0203 under `blocked_by` only, reserving `relates_to` for
+  0194 itself lists 0204 under `blocked_by` only, reserving `relates_to` for
   items with no blocking edge.
   **Impact**: Ambiguous graph for traversing consumers; invites drift.
   **Suggestion**: Drop `work-item:0194` from `relates_to`.
@@ -680,13 +680,13 @@ to deliver: the frozen port contract.
 
 ### Dependency
 
-**Summary**: 0203 is dependency-aware by construction — it exists solely to
+**Summary**: 0204 is dependency-aware by construction — it exists solely to
 turn a fragment-level blocker into a schedulable edge, both downstream
 consumers are named in Dependencies and the frontmatter `blocks` list is
 reciprocated by `blocked_by` on both 0171 and 0194. The gaps are in the
 couplings that survive the split rather than in the split itself: the
 Dependencies section asserts 0171 waits on nothing but this item, which 0171's
-own record contradicts; the parent epic has no entry for 0203 and still records
+own record contradicts; the parent epic has no entry for 0204 and still records
 the superseded ordering; and three obligations that pass through this port are
 visible in the consumers but not in the artefact both build against.
 
@@ -706,25 +706,25 @@ visible in the consumers but not in the artefact both build against.
 - **major / high** — *Dependencies claims this item is the whole of 0171's
   wait, contradicting 0171's own `blocked_by` record* — **Location**:
   Dependencies
-  0171 carries `blocked_by: [0187, 0203, 0194]` and states it is blocked by
+  0171 carries `blocked_by: [0187, 0204, 0194]` and states it is blocked by
   0194 "for the **cutover half only** — the script removal, skill repointing,
   conversational conflict flow and contract-suite run all need the binary that
-  story delivers". Only 0171's client crates are freed by 0203.
+  story delivers". Only 0171's client crates are freed by 0204.
   **Impact**: Anyone scheduling from this record will believe 0171 can complete
-  once 0203 lands; the two items disagree about the same edge.
+  once 0204 lands; the two items disagree about the same edge.
   **Suggestion**: Narrow the claim to 0171's client adapter crates and thin
   binaries, and qualify the Summary's "neither should wait on the other".
 
-- **major / high** — *Parent epic 0136 has no entry for 0203 and still records
+- **major / high** — *Parent epic 0136 has no entry for 0204 and still records
   0194 as the item preceding 0171's clients* — **Location**: Frontmatter:
   parent / Dependencies
   0136's Decomposition runs 0162–0174 plus 0185–0188 and 0194–0197 with no
-  0203, and its completion criterion enumerates children by number without it.
+  0204, and its completion criterion enumerates children by number without it.
   Its 0194 entry still reads "…and precedes 0171's client adapters". The epic
   was updated on 2026-08-05 to record the 0194 split, so the precedent exists.
-  **Impact**: The epic can satisfy its own acceptance criterion with 0203
-  unbuilt, and still points 0171 at 0194 for a milestone 0203 now owns.
-  **Suggestion**: Add 0203 to the Decomposition and the completion criterion,
+  **Impact**: The epic can satisfy its own acceptance criterion with 0204
+  unbuilt, and still points 0171 at 0194 for a milestone 0204 now owns.
+  **Suggestion**: Add 0204 to the Decomposition and the completion criterion,
   and rewrite 0194's entry.
 
 - **major / medium** — *The post-acceptance port widening 0194 is licensed to
@@ -732,7 +732,7 @@ visible in the consumers but not in the artefact both build against.
   Assumptions
   0194's own Requirements name it "the port's first consumer and its design
   driver", while this item encourages 0171 and 0194 to run in parallel the
-  moment 0203 lands. No requirement that 0194's design-driver pass completes
+  moment 0204 lands. No requirement that 0194's design-driver pass completes
   (or is waived) before 0171 begins, and no protocol for in-flight adapters or
   the probe crate if the trait widens.
   **Impact**: The whole value proposition is undermined if 0194 widens the
@@ -745,7 +745,7 @@ visible in the consumers but not in the artefact both build against.
   The semantics are today owned by `work-item-bridge-codes.sh`, which 0194 says
   "stays authoritative in the interim" with the Rust definition "asserted
   against it by fixture", and which 0171 carries a criterion to delete along
-  with "its parity fixture". 0203 names none of this.
+  with "its parity fixture". 0204 names none of this.
   **Impact**: Two implementations, no named owner or gate holding them in step,
   and 0171 is scheduled to delete a fixture that may never exist.
   **Suggestion**: Record the interim authority, name the item that creates the
@@ -754,7 +754,7 @@ visible in the consumers but not in the artefact both build against.
 - **major / medium** — *The already-projected obligation on `RemoteIssue.body`
   — the anti-drift contract 0171 must satisfy — is absent from the port* —
   **Location**: Requirements
-  0203 specifies `RemoteIssue { updated, body }` only negatively, which a raw
+  0204 specifies `RemoteIssue { updated, body }` only negatively, which a raw
   provider JSON string would satisfy. 0194 requires adapters to "return an
   already-projected `RemoteIssue { updated, body }` in domain terms rather than
   raw tracker JSON", and 0171 must "reproduce the existing per-provider
@@ -799,7 +799,7 @@ visible in the consumers but not in the artefact both build against.
 
 ### Scope
 
-**Summary**: 0203 is a genuinely coherent, atomic unit: every requirement and
+**Summary**: 0204 is a genuinely coherent, atomic unit: every requirement and
 criterion serves one deliverable — the `RemoteTracker` port crate, its two
 value types and the lint rule that keeps it narrow — with no bundled second
 concern, no cross-service span, and explicit negative scope. The extraction
@@ -828,7 +828,7 @@ the deliverable set disagrees between Summary/AC1 and Requirements/AC3–AC4.
   as still having no constructible precondition and notes explicitly that
   "fixing it may need port surface, which would break the signature promised to
   0171".
-  **Impact**: 0203 can be accepted and then reopened after 0171 has begun —
+  **Impact**: 0204 can be accepted and then reopened after 0171 has begun —
   precisely the failure mode the split was made to prevent.
   **Suggestion**: Decide now whether the port carries a lookup/idempotency
   operation, or record that retry idempotency is resolved locally in `work` via
@@ -859,14 +859,14 @@ the deliverable set disagrees between Summary/AC1 and Requirements/AC3–AC4.
   `tracker`.
 
 - **minor / medium** — *Ownership of the fake `RemoteTracker` is unassigned
-  between 0203 and 0194* — **Location**: Acceptance Criteria / Dependencies
+  between 0204 and 0194* — **Location**: Acceptance Criteria / Dependencies
   0194 separately requires a fake for its whole unit-test suite plus "a shared
   `RemoteTracker` contract test parameterised over implementations". Neither
   item says whether these are one artefact or two.
   **Impact**: Two parallel stories each build a fake, risking duplicated
   divergent doubles or an unplanned test-support surface in a crate promised to
   keep to three or four public items.
-  **Suggestion**: State that 0203's fake is a throwaway fixture and the shared
+  **Suggestion**: State that 0204's fake is a throwaway fixture and the shared
   contract test is 0194's (or the reverse).
 
 - **suggestion / medium** — *`kind: story` is a stretch for a trait, two value
@@ -877,15 +877,15 @@ the deliverable set disagrees between Summary/AC1 and Requirements/AC3–AC4.
   `story` if 0136's convention is that all children are stories.
 
 - **suggestion / medium** — *The parent epic's decomposition does not yet list
-  0203 as a child* — **Location**: Dependencies
-  **Impact**: The epic can be judged complete without 0203, and a reader
+  0204 as a child* — **Location**: Dependencies
+  **Impact**: The epic can be judged complete without 0204, and a reader
   tracing from the parent cannot see the unit both 0171 and 0194 wait on.
-  **Suggestion**: Add 0203 under the subdomain-migration group in the same form
+  **Suggestion**: Add 0204 under the subdomain-migration group in the same form
   used for the 0194 and 0195–0197 splits, and extend the completion criterion.
 
 ### Testability
 
-**Summary**: 0203 is a small item with seven criteria, and its two strongest —
+**Summary**: 0204 is a small item with seven criteria, and its two strongest —
 the no-`work`-dependency rule and the `mise run cli:check` gate — are genuinely
 mechanical and falsifiable. The weakness is that the item's headline
 deliverable, a frozen port signature, is guarded by criteria that cannot fail:
@@ -1038,7 +1038,7 @@ that can only be closed by editing 0194 and 0136.
   types" vs the port error type — **Resolved**. Five items, and AC1 now
   names a `cargo public-api` snapshot as the check.
 - 🟡 **Clarity / Completeness / Scope / Dependency**: Frozen and
-  not-frozen at once — **Resolved in 0203**. Retry idempotency is decided
+  not-frozen at once — **Resolved in 0204**. Retry idempotency is decided
   against the port. See "New Issues" for the 0194 half.
 - 🟡 **Completeness / Scope / Testability**: Verification artefacts
   unscoped — **Resolved**. Fake, consumer, signature probe and both
@@ -1086,24 +1086,24 @@ that can only be closed by editing 0194 and 0136.
 ### Remaining — outside this file
 
 - 🟡 **Dependency / Scope**: 0194's first Requirements bullet still
-  carries the pre-split protocol ("that surface lands in 0203"),
+  carries the pre-split protocol ("that surface lands in 0204"),
   contradicting the freeze recorded here. The two halves of the split
-  license opposite responses to the same event. 0203 now names the
+  license opposite responses to the same event. 0204 now names the
   collision; closing it needs the 0194 edit.
-- 🟡 **Dependency / Scope**: Epic 0136 lists 0203 in neither its
+- 🟡 **Dependency / Scope**: Epic 0136 lists 0204 in neither its
   Decomposition, its Children list nor its completion criterion, and still
   annotates 0194 as preceding 0171's client adapters.
-- 🔵 **Clarity**: 0194 still describes 0203 as "a trait, two value types
+- 🔵 **Clarity**: 0194 still describes 0204 as "a trait, two value types
   and a lint rule", omitting the error type.
 
 ### Assessment
 
-0203 itself is now implementation-ready: the contract is stated verbatim,
+0204 itself is now implementation-ready: the contract is stated verbatim,
 every requirement has a falsifiable criterion naming a real gate, and the
 scope boundary is drawn mechanically. The verdict stays REVISE only
 because three cross-item edits remain — 0194's freeze protocol, 0194's
 description of this crate, and 0136's decomposition. None of them requires
-further change to 0203, and none blocks starting work on it; they are
+further change to 0204, and none blocks starting work on it; they are
 graph-consistency repairs in neighbouring documents.
 
 ## Re-Review (Pass 3) — 2026-08-10
@@ -1113,17 +1113,17 @@ graph-consistency repairs in neighbouring documents.
 ### Previously Identified Issues
 
 - 🟡 **Dependency / Scope**: 0194 carried the pre-split protocol ("that
-  surface lands in 0203"), contradicting the freeze — **Resolved**. 0194's
-  Requirements now treat the signature as frozen at 0203's acceptance and
+  surface lands in 0204"), contradicting the freeze — **Resolved**. 0194's
+  Requirements now treat the signature as frozen at 0204's acceptance and
   route unmet surface needs into a new additive port item. The pending-push
   marker was added there as an explicit requirement, so the mechanism is
   recorded where it will be built.
-- 🟡 **Dependency / Scope**: Epic 0136 listed 0203 nowhere and still
-  annotated 0194 as preceding 0171's client adapters — **Resolved**. 0203
+- 🟡 **Dependency / Scope**: Epic 0136 listed 0204 nowhere and still
+  annotated 0194 as preceding 0171's client adapters — **Resolved**. 0204
   is in the Decomposition, the completion criterion and the Children list;
   the 0194 annotation now reads "precedes 0171's cutover half". The
   Children list was also missing 0194–0197, corrected at the same time.
-- 🔵 **Clarity**: 0194 described 0203 as "a trait, two value types and a
+- 🔵 **Clarity**: 0194 described 0204 as "a trait, two value types and a
   lint rule" — **Resolved** in both places. 0171 carried the same stale
   description and was corrected too.
 
@@ -1133,13 +1133,13 @@ None. A grep for the stale phrases across `meta/work/` returns nothing.
 
 ### Assessment
 
-0203 is approved and ready for planning. The contract is stated verbatim
+0204 is approved and ready for planning. The contract is stated verbatim
 — five public items with their derives, fields, variants and inherent
 methods — and every requirement has a falsifiable criterion naming a real
 gate (`cargo public-api` snapshot, `pup:check`, `deny:check`, a
 wildcard-free match, a byte-identical round trip). The scope boundary is
 mechanical rather than argued, and the four items sharing the port's
-dependency graph (0136, 0171, 0194, 0203) now agree on the edges between
+dependency graph (0136, 0171, 0194, 0204) now agree on the edges between
 them and on the protocol for changing the frozen signature.
 
 Note for whoever plans this: the item is approved as a *specification*.

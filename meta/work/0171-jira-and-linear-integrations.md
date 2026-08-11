@@ -9,7 +9,7 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0187", "work-item:0203", "work-item:0194"]
+blocked_by: ["work-item:0187", "work-item:0204", "work-item:0194"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0194", "work-item:0174"]
 tags: [rust, jira, linear, integrations, reqwest, sync]
@@ -52,7 +52,7 @@ granularity is wanted.
 
 - Implement `jira-client` (Jira REST + ADF↔markdown + auth) and `linear-client`
   (Linear GraphQL + auth) as adapter crates over `reqwest` + rustls + serde, each
-  `impl RemoteTracker` (the port from 0203's `tracker` crate).
+  `impl RemoteTracker` (the port from 0204's `tracker` crate).
 - Implement `accelerator-jira` and `accelerator-linear` as thin inbound CLI adapters
   exposing the user-facing flows (create/update/comment/transition/search/show/
   attach/init).
@@ -136,17 +136,17 @@ granularity is wanted.
 
 ## Dependencies
 
-- Blocked by: 0166 (shared crates), and 0203 (the `RemoteTracker` port) —
+- Blocked by: 0166 (shared crates), and 0204 (the `RemoteTracker` port) —
   split out of 0194 on 2026-08-10 precisely so the client crates wait on a
   trait, three value types and an error type rather than on a whole sync
-  engine. 0203 freezes that signature at its acceptance, so the clients
+  engine. 0204 freezes that signature at its acceptance, so the clients
   build against a contract that will not move. The client work needs
   nothing else from 0194.
 - Blocked by: 0194 (the sync engine) for the **cutover half only** — the
   script removal, skill repointing, conversational conflict flow and
   contract-suite run all need the binary that story delivers. The client
   crates and the two thin binaries do not, and can proceed in parallel
-  with it once 0203 lands.
+  with it once 0204 lands.
 - Blocked by: 0187 (generalises the sub-binary registration surface). This story
   adds a dispatch token; it does not generalise the surface. Registration
   follows the checklist 0187 adds at
@@ -204,7 +204,7 @@ granularity is wanted.
   splitting Jira from Linear is worth re-taking with the cutover in scope —
   a natural third slice.
 - Updated 2026-08-10: the `RemoteTracker` port moved out of 0194 into its
-  own item, 0203. This story's `blocked_by` now names 0203 for the client
+  own item, 0204. This story's `blocked_by` now names 0204 for the client
   work and 0194 only for the cutover half, so the client crates and thin
   binaries can start as soon as the port lands rather than waiting on a
   whole sync engine they do not use.

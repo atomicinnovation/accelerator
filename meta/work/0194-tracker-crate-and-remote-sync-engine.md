@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0174"]
-blocked_by: ["work-item:0203"]
+blocked_by: ["work-item:0204"]
 tags: [rust, work-items, sync, tracker]
 last_updated: "2026-08-10T16:04:28+00:00"
 last_updated_by: Toby Clemson
@@ -28,7 +28,7 @@ schema_version: 1
 ## Summary
 
 Build the sync state machine in the existing `work` / `work-adapters`
-pair over the `RemoteTracker` port 0203 defines, the `accelerator work
+pair over the `RemoteTracker` port 0204 defines, the `accelerator work
 sync` command that orchestrates it against the local work-item store, and
 the `--push` wiring onto 0170's `create`/`update` commands — plus the
 test-migration work that holds the new engine to the bash one: the fixture
@@ -79,18 +79,18 @@ and the per-tracker projection seam. See Drafting Notes.
 
 ## Requirements
 
-- Consume the `RemoteTracker` port from 0203 rather than defining it here,
-  and treat its signature as frozen at 0203's acceptance. This story is
+- Consume the `RemoteTracker` port from 0204 rather than defining it here,
+  and treat its signature as frozen at 0204's acceptance. This story is
   the port's first consumer, so it is the one most likely to want the
   surface changed — but 0171's client adapters are being implemented
-  against that same signature in parallel, so reopening 0203 would
+  against that same signature in parallel, so reopening 0204 would
   reintroduce the moving contract the split existed to remove. If the sync
   flow or the `--push` wiring needs surface the port does not offer, it
-  lands as a new additive port item, not as an edit to 0203 and not as a
+  lands as a new additive port item, not as an edit to 0204 and not as a
   local workaround here.
 - Implement the pending-push marker that keeps `create --push` retries
   idempotent — written before the remote call and cleared after — rather
-  than reaching for a lookup operation on the port. 0203 has no lookup
+  than reaching for a lookup operation on the port. 0204 has no lookup
   operation precisely because this marker is the agreed mechanism; that
   decision is what makes its four-operation surface final.
 - Site the sync state machine in the existing `work` / `work-adapters`
@@ -427,7 +427,7 @@ Criteria and Drafting Notes.
 
 ## Dependencies
 
-- Blocked by: 0203 (the `RemoteTracker` port), split out of this item on
+- Blocked by: 0204 (the `RemoteTracker` port), split out of this item on
   2026-08-10. It is a trait, three value types (`ExternalId`,
   `RemoteIssue`, `RemoteTimestamp`), the `TrackerError` type and a lint
   rule, with no logic — so it is cheap to discharge, but the state
@@ -437,7 +437,7 @@ Criteria and Drafting Notes.
   (the work-item lifecycle subdomain), which gated the `--push` wiring,
   was validated done on 2026-08-07.
 - Phase ordering within this item: A (state machine) is startable once
-  0203 lands; B (the `sync` command) depends on A, since it orchestrates
+  0204 lands; B (the `sync` command) depends on A, since it orchestrates
   the pipeline A builds; C (`--push` wiring) depends on A too — its
   terminal-failure path writes through A's baseline code — and on 0170's
   `create`/`update` commands, which now exist. There is no removal phase
@@ -451,10 +451,10 @@ Criteria and Drafting Notes.
   `create-work-item`, `list-work-items` and `EXIT_CODES.md` at
   `accelerator work …`, adding the sync SKILL's conversational conflict
   flow, and decrementing `_EXPECTED_WORK_SUITES`.
-- Does **not** block 0171 any more. Its client adapters wait on 0203's
+- Does **not** block 0171 any more. Its client adapters wait on 0204's
   port signature, which is now its own item — so 0171 no longer waits on
   this story's state machine, command surface or test migration, none of
-  which it needs. The two can run in parallel once 0203 lands.
+  which it needs. The two can run in parallel once 0204 lands.
 - Reverse coupling on 0171: this story builds and verifies the *seams*
   that need a real client, never the clients themselves. The
   composition-root provider selection is exercised against fakes
@@ -507,9 +507,9 @@ Criteria and Drafting Notes.
   `resolve`, `next_number`, `section_diff`, `tags`, `normalise`,
   `own_identity`, `template_hints`), so this story extends a live pair
   rather than starting one. The `tracker` crate and the reasoning for its
-  narrowness now live in 0203.
-- **Phasing.** Three slices, all downstream of 0203. Two slices this
-  story used to carry have left it: the port is now 0203, and script
+  narrowness now live in 0204.
+- **Phasing.** Three slices, all downstream of 0204. Two slices this
+  story used to carry have left it: the port is now 0204, and script
   removal plus SKILL repointing are 0171's cutover:
   - **A** — the state machine: classifier and decision table into `work`;
     baseline and apply into `work-adapters` (atomic single-JSON writes,
@@ -638,13 +638,13 @@ Criteria and Drafting Notes.
   `--push` wiring, a SKILL flow, and a nine-script retirement), and review
   2 flagged that it matches the shape the epic has already split twice
   (0169 into four, 0173 into three). Two later splits — the cutover to
-  0171 and the port to 0203 — have since removed both detachable slices,
+  0171 and the port to 0204 — have since removed both detachable slices,
   leaving three phases that build one thing: the state machine, the
   command that drives it, and the `--push` wiring whose terminal-failure
   path writes through the state machine's baseline code. Revisit if any
   single phase grows past its own plan.
 - Split again 2026-08-10, following work item review 2 pass 3: the
-  `tracker` crate left this item to become 0203. The clarity, scope and
+  `tracker` crate left this item to become 0204. The clarity, scope and
   dependency lenses each arrived at it independently, and the argument was
   structural rather than about size. This item's own Dependencies section
   had recorded 0171's blocking milestone as "the port signature (end of
@@ -653,16 +653,16 @@ Criteria and Drafting Notes.
   build against an unaccepted branch whose signature could still move. The
   port is a trait, three value types, an error type and a lint rule, so
   it makes a cheap item and a milestone that is easy to hold stable once
-  reached. Three defects the review found in the port survive as 0203's
+  reached. Three defects the review found in the port survive as 0204's
   requirements rather than being carried here: `fetch_all()` had no
   signature at all, the error type never said whether it distinguishes
   retryable from terminal failure, and `RemoteIssue.updated` was untyped
-  and never connected to the baseline's `remote_updated_at`. 0203's own
+  and never connected to the baseline's `remote_updated_at`. 0204's own
   review has since settled the port's shape — synchronous and
   dyn-compatible, a crate-local two-class `TrackerError`, and no lookup
   operation — so this item consumes a signature that is final rather than
   one it must finish designing. This item blocks 0171's cutover half only;
-  0171's client adapters and 0194 are siblings over 0203 and run in
+  0171's client adapters and 0194 are siblings over 0204 and run in
   parallel.
 - Decided 2026-08-10, after inspecting the workspace rather than taking
   the split-time framing at face value: `tracker` is kept, but narrowed to

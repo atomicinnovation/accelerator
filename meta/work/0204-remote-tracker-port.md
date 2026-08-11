@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0203"
+id: "0204"
 title: "RemoteTracker Port"
 date: "2026-08-10T16:34:11+00:00"
 author: Toby Clemson
@@ -17,7 +17,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0203: RemoteTracker Port
+# 0204: RemoteTracker Port
 
 **Kind**: Story
 **Status**: Ready
@@ -312,7 +312,7 @@ via a pending-push marker, and the port stays at four operations.
   consumer and design driver, so it is the item most likely to want the
   surface changed. The signature is frozen at this item's acceptance, and
   any later need is an additive change carried as a new item rather than
-  a reopening of 0203 — otherwise 0171 is again building against a
+  a reopening of 0204 — otherwise 0171 is again building against a
   moving contract, which is what the split existed to prevent. 0194's
   Requirements record the same protocol, so both halves of the split
   respond to unmet surface needs the same way.
