@@ -31,6 +31,18 @@ pub fn tracker::ExternalId::fmt(&self, formatter: &mut core::fmt::Formatter<'_>)
 impl core::hash::Hash for tracker::ExternalId
 pub fn tracker::ExternalId::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for tracker::ExternalId
+pub struct tracker::FetchOutcome
+pub tracker::FetchOutcome::absent: alloc::vec::Vec<tracker::ExternalId>
+pub tracker::FetchOutcome::found: alloc::vec::Vec<(tracker::ExternalId, tracker::RemoteTimestamp)>
+pub tracker::FetchOutcome::indeterminate: alloc::vec::Vec<tracker::ExternalId>
+impl core::clone::Clone for tracker::FetchOutcome
+pub fn tracker::FetchOutcome::clone(&self) -> tracker::FetchOutcome
+impl core::cmp::Eq for tracker::FetchOutcome
+impl core::cmp::PartialEq for tracker::FetchOutcome
+pub fn tracker::FetchOutcome::eq(&self, other: &tracker::FetchOutcome) -> bool
+impl core::fmt::Debug for tracker::FetchOutcome
+pub fn tracker::FetchOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::FetchOutcome
 pub struct tracker::RemoteIssue
 pub tracker::RemoteIssue::body: alloc::string::String
 pub tracker::RemoteIssue::updated: tracker::RemoteTimestamp
@@ -54,3 +66,8 @@ pub fn tracker::RemoteTimestamp::eq(&self, other: &tracker::RemoteTimestamp) -> 
 impl core::fmt::Debug for tracker::RemoteTimestamp
 pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
+pub trait tracker::RemoteTracker
+pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
+pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>
+pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
+pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>

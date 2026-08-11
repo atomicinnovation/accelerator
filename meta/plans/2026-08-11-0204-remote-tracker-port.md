@@ -2295,18 +2295,19 @@ reason the textual golden needed one.
 
 #### Automated Verification
 
-- [ ] The crate compiles with the port added: `mise run cli:check`
-- [ ] All port tests pass: `cd cli && cargo nextest run -p tracker`
-- [ ] The trait is dyn-compatible — `all_four_operations_are_reachable_through_a_trait_object`
+- [x] The crate compiles with the port added: `mise run cli:check`
+- [x] All port tests pass: `cd cli && cargo nextest run -p tracker`
+- [x] The trait is dyn-compatible — `all_four_operations_are_reachable_through_a_trait_object`
       fails to compile if the trait is made async or otherwise object-unsafe
-- [ ] Both error classes are observed coming back from a port call, not just
+- [x] Both error classes are observed coming back from a port call, not just
       constructed — and on the axis that defines them:
       `a_rejected_write_is_retryable_because_nothing_was_modified` and
       `a_write_whose_response_was_lost_is_terminal`
-- [ ] `mise run public-api:check` passes against the hand-written snapshot
-- [ ] Running `mise run fix` does not move the snapshot
-- [ ] `mise run pup:check` and `mise run deny:check` pass
-- [ ] The full local CI mirror is green: `mise run`
+- [x] `mise run public-api:check` passes against the hand-written snapshot
+- [x] Running `mise run fix` does not move the snapshot
+- [x] `mise run pup:check` and `mise run deny:check` pass
+- [x] The full local CI mirror is green: `mise run` (except one pre-existing,
+      unrelated failure — see implementation notes)
 
 #### Manual Verification
 
@@ -2314,44 +2315,66 @@ The mutation checks below are one-shot: they establish that the freeze
 discriminates, then never run again. Record each outcome in the implementation
 notes.
 
-- [ ] The snapshot was hand-written from 0204's amended Requirements block, and
+- [x] The snapshot was hand-written from 0204's amended Requirements block, and
       was red before `src/lib.rs` gained the port
-- [ ] Renaming any trait method or changing any parameter **type** breaks
+- [x] Renaming any trait method or changing any parameter **type** breaks
       `port.rs` at compile time
-- [ ] Swapping `create`'s `title` and `body` parameters — same type, so the
+- [x] Swapping `create`'s `title` and `body` parameters — same type, so the
       fake still compiles — fails `public-api:check`
-- [ ] Adding a seventh public item fails `public-api:check`
-- [ ] Adding a **fifth trait method with a default body** fails
+- [x] Adding a seventh public item fails `public-api:check`
+- [x] Adding a **fifth trait method with a default body** fails
       `public-api:check` — the additive change `port.rs` cannot catch
-- [ ] Giving one of the **four existing** methods a default body is caught by
+- [x] Giving one of the **four existing** methods a default body is caught by
       something. This is the more dangerous half of AC 2 — it lets a client
       silently not implement an operation — and neither guard obviously sees
       it: the fake overrides all four so it still compiles, and rustdoc JSON
       may not distinguish a provided from a required trait method. Confirm
       empirically; **if nothing catches it, record AC 2's default-body clause
-      as unguarded** rather than leaving it implied
-- [ ] Adding `PartialOrd, Ord` to `RemoteTimestamp` fails `public-api:check`
+      as unguarded** rather than leaving it implied — **confirmed unguarded,
+      see implementation notes**
+- [x] Adding `PartialOrd, Ord` to `RemoteTimestamp` fails `public-api:check`
       — it surfaces as two added impls, not as a changed literal
-- [ ] Renaming `TrackerError::Retryable` fails `public-api:check` — variants
+- [x] Renaming `TrackerError::Retryable` fails `public-api:check` — variants
       are items in rustdoc JSON, which the textual golden could not see
-- [ ] Deleting `impl std::error::Error for TrackerError {}` fails
+- [x] Deleting `impl std::error::Error for TrackerError {}` fails
       `public-api:check` and `a_tracker_error_is_usable_as_a_std_error`
-- [ ] Adding a `#[cfg(test)]` module to `src/`, a `[dev-dependencies]` table
+- [x] Adding a `#[cfg(test)]` module to `src/`, a `[dev-dependencies]` table
       to the manifest, or a `tracker-adapters` member to the workspace each
       fails its guard in `structure.rs`
-- [ ] Removing a `#[must_use]` fails **nothing** — attributes are not API shape.
+- [x] Removing a `#[must_use]` fails **nothing** — attributes are not API shape.
       Confirm this is so, and that the four attributes are present, by reading
-- [ ] `fetch_all`'s doc comment states that a partial retrieval is an `Ok` with
+- [x] `fetch_all`'s doc comment states that a partial retrieval is an `Ok` with
       `indeterminate` ids, never an `Err`, and that it returns stamps rather
       than bodies
-- [ ] `show`'s doc comment states that absence is not discoverable through it
-- [ ] Both read operations' `# Errors` sections state that a read failure is
+- [x] `show`'s doc comment states that absence is not discoverable through it
+- [x] Both read operations' `# Errors` sections state that a read failure is
       always `Retryable`, and say the class means "nothing changed" rather than
       "call again"
-- [ ] `src/lib.rs` declares exactly six public items
-- [ ] `src/` contains no function body beyond the four inherent methods, the
+- [x] `src/lib.rs` declares exactly six public items
+- [x] `src/` contains no function body beyond the four inherent methods, the
       two `Display` impls and the `Error` impl — AC 10's no-behaviour half,
       which `structure.rs` deliberately does not cover
+
+**Implementation notes (recorded 2026-08-12):**
+
+- **AC 2's default-body clause is confirmed unguarded.** Giving `show` (an
+  existing required method) a default body, with `FixedTracker` continuing to
+  override it, produces byte-identical `cargo public-api` output — rustdoc
+  JSON does not distinguish a provided trait method from a required one in
+  this render mode — and `port.rs` still compiles unchanged, since the fake
+  overrides all four methods regardless. Neither guard catches a client that
+  silently stops implementing an operation once the trait grows a default. No
+  fix was made — the plan explicitly asks this to be recorded rather than
+  worked around — but it is a real gap for 0171/0194 to be aware of.
+- `mise run` (bare) surfaces one failure, unchanged from Phase 1's run and
+  confirmed unrelated: `accelerator-corpus::frontmatter_goldens
+  this_repositorys_own_corpus_is_clean` fails on a pre-existing dangling
+  `relates_to: work-item-review:0194` reference in
+  `meta/reviews/work/0204-remote-tracker-port-review-1.md` (untouched by this
+  plan) — the real review docs are keyed `...review-1`/`...review-2`, so a
+  bare `:0194` reference can never resolve. All tracker-scoped gates
+  (`cli:check`, `pup:check`, `public-api:check`, `deny:check`,
+  `cargo nextest -p tracker`) are green.
 
 The `RemoteIssue.body` and `#[non_exhaustive]` checks moved to Phase 1, where
 `lib.rs` ships.
