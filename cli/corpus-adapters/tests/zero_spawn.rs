@@ -15,14 +15,11 @@
 #![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;
-use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
 
 use vcs_test_support::fixtures;
 use vcs_test_support::fixtures::Matrix;
-use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::stubs::assert_shadowing_holds;
 use vcs_test_support::stubs::reference_artefact;
 use vcs_test_support::stubs::Mode;
@@ -131,52 +128,46 @@ fn derived_facts(
     Ok(String::from_utf8(output.stdout)?)
 }
 
-fn assert_reads_without_spawning(root: &Path) -> Result<(), TestError> {
+/// One plain-git and one pure-jj shape, because `facts` resolves the revision
+/// through a different route per `VcsKind`. Drawn from the shared matrix rather
+/// than built here: building needs the real binaries, which the strong form has
+/// already moved out of reach by the time a test body runs.
+const IDIOMS: [&str; 2] = ["PG-r", "PJ"];
+
+#[test]
+fn the_metadata_read_resolves_both_idioms_without_spawning_them(
+) -> Result<(), TestError> {
+    let mode = Mode::from_environment()?;
+    assert_shadowing_holds(mode)?;
+
+    let (_matrix_guard, root) = fixtures::matrix_root()?;
+    let matrix = Matrix::build_or_adopt(&root)?;
+
     let stub_base = tempfile::Builder::new()
-        .prefix("corpus-zero-spawn-stubs-")
+        .prefix("corpus-zero-spawn-metadata-")
         .tempdir()?;
     let stubs = Stubs::rooted_at(stub_base.path())?;
 
-    let unrestricted = derived_facts(root, None)?;
-    let stubbed = derived_facts(root, Some(&stubs))?;
+    let mut mismatches = String::new();
+    for key in IDIOMS {
+        let start = matrix.start(key)?;
+        let unrestricted = derived_facts(start, None)?;
+        let stubbed = derived_facts(start, Some(&stubs))?;
+        if unrestricted != stubbed {
+            writeln!(mismatches, "  {key}: {unrestricted} != {stubbed}")?;
+        }
+    }
 
     assert_eq!(
         stubs.spawns()?,
         None,
         "a git or jj subprocess was spawned; the stub recorded it"
     );
-    assert_eq!(
-        unrestricted, stubbed,
+    assert!(
+        mismatches.is_empty(),
         "the facts changed when the real binaries were removed, so the \
-         metadata-read path degraded rather than reading in-process"
+         metadata-read path degraded rather than reading in-process:\n\
+         {mismatches}"
     );
     Ok(())
-}
-
-#[test]
-fn a_git_metadata_read_spawns_no_subprocess() -> Result<(), TestError> {
-    let base = tempfile::Builder::new()
-        .prefix("corpus-zero-spawn-git-")
-        .tempdir()?;
-    let environment = Hermetic::rooted_at(base.path())?;
-
-    let root = base.path().join("repository");
-    fs::create_dir_all(&root)?;
-    environment.git(&["init", "--quiet"], &root)?;
-    environment
-        .git(&["commit", "--allow-empty", "--quiet", "-m", "root"], &root)?;
-
-    assert_reads_without_spawning(&root.canonicalize()?)
-}
-
-#[test]
-fn a_jj_metadata_read_spawns_no_subprocess() -> Result<(), TestError> {
-    let base = tempfile::Builder::new()
-        .prefix("corpus-zero-spawn-jj-")
-        .tempdir()?;
-    let environment = Hermetic::rooted_at(base.path())?;
-    let root: PathBuf =
-        fixtures::pure_jj(&base.path().join("repository"), &environment)?;
-
-    assert_reads_without_spawning(&root)
 }
