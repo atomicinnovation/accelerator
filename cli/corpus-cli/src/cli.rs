@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use clap::Subcommand;
+use corpus::FilenameTimestampFormat;
 
 /// The `accelerator-corpus` command-line surface.
 #[derive(Parser)]
@@ -74,7 +75,32 @@ pub enum MetadataAction {
     /// The unified artifact-metadata provenance block: the UTC datetime, the
     /// host-local filename timestamp, and (inside a VCS checkout) the
     /// repository name and revision.
-    Derive,
+    Derive {
+        /// Which shape the filename timestamp is rendered in.
+        #[arg(long, value_enum, default_value_t = FilenameTimestampFormatArg::DateTimeUnderscored)]
+        filename_timestamp_format: FilenameTimestampFormatArg,
+    },
+}
+
+/// The CLI-local mirror of `corpus::FilenameTimestampFormat`.
+///
+/// The domain crate cannot derive `ValueEnum`: its import rule permits only
+/// std, `kernel::Error` and `crate`.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilenameTimestampFormatArg {
+    DateTimeUnderscored,
+    CompactTime,
+}
+
+impl From<FilenameTimestampFormatArg> for FilenameTimestampFormat {
+    fn from(arg: FilenameTimestampFormatArg) -> Self {
+        match arg {
+            FilenameTimestampFormatArg::DateTimeUnderscored => {
+                Self::DateTimeUnderscored
+            }
+            FilenameTimestampFormatArg::CompactTime => Self::CompactTime,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -123,4 +149,73 @@ pub enum FrontmatterAction {
 pub enum CheckKind {
     Structure,
     References,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser as _;
+    use corpus::FilenameTimestampFormat;
+
+    use super::Cli;
+    use super::Command;
+    use super::FilenameTimestampFormatArg;
+    use super::MetadataAction;
+
+    #[test]
+    fn each_argument_selects_its_own_variant() {
+        assert_eq!(
+            FilenameTimestampFormat::from(
+                FilenameTimestampFormatArg::DateTimeUnderscored
+            ),
+            FilenameTimestampFormat::DateTimeUnderscored
+        );
+        assert_eq!(
+            FilenameTimestampFormat::from(
+                FilenameTimestampFormatArg::CompactTime
+            ),
+            FilenameTimestampFormat::CompactTime
+        );
+    }
+
+    fn parse_derive(
+        arguments: &[&str],
+    ) -> Result<FilenameTimestampFormatArg, Box<dyn std::error::Error>> {
+        let cli = Cli::try_parse_from(arguments)?;
+        let Command::Metadata {
+            action:
+                MetadataAction::Derive {
+                    filename_timestamp_format,
+                },
+        } = cli.command
+        else {
+            return Err("expected metadata derive".into());
+        };
+        Ok(filename_timestamp_format)
+    }
+
+    #[test]
+    fn the_format_defaults_to_the_shape_existing_callers_receive(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            parse_derive(&["accelerator-corpus", "metadata", "derive"])?,
+            FilenameTimestampFormatArg::DateTimeUnderscored
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_compact_time_format_is_selectable(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            parse_derive(&[
+                "accelerator-corpus",
+                "metadata",
+                "derive",
+                "--filename-timestamp-format",
+                "compact-time",
+            ])?,
+            FilenameTimestampFormatArg::CompactTime
+        );
+        Ok(())
+    }
 }

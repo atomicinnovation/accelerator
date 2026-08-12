@@ -5,7 +5,7 @@ title: "{Feature/Task Name} Implementation Plan"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
 producer: create-plan
-status: draft                                # draft | ready | in-progress | done
+status: draft                                # draft | ready | in-progress | done | superseded
 work_item_id: ""                             # foreign reference; omitted when no linked work item
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
