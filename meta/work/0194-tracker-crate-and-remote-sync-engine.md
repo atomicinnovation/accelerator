@@ -516,12 +516,21 @@ Criteria and Drafting Notes.
     so an unsound partition is representable. The contract test above is
     the only mechanism that will ever catch it, and 0171's clients are
     written before it exists.
-  - The empty-`RemoteTimestamp` trap. An empty stamp means *unknown*, and
-    derived `PartialEq` reports two unknowns as equal. Comparing them and
-    concluding "unchanged" marks an item whose baseline was never written
-    as already synced — `work-item-sync-classify.sh:177` guards this with
-    `[ -n "$base_remote_updated" ] &&` before its equality short-circuit,
-    and the Rust classifier must reproduce that guard.
+  - The `RemoteTimestamp` unknown-comparison trap, now **largely
+    discharged by the port** (2026-08-12). The type is a three-variant
+    enum — `Reported(String)`, `NotReported`, `NotRead` — and
+    `proves_unchanged_since` carries the classifier's rule, so the guard
+    `work-item-sync-classify.sh:177` writes as
+    `[ -n "$base_remote_updated" ] &&` is a method call rather than
+    something to reproduce. What remains for this story: call that
+    predicate rather than `==`, which still reports two identical unknowns
+    as equal, and persist both unknown variants to the baseline's
+    `remote_updated_at` as the empty string the bash path already writes.
+    That mapping is **lossy on read-back** — the on-disk `""` cannot say
+    which unknown it was — so a baseline round trip resolves to a single
+    variant, and only a fresh read can distinguish them again. Pick which
+    one deliberately and record it; classification is unaffected either
+    way, but a sync report is not.
   - The normalisation recipe. `RemoteIssue.body` is the *un-normalised*
     projection; this story owns normalising before hashing, and must
     reproduce `work-item-normalise.sh` exactly — per-line trim, trailing
@@ -848,6 +857,16 @@ Criteria and Drafting Notes.
   implementing an operation once the trait gains a default-bodied method
   is undetectable by either of 0204's own guards — worth a contract-test
   case here if the risk is judged worth the cost.
+- `RemoteTimestamp` became a three-variant enum on 0204's implementation
+  review (2026-08-12), replacing the `String` newtype whose empty value
+  meant both "the tracker reports no stamp" and "the post-push read
+  failed". Two consequences here, both recorded on the inherited-obligation
+  bullet above: the unknown-comparison trap is now a method call rather
+  than a rule to reproduce, and this story owns the lossy baseline mapping
+  the enum exposes — `NotReported` and `NotRead` both persist as `""`, so
+  the variant does not survive a round trip through `last-sync.json`.
+  `NotRead` is also the one variant no port operation returns; this story
+  writes it.
 
 ## References
 

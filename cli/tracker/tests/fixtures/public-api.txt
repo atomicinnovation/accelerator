@@ -1,4 +1,19 @@
 pub mod tracker
+pub enum tracker::RemoteTimestamp
+pub tracker::RemoteTimestamp::NotRead
+pub tracker::RemoteTimestamp::NotReported
+pub tracker::RemoteTimestamp::Reported(alloc::string::String)
+impl tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::proves_unchanged_since(&self, baseline: &Self) -> bool
+pub fn tracker::RemoteTimestamp::reported(&self) -> core::option::Option<&str>
+impl core::clone::Clone for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::clone(&self) -> tracker::RemoteTimestamp
+impl core::cmp::Eq for tracker::RemoteTimestamp
+impl core::cmp::PartialEq for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::eq(&self, other: &tracker::RemoteTimestamp) -> bool
+impl core::fmt::Debug for tracker::RemoteTimestamp
+pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
 pub enum tracker::TrackerError
 pub tracker::TrackerError::Retryable
 pub tracker::TrackerError::Retryable::detail: alloc::string::String
@@ -54,18 +69,6 @@ pub fn tracker::RemoteIssue::eq(&self, other: &tracker::RemoteIssue) -> bool
 impl core::fmt::Debug for tracker::RemoteIssue
 pub fn tracker::RemoteIssue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteIssue
-pub struct tracker::RemoteTimestamp(_)
-impl tracker::RemoteTimestamp
-pub fn tracker::RemoteTimestamp::as_str(&self) -> &str
-pub const fn tracker::RemoteTimestamp::new(value: alloc::string::String) -> Self
-impl core::clone::Clone for tracker::RemoteTimestamp
-pub fn tracker::RemoteTimestamp::clone(&self) -> tracker::RemoteTimestamp
-impl core::cmp::Eq for tracker::RemoteTimestamp
-impl core::cmp::PartialEq for tracker::RemoteTimestamp
-pub fn tracker::RemoteTimestamp::eq(&self, other: &tracker::RemoteTimestamp) -> bool
-impl core::fmt::Debug for tracker::RemoteTimestamp
-pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
 pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>

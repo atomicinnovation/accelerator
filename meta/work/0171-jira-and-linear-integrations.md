@@ -164,9 +164,9 @@ granularity is wanted.
 - [ ] The doc comments in `tracker` that name bash artefacts are updated in
       the same change that deletes them: `RemoteIssue.body`'s projection
       reference, `errors.rs`'s module doc, `show`'s `# Errors` note about
-      the read bridge, and `RemoteTimestamp`'s note about the bash-written
-      baseline. The contracts they state outlive the scripts; the
-      references do not.
+      the read bridge, and `RemoteTimestamp::Reported`'s note about the
+      bash-written baseline. The contracts they state outlive the scripts;
+      the references do not.
 - [ ] 0194's shared `RemoteTracker` contract test passes against both real
       clients under the tagged filter, asserting round-trip `create` → `show`
       and whole-content `update` → `show`; the default
@@ -212,6 +212,14 @@ granularity is wanted.
   can stay as narrow as `linear-search-flow.sh`'s today, with no need to
   widen it against Linear's complexity cap. The client work needs
   nothing else from 0194.
+
+  One further shape settled on 0204's implementation review (2026-08-12):
+  `RemoteTimestamp` is a three-variant enum, not a `String` newtype. A
+  client maps a tracker's stamp to `Reported(bytes)` verbatim and a blank
+  or null one to `NotReported` — never to `Reported("")`, which means
+  nothing. The third variant, `NotRead`, is unreachable through the port:
+  a client cannot return it, because `show` and `fetch_all` either answer
+  or fail.
 - Blocked by: 0194 (the sync engine) for the **cutover half only** — the
   script removal, skill repointing, conversational conflict flow and
   contract-suite run all need the binary that story delivers. The client

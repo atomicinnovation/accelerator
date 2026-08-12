@@ -38,37 +38,72 @@ impl Display for ExternalId {
     }
 }
 
-/// A tracker's own last-modified stamp, held verbatim.
+/// A tracker's own last-modified stamp, or the reason there is none.
 ///
 /// A cache key, not a clock: an unequal stamp means the body must be
 /// re-hashed, never that the remote is newer. Hence no `PartialOrd` or `Ord`,
 /// and no conversion surface beyond construction and read-back.
 ///
-/// The bytes must survive unchanged — providers emit mutually incompatible
-/// formats (see `tests/fixtures/remote-updated-at.txt` for the committed set),
-/// and a date-library round-trip would rewrite a numeric offset, reclassifying
-/// every item whose baseline the bash sync path already wrote.
-///
-/// The empty string is a legal value with two sources: a tracker that reports
-/// no timestamp for an issue, and a post-push read that failed. `new`
-/// therefore validates nothing. Both mean *unknown*.
-///
-/// Beware the consequence: `==` reports two empty stamps as equal, and that
-/// must not be read as "unchanged". Check for emptiness before comparing, as
-/// the sync classifier does — comparing two unknowns and concluding a match
-/// classifies an item whose baseline was never written as already synced.
+/// The three variants are exhaustive over what a sync run can know, and they
+/// are deliberately distinct rather than collapsed into one absent value: a
+/// sync report tells a user "the tracker has no stamp for this issue" and "the
+/// push landed but its stamp could not be read back" differently, and the
+/// baseline the bash path writes — which stores the empty string for both —
+/// cannot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RemoteTimestamp(String);
+pub enum RemoteTimestamp {
+    /// The stamp the tracker reported, held verbatim.
+    ///
+    /// The bytes must survive unchanged — providers emit mutually incompatible
+    /// formats (see `tests/fixtures/remote-updated-at.txt` for the committed
+    /// set), and a date-library round-trip would rewrite a numeric offset,
+    /// reclassifying every item whose baseline the bash sync path already
+    /// wrote.
+    ///
+    /// Nothing validates the bytes, so an empty string is constructible here
+    /// and means nothing. A tracker that answers with a blank or null stamp is
+    /// reporting no stamp: map it to `NotReported`.
+    Reported(String),
+    /// The tracker holds no stamp for the issue.
+    ///
+    /// A property of the remote record, established by a retrieval that
+    /// succeeded — so a client returns this, and it is the only unknown a
+    /// client can return.
+    NotReported,
+    /// A push landed, and the read that would have learned the new stamp
+    /// failed.
+    ///
+    /// No port operation returns this: `show` and `fetch_all` either answer or
+    /// fail. The sync engine writes it into a baseline when its post-push
+    /// read-back does not come back, recording that the remote moved by an
+    /// unknown amount. The next run re-reads rather than trusting the baseline.
+    NotRead,
+}
 
 impl RemoteTimestamp {
+    /// The bytes the tracker reported, if it reported any.
     #[must_use]
-    pub const fn new(value: String) -> Self {
-        Self(value)
+    pub fn reported(&self) -> Option<&str> {
+        match self {
+            Self::Reported(stamp) => Some(stamp),
+            Self::NotReported | Self::NotRead => None,
+        }
     }
 
+    /// Whether this stamp, read against `baseline`, proves the issue has not
+    /// changed — and so that its body need not be re-hashed.
+    ///
+    /// Only two reported stamps holding identical bytes can prove it. An
+    /// unknown on either side proves nothing, whichever kind it is: use this
+    /// rather than `==`, which reports two identical unknowns as equal and
+    /// would classify an item whose baseline was never written as already
+    /// synced.
     #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
+    pub fn proves_unchanged_since(&self, baseline: &Self) -> bool {
+        matches!(
+            (self, baseline),
+            (Self::Reported(stamp), Self::Reported(known)) if stamp == known
+        )
     }
 }
 
@@ -203,8 +238,8 @@ pub struct FetchOutcome {
     /// could only ever be filled with a fabricated one.
     ///
     /// An issue the tracker returns without a timestamp still belongs here,
-    /// paired with an empty `RemoteTimestamp`. Never drop it: an id missing
-    /// from a complete retrieval reads as absence, so filtering out the
+    /// paired with [`RemoteTimestamp::NotReported`]. Never drop it: an id
+    /// missing from a complete retrieval reads as absence, so filtering out the
     /// null-stamped entries reports a live issue as deleted.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
     /// Provably gone from the tracker. Only ever drawn from a complete

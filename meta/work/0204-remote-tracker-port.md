@@ -83,11 +83,15 @@ to reach and easy to hold stable once reached.
   impl std::fmt::Display for ExternalId { /* ... */ }
 
   #[derive(Debug, Clone, PartialEq, Eq)]
-  pub struct RemoteTimestamp(String);
+  pub enum RemoteTimestamp {
+      Reported(String),
+      NotReported,
+      NotRead,
+  }
 
   impl RemoteTimestamp {
-      pub const fn new(value: String) -> Self;
-      pub fn as_str(&self) -> &str;
+      pub fn reported(&self) -> Option<&str>;
+      pub fn proves_unchanged_since(&self, baseline: &Self) -> bool;
   }
 
   #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,18 +133,20 @@ to reach and easy to hold stable once reached.
 
   This block is the whole of the freeze: six public items, their fields,
   variants, derives, inherent methods, method signatures and trait impls.
-  Three impls carry bodies and no others may: `Display` and `Error` on
-  `TrackerError` — without them the type is not usable as an error — and
+  Five bodies live in `src/` and no others may: `Display` and `Error` on
+  `TrackerError` — without them the type is not usable as an error —
   `Display` on `ExternalId`, which keeps `as_str()` out of every format
-  site in both consumers. They are named here so the no-logic rule below
-  has an unambiguous edge.
+  site in both consumers, and `RemoteTimestamp`'s two inherent methods,
+  which are what make the three stamp states readable and comparable
+  without every call site re-deriving the classifier's rule. They are
+  named here so the no-logic rule below has an unambiguous edge.
 
-  `const` on the two `new` constructors is expected rather than settled:
-  nursery's `missing_const_for_fn` under `warnings = "deny"` should reject
-  the plain form, but the lint has historically not fired on a parameter
-  carrying a `Drop` impl, which `String` does. Confirm before
-  implementation; if it does not fire, drop `const` from both rather than
-  keeping a forward commitment nothing compels.
+  `const` on `ExternalId::new` is expected rather than settled: nursery's
+  `missing_const_for_fn` under `warnings = "deny"` should reject the plain
+  form, but the lint has historically not fired on a parameter carrying a
+  `Drop` impl, which `String` does. Confirm before implementation; if it
+  does not fire, drop `const` rather than keeping a forward commitment
+  nothing compels.
 
   `ExternalId` holds the same value the local work item carries in its
   `external_id` frontmatter field. The port takes it as opaque: it does
@@ -171,8 +177,8 @@ to reach and easy to hold stable once reached.
   all — so a `RemoteIssue` here could only ever be filled with a
   fabricated one, and a fabricated body reclassifies every synced item.
   An issue the tracker returns without a timestamp still belongs in
-  `found`, paired with an empty `RemoteTimestamp`; dropping it would make
-  a live issue read as absent.
+  `found`, paired with `RemoteTimestamp::NotReported`; dropping it would
+  make a live issue read as absent.
 
   `absent` carries the weight. An
   id belongs there only when the retrieval was provably complete; a
@@ -239,15 +245,31 @@ to reach and easy to hold stable once reached.
   call. The fixture records that reasoning. This is the artefact 0171's
   criterion to delete the script "and its parity fixture" refers to, so
   it is owned here rather than left to 0194.
-- Define `RemoteTimestamp` as an opaque newtype over `String` holding the
-  tracker's own last-modified stamp verbatim, compared by equality and
-  never parsed or ordered — hence no `PartialOrd`/`Ord` derive and no
-  conversion surface beyond construction and byte read-back. It is the
-  value persisted as `remote_updated_at` in the sync baseline — the two
-  names refer to one thing. Preserving the exact bytes is what keeps
-  items whose baselines the bash sync path already wrote classifying as
-  `synced` after the port lands; a lossy conversion at that boundary
-  silently reclassifies them.
+- Define `RemoteTimestamp` as a closed enum over the three things a sync
+  run can know about a stamp: `Reported(String)` holding the tracker's
+  own last-modified stamp verbatim, `NotReported` for a tracker that
+  holds no stamp for the issue, and `NotRead` for a push whose read-back
+  failed. Compared by equality and never parsed or ordered — hence no
+  `PartialOrd`/`Ord` derive and no conversion surface beyond
+  `reported()`. It is the value persisted as `remote_updated_at` in the
+  sync baseline — the two names refer to one thing. Preserving the exact
+  bytes is what keeps items whose baselines the bash sync path already
+  wrote classifying as `synced` after the port lands; a lossy conversion
+  at that boundary silently reclassifies them.
+
+  The three variants are named rather than collapsed into one absent
+  value because the bash baseline's empty string carries two meanings at
+  once, and a caller cannot tell them apart to report either. Only
+  `NotReported` is reachable through the port — `show` and `fetch_all`
+  either answer or fail — so `NotRead` is a state the sync engine writes,
+  not one a client returns.
+
+  `proves_unchanged_since` carries the classifier's rule as a named
+  operation: only two `Reported` stamps holding identical bytes prove a
+  match. This is the one predicate the crate ships, and it exists because
+  `==` reports two identical unknowns as equal — the trap
+  `work-item-sync-classify.sh:177` guards with `[ -n "$baseline" ]` and
+  the one a caller re-deriving the rule per site will reintroduce.
 - Commit one real `remote_updated_at` string per provider under
   `tracker/tests/fixtures/` as this item's own round-trip input. Both
   formats, not one: the providers emit incompatible shapes — Linear
@@ -374,12 +396,12 @@ to reach and easy to hold stable once reached.
       byte-identically. The fixture holds one real stamp per provider —
       Linear's `Z`-suffixed form and Jira's numeric-offset
       `+0000` form — because a single-format fixture leaves the shape most
-      at risk of a lossy conversion untested. The empty string is covered
-      too: it is what the sync path stores when a post-push read fails, so
-      `new` must not validate. And
-      `RemoteTimestamp` derives no `PartialOrd`/`Ord` and exposes no
-      parsing or conversion method beyond `new` and `as_str`, so two
-      values differing only in whitespace compare unequal.
+      at risk of a lossy conversion untested. Both unknowns are covered
+      too: a test pins that neither reports a stamp to read, that they are
+      distinguishable from each other, and that no unknown on either side
+      proves a match. And `RemoteTimestamp` derives no `PartialOrd`/`Ord`
+      and exposes no parsing or conversion method beyond `reported`, so
+      two values differing only in whitespace compare unequal.
 - [x] `RemoteIssue.body`'s doc comment states that the value is the
       already-projected domain body per the `work-item-project-remote.sh`
       recipe, and that reproducing it per provider is the implementing
@@ -403,7 +425,8 @@ to reach and easy to hold stable once reached.
       which `cli:check` does not cover.
 - [x] The crate carries no behavioural logic: `tracker/src/` contains no
       `#[cfg(test)]` module and no function body other than the four
-      inherent methods, the two `Display` impls and the `Error` impl
+      inherent methods (`ExternalId`'s two, `RemoteTimestamp`'s two), the
+      two `Display` impls and the `Error` impl
       named in Requirements, and the workspace manifest lists no
       `tracker-adapters` member. The first and third are checked by
       `tracker/tests/structure.rs`, which also asserts the absent
@@ -569,8 +592,9 @@ via a pending-push marker, and the port stays at four operations.
   dependency the pup rule forbids, and native async fn in traits is not
   object-safe, but 0194's composition root needs
   `Box<dyn RemoteTracker>`); `TrackerError` is crate-local rather than a
-  widening of the shared `kernel::Error`; `RemoteTimestamp` is opaque over
-  `String` so existing bash-written baselines round-trip byte-identically;
+  widening of the shared `kernel::Error`; `RemoteTimestamp` holds the
+  tracker's bytes verbatim so existing bash-written baselines round-trip
+  byte-identically;
   and retry idempotency is resolved in `work`, keeping the port at four
   operations.
 - The signature probe is an integration test in `tracker/tests/` rather
@@ -642,6 +666,20 @@ via a pending-push marker, and the port stays at four operations.
   constructor or test AC 10 forbids. 0194 and 0171 have been told their
   descriptions of the port were stale (five items, no `FetchOutcome`) —
   see their own Drafting Notes.
+- `RemoteTimestamp` became a three-variant enum on implementation review
+  (2026-08-12), replacing the `String` newtype whose empty value carried
+  two meanings at once. The surface it declares is the enum's variants,
+  `reported()` and `proves_unchanged_since()`; `new` and `as_str` are
+  gone. Item count is unchanged at six, and the change is a **breaking**
+  one for a consumer already written against the newtype — neither 0171
+  nor 0194 has started, so nothing was broken.
+
+  The predicate is the part that goes beyond naming the variants, and it
+  earns its place: the enum alone leaves the trap intact, because a
+  derived `==` still reports two identical unknowns as equal. AC 10's
+  "no function bodies in `src/` beyond the ones it names" is amended to
+  include it and `reported()`, deliberately, rather than pushing the rule
+  onto every call site to re-derive.
 
 ## References
 

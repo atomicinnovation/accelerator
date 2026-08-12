@@ -1,5 +1,6 @@
 //! The value types hold their bytes and nothing else: construction and
-//! read-back are lossless, and comparison is exact.
+//! read-back are lossless, and comparison is exact. A stamp additionally names
+//! the two ways it can be unknown, and only a reported pair proves a match.
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -10,6 +11,8 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 
 type TestError = Box<dyn Error>;
+
+const A_STAMP: &str = "2026-07-09T08:00:00.000+0000";
 
 fn stamps() -> Result<Vec<String>, TestError> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -43,12 +46,12 @@ fn every_committed_stamp_survives_a_round_trip_byte_identically(
 ) -> Result<(), TestError> {
     for stamp in stamps()? {
         let issue = RemoteIssue {
-            updated: RemoteTimestamp::new(stamp.clone()),
+            updated: RemoteTimestamp::Reported(stamp.clone()),
             body: String::new(),
         };
         assert_eq!(
-            issue.updated.as_str(),
-            stamp,
+            issue.updated.reported(),
+            Some(stamp.as_str()),
             "stamp {stamp} did not survive the round trip"
         );
     }
@@ -56,24 +59,63 @@ fn every_committed_stamp_survives_a_round_trip_byte_identically(
 }
 
 #[test]
-fn stamps_differing_only_in_whitespace_compare_unequal() {
-    let stamp = RemoteTimestamp::new("2026-06-21T00:06:10.647Z".to_owned());
-    let padded = RemoteTimestamp::new("2026-06-21T00:06:10.647Z ".to_owned());
+fn neither_unknown_reports_a_stamp_to_read() {
+    assert_eq!(RemoteTimestamp::NotReported.reported(), None);
+    assert_eq!(RemoteTimestamp::NotRead.reported(), None);
+}
+
+#[test]
+fn the_two_unknowns_are_distinguishable_from_each_other() {
+    // The whole gain over a stamp that stored "" for both: a sync report can
+    // say "the tracker has no stamp for this issue" separately from "we pushed
+    // and could not read the stamp back".
+    assert_ne!(RemoteTimestamp::NotReported, RemoteTimestamp::NotRead);
+}
+
+#[test]
+fn stamps_differing_only_in_whitespace_do_not_prove_a_match() {
+    let stamp =
+        RemoteTimestamp::Reported("2026-06-21T00:06:10.647Z".to_owned());
+    let padded =
+        RemoteTimestamp::Reported("2026-06-21T00:06:10.647Z ".to_owned());
     assert_ne!(stamp, padded);
+    assert!(!stamp.proves_unchanged_since(&padded));
 }
 
 #[test]
-fn the_empty_stamp_is_a_legal_value() {
-    assert_eq!(RemoteTimestamp::new(String::new()).as_str(), "");
+fn identical_reported_stamps_prove_the_issue_is_unchanged() {
+    let stamp = || RemoteTimestamp::Reported(A_STAMP.to_owned());
+    assert!(stamp().proves_unchanged_since(&stamp()));
 }
 
 #[test]
-fn two_unknown_stamps_compare_equal_and_must_not_be_read_as_unchanged() {
-    // The trap this pins is the derived `PartialEq`, not a bug: both empty
-    // stamps mean "unknown", so a caller comparing them learns nothing.
-    let unknown = RemoteTimestamp::new(String::new());
-    assert_eq!(unknown, RemoteTimestamp::new(String::new()));
-    assert!(unknown.as_str().is_empty(), "check this before comparing");
+fn no_unknown_on_either_side_proves_a_match() {
+    // The invariant the bash classifier spells as `[ -n "$baseline" ] &&
+    // [ "$a" = "$b" ]`: an item whose baseline was never written must not
+    // classify as already synced, however the unknown arose.
+    let unknowns = [RemoteTimestamp::NotReported, RemoteTimestamp::NotRead];
+    let reported = RemoteTimestamp::Reported(A_STAMP.to_owned());
+
+    for unknown in &unknowns {
+        assert!(!unknown.proves_unchanged_since(&reported));
+        assert!(!reported.proves_unchanged_since(unknown));
+        for baseline in &unknowns {
+            assert!(
+                !unknown.proves_unchanged_since(baseline),
+                "{unknown:?} must not prove a match against {baseline:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn structural_equality_of_two_unknowns_is_not_a_sync_verdict() {
+    // Pinned because it is the reason `proves_unchanged_since` exists rather
+    // than callers reaching for `==`: the derive reports two identical unknowns
+    // as equal, which says only that both sides know nothing.
+    assert_eq!(RemoteTimestamp::NotRead, RemoteTimestamp::NotRead);
+    assert!(!RemoteTimestamp::NotRead
+        .proves_unchanged_since(&RemoteTimestamp::NotRead));
 }
 
 #[test]

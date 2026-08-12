@@ -129,7 +129,7 @@ const JIRA_STAMP: &str = "2026-07-09T08:00:00.000+0000";
 
 fn issue(stamp: &str, body: &str) -> RemoteIssue {
     RemoteIssue {
-        updated: RemoteTimestamp::new(stamp.to_owned()),
+        updated: RemoteTimestamp::Reported(stamp.to_owned()),
         body: body.to_owned(),
     }
 }
@@ -162,7 +162,7 @@ fn all_four_operations_are_reachable_through_a_trait_object() {
         .expect("the fake fetches");
     assert_eq!(
         outcome.found,
-        vec![(id, RemoteTimestamp::new(JIRA_STAMP.to_owned()))]
+        vec![(id, RemoteTimestamp::Reported(JIRA_STAMP.to_owned()))]
     );
 }
 
@@ -185,7 +185,7 @@ fn every_public_field_is_accounted_for() {
         indeterminate,
     } = tracker.fetch_all(&[id]).expect("the fake fetches");
 
-    assert_eq!(updated.as_str(), JIRA_STAMP);
+    assert_eq!(updated.reported(), Some(JIRA_STAMP));
     assert!(!body.is_empty());
     assert_eq!(found.len(), 1);
     assert!(absent.is_empty() && indeterminate.is_empty());
