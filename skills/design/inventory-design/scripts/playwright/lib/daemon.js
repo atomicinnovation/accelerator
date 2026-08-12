@@ -59,7 +59,7 @@ export async function startDaemon({ stateDir }) {
 
     // Stop being discoverable before the browser goes away. Closing the
     // browser first leaves a window as long as Chromium takes to exit in
-    // which run.sh's reuse check still passes — the pid is live and
+    // which the launcher's reuse check still passes — the pid is live and
     // server-info.json is present — so the next launcher dispatches onto a
     // dead page and the caller sees `Target page, context or browser has
     // been closed` instead of a clean respawn.
@@ -159,7 +159,7 @@ export async function startDaemon({ stateDir }) {
     if (shutdownInitiated) {
       return makeError({
         error: 'daemon-stopping',
-        message: 'The daemon is shutting down. Run the command again; run.sh will spawn a new one.',
+        message: 'The daemon is shutting down. Run the command again; the launcher will spawn a new one.',
         category: 'browser',
         retryable: true,
       });
@@ -411,15 +411,6 @@ export async function startDaemon({ stateDir }) {
     });
     server.once('error', reject);
   });
-
-  // Redirect stdout/stderr away from terminal once ready (daemon mode)
-  if (!process.env.ACCELERATOR_PLAYWRIGHT_KEEP_STDIO) {
-    try {
-      const { openSync } = await import('node:fs');
-      const devNull = openSync('/dev/null', 'r+');
-      // Don't redirect; keep logging available
-    } catch {}
-  }
 
   resetIdle();
 

@@ -55,7 +55,7 @@ impl DowngradeReason {
             Self::NodeMissing => "inventory-design: Playwright runtime is unavailable (Node >= 20 not found). Falling back to code-only crawler. Run `ensure-playwright.sh` manually to install, or pass --crawler code to suppress this notice.",
             Self::NodeTooOld => "inventory-design: Playwright runtime is unavailable (Node version is too old; >= 20 required). Falling back to code-only crawler. Run `ensure-playwright.sh` manually after upgrading Node, or pass --crawler code to suppress this notice.",
             Self::BootstrapFailed => "inventory-design: Playwright bootstrap failed. Falling back to code-only crawler. Run `ensure-playwright.sh` manually to see the full error, or pass --crawler code to suppress this notice.",
-            Self::ExecutorPingFailed => "inventory-design: Playwright executor is unhealthy. Falling back to code-only crawler. Run `run.sh ping` manually to diagnose, or pass --crawler code to suppress this notice.",
+            Self::ExecutorPingFailed => "inventory-design: Playwright executor is unhealthy. Falling back to code-only crawler. Run `accelerator design executor ping` manually to diagnose, or pass --crawler code to suppress this notice.",
             Self::CacheUnwritable => "inventory-design: Playwright cache directory is not writable. Falling back to code-only crawler. Check permissions on $ACCELERATOR_PLAYWRIGHT_CACHE (or ~/.cache/accelerator/playwright) and retry, or pass --crawler code to suppress this notice.",
             Self::DiskFloorNotMet => "inventory-design: Playwright cache filesystem has less than 500 MB free. Falling back to code-only crawler. Free space at $ACCELERATOR_PLAYWRIGHT_CACHE and retry, or pass --crawler code to suppress this notice.",
         }

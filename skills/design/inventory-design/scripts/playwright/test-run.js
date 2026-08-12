@@ -62,7 +62,6 @@ function spawnDaemon(stateDir, extraEnv = {}) {
     ...process.env,
     ACCELERATOR_PLAYWRIGHT_STATE_DIR: stateDir,
     ACCELERATOR_PLAYWRIGHT_IDLE_MS: '10000',
-    ACCELERATOR_PLAYWRIGHT_KEEP_STDIO: '1',
     ...extraEnv,
   };
   const child = fork(RUN_JS, ['daemon', '--state-dir', stateDir], {

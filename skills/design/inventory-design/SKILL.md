@@ -88,7 +88,15 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator design resolve-auth
 Capture the output (`header`, `form`, or `none`). If it exits non-zero, report
 the error to the user and stop.
 
-**Auth-header origin allowlist (security-critical)**: if auth mode is `header`,
+> [!WARNING]
+> **The header-auth path is currently inert.** The daemon imports its
+> auth-header handler and never calls it, and the origin allowlist that handler
+> requires (`ACCELERATOR_BROWSER_LOCATION_ORIGIN`) is set nowhere. An
+> authenticated crawl therefore produces an *unauthenticated* inventory, and the
+> allowlist described below is not enforced by anything. Do not put a live
+> credential in `ACCELERATOR_BROWSER_AUTH_HEADER` until that is wired up.
+
+**Auth-header origin allowlist (security-critical, once wired up)**: if auth mode is `header`,
 the `ACCELERATOR_BROWSER_AUTH_HEADER` value is injected **only** on navigations
 whose origin (scheme+host+port) matches the resolved `[location]` origin or the
 `ACCELERATOR_BROWSER_LOGIN_URL` origin. On any cross-origin navigation (off-site
@@ -139,7 +147,7 @@ print its stdout **before the crawl starts** (not only in Crawl Notes).
 
 Only if Step 4 succeeded (bootstrap ready), run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh ping
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor ping
 ```
 
 - **Returns `{"ok":true,...}`** → executor is healthy; proceed to Step 6.
@@ -300,10 +308,11 @@ authoritative (the resolver uses `sequence` as its primary tiebreaker).
 
 If a Playwright daemon was started (Steps 4–5 succeeded), stop it:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh daemon-stop
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor daemon-stop
 ```
 
-This is belt-and-braces — the browser agents also call `run.sh daemon-stop` as their final
+This is belt-and-braces — the browser agents also call `accelerator design executor
+daemon-stop` as their final
 action. Running it here ensures cleanup even if an agent exits abnormally.
 
 ### 13. Present Summary
