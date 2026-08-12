@@ -37,8 +37,9 @@ _ABSOLUTE_VCS_PATHS = (
 # removal set) went away. Dropped to 16 as the shell-based frontmatter and
 # linkage validators retired in favour of `accelerator corpus`. Dropped to 15
 # as the meta-directory migration engine's interactive wire-protocol harness
-# retired in favour of the native accelerator-migrate port.
-_EXPECTED_CONFIG_SUITES = 15
+# retired in favour of the native accelerator-migrate port. Raised to 16 to
+# correct a floor left one behind the real discovered count.
+_EXPECTED_CONFIG_SUITES = 16
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the

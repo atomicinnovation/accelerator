@@ -1489,134 +1489,106 @@ adds a cheap assertion.
 
 #### 3. Guard the anchor
 
-**File**: `scripts/test-docs-anchors.sh` (new, executable)
+**File**: `tests/unit/tasks/test_docs_anchors.py` (new)
 **Changes**: A small
 suite asserting that `internals.md` still carries `## Terminal Invocation`, and
 that the two repointed files still hold the published URL for it.
+
+Python, not a `scripts/test-*.sh` harness: ADR-0048 makes Python the test
+language for the non-Rust surfaces, and the bash suites still under `hooks/` and
+`scripts/` predate that decision.
+`tests/integration/hooks/test_launcher_link_refresh.py` is the precedent — it
+guards the same hook, in Python, citing the same ADR.
 
 Not added to `scripts/test-design.sh`: that suite is scoped end to end to the
 design-skills domain, and a developer asking what stops the terminal-invocation
 anchor rotting would not search it — the same discoverability failure that let
 `docs/internals.md` survive in two shipped files.
 
-The suite, verbatim — it must follow the directory's fixed shape, and the
-closing `test_summary` is load-bearing, not decorative: the `assert_*` helpers
-only increment a counter, and `test_summary` (`scripts/test-helpers.sh:371-381`)
-is what turns a non-zero `FAIL` into a non-zero exit. A suite written without it
-exits 0 with failing assertions, which is exactly the silently-vacuous guard
-this one exists to prevent.
+Three assertions, one per guarded fact:
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+1. `internals.md` carries `## Terminal Invocation` as a **whole line**. A
+   substring check passes against `## Terminal Invocations`, which slugs to a
+   different anchor — the guard would be vacuous exactly where the heading was
+   edited.
+2. Both shipped pointers contain the published URL.
+3. Neither shipped pointer names `docs/internals.md`, the repository path this
+   phase removes.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/test-helpers.sh"
+Shape follows `tests/unit/tasks/test_docs_theme_drift.py`, the existing
+docs-site drift guard: same directory, same static-content shape, resolving the
+repo root with `Path(__file__).resolve().parents[3]`. It is collected by the
+`test:unit:tasks` task (`mise.toml:243-246`) with no wiring, and neither the
+executable-bit invariant nor `SHELL_LIBRARIES` applies.
 
-DOCS_INTERNALS="$PLUGIN_ROOT/docs-site/src/content/docs/internals.md"
-# docs-site/astro.config.mjs owns the hosting decision; the two shipped pointers
-# and this constant are copies of it, so assert the owner still agrees.
-ASTRO_CONFIG="$PLUGIN_ROOT/docs-site/astro.config.mjs"
-ANCHOR_PAGE="https://atomicinnovation.github.io/accelerator/internals/"
-ANCHOR_URL="${ANCHOR_PAGE}#terminal-invocation"
-
-echo "=== terminal-invocation anchor ==="
-assert_contains "internals.md keeps the heading the shipped pointers target" \
-  "$(cat "$DOCS_INTERNALS")" "## Terminal Invocation"
-
-echo "=== shipped pointers ==="
-for f in \
-  "$PLUGIN_ROOT/skills/visualisation/visualise/SKILL.md" \
-  "$PLUGIN_ROOT/hooks/launcher-link-refresh.sh"; do
-  assert_contains "$(basename "$f") points at the published anchor" \
-    "$(cat "$f")" "$ANCHOR_URL"
-done
-
-echo "=== hosting decision still matches ==="
-assert_contains "astro.config.mjs still defaults to the copied origin" \
-  "$(cat "$ASTRO_CONFIG")" "https://atomicinnovation.github.io"
-assert_contains "astro.config.mjs still defaults to the copied base" \
-  "$(cat "$ASTRO_CONFIG")" "/accelerator"
-
-test_summary
-```
-
-Note the helper's argument order: `assert_contains <test name> <haystack>
-<needle>` (`scripts/test-helpers.sh:33-34`), not haystack-first. Every call site
-in the directory follows that order — e.g. `scripts/test-design.sh:14-15`.
-
-Shape and helpers follow `scripts/test-hash-common.sh` and
-`scripts/test-design.sh`. It is auto-discovered by `run_shell_suites(context,
-"scripts", …)` (`tasks/test/integration.py:344-351`) with no wiring, and per the
-executable-bit invariant needs `chmod +x`.
-
-**Guard it by name, not by count.** Add `scripts/test-docs-anchors.sh` to
-`_REQUIRED_CONFIG_SUITES` (`tasks/test/integration.py:63`), which is the
-fail-closed mechanism the file already provides. The `_EXPECTED_CONFIG_SUITES`
-floor is a weaker check and is currently *behind*: `scripts/` holds 16
-discoverable executable suites against a floor of 15, so bumping it to 16 would
-still pass with this suite's exec bit dropped — the exact failure the floor
-exists to prevent. Set the floor to the real post-change count (17) and extend
-the running rationale comment at `:31-41`, which annotates every prior movement,
-with the reason for this one.
+**No by-name registration applies.** `_REQUIRED_CONFIG_SUITES`
+(`tasks/test/integration.py:63`) exists because a bash suite renamed off the
+`test-*.sh` convention, or stripped of its exec bit, silently drops out of a
+glob while the task still exits 0. Pytest collection has neither failure mode,
+so the guard has nothing to register against. The `_EXPECTED_CONFIG_SUITES`
+floor is still *behind* independently of this phase — `scripts/` holds 16
+discoverable executable suites against a floor of 15 — so correct it to 16 and
+extend the running rationale comment at `:31-41`, which annotates every prior
+movement, with the reason for this one.
 
 Asserting the URL as well as the heading is the part that would have caught the
 site-relative form rejected in item 1: a heading guard alone says nothing about
-whether the pointers still resolve. `ANCHOR_URL` is defined once and both files
-checked against it, so the guard proves the copies agree rather than adding a
-third independent one — and the final pair of assertions ties that constant back
-to `astro.config.mjs`, which owns the hosting decision, so a domain move breaks
-the guard loudly instead of leaving it green against a stale literal.
+whether the pointers still resolve. The expected URL is composed once and both
+files checked against it, so the guard proves the copies agree rather than
+adding a third independent one.
 
-The URL is written literally rather than composed from
-`${DOCS_SITE}`/`${DOCS_BASE}`. Those are consumed by `npm run build` inside
-`docs-site/` and are not exported into the `test:integration:config` lane, so
-defaulting from them would look fork-aware while always reading the upstream
+That expected URL is **composed from `docs-site/astro.config.mjs`** — the `site`
+and `base` defaults are read out of the file's text — rather than hardcoded.
+`astro.config.mjs` owns the hosting decision and the two shipped pointers are
+copies of it, so a domain or base move reddens the pointer assertions directly
+instead of a hardcoded literal drifting behind a separately-asserted origin.
+
+Reading the file, not `${DOCS_SITE}`/`${DOCS_BASE}`: those env vars are consumed
+by `npm run build` inside `docs-site/` and are not exported into any test lane,
+so defaulting from them would look fork-aware while always reading the upstream
 values; `DOCS_SITE` also already names the `docs-site/` *directory* in
 `tasks/shared/paths.py:12`, so borrowing the name invites a confusing collision.
+The file's own defaults carry the same values without either problem.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `rg -n 'docs/internals\.md' -g '!meta/**' -g '!workspaces/**' .` returns
-      only full-path hits — after this phase, three: `scripts/test-design.sh:9`,
-      `tasks/README.md:433` and the new `scripts/test-docs-anchors.sh`, whose
-      `DOCS_INTERNALS` assignment contains the same substring. No bare
-      `docs/internals.md` pointer remains
-- [ ] Shell lint and format pass: `mise run scripts:check`
-- [ ] The hook tests pass: `mise run test:integration:hooks`. They assert on
+- [x] `rg -n 'docs/internals\.md' -g '!meta/**' -g '!workspaces/**' .` returns
+      only full-path hits — after this phase, four: `scripts/test-design.sh:9`,
+      `tasks/README.md:479` and two in the new
+      `tests/unit/tasks/test_docs_anchors.py`, whose path constant and negative
+      guard name the same substring. No bare `docs/internals.md` pointer remains
+- [x] Shell lint and format pass: `mise run scripts:check`
+- [x] The hook tests pass: `mise run test:integration:hooks`. They assert on
       `"CLAUDE_PLUGIN_DATA unavailable"` alone
       (`tests/integration/hooks/test_launcher_link_refresh.py:328`, `:342`), not
       on the docs pointer, so the message change should not touch them — but
       neither `scripts:check` nor `mise run check` runs any test task
       (`mise.toml:575-577`), so the suite has to be named explicitly
-- [ ] The new anchor suite passes: `mise run test:integration:config` (which
-      discovers executable `test-*.sh` under `scripts/`); `bash
-      scripts/test-docs-anchors.sh` for the inner loop. `scripts:check` is
-      format + lint only and does **not** run it
-- [ ] `scripts/test-docs-anchors.sh` is listed in `_REQUIRED_CONFIG_SUITES`, and
-      `_EXPECTED_CONFIG_SUITES` is set to the real post-change discovered count
-      (17, not 16 — the floor is currently one behind at 15) with its rationale
-      comment extended
-- [ ] The suite fails closed: with one assertion deliberately broken it exits
-      non-zero, confirming `test_summary` is present and reached
-- [ ] The suite is executable (`chmod +x`) **and the mode is committed**, per
-      the exec-bit invariant — the guard reads the working-copy mode, so a
-      local-only chmod passes here and fails CI on a fresh checkout
-- [ ] `mise run docs:check` exits 0. This covers the source-path removal only —
+- [x] The new anchor suite passes: `mise run test:unit:tasks`; `uv run pytest
+      tests/unit/tasks/test_docs_anchors.py` for the inner loop. `scripts:check`
+      is format + lint only and does **not** run it
+- [x] `_EXPECTED_CONFIG_SUITES` is set to the real discovered count (16 — the
+      floor had been one behind at 15) with its rationale comment extended.
+      No by-name `_REQUIRED_CONFIG_SUITES` entry applies: that registration
+      exists because a bash suite renamed off the `test-*.sh` convention
+      vanishes silently from a glob, which pytest collection does not do
+- [x] The suite fails closed: with the heading renamed, either pointer
+      repointed, a repository path reintroduced, or the `astro.config.mjs`
+      hosting default removed, the relevant test fails
+- [x] `mise run docs:check` exits 0. This covers the source-path removal only —
       it does **not** validate either repointed URL, since
       `starlightLinksValidator` runs with `errorOnRelativeLinks: false` and does
       not resolve absolute off-site links either. The new anchor suite is what
       guards them
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] The `#terminal-invocation` anchor resolves on the built site, reached from
+- [x] The `#terminal-invocation` anchor resolves on the built site, reached from
       the generated `reference/skills/visualisation/visualise` page
-- [ ] The rewritten SKILL.md sentence reads naturally; the URL line exceeds 80
+- [x] The rewritten SKILL.md sentence reads naturally; the URL line exceeds 80
       columns unavoidably, as `README.md` accepts for its own links
 
 ---
@@ -2087,10 +2059,58 @@ names `resolve`.
 
 ### Documentation corrections
 
-_Pending Phases 3 and 4._ Slots: the `internals.md` paragraph, the
-`CHANGELOG.md` entry, the `cache_root` and `resolve/mod.rs` module docs, the two
-repointed runtime pointers, and the new `scripts/test-docs-anchors.sh` suite
-with its `_REQUIRED_CONFIG_SUITES` registration.
+Recorded 2026-08-12.
+
+- **`internals.md`** — the "Offline, mirrored and read-only installs" paragraph
+  now states that warm sub-binary dispatch neither writes nor probes, names the
+  three cold triggers, and splits the `--fail-safe` behaviour by failure arm
+  (integrity failure → `Refusal` → exit 2 and a `PreToolUse` block; plain cache
+  I/O and first-use/version-bump misses → `Failed` → swallowed, exit 0).
+- **`CHANGELOG.md`** — the `[Unreleased]` → Changed parenthetical now reads
+  "needs it writable only on a cold dispatch", enumerating all three triggers
+  including the self-heal case. It and the `internals.md` paragraph agree.
+- **`cache_root` module doc** — rewritten to describe only the surviving
+  surface, with `candidate`'s real precedence (override first) and the
+  resolver-ownership sentence. The old header's "read-only/noexec roots are
+  probed" and its backwards precedence are gone.
+- **`resolve/mod.rs` header** — "resolved cache root" → "selected cache root".
+- **Two runtime pointers repointed** at
+  `https://atomicinnovation.github.io/accelerator/internals/#terminal-invocation`:
+  `skills/visualisation/visualise/SKILL.md` and
+  `hooks/launcher-link-refresh.sh`. Both previously named `docs/internals.md`, a
+  path that has never existed here.
+- **`tests/unit/tasks/test_docs_anchors.py`** — new suite guarding the heading
+  and both pointers, composing the expected URL from the `astro.config.mjs`
+  defaults that own the hosting decision rather than hardcoding it, so a domain
+  move fails the pointers directly. Python per ADR-0048, which makes it the
+  test language for the non-Rust surfaces; it joins `test:unit:tasks` alongside
+  `test_docs_theme_drift.py`, the existing docs-site drift guard, so no new
+  task registration applies. `_EXPECTED_CONFIG_SUITES` moves 15 → 16, the real
+  discovered count (the floor had been one behind).
+
+Verification:
+
+```
+$ rg -n 'docs/internals\.md' -g '!meta/**' -g '!workspaces/**' .
+./tests/unit/tasks/test_docs_anchors.py:20
+./tests/unit/tasks/test_docs_anchors.py:70
+./scripts/test-design.sh:9
+./tasks/README.md:479
+```
+
+Four full-path hits, no bare pointer. `uv run pytest
+tests/unit/tasks/test_docs_anchors.py` → 3 passed; each of the four guarded
+facts mutated in turn (heading renamed, heading replaced, a pointer repointed
+off-site, a repository path reintroduced, the `astro.config.mjs` `site` default
+removed) → **exit 1** every time. `mise run test:integration:config` →
+49 passed; `mise run test:integration:hooks` → 68 passed;
+`mise run scripts:check`, `mise run docs:check` and `mise run check` all
+exit 0.
+
+The anchor resolves on the built site: `id="terminal-invocation"` is present in
+`docs-site/dist/internals/index.html`, and
+`docs-site/dist/reference/skills/visualisation/visualise/index.html` carries the
+link to it.
 
 ## References
 
