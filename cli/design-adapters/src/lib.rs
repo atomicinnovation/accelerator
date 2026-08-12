@@ -10,6 +10,7 @@ pub mod cue_phrases;
 pub mod environment;
 pub mod filesystem;
 pub mod lock;
+pub mod paths;
 pub mod process;
 pub mod state;
 
@@ -20,6 +21,7 @@ pub use environment::named_secrets_from_env;
 pub use filesystem::read_document;
 pub use filesystem::DirectoryCheck;
 pub use lock::FileLock;
+pub use paths::HostPaths;
 pub use process::DaemonSpawner;
 pub use process::ExecClient;
 pub use process::HostControl;

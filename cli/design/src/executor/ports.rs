@@ -6,6 +6,7 @@
 //! reachable without a real process, a real browser or a real sleep.
 
 use std::convert::Infallible;
+use std::path::PathBuf;
 
 use crate::executor::daemon_identity::ObservedDaemon;
 use crate::executor::daemon_identity::RecordedState;
@@ -87,6 +88,40 @@ pub trait Spawner {
 /// unrelated things, and only the start-poll timeout ever signals.
 pub trait ProcessControl {
     fn terminate(&self, pid: i32);
+}
+
+/// Where the launcher's inputs and outputs live.
+///
+/// `run.sh` derived all of these from `BASH_SOURCE`, so it always found its own
+/// sibling files. A dispatched sub-binary executes from the launcher's cache
+/// directory and cannot, so the paths are resolved through a port that refuses
+/// with a named error when it has nothing to resolve from — the failure mode an
+/// `ACCELERATOR_DESIGN_BIN` override would otherwise hit with no diagnosable
+/// message.
+///
+/// Both path-bearing envelopes read their path from here, so each is
+/// byte-identical whatever directory the caller invoked from.
+pub trait PathResolution {
+    /// The plugin installation root.
+    ///
+    /// # Errors
+    ///
+    /// A [`kernel::Error`] when the root cannot be established.
+    fn plugin_root(&self) -> Result<PathBuf, kernel::Error>;
+
+    /// The lockhash namespace the runtime is installed under.
+    ///
+    /// # Errors
+    ///
+    /// A [`kernel::Error`] when the lockfile cannot be read or hashed.
+    fn namespace_root(&self) -> Result<PathBuf, kernel::Error>;
+
+    /// The daemon's stdio redirect target.
+    ///
+    /// # Errors
+    ///
+    /// A [`kernel::Error`] when the state directory cannot be established.
+    fn bootstrap_log(&self) -> Result<PathBuf, kernel::Error>;
 }
 
 /// Runs the client and does not come back.
