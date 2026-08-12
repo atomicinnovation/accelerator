@@ -1,0 +1,345 @@
+pub mod migrate
+pub mod migrate::decisions_file
+pub struct migrate::decisions_file::DecisionLines(_)
+impl migrate::decisions_file::DecisionLines
+pub fn migrate::decisions_file::DecisionLines::decision_at(&self, index: usize) -> core::option::Option<core::option::Option<migrate::interactive::Decision>>
+pub fn migrate::decisions_file::DecisionLines::parse(content: &str) -> Self
+pub fn migrate::decisions_file::validate(migration: &dyn migrate::interactive::InteractiveMigration, prompts: &[migrate::interactive::Transformation], content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub mod migrate::engine
+pub fn migrate::engine::pending_transformations(migration: &dyn migrate::interactive::InteractiveMigration, ctx: &dyn migrate::ports::MigrationContext, session_log: &dyn migrate::ports::SessionLog, reporter: &dyn migrate::ports::Reporter) -> core::result::Result<alloc::vec::Vec<migrate::interactive::Transformation>, migrate::ports::MigrationError>
+pub fn migrate::engine::run_interactive(migration: &dyn migrate::interactive::InteractiveMigration, ctx: &dyn migrate::ports::MigrationContext, decisions: &dyn migrate::ports::DecisionSource, session_log: &dyn migrate::ports::SessionLog, timeout: core::time::Duration, reporter: &dyn migrate::ports::Reporter) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+pub mod migrate::interactive
+pub enum migrate::interactive::Decision
+pub migrate::interactive::Decision::Accept
+pub migrate::interactive::Decision::Edit(alloc::string::String)
+pub migrate::interactive::Decision::Skip
+impl core::clone::Clone for migrate::interactive::Decision
+pub fn migrate::interactive::Decision::clone(&self) -> migrate::interactive::Decision
+impl core::fmt::Debug for migrate::interactive::Decision
+pub fn migrate::interactive::Decision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub enum migrate::interactive::PredicateOutcome
+pub migrate::interactive::PredicateOutcome::Fail(alloc::string::String)
+pub migrate::interactive::PredicateOutcome::Mechanical
+pub migrate::interactive::PredicateOutcome::Prompt
+pub struct migrate::interactive::Transformation
+pub migrate::interactive::Transformation::anchor: alloc::string::String
+pub migrate::interactive::Transformation::display: alloc::string::String
+pub migrate::interactive::Transformation::extras: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub migrate::interactive::Transformation::key: alloc::string::String
+pub migrate::interactive::Transformation::path: alloc::string::String
+pub migrate::interactive::Transformation::predicate_value: alloc::string::String
+pub migrate::interactive::Transformation::proposed: alloc::string::String
+impl migrate::interactive::Transformation
+pub fn migrate::interactive::Transformation::short_key(&self) -> &str
+impl core::clone::Clone for migrate::interactive::Transformation
+pub fn migrate::interactive::Transformation::clone(&self) -> migrate::interactive::Transformation
+pub trait migrate::interactive::InteractiveMigration: migrate::registry::MigrationMeta
+pub fn migrate::interactive::InteractiveMigration::apply_decision(&self, transformation: &migrate::interactive::Transformation, decision: &migrate::interactive::Decision, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::interactive::InteractiveMigration::emit_transformations(&self, ctx: &dyn migrate::ports::MigrationContext) -> alloc::vec::Vec<migrate::interactive::Transformation>
+pub fn migrate::interactive::InteractiveMigration::evaluate_predicate(&self, transformation: &migrate::interactive::Transformation) -> migrate::interactive::PredicateOutcome
+pub fn migrate::interactive::InteractiveMigration::finalise(&self, _ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::interactive::InteractiveMigration::validate_edit(&self, transformation: &migrate::interactive::Transformation, value: &str) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::interactive::InteractiveMigration::verify_applied(&self, _transformation: &migrate::interactive::Transformation, _recorded: &corpus::record::Record) -> bool
+impl migrate::interactive::InteractiveMigration for migrate::migrations::m0007::Migration0007
+pub fn migrate::migrations::m0007::Migration0007::apply_decision(&self, transformation: &migrate::interactive::Transformation, decision: &migrate::interactive::Decision, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::emit_transformations(&self, ctx: &dyn migrate::ports::MigrationContext) -> alloc::vec::Vec<migrate::interactive::Transformation>
+pub fn migrate::migrations::m0007::Migration0007::evaluate_predicate(&self, transformation: &migrate::interactive::Transformation) -> migrate::interactive::PredicateOutcome
+pub fn migrate::migrations::m0007::Migration0007::finalise(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::validate_edit(&self, _transformation: &migrate::interactive::Transformation, value: &str) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::verify_applied(&self, _transformation: &migrate::interactive::Transformation, _recorded: &corpus::record::Record) -> bool
+pub mod migrate::ledger
+pub struct migrate::ledger::Warnings
+pub migrate::ledger::Warnings::both: alloc::vec::Vec<alloc::string::String>
+pub migrate::ledger::Warnings::unknown_applied: alloc::vec::Vec<alloc::string::String>
+pub migrate::ledger::Warnings::unknown_skipped: alloc::vec::Vec<alloc::string::String>
+pub fn migrate::ledger::append_unique(ids: alloc::vec::Vec<alloc::string::String>, id: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn migrate::ledger::pending<'a>(entries: &'a [migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String]) -> alloc::vec::Vec<&'a migrate::registry::MigrationEntry>
+pub fn migrate::ledger::remove_line(ids: alloc::vec::Vec<alloc::string::String>, id: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn migrate::ledger::skip(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ledger::unapply(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ledger::unskip(store: &dyn migrate::ports::LedgerStore, id: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ledger::warnings(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String]) -> migrate::ledger::Warnings
+pub mod migrate::lifecycle
+pub fn migrate::lifecycle::run_pending(entries: &[migrate::registry::MigrationEntry], ctx: &dyn migrate::ports::MigrationContext, ledger_store: &dyn migrate::ports::LedgerStore, reporter: &dyn migrate::ports::Reporter, decisions: &dyn migrate::ports::DecisionSource, session_logs: &dyn migrate::ports::SessionLogFactory, timeout: core::time::Duration, decisions_file_content: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
+pub mod migrate::list
+pub struct migrate::list::ListGroup
+pub migrate::list::ListGroup::had_in_flight_session: bool
+pub migrate::list::ListGroup::id: &'static str
+pub migrate::list::ListGroup::transformations: alloc::vec::Vec<migrate::interactive::Transformation>
+pub fn migrate::list::list_pending(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String], ctx: &dyn migrate::ports::MigrationContext, session_logs: &dyn migrate::ports::SessionLogFactory, reporter: &dyn migrate::ports::Reporter) -> core::result::Result<alloc::vec::Vec<migrate::list::ListGroup>, migrate::ports::MigrationError>
+pub mod migrate::manifest
+pub enum migrate::manifest::Ownership
+pub migrate::manifest::Ownership::Foreign
+pub migrate::manifest::Ownership::Manifested
+pub migrate::manifest::Ownership::RunnerManaged
+pub migrate::manifest::Ownership::SessionArtefact
+impl core::clone::Clone for migrate::manifest::Ownership
+pub fn migrate::manifest::Ownership::clone(&self) -> migrate::manifest::Ownership
+impl core::cmp::Eq for migrate::manifest::Ownership
+impl core::cmp::PartialEq for migrate::manifest::Ownership
+pub fn migrate::manifest::Ownership::eq(&self, other: &migrate::manifest::Ownership) -> bool
+impl core::fmt::Debug for migrate::manifest::Ownership
+pub fn migrate::manifest::Ownership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for migrate::manifest::Ownership
+impl core::marker::StructuralPartialEq for migrate::manifest::Ownership
+pub struct migrate::manifest::RunnerPaths<'a>
+pub migrate::manifest::RunnerPaths::applied: &'a str
+pub migrate::manifest::RunnerPaths::run_id: &'a str
+pub migrate::manifest::RunnerPaths::run_paths: &'a str
+pub migrate::manifest::RunnerPaths::skipped: &'a str
+pub fn migrate::manifest::classify(path: &str, runner: &migrate::manifest::RunnerPaths<'_>, manifest: &[alloc::string::String], base_revision_matches: bool) -> migrate::manifest::Ownership
+pub fn migrate::manifest::is_session_artefact(path: &str) -> bool
+pub fn migrate::manifest::is_session_log(path: &str) -> bool
+pub mod migrate::migrations
+pub mod migrate::migrations::m0001
+pub struct migrate::migrations::m0001::Migration0001
+impl migrate::registry::Migration for migrate::migrations::m0001::Migration0001
+pub fn migrate::migrations::m0001::Migration0001::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0001::Migration0001
+pub fn migrate::migrations::m0001::Migration0001::description(&self) -> &'static str
+pub fn migrate::migrations::m0001::Migration0001::id(&self) -> &'static str
+pub mod migrate::migrations::m0002
+pub struct migrate::migrations::m0002::Migration0002
+impl migrate::registry::Migration for migrate::migrations::m0002::Migration0002
+pub fn migrate::migrations::m0002::Migration0002::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0002::Migration0002
+pub fn migrate::migrations::m0002::Migration0002::description(&self) -> &'static str
+pub fn migrate::migrations::m0002::Migration0002::id(&self) -> &'static str
+pub mod migrate::migrations::m0003
+pub struct migrate::migrations::m0003::Migration0003
+impl migrate::registry::Migration for migrate::migrations::m0003::Migration0003
+pub fn migrate::migrations::m0003::Migration0003::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0003::Migration0003
+pub fn migrate::migrations::m0003::Migration0003::description(&self) -> &'static str
+pub fn migrate::migrations::m0003::Migration0003::id(&self) -> &'static str
+pub mod migrate::migrations::m0004
+pub struct migrate::migrations::m0004::Migration0004
+impl migrate::registry::Migration for migrate::migrations::m0004::Migration0004
+pub fn migrate::migrations::m0004::Migration0004::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0004::Migration0004
+pub fn migrate::migrations::m0004::Migration0004::description(&self) -> &'static str
+pub fn migrate::migrations::m0004::Migration0004::id(&self) -> &'static str
+pub mod migrate::migrations::m0005
+pub struct migrate::migrations::m0005::Migration0005
+impl migrate::registry::Migration for migrate::migrations::m0005::Migration0005
+pub fn migrate::migrations::m0005::Migration0005::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0005::Migration0005
+pub fn migrate::migrations::m0005::Migration0005::description(&self) -> &'static str
+pub fn migrate::migrations::m0005::Migration0005::id(&self) -> &'static str
+pub mod migrate::migrations::m0006
+pub struct migrate::migrations::m0006::Migration0006
+impl migrate::registry::Migration for migrate::migrations::m0006::Migration0006
+pub fn migrate::migrations::m0006::Migration0006::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0006::Migration0006
+pub fn migrate::migrations::m0006::Migration0006::description(&self) -> &'static str
+pub fn migrate::migrations::m0006::Migration0006::id(&self) -> &'static str
+pub mod migrate::migrations::m0007
+pub struct migrate::migrations::m0007::Migration0007
+impl migrate::interactive::InteractiveMigration for migrate::migrations::m0007::Migration0007
+pub fn migrate::migrations::m0007::Migration0007::apply_decision(&self, transformation: &migrate::interactive::Transformation, decision: &migrate::interactive::Decision, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::emit_transformations(&self, ctx: &dyn migrate::ports::MigrationContext) -> alloc::vec::Vec<migrate::interactive::Transformation>
+pub fn migrate::migrations::m0007::Migration0007::evaluate_predicate(&self, transformation: &migrate::interactive::Transformation) -> migrate::interactive::PredicateOutcome
+pub fn migrate::migrations::m0007::Migration0007::finalise(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::validate_edit(&self, _transformation: &migrate::interactive::Transformation, value: &str) -> core::result::Result<(), alloc::string::String>
+pub fn migrate::migrations::m0007::Migration0007::verify_applied(&self, _transformation: &migrate::interactive::Transformation, _recorded: &corpus::record::Record) -> bool
+impl migrate::registry::MigrationMeta for migrate::migrations::m0007::Migration0007
+pub fn migrate::migrations::m0007::Migration0007::description(&self) -> &'static str
+pub fn migrate::migrations::m0007::Migration0007::id(&self) -> &'static str
+pub mod migrate::migrations::text
+pub fn migrate::migrations::text::filter_lines(content: &str, keep: impl core::ops::function::Fn(&str) -> bool) -> alloc::string::String
+pub fn migrate::migrations::text::flat_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::migrations::text::flat_rename_default(line: &str, old_key: &str, old_value: &str, replacement: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::migrations::text::indented_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::migrations::text::indented_rename_default(line: &str, old_key: &str, old_value: &str, replacement: &str) -> core::option::Option<alloc::string::String>
+pub fn migrate::migrations::text::map_lines(content: &str, transform: impl core::ops::function::Fn(&str) -> alloc::string::String) -> alloc::string::String
+pub mod migrate::ports
+pub enum migrate::ports::DecisionError
+pub migrate::ports::DecisionError::Eof
+pub migrate::ports::DecisionError::NoInputAvailable
+pub migrate::ports::DecisionError::Timeout
+impl core::clone::Clone for migrate::ports::DecisionError
+pub fn migrate::ports::DecisionError::clone(&self) -> migrate::ports::DecisionError
+impl core::cmp::Eq for migrate::ports::DecisionError
+impl core::cmp::PartialEq for migrate::ports::DecisionError
+pub fn migrate::ports::DecisionError::eq(&self, other: &migrate::ports::DecisionError) -> bool
+impl core::fmt::Debug for migrate::ports::DecisionError
+pub fn migrate::ports::DecisionError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::ports::DecisionError
+pub struct migrate::ports::DocTypeDir
+pub migrate::ports::DocTypeDir::dir: std::path::PathBuf
+pub migrate::ports::DocTypeDir::doc_type: alloc::string::String
+impl core::clone::Clone for migrate::ports::DocTypeDir
+pub fn migrate::ports::DocTypeDir::clone(&self) -> migrate::ports::DocTypeDir
+impl core::cmp::Eq for migrate::ports::DocTypeDir
+impl core::cmp::PartialEq for migrate::ports::DocTypeDir
+pub fn migrate::ports::DocTypeDir::eq(&self, other: &migrate::ports::DocTypeDir) -> bool
+impl core::fmt::Debug for migrate::ports::DocTypeDir
+pub fn migrate::ports::DocTypeDir::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::ports::DocTypeDir
+pub struct migrate::ports::MigrationError(pub alloc::string::String)
+impl migrate::ports::MigrationError
+pub fn migrate::ports::MigrationError::new(message: impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for migrate::ports::MigrationError
+pub fn migrate::ports::MigrationError::clone(&self) -> migrate::ports::MigrationError
+impl core::cmp::Eq for migrate::ports::MigrationError
+impl core::cmp::PartialEq for migrate::ports::MigrationError
+pub fn migrate::ports::MigrationError::eq(&self, other: &migrate::ports::MigrationError) -> bool
+impl core::convert::From<migrate::ports::MigrationError> for kernel::Error
+pub fn kernel::Error::from(error: migrate::ports::MigrationError) -> Self
+impl core::convert::From<migrate::ports::MigrationError> for migrate::preflight::PreflightError
+pub fn migrate::preflight::PreflightError::from(error: migrate::ports::MigrationError) -> Self
+impl core::error::Error for migrate::ports::MigrationError
+impl core::fmt::Debug for migrate::ports::MigrationError
+pub fn migrate::ports::MigrationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for migrate::ports::MigrationError
+pub fn migrate::ports::MigrationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::ports::MigrationError
+pub struct migrate::ports::NoInputDecisionSource
+impl migrate::ports::DecisionSource for migrate::ports::NoInputDecisionSource
+pub fn migrate::ports::NoInputDecisionSource::next_decision(&self, _transformation: &migrate::interactive::Transformation, _timeout: core::time::Duration) -> core::result::Result<migrate::interactive::Decision, migrate::ports::DecisionError>
+pub struct migrate::ports::PreviewEntry<'a>
+pub migrate::ports::PreviewEntry::description: &'a str
+pub migrate::ports::PreviewEntry::id: &'a str
+pub struct migrate::ports::RunLockGuard(_)
+impl migrate::ports::RunLockGuard
+pub fn migrate::ports::RunLockGuard::new(guard: impl core::any::Any) -> Self
+pub trait migrate::ports::CorpusIndex
+pub fn migrate::ports::CorpusIndex::target_exists(&self, target_type: &str, target_id: &str) -> bool
+pub trait migrate::ports::DecisionSource
+pub fn migrate::ports::DecisionSource::next_decision(&self, transformation: &migrate::interactive::Transformation, timeout: core::time::Duration) -> core::result::Result<migrate::interactive::Decision, migrate::ports::DecisionError>
+impl migrate::ports::DecisionSource for migrate::ports::NoInputDecisionSource
+pub fn migrate::ports::NoInputDecisionSource::next_decision(&self, _transformation: &migrate::interactive::Transformation, _timeout: core::time::Duration) -> core::result::Result<migrate::interactive::Decision, migrate::ports::DecisionError>
+pub trait migrate::ports::DirtyPathScanner
+pub fn migrate::ports::DirtyPathScanner::dirty_paths(&self, roots: &[&str]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
+pub trait migrate::ports::LedgerStore
+pub fn migrate::ports::LedgerStore::applied(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::LedgerStore::skipped(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::LedgerStore::write_applied(&self, ids: &[alloc::string::String]) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::LedgerStore::write_skipped(&self, ids: &[alloc::string::String]) -> core::result::Result<(), migrate::ports::MigrationError>
+pub trait migrate::ports::ManifestStore
+pub fn migrate::ports::ManifestStore::append_manifest_path(&self, path: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::clear(&self) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::manifest(&self) -> core::result::Result<core::option::Option<alloc::vec::Vec<alloc::string::String>>, migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::run_id(&self) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::write_manifest(&self, paths: &[alloc::string::String]) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::write_run_id(&self, revision: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
+pub trait migrate::ports::MigrationContext
+pub fn migrate::ports::MigrationContext::canonicalise_work_item_id(&self, _bare_number: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::config_value(&self, _key: &str) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::configured_path_override(&self, _key: &str) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::corpus_index(&self) -> &dyn migrate::ports::CorpusIndex
+pub fn migrate::ports::MigrationContext::dir_exists(&self, _path: &std::path::Path) -> bool
+pub fn migrate::ports::MigrationContext::doc_type_dirs(&self) -> alloc::vec::Vec<migrate::ports::DocTypeDir>
+pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::revision(&self) -> core::option::Option<alloc::string::String>
+pub fn migrate::ports::MigrationContext::root(&self) -> &std::path::Path
+pub fn migrate::ports::MigrationContext::validate_frontmatter(&self, _files: &[std::path::PathBuf]) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::write(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub trait migrate::ports::Reporter
+pub fn migrate::ports::Reporter::applied_and_skipped(&self, id: &str)
+pub fn migrate::ports::Reporter::interactive_fail(&self, id: &str, message: &str)
+pub fn migrate::ports::Reporter::interactive_stalled(&self, id: &str, pending_keys: &[alloc::string::String])
+pub fn migrate::ports::Reporter::interactive_timeout(&self, id: &str)
+pub fn migrate::ports::Reporter::interactive_validation_rejected(&self, message: &str)
+pub fn migrate::ports::Reporter::migration_applied(&self, id: &str)
+pub fn migrate::ports::Reporter::migration_failed(&self, id: &str, error: &migrate::ports::MigrationError)
+pub fn migrate::ports::Reporter::migration_no_op(&self, id: &str)
+pub fn migrate::ports::Reporter::migration_running(&self, id: &str)
+pub fn migrate::ports::Reporter::no_pending_migrations(&self, skipped: &[alloc::string::String])
+pub fn migrate::ports::Reporter::preview(&self, pending: &[migrate::ports::PreviewEntry<'_>])
+pub fn migrate::ports::Reporter::summary(&self, applied: usize, skipped: &[alloc::string::String], pending_remaining: usize)
+pub fn migrate::ports::Reporter::unknown_applied_id(&self, id: &str)
+pub fn migrate::ports::Reporter::unknown_skipped_id(&self, id: &str)
+pub trait migrate::ports::RunLock
+pub fn migrate::ports::RunLock::acquire(&self) -> core::result::Result<migrate::ports::RunLockGuard, migrate::ports::MigrationError>
+pub trait migrate::ports::SessionLog
+pub fn migrate::ports::SessionLog::append(&self, key: &str, outcome: corpus::record::Outcome, proposed_value: &str, user_value: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::SessionLog::records(&self) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, migrate::ports::MigrationError>
+pub fn migrate::ports::SessionLog::remove_by_key(&self, key: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub trait migrate::ports::SessionLogFactory
+pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<dyn migrate::ports::SessionLog>
+pub trait migrate::ports::SessionLogRewriter
+pub fn migrate::ports::SessionLogRewriter::cutover(&self, path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub mod migrate::preflight
+pub enum migrate::preflight::PreflightError
+pub migrate::preflight::PreflightError::Failed(migrate::ports::MigrationError)
+pub migrate::preflight::PreflightError::ForeignDirt
+impl core::convert::From<migrate::ports::MigrationError> for migrate::preflight::PreflightError
+pub fn migrate::preflight::PreflightError::from(error: migrate::ports::MigrationError) -> Self
+impl core::error::Error for migrate::preflight::PreflightError
+impl core::fmt::Debug for migrate::preflight::PreflightError
+pub fn migrate::preflight::PreflightError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for migrate::preflight::PreflightError
+pub fn migrate::preflight::PreflightError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub enum migrate::preflight::PreflightOutcome
+pub migrate::preflight::PreflightOutcome::Clean
+pub migrate::preflight::PreflightOutcome::Resumed
+pub migrate::preflight::PreflightOutcome::Resumed::affordance: alloc::vec::Vec<migrate::preflight::AffordanceEntry>
+pub struct migrate::preflight::AffordanceEntry
+pub migrate::preflight::AffordanceEntry::path: alloc::string::String
+pub migrate::preflight::AffordanceEntry::session_log_decision_count: core::option::Option<usize>
+pub struct migrate::preflight::Preflight<'a>
+pub migrate::preflight::Preflight::force: bool
+pub migrate::preflight::Preflight::lock: &'a dyn migrate::ports::RunLock
+pub migrate::preflight::Preflight::manifest: &'a dyn migrate::ports::ManifestStore
+pub migrate::preflight::Preflight::revision: core::option::Option<alloc::string::String>
+pub migrate::preflight::Preflight::runner: migrate::manifest::RunnerPaths<'a>
+pub migrate::preflight::Preflight::scanner: &'a dyn migrate::ports::DirtyPathScanner
+pub migrate::preflight::Preflight::session_log_decision_count: &'a dyn core::ops::function::Fn(&str) -> usize
+impl migrate::preflight::Preflight<'_>
+pub fn migrate::preflight::Preflight<'_>::run(&self) -> core::result::Result<(migrate::ports::RunLockGuard, migrate::preflight::PreflightOutcome), migrate::preflight::PreflightError>
+pub const migrate::preflight::SCOPES: [&str; 3]
+pub mod migrate::registry
+pub enum migrate::registry::ApplyOutcome
+pub migrate::registry::ApplyOutcome::Applied
+pub migrate::registry::ApplyOutcome::NoOpPending
+pub enum migrate::registry::MigrationEntry
+pub migrate::registry::MigrationEntry::Interactive(alloc::boxed::Box<dyn migrate::interactive::InteractiveMigration>)
+pub migrate::registry::MigrationEntry::Mechanical(alloc::boxed::Box<dyn migrate::registry::Migration>)
+impl migrate::registry::MigrationEntry
+pub fn migrate::registry::MigrationEntry::description(&self) -> &'static str
+pub fn migrate::registry::MigrationEntry::id(&self) -> &'static str
+pub trait migrate::registry::Migration: migrate::registry::MigrationMeta
+pub fn migrate::registry::Migration::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0001::Migration0001
+pub fn migrate::migrations::m0001::Migration0001::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0002::Migration0002
+pub fn migrate::migrations::m0002::Migration0002::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0003::Migration0003
+pub fn migrate::migrations::m0003::Migration0003::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0004::Migration0004
+pub fn migrate::migrations::m0004::Migration0004::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0005::Migration0005
+pub fn migrate::migrations::m0005::Migration0005::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0006::Migration0006
+pub fn migrate::migrations::m0006::Migration0006::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+pub trait migrate::registry::MigrationMeta
+pub fn migrate::registry::MigrationMeta::description(&self) -> &'static str
+pub fn migrate::registry::MigrationMeta::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0001::Migration0001
+pub fn migrate::migrations::m0001::Migration0001::description(&self) -> &'static str
+pub fn migrate::migrations::m0001::Migration0001::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0002::Migration0002
+pub fn migrate::migrations::m0002::Migration0002::description(&self) -> &'static str
+pub fn migrate::migrations::m0002::Migration0002::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0003::Migration0003
+pub fn migrate::migrations::m0003::Migration0003::description(&self) -> &'static str
+pub fn migrate::migrations::m0003::Migration0003::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0004::Migration0004
+pub fn migrate::migrations::m0004::Migration0004::description(&self) -> &'static str
+pub fn migrate::migrations::m0004::Migration0004::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0005::Migration0005
+pub fn migrate::migrations::m0005::Migration0005::description(&self) -> &'static str
+pub fn migrate::migrations::m0005::Migration0005::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0006::Migration0006
+pub fn migrate::migrations::m0006::Migration0006::description(&self) -> &'static str
+pub fn migrate::migrations::m0006::Migration0006::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0007::Migration0007
+pub fn migrate::migrations::m0007::Migration0007::description(&self) -> &'static str
+pub fn migrate::migrations::m0007::Migration0007::id(&self) -> &'static str
+pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>

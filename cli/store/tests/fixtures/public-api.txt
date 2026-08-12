@@ -1,0 +1,42 @@
+pub mod store
+pub enum store::NewFileMode
+pub store::NewFileMode::PreserveOr(u32)
+pub store::NewFileMode::Set(u32)
+impl core::clone::Clone for store::NewFileMode
+pub fn store::NewFileMode::clone(&self) -> store::NewFileMode
+impl core::fmt::Debug for store::NewFileMode
+pub fn store::NewFileMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for store::NewFileMode
+#[non_exhaustive] pub enum store::WriteError
+pub store::WriteError::CrossFilesystem
+pub store::WriteError::CrossFilesystem::path: alloc::string::String
+pub store::WriteError::InsecurePermissions
+pub store::WriteError::InsecurePermissions::mode: u32
+pub store::WriteError::InsecurePermissions::path: alloc::string::String
+pub store::WriteError::Io
+pub store::WriteError::Io::detail: alloc::string::String
+pub store::WriteError::Io::path: alloc::string::String
+pub store::WriteError::NotWritable
+pub store::WriteError::NotWritable::path: alloc::string::String
+pub store::WriteError::UnsafePath
+pub store::WriteError::UnsafePath::path: alloc::string::String
+impl core::clone::Clone for store::WriteError
+pub fn store::WriteError::clone(&self) -> store::WriteError
+impl core::cmp::Eq for store::WriteError
+impl core::cmp::PartialEq for store::WriteError
+pub fn store::WriteError::eq(&self, other: &store::WriteError) -> bool
+impl core::error::Error for store::WriteError
+impl core::fmt::Debug for store::WriteError
+pub fn store::WriteError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for store::WriteError
+pub fn store::WriteError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for store::WriteError
+pub struct store::WriteBounds<'a>
+pub store::WriteBounds::permitted_root: &'a std::path::Path
+pub store::WriteBounds::project_root: &'a std::path::Path
+pub const store::TEMP_PREFIX: &str
+pub fn store::atomic_write(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
+pub fn store::current_umask() -> u32
+pub fn store::ensure_contained(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<std::path::PathBuf, store::WriteError>
+pub fn store::read_within(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<core::option::Option<alloc::vec::Vec<u8>>, store::WriteError>
+pub fn store::require_owner_only_permissions(path: &std::path::Path) -> core::result::Result<(), store::WriteError>

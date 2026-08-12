@@ -5,9 +5,69 @@ from invoke import Context, Exit, Result, task
 from tasks.shared.paths import CLI_DIR
 from tasks.shared.rust import RUST_NIGHTLY
 
-# Crates whose surface this lane pins, named explicitly: a new library crate
-# is exempt from the pin until it is added here.
-_PINNED_CRATES = ("tracker",)
+# The crates whose surface is a deliverable rather than whatever happened to be
+# `pub`: the seven domain crates the hexagonal layout names (collaboration,
+# config, corpus, migrate, tracker, vcs, work — each with its own whole-crate
+# cargo-pup rule or, for tracker, the rule it shipped with), plus the three
+# shared libraries every layer builds against (kernel, document, store).
+#
+# For the domain crates this pairs with cargo-pup: pup constrains what a domain
+# crate may import inward, this pin constrains what it exposes outward.
+#
+# Every entry is a directory name that is also the package name, which the
+# snapshot path and the `-p` argument both rely on.
+_PINNED_CRATES = (
+    "collaboration",
+    "config",
+    "corpus",
+    "document",
+    "kernel",
+    "migrate",
+    "store",
+    "tracker",
+    "vcs",
+    "work",
+)
+
+_ADAPTER = (
+    "an adapter: its surface is a construction API for one composition root, "
+    "not a contract siblings build against, and it changes with the technology "
+    "it wraps rather than with the domain"
+)
+_COMPOSITION_ROOT = (
+    "a composition root: it owns a binary, and its library surface exists only "
+    "to be wired up by its own main"
+)
+
+_EXEMPT_MEMBERS = {
+    "config-adapters": _ADAPTER,
+    "corpus-adapters": _ADAPTER,
+    "migrate-adapters": _ADAPTER,
+    "vcs-adapters": _ADAPTER,
+    "work-adapters": _ADAPTER,
+    "github": (
+        f"{_ADAPTER}. Named for the forge rather than as"
+        " collaboration-adapters, but that is what it is"
+    ),
+    "collaboration-cli": _COMPOSITION_ROOT,
+    "corpus-cli": _COMPOSITION_ROOT,
+    "migrate-cli": _COMPOSITION_ROOT,
+    "vcs-cli": _COMPOSITION_ROOT,
+    "work-cli": _COMPOSITION_ROOT,
+    "launcher": (
+        f"{_COMPOSITION_ROOT}. Its dispatch surface is pinned instead by the"
+        " thirteen-point registration guard and the bootstrap tests"
+    ),
+    "verify": "a bin-only crate: it exposes no library surface at all",
+    "visualiser/server": (
+        f"{_COMPOSITION_ROOT}. Its contract with the outside world is the HTTP"
+        " API, held by the server's own integration and E2E suites"
+    ),
+    "vcs-test-support": (
+        "test support: consumed only by other crates' test targets, where a"
+        " widened surface is caught by the tests that use it failing to compile"
+    ),
+}
 
 
 def _snapshot(crate: str) -> Path:
@@ -73,4 +133,6 @@ def update(context: Context) -> None:
                 f"cargo public-api: failed to render {crate}'s surface",
                 code=1,
             )
-        _snapshot(crate).write_text(result.stdout)
+        snapshot = _snapshot(crate)
+        snapshot.parent.mkdir(parents=True, exist_ok=True)
+        snapshot.write_text(result.stdout)

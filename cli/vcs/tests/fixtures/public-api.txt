@@ -1,0 +1,153 @@
+pub mod vcs
+pub mod vcs::checkout
+pub enum vcs::checkout::JjWorkspaceRole
+pub vcs::checkout::JjWorkspaceRole::Main
+pub vcs::checkout::JjWorkspaceRole::Secondary
+impl core::clone::Clone for vcs::checkout::JjWorkspaceRole
+pub fn vcs::checkout::JjWorkspaceRole::clone(&self) -> vcs::checkout::JjWorkspaceRole
+impl core::cmp::Eq for vcs::checkout::JjWorkspaceRole
+impl core::cmp::PartialEq for vcs::checkout::JjWorkspaceRole
+pub fn vcs::checkout::JjWorkspaceRole::eq(&self, other: &vcs::checkout::JjWorkspaceRole) -> bool
+impl core::fmt::Debug for vcs::checkout::JjWorkspaceRole
+pub fn vcs::checkout::JjWorkspaceRole::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for vcs::checkout::JjWorkspaceRole
+impl core::marker::StructuralPartialEq for vcs::checkout::JjWorkspaceRole
+pub struct vcs::checkout::DualRoots
+pub vcs::checkout::DualRoots::git: core::result::Result<core::option::Option<std::path::PathBuf>, kernel::Error>
+pub vcs::checkout::DualRoots::jj: core::result::Result<core::option::Option<std::path::PathBuf>, kernel::Error>
+impl core::fmt::Debug for vcs::checkout::DualRoots
+pub fn vcs::checkout::DualRoots::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct vcs::checkout::JjRepositoryFacts
+pub vcs::checkout::JjRepositoryFacts::main_root: std::path::PathBuf
+pub vcs::checkout::JjRepositoryFacts::role: vcs::checkout::JjWorkspaceRole
+impl core::clone::Clone for vcs::checkout::JjRepositoryFacts
+pub fn vcs::checkout::JjRepositoryFacts::clone(&self) -> vcs::checkout::JjRepositoryFacts
+impl core::cmp::Eq for vcs::checkout::JjRepositoryFacts
+impl core::cmp::PartialEq for vcs::checkout::JjRepositoryFacts
+pub fn vcs::checkout::JjRepositoryFacts::eq(&self, other: &vcs::checkout::JjRepositoryFacts) -> bool
+impl core::fmt::Debug for vcs::checkout::JjRepositoryFacts
+pub fn vcs::checkout::JjRepositoryFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::checkout::JjRepositoryFacts
+pub struct vcs::checkout::WorktreeFacts
+pub vcs::checkout::WorktreeFacts::common_dir: std::path::PathBuf
+pub vcs::checkout::WorktreeFacts::git_dir: std::path::PathBuf
+pub vcs::checkout::WorktreeFacts::linked: bool
+pub vcs::checkout::WorktreeFacts::main_worktree_root: core::option::Option<std::path::PathBuf>
+impl core::clone::Clone for vcs::checkout::WorktreeFacts
+pub fn vcs::checkout::WorktreeFacts::clone(&self) -> vcs::checkout::WorktreeFacts
+impl core::cmp::Eq for vcs::checkout::WorktreeFacts
+impl core::cmp::PartialEq for vcs::checkout::WorktreeFacts
+pub fn vcs::checkout::WorktreeFacts::eq(&self, other: &vcs::checkout::WorktreeFacts) -> bool
+impl core::fmt::Debug for vcs::checkout::WorktreeFacts
+pub fn vcs::checkout::WorktreeFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::checkout::WorktreeFacts
+pub mod vcs::classify
+pub enum vcs::classify::Classification
+pub vcs::classify::Classification::Colocated
+pub vcs::classify::Classification::Colocated::boundary: std::path::PathBuf
+pub vcs::classify::Classification::Colocated::git_parent: std::path::PathBuf
+pub vcs::classify::Classification::Colocated::jj_parent: std::path::PathBuf
+pub vcs::classify::Classification::GitWorktree
+pub vcs::classify::Classification::GitWorktree::boundary: std::path::PathBuf
+pub vcs::classify::Classification::GitWorktree::git_parent: std::path::PathBuf
+pub vcs::classify::Classification::JjSecondary
+pub vcs::classify::Classification::JjSecondary::boundary: std::path::PathBuf
+pub vcs::classify::Classification::JjSecondary::jj_parent: std::path::PathBuf
+pub vcs::classify::Classification::Main
+pub vcs::classify::Classification::NestedGitInJj
+pub vcs::classify::Classification::NestedGitInJj::boundary: std::path::PathBuf
+pub vcs::classify::Classification::NestedGitInJj::git_parent: std::path::PathBuf
+pub vcs::classify::Classification::NestedGitInJj::jj_parent: std::path::PathBuf
+pub vcs::classify::Classification::NestedJjInGit
+pub vcs::classify::Classification::NestedJjInGit::boundary: std::path::PathBuf
+pub vcs::classify::Classification::NestedJjInGit::git_parent: std::path::PathBuf
+pub vcs::classify::Classification::NestedJjInGit::jj_parent: std::path::PathBuf
+pub vcs::classify::Classification::None
+impl core::clone::Clone for vcs::classify::Classification
+pub fn vcs::classify::Classification::clone(&self) -> vcs::classify::Classification
+impl core::cmp::Eq for vcs::classify::Classification
+impl core::cmp::PartialEq for vcs::classify::Classification
+pub fn vcs::classify::Classification::eq(&self, other: &vcs::classify::Classification) -> bool
+impl core::fmt::Debug for vcs::classify::Classification
+pub fn vcs::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::classify::Classification
+pub trait vcs::classify::CheckoutProbe
+pub fn vcs::classify::CheckoutProbe::dual_roots(&self, start: &std::path::Path) -> vcs::checkout::DualRoots
+pub fn vcs::classify::CheckoutProbe::is_bare(&self, start: &std::path::Path) -> core::result::Result<core::option::Option<bool>, kernel::Error>
+pub fn vcs::classify::CheckoutProbe::jj_repository(&self, start: &std::path::Path) -> core::result::Result<core::option::Option<vcs::checkout::JjRepositoryFacts>, kernel::Error>
+pub fn vcs::classify::CheckoutProbe::worktree(&self, start: &std::path::Path) -> core::result::Result<core::option::Option<vcs::checkout::WorktreeFacts>, kernel::Error>
+pub fn vcs::classify::classify(start: &std::path::Path, probe: &dyn vcs::classify::CheckoutProbe) -> core::result::Result<vcs::classify::Classification, kernel::Error>
+pub mod vcs::guard
+pub enum vcs::guard::GuardDecision
+pub vcs::guard::GuardDecision::Allow
+pub vcs::guard::GuardDecision::Block
+pub vcs::guard::GuardDecision::Block::subcommand: alloc::string::String
+pub vcs::guard::GuardDecision::Block::suggestion: alloc::string::String
+impl core::clone::Clone for vcs::guard::GuardDecision
+pub fn vcs::guard::GuardDecision::clone(&self) -> vcs::guard::GuardDecision
+impl core::cmp::Eq for vcs::guard::GuardDecision
+impl core::cmp::PartialEq for vcs::guard::GuardDecision
+pub fn vcs::guard::GuardDecision::eq(&self, other: &vcs::guard::GuardDecision) -> bool
+impl core::fmt::Debug for vcs::guard::GuardDecision
+pub fn vcs::guard::GuardDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::guard::GuardDecision
+pub fn vcs::guard::decide(command: &str) -> vcs::guard::GuardDecision
+pub mod vcs::mode
+pub enum vcs::mode::Mode
+pub vcs::mode::Mode::Git
+pub vcs::mode::Mode::Jj
+pub vcs::mode::Mode::JjColocated
+impl core::clone::Clone for vcs::mode::Mode
+pub fn vcs::mode::Mode::clone(&self) -> vcs::mode::Mode
+impl core::cmp::Eq for vcs::mode::Mode
+impl core::cmp::PartialEq for vcs::mode::Mode
+pub fn vcs::mode::Mode::eq(&self, other: &vcs::mode::Mode) -> bool
+impl core::fmt::Debug for vcs::mode::Mode
+pub fn vcs::mode::Mode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for vcs::mode::Mode
+impl core::marker::StructuralPartialEq for vcs::mode::Mode
+pub trait vcs::mode::ModeProbe
+pub fn vcs::mode::ModeProbe::dual_roots(&self, start: &std::path::Path) -> vcs::checkout::DualRoots
+pub fn vcs::mode::ModeProbe::jj_workspace_root(&self, start: &std::path::Path) -> core::result::Result<core::option::Option<std::path::PathBuf>, kernel::Error>
+pub fn vcs::mode::determine(start: &std::path::Path, probe: &dyn vcs::mode::ModeProbe) -> core::result::Result<vcs::mode::Mode, kernel::Error>
+pub mod vcs::origin_remote
+pub trait vcs::origin_remote::OriginRemote
+pub fn vcs::origin_remote::OriginRemote::origin_url(&self, root: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub enum vcs::VcsKind
+pub vcs::VcsKind::Git
+pub vcs::VcsKind::Jj
+pub vcs::VcsKind::None
+impl vcs::VcsKind
+pub const fn vcs::VcsKind::as_str(self) -> &'static str
+impl core::clone::Clone for vcs::VcsKind
+pub fn vcs::VcsKind::clone(&self) -> vcs::VcsKind
+impl core::cmp::Eq for vcs::VcsKind
+impl core::cmp::PartialEq for vcs::VcsKind
+pub fn vcs::VcsKind::eq(&self, other: &vcs::VcsKind) -> bool
+impl core::fmt::Debug for vcs::VcsKind
+pub fn vcs::VcsKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for vcs::VcsKind
+impl core::marker::StructuralPartialEq for vcs::VcsKind
+pub struct vcs::RepoFacts
+pub vcs::RepoFacts::kind: vcs::VcsKind
+pub vcs::RepoFacts::name: alloc::string::String
+pub vcs::RepoFacts::revision: core::option::Option<alloc::string::String>
+pub vcs::RepoFacts::root: std::path::PathBuf
+impl core::clone::Clone for vcs::RepoFacts
+pub fn vcs::RepoFacts::clone(&self) -> vcs::RepoFacts
+impl core::cmp::Eq for vcs::RepoFacts
+impl core::cmp::PartialEq for vcs::RepoFacts
+pub fn vcs::RepoFacts::eq(&self, other: &vcs::RepoFacts) -> bool
+impl core::fmt::Debug for vcs::RepoFacts
+pub fn vcs::RepoFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::RepoFacts
+pub trait vcs::RepoRoot
+pub fn vcs::RepoRoot::discover(&self, start: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub fn vcs::RepoRoot::repository_root(&self, working_copy_root: &std::path::Path) -> std::path::PathBuf
+pub trait vcs::UserIdentityProbe
+pub fn vcs::UserIdentityProbe::user_name(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::option::Option<alloc::string::String>
+pub trait vcs::VcsProbe
+pub fn vcs::VcsProbe::kind(&self, root: &std::path::Path) -> vcs::VcsKind
+pub fn vcs::VcsProbe::revision(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::option::Option<alloc::string::String>
+pub fn vcs::facts(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe) -> core::option::Option<vcs::RepoFacts>
+pub fn vcs::user_name(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe, identity: &dyn vcs::UserIdentityProbe) -> core::option::Option<alloc::string::String>

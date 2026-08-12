@@ -6,6 +6,7 @@ from invoke import Context, Exit
 
 from tasks import public_api, pup
 from tasks.shared import rust
+from tasks.shared.paths import CLI_DIR, cli_member_manifests
 from tasks.shared.rust import RUST_NIGHTLY
 from tasks.test import cli as test_cli
 
@@ -138,6 +139,88 @@ class TestTestUnitCli:
             test_cli.run(ctx)
 
 
+# ── The surface-pin coverage guard ────────────────────────────────────
+#
+# public-api:check names the crates it pins explicitly, so a new crate is
+# exempt from the pin until someone remembers to add it — and nothing reports
+# the omission. These tests close that gap: the classification must account for
+# every workspace member, so a new crate reddens the build until it is either
+# pinned or exempted with a stated reason.
+
+
+def _workspace_members() -> set[str]:
+    return {
+        manifest.parent.relative_to(CLI_DIR).as_posix()
+        for manifest in cli_member_manifests(CLI_DIR / "Cargo.toml")
+    }
+
+
+def _unclassified(members: set[str], pinned, exempt) -> set[str]:
+    return members - (set(pinned) | set(exempt))
+
+
+class TestPinnedCrateCoverage:
+    def test_every_workspace_member_is_classified(self):
+        missing = _unclassified(
+            _workspace_members(),
+            public_api._PINNED_CRATES,
+            public_api._EXEMPT_MEMBERS,
+        )
+        assert not missing, (
+            f"unclassified cli/ workspace members: {sorted(missing)} — add "
+            "each to _PINNED_CRATES in tasks/public_api.py, or to "
+            "_EXEMPT_MEMBERS with the reason it needs no surface pin"
+        )
+
+    def test_the_guard_reports_a_member_in_neither_collection(self):
+        # The discriminating-power case: a guard that only ever runs against a
+        # complete classification cannot show that it would notice an
+        # incomplete one.
+        assert _unclassified(
+            _workspace_members() | {"widget"},
+            public_api._PINNED_CRATES,
+            public_api._EXEMPT_MEMBERS,
+        ) == {"widget"}
+
+    def test_no_classified_name_is_absent_from_the_workspace(self):
+        # The other direction: a renamed or removed crate leaves a stale entry,
+        # which would otherwise sit in the classification unnoticed.
+        members = _workspace_members()
+        stale = (
+            set(public_api._PINNED_CRATES) | set(public_api._EXEMPT_MEMBERS)
+        ) - members
+        assert not stale, (
+            f"classified but not a workspace member: {sorted(stale)}"
+        )
+
+    def test_no_member_is_both_pinned_and_exempt(self):
+        overlap = set(public_api._PINNED_CRATES) & set(
+            public_api._EXEMPT_MEMBERS
+        )
+        assert not overlap, f"classified twice: {sorted(overlap)}"
+
+    def test_every_exemption_states_a_reason(self):
+        unexplained = [
+            member
+            for member, reason in public_api._EXEMPT_MEMBERS.items()
+            if not reason.strip()
+        ]
+        assert not unexplained, (
+            f"exempted without a reason: {sorted(unexplained)}"
+        )
+
+    def test_every_pinned_crate_has_a_committed_snapshot(self):
+        missing = [
+            crate
+            for crate in public_api._PINNED_CRATES
+            if not public_api._snapshot(crate).exists()
+        ]
+        assert not missing, (
+            f"pinned with no committed snapshot: {sorted(missing)} — "
+            "regenerate with `mise run public-api:update`"
+        )
+
+
 # ── public_api.check() / public_api.update() leaf branches ────────────
 
 
@@ -207,6 +290,18 @@ class TestPublicApiCheck:
 
 
 class TestPublicApiUpdate:
+    def test_creates_the_fixtures_directory_when_absent(
+        self, ctx: MagicMock, snapshot: Path
+    ):
+        # A crate reaching the pin for the first time has no tests/fixtures/,
+        # so the first update must make one rather than fail on the write.
+        snapshot.parent.rmdir()
+        ctx.run.return_value = MagicMock(
+            exited=0, stdout="pub struct widget::Thing\n"
+        )
+        public_api.update(ctx)
+        assert snapshot.read_text() == "pub struct widget::Thing\n"
+
     def test_writes_the_render_to_the_snapshot(
         self, ctx: MagicMock, snapshot: Path
     ):

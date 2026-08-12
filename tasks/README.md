@@ -524,7 +524,7 @@ by the dispatch guard.
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
-owes four things, plus a fifth when other crates build against its surface.
+owes five things.
 `cli/tracker/` is the worked example.
 
 - **Workspace membership.** Add the directory to `[workspace].members` in
@@ -547,11 +547,26 @@ owes four things, plus a fifth when other crates build against its surface.
   must admit. There is no coverage guard for `pup.ron`, so a rule deleted or
   mistyped is otherwise silent, and a control with no imports proves only that
   nothing was rejected.
-- **A public-API snapshot**, when the crate's surface is one other crates build
-  against. `public-api:check` names each crate explicitly, so a new crate is
-  exempt from the surface pin until `tasks/public_api.py` learns it. The
-  snapshot lives at `<crate>/tests/fixtures/public-api.txt` and is regenerated
-  with `mise run public-api:update`.
+- **A classification in `tasks/public_api.py`** — this one is not optional, and
+  the build tells you so. Every workspace member appears in either
+  `_PINNED_CRATES` or `_EXEMPT_MEMBERS` (with the reason it needs no pin), and
+  the coverage guard in `tests/unit/tasks/test_rust.py` fails until a new member
+  is in one of them. The line the existing entries draw: a **domain** crate is
+  pinned, because its surface is the contract its siblings build against;
+  adapters, composition roots and test support are exempt, because theirs is
+  incidental to one consumer. A pinned crate's snapshot lives at
+  `<crate>/tests/fixtures/public-api.txt` and is regenerated with `mise run
+  public-api:update` — never as a way to make a red `public-api:check` go away,
+  only after reading the diff and deciding the change was intended.
+
+  One class of diff is **not** a first-party change: a snapshot names the
+  third-party types a crate exposes, so a dependency bump moves it on its own.
+  `document` renders `serde_core::ser::Serialize` (serde's internal split
+  crate), `kernel` renders `tracing_subscriber::filter::directive::ParseError`,
+  and a `thiserror` derive contributes the parameter name `__formatter`. A
+  dependency bump that renames any of those reddens the pin with no first-party
+  edit behind it. Each is also the pin doing its job — a domain crate leaking a
+  dependency type into its surface is now visible rather than merely true.
 
 Then run `mise run deny:check`.
 

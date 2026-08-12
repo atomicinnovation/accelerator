@@ -1,0 +1,152 @@
+pub mod document
+pub mod document::error
+pub enum document::error::DocumentError
+pub document::error::DocumentError::Emit(alloc::string::String)
+pub document::error::DocumentError::InvalidYaml(alloc::string::String)
+pub document::error::DocumentError::Tagged(alloc::string::String)
+pub document::error::DocumentError::Unterminated
+impl core::clone::Clone for document::error::DocumentError
+pub fn document::error::DocumentError::clone(&self) -> document::error::DocumentError
+impl core::cmp::Eq for document::error::DocumentError
+impl core::cmp::PartialEq for document::error::DocumentError
+pub fn document::error::DocumentError::eq(&self, other: &document::error::DocumentError) -> bool
+impl core::error::Error for document::error::DocumentError
+impl core::fmt::Debug for document::error::DocumentError
+pub fn document::error::DocumentError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for document::error::DocumentError
+pub fn document::error::DocumentError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::error::DocumentError
+pub mod document::fence
+pub struct document::fence::Split
+pub document::fence::Split::body: alloc::string::String
+pub document::fence::Split::frontmatter: alloc::string::String
+pub fn document::fence::fence_offsets(raw: &[u8]) -> core::result::Result<core::option::Option<(usize, usize)>, document::error::DocumentError>
+pub fn document::fence::split(content: &str) -> core::result::Result<document::fence::Split, document::error::DocumentError>
+pub mod document::parse
+pub fn document::parse::parse(content: &str) -> core::result::Result<document::value::Yaml, document::error::DocumentError>
+pub mod document::render
+pub fn document::render::render(existing: core::option::Option<&str>, frontmatter: &document::value::Yaml) -> core::result::Result<alloc::string::String, document::error::DocumentError>
+pub mod document::value
+pub enum document::value::Scalar
+pub document::value::Scalar::Bool(bool)
+pub document::value::Scalar::Float(f64)
+pub document::value::Scalar::Int(i64)
+pub document::value::Scalar::Null
+pub document::value::Scalar::String(alloc::string::String)
+impl core::clone::Clone for document::value::Scalar
+pub fn document::value::Scalar::clone(&self) -> document::value::Scalar
+impl core::cmp::PartialEq for document::value::Scalar
+pub fn document::value::Scalar::eq(&self, other: &document::value::Scalar) -> bool
+impl core::fmt::Debug for document::value::Scalar
+pub fn document::value::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::value::Scalar
+pub enum document::value::Yaml
+pub document::value::Yaml::Mapping(document::value::Mapping)
+pub document::value::Yaml::Scalar(document::value::Scalar)
+pub document::value::Yaml::Sequence(alloc::vec::Vec<document::value::Yaml>)
+impl core::clone::Clone for document::value::Yaml
+pub fn document::value::Yaml::clone(&self) -> document::value::Yaml
+impl core::cmp::PartialEq for document::value::Yaml
+pub fn document::value::Yaml::eq(&self, other: &document::value::Yaml) -> bool
+impl core::fmt::Debug for document::value::Yaml
+pub fn document::value::Yaml::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::value::Yaml
+impl serde_core::ser::Serialize for document::value::Yaml
+pub fn document::value::Yaml::serialize<S: serde_core::ser::Serializer>(&self, serializer: S) -> core::result::Result<<S as serde_core::ser::Serializer>::Ok, <S as serde_core::ser::Serializer>::Error>
+impl<'de> serde_core::de::Deserialize<'de> for document::value::Yaml
+pub fn document::value::Yaml::deserialize<D: serde_core::de::Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, <D as serde_core::de::Deserializer>::Error>
+pub struct document::value::Mapping(_)
+impl document::value::Mapping
+pub fn document::value::Mapping::entries(&self) -> &[(alloc::string::String, document::value::Yaml)]
+pub fn document::value::Mapping::get(&self, key: &str) -> core::option::Option<&document::value::Yaml>
+pub const fn document::value::Mapping::new() -> Self
+pub fn document::value::Mapping::push(&mut self, key: alloc::string::String, value: document::value::Yaml)
+pub fn document::value::Mapping::set(&mut self, key: alloc::string::String, value: document::value::Yaml)
+impl core::clone::Clone for document::value::Mapping
+pub fn document::value::Mapping::clone(&self) -> document::value::Mapping
+impl core::cmp::PartialEq for document::value::Mapping
+pub fn document::value::Mapping::eq(&self, other: &document::value::Mapping) -> bool
+impl core::default::Default for document::value::Mapping
+pub fn document::value::Mapping::default() -> document::value::Mapping
+impl core::fmt::Debug for document::value::Mapping
+pub fn document::value::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, document::value::Yaml)> for document::value::Mapping
+pub fn document::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, document::value::Yaml)>>(iter: I) -> Self
+impl core::iter::traits::collect::IntoIterator for document::value::Mapping
+pub type document::value::Mapping::IntoIter = alloc::vec::into_iter::IntoIter<(alloc::string::String, document::value::Yaml)>
+pub type document::value::Mapping::Item = (alloc::string::String, document::value::Yaml)
+pub fn document::value::Mapping::into_iter(self) -> Self::IntoIter
+impl core::marker::StructuralPartialEq for document::value::Mapping
+pub enum document::DocumentError
+pub document::DocumentError::Emit(alloc::string::String)
+pub document::DocumentError::InvalidYaml(alloc::string::String)
+pub document::DocumentError::Tagged(alloc::string::String)
+pub document::DocumentError::Unterminated
+impl core::clone::Clone for document::error::DocumentError
+pub fn document::error::DocumentError::clone(&self) -> document::error::DocumentError
+impl core::cmp::Eq for document::error::DocumentError
+impl core::cmp::PartialEq for document::error::DocumentError
+pub fn document::error::DocumentError::eq(&self, other: &document::error::DocumentError) -> bool
+impl core::error::Error for document::error::DocumentError
+impl core::fmt::Debug for document::error::DocumentError
+pub fn document::error::DocumentError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for document::error::DocumentError
+pub fn document::error::DocumentError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::error::DocumentError
+pub enum document::Scalar
+pub document::Scalar::Bool(bool)
+pub document::Scalar::Float(f64)
+pub document::Scalar::Int(i64)
+pub document::Scalar::Null
+pub document::Scalar::String(alloc::string::String)
+impl core::clone::Clone for document::value::Scalar
+pub fn document::value::Scalar::clone(&self) -> document::value::Scalar
+impl core::cmp::PartialEq for document::value::Scalar
+pub fn document::value::Scalar::eq(&self, other: &document::value::Scalar) -> bool
+impl core::fmt::Debug for document::value::Scalar
+pub fn document::value::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::value::Scalar
+pub enum document::Yaml
+pub document::Yaml::Mapping(document::value::Mapping)
+pub document::Yaml::Scalar(document::value::Scalar)
+pub document::Yaml::Sequence(alloc::vec::Vec<document::value::Yaml>)
+impl core::clone::Clone for document::value::Yaml
+pub fn document::value::Yaml::clone(&self) -> document::value::Yaml
+impl core::cmp::PartialEq for document::value::Yaml
+pub fn document::value::Yaml::eq(&self, other: &document::value::Yaml) -> bool
+impl core::fmt::Debug for document::value::Yaml
+pub fn document::value::Yaml::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::value::Yaml
+impl serde_core::ser::Serialize for document::value::Yaml
+pub fn document::value::Yaml::serialize<S: serde_core::ser::Serializer>(&self, serializer: S) -> core::result::Result<<S as serde_core::ser::Serializer>::Ok, <S as serde_core::ser::Serializer>::Error>
+impl<'de> serde_core::de::Deserialize<'de> for document::value::Yaml
+pub fn document::value::Yaml::deserialize<D: serde_core::de::Deserializer<'de>>(deserializer: D) -> core::result::Result<Self, <D as serde_core::de::Deserializer>::Error>
+pub struct document::Mapping(_)
+impl document::value::Mapping
+pub fn document::value::Mapping::entries(&self) -> &[(alloc::string::String, document::value::Yaml)]
+pub fn document::value::Mapping::get(&self, key: &str) -> core::option::Option<&document::value::Yaml>
+pub const fn document::value::Mapping::new() -> Self
+pub fn document::value::Mapping::push(&mut self, key: alloc::string::String, value: document::value::Yaml)
+pub fn document::value::Mapping::set(&mut self, key: alloc::string::String, value: document::value::Yaml)
+impl core::clone::Clone for document::value::Mapping
+pub fn document::value::Mapping::clone(&self) -> document::value::Mapping
+impl core::cmp::PartialEq for document::value::Mapping
+pub fn document::value::Mapping::eq(&self, other: &document::value::Mapping) -> bool
+impl core::default::Default for document::value::Mapping
+pub fn document::value::Mapping::default() -> document::value::Mapping
+impl core::fmt::Debug for document::value::Mapping
+pub fn document::value::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, document::value::Yaml)> for document::value::Mapping
+pub fn document::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, document::value::Yaml)>>(iter: I) -> Self
+impl core::iter::traits::collect::IntoIterator for document::value::Mapping
+pub type document::value::Mapping::IntoIter = alloc::vec::into_iter::IntoIter<(alloc::string::String, document::value::Yaml)>
+pub type document::value::Mapping::Item = (alloc::string::String, document::value::Yaml)
+pub fn document::value::Mapping::into_iter(self) -> Self::IntoIter
+impl core::marker::StructuralPartialEq for document::value::Mapping
+pub struct document::Split
+pub document::Split::body: alloc::string::String
+pub document::Split::frontmatter: alloc::string::String
+pub fn document::fence_offsets(raw: &[u8]) -> core::result::Result<core::option::Option<(usize, usize)>, document::error::DocumentError>
+pub fn document::parse(content: &str) -> core::result::Result<document::value::Yaml, document::error::DocumentError>
+pub fn document::render(existing: core::option::Option<&str>, frontmatter: &document::value::Yaml) -> core::result::Result<alloc::string::String, document::error::DocumentError>
+pub fn document::split(content: &str) -> core::result::Result<document::fence::Split, document::error::DocumentError>
