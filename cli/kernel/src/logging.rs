@@ -10,12 +10,12 @@ use tracing_subscriber::EnvFilter;
 use crate::Error;
 
 fn filter_from_env(raw: Option<&str>) -> Result<EnvFilter, Error> {
-    match raw {
-        Some(directives) => Ok(EnvFilter::builder().parse(directives)?),
-        None => {
-            Ok(EnvFilter::default().add_directive(LevelFilter::INFO.into()))
-        }
-    }
+    let Some(directives) = raw else {
+        return Ok(EnvFilter::default().add_directive(LevelFilter::INFO.into()));
+    };
+    EnvFilter::builder()
+        .parse(directives)
+        .map_err(|error| Error::LogFilter(error.to_string()))
 }
 
 /// Installs the process-global stderr subscriber from `ACCELERATOR_LOG`.
@@ -52,10 +52,20 @@ mod tests {
 
     #[test]
     fn a_malformed_directive_is_a_log_filter_error() {
-        let result = filter_from_env(Some("bad=notalevel"));
-        assert!(matches!(result, Err(Error::LogFilter(_))));
-        if let Err(error) = result {
-            assert!(error.to_string().contains("invalid log filter"));
-        }
+        let Err(Error::LogFilter(detail)) =
+            filter_from_env(Some("bad=notalevel"))
+        else {
+            unreachable!("a malformed directive must be a LogFilter error");
+        };
+        // The variant holds the detail rather than the parser's own error type,
+        // so what the parser said has to be carried across deliberately.
+        assert!(
+            !detail.is_empty(),
+            "the parse failure's own text was dropped"
+        );
+        assert_eq!(
+            Error::LogFilter(detail.clone()).to_string(),
+            format!("invalid log filter: {detail}")
+        );
     }
 }

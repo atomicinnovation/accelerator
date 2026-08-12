@@ -77,9 +77,11 @@ tracked on the items themselves.
 - 0168 — Fold the Visualiser into the cli/ Workspace
 - 0188 — Library-Backed VCS Adapter over gix and jj-lib *(precedes 0169)*
 - 0169 — VCS Subdomain and Hooks Migration
+- 0204 — RemoteTracker Port *(split from 0194 on 2026-08-10; the frozen
+  port signature, which precedes both 0171's client adapters and 0194)*
 - 0194 — Tracker Crate and Remote Sync Engine *(split from 0170 on
   2026-08-05; also wires `--push` onto 0170's `create`/`update` commands,
-  and precedes 0171's client adapters)*
+  and precedes 0171's cutover half)*
 - 0170 — Work-Item Lifecycle Subdomain
 - 0171 — Jira and Linear Integrations
 - 0172 — Migration Engine Subdomain
@@ -92,6 +94,10 @@ tracked on the items themselves.
 
 **Cleanup (Phase 11):**
 - 0185 — Converge corpus-adapters on the Library-Backed VCS Adapter
+- 0203 — Ship an MPL-2.0 Attribution Artefact with the Release Uploads *(filed
+  2026-08-10 from 0185's licensing finding; joins the release upload set 0165
+  owns, and the notice obligation predates 0185 for four of the five affected
+  binaries)*
 - 0174 — Retire Shell Tooling and CI Guards
 
 The target architecture (git-style `accelerator` launcher dispatching to
@@ -106,7 +112,8 @@ ADR-0045/0046/0047/0051/0052/0053/0054.
       stays functional at each step.
 - [ ] All child work items are completed: 0162–0174, plus 0185–0188 added by the
       2026-07-31 split of 0169, plus 0194 added by the 2026-08-05 split of
-      0170.
+      0170, plus 0204 added by the 2026-08-10 split of 0194, plus 0203 filed on
+      2026-08-10 from 0185's licensing finding.
 
 ## Open Questions
 
@@ -125,9 +132,11 @@ questions are answered:)*
 
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
-- Children: 0162–0174 and 0185–0188 (parented to this epic). Note 0178, 0179 and
-  0180 are parented to 0166 rather than directly to this epic, so they are
-  grandchildren and are covered transitively by 0166's completion.
+- Children: 0162–0174, 0185–0188, 0194–0197 and 0203–0204 (parented to this
+  epic).
+  Note 0178, 0179 and 0180 are parented to 0166 rather than directly to this
+  epic, so they are grandchildren and are covered transitively by 0166's
+  completion.
 
 ## Assumptions
 

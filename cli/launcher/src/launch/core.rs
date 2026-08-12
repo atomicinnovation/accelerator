@@ -541,12 +541,8 @@ mod tests {
     #[test]
     fn swallow_under_fail_safe_never_swallows_log_filter() {
         let args = [OsString::from("--fail-safe")];
-        let parsed =
-            "bogus=level".parse::<tracing_subscriber::filter::EnvFilter>();
-        let Err(parse_error) = parsed else {
-            unreachable!("\"bogus=level\" is not a valid filter");
-        };
-        let error = kernel::Error::LogFilter(parse_error);
+        let error =
+            kernel::Error::LogFilter("bogus=level is not a level".to_owned());
         assert!(!swallow_under_fail_safe(&error, &args));
     }
 

@@ -1,0 +1,252 @@
+pub mod work
+pub mod work::create
+pub enum work::create::FieldValue
+pub work::create::FieldValue::Int(i64)
+pub work::create::FieldValue::Scalar(alloc::string::String)
+pub work::create::FieldValue::Sequence(alloc::vec::Vec<alloc::string::String>)
+impl core::clone::Clone for work::create::FieldValue
+pub fn work::create::FieldValue::clone(&self) -> work::create::FieldValue
+impl core::cmp::Eq for work::create::FieldValue
+impl core::cmp::PartialEq for work::create::FieldValue
+pub fn work::create::FieldValue::eq(&self, other: &work::create::FieldValue) -> bool
+impl core::fmt::Debug for work::create::FieldValue
+pub fn work::create::FieldValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::create::FieldValue
+pub struct work::create::CreateInputs<'a>
+pub work::create::CreateInputs::author: &'a str
+pub work::create::CreateInputs::date: &'a str
+pub work::create::CreateInputs::id: &'a str
+pub work::create::CreateInputs::kind: &'a str
+pub work::create::CreateInputs::linkage: work::create::TypedLinkage<'a>
+pub work::create::CreateInputs::priority: &'a str
+pub work::create::CreateInputs::producer: &'a str
+pub work::create::CreateInputs::status: &'a str
+pub work::create::CreateInputs::tags: &'a [alloc::string::String]
+pub work::create::CreateInputs::title: &'a str
+pub struct work::create::SchemaDrift
+pub work::create::SchemaDrift::missing_from_template: alloc::vec::Vec<alloc::string::String>
+pub work::create::SchemaDrift::unknown_to_this_work_item: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for work::create::SchemaDrift
+pub fn work::create::SchemaDrift::clone(&self) -> work::create::SchemaDrift
+impl core::cmp::Eq for work::create::SchemaDrift
+impl core::cmp::PartialEq for work::create::SchemaDrift
+pub fn work::create::SchemaDrift::eq(&self, other: &work::create::SchemaDrift) -> bool
+impl core::fmt::Debug for work::create::SchemaDrift
+pub fn work::create::SchemaDrift::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::create::SchemaDrift
+pub struct work::create::TypedLinkage<'a>
+pub work::create::TypedLinkage::blocked_by: &'a [alloc::string::String]
+pub work::create::TypedLinkage::blocks: &'a [alloc::string::String]
+pub work::create::TypedLinkage::derived_from: &'a [alloc::string::String]
+pub work::create::TypedLinkage::parent: core::option::Option<&'a str>
+pub work::create::TypedLinkage::relates_to: &'a [alloc::string::String]
+pub work::create::TypedLinkage::source: core::option::Option<&'a str>
+pub const work::create::KNOWN_FRONTMATTER_KEYS: &[&str]
+pub trait work::create::VcsIdentityProbe
+pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option::Option<alloc::string::String>
+pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
+pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
+pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
+pub mod work::file_dirty
+pub enum work::file_dirty::VcsMode
+pub work::file_dirty::VcsMode::Git
+pub work::file_dirty::VcsMode::Indeterminate
+pub work::file_dirty::VcsMode::Jj
+impl core::clone::Clone for work::file_dirty::VcsMode
+pub fn work::file_dirty::VcsMode::clone(&self) -> work::file_dirty::VcsMode
+impl core::cmp::Eq for work::file_dirty::VcsMode
+impl core::cmp::PartialEq for work::file_dirty::VcsMode
+pub fn work::file_dirty::VcsMode::eq(&self, other: &work::file_dirty::VcsMode) -> bool
+impl core::fmt::Debug for work::file_dirty::VcsMode
+pub fn work::file_dirty::VcsMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::file_dirty::VcsMode
+impl core::marker::StructuralPartialEq for work::file_dirty::VcsMode
+pub fn work::file_dirty::is_dirty(mode: work::file_dirty::VcsMode, path_relative: &str, status_text: &str) -> bool
+pub mod work::next_number
+pub enum work::next_number::AllocationError
+pub work::next_number::AllocationError::MissingProject
+pub work::next_number::AllocationError::Overflow
+pub work::next_number::AllocationError::Overflow::cap: u64
+pub work::next_number::AllocationError::Overflow::highest: u64
+pub work::next_number::AllocationError::Overflow::highest_file: core::option::Option<alloc::string::String>
+pub work::next_number::AllocationError::Overflow::partial: alloc::vec::Vec<alloc::string::String>
+pub work::next_number::AllocationError::ProjectUnused
+impl core::clone::Clone for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::clone(&self) -> work::next_number::AllocationError
+impl core::cmp::Eq for work::next_number::AllocationError
+impl core::cmp::PartialEq for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::eq(&self, other: &work::next_number::AllocationError) -> bool
+impl core::fmt::Debug for work::next_number::AllocationError
+pub fn work::next_number::AllocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::next_number::AllocationError
+pub fn work::next_number::allocate(scheme: &corpus::work_item_id::WorkItemIdScheme, project: core::option::Option<&str>, count: u32, filenames: &[alloc::string::String], scanner: &dyn corpus::work_item_id::IdScanner) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, work::next_number::AllocationError>
+pub mod work::normalise
+pub const work::normalise::IGNORE_KEYS: &[&str]
+pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc::string::String
+pub fn work::normalise::trim_lines(content: &str) -> alloc::string::String
+pub mod work::own_identity
+pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, work_item_id: core::option::Option<&str>) -> bool
+pub fn work::own_identity::own_identity_alias(field: &str) -> core::option::Option<&'static str>
+pub mod work::resolve
+pub enum work::resolve::InputClass
+pub work::resolve::InputClass::BareNumber
+pub work::resolve::InputClass::FullId
+pub work::resolve::InputClass::Invalid
+pub work::resolve::InputClass::Path
+impl core::clone::Clone for work::resolve::InputClass
+pub fn work::resolve::InputClass::clone(&self) -> work::resolve::InputClass
+impl core::cmp::Eq for work::resolve::InputClass
+impl core::cmp::PartialEq for work::resolve::InputClass
+pub fn work::resolve::InputClass::eq(&self, other: &work::resolve::InputClass) -> bool
+impl core::fmt::Debug for work::resolve::InputClass
+pub fn work::resolve::InputClass::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::resolve::InputClass
+impl core::marker::StructuralPartialEq for work::resolve::InputClass
+pub enum work::resolve::ResolveOutcome
+pub work::resolve::ResolveOutcome::Ambiguous(alloc::vec::Vec<work::resolve::TaggedCandidate>)
+pub work::resolve::ResolveOutcome::NotFound
+pub work::resolve::ResolveOutcome::Single(alloc::string::String)
+impl core::clone::Clone for work::resolve::ResolveOutcome
+pub fn work::resolve::ResolveOutcome::clone(&self) -> work::resolve::ResolveOutcome
+impl core::cmp::Eq for work::resolve::ResolveOutcome
+impl core::cmp::PartialEq for work::resolve::ResolveOutcome
+pub fn work::resolve::ResolveOutcome::eq(&self, other: &work::resolve::ResolveOutcome) -> bool
+impl core::fmt::Debug for work::resolve::ResolveOutcome
+pub fn work::resolve::ResolveOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::resolve::ResolveOutcome
+pub enum work::resolve::SearchClass
+pub work::resolve::SearchClass::BareNumber
+pub work::resolve::SearchClass::FullId
+impl core::clone::Clone for work::resolve::SearchClass
+pub fn work::resolve::SearchClass::clone(&self) -> work::resolve::SearchClass
+impl core::cmp::Eq for work::resolve::SearchClass
+impl core::cmp::PartialEq for work::resolve::SearchClass
+pub fn work::resolve::SearchClass::eq(&self, other: &work::resolve::SearchClass) -> bool
+impl core::fmt::Debug for work::resolve::SearchClass
+pub fn work::resolve::SearchClass::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::resolve::SearchClass
+impl core::marker::StructuralPartialEq for work::resolve::SearchClass
+pub struct work::resolve::TaggedCandidate
+pub work::resolve::TaggedCandidate::path: alloc::string::String
+pub work::resolve::TaggedCandidate::tag: alloc::string::String
+impl core::clone::Clone for work::resolve::TaggedCandidate
+pub fn work::resolve::TaggedCandidate::clone(&self) -> work::resolve::TaggedCandidate
+impl core::cmp::Eq for work::resolve::TaggedCandidate
+impl core::cmp::PartialEq for work::resolve::TaggedCandidate
+pub fn work::resolve::TaggedCandidate::eq(&self, other: &work::resolve::TaggedCandidate) -> bool
+impl core::fmt::Debug for work::resolve::TaggedCandidate
+pub fn work::resolve::TaggedCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::resolve::TaggedCandidate
+pub trait work::resolve::DirectoryLister
+pub fn work::resolve::DirectoryLister::filenames(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn work::resolve::classify_input(input: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> work::resolve::InputClass
+pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &corpus::work_item_id::WorkItemIdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
+pub mod work::section_diff
+pub enum work::section_diff::SectionName
+pub work::section_diff::SectionName::Frontmatter
+pub work::section_diff::SectionName::Heading(alloc::string::String)
+pub work::section_diff::SectionName::Preamble
+impl core::clone::Clone for work::section_diff::SectionName
+pub fn work::section_diff::SectionName::clone(&self) -> work::section_diff::SectionName
+impl core::cmp::Eq for work::section_diff::SectionName
+impl core::cmp::PartialEq for work::section_diff::SectionName
+pub fn work::section_diff::SectionName::eq(&self, other: &work::section_diff::SectionName) -> bool
+impl core::fmt::Debug for work::section_diff::SectionName
+pub fn work::section_diff::SectionName::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::section_diff::SectionName
+pub struct work::section_diff::SectionDiff
+pub work::section_diff::SectionDiff::local: alloc::string::String
+pub work::section_diff::SectionDiff::name: alloc::string::String
+pub work::section_diff::SectionDiff::remote: alloc::string::String
+impl core::clone::Clone for work::section_diff::SectionDiff
+pub fn work::section_diff::SectionDiff::clone(&self) -> work::section_diff::SectionDiff
+impl core::cmp::Eq for work::section_diff::SectionDiff
+impl core::cmp::PartialEq for work::section_diff::SectionDiff
+pub fn work::section_diff::SectionDiff::eq(&self, other: &work::section_diff::SectionDiff) -> bool
+impl core::fmt::Debug for work::section_diff::SectionDiff
+pub fn work::section_diff::SectionDiff::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::section_diff::SectionDiff
+pub fn work::section_diff::differing_sections(local_content: &str, remote_content: &str) -> alloc::vec::Vec<work::section_diff::SectionDiff>
+pub fn work::section_diff::extract_section(content: &str, name: &work::section_diff::SectionName) -> alloc::string::String
+pub fn work::section_diff::heading_union(local: &[alloc::string::String], remote: &[alloc::string::String]) -> alloc::vec::Vec<alloc::string::String>
+pub mod work::show
+pub fn work::show::read_field_raw(frontmatter: &str, field: &str) -> core::option::Option<alloc::string::String>
+pub mod work::tags
+pub enum work::tags::TagAction
+pub work::tags::TagAction::Add
+pub work::tags::TagAction::Remove
+impl core::clone::Clone for work::tags::TagAction
+pub fn work::tags::TagAction::clone(&self) -> work::tags::TagAction
+impl core::cmp::Eq for work::tags::TagAction
+impl core::cmp::PartialEq for work::tags::TagAction
+pub fn work::tags::TagAction::eq(&self, other: &work::tags::TagAction) -> bool
+impl core::fmt::Debug for work::tags::TagAction
+pub fn work::tags::TagAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::tags::TagAction
+impl core::marker::StructuralPartialEq for work::tags::TagAction
+pub enum work::tags::TagError
+pub work::tags::TagError::BlockStyleTags
+impl core::clone::Clone for work::tags::TagError
+pub fn work::tags::TagError::clone(&self) -> work::tags::TagError
+impl core::cmp::Eq for work::tags::TagError
+impl core::cmp::PartialEq for work::tags::TagError
+pub fn work::tags::TagError::eq(&self, other: &work::tags::TagError) -> bool
+impl core::fmt::Debug for work::tags::TagError
+pub fn work::tags::TagError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::tags::TagError
+impl core::marker::StructuralPartialEq for work::tags::TagError
+pub enum work::tags::TagMutation
+pub work::tags::TagMutation::Changed(alloc::string::String)
+pub work::tags::TagMutation::NoChange
+impl core::clone::Clone for work::tags::TagMutation
+pub fn work::tags::TagMutation::clone(&self) -> work::tags::TagMutation
+impl core::cmp::Eq for work::tags::TagMutation
+impl core::cmp::PartialEq for work::tags::TagMutation
+pub fn work::tags::TagMutation::eq(&self, other: &work::tags::TagMutation) -> bool
+impl core::fmt::Debug for work::tags::TagMutation
+pub fn work::tags::TagMutation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::tags::TagMutation
+pub fn work::tags::mutate_tags(frontmatter_raw: &str, action: work::tags::TagAction, tag: &str) -> core::result::Result<work::tags::TagMutation, work::tags::TagError>
+pub fn work::tags::parse_current_tags(raw_tags: &str) -> alloc::vec::Vec<alloc::string::String>
+pub mod work::template_hints
+pub fn work::template_hints::extract_hints(template_frontmatter: &str, field: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn work::template_hints::hardcoded_fallback(field: &str) -> alloc::vec::Vec<alloc::string::String>
+pub mod work::update
+pub enum work::update::ListAction
+pub work::update::ListAction::Append
+pub work::update::ListAction::Remove
+impl core::clone::Clone for work::update::ListAction
+pub fn work::update::ListAction::clone(&self) -> work::update::ListAction
+impl core::cmp::Eq for work::update::ListAction
+impl core::cmp::PartialEq for work::update::ListAction
+pub fn work::update::ListAction::eq(&self, other: &work::update::ListAction) -> bool
+impl core::fmt::Debug for work::update::ListAction
+pub fn work::update::ListAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::update::ListAction
+impl core::marker::StructuralPartialEq for work::update::ListAction
+pub enum work::update::ListMutation
+pub work::update::ListMutation::Changed(alloc::vec::Vec<alloc::string::String>)
+pub work::update::ListMutation::NoChange
+impl core::clone::Clone for work::update::ListMutation
+pub fn work::update::ListMutation::clone(&self) -> work::update::ListMutation
+impl core::cmp::Eq for work::update::ListMutation
+impl core::cmp::PartialEq for work::update::ListMutation
+pub fn work::update::ListMutation::eq(&self, other: &work::update::ListMutation) -> bool
+impl core::fmt::Debug for work::update::ListMutation
+pub fn work::update::ListMutation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::update::ListMutation
+pub enum work::update::UpdateError
+pub work::update::UpdateError::IdImmutable
+pub work::update::UpdateError::ScalarSetOnListField
+pub work::update::UpdateError::ScalarSetOnListField::key: alloc::string::String
+impl core::clone::Clone for work::update::UpdateError
+pub fn work::update::UpdateError::clone(&self) -> work::update::UpdateError
+impl core::cmp::Eq for work::update::UpdateError
+impl core::cmp::PartialEq for work::update::UpdateError
+pub fn work::update::UpdateError::eq(&self, other: &work::update::UpdateError) -> bool
+impl core::fmt::Debug for work::update::UpdateError
+pub fn work::update::UpdateError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::update::UpdateError
+pub const work::update::LIST_FIELDS: &[&str]
+pub fn work::update::mutate_list(current: &[alloc::string::String], action: work::update::ListAction, value: &str) -> work::update::ListMutation
+pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from tasks.shared.rust import PUP_NIGHTLY
+from tasks.shared.rust import RUST_NIGHTLY
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLI_DIR = REPO_ROOT / "cli"
@@ -82,7 +82,7 @@ _CORE_ADAPTER_VIOLATION = (
 _CORE_COMPLIANT = "pub fn make() -> u8 {\n    0\n}\n"
 # core importing the shared kernel error taxonomy — permitted by the narrowed
 # allowance.
-_CORE_KERNEL_ERROR = (
+_DOMAIN_KERNEL_ERROR = (
     "use kernel::Error;\n\npub fn make() -> Option<Error> {\n    None\n}\n"
 )
 # core importing a kernel infrastructure module — rejected: the allowance is
@@ -136,7 +136,7 @@ def _require_tools() -> None:
 
 def _pup(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["cargo", f"+{PUP_NIGHTLY}", "pup", *args],
+        ["cargo", f"+{RUST_NIGHTLY}", "pup", *args],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -188,7 +188,7 @@ def test_compliant_core_passes(tmp_path: Path) -> None:
 def test_core_importing_kernel_error_passes(tmp_path: Path) -> None:
     # The narrowed allowance permits the shared error taxonomy.
     _require_tools()
-    _write_probe(tmp_path, _CORE_KERNEL_ERROR)
+    _write_probe(tmp_path, _DOMAIN_KERNEL_ERROR)
     result = _pup(cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
@@ -253,7 +253,7 @@ license = "MIT"
 path = "src/lib.rs"
 """
 
-_CONFIG_LIB = "pub mod service;\n"
+_CONFIG_LIB = "pub mod service;\npub struct Marker;\n"
 _ADAPTERS_LIB = "pub struct Client;\n"
 
 # A dependency-free `config` crate, for probes that only need it as an allowed
@@ -269,12 +269,21 @@ license = "MIT"
 path = "src/lib.rs"
 """
 
-# config::service importing an adapter crate — the outbound violation.
-_CONFIG_SERVICE_VIOLATION = (
+# A service module importing an adapter crate — the outbound violation.
+_DOMAIN_SERVICE_VIOLATION = (
     "use adapters::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
 )
-# config::service importing only std — compliant (positive control).
-_CONFIG_SERVICE_COMPLIANT = "pub fn make() -> u8 {\n    0\n}\n"
+# A service module importing one std:: path and one crate:: path — compliant
+# (positive control). It carries both imports because a control with no `use`
+# statement proves only that nothing was rejected, exercising neither of the two
+# anchors every domain rule shares.
+_DOMAIN_SERVICE_COMPLIANT = (
+    "use std::path::Path;\n\n"
+    "use crate::Marker;\n\n"
+    "pub fn make(path: &Path) -> (usize, Marker) {\n"
+    "    (path.as_os_str().len(), Marker)\n"
+    "}\n"
+)
 
 
 def _write_config_probe(root: Path, service_body: str) -> None:
@@ -296,7 +305,7 @@ def test_real_config_rule_rejects_a_service_importing_an_adapter(
     tmp_path: Path,
 ) -> None:
     _require_tools()
-    _write_config_probe(tmp_path, _CONFIG_SERVICE_VIOLATION)
+    _write_config_probe(tmp_path, _DOMAIN_SERVICE_VIOLATION)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     output = _ANSI.sub("", result.stdout + result.stderr)
     assert result.returncode != 0, output
@@ -308,7 +317,7 @@ def test_real_config_rule_passes_a_compliant_service(tmp_path: Path) -> None:
     # Positive control: a compliant config::service evaluates and passes under
     # the shipped rule, so a green run means "evaluated and allowed".
     _require_tools()
-    _write_config_probe(tmp_path, _CONFIG_SERVICE_COMPLIANT)
+    _write_config_probe(tmp_path, _DOMAIN_SERVICE_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
@@ -598,3 +607,295 @@ def test_vcs_library_rule_rejects_a_grouped_import(tmp_path: Path) -> None:
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert "vcs_adapters_library_reads_in_process" in output, output
+
+
+# --- The tracker domain rule ---
+#
+# Driven against a workspace whose crates are literally named `tracker` and
+# `work`, so the shipped `^tracker($|::)` regex is exercised directly. The
+# violation is the one the crate exists to prevent: a port crate reaching for
+# the lifecycle domain would make every provider client depend on it
+# transitively.
+
+_TRACKER_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["tracker", "work"]
+"""
+
+_TRACKER_MANIFEST = """\
+[package]
+name = "tracker"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+work = { path = "../work" }
+"""
+
+_WORK_MANIFEST = """\
+[package]
+name = "work"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_TRACKER_LIB = "pub mod port;\n\npub struct Marker;\n"
+_WORK_LIB = "pub struct WorkItem;\n"
+
+_TRACKER_PORT_VIOLATION = (
+    "use work::WorkItem;\n\npub fn make() -> WorkItem {\n    WorkItem\n}\n"
+)
+_TRACKER_PORT_COMPLIANT = (
+    "use std::path::Path;\n\n"
+    "use crate::Marker;\n\n"
+    "pub fn make(path: &Path) -> (usize, Marker) {\n"
+    "    (path.as_os_str().len(), Marker)\n"
+    "}\n"
+)
+
+
+def _write_tracker_probe(root: Path, port_body: str) -> None:
+    (root / "Cargo.toml").write_text(_TRACKER_WORKSPACE)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB)
+    (tracker_src / "port.rs").write_text(port_body)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+
+def test_real_tracker_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_probe(tmp_path, _TRACKER_PORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "tracker_domain_imports_only_permitted" in output, output
+
+
+def test_real_tracker_rule_permits_std_and_crate_imports(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_probe(tmp_path, _TRACKER_PORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The remaining whole-crate domain rules ---
+#
+# Each is driven against a workspace whose crate is literally named for it,
+# under the shipped cli/pup.ron, so deleting or mistyping a rule fails here.
+# corpus and vcs carry config's rule shape; work and migrate widen it, and
+# the third element pins what each widening permits.
+
+_DOMAIN_RULES = [
+    ("corpus", "corpus_domain_imports_only_permitted", ()),
+    ("vcs", "vcs_domain_imports_only_permitted", ()),
+    ("work", "work_domain_imports_only_permitted", ("corpus",)),
+    (
+        "migrate",
+        "migrate_domain_imports_only_permitted",
+        ("corpus", "document"),
+    ),
+]
+
+# The full universe of extra allowances any domain rule widens with. A probed
+# crate depends on every one of these except itself, so the converse
+# (cross-rejection) cases below can attempt an import that its own rule does
+# not permit and have cargo-pup reject it, rather than the import failing to
+# resolve for an unrelated reason.
+_ALL_EXTRA_CRATES = ("corpus", "document")
+
+
+def _extra_crate_manifest(name: str) -> str:
+    return f"""\
+[package]
+name = "{name}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+
+_EXTRA_CRATE_LIB = "pub struct Extra;\n"
+
+
+def _extra_import_body(extra: str) -> str:
+    return f"use {extra}::Extra;\n\npub fn make() -> Extra {{\n    Extra\n}}\n"
+
+
+def _domain_manifest(crate: str, siblings: list[str]) -> str:
+    deps = "\n".join(
+        f'{name} = {{ path = "../{name}" }}'
+        for name in ("adapters", "kernel", *siblings)
+    )
+    return f"""\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+{deps}
+"""
+
+
+def _domain_workspace(crate: str, siblings: list[str]) -> str:
+    members = ", ".join(
+        f'"{name}"' for name in (crate, "adapters", "kernel", *siblings)
+    )
+    return f"""\
+[workspace]
+resolver = "2"
+members = [{members}]
+"""
+
+
+def _write_domain_probe(root: Path, crate: str, service_body: str) -> None:
+    siblings = [name for name in _ALL_EXTRA_CRATES if name != crate]
+
+    (root / "Cargo.toml").write_text(_domain_workspace(crate, siblings))
+
+    crate_src = root / f"{crate}/src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / f"{crate}/Cargo.toml").write_text(_domain_manifest(crate, siblings))
+    (crate_src / "lib.rs").write_text(_CONFIG_LIB)
+    (crate_src / "service.rs").write_text(service_body)
+
+    adapters_src = root / "adapters/src"
+    adapters_src.mkdir(parents=True, exist_ok=True)
+    (root / "adapters/Cargo.toml").write_text(_ADAPTERS_MANIFEST)
+    (adapters_src / "lib.rs").write_text(_ADAPTERS_LIB)
+
+    kernel_src = root / "kernel/src"
+    kernel_src.mkdir(parents=True, exist_ok=True)
+    (root / "kernel/Cargo.toml").write_text(_KERNEL_MANIFEST)
+    (kernel_src / "lib.rs").write_text(_KERNEL_LIB)
+    (kernel_src / "logging.rs").write_text(_KERNEL_LOGGING)
+
+    for sibling in siblings:
+        sibling_src = root / f"{sibling}/src"
+        sibling_src.mkdir(parents=True, exist_ok=True)
+        (root / f"{sibling}/Cargo.toml").write_text(
+            _extra_crate_manifest(sibling)
+        )
+        (sibling_src / "lib.rs").write_text(_EXTRA_CRATE_LIB)
+
+
+@pytest.mark.parametrize(("crate", "rule", "extras"), _DOMAIN_RULES)
+def test_real_domain_rule_rejects_a_service_importing_an_adapter(
+    tmp_path: Path, crate: str, rule: str, extras: tuple[str, ...]
+) -> None:
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _DOMAIN_SERVICE_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert rule in output, output
+
+
+@pytest.mark.parametrize(("crate", "rule", "extras"), _DOMAIN_RULES)
+def test_real_domain_rule_passes_a_compliant_service(
+    tmp_path: Path, crate: str, rule: str, extras: tuple[str, ...]
+) -> None:
+    # Positive control: a green run means "evaluated and allowed", not a rule
+    # whose module scope silently matched nothing.
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _DOMAIN_SERVICE_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+@pytest.mark.parametrize(("crate", "rule", "extras"), _DOMAIN_RULES)
+def test_real_domain_rule_permits_kernel_error(
+    tmp_path: Path, crate: str, rule: str, extras: tuple[str, ...]
+) -> None:
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _DOMAIN_KERNEL_ERROR)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+_EXTRA_ALLOWANCE_CASES = [
+    (crate, rule, extra)
+    for crate, rule, extras in _DOMAIN_RULES
+    for extra in extras
+]
+
+
+@pytest.mark.parametrize(("crate", "rule", "extra"), _EXTRA_ALLOWANCE_CASES)
+def test_real_domain_rule_permits_its_own_extra_allowance(
+    tmp_path: Path, crate: str, rule: str, extra: str
+) -> None:
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _extra_import_body(extra))
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# The converse of the case above: a positive case alone detects a widening
+# being lost, never one being gained — pasting `^document(::|$)` into
+# vcs_domain_imports_only_permitted would pass every case above it.
+_EXTRA_ALLOWANCE_REJECTIONS = [
+    (crate, rule, extra)
+    for crate, rule, extras in _DOMAIN_RULES
+    for extra in _ALL_EXTRA_CRATES
+    if extra != crate and extra not in extras
+]
+
+
+@pytest.mark.parametrize(
+    ("crate", "rule", "extra"), _EXTRA_ALLOWANCE_REJECTIONS
+)
+def test_real_domain_rule_rejects_an_extra_allowance_not_its_own(
+    tmp_path: Path, crate: str, rule: str, extra: str
+) -> None:
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _extra_import_body(extra))
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert rule in output, output
+
+
+@pytest.mark.parametrize(("crate", "rule", "extras"), _DOMAIN_RULES)
+def test_real_domain_rule_rejects_kernel_infra(
+    tmp_path: Path, crate: str, rule: str, extras: tuple[str, ...]
+) -> None:
+    # Proves the allowance is the narrowed ^kernel::Error, not a bare
+    # ^kernel — the analogue of test_core_importing_kernel_infra_is_rejected
+    # against the synthetic RON.
+    _require_tools()
+    _write_domain_probe(tmp_path, crate, _CORE_KERNEL_INFRA)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert rule in output, output

@@ -1,0 +1,86 @@
+pub mod collaboration
+pub mod collaboration::base_repo
+pub enum collaboration::base_repo::BaseRepoFailure
+pub collaboration::base_repo::BaseRepoFailure::MalformedParent
+pub collaboration::base_repo::BaseRepoFailure::MalformedRepositoryResponse(alloc::string::String)
+pub collaboration::base_repo::BaseRepoFailure::PullRequestLookupFailed(collaboration::ForgeApiError)
+pub collaboration::base_repo::BaseRepoFailure::RepositoryLookupFailed(collaboration::ForgeApiError)
+impl core::clone::Clone for collaboration::base_repo::BaseRepoFailure
+pub fn collaboration::base_repo::BaseRepoFailure::clone(&self) -> collaboration::base_repo::BaseRepoFailure
+impl core::cmp::Eq for collaboration::base_repo::BaseRepoFailure
+impl core::cmp::PartialEq for collaboration::base_repo::BaseRepoFailure
+pub fn collaboration::base_repo::BaseRepoFailure::eq(&self, other: &collaboration::base_repo::BaseRepoFailure) -> bool
+impl core::fmt::Debug for collaboration::base_repo::BaseRepoFailure
+pub fn collaboration::base_repo::BaseRepoFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::base_repo::BaseRepoFailure
+pub enum collaboration::base_repo::BaseRepoOutcome
+pub collaboration::base_repo::BaseRepoOutcome::Failed(collaboration::base_repo::BaseRepoFailure)
+pub collaboration::base_repo::BaseRepoOutcome::Resolved(collaboration::OwnerRepo)
+impl core::clone::Clone for collaboration::base_repo::BaseRepoOutcome
+pub fn collaboration::base_repo::BaseRepoOutcome::clone(&self) -> collaboration::base_repo::BaseRepoOutcome
+impl core::cmp::Eq for collaboration::base_repo::BaseRepoOutcome
+impl core::cmp::PartialEq for collaboration::base_repo::BaseRepoOutcome
+pub fn collaboration::base_repo::BaseRepoOutcome::eq(&self, other: &collaboration::base_repo::BaseRepoOutcome) -> bool
+impl core::fmt::Debug for collaboration::base_repo::BaseRepoOutcome
+pub fn collaboration::base_repo::BaseRepoOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::base_repo::BaseRepoOutcome
+pub fn collaboration::base_repo::resolve_base_repository(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, pull_number: u64) -> core::result::Result<collaboration::base_repo::BaseRepoOutcome, kernel::Error>
+pub mod collaboration::update_body
+pub enum collaboration::update_body::UpdateBodyOutcome
+pub collaboration::update_body::UpdateBodyOutcome::BaseRepoResolutionFailed(collaboration::base_repo::BaseRepoFailure)
+pub collaboration::update_body::UpdateBodyOutcome::PatchFailed(collaboration::ForgeApiError)
+pub collaboration::update_body::UpdateBodyOutcome::Updated
+impl core::clone::Clone for collaboration::update_body::UpdateBodyOutcome
+pub fn collaboration::update_body::UpdateBodyOutcome::clone(&self) -> collaboration::update_body::UpdateBodyOutcome
+impl core::cmp::Eq for collaboration::update_body::UpdateBodyOutcome
+impl core::cmp::PartialEq for collaboration::update_body::UpdateBodyOutcome
+pub fn collaboration::update_body::UpdateBodyOutcome::eq(&self, other: &collaboration::update_body::UpdateBodyOutcome) -> bool
+impl core::fmt::Debug for collaboration::update_body::UpdateBodyOutcome
+pub fn collaboration::update_body::UpdateBodyOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::update_body::UpdateBodyOutcome
+pub fn collaboration::update_body::update_pull_request_body(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, body_update: &dyn collaboration::PullRequestBodyUpdate, pull_number: u64, body: &str) -> core::result::Result<collaboration::update_body::UpdateBodyOutcome, kernel::Error>
+pub enum collaboration::ForgeApiError
+pub collaboration::ForgeApiError::Malformed(alloc::string::String)
+pub collaboration::ForgeApiError::Status
+pub collaboration::ForgeApiError::Status::code: u16
+pub collaboration::ForgeApiError::Status::message: alloc::string::String
+pub collaboration::ForgeApiError::Transport(alloc::string::String)
+impl core::clone::Clone for collaboration::ForgeApiError
+pub fn collaboration::ForgeApiError::clone(&self) -> collaboration::ForgeApiError
+impl core::cmp::Eq for collaboration::ForgeApiError
+impl core::cmp::PartialEq for collaboration::ForgeApiError
+pub fn collaboration::ForgeApiError::eq(&self, other: &collaboration::ForgeApiError) -> bool
+impl core::fmt::Debug for collaboration::ForgeApiError
+pub fn collaboration::ForgeApiError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::ForgeApiError
+pub struct collaboration::OwnerRepo
+pub collaboration::OwnerRepo::owner: alloc::string::String
+pub collaboration::OwnerRepo::repo: alloc::string::String
+impl core::clone::Clone for collaboration::OwnerRepo
+pub fn collaboration::OwnerRepo::clone(&self) -> collaboration::OwnerRepo
+impl core::cmp::Eq for collaboration::OwnerRepo
+impl core::cmp::PartialEq for collaboration::OwnerRepo
+pub fn collaboration::OwnerRepo::eq(&self, other: &collaboration::OwnerRepo) -> bool
+impl core::fmt::Debug for collaboration::OwnerRepo
+pub fn collaboration::OwnerRepo::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::OwnerRepo
+pub struct collaboration::RepositoryDetails
+pub collaboration::RepositoryDetails::parent_owner: core::option::Option<alloc::string::String>
+pub collaboration::RepositoryDetails::parent_repo: core::option::Option<alloc::string::String>
+impl core::clone::Clone for collaboration::RepositoryDetails
+pub fn collaboration::RepositoryDetails::clone(&self) -> collaboration::RepositoryDetails
+impl core::cmp::Eq for collaboration::RepositoryDetails
+impl core::cmp::PartialEq for collaboration::RepositoryDetails
+pub fn collaboration::RepositoryDetails::eq(&self, other: &collaboration::RepositoryDetails) -> bool
+impl core::fmt::Debug for collaboration::RepositoryDetails
+pub fn collaboration::RepositoryDetails::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for collaboration::RepositoryDetails
+pub trait collaboration::PullRequestBodyUpdate
+pub fn collaboration::PullRequestBodyUpdate::update_body(&self, owner: &str, repo: &str, pull_number: u64, body: &str) -> core::result::Result<(), collaboration::ForgeApiError>
+pub trait collaboration::PullRequestExistence
+pub fn collaboration::PullRequestExistence::confirm_exists(&self, owner: &str, repo: &str, pull_number: u64) -> core::result::Result<(), collaboration::ForgeApiError>
+pub trait collaboration::RemoteUrlRecognizer
+pub fn collaboration::RemoteUrlRecognizer::parse(&self, url: &str) -> core::option::Option<collaboration::OwnerRepo>
+pub trait collaboration::RepositoryLookup
+pub fn collaboration::RepositoryLookup::repository(&self, owner: &str, repo: &str) -> core::result::Result<collaboration::RepositoryDetails, collaboration::ForgeApiError>
+pub fn collaboration::resolve_origin_owner_repo(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer) -> core::result::Result<collaboration::OwnerRepo, kernel::Error>

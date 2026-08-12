@@ -346,14 +346,23 @@ def test_invariants_reject_known_bad_shapes(wf, mutate):
         _invariants(bad)
 
 
-# --- Nightly-lane isolation: cargo-pup runs on a pinned nightly, and that
-#     toolchain must stay confined to a single job so a nightly break gates the
-#     architecture check alone, never a stable-lane check or the product build.
+# --- Nightly-lane isolation: the pinned nightly toolchain must stay confined
+#     to a single job, so a nightly break gates the architecture check alone
+#     and never a stable-lane check or the product build. Every build step that
+#     reaches for it therefore belongs to that one job.
 
 # A job consumes the nightly iff its steps run any of these (name-agnostic
 # detection, so renaming the job cannot smuggle a second consumer past the
-# guard).
-_NIGHTLY_MARKERS = ("pup:check", "deps:install:pup", "+nightly")
+# guard). A new nightly-lane build step must add its task name here, or a later
+# leak of it into a stable job goes undetected.
+_NIGHTLY_MARKERS = (
+    "deps:install:nightly",
+    "pup:check",
+    "deps:install:pup",
+    "public-api:check",
+    "deps:install:public-api",
+    "+nightly",
+)
 _NIGHTLY_JOB = "check-architecture"
 # The release-pipeline aggregators MAY gate on check-architecture (you should
 # not ship with a red required check); everything else must not couple to it.
@@ -381,12 +390,15 @@ def _isolation_invariants(wf):
         f"nightly consumers must be exactly {{{_NIGHTLY_JOB}}}, got {consumers}"
     )
 
-    # The sole regression cannot be silently dropped: the one host job invokes
-    # BOTH pup:check and its behavioural regression.
+    # Confinement alone would also be satisfied by a job that runs none of the
+    # nightly-lane steps at all.
     text = _job_run_text(jobs[_NIGHTLY_JOB])
     assert "pup:check" in text, "check-architecture must run pup:check"
     assert "test:integration:pup" in text, (
         "check-architecture must run the pup regression"
+    )
+    assert "public-api:check" in text, (
+        "check-architecture must run public-api:check"
     )
 
     # No stable-lane / product job couples to the nightly lane via needs.

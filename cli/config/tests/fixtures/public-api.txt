@@ -1,0 +1,557 @@
+pub mod config
+pub mod config::catalogue
+pub enum config::catalogue::Default
+pub config::catalogue::Default::Scalar(&'static str)
+pub config::catalogue::Default::Seq(&'static [&'static str])
+pub const config::catalogue::AGENT_KEYS: &[&str]
+pub const config::catalogue::AGENT_PREFIX: &str
+pub const config::catalogue::BUILTIN_CODE_LENSES: &[&str]
+pub const config::catalogue::BUILTIN_WORK_ITEM_LENSES: &[&str]
+pub const config::catalogue::DOC_TYPES: &[(&str, &str)]
+pub const config::catalogue::EXTRA_KEYS: &[&str]
+pub const config::catalogue::PATH_KEYS: &[(&str, config::catalogue::Default)]
+pub const config::catalogue::REVIEW_KEYS: &[(&str, config::catalogue::Default)]
+pub const config::catalogue::TEMPLATE_KEYS: &[&str]
+pub const config::catalogue::VISUALISER_KEYS: &[(&str, config::catalogue::Default)]
+pub const config::catalogue::WORK_INTEGRATION_VALUES: &[&str]
+pub const config::catalogue::WORK_KEYS: &[(&str, config::catalogue::Default)]
+pub fn config::catalogue::default_for(key: &str) -> core::option::Option<config::service::Value>
+pub fn config::catalogue::is_valid_work_integration(value: &str) -> bool
+pub mod config::error
+#[non_exhaustive] pub enum config::error::ConfigError
+pub config::error::ConfigError::Invalid
+pub config::error::ConfigError::Invalid::detail: alloc::string::String
+pub config::error::ConfigError::InvalidKey
+pub config::error::ConfigError::InvalidKey::key: alloc::string::String
+pub config::error::ConfigError::Io
+pub config::error::ConfigError::Io::detail: alloc::string::String
+pub config::error::ConfigError::Io::path: alloc::string::String
+pub config::error::ConfigError::LegacyLayout
+pub config::error::ConfigError::MalformedFrontmatter
+pub config::error::ConfigError::MalformedFrontmatter::detail: alloc::string::String
+pub config::error::ConfigError::MalformedFrontmatter::path: alloc::string::String
+pub config::error::ConfigError::NotFound
+pub config::error::ConfigError::NotFound::key: config::key::Key
+pub config::error::ConfigError::NotFound::level: core::option::Option<config::level::Level>
+pub config::error::ConfigError::PathConflict
+pub config::error::ConfigError::PathConflict::at: alloc::string::String
+pub config::error::ConfigError::PathConflict::existing: config::error::Existing
+pub config::error::ConfigError::PathConflict::key: config::key::Key
+pub config::error::ConfigError::PluginRootUnavailable
+pub config::error::ConfigError::UnsafePath
+pub config::error::ConfigError::UnsafePath::path: alloc::string::String
+impl config::error::ConfigError
+pub const fn config::error::ConfigError::is_refusal(&self) -> bool
+impl core::clone::Clone for config::error::ConfigError
+pub fn config::error::ConfigError::clone(&self) -> config::error::ConfigError
+impl core::cmp::Eq for config::error::ConfigError
+impl core::cmp::PartialEq for config::error::ConfigError
+pub fn config::error::ConfigError::eq(&self, other: &config::error::ConfigError) -> bool
+impl core::convert::From<config::error::ConfigError> for kernel::Error
+pub fn kernel::Error::from(error: config::error::ConfigError) -> Self
+impl core::error::Error for config::error::ConfigError
+impl core::fmt::Debug for config::error::ConfigError
+pub fn config::error::ConfigError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::error::ConfigError
+pub fn config::error::ConfigError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::error::ConfigError
+pub enum config::error::Existing
+pub config::error::Existing::Section
+pub config::error::Existing::Value
+impl core::clone::Clone for config::error::Existing
+pub fn config::error::Existing::clone(&self) -> config::error::Existing
+impl core::cmp::Eq for config::error::Existing
+impl core::cmp::PartialEq for config::error::Existing
+pub fn config::error::Existing::eq(&self, other: &config::error::Existing) -> bool
+impl core::fmt::Debug for config::error::Existing
+pub fn config::error::Existing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::error::Existing
+pub fn config::error::Existing::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::error::Existing
+impl core::marker::StructuralPartialEq for config::error::Existing
+pub mod config::identifier
+pub fn config::identifier::validate_identifier(kind: &str, name: &str) -> core::result::Result<(), config::error::ConfigError>
+pub mod config::key
+pub struct config::key::Key(_)
+impl config::key::Key
+pub fn config::key::Key::parse(raw: &str) -> core::result::Result<Self, config::error::ConfigError>
+impl core::clone::Clone for config::key::Key
+pub fn config::key::Key::clone(&self) -> config::key::Key
+impl core::cmp::Eq for config::key::Key
+impl core::cmp::PartialEq for config::key::Key
+pub fn config::key::Key::eq(&self, other: &config::key::Key) -> bool
+impl core::fmt::Debug for config::key::Key
+pub fn config::key::Key::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::key::Key
+pub fn config::key::Key::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::key::Key
+pub mod config::legacy
+pub const fn config::legacy::is_blocked(team_present: bool, legacy_present: bool) -> bool
+pub mod config::level
+pub enum config::level::Level
+pub config::level::Level::Personal
+pub config::level::Level::Team
+impl config::level::Level
+pub const fn config::level::Level::filename(self) -> &'static str
+impl core::clone::Clone for config::level::Level
+pub fn config::level::Level::clone(&self) -> config::level::Level
+impl core::cmp::Eq for config::level::Level
+impl core::cmp::PartialEq for config::level::Level
+pub fn config::level::Level::eq(&self, other: &config::level::Level) -> bool
+impl core::fmt::Debug for config::level::Level
+pub fn config::level::Level::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::level::Level
+pub fn config::level::Level::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::level::Level
+impl core::marker::StructuralPartialEq for config::level::Level
+pub mod config::node
+pub enum config::node::Node
+pub config::node::Node::Mapping(config::node::Mapping)
+pub config::node::Node::Scalar(config::node::Scalar)
+pub config::node::Node::Sequence(alloc::vec::Vec<config::node::Node>)
+impl core::clone::Clone for config::node::Node
+pub fn config::node::Node::clone(&self) -> config::node::Node
+impl core::cmp::PartialEq for config::node::Node
+pub fn config::node::Node::eq(&self, other: &config::node::Node) -> bool
+impl core::fmt::Debug for config::node::Node
+pub fn config::node::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::node::Node
+pub enum config::node::Scalar
+pub config::node::Scalar::Bool(bool)
+pub config::node::Scalar::Float(f64)
+pub config::node::Scalar::Int(i64)
+pub config::node::Scalar::Null
+pub config::node::Scalar::String(alloc::string::String)
+impl core::clone::Clone for config::node::Scalar
+pub fn config::node::Scalar::clone(&self) -> config::node::Scalar
+impl core::cmp::PartialEq for config::node::Scalar
+pub fn config::node::Scalar::eq(&self, other: &config::node::Scalar) -> bool
+impl core::fmt::Debug for config::node::Scalar
+pub fn config::node::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::node::Scalar
+pub struct config::node::Mapping(_)
+impl config::node::Mapping
+pub fn config::node::Mapping::entries(&self) -> &[(alloc::string::String, config::node::Node)]
+pub fn config::node::Mapping::get(&self, key: &str) -> core::option::Option<&config::node::Node>
+pub fn config::node::Mapping::get_mut(&mut self, key: &str) -> core::option::Option<&mut config::node::Node>
+pub const fn config::node::Mapping::new() -> Self
+pub fn config::node::Mapping::push(&mut self, key: alloc::string::String, node: config::node::Node)
+pub fn config::node::Mapping::upsert(&mut self, key: &str, node: config::node::Node)
+impl core::clone::Clone for config::node::Mapping
+pub fn config::node::Mapping::clone(&self) -> config::node::Mapping
+impl core::cmp::PartialEq for config::node::Mapping
+pub fn config::node::Mapping::eq(&self, other: &config::node::Mapping) -> bool
+impl core::default::Default for config::node::Mapping
+pub fn config::node::Mapping::default() -> config::node::Mapping
+impl core::fmt::Debug for config::node::Mapping
+pub fn config::node::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, config::node::Node)> for config::node::Mapping
+pub fn config::node::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, config::node::Node)>>(iter: I) -> Self
+impl core::marker::StructuralPartialEq for config::node::Mapping
+pub mod config::paths
+pub struct config::paths::DocTypeDir
+pub config::paths::DocTypeDir::blank_fallback: bool
+pub config::paths::DocTypeDir::dir: alloc::string::String
+pub config::paths::DocTypeDir::doc_type: &'static str
+pub config::paths::DocTypeDir::path_key: &'static str
+pub fn config::paths::doc_type_dirs(config: &dyn config::service::ConfigAccess) -> core::result::Result<alloc::vec::Vec<config::paths::DocTypeDir>, config::error::ConfigError>
+pub fn config::paths::is_unsafe(dir: &str) -> bool
+pub fn config::paths::normalise(dir: &str) -> alloc::string::String
+pub fn config::paths::resolve_with_fallback(config: &dyn config::service::ConfigAccess, path_key: &str, level: core::option::Option<config::level::Level>) -> core::result::Result<alloc::string::String, config::error::ConfigError>
+pub fn config::paths::unknown_path_key_error(key: &str) -> config::error::ConfigError
+pub mod config::render
+pub fn config::render::render_value(value: &config::service::Value) -> alloc::string::String
+pub mod config::service
+pub enum config::service::EjectOutcome
+pub config::service::EjectOutcome::Ejected
+pub config::service::EjectOutcome::Exists
+pub config::service::EjectOutcome::NoDefault
+pub config::service::EjectOutcome::Overwritten
+pub config::service::EjectOutcome::WouldEject
+pub config::service::EjectOutcome::WouldOverwrite
+pub config::service::EjectOutcome::WouldSkip
+impl core::clone::Clone for config::service::EjectOutcome
+pub fn config::service::EjectOutcome::clone(&self) -> config::service::EjectOutcome
+impl core::cmp::Eq for config::service::EjectOutcome
+impl core::cmp::PartialEq for config::service::EjectOutcome
+pub fn config::service::EjectOutcome::eq(&self, other: &config::service::EjectOutcome) -> bool
+impl core::marker::Copy for config::service::EjectOutcome
+impl core::marker::StructuralPartialEq for config::service::EjectOutcome
+pub enum config::service::Resolved
+pub config::service::Resolved::Absent
+pub config::service::Resolved::Found(config::service::Value)
+impl core::clone::Clone for config::service::Resolved
+pub fn config::service::Resolved::clone(&self) -> config::service::Resolved
+impl core::cmp::PartialEq for config::service::Resolved
+pub fn config::service::Resolved::eq(&self, other: &config::service::Resolved) -> bool
+impl core::fmt::Debug for config::service::Resolved
+pub fn config::service::Resolved::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::Resolved
+pub enum config::service::Source
+pub config::service::Source::Catalogue
+pub config::service::Source::Personal
+pub config::service::Source::Team
+pub config::service::Source::Unset
+impl core::clone::Clone for config::service::Source
+pub fn config::service::Source::clone(&self) -> config::service::Source
+impl core::cmp::Eq for config::service::Source
+impl core::cmp::PartialEq for config::service::Source
+pub fn config::service::Source::eq(&self, other: &config::service::Source) -> bool
+impl core::fmt::Debug for config::service::Source
+pub fn config::service::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::service::Source
+impl core::marker::StructuralPartialEq for config::service::Source
+pub enum config::service::TemplateSource
+pub config::service::TemplateSource::ConfigPath
+pub config::service::TemplateSource::PluginDefault
+pub config::service::TemplateSource::UserOverride
+impl config::service::TemplateSource
+pub const fn config::service::TemplateSource::label(self) -> &'static str
+impl core::clone::Clone for config::service::TemplateSource
+pub fn config::service::TemplateSource::clone(&self) -> config::service::TemplateSource
+impl core::cmp::Eq for config::service::TemplateSource
+impl core::cmp::PartialEq for config::service::TemplateSource
+pub fn config::service::TemplateSource::eq(&self, other: &config::service::TemplateSource) -> bool
+impl core::marker::Copy for config::service::TemplateSource
+impl core::marker::StructuralPartialEq for config::service::TemplateSource
+#[non_exhaustive] pub enum config::service::Value
+pub config::service::Value::Scalar(config::node::Scalar)
+pub config::service::Value::Sequence(alloc::vec::Vec<config::node::Scalar>)
+impl config::service::Value
+pub fn config::service::Value::as_string_sequence(&self) -> alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for config::service::Value
+pub fn config::service::Value::clone(&self) -> config::service::Value
+impl core::cmp::PartialEq for config::service::Value
+pub fn config::service::Value::eq(&self, other: &config::service::Value) -> bool
+impl core::fmt::Debug for config::service::Value
+pub fn config::service::Value::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::Value
+pub struct config::service::ConfigService<R, W>
+impl<R, W> config::service::ConfigService<R, W>
+pub const fn config::service::ConfigService<R, W>::new(reader: R, writer: W) -> Self
+impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
+pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+pub struct config::service::CustomLens
+pub config::service::CustomLens::dir: alloc::string::String
+pub config::service::CustomLens::fields: core::option::Option<config::service::LensFields>
+pub config::service::CustomLens::path: alloc::string::String
+pub struct config::service::EjectResult
+pub config::service::EjectResult::display: alloc::string::String
+pub config::service::EjectResult::key: alloc::string::String
+pub config::service::EjectResult::outcome: config::service::EjectOutcome
+pub struct config::service::LensFields
+pub config::service::LensFields::applies_to: core::option::Option<alloc::string::String>
+pub config::service::LensFields::auto_detect: core::option::Option<alloc::string::String>
+pub config::service::LensFields::name: core::option::Option<alloc::string::String>
+pub struct config::service::Resolution
+impl config::service::Resolution
+pub fn config::service::Resolution::configured_value(&self) -> core::option::Option<alloc::string::String>
+pub const fn config::service::Resolution::is_from_config(&self) -> bool
+pub fn config::service::Resolution::rendered(&self) -> alloc::string::String
+pub const fn config::service::Resolution::source(&self) -> config::service::Source
+impl core::clone::Clone for config::service::Resolution
+pub fn config::service::Resolution::clone(&self) -> config::service::Resolution
+impl core::fmt::Debug for config::service::Resolution
+pub fn config::service::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct config::service::ResolvedTemplate
+pub config::service::ResolvedTemplate::abs_path: alloc::string::String
+pub config::service::ResolvedTemplate::content: alloc::string::String
+pub config::service::ResolvedTemplate::display_path: alloc::string::String
+pub config::service::ResolvedTemplate::source: config::service::TemplateSource
+pub config::service::ResolvedTemplate::warning: core::option::Option<alloc::string::String>
+pub trait config::service::ConfigAccess
+pub fn config::service::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigAccess::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigAccess::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
+pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+pub trait config::service::ReadConfigLevel
+pub fn config::service::ReadConfigLevel::read(&self, level: config::level::Level) -> core::result::Result<core::option::Option<config::node::Node>, config::error::ConfigError>
+pub trait config::service::ReadContent
+pub fn config::service::ReadContent::config_body(&self, level: config::level::Level) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub fn config::service::ReadContent::skill_context(&self, skill: &str) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub fn config::service::ReadContent::skill_instructions(&self, skill: &str) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub trait config::service::ReadLensCatalogue
+pub fn config::service::ReadLensCatalogue::custom_lenses(&self) -> core::result::Result<alloc::vec::Vec<config::service::CustomLens>, config::error::ConfigError>
+pub fn config::service::ReadLensCatalogue::init_sentinel_present(&self, tmp_relative: &str) -> core::result::Result<bool, config::error::ConfigError>
+pub fn config::service::ReadLensCatalogue::known_skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub fn config::service::ReadLensCatalogue::skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub trait config::service::ReadTemplate
+pub fn config::service::ReadTemplate::plugin_default(&self, name: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
+pub fn config::service::ReadTemplate::resolve_template(&self, name: &str, config_path: core::option::Option<&str>, templates_dir: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
+pub fn config::service::ReadTemplate::template_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub trait config::service::Scaffold
+pub fn config::service::Scaffold::init(&self, content_dirs: &[alloc::string::String], tmp_dir: &str) -> core::result::Result<(), config::error::ConfigError>
+pub trait config::service::TemplateOverride
+pub fn config::service::TemplateOverride::delete(&self, abs_path: &str) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::service::TemplateOverride::eject(&self, name: &str, templates_dir: &str, force: bool, dry_run: bool) -> core::result::Result<config::service::EjectResult, config::error::ConfigError>
+pub fn config::service::TemplateOverride::within_project(&self, abs_path: &str) -> bool
+pub trait config::service::WriteConfigLevel
+pub fn config::service::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::service::project(node: &config::node::Node) -> config::service::Value
+#[non_exhaustive] pub enum config::ConfigError
+pub config::ConfigError::Invalid
+pub config::ConfigError::Invalid::detail: alloc::string::String
+pub config::ConfigError::InvalidKey
+pub config::ConfigError::InvalidKey::key: alloc::string::String
+pub config::ConfigError::Io
+pub config::ConfigError::Io::detail: alloc::string::String
+pub config::ConfigError::Io::path: alloc::string::String
+pub config::ConfigError::LegacyLayout
+pub config::ConfigError::MalformedFrontmatter
+pub config::ConfigError::MalformedFrontmatter::detail: alloc::string::String
+pub config::ConfigError::MalformedFrontmatter::path: alloc::string::String
+pub config::ConfigError::NotFound
+pub config::ConfigError::NotFound::key: config::key::Key
+pub config::ConfigError::NotFound::level: core::option::Option<config::level::Level>
+pub config::ConfigError::PathConflict
+pub config::ConfigError::PathConflict::at: alloc::string::String
+pub config::ConfigError::PathConflict::existing: config::error::Existing
+pub config::ConfigError::PathConflict::key: config::key::Key
+pub config::ConfigError::PluginRootUnavailable
+pub config::ConfigError::UnsafePath
+pub config::ConfigError::UnsafePath::path: alloc::string::String
+impl config::error::ConfigError
+pub const fn config::error::ConfigError::is_refusal(&self) -> bool
+impl core::clone::Clone for config::error::ConfigError
+pub fn config::error::ConfigError::clone(&self) -> config::error::ConfigError
+impl core::cmp::Eq for config::error::ConfigError
+impl core::cmp::PartialEq for config::error::ConfigError
+pub fn config::error::ConfigError::eq(&self, other: &config::error::ConfigError) -> bool
+impl core::convert::From<config::error::ConfigError> for kernel::Error
+pub fn kernel::Error::from(error: config::error::ConfigError) -> Self
+impl core::error::Error for config::error::ConfigError
+impl core::fmt::Debug for config::error::ConfigError
+pub fn config::error::ConfigError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::error::ConfigError
+pub fn config::error::ConfigError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::error::ConfigError
+pub enum config::EjectOutcome
+pub config::EjectOutcome::Ejected
+pub config::EjectOutcome::Exists
+pub config::EjectOutcome::NoDefault
+pub config::EjectOutcome::Overwritten
+pub config::EjectOutcome::WouldEject
+pub config::EjectOutcome::WouldOverwrite
+pub config::EjectOutcome::WouldSkip
+impl core::clone::Clone for config::service::EjectOutcome
+pub fn config::service::EjectOutcome::clone(&self) -> config::service::EjectOutcome
+impl core::cmp::Eq for config::service::EjectOutcome
+impl core::cmp::PartialEq for config::service::EjectOutcome
+pub fn config::service::EjectOutcome::eq(&self, other: &config::service::EjectOutcome) -> bool
+impl core::marker::Copy for config::service::EjectOutcome
+impl core::marker::StructuralPartialEq for config::service::EjectOutcome
+pub enum config::Existing
+pub config::Existing::Section
+pub config::Existing::Value
+impl core::clone::Clone for config::error::Existing
+pub fn config::error::Existing::clone(&self) -> config::error::Existing
+impl core::cmp::Eq for config::error::Existing
+impl core::cmp::PartialEq for config::error::Existing
+pub fn config::error::Existing::eq(&self, other: &config::error::Existing) -> bool
+impl core::fmt::Debug for config::error::Existing
+pub fn config::error::Existing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::error::Existing
+pub fn config::error::Existing::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::error::Existing
+impl core::marker::StructuralPartialEq for config::error::Existing
+pub enum config::Level
+pub config::Level::Personal
+pub config::Level::Team
+impl config::level::Level
+pub const fn config::level::Level::filename(self) -> &'static str
+impl core::clone::Clone for config::level::Level
+pub fn config::level::Level::clone(&self) -> config::level::Level
+impl core::cmp::Eq for config::level::Level
+impl core::cmp::PartialEq for config::level::Level
+pub fn config::level::Level::eq(&self, other: &config::level::Level) -> bool
+impl core::fmt::Debug for config::level::Level
+pub fn config::level::Level::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::level::Level
+pub fn config::level::Level::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::level::Level
+impl core::marker::StructuralPartialEq for config::level::Level
+pub enum config::Node
+pub config::Node::Mapping(config::node::Mapping)
+pub config::Node::Scalar(config::node::Scalar)
+pub config::Node::Sequence(alloc::vec::Vec<config::node::Node>)
+impl core::clone::Clone for config::node::Node
+pub fn config::node::Node::clone(&self) -> config::node::Node
+impl core::cmp::PartialEq for config::node::Node
+pub fn config::node::Node::eq(&self, other: &config::node::Node) -> bool
+impl core::fmt::Debug for config::node::Node
+pub fn config::node::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::node::Node
+pub enum config::Resolved
+pub config::Resolved::Absent
+pub config::Resolved::Found(config::service::Value)
+impl core::clone::Clone for config::service::Resolved
+pub fn config::service::Resolved::clone(&self) -> config::service::Resolved
+impl core::cmp::PartialEq for config::service::Resolved
+pub fn config::service::Resolved::eq(&self, other: &config::service::Resolved) -> bool
+impl core::fmt::Debug for config::service::Resolved
+pub fn config::service::Resolved::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::Resolved
+pub enum config::Scalar
+pub config::Scalar::Bool(bool)
+pub config::Scalar::Float(f64)
+pub config::Scalar::Int(i64)
+pub config::Scalar::Null
+pub config::Scalar::String(alloc::string::String)
+impl core::clone::Clone for config::node::Scalar
+pub fn config::node::Scalar::clone(&self) -> config::node::Scalar
+impl core::cmp::PartialEq for config::node::Scalar
+pub fn config::node::Scalar::eq(&self, other: &config::node::Scalar) -> bool
+impl core::fmt::Debug for config::node::Scalar
+pub fn config::node::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::node::Scalar
+pub enum config::Source
+pub config::Source::Catalogue
+pub config::Source::Personal
+pub config::Source::Team
+pub config::Source::Unset
+impl core::clone::Clone for config::service::Source
+pub fn config::service::Source::clone(&self) -> config::service::Source
+impl core::cmp::Eq for config::service::Source
+impl core::cmp::PartialEq for config::service::Source
+pub fn config::service::Source::eq(&self, other: &config::service::Source) -> bool
+impl core::fmt::Debug for config::service::Source
+pub fn config::service::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::service::Source
+impl core::marker::StructuralPartialEq for config::service::Source
+pub enum config::TemplateSource
+pub config::TemplateSource::ConfigPath
+pub config::TemplateSource::PluginDefault
+pub config::TemplateSource::UserOverride
+impl config::service::TemplateSource
+pub const fn config::service::TemplateSource::label(self) -> &'static str
+impl core::clone::Clone for config::service::TemplateSource
+pub fn config::service::TemplateSource::clone(&self) -> config::service::TemplateSource
+impl core::cmp::Eq for config::service::TemplateSource
+impl core::cmp::PartialEq for config::service::TemplateSource
+pub fn config::service::TemplateSource::eq(&self, other: &config::service::TemplateSource) -> bool
+impl core::marker::Copy for config::service::TemplateSource
+impl core::marker::StructuralPartialEq for config::service::TemplateSource
+#[non_exhaustive] pub enum config::Value
+pub config::Value::Scalar(config::node::Scalar)
+pub config::Value::Sequence(alloc::vec::Vec<config::node::Scalar>)
+impl config::service::Value
+pub fn config::service::Value::as_string_sequence(&self) -> alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for config::service::Value
+pub fn config::service::Value::clone(&self) -> config::service::Value
+impl core::cmp::PartialEq for config::service::Value
+pub fn config::service::Value::eq(&self, other: &config::service::Value) -> bool
+impl core::fmt::Debug for config::service::Value
+pub fn config::service::Value::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::Value
+pub struct config::ConfigService<R, W>
+impl<R, W> config::service::ConfigService<R, W>
+pub const fn config::service::ConfigService<R, W>::new(reader: R, writer: W) -> Self
+impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
+pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+pub struct config::CustomLens
+pub config::CustomLens::dir: alloc::string::String
+pub config::CustomLens::fields: core::option::Option<config::service::LensFields>
+pub config::CustomLens::path: alloc::string::String
+pub struct config::EjectResult
+pub config::EjectResult::display: alloc::string::String
+pub config::EjectResult::key: alloc::string::String
+pub config::EjectResult::outcome: config::service::EjectOutcome
+pub struct config::Key(_)
+impl config::key::Key
+pub fn config::key::Key::parse(raw: &str) -> core::result::Result<Self, config::error::ConfigError>
+impl core::clone::Clone for config::key::Key
+pub fn config::key::Key::clone(&self) -> config::key::Key
+impl core::cmp::Eq for config::key::Key
+impl core::cmp::PartialEq for config::key::Key
+pub fn config::key::Key::eq(&self, other: &config::key::Key) -> bool
+impl core::fmt::Debug for config::key::Key
+pub fn config::key::Key::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::key::Key
+pub fn config::key::Key::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::key::Key
+pub struct config::LensFields
+pub config::LensFields::applies_to: core::option::Option<alloc::string::String>
+pub config::LensFields::auto_detect: core::option::Option<alloc::string::String>
+pub config::LensFields::name: core::option::Option<alloc::string::String>
+pub struct config::Mapping(_)
+impl config::node::Mapping
+pub fn config::node::Mapping::entries(&self) -> &[(alloc::string::String, config::node::Node)]
+pub fn config::node::Mapping::get(&self, key: &str) -> core::option::Option<&config::node::Node>
+pub fn config::node::Mapping::get_mut(&mut self, key: &str) -> core::option::Option<&mut config::node::Node>
+pub const fn config::node::Mapping::new() -> Self
+pub fn config::node::Mapping::push(&mut self, key: alloc::string::String, node: config::node::Node)
+pub fn config::node::Mapping::upsert(&mut self, key: &str, node: config::node::Node)
+impl core::clone::Clone for config::node::Mapping
+pub fn config::node::Mapping::clone(&self) -> config::node::Mapping
+impl core::cmp::PartialEq for config::node::Mapping
+pub fn config::node::Mapping::eq(&self, other: &config::node::Mapping) -> bool
+impl core::default::Default for config::node::Mapping
+pub fn config::node::Mapping::default() -> config::node::Mapping
+impl core::fmt::Debug for config::node::Mapping
+pub fn config::node::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, config::node::Node)> for config::node::Mapping
+pub fn config::node::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, config::node::Node)>>(iter: I) -> Self
+impl core::marker::StructuralPartialEq for config::node::Mapping
+pub struct config::Resolution
+impl config::service::Resolution
+pub fn config::service::Resolution::configured_value(&self) -> core::option::Option<alloc::string::String>
+pub const fn config::service::Resolution::is_from_config(&self) -> bool
+pub fn config::service::Resolution::rendered(&self) -> alloc::string::String
+pub const fn config::service::Resolution::source(&self) -> config::service::Source
+impl core::clone::Clone for config::service::Resolution
+pub fn config::service::Resolution::clone(&self) -> config::service::Resolution
+impl core::fmt::Debug for config::service::Resolution
+pub fn config::service::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct config::ResolvedTemplate
+pub config::ResolvedTemplate::abs_path: alloc::string::String
+pub config::ResolvedTemplate::content: alloc::string::String
+pub config::ResolvedTemplate::display_path: alloc::string::String
+pub config::ResolvedTemplate::source: config::service::TemplateSource
+pub config::ResolvedTemplate::warning: core::option::Option<alloc::string::String>
+pub trait config::ConfigAccess
+pub fn config::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::ConfigAccess::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::ConfigAccess::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
+pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
+pub trait config::ReadConfigLevel
+pub fn config::ReadConfigLevel::read(&self, level: config::level::Level) -> core::result::Result<core::option::Option<config::node::Node>, config::error::ConfigError>
+pub trait config::ReadContent
+pub fn config::ReadContent::config_body(&self, level: config::level::Level) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub fn config::ReadContent::skill_context(&self, skill: &str) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub fn config::ReadContent::skill_instructions(&self, skill: &str) -> core::result::Result<core::option::Option<alloc::string::String>, config::error::ConfigError>
+pub trait config::ReadLensCatalogue
+pub fn config::ReadLensCatalogue::custom_lenses(&self) -> core::result::Result<alloc::vec::Vec<config::service::CustomLens>, config::error::ConfigError>
+pub fn config::ReadLensCatalogue::init_sentinel_present(&self, tmp_relative: &str) -> core::result::Result<bool, config::error::ConfigError>
+pub fn config::ReadLensCatalogue::known_skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub fn config::ReadLensCatalogue::skill_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub trait config::ReadTemplate
+pub fn config::ReadTemplate::plugin_default(&self, name: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
+pub fn config::ReadTemplate::resolve_template(&self, name: &str, config_path: core::option::Option<&str>, templates_dir: &str) -> core::result::Result<core::option::Option<config::service::ResolvedTemplate>, config::error::ConfigError>
+pub fn config::ReadTemplate::template_names(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, config::error::ConfigError>
+pub trait config::Scaffold
+pub fn config::Scaffold::init(&self, content_dirs: &[alloc::string::String], tmp_dir: &str) -> core::result::Result<(), config::error::ConfigError>
+pub trait config::TemplateOverride
+pub fn config::TemplateOverride::delete(&self, abs_path: &str) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::TemplateOverride::eject(&self, name: &str, templates_dir: &str, force: bool, dry_run: bool) -> core::result::Result<config::service::EjectResult, config::error::ConfigError>
+pub fn config::TemplateOverride::within_project(&self, abs_path: &str) -> bool
+pub trait config::WriteConfigLevel
+pub fn config::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::project(node: &config::node::Node) -> config::service::Value
+pub fn config::render_value(value: &config::service::Value) -> alloc::string::String
+pub fn config::validate_identifier(kind: &str, name: &str) -> core::result::Result<(), config::error::ConfigError>

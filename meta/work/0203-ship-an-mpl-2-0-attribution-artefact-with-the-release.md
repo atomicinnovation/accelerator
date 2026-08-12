@@ -8,6 +8,7 @@ producer: implement-plan
 status: ready
 kind: task
 priority: medium
+parent: "work-item:0136"
 relates_to: ["work-item:0185", "work-item:0188", "work-item:0165"]
 tags: [rust, licensing, release, vcs]
 last_updated: "2026-08-10T18:40:00+00:00"

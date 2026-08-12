@@ -11,6 +11,7 @@ from . import (
     github,
     lint,
     marketplace,
+    public_api,
     pup,
     release,
     signing,
@@ -60,6 +61,7 @@ ns.add_collection(Collection.from_module(docs))
 ns.add_collection(Collection.from_module(git))
 ns.add_collection(Collection.from_module(github))
 ns.add_collection(Collection.from_module(marketplace))
+ns.add_collection(Collection.from_module(public_api))
 ns.add_collection(Collection.from_module(pup))
 ns.add_collection(Collection.from_module(test))
 ns.add_collection(Collection.from_module(version))

@@ -1,0 +1,747 @@
+pub mod corpus
+pub mod corpus::adr
+pub fn corpus::adr::next_numbers(existing: &[&str], count: u32) -> alloc::vec::Vec<alloc::string::String>
+pub fn corpus::adr::read_status(content: &str) -> core::option::Option<alloc::string::String>
+pub mod corpus::cluster
+pub struct corpus::cluster::Cluster
+pub corpus::cluster::Cluster::cluster_key: core::option::Option<alloc::string::String>
+pub corpus::cluster::Cluster::completeness: corpus::cluster::Completeness
+pub corpus::cluster::Cluster::last_changed_ms: i64
+pub corpus::cluster::Cluster::members: alloc::vec::Vec<usize>
+pub corpus::cluster::Cluster::slug: alloc::string::String
+pub corpus::cluster::Cluster::title: alloc::string::String
+impl core::clone::Clone for corpus::cluster::Cluster
+pub fn corpus::cluster::Cluster::clone(&self) -> corpus::cluster::Cluster
+impl core::cmp::Eq for corpus::cluster::Cluster
+impl core::cmp::PartialEq for corpus::cluster::Cluster
+pub fn corpus::cluster::Cluster::eq(&self, other: &corpus::cluster::Cluster) -> bool
+impl core::fmt::Debug for corpus::cluster::Cluster
+pub fn corpus::cluster::Cluster::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::cluster::Cluster
+pub struct corpus::cluster::ClusterContext<'a, E: corpus::cluster::ClusterEntry>
+pub corpus::cluster::ClusterContext::entries_by_path: std::collections::hash::map::HashMap<std::path::PathBuf, &'a E>
+pub corpus::cluster::ClusterContext::plans_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>
+pub corpus::cluster::ClusterContext::project_root: &'a std::path::Path
+pub corpus::cluster::ClusterContext::scanner: &'a dyn corpus::work_item_id::IdScanner
+pub corpus::cluster::ClusterContext::scheme: &'a corpus::work_item_id::WorkItemIdScheme
+pub corpus::cluster::ClusterContext::work_item_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>
+impl<'a, E: corpus::cluster::ClusterEntry> corpus::cluster::ClusterContext<'a, E>
+pub fn corpus::cluster::ClusterContext<'a, E>::from_entries(entries: &'a [E], work_item_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &'a std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &'a std::path::Path, scheme: &'a corpus::work_item_id::WorkItemIdScheme, scanner: &'a dyn corpus::work_item_id::IdScanner) -> Self
+pub struct corpus::cluster::Clustering
+pub corpus::cluster::Clustering::cluster_key_by_path: std::collections::hash::map::HashMap<std::path::PathBuf, core::option::Option<alloc::string::String>>
+pub corpus::cluster::Clustering::clusters: alloc::vec::Vec<corpus::cluster::Cluster>
+pub corpus::cluster::Clustering::completeness_by_path: std::collections::hash::map::HashMap<std::path::PathBuf, corpus::cluster::Completeness>
+pub struct corpus::cluster::Completeness
+pub corpus::cluster::Completeness::has_decision: bool
+pub corpus::cluster::Completeness::has_design_gap: bool
+pub corpus::cluster::Completeness::has_design_inventory: bool
+pub corpus::cluster::Completeness::has_notes: bool
+pub corpus::cluster::Completeness::has_plan: bool
+pub corpus::cluster::Completeness::has_plan_review: bool
+pub corpus::cluster::Completeness::has_pr_description: bool
+pub corpus::cluster::Completeness::has_pr_review: bool
+pub corpus::cluster::Completeness::has_research: bool
+pub corpus::cluster::Completeness::has_validation: bool
+pub corpus::cluster::Completeness::has_work_item: bool
+pub corpus::cluster::Completeness::present: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for corpus::cluster::Completeness
+pub fn corpus::cluster::Completeness::clone(&self) -> corpus::cluster::Completeness
+impl core::cmp::Eq for corpus::cluster::Completeness
+impl core::cmp::PartialEq for corpus::cluster::Completeness
+pub fn corpus::cluster::Completeness::eq(&self, other: &corpus::cluster::Completeness) -> bool
+impl core::fmt::Debug for corpus::cluster::Completeness
+pub fn corpus::cluster::Completeness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::cluster::Completeness
+pub trait corpus::cluster::ClusterEntry
+pub fn corpus::cluster::ClusterEntry::doc_type(&self) -> corpus::doc_type::DocTypeKey
+pub fn corpus::cluster::ClusterEntry::frontmatter_parsed(&self) -> bool
+pub fn corpus::cluster::ClusterEntry::mtime_ms(&self) -> i64
+pub fn corpus::cluster::ClusterEntry::parent(&self) -> core::option::Option<&str>
+pub fn corpus::cluster::ClusterEntry::path(&self) -> &std::path::Path
+pub fn corpus::cluster::ClusterEntry::slug(&self) -> core::option::Option<&str>
+pub fn corpus::cluster::ClusterEntry::target(&self) -> core::option::Option<&str>
+pub fn corpus::cluster::ClusterEntry::title(&self) -> &str
+pub fn corpus::cluster::ClusterEntry::work_item_id(&self) -> core::option::Option<&str>
+pub fn corpus::cluster::compute<E: corpus::cluster::ClusterEntry>(entries: &[E], ctx: &corpus::cluster::ClusterContext<'_, E>) -> corpus::cluster::Clustering
+pub fn corpus::cluster::normalize_target_key(raw: &str, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub fn corpus::cluster::resolve_cluster_key<E: corpus::cluster::ClusterEntry>(entry: &E, entries_by_path: &std::collections::hash::map::HashMap<std::path::PathBuf, &E>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, project_root: &std::path::Path, scheme: &corpus::work_item_id::WorkItemIdScheme, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::cluster::target_path_from_entry(doc_type: corpus::doc_type::DocTypeKey, target: core::option::Option<&str>, plans_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, work_item_by_id: &std::collections::hash::map::HashMap<alloc::string::String, std::path::PathBuf>, scheme: &corpus::work_item_id::WorkItemIdScheme, project_root: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub mod corpus::doc_type
+pub enum corpus::doc_type::DocTypeKey
+pub corpus::doc_type::DocTypeKey::Decisions
+pub corpus::doc_type::DocTypeKey::DesignGaps
+pub corpus::doc_type::DocTypeKey::DesignInventories
+pub corpus::doc_type::DocTypeKey::Notes
+pub corpus::doc_type::DocTypeKey::PlanReviews
+pub corpus::doc_type::DocTypeKey::Plans
+pub corpus::doc_type::DocTypeKey::PrDescriptions
+pub corpus::doc_type::DocTypeKey::PrReviews
+pub corpus::doc_type::DocTypeKey::Research
+pub corpus::doc_type::DocTypeKey::RootCauseAnalyses
+pub corpus::doc_type::DocTypeKey::Templates
+pub corpus::doc_type::DocTypeKey::Validations
+pub corpus::doc_type::DocTypeKey::WorkItemReviews
+pub corpus::doc_type::DocTypeKey::WorkItems
+impl corpus::doc_type::DocTypeKey
+pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 14]
+pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
+pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>
+pub fn corpus::doc_type::DocTypeKey::from_wire_str(token: &str) -> core::option::Option<Self>
+pub const fn corpus::doc_type::DocTypeKey::in_kanban(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::is_virtual(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::label(self) -> &'static str
+pub const fn corpus::doc_type::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
+pub const fn corpus::doc_type::DocTypeKey::nested_manifest_filename(self) -> core::option::Option<&'static str>
+pub const fn corpus::doc_type::DocTypeKey::participates_in_lifecycle(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::wire_str(self) -> &'static str
+impl core::clone::Clone for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::clone(&self) -> corpus::doc_type::DocTypeKey
+impl core::cmp::Eq for corpus::doc_type::DocTypeKey
+impl core::cmp::PartialEq for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::eq(&self, other: &corpus::doc_type::DocTypeKey) -> bool
+impl core::fmt::Debug for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for corpus::doc_type::DocTypeKey
+impl core::marker::StructuralPartialEq for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::infer(path: &std::path::Path, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<corpus::doc_type::DocTypeKey>
+pub mod corpus::frontmatter_validation
+pub mod corpus::frontmatter_validation::schema
+pub struct corpus::frontmatter_validation::schema::SchemaRow
+pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
+pub corpus::frontmatter_validation::schema::SchemaRow::extras: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::forbidden_own_id_keys: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::linkage_type: &'static str
+pub corpus::frontmatter_validation::schema::SchemaRow::status_vocab: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::typed_linkage_keys: &'static [&'static str]
+pub const corpus::frontmatter_validation::schema::BASE_FIELDS: [&str; 9]
+pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [&str; 2]
+pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 14]
+pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 2]
+pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
+pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
+pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 13]
+pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
+pub mod corpus::frontmatter_validation::shape
+pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
+pub mod corpus::frontmatter_validation::violation
+pub enum corpus::frontmatter_validation::violation::Violation
+pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape
+pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape::key: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape::quoted: bool
+pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape::value: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::BadSchemaVersion
+pub corpus::frontmatter_validation::violation::Violation::BadStatus
+pub corpus::frontmatter_validation::violation::Violation::BadStatus::value: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::BadStatus::vocab: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::BadTimestamp
+pub corpus::frontmatter_validation::violation::Violation::BadTimestamp::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::BadTimestamp::value: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::DanglingRef
+pub corpus::frontmatter_validation::violation::Violation::DanglingRef::key: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::DanglingRef::value: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::DuplicateId
+pub corpus::frontmatter_validation::violation::Violation::DuplicateId::type_id: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::EmptyPlaceholder
+pub corpus::frontmatter_validation::violation::Violation::EmptyPlaceholder::key: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::ForbiddenOwnId
+pub corpus::frontmatter_validation::violation::Violation::ForbiddenOwnId::key: &'static str
+pub corpus::frontmatter_validation::violation::Violation::ForbiddenProvenance
+pub corpus::frontmatter_validation::violation::Violation::ForbiddenProvenance::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::InvalidType
+pub corpus::frontmatter_validation::violation::Violation::InvalidType::found: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::MissingBaseField
+pub corpus::frontmatter_validation::violation::Violation::MissingBaseField::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::MissingExtra
+pub corpus::frontmatter_validation::violation::Violation::MissingExtra::extra: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::MissingProvenance
+pub corpus::frontmatter_validation::violation::Violation::MissingProvenance::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::NoFence
+pub corpus::frontmatter_validation::violation::Violation::ObsoleteLegacyKey
+pub corpus::frontmatter_validation::violation::Violation::ObsoleteLegacyKey::key: &'static str
+pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored
+pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::UnquotedId
+impl corpus::frontmatter_validation::violation::Violation
+pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
+impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
+impl core::cmp::PartialEq for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::eq(&self, other: &corpus::frontmatter_validation::violation::Violation) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::violation::Violation
+pub enum corpus::frontmatter_validation::Violation
+pub corpus::frontmatter_validation::Violation::BadLinkageShape
+pub corpus::frontmatter_validation::Violation::BadLinkageShape::key: alloc::string::String
+pub corpus::frontmatter_validation::Violation::BadLinkageShape::quoted: bool
+pub corpus::frontmatter_validation::Violation::BadLinkageShape::value: alloc::string::String
+pub corpus::frontmatter_validation::Violation::BadSchemaVersion
+pub corpus::frontmatter_validation::Violation::BadStatus
+pub corpus::frontmatter_validation::Violation::BadStatus::value: alloc::string::String
+pub corpus::frontmatter_validation::Violation::BadStatus::vocab: alloc::string::String
+pub corpus::frontmatter_validation::Violation::BadTimestamp
+pub corpus::frontmatter_validation::Violation::BadTimestamp::field: &'static str
+pub corpus::frontmatter_validation::Violation::BadTimestamp::value: alloc::string::String
+pub corpus::frontmatter_validation::Violation::DanglingRef
+pub corpus::frontmatter_validation::Violation::DanglingRef::key: alloc::string::String
+pub corpus::frontmatter_validation::Violation::DanglingRef::value: alloc::string::String
+pub corpus::frontmatter_validation::Violation::DuplicateId
+pub corpus::frontmatter_validation::Violation::DuplicateId::type_id: alloc::string::String
+pub corpus::frontmatter_validation::Violation::EmptyPlaceholder
+pub corpus::frontmatter_validation::Violation::EmptyPlaceholder::key: alloc::string::String
+pub corpus::frontmatter_validation::Violation::ForbiddenOwnId
+pub corpus::frontmatter_validation::Violation::ForbiddenOwnId::key: &'static str
+pub corpus::frontmatter_validation::Violation::ForbiddenProvenance
+pub corpus::frontmatter_validation::Violation::ForbiddenProvenance::field: &'static str
+pub corpus::frontmatter_validation::Violation::InvalidType
+pub corpus::frontmatter_validation::Violation::InvalidType::found: alloc::string::String
+pub corpus::frontmatter_validation::Violation::MissingBaseField
+pub corpus::frontmatter_validation::Violation::MissingBaseField::field: &'static str
+pub corpus::frontmatter_validation::Violation::MissingExtra
+pub corpus::frontmatter_validation::Violation::MissingExtra::extra: alloc::string::String
+pub corpus::frontmatter_validation::Violation::MissingProvenance
+pub corpus::frontmatter_validation::Violation::MissingProvenance::field: &'static str
+pub corpus::frontmatter_validation::Violation::NoFence
+pub corpus::frontmatter_validation::Violation::ObsoleteLegacyKey
+pub corpus::frontmatter_validation::Violation::ObsoleteLegacyKey::key: &'static str
+pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored
+pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored::field: &'static str
+pub corpus::frontmatter_validation::Violation::UnquotedId
+impl corpus::frontmatter_validation::violation::Violation
+pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
+impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
+impl core::cmp::PartialEq for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::eq(&self, other: &corpus::frontmatter_validation::violation::Violation) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::frontmatter_validation::violation::Violation
+pub fn corpus::frontmatter_validation::violation::Violation::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::violation::Violation
+pub struct corpus::frontmatter_validation::Index(_)
+impl corpus::frontmatter_validation::Index
+pub fn corpus::frontmatter_validation::Index::contains(&self, type_id: &str) -> bool
+pub fn corpus::frontmatter_validation::Index::count(&self, type_id: &str) -> usize
+pub fn corpus::frontmatter_validation::Index::insert(&mut self, type_id: alloc::string::String, path: std::path::PathBuf)
+pub fn corpus::frontmatter_validation::Index::new() -> Self
+impl core::clone::Clone for corpus::frontmatter_validation::Index
+pub fn corpus::frontmatter_validation::Index::clone(&self) -> corpus::frontmatter_validation::Index
+impl core::default::Default for corpus::frontmatter_validation::Index
+pub fn corpus::frontmatter_validation::Index::default() -> corpus::frontmatter_validation::Index
+impl core::fmt::Debug for corpus::frontmatter_validation::Index
+pub fn corpus::frontmatter_validation::Index::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn corpus::frontmatter_validation::dangling_refs(raw_frontmatter: &str, index: &corpus::frontmatter_validation::Index) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
+pub fn corpus::frontmatter_validation::declared_type(entries: &[(alloc::string::String, alloc::string::String)]) -> core::option::Option<&str>
+pub fn corpus::frontmatter_validation::duplicate_check(type_id: &str, index: &corpus::frontmatter_validation::Index) -> core::option::Option<corpus::frontmatter_validation::violation::Violation>
+pub fn corpus::frontmatter_validation::is_present(entries: &[(alloc::string::String, alloc::string::String)], key: &str) -> bool
+pub fn corpus::frontmatter_validation::parse_entries(raw_frontmatter: &str) -> alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub fn corpus::frontmatter_validation::raw_value<'a>(entries: &'a [(alloc::string::String, alloc::string::String)], key: &str) -> core::option::Option<&'a str>
+pub fn corpus::frontmatter_validation::strip_surrounding_quote(raw: &str) -> &str
+pub fn corpus::frontmatter_validation::validate_file(raw_frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
+pub mod corpus::linkage
+pub enum corpus::linkage::Band
+pub corpus::linkage::Band::Ambiguous
+pub corpus::linkage::Band::Resolved
+impl corpus::linkage::Band
+pub const fn corpus::linkage::Band::as_str(self) -> &'static str
+impl core::clone::Clone for corpus::linkage::Band
+pub fn corpus::linkage::Band::clone(&self) -> corpus::linkage::Band
+impl core::cmp::Eq for corpus::linkage::Band
+impl core::cmp::PartialEq for corpus::linkage::Band
+pub fn corpus::linkage::Band::eq(&self, other: &corpus::linkage::Band) -> bool
+impl core::fmt::Debug for corpus::linkage::Band
+pub fn corpus::linkage::Band::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::linkage::Band
+impl core::marker::StructuralPartialEq for corpus::linkage::Band
+pub struct corpus::linkage::LinkageRecord
+pub corpus::linkage::LinkageRecord::anchor: alloc::string::String
+pub corpus::linkage::LinkageRecord::band: corpus::linkage::Band
+pub corpus::linkage::LinkageRecord::key: alloc::string::String
+pub corpus::linkage::LinkageRecord::source_type: alloc::string::String
+pub corpus::linkage::LinkageRecord::target_ref: alloc::string::String
+impl core::clone::Clone for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::clone(&self) -> corpus::linkage::LinkageRecord
+impl core::cmp::Eq for corpus::linkage::LinkageRecord
+impl core::cmp::PartialEq for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::eq(&self, other: &corpus::linkage::LinkageRecord) -> bool
+impl core::fmt::Debug for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::linkage::LinkageRecord
+pub const corpus::linkage::SECTIONS: [&str; 5]
+pub const corpus::linkage::TYPE_PAIRS: [(&str, &str, &str); 16]
+pub fn corpus::linkage::classify_band(source: &str, key: &str, target_type: &str, explicit: bool) -> (corpus::linkage::Band, &'static str)
+pub fn corpus::linkage::has_blocked_by_keyword(line: &str) -> bool
+pub fn corpus::linkage::has_blocks_keyword(line: &str) -> bool
+pub fn corpus::linkage::has_sibling_keyword(line: &str) -> bool
+pub fn corpus::linkage::has_source_label(line: &str) -> bool
+pub fn corpus::linkage::has_supersedes_keyword(line: &str) -> bool
+pub fn corpus::linkage::infer_key(section: &str, line: &str, target_type: &str) -> (alloc::string::String, bool)
+pub fn corpus::linkage::is_template_path(token: &str) -> bool
+pub fn corpus::linkage::parse_document(source_type: &str, content: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<corpus::linkage::LinkageRecord>
+pub fn corpus::linkage::path_roots(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> alloc::vec::Vec<alloc::string::String>
+pub fn corpus::linkage::pr_number(stem: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<(&'static str, alloc::string::String)>
+pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
+pub mod corpus::metadata
+pub enum corpus::metadata::FilenameTimestampFormat
+pub corpus::metadata::FilenameTimestampFormat::CompactTime
+pub corpus::metadata::FilenameTimestampFormat::DateOnly
+pub corpus::metadata::FilenameTimestampFormat::DateTimeUnderscored
+impl core::clone::Clone for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::clone(&self) -> corpus::metadata::FilenameTimestampFormat
+impl core::cmp::Eq for corpus::metadata::FilenameTimestampFormat
+impl core::cmp::PartialEq for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::eq(&self, other: &corpus::metadata::FilenameTimestampFormat) -> bool
+impl core::fmt::Debug for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::metadata::FilenameTimestampFormat
+impl core::marker::StructuralPartialEq for corpus::metadata::FilenameTimestampFormat
+pub struct corpus::metadata::ArtifactMetadata
+pub corpus::metadata::ArtifactMetadata::datetime_utc: alloc::string::String
+pub corpus::metadata::ArtifactMetadata::filename_timestamp: alloc::string::String
+pub corpus::metadata::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
+pub corpus::metadata::ArtifactMetadata::revision: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::clone(&self) -> corpus::metadata::ArtifactMetadata
+impl core::cmp::Eq for corpus::metadata::ArtifactMetadata
+impl core::cmp::PartialEq for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::eq(&self, other: &corpus::metadata::ArtifactMetadata) -> bool
+impl core::fmt::Debug for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
+pub struct corpus::metadata::RepositoryFacts
+pub corpus::metadata::RepositoryFacts::name: alloc::string::String
+pub corpus::metadata::RepositoryFacts::revision: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::clone(&self) -> corpus::metadata::RepositoryFacts
+impl core::cmp::Eq for corpus::metadata::RepositoryFacts
+impl core::cmp::PartialEq for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::eq(&self, other: &corpus::metadata::RepositoryFacts) -> bool
+impl core::fmt::Debug for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::metadata::RepositoryFacts
+pub trait corpus::metadata::Clock
+pub fn corpus::metadata::Clock::filename_timestamp(&self, format: corpus::metadata::FilenameTimestampFormat) -> alloc::string::String
+pub fn corpus::metadata::Clock::now_utc_iso(&self) -> alloc::string::String
+pub trait corpus::metadata::RepoFactsProbe
+pub fn corpus::metadata::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
+pub mod corpus::record
+pub enum corpus::record::Outcome
+pub corpus::record::Outcome::Accepted
+pub corpus::record::Outcome::Edited
+pub corpus::record::Outcome::Skipped
+impl corpus::record::Outcome
+pub const fn corpus::record::Outcome::as_str(self) -> &'static str
+impl core::clone::Clone for corpus::record::Outcome
+pub fn corpus::record::Outcome::clone(&self) -> corpus::record::Outcome
+impl core::cmp::Eq for corpus::record::Outcome
+impl core::cmp::PartialEq for corpus::record::Outcome
+pub fn corpus::record::Outcome::eq(&self, other: &corpus::record::Outcome) -> bool
+impl core::fmt::Debug for corpus::record::Outcome
+pub fn corpus::record::Outcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::record::Outcome
+impl core::marker::StructuralPartialEq for corpus::record::Outcome
+pub struct corpus::record::Record
+pub corpus::record::Record::extras: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub corpus::record::Record::outcome: corpus::record::Outcome
+pub corpus::record::Record::proposed_value: alloc::string::String
+pub corpus::record::Record::schema_version: u32
+pub corpus::record::Record::timestamp: alloc::string::String
+pub corpus::record::Record::transformation_key: alloc::string::String
+pub corpus::record::Record::user_value: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::record::Record
+pub fn corpus::record::Record::clone(&self) -> corpus::record::Record
+impl core::cmp::Eq for corpus::record::Record
+impl core::cmp::PartialEq for corpus::record::Record
+pub fn corpus::record::Record::eq(&self, other: &corpus::record::Record) -> bool
+impl core::fmt::Debug for corpus::record::Record
+pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::record::Record
+pub mod corpus::scan
+pub trait corpus::scan::CorpusWalker
+pub fn corpus::scan::CorpusWalker::walk_markdown(&self, roots: &[std::path::PathBuf]) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
+pub trait corpus::scan::DirReader
+pub fn corpus::scan::DirReader::list(&self, dir: &std::path::Path) -> core::result::Result<core::option::Option<alloc::vec::Vec<alloc::string::String>>, kernel::Error>
+pub trait corpus::scan::FileReader
+pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub mod corpus::slug
+pub fn corpus::slug::derive(kind: corpus::doc_type::DocTypeKey, filename: &str, scheme: &corpus::work_item_id::WorkItemIdScheme, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::slug::derive_work_item(filename: &str, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
+pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
+pub fn corpus::slug::title_case_segment(segment: &str) -> alloc::string::String
+pub mod corpus::store
+#[non_exhaustive] pub enum corpus::store::StoreError
+pub corpus::store::StoreError::CrossFilesystem
+pub corpus::store::StoreError::CrossFilesystem::path: alloc::string::String
+pub corpus::store::StoreError::Io
+pub corpus::store::StoreError::Io::detail: alloc::string::String
+pub corpus::store::StoreError::Io::path: alloc::string::String
+pub corpus::store::StoreError::LockTimeout
+pub corpus::store::StoreError::LockTimeout::path: alloc::string::String
+pub corpus::store::StoreError::NotWritable
+pub corpus::store::StoreError::NotWritable::path: alloc::string::String
+pub corpus::store::StoreError::UnsafePath
+pub corpus::store::StoreError::UnsafePath::path: alloc::string::String
+pub corpus::store::StoreError::Validation
+pub corpus::store::StoreError::Validation::detail: alloc::string::String
+impl core::clone::Clone for corpus::store::StoreError
+pub fn corpus::store::StoreError::clone(&self) -> corpus::store::StoreError
+impl core::cmp::Eq for corpus::store::StoreError
+impl core::cmp::PartialEq for corpus::store::StoreError
+pub fn corpus::store::StoreError::eq(&self, other: &corpus::store::StoreError) -> bool
+impl core::convert::From<corpus::store::StoreError> for kernel::Error
+pub fn kernel::Error::from(error: corpus::store::StoreError) -> Self
+impl core::error::Error for corpus::store::StoreError
+impl core::fmt::Debug for corpus::store::StoreError
+pub fn corpus::store::StoreError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::store::StoreError
+pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::StoreError
+pub trait corpus::store::AtomicWrite
+pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::store::RecordStore
+pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
+pub mod corpus::typed_ref
+pub enum corpus::typed_ref::TypedRef
+pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)
+pub corpus::typed_ref::TypedRef::Path(std::path::PathBuf)
+pub corpus::typed_ref::TypedRef::Plan(alloc::string::String)
+pub corpus::typed_ref::TypedRef::Pr(alloc::string::String)
+pub corpus::typed_ref::TypedRef::WorkItem(alloc::string::String)
+impl core::clone::Clone for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::clone(&self) -> corpus::typed_ref::TypedRef
+impl core::cmp::Eq for corpus::typed_ref::TypedRef
+impl core::cmp::PartialEq for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::eq(&self, other: &corpus::typed_ref::TypedRef) -> bool
+impl core::fmt::Debug for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
+pub mod corpus::value
+pub enum corpus::value::FrontmatterValue
+pub corpus::value::FrontmatterValue::Mapping(corpus::value::Mapping)
+pub corpus::value::FrontmatterValue::Scalar(corpus::value::Scalar)
+pub corpus::value::FrontmatterValue::Sequence(alloc::vec::Vec<corpus::value::FrontmatterValue>)
+impl core::clone::Clone for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::clone(&self) -> corpus::value::FrontmatterValue
+impl core::cmp::PartialEq for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::eq(&self, other: &corpus::value::FrontmatterValue) -> bool
+impl core::fmt::Debug for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::value::FrontmatterValue
+pub enum corpus::value::Scalar
+pub corpus::value::Scalar::Bool(bool)
+pub corpus::value::Scalar::Float(f64)
+pub corpus::value::Scalar::Int(i64)
+pub corpus::value::Scalar::Null
+pub corpus::value::Scalar::String(alloc::string::String)
+impl core::clone::Clone for corpus::value::Scalar
+pub fn corpus::value::Scalar::clone(&self) -> corpus::value::Scalar
+impl core::cmp::PartialEq for corpus::value::Scalar
+pub fn corpus::value::Scalar::eq(&self, other: &corpus::value::Scalar) -> bool
+impl core::fmt::Debug for corpus::value::Scalar
+pub fn corpus::value::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::value::Scalar
+pub struct corpus::value::Mapping(_)
+impl corpus::value::Mapping
+pub fn corpus::value::Mapping::entries(&self) -> &[(alloc::string::String, corpus::value::FrontmatterValue)]
+pub fn corpus::value::Mapping::get(&self, key: &str) -> core::option::Option<&corpus::value::FrontmatterValue>
+pub const fn corpus::value::Mapping::new() -> Self
+pub fn corpus::value::Mapping::push(&mut self, key: alloc::string::String, value: corpus::value::FrontmatterValue)
+impl core::clone::Clone for corpus::value::Mapping
+pub fn corpus::value::Mapping::clone(&self) -> corpus::value::Mapping
+impl core::cmp::PartialEq for corpus::value::Mapping
+pub fn corpus::value::Mapping::eq(&self, other: &corpus::value::Mapping) -> bool
+impl core::default::Default for corpus::value::Mapping
+pub fn corpus::value::Mapping::default() -> corpus::value::Mapping
+impl core::fmt::Debug for corpus::value::Mapping
+pub fn corpus::value::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, corpus::value::FrontmatterValue)> for corpus::value::Mapping
+pub fn corpus::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, corpus::value::FrontmatterValue)>>(iter: I) -> Self
+impl core::marker::StructuralPartialEq for corpus::value::Mapping
+pub mod corpus::work_item_id
+pub struct corpus::work_item_id::IdScan
+pub corpus::work_item_id::IdScan::digits: alloc::string::String
+pub corpus::work_item_id::IdScan::match_end: usize
+pub struct corpus::work_item_id::WorkItemIdScheme
+pub corpus::work_item_id::WorkItemIdScheme::default_project_code: core::option::Option<alloc::string::String>
+pub corpus::work_item_id::WorkItemIdScheme::id_pattern: alloc::string::String
+impl corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::canonical_digit_width(&self) -> usize
+pub fn corpus::work_item_id::WorkItemIdScheme::canonicalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::extract_id(&self, filename: &str, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, token: &str) -> bool
+pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
+pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
+impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
+impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait corpus::work_item_id::IdScanner
+pub fn corpus::work_item_id::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
+pub enum corpus::Band
+pub corpus::Band::Ambiguous
+pub corpus::Band::Resolved
+impl corpus::linkage::Band
+pub const fn corpus::linkage::Band::as_str(self) -> &'static str
+impl core::clone::Clone for corpus::linkage::Band
+pub fn corpus::linkage::Band::clone(&self) -> corpus::linkage::Band
+impl core::cmp::Eq for corpus::linkage::Band
+impl core::cmp::PartialEq for corpus::linkage::Band
+pub fn corpus::linkage::Band::eq(&self, other: &corpus::linkage::Band) -> bool
+impl core::fmt::Debug for corpus::linkage::Band
+pub fn corpus::linkage::Band::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::linkage::Band
+impl core::marker::StructuralPartialEq for corpus::linkage::Band
+pub enum corpus::DocTypeKey
+pub corpus::DocTypeKey::Decisions
+pub corpus::DocTypeKey::DesignGaps
+pub corpus::DocTypeKey::DesignInventories
+pub corpus::DocTypeKey::Notes
+pub corpus::DocTypeKey::PlanReviews
+pub corpus::DocTypeKey::Plans
+pub corpus::DocTypeKey::PrDescriptions
+pub corpus::DocTypeKey::PrReviews
+pub corpus::DocTypeKey::Research
+pub corpus::DocTypeKey::RootCauseAnalyses
+pub corpus::DocTypeKey::Templates
+pub corpus::DocTypeKey::Validations
+pub corpus::DocTypeKey::WorkItemReviews
+pub corpus::DocTypeKey::WorkItems
+impl corpus::doc_type::DocTypeKey
+pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 14]
+pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
+pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>
+pub fn corpus::doc_type::DocTypeKey::from_wire_str(token: &str) -> core::option::Option<Self>
+pub const fn corpus::doc_type::DocTypeKey::in_kanban(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::in_lifecycle(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::is_virtual(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::label(self) -> &'static str
+pub const fn corpus::doc_type::DocTypeKey::linkage_type_name(self) -> core::option::Option<&'static str>
+pub const fn corpus::doc_type::DocTypeKey::nested_manifest_filename(self) -> core::option::Option<&'static str>
+pub const fn corpus::doc_type::DocTypeKey::participates_in_lifecycle(self) -> bool
+pub const fn corpus::doc_type::DocTypeKey::wire_str(self) -> &'static str
+impl core::clone::Clone for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::clone(&self) -> corpus::doc_type::DocTypeKey
+impl core::cmp::Eq for corpus::doc_type::DocTypeKey
+impl core::cmp::PartialEq for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::eq(&self, other: &corpus::doc_type::DocTypeKey) -> bool
+impl core::fmt::Debug for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for corpus::doc_type::DocTypeKey
+pub fn corpus::doc_type::DocTypeKey::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for corpus::doc_type::DocTypeKey
+impl core::marker::StructuralPartialEq for corpus::doc_type::DocTypeKey
+pub enum corpus::FilenameTimestampFormat
+pub corpus::FilenameTimestampFormat::CompactTime
+pub corpus::FilenameTimestampFormat::DateOnly
+pub corpus::FilenameTimestampFormat::DateTimeUnderscored
+impl core::clone::Clone for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::clone(&self) -> corpus::metadata::FilenameTimestampFormat
+impl core::cmp::Eq for corpus::metadata::FilenameTimestampFormat
+impl core::cmp::PartialEq for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::eq(&self, other: &corpus::metadata::FilenameTimestampFormat) -> bool
+impl core::fmt::Debug for corpus::metadata::FilenameTimestampFormat
+pub fn corpus::metadata::FilenameTimestampFormat::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::metadata::FilenameTimestampFormat
+impl core::marker::StructuralPartialEq for corpus::metadata::FilenameTimestampFormat
+pub enum corpus::FrontmatterValue
+pub corpus::FrontmatterValue::Mapping(corpus::value::Mapping)
+pub corpus::FrontmatterValue::Scalar(corpus::value::Scalar)
+pub corpus::FrontmatterValue::Sequence(alloc::vec::Vec<corpus::value::FrontmatterValue>)
+impl core::clone::Clone for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::clone(&self) -> corpus::value::FrontmatterValue
+impl core::cmp::PartialEq for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::eq(&self, other: &corpus::value::FrontmatterValue) -> bool
+impl core::fmt::Debug for corpus::value::FrontmatterValue
+pub fn corpus::value::FrontmatterValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::value::FrontmatterValue
+pub enum corpus::Outcome
+pub corpus::Outcome::Accepted
+pub corpus::Outcome::Edited
+pub corpus::Outcome::Skipped
+impl corpus::record::Outcome
+pub const fn corpus::record::Outcome::as_str(self) -> &'static str
+impl core::clone::Clone for corpus::record::Outcome
+pub fn corpus::record::Outcome::clone(&self) -> corpus::record::Outcome
+impl core::cmp::Eq for corpus::record::Outcome
+impl core::cmp::PartialEq for corpus::record::Outcome
+pub fn corpus::record::Outcome::eq(&self, other: &corpus::record::Outcome) -> bool
+impl core::fmt::Debug for corpus::record::Outcome
+pub fn corpus::record::Outcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::record::Outcome
+impl core::marker::StructuralPartialEq for corpus::record::Outcome
+pub enum corpus::Scalar
+pub corpus::Scalar::Bool(bool)
+pub corpus::Scalar::Float(f64)
+pub corpus::Scalar::Int(i64)
+pub corpus::Scalar::Null
+pub corpus::Scalar::String(alloc::string::String)
+impl core::clone::Clone for corpus::value::Scalar
+pub fn corpus::value::Scalar::clone(&self) -> corpus::value::Scalar
+impl core::cmp::PartialEq for corpus::value::Scalar
+pub fn corpus::value::Scalar::eq(&self, other: &corpus::value::Scalar) -> bool
+impl core::fmt::Debug for corpus::value::Scalar
+pub fn corpus::value::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::value::Scalar
+#[non_exhaustive] pub enum corpus::StoreError
+pub corpus::StoreError::CrossFilesystem
+pub corpus::StoreError::CrossFilesystem::path: alloc::string::String
+pub corpus::StoreError::Io
+pub corpus::StoreError::Io::detail: alloc::string::String
+pub corpus::StoreError::Io::path: alloc::string::String
+pub corpus::StoreError::LockTimeout
+pub corpus::StoreError::LockTimeout::path: alloc::string::String
+pub corpus::StoreError::NotWritable
+pub corpus::StoreError::NotWritable::path: alloc::string::String
+pub corpus::StoreError::UnsafePath
+pub corpus::StoreError::UnsafePath::path: alloc::string::String
+pub corpus::StoreError::Validation
+pub corpus::StoreError::Validation::detail: alloc::string::String
+impl core::clone::Clone for corpus::store::StoreError
+pub fn corpus::store::StoreError::clone(&self) -> corpus::store::StoreError
+impl core::cmp::Eq for corpus::store::StoreError
+impl core::cmp::PartialEq for corpus::store::StoreError
+pub fn corpus::store::StoreError::eq(&self, other: &corpus::store::StoreError) -> bool
+impl core::convert::From<corpus::store::StoreError> for kernel::Error
+pub fn kernel::Error::from(error: corpus::store::StoreError) -> Self
+impl core::error::Error for corpus::store::StoreError
+impl core::fmt::Debug for corpus::store::StoreError
+pub fn corpus::store::StoreError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::store::StoreError
+pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::StoreError
+pub enum corpus::TypedRef
+pub corpus::TypedRef::Adr(alloc::string::String)
+pub corpus::TypedRef::Path(std::path::PathBuf)
+pub corpus::TypedRef::Plan(alloc::string::String)
+pub corpus::TypedRef::Pr(alloc::string::String)
+pub corpus::TypedRef::WorkItem(alloc::string::String)
+impl core::clone::Clone for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::clone(&self) -> corpus::typed_ref::TypedRef
+impl core::cmp::Eq for corpus::typed_ref::TypedRef
+impl core::cmp::PartialEq for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::eq(&self, other: &corpus::typed_ref::TypedRef) -> bool
+impl core::fmt::Debug for corpus::typed_ref::TypedRef
+pub fn corpus::typed_ref::TypedRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::typed_ref::TypedRef
+pub struct corpus::ArtifactMetadata
+pub corpus::ArtifactMetadata::datetime_utc: alloc::string::String
+pub corpus::ArtifactMetadata::filename_timestamp: alloc::string::String
+pub corpus::ArtifactMetadata::repository_name: core::option::Option<alloc::string::String>
+pub corpus::ArtifactMetadata::revision: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::clone(&self) -> corpus::metadata::ArtifactMetadata
+impl core::cmp::Eq for corpus::metadata::ArtifactMetadata
+impl core::cmp::PartialEq for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::eq(&self, other: &corpus::metadata::ArtifactMetadata) -> bool
+impl core::fmt::Debug for corpus::metadata::ArtifactMetadata
+pub fn corpus::metadata::ArtifactMetadata::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::metadata::ArtifactMetadata
+pub struct corpus::IdScan
+pub corpus::IdScan::digits: alloc::string::String
+pub corpus::IdScan::match_end: usize
+pub struct corpus::LinkageRecord
+pub corpus::LinkageRecord::anchor: alloc::string::String
+pub corpus::LinkageRecord::band: corpus::linkage::Band
+pub corpus::LinkageRecord::key: alloc::string::String
+pub corpus::LinkageRecord::source_type: alloc::string::String
+pub corpus::LinkageRecord::target_ref: alloc::string::String
+impl core::clone::Clone for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::clone(&self) -> corpus::linkage::LinkageRecord
+impl core::cmp::Eq for corpus::linkage::LinkageRecord
+impl core::cmp::PartialEq for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::eq(&self, other: &corpus::linkage::LinkageRecord) -> bool
+impl core::fmt::Debug for corpus::linkage::LinkageRecord
+pub fn corpus::linkage::LinkageRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::linkage::LinkageRecord
+pub struct corpus::Mapping(_)
+impl corpus::value::Mapping
+pub fn corpus::value::Mapping::entries(&self) -> &[(alloc::string::String, corpus::value::FrontmatterValue)]
+pub fn corpus::value::Mapping::get(&self, key: &str) -> core::option::Option<&corpus::value::FrontmatterValue>
+pub const fn corpus::value::Mapping::new() -> Self
+pub fn corpus::value::Mapping::push(&mut self, key: alloc::string::String, value: corpus::value::FrontmatterValue)
+impl core::clone::Clone for corpus::value::Mapping
+pub fn corpus::value::Mapping::clone(&self) -> corpus::value::Mapping
+impl core::cmp::PartialEq for corpus::value::Mapping
+pub fn corpus::value::Mapping::eq(&self, other: &corpus::value::Mapping) -> bool
+impl core::default::Default for corpus::value::Mapping
+pub fn corpus::value::Mapping::default() -> corpus::value::Mapping
+impl core::fmt::Debug for corpus::value::Mapping
+pub fn corpus::value::Mapping::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::iter::traits::collect::FromIterator<(alloc::string::String, corpus::value::FrontmatterValue)> for corpus::value::Mapping
+pub fn corpus::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, corpus::value::FrontmatterValue)>>(iter: I) -> Self
+impl core::marker::StructuralPartialEq for corpus::value::Mapping
+pub struct corpus::Record
+pub corpus::Record::extras: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub corpus::Record::outcome: corpus::record::Outcome
+pub corpus::Record::proposed_value: alloc::string::String
+pub corpus::Record::schema_version: u32
+pub corpus::Record::timestamp: alloc::string::String
+pub corpus::Record::transformation_key: alloc::string::String
+pub corpus::Record::user_value: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::record::Record
+pub fn corpus::record::Record::clone(&self) -> corpus::record::Record
+impl core::cmp::Eq for corpus::record::Record
+impl core::cmp::PartialEq for corpus::record::Record
+pub fn corpus::record::Record::eq(&self, other: &corpus::record::Record) -> bool
+impl core::fmt::Debug for corpus::record::Record
+pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::record::Record
+pub struct corpus::RepositoryFacts
+pub corpus::RepositoryFacts::name: alloc::string::String
+pub corpus::RepositoryFacts::revision: core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::clone(&self) -> corpus::metadata::RepositoryFacts
+impl core::cmp::Eq for corpus::metadata::RepositoryFacts
+impl core::cmp::PartialEq for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::eq(&self, other: &corpus::metadata::RepositoryFacts) -> bool
+impl core::fmt::Debug for corpus::metadata::RepositoryFacts
+pub fn corpus::metadata::RepositoryFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::metadata::RepositoryFacts
+pub struct corpus::WorkItemIdScheme
+pub corpus::WorkItemIdScheme::default_project_code: core::option::Option<alloc::string::String>
+pub corpus::WorkItemIdScheme::id_pattern: alloc::string::String
+impl corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::canonical_digit_width(&self) -> usize
+pub fn corpus::work_item_id::WorkItemIdScheme::canonicalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::extract_id(&self, filename: &str, scanner: &dyn corpus::work_item_id::IdScanner) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, token: &str) -> bool
+pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
+pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
+pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
+impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
+impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
+impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
+pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait corpus::AtomicWrite
+pub fn corpus::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::Clock
+pub fn corpus::Clock::filename_timestamp(&self, format: corpus::metadata::FilenameTimestampFormat) -> alloc::string::String
+pub fn corpus::Clock::now_utc_iso(&self) -> alloc::string::String
+pub trait corpus::IdScanner
+pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
+pub trait corpus::RecordStore
+pub fn corpus::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::RepoFactsProbe
+pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
+pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>

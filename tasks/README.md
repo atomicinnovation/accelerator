@@ -4,20 +4,21 @@ The repo's dev tasks are declared in `mise.toml` (run them with
 `mise run <task>`) and implemented as [invoke](https://www.pyinvoke.org/) tasks
 in this package. `mise tasks` lists every leaf with its description; this file
 documents the *shape* of the tree so it only has to be learned once, and
-carries the checklist for registering a dispatched sub-binary.
+carries the checklists for registering a dispatched sub-binary and a library
+crate.
 
 ## Per-component checks
 
 Each component has a `<component>:check` roll-up that folds that component's
 format + lint (+ type-check where applicable):
 
-| Component      | Roll-up              | Folds                                        |
-| -------------- | -------------------- | -------------------------------------------- |
-| Frontend       | `frontend:check`     | format + lint + types (Biome, tsc)           |
-| Rust server    | `server:check`       | format + lint (rustfmt, clippy)              |
-| Rust cli       | `cli:check`          | format + lint (rustfmt, workspace-wide clippy) |
+| Component      | Roll-up              | Folds                                                                                      |
+|----------------|----------------------|--------------------------------------------------------------------------------------------|
+| Frontend       | `frontend:check`     | format + lint + types (Biome, tsc)                                                         |
+| Rust server    | `server:check`       | format + lint (rustfmt, clippy)                                                            |
+| Rust cli       | `cli:check`          | format + lint (rustfmt, workspace-wide clippy)                                             |
 | Python tooling | `build-system:check` | format + lint + types (ruff, pyrefly), plus workflow lint and the dispatch-coherence guard |
-| Shell          | `scripts:check`      | format + lint (shfmt, ShellCheck + bashisms) |
+| Shell          | `scripts:check`      | format + lint (shfmt, ShellCheck + bashisms)                                               |
 
 `build-system` is the repo-root Python automation toolchain (this `tasks/`
 package + its tests) — unrelated to the `build:*` artifact namespace. Its task
@@ -43,8 +44,10 @@ runs, and it is wired into `lint:check` as well so a bare `mise run` reaches it
 too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
-`github:*`): `deny:check` (cargo-deny supply-chain) and `pup:check` (cargo-pup
-architecture, on an isolated nightly lane). `pup.ron` carries one rule per
+`github:*`): `deny:check` (cargo-deny supply-chain), `pup:check` (cargo-pup
+architecture) and `public-api:check` (cargo-public-api surface pin). The last
+two are the build steps that run on the isolated nightly lane — see "The Rust
+nightly lane" below. `pup.ron` carries one rule per
 domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
 library-backed VCS adapter's imports to a permit list and denies `std::process`
 — see "Library-backed VCS dependency pins" below.
@@ -238,11 +241,12 @@ A trailing `if: always()` step then asserts `git --version` and `jj --version`
 both succeed — deliberately as bare commands, not `mise run`, because mise would
 reinstall the missing tool and turn the one check that catches a failed restore
 into one that quietly repairs it. For the same reason the task invokes cargo
-directly inside the window: mise is entered before it and never within. The job sets `cache: false` on `mise-action` because the jj shadow
-target sits inside the tree the action saves on its post step, so a failed
-restore would otherwise persist a `jj`-less tool tree into the cache that every
-later run restores. A move to self-hosted, containerised or reusable runners
-turns a contained hazard into a persistently broken runner.
+directly inside the window: mise is entered before it and never within. The job
+sets `cache: false` on `mise-action` because the jj shadow target sits inside
+the tree the action saves on its post step, so a failed restore would otherwise
+persist a `jj`-less tool tree into the cache that every later run restores. A
+move to self-hosted, containerised or reusable runners turns a contained hazard
+into a persistently broken runner.
 
 `build:cli:fixture-size` is the third guard: the linked reference artefact must
 be at least 3× the stubbed twin, so a future edit that stops printing a query
@@ -254,41 +258,83 @@ darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
-### Rust nightly lane (cargo-pup)
+### The Rust nightly lane
 
-Architecture enforcement (the ADR-0053 inward-dependency rule) runs via
-**cargo-pup**, a compiler plugin that needs a **second, pinned nightly**
-toolchain (`PUP_NIGHTLY` / `PUP_VERSION` in `tasks/shared/rust.py`, a matched
-pair). Everything else — the product build and every other check — stays on the
-mise-pinned stable `1.90.0`.
+#### The toolchain
 
-- **Isolated by construction.** The nightly is provisioned only by
-  `deps:install:pup` (rustup-managed, deliberately *not* a mise `[tool]`: mise
-  cannot pin two rust toolchains, and a `cargo:` backend would build cargo-pup
-  against stable and fail to load). Only `pup:check` and `test:integration:pup`
-  consume it, and only the `check-architecture` CI job runs them. A nightly
-  break (or a GC'd pinned nightly) therefore reddens `check-architecture` alone;
-  every stable-lane check and the product build stay green. `pup:check` is
-  wired into the top-level `check`, so a local `mise run check` still exercises
-  it. The isolation is guarded by `tests/unit/tasks/test_workflows.py`.
-- **First run is slow.** `deps:install:pup` builds cargo-pup from source
-  (multi-minute) the first time; a presence probe skips the rebuild in steady
-  state, so subsequent `pup:check` runs are fast.
-- **Bumping the pin.** `PUP_NIGHTLY` and `PUP_VERSION` are a matched pair —
-  cargo-pup's `rustc_private` driver only loads under the nightly it was built
-  against — so bump them **together**. Dated nightlies are GC'd from
-  `static.rust-lang.org` after a window; when the pinned one disappears,
-  `deps:install:pup` fails with an actionable message naming the pin. Before
-  committing a bump, verify the upstream release's published
-  checksum/attestation (mirroring the SHA-256/SLSA discipline the visualiser
-  binary gets via the signed `manifest.json`).
+`RUST_NIGHTLY` in `tasks/shared/rust.py` names the **one** nightly toolchain
+this repository provisions. It exists because two capabilities are nightly-only:
+the `rustc_private` compiler internals a compiler plugin links against, and
+rustdoc's JSON output. Everything else — the product build and every other
+check — stays on the mise-pinned stable `1.90.0`.
+
+`deps:install:nightly` provisions it, rustup-managed and deliberately *not* a
+mise `[tool]`: mise cannot pin two rust toolchains, and a `cargo:` backend would
+build a compiler plugin against stable, where its driver fails to load. It is
+installed `--profile minimal` plus `rustc-dev`, `rust-src` and
+`llvm-tools-preview`, and every consumer reaches it as `cargo +<nightly>` —
+never as a rustup default or a directory override.
+
+Every nightly-lane task depends on that one install task, directly or through
+its tool's install task, so the toolchain is provisioned once rather than raced
+for on `~/.rustup`.
+
+Dated nightlies are GC'd from `static.rust-lang.org` after a window. When the
+pinned one disappears, `deps:install:nightly` fails with an actionable message
+naming the pin, before any `+nightly` invocation can emit an opaque "override
+does not resolve". Bumping it is not free — see the per-step coupling below.
+
+#### The build steps that use it
+
+| Step                     | Tool             | Pin                  | Why nightly                                              |
+|--------------------------|------------------|----------------------|----------------------------------------------------------|
+| `pup:check`              | cargo-pup        | `PUP_VERSION`        | compiler plugin — links `rustc_private`                  |
+| `test:integration:pup`   | cargo-pup        | `PUP_VERSION`        | drives the same plugin against a synthetic workspace     |
+| `public-api:check`       | cargo-public-api | `PUBLIC_API_VERSION` | shells out to `rustdoc` for its JSON                     |
+
+`pup:check` enforces the ADR-0053 inward-dependency rule; `public-api:check`
+holds each named crate's surface against a committed snapshot. They couple to
+`RUST_NIGHTLY` with **different strength**, and that difference decides what a
+bump costs:
+
+- **cargo-pup is a matched pair with the nightly.** Its `rustc_private` driver
+  only loads under the toolchain it was *built* against, so `RUST_NIGHTLY` and
+  `PUP_VERSION` move **together** — take the new date from the cargo-pup
+  release's own `rust-toolchain.toml`. The nightly's date is therefore dictated
+  by this step, not chosen freely.
+- **cargo-public-api is coupled only by a data format.** It has no driver and
+  builds on stable, needing the nightly solely for the rustdoc JSON it parses.
+  After a `RUST_NIGHTLY` bump, re-verify `PUBLIC_API_VERSION` supports the new
+  nightly's JSON format, regenerate every pinned crate's snapshot with `mise run
+  public-api:update`, and read the diff as toolchain-induced before accepting
+  it.
+
+Before committing either tool bump, verify the upstream release's published
+checksum/attestation — mirroring the SHA-256/SLSA discipline the visualiser
+binary gets via the signed `manifest.json`.
+
+#### Isolation
+
+Only the steps in the table above and their `deps:install:*` tasks consume the
+nightly, and only the `check-architecture` CI job runs them. A nightly break (or
+a GC'd pinned nightly) therefore reddens `check-architecture` alone; every
+stable-lane check and the product build stay green. The isolation is guarded by
+`tests/unit/tasks/test_workflows.py`, which detects a consumer by task name —
+**a new nightly-lane step must add its name to that marker list**, or a later
+leak of it into a stable job goes unnoticed. Both `pup:check` and
+`public-api:check` are wired into the top-level `check`, so a local `mise run
+check` still exercises them.
+
+- **First run is slow.** Both tools are built from source (multi-minute each) —
+  neither publishes a binary suited to an aqua/ubi pin. A presence probe skips
+  each rebuild in steady state, so subsequent runs are fast.
 - **`mise.lock` refresh.** The committed `mise.lock` hash-pins the aqua-backed
   tools. On **any** `[tools]` edit (or aqua pin bump), regenerate it — `mise
   lock --platform linux-x64,macos-arm64,macos-x64` (all matrix platforms) — and
   commit the result, so a lock authored on one arch does not force a fetch or
-  dirty the tree on another. It does **not** cover the from-source cargo-pup
-  build or the rustup nightly (an accepted unverified surface for the isolated
-  lane).
+  dirty the tree on another. It covers **neither** the rustup nightly nor either
+  tool built against it: three accepted unverified surfaces, all confined to
+  this lane.
 
 ### File-descriptor limit on the cross-compiles
 
@@ -314,10 +360,10 @@ Local-only toolchain escape hatches. **CI ignores both** (it runs the
 fail-closed defaults), so the fix for a red job is the underlying finding, not
 the env var.
 
-| Variable                 | Default | Effect                                    |
-| ------------------------ | ------- | ----------------------------------------- |
-| `ACCELERATOR_PUP_MODE`   | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`. |
-| `ACCELERATOR_COVERAGE`   | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
+| Variable               | Default | Effect                                                                                                                                    |
+|------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `ACCELERATOR_PUP_MODE` | `deny`  | `warn` downgrades a cargo-pup findings failure to advisory (log only). Unrecognised values fail closed to `deny`.                         |
+| `ACCELERATOR_COVERAGE` | `on`    | `off`/`false`/`0`/`no` drops `test:unit:cli` from instrumented `cargo llvm-cov nextest` to plain `cargo nextest run` (faster inner loop). |
 
 ## Registering a dispatched sub-binary
 
@@ -455,8 +501,9 @@ The Cargo **package** is `accelerator-<token>`; where a domain crate already
 owns `cli/<token>/`, the binary crate lives elsewhere with a
 `_SUBBINARY_MANIFESTS` entry, because `tasks/manifest.py` defaults the manifest
 path to `cli/<token>/Cargo.toml` and cargo-pup rules match on whole crate names.
-A crate carrying domain modules may also owe a `cli/pup.ron` rule; that is the
-generic add-a-Rust-crate surface, not part of this checklist.
+A crate carrying domain modules may also owe a `cli/pup.ron` rule; see
+"Registering a library crate" below for that generic add-a-Rust-crate
+surface, which is not part of this checklist.
 
 The **token** must match `^[a-z][a-z0-9-]*$`. Underscores are rejected because
 the token derives `ACCELERATOR_<TOKEN>_BIN`
@@ -473,14 +520,69 @@ would sign the vendored verify shim and advertise it in the manifest. Both
 listed in the manifest but never dispatched. All three constraints are enforced
 by the dispatch guard.
 
+## Registering a library crate
+
+A plain library crate — no dispatch token, no binary, no launcher wiring —
+owes five things. `cli/tracker/` is the worked example.
+
+- **Workspace membership.** Add the directory to `[workspace].members` in
+  `cli/Cargo.toml`, then sync the lockfile with `cargo metadata
+  --manifest-path cli/Cargo.toml --format-version 1` (the minimal update, never
+  `cargo generate-lockfile`). Clippy runs `--locked`, so an unsynced lockfile
+  surfaces as an unrelated clippy failure.
+- **Inherited manifest fields.** `version`, `edition`, `rust-version`,
+  `license` and `publish` are all `.workspace = true`, and `[lints] workspace =
+  true` opts the crate into the shared pedantic/nursery set. A hardcoded
+  version passes the coherence check today and breaks at the next bump; a
+  missing `[lints]` table silently exempts the crate from every lint the rest
+  of the workspace is held to.
+- **A `cli/pup.ron` rule.** Nothing derives architectural enforcement from
+  membership, so a crate without a rule has none and no check reports it
+  missing.
+- **A probe pair** in `tests/integration/pup/test_import_rule.py`, driving the
+  shipped `cli/pup.ron` against a synthetic workspace named for the crate: a
+  violation case and a compliant control that imports something the permit list
+  must admit. There is no coverage guard for `pup.ron`, so a rule deleted or
+  mistyped is otherwise silent, and a control with no imports proves only that
+  nothing was rejected.
+- **A classification in `tasks/public_api.py`** — this one is not optional, and
+  the build tells you so. Every workspace member appears in either
+  `_PINNED_CRATES` or `_EXEMPT_MEMBERS` (with the reason it needs no pin), and
+  the coverage guard in `tests/unit/tasks/test_rust.py` fails until a new member
+  is in one of them. The line the existing entries draw: a **domain** crate is
+  pinned, because its surface is the contract its siblings build against;
+  adapters, composition roots and test support are exempt, because theirs is
+  incidental to one consumer. A pinned crate's snapshot lives at
+  `<crate>/tests/fixtures/public-api.txt` and is regenerated with `mise run
+  public-api:update` — never as a way to make a red `public-api:check` go away,
+  only after reading the diff and deciding the change was intended.
+
+  One class of diff is **not** a first-party change: a snapshot names the
+  third-party types a crate exposes, so a dependency bump moves it on its own.
+  `document` is the only crate where this is live — it renders
+  `serde_core::ser::Serialize`, serde's internal split crate, so a serde bump
+  that renames that path reddens the pin with no first-party edit behind it.
+  (`__H` in the `corpus` and `tracker` snapshots is *not* an instance: it comes
+  from std's `Hash` derive, which no dependency bump touches.)
+
+  Read such a diff as the pin doing its job, not as noise to absorb: a crate
+  exposing a dependency's type in its own surface is now visible rather than
+  merely true. Prefer removing the exposure to accepting the snapshot — a
+  consumer must depend on that type to construct or match the value. A derive
+  counts as an exposure too, which is why the error types here hand-write
+  `Display` and `Error`; a `thiserror` derive renders as `__formatter` in the
+  snapshot.
+
+Then run `mise run deny:check`.
+
 ## CI job → local command
 
 Each CI check job mirrors a single `mise run` task, so a red job is reproducible
 locally with the mapped command:
 
-| CI job (`.github/workflows/main.yml`) | Local command                             |
-| ------------------------------------- | ----------------------------------------- |
-| `check-cli`                           | `mise run cli:check`                      |
-| `check-supply-chain`                  | `mise run deny:check`                     |
-| `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`) |
+| CI job (`.github/workflows/main.yml`) | Local command                                                                                                                                                                        |
+|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `check-cli`                           | `mise run cli:check`                                                                                                                                                                 |
+| `check-supply-chain`                  | `mise run deny:check`                                                                                                                                                                |
+| `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`, `public-api:check`)                                                                                                                  |
 | `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |

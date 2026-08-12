@@ -13,7 +13,8 @@ All dev tasks run through **`mise run <task>`** (declared in `mise.toml`,
 implemented as [invoke](https://www.pyinvoke.org/) tasks under `tasks/`). Run
 `mise tasks` for the full leaf list; `tasks/README.md` documents the *shape* of
 the task tree (learn it once) and carries the thirteen-point checklist for
-registering a dispatched sub-binary.
+registering a dispatched sub-binary, plus a shorter one for registering a
+plain library crate.
 
 **"Done" means `mise run` (the bare default task) exits 0 end-to-end.** That is
 the full local CI mirror: it builds the frontend + dev server, applies all
@@ -33,11 +34,11 @@ Two faster entry points exist and should be your inner loop:
   the `build:*` artifact namespace), `scripts` (shell). There is **no
   `<component>:fix`** roll-up — fix a component via its `format:<c>:fix` +
   `lint:<c>:fix` tasks. Rust enforcement beyond `cli:check` (cargo-deny,
-  cargo-pup) is documented in `tasks/README.md`. The docs site tasks
-  (`docs:check`, `docs:build`) are deliberately in **neither** the aggregate
-  `check` nor the bare `default` task — they write gitignored artefacts and need
-  network + a Chromium install, so the docs CI lane owns them; run
-  `docs:check` manually when touching `docs-site/`.
+  cargo-pup, cargo-public-api) is documented in `tasks/README.md`. The docs
+  site tasks (`docs:check`, `docs:build`) are deliberately in **neither** the
+  aggregate `check` nor the bare `default` task — they write gitignored
+  artefacts and need network + a Chromium install, so the docs CI lane owns
+  them; run `docs:check` manually when touching `docs-site/`.
 
 Enforcement is **CI-only — there are no pre-commit hooks.** Run `mise run fix &&
 mise run check` yourself before pushing.

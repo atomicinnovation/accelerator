@@ -20,7 +20,6 @@ dependencies = [
  "tempfile",
  "time",
  "tracing",
- "tracing-subscriber",
  "vergen",
  "vergen-gitcl",
 ]
@@ -2834,7 +2833,6 @@ dependencies = [
 name = "kernel"
 version = "1.24.0-pre.36"
 dependencies = [
- "thiserror",
  "tracing",
  "tracing-subscriber",
 ]
@@ -4774,6 +4772,10 @@ dependencies = [
  "tracing-log",
  "tracing-serde",
 ]
+
+[[package]]
+name = "tracker"
+version = "1.24.0-pre.36"
 
 [[package]]
 name = "try-lock"
