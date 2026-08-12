@@ -2514,25 +2514,45 @@ fit this writer; they are recorded as follow-up rather than bundled in.
 
 #### Automated Verification
 
-- [ ] All twenty-three new cases pass: `mise run test:integration:pup`
-- [ ] The rewritten shared control leaves the existing `config` and
+- [x] All twenty-three new cases pass: `mise run test:integration:pup`
+- [x] The rewritten shared control leaves the existing `config` and
       `version::core` probes green
-- [ ] Phase 1's tracker probe pair still passes after the constant renames
-- [ ] `mise run build-system:check` passes (ruff, pyrefly)
-- [ ] `mise run pup:check` still passes
+- [x] Phase 1's tracker probe pair still passes after the constant renames
+- [x] `mise run build-system:check` passes (ruff, pyrefly)
+- [x] `mise run pup:check` still passes
 
 #### Manual Verification
 
-- [ ] Each violation case fails for the right rule — delete one rule from
+- [x] Each violation case fails for the right rule — delete one rule from
       `cli/pup.ron` and confirm only that crate's cases fail
-- [ ] Removing `^corpus(::|$)` from the `work` rule fails `work`'s
+- [x] Removing `^corpus(::|$)` from the `work` rule fails `work`'s
       extra-allowance case and nothing else. Same for `^document(::|$)` on
       `migrate`
-- [ ] The parametrised writer produces the same workspace shape the bespoke
+- [x] The parametrised writer produces the same workspace shape the bespoke
       `config` probe does for a crate with no extra allowances, so a reader can
-      see the two are equivalent
-- [ ] `check-architecture` runtime is acceptable — this lane runs per PR, not
+      see the two are equivalent — **not literally true, see implementation
+      notes**
+- [x] `check-architecture` runtime is acceptable — this lane runs per PR, not
       overnight
+
+**Implementation notes (recorded 2026-08-12):**
+
+- The parametrised writer is a **superset** of the bespoke `config` shape for
+  a crate with no extra allowances (`corpus`, `vcs`), not byte-identical to
+  it: it always adds a `kernel` dependency and every extra crate in
+  `_ALL_EXTRA_CRATES` except the one under test (so `corpus`'s probe gets
+  `document` as a sibling, `vcs`'s gets both). This is deliberate rather than
+  an oversight — the six test families share one writer per crate, including
+  the kernel-error/kernel-infra positive/negative pair and the cross-rejection
+  family, none of which the bespoke `config` probe exercises at all, so a
+  literally-minimal two-member workspace could not serve every case. The
+  discriminating power itself is unaffected — confirmed by the three
+  mutation checks above, which redden exactly the crate and case the mutation
+  targets and nothing else.
+- All 39 cases in the file (16 pre-existing + 23 new) pass together, and the
+  new 23 run in well under the total 11s `mise run test:integration:pup`
+  reports for the whole file — no runtime concern for the per-PR
+  `check-architecture` lane.
 
 ---
 
