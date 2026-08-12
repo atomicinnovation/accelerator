@@ -11,9 +11,8 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0174"]
-blocked_by: ["work-item:0204"]
 tags: [rust, work-items, sync, tracker]
-last_updated: "2026-08-12T00:20:00+00:00"
+last_updated: "2026-08-12T00:35:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -461,11 +460,12 @@ Criteria and Drafting Notes.
 
 ## Dependencies
 
-- Blocked by: 0204 (the `RemoteTracker` port), split out of this item on
-  2026-08-10. It is a trait, four value types (`ExternalId`,
-  `RemoteIssue`, `RemoteTimestamp`), the `TrackerError` type and a lint
-  rule, with no logic — so it is cheap to discharge, but the state
-  machine and both `--push` flows compile against it, so it lands first.
+- No longer blocked: 0204 (the `RemoteTracker` port), split out of this
+  item on 2026-08-10, was accepted and implemented on 2026-08-12. It is a
+  trait, four value types (`ExternalId`, `RemoteIssue`, `RemoteTimestamp`,
+  `FetchOutcome`), the `TrackerError` type and a lint rule, with no
+  logic — cheap to discharge, and the state machine and both `--push`
+  flows now compile against a stable signature.
 - No other blockers. 0166 (shared crates) and 0187 (generalises the
   sub-binary registration surface) were done as of 2026-08-05, and 0170
   (the work-item lifecycle subdomain), which gated the `--push` wiring,
@@ -831,6 +831,23 @@ Criteria and Drafting Notes.
   no-mutation check to three observables, split the no-provider-types
   criterion into its two checks, enumerated the bridge scripts behind the
   port's four operations, and glossed the terms review 2 found undefined.
+- 0204 accepted and implemented 2026-08-12
+  (`meta/plans/2026-08-11-0204-remote-tracker-port.md`). Its Requirements
+  and Acceptance Criteria above already carried the `FetchOutcome`
+  two-tier read and the retryable/terminal-on-mutation wording, from an
+  earlier reconciliation pass — only the Dependencies bullet's item count
+  was stale (it still named four value types, omitting `FetchOutcome`)
+  and has been corrected above. Two obligations 0204 hands here, both
+  still open: widening `FetchOutcome`'s totality contract test beyond the
+  `create`→`show`/`update`→`show` round-trips this item's own Acceptance
+  Criteria specify, to include a `fetch_all` partition case (the
+  `partitions_totally` shape in `tracker/tests/port.rs` is what to lift);
+  and building the shared reusable fake, since the one in `tracker/tests/`
+  is deliberately private and duplicated. Also inherited: `port.rs`
+  confirmed that a `RemoteTracker` implementor which quietly stops
+  implementing an operation once the trait gains a default-bodied method
+  is undetectable by either of 0204's own guards — worth a contract-test
+  case here if the risk is judged worth the cost.
 
 ## References
 

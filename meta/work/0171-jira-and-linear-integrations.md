@@ -9,11 +9,11 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0187", "work-item:0204", "work-item:0194"]
+blocked_by: ["work-item:0187", "work-item:0194"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0194", "work-item:0174"]
 tags: [rust, jira, linear, integrations, reqwest, sync]
-last_updated: "2026-08-12T00:25:00+00:00"
+last_updated: "2026-08-12T00:40:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-192"
@@ -198,11 +198,19 @@ granularity is wanted.
 
 ## Dependencies
 
-- Blocked by: 0166 (shared crates), and 0204 (the `RemoteTracker` port) —
-  split out of 0194 on 2026-08-10 precisely so the client crates wait on a
-  trait, four value types and an error type rather than on a whole sync
-  engine. 0204 freezes that signature at its acceptance, so the clients
-  build against a contract that will not move. The client work needs
+- No longer blocked by 0204 (the `RemoteTracker` port) — split out of
+  0194 on 2026-08-10 precisely so the client crates would wait on a
+  trait and its vocabulary rather than on a whole sync engine, and
+  accepted and implemented on 2026-08-12. The frozen signature is six
+  items, not four value types and an error type as this story previously
+  understood: the trait, `ExternalId`, `RemoteIssue`, `RemoteTimestamp`,
+  `FetchOutcome` and `TrackerError`. One consequence for this story's own
+  Requirements: `fetch_all` returns `FetchOutcome.found` as
+  `Vec<(ExternalId, RemoteTimestamp)>`, a stamp per key rather than a
+  projected issue, so each client's bulk-mode query needs no
+  `description`/body field at all — Linear's selection set in particular
+  can stay as narrow as `linear-search-flow.sh`'s today, with no need to
+  widen it against Linear's complexity cap. The client work needs
   nothing else from 0194.
 - Blocked by: 0194 (the sync engine) for the **cutover half only** — the
   script removal, skill repointing, conversational conflict flow and
@@ -270,6 +278,19 @@ granularity is wanted.
   work and 0194 only for the cutover half, so the client crates and thin
   binaries can start as soon as the port lands rather than waiting on a
   whole sync engine they do not use.
+- Updated 2026-08-12: 0204 was accepted and implemented, and cleared from
+  `blocked_by` — the client work can now start. Its final signature grew
+  by one item during plan review (`FetchOutcome`, a total three-way
+  partition over a bulk `fetch_all`), which this story's description had
+  not caught up with; corrected above, along with the resulting change to
+  what a bulk-mode query needs to request. 0204's own review also
+  confirmed a real gap this story should be aware of when implementing
+  `impl RemoteTracker`: a client that quietly drops an operation once the
+  trait gains a default-bodied method is undetectable by either of
+  0204's own guards (`cargo public-api` and the signature-probe test),
+  so nothing catches that mistake below the level of 0194's shared
+  contract test actually exercising all four operations against the real
+  client.
 
 > Extracted from source documents without interactive enrichment.
 > Acceptance criteria, dependencies, and kind may need refinement before

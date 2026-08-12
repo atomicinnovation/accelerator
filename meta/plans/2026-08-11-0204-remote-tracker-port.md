@@ -5,14 +5,14 @@ title: "RemoteTracker Port Implementation Plan"
 date: "2026-08-11T15:58:59+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0204"
 parent: "work-item:0204"
 derived_from: ["codebase-research:2026-08-11-0204-remote-tracker-port"]
 tags: [rust, tracker, sync, port, cargo-pup]
 revision: "1b7e6583aacac3f08ea2b0c03635192f557290e1"
 repository: "accelerator"
-last_updated: "2026-08-11T22:57:47+00:00"
+last_updated: "2026-08-12T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -2375,6 +2375,10 @@ notes.
   bare `:0194` reference can never resolve. All tracker-scoped gates
   (`cli:check`, `pup:check`, `public-api:check`, `deny:check`,
   `cargo nextest -p tracker`) are green.
+  **Fixed 2026-08-12**, outside this plan's own phases: the reference now
+  points at `work-item-review:0194-tracker-crate-and-remote-sync-engine-review-2`
+  (the pass-3 re-review the split from 0194 followed), and `mise run` is now
+  green end to end with zero known failures.
 
 The `RemoteIssue.body` and `#[non_exhaustive]` checks moved to Phase 1, where
 `lib.rs` ships.
@@ -2686,8 +2690,13 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
 **Before implementation starts**
 
 - **0204 must be edited** to carry deviations 5, 6 and 7 (deviations 1-4 are
-  already in it). The places below, not one — the frozen block is quoted and
-  paraphrased across the item:
+  already in it). **Confirmed already done before implementation began**:
+  `meta/work/0204-remote-tracker-port.md`'s Requirements, AC 1/9/10 and
+  Drafting Notes were checked against this list line-by-line on 2026-08-12
+  and already carried every deviation below, including the `const fn`
+  empirical-check wording — no edit was needed. The places below are kept
+  verbatim so a reader of the plan alone can still see what the frozen block
+  says and why:
   - Requirements block: `FetchOutcome.found` becomes
     `Vec<(ExternalId, RemoteTimestamp)>`; `TrackerError` derives
     `Clone, PartialEq, Eq`; `ExternalId` derives `Hash`; both `new`
@@ -2719,15 +2728,26 @@ Obligations that leave this plan explicitly, so they are not silently dropped.
     body.
   - Drafting Notes: the planning entry says the block was reopened once, for
     "Four changes". It is now eight, across three passes.
-- **0194 must be told, and it is more than a wording fix.** Its description of
-  the port is stale (five items, no `FetchOutcome`), but the substantive change
-  is that bulk retrieval no longer carries bodies: its acceptance criterion
-  "exactly one `fetch_all` call and **zero `show` calls**" is unsatisfiable
-  except on an all-unchanged corpus, and its classifier requirement frames bulk
-  and per-item reads as alternatives when they are now two tiers of one read.
-  Both need restating.
-- **0171 must be told** — same stale five-item description, plus the retired
-  Linear-`description` constraint.
+- **0194 must be told, and it is more than a wording fix. Done 2026-08-12.**
+  Its description of the port was expected to be stale (five items, no
+  `FetchOutcome`; bulk and per-item reads framed as alternatives), but on
+  inspection its Requirements and Acceptance Criteria already carried the
+  `FetchOutcome` two-tier read correctly — apparently reconciled in a prior
+  pass this plan's own drafting never recorded. Only its Dependencies
+  bullet's item count was actually stale (still "four value types",
+  omitting `FetchOutcome`); corrected, `blocked_by: [work-item:0204]`
+  cleared now that 0204 is accepted, and a Drafting Notes entry added
+  recording both the correction and the two obligations 0204 hands it
+  (widening the `FetchOutcome` totality contract test to a `fetch_all`
+  case; the default-body gap `port.rs` found).
+- **0171 must be told — done 2026-08-12.** Unlike 0194, this one's
+  Dependencies bullet was genuinely stale end to end: "a trait, four value
+  types and an error type" with no `FetchOutcome`. Corrected to the real
+  six-item signature, noted the consequent narrowing of each client's
+  bulk-mode query (no `description`/body field needed, so Linear's
+  selection set need not widen against its complexity cap), cleared
+  `work-item:0204` from `blocked_by`, and added a Drafting Notes entry
+  recording the update and the same default-body gap.
 
 **0171 inherits**
 

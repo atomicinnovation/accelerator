@@ -5,14 +5,14 @@ title: "RemoteTracker Port"
 date: "2026-08-10T16:34:11+00:00"
 author: Toby Clemson
 producer: review-plan
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-11-0204-remote-tracker-port"]
 blocks: ["work-item:0171", "work-item:0194"]
 tags: [rust, tracker, sync, port]
-last_updated: "2026-08-12T00:05:00+00:00"
+last_updated: "2026-08-12T00:30:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0204: RemoteTracker Port
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -314,7 +314,7 @@ to reach and easy to hold stable once reached.
 
 ## Acceptance Criteria
 
-- [ ] The `tracker` crate exists in the `cli/` workspace and compiles.
+- [x] The `tracker` crate exists in the `cli/` workspace and compiles.
       `tracker/src/lib.rs` declares exactly six `pub` items —
       `RemoteTracker`, `ExternalId`, `RemoteIssue`, `RemoteTimestamp`,
       `FetchOutcome` and `TrackerError` — each carrying only the derives,
@@ -332,7 +332,7 @@ to reach and easy to hold stable once reached.
       from the Requirements block before `src/lib.rs` exists, so it
       starts red; the derive-generated method lines, whose names the
       expansion chooses, are captured once.
-- [ ] The four trait methods match the signatures in the Requirements
+- [x] The four trait methods match the signatures in the Requirements
       block exactly, including `fetch_all`'s
       `(&self, ids: &[ExternalId]) -> Result<FetchOutcome, TrackerError>`
       — verified by an integration test in `tracker/tests/` that
@@ -342,28 +342,33 @@ to reach and easy to hold stable once reached.
       public-API snapshot. None of the four carries a default body —
       confirm whether the snapshot distinguishes a provided from a
       required trait method, and if it does not, record that clause as
-      unguarded rather than assuming it is covered.
-- [ ] A test proves `fetch_all`'s partition is total and that an
+      unguarded rather than assuming it is covered. **Confirmed
+      unguarded (2026-08-12)**: giving an existing method a default body
+      while the fake still overrides it renders byte-identical
+      `cargo public-api` output and leaves `port.rs` compiling — neither
+      guard catches it. Not fixable within this crate's no-logic
+      constraint; recorded for 0171/0194.
+- [x] A test proves `fetch_all`'s partition is total and that an
       incomplete retrieval never reads as absence: given a fake that
       cannot account for one requested id, every requested id appears in
       exactly one of `found`, `absent` and `indeterminate`, and the
       unaccounted id lands in `indeterminate` with `absent` empty.
-- [ ] A test constructs `Box<dyn RemoteTracker>` from the fake and invokes
+- [x] A test constructs `Box<dyn RemoteTracker>` from the fake and invokes
       all four operations through it, so the trait is object-safe and
       usable from 0194's composition root. Making the trait async or
       otherwise dyn-incompatible fails this test.
-- [ ] `TrackerError` declares exactly two variants and is not
+- [x] `TrackerError` declares exactly two variants and is not
       `#[non_exhaustive]`, demonstrated by an integration test in
       `tracker/tests/` whose match over it has no wildcard arm and routes
       each class to a distinct outcome. Adding a third class is therefore
       a compile-breaking change for every consumer.
-- [ ] A committed fixture under `tracker/tests/fixtures/` enumerates all
+- [x] A committed fixture under `tracker/tests/fixtures/` enumerates all
       four of `work-item-bridge-codes.sh`'s dispatch codes and records
       which of them resolve above the port. One test reads the script
       itself and fails if the two sides disagree; a second asserts that
       exactly two codes map 1:1 onto `TrackerError`'s classes. Adding,
       removing or renaming a code on either side fails the build.
-- [ ] `RemoteIssue.updated` is a `RemoteTimestamp`; a test round-trips
+- [x] `RemoteIssue.updated` is a `RemoteTimestamp`; a test round-trips
       every `remote_updated_at` value committed under
       `tracker/tests/fixtures/` through the field and back out
       byte-identically. The fixture holds one real stamp per provider —
@@ -375,12 +380,12 @@ to reach and easy to hold stable once reached.
       `RemoteTimestamp` derives no `PartialOrd`/`Ord` and exposes no
       parsing or conversion method beyond `new` and `as_str`, so two
       values differing only in whitespace compare unequal.
-- [ ] `RemoteIssue.body`'s doc comment states that the value is the
+- [x] `RemoteIssue.body`'s doc comment states that the value is the
       already-projected domain body per the `work-item-project-remote.sh`
       recipe, and that reproducing it per provider is the implementing
       client's obligation — giving 0171's projection-fidelity criterion a
       referent in the contract rather than only in its own text.
-- [ ] `tracker` does not depend on `work`, enforced mechanically rather
+- [x] `tracker` does not depend on `work`, enforced mechanically rather
       than by review: its `Cargo.toml` declares neither a
       `[dependencies]` nor a `[dev-dependencies]` table, and the cargo-pup
       `RestrictImports` rule in `pup.ron` permits only
@@ -396,7 +401,7 @@ to reach and easy to hold stable once reached.
       the real workspace positively and cannot demonstrate the rule's
       discriminating power. Both sit on the `check-architecture` CI job,
       which `cli:check` does not cover.
-- [ ] The crate carries no behavioural logic: `tracker/src/` contains no
+- [x] The crate carries no behavioural logic: `tracker/src/` contains no
       `#[cfg(test)]` module and no function body other than the four
       inherent methods, the two `Display` impls and the `Error` impl
       named in Requirements, and the workspace manifest lists no
@@ -405,7 +410,7 @@ to reach and easy to hold stable once reached.
       dependency tables of the criterion above — none of them is visible
       to rustdoc JSON, so the public-API snapshot cannot see them. The
       no-extra-function-body half stays a manual read.
-- [ ] `mise run cli:check`, `mise run pup:check`, `mise run deny:check`
+- [x] `mise run cli:check`, `mise run pup:check`, `mise run deny:check`
       and `mise run public-api:check` all pass with the new crate
       registered, and the `tracker/tests/` fixtures are built and run by
       the workspace's `cargo nextest run` invocation rather than being
@@ -627,6 +632,16 @@ via a pending-push marker, and the port stays at four operations.
 
   The freeze protocol itself is unchanged, and applies from this revision
   onward.
+- Implemented 2026-08-12 against
+  `meta/plans/2026-08-11-0204-remote-tracker-port.md`, all three phases,
+  `mise run` green end to end. One acceptance criterion resolved to a
+  documented gap rather than a pass: giving an existing trait method a
+  default body is confirmed unguarded by both `port.rs` and
+  `public-api:check` — recorded on that criterion above and handed to
+  0171/0194 rather than worked around, since fixing it would need a
+  constructor or test AC 10 forbids. 0194 and 0171 have been told their
+  descriptions of the port were stale (five items, no `FetchOutcome`) —
+  see their own Drafting Notes.
 
 ## References
 
