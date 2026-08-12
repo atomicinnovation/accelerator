@@ -9,6 +9,7 @@ argument-hint: "[current-source-id] [target-source-id]"
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
 ---
 
@@ -118,11 +119,14 @@ must contain at least one paragraph meeting the cue-phrase contract.
 
 After generating the gap body, run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/audit-cue-phrases.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design audit-cue-phrases \
   "<draft-body-path>"
 ```
 
-**On failure**: the script names the offending H2 sections. Revise only those
+**On exit 2** (usage error — the file could not be read at all): report the
+error to the user and stop. There are no offending sections to revise.
+
+**On exit 1**: the audit names the offending H2 sections. Revise only those
 sections while keeping passing sections byte-identical. Re-run the audit. After
 three consecutive failures, write the rejected body to:
 ```

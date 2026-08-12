@@ -707,7 +707,7 @@ entry, the Concepts list, and an `ACCELERATOR_DESIGN_BIN` override row.
 
 #### Automated Verification
 
-- [ ] Characterization tests written first, derived from the deleted bash suites
+- [x] Characterization tests written first, derived from the deleted bash suites
       through an enumerated migration checklist: every assertion in
       `test-design.sh:169-338` and `:368-430`, plus `test-validate-source.sh` and
       `test-notify-downgrade.sh`, maps to a named Rust test or is recorded as a
@@ -725,13 +725,13 @@ entry, the Concepts list, and an `ACCELERATOR_DESIGN_BIN` override row.
       (differentiated by stderr content), IPv6 zone-id/mapped/wildcard/bracketed
       forms, decimal/hex/octal IPv4 encodings, the `user:pass@127.0.0.1@evil.com`
       userinfo class, `about:blank` acceptance, and unknown-flag exit 2
-- [ ] Every migration-checklist row for `validate-source` and `scrub-secrets` — the
+- [x] Every migration-checklist row for `validate-source` and `scrub-secrets` — the
       SSRF boundary and the credential-scrubbing front door — is **shown to fail
       when its property is broken**, not merely present: the same mutation-style
       proof the Removal sweep requires of its structural re-homes, applied here to
       the ~200 lines of behavioural assertion this phase deletes rather than
       re-homes
-- [ ] A table-driven `host_reach` test covers every **newly**-rejected encoding, since
+- [x] A table-driven `host_reach` test covers every **newly**-rejected encoding, since
       the migration checklist by construction only demands tests for behaviour the
       shell already had: `::ffff:169.254.169.254`, `::ffff:10.0.0.1`, `fd00::1`,
       `100.64.0.1`, `0.1.2.3`, `127.0.0.01`, `2002:a9fe:a9fe::`, `2001:0:...` (Teredo,
@@ -741,34 +741,34 @@ entry, the Concepts list, and an `ACCELERATOR_DESIGN_BIN` override row.
       `0:0:0:0:0:0:0:1` is the fully-expanded form of `::1` and is **not** in this
       list — it is `Loopback`, always accepted, and is covered instead by the
       widened-loopback-set test the `HostReach` section names
-- [ ] A dedicated `leaked_credentials` test covers the value-half split, the one
+- [x] A dedicated `leaked_credentials` test covers the value-half split, the one
       genuinely new behaviour among the ported subcommands with no shell equivalent
       to derive a migration-checklist row from — the same treatment `host_reach`
       gets above and for the same reason: a `Name: token` header value (e.g.
       `ACCELERATOR_BROWSER_AUTH_HEADER=Authorization: Bearer abc123`) matches an
       artefact containing only `abc123`; the report names the variable and never the
       value; the header name alone does not false-positive
-- [ ] The downgrade goldens are exhaustive by construction — the test iterates the
+- [x] The downgrade goldens are exhaustive by construction — the test iterates the
       reason enum, so a variant without a golden fails — replacing
       `test-notify-downgrade.sh`'s message-key/fixture set-equality check
-- [ ] `mise run cli:check` exits 0 (including the new pup rules)
-- [ ] `cargo nextest run -p accelerator-design -p design -p design-adapters`
+- [x] `mise run cli:check` exits 0 (including the new pup rules)
+- [x] `cargo nextest run -p accelerator-design -p design -p design-adapters`
       passes
-- [ ] `mise run lint:dispatch-coherence:check` exits 0
-- [ ] `mise run test:unit:tasks` passes with the updated registry pins
-- [ ] `mise run test:integration:config` passes with the updated `EMITTERS` array
-- [ ] `mise run deny:check` exits 0
-- [ ] `mise run docs:check` exits 0
-- [ ] `mise run` exits 0 end to end
+- [x] `mise run lint:dispatch-coherence:check` exits 0
+- [x] `mise run test:unit:tasks` passes with the updated registry pins
+- [x] `mise run test:integration:config` passes with the updated `EMITTERS` array
+- [x] `mise run deny:check` exits 0
+- [x] `mise run docs:check` exits 0
+- [x] `mise run` exits 0 end to end
 
 #### Manual Verification
 
-- [ ] `accelerator design validate-source https://example.com` exits 0;
+- [x] `accelerator design validate-source https://example.com` exits 0;
       `http://example.com` exits 1; `--allow-insecure-scheme` flips it to 0
-- [ ] `accelerator design validate-source 0x7f000001` exits 1 with the numeric
+- [x] `accelerator design validate-source 0x7f000001` exits 1 with the numeric
       IPv4 message, and no flag bypasses it
-- [ ] `accelerator design scrub-secrets /nonexistent` exits **2**, not 1
-- [ ] Each ported downgrade reason reproduces its existing golden fixture byte for
+- [x] `accelerator design scrub-secrets /nonexistent` exits **2**, not 1
+- [x] Each ported downgrade reason reproduces its existing golden fixture byte for
       byte — except `executor-ping-failed`, whose remediation text names `run.sh` and
       is rewritten in Phase 6 §5, the phase that deletes it
 - [ ] Both design skills run end to end in a live session

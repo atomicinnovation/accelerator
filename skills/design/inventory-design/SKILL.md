@@ -10,6 +10,7 @@ argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)
 ---
@@ -52,7 +53,7 @@ snapshots.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/validate-source.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design validate-source \
   "<location>" ${allow_internal_flag} ${allow_insecure_scheme_flag}
 ```
 
@@ -80,7 +81,7 @@ naming the offending characters and stop.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/resolve-auth.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design resolve-auth
 ```
 
 Capture the output (`header`, `form`, or `none`). If it exits non-zero, report
@@ -129,7 +130,8 @@ Capture its stdout, stderr, and exit code.
     and record it in `Crawl Notes`. Then skip to Step 7 (no ping needed).
   - If provisional mode was `runtime`: hard-fail with the bootstrap stderr and stop.
 
-**Downgrade notice**: run `notify-downgrade.sh --from <mode> --to code --reason <enum>` and
+**Downgrade notice**: run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design notify-downgrade --from <mode>
+--to code --reason <enum>` and
 print its stdout **before the crawl starts** (not only in Crawl Notes).
 
 ### 5. Confirm Executor Liveness
@@ -141,8 +143,8 @@ ${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh p
 
 - **Returns `{"ok":true,...}`** → executor is healthy; proceed to Step 6.
 - **Returns error JSON or fails** → treat as `executor-ping-failed`.
-  - If provisional mode was `hybrid`: downgrade to `code`. Run `notify-downgrade.sh --from hybrid
-    --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
+  - If provisional mode was `hybrid`: downgrade to `code`. Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design
+    notify-downgrade --from hybrid --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
   - If provisional mode was `runtime`: hard-fail with the ping error and stop.
 
 ### 6. Finalize Crawler Mode
@@ -270,7 +272,7 @@ the values resolved in earlier steps.
 **Pre-write secret scrubber**: before moving the tmp directory to its final name,
 run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/scrub-secrets.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design scrub-secrets \
   "<tmp_dir>/inventory.md"
 ```
 If it exits non-zero, delete the tmp directory and report the error. Do not write

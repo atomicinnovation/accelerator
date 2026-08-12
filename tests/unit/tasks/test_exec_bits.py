@@ -272,10 +272,7 @@ _RECONCILED_LIBRARIES = frozenset(
 # production, so they are entrypoints that must stay OFF the list at 0755.
 # Pinning them is the regression net for the single most error-prone
 # classification.
-_DUAL_USE_SCRIPTS = (
-    "skills/design/inventory-design/scripts/validate-source.sh",
-    "skills/integrations/jira/scripts/jira-fields.sh",
-)
+_DUAL_USE_SCRIPTS = ("skills/integrations/jira/scripts/jira-fields.sh",)
 
 
 class TestShellLibrariesIntegrity:

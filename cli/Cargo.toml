@@ -26,7 +26,10 @@ members = [
     "migrate",
     "migrate-adapters",
     "migrate-cli",
-    "tracker"
+    "tracker",
+    "design",
+    "design-adapters",
+    "design-cli"
 ]
 
 [workspace.package]

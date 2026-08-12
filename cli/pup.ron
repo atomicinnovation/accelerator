@@ -225,6 +225,43 @@
                 ),
             ],
         )),
+        // The whole design crate is domain (no adapter modules live in it).
+        // The compiled cue-phrase regex and every filesystem, environment and
+        // process read live in design-adapters, injected through ports.
+        Module((
+            name: "design_domain_imports_only_permitted",
+            matches: Module("^design($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // Mirrors vcs_adapters_library_reads_in_process, and scoped the same
+        // way and for the same reason: the two modules named here read in
+        // process, while the sibling `process` module the Playwright launcher
+        // needs — daemon spawn, signalling, and the start-time probe — spawns
+        // by design. Landing this crate-wide and weakening it when that module
+        // arrives would read as a rule nobody meant.
+        Module((
+            name: "design_adapters_read_in_process",
+            matches: Module("^design_adapters::(filesystem|environment)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // The config command's inbound hexagon must not reach the composition
         // root's adapter crate (`config_adapters`) nor a sibling launcher
         // module (`crate::launch`), so the injected-ports seam cannot erode.
