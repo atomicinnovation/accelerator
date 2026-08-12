@@ -39,9 +39,15 @@ applies when uninstalling entirely: remove your link. See
 ## Claude Code compatibility
 
 This plugin relies on Claude Code's subagent `skills:` preload mechanism
-to inject configuration context into agents (e.g. `paths`
-into the `documents-*` agents, `browser-executor` into the
-`browser-*` agents). **Minimum supported Claude Code: v2.1.144.**
+to inject configuration context into agents — `paths` into the
+`documents-*` agents. **Minimum supported Claude Code: v2.1.144.**
 Earlier releases may not support the mechanism; later releases that
 change subagent skill-preloading semantics will surface the failure via
 the agents' Preload guards.
+
+The browser agents previously relied on the same mechanism, through a
+`browser-executor` skill that resolved the executor's absolute path for them.
+They now invoke `accelerator design executor` as a bare command, since a
+plugin's `bin/` directory is added to the Bash tool's `PATH`. That removes one
+of the two consumers of the preload mechanism; `paths` still requires it, so
+the floor is unchanged.

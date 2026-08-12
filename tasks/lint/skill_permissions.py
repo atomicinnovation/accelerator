@@ -45,6 +45,10 @@ from tasks.shared.sources import repo_root
 # Injection is expected in exactly this many skills (42 at the migration's final
 # state). Bump deliberately when a skill's context/instructions injection is
 # genuinely added or removed — the equality is what catches an accidental loss.
+#
+# Unmoved by `browser-executor`'s retirement: that skill injected an executor
+# path through its own script, never `accelerator config context|instructions`,
+# so it was never one of the counted skills.
 EXPECTED_INJECTION_SKILLS = 42
 
 _CONFIG_MARKER = "/bin/accelerator config "

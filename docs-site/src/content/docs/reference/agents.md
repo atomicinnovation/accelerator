@@ -76,8 +76,9 @@ aggressively so only relevant material returns to the caller.
 ## Browser agents
 
 Both browser agents drive a running web application through the
-Playwright executor (`run.sh`), whose path is injected via the preloaded
-`browser-executor` skill. They are used by the
+Playwright executor, invoked as `accelerator design executor <command>`. A
+plugin's `bin/` directory is on the Bash tool's `PATH`, so the agents need no
+path resolved for them. They are used by the
 [design convergence](../skills/design-convergence.md) workflow.
 
 ### browser-locator
