@@ -45,8 +45,9 @@ too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain), `pup:check` (cargo-pup
-architecture, on an isolated nightly lane) and `public-api:check`
-(cargo-public-api surface pin, sharing that same nightly lane). `pup.ron`
+architecture) and `public-api:check` (cargo-public-api surface pin). The last
+two are the build steps that run on the isolated nightly lane — see "The Rust
+nightly lane" below. `pup.ron`
 carries one rule per
 domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
 library-backed VCS adapter's imports to a permit list and denies `std::process`
@@ -258,51 +259,83 @@ darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
-### Rust nightly lane (cargo-pup, cargo-public-api)
+### The Rust nightly lane
 
-Architecture enforcement (the ADR-0053 inward-dependency rule) runs via
-**cargo-pup**, a compiler plugin that needs a **second, pinned nightly**
-toolchain (`PUP_NIGHTLY` / `PUP_VERSION` in `tasks/shared/rust.py`, a matched
-pair). Everything else — the product build and every other check — stays on the
-mise-pinned stable `1.90.0`. **cargo-public-api** shares this lane for its
-own reason: it builds on stable (it has no `rustc_private` driver, so it needs
-no matched pair of its own) but shells out to the pinned nightly's `rustdoc` to
-produce the JSON it reads, pinned separately as `PUBLIC_API_VERSION`.
+#### The toolchain
 
-- **Isolated by construction.** The nightly is provisioned by
-  `deps:install:pup` (rustup-managed, deliberately *not* a mise `[tool]`: mise
-  cannot pin two rust toolchains, and a `cargo:` backend would build cargo-pup
-  against stable and fail to load). Only `pup:check`, `test:integration:pup`,
-  `public-api:check` and their `deps:install:*` steps consume the nightly lane,
-  and only the `check-architecture` CI job runs them. A nightly break (or a
-  GC'd pinned nightly) therefore reddens `check-architecture` alone; every
-  stable-lane check and the product build stay green. `pup:check` and
-  `public-api:check` are both wired into the top-level `check`, so a local
-  `mise run check` still exercises them. The isolation is guarded by
-  `tests/unit/tasks/test_workflows.py`.
-- **First run is slow.** `deps:install:pup` builds cargo-pup from source
-  (multi-minute) the first time, and `deps:install:public-api` similarly
-  builds cargo-public-api from source (no publishable binary exists for an
-  aqua/ubi pin); a presence probe skips each rebuild in steady state, so
-  subsequent `pup:check` / `public-api:check` runs are fast.
-- **Bumping the pin.** `PUP_NIGHTLY` and `PUP_VERSION` are a matched pair —
-  cargo-pup's `rustc_private` driver only loads under the nightly it was built
-  against — so bump them **together**. Dated nightlies are GC'd from
-  `static.rust-lang.org` after a window; when the pinned one disappears,
-  `deps:install:pup` fails with an actionable message naming the pin. Before
-  committing a bump, verify the upstream release's published
-  checksum/attestation (mirroring the SHA-256/SLSA discipline the visualiser
-  binary gets via the signed `manifest.json`). After a `PUP_NIGHTLY` bump, also
-  re-verify `PUBLIC_API_VERSION` against the new nightly's rustdoc-JSON format,
-  regenerate every pinned crate's snapshot with `mise run public-api:update`,
-  and read the diff as toolchain-induced before accepting it.
+`RUST_NIGHTLY` in `tasks/shared/rust.py` names the **one** nightly toolchain
+this repository provisions. It exists because two capabilities are nightly-only:
+the `rustc_private` compiler internals a compiler plugin links against, and
+rustdoc's JSON output. Everything else — the product build and every other
+check — stays on the mise-pinned stable `1.90.0`.
+
+`deps:install:nightly` provisions it, rustup-managed and deliberately *not* a
+mise `[tool]`: mise cannot pin two rust toolchains, and a `cargo:` backend would
+build a compiler plugin against stable, where its driver fails to load. It is
+installed `--profile minimal` plus `rustc-dev`, `rust-src` and
+`llvm-tools-preview`, and every consumer reaches it as `cargo +<nightly>` —
+never as a rustup default or a directory override.
+
+Every nightly-lane task depends on that one install task, directly or through
+its tool's install task, so the toolchain is provisioned once rather than raced
+for on `~/.rustup`.
+
+Dated nightlies are GC'd from `static.rust-lang.org` after a window. When the
+pinned one disappears, `deps:install:nightly` fails with an actionable message
+naming the pin, before any `+nightly` invocation can emit an opaque "override
+does not resolve". Bumping it is not free — see the per-step coupling below.
+
+#### The build steps that use it
+
+| Step                     | Tool             | Pin                  | Why nightly                                              |
+|--------------------------|------------------|----------------------|----------------------------------------------------------|
+| `pup:check`              | cargo-pup        | `PUP_VERSION`        | compiler plugin — links `rustc_private`                  |
+| `test:integration:pup`   | cargo-pup        | `PUP_VERSION`        | drives the same plugin against a synthetic workspace     |
+| `public-api:check`       | cargo-public-api | `PUBLIC_API_VERSION` | shells out to `rustdoc` for its JSON                     |
+
+`pup:check` enforces the ADR-0053 inward-dependency rule; `public-api:check`
+holds each named crate's surface against a committed snapshot. They couple to
+`RUST_NIGHTLY` with **different strength**, and that difference decides what a
+bump costs:
+
+- **cargo-pup is a matched pair with the nightly.** Its `rustc_private` driver
+  only loads under the toolchain it was *built* against, so `RUST_NIGHTLY` and
+  `PUP_VERSION` move **together** — take the new date from the cargo-pup
+  release's own `rust-toolchain.toml`. The nightly's date is therefore dictated
+  by this step, not chosen freely.
+- **cargo-public-api is coupled only by a data format.** It has no driver and
+  builds on stable, needing the nightly solely for the rustdoc JSON it parses.
+  After a `RUST_NIGHTLY` bump, re-verify `PUBLIC_API_VERSION` supports the new
+  nightly's JSON format, regenerate every pinned crate's snapshot with `mise run
+  public-api:update`, and read the diff as toolchain-induced before accepting
+  it.
+
+Before committing either tool bump, verify the upstream release's published
+checksum/attestation — mirroring the SHA-256/SLSA discipline the visualiser
+binary gets via the signed `manifest.json`.
+
+#### Isolation
+
+Only the steps in the table above and their `deps:install:*` tasks consume the
+nightly, and only the `check-architecture` CI job runs them. A nightly break (or
+a GC'd pinned nightly) therefore reddens `check-architecture` alone; every
+stable-lane check and the product build stay green. The isolation is guarded by
+`tests/unit/tasks/test_workflows.py`, which detects a consumer by task name —
+**a new nightly-lane step must add its name to that marker list**, or a later
+leak of it into a stable job goes unnoticed. Both `pup:check` and
+`public-api:check` are wired into the top-level `check`, so a local `mise run
+check` still exercises them.
+
+- **First run is slow.** Both tools are built from source (multi-minute each) —
+  neither publishes a binary suited to an aqua/ubi pin. A presence probe skips
+  each rebuild in steady state, so subsequent runs are fast.
 - **`mise.lock` refresh.** The committed `mise.lock` hash-pins the aqua-backed
   tools. On **any** `[tools]` edit (or aqua pin bump), regenerate it — `mise
   lock --platform linux-x64,macos-arm64,macos-x64` (all matrix platforms) — and
   commit the result, so a lock authored on one arch does not force a fetch or
-  dirty the tree on another. It does **not** cover the from-source cargo-pup or
-  cargo-public-api builds, nor the rustup nightly (two accepted unverified
-  surfaces on the isolated lane).
+  dirty the tree on another. It covers **neither** the rustup nightly nor either
+  tool built against it: three accepted unverified surfaces, all confined to
+  this lane.
 
 ### File-descriptor limit on the cross-compiles
 

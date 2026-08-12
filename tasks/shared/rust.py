@@ -1,17 +1,29 @@
 import os
 
 LAUNCHER_CRATE = "accelerator"  # cli/launcher/Cargo.toml [package] name
-# PUP_NIGHTLY + PUP_VERSION are a matched pair (cargo-pup's rustc-driver only
-# loads under the nightly it was built against); bump them together.
+
+# The one nightly toolchain this repository provisions, for the build steps
+# that need a capability stable does not expose: the `rustc_private` compiler
+# internals a compiler plugin links against, and rustdoc's JSON output. It is
+# rustup-managed (mise cannot pin two rust toolchains) and always invoked as
+# `cargo +RUST_NIGHTLY`. Nothing else — no product build, no other check —
+# leaves the mise-pinned stable.
 #
-# public-api:check also shells out to this nightly's `rustdoc` to produce the
-# JSON cargo-public-api reads, but that pairing is looser: cargo-public-api has
-# no rustc_private driver, so it builds on stable and only needs the nightly's
-# rustdoc-JSON *format* to stay within its supported range. After bumping
-# PUP_NIGHTLY, re-verify PUBLIC_API_VERSION against the new nightly before
-# accepting any resulting snapshot diff as toolchain-induced.
-PUP_NIGHTLY = "nightly-2026-01-22"  # cargo-pup v0.1.8 rust-toolchain.toml
+# Its date is dictated by the strongest coupling below, not chosen freely.
+RUST_NIGHTLY = "nightly-2026-01-22"
+
+# cargo-pup — the architecture check (pup:check, test:integration:pup).
+# A matched pair with RUST_NIGHTLY: the tool carries a `rustc_private` driver,
+# so its binary only loads under the nightly it was *built* against. Bump the
+# two together, taking the date from the cargo-pup release's own
+# rust-toolchain.toml.
 PUP_VERSION = "0.1.8"
+
+# cargo-public-api — the surface pin (public-api:check).
+# Coupled to RUST_NIGHTLY only through the rustdoc-JSON format: the tool has no
+# driver, so it builds on stable and merely shells out to the nightly's
+# `rustdoc`. After a RUST_NIGHTLY bump, re-verify this pin supports the new
+# nightly's JSON format before accepting a snapshot diff as toolchain-induced.
 PUBLIC_API_VERSION = "0.52.0"
 
 _FALSEY = {"off", "false", "0", "no"}
@@ -41,7 +53,7 @@ def pup_mode() -> str:
     hatch; an unrecognised value is treated as "deny" (fail-closed) but printed
     as a WARNING so the typo is visible rather than silently blocking. NOTE:
     warn covers a cargo-pup *findings* failure, not a toolchain-*unavailable*
-    failure (which fails in deps:install:pup before any check runs).
+    failure (which fails in deps:install:nightly before any check runs).
     """
     raw = os.environ.get("ACCELERATOR_PUP_MODE", "deny").strip().lower()
     if raw not in _PUP_MODES:

@@ -309,21 +309,24 @@ jobs:
           # cli workspace (under the nightly toolchain).
           workspaces: cli
 
-      # This is the only nightly-consuming job. pup:check self-provisions the
-      # nightly + cargo-pup (rebuilt from source each run — no trustworthy
-      # per-OS prebuilt checksum) via its deps:install:pup dependency. It sets
-      # no ACCELERATOR_PUP_MODE, so CI runs the fail-closed `deny` default —
-      # `warn` can never be the CI default.
+      # This is the only nightly-consuming job. Every step below reaches the
+      # pinned nightly through deps:install:nightly, pulled in behind its
+      # tool's install task, so the toolchain is provisioned once and no two
+      # steps race on ~/.rustup. Both tools are rebuilt from source each run —
+      # neither has a trustworthy per-OS prebuilt checksum.
+      #
+      # The first step sets no ACCELERATOR_PUP_MODE, so CI runs the fail-closed
+      # `deny` default — `warn` can never be the CI default.
       - name: Run architecture check (self-provisions the nightly lane)
         run: mise run pup:check
 
       - name: Run cargo-pup behavioural regression
         run: mise run test:integration:pup
 
-      # public-api:check shares this job rather than getting its own: it
-      # reuses pup:check's pinned nightly for rustdoc-JSON, so splitting it out
-      # would only duplicate the nightly provisioning.
-      - name: Pin the tracker crate's public API
+      # Shares this job rather than getting its own: it needs the same nightly
+      # for rustdoc's JSON output, and a job of its own would only provision
+      # that toolchain a second time.
+      - name: Pin each named crate's public API
         run: mise run public-api:check
 
   check-zero-spawn:

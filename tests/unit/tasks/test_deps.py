@@ -5,9 +5,9 @@ import pytest
 from invoke import Context, Exit
 
 from tasks import deps
-from tasks.shared.rust import PUBLIC_API_VERSION, PUP_NIGHTLY, PUP_VERSION
+from tasks.shared.rust import PUBLIC_API_VERSION, PUP_VERSION, RUST_NIGHTLY
 
-_PUP_COMPONENTS = ("rustc-dev", "rust-src", "llvm-tools-preview")
+_NIGHTLY_COMPONENTS = ("rustc-dev", "rust-src", "llvm-tools-preview")
 _PRESENT_VERSION = (
     f"\x1b[1mcargo-pup version\x1b[0m \x1b[32m{PUP_VERSION}\x1b[0m"
 )
@@ -56,21 +56,45 @@ class TestInstallRustComponents:
         )
 
 
-class TestInstallPup:
+class TestInstallNightly:
     def test_installs_the_pinned_nightly_with_all_components(
         self, ctx: MagicMock
     ):
-        ctx.run.side_effect = _runner(version_stdout=_PRESENT_VERSION)
-        deps.install_pup(ctx)
+        deps.install_nightly(ctx)
         rustup = next(
             c
             for c in _commands(ctx)
             if c.startswith("rustup toolchain install")
         )
-        assert PUP_NIGHTLY in rustup
-        for component in _PUP_COMPONENTS:
+        assert RUST_NIGHTLY in rustup
+        for component in _NIGHTLY_COMPONENTS:
             assert f"--component {component}" in rustup
 
+    def test_runs_the_override_preflight(self, ctx: MagicMock):
+        deps.install_nightly(ctx)
+        assert f"cargo +{RUST_NIGHTLY} --version" in _commands(ctx)
+
+    def test_installs_no_nightly_lane_tool(self, ctx: MagicMock):
+        # The toolchain task provisions the toolchain and nothing else: each
+        # tool that reaches for it owns its own install task.
+        deps.install_nightly(ctx)
+        assert not any("cargo install" in c for c in _commands(ctx))
+
+    def test_install_failure_reraised_as_exit_naming_pin(self, ctx: MagicMock):
+        # The actionable-error contract: a GC'd nightly yields an Exit naming
+        # RUST_NIGHTLY, not a raw rustup stack trace. Mocked — no real nightly.
+        ctx.run.side_effect = _runner(fail="rustup toolchain install")
+        with pytest.raises(Exit) as exc_info:
+            deps.install_nightly(ctx)
+        assert RUST_NIGHTLY in str(exc_info.value)
+
+    def test_raises_when_override_preflight_fails(self, ctx: MagicMock):
+        ctx.run.side_effect = _runner(fail=f"cargo +{RUST_NIGHTLY} --version")
+        with pytest.raises(Exit):
+            deps.install_nightly(ctx)
+
+
+class TestInstallPup:
     def test_skips_install_when_pinned_version_already_present(
         self, ctx: MagicMock
     ):
@@ -82,34 +106,24 @@ class TestInstallPup:
         ctx.run.side_effect = _runner(version_stdout=_ABSENT_VERSION)
         deps.install_pup(ctx)
         assert (
-            f"cargo +{PUP_NIGHTLY} install cargo_pup "
+            f"cargo +{RUST_NIGHTLY} install cargo_pup "
             f"--version {PUP_VERSION} --locked"
         ) in _commands(ctx)
 
-    def test_runs_the_override_preflight(self, ctx: MagicMock):
-        ctx.run.side_effect = _runner(version_stdout=_PRESENT_VERSION)
+    def test_provisions_no_toolchain(self, ctx: MagicMock):
+        # The nightly arrives via the deps:install:nightly edge, so a second
+        # rustup install here would race the first on ~/.rustup.
+        ctx.run.side_effect = _runner(version_stdout=_ABSENT_VERSION)
         deps.install_pup(ctx)
-        assert f"cargo +{PUP_NIGHTLY} --version" in _commands(ctx)
+        assert not any("rustup toolchain install" in c for c in _commands(ctx))
 
-    def test_nightly_install_failure_reraised_as_exit_naming_pin(
-        self, ctx: MagicMock
-    ):
-        # The actionable-error contract: a GC'd nightly yields an Exit naming
-        # PUP_NIGHTLY, not a raw rustup stack trace. Mocked — no real nightly.
+    def test_install_failure_reraised_as_exit_naming_pin(self, ctx: MagicMock):
         ctx.run.side_effect = _runner(
-            version_stdout=_PRESENT_VERSION, fail="rustup toolchain install"
+            version_stdout=_ABSENT_VERSION, fail="install cargo_pup"
         )
         with pytest.raises(Exit) as exc_info:
             deps.install_pup(ctx)
-        assert PUP_NIGHTLY in str(exc_info.value)
-
-    def test_raises_when_override_preflight_fails(self, ctx: MagicMock):
-        ctx.run.side_effect = _runner(
-            version_stdout=_PRESENT_VERSION,
-            fail=f"cargo +{PUP_NIGHTLY} --version",
-        )
-        with pytest.raises(Exit):
-            deps.install_pup(ctx)
+        assert PUP_VERSION in str(exc_info.value)
 
 
 class TestInstallPublicApi:
@@ -131,6 +145,20 @@ class TestInstallPublicApi:
             f"cargo install cargo-public-api --version {PUBLIC_API_VERSION} "
             "--locked"
         ) in _commands(ctx)
+
+    def test_installs_on_stable_and_provisions_no_toolchain(
+        self, ctx: MagicMock
+    ):
+        # cargo-public-api has no rustc_private driver, so it builds on stable;
+        # the nightly it shells out to at check time arrives via the
+        # deps:install:nightly edge, never from here.
+        ctx.run.side_effect = _runner(
+            public_api_version_stdout=_PUBLIC_API_ABSENT_VERSION
+        )
+        deps.install_public_api(ctx)
+        commands = _commands(ctx)
+        assert not any("rustup toolchain install" in c for c in commands)
+        assert not any(f"+{RUST_NIGHTLY}" in c for c in commands)
 
     def test_install_failure_reraised_as_exit_naming_pin(self, ctx: MagicMock):
         ctx.run.side_effect = _runner(

@@ -6,7 +6,7 @@ from invoke import Context, Exit
 
 from tasks import public_api, pup
 from tasks.shared import rust
-from tasks.shared.rust import PUP_NIGHTLY
+from tasks.shared.rust import RUST_NIGHTLY
 from tasks.test import cli as test_cli
 
 
@@ -75,7 +75,7 @@ class TestCoverageEnabled:
 class TestPupCheck:
     def test_runs_pup_on_the_pinned_nightly(self, ctx: MagicMock):
         pup.check(ctx)
-        assert ctx.run.call_args.args[0] == f"cargo +{PUP_NIGHTLY} pup"
+        assert ctx.run.call_args.args[0] == f"cargo +{RUST_NIGHTLY} pup"
 
     def test_deny_mode_raises_on_findings(
         self, ctx: MagicMock, monkeypatch: pytest.MonkeyPatch
@@ -160,7 +160,7 @@ class TestPublicApiCheck:
         )
         public_api.check(ctx)
         assert ctx.run.call_args.args[0] == (
-            f"cargo +{PUP_NIGHTLY} public-api "
+            f"cargo +{RUST_NIGHTLY} public-api "
             "--omit blanket-impls,auto-trait-impls "
             "--include function-parameter-names -p widget"
         )

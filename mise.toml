@@ -38,12 +38,11 @@ jq = "1.7.1"
 experimental = true
 # Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
 # + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
-# aqua:rhysd/actionlint. Does NOT cover the from-source cargo-pup build or the
-# rustup-managed nightly (an accepted unverified surface for the isolated lane),
-# nor the from-source cargo-public-api build installed by
-# deps:install:public-api (a second accepted exception, on the same lane): it
-# has no publishable binary suited to an aqua/ubi pin, unlike every other
-# third-party tool here.
+# aqua:rhysd/actionlint. Does NOT cover the rustup-managed nightly
+# (deps:install:nightly) or either tool built from source against it — cargo-pup
+# and cargo-public-api. Those are three accepted unverified surfaces, all
+# confined to the isolated nightly lane: neither tool has a publishable binary
+# suited to an aqua/ubi pin, unlike every other third-party tool here.
 lockfile = true
 
 [hooks]
@@ -61,12 +60,18 @@ run = "invoke deps.install-rust-targets"
 description = "Install the rustfmt + clippy + llvm-tools-preview rustup components the cli checks need (mise [tools] `components` is not honoured for an already-present toolchain)"
 run = "invoke deps.install-rust-components"
 
+[tasks."deps:install:nightly"]
+description = "Provision the pinned nightly toolchain shared by every nightly-lane build step (rustup-managed, not a mise [tool] — mise cannot pin two rust toolchains)"
+run = "invoke deps.install-nightly"
+
 [tasks."deps:install:pup"]
-description = "Provision the cargo-pup nightly toolchain + pinned cargo-pup (rustup-managed, not a mise [tool])"
+description = "Provision the pinned cargo-pup (built under the nightly: its rustc_private driver only loads under the toolchain it was compiled against)"
+depends = ["deps:install:nightly"]
 run = "invoke deps.install-pup"
 
 [tasks."deps:install:public-api"]
-description = "Provision the pinned cargo-public-api (builds on stable; no rustc_private driver, so no toolchain of its own)"
+description = "Provision the pinned cargo-public-api (built on stable; needs the nightly only for the rustdoc it shells out to at check time)"
+depends = ["deps:install:nightly"]
 run = "invoke deps.install-public-api"
 
 [tasks."deps:install:node"]
@@ -536,13 +541,13 @@ depends = ["deps:install:pup", "build:frontend:stub"]
 run = "invoke pup.check"
 
 [tasks."public-api:check"]
-description = "Pin each named crate's public API against its committed snapshot with cargo-public-api (reuses the pinned cargo-pup nightly's rustdoc)"
-depends = ["deps:install:public-api", "deps:install:pup"]
+description = "Pin each named crate's public API against its committed snapshot with cargo-public-api (nightly lane: rustdoc emits its JSON only there)"
+depends = ["deps:install:public-api"]
 run = "invoke public-api.check"
 
 [tasks."public-api:update"]
 description = "Regenerate every pinned crate's public-API snapshot with cargo-public-api"
-depends = ["deps:install:public-api", "deps:install:pup"]
+depends = ["deps:install:public-api"]
 run = "invoke public-api.update"
 
 [tasks."format:frontend:check"]

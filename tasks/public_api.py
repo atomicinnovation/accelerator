@@ -3,7 +3,7 @@ from pathlib import Path
 from invoke import Context, Exit, Result, task
 
 from tasks.shared.paths import CLI_DIR
-from tasks.shared.rust import PUP_NIGHTLY
+from tasks.shared.rust import RUST_NIGHTLY
 
 # Crates whose surface this lane pins, named explicitly: a new library crate
 # is exempt from the pin until it is added here.
@@ -15,15 +15,13 @@ def _snapshot(crate: str) -> Path:
 
 
 def _render(context: Context, crate: str) -> Result:
-    # Reuses the cargo-pup lane's pinned nightly for its rustdoc-JSON build;
-    # cargo-public-api itself has no rustc_private driver, so it builds on
-    # stable and needs no toolchain of its own. function-parameter-names is
-    # load-bearing, not cosmetic — without it a same-typed parameter swap
-    # (e.g. create's title/body) renders identically and the pin would not
-    # catch it.
+    # Runs on RUST_NIGHTLY for one reason: rustdoc emits its JSON only there.
+    # function-parameter-names is load-bearing, not cosmetic — without it a
+    # same-typed parameter swap (e.g. create's title/body) renders identically
+    # and the pin would not catch it.
     with context.cd(str(CLI_DIR)):
         return context.run(
-            f"cargo +{PUP_NIGHTLY} public-api "
+            f"cargo +{RUST_NIGHTLY} public-api "
             "--omit blanket-impls,auto-trait-impls "
             f"--include function-parameter-names -p {crate}",
             warn=True,
@@ -37,9 +35,9 @@ def check(context: Context) -> None:
     """Pin each crate's public API against its committed snapshot.
 
     Provisioning is guaranteed by the mise `depends` edge on
-    deps:install:public-api. Reads rustdoc JSON, so the pin is immune to
-    source formatting and catches a derive semantically, as the impls it
-    generates.
+    deps:install:public-api, which pulls the nightly in behind it. Reads rustdoc
+    JSON, so the pin is immune to source formatting and catches a derive
+    semantically, as the impls it generates.
     """
     for crate in _PINNED_CRATES:
         snapshot = _snapshot(crate)

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from tasks.shared.rust import PUP_NIGHTLY
+from tasks.shared.rust import RUST_NIGHTLY
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLI_DIR = REPO_ROOT / "cli"
@@ -136,7 +136,7 @@ def _require_tools() -> None:
 
 def _pup(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["cargo", f"+{PUP_NIGHTLY}", "pup", *args],
+        ["cargo", f"+{RUST_NIGHTLY}", "pup", *args],
         cwd=cwd,
         capture_output=True,
         text=True,

@@ -346,15 +346,18 @@ def test_invariants_reject_known_bad_shapes(wf, mutate):
         _invariants(bad)
 
 
-# --- Nightly-lane isolation: cargo-pup and cargo-public-api both run on the
-#     pinned nightly, and that toolchain must stay confined to a single job so
-#     a nightly break gates the architecture check alone, never a stable-lane
-#     check or the product build.
+# --- Nightly-lane isolation: the pinned nightly toolchain must stay confined
+#     to a single job, so a nightly break gates the architecture check alone
+#     and never a stable-lane check or the product build. Every build step that
+#     reaches for it — today pup:check, its regression, and public-api:check —
+#     therefore belongs to that one job.
 
 # A job consumes the nightly iff its steps run any of these (name-agnostic
 # detection, so renaming the job cannot smuggle a second consumer past the
-# guard).
+# guard). A new nightly-lane build step must add its task name here, or a later
+# leak of it into a stable job goes undetected.
 _NIGHTLY_MARKERS = (
+    "deps:install:nightly",
     "pup:check",
     "deps:install:pup",
     "public-api:check",
