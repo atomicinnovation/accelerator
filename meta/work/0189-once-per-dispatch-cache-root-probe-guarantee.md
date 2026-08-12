@@ -5,7 +5,7 @@ title: "At-Most-Once Guarantee for the Launcher's Cache-Root Probe"
 date: "2026-08-03T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
-status: draft
+status: in-progress
 kind: task
 priority: low
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0189: At-Most-Once Guarantee for the Launcher's Cache-Root Probe
 
 **Kind**: Task
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Low
 **Author**: Toby Clemson
 
