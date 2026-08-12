@@ -26,3 +26,7 @@ export function emitErrorAndExit(env, code = 1) {
   process.stderr.write(JSON.stringify(env) + '\n');
   process.exit(code);
 }
+
+// The header the launcher's token is presented in. Shared so the daemon and
+// the client cannot disagree about its name.
+export const TOKEN_HEADER = 'x-accelerator-token';

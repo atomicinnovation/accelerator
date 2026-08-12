@@ -7,11 +7,13 @@
 // or per-op wall-clock timeout.
 
 import { createServer } from 'node:http';
-import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir, processStartSeconds } from './state.js';
+import { timingSafeEqual } from 'node:crypto';
+import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
+import { readIdentity } from './identity-handoff.js';
 import { makeAuthHeaderHandler } from './auth-header.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
-import { makeError, protocolMismatch, PROTOCOL } from './errors.js';
+import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
@@ -30,6 +32,11 @@ const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'links', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
 
 export async function startDaemon({ stateDir }) {
+  // Before the state dir, before any browser, before the listening socket: if
+  // the launcher did not complete its handoff there is nothing to publish, and
+  // a daemon that ran on anyway would be unsupervised and un-recorded.
+  const identity = readIdentity();
+
   ensureStateDir(stateDir);
 
   let browser = null;
@@ -281,9 +288,75 @@ export async function startDaemon({ stateDir }) {
     }
   }
 
+  // ------ Request authentication ------------------------------------------
+
+  // A loopback TCP socket is not a uid boundary on Unix. A different local
+  // user on a shared host cannot read the 0600 server-info.json holding this
+  // token, but could otherwise connect to this port and drive the crawl's
+  // browser session — and the pages the crawl itself visits could reach it by
+  // CSRF or DNS rebinding. The token closes both.
+  //
+  // It does NOT defend against a same-uid process, which can simply read the
+  // token file. That is stated rather than implied, so nobody mistakes this
+  // for a sandbox.
+  function authenticate(req) {
+    // A legitimate client has no reason to send one, and a browser cannot
+    // suppress it — so its presence means the request came from a page.
+    if (req.headers.origin !== undefined) {
+      return makeError({
+        error: 'origin-rejected',
+        message: 'Requests carrying an Origin header are refused: this daemon serves no browser origin.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+
+    // Header only. A query parameter lands in logs, referrers and process
+    // listings, so a valid token presented that way is still refused.
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (url.searchParams.has(TOKEN_HEADER) || url.searchParams.has('token')) {
+      return makeError({
+        error: 'token-rejected',
+        message: 'The request token must be sent as a header, never as a query parameter.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+
+    if (!tokenMatches(req.headers[TOKEN_HEADER])) {
+      return makeError({
+        error: 'unauthenticated',
+        message: 'Missing or invalid request token.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+    return null;
+  }
+
+  function tokenMatches(presented) {
+    if (typeof presented !== 'string') return false;
+    const expected = Buffer.from(identity.token, 'utf8');
+    const actual = Buffer.from(presented, 'utf8');
+    // timingSafeEqual throws on a length mismatch, so the lengths are compared
+    // first. That leaks only the length, which is fixed and public anyway.
+    if (expected.length !== actual.length) return false;
+    return timingSafeEqual(expected, actual);
+  }
+
   // ------ HTTP server -----------------------------------------------------
 
   const server = createServer((req, res) => {
+    // Refused before the body is read, from the very first accepted
+    // connection.
+    const refusal = authenticate(req);
+    if (refusal) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(refusal));
+      req.resume();
+      return;
+    }
+
     const chunks = [];
     req.on('data', c => chunks.push(c));
     req.on('end', async () => {
@@ -321,11 +394,13 @@ export async function startDaemon({ stateDir }) {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
       const url = `http://127.0.0.1:${port}/`;
-      const startTime = processStartSeconds();
       writeServerInfo(stateDir, {
         protocol: PROTOCOL,
-        pid: process.pid,
-        start_time: startTime,
+        // The launcher's own observation, relayed rather than recomputed.
+        pid: identity.pid,
+        start_time: identity.start_time,
+        start_time_source: identity.start_time_source,
+        token: identity.token,
         host: '127.0.0.1',
         port,
         url,

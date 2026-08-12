@@ -189,6 +189,24 @@ mod tests {
         );
     }
 
+    /// The same bytes the retained JavaScript reads.
+    ///
+    /// One fixture, two readers: a change to either side of the language
+    /// boundary fails a test rather than a crawl.
+    #[test]
+    fn the_shared_fixture_round_trips_through_the_renderer() {
+        const FIXTURE: &str = include_str!(
+            "../../../../skills/design/inventory-design/scripts/playwright/lib/__fixtures__/identity-handoff.txt"
+        );
+        let expected = Identity {
+            pid: 4242,
+            start_time: RecordedStartTime::Probe(1_700_145_620),
+            token: "0123456789abcdef0123456789abcdef".to_owned(),
+        };
+        assert_eq!(expected.render(), FIXTURE);
+        assert_eq!(Identity::parse(FIXTURE), Ok(expected));
+    }
+
     /// A launcher killed after spawning but before writing leaves the daemon
     /// reading immediate EOF. It must be a failure, not a default.
     #[test]

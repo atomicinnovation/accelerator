@@ -70,3 +70,93 @@ test('server-info.json present but TCP connect fails → returns connection-fail
     assert.equal(res.category, 'protocol');
   });
 });
+
+test('a non-loopback daemon URL is refused before the token is sent', async () => {
+  // Anything able to write the state dir could otherwise redirect the
+  // token-bearing request to a host of its choosing.
+  await withTmpDir(async dir => {
+    for (const url of [
+      'http://evil.example.com:8080/',
+      'http://127.0.0.1.evil.example.com/',
+      'http://10.0.0.1:8080/',
+      'http://[2001:db8::1]:8080/',
+    ]) {
+      writeServerInfo(dir, { protocol: 1, pid: 1, url, token: 'tok' });
+      const result = await callRemote(dir, 'ping', {});
+      assert.equal(result.error, 'non-loopback-daemon', url);
+    }
+  });
+});
+
+test('both loopback literals are accepted', async () => {
+  await withTmpDir(async dir => {
+    await withMockHttpServer(
+      (req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      },
+      async url => {
+        writeServerInfo(dir, { protocol: 1, pid: 1, url, token: 'tok' });
+        const result = await callRemote(dir, 'ping', {});
+        assert.equal(result.ok, true);
+      }
+    );
+  });
+});
+
+test('the token travels as a header, never as a query parameter', async () => {
+  await withTmpDir(async dir => {
+    let seenHeader;
+    let seenUrl;
+    await withMockHttpServer(
+      (req, res) => {
+        seenHeader = req.headers['x-accelerator-token'];
+        seenUrl = req.url;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      },
+      async url => {
+        writeServerInfo(dir, { protocol: 1, pid: 1, url, token: 'sekrit' });
+        await callRemote(dir, 'ping', {});
+        assert.equal(seenHeader, 'sekrit');
+        assert.ok(!seenUrl.includes('sekrit'), seenUrl);
+      }
+    );
+  });
+});
+
+test('a payload naming its own command or protocol is refused', async () => {
+  // Refused rather than silently overwritten, so a caller cannot believe it
+  // ran something it did not.
+  await withTmpDir(async dir => {
+    writeServerInfo(dir, { protocol: 1, pid: 1, url: 'http://127.0.0.1:1/', token: 'tok' });
+    for (const payload of [{ command: 'evaluate' }, { protocol: 99 }]) {
+      const result = await callRemote(dir, 'ping', payload);
+      assert.equal(result.error, 'payload-rejected', JSON.stringify(payload));
+    }
+  });
+});
+
+test('the validated command wins over anything the payload carries', async () => {
+  await withTmpDir(async dir => {
+    let body;
+    await withMockHttpServer(
+      (req, res) => {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', () => {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        });
+      },
+      async url => {
+        writeServerInfo(dir, { protocol: 1, pid: 1, url, token: 'tok' });
+        await callRemote(dir, 'ping', { url: 'https://example.com' });
+        assert.equal(body.command, 'ping');
+        assert.equal(body.protocol, 1);
+        assert.equal(body.url, 'https://example.com');
+      }
+    );
+  });
+});
