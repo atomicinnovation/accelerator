@@ -8,6 +8,7 @@
 pub mod access_policy;
 pub mod credentials;
 pub mod cue_phrase_audit;
+pub mod executor;
 pub mod host;
 pub mod host_reach;
 pub mod leaked_credentials;
@@ -23,6 +24,7 @@ pub use crate::credentials::Credentials;
 pub use crate::cue_phrase_audit::audit;
 pub use crate::cue_phrase_audit::CuePhraseMatcher;
 pub use crate::cue_phrase_audit::CUE_PHRASE_PATTERNS;
+pub use crate::executor::reuse::Reuse;
 pub use crate::host::Host;
 pub use crate::host::HostError;
 pub use crate::host_reach::HostReach;
