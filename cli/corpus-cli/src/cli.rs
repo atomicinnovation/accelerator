@@ -90,6 +90,7 @@ pub enum MetadataAction {
 pub enum FilenameTimestampFormatArg {
     DateTimeUnderscored,
     CompactTime,
+    DateOnly,
 }
 
 impl From<FilenameTimestampFormatArg> for FilenameTimestampFormat {
@@ -99,6 +100,7 @@ impl From<FilenameTimestampFormatArg> for FilenameTimestampFormat {
                 Self::DateTimeUnderscored
             }
             FilenameTimestampFormatArg::CompactTime => Self::CompactTime,
+            FilenameTimestampFormatArg::DateOnly => Self::DateOnly,
         }
     }
 }
@@ -175,6 +177,10 @@ mod tests {
             ),
             FilenameTimestampFormat::CompactTime
         );
+        assert_eq!(
+            FilenameTimestampFormat::from(FilenameTimestampFormatArg::DateOnly),
+            FilenameTimestampFormat::DateOnly
+        );
     }
 
     fn parse_derive(
@@ -199,6 +205,22 @@ mod tests {
         assert_eq!(
             parse_derive(&["accelerator-corpus", "metadata", "derive"])?,
             FilenameTimestampFormatArg::DateTimeUnderscored
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_date_only_format_is_selectable(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            parse_derive(&[
+                "accelerator-corpus",
+                "metadata",
+                "derive",
+                "--filename-timestamp-format",
+                "date-only",
+            ])?,
+            FilenameTimestampFormatArg::DateOnly
         );
         Ok(())
     }

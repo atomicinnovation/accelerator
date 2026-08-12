@@ -10,6 +10,7 @@ disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
 ---
 
@@ -142,7 +143,8 @@ reused across retries.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/gap-metadata.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive \
+  --filename-timestamp-format date-only
 ```
 
 ### 7. Populate frontmatter and write artifact

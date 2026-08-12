@@ -850,22 +850,22 @@ what is not an error.
 
 #### Automated Verification
 
-- [ ] Failing test first: the four-line characterization golden lands before the
+- [x] Failing test first: the four-line characterization golden lands before the
       scripts are deleted
-- [ ] `mise run test:integration:config` passes (skill frontmatter conformance),
+- [x] `mise run test:integration:config` passes (skill frontmatter conformance),
       with `scripts/` discovering 15 suites against a floor of 15
-- [ ] `mise run test:unit:templates` passes with the `test-metadata-helpers.sh`
+- [x] `mise run test:unit:templates` passes with the `test-metadata-helpers.sh`
       driver removed
-- [ ] `mise run lint:dispatch-coherence:check` exits 0
-- [ ] No metadata script remains in `analyse-design-gaps/scripts/` (`audit-cue-phrases.sh`
+- [x] `mise run lint:dispatch-coherence:check` exits 0
+- [x] No metadata script remains in `analyse-design-gaps/scripts/` (`audit-cue-phrases.sh`
       in the same directory is Phase 2's to remove, not this phase's)
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] Both skills produce frontmatter with a correctly shaped filename timestamp,
+- [x] Both skills produce frontmatter with a correctly shaped filename timestamp,
       revision, and repository name
-- [ ] Running the inventory skill outside a repository does not fail
+- [x] Running the inventory skill outside a repository does not fail
 
 ---
 ---

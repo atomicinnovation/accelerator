@@ -34,11 +34,10 @@ def frontend(context: Context) -> None:
 
 @task
 def templates(context: Context) -> None:
-    """Run template / SKILL / metadata-helper schema tests."""
+    """Run template / SKILL schema tests."""
     drivers = [
         "scripts/test-template-frontmatter.sh",
         "scripts/test-skill-frontmatter-population.sh",
-        "scripts/test-metadata-helpers.sh",
     ]
     failures: list[str] = []
     for driver in drivers:

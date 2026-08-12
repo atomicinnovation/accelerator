@@ -11,6 +11,7 @@ disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)
 ---
@@ -215,7 +216,8 @@ Compile agent findings into the five inventory categories:
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/inventory-metadata.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive \
+  --filename-timestamp-format compact-time
 ```
 
 ### 11. Populate frontmatter and write artifact (atomic)

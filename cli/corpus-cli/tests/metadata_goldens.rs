@@ -200,6 +200,89 @@ fn omitting_the_format_keeps_today_s_underscored_stamp() -> Result<(), TestError
     Ok(())
 }
 
+/// The four lines `inventory-metadata.sh` and `gap-metadata.sh` emitted, in
+/// order, with their labels — recorded from the scripts themselves before they
+/// were deleted. AC15 is byte-for-byte on the timestamp component (pinned
+/// against a fixed instant in `corpus-adapters`) and label/order-equivalent on
+/// the rest, which is what is actually true: `derive_at` builds its own clock
+/// and the revision is the repository's, so neither is reproducible here.
+fn labels_of(block: &str) -> Vec<&str> {
+    block
+        .lines()
+        .filter_map(|line| line.split_once(": ").map(|(label, _)| label))
+        .collect()
+}
+
+/// Both retired scripts, replayed through the subcommand that replaces them.
+#[test]
+fn each_retired_metadata_script_s_block_is_reproduced() -> Result<(), TestError>
+{
+    for (format, stamp_label) in [
+        ("compact-time", "Timestamp For Filename"),
+        ("date-only", "Date For Filename"),
+    ] {
+        let work = tempdir(format)?;
+        let env = Hermetic::rooted_at(work.path())?;
+        let repo = work.path().join("repo");
+        fs::create_dir_all(&repo)?;
+        env.git(&["init", "--quiet"], &repo)?;
+        env.git(&["commit", "--allow-empty", "--quiet", "-m", "init"], &repo)?;
+
+        let block = derive_in_with(
+            &repo,
+            &env,
+            &["--filename-timestamp-format", format],
+        )?;
+        assert_eq!(
+            labels_of(&block),
+            vec![
+                "Current Date/Time (UTC)",
+                stamp_label,
+                "Current Revision",
+                "Repository Name",
+            ],
+            "{format} drifted from the retired script's labels or ordering:\n\
+             {block}"
+        );
+    }
+    Ok(())
+}
+
+/// `gap-metadata.sh` emitted `date '+%Y-%m-%d'` under a `Date For Filename`
+/// label — a different format from `inventory-metadata.sh`'s, which an earlier
+/// reading of this migration missed.
+#[test]
+fn the_date_only_format_renders_the_shape_the_gap_helper_did(
+) -> Result<(), TestError> {
+    let work = tempdir("date-only-shape")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.git(&["init", "--quiet"], &repo)?;
+    env.git(&["commit", "--allow-empty", "--quiet", "-m", "init"], &repo)?;
+
+    let block = derive_in_with(
+        &repo,
+        &env,
+        &["--filename-timestamp-format", "date-only"],
+    )?;
+    let stamp = block
+        .lines()
+        .find_map(|line| line.strip_prefix("Date For Filename: "))
+        .ok_or("no Date For Filename line")?;
+    let fields: Vec<&str> = stamp.split('-').collect();
+    assert_eq!(
+        fields.iter().map(|field| field.len()).collect::<Vec<_>>(),
+        vec![4, 2, 2],
+        "the date-only stamp must be YYYY-MM-DD, got {stamp:?}"
+    );
+    assert!(
+        !block.contains("Timestamp For Filename"),
+        "a format carrying no time of day is labelled a date:\n{block}"
+    );
+    Ok(())
+}
+
 #[test]
 fn outside_a_repository_the_provenance_lines_are_omitted(
 ) -> Result<(), TestError> {
