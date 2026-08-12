@@ -1036,7 +1036,11 @@ version = "1.24.0-pre.36"
 dependencies = [
  "design",
  "kernel",
+ "libc",
+ "process-probe",
+ "rand 0.9.5",
  "regex",
+ "serde_json",
  "tempfile",
 ]
 

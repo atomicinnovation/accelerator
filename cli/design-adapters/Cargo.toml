@@ -12,7 +12,13 @@ workspace = true
 [dependencies]
 design = { path = "../design" }
 kernel = { path = "../kernel" }
+process-probe = { path = "../process-probe" }
 regex = { workspace = true }
+serde_json = { workspace = true }
+# setsid, umask, dup2, fcntl and pipe2 in the child's pre_exec, where only
+# async-signal-safe calls are permitted, plus flock(2) for the launcher lock.
+libc = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
