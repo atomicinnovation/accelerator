@@ -274,10 +274,9 @@ _DOMAIN_SERVICE_VIOLATION = (
     "use adapters::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
 )
 # A service module importing one std:: path and one crate:: path — compliant
-# (positive control). Rewritten to the `_TRACKER_PORT_COMPLIANT` shape rather
-# than merely renamed: a control with no `use` statement proves only that
-# nothing was rejected, exercising neither of the two anchors every domain
-# rule shares.
+# (positive control). It carries both imports because a control with no `use`
+# statement proves only that nothing was rejected, exercising neither of the two
+# anchors every domain rule shares.
 _DOMAIN_SERVICE_COMPLIANT = (
     "use std::path::Path;\n\n"
     "use crate::Marker;\n\n"

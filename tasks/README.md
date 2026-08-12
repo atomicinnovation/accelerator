@@ -47,8 +47,7 @@ enforcement also spans standalone entity tasks wired directly into the top-level
 `github:*`): `deny:check` (cargo-deny supply-chain), `pup:check` (cargo-pup
 architecture) and `public-api:check` (cargo-public-api surface pin). The last
 two are the build steps that run on the isolated nightly lane — see "The Rust
-nightly lane" below. `pup.ron`
-carries one rule per
+nightly lane" below. `pup.ron` carries one rule per
 domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
 library-backed VCS adapter's imports to a permit list and denies `std::process`
 — see "Library-backed VCS dependency pins" below.
@@ -242,11 +241,11 @@ A trailing `if: always()` step then asserts `git --version` and `jj --version`
 both succeed — deliberately as bare commands, not `mise run`, because mise would
 reinstall the missing tool and turn the one check that catches a failed restore
 into one that quietly repairs it. For the same reason the task invokes cargo
-directly inside the window: mise is entered before it and never within. The job 
-sets `cache: false` on `mise-action` because the jj shadow target sits inside 
-the tree the action saves on its post step, so a failed restore would otherwise 
-persist a `jj`-less tool tree into the cache that every later run restores. A 
-move to self-hosted, containerised or reusable runners turns a contained hazard 
+directly inside the window: mise is entered before it and never within. The job
+sets `cache: false` on `mise-action` because the jj shadow target sits inside
+the tree the action saves on its post step, so a failed restore would otherwise
+persist a `jj`-less tool tree into the cache that every later run restores. A
+move to self-hosted, containerised or reusable runners turns a contained hazard
 into a persistently broken runner.
 
 `build:cli:fixture-size` is the third guard: the linked reference artefact must
@@ -524,8 +523,7 @@ by the dispatch guard.
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
-owes five things.
-`cli/tracker/` is the worked example.
+owes five things. `cli/tracker/` is the worked example.
 
 - **Workspace membership.** Add the directory to `[workspace].members` in
   `cli/Cargo.toml`, then sync the lockfile with `cargo metadata
@@ -569,14 +567,11 @@ owes five things.
 
   Read such a diff as the pin doing its job, not as noise to absorb: a crate
   exposing a dependency's type in its own surface is now visible rather than
-  merely true. `kernel::Error::LogFilter` carried a
-  `tracing_subscriber::ParseError` until this pin showed it, which put that type
-  and its `From` impl in the error surface of the crate every other crate
-  depends on, and made `launcher` take a `tracing-subscriber` dev-dependency for
-  the sole purpose of constructing one. Both are gone, and `kernel` hand-writes
-  `Display`/`Error` like every other error type here rather than deriving them —
-  a derive is a dependency in the surface too, which is how `__formatter` used
-  to appear in that snapshot.
+  merely true. Prefer removing the exposure to accepting the snapshot — a
+  consumer must depend on that type to construct or match the value. A derive
+  counts as an exposure too, which is why the error types here hand-write
+  `Display` and `Error`; a `thiserror` derive renders as `__formatter` in the
+  snapshot.
 
 Then run `mise run deny:check`.
 

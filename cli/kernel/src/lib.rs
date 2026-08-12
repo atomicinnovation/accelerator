@@ -13,9 +13,9 @@ pub mod logging;
 ///
 /// Every variant carries a `String`, and none names a type from outside this
 /// crate — not in a field, and not in a derive. `kernel` is the crate every
-/// other one depends on, so a foreign type here is a foreign type in the whole
-/// workspace's error surface: reachable by anyone matching a variant, and
-/// something a consumer must depend on to construct one.
+/// other one depends on, so a foreign type here lands in the whole workspace's
+/// error surface, and a consumer would have to depend on it to construct a
+/// variant.
 #[derive(Debug)]
 pub enum Error {
     /// `ACCELERATOR_LOG` held a filter the subscriber could not parse. Carries
@@ -77,9 +77,9 @@ mod tests {
     fn an_error_carries_no_cause_to_chain() {
         use std::error::Error as _;
 
-        // No variant holds another error, so the chain ends here. Pinned
-        // because reintroducing a wrapped cause would put that cause's type
-        // back into the public surface of the crate everything depends on.
+        // No variant holds another error, so the chain ends here. A
+        // reintroduced wrapped cause would put that cause's type back into the
+        // public surface of the crate everything depends on.
         assert!(Error::Failed(String::new()).source().is_none());
     }
 }

@@ -349,8 +349,7 @@ def test_invariants_reject_known_bad_shapes(wf, mutate):
 # --- Nightly-lane isolation: the pinned nightly toolchain must stay confined
 #     to a single job, so a nightly break gates the architecture check alone
 #     and never a stable-lane check or the product build. Every build step that
-#     reaches for it — today pup:check, its regression, and public-api:check —
-#     therefore belongs to that one job.
+#     reaches for it therefore belongs to that one job.
 
 # A job consumes the nightly iff its steps run any of these (name-agnostic
 # detection, so renaming the job cannot smuggle a second consumer past the
@@ -391,9 +390,8 @@ def _isolation_invariants(wf):
         f"nightly consumers must be exactly {{{_NIGHTLY_JOB}}}, got {consumers}"
     )
 
-    # None of the three nightly-lane steps can be silently dropped: the one
-    # host job invokes pup:check, its behavioural regression, and
-    # public-api:check.
+    # Confinement alone would also be satisfied by a job that runs none of the
+    # nightly-lane steps at all.
     text = _job_run_text(jobs[_NIGHTLY_JOB])
     assert "pup:check" in text, "check-architecture must run pup:check"
     assert "test:integration:pup" in text, (

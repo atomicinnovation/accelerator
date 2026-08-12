@@ -66,9 +66,8 @@ fn neither_unknown_reports_a_stamp_to_read() {
 
 #[test]
 fn the_two_unknowns_are_distinguishable_from_each_other() {
-    // The whole gain over a stamp that stored "" for both: a sync report can
-    // say "the tracker has no stamp for this issue" separately from "we pushed
-    // and could not read the stamp back".
+    // A sync report says "the tracker has no stamp for this issue" separately
+    // from "we pushed and could not read the stamp back".
     assert_ne!(RemoteTimestamp::NotReported, RemoteTimestamp::NotRead);
 }
 
@@ -90,9 +89,8 @@ fn identical_reported_stamps_prove_the_issue_is_unchanged() {
 
 #[test]
 fn no_unknown_on_either_side_proves_a_match() {
-    // The invariant the bash classifier spells as `[ -n "$baseline" ] &&
-    // [ "$a" = "$b" ]`: an item whose baseline was never written must not
-    // classify as already synced, however the unknown arose.
+    // An item whose baseline was never written must not classify as already
+    // synced, however the unknown arose.
     let unknowns = [RemoteTimestamp::NotReported, RemoteTimestamp::NotRead];
     let reported = RemoteTimestamp::Reported(A_STAMP.to_owned());
 
@@ -110,9 +108,9 @@ fn no_unknown_on_either_side_proves_a_match() {
 
 #[test]
 fn structural_equality_of_two_unknowns_is_not_a_sync_verdict() {
-    // Pinned because it is the reason `proves_unchanged_since` exists rather
-    // than callers reaching for `==`: the derive reports two identical unknowns
-    // as equal, which says only that both sides know nothing.
+    // Why `proves_unchanged_since` exists rather than callers reaching for
+    // `==`: the derive reports two identical unknowns as equal, which says only
+    // that both sides know nothing.
     assert_eq!(RemoteTimestamp::NotRead, RemoteTimestamp::NotRead);
     assert!(!RemoteTimestamp::NotRead
         .proves_unchanged_since(&RemoteTimestamp::NotRead));

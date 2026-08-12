@@ -2,7 +2,7 @@
 //!
 //! The provider clients that implement it and the sync engine that calls it
 //! both live elsewhere; this crate is the seam between them and holds no
-//! logic. It deliberately has no `-adapters` sibling.
+//! logic.
 
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -10,8 +10,7 @@ use std::fmt::Formatter;
 /// The identifier a remote tracker gave an issue.
 ///
 /// The same value the local work item carries in its `external_id`
-/// frontmatter field, taken as opaque: the port does not parse, validate or
-/// interpret the string.
+/// frontmatter field. The port neither parses nor validates it.
 ///
 /// Opaque to the port is not opaque to the client. The value is written
 /// unquoted into a work item's YAML frontmatter, so an implementation must
@@ -44,21 +43,17 @@ impl Display for ExternalId {
 /// re-hashed, never that the remote is newer. Hence no `PartialOrd` or `Ord`,
 /// and no conversion surface beyond construction and read-back.
 ///
-/// The three variants are exhaustive over what a sync run can know, and they
-/// are deliberately distinct rather than collapsed into one absent value: a
-/// sync report tells a user "the tracker has no stamp for this issue" and "the
-/// push landed but its stamp could not be read back" differently, and the
-/// baseline the bash path writes — which stores the empty string for both —
-/// cannot.
+/// The three variants are exhaustive over what a sync run can know, and stay
+/// distinct rather than collapsing into one absent value: a sync report tells a
+/// user "the tracker has no stamp for this issue" and "the push landed but its
+/// stamp could not be read back" differently.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RemoteTimestamp {
     /// The stamp the tracker reported, held verbatim.
     ///
     /// The bytes must survive unchanged — providers emit mutually incompatible
-    /// formats (see `tests/fixtures/remote-updated-at.txt` for the committed
-    /// set), and a date-library round-trip would rewrite a numeric offset,
-    /// reclassifying every item whose baseline the bash sync path already
-    /// wrote.
+    /// formats, and a date-library round-trip would rewrite a numeric offset,
+    /// reclassifying every item whose baseline holds the original spelling.
     ///
     /// Nothing validates the bytes, so an empty string is constructible here
     /// and means nothing. A tracker that answers with a blank or null stamp is
@@ -94,8 +89,8 @@ impl RemoteTimestamp {
     /// changed — and so that its body need not be re-hashed.
     ///
     /// Only two reported stamps holding identical bytes can prove it. An
-    /// unknown on either side proves nothing, whichever kind it is: use this
-    /// rather than `==`, which reports two identical unknowns as equal and
+    /// unknown on either side proves nothing, whichever kind it is — so use
+    /// this rather than `==`, which reports two identical unknowns as equal and
     /// would classify an item whose baseline was never written as already
     /// synced.
     #[must_use]
@@ -119,32 +114,27 @@ pub struct RemoteIssue {
     /// compact — so equal content hashes equally; a Markdown one is carried
     /// verbatim.
     ///
-    /// An absent description is where the two providers diverge and where a
-    /// client is most likely to guess wrong: a structured one projects as the
-    /// literal token `null`, a Markdown one as an empty line. Neither is
-    /// inferable from a JSON deserialiser's natural output, and either wrong
-    /// choice reclassifies every such item.
+    /// An absent description projects as the literal token `null` when
+    /// structured and as an empty line when Markdown. Neither is inferable
+    /// from a JSON deserialiser's natural output, and either wrong choice
+    /// reclassifies every such item.
     ///
     /// The value is the *un-normalised* projection. The caller normalises
-    /// before hashing.
+    /// before hashing, and an interior blank line survives that.
     ///
     /// This is **not** the body a caller supplies when pushing: it carries the
     /// title line as well, so a push followed by a read is not the identity.
     ///
     /// Projection sits behind the port, so reproducing the recipe exactly is
     /// the implementing client's obligation. A body differing by so much as
-    /// whitespace reclassifies every synced item as remotely modified, and an
-    /// interior blank line survives normalisation. The bash recipe
-    /// (`work-item-project-remote.sh`) is the current reference
-    /// implementation; the contract above outlives it.
+    /// whitespace reclassifies every synced item as remotely modified.
     pub body: String,
 }
 
 /// A failure reported by a remote tracker.
 ///
-/// Two classes, closed deliberately: `#[non_exhaustive]` is absent so that
-/// adding a third is a compile-breaking change for every consumer, which is
-/// the property both consumers want.
+/// Two classes, and closed: `#[non_exhaustive]` is absent so that adding a
+/// third is a compile-breaking change for every consumer.
 ///
 /// The classes divide on one question: **could a remote change have
 /// happened?** That makes classification operation-scoped, not a property of
@@ -159,11 +149,10 @@ pub enum TrackerError {
     /// a request that never left the machine qualifies, and so does one the
     /// tracker received and rejected before applying anything.
     ///
-    /// The test is provability, not a list of statuses. A rejection qualifies
-    /// only where the provider's protocol makes it provable, and that varies
-    /// by operation as well as by provider: the same wire condition can be
-    /// provable on `create` and unprovable on `update` against one tracker.
-    /// A single status-to-class table is therefore wrong — classify per
+    /// The test is provability, not a list of statuses, and it varies by
+    /// operation as well as by provider: the same wire condition can be
+    /// provable on `create` and unprovable on `update` against one tracker. A
+    /// single status-to-class table is therefore wrong — classify per
     /// operation, and when in doubt use `Terminal`.
     ///
     /// For a read it is the only class, because there was nothing to mutate;
@@ -210,10 +199,10 @@ impl std::error::Error for TrackerError {}
 /// What a bulk retrieval could establish about each requested issue.
 ///
 /// The partition is total over the requested ids: every distinct id appears in
-/// exactly one of the three vectors. Duplicates in `ids` are ignored — the
-/// request is a set, as both bash adapters treat it — an empty request yields
-/// an empty outcome and makes no remote call, and the three vectors are
-/// unordered, so a caller indexes rather than zips.
+/// exactly one of the three vectors. The request is a set, so duplicates in
+/// `ids` are ignored; an empty request yields an empty outcome and makes no
+/// remote call; and the three vectors are unordered, so a caller indexes rather
+/// than zips.
 ///
 /// `absent` carries the weight. An id belongs there only when the retrieval
 /// was provably complete — a truncated page, an exhausted rate limit or a
@@ -223,19 +212,16 @@ impl std::error::Error for TrackerError {}
 /// short is what makes a sync delete an issue that still exists.
 ///
 /// Nothing here enforces totality — the type cannot, and this crate ships no
-/// logic. It is an obligation on every implementation, held by the shared
-/// contract test that lives with the sync engine. Until that exists,
-/// `tracker/tests/port.rs::partitions_totally` is the check to copy.
+/// logic. It is an obligation on every implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FetchOutcome {
     /// The issues the retrieval accounted for, each paired with the id it was
     /// requested under — bulk payloads carry no other way to associate a
     /// record with a local work item.
     ///
-    /// A stamp, not an issue: bulk retrieval establishes *whether* an issue
-    /// changed, and `show` fetches the body for the minority that did. No
-    /// provider's bulk query returns a projected body, so a `RemoteIssue` here
-    /// could only ever be filled with a fabricated one.
+    /// A stamp, not an issue: no provider's bulk query returns a projected
+    /// body, so a `RemoteIssue` here could only ever hold a fabricated one.
+    /// `show` fetches the body for the minority whose stamp moved.
     ///
     /// An issue the tracker returns without a timestamp still belongs here,
     /// paired with [`RemoteTimestamp::NotReported`]. Never drop it: an id
@@ -258,8 +244,7 @@ pub struct FetchOutcome {
 /// `async-trait` dependency that would restore it.
 ///
 /// Every call blocks until it resolves. Timeouts, retries and backoff are
-/// wholly the implementing client's responsibility — they live inside the bash
-/// bridges today, i.e. already behind this seam — and a client must bound its
+/// wholly the implementing client's responsibility, and a client must bound its
 /// own calls, because a caller has no way to.
 pub trait RemoteTracker {
     /// Creates a new remote issue and returns the identifier assigned to it.
@@ -273,7 +258,7 @@ pub trait RemoteTracker {
     /// `kind` is the work item's `kind` value, taken opaquely: mapping it onto
     /// a Jira issue type or its Linear equivalent is the implementing client's
     /// business, and the empty string means "use the tracker's configured
-    /// default", which is what the bash bridge does with an omitted `--kind`.
+    /// default".
     ///
     /// # Errors
     ///
@@ -324,8 +309,7 @@ pub trait RemoteTracker {
     ///
     /// Always [`TrackerError::Retryable`]. A read mutates nothing, so the
     /// terminal class — which means "a mutation may have applied" — cannot
-    /// arise; the bash read bridge collapses every read failure to the
-    /// retryable code for the same reason.
+    /// arise.
     ///
     /// Read the class as "nothing changed remotely", not as "call again". A
     /// deleted issue fails here indefinitely, so the caller degrades to
@@ -351,11 +335,6 @@ pub trait RemoteTracker {
     /// transport failure, which is an `Ok` with every id indeterminate rather
     /// than an `Err`. Degrading per id beats failing a whole sync run, and the
     /// partition can already say it.
-    ///
-    /// This deliberately differs from the current Linear bridge, which returns
-    /// a retryable exit for any bulk-search failure — a client porting that
-    /// adapter must move transport failures into the partition rather than
-    /// carrying the `Err` across.
     fn fetch_all(
         &self,
         ids: &[ExternalId],

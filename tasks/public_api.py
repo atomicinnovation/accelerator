@@ -6,13 +6,9 @@ from tasks.shared.paths import CLI_DIR
 from tasks.shared.rust import RUST_NIGHTLY
 
 # The crates whose surface is a deliverable rather than whatever happened to be
-# `pub`: the seven domain crates the hexagonal layout names (collaboration,
-# config, corpus, migrate, tracker, vcs, work — each with its own whole-crate
-# cargo-pup rule or, for tracker, the rule it shipped with), plus the three
-# shared libraries every layer builds against (kernel, document, store).
-#
-# For the domain crates this pairs with cargo-pup: pup constrains what a domain
-# crate may import inward, this pin constrains what it exposes outward.
+# `pub`: every domain crate, plus the shared libraries every layer builds
+# against. For a domain crate this pairs with cargo-pup — pup constrains what it
+# may import inward, this pin constrains what it exposes outward.
 #
 # Every entry is a directory name that is also the package name, which the
 # snapshot path and the `-p` argument both rely on.

@@ -141,11 +141,8 @@ class TestTestUnitCli:
 
 # ── The surface-pin coverage guard ────────────────────────────────────
 #
-# public-api:check names the crates it pins explicitly, so a new crate is
-# exempt from the pin until someone remembers to add it — and nothing reports
-# the omission. These tests close that gap: the classification must account for
-# every workspace member, so a new crate reddens the build until it is either
-# pinned or exempted with a stated reason.
+# public-api:check names the crates it pins explicitly, so without this guard a
+# new crate escapes the pin and nothing reports the omission.
 
 
 def _workspace_members() -> set[str]:
@@ -173,9 +170,8 @@ class TestPinnedCrateCoverage:
         )
 
     def test_the_guard_reports_a_member_in_neither_collection(self):
-        # The discriminating-power case: a guard that only ever runs against a
-        # complete classification cannot show that it would notice an
-        # incomplete one.
+        # A guard that only ever runs against a complete classification cannot
+        # show that it would notice an incomplete one.
         assert _unclassified(
             _workspace_members() | {"widget"},
             public_api._PINNED_CRATES,
@@ -183,8 +179,8 @@ class TestPinnedCrateCoverage:
         ) == {"widget"}
 
     def test_no_classified_name_is_absent_from_the_workspace(self):
-        # The other direction: a renamed or removed crate leaves a stale entry,
-        # which would otherwise sit in the classification unnoticed.
+        # A renamed or removed crate leaves a stale entry, which would otherwise
+        # sit in the classification unnoticed.
         members = _workspace_members()
         stale = (
             set(public_api._PINNED_CRATES) | set(public_api._EXEMPT_MEMBERS)
