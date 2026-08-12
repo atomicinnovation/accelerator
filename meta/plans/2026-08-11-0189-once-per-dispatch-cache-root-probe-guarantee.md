@@ -5,7 +5,7 @@ title: "At-Most-Once Cache-Root Probe Guarantee Implementation Plan"
 date: "2026-08-11T15:57:41+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
 derived_from:
@@ -15,7 +15,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement",
 tags: [cli, launcher, bootstrap]
 revision: "9fb90f8a26d91d640cf0f6ab8b272b6039d7bdbd"
 repository: "accelerator"
-last_updated: "2026-08-12T00:38:48+00:00"
+last_updated: "2026-08-12T13:43:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1897,7 +1897,7 @@ PASS in the same run.
 | Test | Baseline | A | B | C | D |
 | --- | --- | --- | --- | --- | --- |
 | `a_cold_miss_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
-| `a_warm_hit_never_probes_the_cache_root` | PASS | ✗ | ✗ | PASS | PASS |
+| `a_warm_hit_never_probes_the_cache_root` | PASS | PASS | ✗ | PASS | PASS |
 | `a_successful_refetch_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
 | `a_failed_refetch_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
 | `a_refetch_after_a_benign_cache_io_error_probes_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
@@ -1905,10 +1905,29 @@ PASS in the same run.
 | `a_signature_read_io_error_propagates_the_refetch_error_verbatim` | PASS | ✗ | ✗ | PASS | ✗ |
 | `an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss` | PASS | PASS | PASS | ✗ | PASS |
 
-Every predicted cell was observed as predicted. Per-mutation totals over the
-25-test binary: A — 6 failed, 18 passed (the warm-hit test did not yet exist
-when A was in force; it was authored under B). B — 8 failed, 17 passed. C — 1
-failed, 24 passed. D — 2 failed, 23 passed. Baseline — 25 passed, 0 skipped.
+Every predicted cell was observed as predicted. Per-mutation totals: A — 6
+failed, 18 passed over a 24-test binary, the warm-hit test not yet existing when
+A was in force (it was authored under B). B — 8 failed, 17 passed. C — 1 failed,
+24 passed. D — 2 failed, 23 passed. Baseline — 25 passed, 0 skipped.
+
+**Correction, 2026-08-12 (validate-plan).** The warm-hit row's A cell was first
+recorded as ✗, contradicting both the prediction and the footnote above. Mutation
+A was rerun against the complete 25-test binary:
+`a_warm_hit_never_probes_the_cache_root` **passes** (6 failed, 19 passed), since
+a warm hit never enters `fetch_verify_store`. The cell is corrected to PASS. That
+run also discharges the last clause of the work item's criterion 6, which asks
+for the warm-hit criterion to be observed green under a duplicated probe and
+which the original sweep could not take:
+
+```
+assertion `left == right` failed: cold miss: expected 1 probe attempt(s)
+  left: 2
+ right: 1
+   at launcher/tests/resolution.rs:594
+```
+
+The cold-miss delta is exactly 2 as the criterion requires, and `#[track_caller]`
+names the test's own line rather than `probes_during`'s.
 
 `each_of_two_cold_misses_…` fails on the **first** bracket under A and on the
 **second** under D, which is what distinguishes D's reach from A's:

@@ -75,7 +75,7 @@ thread_local! {
     static PROBE_ATTEMPTS: Cell<u64> = const { Cell::new(0) };
 }
 
-/// Calls to [`verify_writable`] on this thread.
+/// Calls to `verify_writable` on this thread.
 ///
 /// Includes calls that fail before writing anything — unlike `SEQUENCE`, whose
 /// increment sits after the `create_dir_all` guard and so counts only probes
