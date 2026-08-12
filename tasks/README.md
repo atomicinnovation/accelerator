@@ -378,15 +378,19 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
 **[author]** nothing catches it.
 
 1. **Add** the token to `DISPATCHED_SUBBINARIES` (`tasks/shared/paths.py`), then
-   update three things in `tests/integration/tasks/test_github.py`: the registry
-   pin (a deliberate anti-vacuity anchor, not a count to bump blindly), the
-   `assert len(uploads) == 22` count, and `_setup_release`'s staged fixture and
-   in-test manifest, which are single-token today. Converting that count to a
-   derived expression is expected of the first sibling to land. **[PR]**
+   update two things in `tests/integration/tasks/test_github.py`: the registry
+   pin (a deliberate anti-vacuity anchor, not a count to bump blindly) and the
+   `_SUBBINARY_DESCRIPTIONS` entry, which `KeyError`s without one. The upload
+   count is derived from the registry rather than written down, and
+   `_setup_release` stages every token by looping it, so neither needs
+   touching. **[PR]**
 2. **Add** an entry to `_SUBBINARY_MANIFESTS` (`tasks/manifest.py`) when the
-   crate is not at `cli/<token>/`. The visualiser is the worked example:
-   `"visualiser": CLI_DIR / "visualiser/server/Cargo.toml"`. **No action when**
-   the crate is at `cli/<token>/`. **[release]**
+   crate is not at `cli/<token>/`. Every dispatched token has an entry today,
+   because each has a domain crate at `cli/<token>/` and a binary crate
+   beside it — `"design": CLI_DIR / "design-cli/Cargo.toml"` is the ordinary
+   shape, and `"visualiser": CLI_DIR / "visualiser/server/Cargo.toml"` the
+   outlier. **No action when** the crate really is at `cli/<token>/`.
+   **[release]**
 3. **Add** the crate's `Cargo.toml`: `[[bin]] name = "accelerator-<token>"` (the
    asset name the manifest and signing expect), a mandatory
    `package.description` (the manifest sources the description from it), and the
@@ -427,10 +431,17 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
    bare `Bash` tool, a rule authorising the bare launcher, or a rule with a
    wildcarded token segment **anywhere** in that skill's frontmatter
    disqualifies the whole skill as a witness, so pick or write a skill that has
-   none of them. The guard sees only `!`-preprocessor commands in
-   `skills/**/SKILL.md` naming `${CLAUDE_PLUGIN_ROOT}/bin/accelerator` —
-   invocations from `hooks/`, `scripts/` and model-driven Bash are outside its
-   reach. **[PR]**
+   none of them. The guard reads `skills/**/SKILL.md` for invocations naming
+   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator`, whether they appear as
+   `!`-preprocessor commands or in fenced blocks inside numbered steps —
+   invocations from `hooks/`, `scripts/`, agent bodies and model-driven Bash
+   are outside its reach. **[PR]**
+
+   - Note that an **agent** cannot bind a token: `${CLAUDE_PLUGIN_ROOT}` is
+     substituted into agent *content* but is not an environment variable a Bash
+     call can dereference, so agents invoke the launcher as a bare command
+     (a plugin's `bin/` is on the Bash tool's `PATH`) and the guard does not
+     see them.
    - Also check: if the binding is satisfied by a *new* skill that injects
      config context or instructions, bump `EXPECTED_INJECTION_SKILLS`
      (`tasks/lint/skill_permissions.py`) in the same change, and keep the `!`

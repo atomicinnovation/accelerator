@@ -4,6 +4,14 @@
 
 ### Added
 
+- **A new `accelerator design` command family replaces the bash helpers behind
+  the two design skills.** `design validate-source`, `resolve-auth`,
+  `scrub-secrets`, `notify-downgrade` and `audit-cue-phrases` cover what five
+  `skills/design/**/scripts/*.sh` scripts did, and `design executor` replaces
+  the Playwright launcher (`run.sh`) so the delegation chain is CLI → Node with
+  no shell in between. The two metadata helpers retire into
+  `accelerator corpus metadata derive`.
+
 - **A new `accelerator work` command family replaces the bash work-item
   lifecycle scripts.** `work create`, `show`, `resolve`, `diff`, and `update`
   cover the full create/read/resolve/diff/update lifecycle for work items,
@@ -19,6 +27,34 @@
   [Internals](https://atomicinnovation.github.io/accelerator/internals/) page.
 
 ### Changed
+
+- **`design validate-source` narrows what it accepts.** Host reachability is
+  now decided by parsing the host as an address rather than by matching it with
+  regular expressions, which closes several routes to an internal endpoint that
+  previously read as public. Two classes of change:
+  - **Recoverable with `--allow-internal`**: IPv4-mapped and IPv4-compatible
+    IPv6 forms (`::ffff:10.0.0.1`, `::169.254.169.254`), IPv6 unique-local
+    (`fc00::/7`), carrier-grade NAT (`100.64.0.0/10`), and the 6to4, Teredo and
+    NAT64 transition encodings, classified on the address they carry.
+  - **Refused with no flag that recovers them**: decimal, hexadecimal and
+    zero-padded octal IPv4 encodings (`2130706433`, `0x7f000001`,
+    `0177.0.0.1`, `127.0.0.01`), including a non-first octal octet. Rewrite the
+    location in dotted-quad form. The unspecified address (`0.0.0.0`, `::`) is
+    also refused outright, since it names no host.
+
+  Two things were **widened**, needing no flag where they previously did: the
+  whole of `127.0.0.0/8` and `::1`, and `::ffff:127.0.0.1`, which unwraps to a
+  loopback address.
+- **`design scrub-secrets` and `design audit-cue-phrases` split usage error
+  onto exit 2.** The scripts they replace conflated a malformed invocation with
+  a domain rejection on exit 1. A path naming no readable file is now exit 2; a
+  document that was read and rejected stays exit 1.
+- **The Playwright daemon now requires a request token.** It is generated per
+  daemon, recorded in the already-`0600` `server-info.json`, and required from
+  the daemon's first accepted connection. A loopback socket is not a uid
+  boundary, so this closes a different local user on a shared host, and CSRF or
+  DNS rebinding from the pages a crawl visits. It does not defend against a
+  same-uid process, which can read the token file.
 
 - **Warm `accelerator` invocations are substantially faster** — better than
   halved on macOS, so session start and every skill's live-context command are

@@ -1759,7 +1759,7 @@ these edits leaves `test:integration:config` red on merge.
 
 #### Automated Verification
 
-- [ ] Characterization tests written first for cold start, warm reuse, stale-PID
+- [x] Characterization tests written first for cold start, warm reuse, stale-PID
       recovery, PID-recycle rejection, lock contention and daemon-start timeout —
       derived from **`run.sh`'s source**, not from `test-run.sh`, which covers none
       of them: it contains structural and shellcheck checks, the `start_time_of`
@@ -1815,116 +1815,116 @@ wholesale.** The paragraph above is about what `run.sh` port characterization is
   rather than skips when no Playwright runtime is present, so this suite's privacy
   contract gets the same non-silent guarantee every other opt-in assertion does,
   rather than the wholesale self-SKIP `test-run.sh` gives it today.
-- [ ] The reuse verdict is unit-tested as a pure function over (recorded pid,
+- [x] The reuse verdict is unit-tested as a pure function over (recorded pid,
       recorded start time, observed liveness, observed start time), including the
       absent-`start_time` case now treated as a mismatch
-- [ ] The start-time probe agrees across `C`, `de_DE.UTF-8` and an unset locale,
+- [x] The start-time probe agrees across `C`, `de_DE.UTF-8` and an unset locale,
       **and** across `TZ` ∈ {unset, `UTC`, a half-hour offset, a DST fall-back
       boundary}
-- [ ] `lib/state.js` contains no start-time probe, so there is no cross-language
+- [x] `lib/state.js` contains no start-time probe, so there is no cross-language
       agreement left to assert — the value it publishes is the one the launcher handed it
-- [ ] `proc-stat-linux.txt` yields `1700145620`, and a fixture whose tick count does
+- [x] `proc-stat-linux.txt` yields `1700145620`, and a fixture whose tick count does
       not divide evenly by `CLK_TCK` yields the truncated value
-- [ ] `accelerator design executor daemon` is rejected by argument validation
-- [ ] The daemon survives a SIGHUP to the launcher's process group, and the client
+- [x] `accelerator design executor daemon` is rejected by argument validation
+- [x] The daemon survives a SIGHUP to the launcher's process group, and the client
       path propagates a non-zero exit status and a signal death unchanged
-- [ ] A `server-info.json` with `start_time_source: wallclock` is reused on liveness
+- [x] A `server-info.json` with `start_time_source: wallclock` is reused on liveness
       alone, unconditionally and on every invocation, never held to the ±1s tolerance —
       with the accepted consequence recorded that such a record gives no PID-recycle
       guard
-- [ ] Concurrent executor invocations produce exactly one daemon and the loser
+- [x] Concurrent executor invocations produce exactly one daemon and the loser
       reports `another-launcher-running`, asserted for the single lock backend
-- [ ] The reuse verdict table is exhaustive: a test per row over `RecordedState`,
+- [x] The reuse verdict table is exhaustive: a test per row over `RecordedState`,
       including `None` and `PidUnparseable` recovering with no pid to signal,
       `Daemon(Probe(_))`+`Unavailable`, `Daemon(Wallclock(_))` and
       `Daemon(WriterUnavailable)` all reusing on liveness alone, and
       `Daemon(AbsentOrUnparseable)` recovering — and that no row signals
-- [ ] A `server-info.json` with no `start_time_source` key is read as `Wallclock`,
+- [x] A `server-info.json` with no `start_time_source` key is read as `Wallclock`,
       not `Probe`
-- [ ] The launcher observes the start time and sends it to the daemon over the
+- [x] The launcher observes the start time and sends it to the daemon over the
       inherited pipe before the daemon publishes anything; `state.js` computes none,
       publishes the whole record — read from `server-info.json` alone — in one
       atomic write, and no `getconf` shell-out remains on that path
-- [ ] A launcher killed between daemon readiness and its next invocation leaves a record
+- [x] A launcher killed between daemon readiness and its next invocation leaves a record
       that still carries a start time — there is no window in which a live daemon has a
       partial identity record
-- [ ] A fixture-backed round-trip test pins the identity pipe's wire format (four
+- [x] A fixture-backed round-trip test pins the identity pipe's wire format (four
       newline-delimited fields, fixed field order and encoding); the daemon's read
       reaches EOF deterministically once both the child's `O_CLOEXEC`-closed inherited
       write-end copy and the launcher's own closed copy are gone
-- [ ] A launcher that crashes after spawning but before writing to the pipe produces a
+- [x] A launcher that crashes after spawning but before writing to the pipe produces a
       daemon that reads immediate EOF with no data, logs the failure and exits before
       creating any Playwright/Chromium process or opening its listening socket — no
       unsupervised, un-recorded daemon survives a launcher crash mid-handoff
-- [ ] A daemon request without the token is refused **from the daemon's first accepted
+- [x] A daemon request without the token is refused **from the daemon's first accepted
       connection**, and `client.js` supplies it
-- [ ] A request carrying an `Origin` header is refused regardless of token validity,
+- [x] A request carrying an `Origin` header is refused regardless of token validity,
       and a request presenting a valid token only as a query parameter (never a
       header) is refused
-- [ ] `PROTOCOL.md` documents the token's header name and generation, and no longer
+- [x] `PROTOCOL.md` documents the token's header name and generation, and no longer
       claims the daemon is unreachable by "external callers" without also naming what
       the token defends against
-- [ ] Invoking outside a repository emits the `no-repo` envelope on stderr and exits 2
-- [ ] A stale `server-stopped.json` is removed before a spawn, so a failed start is
+- [x] Invoking outside a repository emits the `no-repo` envelope on stderr and exits 2
+- [x] A stale `server-stopped.json` is removed before a spawn, so a failed start is
       not reported as a completed shutdown
-- [ ] The bootstrap log is truncated and `0600` before the daemon writes, under a
+- [x] The bootstrap log is truncated and `0600` before the daemon writes, under a
       `umask 077`, and a daemon-written screenshot is `0600` under the same
       child-side `umask(0o077)`
-- [ ] The bootstrap log's contents, after a normal run and after a run with an auth
+- [x] The bootstrap log's contents, after a normal run and after a run with an auth
       header configured, never contain the token value or the resolved credential
       value — the non-leakage property §3 states, checked rather than assumed
-- [ ] A warm executor invocation is measured against today's `run.sh` path with
+- [x] A warm executor invocation is measured against today's `run.sh` path with
       work-item:0186's interleaved-sample method, before `run.sh` is deleted (§8);
       the hard gate is the ratio (port ≤ shell), and the delta against the
       20–45ms-faster estimate is recorded as an observation, not a pass/fail
       threshold — the per-invocation cost of the path a crawl takes 100–200 times, which no
       criterion measured before
-- [ ] Launcher envelopes are byte-identical 3-key JSON on stderr, and daemon
+- [x] Launcher envelopes are byte-identical 3-key JSON on stderr, and daemon
       envelopes reach stdout at exit 0
-- [ ] `mise run test:unit:design-automation` passes over the runtime-free suites with
+- [x] `mise run test:unit:design-automation` passes over the runtime-free suites with
       **zero skipped tests** and an executed count at or above its floor, verified
       against `node --test --test-reporter=tap`'s own pass/fail/skip counts rather
       than a discovered-file floor, which a wholesale skip would not move and
       therefore would not catch
-- [ ] No `lib/*.test.js` suite contains a bare early `return`, `return null;` or
+- [x] No `lib/*.test.js` suite contains a bare early `return`, `return null;` or
       `catch { return; }` **inside a `test(...)`/`it(...)` callback body**, asserted
       by a brace-scoped grep that excludes helper functions and lines calling the
       test context's `skip()` — narrow enough to pass over `test-run.js:31`'s and
       `daemon.test.js`'s own helper returns while still catching the shape this plan
       condemns inside an actual test
-- [ ] `daemon.test.js`'s three re-homed guards (`evaluate-payload-rejected` absence,
+- [x] `daemon.test.js`'s three re-homed guards (`evaluate-payload-rejected` absence,
       `mcp__playwright__` absence, and `ownerPid`/`--owner-pid`/`OWNER_POLL_MS`
       absence — three separate `test(...)` cases) build their forbidden strings
       from concatenated fragments, not literals — **and** no title, comment, or
       assertion failure-message string in any of the three names the forbidden
       phrase verbatim — so the check does not self-match the file it lives in
       through any of those channels
-- [ ] `test:integration:design-automation` **fails** rather than skips when no Playwright
+- [x] `test:integration:design-automation` **fails** rather than skips when no Playwright
       runtime is present
-- [ ] The Rust lockhash digest equals `sha256_of` `ensure-playwright.sh`'s function for
+- [x] The Rust lockhash digest equals `sha256_of` `ensure-playwright.sh`'s function for
       the shipped `package-lock.json`, pinned as a golden
-- [ ] The Linux/Darwin start-time test suite currently at `cli/visualiser/server`
+- [x] The Linux/Darwin start-time test suite currently at `cli/visualiser/server`
       moves to `process-probe`, not merely the implementation it tests — both
       `cargo nextest run -p process-probe` and `cargo nextest run -p
       accelerator-visualiser` (with its import repointed at the new crate) pass
-- [ ] `PathResolution` refuses with a named error when `ACCELERATOR_PLUGIN_ROOT` is
+- [x] `PathResolution` refuses with a named error when `ACCELERATOR_PLUGIN_ROOT` is
       unset, and both path-bearing envelopes (`playwright-not-installed`,
       `daemon-start-timeout`) are byte-identical across two invocations from different
       working directories
-- [ ] `RunClient`'s type makes it impossible to sequence domain logic after the call in
+- [x] `RunClient`'s type makes it impossible to sequence domain logic after the call in
       the compiled binary (a `-> kernel::Error` or equivalent diverging signature); the
       lock is observably free immediately after a successful command
-- [ ] The pid the launcher records for the identity handoff is the pid the daemon
+- [x] The pid the launcher records for the identity handoff is the pid the daemon
       reports as its own — asserted with a fixture-backed check that `setsid` is used,
       not a double fork
-- [ ] The forwarded-command validator rejects a payload that itself carries a `command`
+- [x] The forwarded-command validator rejects a payload that itself carries a `command`
       or `protocol` key, and `client.js` refuses to connect to a `server-info.json`
       whose `url` is not loopback
-- [ ] `::1`, `::a.b.c.d` and `::ffff:a.b.c.d` all classify via `Ipv6Addr::to_ipv4()` to
+- [x] `::1`, `::a.b.c.d` and `::ffff:a.b.c.d` all classify via `Ipv6Addr::to_ipv4()` to
       their embedded address; a percent-escaped or control-character-bearing host is
       rejected rather than treated as an opaque hostname
-- [ ] `mise run cli:check` and `mise run scripts:check` exit 0
-- [ ] `mise run` exits 0
+- [x] `mise run cli:check` and `mise run scripts:check` exit 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -2095,23 +2095,23 @@ because each is a behaviour change rather than a migration:
 
 #### Automated Verification
 
-- [ ] Failing test first: every re-homed assertion from §1's table is present in its new
+- [x] Failing test first: every re-homed assertion from §1's table is present in its new
       suite **and shown to fail when its property is broken**, verified before its old
       home is cut
-- [ ] `mise run test:integration:config` passes with `_EXPECTED_CONFIG_SUITES` still at
+- [x] `mise run test:integration:config` passes with `_EXPECTED_CONFIG_SUITES` still at
       15 (moved once already, by Phase 3) and `test-design.sh` still discovered (it
       survives this plan)
-- [ ] `mise run test:unit:design-automation` passes at its floor with zero skipped tests
-- [ ] `mise run test:unit:tasks` passes, including `test_registration_docs.py`
-- [ ] `mise run lint:scripts:exec-bits:check` exits 0
-- [ ] `mise run docs:check` exits 0
-- [ ] Only `ensure-playwright.sh` and the retained JavaScript remain under
+- [x] `mise run test:unit:design-automation` passes at its floor with zero skipped tests
+- [x] `mise run test:unit:tasks` passes, including `test_registration_docs.py`
+- [x] `mise run lint:scripts:exec-bits:check` exits 0
+- [x] `mise run docs:check` exits 0
+- [x] Only `ensure-playwright.sh` and the retained JavaScript remain under
       `skills/design/**/scripts/`
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] The docs site builds and every design page's links resolve
+- [x] The docs site builds and every design page's links resolve
 - [ ] Both design skills run end to end in a live session, on a machine with a
       bootstrapped Playwright namespace
 - [ ] A Playwright-driven inventory still works exactly as before this plan — same

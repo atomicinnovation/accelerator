@@ -5,13 +5,13 @@ title: "accelerator-design: Design Inventory and Gap Tooling CLI"
 date: "2026-08-05T19:03:35+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: in-progress
 kind: story
 priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, design, cli, playwright, distribution]
-last_updated: "2026-08-11T15:52:23+00:00"
+last_updated: "2026-08-12T23:21:12+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
