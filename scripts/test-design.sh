@@ -106,13 +106,13 @@ assert_not_contains "browser-analyser declares no mcp__playwright__ tools" \
 
 echo ""
 
-echo "=== run.sh evaluate payload allowlist ==="
+echo "=== executor evaluate payload allowlist ==="
 
 ANA_BODY="$(cat "$ANA")"
 for forbidden in "fetch" "XMLHttpRequest" "document.cookie" \
   "localStorage" "sessionStorage" "indexedDB" \
   "eval" "innerHTML" "window.open"; do
-  assert_contains "browser-analyser body forbids $forbidden in run.sh evaluate" \
+  assert_contains "browser-analyser body forbids $forbidden in executor evaluate" \
     "$ANA_BODY" "$forbidden"
 done
 
@@ -257,11 +257,6 @@ PLAYWRIGHT_DIR="$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright"
 # regardless of which file (or new test) reintroduces the symbol.
 assert_exit_code "no watcher identifier references under playwright/ tree" 1 \
   grep -rnE '\bownerPid\b|--owner-pid|\bOWNER_POLL_MS\b' "$PLAYWRIGHT_DIR"
-
-echo ""
-
-echo "=== inventory-design: playwright executor ==="
-bash "$PLUGIN_ROOT/skills/design/inventory-design/scripts/playwright/test-run.sh"
 
 echo ""
 

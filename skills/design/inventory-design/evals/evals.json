@@ -146,7 +146,7 @@
     {
       "id": 14,
       "name": "browser-evaluate-safety-structural",
-      "prompt": "Read agents/browser-analyser.md fully.\n\nSave to outputs/:\n- forbidden-patterns.md: List every forbidden run.sh evaluate payload pattern that is explicitly named in the '## run.sh evaluate Payload Allowlist' section of the agent body",
+      "prompt": "Read agents/browser-analyser.md fully.\n\nSave to outputs/:\n- forbidden-patterns.md: List every forbidden executor evaluate payload pattern that is explicitly named in the '## executor evaluate Payload Allowlist' section of the agent body",
       "expected_output": "Agent body explicitly lists each forbidden pattern: fetch, XMLHttpRequest, document.cookie, localStorage, sessionStorage, indexedDB, eval, innerHTML, window.open.",
       "files": [],
       "expectations": [
@@ -194,12 +194,12 @@
       "id": 20,
       "name": "executor-bootstrap-failure-fallback",
       "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nContext: ACCELERATOR_PLAYWRIGHT_MOCK_NPM_EXIT=1 is set (simulates npm ci failure during bootstrap).\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler hybrid\n\nFollow Steps 1-9. In Step 4, simulate running ensure-playwright.sh — it exits 14 and emits ACCELERATOR_DOWNGRADE_REASON=bootstrap-failed to stderr. Follow the hybrid-downgrade path.\n\nSave to outputs/:\n- response.md: The downgrade notice printed to the user before the crawl begins\n- crawl-notes.md: What you would write in the Crawl Notes section\n- summary.md: The summary presented to the user at Step 13",
-      "expected_output": "Skill prints the notify-downgrade.sh output for 'bootstrap-failed' before starting the crawl. Falls back to code-only crawler. Crawl Notes records the bootstrap failure. No run.sh navigate calls are made.",
+      "expected_output": "Skill prints the notify-downgrade output for 'bootstrap-failed' before starting the crawl. Falls back to code-only crawler. Crawl Notes records the bootstrap failure. No executor navigate calls are made.",
       "files": [],
       "expectations": [
         "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
         "Crawl Notes records the downgrade from hybrid to code-only",
-        "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+        "Skill uses code crawler (no executor navigate calls beyond the ping probe)",
         "Inventory artifact is produced with code-mode data",
         "Skill does not abort — it continues with code crawler after bootstrap failure"
       ]
@@ -207,13 +207,13 @@
     {
       "id": 21,
       "name": "executor-ping-no-browser",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nFollow Steps 1-13. Because the crawler mode is 'code', Steps 4-5 (ensure-playwright.sh and run.sh ping) are skipped entirely.\n\nSave to outputs/:\n- behavior.md: Which steps are skipped and why, and whether any executor or browser commands are invoked",
-      "expected_output": "Steps 4 and 5 are skipped because the crawler mode is 'code'. No ensure-playwright.sh invocation. No run.sh ping call. No Chromium browser launched. The code-only crawl completes without any executor interaction.",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nThe working directory is the plugin root.\n\nA user invokes: /accelerator:inventory-design design-test-app ./skills/design/inventory-design/evals/fixtures/design-test-app --crawler code\n\nFollow Steps 1-13. Because the crawler mode is 'code', Steps 4-5 (ensure-playwright.sh and executor ping) are skipped entirely.\n\nSave to outputs/:\n- behavior.md: Which steps are skipped and why, and whether any executor or browser commands are invoked",
+      "expected_output": "Steps 4 and 5 are skipped because the crawler mode is 'code'. No ensure-playwright.sh invocation. No executor ping call. No Chromium browser launched. The code-only crawl completes without any executor interaction.",
       "files": [],
       "expectations": [
         "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
-        "Step 5 (run.sh ping) is skipped for code-only crawl",
-        "No run.sh commands are invoked during a code-only crawl",
+        "Step 5 (executor ping) is skipped for code-only crawl",
+        "No executor commands are invoked during a code-only crawl",
         "Inventory is produced using only code-static analysis",
         "Summary correctly identifies crawler mode as 'code'"
       ]
