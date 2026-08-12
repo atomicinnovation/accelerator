@@ -2833,7 +2833,6 @@ dependencies = [
 name = "kernel"
 version = "1.24.0-pre.36"
 dependencies = [
- "thiserror",
  "tracing",
  "tracing-subscriber",
 ]

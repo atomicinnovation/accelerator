@@ -561,18 +561,22 @@ owes five things.
 
   One class of diff is **not** a first-party change: a snapshot names the
   third-party types a crate exposes, so a dependency bump moves it on its own.
-  `document` renders `serde_core::ser::Serialize` (serde's internal split
-  crate), and `thiserror`'s derive in `kernel` contributes the parameter name
-  `__formatter`. A bump that renames either reddens the pin with no first-party
-  edit behind it.
+  `document` is the only crate where this is live — it renders
+  `serde_core::ser::Serialize`, serde's internal split crate, so a serde bump
+  that renames that path reddens the pin with no first-party edit behind it.
+  (`__H` in the `corpus` and `tracker` snapshots is *not* an instance: it comes
+  from std's `Hash` derive, which no dependency bump touches.)
 
   Read such a diff as the pin doing its job, not as noise to absorb: a crate
   exposing a dependency's type in its own surface is now visible rather than
   merely true. `kernel::Error::LogFilter` carried a
   `tracing_subscriber::ParseError` until this pin showed it, which put that type
-  (and its `From` impl) in the error surface of the crate every other crate
+  and its `From` impl in the error surface of the crate every other crate
   depends on, and made `launcher` take a `tracing-subscriber` dev-dependency for
-  the sole purpose of constructing one. It carries a `String` now.
+  the sole purpose of constructing one. Both are gone, and `kernel` hand-writes
+  `Display`/`Error` like every other error type here rather than deriving them —
+  a derive is a dependency in the surface too, which is how `__formatter` used
+  to appear in that snapshot.
 
 Then run `mise run deny:check`.
 
