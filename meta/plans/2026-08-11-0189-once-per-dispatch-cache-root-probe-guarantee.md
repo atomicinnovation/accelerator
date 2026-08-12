@@ -986,33 +986,33 @@ describe.
 
 #### Automated Verification:
 
-- [ ] Every cell of the Mutation A/B/C/D table is observed and recorded,
+- [x] Every cell of the Mutation A/B/C/D table is observed and recorded,
       including the greens: each of the eight delta-bearing tests against each
       of the four mutations, under `cargo nextest`. Command and full output
       recorded in Validation Results
-- [ ] The two collateral results are recorded as such — Mutation A reddening
+- [x] The two collateral results are recorded as such — Mutation A reddening
       `a_signature_read_io_error_propagates_the_refetch_error_verbatim`, and
       Mutation B reddening
       `resolve_succeeds_from_a_read_only_cache_root_on_a_hit`
-- [ ] The recorded mutation output contains **no** `skipping: minisign not on
+- [x] The recorded mutation output contains **no** `skipping: minisign not on
       PATH` line — the macro returns `Ok(())`, which nextest reports as PASS, so
       without this check the whole exercise can be a false negative that looks
       like valid evidence. Run with `--no-capture` so per-test stderr is visible
-- [ ] All four mutations are reverted and the suite is green again
-- [ ] Integration tests pass: `cargo nextest run --manifest-path cli/Cargo.toml
+- [x] All four mutations are reverted and the suite is green again
+- [x] Integration tests pass: `cargo nextest run --manifest-path cli/Cargo.toml
       -p accelerator --all-features -E 'binary(resolution)'`
-- [ ] Whole cli suite passes: `ACCELERATOR_COVERAGE=off mise run test:unit:cli`
+- [x] Whole cli suite passes: `ACCELERATOR_COVERAGE=off mise run test:unit:cli`
       (nextest runs every target in the workspace, integration binaries
       included)
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run check` exits 0
+- [x] `mise run cli:check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] `jj diff` after the mutation exercise shows no residue in `mod.rs`
-- [ ] `an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss` asserts its
+- [x] `jj diff` after the mutation exercise shows no residue in `mod.rs`
+- [x] `an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss` asserts its
       delta **after** restoring `0o755`, not inside `probes_during`
-- [ ] `seed_cache` returns `CachedBinary` and no test re-queries with
+- [x] `seed_cache` returns `CachedBinary` and no test re-queries with
       `cache::find` for a value the helper already returned
 
 ---
@@ -1907,14 +1907,85 @@ the thread-local `PROBE_ATTEMPTS`, its accessor, and the one added statement.
 
 ### Mutation exercise
 
-_Pending Phase 2._ Slots: the full A/B/C/D × eight-test table with every cell
-observed, including greens; commands and full output for each mutation; the two
-collateral reds recorded as such (Mutation A reddening
-`a_signature_read_io_error_propagates_the_refetch_error_verbatim`, Mutation B
-reddening `resolve_succeeds_from_a_read_only_cache_root_on_a_hit`); the note
-that `an_unwritable_cache_root_…` stays green under B by short-circuit rather
-than by preservation; confirmation no recording contains `skipping: minisign not
-on PATH`; confirmation all four mutations reverted and the suite green.
+Recorded 2026-08-12 on darwin-arm64. Command for every sweep, run over the whole
+integration binary so greens are observed and not inferred:
+
+```
+$ cargo nextest run --manifest-path cli/Cargo.toml -p accelerator \
+    --all-features -E 'binary(resolution)' --no-fail-fast --no-capture
+```
+
+Each assertion was authored under the mutation that reddens it, per the pairing
+in Phase 2 item 2 — the assertion was written while the mutation was in force,
+observed red, and only then made green by reverting.
+
+**Observed table.** ✗ = red under that mutation; every other cell was observed
+PASS in the same run.
+
+| Test | Baseline | A | B | C | D |
+| --- | --- | --- | --- | --- | --- |
+| `a_cold_miss_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
+| `a_warm_hit_never_probes_the_cache_root` | PASS | ✗ | ✗ | PASS | PASS |
+| `a_successful_refetch_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
+| `a_failed_refetch_probes_the_cache_root_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
+| `a_refetch_after_a_benign_cache_io_error_probes_exactly_once` | PASS | ✗ | ✗ | PASS | PASS |
+| `each_of_two_cold_misses_probes_the_cache_root_once` | PASS | ✗ (1st bracket) | ✗ | PASS | ✗ (2nd bracket) |
+| `a_signature_read_io_error_propagates_the_refetch_error_verbatim` | PASS | ✗ | ✗ | PASS | ✗ |
+| `an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss` | PASS | PASS | PASS | ✗ | PASS |
+
+Every predicted cell was observed as predicted. Per-mutation totals over the
+25-test binary: A — 6 failed, 18 passed (the warm-hit test did not yet exist
+when A was in force; it was authored under B). B — 8 failed, 17 passed. C — 1
+failed, 24 passed. D — 2 failed, 23 passed. Baseline — 25 passed, 0 skipped.
+
+`each_of_two_cold_misses_…` fails on the **first** bracket under A and on the
+**second** under D, which is what distinguishes D's reach from A's:
+
+```
+assertion `left == right` failed: first cold miss: expected 1 probe attempt(s)   [A]
+assertion `left == right` failed: second cold miss: expected 1 probe attempt(s)  [D]
+```
+
+**Collateral results, recorded rather than treated as noise.** Mutation A
+reddens `a_signature_read_io_error_propagates_the_refetch_error_verbatim` — it
+reaches `fetch_verify_store` and therefore doubles, so the claim that A perturbs
+no existing test is wrong. Mutation B reddens the pre-existing
+`resolve_succeeds_from_a_read_only_cache_root_on_a_hit`: with the cache chmodded
+`0o555` the injected probe cannot write and resolution errors out. That one is
+corroborating — the warm-path property already has a behavioural guard
+independent of the new counter.
+
+`an_unwritable_cache_root_…` stays green under B **by short-circuit, not by
+preservation**: the injected probe fails before `cache::find` is reached, so the
+count is 1 for a different reason than under baseline.
+
+**Fixture-postcondition mutations.** The plan claimed one degraded-seed run
+discharges all three fixture postconditions. It does not — the degraded seed
+only reaches `seed_cache`'s `is_some()`. Three separate demonstrations were
+therefore run:
+
+- **Degraded seed** (`seed_cache` storing under `"0.0.0-degraded-seed"`): the
+  four seed consumers — `a_warm_hit_never_probes_the_cache_root`, both
+  byte-poisoning refetches and the sidecar refetch — fail on `a seeded entry
+  must be findable, or the warm-path tests silently degrade into cold-miss
+  duplicates`, not on their deltas. That is the silent-degradation mode the
+  postcondition exists to catch.
+- **`clear_cache` not clearing** (`remove_dir_all` removed):
+  `each_of_two_cold_misses_probes_the_cache_root_once` fails on `the cache must
+  be empty, or the next resolution is a hit`.
+- **Retrofit findability** (cached binary unlinked before the assertion):
+  `a_signature_read_io_error_propagates_the_refetch_error_verbatim` fails on
+  `assertion failed: cache::find(&harness.cache, BINARY, VERSION).is_some()`,
+  confirming the assertion that excludes the cold-miss tail call is load-bearing
+  rather than belt-and-braces.
+
+**No recording contains `skipping: minisign not on PATH`.** `minisign` 0.12 is
+on `PATH` via mise; every sweep was run with `--no-capture` and grepped for that
+string, which never appeared.
+
+**All mutations reverted.** `jj diff` over
+`cli/launcher/src/launch/outbound/resolve/mod.rs` is empty, and the baseline
+sweep above is green at 25/25.
 
 ### Root-runner confirmation
 
