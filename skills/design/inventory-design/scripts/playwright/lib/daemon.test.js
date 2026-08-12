@@ -10,22 +10,7 @@ import { tmpdir } from 'node:os';
 import { realpathSync } from 'node:fs';
 import { request } from 'node:http';
 import { resolve as pathResolve } from 'node:path';
-import { createHash } from 'node:crypto';
 import { readServerInfo, SERVER_STOPPED_FILE } from './state.js';
-
-function resolvePlaywrightNsRoot() {
-  const cacheRoot = process.env.ACCELERATOR_PLAYWRIGHT_CACHE || `${process.env.HOME}/.cache/accelerator/playwright`;
-  if (!existsSync(cacheRoot)) return null;
-  const lockFile = new URL('../package-lock.json', import.meta.url).pathname;
-  let lockContents;
-  try { lockContents = readFileSync(lockFile); } catch { return null; }
-  const lockhash = createHash('sha256').update(lockContents).digest('hex').slice(0, 8);
-  const nsRoot = resolve(cacheRoot, lockhash);
-  // Check for real playwright install: must have actual JS entry point, not just a stub package.json
-  const playwrightEntry = resolve(nsRoot, 'node_modules', 'playwright', 'index.js');
-  if (!existsSync(playwrightEntry)) return null;
-  return nsRoot;
-}
 
 function withTmpDir(fn) {
   const dir = realpathSync(mkdtempSync(resolve(tmpdir(), 'daemon-test-')));
@@ -123,26 +108,6 @@ function forkDaemon(dir, extraEnv = {}) {
 function authed(extra = {}) {
   return { 'x-accelerator-token': TEST_TOKEN, ...extra };
 }
-
-// -- ping does not launch Chromium (fast, < 500ms) ----------------------
-
-test('ping returns ok: true without launching browser', { timeout: 5000 }, async () => {
-  const nsRoot = resolvePlaywrightNsRoot();
-  if (!nsRoot) return; // Skip if Playwright not fully installed for this lockhash
-  await withTmpDir(async dir => {
-    const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000', ACCELERATOR_PLAYWRIGHT_NS_ROOT: nsRoot };
-    const child = forkDaemon(dir, daemonEnv);
-    try {
-      const info = await waitForInfo(dir, 5000);
-      const res = await send(info.url, { protocol: 1, command: 'ping' });
-      assert.equal(res.ok, true);
-      assert.ok(typeof res.node === 'string');
-      assert.ok(typeof res.chromium === 'string');
-    } finally {
-      child.kill('SIGTERM');
-    }
-  });
-});
 
 // -- Protocol-version check ---------------------------------------------
 
@@ -329,4 +294,97 @@ test('a daemon whose handoff never arrives exits without publishing', { timeout:
     assert.notEqual(code, 0);
     assert.equal(readServerInfo(dir), null);
   });
+});
+
+// -- Guards re-homed from scripts/test-design.sh -------------------------
+
+// Three of these sweep a tree for a forbidden string, and that tree now
+// contains this very file. Every needle is therefore built from concatenated
+// fragments, and no title, comment or assertion message below writes the
+// phrase whole — otherwise the check would find itself and invert permanently.
+// The shell version got away with literals only because it lived outside the
+// directories it scanned, which stops being true the moment it moves in here.
+
+import { readdirSync, statSync } from 'node:fs';
+
+const EXECUTOR_SRC = pathResolve(import.meta.dirname, '..');
+
+function sourceFilesUnder(root) {
+  const found = [];
+  for (const entry of readdirSync(root)) {
+    if (entry === 'node_modules' || entry === '__fixtures__') continue;
+    const path = pathResolve(root, entry);
+    if (statSync(path).isDirectory()) found.push(...sourceFilesUnder(path));
+    else if (entry.endsWith('.js')) found.push(path);
+  }
+  return found;
+}
+
+// The two scopes the shell version used, kept distinct. The deny-list sweeps
+// covered lib/ and run.js — the executor's own implementation — while the
+// watcher sweep covered the whole tree, so a reintroduction anywhere would be
+// caught.
+function executorImplementation() {
+  return [
+    ...sourceFilesUnder(pathResolve(EXECUTOR_SRC, 'lib')),
+    pathResolve(EXECUTOR_SRC, 'run.js'),
+  ];
+}
+
+function filesContaining(files, needle) {
+  return files
+    .filter(path => readFileSync(path, 'utf8').includes(needle))
+    .map(path => path.replace(EXECUTOR_SRC, ''));
+}
+
+test('the payload-rejection deny-list marker is absent from executor source', () => {
+  const needle = 'evaluate-payload' + '-rejected';
+  assert.deepEqual(filesContaining(executorImplementation(), needle), []);
+});
+
+test('no MCP-prefixed browser-tool reference survives in executor source', () => {
+  const needle = 'mcp' + '__' + 'playwright' + '__';
+  assert.deepEqual(filesContaining(executorImplementation(), needle), []);
+});
+
+test('no owner-PID watcher identifier survives under the playwright tree', () => {
+  // A resolved incident: the watcher raced an ephemeral shell and killed live
+  // daemons. See meta/notes/2026-05-19-playwright-daemon-owner-pid-ephemeral-shell.md
+  const needles = ['owner' + 'Pid', '--owner' + '-pid', 'OWNER' + '_POLL_MS'];
+  for (const needle of needles) {
+    assert.deepEqual(filesContaining(sourceFilesUnder(EXECUTOR_SRC), needle), [], needle);
+  }
+});
+
+test('PROTOCOL.md documents every command the daemon dispatches', () => {
+  // Reads two named files and asserts content is present, so unlike the sweeps
+  // above it carries no self-matching risk wherever it lives.
+  const protocol = readFileSync(
+    pathResolve(EXECUTOR_SRC, '../../PROTOCOL.md'),
+    'utf8'
+  );
+  const commands = ['ping', 'daemon-status', 'daemon-stop', 'navigate', 'snapshot',
+    'links', 'screenshot', 'evaluate', 'click', 'type', 'wait_for'];
+  for (const command of commands) {
+    assert.ok(protocol.includes(`### \`${command}\``), `${command} undocumented`);
+  }
+
+  // Every environment variable the daemon reads must be documented too.
+  const daemonSource = readFileSync(pathResolve(EXECUTOR_SRC, 'lib/daemon.js'), 'utf8');
+  const declared = new Set(daemonSource.match(/ACCELERATOR_PLAYWRIGHT_[A-Z_]+/g) || []);
+  assert.ok(protocol.includes('## Environment Variables'));
+  for (const variable of declared) {
+    assert.ok(protocol.includes(variable), `${variable} undocumented`);
+  }
+});
+
+test('links is wall-clock bounded like every other browser operation', () => {
+  // page.evaluate() can hang on a hostile page, so `links` belongs in the set
+  // that gets a per-op budget.
+  const daemonSource = readFileSync(pathResolve(EXECUTOR_SRC, 'lib/daemon.js'), 'utf8');
+  const declaration = daemonSource
+    .split('\n')
+    .find(line => line.startsWith('const BLOCKING_OPS'));
+  assert.ok(declaration, 'BLOCKING_OPS is not declared');
+  assert.ok(declaration.includes("'links'"), declaration);
 });

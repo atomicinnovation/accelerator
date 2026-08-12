@@ -88,13 +88,25 @@ async function withFixtureServer(fn) {
   }
 }
 
-// Check if Playwright is bootstrapped
+// This suite runs only in the opt-in lane, whose preflight has already
+// guaranteed a runtime — so an absent one is a bug in the lane, not a reason to
+// skip. Skipping here is what let a whole suite evaporate silently: `node
+// --test` reports a skipped test as neither passed nor failed, so an absent
+// runtime and a passing suite looked identical in CI.
 const cacheRoot = process.env.ACCELERATOR_PLAYWRIGHT_CACHE || `${process.env.HOME}/.cache/accelerator/playwright`;
-const playwrightInstalled = existsSync(cacheRoot);
+
+function requireRuntime() {
+  assert.ok(
+    existsSync(cacheRoot),
+    `Playwright is not bootstrapped at ${cacheRoot}. Run ensure-playwright.sh; ` +
+      'this lane fails rather than skipping.'
+  );
+}
 
 // -- ping ----------------------------------------------------------------
 
-test('ping: exits 0 with ok: true and chromium path, < 500ms', { timeout: 15000, skip: !playwrightInstalled }, async () => {
+test('ping: exits 0 with ok: true and chromium path, < 500ms', { timeout: 15000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -113,7 +125,8 @@ test('ping: exits 0 with ok: true and chromium path, < 500ms', { timeout: 15000,
   });
 });
 
-test('ping: corrupted bootstrap → category: bootstrap', { timeout: 10000, skip: !playwrightInstalled }, async () => {
+test('ping: corrupted bootstrap → category: bootstrap', { timeout: 10000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, {
       PLAYWRIGHT_BROWSERS_PATH: '/nonexistent-path-xyz',
@@ -133,7 +146,8 @@ test('ping: corrupted bootstrap → category: bootstrap', { timeout: 10000, skip
 
 // -- navigate + snapshot ------------------------------------------------
 
-test('navigate then snapshot produces non-empty JSON', { timeout: 30000, skip: !playwrightInstalled }, async () => {
+test('navigate then snapshot produces non-empty JSON', { timeout: 30000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -154,7 +168,8 @@ test('navigate then snapshot produces non-empty JSON', { timeout: 30000, skip: !
 
 // -- screenshot ----------------------------------------------------------
 
-test('screenshot writes a non-empty PNG to the output root', { timeout: 30000, skip: !playwrightInstalled }, async () => {
+test('screenshot writes a non-empty PNG to the output root', { timeout: 30000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     await withTmpDir(async outputRoot => {
       const child = spawnDaemon(stateDir, { ACCELERATOR_INVENTORY_OUTPUT_ROOT: outputRoot });
@@ -181,7 +196,8 @@ test('screenshot writes a non-empty PNG to the output root', { timeout: 30000, s
 
 // -- screenshot path-guard (integration boundary) ----------------------
 
-test('screenshot: unset output root → screenshot-output-root-unset', { timeout: 10000, skip: !playwrightInstalled }, async () => {
+test('screenshot: unset output root → screenshot-output-root-unset', { timeout: 10000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const childEnv = { ...process.env };
     delete childEnv.ACCELERATOR_INVENTORY_OUTPUT_ROOT;
@@ -199,7 +215,8 @@ test('screenshot: unset output root → screenshot-output-root-unset', { timeout
   });
 });
 
-test('screenshot: absolute path outside root → screenshot-path-outside-output-root', { timeout: 20000, skip: !playwrightInstalled }, async () => {
+test('screenshot: absolute path outside root → screenshot-path-outside-output-root', { timeout: 20000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     await withTmpDir(async outputRoot => {
       const child = spawnDaemon(stateDir, { ACCELERATOR_INVENTORY_OUTPUT_ROOT: outputRoot });
@@ -219,7 +236,8 @@ test('screenshot: absolute path outside root → screenshot-path-outside-output-
 
 // -- evaluate -----------------------------------------------------------
 
-test('evaluate: expression result round-trips', { timeout: 20000, skip: !playwrightInstalled }, async () => {
+test('evaluate: expression result round-trips', { timeout: 20000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -236,7 +254,8 @@ test('evaluate: expression result round-trips', { timeout: 20000, skip: !playwri
   });
 });
 
-test('evaluate: fetch call is NOT filtered (deny-list removed)', { timeout: 20000, skip: !playwrightInstalled }, async () => {
+test('evaluate: fetch call is NOT filtered (deny-list removed)', { timeout: 20000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -255,7 +274,8 @@ test('evaluate: fetch call is NOT filtered (deny-list removed)', { timeout: 2000
 
 // -- daemon lifecycle ----------------------------------------------------
 
-test('two consecutive client calls reuse the same daemon', { timeout: 30000, skip: !playwrightInstalled }, async () => {
+test('two consecutive client calls reuse the same daemon', { timeout: 30000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -275,7 +295,8 @@ test('two consecutive client calls reuse the same daemon', { timeout: 30000, ski
   });
 });
 
-test('idle shutdown: no traffic → server-stopped.json with reason: idle', { timeout: 5000, skip: !playwrightInstalled }, async () => {
+test('idle shutdown: no traffic → server-stopped.json with reason: idle', { timeout: 5000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, { ACCELERATOR_PLAYWRIGHT_IDLE_MS: '400' });
     try {
@@ -292,7 +313,8 @@ test('idle shutdown: no traffic → server-stopped.json with reason: idle', { ti
   });
 });
 
-test('wall-clock exceeded: in-flight client receives structured envelope', { timeout: 15000, skip: !playwrightInstalled }, async () => {
+test('wall-clock exceeded: in-flight client receives structured envelope', { timeout: 15000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, {
       ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS: '1000',
@@ -319,7 +341,8 @@ test('wall-clock exceeded: in-flight client receives structured envelope', { tim
   });
 });
 
-test('wait_for: caller timeout shorter than wall clock returns natural timeout without kill', { timeout: 15000, skip: !playwrightInstalled }, async () => {
+test('wait_for: caller timeout shorter than wall clock returns natural timeout without kill', { timeout: 15000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, {
       ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS: '10000',
@@ -346,7 +369,8 @@ test('wait_for: caller timeout shorter than wall clock returns natural timeout w
   });
 });
 
-test('protocol round-trip: every command includes protocol: 1 in response', { timeout: 30000, skip: !playwrightInstalled }, async () => {
+test('protocol round-trip: every command includes protocol: 1 in response', { timeout: 30000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir);
     try {
@@ -365,7 +389,8 @@ test('protocol round-trip: every command includes protocol: 1 in response', { ti
   });
 });
 
-test('daemon-stop: writes server-stopped.json and removes state files', { timeout: 10000, skip: !playwrightInstalled }, async () => {
+test('daemon-stop: writes server-stopped.json and removes state files', { timeout: 10000 }, async () => {
+  requireRuntime();
   await withTmpDir(async stateDir => {
     const child = spawnDaemon(stateDir, { ACCELERATOR_PLAYWRIGHT_IDLE_MS: '30000' });
     try {

@@ -28,6 +28,11 @@ fn executor(
     command.current_dir(cwd);
     command.env_clear();
     command.env("PATH", std::env::var("PATH").unwrap_or_default());
+    // Coverage instrumentation writes to the path this names; clearing it
+    // makes the child litter its profile into the directory under test.
+    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
     command.env("HOME", cwd);
     for (name, value) in environment {
         command.env(name, value);
@@ -78,7 +83,13 @@ fn a_refused_command_resolves_nothing() -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
     executor(&["daemon"], work.path(), &[]);
 
-    let stray: Vec<_> = fs::read_dir(work.path())?.collect();
+    // Coverage artefacts are the harness's, not the binary's — the claim is
+    // that no *state* was resolved.
+    let stray: Vec<_> = fs::read_dir(work.path())?
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| !name.ends_with(".profraw"))
+        .collect();
     assert!(stray.is_empty(), "a refused command created {stray:?}");
     Ok(())
 }

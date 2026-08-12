@@ -16,6 +16,7 @@ _PINNED_CRATES = (
     "collaboration",
     "config",
     "corpus",
+    "design",
     "document",
     "kernel",
     "migrate",
@@ -37,6 +38,7 @@ _COMPOSITION_ROOT = (
 
 _EXEMPT_MEMBERS = {
     "config-adapters": _ADAPTER,
+    "design-adapters": _ADAPTER,
     "corpus-adapters": _ADAPTER,
     "migrate-adapters": _ADAPTER,
     "vcs-adapters": _ADAPTER,
@@ -47,6 +49,7 @@ _EXEMPT_MEMBERS = {
     ),
     "collaboration-cli": _COMPOSITION_ROOT,
     "corpus-cli": _COMPOSITION_ROOT,
+    "design-cli": _COMPOSITION_ROOT,
     "migrate-cli": _COMPOSITION_ROOT,
     "vcs-cli": _COMPOSITION_ROOT,
     "work-cli": _COMPOSITION_ROOT,
@@ -58,6 +61,11 @@ _EXEMPT_MEMBERS = {
     "visualiser/server": (
         f"{_COMPOSITION_ROOT}. Its contract with the outside world is the HTTP"
         " API, held by the server's own integration and E2E suites"
+    ),
+    "process-probe": (
+        "a two-function primitive over one syscall per platform: its contract"
+        " is the epoch value itself, held by the fixture-replayed arithmetic"
+        " tests and by the identity semantics each caller builds on top"
     ),
     "vcs-test-support": (
         "test support: consumed only by other crates' test targets, where a"
