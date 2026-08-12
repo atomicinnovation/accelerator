@@ -8,7 +8,7 @@ producer: review-work-item
 status: complete
 parent: "work-item:0136"
 target: "work-item:0204"
-relates_to: ["work-item-review:0194"]
+relates_to: ["work-item-review:0194-tracker-crate-and-remote-sync-engine-review-2"]
 work_item_id: "0204"
 reviewer: Toby Clemson
 verdict: APPROVE
