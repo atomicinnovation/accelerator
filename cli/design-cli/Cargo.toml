@@ -17,6 +17,9 @@ path = "src/main.rs"
 [dependencies]
 design = { path = "../design" }
 design-adapters = { path = "../design-adapters" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
 

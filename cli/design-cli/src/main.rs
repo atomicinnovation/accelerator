@@ -4,6 +4,8 @@
 
 mod cli;
 mod commands;
+mod config;
+mod executor;
 mod report;
 
 use std::process::ExitCode;
@@ -45,6 +47,8 @@ fn run(command: Command) -> Result<Report, kernel::Error> {
         Command::AuditCuePhrases { file } => {
             commands::audit_cue_phrases(&file, &CompiledCuePhrases::new()?)
         }
+        // Handled before dispatch: it never returns a Report.
+        Command::Executor { .. } => unreachable!("dispatched in main"),
     }
 }
 
@@ -62,7 +66,14 @@ fn report_error(error: &kernel::Error) -> ExitCode {
 }
 
 fn main() -> ExitCode {
-    match run(Cli::parse().command) {
+    let command = Cli::parse().command;
+    // The executor owns its own exit status: on the success path it replaces
+    // the process image with the client, so there is no `Report` for it to
+    // return through.
+    if let Command::Executor { command, arguments } = command {
+        return executor::run(&command, &arguments);
+    }
+    match run(command) {
         Ok(Report::Accepted { stdout, stderr }) => {
             print!("{stdout}");
             eprint!("{stderr}");

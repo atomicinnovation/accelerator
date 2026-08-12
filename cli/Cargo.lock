@@ -60,10 +60,13 @@ name = "accelerator-design"
 version = "1.24.0-pre.36"
 dependencies = [
  "clap",
+ "config",
+ "config-adapters",
  "design",
  "design-adapters",
  "kernel",
  "tempfile",
+ "vcs-adapters",
 ]
 
 [[package]]

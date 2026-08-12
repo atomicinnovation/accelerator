@@ -55,6 +55,22 @@ pub enum Command {
         #[arg(long)]
         to: Option<String>,
     },
+    /// Runs a Playwright executor command against a reused or freshly-spawned
+    /// daemon.
+    ///
+    /// Arguments after the command are forwarded to the Node runner verbatim,
+    /// so the command itself is checked against an allowlist: the runner
+    /// dispatches on the first of them, and its internal `daemon` subcommand
+    /// would otherwise start a second foreground daemon over the live one's
+    /// state.
+    Executor {
+        /// The executor command: ping, navigate, snapshot, screenshot,
+        /// evaluate, links or daemon-stop.
+        command: String,
+        /// The command's own arguments, usually a single JSON object.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        arguments: Vec<String>,
+    },
     /// Whether every substantive H2 section carries a cue phrase.
     AuditCuePhrases {
         /// The design-gap document to audit.
