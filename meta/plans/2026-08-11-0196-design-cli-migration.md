@@ -1684,27 +1684,49 @@ the `{browser-executor-script}` convention exist solely to resolve `run.sh`'s
 absolute path. With `run.sh` gone they retire: both agents call
 `accelerator design executor` directly at their ~40 call sites.
 
-**One precondition must be checked before committing to that.** No agent in
-`agents/` references `${CLAUDE_PLUGIN_ROOT}` or invokes `accelerator` today — the
-established pattern is preload-a-skill-that-injects-resolved-values (`paths` →
-`{work}`, `browser-executor` → `{browser-executor-script}`), and both agents carry an
-explicit preload guard with a verbatim user-facing failure message that retires with
-it. If `${CLAUDE_PLUGIN_ROOT}` is not expanded inside a subagent's Bash tool
-environment, all ~40 rewritten call sites resolve to `/bin/accelerator` and every
-browser agent breaks, with no guard left to produce a diagnosable message. So confirm
-the expansion with a one-line manual check **before this phase is scheduled**, since
-the two branches have different edit sets and discovering that mid-implementation
-means rework:
+**The precondition was checked, and the answer retires the fork rather than
+picking a side of it.** A probe subagent reported:
 
-| | Retire branch | Keep-a-preload-skill branch |
-|---|---|---|
-| `EXPECTED_INJECTION_SKILLS` | decremented | unchanged |
-| `call_site_migration.py` allowlist | entry removed, fixture replaced | entry retargeted at the new script |
-| `releases-and-compatibility.md:41-44` | rationale restated | unchanged |
-| Manual criterion | agents work without `{browser-executor-script}` | agents work via the slimmed preload |
+```
+1_which=<plugin cache>/accelerator/1.24.0-pre.36/bin/accelerator
+2_version=accelerator 1.24.0-pre.36
+3_plugin_bin_on_path=1
+4_plugin_root_env=[UNSET]
+```
 
-The keep branch retires only the `run.sh`-specific resolution and leaves a minimal
-skill injecting the launcher path.
+A plugin's `bin/` is **injected into the Bash tool's `PATH`** while the plugin
+is enabled — the plugins reference states this directly under "File locations
+reference" — so `accelerator` resolves as a **bare command**, with no
+interpolation to get wrong.
+
+The interpolated form is avoided rather than proven broken, and the
+distinction is worth stating. `${CLAUDE_PLUGIN_ROOT}` is unset as an
+environment variable in a subagent's Bash call, which is what the probe shows;
+the reference separately claims agent *content* substitutes the placeholder
+"anywhere it appears", which would resolve it in the body before any shell saw
+it. If that claim holds the interpolated form works too, and if it does not,
+the shell produces `/bin/accelerator` — exactly the failure this precondition
+existed to catch. The bare command does not depend on which is true, so it is
+the form used and the claim is left unverified.
+
+So both agents call `accelerator design executor <command>` bare. That is the
+retire branch's edit set (`EXPECTED_INJECTION_SKILLS` decremented,
+`call_site_migration.py` entry removed and its fixture replaced,
+`releases-and-compatibility.md` rationale restated), with no substituted path
+anywhere and therefore nothing for a preload guard to defend. The
+keep-a-preload-skill branch is dropped.
+
+Two limits on the probe, recorded rather than left implicit. It ran as a
+`general-purpose` agent while the browser agents declare `tools: Bash`; `PATH`
+injection is a property of the Bash tool rather than the tool list, so this is
+taken to hold for both. And the guarantee is conditional on the plugin being
+enabled, which is the same condition every other plugin affordance already
+assumes.
+
+This affordance is **agent-body only**. SKILL.md call sites keep
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator …`: there the `!` preprocessor and the
+`allowed-tools` rule resolve it, and `lint:dispatch-coherence:check` requires
+that exact shape as the witness for a dispatched token.
 
 Two documentation surfaces go with it, and neither is covered by the Removal sweep
 (scoped to "references to a deleted design script"):

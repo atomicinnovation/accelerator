@@ -44,7 +44,8 @@ tempfile = "3"
 nix = { version = "0.28", features = ["signal", "process", "fs"] }
 anyhow = "1"
 thiserror = { workspace = true }
-libc = "0.2"
+libc = { workspace = true }
+process-probe = { path = "../../process-probe" }
 sha2 = "0.10"
 hex = "0.4"
 notify = "6"
