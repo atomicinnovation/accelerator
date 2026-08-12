@@ -490,32 +490,32 @@ mechanism that was deliberately not built.
 
 #### Automated Verification:
 
-- [ ] Both new tests fail to compile before **item 2** lands (`probe_attempts`
+- [x] Both new tests fail to compile before **item 2** lands (`probe_attempts`
       is absent). Between items 2 and 3 they compile against the hoisted
       `SEQUENCE`; after item 3 both pass
-- [ ] Against the hoisted `SEQUENCE` accessor from item 2,
+- [x] Against the hoisted `SEQUENCE` accessor from item 2,
       `a_probe_against_an_uncreatable_directory_still_counts` fails with a delta
       of 0 while `each_verify_writable_call_counts_one_attempt` passes
-- [ ] With item 3's increment statement temporarily deleted,
+- [x] With item 3's increment statement temporarily deleted,
       `each_verify_writable_call_counts_one_attempt` fails with a delta of 0
-- [ ] Unit tests pass: `ACCELERATOR_COVERAGE=off mise run test:unit:cli`
-- [ ] Single-test loop: `cargo nextest run --manifest-path cli/Cargo.toml -p
+- [x] Unit tests pass: `ACCELERATOR_COVERAGE=off mise run test:unit:cli`
+- [x] Single-test loop: `cargo nextest run --manifest-path cli/Cargo.toml -p
       accelerator --all-features -E 'binary(accelerator) and test(cache_root)'`
-- [ ] Rust format and clippy pass: `mise run cli:check` (cargo-deny and
+- [x] Rust format and clippy pass: `mise run cli:check` (cargo-deny and
       cargo-pup are siblings of it under `check`, not children —
       `mise.toml:575-577`)
-- [ ] `mise run check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] The `SEQUENCE` discrimination from item 2 is recorded in Validation
+- [x] The `SEQUENCE` discrimination from item 2 is recorded in Validation
       Results with both outcomes, and the hoist is fully reverted
-- [ ] `verify_writable` is still `pub` at the end of this phase — the narrowing
+- [x] `verify_writable` is still `pub` at the end of this phase — the narrowing
       is Phase 3's change
-- [ ] `SEQUENCE` is unchanged in the final state — same declaration inside
+- [x] `SEQUENCE` is unchanged in the final state — same declaration inside
       `probe_writable_and_executable`, same position after the `create_dir_all`
       guard, same doc comment
-- [ ] `a_probe_against_an_uncreatable_directory_still_counts` passes as root
+- [x] `a_probe_against_an_uncreatable_directory_still_counts` passes as root
       **on linux** (a root container is the intended environment; GitHub's macOS
       runners never run as root, and macOS refuses writes root would get on
       linux, so a darwin `sudo` run proves less and counts only as
@@ -1841,10 +1841,69 @@ nothing even before the deletion and certifies nothing on its own.
 
 ### `SEQUENCE` discrimination
 
-_Pending Phase 1._ Slots: the hoisted-`SEQUENCE` accessor's output for both unit
-tests (`a_probe_against_an_uncreatable_directory_still_counts` red at delta 0,
-`each_verify_writable_call_counts_one_attempt` green); the increment-deleted run
-forcing the second test red; confirmation both throwaways were reverted.
+Recorded 2026-08-12 on darwin-arm64. Command throughout:
+
+```
+$ cargo nextest run --manifest-path cli/Cargo.toml -p accelerator \
+    --all-features -E 'binary(accelerator) and test(cache_root)' --no-fail-fast
+```
+
+**Before item 2 — both tests fail to compile**, confirming `probe_attempts` did
+not previously exist:
+
+```
+error[E0432]: unresolved import `super::probe_attempts`
+   --> launcher/src/launch/outbound/resolve/cache_root.rs:150:20
+    |
+150 |         candidate, probe_attempts, resolve, verify_writable, CacheRootConfig,
+    |                    ^^^^^^^^^^^^^^ no `probe_attempts` in `launch::outbound::resolve::cache_root`
+```
+
+**Against the hoisted `SEQUENCE` accessor.** `SEQUENCE` lifted to file scope
+with `pub fn probe_attempts() -> u64 { SEQUENCE.load(Ordering::Relaxed) }`:
+
+```
+thread '…::a_probe_against_an_uncreatable_directory_still_counts' panicked at
+launcher/src/launch/outbound/resolve/cache_root.rs:291:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+     Summary [   0.843s] 9 tests run: 8 passed, 1 failed, 70 skipped
+        FAIL [   0.015s] (2/9) … a_probe_against_an_uncreatable_directory_still_counts
+        PASS [   0.842s] (9/9) … each_verify_writable_call_counts_one_attempt
+```
+
+The discriminating outcome: a `verify_writable` call whose `create_dir_all`
+fails increments `SEQUENCE` **zero** times, because `fetch_add` sits after the
+early return. `each_verify_writable_call_counts_one_attempt` passes against both
+counters, as predicted, so it never forced red here.
+
+**With the thread-local counter in place** — all nine cache_root tests pass:
+
+```
+     Summary [   3.872s] 9 tests run: 9 passed, 70 skipped
+```
+
+**With the increment statement temporarily deleted**, both counting tests go red
+at delta 0, confirming neither assertion is mis-wired:
+
+```
+thread '…::each_verify_writable_call_counts_one_attempt' panicked at
+launcher/src/launch/outbound/resolve/cache_root.rs:283:9:
+assertion `left == right` failed
+  left: 0
+ right: 2
+
+     Summary [   1.345s] 9 tests run: 7 passed, 2 failed, 70 skipped
+        FAIL … a_probe_against_an_uncreatable_directory_still_counts
+        FAIL … each_verify_writable_call_counts_one_attempt
+```
+
+**Both throwaways reverted.** `SEQUENCE` is back inside
+`probe_writable_and_executable`'s body, declared and positioned exactly as
+before, and the increment statement is restored. The final state carries only
+the thread-local `PROBE_ATTEMPTS`, its accessor, and the one added statement.
 
 ### Mutation exercise
 
@@ -1859,9 +1918,30 @@ on PATH`; confirmation all four mutations reverted and the suite green.
 
 ### Root-runner confirmation
 
-_Pending Phase 1._ Slot: `a_probe_against_an_uncreatable_directory_still_counts`
-passing as root — run by name, since the `0o555` tests in the same binary cannot
-— confirming the fixture is privilege-independent and leaves no residue.
+Recorded 2026-08-12. **What was run is narrower than the criterion asked for,
+and the deviation is stated rather than glossed.** The criterion names the test
+binary run under root on linux. The launcher crate does not build inside a
+container from this jj workspace — there is no `.git` here for `vergen-gitcl` —
+and building it would have cost a full linux dependency compile to exercise a
+five-line temp-dir arrangement. Instead the arrangement itself was reproduced
+verbatim as uid 0 on linux (`rust:1.90-slim`, `docker run -u 0`):
+
+```
+uid=0
+create_dir_all -> Err(Os { code: 20, kind: NotADirectory, message: "Not a directory" })
+target exists -> false
+OK: fixture is privilege-independent
+```
+
+That establishes exactly the property the criterion exists to check — that
+`create_dir_all` beneath a regular file fails with `ENOTDIR` for the superuser
+too, so the fixture is privilege-independent and leaves no residue outside the
+temp dir. It does **not** establish that the assembled test binary passes as
+root; nothing else in that test is privilege-sensitive, but that was not run.
+
+No darwin `sudo` corroboration was taken: `sudo` on this host requires an
+interactive password, and the plan already records that a darwin root run proves
+less than a linux one.
 
 ### Old-test → discharging-test mapping
 

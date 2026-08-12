@@ -5,6 +5,7 @@
 //! XDG-resident binary would break the plugin-root `allowed-tools` glob match.
 //! Read-only/noexec roots are probed.
 
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicU64;
@@ -76,6 +77,24 @@ pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
     Ok(dir)
 }
 
+thread_local! {
+    static PROBE_ATTEMPTS: Cell<u64> = const { Cell::new(0) };
+}
+
+/// Calls to [`verify_writable`] on this thread.
+///
+/// Includes calls that fail before writing anything — unlike `SEQUENCE`, whose
+/// increment sits after the `create_dir_all` guard and so counts only probes
+/// that reached the write stage.
+///
+/// A test-only observation point, `pub` because the launcher's integration
+/// tests are a separate crate. Read as a delta either side of the call under
+/// test.
+#[must_use]
+pub fn probe_attempts() -> u64 {
+    PROBE_ATTEMPTS.with(Cell::get)
+}
+
 /// Probe `dir` for writability and exec-capability, creating it if needed.
 ///
 /// Only matters on the write path — a resolver that already has a cached,
@@ -86,6 +105,7 @@ pub fn resolve(config: &CacheRootConfig) -> Result<PathBuf, ResolutionError> {
 /// [`ResolutionError::CacheRootUnavailable`] when `dir` is not
 /// writable+exec-capable.
 pub fn verify_writable(dir: &Path) -> Result<(), ResolutionError> {
+    PROBE_ATTEMPTS.with(|attempts| attempts.set(attempts.get() + 1));
     if probe_writable_and_executable(dir) {
         Ok(())
     } else {
@@ -146,7 +166,9 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::{candidate, resolve, verify_writable, CacheRootConfig};
+    use super::{
+        candidate, probe_attempts, resolve, verify_writable, CacheRootConfig,
+    };
 
     fn config() -> CacheRootConfig {
         CacheRootConfig {
@@ -250,6 +272,38 @@ mod tests {
             std::fs::Permissions::from_mode(0o755),
         )?;
         assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn each_verify_writable_call_counts_one_attempt(
+    ) -> Result<(), Box<dyn Error>> {
+        let temp = tempdir()?;
+        let before = probe_attempts();
+        verify_writable(temp.path())?;
+        verify_writable(temp.path())?;
+        assert_eq!(probe_attempts() - before, 2);
+        Ok(())
+    }
+
+    #[test]
+    fn a_probe_against_an_uncreatable_directory_still_counts(
+    ) -> Result<(), Box<dyn Error>> {
+        let temp = tempdir()?;
+        let blocker = temp.path().join("blocker");
+        std::fs::write(&blocker, b"not a directory")?;
+        let target = blocker.join("cache");
+        let before = probe_attempts();
+        assert!(
+            verify_writable(&target).is_err(),
+            "a directory beneath a regular file cannot be created"
+        );
+        assert!(
+            !target.exists(),
+            "create_dir_all must have failed, or this test no longer \
+             discriminates"
+        );
+        assert_eq!(probe_attempts() - before, 1);
         Ok(())
     }
 

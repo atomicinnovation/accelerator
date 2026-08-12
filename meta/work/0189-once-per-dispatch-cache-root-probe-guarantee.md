@@ -37,6 +37,16 @@ Throughout this item, **dispatch** means one launcher process. One
 `verify_writable` call performs exactly one probe and increments the
 `SEQUENCE` counter exactly once; "probe count" always means that counter.
 
+**Retracted 2026-08-12.** `SEQUENCE` cannot serve as the probe count.
+`SEQUENCE.fetch_add` sits *after* the `create_dir_all` early return inside
+`probe_writable_and_executable`, so a `verify_writable` call whose directory
+creation fails increments it zero times — demonstrated by running
+`a_probe_against_an_uncreatable_directory_still_counts` against a hoisted
+`SEQUENCE` accessor, which read a delta of 0. "Probe count" therefore means the
+invocation count held in `PROBE_ATTEMPTS`, a thread-local incremented as the
+first statement of `verify_writable`. `SEQUENCE` keeps its filename-uniqueness
+meaning unchanged.
+
 ## Context
 
 `cache_root::candidate`
@@ -99,6 +109,11 @@ and as the starting point for the outstanding measurement.
   a warm hit. The assertions take the form of a **delta** captured either side
   of that call, permanently and not as an interim measure — the counter is
   process-wide, so an absolute read is never the right observation.
+
+  **Retracted 2026-08-12.** The counter is thread-local, not process-wide. The
+  delta requirement stands, but for a different reason: a single test process
+  performs several resolutions on one thread, so an absolute read stops meaning
+  anything the moment a second resolution enters it.
 - Delete `cache_root::resolve` and re-home its unit tests onto `candidate` and
   `verify_writable`, so that every assertion they make is discharged by a named
   test after the change.
@@ -117,6 +132,13 @@ and as the starting point for the outstanding measurement.
   gone or re-homed, they can run concurrently with the counting tests in the
   same process, which is what the delta convention and the isolation
   precondition below exist to survive.
+
+  **Retracted 2026-08-12.** The stated reason is wrong twice. The `cli/`
+  workspace runs under `cargo nextest`, which gives each test function its own
+  process, so those unit tests never share a process with the counting tests;
+  and the counter is thread-local, so it would not matter if they did. The
+  ordering is kept — it is the right TDD sequence — but nothing depends on it
+  for soundness.
 - Before starting, re-confirm the two premises this scope rests on:
   `cache_root::resolve` still has no production caller, and no branch or loop in
   `FetchVerifyCacheResolver::resolve` reaches `fetch_verify_store` more than once
@@ -127,6 +149,13 @@ same process** — each counting test runs in its own test process, or is
 serialised against the concurrent-first-use tests and the `cache_root` unit
 tests. Without that isolation a delta of 2 is ambiguous between a regression and
 cross-test interference.
+
+**Retracted 2026-08-12.** This precondition is withdrawn rather than satisfied.
+A thread-local counter makes cross-test interference impossible — every
+assertion reads the count from the same thread that drove the calls — so no
+runner precondition, `nextest.toml` test-group or serialisation is needed, and
+none was built. The delivered assertions are sound under `cargo test` and
+`cargo nextest` alike.
 
 ## Acceptance Criteria
 
@@ -182,11 +211,25 @@ cross-test interference.
   assertion. The accessor is the whole of the permitted public-surface growth;
   anything wider, including injecting the probe behind a port the resolver
   holds, is **out of scope** and becomes its own work item.
+
+  **Resolved 2026-08-12, against the default.** `SEQUENCE` cannot count
+  invocations (see the retraction in the summary above). The counter is a new
+  thread-local `PROBE_ATTEMPTS` incremented as the first statement of
+  `verify_writable`, read through a single `pub fn probe_attempts()`. Public
+  surface growth is still one function, as the default permitted.
 - Does a seam for injecting a re-verification failure already exist in
   `cli/launcher/tests/resolution.rs`? The stubbed fetcher and the read-only-root
   fixtures do; a failing *verifier* is assumed by two criteria above and has not
   been confirmed. If it does not exist, building it is a prerequisite inside
   this item.
+
+  **Resolved 2026-08-12.** A seam exists in a different shape, and no verifier
+  port is built. `resolution.rs` already produces both refetch outcomes by
+  poisoning the cached *bytes*, which works because the expected sha256 is
+  parsed out of the cache filename rather than recomputed. Byte poisoning is
+  not "filesystem permissions on the cache root", so it discharges what
+  acceptance criteria 3 and 4 ask for; a validator reading those criteria
+  literally should look for byte poisoning, not for a failing verifier.
 
 ## Dependencies
 
@@ -243,6 +286,11 @@ cross-test interference.
   PID in the probe filename — the atomic exists because the concurrent-first-use
   tests resolve from multiple threads and would otherwise collide on one path.
   That atomic is the counter the default seam exposes.
+
+  **Retracted 2026-08-12.** The last sentence is false: `SEQUENCE` is not the
+  counter exposed, because its increment sits after the `create_dir_all` early
+  return. It keeps its filename-uniqueness role, unchanged and untouched, and a
+  separate thread-local `PROBE_ATTEMPTS` carries the invocation count.
 - The integration tests in `cli/launcher/tests/resolution.rs` are a separate
   crate, so the counter accessor must be public — the cost to weigh when
   settling the Open Question.
