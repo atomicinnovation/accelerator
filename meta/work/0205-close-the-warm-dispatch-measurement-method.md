@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0204"
+id: "0205"
 title: "Close the warm-dispatch latency measurement method"
 date: "2026-08-12T11:40:39+00:00"
 author: Toby Clemson
@@ -19,7 +19,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0204: Close the warm-dispatch latency measurement method
+# 0205: Close the warm-dispatch latency measurement method
 
 **Kind**: Spike
 **Status**: Draft

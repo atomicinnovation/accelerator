@@ -8,7 +8,7 @@ producer: describe-pr
 status: complete
 work_item_id: "0189"
 parent: "work-item:0189"
-relates_to: ["work-item:0169", "work-item:0186", "work-item:0204"]
+relates_to: ["work-item:0169", "work-item:0186", "work-item:0205"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/63"
 pr_number: 63
 tags: [cli, launcher, bootstrap, documentation]
@@ -57,14 +57,14 @@ The property already held. The work was to prove that a regression would be noti
 
 - Re-scope work item 0189 from the false bug premise to a regression guard, splitting the deferred latency measurement into a sibling plan. The two share no code, no file and no test, and bundling them would have made a CI-verifiable refactor's closure depend on a one-shot single-host measurement.
 - Retract the stale blocker relationships in 0169 and 0186: 0189 does not gate either story's latency work, and the release blocker on a signed `accelerator-vcs` asset is stale — `v1.24.0-pre.35` and `-pre.36` both ship it.
-- Add work item 0204, a spike to close the warm-dispatch measurement *method*. Three attempts to specify it in prose have failed review, each a design failure rather than a measurement failure, so the sibling plan is `blocked_by` the spike rather than carrying a fourth unreviewed methodology.
+- Add work item 0205, a spike to close the warm-dispatch measurement *method*. Three attempts to specify it in prose have failed review, each a design failure rather than a measurement failure, so the sibling plan is `blocked_by` the spike rather than carrying a fourth unreviewed methodology.
 
 ## Context
 
 - Work item: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
 - Research: `meta/research/codebase/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`
 - Plan and validation: `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md`, `meta/validations/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-validation.md`
-- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`, blocked on `meta/work/0204-close-the-warm-dispatch-measurement-method.md`
+- Sibling plan (drafted, not implemented here): `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`, blocked on `meta/work/0205-close-the-warm-dispatch-measurement-method.md`
 - Upstream: 0169's Phase 5 delivered the split this PR guards; 0186 established the mutation-recording pattern Phase 2 follows
 
 ## Testing
@@ -92,4 +92,4 @@ The property already held. The work was to prove that a regression would be noti
 
 **Work item 0189 is still `status: draft`** despite the implementation being complete and validated. Worth a decision on whether it moves before or after the sibling measurement plan, since 0189 cannot close on this PR alone.
 
-**Scope note.** The sibling latency plan and work item 0204 are included as drafted artefacts only — no measurement code lands here. `meta/` accounts for the bulk of the diff; the shipped behaviour change is confined to `cli/launcher/`, and the rest is documentation, the anchor guard, and provenance.
+**Scope note.** The sibling latency plan and work item 0205 are included as drafted artefacts only — no measurement code lands here. `meta/` accounts for the bulk of the diff; the shipped behaviour change is confined to `cli/launcher/`, and the rest is documentation, the anchor guard, and provenance.

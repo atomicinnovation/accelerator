@@ -8,13 +8,13 @@ producer: create-plan
 status: draft
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
-blocked_by: ["work-item:0204"]
+blocked_by: ["work-item:0205"]
 derived_from:
   ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
 relates_to:
   ["plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee",
    "work-item:0169", "work-item:0186", "work-item:0188", "work-item:0191",
-   "work-item:0199", "work-item:0204"]
+   "work-item:0199", "work-item:0205"]
 tags: [cli, launcher, performance, bootstrap, measurement]
 revision: "2bb98478e7f7a4d2cf1cfa9c18bb3d7541961451"
 repository: "accelerator"
@@ -29,16 +29,16 @@ schema_version: 1
 
 Run the warm-dispatch latency measurement 0169's Phase 10 deferred — warm-call
 latency `G` against shell baseline `B` on one darwin host in one session, gated
-on `G ≤ 1.1 × B` — using the method **work item 0204 closes**, and discharge the
+on `G ≤ 1.1 × B` — using the method **work item 0205 closes**, and discharge the
 recording obligations it leaves across 0169 and 0189.
 
 **This plan specifies a measurement, not a methodology.** Three attempts to
 specify the method inside a plan failed review, each because the design was
-authored ahead of the evidence that would settle it. Work item 0204 is a spike
+authored ahead of the evidence that would settle it. Work item 0205 is a spike
 that answers the decomposition route, the clock domain, the residual definition
 and the statistical design against real measurements, and measures the gating
 `reverify` term. This plan consumes those answers; it does not re-derive them.
-Where a step below says "per 0204", the spike's recorded answer is the
+Where a step below says "per 0205", the spike's recorded answer is the
 specification and this plan deliberately does not restate it.
 
 This is the second plan against work item 0189. The first,
@@ -134,9 +134,9 @@ recorded in three documents as a platform-neutral result.
 ## Desired End State
 
 `B` and `G` are measured on one darwin-arm64 host in one session under both
-digest backends, with the dispersion, gate statistic and interval 0204
-pre-registered. A composition budget accounts for `G` per 0204's decomposition,
-with its residual computed as 0204 defines it. The verbatim harness, the stdin
+digest backends, with the dispersion, gate statistic and interval 0205
+pre-registered. A composition budget accounts for `G` per 0205's decomposition,
+with its residual computed as 0205 defines it. The verbatim harness, the stdin
 envelope, the fixture, the baseline's provenance, the host/OS/chip, the plugin
 version, the digest backends and the machine state are all recorded. 0169's
 obligation is discharged in all four of its locations, and 0189's stale
@@ -145,7 +145,7 @@ keyed on the measured outcome.
 
 **"Discharged" is deliberate, not "ticked".** 0169 is already closed `done`, so
 a measured overrun means a completed story shipped failing its own gate. Phase 3
-branches on the outcome 0204's taxonomy selects and defines a procedure for each
+branches on the outcome 0205's taxonomy selects and defines a procedure for each
 branch, including the branches where no ratio exists.
 
 Verified by: the Validation Results section below is complete, and every
@@ -167,7 +167,7 @@ it can be derived at all, and the hand-off records it as an open question.
 
 ## What We're NOT Doing
 
-- **No methodology.** SQ-1 to SQ-5 belong to work item 0204. This plan does not
+- **No methodology.** SQ-1 to SQ-5 belong to work item 0205. This plan does not
   choose a decomposition route, a clock domain, a residual definition, a sample
   count or an outcome taxonomy.
 - **No committed benchmark tooling** in this plan — but the harness is committed
@@ -182,11 +182,11 @@ it can be derived at all, and the hand-off records it as an open question.
   parses and is not a placeholder. No route in this plan touches it.
 - **No linux measurement in this plan.** Named as a hand-off.
 - **No relaxation of the threshold after seeing the number**, and no sampling
-  beyond what 0204 pre-registered.
+  beyond what 0205 pre-registered.
 
 ## Implementation Approach
 
-**Blocked on work item 0204.** Phase 1 cannot begin until 0204 records its
+**Blocked on work item 0205.** Phase 1 cannot begin until 0205 records its
 answers, because `n`, the gate statistic, the budget's term set and the outcome
 taxonomy are all its outputs.
 
@@ -247,7 +247,7 @@ item 5 mutates the file item 4 measures.
 ### Overview
 
 Measure `B` and `G` on one darwin host in one session, under both digest
-backends, at the `n` and with the statistic 0204 pre-registered, emitting the
+backends, at the `n` and with the statistic 0205 pre-registered, emitting the
 per-sample data Phase 2's budget needs.
 
 ### Changes Required:
@@ -298,20 +298,20 @@ but adapted, not reused: 0186's script passes no stdin, checks stdout with
 bootstrap revision. The adapted harness is recorded verbatim in Validation
 Results alongside its output.
 
-- **Interleaved sampling at 0204's `n`**, not batched per variant — batching
+- **Interleaved sampling at 0205's `n`**, not batched per variant — batching
   either side of a swap aliases drift onto the difference — with order
   alternating within each pair.
 - **One Python process** reading the clock around each `subprocess.run`. A
   per-call `python3` clock read puts an interpreter startup inside the measured
   interval.
 - **Per-sample emission for Phase 2.** The harness records whatever per-sample
-  quantities 0204's decomposition needs, not only the wall-clock bracket.
+  quantities 0205's decomposition needs, not only the wall-clock bracket.
   Phase 2 cannot reconstruct them afterwards without breaking the one-session
   constraint.
 - **Two instrument floors**, a trivial bash script and `true` resolved via
   `shutil.which('true')` against the **subprocess's** environment (busybox puts
   it at `/bin/true`). Assert the floor binary was found before sampling. Whether
-  either is subtracted is 0204's decision; record both regardless, and note that
+  either is subtracted is 0205's decision; record both regardless, and note that
   the bash floor contains bash interpreter startup (~4.5 ms in 0186), which is a
   real bootstrap cost.
 - **Dispersion.** Report `n`, min, median, p90 and IQR per variant. Medians
@@ -457,7 +457,7 @@ Asserted by the harness over the exact environment handed to `subprocess.run`:
 - [ ] The envelope, fixture path, spawn count and per-spawn cost, host/OS/chip,
       plugin version, tool paths and versions, interpreter and clock info,
       machine load with its CPU-count rung, and power state are recorded
-- [ ] Both instrument floors are recorded, with 0204's subtraction policy
+- [ ] Both instrument floors are recorded, with 0205's subtraction policy
       restated
 - [ ] The harness is recorded verbatim, not by cross-reference
 - [ ] `bin/.tmp-vcs-guard-baseline` and the fixture root do not exist, asserted
@@ -470,7 +470,7 @@ Asserted by the harness over the exact environment handed to `subprocess.run`:
 
 ### Overview
 
-Explain `G` rather than merely reporting it, using 0204's term set, cross-check
+Explain `G` rather than merely reporting it, using 0205's term set, cross-check
 set and residual definition. This is Phase 1's analysis step, in the same
 session-scoped unit.
 
@@ -478,8 +478,8 @@ session-scoped unit.
 
 #### 1. The budget
 
-Account for `G` across the terms 0204 named, each measured by the method 0204
-recorded, with the cross-checks 0204 specified and the residual computed as 0204
+Account for `G` across the terms 0205 named, each measured by the method 0205
+recorded, with the cross-checks 0205 specified and the residual computed as 0205
 defined it — including the **cross-checked fraction of `G`** stated as a number,
 so a residual computed over a minority of the measurement is visible rather than
 flattering.
@@ -491,7 +491,7 @@ contains the launcher's `execve`, dynamic loading, `logging::init` and clap
 parse. Whether those are separable at all is SQ-1's question, and the budget
 here uses whatever answer it recorded.
 
-Two properties carry over regardless of 0204's answer:
+Two properties carry over regardless of 0205's answer:
 
 - **Medians are not additive.** Report the median and IQR of each term
   alongside the residual, and state explicitly that term medians are not
@@ -504,15 +504,15 @@ Record the cache-root entry count and total size: `cache::find`
 eviction (`cache.rs:1-6`), so the scan term is history-dependent and not
 comparable between a fresh install and a long-lived plugin root.
 
-#### 2. Apply 0204's outcome taxonomy
+#### 2. Apply 0205's outcome taxonomy
 
-Classify the result using the branches 0204 pre-registered, which are disjoint
+Classify the result using the branches 0205 pre-registered, which are disjoint
 on stated arithmetic and cover every reachable outcome — including an
 invalidated session and a design-infeasible finding, neither of which yields a
 ratio.
 
 Record in every branch: both medians with dispersion and the interval, per
-digest backend; the budget with its residual as 0204 defines it; and the
+digest backend; the budget with its residual as 0205 defines it; and the
 cross-checked fraction of `G`.
 
 Where the branch is an overrun, record the follow-up it triggers. Note that
@@ -522,7 +522,7 @@ awk …)` substitutions against 4.57 ms for one `$(sha256sum f1 f2)` over the sa
 ~475 KB — so for any wider gap, naming a 0191 figure is unsatisfiable and the
 shortfall is attributed elsewhere. If `reverify` alone exceeds the gap, raise
 the warm-dispatch verification cost as its own work item, with levers ordered
-by 0204's separated sub-operation figures rather than by assumption, and note
+by 0205's separated sub-operation figures rather than by assumption, and note
 that the cache-hit `sha256` removal must be scoped to that call site —
 `verify_binary` is shared with `fetch_verify_store`, where the digest comes from
 the signed manifest and does bind the bytes — and that an mmap is **not**
@@ -538,12 +538,12 @@ as an outcome.
 
 #### Manual Verification:
 
-- [ ] Every term 0204 named is recorded with its measurement method
-- [ ] Every cross-check 0204 specified is recorded, and the cross-checked
+- [ ] Every term 0205 named is recorded with its measurement method
+- [ ] Every cross-check 0205 specified is recorded, and the cross-checked
       fraction of `G` is stated as a number
-- [ ] The residual is computed as 0204 defines it and reported with the
-      dispersion treatment 0204 specified
-- [ ] The outcome is classified into exactly one of 0204's branches, and that
+- [ ] The residual is computed as 0205 defines it and reported with the
+      dispersion treatment 0205 specified
+- [ ] The outcome is classified into exactly one of 0205's branches, and that
       branch's actions are carried out and recorded
 - [ ] The cache-root entry count and total size are recorded
 - [ ] The abort checklist script ran and passed
@@ -714,11 +714,11 @@ validator over the meta documents Phase 3 edits.
 
 ### Manual Testing Steps:
 
-1. Confirm work item 0204 is closed and its answers recorded.
+1. Confirm work item 0205 is closed and its answers recorded.
 2. Run the pre-flight capture.
 3. Recover the baseline, run the harness under both digest backends on a quiet
    darwin host in one session.
-4. Compute the budget and residual per 0204's definitions; classify the outcome
+4. Compute the budget and residual per 0205's definitions; classify the outcome
    into exactly one of its branches.
 5. Discharge 0169's four locations and 0189's five passages on the branch the
    outcome selects; raise the follow-ups.
@@ -728,7 +728,7 @@ validator over the meta documents Phase 3 edits.
 ## Performance Considerations
 
 This plan changes no production code and adopts no instrumentation — SQ-1's
-route is 0204's decision, and any instrumentation it recommends is 0204's to
+route is 0205's decision, and any instrumentation it recommends is 0205's to
 scope and clean up. If a route reaching the launcher through the dev override is
 ever adopted, note that its residual risk outlives the source revert: the
 compiled binary sits in gitignored `cli/target/`, which is exactly where a
@@ -752,16 +752,16 @@ revision; digests of the cached launcher, its `.minisig` and the staged shim;
 `.accelerator-unverified.log` byte count and full contents; the operator's
 pre-existing dev-launcher state.
 
-### Method (from work item 0204)
+### Method (from work item 0205)
 
-_Pending 0204._ Slots: a pointer to 0204's recorded answers for SQ-1 to SQ-5,
+_Pending 0205._ Slots: a pointer to 0205's recorded answers for SQ-1 to SQ-5,
 and the `reverify` figures it delivered, so this record is readable standalone.
 
 ### Latency figures
 
 _Pending Phase 1._ Slots: `B`, `G` and ratio **per digest backend**, with the
-interval 0204 specified; `n`/min/median/p90/IQR per variant; `p90(G)/p90(B)`;
-both instrument floors with 0204's subtraction policy; stdin envelope verbatim;
+interval 0205 specified; `n`/min/median/p90/IQR per variant; `p90(G)/p90(B)`;
+both instrument floors with 0205's subtraction policy; stdin envelope verbatim;
 both raw envelope shapes; fixture path, description, spawn count and per-spawn
 cost; baseline provenance (resolved git commit id, sha256 of the recovered
 script and of `scripts/vcs-common.sh`); harness verbatim; host/OS/chip; plugin
@@ -771,9 +771,9 @@ rung; power state.
 
 ### Composition budget
 
-_Pending Phase 2._ Slots: every term 0204 named with its measurement method;
+_Pending Phase 2._ Slots: every term 0205 named with its measurement method;
 every cross-check with its result; the cross-checked fraction of `G` as a
-number; the residual per 0204's definition with its dispersion treatment; the
+number; the residual per 0205's definition with its dispersion treatment; the
 cache-root entry count and total size; the outcome branch and its actions.
 
 ### Cleanup evidence
@@ -788,7 +788,7 @@ the abort checklist script's output per phase.
 _Pending._ Slots: any departure from 0169's stated 20 samples; the gate
 statistic where it differs from 0169's median rule, which is a **deliberate
 strengthening** rather than the inherited criterion; the stdin payload where it
-differs from `git status`; any 0204 answer that departed from its own
+differs from `git status`; any 0205 answer that departed from its own
 pre-registered default; any success criterion discharged differently from as
 written. Mirrors 0186's deviation-recording pattern
 (`meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md:608-616`).
@@ -806,14 +806,14 @@ items raised or recorded not-applicable.
 
 - Work item: `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md`
 - **Blocking spike**:
-  `meta/work/0204-close-the-warm-dispatch-measurement-method.md` — owns SQ-1 to
+  `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — owns SQ-1 to
   SQ-5; this plan consumes its answers
 - Sibling plan:
   `meta/plans/2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee.md` —
   lands first
 - Reviews of this plan:
   `meta/reviews/plans/2026-08-11-0189-warm-dispatch-latency-measurement-review-1.md`
-  — pass 2's assessment raised 0204
+  — pass 2's assessment raised 0205
 - `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — five `_pending_` slots
   under `## Validation Results`, and its own criterion at `:382-389`
 - `meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md` — Phase 10's
