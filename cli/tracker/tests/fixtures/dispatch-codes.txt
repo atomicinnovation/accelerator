@@ -1,4 +1,4 @@
-# The bash dispatch taxonomy, held against TrackerError's two classes.
+# The dispatch exit-code taxonomy, held against TrackerError's two classes.
 #
 # 70 and 71 are the two classes the port expresses. 72 and 73 are
 # dispatch-routing outcomes that resolve ABOVE the port, at the composition

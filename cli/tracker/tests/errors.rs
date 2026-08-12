@@ -1,5 +1,5 @@
-//! The error taxonomy: two classes, closed, held 1:1 against the bash
-//! dispatch codes that remain authoritative until the bridges are retired.
+//! The error taxonomy: two classes, closed, held against the dispatch codes
+//! the remote-tracker protocol defines.
 
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -28,35 +28,6 @@ enum Resolution {
 struct DispatchCode {
     number: String,
     resolution: Resolution,
-}
-
-/// The name and numeric value one shell line declares, if it declares one.
-fn declaration(line: &str) -> Option<(String, String)> {
-    let at = line.find("E_DISPATCH_")?;
-    let (name, rest) = line[at..].split_once('=')?;
-    let value = rest.trim().trim_matches(|c| c == '"' || c == '\'');
-    let number: String =
-        value.chars().take_while(char::is_ascii_digit).collect();
-    if number.is_empty() {
-        return None;
-    }
-    Some((name.trim().to_owned(), number))
-}
-
-fn codes_declared_by_the_bash_taxonomy(
-) -> Result<BTreeMap<String, String>, TestError> {
-    let script = read("../../skills/work/scripts/work-item-bridge-codes.sh")?;
-    let mut declared = BTreeMap::new();
-    for line in script.lines().map(str::trim) {
-        if line.starts_with('#') || !line.contains("E_DISPATCH_") {
-            continue;
-        }
-        let (name, number) = declaration(line).ok_or_else(|| {
-            format!("could not read a dispatch declaration from: {line}")
-        })?;
-        declared.insert(name, number);
-    }
-    Ok(declared)
 }
 
 fn codes_recorded_by_the_fixture(
@@ -113,33 +84,19 @@ const fn terminal() -> TrackerError {
 }
 
 #[test]
-fn the_fixture_enumerates_exactly_the_codes_the_bash_taxonomy_declares(
-) -> Result<(), TestError> {
-    let declared = codes_declared_by_the_bash_taxonomy()?;
-    let recorded: BTreeMap<String, String> = codes_recorded_by_the_fixture()?
-        .into_iter()
-        .map(|(name, code)| (name, code.number))
-        .collect();
-    assert_eq!(
-        recorded, declared,
-        "the bash dispatch taxonomy and tests/fixtures/dispatch-codes.txt \
-         disagree — update the fixture deliberately, and check whether \
-         TrackerError's two classes still cover it. A reformatted declaration \
-         in work-item-bridge-codes.sh reads the same way here as a changed one."
-    );
-    Ok(())
-}
-
-#[test]
 fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
     let recorded = codes_recorded_by_the_fixture()?;
-    for (name, expected) in [
-        ("E_DISPATCH_RETRYABLE", retryable()),
-        ("E_DISPATCH_TERMINAL", terminal()),
+    for (name, number, expected) in [
+        ("E_DISPATCH_RETRYABLE", "70", retryable()),
+        ("E_DISPATCH_TERMINAL", "71", terminal()),
     ] {
         let code = recorded
             .get(name)
             .ok_or_else(|| format!("the fixture does not record {name}"))?;
+        assert_eq!(
+            code.number, number,
+            "{name} is the exit code a client reports the class as"
+        );
         assert_eq!(
             code.resolution,
             Resolution::Class(class_of(&expected)),
