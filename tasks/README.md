@@ -562,11 +562,17 @@ owes five things.
   One class of diff is **not** a first-party change: a snapshot names the
   third-party types a crate exposes, so a dependency bump moves it on its own.
   `document` renders `serde_core::ser::Serialize` (serde's internal split
-  crate), `kernel` renders `tracing_subscriber::filter::directive::ParseError`,
-  and a `thiserror` derive contributes the parameter name `__formatter`. A
-  dependency bump that renames any of those reddens the pin with no first-party
-  edit behind it. Each is also the pin doing its job — a domain crate leaking a
-  dependency type into its surface is now visible rather than merely true.
+  crate), and `thiserror`'s derive in `kernel` contributes the parameter name
+  `__formatter`. A bump that renames either reddens the pin with no first-party
+  edit behind it.
+
+  Read such a diff as the pin doing its job, not as noise to absorb: a crate
+  exposing a dependency's type in its own surface is now visible rather than
+  merely true. `kernel::Error::LogFilter` carried a
+  `tracing_subscriber::ParseError` until this pin showed it, which put that type
+  (and its `From` impl) in the error surface of the crate every other crate
+  depends on, and made `launcher` take a `tracing-subscriber` dev-dependency for
+  the sole purpose of constructing one. It carries a `String` now.
 
 Then run `mise run deny:check`.
 

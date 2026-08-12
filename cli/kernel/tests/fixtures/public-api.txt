@@ -8,12 +8,9 @@ pub mod kernel::logging
 pub fn kernel::logging::init() -> core::result::Result<(), kernel::Error>
 pub enum kernel::Error
 pub kernel::Error::Failed(alloc::string::String)
-pub kernel::Error::LogFilter(tracing_subscriber::filter::directive::ParseError)
+pub kernel::Error::LogFilter(alloc::string::String)
 pub kernel::Error::Refusal(alloc::string::String)
-impl core::convert::From<tracing_subscriber::filter::directive::ParseError> for kernel::Error
-pub fn kernel::Error::from(source: tracing_subscriber::filter::directive::ParseError) -> Self
 impl core::error::Error for kernel::Error
-pub fn kernel::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for kernel::Error
 pub fn kernel::Error::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for kernel::Error
