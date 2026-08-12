@@ -1365,31 +1365,31 @@ release cut.
 
 #### Automated Verification:
 
-- [ ] `rg -n 'fn resolve'
+- [x] `rg -n 'fn resolve'
       cli/launcher/src/launch/outbound/resolve/cache_root.rs` returns nothing,
       and the `use super::{…}` import at `:149` no longer names `resolve`. The
       previously-planned `rg -n 'cache_root::resolve'` sweep is retained only as
       a cross-crate check — it returns nothing *today*, because the module is
       only ever referenced unqualified from its own tests, so on its own it
       certifies nothing
-- [ ] `mise run test:unit:cli` passes with the re-homed and replacement tests
-- [ ] `mise run cli:check` exits 0 (clippy would flag the now-unused import if
+- [x] `mise run test:unit:cli` passes with the re-homed and replacement tests
+- [x] `mise run cli:check` exits 0 (clippy would flag the now-unused import if
       `:149` were missed, and the narrowed visibility would fail the build if
       any caller outside the resolver module remained)
-- [ ] `mise run docs:check` exits 0
-- [ ] `mise run check` exits 0
+- [x] `mise run docs:check` exits 0
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] The old-test → discharging-test mapping is recorded, including the
+- [x] The old-test → discharging-test mapping is recorded, including the
       create-if-missing assertion that needed a replacement test rather than a
       pre-existing discharger
-- [ ] The rewritten module doc describes only the surface that survives, and its
+- [x] The rewritten module doc describes only the surface that survives, and its
       precedence matches `candidate` (override first)
-- [ ] The rewritten `internals.md` paragraph reads correctly in context against
+- [x] The rewritten `internals.md` paragraph reads correctly in context against
       the preceding bootstrap paragraph, which makes the same warm/cold
       distinction for the bootstrap
-- [ ] The `CHANGELOG.md` entry and the `internals.md` paragraph now agree
+- [x] The `CHANGELOG.md` entry and the `internals.md` paragraph now agree
 
 ---
 
@@ -2016,9 +2016,74 @@ less than a linux one.
 
 ### Old-test → discharging-test mapping
 
-_Pending Phase 3._ Four rows, one per assertion the deleted
-`cache_root::resolve` tests made, each naming its discharging test and whether
-that test is re-homed, newly written, or pre-existing.
+Recorded 2026-08-12. Four rows, one per `cache_root::resolve` unit test.
+
+| Old test | Assertion | Discharged by | Kind |
+| --- | --- | --- | --- |
+| `unset_plugin_root_with_no_override_is_a_named_error` | unset plugin root with no override is a named error | same test, now calling `candidate` | re-homed |
+| `an_override_is_honoured` | the override is used verbatim | `an_override_is_used_verbatim_without_touching_the_filesystem` | re-homed and renamed |
+| `a_writable_plugin_root_is_used` | resolved path; writability; **create-if-missing** | first two by `candidate_performs_no_filesystem_write_or_process_spawn` and `verify_writable_accepts_a_writable_directory`; the third by `verify_writable_creates_a_missing_directory` | two pre-existing, one newly written |
+| `a_read_only_plugin_root_with_no_override_is_a_named_error` | a read-only root is a named error | `verify_writable_rejects_a_read_only_directory` | pre-existing |
+
+Two re-homed, one replaced by a narrower test naming the assertion that would
+otherwise have been lost, one already covered — recorded that way rather than
+padded to four with redundant tests.
+
+**Forced-red runs for the two new assertions.**
+
+`verify_writable_creates_a_missing_directory`, with the `create_dir_all` at
+`cache_root.rs:125` neutered to `if false`: it is the **only** test that
+reddens, and it fires on the `?` at `verify_writable(&target)`, not on the
+`is_dir` assertion —
+
+```
+Error: CacheRootUnavailable { detail: "…/acc-cacheroot-TpplMv/bin is not writable+exec-capable (no XDG fallback)" }
+test …::verify_writable_creates_a_missing_directory ... FAILED
+
+     Summary [   0.356s] 8 tests run: 7 passed, 1 failed, 70 skipped
+```
+
+The probe cannot write into a directory that does not exist, so the guard is
+real, but it is the error return that carries it rather than the explicit
+assertion. Recorded precisely rather than reported as "the assertion fired".
+
+`an_override_is_used_verbatim_without_touching_the_filesystem`, with a
+`create_dir_all(override_dir)` temporarily added to `candidate`:
+
+```
+candidate must not create any directory
+test …::an_override_is_used_verbatim_without_touching_the_filesystem ... FAILED
+```
+
+**Deviation from the plan's fixture.** The plan specified a literal
+`/some-override-dir`. On a non-root host that path is uncreatable, so the
+mutation left the test **green** — the assertion was unfalsifiable there, which
+is exactly the defect mutations-first exists to catch, and the plan's own note
+predicted only the root case. The override was moved to a non-existent path
+beneath a temp dir instead. That keeps everything the plan wanted from the
+literal path — `candidate` performs no filesystem access, the path is returned
+verbatim, no `bin` suffix is appended — while making the assertion falsifiable
+on every host and removing the filesystem-root residue hazard under root
+entirely. (The pre-existing
+`candidate_performs_no_filesystem_write_or_process_spawn` still uses a literal
+`/nonexistent-acc-parent-dir` and carries the same unfalsifiability; that is
+out of scope here and untouched.)
+
+Both mutations reverted; the eight `cache_root` tests are green.
+
+### Crate search for probe call sites, after Phase 3
+
+```
+$ rg -n 'fn resolve' cli/launcher/src/launch/outbound/resolve/cache_root.rs
+(no matches)
+$ rg -n 'cache_root::resolve' cli/
+(no matches)
+```
+
+`verify_writable` has one production call site (`resolve/mod.rs:141`) and is
+`pub(super)`, so nothing outside `crate::launch::outbound::resolve` can reach
+it — including `main.rs`, a separate crate. The test-module import no longer
+names `resolve`.
 
 ### Documentation corrections
 

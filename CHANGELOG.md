@@ -25,8 +25,10 @@
   noticeably quicker. The bootstrap now tests the cache directory only on a
   cold start; a `noexec` cache directory still fails with the same named error,
   and a cache directory populated once may afterwards be read-only for warm
-  invocations (dispatching a subcommand to a separate binary still needs it
-  writable).
+  invocations (dispatching a subcommand to a separate binary needs it
+  writable only on a cold dispatch — a first use of that subcommand, the first
+  run after a version bump, or a run where the cached copy fails
+  re-verification).
 - **Interactive option panels replace typed confirmations across 15 skills.**
   All `y/n` typed gates, plain-text "Shall I proceed?" prompts, and numbered
   action menus have been replaced with `AskUserQuestion` panels — the terminal
