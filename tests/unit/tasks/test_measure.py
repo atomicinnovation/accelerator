@@ -8,7 +8,7 @@ and a defect in it yields a plausible-looking ratio rather than a crash.
 
 import json
 import random
-import subprocess
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -18,7 +18,7 @@ from tasks.shared.measurement import (
     CellKind,
     CellOutcome,
     Decision,
-    IllFormedCell,
+    IllFormedCellError,
     Validity,
     Variant,
     budget_exhausted,
@@ -244,9 +244,7 @@ class TestScheduleGeneration:
                 by_pair.setdefault(sample.pair, []).append(sample.variant)
         assert by_pair
         for variants in by_pair.values():
-            assert sorted(variants) == sorted(
-                [Variant.BASELINE, Variant.FAST]
-            )
+            assert sorted(variants) == sorted([Variant.BASELINE, Variant.FAST])
 
     def test_block_b_samples_never_enter_a_pair(self):
         for sample in self.schedule():
@@ -257,7 +255,7 @@ class TestScheduleGeneration:
     def test_segments_alternate_between_the_blocks(self):
         blocks = [s.block for s in self.analysed(self.schedule())]
         runs = [blocks[0]]
-        runs += [b for a, b in zip(blocks, blocks[1:], strict=True) if a != b]
+        runs += [b for a, b in pairwise(blocks) if a != b]
         assert len(runs) > 2, "a batched all-A-then-all-B schedule is rejected"
         assert set(runs) == {"A", "B"}
 
@@ -409,9 +407,7 @@ class TestValidateSample:
         assert "reason" in verdict.diagnostic
 
     def test_a_degraded_baseline_is_rejected_too(self):
-        verdict = validate_sample(
-            "", deny_envelope(BLOCK_REASON), BLOCK_REASON
-        )
+        verdict = validate_sample("", deny_envelope(BLOCK_REASON), BLOCK_REASON)
         assert not verdict.valid
 
 
@@ -519,13 +515,16 @@ class TestClassifier:
 
     @pytest.mark.parametrize(
         ("kind", "robustness"),
-        [(CellKind.ABSOLUTE, True), (CellKind.ABSOLUTE, False),
-         (CellKind.RATIO, None)],
+        [
+            (CellKind.ABSOLUTE, True),
+            (CellKind.ABSOLUTE, False),
+            (CellKind.RATIO, None),
+        ],
     )
     def test_an_ill_formed_kind_and_robustness_pair_raises(
         self, kind, robustness
     ):
-        with pytest.raises(IllFormedCell):
+        with pytest.raises(IllFormedCellError):
             classify(
                 cell_kind=kind,
                 lower=1.0,
@@ -581,8 +580,7 @@ class TestClassifier:
 
     def test_an_imprecise_interval_is_indeterminate_before_escalation(self):
         assert (
-            classify(**self.state(upper_distance=2.0))
-            is Branch.INDETERMINATE
+            classify(**self.state(upper_distance=2.0)) is Branch.INDETERMINATE
         )
 
     def test_a_ratio_cell_failing_robustness_is_indeterminate(self):
@@ -595,9 +593,7 @@ class TestClassifier:
 
     def test_a_ratio_cell_clearing_robustness_passes(self):
         assert (
-            classify(
-                **self.state(cell_kind=CellKind.RATIO, robustness_ok=True)
-            )
+            classify(**self.state(cell_kind=CellKind.RATIO, robustness_ok=True))
             is Branch.PASS
         )
 
@@ -707,7 +703,9 @@ class TestClosureVerdict:
 
     def test_a_branch_seven_gating_cell_needs_a_recorded_acceptance(self):
         cells = [
-            c if c.cell != "C3" else CellOutcome("C3", True, Branch.NOT_APPLICABLE)
+            c
+            if c.cell != "C3"
+            else CellOutcome("C3", gates=True, branch=Branch.NOT_APPLICABLE)
             for c in self.cells()
         ]
         assert not closure_verdict(cells)
@@ -717,7 +715,10 @@ class TestClosureVerdict:
             c
             if c.cell != "C3"
             else CellOutcome(
-                "C3", True, Branch.NOT_APPLICABLE, accepted_by="Toby Clemson"
+                "C3",
+                gates=True,
+                branch=Branch.NOT_APPLICABLE,
+                accepted_by="Toby Clemson",
             )
             for c in self.cells()
         ]
@@ -727,8 +728,8 @@ class TestClosureVerdict:
         cells = [
             CellOutcome(
                 c.cell,
-                c.gates,
-                Branch.NOT_APPLICABLE,
+                gates=c.gates,
+                branch=Branch.NOT_APPLICABLE,
                 accepted_by="Toby Clemson" if c.gates else None,
             )
             for c in self.cells()
