@@ -21,7 +21,7 @@ relates_to:
     "work-item:0191",
   ]
 tags: [shell, performance, bootstrap]
-last_updated: "2026-08-03T15:00:23+00:00"
+last_updated: "2026-08-11T13:21:34+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -647,6 +647,13 @@ a permanent guard rather than a one-off observation.
   against the measured after-median, with its quoted residual corrected to the
   backend-dependent range and the launcher-side probe (0189) handed over as the
   dominant unaddressed cost. 0169's threshold and rationale left untouched.
+- **Retraction 2026-08-11** — the launcher-side probe framing above is stale.
+  0169's own Phase 5 landed the launcher split, so the probe no longer runs on a
+  warm dispatch and this item's saving *does* now reach `accelerator vcs guard`.
+  0189 is not a blocker for 0169 and nothing waits on it; it retains a regression
+  guard for the invariant plus the warm-dispatch measurement 0169 closed without
+  taking. The follow-ups bullet above is left as written — it records what was
+  believed on 2026-08-03.
 - **Shim double-hash decision** — **resolved 2026-07-31: keep both hashes and
   the staging block unchanged.** The source research (§12) framed this as an
   open trade-off worth ~23 ms via two distinct changes: dropping the second

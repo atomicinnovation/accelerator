@@ -17,11 +17,12 @@ use tempfile::TempDir;
 use accelerator::launch::core::{
     ExternalCommand, ResolutionError, ResolveBinary,
 };
+use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::verifier::sha256_hex;
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
+    cache, FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_accelerator-fixture");
@@ -103,6 +104,8 @@ struct Harness {
     cache: PathBuf,
     trusted: Vec<String>,
     fixture_bytes: Vec<u8>,
+    sha: String,
+    asset_sig: String,
     workdir: PathBuf,
     minisign: PathBuf,
     trusted_secret: PathBuf,
@@ -129,15 +132,17 @@ impl Harness {
         .expect("trusted keys")
     }
 
-    fn resolver(&self) -> FetchVerifyCacheResolver {
-        let fetcher =
-            Fetcher::with_backoff(std::time::Duration::from_millis(1))
-                .expect("fetcher");
+    fn resolver_for(&self, base_url: String) -> FetchVerifyCacheResolver {
         FetchVerifyCacheResolver::with_fetcher(
-            self.config(self.server.base_url()),
+            self.config(base_url),
             self.keys(),
-            fetcher,
+            Fetcher::with_backoff(std::time::Duration::from_millis(1))
+                .expect("fetcher"),
         )
+    }
+
+    fn resolver(&self) -> FetchVerifyCacheResolver {
+        self.resolver_for(self.server.base_url())
     }
 
     fn resolve(&self) -> Result<PathBuf, ResolutionError> {
@@ -146,6 +151,65 @@ impl Harness {
             args: vec![],
         })
     }
+
+    fn resolve_offline(&self) -> Result<PathBuf, ResolutionError> {
+        self.resolver_for("http://127.0.0.1:1".to_owned()).resolve(
+            &ExternalCommand {
+                name: OsString::from(BINARY),
+                args: vec![],
+            },
+        )
+    }
+
+    /// Write a verifiable cache entry directly, without resolving — so a
+    /// warm-path test starts with no probe of its own already counted.
+    #[track_caller]
+    fn seed_cache(&self) -> Result<cache::CachedBinary, Box<dyn Error>> {
+        let cached = cache::store(
+            &self.cache,
+            BINARY,
+            VERSION,
+            &self.sha,
+            &self.fixture_bytes,
+            &self.asset_sig,
+        )?;
+        assert!(
+            cache::find(&self.cache, BINARY, VERSION).is_some(),
+            "a seeded entry must be findable, or the warm-path tests silently \
+             degrade into cold-miss duplicates"
+        );
+        Ok(cached)
+    }
+
+    /// Replace the cache directory rather than unlinking entries from a live
+    /// `read_dir` stream, whose behaviour under concurrent removal POSIX
+    /// leaves unspecified.
+    #[track_caller]
+    fn clear_cache(&self) -> Result<(), Box<dyn Error>> {
+        std::fs::remove_dir_all(&self.cache)?;
+        std::fs::create_dir_all(&self.cache)?;
+        assert!(
+            cache::find(&self.cache, BINARY, VERSION).is_none(),
+            "the cache must be empty, or the next resolution is a hit"
+        );
+        Ok(())
+    }
+}
+
+#[track_caller]
+fn probes_during<T>(
+    branch: &str,
+    expected: u64,
+    action: impl FnOnce() -> T,
+) -> T {
+    let before = probe_attempts();
+    let result = action();
+    assert_eq!(
+        probe_attempts() - before,
+        expected,
+        "{branch}: expected {expected} probe attempt(s)"
+    );
+    result
 }
 
 fn asset_path() -> String {
@@ -178,6 +242,8 @@ fn happy_harness() -> Option<Harness> {
         cache,
         trusted: vec![trusted_pub],
         fixture_bytes,
+        sha,
+        asset_sig,
         workdir,
         minisign,
         trusted_secret,
@@ -462,15 +528,7 @@ fn an_already_cached_binary_resolves_offline() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     let first = harness.resolve()?;
     assert!(first.exists());
-    let offline = FetchVerifyCacheResolver::with_fetcher(
-        harness.config("http://127.0.0.1:1".to_owned()),
-        harness.keys(),
-        Fetcher::with_backoff(std::time::Duration::from_millis(1))?,
-    );
-    let path = offline.resolve(&ExternalCommand {
-        name: OsString::from(BINARY),
-        args: vec![],
-    })?;
+    let path = harness.resolve_offline()?;
     assert_eq!(path, first);
     Ok(())
 }
@@ -498,16 +556,8 @@ fn a_poisoned_cache_entry_offline_is_a_distinct_diagnostic(
     let path = harness.resolve()?;
     std::fs::write(&path, b"poisoned")?;
     // No server to re-fetch from → the distinct corrupt-and-refetch diagnostic.
-    let offline = FetchVerifyCacheResolver::with_fetcher(
-        harness.config("http://127.0.0.1:1".to_owned()),
-        harness.keys(),
-        Fetcher::with_backoff(std::time::Duration::from_millis(1))?,
-    );
     assert!(matches!(
-        offline.resolve(&ExternalCommand {
-            name: OsString::from(BINARY),
-            args: vec![],
-        }),
+        harness.resolve_offline(),
         Err(ResolutionError::CorruptCacheAndRefetchFailed { .. })
     ));
     Ok(())
@@ -518,30 +568,88 @@ fn a_signature_read_io_error_propagates_the_refetch_error_verbatim(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     harness.resolve()?;
-    let cached = accelerator::launch::outbound::resolve::cache::find(
-        &harness.cache,
-        BINARY,
-        VERSION,
-    )
-    .ok_or("cached entry missing")?;
+    let cached = cache::find(&harness.cache, BINARY, VERSION)
+        .ok_or("cached entry missing")?;
     // Invalid UTF-8 in the signature sidecar: `fs::read_to_string` fails with
     // a plain Cache I/O error, distinct from a checksum/signature mismatch —
     // the cached binary bytes themselves are untouched.
     std::fs::write(&cached.signature_path, [0xFF, 0xFE, 0xFD])?;
-    let offline = FetchVerifyCacheResolver::with_fetcher(
-        harness.config("http://127.0.0.1:1".to_owned()),
-        harness.keys(),
-        Fetcher::with_backoff(std::time::Duration::from_millis(1))?,
-    );
-    let result = offline.resolve(&ExternalCommand {
-        name: OsString::from(BINARY),
-        args: vec![],
-    });
+    // The entry must still be findable, or resolution takes the cold-miss tail
+    // call instead of the cache-I/O refetch arm and still yields `Fetch`.
+    assert!(cache::find(&harness.cache, BINARY, VERSION).is_some());
+    let result =
+        probes_during("sidecar I/O refetch", 1, || harness.resolve_offline());
     assert!(
         matches!(result, Err(ResolutionError::Fetch { .. })),
         "a benign I/O hiccup's failed refetch must propagate the refetch's \
          own error verbatim, not CorruptCacheAndRefetchFailed: {result:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn a_cold_miss_probes_the_cache_root_exactly_once() -> Result<(), Box<dyn Error>>
+{
+    let harness = skip_if_no_minisign!(happy_harness());
+    probes_during("cold miss", 1, || harness.resolve())?;
+    Ok(())
+}
+
+#[test]
+fn a_warm_hit_never_probes_the_cache_root() -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    harness.seed_cache()?;
+    probes_during("warm hit", 0, || harness.resolve())?;
+    Ok(())
+}
+
+#[test]
+fn a_successful_refetch_probes_the_cache_root_exactly_once(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    std::fs::write(&seeded.path, b"poisoned")?;
+    let healed = probes_during("refetch (checksum)", 1, || harness.resolve())?;
+    assert_eq!(
+        std::fs::read(&healed)?,
+        harness.fixture_bytes,
+        "replace-in-place self-heal: the poisoned bytes must be replaced"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_failed_refetch_probes_the_cache_root_exactly_once(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    std::fs::write(&seeded.path, b"poisoned")?;
+    let result =
+        probes_during("refetch failed", 1, || harness.resolve_offline());
+    assert!(matches!(
+        result,
+        Err(ResolutionError::CorruptCacheAndRefetchFailed { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn a_refetch_after_a_benign_cache_io_error_probes_exactly_once(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    let seeded = harness.seed_cache()?;
+    std::fs::write(&seeded.signature_path, [0xFF, 0xFE, 0xFD])?;
+    probes_during("refetch (cache I/O)", 1, || harness.resolve())?;
+    Ok(())
+}
+
+#[test]
+fn each_of_two_cold_misses_probes_the_cache_root_once(
+) -> Result<(), Box<dyn Error>> {
+    let harness = skip_if_no_minisign!(happy_harness());
+    probes_during("first cold miss", 1, || harness.resolve())?;
+    harness.clear_cache()?;
+    probes_during("second cold miss", 1, || harness.resolve())?;
     Ok(())
 }
 
@@ -574,7 +682,11 @@ fn an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss(
         &harness.cache,
         std::fs::Permissions::from_mode(0o555),
     )?;
+    // Asserted after the restore, never inside `probes_during`: a panic in the
+    // permissions window would skip the chmod-back.
+    let before = probe_attempts();
     let result = harness.resolve();
+    let attempts = probe_attempts() - before;
     std::fs::set_permissions(
         &harness.cache,
         std::fs::Permissions::from_mode(0o755),
@@ -582,6 +694,10 @@ fn an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss(
     assert!(
         matches!(result, Err(ResolutionError::CacheRootUnavailable { .. })),
         "the write probe must still guard the write path: {result:?}"
+    );
+    assert_eq!(
+        attempts, 1,
+        "a failing probe must not be retried inside the resolver"
     );
     assert_eq!(
         harness.server.hits("/manifest.json"),

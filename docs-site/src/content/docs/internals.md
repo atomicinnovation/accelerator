@@ -274,10 +274,34 @@ run after a version bump and any run where verification fails. It writes and
 *executes* a probe file there to check. A *warm* start neither writes nor
 probes; it runs the already-staged verifier and launcher instead, so a cache
 directory populated once may afterwards be read-only for warm bootstrap
-invocations. That exemption stops at the bootstrap: running any subcommand that
-dispatches to a separate binary makes the launcher probe the same directory, and
-that probe writes — so a permanently read-only cache directory is only viable if
-you never use those subcommands.
+invocations. Sub-binary dispatch follows the same rule, with warm meaning what
+it does for the bootstrap: a cached binary that re-verifies successfully. Such a
+dispatch resolves from the cache and re-verifies what it finds there without
+writing or probing, so it too tolerates a read-only cache directory. Only a cold
+dispatch probes — a first use of that subcommand, the first run after a version
+bump, or a run where re-verification fails and the binary must be refetched.
+
+A cold dispatch against a cache directory that is not writable and exec-capable
+fails at the probe with a `no usable cache directory` error naming the
+directory. What that means for the caller depends on why the dispatch went cold,
+and on `--fail-safe` — a flag the plugin's own hooks and skills pass so a
+launcher failure degrades rather than breaks the session. Under it, a first-use
+or version-bump miss exits 0: the subcommand simply does not run, with only a
+warning on stderr. So does a cached copy that could not be *read*. But a cached
+copy that fails its checksum or signature check and cannot then be refetched is
+reported as confirmed tampering — a `cached copy failed verification` message
+with the probe error nested inside it — which `--fail-safe` never swallows: it
+exits 2, and for the `PreToolUse` guard that blocks the tool call rather than
+letting it through.
+
+A cache directory can therefore only be kept read-only for a fixed set of
+subcommands at a fixed version. Make it writable and exec-capable, run every
+subcommand you intend to use — including the ones the plugin dispatches for you,
+such as `vcs`, which the git guard runs on every Bash tool call — then set it
+read-only again, and repeat after each plugin upgrade, since a version bump
+makes every subcommand cold again. A subcommand left cold does not fail loudly
+under `--fail-safe`; it silently does not run. If that upkeep is impractical,
+point `ACCELERATOR_CACHE_DIR` at a writable, exec-capable directory instead.
 
 `ACCELERATOR_PLUGIN_ROOT` is **exported by** the bootstrap for the launcher it
 runs; it is never read as an input. Setting it has no effect.

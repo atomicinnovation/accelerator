@@ -39,7 +39,7 @@ fi
 
 case "${CLAUDE_PLUGIN_DATA:-}" in
   /*) ;;
-  *) finish "CLAUDE_PLUGIN_DATA unavailable; no terminal link refreshed. See docs/internals.md#terminal-invocation" ;;
+  *) finish "CLAUDE_PLUGIN_DATA unavailable; no terminal link refreshed. See https://atomicinnovation.github.io/accelerator/internals/#terminal-invocation" ;;
 esac
 
 [ -x "${LAUNCHER}" ] ||

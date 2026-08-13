@@ -14,7 +14,7 @@ blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173",
 relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-06T02:00:00+00:00"
+last_updated: "2026-08-11T13:21:34+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-190"
@@ -494,6 +494,15 @@ segment matches; the first matching segment names the reported subcommand.
     reach it, which is why 0186's `version`-based measurement cannot see it.
     **0189 is necessary but not sufficient for this story either, and this
     story's threshold decision must not be deferred pending it.**
+  - **Retracted 2026-08-11.** The two paragraphs above no longer describe the
+    tree. This story's own Phase 5 absorbed the launcher-side fix: `candidate`
+    is selection-only and the probe (`verify_writable`) runs only from
+    `FetchVerifyCacheResolver::fetch_verify_store`, never on a warm hit. The
+    launcher probe is therefore **not** an unaddressed cost and 0189 does not
+    gate this story's latency work — nothing waits on it. 0189 now carries only
+    a regression guard plus the Phase 10 measurement this story left unmeasured
+    at closure; the ~132 ms figure above is pre-fix history. 0191 remains the
+    cheapest outstanding lever.
   - **The cheapest remaining lever is 0191**: batching the two shim hashes into
     one `sha256sum f1 f2` with no `awk`, measured at ~2.5 ms — essentially this
     story's whole shortfall. It needs a branch to preserve today's

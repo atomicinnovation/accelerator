@@ -1,5 +1,5 @@
 //! The fetch → verify → cache resolver behind the `ResolveBinary` port,
-//! composed from a fetcher, verifier, cache store, and resolved cache root.
+//! composed from a fetcher, verifier, cache store, and selected cache root.
 
 pub mod cache;
 pub mod cache_root;
