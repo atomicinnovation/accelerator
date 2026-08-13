@@ -17,6 +17,7 @@ import subprocess
 from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -25,6 +26,7 @@ from tasks.measure import (
     CACHE_TEMP_PREFIX,
     FALLBACK_BACKEND,
     FAST_BACKEND,
+    FLOOR_RETRY_CAP,
     MANIFEST_DIRNAME,
     MANIFEST_NAME,
     PLATFORM_TABLE,
@@ -36,6 +38,7 @@ from tasks.measure import (
     Manifest,
     MeasurementSession,
     PreconditionFailureError,
+    RunResult,
     StaleManifestError,
     assert_backends,
     build_farm,
@@ -45,8 +48,15 @@ from tasks.measure import (
     criterion_constants,
     digest_backend_population,
     farm_environment,
+    gate_floors,
+    jj_pin,
+    last_floors,
+    measure_floors,
+    parse_term_report,
+    plugin_version,
     recover_baseline,
     recovery_argv,
+    staged_shim_targets,
     unwind_signals,
 )
 from tasks.shared.measurement import (
@@ -69,11 +79,13 @@ from tasks.shared.measurement import (
     ceiling_directories,
     classify,
     closure_verdict,
+    dirname_spawn_count,
     drift_verdict,
     expected_decision,
     generate_schedule,
     log_appended_lines,
     median,
+    median_of_ratios,
     normalise_envelope,
     outlier_trip,
     paired_ratio_interval,
@@ -81,12 +93,15 @@ from tasks.shared.measurement import (
     pilot_sizing,
     platform_constants,
     power_state,
+    ratio_of_medians,
     required_samples,
     residual_verdict,
     resolve_cpu_count,
     resolve_platform_key,
     retry_budget,
+    subtract_floor,
     summarise,
+    thirds,
     tmp_containment,
     unchanged_artefacts,
     unpaired_interval,
@@ -1777,3 +1792,207 @@ class TestDigestBackendPopulation:
     def test_an_absent_backend_reports_none_rather_than_raising(self):
         for resolved in digest_backend_population().values():
             assert resolved is None or Path(resolved).exists()
+
+
+class TestFloorTreatment:
+    def test_subtracting_a_floor_shifts_every_sample_down(self):
+        assert subtract_floor([10.0, 12.0], 2.0) == [8.0, 10.0]
+
+    def test_a_floor_never_drives_a_sample_negative(self):
+        assert subtract_floor([1.0], 2.0) == [0.0]
+
+    def test_raw_medians_are_the_lenient_statistic_for_a_ratio_gate(self):
+        # (G - c) / (B - c) > G / B, so subtracting a shared floor makes the
+        # ratio larger — raw medians gate, the subtracted one is the check.
+        baseline, variant = [33.0] * 20, [42.28] * 20
+        raw = ratio_of_medians(baseline, variant)
+        subtracted = ratio_of_medians(
+            subtract_floor(baseline, 1.75), subtract_floor(variant, 1.75)
+        )
+        assert subtracted > raw
+
+    def test_the_ratio_of_medians_is_not_the_median_of_ratios(self):
+        baseline = [30.0, 40.0, 50.0]
+        variant = [45.0, 44.0, 55.0]
+        assert ratio_of_medians(baseline, variant) != pytest.approx(
+            median_of_ratios(baseline, variant)
+        )
+
+    def test_the_median_of_ratios_pairs_element_wise(self):
+        assert median_of_ratios([10.0, 20.0], [20.0, 60.0]) == pytest.approx(
+            2.5
+        )
+
+    def test_unequal_vectors_raise_in_the_paired_statistic(self):
+        with pytest.raises(ValueError, match="length"):
+            median_of_ratios([1.0], [1.0, 2.0])
+
+
+class TestThirds:
+    def test_it_splits_a_paired_sequence_into_first_and_last_thirds(self):
+        first, last = thirds(list(range(9)))
+        assert first == [0, 1, 2]
+        assert last == [6, 7, 8]
+
+    def test_a_remainder_never_leaks_into_either_third(self):
+        first, last = thirds(list(range(11)))
+        assert len(first) == len(last) == 3
+        assert first == [0, 1, 2]
+        assert last == [8, 9, 10]
+
+    def test_too_short_a_sequence_yields_empty_thirds(self):
+        assert thirds([1, 2]) == ([], [])
+
+
+class TestDirnameSpawnCount:
+    def test_it_counts_dirname_invocations_in_a_trace(self):
+        trace = "+ dir=/tmp/x\n+ dirname /tmp/x\n+ dirname /tmp\n+ echo done\n"
+        assert dirname_spawn_count(trace) == 2
+
+    def test_a_trace_with_no_spawns_counts_zero(self):
+        # find_repo_root tests -e "$dir/.jj" on $PWD before its first dirname
+        # call, and the sampling cwd is the fixture root — so the expected
+        # count is zero at any depth, which makes B depth-insensitive.
+        trace = "+ dir=/tmp/fixture\n+ [ -e /tmp/fixture/.jj ]\n"
+        assert dirname_spawn_count(trace) == 0
+
+    def test_a_dirname_inside_a_path_is_not_counted(self):
+        assert dirname_spawn_count("+ cat /usr/bin/dirname-ish\n") == 0
+
+
+class TestTermReportParsing:
+    REPORT = (
+        "running 1 test\n"
+        '{"term":"cache::find","n":200,"median_ms":0.0232,'
+        '"p2_5_ms":0.0171,"p97_5_ms":0.0677}\n'
+        '{"term":"reverify","n":200,"median_ms":6.3964,'
+        '"p2_5_ms":6.1949,"p97_5_ms":6.6337}\n'
+        '{"asset_bytes":2493376}\n'
+        "test result: ok.\n"
+    )
+
+    def test_it_reads_every_term_as_an_interval(self):
+        terms = parse_term_report(self.REPORT)
+        assert set(terms) == {"cache::find", "reverify"}
+        assert terms["reverify"].point == pytest.approx(6.3964)
+        assert terms["reverify"].upper == pytest.approx(6.6337)
+
+    def test_non_term_lines_are_ignored_rather_than_parsed(self):
+        assert "asset_bytes" not in parse_term_report(self.REPORT)
+
+    def test_an_empty_report_yields_no_terms(self):
+        assert parse_term_report("running 1 test\n") == {}
+
+    def test_the_upper_distance_feeds_the_residual_band(self):
+        terms = parse_term_report(self.REPORT)
+        verdict = residual_verdict(list(terms.values()), 6.0, attempts_used=0)
+        assert verdict.band == pytest.approx(1.5)
+        assert verdict.total == pytest.approx(6.4196)
+
+
+class TestLastFloors:
+    def test_the_final_attempt_is_the_instrument_the_samples_used(self):
+        floors = {
+            "attempts": [
+                {"bash_ms": 9.0, "true_ms": 3.0},
+                {"bash_ms": 6.1, "true_ms": 1.4},
+            ]
+        }
+        assert last_floors(floors) == (1.4, 6.1)
+
+    def test_no_attempts_yields_zero_rather_than_raising(self):
+        assert last_floors({}) == (0.0, 0.0)
+        assert last_floors({"attempts": []}) == (0.0, 0.0)
+
+
+class TestFloorGate:
+    def entry(self):
+        return PLATFORM_TABLE[("Darwin", "arm64")]
+
+    def rig(self, tmp_path):
+        farm = tmp_path / "farm"
+        farm.mkdir()
+        (farm / "bash").write_text("")
+        (farm / "true").write_text("")
+        script = tmp_path / "floor.sh"
+        script.write_text("exit 0\n")
+        return SimpleNamespace(
+            fast_farm=farm,
+            fixture=tmp_path,
+            temp_parent=tmp_path,
+            floor_script=script,
+        )
+
+    def runner_at(self, elapsed):
+        def runner(argv, *, cwd, env):
+            del cwd, env
+            quiet = elapsed if "true" in argv[0] else elapsed * 4
+            return RunResult(
+                stdout="", stderr="", exit_code=0, elapsed_ms=quiet
+            )
+
+        return runner
+
+    def test_a_quiet_host_clears_the_gate_on_the_first_attempt(self, tmp_path):
+        report = gate_floors(
+            self.entry(),
+            self.rig(tmp_path),
+            self.runner_at(1.4),
+            when="pre",
+        )
+        assert report["holds"]
+        assert len(report["attempts"]) == 1
+
+    def test_a_noisy_host_retries_to_the_cap_and_then_fails(self, tmp_path):
+        report = gate_floors(
+            self.entry(),
+            self.rig(tmp_path),
+            self.runner_at(5.0),
+            when="pre",
+        )
+        assert not report["holds"]
+        assert len(report["attempts"]) == FLOOR_RETRY_CAP, (
+            "every attempt is recorded — an operator retrying informally "
+            "until the floors look good is optional stopping"
+        )
+
+    def test_a_farm_without_true_refuses_rather_than_reporting_zero(
+        self, tmp_path
+    ):
+        rig = self.rig(tmp_path)
+        (rig.fast_farm / "true").unlink()
+        with pytest.raises(PreconditionFailureError, match="no `true`"):
+            measure_floors(
+                self.runner_at(1.0),
+                floor_script=rig.floor_script,
+                farm=rig.fast_farm,
+                cwd=rig.fixture,
+                temp_root=rig.temp_parent,
+                samples=1,
+            )
+
+
+class TestStagedShimTargets:
+    def test_it_names_the_source_shim_and_its_staged_copy(self, tmp_path):
+        cache = tmp_path / "bin"
+        cache.mkdir()
+        source = cache / "accelerator-verify-darwin-arm64"
+        staged = cache / f"accelerator-verify-darwin-arm64-{'a' * 64}"
+        source.write_text("")
+        staged.write_text("")
+        targets = staged_shim_targets(tmp_path)
+        assert targets == [source, staged]
+
+    def test_two_targets_are_always_returned(self, tmp_path):
+        cache = tmp_path / "bin"
+        cache.mkdir()
+        (cache / "accelerator-verify-darwin-arm64").write_text("")
+        assert len(staged_shim_targets(tmp_path)) == 2
+
+
+class TestPluginProvenance:
+    def test_the_plugin_version_is_read_from_the_manifest(self):
+        assert plugin_version(REPO).count(".") >= 2
+
+    def test_the_jj_pin_is_read_from_mise_toml(self):
+        assert jj_pin(REPO)[0].isdigit()

@@ -16,10 +16,12 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import random
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Mapping, Sequence
@@ -45,25 +47,32 @@ from tasks.shared.measurement import (
     Validity,
     Variant,
     accelerator_override_keys,
+    budget_exhausted,
     calibration_holds,
     ceiling_directories,
     classify,
     closure_verdict,
+    dirname_spawn_count,
     drift_verdict,
     expected_decision,
     generate_schedule,
     log_appended_lines,
     median,
+    median_of_ratios,
     outlier_trip,
     paired_ratio_interval,
     percentile,
+    pilot_sizing,
     platform_constants,
     power_state,
+    ratio_of_medians,
     residual_verdict,
     resolve_cpu_count,
     resolve_platform_key,
     retry_budget,
+    subtract_floor,
     summarise,
+    thirds,
     tmp_containment,
     unchanged_artefacts,
     unpaired_interval,
@@ -1237,112 +1246,600 @@ def _live_dispatch(
     )
 
 
+@dataclass
+class Rig:
+    """Everything one session samples through, built once and torn down once."""
+
+    session: MeasurementSession
+    temp_parent: Path
+    guard: Path
+    fixture: Path
+    fast_farm: Path
+    fallback_farm: Path
+    floor_script: Path
+    variants: dict[Variant, list[str]]
+    environments: dict[Variant, dict[str, str]]
+    expected_reason: str
+
+
+def build_rig(
+    session: MeasurementSession,
+    plugin_root: Path,
+    *,
+    tools: Sequence[str],
+    runner: MeasurementRunner,
+) -> Rig:
+    """Register, create and assert every throwaway the session samples under.
+
+    Registration precedes creation throughout, so a run killed between the two
+    leaves a manifest naming a path that does not exist rather than an artefact
+    no manifest names.
+    """
+    if session.baseline is None:
+        raise PreconditionFailureError("the session captured no baseline")
+    temp_parent = Path(
+        tempfile.mkdtemp(
+            prefix="accelerator-measure-", dir=session.baseline.temp_root
+        )
+    )
+    scratch = session.register_artefact(
+        ArtefactKind.SCRATCH_TREE, temp_parent / "baseline"
+    )
+    fixture = session.register_artefact(
+        ArtefactKind.FIXTURE_ROOT, temp_parent / "fixture"
+    )
+    fast_farm = session.register_artefact(
+        ArtefactKind.FAST_FARM, temp_parent / "farm-fast"
+    )
+    fallback_farm = session.register_artefact(
+        ArtefactKind.FALLBACK_FARM, temp_parent / "farm-fallback"
+    )
+    floor_script = session.register_artefact(
+        ArtefactKind.FLOOR_SCRIPT, temp_parent / "floor.sh"
+    )
+    marker = session.register_artefact(
+        ArtefactKind.SESSION_MARKER, temp_parent / "session.marker"
+    )
+
+    guard = recover_baseline(scratch, runner=raw_diagnostic_runner)
+    create_fixture(fixture, runner=session.diagnostics)
+    build_farm(fast_farm, tools, include_fast_backend=True)
+    build_farm(fallback_farm, tools, include_fast_backend=False)
+    floor_script.write_text("#!/usr/bin/env bash\nexit 0\n")
+    floor_script.chmod(0o755)
+    marker.write_text(f"pid={os.getpid()}\n")
+    assert_backends(fast_farm, fallback_farm)
+
+    dispatch = [
+        str(plugin_root / "bin/accelerator"),
+        "vcs",
+        "guard",
+        "--format=hook",
+        "--fail-safe",
+    ]
+    variants = {
+        Variant.BASELINE: [str(guard)],
+        Variant.FAST: dispatch,
+        Variant.FALLBACK: dispatch,
+    }
+    environments = {
+        Variant.BASELINE: farm_environment(fast_farm, temp_root=temp_parent),
+        Variant.FAST: farm_environment(fast_farm, temp_root=temp_parent),
+        Variant.FALLBACK: farm_environment(
+            fallback_farm, temp_root=temp_parent
+        ),
+    }
+
+    probe = runner(
+        variants[Variant.BASELINE],
+        cwd=fixture,
+        env=environments[Variant.BASELINE],
+    )
+    decision, reason = expected_decision(probe.stdout)
+    if decision is not Decision.BLOCK:
+        raise PreconditionFailureError(
+            f"the recovered baseline emits {decision}, not the blocked "
+            f"decision — the session would measure the wrong path"
+        )
+    return Rig(
+        session=session,
+        temp_parent=temp_parent,
+        guard=guard,
+        fixture=fixture,
+        fast_farm=fast_farm,
+        fallback_farm=fallback_farm,
+        floor_script=floor_script,
+        variants=variants,
+        environments=environments,
+        expected_reason=reason,
+    )
+
+
+def check_preconditions(
+    plugin_root: Path, session: MeasurementSession, rig: Rig
+) -> dict[str, object]:
+    """Assert every pre-sampling condition and return what was observed.
+
+    Failures here are branch 5a: no figures are produced, because a session
+    that cannot establish its own conditions has not measured the thing the
+    criterion names.
+    """
+    observed_keys = sorted(
+        key for key in session.host.env() if key.startswith("ACCELERATOR_")
+    )
+    offenders = accelerator_override_keys(session.host.env())
+    if offenders:
+        raise PreconditionFailureError(
+            f"ACCELERATOR_* overrides are set: {offenders}"
+        )
+    ambient_root = session.host.env().get("CLAUDE_PLUGIN_ROOT")
+    if ambient_root and Path(ambient_root).resolve() != plugin_root.resolve():
+        raise PreconditionFailureError(
+            f"the driving session dispatches against {ambient_root}, not "
+            f"{plugin_root} — every integrity witness would point at one root "
+            f"while the interfering session wrote the other"
+        )
+    observed_jj = session.diagnostics(["jj", "--version"])
+    pinned = jj_pin(plugin_root)
+    if pinned not in observed_jj:
+        raise PreconditionFailureError(
+            f"jj {observed_jj!r} is not the mise.toml pin {pinned} — the "
+            f"fixture's colocation flag is justified by that release's default"
+        )
+    others = concurrent_sessions(session.diagnostics)
+    if others:
+        raise PreconditionFailureError(
+            f"other Claude Code sessions are active against this plugin root: "
+            f"{others}"
+        )
+    return {
+        "accelerator_env_keys": observed_keys,
+        "dev_launcher_marker": (
+            plugin_root / ".accelerator-dev-launcher"
+        ).exists(),
+        "plugin_root": str(plugin_root),
+        "plugin_version": plugin_version(plugin_root),
+        "jj": observed_jj,
+        "jj_pin": pinned,
+        "driving_session_pid": os.getpid(),
+        "fixture": str(rig.fixture),
+        "fixture_depth": len(rig.fixture.resolve().parts),
+        "stdin_envelope": STDIN_ENVELOPE,
+        "expected_reason": rig.expected_reason,
+        "baseline_commit": BASELINE_COMMIT,
+        "recovered_digests": {
+            name: expected for name, (_, expected) in RECOVERED_FILES.items()
+        },
+    }
+
+
+def gate_floors(
+    entry: PlatformEntry,
+    rig: Rig,
+    runner: MeasurementRunner,
+    *,
+    when: str,
+) -> dict[str, object]:
+    """Measure both instrument floors and gate on them, retries recorded.
+
+    At most three recorded attempts: an operator free to retry informally until
+    the floors look good is running optional stopping through the back door.
+    """
+    attempts: list[dict[str, float]] = []
+    while retry_budget(len(attempts), cap=FLOOR_RETRY_CAP):
+        bash_ms, true_ms = measure_floors(
+            runner,
+            floor_script=rig.floor_script,
+            farm=rig.fast_farm,
+            cwd=rig.fixture,
+            temp_root=rig.temp_parent,
+        )
+        attempts.append({"bash_ms": bash_ms, "true_ms": true_ms})
+        if bash_ms <= entry.bash_floor_ms and true_ms <= entry.true_floor_ms:
+            return {"when": when, "attempts": attempts, "holds": True}
+        print(
+            f"{when} floors breached the gate "
+            f"({bash_ms:.2f} > {entry.bash_floor_ms} or "
+            f"{true_ms:.2f} > {entry.true_floor_ms}) — retrying"
+        )
+    return {"when": when, "attempts": attempts, "holds": False}
+
+
 def run_session(
     plugin_root: Path,
     *,
     entry: PlatformEntry | None,
     blocks: str = "AB",
-    smoke: bool = False,
     runner: MeasurementRunner = subprocess_measurement_runner,
-) -> list[CellOutcome]:
-    """Drive one recorded session end to end.
+    record_path: Path | None = None,
+) -> dict[str, object]:
+    """Drive one recorded session end to end and return its record.
 
-    Returns the classified cells. Every artefact it creates is registered
-    before creation, and the context manager restores and verifies on every
-    exit path including the three unwinding signals.
+    Pilot, size, sample, classify, close the composition budget, and write the
+    whole record to disk — one session, because the criterion's "same host,
+    same session" wording forbids assembling it from several.
     """
+    started = time.perf_counter()
     tools = entry.path_tools if entry else ("bash", "jj", "true")
+    record: dict[str, object] = {"blocks": blocks}
     with MeasurementSession(plugin_root) as session:
-        if session.baseline is None:
-            raise PreconditionFailureError("the session captured no baseline")
-        temp_parent = Path(
-            tempfile.mkdtemp(
-                prefix="accelerator-measure-", dir=session.baseline.temp_root
-            )
-        )
-        scratch = session.register_artefact(
-            ArtefactKind.SCRATCH_TREE, temp_parent / "baseline"
-        )
-        fixture = session.register_artefact(
-            ArtefactKind.FIXTURE_ROOT, temp_parent / "fixture"
-        )
-        fast_farm = session.register_artefact(
-            ArtefactKind.FAST_FARM, temp_parent / "farm-fast"
-        )
-        fallback_farm = session.register_artefact(
-            ArtefactKind.FALLBACK_FARM, temp_parent / "farm-fallback"
-        )
-        floor_script = session.register_artefact(
-            ArtefactKind.FLOOR_SCRIPT, temp_parent / "floor.sh"
-        )
-        marker = session.register_artefact(
-            ArtefactKind.SESSION_MARKER, temp_parent / "session.marker"
-        )
-
-        guard = recover_baseline(scratch, runner=raw_diagnostic_runner)
-        create_fixture(fixture, runner=session.diagnostics)
-        build_farm(fast_farm, tools, include_fast_backend=True)
-        build_farm(fallback_farm, tools, include_fast_backend=False)
-        floor_script.write_text("#!/usr/bin/env bash\nexit 0\n")
-        floor_script.chmod(0o755)
-        marker.write_text(f"pid={os.getpid()}\n")
-
-        launcher = plugin_root / "bin/accelerator"
-        variants = {
-            Variant.BASELINE: [str(guard)],
-            Variant.FAST: [
-                str(launcher),
-                "vcs",
-                "guard",
-                "--format=hook",
-                "--fail-safe",
-            ],
+        rig = build_rig(session, plugin_root, tools=tools, runner=runner)
+        record["preconditions"] = check_preconditions(plugin_root, session, rig)
+        record["quietness"] = quietness(session.host, entry)
+        record["tools"] = {
+            "fast": tool_provenance(rig.fast_farm, session.diagnostics),
+            "fallback": tool_provenance(rig.fallback_farm, session.diagnostics),
         }
-        variants[Variant.FALLBACK] = variants[Variant.FAST]
-        environments = {
-            Variant.BASELINE: farm_environment(
-                fast_farm, temp_root=temp_parent
-            ),
-            Variant.FAST: farm_environment(fast_farm, temp_root=temp_parent),
-            Variant.FALLBACK: farm_environment(
-                fallback_farm, temp_root=temp_parent
-            ),
+        record["interpreter"] = {
+            "executable": sys.executable,
+            "version": sys.version,
+            "clock": str(time.get_clock_info("perf_counter")),
+            "seed": SEED,
         }
-        assert_backends(fast_farm, fallback_farm)
+        record["host"] = {
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "release": platform.release(),
+            "platform": platform.platform(),
+        }
+        record["dirname_spawns"] = observed_dirname_spawns(rig)
 
-        probe = runner(
-            variants[Variant.BASELINE],
-            cwd=fixture,
-            env=environments[Variant.BASELINE],
-        )
-        expected, expected_reason = expected_decision(probe.stdout)
-        print(f"baseline probe: {expected} / {expected_reason!r}")
-        if expected is not Decision.BLOCK:
+        if entry is None:
             raise PreconditionFailureError(
-                f"the fixture does not emit the blocked decision (got "
-                f"{expected}) — the session would measure the wrong path"
+                "no calibrated platform entry — every cell is branch 7, so "
+                "there is nothing to gate; re-run with --platform-key or add "
+                "an entry"
+            )
+        record["floors_pre"] = gate_floors(entry, rig, runner, when="pre")
+        if not record["floors_pre"]["holds"]:  # type: ignore[index]
+            raise PreconditionFailureError(
+                "the instrument floors did not clear their gate in three "
+                "recorded attempts — the host is not quiet (branch 5a)"
             )
 
-        samples = _sample(
-            runner,
-            variants,
-            environments,
-            fixture=fixture,
-            expected_reason=expected_reason,
-            block_a_pairs=2 if smoke else BLOCK_A_PAIRS,
-            block_b_samples=2 if smoke else BLOCK_B_SAMPLES,
-            pilot_pairs=0 if smoke else PILOT_PAIRS,
-            pilot_samples=0 if smoke else PILOT_SAMPLES,
-            blocks=blocks,
+        # A discarded warm-up, so the launcher takes the cache-hit branch from
+        # the first counted sample.
+        runner(
+            rig.variants[Variant.FAST],
+            cwd=rig.fixture,
+            env=rig.environments[Variant.FAST],
         )
-        outcomes = _analyse(entry, samples, smoke=smoke)
+
+        sizes, pilot = run_pilot(rig, runner, blocks=blocks)
+        record["pilot"] = pilot
+        samples = sample_blocks(
+            rig,
+            runner,
+            block_a_pairs=sizes["block_a_pairs"],
+            block_b_samples=sizes["block_b_samples"],
+            blocks=blocks,
+            started=started,
+        )
+        record["floors_post"] = gate_floors(entry, rig, runner, when="post")
+        record["dispersion"] = dispersion(samples)
+        record["terms"] = close_the_budget(
+            plugin_root, rig, runner, samples=samples
+        )
+        outcomes, analysis = analyse(
+            entry,
+            samples,
+            floors=record["floors_pre"],  # type: ignore[arg-type]
+            elapsed=time.perf_counter() - started,
+        )
+        record["analysis"] = analysis
+        record["cells"] = [asdict(outcome) for outcome in outcomes]
+        record["closure_verdict"] = closure_verdict(outcomes)
+    record["teardown"] = session.failures
+    if session.failures:
+        record["closure_verdict"] = False
+        record["analysis"]["validity"] = str(  # type: ignore[index]
+            Validity.INVALID_POST_RUN
+        )
+    destination = record_path or (
+        plugin_root / "meta/measurements/warm-dispatch.json"
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(record, indent=2, default=str))
+    print(f"record written to {destination}")
     if session.failures:
         raise Exit(
-            "teardown verify failed — the session is invalidated (branch 5):\n"
+            "teardown verify failed — the session is invalidated (branch 5b), "
+            "and its figures are recorded explicitly non-gating:\n"
             + "\n".join(session.failures),
             code=1,
         )
-    return outcomes
+    return record
+
+
+def observed_dirname_spawns(rig: Rig) -> int:
+    """Trace the baseline once under `bash -x` and count its `dirname` spawns.
+
+    Observed rather than implied by fixture depth. If the count is zero the
+    baseline is depth-insensitive, which is a reproducibility property worth
+    recording: a hand-off host's shallow temp root then cannot perturb the
+    denominator.
+    """
+    environment = rig.environments[Variant.BASELINE]
+    completed = subprocess.run(
+        [str(rig.fast_farm / "bash"), "-x", str(rig.guard)],
+        check=False,
+        capture_output=True,
+        text=True,
+        input=STDIN_ENVELOPE,
+        cwd=rig.fixture,
+        env=environment,
+    )
+    return dirname_spawn_count(completed.stderr)
+
+
+def run_pilot(
+    rig: Rig, runner: MeasurementRunner, *, blocks: str
+) -> tuple[dict[str, int], dict[str, object]]:
+    """Size the run from an in-session pilot whose samples are then discarded.
+
+    A dispersion estimate only: pooling the pilot into the analysed set would
+    make the final interval's coverage depend on a data-dependent stopping
+    rule. A size-up recomputes n from the **same** targets, never a relaxed
+    one, and is bounded by the same caps as the run it sizes.
+    """
+    pilot = sample_blocks(
+        rig,
+        runner,
+        block_a_pairs=PILOT_PAIRS,
+        block_b_samples=PILOT_SAMPLES,
+        blocks=blocks,
+        started=time.perf_counter(),
+        pilot=True,
+    )
+    rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
+    sizes = {
+        "block_a_pairs": BLOCK_A_PAIRS,
+        "block_b_samples": BLOCK_B_SAMPLES,
+    }
+    report: dict[str, object] = {}
+    baseline = pilot[Variant.BASELINE]
+    fast = pilot[Variant.FAST]
+    if baseline and len(baseline) == len(fast):
+        interval = paired_ratio_interval(
+            baseline, fast, resamples=2000, confidence=CONFIDENCE, rng=rng
+        )
+        needed, feasible = pilot_sizing(
+            interval,
+            target=RATIO_TARGET,
+            pilot_n=len(baseline),
+            cap=BLOCK_A_MAX_PAIRS,
+        )
+        sizes["block_a_pairs"] = max(BLOCK_A_PAIRS, needed)
+        report["block_a"] = {
+            "achieved_upper_distance": interval.upper_distance,
+            "required": needed,
+            "feasible": feasible,
+        }
+    fallback = pilot[Variant.FALLBACK]
+    if fallback:
+        interval = unpaired_interval(
+            fallback,
+            statistic=lambda values: summarise(values).median,
+            resamples=2000,
+            confidence=CONFIDENCE,
+            rng=rng,
+        )
+        needed, feasible = pilot_sizing(
+            interval,
+            target=MEDIAN_TARGET_MS,
+            pilot_n=len(fallback),
+            cap=BLOCK_B_MAX_SAMPLES,
+        )
+        sizes["block_b_samples"] = max(BLOCK_B_SAMPLES, needed)
+        report["block_b"] = {
+            "achieved_upper_distance": interval.upper_distance,
+            "required": needed,
+            "feasible": feasible,
+        }
+    report["sizes"] = dict(sizes)
+    report["discarded"] = {
+        str(variant): len(values) for variant, values in pilot.items()
+    }
+    return (sizes, report)
+
+
+def dispersion(
+    samples: Mapping[Variant, Sequence[float]],
+) -> dict[str, object]:
+    return {
+        str(variant): asdict(summarise(values))
+        for variant, values in samples.items()
+        if values
+    }
+
+
+def close_the_budget(
+    plugin_root: Path,
+    rig: Rig,
+    runner: MeasurementRunner,
+    *,
+    samples: Mapping[Variant, Sequence[float]],
+) -> dict[str, object]:
+    """Re-measure the warm-path terms in-session and report the residual.
+
+    Triggered by the residual's **magnitude**, never its sign: a sum of noisy
+    medians lands negative roughly half the time, so a sign trigger would be a
+    selection filter as well as an uncapped loop.
+    """
+    version = plugin_version(plugin_root)
+    terms = decompose_terms(plugin_root, version=version)
+    shim_targets = staged_shim_targets(plugin_root)
+    digest_ms = measure_digest_bracket(
+        runner,
+        farm=rig.fast_farm,
+        cwd=rig.fixture,
+        temp_root=rig.temp_parent,
+        targets=shim_targets,
+    )
+    fast = list(samples[Variant.FAST])
+    if not fast:
+        return {"terms": {k: asdict(v) for k, v in terms.items()}}
+    verdict = residual_verdict(
+        list(terms.values()), summarise(fast).median, attempts_used=0
+    )
+    cross_checked = sum(term.point for term in terms.values())
+    observed = summarise(fast).median
+    return {
+        "terms": {name: asdict(term) for name, term in terms.items()},
+        "two_sha256_file_calls_ms": digest_ms,
+        "residual": asdict(verdict),
+        "cross_checked_fraction": cross_checked / observed if observed else 0.0,
+        "cache_root_entries": len(
+            rig.session.witness.entries(plugin_root / "bin")
+        ),
+        "cache_root_bytes": sum(
+            path.stat().st_size
+            for path in (plugin_root / "bin").iterdir()
+            if path.is_file()
+        ),
+    }
+
+
+def staged_shim_targets(plugin_root: Path) -> list[Path]:
+    """Locate the two files the bootstrap hashes on every dispatch.
+
+    The verify shim's source and its content-addressed staged copy — the two
+    `sha256_file` call sites the composition budget needs an absolute figure
+    for.
+    """
+    cache_root = plugin_root / "bin"
+    sources = sorted(cache_root.glob("accelerator-verify-*"))
+    unstaged = [path for path in sources if len(path.name.split("-")) == 4]
+    staged = [path for path in sources if len(path.name.split("-")) > 4]
+    return (unstaged[:1] or sources[:1]) + (staged[:1] or sources[:1])
+
+
+def analyse(
+    entry: PlatformEntry,
+    samples: Mapping[Variant, Sequence[float]],
+    *,
+    floors: Mapping[str, object],
+    elapsed: float,
+) -> tuple[list[CellOutcome], dict[str, object]]:
+    """Compute every cell's interval, classify it, and record the diagnostics.
+
+    The three floor treatments are computed in their three fixed roles: raw
+    medians gate, the `true`-floor-subtracted point estimate is the robustness
+    check, and the bash-floor-subtracted ratio is diagnostic only because it
+    over-subtracts — bash startup is real cost the dispatched variant pays,
+    since the bootstrap *is* a bash script.
+    """
+    rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
+    baseline = list(samples[Variant.BASELINE])
+    fast = list(samples[Variant.FAST])
+    fallback = list(samples[Variant.FALLBACK])
+    true_floor, bash_floor = last_floors(floors)
+
+    intervals: dict[str, Interval | None] = {
+        "C1": _absolute(fast, lambda v: summarise(v).median, RESAMPLES, rng),
+        "C2": _absolute(fast, lambda v: summarise(v).p90, RESAMPLES, rng),
+        "C3": _absolute(
+            fallback, lambda v: summarise(v).median, RESAMPLES, rng
+        ),
+        "C4": _absolute(fallback, lambda v: summarise(v).p90, RESAMPLES, rng),
+        "C5": _ratio(baseline, fast, RESAMPLES, rng),
+        "C6": _ratio(baseline, fallback, RESAMPLES, rng),
+    }
+    ratios: dict[str, object] = {}
+    robustness_ok: bool | None = None
+    if baseline and len(baseline) == len(fast):
+        raw = ratio_of_medians(baseline, fast)
+        true_subtracted = ratio_of_medians(
+            subtract_floor(baseline, true_floor),
+            subtract_floor(fast, true_floor),
+        )
+        bash_subtracted = ratio_of_medians(
+            subtract_floor(baseline, bash_floor),
+            subtract_floor(fast, bash_floor),
+        )
+        robustness_ok = true_subtracted <= RATIO_THRESHOLD
+        first_b, last_b = thirds(baseline)
+        first_g, last_g = thirds(fast)
+        ratios = {
+            "raw_gates": raw,
+            "true_floor_subtracted_robustness_check": true_subtracted,
+            "bash_floor_subtracted_diagnostic_only": bash_subtracted,
+            "median_of_ratios": median_of_ratios(baseline, fast),
+            "p90_ratio_context": summarise(fast).p90 / summarise(baseline).p90,
+            "drift_first_third": (
+                ratio_of_medians(first_b, first_g) if first_b else None
+            ),
+            "drift_last_third": (
+                ratio_of_medians(last_b, last_g) if last_b else None
+            ),
+        }
+        first_ratio = ratio_of_medians(first_b, first_g) if first_b else 0.0
+        last_ratio = ratio_of_medians(last_b, last_g) if last_b else 0.0
+        ratios["drift_holds"] = bool(
+            first_b and drift_holds(first_ratio, last_ratio)
+        )
+    validity = (
+        Validity.VALID
+        if ratios.get("drift_holds", True)
+        else Validity.INVALID_POST_RUN
+    )
+    outcomes = []
+    for cell in cells_for(entry):
+        interval = intervals[cell.name]
+        outcome = classify_cell(
+            cell,
+            interval,
+            robustness_ok=(
+                None if cell.kind is CellKind.ABSOLUTE else robustness_ok
+            ),
+            escalations_used=0,
+            validity=validity,
+            sizing_feasible=True,
+            applicable=interval is not None,
+            budget_spent=elapsed >= WALL_CLOCK_BUDGET_S,
+        )
+        outcomes.append(outcome)
+        _report_cell(cell, interval, outcome)
+    return (
+        outcomes,
+        {
+            "intervals": {
+                name: (asdict(i) if i else None)
+                for name, i in intervals.items()
+            },
+            "ratios": ratios,
+            "validity": str(validity),
+            "elapsed_s": elapsed,
+        },
+    )
+
+
+def last_floors(floors: Mapping[str, object]) -> tuple[float, float]:
+    """Read the final attempt's floors, or zero when none ran.
+
+    The final attempt, not the first: only the attempt that cleared the gate is
+    the instrument the samples were taken under.
+    """
+    attempts = floors.get("attempts")
+    if not isinstance(attempts, list) or not attempts:
+        return (0.0, 0.0)
+    last = attempts[-1]
+    if not isinstance(last, dict):
+        return (0.0, 0.0)
+    return (float(last.get("true_ms", 0.0)), float(last.get("bash_ms", 0.0)))
+
+
+def _report_cell(
+    cell: Cell, interval: Interval | None, outcome: CellOutcome
+) -> None:
+    if interval is None:
+        print(f"{cell.name} ({cell.description}): not applicable (branch 7)")
+        return
+    print(
+        f"{cell.name} ({cell.description}): {interval.point:.4f} "
+        f"[{interval.lower:.4f}, {interval.upper:.4f}] against "
+        f"{cell.threshold} -> branch {outcome.branch}"
+    )
 
 
 def assert_backends(fast_farm: Path, fallback_farm: Path) -> None:
@@ -1368,46 +1865,47 @@ def assert_backends(fast_farm: Path, fallback_farm: Path) -> None:
         )
 
 
-def _sample(
+def sample_blocks(
+    rig: Rig,
     runner: MeasurementRunner,
-    variants: Mapping[Variant, Sequence[str]],
-    environments: Mapping[Variant, Mapping[str, str]],
     *,
-    fixture: Path,
-    expected_reason: str,
     block_a_pairs: int,
     block_b_samples: int,
-    pilot_pairs: int,
-    pilot_samples: int,
     blocks: str,
+    started: float,
+    pilot: bool = False,
 ) -> dict[Variant, list[float]]:
+    """Take one block's samples, gated and braked on every one of them.
+
+    `started` is the *session's* start, not this call's: the wall-clock budget
+    covers the whole session — the pilot, the initial run and any escalated run
+    — because escalation happens inside the one session the criterion's "same
+    host, same session" wording requires.
+    """
     schedule = generate_schedule(
-        block_a_pairs=block_a_pairs,
-        block_b_samples=block_b_samples,
-        pilot_pairs=pilot_pairs,
-        pilot_samples=pilot_samples,
+        block_a_pairs=0 if pilot else block_a_pairs,
+        block_b_samples=0 if pilot else block_b_samples,
+        pilot_pairs=block_a_pairs if pilot else 0,
+        pilot_samples=block_b_samples if pilot else 0,
         segment=SEGMENT_SAMPLES,
         rng=random.Random(SEED),  # noqa: S311 — statistical sampling, not a security context
     )
     schedule = [
         sample
         for sample in schedule
-        if not sample.pilot and sample.block in blocks
+        if sample.pilot == pilot and sample.block in blocks
     ]
     observed: dict[Variant, list[float]] = {variant: [] for variant in Variant}
     pending: dict[Variant, str] = {}
-    started = time.perf_counter()
     for index, sample in enumerate(schedule):
         result = runner(
-            variants[sample.variant],
-            cwd=fixture,
-            env=environments[sample.variant],
+            rig.variants[sample.variant],
+            cwd=rig.fixture,
+            env=rig.environments[sample.variant],
         )
         arm = observed[sample.variant]
         if arm and outlier_trip(
-            result.elapsed_ms,
-            arm_median=median(arm),
-            arm_count=len(arm),
+            result.elapsed_ms, arm_median=median(arm), arm_count=len(arm)
         ):
             raise Exit(
                 f"outlier trip on {sample.variant} at sample {index}: "
@@ -1416,86 +1914,55 @@ def _sample(
                 f"a noisy host, not a warm dispatch",
                 code=1,
             )
-        pending[sample.variant] = result.stdout
-        if sample.variant is Variant.FALLBACK:
-            verdict = validate_sample(
-                pending[sample.variant], result.stdout, expected_reason
-            )
-        elif Variant.BASELINE in pending and Variant.FAST in pending:
-            verdict = validate_sample(
-                pending.pop(Variant.BASELINE),
-                pending.pop(Variant.FAST),
-                expected_reason,
-            )
-        else:
-            verdict = None
-        if verdict is not None and not verdict.valid:
-            raise Exit(
-                f"per-sample validity gate failed at sample {index}: "
-                f"{verdict.diagnostic}",
-                code=1,
-            )
+        _gate_sample(rig, sample.variant, result.stdout, pending, index)
         arm.append(result.elapsed_ms)
-        if time.perf_counter() - started > WALL_CLOCK_BUDGET_S:
+        if (
+            budget_exhausted(
+                time.perf_counter() - started,
+                WALL_CLOCK_BUDGET_S,
+                index,
+                len(schedule),
+            )
+            and index < len(schedule) - 1
+        ):
             raise Exit(
                 "the wall-clock budget is exhausted mid-run (branch 6b) — "
-                "partial figures are non-gating",
+                "partial figures are recorded explicitly non-gating",
                 code=1,
             )
     return observed
 
 
-def _analyse(
-    entry: PlatformEntry | None,
-    samples: Mapping[Variant, Sequence[float]],
-    *,
-    smoke: bool,
-) -> list[CellOutcome]:
-    if entry is None:
-        print("uncalibrated platform key — recording context, not a verdict")
-        return []
-    rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
-    resamples = 10 if smoke else RESAMPLES
-    outcomes = []
-    fast = list(samples[Variant.FAST])
-    baseline = list(samples[Variant.BASELINE])
-    fallback = list(samples[Variant.FALLBACK])
-    intervals: dict[str, Interval | None] = {
-        "C1": _absolute(fast, lambda v: summarise(v).median, resamples, rng),
-        "C2": _absolute(fast, lambda v: summarise(v).p90, resamples, rng),
-        "C3": _absolute(
-            fallback, lambda v: summarise(v).median, resamples, rng
-        ),
-        "C4": _absolute(fallback, lambda v: summarise(v).p90, resamples, rng),
-        "C5": _ratio(baseline, fast, resamples, rng),
-        "C6": _ratio(baseline, fallback, resamples, rng),
-    }
-    for cell in cells_for(entry):
-        interval = intervals[cell.name]
-        outcome = classify_cell(
-            cell,
-            interval,
-            robustness_ok=None if cell.kind is CellKind.ABSOLUTE else True,
-            escalations_used=0,
-            validity=Validity.VALID,
-            sizing_feasible=True,
-            applicable=interval is not None,
-            budget_spent=False,
+def _gate_sample(
+    rig: Rig,
+    variant: Variant,
+    stdout: str,
+    pending: dict[Variant, str],
+    index: int,
+) -> None:
+    """Assert this sample exercised the path being timed, and abort if not.
+
+    Runs outside the timed bracket. A fail-safe swallow exits 0 with empty
+    stdout and skips both the re-verification and the sub-binary run, so it
+    records a spuriously *low* latency — the failure this gate exists to catch.
+    """
+    pending[variant] = stdout
+    if variant is Variant.FALLBACK:
+        verdict = validate_sample(stdout, stdout, rig.expected_reason)
+    elif Variant.BASELINE in pending and Variant.FAST in pending:
+        verdict = validate_sample(
+            pending.pop(Variant.BASELINE),
+            pending.pop(Variant.FAST),
+            rig.expected_reason,
         )
-        outcomes.append(outcome)
-        if interval is None:
-            print(f"{cell.name} ({cell.description}): not applicable")
-        else:
-            print(
-                f"{cell.name} ({cell.description}): {interval.point:.4f} "
-                f"[{interval.lower:.4f}, {interval.upper:.4f}] against "
-                f"{cell.threshold} -> branch {outcome.branch}"
-            )
-    if smoke:
-        print("smoke check: no gating figure recorded")
     else:
-        print(f"closure verdict: {closure_verdict(outcomes)}")
-    return outcomes
+        return
+    if not verdict.valid:
+        raise Exit(
+            f"per-sample validity gate failed at sample {index}: "
+            f"{verdict.diagnostic}",
+            code=1,
+        )
 
 
 def _absolute(
@@ -1598,3 +2065,209 @@ def calibration_note(
 
 def percentile_of(values: Sequence[float], quantile: float) -> float:
     return percentile(values, quantile)
+
+
+# --- Instrument floors, provenance and the composition budget -------------
+
+FLOOR_SAMPLES = 50
+TERM_SAMPLES = 200
+
+
+def measure_floors(
+    runner: MeasurementRunner,
+    *,
+    floor_script: Path,
+    farm: Path,
+    cwd: Path,
+    temp_root: Path,
+    samples: int = FLOOR_SAMPLES,
+) -> tuple[float, float]:
+    """Median cost of a trivial bash script and of `true`, in milliseconds.
+
+    Both resolved through the farm the samples are taken under, so the floor
+    and the measurement share an instrument. Measured before *and* after
+    sampling: 1,700-plus samples hashing megabytes each drive real thermal
+    load, and the end-of-run pair is the cheapest witness that the instrument
+    itself did not move across the session.
+    """
+    environment = farm_environment(farm, temp_root=temp_root)
+    bash = farm / "bash"
+    true = farm / "true"
+    if not true.exists():
+        raise PreconditionFailureError(
+            f"no `true` in the farm at {farm} — the floor cannot be measured"
+        )
+    bash_samples = [
+        runner([str(bash), str(floor_script)], cwd=cwd, env=environment)
+        for _ in range(samples)
+    ]
+    true_samples = [
+        runner([str(true)], cwd=cwd, env=environment) for _ in range(samples)
+    ]
+    return (
+        median([sample.elapsed_ms for sample in bash_samples]),
+        median([sample.elapsed_ms for sample in true_samples]),
+    )
+
+
+def decompose_terms(
+    plugin_root: Path, *, version: str, subbinary: str = "vcs"
+) -> dict[str, Interval]:
+    """Re-measure the launcher-side warm-path terms in this same session.
+
+    Rather than re-checking closure against a published decomposition: the
+    spike's own numbers carry a visible cross-session mismatch, so roughly half
+    its residual was session difference rather than unattributed cost. The
+    `reverify` figure comes from a replica of a private method — see the
+    warning in `cli/launcher/tests/warm_terms.rs`.
+    """
+    environment = dict(os.environ)
+    environment["ACCELERATOR_MEASURE_CACHE_ROOT"] = str(plugin_root / "bin")
+    environment["ACCELERATOR_MEASURE_VERSION"] = version
+    environment["ACCELERATOR_MEASURE_SUBBINARY"] = subbinary
+    completed = subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--release",
+            "--manifest-path",
+            str(plugin_root / "cli/Cargo.toml"),
+            "-p",
+            "accelerator",
+            "--test",
+            "warm_terms",
+            "--",
+            "--ignored",
+            "--nocapture",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    if completed.returncode != 0:
+        raise PreconditionFailureError(
+            f"the term harness failed:\n{completed.stderr[-2000:]}"
+        )
+    return parse_term_report(completed.stdout)
+
+
+def parse_term_report(stdout: str) -> dict[str, Interval]:
+    """Parse the term harness's JSON lines into intervals by term name.
+
+    Each term carries its own percentile interval, which the residual band
+    propagates — the band must not be tighter than the measurement can resolve.
+    """
+    terms: dict[str, Interval] = {}
+    for line in stdout.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("{") or '"term"' not in stripped:
+            continue
+        payload = json.loads(stripped)
+        terms[payload["term"]] = Interval(
+            point=payload["median_ms"],
+            lower=payload["p2_5_ms"],
+            upper=payload["p97_5_ms"],
+        )
+    return terms
+
+
+def measure_digest_bracket(
+    runner: MeasurementRunner,
+    *,
+    farm: Path,
+    cwd: Path,
+    temp_root: Path,
+    targets: Sequence[Path],
+    samples: int = FLOOR_SAMPLES,
+) -> float:
+    """Cost of the bootstrap's two `sha256_file` substitutions, directly.
+
+    A `bash -c` bracket marginal over an empty body, which is the quantity the
+    composition budget needs. The dual-backend delta is the **cross-check** on
+    this, not a substitute for it: that delta yields twice the difference
+    between the backends, whereas the budget needs the absolute cost under the
+    gating configuration.
+    """
+    environment = farm_environment(farm, temp_root=temp_root)
+    bash = str(farm / "bash")
+    body = "; ".join(
+        f"d=$(sha256sum \"{target}\" | awk '{{print $1}}')"
+        for target in targets
+    )
+    loaded = [
+        runner([bash, "-c", body], cwd=cwd, env=environment)
+        for _ in range(samples)
+    ]
+    empty = [
+        runner([bash, "-c", ":"], cwd=cwd, env=environment)
+        for _ in range(samples)
+    ]
+    return median([s.elapsed_ms for s in loaded]) - median(
+        [s.elapsed_ms for s in empty]
+    )
+
+
+def concurrent_sessions(diagnostics: DiagnosticRunner) -> list[str]:
+    """List Claude Code processes other than the one driving this run.
+
+    A concurrent session appends to the unverified log and can flip the
+    launcher or shim inode, failing the branch witness for a benign reason —
+    and an unenforced precondition makes that indistinguishable from tampering.
+    The driving session is excluded by pid, but its *dispatch count* is still
+    recorded: the exclusion suppresses detection of its interference, not the
+    interference itself.
+    """
+    try:
+        listing = diagnostics(["pgrep", "-fl", "claude"])
+    except FileNotFoundError, PermissionError:
+        return []
+    own = {str(os.getpid()), str(os.getppid())}
+    return [
+        line
+        for line in listing.splitlines()
+        if line.split(" ", 1)[0] not in own
+    ]
+
+
+def tool_provenance(
+    farm: Path, diagnostics: DiagnosticRunner
+) -> dict[str, dict[str, str]]:
+    """Every farm link's target realpath and version, re-probed through it.
+
+    Re-probed *through the farm* rather than trusted from the pre-build probe:
+    a mise shim re-resolves its version from the config discovered at the cwd,
+    and the sampling cwd is the fixture — outside every mise config.
+    """
+    record = {}
+    for link in sorted(farm.iterdir()):
+        try:
+            version = diagnostics([str(link), "--version"])
+        except FileNotFoundError, PermissionError, subprocess.SubprocessError:
+            version = "unknown"
+        record[link.name] = {
+            "target": str(link.resolve()),
+            "version": version.splitlines()[0] if version else "unknown",
+        }
+    return record
+
+
+def plugin_version(plugin_root: Path) -> str:
+    payload = json.loads(
+        (plugin_root / ".claude-plugin/plugin.json").read_text()
+    )
+    return str(payload["version"])
+
+
+def jj_pin(plugin_root: Path) -> str:
+    """Read the `jj` version `mise.toml` pins, in lockstep with `jj-lib`.
+
+    Asserted rather than merely recorded: the fixture's `git.colocate=false`
+    incantation is justified by one release's default, so a differently
+    versioned `jj` could change which repo mode the fixture is in — the exact
+    failure the pin exists to prevent.
+    """
+    import tomllib
+
+    tools = tomllib.loads((plugin_root / "mise.toml").read_text())["tools"]
+    return str(tools["jj"])

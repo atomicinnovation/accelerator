@@ -834,3 +834,76 @@ def _split_key(value: str) -> tuple[str, str]:
             f"platform key must read '<system>/<machine>', got {value!r}"
         )
     return (system, machine)
+
+
+# --- Paired statistics and diagnostics ------------------------------------
+
+
+def subtract_floor(samples: Sequence[float], floor: float) -> list[float]:
+    """Shift every sample down by a shared instrument floor, clamped at zero.
+
+    Used for the two recorded floor treatments. Subtracting a shared floor
+    makes a ratio *larger*, so raw medians are the lenient statistic for a
+    `ratio ≤ k` gate and the subtracted form is the check on it, never the
+    other way round.
+    """
+    return [max(0.0, sample - floor) for sample in samples]
+
+
+def _require_pairs(baseline: Sequence[float], variant: Sequence[float]) -> None:
+    if len(baseline) != len(variant):
+        raise ValueError(
+            f"paired vectors differ in length: {len(baseline)} vs "
+            f"{len(variant)}"
+        )
+    if not baseline:
+        raise ValueError("paired statistic over an empty sample")
+
+
+def ratio_of_medians(
+    baseline: Sequence[float], variant: Sequence[float]
+) -> float:
+    _require_pairs(baseline, variant)
+    return median(variant) / median(baseline)
+
+
+def median_of_ratios(
+    baseline: Sequence[float], variant: Sequence[float]
+) -> float:
+    """`median(Gᵢ/Bᵢ)`, recorded alongside the ratio of medians.
+
+    Pairing enters the gated statistic only through the resampling, not the
+    estimator, so the two diverge under drift — their divergence is the most
+    direct drift diagnostic the collected data affords.
+    """
+    _require_pairs(baseline, variant)
+    return median([g / b for b, g in zip(baseline, variant, strict=True) if b])
+
+
+def thirds(
+    samples: Sequence[float],
+) -> tuple[list[float], list[float]]:
+    """Split into equal first and last thirds, dropping the remainder.
+
+    Equal-sized thirds, so the drift comparison is between like windows: an
+    uneven split would let the larger window's dispersion masquerade as drift.
+    """
+    size = len(samples) // 3
+    if size == 0:
+        return ([], [])
+    return (list(samples[:size]), list(samples[len(samples) - size :]))
+
+
+def dirname_spawn_count(trace: str) -> int:
+    """Count `dirname` spawns in a `bash -x` trace.
+
+    Observed rather than implied by fixture depth: `find_repo_root` tests `-e
+    "$dir/.jj"` on `$PWD` before its first `dirname` call, so the expected
+    count is zero at any depth — which, if it holds, makes the baseline
+    depth-insensitive and means no depth pinning is needed across platforms.
+    """
+    return sum(
+        1
+        for line in trace.splitlines()
+        if line.lstrip("+ ").split(" ")[0].rsplit("/", 1)[-1] == "dirname"
+    )
