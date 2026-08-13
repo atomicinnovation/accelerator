@@ -25,6 +25,12 @@ const WALL_CLOCK_RAW = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS
 const WALL_CLOCK_CEILING = 1800000; // 30 min hard ceiling
 const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 
+// How long past the budget the backstop waits. It sits deliberately outside
+// WALL_CLOCK_MS — and so outside the ceiling — because it guards the operations
+// that ignore their own timeout entirely, `page.evaluate` above all, rather than
+// the ones that honour it.
+const WALL_CLOCK_GRACE_MS = 2000;
+
 // BLOCKING_OPS membership: operations that perform browser I/O and must
 // be wall-clock bounded. `links` joins the set because page.evaluate()
 // can hang on a hostile page, mirroring the existing `evaluate` and
@@ -44,7 +50,6 @@ export async function startDaemon({ stateDir }) {
   let shutdownInitiated = false;
   let idleTimer = null;
   let wallClockTimer = null;
-  let currentOp = null; // { name, res, conn }
 
   // ------ Shutdown --------------------------------------------------------
 
@@ -78,9 +83,27 @@ export async function startDaemon({ stateDir }) {
     idleTimer = setTimeout(() => shutdown('idle'), IDLE_MS).unref();
   }
 
+  // ------ Responding ------------------------------------------------------
+
+  // Both the operation and its backstop can reach the same response, and only
+  // one of them may answer: the backstop fires precisely when the operation is
+  // still running, so a later completion must not write a second body onto a
+  // finished response.
+  function respond(res, status, body) {
+    if (res.writableEnded || res.headersSent) return false;
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+    return true;
+  }
+
   // ------ Wall-clock per-op timer ----------------------------------------
 
-  function armWallClock(opName, conn) {
+  // The backstop fires after the budget, not on it. Every bounded operation
+  // passes WALL_CLOCK_MS to Playwright as its own timeout, so a backstop armed
+  // for the same instant pre-empts the graceful path it exists to protect: the
+  // caller gets a dead daemon where the operation was about to return a typed
+  // envelope. The grace is what leaves room for that envelope.
+  function armWallClock(opName, res) {
     clearTimeout(wallClockTimer);
     wallClockTimer = setTimeout(async () => {
       const envelope = makeError({
@@ -90,12 +113,13 @@ export async function startDaemon({ stateDir }) {
         retryable: false,
         details: { op: opName, wall_clock_ms: WALL_CLOCK_MS },
       });
-      try {
-        conn.write(JSON.stringify(envelope) + '\n');
-        await new Promise(r => setTimeout(r, 500));
-      } catch {}
+      // A complete response, not a raw write. Writing the envelope onto the
+      // socket and then exiting leaves an HTTP client waiting on a chunked body
+      // that never ends — so the one caller who needs to hear about this is the
+      // one caller who never does.
+      respond(res, 200, envelope);
       await shutdown('wall-clock', { op: opName, wall_clock_ms: WALL_CLOCK_MS });
-    }, WALL_CLOCK_MS);
+    }, WALL_CLOCK_MS + WALL_CLOCK_GRACE_MS);
   }
 
   function disarmWallClock() {
@@ -117,7 +141,7 @@ export async function startDaemon({ stateDir }) {
 
   // ------ Request handler -------------------------------------------------
 
-  async function handleRequest(req) {
+  async function handleRequest(req, { onBrowserReady } = {}) {
     if (req.protocol !== PROTOCOL) return protocolMismatch(req.protocol);
 
     const cmd = req.command;
@@ -167,6 +191,7 @@ export async function startDaemon({ stateDir }) {
 
     // All remaining commands require the browser
     await ensureBrowser();
+    onBrowserReady?.();
 
     switch (cmd) {
       case 'navigate': {
@@ -372,19 +397,26 @@ export async function startDaemon({ stateDir }) {
       }
 
       const isBlocking = BLOCKING_OPS.has(parsed.command);
-      if (isBlocking) armWallClock(parsed.command, res);
 
       let result;
       try {
-        result = await handleRequest(parsed);
+        result = await handleRequest(parsed, {
+          // Armed once the browser exists, not before the call: acquiring
+          // Chromium can outrun any sane per-op budget, and charging a cold
+          // start to the operation kills the daemon on its first browser
+          // command. The hook fires after `ensureBrowser`, so the commands that
+          // return before it — and a request arriving mid-shutdown — arm nothing.
+          onBrowserReady: () => {
+            if (isBlocking) armWallClock(parsed.command, res);
+          },
+        });
       } catch (e) {
         result = makeError({ error: 'internal-error', message: e.message || String(e), category: 'browser', retryable: false });
       }
 
       if (isBlocking) disarmWallClock();
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
+      respond(res, 200, result);
     });
   });
 

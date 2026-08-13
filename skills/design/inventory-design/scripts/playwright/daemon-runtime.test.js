@@ -11,44 +11,18 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readFileSync, realpathSync } from 'node:fs';
+import { mkdtempSync, rmSync, realpathSync } from 'node:fs';
 import { fork } from 'node:child_process';
 import { request } from 'node:http';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
 
 import { readServerInfo } from './lib/state.js';
+import { requireRuntime } from './runtime-preflight.js';
 
 const RUN_JS = resolve(import.meta.dirname, 'run.js');
 const HANDOFF_FD = 4;
 const TEST_TOKEN = 'runtimetokenruntimetokenruntime0';
-
-// The namespace `ensure-playwright.sh` populates, resolved the same way the
-// launcher resolves it.
-function playwrightNsRoot() {
-  const cacheRoot =
-    process.env.ACCELERATOR_PLAYWRIGHT_CACHE ||
-    `${process.env.HOME}/.cache/accelerator/playwright`;
-  const lockFile = new URL('./package-lock.json', import.meta.url).pathname;
-  const lockhash = createHash('sha256')
-    .update(readFileSync(lockFile))
-    .digest('hex')
-    .slice(0, 8);
-  return resolve(cacheRoot, lockhash);
-}
-
-// A missing runtime fails rather than skipping: this suite is only ever run by
-// a task that has already guaranteed one.
-function requireRuntime() {
-  const nsRoot = playwrightNsRoot();
-  assert.ok(
-    existsSync(resolve(nsRoot, 'node_modules', 'playwright', 'index.js')),
-    `Playwright is not installed for this lockhash namespace (${nsRoot}). ` +
-      'Run ensure-playwright.sh; this lane does not skip.'
-  );
-  return nsRoot;
-}
 
 function withTmpDir(fn) {
   const dir = realpathSync(mkdtempSync(resolve(tmpdir(), 'daemon-runtime-')));

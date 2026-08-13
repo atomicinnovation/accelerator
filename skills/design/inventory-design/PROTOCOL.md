@@ -274,7 +274,7 @@ reach agent context. Callers that need route identity work off
 add an explicit opt-in flag rather than relaxing the default.
 
 **Blocking**: yes (member of `BLOCKING_OPS`); the per-op wall-clock
-timer arms during execution.
+timer arms once the browser is ready and disarms on completion.
 
 **Error codes**
 
@@ -630,7 +630,7 @@ the daemon.
 | Variable                                | Default       | Set by    | Meaning |
 |-----------------------------------------|---------------|-----------|---------|
 | `ACCELERATOR_PLAYWRIGHT_IDLE_MS`        | `600000`      | caller    | Idle shutdown timeout (ms). Bounds the in-memory lifetime of an auth-bearing browser context; do not raise without considering auth-context exposure. Lowered from `1800000` in this release. |
-| `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. |
+| `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. The budget starts once the browser is ready, so acquiring Chromium is not charged to the first operation. A command that honours the budget answers with its own typed envelope (`wait-for-timeout`, and `timeout_ms` capping below); `wall-clock-exceeded` is a backstop for a command that ignores its timeout entirely, and so fires 2000 ms past the budget, outside the cap. |
 | `ACCELERATOR_PLAYWRIGHT_CACHE`          | `${HOME}/.cache/accelerator/playwright` | environment | Root directory for the Playwright browser cache (versioned by package-lock hash). |
 | `ACCELERATOR_PLAYWRIGHT_NS_ROOT`        | derived       | launcher  | Namespace root for the active Playwright install (cache root + lockhash). Set by `accelerator design executor` when invoking the daemon or client; callers should not set it directly. |
 | `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | launcher  | Per-project state directory. Set by `accelerator design executor`; callers should not set it directly. |
