@@ -7,36 +7,95 @@ and a defect in it yields a plausible-looking ratio rather than a crash.
 """
 
 import json
+import os
+import platform
 import random
+import re
+import shutil
+import signal
+import subprocess
+from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
 
 import pytest
 
+from tasks.measure import (
+    BASELINE_COMMIT,
+    CACHE_TEMP_PREFIX,
+    FALLBACK_BACKEND,
+    FAST_BACKEND,
+    MANIFEST_DIRNAME,
+    MANIFEST_NAME,
+    PLATFORM_TABLE,
+    RATIO_TARGET,
+    RATIO_THRESHOLD,
+    RECOVERED_FILES,
+    WALL_CLOCK_BUDGET_S,
+    ArtefactKind,
+    Manifest,
+    MeasurementSession,
+    PreconditionFailureError,
+    StaleManifestError,
+    assert_backends,
+    build_farm,
+    cells_for,
+    classify_cell,
+    create_fixture,
+    criterion_constants,
+    digest_backend_population,
+    farm_environment,
+    recover_baseline,
+    recovery_argv,
+    unwind_signals,
+)
 from tasks.shared.measurement import (
+    PLATFORM_KEY_ENV,
+    ArtefactState,
     Branch,
+    Calibration,
     CellKind,
     CellOutcome,
+    CpuProbes,
     Decision,
     IllFormedCellError,
+    Interval,
+    PlatformEntry,
     Validity,
     Variant,
+    accelerator_override_keys,
     budget_exhausted,
+    calibration_holds,
+    ceiling_directories,
     classify,
     closure_verdict,
     drift_verdict,
+    expected_decision,
     generate_schedule,
     log_appended_lines,
+    median,
     normalise_envelope,
     outlier_trip,
     paired_ratio_interval,
     percentile,
+    pilot_sizing,
+    platform_constants,
+    power_state,
     required_samples,
+    residual_verdict,
+    resolve_cpu_count,
+    resolve_platform_key,
     retry_budget,
     summarise,
+    tmp_containment,
+    unchanged_artefacts,
     unpaired_interval,
     validate_sample,
 )
+
+REPO = Path(__file__).resolve().parents[3]
+README = REPO / "tasks/README.md"
+CONSTANTS_HEADING = "### Criterion constants"
 
 
 def rng() -> random.Random:
@@ -738,3 +797,983 @@ class TestClosureVerdict:
 
     def test_an_empty_cell_set_does_not_close(self):
         assert not closure_verdict([])
+
+
+class TestExpectedDecision:
+    def test_a_legacy_probe_yields_its_own_decision(self):
+        assert expected_decision(LEGACY_BLOCK) == (Decision.BLOCK, BLOCK_REASON)
+
+    def test_a_rust_deny_probe_yields_block(self):
+        assert expected_decision(deny_envelope("r")) == (Decision.BLOCK, "r")
+
+    def test_a_warn_probe_yields_warn(self):
+        envelope = json.dumps({"systemMessage": "colocated"})
+        assert expected_decision(envelope) == (Decision.WARN, "colocated")
+
+    def test_empty_stdout_refuses_rather_than_yielding_an_expectation(self):
+        with pytest.raises(ValueError, match="no usable decision"):
+            expected_decision("")
+
+    def test_an_unrecognised_probe_refuses_too(self):
+        with pytest.raises(ValueError, match="no usable decision"):
+            expected_decision(json.dumps({"hookSpecificOutput": {}}))
+
+
+class TestAcceleratorOverrideKeys:
+    def test_it_reports_the_offending_key_names(self):
+        env = {"PATH": "/usr/bin", "ACCELERATOR_CACHE_DIR": "/tmp/x"}
+        assert accelerator_override_keys(env) == ["ACCELERATOR_CACHE_DIR"]
+
+    def test_a_clean_environment_reports_nothing(self):
+        assert accelerator_override_keys({"PATH": "/usr/bin"}) == []
+
+    def test_the_release_base_url_is_permitted_but_still_reported(self):
+        env = {"ACCELERATOR_RELEASE_BASE_URL": "https://mirror.example"}
+        assert accelerator_override_keys(env) == []
+        assert accelerator_override_keys(env, permitted=()) == [
+            "ACCELERATOR_RELEASE_BASE_URL"
+        ]
+
+    def test_it_matches_names_not_values(self):
+        env = {"EDITOR": "ACCELERATOR_BIN"}
+        assert accelerator_override_keys(env) == []
+
+
+class TestTmpContainment:
+    def test_a_symlinked_temp_root_is_accepted_on_both_sides(self, tmp_path):
+        real = tmp_path / "real"
+        real.mkdir()
+        link = tmp_path / "link"
+        link.symlink_to(real)
+        assert tmp_containment(link / "artefact", real)
+
+    def test_a_path_outside_the_root_is_rejected(self, tmp_path):
+        outside = tmp_path / "outside"
+        root = tmp_path / "root"
+        root.mkdir()
+        assert not tmp_containment(outside, root)
+
+    def test_the_root_itself_is_not_contained(self, tmp_path):
+        assert not tmp_containment(tmp_path, tmp_path)
+
+
+class TestCeilingDirectories:
+    def test_it_canonicalises_a_symlinked_root(self, tmp_path):
+        real = tmp_path / "real"
+        real.mkdir()
+        link = tmp_path / "link"
+        link.symlink_to(real)
+        assert ceiling_directories(link) == str(real.resolve())
+
+
+class TestUnchangedArtefacts:
+    def witness(self, **kwargs):
+        base = {"inode": 1, "mtime": 100.0, "digest": "abc"}
+        return {"launcher": ArtefactState(**{**base, **kwargs})}
+
+    def test_identical_state_is_accepted(self):
+        assert unchanged_artefacts(self.witness(), self.witness()) == []
+
+    def test_a_changed_inode_is_reported(self):
+        assert unchanged_artefacts(self.witness(), self.witness(inode=2))
+
+    def test_a_changed_mtime_is_reported(self):
+        assert unchanged_artefacts(self.witness(), self.witness(mtime=101.0))
+
+    def test_a_changed_digest_is_reported(self):
+        assert unchanged_artefacts(self.witness(), self.witness(digest="def"))
+
+    def test_a_missing_file_is_reported_rather_than_ignored(self):
+        problems = unchanged_artefacts(self.witness(), {"launcher": None})
+        assert problems and "missing" in problems[0]
+
+    def test_an_appearing_file_is_reported_too(self):
+        problems = unchanged_artefacts({"launcher": None}, self.witness())
+        assert problems
+
+
+class TestResolveCpuCount:
+    def test_a_resolving_cgroup_quota_wins(self):
+        count, rung = resolve_cpu_count(
+            CpuProbes(cgroup_cpu_max="200000 100000", process_cpu_count=10)
+        )
+        assert (count, rung) == (2, "cgroup-v2")
+
+    def test_the_literal_max_means_the_rung_did_not_fire(self):
+        count, rung = resolve_cpu_count(
+            CpuProbes(cgroup_cpu_max="max 100000", process_cpu_count=10)
+        )
+        assert (count, rung) == (10, "process-cpu-count")
+
+    def test_an_absent_cgroup_falls_through(self):
+        count, rung = resolve_cpu_count(
+            CpuProbes(cgroup_cpu_max=None, process_cpu_count=8)
+        )
+        assert (count, rung) == (8, "process-cpu-count")
+
+    def test_an_unparseable_quota_falls_through(self):
+        count, rung = resolve_cpu_count(
+            CpuProbes(cgroup_cpu_max="garbage", process_cpu_count=8)
+        )
+        assert (count, rung) == (8, "process-cpu-count")
+
+    def test_a_fractional_quota_rounds_up_to_a_whole_cpu(self):
+        count, rung = resolve_cpu_count(
+            CpuProbes(cgroup_cpu_max="150000 100000", process_cpu_count=10)
+        )
+        assert (count, rung) == (2, "cgroup-v2")
+
+
+class TestPowerState:
+    def test_a_resolving_probe_is_recorded_verbatim(self):
+        probes = [["pmset", "-g", "ps"]]
+        state = power_state(lambda argv: f"output of {argv[0]}", probes)
+        assert state == {"pmset": "output of pmset"}
+
+    def test_an_absent_probe_yields_unknown_rather_than_propagating(self):
+        def runner(argv):
+            raise FileNotFoundError(argv[0])
+
+        assert power_state(runner, [["pmset", "-g", "ps"]]) == {
+            "pmset": "unknown"
+        }
+
+
+class TestPilotSizing:
+    def test_h_zero_is_the_upper_distance_not_the_half_width(self):
+        # 0205's interval: 0.0151 below the point, 0.0086 above it. The
+        # half-width 0.0119 corresponds to neither tail.
+        interval = Interval(point=1.2813, lower=1.2662, upper=1.2899)
+        n, feasible = pilot_sizing(
+            interval, target=0.0043, pilot_n=300, cap=7000
+        )
+        assert feasible
+        assert n == required_samples(300, 0.0086, 0.0043)
+
+    def test_a_worse_dispersion_pilot_sizes_up(self):
+        tight = Interval(point=1.28, lower=1.27, upper=1.285)
+        loose = Interval(point=1.28, lower=1.26, upper=1.30)
+        assert (
+            pilot_sizing(loose, target=0.003, pilot_n=200, cap=99999)[0]
+            > pilot_sizing(tight, target=0.003, pilot_n=200, cap=99999)[0]
+        )
+
+    def test_a_target_beyond_the_cap_is_infeasible(self):
+        interval = Interval(point=1.2813, lower=1.2662, upper=1.2899)
+        n, feasible = pilot_sizing(
+            interval, target=0.0001, pilot_n=300, cap=6900
+        )
+        assert not feasible
+        assert n > 6900
+
+
+class TestPlatformConstants:
+    def table(self):
+        return {
+            ("Darwin", "arm64"): PlatformEntry(
+                key="darwin-arm64",
+                path_tools=("bash",),
+                power_probes=(["pmset", "-g", "ps"],),
+                median_ceiling_fast_ms=50.0,
+                p90_ceiling_fast_ms=60.0,
+                median_ceiling_fallback_ms=70.0,
+                p90_ceiling_fallback_ms=80.0,
+                bash_floor_ms=7.8,
+                true_floor_ms=1.95,
+                reference_bash="GNU bash, version 3.2.57",
+                calibration=Calibration(
+                    session="0205",
+                    chip="Apple M4 Max",
+                    bash="GNU bash, version 3.2.57",
+                    shasum="Perl shasum 6.04",
+                ),
+            )
+        }
+
+    def test_a_calibrated_key_returns_its_entry(self):
+        entry = platform_constants(("Darwin", "arm64"), self.table())
+        assert entry is not None
+        assert entry.median_ceiling_fast_ms == 50.0
+
+    def test_an_uncalibrated_key_returns_nothing(self):
+        assert platform_constants(("Linux", "riscv64"), self.table()) is None
+
+    def test_a_non_host_key_exercises_the_other_platform_path(self):
+        table = self.table()
+        table[("Linux", "x86_64")] = PlatformEntry(
+            key="linux-x64",
+            path_tools=("bash",),
+            power_probes=(),
+            median_ceiling_fast_ms=45.0,
+            p90_ceiling_fast_ms=55.0,
+            median_ceiling_fallback_ms=65.0,
+            p90_ceiling_fallback_ms=75.0,
+            bash_floor_ms=5.0,
+            true_floor_ms=1.0,
+            reference_bash="GNU bash, version 5.2.21",
+            calibration=None,
+        )
+        entry = platform_constants(("Linux", "x86_64"), table)
+        assert entry is not None
+        assert entry.key == "linux-x64"
+        assert entry.calibration is None
+
+    def test_the_host_table_carries_every_shipped_platform_key(self):
+        assert set(PLATFORM_TABLE) >= {("Darwin", "arm64")}
+
+    def test_a_calibrated_entry_demotes_on_a_provenance_mismatch(self):
+        entry = platform_constants(("Darwin", "arm64"), self.table())
+        assert entry is not None
+        assert calibration_holds(
+            entry,
+            observed_chip="Apple M4 Max",
+            observed_bash="GNU bash, version 3.2.57",
+            observed_shasum="Perl shasum 6.04",
+        )
+        assert not calibration_holds(
+            entry,
+            observed_chip="Apple M1",
+            observed_bash="GNU bash, version 3.2.57",
+            observed_shasum="Perl shasum 6.04",
+        )
+
+    def test_an_uncalibrated_entry_never_holds(self):
+        table = self.table()
+        entry = table[("Darwin", "arm64")]
+        bare = replace(entry, calibration=None)
+        assert not calibration_holds(
+            bare, observed_chip="x", observed_bash="y", observed_shasum="z"
+        )
+
+
+class TestPlatformKeyResolution:
+    def test_the_host_key_is_the_default(self):
+        key, source = resolve_platform_key(option=None, env={})
+        assert source == "host"
+        assert key == (platform.system(), platform.machine())
+
+    def test_the_task_option_wins(self):
+        key, source = resolve_platform_key(option="Linux/x86_64", env={})
+        assert key == ("Linux", "x86_64")
+        assert source == "--platform-key"
+
+    def test_the_env_fallback_is_honoured_and_named(self):
+        key, source = resolve_platform_key(
+            option=None, env={PLATFORM_KEY_ENV: "Linux/aarch64"}
+        )
+        assert key == ("Linux", "aarch64")
+        assert source == PLATFORM_KEY_ENV
+
+    def test_the_override_env_var_carries_no_accelerator_prefix(self):
+        assert not PLATFORM_KEY_ENV.startswith("ACCELERATOR_")
+
+
+class TestResidualVerdict:
+    def terms(self, total: float, spread: float = 0.2):
+        # Four terms summing to `total`, each with the same upper distance.
+        each = total / 4
+        return [
+            Interval(point=each, lower=each - spread, upper=each + spread)
+            for _ in range(4)
+        ]
+
+    def test_a_residual_inside_the_band_closes(self):
+        verdict = residual_verdict(self.terms(43.0), 42.28, attempts_used=0)
+        assert verdict.closed
+        assert not verdict.remeasure
+
+    def test_the_band_never_falls_below_the_floor(self):
+        verdict = residual_verdict(self.terms(43.0), 42.28, attempts_used=0)
+        assert verdict.band == pytest.approx(1.5)
+
+    def test_propagated_uncertainty_dominates_when_it_exceeds_the_floor(self):
+        verdict = residual_verdict(
+            self.terms(43.0, spread=2.0), 42.28, attempts_used=0
+        )
+        assert verdict.band == pytest.approx(4.0)
+
+    def test_equal_magnitude_residuals_of_both_signs_are_treated_alike(self):
+        over = residual_verdict(self.terms(45.0), 42.28, attempts_used=0)
+        under = residual_verdict(self.terms(39.56), 42.28, attempts_used=0)
+        assert over.closed == under.closed
+        assert over.absolute_residual == pytest.approx(under.absolute_residual)
+        assert over.signed_residual == pytest.approx(-under.signed_residual)
+
+    def test_a_residual_outside_the_band_triggers_a_re_measurement(self):
+        verdict = residual_verdict(self.terms(48.0), 42.28, attempts_used=0)
+        assert not verdict.closed
+        assert verdict.remeasure
+
+    def test_the_second_attempt_exhausts_the_cap(self):
+        verdict = residual_verdict(self.terms(48.0), 42.28, attempts_used=2)
+        assert not verdict.closed
+        assert not verdict.remeasure
+
+
+class TestCriterionConstantsLockstep:
+    """The doc block and `criterion_constants()` must agree, both ways.
+
+    Deliberately does not read `meta/`: no test under `tests/` does, and corpus
+    documents are guarded by `this_repositorys_own_corpus_is_clean` instead.
+    0189's criterion cites this table as the authoritative numeric source, so
+    the two cannot drift without the doc block changing.
+    """
+
+    def block(self) -> dict[str, float]:
+        text = README.read_text()
+        start = text.index(CONSTANTS_HEADING)
+        end = text.index("\n### ", start + len(CONSTANTS_HEADING))
+        pattern = re.compile(r"^- `([^`]+)` = (-?[\d.]+)$", re.MULTILINE)
+        return {
+            name: float(value)
+            for name, value in pattern.findall(text[start:end])
+        }
+
+    def test_the_section_exists(self):
+        assert CONSTANTS_HEADING in README.read_text()
+
+    def test_every_constant_appears_in_the_doc_block(self):
+        missing = set(criterion_constants()) - set(self.block())
+        assert not missing
+
+    def test_every_documented_number_resolves_to_a_named_constant(self):
+        stale = set(self.block()) - set(criterion_constants())
+        assert not stale
+
+    def test_every_documented_value_matches_its_constant(self):
+        documented = self.block()
+        for name, value in criterion_constants().items():
+            assert documented[name] == pytest.approx(float(value)), name
+
+    def test_the_gate_numbers_are_per_platform_rather_than_host_constants(self):
+        keys = set(self.block())
+        assert any(key.startswith("darwin-arm64.") for key in keys)
+        assert "darwin-arm64.bash_floor_ms" in keys
+
+
+class TestMeasureNamespaceDocs:
+    def test_the_namespace_has_its_own_conventions_subsection(self):
+        assert "### The measure namespace" in README.read_text()
+
+    def test_it_states_every_prerequisite_a_run_needs(self):
+        text = README.read_text()
+        start = text.index("### The measure namespace")
+        section = text[start : text.index("\n### Criterion constants")]
+        for prerequisite in (
+            "quiet",
+            "network egress",
+            "published signed release",
+            "measure:teardown",
+            ".accelerator-measure/manifest.json",
+        ):
+            assert prerequisite in section
+
+
+class TestArtefactManifestCoverage:
+    """Exhaustiveness is a property of the enumeration, not of a directory."""
+
+    def source(self) -> str:
+        return (REPO / "tasks/measure.py").read_text()
+
+    def test_every_kind_is_created_through_the_register_seam(self):
+        registered = set(
+            re.findall(
+                r"register_artefact\(\s*ArtefactKind\.([A-Z_]+)", self.source()
+            )
+        )
+        assert registered == {kind.name for kind in ArtefactKind}
+
+    def test_the_manifest_is_not_a_row_in_its_own_table(self):
+        # It is the interlock token, not a managed artefact: the containment
+        # guard admits the temp parent, bin/.tmp-* and the manifest directory,
+        # and a manifest row would fail the absence assertion on every run.
+        assert MANIFEST_NAME not in {kind.value for kind in ArtefactKind}
+
+    def test_the_manifest_lives_outside_the_launchers_cache_root(self):
+        assert MANIFEST_DIRNAME != "bin"
+        assert not MANIFEST_DIRNAME.startswith(CACHE_TEMP_PREFIX)
+
+    def test_the_manifest_directory_is_gitignored(self):
+        ignored = (REPO / ".gitignore").read_text()
+        assert f"/{MANIFEST_DIRNAME}/" in ignored
+
+
+class FakeWitness:
+    def __init__(self, entries=(), log=None):
+        self._entries = list(entries)
+        self._log = log
+        self.removed: list[Path] = []
+
+    def state(self, path):
+        return ArtefactState(inode=1, mtime=1.0, digest="d") if path else None
+
+    def entries(self, path):
+        del path
+        return sorted(self._entries)
+
+    def read_text(self, path):
+        del path
+        return self._log
+
+    def remove(self, path):
+        self.removed.append(path)
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path, ignore_errors=True)
+        elif path.exists():
+            path.unlink()
+
+
+class FakeHost:
+    def __init__(self, temp_root: Path, env=None):
+        self._temp_root = temp_root
+        self._env = env or {}
+
+    def env(self):
+        return self._env
+
+    def loadavg(self):
+        return (0.1, 0.2, 0.3)
+
+    def cpu_probes(self):
+        return CpuProbes(cgroup_cpu_max=None, process_cpu_count=8)
+
+    def temp_root(self):
+        return self._temp_root
+
+
+def fake_session(plugin_root: Path, temp_root: Path, **kwargs):
+    return MeasurementSession(
+        plugin_root,
+        witness=kwargs.pop("witness", FakeWitness()),
+        diagnostics=kwargs.pop("diagnostics", lambda argv: ""),
+        host=FakeHost(temp_root),
+    )
+
+
+@pytest.fixture
+def plugin_root(tmp_path, monkeypatch):
+    """A plugin root carrying just enough for the session to capture state."""
+    root = tmp_path / "plugin"
+    (root / "keys").mkdir(parents=True)
+    (root / "bin").mkdir()
+    (root / "scripts").mkdir()
+    (root / "hooks").mkdir()
+    shutil.copy(
+        REPO / "keys/accelerator-release.pub",
+        root / "keys/accelerator-release.pub",
+    )
+    for name in (
+        "bin/accelerator",
+        "scripts/vcs-common.sh",
+        "hooks/hooks.json",
+    ):
+        (root / name).write_text("stub\n")
+    return root
+
+
+class TestMeasurementSession:
+    def test_it_captures_and_then_verifies_a_clean_exit(
+        self, plugin_root, tmp_path
+    ):
+        with fake_session(plugin_root, tmp_path) as session:
+            assert session.baseline is not None
+            assert session.manifest_path.exists()
+        assert session.failures == []
+        assert not session.manifest_path.exists()
+
+    def test_it_refuses_to_start_while_a_stale_manifest_exists(
+        self, plugin_root, tmp_path
+    ):
+        stale = plugin_root / MANIFEST_DIRNAME / MANIFEST_NAME
+        stale.parent.mkdir(parents=True)
+        stale.write_text("{}")
+        with (
+            pytest.raises(StaleManifestError, match="measure:teardown"),
+            fake_session(plugin_root, tmp_path),
+        ):
+            pass
+
+    def test_a_substituted_release_key_refuses_the_run(
+        self, plugin_root, tmp_path
+    ):
+        (plugin_root / "keys/accelerator-release.pub").write_text("swapped\n")
+        with (
+            pytest.raises(PreconditionFailureError, match="published"),
+            fake_session(plugin_root, tmp_path),
+        ):
+            pass
+
+    def test_a_dirty_guarded_path_refuses_the_run(self, plugin_root, tmp_path):
+        with (
+            pytest.raises(PreconditionFailureError, match="sample one"),
+            fake_session(
+                plugin_root,
+                tmp_path,
+                diagnostics=lambda argv: "M bin/accelerator\n",
+            ),
+        ):
+            pass
+
+    def test_every_registered_artefact_is_removed_on_exit(
+        self, plugin_root, tmp_path
+    ):
+        created = []
+        with fake_session(plugin_root, tmp_path) as session:
+            for kind in ArtefactKind:
+                path = session.register_artefact(
+                    kind, tmp_path / f"artefact-{kind.name}"
+                )
+                path.mkdir()
+                created.append(path)
+        assert session.failures == []
+        assert all(not path.exists() for path in created)
+
+    def test_an_artefact_outside_every_admitted_root_is_refused(
+        self, plugin_root, tmp_path, monkeypatch
+    ):
+        outside = plugin_root / "keys"
+        with fake_session(plugin_root, tmp_path) as session:
+            session.manifest.artefacts["scratch-tree"] = str(outside)
+        assert any("outside every admitted root" in f for f in session.failures)
+        assert outside.exists()
+
+    def test_a_surviving_artefact_is_reported_rather_than_ignored(
+        self, plugin_root, tmp_path
+    ):
+        class RefusingWitness(FakeWitness):
+            def remove(self, path):
+                self.removed.append(path)
+
+        with fake_session(
+            plugin_root, tmp_path, witness=RefusingWitness()
+        ) as session:
+            path = session.register_artefact(
+                ArtefactKind.FIXTURE_ROOT, tmp_path / "fixture"
+            )
+            path.mkdir()
+        assert any("still present" in f for f in session.failures)
+
+    def test_a_leaked_cache_temp_entry_is_reported_with_its_remedy(
+        self, plugin_root, tmp_path
+    ):
+        witness = FakeWitness(entries=[])
+        with fake_session(plugin_root, tmp_path, witness=witness) as session:
+            witness._entries = [".tmp-accelerator-vcs-123-1"]
+        assert any("leaked temp entry" in f for f in session.failures)
+        assert any("rm -rf" in f for f in session.failures)
+
+    def test_an_orphaned_lock_directory_is_reported_with_its_remedy(
+        self, plugin_root, tmp_path
+    ):
+        witness = FakeWitness(entries=[])
+        with fake_session(plugin_root, tmp_path, witness=witness) as session:
+            witness._entries = [".accelerator-lock-darwin-arm64"]
+        assert any("orphaned lock" in f for f in session.failures)
+        assert any("rmdir" in f for f in session.failures)
+
+    def test_a_grown_unverified_log_invalidates_the_session(
+        self, plugin_root, tmp_path
+    ):
+        witness = FakeWitness(log="2026-08-13 pid=1 first\n")
+        with fake_session(plugin_root, tmp_path, witness=witness) as session:
+            witness._log = "2026-08-13 pid=1 first\n2026-08-13 pid=2 second\n"
+        assert any("the unverified log grew" in f for f in session.failures)
+
+    def test_a_created_unverified_log_invalidates_the_session(
+        self, plugin_root, tmp_path
+    ):
+        witness = FakeWitness(log=None)
+        with fake_session(plugin_root, tmp_path, witness=witness) as session:
+            witness._log = "2026-08-13 pid=2 integrity failure\n"
+        assert any("was created during the run" in f for f in session.failures)
+
+    def test_a_mid_run_edit_to_a_guarded_path_is_reported(
+        self, plugin_root, tmp_path
+    ):
+        with fake_session(plugin_root, tmp_path) as session:
+            (plugin_root / "bin/accelerator").write_text("edited\n")
+        assert any("bin/accelerator changed" in f for f in session.failures)
+
+    def test_the_manifest_is_removed_even_when_verification_fails(
+        self, plugin_root, tmp_path
+    ):
+        witness = FakeWitness(entries=[])
+        with fake_session(plugin_root, tmp_path, witness=witness) as session:
+            witness._entries = [".tmp-leaked"]
+        assert session.failures
+        assert not session.manifest_path.exists(), (
+            "an unclearable failure must not wedge the harness shut"
+        )
+
+    def test_an_accelerator_override_at_exit_is_reported(
+        self, plugin_root, tmp_path
+    ):
+        session = MeasurementSession(
+            plugin_root,
+            witness=FakeWitness(),
+            diagnostics=lambda argv: "",
+            host=FakeHost(tmp_path, env={"ACCELERATOR_VCS_BIN": "/tmp/x"}),
+        )
+        with session:
+            pass
+        assert any("overrides present at exit" in f for f in session.failures)
+
+
+class TestTeardownReplay:
+    def test_it_removes_the_artefacts_a_dead_run_left_behind(
+        self, plugin_root, tmp_path
+    ):
+        leftover = tmp_path / "leftover"
+        leftover.mkdir()
+        manifest = Manifest(
+            plugin_root=str(plugin_root),
+            cache_root=str(plugin_root / "bin"),
+            artefacts={"fixture-root": str(leftover)},
+            baseline=None,
+        )
+        path = plugin_root / MANIFEST_DIRNAME / MANIFEST_NAME
+        manifest.write(path)
+
+        session = MeasurementSession(
+            plugin_root, witness=FakeWitness(), diagnostics=lambda argv: ""
+        )
+        session.manifest = Manifest.load(path)
+        session.restore()
+        assert not leftover.exists()
+
+    def test_a_manifest_round_trips_through_disk(self, plugin_root, tmp_path):
+        manifest = Manifest(
+            plugin_root=str(plugin_root),
+            cache_root=str(plugin_root / "bin"),
+            artefacts={"fast-farm": str(tmp_path / "farm")},
+            baseline=None,
+        )
+        path = plugin_root / MANIFEST_DIRNAME / MANIFEST_NAME
+        manifest.write(path)
+        assert Manifest.load(path) == manifest
+
+
+class TestFixtureConstruction:
+    """Tested against a real `jj git init`, not a double.
+
+    `jj` is pinned in `mise.toml` and the init is offline, so this stays
+    hermetic — and it is the only way to test the property that matters. A
+    colocated fixture emits **warn** rather than the blocked decision, so it is
+    the one fixture defect that would invalidate a whole session without
+    crashing anything; stubbing the init would leave it untested by
+    construction.
+    """
+
+    def runner(self, argv):
+        resolved = shutil.which(argv[0])
+        if resolved is None:
+            pytest.skip(f"{argv[0]} not on PATH")
+        subprocess.run([resolved, *argv[1:]], check=True, capture_output=True)
+        return ""
+
+    def test_it_leaves_git_absent_and_jj_present(self, tmp_path):
+        root = create_fixture(tmp_path / "fixture", runner=self.runner)
+        assert (root / ".jj").is_dir()
+        assert not (root / ".git").exists()
+
+    def test_a_colocated_fixture_is_refused(self, tmp_path):
+        def colocating(argv):
+            resolved = shutil.which("jj")
+            if resolved is None:
+                pytest.skip("jj not on PATH")
+            stripped = [a for a in argv[1:] if a != "git.colocate=false"]
+            stripped = [a for a in stripped if a != "--config"]
+            subprocess.run(
+                [resolved, *stripped], check=True, capture_output=True
+            )
+            return ""
+
+        with pytest.raises(PreconditionFailureError, match="colocated"):
+            create_fixture(tmp_path / "colocated", runner=colocating)
+
+
+class TestFarmConstruction:
+    def test_the_fast_farm_carries_the_backend_and_the_fallback_does_not(
+        self, tmp_path
+    ):
+        tools = ("bash", "true", FAST_BACKEND)
+        if shutil.which(FAST_BACKEND) is None:
+            pytest.skip(f"{FAST_BACKEND} not on PATH")
+        fast = build_farm(tmp_path / "fast", tools, include_fast_backend=True)
+        fallback = build_farm(
+            tmp_path / "fallback", tools, include_fast_backend=False
+        )
+        assert (fast / FAST_BACKEND).exists()
+        assert not (fallback / FAST_BACKEND).exists()
+
+    def test_every_link_resolves_to_a_concrete_binary(self, tmp_path):
+        farm = build_farm(
+            tmp_path / "farm", ("bash",), include_fast_backend=False
+        )
+        target = (farm / "bash").readlink()
+        assert target.is_absolute()
+        assert target == target.resolve()
+
+    def test_an_absent_tool_refuses_rather_than_degrading_silently(
+        self, tmp_path
+    ):
+        with pytest.raises(PreconditionFailureError, match="absent from PATH"):
+            build_farm(
+                tmp_path / "farm",
+                ("definitely-not-a-real-binary",),
+                include_fast_backend=False,
+            )
+
+    def test_the_environment_pins_the_locale_and_the_git_ceiling(
+        self, tmp_path
+    ):
+        env = farm_environment(tmp_path / "farm", temp_root=tmp_path)
+        assert env["LC_ALL"] == "C"
+        assert env["PATH"] == str(tmp_path / "farm")
+        assert env["GIT_CEILING_DIRECTORIES"] == str(tmp_path.resolve())
+        assert not accelerator_override_keys(env)
+
+
+class TestBackendAssertions:
+    def farms(
+        self,
+        tmp_path,
+        *,
+        fast_has_backend,
+        fallback_has_backend,
+        fallback_has_shasum=True,
+    ):
+        fast = tmp_path / "fast"
+        fallback = tmp_path / "fallback"
+        fast.mkdir()
+        fallback.mkdir()
+        if fast_has_backend:
+            (fast / FAST_BACKEND).write_text("")
+        if fallback_has_backend:
+            (fallback / FAST_BACKEND).write_text("")
+        if fallback_has_shasum:
+            (fallback / FALLBACK_BACKEND).write_text("")
+        return fast, fallback
+
+    def test_both_farms_correctly_configured_pass(self, tmp_path):
+        fast, fallback = self.farms(
+            tmp_path, fast_has_backend=True, fallback_has_backend=False
+        )
+        assert_backends(fast, fallback)
+
+    def test_a_fast_farm_missing_its_backend_is_refused(self, tmp_path):
+        fast, fallback = self.farms(
+            tmp_path, fast_has_backend=False, fallback_has_backend=False
+        )
+        with pytest.raises(
+            PreconditionFailureError, match="fast farm resolves no"
+        ):
+            assert_backends(fast, fallback)
+
+    def test_a_fallback_farm_resolving_the_backend_is_refused(self, tmp_path):
+        fast, fallback = self.farms(
+            tmp_path, fast_has_backend=True, fallback_has_backend=True
+        )
+        with pytest.raises(PreconditionFailureError, match="not the"):
+            assert_backends(fast, fallback)
+
+    def test_a_host_without_shasum_makes_the_fallback_cells_inapplicable(
+        self, tmp_path
+    ):
+        fast, fallback = self.farms(
+            tmp_path,
+            fast_has_backend=True,
+            fallback_has_backend=False,
+            fallback_has_shasum=False,
+        )
+        with pytest.raises(PreconditionFailureError, match="branch 7"):
+            assert_backends(fast, fallback)
+
+
+class TestCellsAndClassification:
+    def entry(self):
+        return PLATFORM_TABLE[("Darwin", "arm64")]
+
+    def test_six_cells_are_defined_with_five_gating(self):
+        cells = cells_for(self.entry())
+        assert [cell.name for cell in cells] == [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+        ]
+        assert [cell.gates for cell in cells] == [True] * 5 + [False]
+
+    def test_the_absolute_cells_carry_the_platform_ceilings(self):
+        cells = {cell.name: cell for cell in cells_for(self.entry())}
+        entry = self.entry()
+        assert cells["C1"].threshold == entry.median_ceiling_fast_ms
+        assert cells["C2"].threshold == entry.p90_ceiling_fast_ms
+        assert cells["C3"].threshold == entry.median_ceiling_fallback_ms
+        assert cells["C4"].threshold == entry.p90_ceiling_fallback_ms
+
+    def test_the_ratio_cells_carry_the_ratio_threshold_and_target(self):
+        cells = {cell.name: cell for cell in cells_for(self.entry())}
+        assert cells["C5"].threshold == RATIO_THRESHOLD
+        assert cells["C5"].target == RATIO_TARGET
+        assert cells["C5"].kind is CellKind.RATIO
+
+    def test_a_cell_with_no_interval_is_not_applicable(self):
+        cell = cells_for(self.entry())[2]
+        outcome = classify_cell(
+            cell,
+            None,
+            robustness_ok=None,
+            escalations_used=0,
+            validity=Validity.VALID,
+            sizing_feasible=True,
+            applicable=False,
+            budget_spent=False,
+        )
+        assert outcome.branch is Branch.NOT_APPLICABLE
+        assert outcome.gates
+
+    def test_an_absolute_cell_under_its_ceiling_passes(self):
+        cell = cells_for(self.entry())[0]
+        outcome = classify_cell(
+            cell,
+            Interval(point=42.28, lower=41.8, upper=42.8),
+            robustness_ok=None,
+            escalations_used=0,
+            validity=Validity.VALID,
+            sizing_feasible=True,
+            applicable=True,
+            budget_spent=False,
+        )
+        assert outcome.branch is Branch.PASS
+
+
+class TestRehearsals:
+    """The abort paths, driven through the injected ports.
+
+    A gate never shown to fire is not evidence, and on a happy-path session
+    none of these ever runs — so their first execution would otherwise be the
+    incident they exist to stop.
+    """
+
+    def test_the_validity_gate_refuses_every_non_block_shape(self):
+        for stdout in (
+            "",
+            json.dumps({"decision": "allow", "reason": ""}),
+            json.dumps({"systemMessage": "colocated"}),
+            json.dumps({"hookSpecificOutput": {"hookEventName": "X"}}),
+        ):
+            verdict = validate_sample(LEGACY_BLOCK, stdout, BLOCK_REASON)
+            assert not verdict.valid, stdout
+            assert verdict.diagnostic
+
+    def test_an_injected_outlier_trips_the_brake_with_its_diagnostic(self):
+        arm = [42.0] * 30
+        assert outlier_trip(420.0, arm_median=median(arm), arm_count=len(arm))
+
+    def test_an_exhausted_budget_selects_branch_six_b(self):
+        assert budget_exhausted(WALL_CLOCK_BUDGET_S, WALL_CLOCK_BUDGET_S, 1, 2)
+
+    @pytest.mark.parametrize(
+        "number",
+        [signal.SIGINT, signal.SIGTERM, signal.SIGHUP],
+        ids=["sigint", "sigterm", "sighup"],
+    )
+    def test_each_unwinding_signal_runs_restore_and_verify(
+        self, plugin_root, tmp_path, number
+    ):
+        session = fake_session(plugin_root, tmp_path)
+        with pytest.raises(KeyboardInterrupt), session as entered:
+            artefacts = [
+                entered.register_artefact(kind, tmp_path / kind.name)
+                for kind in ArtefactKind
+            ]
+            for path in artefacts:
+                path.mkdir()
+            os.kill(os.getpid(), number)
+        assert all(not path.exists() for path in artefacts), (
+            "every artefact in the manifest table must be positively absent"
+        )
+        assert session.failures == []
+        assert not session.manifest_path.exists()
+
+    def test_all_three_signals_are_handled(self):
+        assert set(unwind_signals()) == {
+            signal.SIGINT,
+            signal.SIGTERM,
+            signal.SIGHUP,
+        }
+
+
+class TestRecoveryContract:
+    """The most fragile of the volatile contracts the self-test protects."""
+
+    def recovered(self, name: str) -> str:
+        source, _ = RECOVERED_FILES[name]
+        return source
+
+    def test_both_files_are_recovered_at_one_revision(self):
+        assert set(RECOVERED_FILES) == {
+            "bin/vcs-guard",
+            "scripts/vcs-common.sh",
+        }
+
+    def test_the_layout_resolves_the_guards_own_relative_dependency(self):
+        # The guard reads "$SCRIPT_DIR/../scripts/vcs-common.sh".
+        assert self.recovered("bin/vcs-guard") == "hooks/vcs-guard.sh"
+        assert (
+            self.recovered("scripts/vcs-common.sh") == "scripts/vcs-common.sh"
+        )
+
+    def test_the_jj_form_uses_the_revset(self):
+        argv = recovery_argv("hooks/vcs-guard.sh", engine="jj")
+        assert argv[:2] == ["jj", "file"]
+        assert "cf42441e2aad-" in argv
+
+    def test_the_git_form_uses_the_resolved_commit_id(self):
+        argv = recovery_argv("hooks/vcs-guard.sh", engine="git")
+        assert argv[0] == "git"
+        assert argv[-1] == f"{BASELINE_COMMIT}:hooks/vcs-guard.sh"
+        assert len(BASELINE_COMMIT) == 40, (
+            "a short prefix can be a jj change id, so the full commit id is "
+            "what a git clone resolves"
+        )
+
+    def test_a_rotted_recovery_is_refused_rather_than_measured(self, tmp_path):
+        with pytest.raises(PreconditionFailureError, match="rotted"):
+            recover_baseline(
+                tmp_path / "scratch", runner=lambda argv: "not the guard\n"
+            )
+
+    def test_the_recovered_files_match_their_recorded_digests(self, tmp_path):
+        def runner(argv):
+            resolved = shutil.which("jj")
+            if resolved is None:
+                pytest.skip("jj not on PATH")
+            completed = subprocess.run(
+                [resolved, *argv[1:]],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=REPO,
+            )
+            if completed.returncode != 0:
+                pytest.skip(f"revision unresolvable here: {completed.stderr}")
+            return completed.stdout
+
+        guard = recover_baseline(tmp_path / "scratch", runner=runner)
+        assert guard.exists()
+        assert os.access(guard, os.X_OK)
+        assert (guard.parent.parent / "scripts/vcs-common.sh").exists()
+
+
+class TestDigestBackendPopulation:
+    def test_both_backends_are_reported_by_name(self):
+        population = digest_backend_population()
+        assert set(population) == {FAST_BACKEND, FALLBACK_BACKEND}
+
+    def test_an_absent_backend_reports_none_rather_than_raising(self):
+        for resolved in digest_backend_population().values():
+            assert resolved is None or Path(resolved).exists()

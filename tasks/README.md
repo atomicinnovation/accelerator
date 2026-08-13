@@ -289,6 +289,75 @@ darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
+### The measure namespace
+
+`measure:*` and `test:integration:measure` drive the warm-dispatch latency
+harness (`tasks/measure.py`, analysis in `tasks/shared/measurement.py`). They
+are deliberately in **neither** the aggregate `check` nor the bare `default`
+task, and `test:integration:measure` is out of the `test:integration` roll-up
+too: a run dispatches through the real bootstrap, so it needs network egress and
+a published signed release for the tree's own version, and it is judged against
+instrument floors no shared runner reliably clears. A transitive-closure guard
+in `tests/unit/tasks/test_mise.py` enforces that, keyed on the `run` string
+rather than the task name — `test:integration:measure` does not carry the
+`measure:` prefix, and it is the one live-dispatch path the guard exists to
+contain.
+
+**Who runs what.** `measure:warm-dispatch` is operator-run on a quiet host.
+`test:integration:measure` is the namespace's owner against rot — n = 2, floors
+only, no gating figure — and belongs to its own non-blocking CI job, because a
+module no automated path executes rots invisibly against volatile external
+contracts: the digest-backend selection, the cache-root derivation, the
+launcher's cache/verify layout, the hook envelope shape, `jj`'s colocation
+default, and a revset anchoring two deleted files. `measure:teardown` is the
+documented escape from the stale-manifest start-up refusal.
+
+**What a run requires.** A quiet darwin-arm64 host with no other Claude Code
+session active against the same plugin root; no `ACCELERATOR_*` override set
+except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/
+hooks/ scripts/ cli/`; `jj` at the `mise.toml` pin; both digest backends
+resolvable (`sha256sum` and Perl `shasum`, the latter needed for the fallback
+cells, which are otherwise recorded not applicable); network egress to the
+release base URL; ~8 minutes, up to ~30 if the interval escalates, inside a
+35-minute wall-clock budget. The artefact manifest lives at
+`.accelerator-measure/manifest.json` under the plugin root — gitignored, and
+deliberately **not** under `bin/`, which is the launcher's live cache root whose
+entry set is itself an integrity witness. Delete it by hand only as a last
+resort; `mise run measure:teardown` is the supported path.
+
+### Criterion constants
+
+The pre-registered numbers a run is judged by, held in lockstep with
+`criterion_constants()` in `tasks/measure.py` by
+`tests/unit/tasks/test_measure.py`. Work item 0189's Latency Criterion is
+authoritative for the criterion *text*; this block and that function are
+authoritative for the *numbers*. Every constant below appears in the function
+and every number in the function appears below, so the two cannot drift.
+
+- `RESAMPLES` = 10000
+- `CONFIDENCE` = 0.95
+- `RATIO_THRESHOLD` = 1.3
+- `MEDIAN_TARGET_MS` = 1
+- `P90_TARGET_MS` = 2
+- `RATIO_TARGET` = 0.0036
+- `RATIO_ESCALATION_TARGET` = 0.0018
+- `DRIFT_BAND` = 0.005
+- `BLOCK_A_PAIRS` = 1700
+- `BLOCK_B_SAMPLES` = 900
+- `BLOCK_A_MAX_PAIRS` = 6900
+- `BLOCK_B_MAX_SAMPLES` = 3600
+- `PILOT_PAIRS` = 200
+- `PILOT_SAMPLES` = 200
+- `SEGMENT_SAMPLES` = 100
+- `WALL_CLOCK_BUDGET_S` = 2100
+- `FLOOR_RETRY_CAP` = 3
+- `darwin-arm64.median_ceiling_fast_ms` = 50
+- `darwin-arm64.p90_ceiling_fast_ms` = 60
+- `darwin-arm64.median_ceiling_fallback_ms` = 70
+- `darwin-arm64.p90_ceiling_fallback_ms` = 80
+- `darwin-arm64.bash_floor_ms` = 7.8
+- `darwin-arm64.true_floor_ms` = 1.95
+
 ### The Rust nightly lane
 
 #### The toolchain

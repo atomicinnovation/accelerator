@@ -1316,40 +1316,40 @@ Two toolchain constraints the module must satisfy without touching config:
 
 #### Automated Verification:
 
-- [ ] `mise run test:unit:tasks` is green — the aggregate task, not a bare `uv
+- [x] `mise run test:unit:tasks` is green — the aggregate task, not a bare `uv
   run pytest`, since `test_python_coverage.py`'s sentinel probes `pytest.skip`
   when the tools are off `PATH`, so a bare invocation can be satisfied by two
   skips rather than two passes
-- [ ] `tests/unit/tasks/test_measure.py` covers every core function, every
+- [x] `tests/unit/tasks/test_measure.py` covers every core function, every
   extracted predicate in the table above, and every classifier terminal label
   (1, 2, 3, 4, 5a, 5b, 6a, 6b, 7)
-- [ ] The closure guard in `test_mise.py` — keyed on tasks whose `run` reaches
+- [x] The closure guard in `test_mise.py` — keyed on tasks whose `run` reaches
   `tasks/measure.py`, not on the `measure:*` prefix — asserts absence from the
   **transitive closure** of `depends` from both `check` and `default`
-- [ ] `test_python_coverage.py` reports (not skips) with `tasks/measure.py` in
+- [x] `test_python_coverage.py` reports (not skips) with `tasks/measure.py` in
   scope and no new ruff or pyrefly exclude
-- [ ] `mise run build-system:check` is green
-- [ ] `mise run` (bare default task) exits 0 end-to-end
-- [ ] `mise tasks` lists `measure:warm-dispatch` **with its description**
+- [x] `mise run build-system:check` is green
+- [x] `mise run` (bare default task) exits 0 end-to-end
+- [x] `mise tasks` lists `measure:warm-dispatch` **with its description**
 
 #### Manual Verification:
 
-- [ ] Each core function and each extracted predicate was driven by a failing
+- [x] Each core function and each extracted predicate was driven by a failing
   test first — evidenced by the commit sequence showing a failing-test commit
   preceding its implementation, since greenness alone cannot distinguish
   red-first from test-after
-- [ ] The normaliser is checked case by case against all five union cases —
+- [x] The normaliser is checked case by case against all five union cases —
   including `unrecognised`, the case that makes it total — with its two
   deliberate divergences from `cli/vcs-cli/tests/guard_decision_table.rs:99-141`
   (the `degraded` label and the legacy branch) recorded as such rather than
   treated as defects
-- [ ] The harness runs end to end against a throwaway fixture without recording
+- [x] The harness runs end to end against a throwaway fixture without recording
   a gating figure, confirming the driver works before Phase 3 commits to a
   single session
-- [ ] The fault-injection rehearsal aborts with the mismatch diagnostic rather
+- [x] The fault-injection rehearsal aborts with the mismatch diagnostic rather
   than producing a ratio, and the SIGINT rehearsal leaves every artefact
   positively absent
-- [ ] `tasks/README.md` documents the `measure:*` namespace and its
+- [x] `tasks/README.md` documents the `measure:*` namespace and its
   prerequisites
 
 ---
@@ -2581,6 +2581,63 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   reopening the threshold on 0169 before 0189 measured anything. This plan lands
   it on 0189 because 0169 is closed, and records the departure at all four 0169
   discharge points.
+- **The red-first commit evidence covers the analysis core, not the driver.**
+  Phase 2's manual criterion asks for a commit sequence showing a failing-test
+  commit preceding each implementation. That holds for the analysis core: "Add
+  failing tests for the warm-dispatch measurement analysis core" was committed
+  against a `ModuleNotFoundError` and is the parent of the implementation
+  commit. For the extracted predicates, the platform table, the session and the
+  rehearsals the red state was observed — 45 failures on the predicates alone,
+  before any of them existed — but was folded into one commit rather than
+  committed separately. The loop was run; the commit sequence evidences half of
+  it.
+- **The analysis core lives in `tasks/shared/measurement.py`, not
+  `tasks/measure.py`.** Phase 2 §1 names one module; the estimators,
+  predicates, schedule generator, normaliser, classifier and closure aggregator
+  are in a `tasks/shared/` sibling instead, following the repo's own split
+  between the invoke surface and its helpers. Every guard the plan binds to
+  `tasks/measure.py` still binds there: the per-platform table, the
+  `register_artefact` seam whose call sites the exhaustiveness test scans, and
+  the `run`-string predicate the closure guard keys on.
+- **Precision gates branch 1, not only branch 4.** As written, branch 1's
+  predicate is `U ≤ t` alone and branch 3's is positional, so branch 4's third
+  stated cause — `upper_distance > target_distance`, the cell never reaching
+  its precision target — is unreachable under the stated cascade, and the two
+  parameters it is decided from would be declared but unread. The
+  implementation makes an imprecise interval fail branch 1 and select branch 3
+  (escalate, which is exactly what an imprecise interval calls for), so after
+  the escalation it lands in branch 4 as the plan intends.
+- **The exhaustive classifier enumeration is 1,440 well-formed states, not
+  288.** The plan's count crosses three interval positions where five are
+  needed (`L == t` and `U == t` are called out separately and are distinct
+  positions) and omits the precision dimension the preceding deviation
+  requires. The test enumerates the well-formed `(cell_kind, robustness_ok)`
+  pairs rather than crossing them, as the plan requires, and asserts each state
+  returns exactly one branch and that the ill-formed pairs raise.
+- **No `# noqa: S311` on the resampler.** The plan predicts one; ruff does not
+  flag `randrange` on an *injected* `random.Random`, and injection was already
+  required so the tests stay order-independent. Two are needed instead at the
+  `random.Random(SEED)` construction sites in the driver, in the repo's inline
+  form with a stated reason.
+- **`test:integration:measure` reports an absent published release as an unmet
+  prerequisite rather than a failure**, after a discarded warm-up dispatch so a
+  cold cache is not mistaken for one. The tree is routinely ahead of the last
+  release cut, and `--fail-safe` exits 0 either way, so a lane that reddened on
+  it would be red by default and would stop being read. The rot guards it owns
+  — the recovery contract, the fixture's colocation, both farms, the baseline's
+  decision shape — all fail loudly.
+- **The teardown's containment predicate refuses anything under the plugin root
+  beyond the two named allowances**, in addition to the three admitted roots.
+  The plan's predicate admits any path under the temp parent, which would admit
+  a tracked path by transitivity wherever the temp root is an ancestor of the
+  checkout.
+- **The recovery contract's digests are pinned in the harness**, so every
+  recovery — not only the CI lane's rot guard — refuses a rotted revision
+  rather than measuring whatever it found.
+- **The cache witness covers the sub-binary asset**, not only the launcher, its
+  `.minisig` and the staged shim: `vcs-<version>-<digest>` is the entry
+  `cache::find` resolves on every dispatch, and omitting it would let a
+  re-fetched sub-binary inflate a sample undetected.
 - **0205's own deviations carry forward** and are cited rather than restated:
   its reopening of the gate definition, its throwaway target being an ignored
   integration test rather than an `examples/` target, and its

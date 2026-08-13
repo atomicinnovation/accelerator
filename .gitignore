@@ -69,6 +69,12 @@ bin/.tmp-*
 # or marketplace install can carry it (bin/accelerator gates on its presence).
 /.accelerator-dev-launcher
 
+# The measurement harness's artefact manifest — the interlock token a dead run
+# leaves behind for `mise run measure:teardown` to replay. Deliberately not
+# under bin/, which is the launcher's live cache root whose entry set the
+# harness itself uses as an integrity witness.
+/.accelerator-measure/
+
 # minisign secret keys must never be committed — the release secret lives in
 # the GitHub release environment; only public keys are tracked.
 *.key

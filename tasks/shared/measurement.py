@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import json
 import math
+import platform
 import random
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum, unique
+from pathlib import Path
 
 # --- Summary statistics ---------------------------------------------------
 
@@ -558,3 +560,277 @@ def closure_verdict(cells: Sequence[CellOutcome]) -> bool:
         or (cell.branch is Branch.NOT_APPLICABLE and cell.accepted_by)
         for cell in gating
     )
+
+
+# --- Host-environment predicates ------------------------------------------
+
+# `ACCELERATOR_RELEASE_BASE_URL` is the only seam for pointing the bootstrap at
+# anything other than the public release host. Rejecting it outright would
+# hard-couple the harness to anonymous github.com egress, which a mirrored or
+# proxied hand-off host cannot satisfy — so it is permitted and recorded in the
+# provenance set instead, with any figures taken against a mirror marked so.
+PERMITTED_OVERRIDES = ("ACCELERATOR_RELEASE_BASE_URL",)
+
+
+def accelerator_override_keys(
+    env: Mapping[str, str], *, permitted: Sequence[str] = PERMITTED_OVERRIDES
+) -> list[str]:
+    """Report the `ACCELERATOR_*` keys set in `env`, minus the permitted ones.
+
+    Matches key *names*: grepping `env` output also matches values, and is
+    line-oriented over values that may contain newlines.
+    """
+    return sorted(
+        key
+        for key in env
+        if key.startswith("ACCELERATOR_") and key not in permitted
+    )
+
+
+def ceiling_directories(tmpdir: Path) -> str:
+    """Canonicalise a temp root for `GIT_CEILING_DIRECTORIES`.
+
+    git ignores non-canonical entries and does not resolve symlinks itself,
+    and macOS `$TMPDIR` sits under a `/var → /private/var` symlink — so an
+    uncanonicalised entry is silently ignored on exactly the primary host.
+    """
+    return str(Path(tmpdir).resolve())
+
+
+def tmp_containment(path: Path, tmproot: Path) -> bool:
+    """Report whether `path` lies strictly beneath `tmproot`.
+
+    Canonicalises both sides, for the same `/var → /private/var` reason: a
+    recorded canonical path and a `gettempdir()` root are otherwise different
+    strings for the same directory.
+    """
+    resolved = Path(path).resolve()
+    root = Path(tmproot).resolve()
+    return resolved != root and root in resolved.parents
+
+
+@dataclass(frozen=True)
+class ArtefactState:
+    inode: int
+    mtime: float
+    digest: str
+
+
+def unchanged_artefacts(
+    before: Mapping[str, ArtefactState | None],
+    after: Mapping[str, ArtefactState | None],
+) -> list[str]:
+    """Report every witnessed artefact whose identity moved.
+
+    A missing file counts: every non-hit route ends in `cache::store`, which
+    renames a fresh inode over the entry, and a self-healing re-fetch unlinks
+    before it stores.
+    """
+    problems = []
+    for name in sorted(set(before) | set(after)):
+        was, now = before.get(name), after.get(name)
+        if was == now:
+            continue
+        if now is None:
+            problems.append(f"{name}: missing after the run")
+        elif was is None:
+            problems.append(f"{name}: appeared during the run")
+        else:
+            problems.append(f"{name}: {was} -> {now}")
+    return problems
+
+
+@dataclass(frozen=True)
+class CpuProbes:
+    cgroup_cpu_max: str | None
+    process_cpu_count: int
+
+
+def resolve_cpu_count(probes: CpuProbes) -> tuple[int, str]:
+    """Resolve the CPU count, reporting which rung fired.
+
+    cgroup v2's `cpu.max` first, since `/proc/loadavg` is host-scoped
+    regardless of cgroup membership and the two are recorded separately rather
+    than divided. The literal `max` means no quota is set — the rung did not
+    fire. cgroup v1 is explicitly out of scope, and the chain stops at
+    `process_cpu_count` because the pinned interpreter always has it.
+    """
+    quota = (probes.cgroup_cpu_max or "").split()
+    if len(quota) == 2 and quota[0] != "max":
+        try:
+            allowance = int(quota[0]) / int(quota[1])
+        except ValueError, ZeroDivisionError:
+            pass
+        else:
+            return (max(1, math.ceil(allowance)), "cgroup-v2")
+    return (probes.process_cpu_count, "process-cpu-count")
+
+
+def power_state(
+    diagnostic_runner: Callable[[Sequence[str]], str],
+    probes: Sequence[Sequence[str]],
+) -> dict[str, str]:
+    """Record each power probe's output, or `unknown` where it is absent.
+
+    Additive so one harness runs on both OSes. Driven by the *diagnostic*
+    runner, never the measurement runner: the measurement farm holds exactly
+    the two variants' tools, so routing these through it would return
+    `unknown` on every run by construction.
+    """
+    state = {}
+    for probe in probes:
+        try:
+            state[probe[0]] = diagnostic_runner(probe)
+        except FileNotFoundError, PermissionError:
+            state[probe[0]] = "unknown"
+    return state
+
+
+def pilot_sizing(
+    pilot_interval: Interval, *, target: float, pilot_n: int, cap: int
+) -> tuple[int, bool]:
+    """Size the run from a pilot's achieved **upper** distance.
+
+    Returns the required n and whether it is within `cap`; an n beyond the cap
+    is design-infeasible rather than a licence to relax the target.
+    """
+    needed = required_samples(pilot_n, pilot_interval.upper_distance, target)
+    return (needed, needed <= cap)
+
+
+@dataclass(frozen=True)
+class ResidualVerdict:
+    total: float
+    signed_residual: float
+    absolute_residual: float
+    band: float
+    closed: bool
+    remeasure: bool
+
+
+RESIDUAL_FLOOR_MS = 1.5
+RESIDUAL_ATTEMPT_CAP = 2
+
+
+def residual_verdict(
+    term_intervals: Sequence[Interval],
+    observed_median: float,
+    attempts_used: int,
+) -> ResidualVerdict:
+    """Close the composition budget against `max(±1.5 ms, propagated)`.
+
+    The floor is narrower than the smallest lever the plan costs and declines,
+    so the check can detect a term moving by as much as the decisions under
+    discussion; the propagated term stops the band being tighter than the
+    measurement can resolve. Triggered by the residual's **magnitude**: a sum
+    of six noisy medians lands negative roughly half the time, so a
+    sign-triggered re-measurement would be a selection filter.
+    """
+    total = sum(term.point for term in term_intervals)
+    propagated = math.sqrt(
+        sum(term.upper_distance**2 for term in term_intervals)
+    )
+    band = max(RESIDUAL_FLOOR_MS, propagated)
+    signed = total - observed_median
+    closed = abs(signed) <= band
+    return ResidualVerdict(
+        total=total,
+        signed_residual=signed,
+        absolute_residual=abs(signed),
+        band=band,
+        closed=closed,
+        remeasure=not closed
+        and retry_budget(attempts_used, cap=RESIDUAL_ATTEMPT_CAP),
+    )
+
+
+# --- Per-platform calibration ---------------------------------------------
+
+PLATFORM_KEY_ENV = "MEASURE_PLATFORM_KEY"
+
+
+@dataclass(frozen=True)
+class Calibration:
+    """Where a platform entry's numbers came from.
+
+    `(system, machine)` under-determines them: the floor gates come from one
+    session on one chip, `/bin/bash` 3.2 and homebrew bash 5 differ materially
+    in startup within a single key, and the fallback ceilings encode one host's
+    Perl startup — so two hosts sharing a key would otherwise be judged by
+    numbers calibrated for one of them while reporting as calibrated.
+    """
+
+    session: str
+    chip: str
+    bash: str
+    shasum: str
+
+
+@dataclass(frozen=True)
+class PlatformEntry:
+    key: str
+    path_tools: tuple[str, ...]
+    power_probes: tuple[Sequence[str], ...]
+    median_ceiling_fast_ms: float
+    p90_ceiling_fast_ms: float
+    median_ceiling_fallback_ms: float
+    p90_ceiling_fallback_ms: float
+    bash_floor_ms: float
+    true_floor_ms: float
+    reference_bash: str
+    calibration: Calibration | None
+
+
+def platform_constants(
+    key: tuple[str, str], table: Mapping[tuple[str, str], PlatformEntry]
+) -> PlatformEntry | None:
+    """Look up the calibrated entry for `key`, or `None` if absent.
+
+    A key with no entry yields no gating verdict — its figures are recorded as
+    uncalibrated context instead.
+    """
+    return table.get(key)
+
+
+def calibration_holds(
+    entry: PlatformEntry,
+    *,
+    observed_chip: str,
+    observed_bash: str,
+    observed_shasum: str,
+) -> bool:
+    """Report whether the observed host matches the entry's provenance."""
+    if entry.calibration is None:
+        return False
+    return (
+        entry.calibration.chip == observed_chip
+        and entry.calibration.bash == observed_bash
+        and entry.calibration.shasum == observed_shasum
+    )
+
+
+def resolve_platform_key(
+    *, option: str | None, env: Mapping[str, str]
+) -> tuple[tuple[str, str], str]:
+    """Resolve the platform key, reporting where it came from.
+
+    The override is deliberately un-prefixed: every `ACCELERATOR_*` key is
+    rejected by the preconditions, so a prefixed override could not coexist
+    with them. It is stripped from the subprocess environment and recorded in
+    the provenance set.
+    """
+    if option:
+        return (_split_key(option), "--platform-key")
+    override = env.get(PLATFORM_KEY_ENV)
+    if override:
+        return (_split_key(override), PLATFORM_KEY_ENV)
+    return ((platform.system(), platform.machine()), "host")
+
+
+def _split_key(value: str) -> tuple[str, str]:
+    system, _, machine = value.partition("/")
+    if not system or not machine:
+        raise ValueError(
+            f"platform key must read '<system>/<machine>', got {value!r}"
+        )
+    return (system, machine)
