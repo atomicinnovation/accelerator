@@ -5,7 +5,7 @@ title: "Close the warm-dispatch latency measurement method"
 date: "2026-08-12T11:40:39+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: draft
+status: done
 kind: spike
 priority: medium
 parent: "work-item:0136"
@@ -14,24 +14,21 @@ relates_to:
    "work-item:0191"]
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: [cli, launcher, performance, bootstrap, measurement]
-last_updated: "2026-08-13T07:05:06+00:00"
+last_updated: "2026-08-13T15:28:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
 # 0205: Close the warm-dispatch latency measurement method
 
-**Kind**: Spike
-**Status**: Draft
-**Priority**: Medium
-**Author**: Toby Clemson
+**Kind**: Spike **Status**: Done **Priority**: Medium **Author**: Toby Clemson
 
 ## Summary
 
-0169's Phase 10 deferred a warm-call latency gate — `G ≤ 1.1 × B` on one
-darwin host — and 0189 inherited the obligation. Three attempts to specify the
-method have now failed review: the decomposition route, the clock domain and
-the residual definition have each been answered in prose, reviewed, and found
+0169's Phase 10 deferred a warm-call latency gate — `G ≤ 1.1 × B` on one darwin
+host — and 0189 inherited the obligation. Three attempts to specify the method
+have now failed review: the decomposition route, the clock domain and the
+residual definition have each been answered in prose, reviewed, and found
 unsound. This spike answers them against real measurements instead, so
 `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md` can specify a
 measurement rather than a methodology.
@@ -52,11 +49,10 @@ minisign-verifies the cached launcher against the committed release key before
 `exec`, and the only bypass — the dev-launcher override at `:239-251` — `exec`s
 at `:250`, above both `sha256_file` calls (`:291`, `:295`) and above the
 launcher verification. A launcher built to emit timestamps therefore cannot be
-sampled through the bootstrap it is meant to measure. Signing one locally is
-not an option either: `bin/accelerator:165` reads
-`keys/accelerator-release.pub` and `cli/launcher/build.rs:31-32,:43` embeds
-that same file, so the bootstrap's verification key and the launcher's embedded
-key are one artefact.
+sampled through the bootstrap it is meant to measure. Signing one locally is not
+an option either: `bin/accelerator:165` reads `keys/accelerator-release.pub` and
+`cli/launcher/build.rs:31-32,:43` embeds that same file, so the bootstrap's
+verification key and the launcher's embedded key are one artefact.
 
 **A contiguous budget proves nothing.** 0186's composition budget was credible
 because its terms were measured independently and then compared against the
@@ -66,11 +62,11 @@ term carries no independent cross-check has the same defect over most of its
 mass, whatever the arithmetic says.
 
 **A degraded sample looks fast.** `swallow_under_fail_safe` (`core.rs:219-224`)
-swallows `kernel::Error::Failed` and `handle_dispatch_error`
-(`main.rs:215-226`) then exits 0 without exec'ing the sub-binary, skipping both
-`reverify` and the sub-binary run. Fifty such samples would record a PASS. Any
-method must discriminate a real deny from a degradation on every sample, and
-the two guards emit structurally different envelopes to do it with.
+swallows `kernel::Error::Failed` and `handle_dispatch_error` (`main.rs:215-226`)
+then exits 0 without exec'ing the sub-binary, skipping both `reverify` and the
+sub-binary run. Fifty such samples would record a PASS. Any method must
+discriminate a real deny from a degradation on every sample, and the two guards
+emit structurally different envelopes to do it with.
 
 ## Requirements
 
@@ -99,8 +95,8 @@ order were verified against the private method at a named revision.
 
 ### SQ-2: Which clock, and in which domain?
 
-Establish whether any budget term requires subtracting an in-process span from
-a harness bracket. If none does, record that no cross-domain subtraction is
+Establish whether any budget term requires subtracting an in-process span from a
+harness bracket. If none does, record that no cross-domain subtraction is
 performed and the question is closed. If one does, specify the syscall on both
 sides — `CLOCK_UPTIME_RAW` on darwin and `CLOCK_MONOTONIC` on linux to match
 CPython's `perf_counter`, or wall-clock bracketed with `time.time()` — and
@@ -131,9 +127,9 @@ individually measurable, and 0186 measured comparable figures.
 
 Pre-register, before any comparative number exists:
 
-- Whether the gate uses raw or floor-subtracted medians, with the bias
-  direction of the choice stated and the supporting arithmetic reproducible
-  from named figures.
+- Whether the gate uses raw or floor-subtracted medians, with the bias direction
+  of the choice stated and the supporting arithmetic reproducible from named
+  figures.
 - The gate statistic and its interval — flavour, resample count, one- or
   two-sided, and the confidence level — noting that a one-sided bound has no
   half-width, so any sizing or agreement rule stated in half-widths needs a
@@ -166,49 +162,58 @@ and a composite ms-per-MB cannot transfer across sizes or architectures when
 `sha2` selects hardware SHA instructions on aarch64 and BLAKE2b does not.
 
 State the expected band **before** measuring, so the result confirms or
-falsifies a prediction. Then record whether `G ≤ 1.1 × B` is plausibly
-reachable at all. If `reverify` alone exceeds the plausible gap, that is this
-spike's headline result.
+falsifies a prediction. Then record whether `G ≤ 1.1 × B` is plausibly reachable
+at all. If `reverify` alone exceeds the plausible gap, that is this spike's
+headline result.
 
 ## Acceptance Criteria
 
-- [ ] SQ-1 is answered by attempt, not assertion: the reachable term set is
-      recorded, each unreachable term is named with what reaching it would
-      cost, and the bootstrap/launcher-startup separability question is
-      answered explicitly
-- [ ] SQ-2 is answered, with cross-domain subtraction either eliminated or
-      specified on both sides and the interpreter's clock info recorded
-- [ ] SQ-3 defines the residual with both closure and per-term agreement, and
-      states the cross-checked fraction of `G` as a number
-- [ ] SQ-4's design is recorded in full, its outcome branches are disjoint on
-      stated arithmetic, every reachable outcome has a branch, and any
-      post-hoc sampling rule is pre-stated
-- [ ] `reverify`'s three sub-operations and composite are recorded, warm and
-      cold-process, with the predicted band and whether it held
-- [ ] The reachability assessment is recorded, including the case where the
-      answer is that the gate is unreachable or undecidable
-- [ ] Every throwaway artefact is positively asserted absent — the
-      `cli/launcher/examples/` target is removed, no dev-override input is set,
-      and `sha256(keys/accelerator-release.pub)` matches its committed value
-- [ ] `mise run cli:check` is green while any throwaway example exists (it
-      would be the `cli/` workspace's first `examples/` target, in scope for
-      pedantic clippy via `--all-targets`)
+- [x] SQ-1 is answered by attempt, not assertion: the reachable term set is
+  recorded, each unreachable term is named with what reaching it would cost, and
+  the bootstrap/launcher-startup separability question is answered explicitly
+- [x] SQ-2 is answered, with cross-domain subtraction either eliminated or
+  specified on both sides and the interpreter's clock info recorded
+- [x] SQ-3 defines the residual with both closure and per-term agreement, and
+  states the cross-checked fraction of `G` as a number
+- [x] SQ-4's design is recorded in full, its outcome branches are disjoint on
+  stated arithmetic, every reachable outcome has a branch, and any post-hoc
+  sampling rule is pre-stated
+- [x] `reverify`'s three sub-operations and composite are recorded, warm and
+  cold-process, with the predicted band and whether it held
+- [x] The reachability assessment is recorded, including the case where the
+  answer is that the gate is unreachable or undecidable
+- [x] Every throwaway artefact is positively asserted absent — the
+  `cli/launcher/examples/` target is removed, no dev-override input is set, and
+  `sha256(keys/accelerator-release.pub)` matches its committed value
+- [x] `mise run cli:check` is green while any throwaway example exists (it would
+  be the `cli/` workspace's first `examples/` target, in scope for pedantic
+  clippy via `--all-targets`)
+
+**Criteria 7 and 8 are ticked against the second Deviation, not against their
+literal text.** No `cli/launcher/examples/` target was ever created — the
+instrumentation lived in `cli/launcher/tests/spike_0205_warm_terms.rs`, so the
+workspace's first `examples/` target was avoided. Cleanup Evidence records that
+file absent and `mise run cli:check` green. The criteria's substance was
+honoured; their wording was not, and ticking them without this note would record
+as satisfied a criterion whose stated artefact never existed.
 
 ## Dependencies
 
-- Blocks: `plan:2026-08-11-0189-warm-dispatch-latency-measurement`, which
-  cannot specify its measurement until SQ-1 to SQ-4 are answered.
+- Blocks: `plan:2026-08-11-0189-warm-dispatch-latency-measurement`, which cannot
+  specify its measurement until SQ-1 to SQ-4 are answered.
+
+  **Retracted 2026-08-13.** SQ-1 to SQ-5 are answered above, so this edge is
+  discharged. The plan consumed these answers and is `status: ready`.
 - Relates to: work-item:0189 (owns the obligation this spike unblocks),
-  work-item:0169 (deferred the gate; closed `done` with the criterion
-  unticked).
+  work-item:0169 (deferred the gate; closed `done` with the criterion unticked).
 - Parent: epic 0136.
 
 ## Assumptions
 
 - The gate definition itself — `G ≤ 1.1 × B`, one darwin host, one session, a
   pure-jj fixture — is inherited from 0169 and is not reopened here. This spike
-  decides *how* to measure it, not *what* it should be. Any strengthening of
-  the criterion (such as gating on an interval bound rather than a median) is a
+  decides *how* to measure it, not *what* it should be. Any strengthening of the
+  criterion (such as gating on an interval bound rather than a median) is a
   deviation this spike must record as such, not adopt silently.
 - The measurement is no longer release-blocked: `v1.24.0-pre.36` ships
   `accelerator-vcs-darwin-arm64` with its `.minisig`, and its signed
@@ -221,20 +226,19 @@ spike's headline result.
   this spike unblocks
 - `meta/reviews/plans/2026-08-11-0189-warm-dispatch-latency-measurement-review-1.md`
   — two review passes; pass 2's assessment is what raised this spike
-- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — the
-  delivered figures (29.92 ms warm bootstrap median at `:517`, the 35.1 ms
-  shell-guard row at `:66` and its `:615` method-incomparability note, the
-  re-derived 3.72 ms at `:577`) and the deviation-recording pattern at
-  `:608-616`
+- `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` — the delivered
+  figures (29.92 ms warm bootstrap median at `:517`, the 35.1 ms shell-guard row
+  at `:66` and its `:615` method-incomparability note, the re-derived 3.72 ms at
+  `:577`) and the deviation-recording pattern at `:608-616`
 - `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
   the harness shape (`:1073-1135`) and per-sample stdout guard (`:1096-1102`)
 - `meta/work/0188-library-backed-vcs-adapter.md:1059` — the 2,512,576-byte
   `aarch64-apple-darwin` asset
 - `cli/launcher/src/launch/outbound/resolve/mod.rs:90-109` — `reverify`
-- `cli/launcher/src/launch/outbound/resolve/verifier.rs:36`,
-  `keys.rs:62-69` — the sha256 and BLAKE2b passes
-- `cli/launcher/src/launch/core.rs:219-224`,
-  `cli/launcher/src/main.rs:215-226` — the fail-safe swallow and exit-0 path
+- `cli/launcher/src/launch/outbound/resolve/verifier.rs:36`, `keys.rs:62-69` —
+  the sha256 and BLAKE2b passes
+- `cli/launcher/src/launch/core.rs:219-224`, `cli/launcher/src/main.rs:215-226`
+  — the fail-safe swallow and exit-0 path
 - `cli/launcher/build.rs:31-32`, `:43` — the embed of
   `keys/accelerator-release.pub` and its `cargo:rerun-if-changed`
 - `bin/accelerator:165`, `:239-251`, `:291`, `:295`, `:353`, `:378` — the
@@ -279,8 +283,8 @@ All in ms. **Ratio of medians 1.2813**, 95% two-sided paired-bootstrap CI
 `ratio(min) = 1.3150`; `p90(G)/p90(B) = 1.2216`.
 
 **The verdict is conservative, not marginal.** The ratio *rises* as host load
-falls — 1.16 at load 11 (n = 40), 1.2320 at load 38 (n = 400), 1.2813 at load
-19 (n = 300, the run tabulated above, whose floors sit nearest 0186's quiet
+falls — 1.16 at load 11 (n = 40), 1.2320 at load 38 (n = 400), 1.2813 at load 19
+(n = 300, the run tabulated above, whose floors sit nearest 0186's quiet
 session: bash 7.04 against 6.10, `true` 1.72 against 1.41). Load compresses the
 ratio toward 1.0 by inflating the cheaper variant proportionally more, so a
 quieter host makes the gate **harder** to pass, not easier. A quiet-host
@@ -290,23 +294,21 @@ Both variants were driven from a fresh pure-jj fixture created with `jj --config
 git.colocate=false git init --quiet`, cwd set to the fixture, byte-identical
 stdin
 `{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git
-status"}}`, `PATH` pinned to
-`/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin`, `LANG=C`, and no
-`ACCELERATOR_*` key present in the subprocess environment. The baseline was
-recovered from `cf42441e2aad-`, resolved commit id
+status"}}`, `PATH` pinned to `/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+`LANG=C`, and no `ACCELERATOR_*` key present in the subprocess environment. The
+baseline was recovered from `cf42441e2aad-`, resolved commit id
 `2cfbf81e2e7b4934e868bd42c69374c335b05317`.
 
 ## Findings
 
 ### SQ-1: the decomposition is reachable through the library
 
-**Answered by attempt.** `cli/launcher/src/lib.rs` is a real lib target
-(`pub mod launch`), auto-detected with no `[lib]` stanza, and `main.rs:31`
-already consumes it. Every term the brief named is already `pub`:
-`verifier::sha256_hex` and `verify_binary` (`verifier.rs:14`, `:29`),
-`TrustedKeys::embedded` and `verifies` (`keys.rs:55`, `:62`), `cache::find`
-(`cache.rs:51`), `Fetcher::new` (`fetcher.rs:67`),
-`tls::install_crypto_provider` (`tls.rs:9`).
+**Answered by attempt.** `cli/launcher/src/lib.rs` is a real lib target (`pub
+mod launch`), auto-detected with no `[lib]` stanza, and `main.rs:31` already
+consumes it. Every term the brief named is already `pub`: `verifier::sha256_hex`
+and `verify_binary` (`verifier.rs:14`, `:29`), `TrustedKeys::embedded` and
+`verifies` (`keys.rs:55`, `:62`), `cache::find` (`cache.rs:51`), `Fetcher::new`
+(`fetcher.rs:67`), `tls::install_crypto_provider` (`tls.rs:9`).
 
 **No term is unreachable, and the dev-override route was never needed.** The
 brief's premise that the verified path cannot be instrumented is correct about
@@ -330,9 +332,9 @@ statement for statement; both are public, so nothing is inferred.
 feared they were one composite, on the grounds that a built-in dispatch already
 contains the launcher's `execve`, dynamic loading, `logging::init` and clap
 parse. That is true of a built-in dispatch, but it does not force a composite,
-because the cached shim and the cached launcher are both **directly invocable
-by absolute path from the warm cache**, needing no override. Measured this
-session at 60 samples each, medians in ms:
+because the cached shim and the cached launcher are both **directly invocable by
+absolute path from the warm cache**, needing no override. Measured this session
+at 60 samples each, medians in ms:
 
 | Term | median | min | p90 |
 | --- | --- | --- | --- |
@@ -351,22 +353,21 @@ the shell bootstrap body as the derived remainder at 32.11 − 8.71 − 4.85 =
 ### SQ-2: one cross-domain subtraction, specified on both sides
 
 **The question fires — it is not eliminated.** The `reverify` term is an
-in-process span compared against a difference of two harness brackets
-(`G` − built-in dispatch), so an in-process span is subtracted from a harness
-bracket.
+in-process span compared against a difference of two harness brackets (`G` −
+built-in dispatch), so an in-process span is subtracted from a harness bracket.
 
 Both sides are the same clock domain, so the subtraction is valid. Python's
 `time.get_clock_info('perf_counter')` on this interpreter reports
 `namespace(implementation='mach_absolute_time()', monotonic=True,
-adjustable=False, resolution=4.166666666666666e-08)` under Python 3.14.4 —
-i.e. the darwin uptime clock, equivalent to `CLOCK_UPTIME_RAW`. Rust's
+adjustable=False, resolution=4.166666666666666e-08)` under Python 3.14.4 — i.e.
+the darwin uptime clock, equivalent to `CLOCK_UPTIME_RAW`. Rust's
 `std::time::Instant` on macOS reads the same uptime clock. No wall-clock bracket
 is used anywhere, and no `time.time()` value enters any term.
 
 ### SQ-3: the residual, with closure and per-term agreement
 
-**Closure.** The independently measured terms are compared against
-`median(G) = 42.28`:
+**Closure.** The independently measured terms are compared against `median(G) =
+42.28`:
 
 | Term | median (ms) | Cross-checked |
 | --- | --- | --- |
@@ -403,14 +404,14 @@ this session, which is a stated limit rather than a claim of coverage.
   below is expressible; the one-sided 95% lower bound is reported alongside as
   context, not as the gate.
 - **Target precision and the `n` rule.** Half-width at n = 300 is **0.0119**,
-  costing roughly 40 seconds of sampling at ~106 ms per pair. Scaling as
-  `1/√n`, the rule is `n = 300 × (0.0119 / target)²`: half-width 0.02 → n ≈ 107;
-  0.01 → n ≈ 425; 0.005 → n ≈ 1,700 (~4 minutes). **Pilot size 40**, which is
-  what produced the first dispersion estimate.
+  costing roughly 40 seconds of sampling at ~106 ms per pair. Scaling as `1/√n`,
+  the rule is `n = 300 × (0.0119 / target)²`: half-width 0.02 → n ≈ 107; 0.01 →
+  n ≈ 425; 0.005 → n ≈ 1,700 (~4 minutes). **Pilot size 40**, which is what
+  produced the first dispersion estimate.
 - **The design-infeasible branch does not fire.** A gate at this margin is
-  decidable at an `n` costing minutes. What was infeasible is 0169's stated
-  `n = 20`: at the pilot's dispersion that yields a half-width near 0.15, wider
-  than the entire 0.1 margin the gate is testing.
+  decidable at an `n` costing minutes. What was infeasible is 0169's stated `n =
+  20`: at the pilot's dispersion that yields a half-width near 0.15, wider than
+  the entire 0.1 margin the gate is testing.
 - **No post-hoc sampling.** The n = 300 run's interval was not extended after
   being seen. The two earlier runs (n = 40, n = 400) are recorded as pilot and
   load-sensitivity probes respectively, not as candidates for the gate
@@ -434,8 +435,8 @@ median(B)`:
 
 The branches are disjoint because 1, 2 and 3 partition the position of 1.1
 relative to a single interval; 4 is 3 after its one permitted escalation; 5 and
-6 produce no interval at all and so cannot co-select with any of 1 to 4.
-**This session selects branch 2**, with `L = 1.2662 > 1.1`.
+6 produce no interval at all and so cannot co-select with any of 1 to 4. **This
+session selects branch 2**, with `L = 1.2662 > 1.1`.
 
 ### SQ-5: `reverify` measured, and the prediction falsified
 
@@ -445,9 +446,9 @@ The asset is `vcs-1.24.0-pre.36-569559d8…` at **2,493,792 bytes** — not the
 stale for this purpose. 100 warm in-loop samples; cold-process figures are the
 first call in each of 12 fresh processes.
 
-**Predicted band, stated before measuring**: `fs::read` 0.3–0.8 ms,
-`sha256_hex` 0.4–1.0 ms (assuming ARMv8 SHA2 intrinsics), `verifies` 1.8–3.5 ms,
-composite 3–5 ms.
+**Predicted band, stated before measuring**: `fs::read` 0.3–0.8 ms, `sha256_hex`
+0.4–1.0 ms (assuming ARMv8 SHA2 intrinsics), `verifies` 1.8–3.5 ms, composite
+3–5 ms.
 
 | Sub-operation | warm median | warm min | warm p90 | cold-process median | throughput |
 | --- | --- | --- | --- | --- | --- |
@@ -463,16 +464,16 @@ selects hardware SHA instructions on aarch64 and BLAKE2b does not". Measured,
 **sha256 is 2.6× slower than BLAKE2b**: 4.4895 ms against 1.7184 ms over the
 same bytes. `sha2` is running its software path at 555 MB/s. The cross-check is
 `openssl sha256` over the identical file, which costs 1.46 ms net of its own
-5.15 ms process floor — 1,708 MB/s, so the crate is **3.1× off the hardware
-rate available on this chip**. BLAKE2b, which has no hardware path at all,
-outruns it.
+5.15 ms process floor — 1,708 MB/s, so the crate is **3.1× off the hardware rate
+available on this chip**. BLAKE2b, which has no hardware path at all, outruns
+it.
 
-Cold-process adds nothing to either hash term (4.4788 against 4.4895;
-composite 6.4637 against 6.3359). The first-call cost lands entirely in
-`fs::read` (0.2314 cold against 0.1184 warm), `cache::find` (0.6879 on the very
-first call in the process, 0.0558 thereafter) and the once-per-process
-constructors: `install_crypto_provider` 0.0282, `TrustedKeys::embedded` 0.0104,
-`Fetcher::new` 0.5030. None of those is material against a 5.98 ms overrun.
+Cold-process adds nothing to either hash term (4.4788 against 4.4895; composite
+6.4637 against 6.3359). The first-call cost lands entirely in `fs::read` (0.2314
+cold against 0.1184 warm), `cache::find` (0.6879 on the very first call in the
+process, 0.0558 thereafter) and the once-per-process constructors:
+`install_crypto_provider` 0.0282, `TrustedKeys::embedded` 0.0104, `Fetcher::new`
+0.5030. None of those is material against a 5.98 ms overrun.
 
 ### Reachability: reachable, but only by shipping two changes
 
@@ -508,28 +509,28 @@ and carries 0188's 23.84 ms `jj log` figure as an upper bound on "the guard's
 `jj` spawn".
 
 The recovered guard never calls `classify_checkout`. It calls **`find_repo_root`
-(`vcs-common.sh:8-18`)** — a pure-bash loop testing `-e "$dir/.jj"` and
-`-e "$dir/.git"` upward, spawning only `dirname` per path level — and then
-decides mode with two literal `[ -d ]` tests on `.jj` and `.git`. There is no
-`jj` spawn and no `git` spawn anywhere in `B`. Its cost is bash startup plus
-roughly fifteen `jq`/`grep`/`sed`/`awk`/`cat`/`timeout` pipeline spawns.
+(`vcs-common.sh:8-18`)** — a pure-bash loop testing `-e "$dir/.jj"` and `-e
+"$dir/.git"` upward, spawning only `dirname` per path level — and then decides
+mode with two literal `[ -d ]` tests on `.jj` and `.git`. There is no `jj` spawn
+and no `git` spawn anywhere in `B`. Its cost is bash startup plus roughly
+fifteen `jq`/`grep`/`sed`/`awk`/`cat`/`timeout` pipeline spawns.
 
 Two consequences. First, the plan's fixture-choice rationale — that "a colocated
-or live-workspace cwd adds tens of milliseconds to `B`" at ~24 ms per `jj`
-spawn — does not hold; fixture depth still changes the `dirname` loop's spawn
-count, but at roughly 1 ms per spawn, not 24. A pinned non-colocated fixture
-remains correct for the *decision-shape* reason (a colocated fixture emits warn,
-not block), which is independently sufficient.
+or live-workspace cwd adds tens of milliseconds to `B`" at ~24 ms per `jj` spawn
+— does not hold; fixture depth still changes the `dirname` loop's spawn count,
+but at roughly 1 ms per spawn, not 24. A pinned non-colocated fixture remains
+correct for the *decision-shape* reason (a colocated fixture emits warn, not
+block), which is independently sufficient.
 
 Second, and more consequentially: **the 1.1 margin compares a stat-based
 heuristic against a real VCS classification.** `B` decides pure-jj versus
-colocated by testing for two directory entries. `G` loads the repository
-through jj-lib. The Rust guard is not a faster reimplementation of the shell
-guard; it is a more correct one, and the gate charges it for that correctness at
-a margin calibrated against the cheaper behaviour. 0186's own
-method-incomparability note (`meta/work/0186-…:615`) already flagged that its
-35.1 ms shell-guard row was not comparable; this is a second, independent reason
-the two sides are not like-for-like.
+colocated by testing for two directory entries. `G` loads the repository through
+jj-lib. The Rust guard is not a faster reimplementation of the shell guard; it
+is a more correct one, and the gate charges it for that correctness at a margin
+calibrated against the cheaper behaviour. 0186's own method-incomparability note
+(`meta/work/0186-…:615`) already flagged that its 35.1 ms shell-guard row was
+not comparable; this is a second, independent reason the two sides are not
+like-for-like.
 
 ## Recommendation
 
@@ -554,8 +555,8 @@ The reasoning, in order:
    defensible on its own merits and should be raised regardless. But pairing it
    with 0191 purely to clear a 1.1 threshold sets the launcher's verification
    posture by an arithmetic target rather than by a threat model.
-4. **The absolute numbers are defensible even though the ratio is not.** 42.28 ms
-   for a fully signature-verified, jj-lib-backed hook against 33.00 ms for an
+4. **The absolute numbers are defensible even though the ratio is not.** 42.28
+   ms for a fully signature-verified, jj-lib-backed hook against 33.00 ms for an
    unverified stat-and-grep script is a 9.28 ms premium for the whole trust
    chain — two minisign verifications over 10.7 MB combined, plus a real VCS
    classification. A threshold expressed as an absolute budget, or as a ratio
@@ -564,11 +565,11 @@ The reasoning, in order:
 
 Concretely, in this order:
 
-- **0169 decides what the criterion should be**, with the `B`/`G` work
-  asymmetry and this session's figures in front of it. Candidate reframings: an
-  absolute warm-dispatch budget; a ratio against a baseline that also performs a
-  real classification; or the existing 1.1 retained as an explicit, accepted
-  overrun with a named approver.
+- **0169 decides what the criterion should be**, with the `B`/`G` work asymmetry
+  and this session's figures in front of it. Candidate reframings: an absolute
+  warm-dispatch budget; a ratio against a baseline that also performs a real
+  classification; or the existing 1.1 retained as an explicit, accepted overrun
+  with a named approver.
 - **0189 then runs the formal measurement** against whatever criterion 0169
   lands, using the method this spike closed. SQ-1 to SQ-5 are answered and need
   no re-derivation; the harness shape, the fixture incantation, the
@@ -599,12 +600,13 @@ Concretely, in this order:
   individually measurable and 0186 measured comparable figures; this session
   stopped at the derived remainder. A residual of +3.1% over 70% coverage is not
   evidence about the other 30%.
-- **`B` is a recovered artefact whose dependency is live.** `scripts/vcs-common.sh`
-  was byte-identical to the sourced revision at measurement time, but work item
-  0199 is scoped to decide whether `classify_checkout` leaves that file. Since
-  the recovered guard calls `find_repo_root` rather than `classify_checkout`,
-  0199's likely change is **inert for `B`** — a narrower exposure than the 0189
-  plan assumed, but not zero, since `find_repo_root` shares the file.
+- **`B` is a recovered artefact whose dependency is live.**
+  `scripts/vcs-common.sh` was byte-identical to the sourced revision at
+  measurement time, but work item 0199 is scoped to decide whether
+  `classify_checkout` leaves that file. Since the recovered guard calls
+  `find_repo_root` rather than `classify_checkout`, 0199's likely change is
+  **inert for `B`** — a narrower exposure than the 0189 plan assumed, but not
+  zero, since `find_repo_root` shares the file.
 - **The `reverify` replica was verified by reading, not by differential
   execution.** Composition and call order were checked against
   `resolve/mod.rs:90-109` at revision `2bb98478e7f7`. A future refactor of the
@@ -620,22 +622,21 @@ Concretely, in this order:
 
 ## Deviations
 
-- **The gate definition was reopened.** This spike's Assumptions state that
-  `G ≤ 1.1 × B` is inherited from 0169 and not reopened here, and that any
+- **The gate definition was reopened.** This spike's Assumptions state that `G ≤
+  1.1 × B` is inherited from 0169 and not reopened here, and that any
   strengthening is a deviation to record rather than adopt. The recommendation
   above proposes reopening the threshold outright — a larger departure than a
   strengthening. It is recorded as the spike's recommendation to 0169, not as a
   decision this spike takes: the criterion remains as written until 0169 changes
   it.
-- **The throwaway target is an ignored integration test, not an
-  `examples/` target.** Acceptance criterion 8 names
-  `cli/launcher/examples/`. The instrumentation was carried by
-  `cli/launcher/tests/spike_0205_warm_terms.rs` instead — `tests/` already
-  exists in that package, so no new target kind was introduced and the
-  workspace's first `examples/` target was avoided. The criterion's substance
-  was honoured: `mise run cli:check` was green with the target present
-  (after one rustfmt pass and one `clippy::ptr_arg` fix), and the target has
-  since been removed.
+- **The throwaway target is an ignored integration test, not an `examples/`
+  target.** Acceptance criterion 8 names `cli/launcher/examples/`. The
+  instrumentation was carried by `cli/launcher/tests/spike_0205_warm_terms.rs`
+  instead — `tests/` already exists in that package, so no new target kind was
+  introduced and the workspace's first `examples/` target was avoided. The
+  criterion's substance was honoured: `mise run cli:check` was green with the
+  target present (after one rustfmt pass and one `clippy::ptr_arg` fix), and the
+  target has since been removed.
 - **The gate statistic is an interval bound, not a bare median comparison.**
   0169's criterion reads as a median rule. Branch selection above uses the
   bootstrap interval's lower bound, which is a deliberate strengthening. It does
@@ -647,6 +648,46 @@ Concretely, in this order:
 - **Three runs exist, one gates.** n = 40 (pilot, dispersion estimate), n = 400
   (load-sensitivity probe), n = 300 (gating). The gating run is named as such
   and its interval was not extended after being seen.
+
+## Corrections
+
+Appended on closure as dated notes rather than edits to the findings above, so
+the record of what was concluded at the time stays intact.
+
+**Correction 1 — 2026-08-13. The load-model direction is not supported by this
+spike's own three points.** The Spike Outcome argues the ratio rises as host
+load falls, and sets a revisit trigger at "a quiet-host run returning a ratio
+below 1.20". Sorted by load the three runs give 11 → **1.16**, 19 → 1.2813, 38 →
+1.2320. That is non-monotone, and the lowest-load run already returned 1.16 — so
+the trigger had already fired on the data that proposed it. The direction of the
+load bias is **unknown**, not established, and the claim that a quiet host makes
+the gate harder to pass does not follow. The consuming plan therefore
+pre-registers a taxonomy rather than an expectation, and evidences quietness two
+ways rather than inferring it from load.
+
+**Correction 2 — 2026-08-13. The security rationale for the optimisation levers
+overstates what the cache-hit `sha256` protects.** `cache::find` takes the
+digest from the entry's own filename, and `verify_binary` then calls
+`keys.verifies(bytes, signature)` — Ed25519 over minisign's BLAKE2b of the same
+bytes. `verifier.rs:1-2` names minisign "the security boundary" and sha256 the
+"corruption check" outright. Removing the cache-hit sha256 costs a distinct
+`ChecksumMismatch` diagnostic and the name-to-content binding, **not**
+provenance. The lever should be declined — if it is declined — on the ground
+that verification posture must not be set by an arithmetic target, which this
+spike argues correctly, and not on a trust-boundary ground that does not hold.
+
+**Correction 3 — 2026-08-13. The criterion was reframed on 0189, not 0169.**
+This spike's Assumptions state the gate definition "is inherited from 0169 and
+is not reopened here", and its Deviations that "the criterion remains as written
+until 0169 changes it". Both are now false.
+`plan:2026-08-11-0189-warm-dispatch-latency-measurement` lands the reframed
+criterion on **work-item:0189**, as six identified cells — an absolute
+`median(G)`/`p90(G)` budget per digest backend as the primary, re-runnable gate,
+with `G ≤ 1.3 × B` on the fast backend retained as the historical comparison
+that discharges 0169's inherited wording. 0169 is a closed story and its
+criterion text is not rewritten; it carries a dated resolution pointing at
+0189's superseding criterion. This departs from the Recommendation above, which
+asks 0169 to decide, and the plan records that departure in its own Deviations.
 
 ## Cleanup Evidence
 

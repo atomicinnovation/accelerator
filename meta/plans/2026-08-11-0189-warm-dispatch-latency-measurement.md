@@ -5,7 +5,7 @@ title: "Warm-Dispatch Latency Measurement Implementation Plan"
 date: "2026-08-11T19:43:42+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: draft
+status: ready
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
 derived_from:
@@ -17,7 +17,7 @@ relates_to:
 tags: [cli, launcher, performance, bootstrap, measurement]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
-last_updated: "2026-08-13T09:26:45+00:00"
+last_updated: "2026-08-13T15:28:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -495,9 +495,8 @@ gitignored `bin/.tmp-*` namespace, and the manifest under the gitignored
 **Exhaustiveness is a property of the enumeration, not of one directory.** Every
 artefact is created through a single `register_artefact` seam, and a unit test
 asserts that every creating call site in `tasks/measure.py` appears in the
-manifest table — then that **each** recorded parent is empty after teardown.
-The stale-manifest start-up refusal and `measure:teardown` each get their own
-test.
+manifest table — then that **each** recorded parent is empty after teardown. The
+stale-manifest start-up refusal and `measure:teardown` each get their own test.
 
 #### Captured on entry
 
@@ -813,6 +812,13 @@ two documents, the claim this plan's Current State Analysis opens by disproving.
 
 #### 6. Close 0205
 
+⚠️ **Already discharged, 2026-08-13, ahead of this phase.** 0205 is `status:
+done` with its body line in lockstep, all eight criteria ticked (7 and 8 citing
+its examples-target deviation), the stale `Blocks:` line retracted as a dated
+note, and all three corrections appended. When Phase 1 runs, **verify** this
+rather than redoing it; the specification below is retained as the record of
+what was required.
+
 **File**: `meta/work/0205-close-the-warm-dispatch-measurement-method.md`
 
 `status: draft` → `done`, with the body `**Status**:` line (`:25`, currently
@@ -897,7 +903,8 @@ frontmatter names the codebase-research document with `work-item:0205` in
   `:54-58` backend note rather than restating it
 - [ ] The stale release-asset premise is retracted in both 0169 documents
 - [ ] 0205 is `done`, its eight criteria ticked against their discharging
-  sections, its stale Blocks line retracted, and the two corrections appended
+  sections (7 and 8 citing the examples-target deviation), its stale Blocks line
+  retracted, and the three corrections appended
 - [ ] Every body `**Status**:` line matches its frontmatter `status`
 - [ ] `last_updated`/`last_updated_by` refreshed on every meta document touched
 
