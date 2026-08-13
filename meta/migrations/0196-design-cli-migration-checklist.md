@@ -38,17 +38,17 @@ Rust test locations are abbreviated:
 | rejects path with `..` escape | `a_path_escape_is_rejected_and_a_missing_directory_too` (cli) |
 | accepts `http://localhost:8080`, `http://localhost/`, `http://127.0.0.1:3000`, `https://localhost:8443` | `every_loopback_form_is_accepted_with_no_flags` (cli) |
 | accepts `http://LOCALHOST`, `http://localhost.`, `http://localhost:8080/path?q=1` | `every_loopback_form_is_accepted_with_no_flags` (cli) |
-| rejects `http://127.0.0.2` without flag | **deliberate drop, behaviour changed** — `127.0.0.0/8` is now `Loopback` and accepted with no flag. Replacement property: `the_widened_loopback_set_no_longer_needs_allow_internal` (cli), `the_widened_loopback_set_covers_the_expanded_and_ranged_forms` (reach) |
-| accepts `http://127.0.0.2` with `--allow-internal` | `the_widened_loopback_set_no_longer_needs_allow_internal` (cli) — still accepted, now unconditionally |
+| rejects `http://127.0.0.2` without flag | **deliberate drop, behaviour changed** — `127.0.0.0/8` is now `Loopback` and accepted with no flag. Replacement property: `the_whole_loopback_set_needs_no_allow_internal` (cli), `the_loopback_set_covers_the_expanded_and_ranged_forms` (reach) |
+| accepts `http://127.0.0.2` with `--allow-internal` | `the_whole_loopback_set_needs_no_allow_internal` (cli) — still accepted, now unconditionally |
 | rejects/accepts `http://10.0.0.1`, `http://192.168.1.1` | `internal_hosts_need_allow_internal_and_are_recovered_by_it` (cli) |
-| rejects `172.16.0.1` / `172.31.255.255`, stderr names `RFC1918` | `the_rfc1918_boundary_is_pinned_at_both_edges_and_just_outside` (cli); wording pinned by `the_rfc1918_rejection_keeps_the_shell_s_wording` (policy) |
+| rejects `172.16.0.1` / `172.31.255.255`, stderr names `RFC1918` | `the_rfc1918_boundary_is_pinned_at_both_edges_and_just_outside` (cli); wording pinned by `the_rfc1918_rejection_names_the_reach_and_the_recovering_flag` (policy) |
 | rejects `172.15.255.255` / `172.32.0.0`, stderr names `--allow-insecure-scheme` | `the_rfc1918_boundary_is_pinned_at_both_edges_and_just_outside` (cli) |
 | rejects/accepts `169.254.169.254` | `internal_hosts_need_allow_internal_and_are_recovered_by_it` (cli) |
-| rejects `[::1]` without flag; accepts with `--allow-internal` | **deliberate drop, behaviour changed** — `::1` is `Loopback` and accepted with no flag. Replacement: `the_widened_loopback_set_no_longer_needs_allow_internal` (cli) |
+| rejects `[::1]` without flag; accepts with `--allow-internal` | **deliberate drop, behaviour changed** — `::1` is `Loopback` and accepted with no flag. Replacement: `the_whole_loopback_set_needs_no_allow_internal` (cli) |
 | rejects/accepts `[fe80::1]`, `[fe80::1%eth0]` | `internal_hosts_need_allow_internal_and_are_recovered_by_it` (cli); zone-id stripping by `brackets_and_a_zone_id_are_stripped` (host) |
-| rejects/accepts `[::ffff:127.0.0.1]` | **behaviour changed** — unwraps to `127.0.0.1`, so `Loopback` and accepted with no flag. Replacement: `the_shell_s_own_classifications_survive` (reach), `the_widened_loopback_set_no_longer_needs_allow_internal` (cli) |
+| rejects/accepts `[::ffff:127.0.0.1]` | **behaviour changed** — unwraps to `127.0.0.1`, so `Loopback` and accepted with no flag. Replacement: `each_headline_address_classifies_as_its_own_reach` (reach), `the_whole_loopback_set_needs_no_allow_internal` (cli) |
 | rejects `[::]` without flag; accepts with `--allow-internal` | **deliberate drop, behaviour changed** — `Unspecified` is now refused under every flag. Replacement: `the_unspecified_address_is_refused_under_every_flag` (cli), `the_unspecified_address_is_rejected_under_every_flag_combination` (policy) |
-| rejects `[::1]:8080` (port present) | `the_widened_loopback_set_no_longer_needs_allow_internal` (cli) — port stripping by `brackets_and_a_zone_id_are_stripped` (host) |
+| rejects `[::1]:8080` (port present) | `the_whole_loopback_set_needs_no_allow_internal` (cli) — port stripping by `brackets_and_a_zone_id_are_stripped` (host) |
 | rejects/accepts `http://0.0.0.0` | **deliberate drop, behaviour changed** — as `[::]` above |
 | rejects `2130706433`, `0x7f000001`, `0177.0.0.1` | `no_flag_bypasses_a_numeric_ipv4_encoding` (cli), `every_numeric_encoding_that_is_not_an_address_is_rejected` (host) |
 | rejects `http://user@example.com`, `http://user:pass@127.0.0.1@evil.com` | `a_userinfo_segment_is_rejected_whatever_the_flags` (cli), `a_userinfo_segment_is_rejected` (host) |
@@ -74,15 +74,15 @@ property survives elsewhere**.
 | `canonicalise_host '127.0.0.1:8080'` → `127.0.0.1` | `a_port_is_stripped` (host) |
 | rejects `user:pass@example.com` | `a_userinfo_segment_is_rejected` (host) |
 | rejects `2130706433` / `0x7f000001` / `0177.0.0.1` | `every_numeric_encoding_that_is_not_an_address_is_rejected` (host) |
-| `is_localhost_default localhost` / `127.0.0.1` → 0 | `the_loopback_name_is_honoured_without_being_resolved`, `the_shell_s_own_classifications_survive` (reach) |
+| `is_localhost_default localhost` / `127.0.0.1` → 0 | `the_loopback_name_is_honoured_without_being_resolved`, `each_headline_address_classifies_as_its_own_reach` (reach) |
 | `is_localhost_default 127.0.0.2` / `10.0.0.1` → 1 | **deliberate drop** — the two-literal carve-out no longer exists as a separate predicate. `127.0.0.2` is `Loopback` (widened, and accepted); `10.0.0.1` is `Private` and still needs the flag, pinned by `every_internal_reach_is_recovered_by_allow_internal` (policy) |
 | `classify_internal 172.15.255.255` / `172.32.0.0` → public | `the_rfc1918_boundary_holds_at_both_edges_and_just_outside` (reach) |
 | `classify_internal 172.16.0.0` / `172.31.255.255` → `RFC1918` | `the_rfc1918_boundary_holds_at_both_edges_and_just_outside` (reach) |
-| `classify_internal 127.0.0.2` → `loopback` | `the_widened_loopback_set_covers_the_expanded_and_ranged_forms` (reach) |
-| `classify_internal ::1` / `::ffff:127.0.0.1` → `loopback` | `the_shell_s_own_classifications_survive` (reach) |
-| `classify_internal 0.0.0.0` / `::` → `wildcard` | `the_shell_s_own_classifications_survive` (reach); the label survives via `every_variant_names_itself_for_the_rejection_message` (reach) |
-| `classify_internal fe80::1` / `169.254.169.254` → `link-local` | `the_shell_s_own_classifications_survive` (reach) |
-| `classify_internal 8.8.8.8` → public | `the_shell_s_own_classifications_survive` (reach) |
+| `classify_internal 127.0.0.2` → `loopback` | `the_loopback_set_covers_the_expanded_and_ranged_forms` (reach) |
+| `classify_internal ::1` / `::ffff:127.0.0.1` → `loopback` | `each_headline_address_classifies_as_its_own_reach` (reach) |
+| `classify_internal 0.0.0.0` / `::` → `wildcard` | `each_headline_address_classifies_as_its_own_reach` (reach); the label survives via `every_variant_names_itself_for_the_rejection_message` (reach) |
+| `classify_internal fe80::1` / `169.254.169.254` → `link-local` | `each_headline_address_classifies_as_its_own_reach` (reach) |
+| `classify_internal 8.8.8.8` → public | `each_headline_address_classifies_as_its_own_reach` (reach) |
 
 ## `test-design.sh:282-315` — `resolve-auth` behavioural
 
@@ -111,8 +111,8 @@ property survives elsewhere**.
 
 | Shell assertion | Replacement |
 |---|---|
-| skill body invokes `audit-cue-phrases.sh` | **rewritten in place** — `scripts/test-design.sh` now asserts the skill invokes `accelerator design audit-cue-phrases` |
-| script exists / is executable | **dropped** — the script is gone |
+| skill body invokes `audit-cue-phrases.sh` | **rewritten and re-homed** — `scripts/test-skill-frontmatter-conformance.sh` asserts the skill invokes `accelerator design audit-cue-phrases`; `test-design.sh` kept nothing but its delegation |
+| script exists / is executable | **dropped** — the script is gone. Replacement property: `every_migrated_script_has_a_subcommand` covers the surface; the two design script grants are held to their call sites by the conformance suite's "Design script grants have call sites" block |
 
 ## `test-design.sh:368-430` — `audit-cue-phrases` behavioural
 
@@ -130,7 +130,7 @@ property survives elsewhere**.
 | Shell assertion | Replacement |
 |---|---|
 | script exists / is executable | **dropped** — the script is gone |
-| `notify-downgrade-messages.json` exists and is valid JSON | `the_compiled_table_still_agrees_with_the_shell_s_message_file` (gold) — strengthened from validity to agreement with the compiled table |
+| `notify-downgrade-messages.json` exists and is valid JSON | `the_compiled_table_still_agrees_with_the_recorded_messages` (gold) — strengthened from validity to agreement with the compiled table |
 | fixtures directory exists | `every_reason_reproduces_its_golden_byte_for_byte` (gold) |
 | per-reason output matches its fixture | `every_reason_reproduces_its_golden_byte_for_byte` (gold), `every_reason_prints_its_message_and_exits_zero` (cli) |
 | JSON keys equal the fixture set | `no_golden_survives_without_a_reason_to_produce_it` (gold) — exhaustive by construction, since the golden test iterates the enum |
