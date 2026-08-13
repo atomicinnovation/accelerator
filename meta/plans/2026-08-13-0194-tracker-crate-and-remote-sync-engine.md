@@ -302,7 +302,7 @@ root honours the config too.
 
 Belt and braces, because a filter is still one line of config standing between a
 plain test run and live remote mutations from 0171 onward: `contract::run_all`
-refuses unless `ACCELERATOR_TRACKER_CONTRACT=1` is set, so the harness fails
+**fails** unless `ACCELERATOR_TRACKER_CONTRACT=1` is set, so the harness fails
 closed as well as being filtered out.
 
 **The run-start epoch gets a sync-owned port, not a widened `corpus::Clock`.**
@@ -507,7 +507,7 @@ tracker = { path = "../tracker" }
 **File**: `cli/tracker-test-support/src/lib.rs` (new)
 **Changes**: the recording fake. Interior mutability through `RefCell` so it
 satisfies the port's `&self` signatures while counting calls — the counts are
-what ACs 7, 11 and 18 assert on.
+what ACs 8, 13 and 18 assert on.
 
 ```rust
 pub mod contract;
@@ -605,19 +605,19 @@ satisfy. It therefore excludes the shape-specific cases: asserting
 `create_then_show_round_trips` against a deliberately `losing` tracker would
 require it to fail, which is not a conformance property.
 
-`run_all` also refuses unless `ACCELERATOR_TRACKER_CONTRACT=1` is set. The nextest
-filter keeps it out of the default run; this makes it fail closed too, so that from
-0171 onward a hand-run invocation or an IDE test-runner button cannot mutate a live
-tracker workspace on the strength of one line of config.
+`run_all` returns `Result<usize, ContractGateError>` — the count of properties it
+executed — and **errors** rather than skipping when `ACCELERATOR_TRACKER_CONTRACT=1`
+is absent, naming the variable and the task in the message. `tests/contract.rs`
+propagates that error and asserts the count is non-zero.
 
-`run_all` returns the **count of properties it executed**, and
-`tests/contract.rs` asserts that count is non-zero. A gate that merely skips fails
-*open with respect to signal*: drop or misspell the env var in the task, or run the
-profile by hand, and every contract binary exits 0 having asserted nothing — which
-from 0171 onward is the sole mechanism holding real clients to `FetchOutcome`
-totality and the retryable-read obligation. A silently vacuous pass is worse than a
-red one. The manual check confirms the skip path; the count assertion confirms the
-run path.
+⚠️ The gate must fail, not skip, and the count must be asserted. Either alone leaves a
+hole. A gate that merely skips fails *open with respect to signal*: drop or misspell the
+env var in the task, or run the profile by hand, and every contract binary exits 0
+having asserted nothing — which from 0171 onward is the sole mechanism holding real
+clients to `FetchOutcome` totality and the retryable-read obligation. And a count
+assertion alone cannot distinguish "gate closed" from "ran nothing", because both give
+zero. One `Result` keeps the gate read in exactly one place, so the binary never
+re-reads the environment to decide whether zero is acceptable.
 
 **File**: `cli/tracker-test-support/src/lib.rs` — a `ContractSubject` impl for
 `RecordingTracker`, returning an id it was never seeded with as `unaccountable_id`
@@ -3016,6 +3016,15 @@ the written path today, and `create-work-item/SKILL.md` reads it as such. So:
 Line 1 is unchanged, so every existing consumer keeps working; line 2 carries the
 outcome. Exit codes: `write-once` → 0, `retry` and `local-save` → 0 (the file was
 written; the push was not), `loud-terminal` → 71.
+
+⚠️ A `SelectionError` under `create --push` is fed to `push_decide` as its dispatcher
+code rather than exiting 72/73 directly. `work-item-create-remote.sh:101-103` maps
+`E_DISPATCH_NOT_AVAILABLE`/`UNRECOGNISED` to `local-save` — write the file without
+`external_id`, exit 0 — and since every provider is unwired until 0171, this is the
+*only* `create --push` path anyone can exercise in this story. Exiting 72 having written
+nothing would silently refuse the user's item where bash saves it unsynced. The bare
+72/73 exits stay with `sync` and `update --push`, whose whole purpose needs a live
+client.
 
 The retryable case exits **0** here while `update --push`'s exits **70**, and
 that asymmetry is deliberate: `create --push` has written a usable local file and
