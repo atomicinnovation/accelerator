@@ -89,6 +89,11 @@ fn read_proc_btime() -> Option<u64> {
 /// `p_starttime` is already epoch-based, which sidesteps both, and the
 /// subprocess-free read does not race a parallel test harness.
 ///
+/// Nor `proc_pidinfo(PROC_PIDTBSDINFO)`, whose `proc_bsdinfo` `libc` does bind
+/// by name: it is denied for processes the caller does not own, and a probe
+/// that returns nothing for another user's process lets the launcher adopt a
+/// recycled pid instead of rejecting it. `sysctl` answers for any process.
+///
 /// `libc` does not export `kinfo_proc`, so the read lands in a raw byte buffer.
 /// `p_starttime` is a `timeval` at the head of `extern_proc`'s `p_un` union,
 /// itself the first field of `kinfo_proc`, so `tv_sec` sits at byte 0.
@@ -123,6 +128,9 @@ fn start_time_via_sysctl(pid: i32) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::SystemTime;
+    use std::time::UNIX_EPOCH;
+
     use super::start_time;
 
     /// The property both callers depend on: a live process's start time does
@@ -141,5 +149,40 @@ mod tests {
     #[test]
     fn an_implausible_pid_is_unobtainable_rather_than_fabricated() {
         assert_eq!(start_time(-1), None);
+    }
+
+    /// Ownership must not narrow the read. The launcher reuses a pid whose
+    /// start time it cannot observe, so a probe that went blind on another
+    /// user's process would let a recycled pid be adopted rather than
+    /// rejected — a permission-denied read is indistinguishable from a host
+    /// that cannot supply the value at all.
+    #[test]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    fn another_user_s_process_still_reports_a_start_time() {
+        assert!(
+            start_time(1).is_some(),
+            "pid 1 is root-owned and always live"
+        );
+    }
+
+    /// Bounds the value rather than only its stability: a process cannot have
+    /// started before the parent that spawned it, nor in the future. Comparing
+    /// two distinct pids against the wall clock is what catches a misread
+    /// field, where reading the same pid twice would agree on garbage.
+    #[test]
+    fn a_process_starts_after_its_parent_and_before_now() {
+        let me = i32::try_from(std::process::id()).unwrap_or(-1);
+        let parent =
+            i32::try_from(std::os::unix::process::parent_id()).unwrap_or(-1);
+        let (Some(mine), Some(parents)) = (start_time(me), start_time(parent))
+        else {
+            return;
+        };
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| since.as_secs());
+
+        assert!(mine >= parents, "started {mine}, parent {parents}");
+        assert!(mine <= now, "started {mine}, now {now}");
     }
 }
