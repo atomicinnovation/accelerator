@@ -20,12 +20,19 @@ fn is_fence(line: &str) -> bool {
 }
 
 /// Splits `content` into its raw frontmatter and body at the two fence
-/// lines. Errors, rather than treating the content as body-only, when the
+/// lines.
+///
+/// Errors, rather than treating the content as body-only, when the
 /// content does not open with a fence or the frontmatter is never closed —
 /// bash aborts non-zero in both cases (`set -euo pipefail` under
 /// `config_extract_frontmatter`'s `NR == 1 && !/^---[[:space:]]*$/ { exit }`),
 /// and returning `Ok` here would silently accept input the oracle rejects.
-fn split_frontmatter_and_body(
+///
+/// # Errors
+///
+/// When `content` does not open with a `---` fence, or the frontmatter is
+/// never closed with a second one.
+pub fn split_frontmatter_and_body(
     content: &str,
 ) -> Result<(String, String), kernel::Error> {
     let mut lines = content.lines();

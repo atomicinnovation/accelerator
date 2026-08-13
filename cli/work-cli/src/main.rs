@@ -10,7 +10,9 @@ mod exit_codes;
 mod next_number;
 mod resolve;
 mod show;
+mod sync;
 mod template_hints;
+mod tracker_registry;
 mod update;
 
 use std::path::Path;
@@ -296,6 +298,25 @@ fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
     }
 }
 
+fn run_sync(args: &cli::SyncArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    sync::run_sync(&start, service, args, &tracker_registry::ConfiguredTrackers)
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
@@ -309,5 +330,6 @@ fn main() -> ExitCode {
         Command::NextNumber { project, count } => {
             run_next_number(project.as_deref(), count)
         }
+        Command::Sync(args) => run_sync(&args),
     }
 }

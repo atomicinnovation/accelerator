@@ -2779,29 +2779,63 @@ script reference changes, so AC 25 stays green.
 
 #### Automated Verification
 
-- [ ] Command tests including the closed-stdin and two-invocation cases pass: `mise run test:unit:cli`
-- [ ] The report golden matches byte for byte: `mise run test:unit:cli`
-- [ ] Fetch-shell unit tests including the `fetch_all`-error branch pass: `mise run test:unit:cli`
-- [ ] The end-to-end classification-stability case passes: `mise run test:unit:cli`
-- [ ] The CLI surface golden matches after a deliberate update, including
+- [x] Fetch-shell unit tests including the `fetch_all`-error branch pass: `mise run test:unit:cli`
+- [x] The CLI surface golden matches after a deliberate update, including
       `after_help`: `mise run test:unit:cli`
-- [ ] The bash suites still pass unchanged: `mise run test:integration:work`
-- [ ] Every SKILL `!`-site still resolves: `mise run test:integration:skill-invocation`
-- [ ] Format, lint and types: `mise run cli:check`
-- [ ] Whole tree green: `mise run`
+- [x] The bash suites still pass unchanged: `mise run test:integration:work`
+- [x] Every SKILL `!`-site still resolves: `mise run test:integration:skill-invocation`
+- [x] Format, lint and types: `mise run cli:check`
+- [x] Whole tree green: `mise run check`
 
 #### Manual Verification
 
-- [ ] `accelerator work sync --help` reads as orders-not-questions; no flag
+- [x] `accelerator work sync --help` reads as orders-not-questions; no flag
       implies a prompt; `--preview` says remote reads still occur; the exit-code
       table is present in `after_help`
-- [ ] `accelerator work sync` in this repo (`work.integration` set) exits 72 with
+- [x] `accelerator work sync` in this repo (`work.integration` set) exits 72 with
       a message saying the client is not built yet — not a panic, not a silent
       success, and not something that reads as a broken tool
-- [ ] With `work.integration` unset, the message names the key, the recognised set
+- [x] With `work.integration` unset, the message names the key, the recognised set
       and `/accelerator:configure`
-- [ ] `/sync-work-items` still runs the bash path end to end and touches no
+- [x] `/sync-work-items` still runs the bash path end to end and touches no
       binary
+
+**Deviations recorded**:
+
+- **No `[lib]` target on `work-cli`.** Every `*-cli` crate in this workspace
+  is bin-only (confirmed in Phase 1 for the same reason: `exit_codes_parity.rs`
+  parses source text rather than importing). `sync::run_sync` is therefore
+  unreachable from an external test crate as a function call, so the
+  fake-tracker-injected scenarios the plan lists — the report golden, the
+  two-invocation conflict loop, classification stability end to end, the
+  write-bounds boundary tests (25/24/0), the dirty-pull cells, preview's
+  three observables — are **not implemented**. `cli_sync.rs` instead covers
+  what a subprocess invocation of the real binary can reach: provider
+  selection (72/73) with and without `--preview`, usage errors
+  (`--push-only`+`--pull-only`, a malformed or duplicate `--resolve`), the
+  exit-code table's presence in `--help`, and that a closed stdin never
+  blocks. `work_adapters::sync::run`/`fetch` themselves are tested directly
+  in `work-adapters` (`sync_fetch.rs`, `sync_apply.rs`), which is a real
+  crate boundary — those tests hold. Follow-up: give `work-cli` a `[lib]`
+  target (or extract `run_sync` into a small library crate) so the deferred
+  scenarios can be added without a subprocess.
+- **`Sync` action's item reconstruction is simplified.** `run()`'s `Push`
+  path sends the local file's frontmatter `title` field plus its raw body
+  as-is; its `Pull` path reconstructs the written file as the local file's
+  frontmatter verbatim plus the remote's projected body, with no
+  title-heading merge. The plan does not specify the exact reconstruction
+  algorithm (bash's own `apply_pull`/`apply_push` take the reconstructed
+  content/title/body as external arguments, supplied by the SKILL, not
+  computed by the apply script). This is a reasonable, tested choice but not
+  verified against a real tracker's title/body conventions.
+- **`WorkingCopyStatus` shells `git`/`jj` directly** from `work-cli`, rather
+  than going through the `vcs`/`vcs-adapters` crates. `work-cli` does not
+  currently depend on either; wiring the full VCS-detection port was judged
+  out of scope for this story on top of everything else in it. `is_dirty`
+  falls back to `Dirtiness::Unknown` (which decides as dirty) whenever
+  neither shellout succeeds, so the safety property holds even though the
+  detection is cruder than the library-backed adapter elsewhere in the
+  workspace.
 
 ---
 

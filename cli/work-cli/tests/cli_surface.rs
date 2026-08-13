@@ -18,6 +18,7 @@ const SUBCOMMANDS: &[&str] = &[
     "update",
     "canonicalise-id",
     "next-number",
+    "sync",
 ];
 
 fn help(args: &[&str]) -> Result<String, TestError> {

@@ -72,6 +72,20 @@ pub enum Command {
         #[arg(long, default_value_t = 1)]
         count: u32,
     },
+    /// Reconcile local work items with the configured remote tracker
+    /// (`work.integration`).
+    ///
+    /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
+    /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
+    /// read failed or every per-item failure was retryable; 71 any
+    /// per-item failure was terminal; 1 an internal error; 2 a usage
+    /// error; 5 refused (would exceed --max-pulls/--max-pushes, zero
+    /// writes); 72 the configured tracker is recognised but has no client
+    /// built yet; 73 work.integration is unset or names an unrecognised
+    /// tracker. The report on stdout is authoritative: check it for
+    /// `unresolved` lines regardless of exit code, since a 71 run may
+    /// also carry conflicts.
+    Sync(Box<SyncArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -156,4 +170,39 @@ pub struct CreateArgs {
     /// body.
     #[arg(long = "body-file")]
     pub body_file: Option<PathBuf>,
+}
+
+/// `work sync`'s flags — boxed for the same reason as [`CreateArgs`].
+/// Four independent boolean flags is what the command surface actually
+/// asks for, not a state machine in disguise.
+#[derive(Args)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct SyncArgs {
+    /// Push local changes only; never write a local file.
+    #[arg(long, conflicts_with = "pull_only")]
+    pub push_only: bool,
+    /// Pull remote changes only; never write to the remote.
+    #[arg(long)]
+    pub pull_only: bool,
+    /// Report the actions a run would take without performing any of
+    /// them. Remote reads still occur (this is what counts against rate
+    /// limits); no create, update or local write does.
+    #[arg(long)]
+    pub preview: bool,
+    /// An `<id>=<remote|local|skip>` order for a reported conflict;
+    /// repeatable. An unrecognised token is treated as `skip`, with a
+    /// warning naming the token and the accepted set.
+    #[arg(long = "resolve", value_parser = parse_key_value)]
+    pub resolutions: Vec<(String, String)>,
+    /// Read each item with its own request instead of one bulk retrieval.
+    #[arg(long)]
+    pub per_item_reads: bool,
+    /// Refuse the run if it would overwrite more than this many local
+    /// files from the remote. 0 refuses every pull.
+    #[arg(long, default_value_t = 25)]
+    pub max_pulls: usize,
+    /// Refuse the run if it would replace more than this many remote
+    /// issues. 0 refuses every push.
+    #[arg(long, default_value_t = 25)]
+    pub max_pushes: usize,
 }

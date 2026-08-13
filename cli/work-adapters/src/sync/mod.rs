@@ -6,3 +6,5 @@ pub mod apply;
 pub mod baseline;
 pub mod baseline_store;
 pub mod digest;
+pub mod fetch;
+pub mod run;
