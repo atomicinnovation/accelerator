@@ -21,6 +21,7 @@ const SERVER_STOPPED: &str = "server-stopped.json";
 /// The tag the daemon records alongside its start time.
 const PROBE_SOURCE: &str = "probe";
 const WALLCLOCK_SOURCE: &str = "wallclock";
+const WRITER_UNAVAILABLE_SOURCE: &str = "writer-unavailable";
 
 /// The state directory on disk.
 pub struct StateDirectory {
@@ -60,21 +61,31 @@ pub fn interpret(body: &str) -> RecordedState {
     })
 }
 
-/// A record with **no** source key reads as `Wallclock`, not `Probe`.
+/// The source is read before the value, because one source declares that there
+/// is no value: the daemon publishes a null start time along
+/// `writer-unavailable` when the launcher's own probe could not read one. Read
+/// as a bare absence that record is stale, so every invocation recovers and
+/// respawns — exactly what the liveness-only verdict rows exist to prevent.
 ///
-/// A record written before the source key existed carries a value of genuinely
-/// unknown provenance, and reading it as a kernel probe would hold it to the
-/// one-second tolerance on the strength of a guess.
+/// A record with **no** source key reads as `Wallclock`, not `Probe`. Written
+/// before the source key existed, its value is of genuinely unknown provenance,
+/// and reading it as a kernel probe would hold it to the one-second tolerance
+/// on the strength of a guess.
 ///
 /// A source that is present but recognised as neither reads as absent: the
 /// reader cannot validate what it cannot interpret.
 fn interpret_start_time(value: &serde_json::Value) -> RecordedStartTime {
-    let seconds = value.get("start_time").and_then(serde_json::Value::as_u64);
     let source = value
         .get("start_time_source")
         .and_then(serde_json::Value::as_str);
 
-    let Some(seconds) = seconds else {
+    if source == Some(WRITER_UNAVAILABLE_SOURCE) {
+        return RecordedStartTime::WriterUnavailable;
+    }
+
+    let Some(seconds) =
+        value.get("start_time").and_then(serde_json::Value::as_u64)
+    else {
         return RecordedStartTime::AbsentOrUnparseable;
     };
     match source {
@@ -160,6 +171,21 @@ mod tests {
         assert_eq!(
             start_time_of(r#"{"pid":42,"start_time":1000}"#),
             Some(RecordedStartTime::Wallclock(1000))
+        );
+    }
+
+    /// The daemon writes a null start time alongside this source when the
+    /// launcher's own probe could not read one. Reading that as absent would
+    /// recover, and so respawn, on every invocation — the failure the
+    /// liveness-only verdict rows exist to prevent.
+    #[test]
+    fn a_writer_unavailable_source_survives_its_null_start_time() {
+        assert_eq!(
+            start_time_of(
+                r#"{"pid":42,"start_time":null,
+                    "start_time_source":"writer-unavailable"}"#
+            ),
+            Some(RecordedStartTime::WriterUnavailable)
         );
     }
 

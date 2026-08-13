@@ -1,0 +1,12 @@
+{
+  "protocol": 1,
+  "pid": 4242,
+  "start_time": null,
+  "start_time_source": "writer-unavailable",
+  "token": "fixturetokenfixturetokenfixture0",
+  "host": "127.0.0.1",
+  "port": 51234,
+  "url": "http://127.0.0.1:51234/",
+  "wall_clock_ms": 30000,
+  "ready_at": "2026-08-13T11:00:00.000Z"
+}

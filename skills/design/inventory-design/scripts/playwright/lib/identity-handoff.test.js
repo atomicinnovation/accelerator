@@ -78,6 +78,25 @@ test('the record is read from the descriptor the environment names', () => {
   }
 });
 
+test('an unprobed start time is published as the source, not as an absence', () => {
+  // `daemon.js` copies these two fields straight into `server-info.json`, and
+  // the Rust reader must recognise the pair rather than seeing a null value and
+  // treating the record as stale — which would respawn the daemon on every
+  // invocation wherever the launcher cannot probe a start time. The fixture is
+  // the same file `cli/design-adapters/tests/recorded_state.rs` reads.
+  const published = JSON.parse(
+    readFileSync(
+      new URL('./__fixtures__/server-info-writer-unavailable.json', import.meta.url),
+      'utf8'
+    )
+  );
+  const identity = parseIdentity(`4242\n0\nu\n${published.token}\n`);
+
+  assert.equal(identity.start_time, published.start_time);
+  assert.equal(identity.start_time_source, published.start_time_source);
+  assert.equal(identity.pid, published.pid);
+});
+
 test('the shared fixture is the record the Rust launcher renders', () => {
   // The one wire format, read from the same bytes by both sides. The Rust test
   // that renders it reads this very file, so a change on either side of the
