@@ -48,6 +48,16 @@ fn read_identity_into(destination: &Path) -> String {
     )
 }
 
+/// Prefixes a stub body with the handoff read the real daemon always performs.
+///
+/// A stub that exits without draining the descriptor can close the read end
+/// before the launcher's write lands, and the launcher then sees `EPIPE` — a
+/// race in the fixture, not in the port. Reading first is also what the child
+/// under test actually does.
+fn after_reading_the_identity(body: &str) -> String {
+    format!("{}\n{body}", read_identity_into(Path::new("/dev/null")))
+}
+
 fn spawner(stub: &Path, log: &Path) -> DaemonSpawner {
     DaemonSpawner {
         program: stub.to_path_buf(),
@@ -83,7 +93,10 @@ fn the_child_leads_its_own_session_rather_than_the_launcher_s(
     let group = work.path().join("group.txt");
     let stub = write_stub(
         work.path(),
-        &format!("ps -o pgid= -p $$ > {}", group.display()),
+        &after_reading_the_identity(&format!(
+            "ps -o pgid= -p $$ > {}",
+            group.display()
+        )),
     )?;
     let log = work.path().join("server.bootstrap.log");
 
@@ -105,7 +118,10 @@ fn the_child_leads_its_own_session_rather_than_the_launcher_s(
 fn the_child_s_streams_are_redirected_to_the_bootstrap_log(
 ) -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
-    let stub = write_stub(work.path(), "echo out-marker; echo err-marker >&2")?;
+    let stub = write_stub(
+        work.path(),
+        &after_reading_the_identity("echo out-marker; echo err-marker >&2"),
+    )?;
     let log = work.path().join("server.bootstrap.log");
 
     spawner(&stub, &log).spawn()?;
@@ -126,7 +142,10 @@ fn the_bootstrap_log_is_truncated_and_owner_only_before_the_child_writes(
     fs::write(&log, "stale output from a previous attempt\n")?;
     fs::set_permissions(&log, fs::Permissions::from_mode(0o644))?;
 
-    let stub = write_stub(work.path(), "echo fresh-marker")?;
+    let stub = write_stub(
+        work.path(),
+        &after_reading_the_identity("echo fresh-marker"),
+    )?;
     spawner(&stub, &log).spawn()?;
 
     let captured = await_content(&log)?;
@@ -244,8 +263,10 @@ fn the_recorded_identity_names_the_spawned_child_and_its_start_time(
 fn the_child_inherits_an_owner_only_umask() -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
     let created = work.path().join("child-created.txt");
-    let stub =
-        write_stub(work.path(), &format!("echo x > {}", created.display()))?;
+    let stub = write_stub(
+        work.path(),
+        &after_reading_the_identity(&format!("echo x > {}", created.display())),
+    )?;
     let log = work.path().join("server.bootstrap.log");
 
     spawner(&stub, &log).spawn()?;
