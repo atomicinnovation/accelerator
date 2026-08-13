@@ -171,6 +171,365 @@ pub fn work::section_diff::extract_section(content: &str, name: &work::section_d
 pub fn work::section_diff::heading_union(local: &[alloc::string::String], remote: &[alloc::string::String]) -> alloc::vec::Vec<alloc::string::String>
 pub mod work::show
 pub fn work::show::read_field_raw(frontmatter: &str, field: &str) -> core::option::Option<alloc::string::String>
+pub mod work::sync
+pub mod work::sync::classify
+pub enum work::sync::classify::RemotePresence
+pub work::sync::classify::RemotePresence::Absent
+pub work::sync::classify::RemotePresence::Indeterminate
+pub work::sync::classify::RemotePresence::Present
+impl core::clone::Clone for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::clone(&self) -> work::sync::classify::RemotePresence
+impl core::cmp::Eq for work::sync::classify::RemotePresence
+impl core::cmp::PartialEq for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::eq(&self, other: &work::sync::classify::RemotePresence) -> bool
+impl core::fmt::Debug for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::RemotePresence
+impl core::marker::StructuralPartialEq for work::sync::classify::RemotePresence
+pub struct work::sync::classify::BaselineEntry<'a>
+pub work::sync::classify::BaselineEntry::local_hash: core::option::Option<&'a str>
+pub work::sync::classify::BaselineEntry::remote_hash: core::option::Option<&'a str>
+pub work::sync::classify::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::classify::Subject<'a>
+pub work::sync::classify::Subject::baseline_timestamp: u64
+pub work::sync::classify::Subject::external_id: core::option::Option<&'a tracker::ExternalId>
+pub work::sync::classify::Subject::presence: work::sync::classify::RemotePresence
+pub work::sync::classify::Subject::remote_updated: &'a tracker::RemoteTimestamp
+pub trait work::sync::classify::ItemDigests
+pub fn work::sync::classify::ItemDigests::local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::classify::ItemDigests::mtime(&self) -> core::result::Result<core::option::Option<u64>, kernel::Error>
+pub fn work::sync::classify::ItemDigests::remote_body(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub fn work::sync::classify::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
+pub mod work::sync::clock
+pub trait work::sync::clock::RunClock
+pub fn work::sync::clock::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
+pub mod work::sync::decide
+pub enum work::sync::decide::Action
+pub work::sync::decide::Action::Noop
+pub work::sync::decide::Action::Prompt
+pub work::sync::decide::Action::Pull
+pub work::sync::decide::Action::Push
+pub work::sync::decide::Action::SkipConflict
+pub work::sync::decide::Action::SkipDirty
+impl work::sync::decide::Action
+pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::decide::Action
+pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
+impl core::cmp::Eq for work::sync::decide::Action
+impl core::cmp::PartialEq for work::sync::decide::Action
+pub fn work::sync::decide::Action::eq(&self, other: &work::sync::decide::Action) -> bool
+impl core::fmt::Debug for work::sync::decide::Action
+pub fn work::sync::decide::Action::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::decide::Action
+pub fn work::sync::decide::Action::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Action
+impl core::marker::StructuralPartialEq for work::sync::decide::Action
+pub enum work::sync::decide::Dirtiness
+pub work::sync::decide::Dirtiness::Clean
+pub work::sync::decide::Dirtiness::Dirty
+pub work::sync::decide::Dirtiness::Unknown
+impl core::clone::Clone for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::clone(&self) -> work::sync::decide::Dirtiness
+impl core::cmp::Eq for work::sync::decide::Dirtiness
+impl core::cmp::PartialEq for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::eq(&self, other: &work::sync::decide::Dirtiness) -> bool
+impl core::fmt::Debug for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Dirtiness
+impl core::marker::StructuralPartialEq for work::sync::decide::Dirtiness
+pub enum work::sync::decide::Resolution
+pub work::sync::decide::Resolution::AcceptRemote
+pub work::sync::decide::Resolution::PushLocal
+pub work::sync::decide::Resolution::Skip
+impl core::clone::Clone for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::clone(&self) -> work::sync::decide::Resolution
+impl core::cmp::Eq for work::sync::decide::Resolution
+impl core::cmp::PartialEq for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::eq(&self, other: &work::sync::decide::Resolution) -> bool
+impl core::fmt::Debug for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Resolution
+impl core::marker::StructuralPartialEq for work::sync::decide::Resolution
+pub enum work::sync::decide::SyncDirection
+pub work::sync::decide::SyncDirection::Bidirectional
+pub work::sync::decide::SyncDirection::PullOnly
+pub work::sync::decide::SyncDirection::PushOnly
+impl core::clone::Clone for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::clone(&self) -> work::sync::decide::SyncDirection
+impl core::cmp::Eq for work::sync::decide::SyncDirection
+impl core::cmp::PartialEq for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::eq(&self, other: &work::sync::decide::SyncDirection) -> bool
+impl core::fmt::Debug for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::SyncDirection
+impl core::marker::StructuralPartialEq for work::sync::decide::SyncDirection
+pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::sync::decide::Dirtiness) -> work::sync::decide::Action
+pub fn work::sync::decide::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
+pub mod work::sync::label
+pub enum work::sync::label::RenderableState
+pub work::sync::label::RenderableState::Conflict
+pub work::sync::label::RenderableState::LocallyModified
+pub work::sync::label::RenderableState::RemotelyModified
+pub work::sync::label::RenderableState::Synced
+pub work::sync::label::RenderableState::Unsynced
+impl core::clone::Clone for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::clone(&self) -> work::sync::label::RenderableState
+impl core::cmp::Eq for work::sync::label::RenderableState
+impl core::cmp::PartialEq for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::eq(&self, other: &work::sync::label::RenderableState) -> bool
+impl core::convert::TryFrom<work::sync::state::SyncState> for work::sync::label::RenderableState
+pub type work::sync::label::RenderableState::Error = ()
+pub fn work::sync::label::RenderableState::try_from(state: work::sync::state::SyncState) -> core::result::Result<Self, Self::Error>
+impl core::fmt::Debug for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::label::RenderableState
+impl core::marker::StructuralPartialEq for work::sync::label::RenderableState
+pub enum work::sync::label::SyncPresence
+pub work::sync::label::SyncPresence::Synced
+pub work::sync::label::SyncPresence::Unsynced
+impl core::clone::Clone for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::clone(&self) -> work::sync::label::SyncPresence
+impl core::cmp::Eq for work::sync::label::SyncPresence
+impl core::cmp::PartialEq for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::eq(&self, other: &work::sync::label::SyncPresence) -> bool
+impl core::fmt::Debug for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::label::SyncPresence
+impl core::marker::StructuralPartialEq for work::sync::label::SyncPresence
+pub fn work::sync::label::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
+pub const fn work::sync::label::label(state: work::sync::label::RenderableState) -> &'static str
+pub mod work::sync::plan
+pub struct work::sync::plan::PlanInput<'a>
+pub work::sync::plan::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
+pub work::sync::plan::PlanInput::baseline_timestamp: u64
+pub work::sync::plan::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
+pub work::sync::plan::PlanInput::dirty: work::sync::decide::Dirtiness
+pub work::sync::plan::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
+pub work::sync::plan::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
+pub work::sync::plan::PlanInput::id: alloc::string::String
+pub struct work::sync::plan::PlannedAction
+pub work::sync::plan::PlannedAction::action: work::sync::decide::Action
+pub work::sync::plan::PlannedAction::id: alloc::string::String
+pub work::sync::plan::PlannedAction::state: work::sync::state::SyncState
+impl core::clone::Clone for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
+impl core::cmp::Eq for work::sync::plan::PlannedAction
+impl core::cmp::PartialEq for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::eq(&self, other: &work::sync::plan::PlannedAction) -> bool
+impl core::fmt::Debug for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::PlannedAction
+pub struct work::sync::plan::RemoteFacts<'a>
+pub work::sync::plan::RemoteFacts::presence: work::sync::classify::RemotePresence
+pub work::sync::plan::RemoteFacts::remote_updated: &'a tracker::RemoteTimestamp
+pub struct work::sync::plan::SyncPlan
+pub work::sync::plan::SyncPlan::actions: alloc::vec::Vec<work::sync::plan::PlannedAction>
+impl work::sync::plan::SyncPlan
+pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
+pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
+pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
+pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub mod work::sync::state
+pub enum work::sync::state::SyncState
+pub work::sync::state::SyncState::Conflict
+pub work::sync::state::SyncState::Indeterminate
+pub work::sync::state::SyncState::LocallyModified
+pub work::sync::state::SyncState::RemoteAbsent
+pub work::sync::state::SyncState::RemotelyModified
+pub work::sync::state::SyncState::Synced
+pub work::sync::state::SyncState::Unsynced
+impl work::sync::state::SyncState
+pub fn work::sync::state::SyncState::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::clone(&self) -> work::sync::state::SyncState
+impl core::cmp::Eq for work::sync::state::SyncState
+impl core::cmp::PartialEq for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::eq(&self, other: &work::sync::state::SyncState) -> bool
+impl core::convert::TryFrom<work::sync::state::SyncState> for work::sync::label::RenderableState
+pub type work::sync::label::RenderableState::Error = ()
+pub fn work::sync::label::RenderableState::try_from(state: work::sync::state::SyncState) -> core::result::Result<Self, Self::Error>
+impl core::fmt::Debug for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::state::SyncState
+impl core::marker::StructuralPartialEq for work::sync::state::SyncState
+pub enum work::sync::Action
+pub work::sync::Action::Noop
+pub work::sync::Action::Prompt
+pub work::sync::Action::Pull
+pub work::sync::Action::Push
+pub work::sync::Action::SkipConflict
+pub work::sync::Action::SkipDirty
+impl work::sync::decide::Action
+pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::decide::Action
+pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
+impl core::cmp::Eq for work::sync::decide::Action
+impl core::cmp::PartialEq for work::sync::decide::Action
+pub fn work::sync::decide::Action::eq(&self, other: &work::sync::decide::Action) -> bool
+impl core::fmt::Debug for work::sync::decide::Action
+pub fn work::sync::decide::Action::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::decide::Action
+pub fn work::sync::decide::Action::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Action
+impl core::marker::StructuralPartialEq for work::sync::decide::Action
+pub enum work::sync::Dirtiness
+pub work::sync::Dirtiness::Clean
+pub work::sync::Dirtiness::Dirty
+pub work::sync::Dirtiness::Unknown
+impl core::clone::Clone for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::clone(&self) -> work::sync::decide::Dirtiness
+impl core::cmp::Eq for work::sync::decide::Dirtiness
+impl core::cmp::PartialEq for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::eq(&self, other: &work::sync::decide::Dirtiness) -> bool
+impl core::fmt::Debug for work::sync::decide::Dirtiness
+pub fn work::sync::decide::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Dirtiness
+impl core::marker::StructuralPartialEq for work::sync::decide::Dirtiness
+pub enum work::sync::RemotePresence
+pub work::sync::RemotePresence::Absent
+pub work::sync::RemotePresence::Indeterminate
+pub work::sync::RemotePresence::Present
+impl core::clone::Clone for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::clone(&self) -> work::sync::classify::RemotePresence
+impl core::cmp::Eq for work::sync::classify::RemotePresence
+impl core::cmp::PartialEq for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::eq(&self, other: &work::sync::classify::RemotePresence) -> bool
+impl core::fmt::Debug for work::sync::classify::RemotePresence
+pub fn work::sync::classify::RemotePresence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::RemotePresence
+impl core::marker::StructuralPartialEq for work::sync::classify::RemotePresence
+pub enum work::sync::RenderableState
+pub work::sync::RenderableState::Conflict
+pub work::sync::RenderableState::LocallyModified
+pub work::sync::RenderableState::RemotelyModified
+pub work::sync::RenderableState::Synced
+pub work::sync::RenderableState::Unsynced
+impl core::clone::Clone for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::clone(&self) -> work::sync::label::RenderableState
+impl core::cmp::Eq for work::sync::label::RenderableState
+impl core::cmp::PartialEq for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::eq(&self, other: &work::sync::label::RenderableState) -> bool
+impl core::convert::TryFrom<work::sync::state::SyncState> for work::sync::label::RenderableState
+pub type work::sync::label::RenderableState::Error = ()
+pub fn work::sync::label::RenderableState::try_from(state: work::sync::state::SyncState) -> core::result::Result<Self, Self::Error>
+impl core::fmt::Debug for work::sync::label::RenderableState
+pub fn work::sync::label::RenderableState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::label::RenderableState
+impl core::marker::StructuralPartialEq for work::sync::label::RenderableState
+pub enum work::sync::Resolution
+pub work::sync::Resolution::AcceptRemote
+pub work::sync::Resolution::PushLocal
+pub work::sync::Resolution::Skip
+impl core::clone::Clone for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::clone(&self) -> work::sync::decide::Resolution
+impl core::cmp::Eq for work::sync::decide::Resolution
+impl core::cmp::PartialEq for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::eq(&self, other: &work::sync::decide::Resolution) -> bool
+impl core::fmt::Debug for work::sync::decide::Resolution
+pub fn work::sync::decide::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::Resolution
+impl core::marker::StructuralPartialEq for work::sync::decide::Resolution
+pub enum work::sync::SyncDirection
+pub work::sync::SyncDirection::Bidirectional
+pub work::sync::SyncDirection::PullOnly
+pub work::sync::SyncDirection::PushOnly
+impl core::clone::Clone for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::clone(&self) -> work::sync::decide::SyncDirection
+impl core::cmp::Eq for work::sync::decide::SyncDirection
+impl core::cmp::PartialEq for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::eq(&self, other: &work::sync::decide::SyncDirection) -> bool
+impl core::fmt::Debug for work::sync::decide::SyncDirection
+pub fn work::sync::decide::SyncDirection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::decide::SyncDirection
+impl core::marker::StructuralPartialEq for work::sync::decide::SyncDirection
+pub enum work::sync::SyncPresence
+pub work::sync::SyncPresence::Synced
+pub work::sync::SyncPresence::Unsynced
+impl core::clone::Clone for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::clone(&self) -> work::sync::label::SyncPresence
+impl core::cmp::Eq for work::sync::label::SyncPresence
+impl core::cmp::PartialEq for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::eq(&self, other: &work::sync::label::SyncPresence) -> bool
+impl core::fmt::Debug for work::sync::label::SyncPresence
+pub fn work::sync::label::SyncPresence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::label::SyncPresence
+impl core::marker::StructuralPartialEq for work::sync::label::SyncPresence
+pub enum work::sync::SyncState
+pub work::sync::SyncState::Conflict
+pub work::sync::SyncState::Indeterminate
+pub work::sync::SyncState::LocallyModified
+pub work::sync::SyncState::RemoteAbsent
+pub work::sync::SyncState::RemotelyModified
+pub work::sync::SyncState::Synced
+pub work::sync::SyncState::Unsynced
+impl work::sync::state::SyncState
+pub fn work::sync::state::SyncState::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::clone(&self) -> work::sync::state::SyncState
+impl core::cmp::Eq for work::sync::state::SyncState
+impl core::cmp::PartialEq for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::eq(&self, other: &work::sync::state::SyncState) -> bool
+impl core::convert::TryFrom<work::sync::state::SyncState> for work::sync::label::RenderableState
+pub type work::sync::label::RenderableState::Error = ()
+pub fn work::sync::label::RenderableState::try_from(state: work::sync::state::SyncState) -> core::result::Result<Self, Self::Error>
+impl core::fmt::Debug for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::state::SyncState
+pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::state::SyncState
+impl core::marker::StructuralPartialEq for work::sync::state::SyncState
+pub struct work::sync::BaselineEntry<'a>
+pub work::sync::BaselineEntry::local_hash: core::option::Option<&'a str>
+pub work::sync::BaselineEntry::remote_hash: core::option::Option<&'a str>
+pub work::sync::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::PlanInput<'a>
+pub work::sync::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
+pub work::sync::PlanInput::baseline_timestamp: u64
+pub work::sync::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
+pub work::sync::PlanInput::dirty: work::sync::decide::Dirtiness
+pub work::sync::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
+pub work::sync::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
+pub work::sync::PlanInput::id: alloc::string::String
+pub struct work::sync::PlannedAction
+pub work::sync::PlannedAction::action: work::sync::decide::Action
+pub work::sync::PlannedAction::id: alloc::string::String
+pub work::sync::PlannedAction::state: work::sync::state::SyncState
+impl core::clone::Clone for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::clone(&self) -> work::sync::plan::PlannedAction
+impl core::cmp::Eq for work::sync::plan::PlannedAction
+impl core::cmp::PartialEq for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::eq(&self, other: &work::sync::plan::PlannedAction) -> bool
+impl core::fmt::Debug for work::sync::plan::PlannedAction
+pub fn work::sync::plan::PlannedAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::plan::PlannedAction
+pub struct work::sync::RemoteFacts<'a>
+pub work::sync::RemoteFacts::presence: work::sync::classify::RemotePresence
+pub work::sync::RemoteFacts::remote_updated: &'a tracker::RemoteTimestamp
+pub struct work::sync::Subject<'a>
+pub work::sync::Subject::baseline_timestamp: u64
+pub work::sync::Subject::external_id: core::option::Option<&'a tracker::ExternalId>
+pub work::sync::Subject::presence: work::sync::classify::RemotePresence
+pub work::sync::Subject::remote_updated: &'a tracker::RemoteTimestamp
+pub struct work::sync::SyncPlan
+pub work::sync::SyncPlan::actions: alloc::vec::Vec<work::sync::plan::PlannedAction>
+impl work::sync::plan::SyncPlan
+pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
+pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
+pub trait work::sync::ItemDigests
+pub fn work::sync::ItemDigests::local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::ItemDigests::mtime(&self) -> core::result::Result<core::option::Option<u64>, kernel::Error>
+pub fn work::sync::ItemDigests::remote_body(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub trait work::sync::RunClock
+pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
+pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
+pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
+pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::sync::decide::Dirtiness) -> work::sync::decide::Action
+pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
+pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
+pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
 pub mod work::tags
 pub enum work::tags::TagAction
 pub work::tags::TagAction::Add

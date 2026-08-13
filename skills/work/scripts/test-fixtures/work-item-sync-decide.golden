@@ -1,0 +1,77 @@
+# work-item-sync-decide.sh golden file, shared with
+# cli/work/tests/sync_decide.rs — one oracle for both implementations.
+#
+# [DECIDE]           <direction>|<state>|<dirty>|<expected-action>
+# [DECIDE_RUST_ONLY]  same shape, dirty=unknown — bash has no three-valued
+#                     dirtiness; its only test is `[ "$dirty" = "1" ]`, so
+#                     "unknown" would read as clean there, which is the
+#                     wrong answer (the deliberate fail-safe is that an
+#                     unknown probe decides as dirty). Rust-only because the
+#                     correct behaviour is inexpressible in bash, not because
+#                     the two implementations disagree on a shared input.
+# [TOKEN]             <raw>|<expected-resolution>
+# [TOKEN_RUST_ONLY]    same shape — bash's `sed 's/[[:space:]]//'` is
+#                      locale-dependent (`[:space:]` under a UTF-8 locale can
+#                      class NBSP as space and strip it, observed on this
+#                      very suite), so bash's answer for this row is not
+#                      reliably "skip" the way the C locale alone would
+#                      suggest. Rust's ASCII-only trim has no such
+#                      dependency, so the pin lives on the Rust side only.
+#
+# direction ∈ bidirectional|push-only|pull-only
+# state ∈ synced|unsynced|locally-modified|remotely-modified|conflict
+#          |remote-absent|indeterminate
+# dirty ∈ 0|1|unknown — consulted only by the remotely-modified row; every
+#   other state ignores it, so it is fixed at 0 there.
+# expected (DECIDE) ∈ push|pull|skip-conflict|skip-dirty|prompt|noop
+# expected (TOKEN) ∈ accept-remote|push-local|skip
+#
+# (empty) is the empty-value sentinel, as in work-item-file-dirty.golden and
+# work-item-canonicalise-id.golden.
+#
+# (nbsp) marks a leading U+00A0 in <raw> — invisible in review otherwise.
+# Rust resolves it to skip: a Unicode-aware to_lowercase()/trim() would
+# resolve it to accept-remote instead — turning the deliberately safe
+# default into a local overwrite for whitespace no human can see. ASCII-only
+# trim_matches(char::is_ascii_whitespace) never strips it.
+
+[DECIDE]
+bidirectional|synced|0|noop
+push-only|synced|0|noop
+pull-only|synced|0|noop
+bidirectional|unsynced|0|noop
+push-only|unsynced|0|noop
+pull-only|unsynced|0|noop
+bidirectional|remote-absent|0|noop
+push-only|remote-absent|0|noop
+pull-only|remote-absent|0|noop
+bidirectional|indeterminate|0|noop
+push-only|indeterminate|0|noop
+pull-only|indeterminate|0|noop
+bidirectional|locally-modified|0|push
+push-only|locally-modified|0|push
+pull-only|locally-modified|0|noop
+bidirectional|remotely-modified|0|pull
+push-only|remotely-modified|0|noop
+pull-only|remotely-modified|0|pull
+bidirectional|remotely-modified|1|prompt
+push-only|remotely-modified|1|noop
+pull-only|remotely-modified|1|skip-dirty
+bidirectional|conflict|0|prompt
+push-only|conflict|0|skip-conflict
+pull-only|conflict|0|skip-conflict
+
+[DECIDE_RUST_ONLY]
+bidirectional|remotely-modified|unknown|prompt
+push-only|remotely-modified|unknown|noop
+pull-only|remotely-modified|unknown|skip-dirty
+
+[TOKEN]
+  REMOTE |accept-remote
+local|push-local
+skip|skip
+(empty)|skip
+frobnicate|skip
+
+[TOKEN_RUST_ONLY]
+(nbsp)remote|skip

@@ -5424,6 +5424,8 @@ version = "1.24.0-pre.38"
 dependencies = [
  "corpus",
  "kernel",
+ "serde_json",
+ "tracker",
 ]
 
 [[package]]

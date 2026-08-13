@@ -1,0 +1,52 @@
+# work-item-sync-label.sh golden file.
+#
+# Format, per section:
+#   [CLASSIFY]  <raw-external-id>|<expected-status>
+#   [LABEL]     <status>|<exit>|<expected-output>
+#   [DEFAULT]   <raw-external-id>|<expected-output>
+#
+# (empty) is the empty-value sentinel, as in work-item-file-dirty.golden and
+# work-item-canonicalise-id.golden. A trailing empty field would be invisible
+# in review and lost to any trailing-whitespace trim.
+#
+# Outputs carry NO trailing newline (printf without \n,
+# work-item-sync-label.sh:57-61).
+#
+# CLASSIFY strips one combined [[:space:]"'] class from both ends (:45) — not
+# quotes and then whitespace. The mixed rows below are what distinguish the
+# two.
+#
+# remote-absent and indeterminate are exit-1 rows: --label renders five
+# states and rejects those two (work-item-sync-label.sh:54-67). Those rows
+# pin the exit status only, not the message. They are classified states the
+# caller handles, never labels /list-work-items renders.
+#
+# DEFAULT is the composed no-flag arm (:104-106) — the arm
+# list-work-items/SKILL.md:289 actually invokes.
+
+[CLASSIFY]
+PROJ-0042|synced
+BLA-123|synced
+atomic-innovation/accelerator#42|synced
+"PROJ-0042"|synced
+'PROJ-0042'|synced
+   "PROJ-0042"   |synced
+(empty)|unsynced
+""|unsynced
+   |unsynced
+"  "|unsynced
+'"|unsynced
+
+[LABEL]
+synced|0|🟢 synced
+unsynced|0|⚪ unsynced
+locally-modified|0|🔵 locally modified
+remotely-modified|0|🟣 remotely modified
+conflict|0|🔴 conflict
+remote-absent|1|(empty)
+indeterminate|1|(empty)
+bogus|1|(empty)
+
+[DEFAULT]
+PROJ-0042|🟢 synced
+(empty)|⚪ unsynced

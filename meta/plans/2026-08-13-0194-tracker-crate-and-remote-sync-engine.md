@@ -1552,28 +1552,28 @@ whole corpus. No advance means a full re-hash, which is slow and correct.
 
 #### Automated Verification
 
-- [ ] Lifted tables pass against the Rust implementations: `mise run test:unit:cli`
-- [ ] The same tables pass against the bash scripts: `mise run test:integration:work`
-- [ ] Both label implementations pass the shared golden: `mise run test:unit:cli`
+- [x] Lifted tables pass against the Rust implementations: `mise run test:unit:cli`
+- [x] The same tables pass against the bash scripts: `mise run test:integration:work`
+- [x] Both label implementations pass the shared golden: `mise run test:unit:cli`
       and `mise run test:integration:work`
-- [ ] Planner branch table passes: `mise run test:unit:cli`
-- [ ] The architecture rule admits the new `tracker` imports:
+- [x] Planner branch table passes: `mise run test:unit:cli`
+- [x] The architecture rule admits the new `tracker` imports:
       `mise run test:integration:pup`
-- [ ] The `work` public-api snapshot is updated deliberately:
+- [x] The `work` public-api snapshot is updated deliberately:
       `mise run public-api:check` after `mise run public-api:update`
-- [ ] Shell lint and format pass: `mise run scripts:check`
-- [ ] Format, lint and types: `mise run cli:check`
-- [ ] Whole tree green: `mise run`
+- [x] Shell lint and format pass: `mise run scripts:check`
+- [x] Format, lint and types: `mise run cli:check`
+- [x] Whole tree green: `mise run`
 
 #### Manual Verification
 
-- [ ] The `public-api.txt` diff contains only the intended `work::sync` surface,
+- [x] The `public-api.txt` diff contains only the intended `work::sync` surface,
       plus the `tracker` types the widened rule now exposes there — the coupling
       the Key discoveries note records, not noise
-- [ ] Each classify row's provenance is traceable to a bash assertion or is one
+- [x] Each classify row's provenance is traceable to a bash assertion or is one
       of the eight deliberately-added rows, and no expectation was derived from
       reading the Rust
-- [ ] The bash label loop reads by redirect, not through a pipe — deliberately
+- [x] The bash label loop reads by redirect, not through a pipe — deliberately
       break one row and confirm the section reports the failure
 
 ---

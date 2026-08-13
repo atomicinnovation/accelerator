@@ -30,35 +30,85 @@ echo "=== work-item-sync-label.sh ==="
 echo ""
 
 SYNC_LABEL="$SCRIPT_DIR/work-item-sync-label.sh"
+SYNC_LABEL_GOLDEN="$SCRIPT_DIR/test-fixtures/work-item-sync-label.golden"
+LABEL_CLASSIFY_EXPECTED_ROWS=11
+LABEL_LABEL_EXPECTED_ROWS=8
+LABEL_DEFAULT_EXPECTED_ROWS=2
 
-# Classification is presence-based: a non-empty external_id (after stripping
-# surrounding quotes + whitespace) is synced, everything else unsynced.
-echo "Test: classify non-empty external_id → synced"
-assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'PROJ-0042')"
+label_unescape() {
+  if [ "$1" = "(empty)" ]; then
+    printf ''
+  else
+    printf '%s' "$1"
+  fi
+}
 
-echo "Test: classify project-coded id-shape value → synced (independent of id shape)"
-assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'BLA-123')"
+echo "Test: classify, label and the default composed mode against the shared golden"
+LABEL_SECTION=""
+LABEL_CLASSIFY_RAN=0
+LABEL_LABEL_RAN=0
+LABEL_DEFAULT_RAN=0
+# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
+# updates are not lost to a subshell.
+while IFS= read -r LABEL_LINE; do
+  case "$LABEL_LINE" in
+    \#* | "") continue ;;
+    "[CLASSIFY]")
+      LABEL_SECTION="classify"
+      continue
+      ;;
+    "[LABEL]")
+      LABEL_SECTION="label"
+      continue
+      ;;
+    "[DEFAULT]")
+      LABEL_SECTION="default"
+      continue
+      ;;
+  esac
 
-echo "Test: classify github-style external_id → synced"
-assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify 'atomic-innovation/accelerator#42')"
+  case "$LABEL_SECTION" in
+    classify)
+      IFS='|' read -r L_RAW L_EXPECTED <<<"$LABEL_LINE"
+      LABEL_CLASSIFY_RAN=$((LABEL_CLASSIFY_RAN + 1))
+      L_INPUT=$(label_unescape "$L_RAW")
+      assert_eq "classify '$L_RAW'" "$L_EXPECTED" \
+        "$(bash "$SYNC_LABEL" --classify "$L_INPUT")"
+      ;;
+    label)
+      IFS='|' read -r L_STATUS L_EXIT L_EXPECTED <<<"$LABEL_LINE"
+      LABEL_LABEL_RAN=$((LABEL_LABEL_RAN + 1))
+      if [ "$L_EXIT" = "0" ]; then
+        assert_eq "label $L_STATUS" "$L_EXPECTED" \
+          "$(bash "$SYNC_LABEL" --label "$L_STATUS")"
+      else
+        assert_exit_code "label $L_STATUS exits $L_EXIT" "$L_EXIT" \
+          bash "$SYNC_LABEL" --label "$L_STATUS"
+      fi
+      ;;
+    default)
+      IFS='|' read -r L_RAW L_EXPECTED <<<"$LABEL_LINE"
+      LABEL_DEFAULT_RAN=$((LABEL_DEFAULT_RAN + 1))
+      L_INPUT=$(label_unescape "$L_RAW")
+      assert_eq "default '$L_RAW'" "$L_EXPECTED" \
+        "$(bash "$SYNC_LABEL" "$L_INPUT")"
+      ;;
+  esac
+done <"$SYNC_LABEL_GOLDEN"
 
-echo "Test: classify absent (empty) external_id → unsynced"
-assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '')"
-
-echo "Test: classify quote-only \"\" → unsynced (normalisation strips quotes)"
-assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '""')"
-
-echo "Test: classify whitespace-only → unsynced"
-assert_eq "unsynced" "unsynced" "$(bash "$SYNC_LABEL" --classify '   ')"
-
-echo "Test: classify quoted value → synced (quotes stripped, value remains)"
-assert_eq "synced" "synced" "$(bash "$SYNC_LABEL" --classify '"PROJ-0042"')"
-
-echo "Test: label synced → glyph + text"
-assert_eq "synced label" "🟢 synced" "$(bash "$SYNC_LABEL" --label synced)"
-
-echo "Test: label unsynced → glyph + text"
-assert_eq "unsynced label" "⚪ unsynced" "$(bash "$SYNC_LABEL" --label unsynced)"
+if [ "$LABEL_CLASSIFY_RAN" -eq "$LABEL_CLASSIFY_EXPECTED_ROWS" ] &&
+  [ "$LABEL_LABEL_RAN" -eq "$LABEL_LABEL_EXPECTED_ROWS" ] &&
+  [ "$LABEL_DEFAULT_RAN" -eq "$LABEL_DEFAULT_EXPECTED_ROWS" ]; then
+  echo "  PASS: ran $LABEL_CLASSIFY_RAN classify, $LABEL_LABEL_RAN label," \
+    "$LABEL_DEFAULT_RAN default rows (expected" \
+    "$LABEL_CLASSIFY_EXPECTED_ROWS/$LABEL_LABEL_EXPECTED_ROWS/$LABEL_DEFAULT_EXPECTED_ROWS)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ran $LABEL_CLASSIFY_RAN classify, $LABEL_LABEL_RAN label," \
+    "$LABEL_DEFAULT_RAN default rows (expected" \
+    "$LABEL_CLASSIFY_EXPECTED_ROWS/$LABEL_LABEL_EXPECTED_ROWS/$LABEL_DEFAULT_EXPECTED_ROWS)"
+  FAIL=$((FAIL + 1))
+fi
 
 # All FIVE states must differ pairwise in BOTH glyph and text so the signal
 # survives monochrome / glyph-blind rendering.
@@ -100,13 +150,6 @@ else
   echo "  PASS: no ANSI escapes"
   PASS=$((PASS + 1))
 fi
-
-echo "Test: default mode classifies then renders (external_id → label)"
-assert_eq "synced label" "🟢 synced" "$(bash "$SYNC_LABEL" 'PROJ-0042')"
-assert_eq "unsynced label" "⚪ unsynced" "$(bash "$SYNC_LABEL" '')"
-
-echo "Test: unknown status → exit 1"
-assert_exit_code "exits 1" 1 bash "$SYNC_LABEL" --label bogus
 
 echo ""
 
@@ -305,112 +348,146 @@ fi
 echo ""
 
 # ============================================================
-echo "=== work-item-sync-label.sh — baseline-dependent label arms ==="
-echo ""
-assert_eq "locally-modified label" "🔵 locally modified" \
-  "$(bash "$SYNC_LABEL" --label locally-modified)"
-assert_eq "remotely-modified label" "🟣 remotely modified" \
-  "$(bash "$SYNC_LABEL" --label remotely-modified)"
-assert_eq "conflict label" "🔴 conflict" "$(bash "$SYNC_LABEL" --label conflict)"
-
-echo ""
-
-# ============================================================
 echo "=== work-item-sync-classify.sh — change-detection engine ==="
 echo ""
 
 CLASSIFY="$SCRIPT_DIR/work-item-sync-classify.sh"
-
-# Fixtures: a tracked local item, a baseline that matches it, and a remote body.
-EFILE="$TMPDIR_BASE/eng-item.md"
-write_item "$EFILE"
-E_LOCAL_HASH=$(nhash "$EFILE")
-R_UPDATED="2026-06-01T10:00:00.000+0000"
-RBODY="$TMPDIR_BASE/eng-remote.md"
-printf '# Do the thing\n\nImplement the thing carefully.\n' >"$RBODY"
-E_REMOTE_HASH=$(bash "$NORMALISE" --stdin <"$RBODY" | hash_sha256_stdin)
-ENTRY=$(jq -cn --arg lh "$E_LOCAL_HASH" --arg rh "$E_REMOTE_HASH" --arg ru "$R_UPDATED" \
-  '{remote_updated_at: $ru, remote_hash: $rh, local_hash: $lh}')
+CLASSIFY_FIXTURE="$SCRIPT_DIR/test-fixtures/work-item-sync-classify.json"
+CLASSIFY_EXPECTED_BASH_CASES=14
 
 classify() { bash "$CLASSIFY" "$@"; }
 
-echo "Test: neither side changed → synced (remote updated-equality short-circuit)"
-assert_eq "synced" "synced" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+# Shared table with cli/work/tests/sync_classify.rs — one oracle read by
+# both implementations, so a row can't be edited on one side and left stale
+# on the other. Content is fixed across every row; only the symbolic hash
+# choice, the timestamps and the mtime offset vary between cases.
+CLASSIFY_LOCAL_FILE="$TMPDIR_BASE/classify-local.md"
+CLASSIFY_REMOTE_FILE="$TMPDIR_BASE/classify-remote.md"
+jq -r '.local_content' "$CLASSIFY_FIXTURE" >"$CLASSIFY_LOCAL_FILE"
+jq -r '.remote_body' "$CLASSIFY_FIXTURE" >"$CLASSIFY_REMOTE_FILE"
 
-echo "Test: local edited, remote unchanged → locally-modified"
-EFILE_ED="$TMPDIR_BASE/eng-item-ed.md"
-write_item "$EFILE_ED"
-perl -pi -e 's/Implement the thing carefully\./Locally rewritten./' "$EFILE_ED"
-assert_eq "locally-modified" "locally-modified" \
-  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+CLASSIFY_BASE_REPORTED=$(jq -r '.remote_updated_reported' "$CLASSIFY_FIXTURE")
+CLASSIFY_BASE_TICKED=$(jq -r '.remote_updated_ticked' "$CLASSIFY_FIXTURE")
+CLASSIFY_LOCAL_FROM_CONTENT=$(nhash "$CLASSIFY_LOCAL_FILE")
+CLASSIFY_REMOTE_FROM_CONTENT=$(bash "$NORMALISE" --stdin <"$CLASSIFY_REMOTE_FILE" | hash_sha256_stdin)
+CLASSIFY_STALE_HASH="stale-hash-that-can-never-match-anything-real"
 
-echo "Test: remote edited (updated differs + body differs), local unchanged → remotely-modified"
-RBODY2="$TMPDIR_BASE/eng-remote2.md"
-printf '# Do the thing\n\nRemotely rewritten.\n' >"$RBODY2"
-assert_eq "remotely-modified" "remotely-modified" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
-    --remote-body-file "$RBODY2")"
+CLASSIFY_REAL_MTIME=$(stat -f %m "$CLASSIFY_LOCAL_FILE" 2>/dev/null) ||
+  CLASSIFY_REAL_MTIME=$(stat -c %Y "$CLASSIFY_LOCAL_FILE")
 
-echo "Test: both sides changed → conflict"
-assert_eq "conflict" "conflict" \
-  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
-    --remote-body-file "$RBODY2")"
+# Resolves one of the three symbolic hash values against the shared content.
+# ⚠️ Fabricated digests are not executable by bash: "from-content" always
+# runs the real recipe, never a literal placeholder string.
+classify_resolve_hash() {
+  case "$1" in
+    absent) printf '' ;;
+    stale) printf '%s' "$CLASSIFY_STALE_HASH" ;;
+    from-content) printf '%s' "$2" ;;
+    *)
+      echo "classify_resolve_hash: unknown symbol: $1" >&2
+      return 1
+      ;;
+  esac
+}
 
-echo "Test: remote updated EQUAL → unchanged without a body (trusted short-circuit)"
-# No --remote-body-file supplied; equality alone resolves the remote side.
-assert_eq "synced (no body fetched)" "synced" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+# Resolves a {kind, value} timestamp object to bash's flat --remote-updated
+# string. not_reported and not_read both collapse to empty — bash cannot
+# distinguish them, which is exactly why the rows pinning that distinction
+# are rust-only.
+classify_resolve_timestamp() {
+  local kind value
+  kind=$(printf '%s' "$1" | jq -r '.kind')
+  case "$kind" in
+    reported)
+      value=$(printf '%s' "$1" | jq -r '.value')
+      # The fixture's own literal placeholder tokens, not shell expansion.
+      # shellcheck disable=SC2016
+      case "$value" in
+        '$R') printf '%s' "$CLASSIFY_BASE_REPORTED" ;;
+        '$T') printf '%s' "$CLASSIFY_BASE_TICKED" ;;
+        *) printf '%s' "$value" ;;
+      esac
+      ;;
+    not_reported | not_read) printf '' ;;
+    *)
+      echo "classify_resolve_timestamp: unknown kind: $kind" >&2
+      return 1
+      ;;
+  esac
+}
 
-echo "Test: remote body matches baseline hash despite a ticked updated → synced"
-assert_eq "label/transition-only remote tick → synced" "synced" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "2026-12-01T00:00:00.000+0000" \
-    --remote-body-file "$RBODY")"
+CLASSIFY_RAN=0
+# Read by redirect, never a pipeline: `jq … | while read` runs the loop body
+# in a subshell, discarding every PASS/FAIL update this harness makes.
+while IFS= read -r CLASSIFY_CASE; do
+  CLASSIFY_APPLIES_BASH=$(printf '%s' "$CLASSIFY_CASE" |
+    jq -r 'any(.applies_to[]; . == "bash")')
+  [ "$CLASSIFY_APPLIES_BASH" = "true" ] || continue
+  CLASSIFY_RAN=$((CLASSIFY_RAN + 1))
 
-echo "Test: whitespace-only local + updated-only remote delta → synced (AC)"
-EFILE_WS="$TMPDIR_BASE/eng-item-ws.md"
-write_item "$EFILE_WS"
-perl -pi -e 's/$/   /' "$EFILE_WS"
-assert_eq "whitespace-equivalent local stays synced" "synced" \
-  "$(classify --file "$EFILE_WS" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+  CLASSIFY_NAME=$(printf '%s' "$CLASSIFY_CASE" | jq -r '.name')
+  CLASSIFY_EXTERNAL_ID=$(printf '%s' "$CLASSIFY_CASE" | jq -r '.external_id')
+  CLASSIFY_PRESENCE=$(printf '%s' "$CLASSIFY_CASE" | jq -r '.presence')
+  CLASSIFY_EXPECT=$(printf '%s' "$CLASSIFY_CASE" | jq -r '.expect')
 
-echo "Test: mtime pre-filter short-circuits to unchanged (pure integer compare)"
-# Edited content, but mtime ≤ timestamp → advisory short-circuit declares the
-# local side unchanged without hashing.
-E_MTIME=$(stat -f %m "$EFILE_ED" 2>/dev/null) ||
-  E_MTIME=$(stat -c %Y "$EFILE_ED")
-TS_FUTURE=$((E_MTIME + 100000))
-assert_eq "old mtime ≤ timestamp → local unchanged → synced" "synced" \
-  "$(classify --file "$EFILE_ED" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp "$TS_FUTURE" --remote-status present --remote-updated "$R_UPDATED")"
+  if [ "$CLASSIFY_PRESENCE" != "present" ]; then
+    CLASSIFY_ACTUAL=$(classify --file "$CLASSIFY_LOCAL_FILE" \
+      --external-id "$CLASSIFY_EXTERNAL_ID" --baseline "" --timestamp 0 \
+      --remote-status "$CLASSIFY_PRESENCE")
+    assert_eq "$CLASSIFY_NAME" "$CLASSIFY_EXPECT" "$CLASSIFY_ACTUAL"
+    continue
+  fi
 
-echo "Test: no external_id → presence-only (unsynced), even with a baseline entry"
-assert_eq "unsynced (5th branch)" "unsynced" \
-  "$(classify --file "$EFILE" --external-id "" --baseline "$ENTRY" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED")"
+  CLASSIFY_REMOTE_UPDATED_JSON=$(printf '%s' "$CLASSIFY_CASE" | jq -c '.remote_updated')
+  CLASSIFY_REMOTE_UPDATED=$(classify_resolve_timestamp "$CLASSIFY_REMOTE_UPDATED_JSON")
 
-echo "Test: tracked but absent from a successful fetch → remote-absent"
-assert_eq "remote-absent" "remote-absent" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status absent)"
+  CLASSIFY_MTIME_OFFSET=$(printf '%s' "$CLASSIFY_CASE" | jq -r '.mtime_offset')
+  CLASSIFY_TIMESTAMP=$((CLASSIFY_REAL_MTIME - CLASSIFY_MTIME_OFFSET))
 
-echo "Test: failed/timed-out remote read → indeterminate (distinct from absent)"
-assert_eq "indeterminate" "indeterminate" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "$ENTRY" \
-    --timestamp 0 --remote-status indeterminate)"
+  CLASSIFY_WITH_REMOTE_BODY=$(printf '%s' "$CLASSIFY_CASE" |
+    jq -r '.with_remote_body // false')
 
-echo "Test: first-sync (external_id, no baseline) both-ahead → conflict, not synced"
-assert_eq "first-sync full contract → conflict" "conflict" \
-  "$(classify --file "$EFILE" --external-id ENG-7 --baseline "" \
-    --timestamp 0 --remote-status present --remote-updated "$R_UPDATED" \
-    --remote-body-file "$RBODY2")"
+  CLASSIFY_BASELINE_UPDATED_JSON=$(printf '%s' "$CLASSIFY_CASE" |
+    jq -c '.baseline.remote_updated_at')
+  CLASSIFY_BASELINE_UPDATED=$(classify_resolve_timestamp "$CLASSIFY_BASELINE_UPDATED_JSON")
+  CLASSIFY_BASELINE_REMOTE_SYMBOL=$(printf '%s' "$CLASSIFY_CASE" |
+    jq -r '.baseline.remote_hash')
+  CLASSIFY_BASELINE_LOCAL_SYMBOL=$(printf '%s' "$CLASSIFY_CASE" |
+    jq -r '.baseline.local_hash')
+  CLASSIFY_BASELINE_REMOTE_HASH=$(classify_resolve_hash \
+    "$CLASSIFY_BASELINE_REMOTE_SYMBOL" "$CLASSIFY_REMOTE_FROM_CONTENT")
+  CLASSIFY_BASELINE_LOCAL_HASH=$(classify_resolve_hash \
+    "$CLASSIFY_BASELINE_LOCAL_SYMBOL" "$CLASSIFY_LOCAL_FROM_CONTENT")
+
+  CLASSIFY_ENTRY=$(jq -cn \
+    --arg ru "$CLASSIFY_BASELINE_UPDATED" \
+    --arg rh "$CLASSIFY_BASELINE_REMOTE_HASH" \
+    --arg lh "$CLASSIFY_BASELINE_LOCAL_HASH" \
+    '{remote_updated_at: $ru, remote_hash: $rh, local_hash: $lh}')
+
+  if [ "$CLASSIFY_WITH_REMOTE_BODY" = "true" ]; then
+    CLASSIFY_ACTUAL=$(classify --file "$CLASSIFY_LOCAL_FILE" \
+      --external-id "$CLASSIFY_EXTERNAL_ID" --baseline "$CLASSIFY_ENTRY" \
+      --timestamp "$CLASSIFY_TIMESTAMP" --remote-status present \
+      --remote-updated "$CLASSIFY_REMOTE_UPDATED" \
+      --remote-body-file "$CLASSIFY_REMOTE_FILE")
+  else
+    CLASSIFY_ACTUAL=$(classify --file "$CLASSIFY_LOCAL_FILE" \
+      --external-id "$CLASSIFY_EXTERNAL_ID" --baseline "$CLASSIFY_ENTRY" \
+      --timestamp "$CLASSIFY_TIMESTAMP" --remote-status present \
+      --remote-updated "$CLASSIFY_REMOTE_UPDATED")
+  fi
+
+  assert_eq "$CLASSIFY_NAME" "$CLASSIFY_EXPECT" "$CLASSIFY_ACTUAL"
+done < <(jq -c '.cases[]' "$CLASSIFY_FIXTURE")
+
+if [ "$CLASSIFY_RAN" -eq "$CLASSIFY_EXPECTED_BASH_CASES" ]; then
+  echo "  PASS: ran $CLASSIFY_RAN bash-applicable classify rows (expected $CLASSIFY_EXPECTED_BASH_CASES)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ran $CLASSIFY_RAN bash-applicable classify rows, expected $CLASSIFY_EXPECTED_BASH_CASES"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 
@@ -419,7 +496,10 @@ echo "=== work-item-sync-decide.sh — (mode × state) decision table ==="
 echo ""
 
 DECIDE="$SCRIPT_DIR/work-item-sync-decide.sh"
-dec() { bash "$DECIDE" decide --mode "$1" --state "$2" ${3:+--dirty "$3"}; }
+DECIDE_GOLDEN="$SCRIPT_DIR/test-fixtures/work-item-sync-decide.golden"
+DECIDE_EXPECTED_ROWS=24
+TOKEN_EXPECTED_ROWS=5
+dec() { bash "$DECIDE" decide --mode "$1" --state "$2" --dirty "$3"; }
 
 echo "Test: mode resolution and the mutually-exclusive guard"
 assert_eq "no flags → bidirectional" "bidirectional" "$(bash "$DECIDE" mode)"
@@ -428,40 +508,77 @@ assert_eq "--pull-only" "pull-only" "$(bash "$DECIDE" mode --pull-only)"
 assert_exit_code "--push-only + --pull-only → error" 2 \
   bash "$DECIDE" mode --push-only --pull-only
 
-echo "Test: synced/unsynced/indeterminate/remote-absent → noop in every mode"
-for m in bidirectional push-only pull-only; do
-  for s in synced unsynced indeterminate remote-absent; do
-    assert_eq "$m/$s → noop" "noop" "$(dec "$m" "$s")"
-  done
-done
+# Shared table with cli/work/tests/sync_decide.rs. [DECIDE_RUST_ONLY] rows are
+# skipped here: bash's only dirtiness test is `[ "$dirty" = "1" ]`, so the
+# correct "unknown decides as dirty" behaviour is inexpressible in bash.
+decide_unescape_token() {
+  local raw="$1"
+  if [ "$raw" = "(empty)" ]; then
+    printf ''
+  else
+    printf '%s' "${raw//(nbsp)/$(printf '\xc2\xa0')}"
+  fi
+}
 
-echo "Test: locally-modified pushes except under --pull-only (forbidden write)"
-assert_eq "bidi local-ahead → push" "push" "$(dec bidirectional locally-modified)"
-assert_eq "push-only local-ahead → push" "push" "$(dec push-only locally-modified)"
-assert_eq "pull-only local-ahead → noop (no push)" "noop" "$(dec pull-only locally-modified)"
+echo "Test: the (mode × state × dirty) table and the token resolver"
+DECIDE_RAN=0
+TOKEN_RAN=0
+DECIDE_SECTION=""
+# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
+# updates are not lost to a subshell.
+while IFS= read -r DECIDE_LINE; do
+  case "$DECIDE_LINE" in
+    \#* | "") continue ;;
+    "[DECIDE]")
+      DECIDE_SECTION="decide"
+      continue
+      ;;
+    "[DECIDE_RUST_ONLY]")
+      DECIDE_SECTION="rust_only"
+      continue
+      ;;
+    "[TOKEN]")
+      DECIDE_SECTION="token"
+      continue
+      ;;
+    "[TOKEN_RUST_ONLY]")
+      DECIDE_SECTION="token_rust_only"
+      continue
+      ;;
+  esac
 
-echo "Test: remotely-modified pulls except under --push-only; dirty routes safely"
-assert_eq "bidi remote-ahead clean → pull" "pull" "$(dec bidirectional remotely-modified 0)"
-assert_eq "pull-only remote-ahead clean → pull" "pull" "$(dec pull-only remotely-modified 0)"
-assert_eq "push-only remote-ahead → noop (no pull)" "noop" "$(dec push-only remotely-modified 0)"
-assert_eq "bidi remote-ahead dirty → prompt" "prompt" "$(dec bidirectional remotely-modified 1)"
-assert_eq "pull-only remote-ahead dirty → skip-dirty" "skip-dirty" "$(dec pull-only remotely-modified 1)"
+  case "$DECIDE_SECTION" in
+    decide)
+      IFS='|' read -r D_MODE D_STATE D_DIRTY D_EXPECTED <<<"$DECIDE_LINE"
+      DECIDE_RAN=$((DECIDE_RAN + 1))
+      assert_eq "$D_MODE/$D_STATE/dirty=$D_DIRTY" "$D_EXPECTED" \
+        "$(dec "$D_MODE" "$D_STATE" "$D_DIRTY")"
+      ;;
+    rust_only | token_rust_only) ;;
+    token)
+      IFS='|' read -r T_RAW T_EXPECTED <<<"$DECIDE_LINE"
+      TOKEN_RAN=$((TOKEN_RAN + 1))
+      T_TOKEN=$(decide_unescape_token "$T_RAW")
+      assert_eq "token '$T_RAW'" "$T_EXPECTED" \
+        "$(bash "$DECIDE" resolve-conflict-token "$T_TOKEN")"
+      ;;
+  esac
+done <"$DECIDE_GOLDEN"
 
-echo "Test: conflict prompts in bidirectional, reports+skips in directional modes"
-assert_eq "bidi conflict → prompt" "prompt" "$(dec bidirectional conflict)"
-assert_eq "push-only conflict → skip-conflict" "skip-conflict" "$(dec push-only conflict)"
-assert_eq "pull-only conflict → skip-conflict" "skip-conflict" "$(dec pull-only conflict)"
-
-echo "Test: resolve-conflict-token maps the destructive choice safely"
-assert_eq "remote → accept-remote" "accept-remote" \
-  "$(bash "$DECIDE" resolve-conflict-token '  REMOTE ')"
-assert_eq "local → push-local" "push-local" \
-  "$(bash "$DECIDE" resolve-conflict-token local)"
-assert_eq "skip → skip" "skip" "$(bash "$DECIDE" resolve-conflict-token skip)"
-assert_eq "empty → skip (never destructive)" "skip" \
-  "$(bash "$DECIDE" resolve-conflict-token '')"
-assert_eq "unrecognised → skip (never destructive)" "skip" \
-  "$(bash "$DECIDE" resolve-conflict-token frobnicate)"
+if [ "$DECIDE_RAN" -eq "$DECIDE_EXPECTED_ROWS" ]; then
+  echo "  PASS: ran $DECIDE_RAN decide rows (expected $DECIDE_EXPECTED_ROWS)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ran $DECIDE_RAN decide rows, expected $DECIDE_EXPECTED_ROWS"
+  FAIL=$((FAIL + 1))
+fi
+if [ "$TOKEN_RAN" -eq "$TOKEN_EXPECTED_ROWS" ]; then
+  echo "  PASS: ran $TOKEN_RAN token rows (expected $TOKEN_EXPECTED_ROWS)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ran $TOKEN_RAN token rows, expected $TOKEN_EXPECTED_ROWS"
+  FAIL=$((FAIL + 1))
+fi
 
 echo ""
 

@@ -12,3 +12,7 @@ workspace = true
 [dependencies]
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
+tracker = { path = "../tracker" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

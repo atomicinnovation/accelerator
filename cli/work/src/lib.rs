@@ -11,6 +11,7 @@ pub mod own_identity;
 pub mod resolve;
 pub mod section_diff;
 pub mod show;
+pub mod sync;
 pub mod tags;
 pub mod template_hints;
 pub mod update;
