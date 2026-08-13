@@ -18,10 +18,14 @@ bash-parity = []
 [dependencies]
 work = { path = "../work" }
 kernel = { path = "../kernel" }
+tracker = { path = "../tracker" }
+corpus = { path = "../corpus" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
+sha2 = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tracker-test-support = { path = "../tracker-test-support" }

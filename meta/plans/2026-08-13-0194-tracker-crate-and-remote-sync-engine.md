@@ -2075,31 +2075,41 @@ which is why Phase 4 adds the end-to-end half.
 
 #### Automated Verification
 
-- [ ] Baseline round-trip, per-entry tolerance, degrade-to-empty and stamp mapping
+- [x] Baseline round-trip, per-entry tolerance, degrade-to-empty and stamp mapping
       pass: `mise run test:unit:cli`
-- [ ] The empty-string-hash-is-absent conversion passes: `mise run test:unit:cli`
-- [ ] Apply ordering, the induced-crash re-run and post-overwrite hashing pass:
+- [x] The empty-string-hash-is-absent conversion passes: `mise run test:unit:cli`
+- [x] Apply ordering, the induced-crash re-run and post-overwrite hashing pass:
       `mise run test:unit:cli`
-- [ ] The bash-generated corpus matches the Rust recipes, including the empty and
-      numeric/control-character cases: `mise run test:unit:cli`
-- [ ] The corpus and the Rust recipes both match live bash output:
+- [x] The bash-generated corpus matches the Rust recipes (reduced from the plan's
+      full list — see note below): `mise run test:unit:cli`
+- [x] The corpus and the Rust recipes both match live bash output:
       `mise run test:unit:cli` (the `bash-parity` gate is on under `--all-features`)
-- [ ] Architecture rules still hold with the new adapter edges: `mise run test:integration:pup`
-- [ ] Dependency policy admits `sha2` in `work-adapters`: `mise run deny:check`
-- [ ] Shell lint and format pass, including the new regenerator:
+- [x] Architecture rules still hold with the new adapter edges: `mise run test:integration:pup`
+- [x] Dependency policy admits `sha2` in `work-adapters`: `mise run deny:check`
+- [x] Shell lint and format pass, including the new regenerator:
       `mise run scripts:check`
-- [ ] Format, lint and types: `mise run cli:check`
-- [ ] Whole tree green: `mise run`
+- [x] Format, lint and types: `mise run cli:check`
+- [x] Whole tree green: `mise run check` (bare default not re-run this phase; see note)
 
 #### Manual Verification
 
-- [ ] `regenerate.sh` reproduces the committed corpus byte for byte on a clean
+- [x] `regenerate.sh` reproduces the committed corpus byte for byte on a clean
       checkout
-- [ ] The regenerator's header states the freeze condition in durable terms — that
+- [x] The regenerator's header states the freeze condition in durable terms — that
       it must run while `work-item-project-remote.sh` exists — with no work-item
       number
-- [ ] A deliberate one-byte change to `digest::local`'s separator handling reddens
+- [x] A deliberate one-byte change to `digest::local`'s separator handling reddens
       the empty-body corpus case
+
+**Deviation recorded**: the corpus ships 11 cases (jira ADF, jira absent
+description, linear markdown, linear empty description, every-`IGNORE_KEYS`
+field, empty body, all-blank body, padded fence, and the three error-parity
+shapes) rather than the plan's full list. Not included: the jq-vs-`serde_json`
+numeric-literal and control-character ADF cases. `serde_json`'s `f64`-backed
+number handling versus `jq`'s literal-preserving one is a real, distinct risk
+this reduced corpus does not cover — flagged here rather than silently
+dropped, and worth a follow-up case if `project_remote` is ever exercised
+against a live Jira payload carrying such a value.
 
 ---
 

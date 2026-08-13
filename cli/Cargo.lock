@@ -5432,9 +5432,13 @@ dependencies = [
 name = "work-adapters"
 version = "1.24.0-pre.38"
 dependencies = [
+ "corpus",
  "kernel",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
+ "tracker",
+ "tracker-test-support",
  "vcs",
  "vcs-adapters",
  "work",
