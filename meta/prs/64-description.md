@@ -8,7 +8,7 @@ producer: describe-pr
 status: complete
 work_item_id: "0196"
 parent: "work-item:0196"
-relates_to: ["work-item:0205", "work-item:0206", "work-item:0207", "work-item:0208"]
+relates_to: ["work-item:0206", "work-item:0207", "work-item:0208", "work-item:0209"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/64"
 pr_number: 64
 tags: [rust, design, cli, sub-binary, executor, playwright]
@@ -94,6 +94,6 @@ The first three are migration defects. The fourth was already in the retained da
 
 **Residue found by validation, three of four now closed.** The dangling-call-site guard the plan promised but never landed is built; the two dead `allowed-tools` grants it catches are removed; and the migration checklist's thirteen references to five nonexistent test names are corrected, so all 63 Rust tests it cites resolve. Still open, and deliberately: `evals/benchmark.json` grades against deleted scripts, which sits outside the plan's stated documentation scope of `docs-site/`, `README.md` and `CHANGELOG.md`.
 
-**Follow-ups raised:** 0205 (the header-auth path is imported and never called, while documented as security-critical — documentation corrected here, wiring deferred), 0206 (`navigate` URLs are unclassified, so this hardens the front door and not the navigation surface), 0207 (credential scanning is literal-substring only), 0208 (the runtime test lane runs in no build — six of the defects above hid behind that).
+**Follow-ups raised:** 0206 (`navigate` URLs are unclassified, so this hardens the front door and not the navigation surface), 0207 (credential scanning is literal-substring only), 0208 (the runtime test lane runs in no build — six of the defects above hid behind that), 0209 (the header-auth path is imported and never called, while documented as security-critical — documentation corrected here, wiring deferred).
 
 **For whoever takes the sibling plan:** its stated edit set is now wrong. It reserved `test-design.sh`'s `SKILL=` assignment and an `SC2016` comment as adjacency traps to leave behind; both were re-homed into the frontmatter-conformance suite anyway, and `test-design.sh` is down to 13 lines. It also still owes the `_EXPECTED_CONFIG_SUITES` 15→14 move in the same change that deletes that file.

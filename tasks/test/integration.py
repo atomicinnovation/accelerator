@@ -39,8 +39,9 @@ _ABSOLUTE_VCS_PATHS = (
 # linkage validators retired in favour of `accelerator corpus`. Dropped to 15
 # as the meta-directory migration engine's interactive wire-protocol harness
 # retired in favour of the native accelerator-migrate port. Raised to 16 to
-# correct a floor left one behind the real discovered count.
-_EXPECTED_CONFIG_SUITES = 16
+# correct a floor left one behind the real discovered count. Dropped to 15 as
+# test-metadata-helpers.sh retired with the shell metadata helpers.
+_EXPECTED_CONFIG_SUITES = 15
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the

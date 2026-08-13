@@ -57,7 +57,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-design"
-version = "1.24.0-pre.36"
+version = "1.24.0-pre.38"
 dependencies = [
  "clap",
  "config",
@@ -1028,14 +1028,14 @@ dependencies = [
 
 [[package]]
 name = "design"
-version = "1.24.0-pre.36"
+version = "1.24.0-pre.38"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "design-adapters"
-version = "1.24.0-pre.36"
+version = "1.24.0-pre.38"
 dependencies = [
  "design",
  "kernel",
@@ -3546,7 +3546,7 @@ dependencies = [
 
 [[package]]
 name = "process-probe"
-version = "1.24.0-pre.36"
+version = "1.24.0-pre.38"
 dependencies = [
  "libc",
 ]
