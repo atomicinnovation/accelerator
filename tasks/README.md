@@ -325,6 +325,23 @@ deliberately **not** under `bin/`, which is the launcher's live cache root whose
 entry set is itself an integrity witness. Delete it by hand only as a last
 resort; `mise run measure:teardown` is the supported path.
 
+**Before a real run, rehearse.** `mise run measure:warm-dispatch -- --rehearse`
+drives the whole path — recovery, fixture, both farms, floors, pilot, sampling,
+the composition budget and teardown — at a token sample count, records the
+violations it would otherwise refuse on, and stamps its record non-gating. It is
+a smoke run and never evidence; its record is gitignored for that reason.
+
+**The composition budget.** `close_the_budget` sums seven measured terms and
+reports the residual against `max(±1.5 ms, propagated)`. Sub-operations of a
+summed term — `verifier::sha256_hex` and `TrustedKeys::verifies` are both inside
+`reverify` — are recorded as context and never summed, or the budget would
+double-count them. The residual is expected to be **negative and outside the
+band**: the bootstrap's shell logic beyond bash startup and the two
+`sha256_file` calls is not separately measurable without editing the script, so
+it shows up as an unattributed share rather than being hidden inside a derived
+term. That share is reported as `uncross_checked_fraction`, which is the honest
+form of the limitation.
+
 ### Criterion constants
 
 The pre-registered numbers a run is judged by, held in lockstep with

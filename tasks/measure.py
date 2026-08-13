@@ -104,6 +104,11 @@ WALL_CLOCK_BUDGET_S = 2100.0
 FLOOR_RETRY_CAP = 3
 SEED = 20260813
 SMOKE_N = 2
+REHEARSAL_N = 8
+# Per-term and per-floor sample counts. Not gate constants: they set how
+# precisely a recorded figure is known, not what it is judged against.
+FLOOR_SAMPLES = 50
+TERM_SAMPLES = 200
 
 # The published digest of the release verification key. Comparing against a
 # published value — not the act of recording a digest — is what detects a key
@@ -155,6 +160,7 @@ PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
             "realpath",
             "rm",
             "sed",
+            "sha256sum",
             "shasum",
             "sort",
             "tr",
@@ -1044,11 +1050,17 @@ def _entry_for(platform_key: tuple[str, str]) -> PlatformEntry | None:
 
 @task(name="warm-dispatch")
 def warm_dispatch(
-    context: Context, platform_key: str | None = None, blocks: str = "AB"
+    context: Context,
+    platform_key: str | None = None,
+    blocks: str = "AB",
+    rehearse: bool = False,
 ) -> None:
     """Measure warm-dispatch latency against the shell baseline.
 
     Needs a quiet host, a pinned `PATH`, network egress and several minutes.
+    `--rehearse` drives the whole path at a token sample count and stamps its
+    record non-gating, so the operator can check the session works before
+    committing to one that counts — it is a smoke run, never evidence.
     """
     del context
     key, source = resolve_platform_key(
@@ -1061,7 +1073,7 @@ def warm_dispatch(
             "no calibrated entry for this platform key — figures will be "
             "recorded as uncalibrated context, never a verdict (branch 7)"
         )
-    run_session(REPO_ROOT, entry=entry, blocks=blocks)
+    run_session(REPO_ROOT, entry=entry, blocks=blocks, rehearse=rehearse)
 
 
 @task
@@ -1356,25 +1368,36 @@ def build_rig(
 
 
 def check_preconditions(
-    plugin_root: Path, session: MeasurementSession, rig: Rig
+    plugin_root: Path,
+    session: MeasurementSession,
+    rig: Rig,
+    *,
+    strict: bool = True,
 ) -> dict[str, object]:
     """Assert every pre-sampling condition and return what was observed.
 
     Failures here are branch 5a: no figures are produced, because a session
     that cannot establish its own conditions has not measured the thing the
-    criterion names.
+    criterion names. A rehearsal passes `strict=False` and records the
+    violations instead — its record is stamped non-gating, so nothing it
+    produces can be mistaken for evidence.
     """
+    violations: list[str] = []
+
+    def refuse(reason: str) -> None:
+        if strict:
+            raise PreconditionFailureError(reason)
+        violations.append(reason)
+
     observed_keys = sorted(
         key for key in session.host.env() if key.startswith("ACCELERATOR_")
     )
     offenders = accelerator_override_keys(session.host.env())
     if offenders:
-        raise PreconditionFailureError(
-            f"ACCELERATOR_* overrides are set: {offenders}"
-        )
+        refuse(f"ACCELERATOR_* overrides are set: {offenders}")
     ambient_root = session.host.env().get("CLAUDE_PLUGIN_ROOT")
     if ambient_root and Path(ambient_root).resolve() != plugin_root.resolve():
-        raise PreconditionFailureError(
+        refuse(
             f"the driving session dispatches against {ambient_root}, not "
             f"{plugin_root} — every integrity witness would point at one root "
             f"while the interfering session wrote the other"
@@ -1382,17 +1405,19 @@ def check_preconditions(
     observed_jj = session.diagnostics(["jj", "--version"])
     pinned = jj_pin(plugin_root)
     if pinned not in observed_jj:
-        raise PreconditionFailureError(
+        refuse(
             f"jj {observed_jj!r} is not the mise.toml pin {pinned} — the "
             f"fixture's colocation flag is justified by that release's default"
         )
     others = concurrent_sessions(session.diagnostics)
     if others:
-        raise PreconditionFailureError(
+        refuse(
             f"other Claude Code sessions are active against this plugin root: "
             f"{others}"
         )
     return {
+        "violations": violations,
+        "concurrent_sessions": others,
         "accelerator_env_keys": observed_keys,
         "dev_launcher_marker": (
             plugin_root / ".accelerator-dev-launcher"
@@ -1452,6 +1477,7 @@ def run_session(
     blocks: str = "AB",
     runner: MeasurementRunner = subprocess_measurement_runner,
     record_path: Path | None = None,
+    rehearse: bool = False,
 ) -> dict[str, object]:
     """Drive one recorded session end to end and return its record.
 
@@ -1461,10 +1487,12 @@ def run_session(
     """
     started = time.perf_counter()
     tools = entry.path_tools if entry else ("bash", "jj", "true")
-    record: dict[str, object] = {"blocks": blocks}
+    record: dict[str, object] = {"blocks": blocks, "gating": not rehearse}
     with MeasurementSession(plugin_root) as session:
         rig = build_rig(session, plugin_root, tools=tools, runner=runner)
-        record["preconditions"] = check_preconditions(plugin_root, session, rig)
+        record["preconditions"] = check_preconditions(
+            plugin_root, session, rig, strict=not rehearse
+        )
         record["quietness"] = quietness(session.host, entry)
         record["tools"] = {
             "fast": tool_provenance(rig.fast_farm, session.diagnostics),
@@ -1490,8 +1518,9 @@ def run_session(
                 "there is nothing to gate; re-run with --platform-key or add "
                 "an entry"
             )
-        record["floors_pre"] = gate_floors(entry, rig, runner, when="pre")
-        if not record["floors_pre"]["holds"]:  # type: ignore[index]
+        floors_pre = gate_floors(entry, rig, runner, when="pre")
+        record["floors_pre"] = floors_pre
+        if not floors_pre["holds"] and not rehearse:
             raise PreconditionFailureError(
                 "the instrument floors did not clear their gate in three "
                 "recorded attempts — the host is not quiet (branch 5a)"
@@ -1505,7 +1534,7 @@ def run_session(
             env=rig.environments[Variant.FAST],
         )
 
-        sizes, pilot = run_pilot(rig, runner, blocks=blocks)
+        sizes, pilot = run_pilot(rig, runner, blocks=blocks, rehearse=rehearse)
         record["pilot"] = pilot
         samples = sample_blocks(
             rig,
@@ -1518,12 +1547,12 @@ def run_session(
         record["floors_post"] = gate_floors(entry, rig, runner, when="post")
         record["dispersion"] = dispersion(samples)
         record["terms"] = close_the_budget(
-            plugin_root, rig, runner, samples=samples
+            plugin_root, rig, runner, samples=samples, floors=floors_pre
         )
         outcomes, analysis = analyse(
             entry,
             samples,
-            floors=record["floors_pre"],  # type: ignore[arg-type]
+            floors=floors_pre,
             elapsed=time.perf_counter() - started,
         )
         record["analysis"] = analysis
@@ -1536,7 +1565,9 @@ def run_session(
             Validity.INVALID_POST_RUN
         )
     destination = record_path or (
-        plugin_root / "meta/measurements/warm-dispatch.json"
+        plugin_root
+        / "meta/measurements"
+        / ("warm-dispatch-rehearsal.json" if rehearse else "warm-dispatch.json")
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(record, indent=2, default=str))
@@ -1573,7 +1604,11 @@ def observed_dirname_spawns(rig: Rig) -> int:
 
 
 def run_pilot(
-    rig: Rig, runner: MeasurementRunner, *, blocks: str
+    rig: Rig,
+    runner: MeasurementRunner,
+    *,
+    blocks: str,
+    rehearse: bool = False,
 ) -> tuple[dict[str, int], dict[str, object]]:
     """Size the run from an in-session pilot whose samples are then discarded.
 
@@ -1582,20 +1617,20 @@ def run_pilot(
     rule. A size-up recomputes n from the **same** targets, never a relaxed
     one, and is bounded by the same caps as the run it sizes.
     """
+    pilot_pairs = REHEARSAL_N if rehearse else PILOT_PAIRS
     pilot = sample_blocks(
         rig,
         runner,
-        block_a_pairs=PILOT_PAIRS,
-        block_b_samples=PILOT_SAMPLES,
+        block_a_pairs=pilot_pairs,
+        block_b_samples=pilot_pairs,
         blocks=blocks,
         started=time.perf_counter(),
         pilot=True,
     )
     rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
-    sizes = {
-        "block_a_pairs": BLOCK_A_PAIRS,
-        "block_b_samples": BLOCK_B_SAMPLES,
-    }
+    floor_a = REHEARSAL_N if rehearse else BLOCK_A_PAIRS
+    floor_b = REHEARSAL_N if rehearse else BLOCK_B_SAMPLES
+    sizes = {"block_a_pairs": floor_a, "block_b_samples": floor_b}
     report: dict[str, object] = {}
     baseline = pilot[Variant.BASELINE]
     fast = pilot[Variant.FAST]
@@ -1609,7 +1644,7 @@ def run_pilot(
             pilot_n=len(baseline),
             cap=BLOCK_A_MAX_PAIRS,
         )
-        sizes["block_a_pairs"] = max(BLOCK_A_PAIRS, needed)
+        sizes["block_a_pairs"] = floor_a if rehearse else max(floor_a, needed)
         report["block_a"] = {
             "achieved_upper_distance": interval.upper_distance,
             "required": needed,
@@ -1630,7 +1665,7 @@ def run_pilot(
             pilot_n=len(fallback),
             cap=BLOCK_B_MAX_SAMPLES,
         )
-        sizes["block_b_samples"] = max(BLOCK_B_SAMPLES, needed)
+        sizes["block_b_samples"] = floor_b if rehearse else max(floor_b, needed)
         report["block_b"] = {
             "achieved_upper_distance": interval.upper_distance,
             "required": needed,
@@ -1653,42 +1688,59 @@ def dispersion(
     }
 
 
+# Terms that compose the warm dispatch, in the order they run. Sub-operations
+# of a listed term (`verifier::sha256_hex` and `TrustedKeys::verifies` are both
+# inside `reverify`) are recorded as context and never summed, or the budget
+# would double-count them into a large negative residual.
+SUMMED_TERMS = (
+    "bash startup",
+    "two sha256_file calls",
+    "shim minisign-verify of the launcher",
+    "launcher startup net of the fork floor",
+    "cache::find",
+    "reverify",
+    "vcs exec and guard work net of the fork floor",
+)
+
+
 def close_the_budget(
     plugin_root: Path,
     rig: Rig,
     runner: MeasurementRunner,
     *,
     samples: Mapping[Variant, Sequence[float]],
+    floors: Mapping[str, object],
 ) -> dict[str, object]:
-    """Re-measure the warm-path terms in-session and report the residual.
+    """Re-measure every warm-path term in-session and report the residual.
+
+    Rather than re-checking closure against a published decomposition: the
+    spike's own numbers carry a visible cross-session mismatch, so roughly half
+    its residual was session difference rather than unattributed cost.
 
     Triggered by the residual's **magnitude**, never its sign: a sum of noisy
     medians lands negative roughly half the time, so a sign trigger would be a
     selection filter as well as an uncapped loop.
     """
     version = plugin_version(plugin_root)
-    terms = decompose_terms(plugin_root, version=version)
-    shim_targets = staged_shim_targets(plugin_root)
-    digest_ms = measure_digest_bracket(
+    launcher_terms = decompose_terms(plugin_root, version=version)
+    true_floor, bash_floor = last_floors(floors)
+    shell_terms = measure_shell_terms(
+        plugin_root,
+        rig,
         runner,
-        farm=rig.fast_farm,
-        cwd=rig.fixture,
-        temp_root=rig.temp_parent,
-        targets=shim_targets,
+        version=version,
+        bash_floor=bash_floor,
+        true_floor=true_floor,
     )
+    terms = {**launcher_terms, **shell_terms}
+    summed = [terms[name] for name in SUMMED_TERMS if name in terms]
     fast = list(samples[Variant.FAST])
-    if not fast:
-        return {"terms": {k: asdict(v) for k, v in terms.items()}}
-    verdict = residual_verdict(
-        list(terms.values()), summarise(fast).median, attempts_used=0
-    )
-    cross_checked = sum(term.point for term in terms.values())
-    observed = summarise(fast).median
-    return {
+    report: dict[str, object] = {
         "terms": {name: asdict(term) for name, term in terms.items()},
-        "two_sha256_file_calls_ms": digest_ms,
-        "residual": asdict(verdict),
-        "cross_checked_fraction": cross_checked / observed if observed else 0.0,
+        "summed": [name for name in SUMMED_TERMS if name in terms],
+        "sub_operations_not_summed": [
+            name for name in terms if name not in SUMMED_TERMS
+        ],
         "cache_root_entries": len(
             rig.session.witness.entries(plugin_root / "bin")
         ),
@@ -1698,6 +1750,136 @@ def close_the_budget(
             if path.is_file()
         ),
     }
+    if not fast or not summed:
+        return report
+    observed = summarise(fast).median
+    verdict = residual_verdict(summed, observed, attempts_used=0)
+    report["residual"] = asdict(verdict)
+    report["observed_median_ms"] = observed
+    report["cross_checked_fraction"] = verdict.total / observed
+    report["uncross_checked_fraction"] = 1.0 - (verdict.total / observed)
+    return report
+
+
+def measure_shell_terms(
+    plugin_root: Path,
+    rig: Rig,
+    runner: MeasurementRunner,
+    *,
+    version: str,
+    bash_floor: float,
+    true_floor: float,
+) -> dict[str, Interval]:
+    """Measure the terms that live outside the launcher's library surface.
+
+    Each is a marginal over the fork floor where it is a process launch, so the
+    terms compose against a dispatch that pays that floor exactly once per
+    exec. The two `sha256_file` substitutions are measured **directly** as a
+    `bash -c` bracket: the dual-backend delta is the cross-check on that, not a
+    substitute for it, since the delta yields twice the difference between the
+    backends rather than the absolute cost under the gating configuration.
+    """
+    cache_root = plugin_root / "bin"
+    terms: dict[str, Interval] = {
+        "bash startup": _point(bash_floor),
+        "two sha256_file calls": _point(
+            measure_digest_bracket(
+                runner,
+                farm=rig.fast_farm,
+                cwd=rig.fixture,
+                temp_root=rig.temp_parent,
+                targets=staged_shim_targets(plugin_root),
+            )
+        ),
+    }
+    shim = _newest(cache_root, "accelerator-verify-*-*")
+    launcher = _newest(cache_root, f"accelerator-launcher-{version}-*")
+    subbinary = _newest(cache_root, f"vcs-{version}-*")
+    environment = farm_environment(rig.fast_farm, temp_root=rig.temp_parent)
+    signature = _sidecar(launcher) if launcher else None
+    if shim and launcher and signature and signature.exists():
+        terms["shim minisign-verify of the launcher"] = _point(
+            _marginal(
+                runner,
+                [
+                    str(shim),
+                    str(plugin_root / "keys/accelerator-release.pub"),
+                    str(signature),
+                    str(launcher),
+                ],
+                rig,
+                environment,
+                floor=true_floor,
+            )
+        )
+    if launcher:
+        terms["launcher startup net of the fork floor"] = _point(
+            _marginal(
+                runner,
+                [str(launcher), "--version"],
+                rig,
+                environment,
+                floor=true_floor,
+            )
+        )
+    if subbinary:
+        terms["vcs exec and guard work net of the fork floor"] = _point(
+            _marginal(
+                runner,
+                [str(subbinary), "guard", "--format=hook"],
+                rig,
+                environment,
+                floor=true_floor,
+            )
+        )
+    return terms
+
+
+def _sidecar(binary: Path) -> Path:
+    """Name the detached signature beside a cached entry.
+
+    Appended, never substituted: the cache names entries
+    `<token>-<version>-<digest>`, whose dotted version segment a suffix
+    replacement would eat.
+    """
+    return binary.with_name(binary.name + ".minisig")
+
+
+def _point(value: float) -> Interval:
+    """Wrap a term measured as one figure, with no interval of its own.
+
+    Its zero upper distance contributes nothing to the propagated uncertainty,
+    which is why the residual band carries an absolute floor as well.
+    """
+    return Interval(point=value, lower=value, upper=value)
+
+
+def _newest(root: Path, pattern: str) -> Path | None:
+    matches = sorted(
+        (
+            path
+            for path in root.glob(pattern)
+            if not path.name.endswith(".minisig")
+        ),
+        key=lambda path: path.stat().st_mtime,
+    )
+    return matches[-1] if matches else None
+
+
+def _marginal(
+    runner: MeasurementRunner,
+    argv: Sequence[str],
+    rig: Rig,
+    environment: Mapping[str, str],
+    *,
+    floor: float,
+    samples: int = FLOOR_SAMPLES,
+) -> float:
+    observed = [
+        runner(argv, cwd=rig.fixture, env=environment).elapsed_ms
+        for _ in range(samples)
+    ]
+    return max(0.0, median(observed) - floor)
 
 
 def staged_shim_targets(plugin_root: Path) -> list[Path]:
@@ -2069,9 +2251,6 @@ def percentile_of(values: Sequence[float], quantile: float) -> float:
 
 # --- Instrument floors, provenance and the composition budget -------------
 
-FLOOR_SAMPLES = 50
-TERM_SAMPLES = 200
-
 
 def measure_floors(
     runner: MeasurementRunner,
@@ -2208,25 +2387,51 @@ def measure_digest_bracket(
     )
 
 
+def ancestor_pids(diagnostics: DiagnosticRunner) -> set[int]:
+    """Every pid from this process up to init.
+
+    The driving Claude Code session is an *ancestor* of the harness, several
+    frames up through a shell, so excluding `getpid`/`getppid` alone would
+    leave it counted as a competing session and refuse every run.
+    """
+    pids: set[int] = set()
+    current = os.getpid()
+    while current > 1 and current not in pids:
+        pids.add(current)
+        try:
+            parent = diagnostics(["ps", "-o", "ppid=", "-p", str(current)])
+        except FileNotFoundError, PermissionError:
+            break
+        if not parent.strip().isdigit():
+            break
+        current = int(parent.strip())
+    return pids
+
+
 def concurrent_sessions(diagnostics: DiagnosticRunner) -> list[str]:
-    """List Claude Code processes other than the one driving this run.
+    """List Claude Code sessions other than the one driving this run.
+
+    Matched on the executable *name* being exactly `claude`, not on the command
+    line containing it: a full-command-line match also catches the desktop
+    app's helper processes and any shell command that merely mentions the word,
+    which would refuse a run on most developer machines.
 
     A concurrent session appends to the unverified log and can flip the
     launcher or shim inode, failing the branch witness for a benign reason —
     and an unenforced precondition makes that indistinguishable from tampering.
-    The driving session is excluded by pid, but its *dispatch count* is still
-    recorded: the exclusion suppresses detection of its interference, not the
-    interference itself.
+    The driving session's own ancestry is excluded, but its dispatch count is
+    still recorded: the exclusion suppresses *detection* of its interference,
+    not the interference itself.
     """
     try:
-        listing = diagnostics(["pgrep", "-fl", "claude"])
+        listing = diagnostics(["pgrep", "-x", "claude"])
     except FileNotFoundError, PermissionError:
         return []
-    own = {str(os.getpid()), str(os.getppid())}
+    own = ancestor_pids(diagnostics)
     return [
-        line
+        line.strip()
         for line in listing.splitlines()
-        if line.split(" ", 1)[0] not in own
+        if line.strip().isdigit() and int(line.strip()) not in own
     ]
 
 

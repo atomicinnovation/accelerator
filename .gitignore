@@ -75,6 +75,11 @@ bin/.tmp-*
 # harness itself uses as an integrity witness.
 /.accelerator-measure/
 
+# A rehearsal drives the whole measurement path at a token sample count to
+# prove the session works; its record is stamped non-gating and is never
+# evidence. The real run's record is committed.
+/meta/measurements/warm-dispatch-rehearsal.json
+
 # minisign secret keys must never be committed — the release secret lives in
 # the GitHub release environment; only public keys are tracked.
 *.key
