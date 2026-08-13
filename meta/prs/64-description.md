@@ -14,7 +14,7 @@ pr_number: 64
 tags: [rust, design, cli, sub-binary, executor, playwright]
 revision: "da9b1803d352bf9a3ed64ec924491d0fbe40b5a2"
 repository: "accelerator"
-last_updated: "2026-08-13T14:02:43+00:00"
+last_updated: "2026-08-13T15:24:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -44,6 +44,8 @@ The runtime still comes from where it comes from today — `ensure-playwright.sh
 **One writer for the daemon's identity.** The launcher observes the start time at fork with the same probe it will later check against, and sends pid, start time, provenance and token down a pipe the daemon reads to EOF *before* publishing anything or binding its socket. `state.js` stops computing a start time entirely — Node has no `sysctl` binding, so its Darwin path was always the weakest fallback. A launcher killed mid-handoff now leaves a daemon that logs and exits before creating any Chromium process, rather than an unsupervised one with a partial record.
 
 **`browser-executor` retires** with the path it existed to resolve: both browser agents call `accelerator design executor` as a bare command, since a plugin's `bin/` is on the Bash tool's `PATH`.
+
+🔒 **CI now rejects a design script grant nothing invokes.** Emptying two script directories left their `allowed-tools` grants behind — Bash access to a directory that no longer exists, and to a `playwright/` tree the skill stopped invoking. The conformance suite gains two checks: concrete paths named in a design SKILL.md or browser agent must exist on disk, and every script grant must have a matching call site in its own skill body. The second is what catches the `playwright/` case, where the directory is still present but nothing reaches into it.
 
 **Four ADRs** land as accepted decisions: 0057 (browser automation as a glibc-only capability), 0058 (shell-free CLI-to-Node delegation), and — governing the *sibling* plan rather than this one — 0059 (build-time assembly of vendored artifacts) and 0060 (launcher-resolved tree artifacts).
 
@@ -90,7 +92,7 @@ The first three are migration defects. The fourth was already in the retained da
 - **`cli/design-adapters/src/process.rs`** — the `pre_exec` block: `setsid` (not a double fork, so the launcher keeps the pid it must observe), `umask`, and the `dup2` of the pipe's read end. ⚠️ That `dup2` is a POSIX no-op when the descriptor is already 3, which would leave `FD_CLOEXEC` set and kill the daemon at exec. It works today only because the lock fd and bootstrap log are opened first. Known, not fixed here.
 - **The exit-code asymmetry** — daemon-side errors exit 0 with the envelope on stdout; launcher-level failures go to stderr non-zero. `SKILL.md` discriminates on exactly that, so collapsing it breaks the skill.
 
-**Known residue**, all recorded in the validation report rather than fixed: two `allowed-tools` globs now pointing at directories with no call site; `evals/benchmark.json` still grading against deleted scripts; five migration-checklist rows naming Rust tests under wrong names; and the dangling-call-site CI guard the plan promised but never landed.
+**Residue found by validation, three of four now closed.** The dangling-call-site guard the plan promised but never landed is built; the two dead `allowed-tools` grants it catches are removed; and the migration checklist's thirteen references to five nonexistent test names are corrected, so all 63 Rust tests it cites resolve. Still open, and deliberately: `evals/benchmark.json` grades against deleted scripts, which sits outside the plan's stated documentation scope of `docs-site/`, `README.md` and `CHANGELOG.md`.
 
 **Follow-ups raised:** 0205 (the header-auth path is imported and never called, while documented as security-critical — documentation corrected here, wiring deferred), 0206 (`navigate` URLs are unclassified, so this hardens the front door and not the navigation surface), 0207 (credential scanning is literal-substring only), 0208 (the runtime test lane runs in no build — six of the defects above hid behind that).
 
