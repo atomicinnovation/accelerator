@@ -76,6 +76,7 @@ from tasks.shared.measurement import (
     tmp_containment,
     unchanged_artefacts,
     unpaired_interval,
+    validate_dispatch,
     validate_sample,
 )
 from tasks.shared.paths import REPO_ROOT
@@ -142,31 +143,43 @@ _DARWIN_CALIBRATION = Calibration(
 PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
     ("Darwin", "arm64"): PlatformEntry(
         key="darwin-arm64",
+        # The union of both variants' spawns, derived mechanically from
+        # `bin/accelerator`, the recovered guard and `vcs-common.sh` rather
+        # than transcribed, plus the two floor binaries. A hand-written list
+        # omitted `chmod`, and its absence made the bootstrap's exec probe
+        # report the cache root unwritable — which `--fail-safe` turned into an
+        # exit 0 with empty stdout, the degraded shape that records a
+        # spuriously low latency. `tests/unit/tasks/test_measure.py` re-derives
+        # this set and fails if the scripts gain a spawn it lacks.
         path_tools=(
             "awk",
             "bash",
             "cat",
+            "chmod",
             "cp",
             "curl",
-            "cut",
+            "date",
             "dirname",
+            "git",
             "grep",
             "head",
             "jj",
             "jq",
+            "kill",
             "mkdir",
             "mv",
-            "printf",
+            "readlink",
             "realpath",
             "rm",
+            "rmdir",
             "sed",
             "sha256sum",
             "shasum",
-            "sort",
-            "tr",
+            "sleep",
+            "timeout",
             "true",
             "uname",
-            "wc",
+            "wget",
         ),
         power_probes=(
             ["pmset", "-g", "ps"],
@@ -1044,6 +1057,17 @@ def recover_baseline(
 # --- Tasks ----------------------------------------------------------------
 
 
+def entry_platform() -> str:
+    """Derive the platform alias `bin/accelerator` uses for this host.
+
+    Derived the way the bootstrap derives it, so the cache-entry names this
+    module predicts are the ones it actually writes.
+    """
+    from tasks.shared.targets import host_platform
+
+    return host_platform()
+
+
 def _entry_for(platform_key: tuple[str, str]) -> PlatformEntry | None:
     return platform_constants(platform_key, PLATFORM_TABLE)
 
@@ -1367,6 +1391,37 @@ def build_rig(
     )
 
 
+def warm_cache_gaps(
+    *, version: str, cache_root_entries: Sequence[str], platform: str
+) -> list[str]:
+    """Name what the cache root lacks for a warm dispatch of `version`.
+
+    The cache is keyed by version, so a tree bumped past its last fetch has a
+    full cache and a cold path. Without this check the first dispatch takes the
+    fetch branch, and if anything about that fetch fails `--fail-safe` reports
+    it as an exit 0 with empty stdout — an unexplained degraded sample rather
+    than a named unmet prerequisite.
+    """
+    entries = set(cache_root_entries)
+    gaps = []
+    launcher = f"accelerator-launcher-{version}-{platform}"
+    if launcher not in entries:
+        gaps.append(f"no cached launcher for {version}: expected {launcher}")
+    elif f"{launcher}.minisig" not in entries:
+        gaps.append(f"the cached launcher for {version} has no signature")
+    subbinaries = [
+        entry
+        for entry in entries
+        if entry.startswith(f"vcs-{version}-")
+        and not entry.endswith(".minisig")
+    ]
+    if not subbinaries:
+        gaps.append(f"no cached vcs sub-binary for {version}")
+    elif not any(f"{name}.minisig" in entries for name in subbinaries):
+        gaps.append(f"the cached vcs sub-binary for {version} has no signature")
+    return gaps
+
+
 def check_preconditions(
     plugin_root: Path,
     session: MeasurementSession,
@@ -1409,6 +1464,20 @@ def check_preconditions(
             f"jj {observed_jj!r} is not the mise.toml pin {pinned} — the "
             f"fixture's colocation flag is justified by that release's default"
         )
+    gaps = warm_cache_gaps(
+        version=plugin_version(plugin_root),
+        cache_root_entries=session.witness.entries(plugin_root / "bin"),
+        platform=entry_platform(),
+    )
+    if gaps:
+        refuse(
+            "the cache is cold for this tree's version, so the first dispatch "
+            "would take the fetch branch and any failure in it would surface "
+            "as an unexplained degraded sample: "
+            + "; ".join(gaps)
+            + ". Run `bin/accelerator vcs detect` once to warm it, or check "
+            "that a signed release is published for this version."
+        )
     others = concurrent_sessions(session.diagnostics)
     if others:
         refuse(
@@ -1432,6 +1501,7 @@ def check_preconditions(
         "stdin_envelope": STDIN_ENVELOPE,
         "expected_reason": rig.expected_reason,
         "baseline_commit": BASELINE_COMMIT,
+        "warm_cache_gaps": gaps,
         "recovered_digests": {
             name: expected for name, (_, expected) in RECOVERED_FILES.items()
         },
@@ -1526,13 +1596,32 @@ def run_session(
                 "recorded attempts — the host is not quiet (branch 5a)"
             )
 
-        # A discarded warm-up, so the launcher takes the cache-hit branch from
-        # the first counted sample.
-        runner(
+        # The warm-up is discarded from the figures but **not** from the
+        # assertions: it is the first dispatch through the farm, so if the
+        # environment is wrong it is the cheapest place to find out. Letting it
+        # pass unchecked put the diagnostic 100 subprocesses later, attached to
+        # a sample rather than to the prerequisite that failed.
+        warm_up = runner(
             rig.variants[Variant.FAST],
             cwd=rig.fixture,
             env=rig.environments[Variant.FAST],
         )
+        verdict = validate_dispatch(
+            warm_up.stdout,
+            rig.expected_reason,
+            label="warm-up dispatch",
+            stderr=warm_up.stderr,
+        )
+        record["warm_up"] = {
+            "valid": verdict.valid,
+            "diagnostic": verdict.diagnostic,
+            "elapsed_ms": warm_up.elapsed_ms,
+        }
+        if not verdict.valid:
+            raise PreconditionFailureError(
+                f"the warm-up dispatch did not reach the blocked decision, so "
+                f"no sample would either: {verdict.diagnostic}"
+            )
 
         sizes, pilot = run_pilot(rig, runner, blocks=blocks, rehearse=rehearse)
         record["pilot"] = pilot

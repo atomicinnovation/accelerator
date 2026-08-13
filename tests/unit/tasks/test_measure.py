@@ -58,6 +58,7 @@ from tasks.measure import (
     recovery_argv,
     staged_shim_targets,
     unwind_signals,
+    warm_cache_gaps,
 )
 from tasks.shared.measurement import (
     PLATFORM_KEY_ENV,
@@ -99,6 +100,7 @@ from tasks.shared.measurement import (
     resolve_cpu_count,
     resolve_platform_key,
     retry_budget,
+    spawned_executables,
     subtract_floor,
     summarise,
     thirds,
@@ -1996,3 +1998,160 @@ class TestPluginProvenance:
 
     def test_the_jj_pin_is_read_from_mise_toml(self):
         assert jj_pin(REPO)[0].isdigit()
+
+
+class TestSpawnedExecutables:
+    """The farm's tool set is derived from the scripts, not from memory.
+
+    A hand-written list is how the farm came to be missing `chmod`: the
+    bootstrap's exec probe could not make its probe file executable, so it
+    reported the cache root unwritable, and `--fail-safe` turned that into an
+    exit 0 with empty stdout — the degraded shape that records a spuriously low
+    latency. Enumerating mechanically removes the class of error rather than
+    that instance of it.
+    """
+
+    def test_it_finds_a_command_at_the_start_of_a_pipeline(self):
+        assert "chmod" in spawned_executables("chmod +x /tmp/x\n")
+
+    def test_it_finds_a_command_inside_a_substitution(self):
+        assert "uname" in spawned_executables("arch=$(uname -m)\n")
+
+    def test_it_ignores_a_locally_defined_function(self):
+        text = "sha256_file() {\n  true\n}\nsha256_file /tmp/x\n"
+        assert "sha256_file" not in spawned_executables(text)
+
+    def test_it_ignores_shell_builtins(self):
+        assert spawned_executables("printf '%s' x\nexport A=b\n") == set()
+
+    def test_it_ignores_a_bare_word_in_prose(self):
+        assert spawned_executables("# we give the cache a chance\n") == set()
+
+    def test_the_bootstrap_spawns_nothing_the_farm_lacks(self):
+        text = (REPO / "bin/accelerator").read_text()
+        missing = spawned_executables(text) - set(
+            PLATFORM_TABLE[("Darwin", "arm64")].path_tools
+        )
+        assert not missing, (
+            f"bin/accelerator spawns {sorted(missing)}, absent from the farm — "
+            f"under --fail-safe each absence exits 0 with empty stdout, the "
+            f"degraded shape that records a spuriously low latency"
+        )
+
+    def test_the_recovered_baseline_spawns_nothing_the_farm_lacks(self):
+        tools = set(PLATFORM_TABLE[("Darwin", "arm64")].path_tools)
+        for source, _ in RECOVERED_FILES.values():
+            text = _recovered_text(source)
+            assert not spawned_executables(text) - tools, source
+
+    def test_the_bootstrap_needs_chmod_and_the_farm_has_it(self):
+        # The specific spawn whose absence produced a degraded sample.
+        text = (REPO / "bin/accelerator").read_text()
+        assert "chmod" in spawned_executables(text)
+        assert "chmod" in PLATFORM_TABLE[("Darwin", "arm64")].path_tools
+
+
+def _recovered_text(source: str) -> str:
+    resolved = shutil.which("jj")
+    if resolved is None:
+        pytest.skip("jj not on PATH")
+    completed = subprocess.run(
+        [resolved, "file", "show", "-r", "cf42441e2aad-", source],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+    )
+    if completed.returncode != 0:
+        pytest.skip("the baseline revision is unresolvable here")
+    return completed.stdout
+
+
+class TestDegradedSampleDiagnostic:
+    def test_the_diagnostic_carries_the_dispatch_stderr(self):
+        stderr = (
+            "accelerator: no writable, exec-capable cache directory: "
+            "/repo/bin is not writable"
+        )
+        verdict = validate_sample(
+            LEGACY_BLOCK, "", BLOCK_REASON, variant_stderr=stderr
+        )
+        assert not verdict.valid
+        assert "not writable" in verdict.diagnostic, (
+            "a degraded sample's stderr is its only clue; discarding it turns "
+            "a clear bootstrap message into an unexplained empty envelope"
+        )
+
+    def test_a_valid_sample_needs_no_stderr(self):
+        verdict = validate_sample(
+            LEGACY_BLOCK, deny_envelope(BLOCK_REASON), BLOCK_REASON
+        )
+        assert verdict.valid
+
+    def test_the_baseline_stderr_is_carried_too(self):
+        verdict = validate_sample(
+            "",
+            deny_envelope(BLOCK_REASON),
+            BLOCK_REASON,
+            baseline_stderr="vcs-guard: jq not found",
+        )
+        assert not verdict.valid
+        assert "jq not found" in verdict.diagnostic
+
+    def test_an_empty_stderr_leaves_the_diagnostic_unchanged(self):
+        verdict = validate_sample(LEGACY_BLOCK, "", BLOCK_REASON)
+        assert not verdict.valid
+        assert verdict.diagnostic.endswith("'')")
+
+
+class TestWarmCachePrecondition:
+    def state(self, **overrides):
+        base = {
+            "version": "1.24.0-pre.41",
+            "cache_root_entries": [
+                "accelerator-launcher-1.24.0-pre.41-darwin-arm64",
+                "accelerator-launcher-1.24.0-pre.41-darwin-arm64.minisig",
+                "vcs-1.24.0-pre.41-" + "a" * 64,
+                "vcs-1.24.0-pre.41-" + "a" * 64 + ".minisig",
+            ],
+            "platform": "darwin-arm64",
+        }
+        return {**base, **overrides}
+
+    def test_a_warm_cache_for_this_version_satisfies_it(self):
+        assert warm_cache_gaps(**self.state()) == []
+
+    def test_a_cache_holding_only_an_older_version_is_named_as_the_gap(self):
+        gaps = warm_cache_gaps(
+            **self.state(
+                cache_root_entries=[
+                    "accelerator-launcher-1.24.0-pre.38-darwin-arm64",
+                    "vcs-1.24.0-pre.38-" + "a" * 64,
+                ]
+            )
+        )
+        assert gaps
+        assert any("1.24.0-pre.41" in gap for gap in gaps)
+
+    def test_a_missing_signature_sidecar_is_a_gap(self):
+        gaps = warm_cache_gaps(
+            **self.state(
+                cache_root_entries=[
+                    "accelerator-launcher-1.24.0-pre.41-darwin-arm64",
+                    "vcs-1.24.0-pre.41-" + "a" * 64,
+                ]
+            )
+        )
+        assert gaps
+
+    def test_a_missing_sub_binary_is_a_gap(self):
+        gaps = warm_cache_gaps(
+            **self.state(
+                cache_root_entries=[
+                    "accelerator-launcher-1.24.0-pre.41-darwin-arm64",
+                    "accelerator-launcher-1.24.0-pre.41-darwin-arm64.minisig",
+                ]
+            )
+        )
+        assert gaps
+        assert any("vcs" in gap for gap in gaps)

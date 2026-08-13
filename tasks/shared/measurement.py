@@ -17,6 +17,7 @@ import json
 import math
 import platform
 import random
+import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum, unique
@@ -346,8 +347,52 @@ class SampleVerdict:
     variant: tuple[Decision, str] | None = None
 
 
+def validate_dispatch(
+    raw: str,
+    expected_reason: str,
+    *,
+    label: str,
+    stderr: str = "",
+) -> SampleVerdict:
+    """Assert one dispatch reached the expected blocked decision.
+
+    Used on its own for the warm-up, where only the dispatched variant runs, and
+    pairwise by `validate_sample`. The stderr is carried into the diagnostic
+    because it is the only clue a degraded dispatch has: stdout is empty by
+    construction and the exit code is 0 whether the guard blocked, allowed, or
+    swallowed a failure under `--fail-safe`.
+    """
+    observed = normalise_envelope(raw)
+    noise = stderr.strip()
+    explanation = f"; stderr: {noise[:400]}" if noise else ""
+    if observed[0] is not Decision.BLOCK:
+        return SampleVerdict(
+            valid=False,
+            diagnostic=(
+                f"{label} did not block: normalised to {observed[0]} "
+                f"({observed[1][:120]!r}){explanation}"
+            ),
+            variant=observed,
+        )
+    if observed[1] != expected_reason:
+        return SampleVerdict(
+            valid=False,
+            diagnostic=(
+                f"{label} blocked with an unexpected reason: "
+                f"{observed[1]!r} != {expected_reason!r}"
+            ),
+            variant=observed,
+        )
+    return SampleVerdict(valid=True, diagnostic="", variant=observed)
+
+
 def validate_sample(
-    raw_b: str, raw_g: str, expected_reason: str
+    raw_b: str,
+    raw_g: str,
+    expected_reason: str,
+    *,
+    baseline_stderr: str = "",
+    variant_stderr: str = "",
 ) -> SampleVerdict:
     """Assert both variants produced the same blocked decision on one stdin.
 
@@ -357,25 +402,17 @@ def validate_sample(
     """
     baseline = normalise_envelope(raw_b)
     variant = normalise_envelope(raw_g)
-    for label, observed in (("baseline", baseline), ("variant", variant)):
-        if observed[0] is not Decision.BLOCK:
+    for raw, stderr, label in (
+        (raw_b, baseline_stderr, "baseline"),
+        (raw_g, variant_stderr, "variant"),
+    ):
+        verdict = validate_dispatch(
+            raw, expected_reason, label=label, stderr=stderr
+        )
+        if not verdict.valid:
             return SampleVerdict(
                 valid=False,
-                diagnostic=(
-                    f"{label} did not block: normalised to {observed[0]} "
-                    f"({observed[1][:120]!r})"
-                ),
-                baseline=baseline,
-                variant=variant,
-            )
-    for label, observed in (("baseline", baseline), ("variant", variant)):
-        if observed[1] != expected_reason:
-            return SampleVerdict(
-                valid=False,
-                diagnostic=(
-                    f"{label} blocked with an unexpected reason: "
-                    f"{observed[1]!r} != {expected_reason!r}"
-                ),
+                diagnostic=verdict.diagnostic,
                 baseline=baseline,
                 variant=variant,
             )
@@ -907,3 +944,139 @@ def dirname_spawn_count(trace: str) -> int:
         for line in trace.splitlines()
         if line.lstrip("+ ").split(" ")[0].rsplit("/", 1)[-1] == "dirname"
     )
+
+
+# --- Spawn enumeration ----------------------------------------------------
+
+# Shell keywords and builtins: present in the text but never a `PATH`
+# lookup, so a farm that lacks them is not a farm that changes behaviour.
+_SHELL_WORDS = frozenset(
+    (
+        "break",
+        "builtin",
+        "case",
+        "cd",
+        "command",
+        "continue",
+        "declare",
+        "do",
+        "done",
+        "echo",
+        "elif",
+        "else",
+        "esac",
+        "eval",
+        "exec",
+        "exit",
+        "export",
+        "false",
+        "fi",
+        "for",
+        "function",
+        "getopts",
+        "hash",
+        "if",
+        "in",
+        "jobs",
+        "let",
+        "local",
+        "printf",
+        "pwd",
+        "read",
+        "readonly",
+        "return",
+        "set",
+        "shift",
+        "shopt",
+        "source",
+        "test",
+        "then",
+        "times",
+        "trap",
+        "true",
+        "type",
+        "typeset",
+        "ulimit",
+        "umask",
+        "unset",
+        "until",
+        "wait",
+        "while",
+    )
+)
+
+# Every executable either variant is known to reach. Keeping the vocabulary
+# closed is what makes the enumeration decidable: the alternative is guessing
+# which bare words in comments and error strings are commands.
+_KNOWN_EXECUTABLES = frozenset(
+    (
+        "awk",
+        "basename",
+        "cat",
+        "chmod",
+        "cp",
+        "curl",
+        "cut",
+        "date",
+        "dirname",
+        "find",
+        "git",
+        "grep",
+        "head",
+        "jj",
+        "jq",
+        "kill",
+        "ln",
+        "mkdir",
+        "mv",
+        "readlink",
+        "realpath",
+        "rm",
+        "rmdir",
+        "sed",
+        "sha256sum",
+        "shasum",
+        "sleep",
+        "sort",
+        "stat",
+        "tail",
+        "timeout",
+        "tr",
+        "uname",
+        "wc",
+        "wget",
+        "xargs",
+    )
+)
+
+_COMMAND_POSITION = re.compile(
+    r"""(?:^|\||&&|\|\||;|\$\(|`|\bthen\b|\belse\b|\bdo\b|!\s)\s*
+        ([a-z][a-z0-9_.-]*)""",
+    re.MULTILINE | re.VERBOSE,
+)
+_EXPLICIT_LOOKUP = re.compile(r"command -v ([a-z][a-z0-9_.-]*)")
+
+
+def spawned_executables(text: str) -> set[str]:
+    """Enumerate the external executables a shell script reaches for.
+
+    Derived from the script rather than transcribed, because a hand-written
+    tool set is how the measurement farm came to be missing `chmod`: the
+    bootstrap's exec probe could not chmod its probe file, reported the cache
+    root unwritable, and `--fail-safe` turned that into an exit 0 with empty
+    stdout — the degraded shape that records a spuriously low latency.
+
+    Recognises commands in command position and `command -v` lookups, filtered
+    against a closed vocabulary; locally defined functions are excluded, since
+    they shadow any same-named executable.
+    """
+    functions = set(re.findall(r"^\s*(\w+)\(\)", text, re.MULTILINE))
+    candidates = {match.group(1) for match in _COMMAND_POSITION.finditer(text)}
+    candidates |= set(_EXPLICIT_LOOKUP.findall(text))
+    return {
+        name
+        for name in candidates
+        if name in _KNOWN_EXECUTABLES
+        and name not in _SHELL_WORDS
+        and name not in functions
+    }

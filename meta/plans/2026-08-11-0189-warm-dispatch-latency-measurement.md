@@ -2503,9 +2503,63 @@ phase: the observed table reads PASS for
 the rerun over the complete 25-test binary (6 failed / 19 passed) and that the
 rerun also discharges criterion 6's last clause.
 
+### Phase 3 hand-off
+
+Recorded 2026-08-13. **The harness is complete and rehearsed; the session
+itself is handed off**, because it cannot be run faithfully from inside a Claude
+Code session. Every tool call the driving session makes dispatches
+`bin/accelerator` through its SessionStart and PreToolUse hooks, and the
+criterion gates on instrument floors with "the operator issues no tool calls
+while sampling" as a stated operating condition. The concurrent-session
+precondition, run on this host during development, found **five** other `claude`
+processes live — exactly the interference it exists to refuse.
+
+**What the operator runs**, on a quiet darwin-arm64 host with no other Claude
+Code session active:
+
+```bash
+mise run measure:warm-dispatch -- --rehearse   # optional: proves the path, non-gating
+mise run measure:warm-dispatch                 # the recorded session
+```
+
+The record lands at `meta/measurements/warm-dispatch.json` and carries every
+slot the sections below name. `mise run measure:teardown` is the escape if a run
+dies; the harness refuses to start while that run's manifest survives.
+
+**Prerequisites the harness asserts and records** (a failure is branch 5a, no
+figures): no `ACCELERATOR_*` override but the permitted release-base-URL seam;
+the driving session's plugin root equal to the measured one; `jj` at the
+`mise.toml` pin; no other `claude` process outside this session's own ancestry;
+a clean `jj diff --summary` over `keys/ bin/ hooks/ scripts/ cli/`; the
+working-copy release key matching its published digest; a published signed
+release for the tree's own version; both digest backends resolvable; and both
+instrument floors inside their gate within three recorded attempts.
+
+**What the rehearsal already establishes**, at a token sample count on a
+deliberately *noisy* host — recorded as corroboration of the design, never as a
+figure:
+
+| Quantity | Rehearsed | 0205 / predicted |
+| --- | --- | --- |
+| `reverify` | 6.31 ms | 6.34 ms (measured) |
+| launcher startup net of the fork floor | 3.52 ms | 3.54 ms (measured) |
+| `cache::find` | 0.02 ms | 0.06 ms (measured) |
+| `verifier::sha256_hex` over 2.49 MB | 4.45 ms | 4.49 ms (measured) |
+| `TrustedKeys::verifies` (BLAKE2b + Ed25519) | 1.72 ms | 1.72 ms (measured) |
+| `median(G)` fallback backend | ~59.8 ms | ~59.2 ms (predicted) |
+| C6 fallback ratio | ~1.94 | ~1.79 (predicted) |
+| cross-checked fraction of `G` | 70.3% | 67.5% |
+
+The launcher-side terms reproduce 0205's to within 1%, which is the strongest
+available evidence that the committed harness measures what the spike measured.
+The fallback prediction is corroborated in direction and magnitude. **The ratio
+cells are not corroborated and must not be read as such** — a noisy host is
+where the ratio is least trustworthy, which is the whole reason the session is
+gated on quietness.
+
 ### Latency figures
 
-_Pending Phase 3._ Slots: `B`, `G` and the two-sided 95% interval **per digest
+_Pending Phase 3's operator run._ Slots: `B`, `G` and the two-sided 95% interval **per digest
 backend**; all three ratios with their intervals and their three roles (raw
 gates, `true`-floor robustness check, bash-floor diagnostic); `median(Gᵢ/Bᵢ)`
 alongside the ratio of medians; n/min/median/p90/IQR per variant;
@@ -2581,6 +2635,56 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   reopening the threshold on 0169 before 0189 measured anything. This plan lands
   it on 0189 because 0169 is closed, and records the departure at all four 0169
   discharge points.
+- **The farm's tool set was hand-written and missed `chmod`**, which the plan
+  warned about in exactly these terms and which the implementation did anyway.
+  `probe_exec_capable` (`bin/accelerator:180-191`) writes a probe file and
+  `chmod +x` it; with `chmod` absent from the farm the chmod failed, the
+  bootstrap reported "no writable, exec-capable cache directory", and
+  `--fail-safe` turned that into an exit 0 with empty stdout — the degraded
+  shape §4 exists to catch. It was caught, but 100 subprocesses into the pilot
+  and attributed to a sample rather than to the environment.
+
+  Three changes, each removing the class rather than the instance. The tool set
+  is now **derived mechanically** from `bin/accelerator`, the recovered guard
+  and `vcs-common.sh` by `spawned_executables`, with a test that re-derives it
+  and fails if either script gains a spawn the farm lacks — the plan's own
+  "enumerated mechanically from `bin/accelerator`" instruction, honoured this
+  time. The hand-written list also omitted `date`, `readlink`, `rmdir`,
+  `sleep`, `timeout`, `wget` and `git`. The **validity diagnostic now carries
+  the dispatch's stderr**, which is the only clue a degraded sample has, since
+  stdout is empty by construction and the exit code is 0 either way. And the
+  **warm-up dispatch is validated rather than discarded**, so an environment
+  fault is reported against the prerequisite that failed.
+- **A warm-cache precondition was added, which the plan required and the
+  implementation had omitted.** §5 asks for "a published, minisign-signed
+  release exists for the tree's own version" to be asserted before sampling,
+  "otherwise the warm-up dispatch 404s and `fail_integrity` fires, surfacing as
+  an opaque bootstrap abort rather than a named unmet prerequisite". That is
+  what happened: the tree moved from `pre.38` to `pre.41` mid-implementation,
+  the cache held only `pre.38`, and the first dispatch silently took the fetch
+  branch. `warm_cache_gaps` now names the missing launcher, signature or
+  sub-binary by version and refuses before any sampling.
+- **The composition budget's residual is reported open, not absorbed.** §7's
+  term set carries "shell bootstrap body (bash startup + 2 × `sha256_file` +
+  logic)" as one **derived** term. The harness measures its two separable parts
+  — bash startup and the two `sha256_file` substitutions — and leaves the
+  bootstrap's remaining shell logic unmeasured, because separating it would
+  need an edit to `bin/accelerator`. The residual is therefore expected to be
+  negative and outside the ±1.5 ms band, and the uncross-checked share is
+  reported as a number rather than hidden inside a derived term that closes by
+  construction. That is the plan's own stated preference — "whatever share of
+  `G` remains uncross-checked as a stated limit rather than as coverage" — but
+  it means the band check itself does not pass, and the two-attempt
+  re-measurement cap is what stops it looping.
+- **The `dirname` spawn count is 1, not the predicted 0** (SD-31). The plan
+  reasons that `find_repo_root` tests `-e "$dir/.jj"` on `$PWD` before its first
+  `dirname` call, so the count should be zero at any depth. A `bash -x` trace of
+  the recovered guard against the fixture observes **one** spawn — the guard
+  resolves its own `SCRIPT_DIR` before it ever calls `find_repo_root`. The
+  conclusion the prediction supported still holds: one spawn at any depth is
+  still depth-independent, so the baseline is depth-insensitive and no depth
+  pinning is needed across platforms. The plan asked for this to be confirmed
+  empirically rather than assumed in either direction, and it was.
 - **The red-first commit evidence covers the analysis core, not the driver.**
   Phase 2's manual criterion asks for a commit sequence showing a failing-test
   commit preceding each implementation. That holds for the analysis core: "Add
