@@ -88,7 +88,10 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner.
+        // additionally permits corpus for WorkItemIdScheme/IdScanner and
+        // tracker for the sync engine's RemoteTracker vocabulary. tracker is a
+        // zero-dependency, zero-logic port crate, so the edge cannot drag a
+        // transitive graph into the domain.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),
@@ -98,6 +101,7 @@
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
                         "^corpus(::|$)",
+                        "^tracker(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,
@@ -116,6 +120,23 @@
                 RestrictImports(
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // tracker-test-support is a fake plus a contract harness, consumed only
+        // by other crates' test targets. It depends on tracker alone.
+        Module((
+            name: "tracker_test_support_imports_only_permitted",
+            matches: Module("^tracker_test_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^tracker(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,

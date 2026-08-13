@@ -286,6 +286,18 @@ assert_eq "unrecognised → local-save" "local-save" \
 # A retry that then succeeds re-enters as code 0 → write-once.
 assert_eq "retry-then-success → write-once" "write-once" \
   "$(bash "$DECIDE" --code 0 --attempt 2)"
+assert_exit_code "non-integer --code → usage error (2)" 2 \
+  bash "$DECIDE" --code abc --attempt 1
+assert_exit_code "non-integer --attempt → usage error (2)" 2 \
+  bash "$DECIDE" --code 0 --attempt x
+assert_exit_code "unrecognised flag → usage (2)" 2 \
+  bash "$DECIDE" --bogus
+assert_eq "unknown dispatcher code → loud-terminal (conservative)" \
+  "loud-terminal" "$(bash "$DECIDE" --code 99 --attempt 1)"
+assert_eq "--write-failed is consulted only under code 0 (retryable)" \
+  "retry" "$(bash "$DECIDE" --code 70 --attempt 1 --write-failed)"
+assert_eq "--write-failed is consulted only under code 0 (terminal)" \
+  "loud-terminal" "$(bash "$DECIDE" --code 71 --attempt 1 --write-failed)"
 echo ""
 
 test_summary

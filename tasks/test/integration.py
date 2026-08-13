@@ -7,6 +7,7 @@ from pathlib import Path
 from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
+from tasks.test.cli import _MANIFEST
 
 from .helpers import accelerator_env, repo_root, run_shell_suites
 
@@ -157,6 +158,16 @@ def deny(context: Context) -> None:
 def pup(context: Context) -> None:
     """cargo-pup architecture regression (needs the nightly lane)."""
     context.run("uv run pytest tests/integration/pup -v")
+
+
+@task
+def tracker_contract(context: Context) -> None:
+    """Run the RemoteTracker contract harness (excluded from test:unit:cli)."""
+    context.run(
+        f"cargo nextest run --profile contract {_MANIFEST}",
+        env={"ACCELERATOR_TRACKER_CONTRACT": "1"},
+        pty=True,
+    )
 
 
 @task

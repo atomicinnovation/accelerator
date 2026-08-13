@@ -1,0 +1,14 @@
+# Excludes every crate's `tests/contract.rs` binary from the default profile
+# by name, not by crate — so a client crate's unit tests keep running while
+# its contract harness needs an explicit opt-in. `binary(=contract)` is the
+# exact-match form: bare `binary(contract)` is a substring predicate that
+# would silently pull a future `contract_helpers`/`contract_smoke` binary
+# into the contract profile too.
+#
+# See tasks/README.md for the convention this establishes and
+# ACCELERATOR_TRACKER_CONTRACT for the harness's own belt-and-braces gate.
+[profile.default]
+default-filter = 'not binary(=contract)'
+
+[profile.contract]
+default-filter = 'binary(=contract)'

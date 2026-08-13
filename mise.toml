@@ -320,6 +320,11 @@ description = "Run the cargo-pup architecture regression (needs the nightly lane
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
 run = "invoke test.integration.pup"
 
+[tasks."test:integration:tracker-contract"]
+description = "Run the RemoteTracker contract harness against a fake (filtered out of test:unit:cli by cli/.config/nextest.toml)"
+depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
+run = "invoke test.integration.tracker-contract"
+
 [tasks."test:integration:decisions"]
 description = "Run decisions integration tests"
 depends = ["build:cli:dev"]
@@ -360,6 +365,7 @@ depends = [
     "test:integration:github",
     "test:integration:work",
     "test:integration:integrations",
+    "test:integration:tracker-contract",
 ]
 
 [tasks."test:e2e:visualiser"]

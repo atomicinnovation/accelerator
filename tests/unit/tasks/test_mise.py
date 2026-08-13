@@ -61,6 +61,7 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
+    "test:integration:tracker-contract": "cargo nextest over a fake tracker",
     "test:integration:github": "shell suites run with no accelerator_env",
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
     "test:integration:zero-spawn:strong": "the same suite, with the real "

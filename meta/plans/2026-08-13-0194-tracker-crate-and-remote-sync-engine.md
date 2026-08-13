@@ -911,28 +911,28 @@ added to the golden index without a Rust arm fails here.
 
 #### Automated Verification
 
-- [ ] Widened rule and its probes pass: `mise run test:integration:pup`
-- [ ] Rust workspace builds, formats and lints: `mise run cli:check`
-- [ ] Default test run passes and runs no `contract` binary: `mise run test:unit:cli`
-- [ ] Contract harness passes against the fake: `mise run test:integration:tracker-contract`
-- [ ] The bash suites still pass unchanged: `mise run test:integration:work`
-- [ ] Shell lint and format pass: `mise run scripts:check`
-- [ ] Public-api coverage guard and snapshots pass: `mise run public-api:check`
-- [ ] Dependency policy passes: `mise run deny:check`
-- [ ] Build-system tests pass, including both mise-registration guards and the
+- [x] Widened rule and its probes pass: `mise run test:integration:pup`
+- [x] Rust workspace builds, formats and lints: `mise run cli:check`
+- [x] Default test run passes and runs no `contract` binary: `mise run test:unit:cli`
+- [x] Contract harness passes against the fake: `mise run test:integration:tracker-contract`
+- [x] The bash suites still pass unchanged: `mise run test:integration:work`
+- [x] Shell lint and format pass: `mise run scripts:check`
+- [x] Public-api coverage guard and snapshots pass: `mise run public-api:check`
+- [x] Dependency policy passes: `mise run deny:check`
+- [x] Build-system tests pass, including both mise-registration guards and the
       new filter assertion: `mise run test:unit:tasks`
-- [ ] Whole tree green: `mise run`
+- [x] Whole tree green: `mise run`
 
 #### Manual Verification
 
-- [ ] `mise run test:unit:cli` runs `tracker-test-support`'s lib tests but no
+- [x] `mise run test:unit:cli` runs `tracker-test-support`'s lib tests but no
       `contract` binary
-- [ ] `mise run test:integration:tracker-contract` with
+- [x] `mise run test:integration:tracker-contract` with
       `ACCELERATOR_TRACKER_CONTRACT` unset skips rather than running
-- [ ] The compliant control fails when `tracker` is removed from the permit list —
+- [x] The compliant control fails when `tracker` is removed from the permit list —
       proving the matcher resolves the hyphenated package rather than silently
       matching nothing
-- [ ] `_EXPECTED_WORK_SUITES` is still 5 and no suite file was added
+- [x] `_EXPECTED_WORK_SUITES` is still 5 and no suite file was added
 
 ---
 

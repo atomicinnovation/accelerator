@@ -6,6 +6,7 @@ mod cli;
 mod config;
 mod create;
 mod diff;
+mod exit_codes;
 mod next_number;
 mod resolve;
 mod show;
@@ -66,11 +67,11 @@ fn run_resolve(input: &str) -> ExitCode {
                     eprintln!("  {} [{}]", candidate.path, candidate.tag);
                 }
             }
-            ExitCode::from(2)
+            ExitCode::from(exit_codes::USAGE)
         }
         Ok(RunOutcome::NotFound(message)) => {
             eprintln!("E_RESOLVE_NOT_FOUND: {message}");
-            ExitCode::from(3)
+            ExitCode::from(exit_codes::RESOLVE_NOT_FOUND)
         }
         Ok(RunOutcome::Invalid(message)) => {
             eprintln!("E_RESOLVE_INVALID: {message}");

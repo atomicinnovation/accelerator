@@ -23,6 +23,7 @@ path = "src/main.rs"
 [dependencies]
 work = { path = "../work" }
 work-adapters = { path = "../work-adapters" }
+tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
 document = { path = "../document" }

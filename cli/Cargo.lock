@@ -161,6 +161,7 @@ dependencies = [
  "document",
  "kernel",
  "tempfile",
+ "tracker",
  "work",
  "work-adapters",
 ]
@@ -4820,6 +4821,13 @@ dependencies = [
 [[package]]
 name = "tracker"
 version = "1.24.0-pre.38"
+
+[[package]]
+name = "tracker-test-support"
+version = "1.24.0-pre.36"
+dependencies = [
+ "tracker",
+]
 
 [[package]]
 name = "try-lock"

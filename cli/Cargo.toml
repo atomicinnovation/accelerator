@@ -27,6 +27,7 @@ members = [
     "migrate-adapters",
     "migrate-cli",
     "tracker",
+    "tracker-test-support",
     "design",
     "design-adapters",
     "design-cli",
