@@ -251,27 +251,38 @@ lock fd and bootstrap log are opened first; it is ordering-dependent, not stable
 
 #### Residue
 
-- **R1** — `skills/design/analyse-design-gaps/SKILL.md:14` grants
-  `Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)` for a
-  directory that no longer exists. `inventory-design/SKILL.md:16`'s
-  `scripts/playwright/*` grant likewise has no surviving call site. 🔒 Both are
-  live permission grants broader than anything the skills now invoke.
+- **R1** — ✅ **fixed.** `analyse-design-gaps/SKILL.md` granted
+  `Bash(…/analyse-design-gaps/scripts/*)` for a directory that no longer exists,
+  and `inventory-design/SKILL.md`'s `scripts/playwright/*` grant had no surviving
+  call site. 🔒 Both were live permission grants broader than anything the skills
+  invoke; both are removed, and R4's guard now fails on either shape.
 - **R2** — `skills/design/inventory-design/evals/benchmark.json:1738-2067` still
   grades on `validate-source.sh` and `run.sh`. Outside the plan's stated grep set
   (`docs-site/`, `README.md`, `CHANGELOG.md`), which is why it was missed.
-- **R3** — five migration-checklist rows name Rust tests under wrong names
-  (`the_widened_loopback_set_no_longer_needs_allow_internal`,
-  `the_widened_loopback_set_covers_the_expanded_and_ranged_forms`,
-  `the_shell_s_own_classifications_survive`,
-  `the_rfc1918_rejection_keeps_the_shell_s_wording`,
-  `the_compiled_table_still_agrees_with_the_shell_s_message_file`), and row `:114`
-  claims `test-design.sh` holds an assertion that now lives in the conformance
-  suite. The checklist is the traceability artefact and nothing checks its links.
-- **R4** — the dangling-call-site CI guard the plan promised (Removal sweep §1: no
-  SKILL.md or agent body may name a nonexistent path under
-  `skills/design/**/scripts/`) does not exist anywhere in `tasks/lint/`,
-  `tasks/test/`, `tests/`, `scripts/` or `.github/`. R1 is exactly what it was
-  meant to catch.
+- **R3** — ✅ **fixed.** Five test names were cited under names that do not exist,
+  across 13 references, and row `:114` credited `test-design.sh` with an assertion
+  that now lives in the conformance suite. All corrected. Every one of the 63 Rust
+  test names the checklist cites now resolves in `cli/`; the only two unresolved
+  identifiers left are `canonicalise_host` and `classify_internal`, the deleted
+  shell functions the checklist correctly cites as the migration's source side.
+- **R4** — ✅ **fixed**, in two parts, because the promised guard only covers half
+  the class. `scripts/test-skill-frontmatter-conformance.sh` gains:
+  - *Design script references resolve* — the plan's literal ask: every concrete
+    path a design SKILL.md or browser agent names under
+    `skills/design/**/scripts/` must exist on disk.
+  - *Design script grants have call sites* — every `Bash(…/scripts/…)` grant in a
+    design SKILL.md must have a matching invocation in that skill's body.
+
+  The first cannot see R1's second grant: `scripts/playwright/` still exists and
+  holds the retained JavaScript, so a path-existence check passes while the skill
+  invokes nothing there. Only the second kills it.
+
+  ⚠️ Homed in the conformance suite rather than the node suites the plan named.
+  The plan's own targeting rule is that a re-home follows what the assertion is
+  *about*, and this is about skills and agents, not about the retained
+  JavaScript. The conformance suite is also a `_REQUIRED_CONFIG_SUITES` by-name
+  gate, so it runs unconditionally — which the node suites' unit lane also does,
+  but the placement now matches the rule.
 
 #### Criteria with no test
 
@@ -327,12 +338,24 @@ criterion is met in substance; the example was written wrong.
 2. **Close D4** by guarding the `dup2` with an `if read_fd != IDENTITY_FD` and
    clearing `FD_CLOEXEC` explicitly in the equal case, rather than relying on
    descriptor-allocation order.
-3. **Land R4's guard**, then R1 falls out of it. Fix R2's `benchmark.json` and
-   R3's checklist names in the same pass.
-4. **Correct the sibling plan's edit set** for the moved `SKILL=` / `SC2016` /
+3. **Correct the sibling plan's edit set** for the moved `SKILL=` / `SC2016` /
    `scripts/*` assertion before it is scheduled.
+4. **Consider R2** — `evals/benchmark.json` still grades against deleted scripts.
+   Left as-is because the plan scoped its documentation criterion to `docs-site/`,
+   `README.md` and `CHANGELOG.md`, so this is out of scope rather than missed.
 
 The plan's `status` is deliberately left at `ready` rather than advanced to `done`.
-Every automated criterion now passes, but four of them passed only after repairs
-made during validation rather than as delivered, the residue above is
-outstanding, and the two live-session manual criteria have not been run.
+Every automated criterion passes and R1, R3 and R4 are closed, but the six
+manual criteria — every one of them a live-session run — have not been executed,
+and the criteria that do pass were met partly by repairs made during validation
+rather than as delivered.
+
+Remaining before this could read `pass`:
+
+| Plan line | Criterion |
+|---|---|
+| 774, 2115 | Both design skills end to end in a live session |
+| 1931 | A live inventory crawl preserves page state across executor commands |
+| 1933 | Both browser agents work without `{browser-executor-script}` |
+| 1934 | Two concurrent executor commands produce one daemon, loser reports `another-launcher-running` |
+| 2117 | A Playwright-driven inventory behaves as before — same prerequisite, bootstrap, downgrade reasons |
