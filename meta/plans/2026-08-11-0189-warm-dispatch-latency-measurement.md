@@ -17,7 +17,7 @@ relates_to:
 tags: [cli, launcher, performance, bootstrap, measurement]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
-last_updated: "2026-08-13T15:28:00+00:00"
+last_updated: "2026-08-13T16:00:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -624,7 +624,7 @@ discharged the recording criterion in its place.
 Criterion 10, "Warm-call latency G and shell baseline B…", currently reads:
 
 ```markdown
-- [ ] Warm-call latency G and shell baseline B are both recorded from one darwin
+- [x] Warm-call latency G and shell baseline B are both recorded from one darwin
       host in one session, with `G ≤ 1.1 × B`. Blocked until a signed
       `accelerator-vcs` release asset exists; see Dependencies.
 ```
@@ -876,37 +876,37 @@ frontmatter names the codebase-research document with `work-item:0205` in
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-corpus -E
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-corpus -E
   'test(this_repositorys_own_corpus_is_clean)'` is green — the unconditional
   repo-corpus frontmatter gate over every meta document edited
-- [ ] `mise run check` is green
+- [x] `mise run check` is green
 
 #### Manual Verification:
 
-- [ ] 0189's criterion **10** states the reframed threshold, its backend
+- [x] 0189's criterion **10** states the reframed threshold, its backend
   binding, its interval-upper-bound rule and the superseded 1.1 with its
   measured 1.2813
-- [ ] 0189 carries the reframing rationale, including that the optimisation
+- [x] 0189 carries the reframing rationale, including that the optimisation
   route was declined on posture grounds and **not** on trust-boundary grounds
-- [ ] Both retraction sets are derived by the recorded searches, the found set
+- [x] Both retraction sets are derived by the recorded searches, the found set
   of each is recorded, and every occurrence carries a dated note in the form
   0189 already uses; the release-cut blocker is replaced by an outcome-keyed
   closure guard; the 0191 co-requisite claim is retracted with the arithmetic
-- [ ] `rg '1\.1 ×' meta/work/0189-*.md` returns no occurrence lacking an
+- [x] `rg '1\.1 ×' meta/work/0189-*.md` returns no occurrence lacking an
   adjacent dated retraction — 0189 no longer asserts the superseded threshold
   anywhere unqualified
-- [ ] 0189's criteria **1-9**, **11**'s non-latency clauses and **12** are
+- [x] 0189's criteria **1-9**, **11**'s non-latency clauses and **12** are
   ticked with discharging evidence named; **10** and 11's latency clause remain
   unticked
-- [ ] The sibling plan's Mutation A / warm-hit cell is corrected as a dated note
-- [ ] 0191's shortfall framing is retracted, cross-referencing its existing
+- [x] The sibling plan's Mutation A / warm-hit cell is corrected as a dated note
+- [x] 0191's shortfall framing is retracted, cross-referencing its existing
   `:54-58` backend note rather than restating it
-- [ ] The stale release-asset premise is retracted in both 0169 documents
-- [ ] 0205 is `done`, its eight criteria ticked against their discharging
+- [x] The stale release-asset premise is retracted in both 0169 documents
+- [x] 0205 is `done`, its eight criteria ticked against their discharging
   sections (7 and 8 citing the examples-target deviation), its stale Blocks line
   retracted, and the three corrections appended
-- [ ] Every body `**Status**:` line matches its frontmatter `status`
-- [ ] `last_updated`/`last_updated_by` refreshed on every meta document touched
+- [x] Every body `**Status**:` line matches its frontmatter `status`
+- [x] `last_updated`/`last_updated_by` refreshed on every meta document touched
 
 ---
 
@@ -2421,10 +2421,87 @@ figures it delivered, so this record is readable standalone.
 
 ### Criterion reframing
 
-_Pending Phase 1._ Slots: the criterion text as landed on 0189; the rationale
-recorded; the found set of retracted passages across 0189, 0191 and the two 0169
-documents; 0189's reconciled criteria with their discharging evidence; 0205's
-closure with its two appended corrections.
+Recorded 2026-08-13.
+
+**The criterion as landed.** `meta/work/0189-…:## Latency Criterion`, a new
+section carrying the cell table C1-C6, the statistics by cell kind, the sizing
+table with `h₀ = 0.0086` and its two blocks, the floor treatment's three roles,
+the seven-branch taxonomy with its ordered cascade and session-level escalation
+rule, the superseded threshold with its measured 1.2813, the band's provenance
+(author instruction in conversation on 2026-08-13, approver Toby Clemson), the
+five-part reframing rationale, and seven stated limitations. That section is
+named authoritative for the criterion text, with `tasks/measure.py`'s
+per-platform table authoritative for the numbers. 0189's criterion **10** was
+replaced wholesale and now states the reframed gate, its backend binding, the
+interval-upper-bound rule and the superseded 1.1 with its measured value.
+
+**Set A — the release gate.** The recorded search returns **15 lines across 10
+passages** over the four documents: nine lines in **five** passages of 0189
+(`:127-128`, `:199`, `:244-246`, `:305-306`, `:317`), three lines in two
+passages of the 0169 validation (`:30`, and `:155-166`'s three-item list), one
+in the 0169 plan (`:1517`), and two describing the release cut as a *process*
+prerequisite: `meta/work/0169-…:524` and `meta/plans/2026-08-05-0169-…:200`.
+
+⚠️ The plan's §2 states "nine matching lines across seven passages" in 0189. The
+line count is right; the passage count is five, not seven, on any grouping that
+keeps a single bullet or paragraph as one passage. Recorded rather than
+reconciled, since the searches — not the counts — are the specification.
+
+Every passage asserting that the asset or release does not exist carries a dated
+retraction: 0189's Requirements bullet, its Dependencies passage, and both
+Drafting Notes passages; the 0169 validation's Phase 10 line and its "Three
+manual/release-gated items" passage (whose item 2 and item 3 are named
+individually); and the 0169 plan's Phase 10 latency criterion. 0189's criterion
+10 needed none, being replaced wholesale.
+
+The two process-prerequisite matches are **deliberately left unretracted**:
+0169's work item `:524` says the release "is **not** produced by this story's
+code changes — it requires a release run and the minisign signing key", and the
+0169 plan `:200` scopes the cut out of its own changes. Both remain true
+statements about that story's scope; neither asserts the release has not
+happened. Retracting them would be a rewrite, not a retraction.
+
+**Set B — the superseded threshold.** `rg -n '1\.1 ×' meta/work/0189-*.md`
+returned **five** occurrences: Requirements (`:127`), criterion 10 (`:198`),
+the Dependencies co-requisite (`:251`), Assumptions (`:269`) and Drafting Notes
+(`:303`). Criterion 10 was replaced; the other four each carry a dated
+retraction. The Assumptions retraction records that the bullet's own escape
+clause ("If the epic has since revised the threshold, this item follows the
+epic") has fired, and that the revision was landed on 0189 rather than 0169.
+The co-requisite retraction carries 0205's arithmetic: 0191's measured 2.48 ms
+against a 5.98 ms overrun, so it was never sufficient, and it is not required
+under the reframed criterion at all.
+
+The release-cut blocker in Dependencies is replaced by an **outcome-keyed
+closure guard** — 0189 may not close while any applicable gating cell selects a
+branch other than 1, absent a recorded owner-named acceptance — and the
+`blocked_by: ["work-item:0169"]` edge is retained with a dated note recording it
+satisfied.
+
+**0189's reconciled criteria.** Criteria 1-9 and 12 ticked, with a per-criterion
+evidence table naming the discharging test or recorded section in the sibling
+plan, and criterion 6's warm-hit-under-Mutation-A clause attributed to the
+**validation report** rather than the plan. Criterion 11 was amended to name
+which plan records which artefact and carries a dated note discharging its
+non-latency clauses; it stays unticked, as does criterion 10, until Phase 4.
+
+**0191.** The "~2.5 ms is essentially the whole of 0169's ~2.4 ms shortfall"
+framing is retracted with the measured 5.98 ms overrun and the measured 2.48 ms
+saving, cross-referencing 0191's existing "The saving is backend-dependent"
+section rather than restating it.
+
+**0205.** Verified already discharged on 2026-08-13 ahead of this phase:
+`status: done` with its body line in lockstep, all eight criteria ticked (7 and
+8 against the examples-target deviation, recorded in a note beneath the list),
+the stale `Blocks:` line retracted at `:205`, and all three corrections appended
+under a `## Corrections` heading at `:652`.
+
+**The sibling plan's Mutation A cell.** Verified already corrected ahead of this
+phase: the observed table reads PASS for
+`a_warm_hit_never_probes_the_cache_root` under Mutation A, and a dated
+"Correction, 2026-08-12 (validate-plan)" note beneath it records the original ✗,
+the rerun over the complete 25-test binary (6 failed / 19 passed) and that the
+rerun also discharges criterion 6's last clause.
 
 ### Latency figures
 

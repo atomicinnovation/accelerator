@@ -9,9 +9,10 @@ status: draft
 kind: task
 priority: low
 parent: "work-item:0136"
-relates_to: ["work-item:0186", "work-item:0169"]
+relates_to:
+  ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205"]
 tags: [shell, performance, bootstrap, bash-3.2]
-last_updated: "2026-08-03T00:00:00+00:00"
+last_updated: "2026-08-13T16:00:13+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -38,6 +39,17 @@ largest remaining warm-path term. 0186 deliberately did **not** absorb this: it
 needs a branch to preserve today's short-circuit, and ~2.5 ms is essentially the
 whole of 0169's ~2.4 ms shortfall, so it deserves its own before/after rather
 than riding along inside another change's measurement.
+
+**Retracted 2026-08-13.** The shortfall was **5.98 ms**, not ~2.4 ms. Work item
+0205 measured warm dispatch at `median(G) = 42.28 ms` against `median(B) = 33.00
+ms` — a ratio of medians of 1.2813 against the inherited `G ≤ 1.1 × B` ceiling
+of 36.30 ms. This item's saving on that host is a **measured 2.48 ms** (the 7.05
+ms and 4.57 ms rows below), so it was never sufficient to reach the inherited
+threshold; it covers under half the overrun. And under the criterion 0189 now
+carries — an absolute `median`/`p90` budget per digest backend with the ratio
+retained at 1.3 as a historical comparison — this item is **not a latency-gate
+co-requisite at all**. Its case now rests on the fallback backend, per "The
+saving is backend-dependent" below. The item's own merits are unaffected.
 
 Measured on darwin-arm64 (macOS 26.3, Apple M4 Max):
 

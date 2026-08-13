@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-06T01:30:00+00:00"
+last_updated: "2026-08-13T16:00:13+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1519,6 +1519,16 @@ found.
       proved the dispatch mechanics end to end via `ACCELERATOR_VCS_BIN`;
       this specific criterion needs the real release artefact, not more dev
       testing.
+
+      **Retracted 2026-08-13.** The artefact exists. `v1.24.0-pre.35` and
+      `v1.24.0-pre.36` both ship `accelerator-vcs-darwin-arm64` alongside its
+      `.minisig`, and `pre.36`'s signed `manifest.json` carries `vcs` entries
+      for all four platforms; work item 0205 dispatched the real
+      bootstrap → launcher → sub-binary path with no override and measured it.
+      This criterion remains **unticked** for a different reason: `G ≤ 1.1 × B`
+      was measured at a ratio of medians of 1.2813 (n = 300, 95% CI [1.2662,
+      1.2899]) and fails. The threshold is superseded, and the obligation is
+      discharged on work item 0189 under the criterion recorded there.
 - [ ] The release-cut deployment gate (Phase 9's note) is scheduled with
       whoever performs epic-0136 releases before `hooks.json`'s rewrite
       reaches an installed-plugin path — **owner action, not code**: flagging

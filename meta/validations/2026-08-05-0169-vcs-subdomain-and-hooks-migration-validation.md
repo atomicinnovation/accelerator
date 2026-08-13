@@ -9,7 +9,7 @@ status: complete
 result: pass
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-06T00:45:48+00:00"
+last_updated: "2026-08-13T16:00:13+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -28,6 +28,12 @@ schema_version: 1
 ✓ Phase 8: Sub-Binary Registration and Skill Repoint — Fully implemented
 ✓ Phase 9: `hooks.json` Rewrite and Shell Deletion — Fully implemented
 ✓ Phase 10: Hand-offs, Documentation, and Validation — Automated portion complete; three manual/release-gated items explicitly deferred (see below)
+
+**Retracted 2026-08-13.** None of the three is release-gated any longer.
+`v1.24.0-pre.35` and `v1.24.0-pre.36` both ship `accelerator-vcs-darwin-arm64`
+alongside its `.minisig`, and `pre.36`'s signed `manifest.json` carries `vcs`
+entries for all four platforms — see the retraction on the "Three
+manual/release-gated items" passage below.
 
 All ten phases have a corresponding commit on the current branch, in the
 sequence the plan specifies (fixture capture precedes deletion, satisfying
@@ -169,6 +175,18 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
      Dependencies) — scheduling the release that must precede `hooks.json`'s
      rewrite reaching an installed-plugin path is explicitly an owner
      action, not a code change this plan can complete.
+
+  **Retracted 2026-08-13.** The release premise all three rest on is false as
+  of `v1.24.0-pre.35`. Both `pre.35` and `pre.36` ship
+  `accelerator-vcs-darwin-arm64` with its `.minisig`, and `pre.36`'s signed
+  `manifest.json` carries `vcs` entries for all four platforms at
+  `schema_version: 1`. Specifically: item 2's "a published, minisign-signed
+  `accelerator-vcs` release asset that does not yet exist" is wrong — work item
+  0205 dispatched exactly that path with no `ACCELERATOR_VCS_BIN` override and
+  measured it; and item 3's release cut has been performed. Item 2's threshold
+  `G ≤ 1.1 × B` is separately superseded — it was measured at a ratio of medians
+  of 1.2813 and fails; the obligation is discharged on work item 0189 under the
+  criterion recorded there, not here.
 
   All three are pre-declared in the plan and work item as blocked on an
   external release process, not oversights — but they mean the story is not
