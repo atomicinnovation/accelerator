@@ -616,4 +616,86 @@ assert_not_contains "browser-analyser body does NOT advertise the links command"
 
 echo ""
 
+# =============================================================================
+# Design script references resolve
+# =============================================================================
+# A call site left pointing at a deleted script fails here, at merge, rather
+# than at run time — where the symptom was a headless Chromium held until its
+# idle timeout, with nothing to attribute it to. The migration that emptied
+# these directories moved three call sites and missed two.
+
+echo "=== Design script references resolve ==="
+
+DESIGN_REFERRERS="$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md
+$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md
+$PLUGIN_ROOT/agents/browser-locator.md
+$PLUGIN_ROOT/agents/browser-analyser.md"
+
+# Call sites only. `Bash(...)` lines are permission grants, checked against
+# their call sites below rather than against the filesystem, and a path ending
+# in `/` is a grant's glob prefix rather than a file anyone invokes.
+design_script_paths() {
+  grep -v 'Bash(' "$1" |
+    grep -oE '\$\{CLAUDE_PLUGIN_ROOT\}/skills/design/[A-Za-z0-9_./-]+' |
+    grep '/scripts/' |
+    grep -v '/$' |
+    sort -u
+}
+
+# The path a grant or call site names, with the plugin-root placeholder removed
+# so a failure message reads as a repository path. Prefix removal rather than
+# `${var//}`: the pattern carries both braces and slashes, which is where the
+# bash 3.2 floor has bitten before.
+without_plugin_root() {
+  printf '%s\n' "${1#\$\{CLAUDE_PLUGIN_ROOT\}/}"
+}
+
+while IFS= read -r referrer; do
+  [ -f "$referrer" ] || continue
+  for reference in $(design_script_paths "$referrer"); do
+    relative="$(without_plugin_root "$reference")"
+    assert_file_exists "$(basename "$referrer") names an existing $relative" \
+      "$PLUGIN_ROOT/$relative"
+  done
+done <<EOF
+$DESIGN_REFERRERS
+EOF
+
+echo ""
+
+# =============================================================================
+# Design script grants have call sites
+# =============================================================================
+# The check above cannot see this class: a grant whose directory still exists
+# but whose scripts have all been migrated away reads as valid while handing
+# the model Bash access to a tree the skill no longer invokes.
+
+echo "=== Design script grants have call sites ==="
+
+# Everything after the closing frontmatter delimiter.
+skill_body() {
+  awk 'BEGIN { d = 0 } /^---$/ && d < 2 { d++; next } d >= 2' "$1"
+}
+
+# The literal prefix a grant authorises, i.e. the rule without its trailing
+# glob, so `.../scripts/*` is satisfied by any invocation under `.../scripts/`.
+granted_script_prefixes() {
+  sed -n '1,/^---$/p' "$1" |
+    grep -oE 'Bash\(\$\{CLAUDE_PLUGIN_ROOT\}/skills/[A-Za-z0-9_./-]+\*?\)' |
+    sed -e 's|^Bash(||' -e 's|)$||' -e 's|\*$||' |
+    grep '/scripts/' |
+    sort -u
+}
+
+for skill in "$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md" \
+  "$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md"; do
+  for prefix in $(granted_script_prefixes "$skill"); do
+    assert_contains \
+      "$(basename "$(dirname "$skill")") invokes what it grants: $(without_plugin_root "$prefix")" \
+      "$(skill_body "$skill")" "$prefix"
+  done
+done
+
+echo ""
+
 test_summary

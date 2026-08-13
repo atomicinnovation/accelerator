@@ -11,7 +11,6 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/analyse-design-gaps/scripts/*)
 ---
 
 # Analyse Design Gaps

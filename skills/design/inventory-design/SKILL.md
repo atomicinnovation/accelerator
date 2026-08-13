@@ -13,7 +13,6 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)
 ---
 
 # Inventory Design
