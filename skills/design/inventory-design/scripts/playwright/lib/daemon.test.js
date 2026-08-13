@@ -360,6 +360,42 @@ test('PROTOCOL.md documents every command the daemon dispatches', () => {
   }
 });
 
+// The set of commands the daemon answers, derived from its own source rather
+// than listed here, so a new one cannot be added without this seeing it.
+function dispatchedCommands(daemonSource) {
+  return new Set(
+    [
+      ...daemonSource.matchAll(/cmd === '([a-z][a-z_-]*)'/g),
+      ...daemonSource.matchAll(/case '([a-z][a-z_-]*)':/g),
+    ].map(match => match[1])
+  );
+}
+
+test('the launcher forwards exactly the commands the daemon dispatches', () => {
+  // The launcher rejects anything absent from its allowlist, so a command the
+  // daemon serves but the allowlist omits is unreachable — and nothing else
+  // fails when the two drift, because they are in different languages. The
+  // agents' click and type went dark this way.
+  const daemonSource = readFileSync(pathResolve(EXECUTOR_SRC, 'lib/daemon.js'), 'utf8');
+  const allowlistSource = readFileSync(
+    pathResolve(EXECUTOR_SRC, '../../../../../cli/design/src/executor/forwardable.rs'),
+    'utf8'
+  );
+
+  const declaration = allowlistSource.match(
+    /FORWARDABLE_COMMANDS:\s*\[&str;\s*(\d+)\]\s*=\s*\[([^\]]*)\]/
+  );
+  assert.ok(declaration, 'FORWARDABLE_COMMANDS is not declared as a sized array');
+  const [, declaredLength, body] = declaration;
+  const forwardable = [...body.matchAll(/"([a-z][a-z_-]*)"/g)].map(match => match[1]);
+
+  assert.equal(forwardable.length, Number(declaredLength), 'array length disagrees');
+  assert.deepEqual(
+    forwardable.slice().sort(),
+    [...dispatchedCommands(daemonSource)].sort()
+  );
+});
+
 test('links is wall-clock bounded like every other browser operation', () => {
   // page.evaluate() can hang on a hostile page, so `links` belongs in the set
   // that gets a per-op budget.

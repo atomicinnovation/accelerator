@@ -13,14 +13,22 @@
 use std::fmt;
 
 /// Every command a caller may forward.
-pub const FORWARDABLE_COMMANDS: [&str; 7] = [
+///
+/// This must name every command the runner dispatches, less the internal ones
+/// below. Omitting one takes a capability away silently, across a language
+/// boundary nothing else checks; `daemon.test.js` holds the two sides equal.
+pub const FORWARDABLE_COMMANDS: [&str; 11] = [
     "ping",
+    "daemon-status",
+    "daemon-stop",
     "navigate",
     "snapshot",
+    "links",
     "screenshot",
     "evaluate",
-    "links",
-    "daemon-stop",
+    "click",
+    "type",
+    "wait_for",
 ];
 
 /// The commands the runner dispatches internally, which a caller must never
@@ -106,6 +114,16 @@ mod tests {
             assert!(error.to_string().contains(command), "{command}");
         }
         Ok(())
+    }
+
+    /// The interaction and status commands the runner has always served. An
+    /// allowlist that omits them takes the capability away from the browser
+    /// agents without anything failing to compile.
+    #[test]
+    fn the_interaction_and_status_commands_are_forwardable() {
+        for command in ["click", "type", "wait_for", "daemon-status"] {
+            assert_eq!(check(command), Ok(()), "{command}");
+        }
     }
 
     #[test]

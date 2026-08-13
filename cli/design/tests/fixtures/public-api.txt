@@ -191,7 +191,7 @@ pub fn design::executor::forwardable::NotForwardable::fmt(&self, f: &mut core::f
 impl core::fmt::Display for design::executor::forwardable::NotForwardable
 pub fn design::executor::forwardable::NotForwardable::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::executor::forwardable::NotForwardable
-pub const design::executor::forwardable::FORWARDABLE_COMMANDS: [&str; 7]
+pub const design::executor::forwardable::FORWARDABLE_COMMANDS: [&str; 11]
 pub fn design::executor::forwardable::check(command: &str) -> core::result::Result<(), design::executor::forwardable::NotForwardable>
 pub mod design::executor::handoff
 pub enum design::executor::handoff::MalformedIdentity
