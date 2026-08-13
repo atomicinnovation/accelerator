@@ -1,10 +1,4 @@
-//! Runs the contract harness against `RecordingTracker`: the conformance
-//! set in its ordinary shape, then the two shape-specific obligations
-//! against subjects deliberately configured into the condition each one
-//! asserts.
-//!
-//! Filtered out of the default test run by `cli/.config/nextest.toml`'s
-//! `not binary(=contract)` default filter, matched by this binary's name.
+//! Runs the contract harness against `RecordingTracker`.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use tracker::ExternalId;

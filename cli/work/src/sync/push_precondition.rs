@@ -1,21 +1,13 @@
 //! The pending-push marker's decision table: whether `create --push` may
 //! proceed, reuse a previous run's id, or must refuse.
 //!
-//! Sited in the domain rather than `create.rs`: the plan's own argument for
-//! siting `push_decide` here — "the same kind of pure table … rather than
-//! in the binary crate where it is hardest to test" — applies with more
-//! force to this table, since its wrong branch binds two local work items
-//! to one remote issue, a failure mode neither VCS revert nor a re-run
-//! recovers from.
+//! A wrong branch here binds two local work items to one remote issue, a
+//! failure neither VCS revert nor a re-run recovers from.
 
 use tracker::ExternalId;
 
 /// A create attempt's fingerprint: proves two requests are the same before
 /// a marker's id is adopted.
-///
-/// `digest` is computed over the three request fields length-prefixed, not
-/// concatenated — undelimited `title + body + kind` is not injective, so
-/// `("ab", "c", k)` and `("a", "bc", k)` would collide.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RequestFingerprint {
     pub title: String,
@@ -39,10 +31,9 @@ pub enum PendingPush {
 
 /// The marker as read from disk.
 ///
-/// Distinguishes "no marker" from "a marker that could not be parsed" —
-/// conflating the two would mean a crash mid-write (exactly what the
-/// marker exists to survive) reads as "no previous attempt" and re-issues
-/// a non-idempotent `create`.
+/// `Absent` and `Unreadable` stay distinct: conflating them lets a crash
+/// mid-write — exactly what the marker exists to survive — read as "no
+/// previous attempt" and re-issue a non-idempotent `create`.
 pub enum MarkerState<'a> {
     Absent,
     Unreadable,
@@ -66,12 +57,11 @@ pub enum PushPrecondition {
 
 /// Decides whether a `create --push` attempt may proceed.
 ///
-/// `corpus_carries` answers whether a work item on disk already carries a
-/// given `external_id` — the second half of the reuse guard, closing the
-/// hazard the fingerprint alone cannot: a crash between the local write and
-/// the marker delete leaves a `Created` marker whose fingerprint still
-/// matches, so without this check a re-run would allocate a fresh number
-/// and write a second file carrying the same `external_id`.
+/// `corpus_carries` reports whether a work item on disk already carries a
+/// given `external_id`, closing the hazard the fingerprint alone cannot: a
+/// crash between the local write and the marker delete leaves a `Created`
+/// marker whose fingerprint still matches, and a re-run would then write a
+/// second file carrying the same `external_id`.
 #[must_use]
 pub fn push_precondition(
     marker: &MarkerState<'_>,

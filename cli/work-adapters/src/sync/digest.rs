@@ -1,18 +1,11 @@
-//! The two digest recipes the sync baseline stores. Port of
-//! `work-item-normalise.sh:113-116` (`local`) and the `hash-common.sh`
-//! sha256 recipe applied to a normalised remote body (`remote_body`).
+//! The two digest recipes the sync baseline stores.
 
 use sha2::Digest as _;
 use sha2::Sha256;
 
-/// True iff `line` opens with a top-level fence — `^---[[:space:]]*$` —
-/// matching `config_extract_frontmatter`/`config_extract_body`'s awk
-/// exactly.
-///
-/// This is the digest path's own recogniser, not `document::fence::split`:
-/// `document` compares the exact bytes `---` (a trailing space fails it) and
-/// caps its scan at 1 MiB, whereas awk has neither restriction. A fence
-/// carrying a trailing space would make `document` treat the whole file as
+/// Recognises `^---[[:space:]]*$`, deliberately not `document::fence::split`:
+/// `document` compares the exact bytes `---` and caps its scan at 1 MiB, so
+/// a fence carrying a trailing space would make it treat the whole file as
 /// body, silently promoting a routine `last_updated` restamp into a content
 /// change.
 fn is_fence(line: &str) -> bool {
@@ -20,13 +13,7 @@ fn is_fence(line: &str) -> bool {
 }
 
 /// Splits `content` into its raw frontmatter and body at the two fence
-/// lines.
-///
-/// Errors, rather than treating the content as body-only, when the
-/// content does not open with a fence or the frontmatter is never closed —
-/// bash aborts non-zero in both cases (`set -euo pipefail` under
-/// `config_extract_frontmatter`'s `NR == 1 && !/^---[[:space:]]*$/ { exit }`),
-/// and returning `Ok` here would silently accept input the oracle rejects.
+/// lines, erroring rather than treating malformed content as body-only.
 ///
 /// # Errors
 ///
@@ -76,14 +63,11 @@ fn sha256_hex(bytes: &[u8]) -> String {
 /// The local-side hash: `filter_frontmatter_keys` over the frontmatter,
 /// `trim_lines` over the body, joined and hashed.
 ///
-/// Both separators are emitted unconditionally, whichever side is empty —
-/// matching bash's `fm=$(…); body=$(…); printf '%s\n%s\n' "$fm" "$body"`,
-/// where command substitution strips each side's trailing newlines and
-/// `printf` adds exactly one back to each. The digest is opaque and only
-/// ever compared against a digest from the same recipe, so the resulting
-/// blank line for an empty body makes the hash arbitrary, not wrong — a
-/// conditional separator would instead change every affected item's hash
-/// and mass-reclassify at cutover.
+/// Both separators are emitted unconditionally, whichever side is empty.
+/// The digest is opaque and only ever compared against one from the same
+/// recipe, so the blank line an empty body leaves is arbitrary rather than
+/// wrong; making the separator conditional would instead change every
+/// affected item's hash and mass-reclassify the corpus.
 ///
 /// # Errors
 ///
@@ -101,25 +85,21 @@ pub fn local(file_content: &str) -> Result<String, kernel::Error> {
     Ok(sha256_hex(hashed.as_bytes()))
 }
 
-/// The remote-side hash: `trim_lines` over the already-projected body, then
-/// hashed. `projected_body` is `RemoteIssue.body` — un-normalised, since
-/// normalising before hashing is this recipe's own job.
+/// The remote-side hash. `projected_body` is the un-normalised
+/// `RemoteIssue.body`; normalising it is this recipe's own job.
 #[must_use]
 pub fn remote_body(projected_body: &str) -> String {
     let trimmed = work::normalise::trim_lines(projected_body);
     sha256_hex(trimmed.as_bytes())
 }
 
-/// A `work::sync::ItemDigests` backed by a file on disk.
-///
-/// Takes an optional already-fetched remote body, and memoises each hash
-/// and the mtime in a `RefCell` so a caller pays the stat and each hash
-/// cost at most once — and only if `classify` actually asks.
+/// A `work::sync::ItemDigests` backed by a file on disk, memoising each
+/// hash and the mtime so a caller pays each cost at most once, and only if
+/// `classify` asks.
 ///
 /// The outer `Option` on `mtime`/`remote_hash` distinguishes "not yet
-/// computed" from the inner `Option`'s own "computed as absent", which
-/// `classify` depends on: a real three-state memo, not two collapsed into
-/// one.
+/// computed" from the inner `Option`'s "computed as absent", a distinction
+/// `classify` depends on.
 #[allow(clippy::option_option)]
 pub struct LazyItemDigests<'a> {
     path: &'a std::path::Path,

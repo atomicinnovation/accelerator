@@ -1,8 +1,5 @@
-//! Own-identity predicate and the `id`/`work_item_id` alias fallback.
-//!
-//! Operates on already-extracted values. Port of `wip_is_work_item_file`
-//! (`work-item-common.sh:448-477`) and the alias fallback from
-//! `work-item-read-field.sh:86-100`.
+//! Own-identity predicate and the `id`/`work_item_id` alias fallback,
+//! operating on already-extracted values.
 
 /// True iff either own-identity field carries a non-empty value.
 #[must_use]

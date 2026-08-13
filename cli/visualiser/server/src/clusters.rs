@@ -610,7 +610,7 @@ mod tests {
         assert_eq!(clusters.len(), 1);
     }
 
-    // ── Phase 4 cluster-key integration tests ─────────────────────────────
+    // ── Cluster-key integration tests ─────────────────────────────────────
 
     #[test]
     fn plan_with_parent_work_item_id_clusters_with_the_work_item() {

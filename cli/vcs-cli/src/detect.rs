@@ -1,5 +1,5 @@
 //! `vcs detect`: the checkout's VCS mode and any workspace/worktree
-//! boundary, reproducing `hooks/vcs-detect.sh`'s prose.
+//! boundary.
 
 use std::path::Path;
 

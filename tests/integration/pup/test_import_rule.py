@@ -702,10 +702,10 @@ def test_real_tracker_rule_permits_std_and_crate_imports(
 # --- The tracker-test-support import rule ---
 #
 # Driven against a workspace whose crates are literally named
-# `tracker-test-support` and `work`, so the hyphen-to-underscore matcher
-# `^tracker_test_support($|::)` is exercised directly. The compliant control
-# must actually import `tracker` — a matcher that silently resolves nothing
-# would still pass an import-free control.
+# `tracker-test-support` and `work`, so the hyphen-to-underscore matcher is
+# exercised directly. The compliant control must actually import `tracker`:
+# a matcher that silently resolves nothing would pass an import-free
+# control.
 
 _TRACKER_TEST_SUPPORT_WORKSPACE = """\
 [workspace]

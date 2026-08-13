@@ -1,5 +1,4 @@
-//! The seven-keyword sync classification vocabulary. Port of the states
-//! `work-item-sync-classify.sh` prints on stdout.
+//! The seven-keyword sync classification vocabulary.
 
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -16,8 +15,7 @@ pub enum SyncState {
 }
 
 impl SyncState {
-    /// The inverse of [`Display`]: parses one of the seven bash keywords.
-    /// `None` for anything else.
+    /// The inverse of [`Display`]. `None` for an unrecognised keyword.
     #[must_use]
     pub fn from_keyword(raw: &str) -> Option<Self> {
         Some(match raw {

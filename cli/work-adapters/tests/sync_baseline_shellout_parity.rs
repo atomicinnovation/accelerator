@@ -1,13 +1,10 @@
-//! Shells the live `work-item-normalise.sh`/`work-item-project-remote.sh`
-//! for each corpus case and asserts both the Rust recipe and the committed
-//! `expected.json` match what bash actually outputs right now.
+//! Shells the live normalise and project-remote scripts for each corpus
+//! case and asserts both the Rust recipe and the committed `expected.json`
+//! match what they output right now.
 //!
-//! Without this, the corpus's bash provenance rests on a manual step: after
-//! `regenerate.sh` is deleted at cutover, nothing would otherwise catch a
-//! corpus quietly regenerated from the Rust recipe, where the oracle would
-//! agree with itself and the whole test become vacuous. Gated on
-//! `bash-parity`, which `--all-features` turns on in CI, matching every
-//! other bash-shellout suite in this crate.
+//! Without this, nothing would catch a corpus regenerated from the Rust
+//! recipe, where the oracle would agree with itself and the whole suite
+//! become vacuous.
 #![cfg(feature = "bash-parity")]
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

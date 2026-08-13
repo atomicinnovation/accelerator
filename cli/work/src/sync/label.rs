@@ -1,13 +1,10 @@
-//! The status glyph table `/list-work-items` renders. Port of
-//! `work-item-sync-label.sh`.
+//! The status glyph table `/list-work-items` renders.
 
 use crate::sync::state::SyncState;
 
-/// The five states that carry a rendered label.
-///
-/// `RemoteAbsent` and `Indeterminate` have none — the script's `--label` arm
-/// rejects them with exit 1 — so a caller cannot ask this module for a
-/// glyph that does not exist.
+/// The five states that carry a rendered label. `RemoteAbsent` and
+/// `Indeterminate` have none, so a caller cannot ask for a glyph that does
+/// not exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderableState {
     Synced,
@@ -40,13 +37,12 @@ pub enum SyncPresence {
     Unsynced,
 }
 
-/// Strips bash's *combined* `[[:space:]"']` character class from both ends —
-/// not quotes, then whitespace — and reports whether anything survives.
+/// Reports whether anything survives stripping whitespace and quotes as one
+/// *combined* class from both ends.
 ///
-/// A "strip quotes, then trim" port is a different function: it classifies
-/// `  'PROJ-1'  ` differently, since the combined class removes the
-/// surrounding quotes and whitespace in one pass regardless of which comes
-/// first or last.
+/// Stripping quotes and then trimming is a different function: it
+/// classifies `  'PROJ-1'  ` differently, since the combined class removes
+/// both in one pass regardless of their order.
 #[must_use]
 pub fn classify_external_id(raw: &str) -> SyncPresence {
     let is_strippable =
@@ -59,8 +55,7 @@ pub fn classify_external_id(raw: &str) -> SyncPresence {
     }
 }
 
-/// The rendered `<glyph> <text>` label, with no trailing newline — matching
-/// `printf` without `\n` (`work-item-sync-label.sh:57-61`).
+/// The rendered `<glyph> <text>` label, with no trailing newline.
 #[must_use]
 pub const fn label(state: RenderableState) -> &'static str {
     match state {

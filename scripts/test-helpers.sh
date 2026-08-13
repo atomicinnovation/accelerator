@@ -320,7 +320,7 @@ assert_files_identical() {
 
 # assert_stdout_exact <label> <expected_file> <captured_stdout_file>
 #   Thin alias around assert_files_identical for byte-exact stdout assertions
-#   (the AC1 / segmentation --list cases). Capture stdout to a file, then cmp.
+#   (the segmentation --list cases). Capture stdout to a file, then cmp.
 assert_stdout_exact() {
   assert_files_identical "$1" "$2" "$3"
 }

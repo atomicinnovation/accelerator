@@ -1,5 +1,5 @@
 //! Runs `work::sync::decide` and `resolve_conflict_token` against the
-//! shared golden also loaded by the bash suite,
+//! shared golden in
 //! `skills/work/scripts/test-fixtures/work-item-sync-decide.golden`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
@@ -62,9 +62,8 @@ fn dirtiness(raw: &str) -> Dirtiness {
     }
 }
 
-/// Bash's own keyword vocabulary — `prompt`, not the wire keyword
-/// `unresolved` that `Action`'s `Display`/`from_keyword` render, since the
-/// golden is transcribed from `work-item-sync-decide.sh`'s own output.
+/// The golden's own vocabulary — `prompt`, not the wire keyword
+/// `unresolved` that `Action`'s `Display`/`from_keyword` render.
 fn action(raw: &str) -> Action {
     match raw {
         "push" => Action::Push,
@@ -154,11 +153,9 @@ fn every_decide_and_token_row_matches_the_golden() -> Result<(), TestError> {
                     panic!("malformed TOKEN row: {line}");
                 };
                 let token = unescape_token(raw_token);
-                // The golden pins the observable action bash also emits —
-                // a flat keyword with no "recognised"/"unrecognised"
-                // distinction. `resolve_conflict_token` returns `None` for
-                // an unrecognised token specifically so a caller can warn;
-                // folding it to `Skip` here reproduces bash's flat shape.
+                // The golden pins the observable resolution, which carries
+                // no recognised/unrecognised distinction, so the `None` a
+                // caller warns on folds to `Skip` here.
                 let actual =
                     resolve_conflict_token(&token).unwrap_or(Resolution::Skip);
                 let expected = resolution(raw_expected);

@@ -1,6 +1,4 @@
-//! The (direction × state × dirty) decision table. Port of
-//! `work-item-sync-decide.sh`'s `decide` and `resolve-conflict-token`
-//! subcommands.
+//! The (direction × state × dirty) decision table.
 
 use crate::sync::state::SyncState;
 
@@ -11,13 +9,10 @@ pub enum SyncDirection {
     PullOnly,
 }
 
-/// Three-valued so absence and cleanliness are never the same value.
+/// Three-valued, so a failed probe and a clean tree are never one value.
 ///
-/// `work::file_dirty` already maps a failed VCS status probe to dirty
-/// deliberately — the recovery model is VCS revert, which cannot recover
-/// uncommitted working-copy changes — and `Unknown` preserves that: it
-/// decides as `Dirty` everywhere, so a failed probe can never authorise an
-/// overwrite by defaulting quietly to clean.
+/// `Unknown` decides as `Dirty` everywhere, since VCS revert cannot recover
+/// the uncommitted working-copy changes an overwrite would destroy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dirtiness {
     Clean,
@@ -57,10 +52,6 @@ impl std::fmt::Display for Action {
             Self::Pull => "pull",
             Self::SkipConflict => "skip-conflict",
             Self::SkipDirty => "skip-dirty",
-            // The report's one deliberate divergence from the bash keyword
-            // (`prompt`): it carries the exit-code semantics, so owning the
-            // wire spelling here keeps one place holding it rather than a
-            // second hand-rolled mapping in the CLI layer.
             Self::Prompt => "unresolved",
             Self::Noop => "noop",
         })
@@ -74,12 +65,8 @@ pub enum Resolution {
     Skip,
 }
 
-/// Maps (direction, state, dirty) to one action.
-///
-/// The table is 7 states x 3 directions, with `dirty` sub-splitting
-/// `RemotelyModified` only — every other state collapses to the same action
-/// regardless of direction or dirtiness where the direction forbids the
-/// write, or to `Noop` where there is nothing to reconcile.
+/// Maps (direction, state, dirty) to one action. `dirty` sub-splits
+/// `RemotelyModified` alone; every other state ignores it.
 #[must_use]
 pub const fn decide(
     direction: SyncDirection,
@@ -123,18 +110,14 @@ pub const fn decide(
     }
 }
 
-/// Folds case then trims in ASCII only, matching bash's `tr '[:upper:]'
-/// '[:lower:]'` plus a `[[:space:]]` sed in the C locale.
+/// Folds case then trims, in ASCII only.
 ///
-/// Unicode-aware `to_lowercase()`/`trim()` would resolve a leading U+00A0 to
-/// `AcceptRemote` where bash leaves it unrecognised and skips — turning the
-/// deliberately safe default into a local overwrite for whitespace no human
-/// can see.
+/// A Unicode-aware `to_lowercase()`/`trim()` would resolve a leading U+00A0
+/// to `AcceptRemote`, turning the deliberately safe default into a local
+/// overwrite for whitespace no human can see.
 ///
-/// `None` when the token is not one this resolver recognises; the caller
-/// maps that to [`Resolution::Skip`] itself, so the safe default is
-/// unchanged while still letting a caller warn that a token went
-/// unrecognised.
+/// `None` for an unrecognised token, so a caller can warn about it before
+/// applying [`Resolution::Skip`] itself.
 #[must_use]
 pub fn resolve_conflict_token(raw: &str) -> Option<Resolution> {
     let folded = raw.to_ascii_lowercase();

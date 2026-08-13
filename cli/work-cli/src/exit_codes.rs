@@ -1,11 +1,4 @@
 //! The whole binary's exit-code taxonomy, in one place.
-//!
-//! Naming the low codes here too — not only 70-73 — is what stops 4 and 5
-//! joining the hand-rolled literals already scattered through `main.rs`.
-//!
-//! `for_tracker_error` is consumed by `--push` wiring, which lands in a
-//! later commit. `#[allow(dead_code)]` marks it until then rather than
-//! leaving the taxonomy split across two definitions.
 
 use tracker::TrackerError;
 

@@ -1,10 +1,9 @@
 //! Runs `work::sync::classify_external_id`, the `RenderableState` narrowing
-//! and `work::sync::label` against the shared golden also loaded by the
-//! bash suite, `skills/work/scripts/test-fixtures/work-item-sync-label.golden`.
+//! and `work::sync::label` against the shared golden in
+//! `skills/work/scripts/test-fixtures/work-item-sync-label.golden`.
 //!
-//! `[DEFAULT]` has no typed Rust counterpart — the composition is the
-//! script's own — so that section is count-asserted only, a deliberate
-//! asymmetry rather than an oversight.
+//! `[DEFAULT]` has no typed Rust counterpart, so that section is
+//! count-asserted only.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;

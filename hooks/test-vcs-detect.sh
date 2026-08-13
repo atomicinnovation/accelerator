@@ -128,7 +128,7 @@ make_colocated_secondary() {
 }
 
 # Cross-VCS fixture: a jj secondary workspace whose target sits inside
-# a pure-git parent (AC4).
+# a pure-git parent.
 make_jj_secondary_in_git_parent() {
   FIXTURE_JJ_PARENT="" FIXTURE_GIT_PARENT="" FIXTURE_TARGET=""
   FIXTURE_GIT_PARENT=$(make_main_git_checkout)
@@ -171,7 +171,7 @@ echo ""
 # whose TMPDIR resolves under /private/var, /var/folders, or a $HOME path.)
 # These are the same goldens cli/vcs-cli/tests/detect_goldens.rs compares the
 # compiled accelerator-vcs binary's output against.
-echo "Test [AC5]: golden snapshots free of host-specific path artefacts"
+echo "Test [goldens]: golden snapshots free of host-specific path artefacts"
 for snap in "$FIXTURE_ROOT/main-jj-workspace.json" "$FIXTURE_ROOT/main-git-checkout.json"; do
   for needle in '/private/var' '/var/folders' '/Users/' '/home/'; do
     assert_not_contains "no host artefact ($(basename "$snap"): $needle)" \
@@ -186,7 +186,7 @@ done
 # cli/vcs-cli/tests/detect_goldens.rs makes (there via parsed serde_json::Value
 # equality; here via canonical-text equality, since this suite runs the
 # compiled binary through the real launcher dispatch rather than linking it).
-echo "Test [AC5]: main jj workspace output matches the golden"
+echo "Test [goldens]: main jj workspace output matches the golden"
 d=$(make_main_jj_workspace)
 OUTPUT=$(run_hook "$d")
 GOLDEN=$(jq -S . "$FIXTURE_ROOT/main-jj-workspace.json")
@@ -198,7 +198,7 @@ assert_not_contains "no boundary field (main jj)" "$OUTPUT" "Boundary (active wo
 assert_not_contains "no parent field (main jj)" "$OUTPUT" "Parent repository"
 
 # ── main git checkout output matches the golden ────────────────────────────────
-echo "Test [AC5]: main git checkout output matches the golden"
+echo "Test [goldens]: main git checkout output matches the golden"
 d=$(make_main_git_checkout)
 OUTPUT=$(run_hook "$d")
 GOLDEN=$(jq -S . "$FIXTURE_ROOT/main-git-checkout.json")
@@ -207,9 +207,9 @@ assert_not_contains "no boundary header (main git)" "$OUTPUT" "WORKSPACE BOUNDAR
 assert_not_contains "no boundary field (main git)" "$OUTPUT" "Boundary (active workspace):"
 assert_not_contains "no parent field (main git)" "$OUTPUT" "Parent repository"
 
-# ── AC6: plain non-repo directory — exits 0, empty stderr, valid JSON,
+# ── Plain non-repo directory — exits 0, empty stderr, valid JSON,
 #        no boundary content for any of the three prohibition phrases. ─────────
-echo "Test [AC6]: plain non-repo directory exits 0 with no boundary content"
+echo "Test [non-repo]: plain non-repo directory exits 0 with no boundary content"
 d=$(new_workdir)
 STDOUT_FILE=$(mktemp)
 STDERR_FILE=$(mktemp)
@@ -227,11 +227,11 @@ assert_eq "empty stderr" "" "$STDERR"
 if [ -n "$STDOUT" ]; then
   echo "$STDOUT" | jq -e . >/dev/null ||
     {
-      echo "FAIL: AC6 stdout is not valid JSON" >&2
+      echo "FAIL: non-repo stdout is not valid JSON" >&2
       exit 1
     }
 fi
-# All three AC1 prohibition phrases must be absent — not just `edit`.
+# All three prohibition phrases must be absent — not just `edit`.
 assert_not_contains "no edit prohibition" "$STDOUT" "do not edit files in"
 assert_not_contains "no vcs prohibition" "$STDOUT" "do not run VCS commands against"
 assert_not_contains "no research prohibition" "$STDOUT" "do not grep, find, or research files in"
@@ -239,8 +239,8 @@ assert_not_contains "no boundary header" "$STDOUT" "WORKSPACE BOUNDARY DETECTED"
 
 echo "=== boundary block: jj secondary and git linked worktree ==="
 
-# ── AC1: jj secondary workspace boundary block ────────────────────────────────
-echo "Test [AC1]: jj secondary workspace emits boundary block"
+# ── jj secondary workspace boundary block ───────────────────────────────────────────────────────────────────
+echo "Test [jj-workspace]: jj secondary workspace emits boundary block"
 make_jj_secondary_workspace
 OUTPUT=$(run_hook "$FIXTURE_SECONDARY")
 CTX=$(extract_context "$OUTPUT")
@@ -251,8 +251,8 @@ assert_contains "edit prohibition" "$CTX" "do not edit files in $FIXTURE_PARENT"
 assert_contains "vcs prohibition" "$CTX" "do not run VCS commands against $FIXTURE_PARENT"
 assert_contains "research prohibition" "$CTX" "do not grep, find, or research files in $FIXTURE_PARENT"
 
-# ── AC2: git linked worktree boundary block ───────────────────────────────────
-echo "Test [AC2]: git linked worktree emits boundary block"
+# ── git linked worktree boundary block ─────────────────────────────────────────────────────────────────────────
+echo "Test [git-worktree]: git linked worktree emits boundary block"
 make_git_linked_worktree
 OUTPUT=$(run_hook "$FIXTURE_WORKTREE")
 CTX=$(extract_context "$OUTPUT")
@@ -265,8 +265,8 @@ assert_contains "research prohibition" "$CTX" "do not grep, find, or research fi
 
 echo "=== boundary block: colocated and cross-VCS ==="
 
-# ── AC3: colocated — single block, both parents named separately ──────────────
-echo "Test [AC3]: colocated checkout emits single block with both parents"
+# ── Colocated — single block, both parents named separately ──────────────
+echo "Test [colocated]: colocated checkout emits single block with both parents"
 make_colocated_secondary
 OUTPUT=$(run_hook "$FIXTURE_TARGET")
 CTX=$(extract_context "$OUTPUT")
@@ -283,8 +283,8 @@ assert_contains "git vcs" "$CTX" "do not run VCS commands against $FIXTURE_GIT_P
 assert_contains "jj research" "$CTX" "do not grep, find, or research files in $FIXTURE_JJ_PARENT"
 assert_contains "git research" "$CTX" "do not grep, find, or research files in $FIXTURE_GIT_PARENT"
 
-# ── AC4: jj secondary nested inside a pure-git parent ─────────────────────────
-echo "Test [AC4]: jj-in-git nesting names BOTH parents (jj inner, git outer)"
+# ── jj secondary nested inside a pure-git parent ─────────────────────────
+echo "Test [nesting]: jj-in-git nesting names BOTH parents (jj inner, git outer)"
 make_jj_secondary_in_git_parent
 OUTPUT=$(run_hook "$FIXTURE_TARGET")
 CTX=$(extract_context "$OUTPUT")
@@ -307,8 +307,8 @@ GIT_COMMON_REAL=$( (cd "$FIXTURE_TARGET" && realpath "$(dirname "$(git rev-parse
 assert_eq "inner boundary == jj workspace root" "$JJ_WS_REAL" "$FIXTURE_TARGET"
 assert_eq "outer parent == git common-dir parent" "$GIT_COMMON_REAL" "$FIXTURE_GIT_PARENT"
 
-# ── AC4 (symmetric): git linked worktree nested inside a pure-jj parent ──────
-echo "Test [AC4]: git-in-jj nesting names BOTH parents (git inner, jj outer)"
+# ── git linked worktree nested inside a pure-jj parent ──────
+echo "Test [nesting]: git-in-jj nesting names BOTH parents (git inner, jj outer)"
 make_git_worktree_in_jj_parent
 OUTPUT=$(run_hook "$FIXTURE_TARGET")
 CTX=$(extract_context "$OUTPUT")
@@ -325,13 +325,13 @@ assert_contains "jj research" "$CTX" "do not grep, find, or research files in $F
 
 echo "=== hooks.json registration ==="
 
-# ── AC8: hooks/hooks.json SessionStart vcs-detect entry intact ────────────────
+# ── hooks/hooks.json SessionStart vcs-detect entry intact ────────────────
 # Order-independent (no SessionStart[N] indexing): finds the entry by its
 # command string rather than assuming a fixed array position, so reordering
 # hooks.json's SessionStart array does not break this guard. A non-matching
 # selector resolves to `null`, which every assertion below fails against
 # rather than vacuously passing.
-echo "Test [AC8]: hooks.json SessionStart entry has matcher='', one hook, expected command"
+echo "Test [hooks.json]: hooks.json SessionStart entry has matcher='', one hook, expected command"
 HOOKS_JSON="$PLUGIN_ROOT/hooks/hooks.json"
 # shellcheck disable=SC2016 # single-quoted jq expressions; ${CLAUDE_PLUGIN_ROOT} is expanded by Claude Code at runtime, intentionally not shell-expanded
 DETECT_SELECTOR='[.hooks.SessionStart[] | select(.hooks[0].command == "${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs detect --format=hook --fail-safe --descriptive")][0]'

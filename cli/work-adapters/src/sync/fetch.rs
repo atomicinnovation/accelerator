@@ -36,12 +36,9 @@ pub enum RetrievalStrategy {
 
 /// A local working-copy status probe.
 ///
-/// Injected so the fetch shell never shells `jj`/`git` itself. A jj-mode
-/// implementation probes once per run (`jj diff --name-only` is a
-/// whole-tree list); a git-mode implementation probes per path
-/// (`git status --porcelain -- <path>`) — both fit behind this one method,
-/// which is why the strategy is a property of the concrete port rather
-/// than of this module.
+/// Injected so the fetch shell never shells `jj`/`git` itself. Whether a
+/// probe covers the whole tree once or one path at a time is a property of
+/// the implementation, not of this interface.
 pub trait WorkingCopyStatus {
     fn is_dirty(&self, path: &Path) -> Dirtiness;
 }
@@ -139,11 +136,6 @@ const fn placeholder_remote() -> GatheredRemote {
 }
 
 /// Gathers the facts `work::sync::plan` needs, for every item.
-///
-/// Bulk mode is bulk-**then**-`show`: one `fetch_all` over every present
-/// `external_id`, then `show` for exactly the ids whose stamp does not
-/// prove unchanged. Per-item mode calls `show` for every present id and
-/// never calls `fetch_all`.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn gather(

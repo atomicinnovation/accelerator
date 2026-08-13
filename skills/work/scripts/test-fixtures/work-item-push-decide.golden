@@ -1,8 +1,4 @@
-# work-item-push-decide.sh golden file, shared with
-# cli/work/tests/sync_push_decide.rs — one oracle for both implementations.
-# Transcribed from the "Decision seam" assertions in
-# test-work-item-create-remote.sh (extended in 0194's Phase 1
-# characterization pass), not re-derived from either port.
+# The push-decision golden: one oracle read by every implementation.
 #
 # Format: <code>|<attempt>|<write-failed>|<expected-outcome>
 #

@@ -1,9 +1,8 @@
 //! The pure sync planner: classify then decide over pre-gathered facts, with
 //! any `--resolve` orders applied afterwards.
 //!
-//! "Fetching stays outside planning" refers to `fetch_all`/`show` only —
-//! local reads still happen, lazily, through the injected [`ItemDigests`]
-//! port whenever `classify` asks for one.
+//! Planning makes no remote call. Local reads still happen, lazily, through
+//! the injected [`ItemDigests`] port whenever `classify` asks for one.
 
 use std::collections::BTreeMap;
 
@@ -56,11 +55,8 @@ impl SyncPlan {
     }
 }
 
-/// One item's classification inputs.
-///
-/// Reuses [`Subject`] and [`BaselineEntry`] rather than a parallel shape:
-/// everything `classify` needs, including the item's own
-/// `&dyn ItemDigests`, so `plan` needs no separate lookup port.
+/// One item's classification inputs, carrying its own [`ItemDigests`] so
+/// `plan` needs no separate lookup port.
 pub struct PlanInput<'a> {
     pub id: String,
     pub external_id: Option<&'a ExternalId>,
@@ -71,13 +67,9 @@ pub struct PlanInput<'a> {
     pub digests: &'a dyn ItemDigests,
 }
 
-/// The two-tier read rule as a pure function: which ids need a `show`
-/// before the plan can be completed, expressed as the ids whose stamp does
-/// not prove unchanged against their baseline entry.
-///
-/// Uses `proves_unchanged_since`, not bash's raw string equality — a
-/// deliberate divergence recorded where it is decided; the adapter's fetch
-/// shell asks this rather than owning the rule itself.
+/// The two-tier read rule as a pure function: the ids whose stamp does not
+/// prove them unchanged against their baseline entry, and which therefore
+/// need a `show` before the plan can be completed.
 #[must_use]
 pub fn needs_body_read(items: &[PlanInput<'_>]) -> Vec<ExternalId> {
     items
@@ -102,11 +94,9 @@ pub fn needs_body_read(items: &[PlanInput<'_>]) -> Vec<ExternalId> {
 
 /// Computes a complete plan: one [`PlannedAction`] per item.
 ///
-/// A `Prompt` with a matching resolution becomes `Pull` (`AcceptRemote`) or
-/// `Push` (`PushLocal`); `Skip` and no order leave it `Prompt`. Resolutions
-/// naming an id that did not decide `Prompt` are inert — `plan` only reads
-/// the map, it does not validate it, so a stale or misdirected order simply
-/// finds nothing to apply to.
+/// A resolution naming an id that did not decide `Prompt` is inert; the map
+/// is read, never validated, so a stale or misdirected order finds nothing
+/// to apply to.
 ///
 /// # Errors
 ///

@@ -1,7 +1,5 @@
-//! Runs `work::sync::classify` against the shared table also loaded by the
-//! bash suite, `skills/work/scripts/test-fixtures/work-item-sync-classify.json`.
-//! Both implementations read one oracle rather than carrying two independent
-//! transcriptions that can silently drift apart.
+//! Runs `work::sync::classify` against the shared table in
+//! `skills/work/scripts/test-fixtures/work-item-sync-classify.json`.
 #![allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -27,9 +25,8 @@ use work::sync::SyncState;
 
 type TestError = Box<dyn std::error::Error>;
 
-/// The floor this table must meet — pinned independently of `applies_to` so
-/// narrowing a row's applicability cannot quietly shrink what each side
-/// actually exercises without a second, deliberate edit here.
+/// Pinned independently of `applies_to` so narrowing a row's applicability
+/// cannot quietly shrink what this suite exercises.
 const EXPECTED_RUST_CASES: usize = 17;
 
 fn repo_root() -> Result<PathBuf, TestError> {

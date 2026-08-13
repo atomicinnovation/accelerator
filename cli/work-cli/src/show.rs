@@ -2,8 +2,6 @@
 //! file verbatim; with `--field`, distinguishes missing-file /
 //! no-frontmatter / unclosed-frontmatter before calling
 //! `work::show::read_field_raw` (with the own-identity alias fallback).
-//! Port of `work-item-read-field.sh`/`work-item-read-status.sh`'s exact
-//! error phrasing and exit-code contract.
 
 use std::path::Path;
 

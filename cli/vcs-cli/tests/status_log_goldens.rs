@@ -1,7 +1,7 @@
-//! `vcs status`/`vcs log` against the Phase 1 golden fixtures, replayed end
-//! to end through the compiled `accelerator-vcs` binary over the same ten
-//! real jj/git checkout states `hooks/test-fixtures/generate_vcs_goldens.py`
-//! captured `scripts/vcs-status.sh`/`scripts/vcs-log.sh` against.
+//! `vcs status`/`vcs log` against the committed golden fixtures, replayed
+//! end to end through the compiled `accelerator-vcs` binary over the same
+//! ten real jj/git checkout states
+//! `hooks/test-fixtures/generate_vcs_goldens.py` captured.
 #![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeMap;

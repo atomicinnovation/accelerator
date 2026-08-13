@@ -1,16 +1,9 @@
 //! The (dispatcher code x attempt x write-failed) decision table for
 //! `create --push`.
 //!
-//! Port of `work-item-push-decide.sh`, beside `decide` since it is the
-//! same kind of pure table over an orchestration outcome, sited in the
-//! domain rather than the binary crate where it is hardest to test.
-//!
-//! Takes the dispatcher code as a bare `u8`, not a named constant:
-//! `work_domain_imports_only_permitted` forbids `work` from importing
-//! `work_cli`, where the `RETRYABLE`/`TERMINAL`/... constants live. A `u8`
-//! parameter is also what keeps the golden's unknown-code row (`99` ->
-//! `loud-terminal`) expressible at all — an enum over the four known codes
-//! could not represent it.
+//! The dispatcher code is a bare `u8` rather than an enum over the codes
+//! this crate knows: an unrecognised code must stay expressible, since it is
+//! what the conservative default exists to handle.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PushOutcome {
@@ -38,9 +31,9 @@ const UNRECOGNISED: u8 = 73;
 
 /// Maps a dispatcher outcome to the next action.
 ///
-/// `write_failed` is consulted only when `code == 0` — a local write
-/// failure has no dispatcher code of its own, so it is expressed as a flag
-/// alongside the success code, exactly as bash's own decision reads it.
+/// `write_failed` is a flag rather than a code because a local write
+/// failure has no dispatcher code of its own; it is consulted only
+/// alongside the success code.
 #[must_use]
 pub const fn push_decide(
     code: u8,
@@ -64,10 +57,8 @@ pub const fn push_decide(
             }
         }
         NOT_AVAILABLE | UNRECOGNISED => PushOutcome::LocalSave,
-        // Covers the terminal code (71) and every unrecognised code alike:
-        // a known terminal failure and an unknown dispatcher code both mean
-        // "a remote issue may exist", so both fall back to the
-        // conservative default.
+        // A known terminal failure and an unknown dispatcher code both mean
+        // a remote issue may exist, so both take the conservative default.
         _ => PushOutcome::LoudTerminal,
     }
 }

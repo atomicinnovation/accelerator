@@ -1,5 +1,4 @@
-//! Tag-array mutation over a whole raw frontmatter block. Port of
-//! `work-item-update-tags.sh:76-163`.
+//! Tag-array mutation over a whole raw frontmatter block.
 
 use crate::show::read_field_raw;
 
@@ -20,9 +19,8 @@ pub enum TagError {
     BlockStyleTags,
 }
 
-/// True iff `frontmatter_raw` writes `tags:` in YAML block-list style (a
-/// `tags:` line with an empty value followed by an indented `- ` item).
-/// Port of the block-style scan in `work-item-update-tags.sh:44-68`.
+/// True iff `frontmatter_raw` writes `tags:` in YAML block-list style: a
+/// `tags:` line with an empty value followed by an indented `- ` item.
 fn is_block_style_tags(frontmatter_raw: &str) -> bool {
     let mut lines = frontmatter_raw.lines();
     while let Some(line) = lines.next() {
@@ -64,14 +62,13 @@ fn build_canonical(tags: &[String]) -> String {
 }
 
 /// Parses a canonical tags array value (`[a, b, "c,d"]`) into its items via
-/// a **naive comma split** — the same `tr ',' '\n'` bash uses
-/// (`work-item-update-tags.sh:76-88`), which does not respect quoting.
+/// a **naive comma split** that does not respect quoting.
 ///
 /// Preserved quirk, not a bug: a comma-quoted existing tag (`"c,d"`) is
-/// mis-split into two tokens (`c`, `d`) on the next add/remove — this is
-/// the shell's actual behaviour and is reproduced as-is. Public so the
-/// adapter layer can parse [`TagMutation::Changed`]'s own canonical-array
-/// output back into a list when splicing it into a `document::Yaml` tree.
+/// mis-split into two tokens (`c`, `d`) on the next add/remove. Public so
+/// the adapter layer can parse [`TagMutation::Changed`]'s own
+/// canonical-array output back into a list when splicing it into a
+/// `document::Yaml` tree.
 #[must_use]
 pub fn parse_current_tags(raw_tags: &str) -> Vec<String> {
     let stripped = raw_tags.strip_prefix('[').unwrap_or(raw_tags);

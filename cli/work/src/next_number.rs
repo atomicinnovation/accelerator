@@ -1,4 +1,4 @@
-//! Next-sequential-ID allocation. Port of `work-item-next-number.sh:94-140`.
+//! Next-sequential-ID allocation.
 //!
 //! Formatting reuses `corpus::WorkItemIdScheme::canonicalise_id` (via a
 //! project-overridden clone of `scheme`) rather than

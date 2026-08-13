@@ -1,17 +1,9 @@
 """Guard the contract-suite nextest filter.
 
-Its own file rather than `test_rust.py`, following the precedent
-`test_registration_docs.py` states in its own docstring: guards over
-non-Python artefacts live in dedicated files beside `test_mise.py` and
-`test_workflows.py`. `test_rust.py`'s scope is the `tasks/shared/rust.py`
-helpers and the task leaves, so a guard over a Rust-tooling config file is
-invisible there to both the config's maintainer and the task's.
-
-Without this, the next author to name a test binary `contract.rs` in some
-other crate gets it silently dropped from `mise run` with no signal, and a
-`--profile`/`--ignore-default-filter` slipped into `test:unit:cli`'s command
-would bypass the filter with nothing catching it — from 0171 onward that
-means live API calls in the default test run.
+Without this, a `--profile` or `--ignore-default-filter` slipped into
+`test:unit:cli`'s command would bypass the filter with nothing catching it,
+and once real provider clients exist that means live API calls in the
+default test run.
 """
 
 import tomllib

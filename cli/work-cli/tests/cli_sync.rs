@@ -1,16 +1,11 @@
 //! CLI-boundary tests for `work sync`.
 //!
-//! `accelerator-work` is bin-only (no `[lib]` target, matching every other
-//! `*-cli` crate — see `exit_codes_parity.rs`'s own note), so a real
-//! subprocess invocation cannot inject a fake `TrackerRegistry`: the
-//! compiled binary always resolves through `ConfiguredTrackers`, which has
-//! no client wired for any provider yet. This suite therefore covers
-//! exactly what is reachable from outside the process today — provider
-//! selection, usage errors, and non-interactivity — and defers the
-//! fake-tracker-driven scenarios (the two-invocation conflict loop,
-//! classification stability, the write-bounds boundary tests) to a future
-//! change that gives `work-cli` a `[lib]` target `work_adapters::sync::run`
-//! can be driven through directly.
+//! `accelerator-work` is bin-only, so a subprocess cannot inject a fake
+//! `TrackerRegistry` and this suite covers only what is reachable from
+//! outside the process: provider selection, usage errors, and
+//! non-interactivity. The fake-tracker scenarios — the conflict loop,
+//! classification stability, the write-bounds boundaries — need a `[lib]`
+//! target `work_adapters::sync::run` can be driven through directly.
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -132,9 +127,8 @@ fn a_duplicate_resolve_order_for_one_id_is_a_usage_error(
 fn stdin_closed_never_blocks_and_never_reads_it() -> Result<(), TestError> {
     let repo = scratch_repo(Some("jira"))?;
     let output = run(repo.path(), &[])?;
-    // A run that hung on stdin would make this test hang too; the process
-    // completing at all (within the harness's own timeout) is the
-    // assertion that matters here.
+    // The process completing at all is the assertion: a run that hung on
+    // stdin would hang this test.
     assert_eq!(output.status.code(), Some(72));
     Ok(())
 }

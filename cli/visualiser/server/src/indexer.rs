@@ -195,7 +195,7 @@ pub struct IndexEntry {
     pub cluster_key: Option<String>,
 }
 
-/// Test rendezvous point used by Phase 9 concurrency tests to inspect
+/// Test rendezvous point used by the concurrency tests to inspect
 /// state at the precise moment after the secondary indexes have been
 /// updated but before the `entries.write()` guard is released. Two
 /// `oneshot` channels — `reached` (writer → test) and `proceed`
@@ -2840,10 +2840,10 @@ mod reverse_index_tests {
     // ── Step 1.10 ────────────────────────────────────────────────────────────
     #[tokio::test]
     async fn reviews_by_target_admits_every_target_carrying_doc_type() {
-        // Phase 3 widens target resolution to every doc type that carries
-        // a `target:` frontmatter key (PlanReviews, WorkItemReviews,
-        // PrReviews, Validations). A PR review pointing at a plan-shaped
-        // path is admitted; the parser is intentionally type-agnostic.
+        // Target resolution admits every doc type carrying a `target:`
+        // frontmatter key (PlanReviews, WorkItemReviews, PrReviews,
+        // Validations), so a PR review pointing at a plan-shaped path is
+        // admitted: the parser is intentionally type-agnostic.
         let tmp = tempfile::tempdir().unwrap();
         let plans = tmp.path().join("meta/plans");
         let pr_reviews = tmp.path().join("meta/reviews/prs");

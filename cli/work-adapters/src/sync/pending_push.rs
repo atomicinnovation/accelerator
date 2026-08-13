@@ -40,10 +40,10 @@ pub fn path(integrations_dir: &Path, integration: &str, slug: &str) -> PathBuf {
 
 /// The request fingerprint's digest.
 ///
-/// `sha256` over the three fields length-prefixed, not concatenated:
-/// undelimited `title + body + kind` is not injective — `("ab", "c", k)`
-/// and `("a", "bc", k)` would collide — and proving two requests are the
-/// *same* before adopting a remote id is the whole job of this value.
+/// Length-prefixed rather than concatenated: undelimited `title + body +
+/// kind` is not injective, so `("ab", "c", k)` and `("a", "bc", k)` would
+/// collide, and proving two requests are the *same* before adopting a
+/// remote id is this value's whole job.
 #[must_use]
 pub fn request_digest(title: &str, body: &str, kind: &str) -> String {
     use std::fmt::Write as _;
@@ -77,10 +77,9 @@ fn fingerprint_from(
 
 /// Parses the marker's persisted JSON.
 ///
-/// `Ok(None)` for absent content; `Err` for content that could not be
-/// parsed — the two must not collapse, since a crash mid-write (exactly
-/// what the marker exists to survive) reading as "no previous attempt"
-/// would re-issue a non-idempotent `create`.
+/// `Ok(None)` for absent content and `Err` for unparseable content stay
+/// distinct, so a crash mid-write cannot read as "no previous attempt" and
+/// re-issue a non-idempotent `create`.
 ///
 /// # Errors
 ///

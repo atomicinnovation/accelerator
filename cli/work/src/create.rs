@@ -30,10 +30,8 @@ pub struct CreateInputs<'a> {
     pub author: &'a str,
     pub producer: &'a str,
     pub date: &'a str,
-    /// The remote identifier a successful `create --push` already holds by
-    /// the time frontmatter is composed — `None` for a plain `create` or a
-    /// `--push` that saved locally without pushing, matching the
-    /// template's "omit when not linked" comment.
+    /// `None` for a plain `create`, or a `--push` that saved locally
+    /// without reaching the tracker.
     pub external_id: Option<&'a str>,
 }
 

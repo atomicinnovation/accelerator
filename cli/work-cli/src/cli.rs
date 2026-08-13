@@ -185,9 +185,7 @@ pub struct CreateArgs {
     pub push: bool,
 }
 
-/// `work sync`'s flags — boxed for the same reason as [`CreateArgs`].
-/// Four independent boolean flags is what the command surface actually
-/// asks for, not a state machine in disguise.
+/// `work sync`'s flags, boxed for the same reason as [`CreateArgs`].
 #[derive(Args)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct SyncArgs {

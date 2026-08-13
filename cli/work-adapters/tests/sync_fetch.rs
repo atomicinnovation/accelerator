@@ -40,11 +40,10 @@ fn item(id: &str, external_id: Option<&str>) -> LocalItem {
 }
 
 /// `RecordingTracker::holding` never fails `fetch_all`, so this pins the
-/// per-id partition for a tracker that knows nothing: every id comes back
-/// absent (a complete but empty catalogue), not indeterminate. A genuine
-/// `fetch_all` pre-flight failure has no seam on `RecordingTracker` today;
-/// `work-cli`'s command-level tests exercise it end to end instead, over a
-/// registry-selected fake configured to fail the call.
+/// partition for a tracker that knows nothing: every id comes back absent
+/// — a complete but empty catalogue — rather than indeterminate. A genuine
+/// pre-flight failure has no seam here and is covered by `work-cli`'s
+/// command-level tests.
 #[test]
 fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
     let tracker = RecordingTracker::holding(Vec::new());

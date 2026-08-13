@@ -48,8 +48,8 @@ LABEL_SECTION=""
 LABEL_CLASSIFY_RAN=0
 LABEL_LABEL_RAN=0
 LABEL_DEFAULT_RAN=0
-# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
-# updates are not lost to a subshell.
+# Read by redirect, never a pipeline: a piped `while read` runs in a
+# subshell, discarding every PASS/FAIL update.
 while IFS= read -r LABEL_LINE; do
   case "$LABEL_LINE" in
     \#* | "") continue ;;
@@ -163,8 +163,8 @@ source "$PLUGIN_ROOT/scripts/hash-common.sh"
 
 nhash() { bash "$NORMALISE" "$1" | hash_sha256_stdin; }
 
-# A baseline work item carrying the provenance/identity fields the normaliser
-# drops (the fixed IGNORE_KEYS denylist from the plan's Decisions Locked #3).
+# A baseline work item carrying the provenance/identity fields the
+# normaliser drops, one per IGNORE_KEYS entry.
 write_item() {
   cat >"$1" <<'ITEM'
 ---
@@ -357,10 +357,8 @@ CLASSIFY_EXPECTED_BASH_CASES=14
 
 classify() { bash "$CLASSIFY" "$@"; }
 
-# Shared table with cli/work/tests/sync_classify.rs — one oracle read by
-# both implementations, so a row can't be edited on one side and left stale
-# on the other. Content is fixed across every row; only the symbolic hash
-# choice, the timestamps and the mtime offset vary between cases.
+# Shared table with cli/work/tests/sync_classify.rs, so a row cannot be
+# edited on one side and left stale on the other.
 CLASSIFY_LOCAL_FILE="$TMPDIR_BASE/classify-local.md"
 CLASSIFY_REMOTE_FILE="$TMPDIR_BASE/classify-remote.md"
 jq -r '.local_content' "$CLASSIFY_FIXTURE" >"$CLASSIFY_LOCAL_FILE"
@@ -375,9 +373,8 @@ CLASSIFY_STALE_HASH="stale-hash-that-can-never-match-anything-real"
 CLASSIFY_REAL_MTIME=$(stat -f %m "$CLASSIFY_LOCAL_FILE" 2>/dev/null) ||
   CLASSIFY_REAL_MTIME=$(stat -c %Y "$CLASSIFY_LOCAL_FILE")
 
-# Resolves one of the three symbolic hash values against the shared content.
-# ⚠️ Fabricated digests are not executable by bash: "from-content" always
-# runs the real recipe, never a literal placeholder string.
+# "from-content" always runs the real recipe: a fabricated digest would
+# never match anything the scripts under test compute.
 classify_resolve_hash() {
   case "$1" in
     absent) printf '' ;;
@@ -390,10 +387,9 @@ classify_resolve_hash() {
   esac
 }
 
-# Resolves a {kind, value} timestamp object to bash's flat --remote-updated
-# string. not_reported and not_read both collapse to empty — bash cannot
-# distinguish them, which is exactly why the rows pinning that distinction
-# are rust-only.
+# not_reported and not_read both collapse to empty here: the flat
+# --remote-updated string cannot distinguish them, which is why the rows
+# pinning that distinction are rust-only.
 classify_resolve_timestamp() {
   local kind value
   kind=$(printf '%s' "$1" | jq -r '.kind')
@@ -417,8 +413,8 @@ classify_resolve_timestamp() {
 }
 
 CLASSIFY_RAN=0
-# Read by redirect, never a pipeline: `jq … | while read` runs the loop body
-# in a subshell, discarding every PASS/FAIL update this harness makes.
+# Read by redirect, never a pipeline: a piped `while read` runs in a
+# subshell, discarding every PASS/FAIL update.
 while IFS= read -r CLASSIFY_CASE; do
   CLASSIFY_APPLIES_BASH=$(printf '%s' "$CLASSIFY_CASE" |
     jq -r 'any(.applies_to[]; . == "bash")')
@@ -524,8 +520,8 @@ echo "Test: the (mode × state × dirty) table and the token resolver"
 DECIDE_RAN=0
 TOKEN_RAN=0
 DECIDE_SECTION=""
-# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
-# updates are not lost to a subshell.
+# Read by redirect, never a pipeline: a piped `while read` runs in a
+# subshell, discarding every PASS/FAIL update.
 while IFS= read -r DECIDE_LINE; do
   case "$DECIDE_LINE" in
     \#* | "") continue ;;

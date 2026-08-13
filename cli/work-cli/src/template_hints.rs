@@ -1,7 +1,6 @@
 //! Adapter/binary wiring for `work template-hints`: resolves the
 //! `work-item` template through the three config tiers and extracts the
-//! named field's hint values. Exact behavioural match for
-//! `work-item-template-field-hints.sh`: always exits 0.
+//! named field's hint values. Always exits 0.
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;

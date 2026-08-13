@@ -1,5 +1,4 @@
-//! Runs `work::sync::push_decide` against the shared golden also loaded by
-//! the bash suite,
+//! Runs `work::sync::push_decide` against the shared golden in
 //! `skills/work/scripts/test-fixtures/work-item-push-decide.golden`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

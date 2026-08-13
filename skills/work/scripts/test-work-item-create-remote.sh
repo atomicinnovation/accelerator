@@ -278,8 +278,8 @@ assert_exit_code "unrecognised flag → usage (2)" 2 \
 PUSH_DECIDE_GOLDEN="$SCRIPT_DIR/test-fixtures/work-item-push-decide.golden"
 PUSH_DECIDE_EXPECTED_ROWS=12
 PUSH_DECIDE_RAN=0
-# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
-# updates are not lost to a subshell.
+# Read by redirect, never a pipeline: a piped `while read` runs in a
+# subshell, discarding every PASS/FAIL update.
 while IFS= read -r PUSH_DECIDE_LINE; do
   case "$PUSH_DECIDE_LINE" in
     \#* | "") continue ;;

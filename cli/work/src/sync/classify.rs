@@ -1,5 +1,4 @@
-//! The change-detection engine. Port of `work-item-sync-classify.sh`'s
-//! branch order, preserving both its short-circuits.
+//! The change-detection engine.
 
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
@@ -18,8 +17,7 @@ use crate::sync::state::SyncState;
 /// would silently classify the item as locally changed with no log line to
 /// diagnose it from.
 pub trait ItemDigests {
-    /// `Ok(None)` when the mtime could not be read — the bash sentinel this
-    /// replaces forces the hash path, and so does this.
+    /// `Ok(None)` when no mtime is available, which forces the hash path.
     ///
     /// # Errors
     ///
@@ -97,11 +95,9 @@ fn remote_changed(
 
 /// Classifies one item against its baseline.
 ///
-/// Branch order reproduces `work-item-sync-classify.sh:127-196` exactly:
-/// absent `external_id` short-circuits to `Unsynced` before anything else is
-/// consulted; `presence` other than `Present` short-circuits next; only then
-/// are the local and remote sides evaluated, each defaulting to changed, and
-/// combined into the 2x2 verdict.
+/// Each side defaults to changed when it cannot be proven otherwise, so a
+/// missing baseline or an unreadable stamp yields a conflict a human
+/// resolves rather than a silent overwrite.
 ///
 /// # Errors
 ///

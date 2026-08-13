@@ -1,22 +1,15 @@
-# work-item-sync-decide.sh golden file, shared with
-# cli/work/tests/sync_decide.rs — one oracle for both implementations.
+# The sync-decision golden: one oracle read by every implementation.
 #
 # [DECIDE]           <direction>|<state>|<dirty>|<expected-action>
-# [DECIDE_RUST_ONLY]  same shape, dirty=unknown — bash has no three-valued
-#                     dirtiness; its only test is `[ "$dirty" = "1" ]`, so
-#                     "unknown" would read as clean there, which is the
-#                     wrong answer (the deliberate fail-safe is that an
-#                     unknown probe decides as dirty). Rust-only because the
-#                     correct behaviour is inexpressible in bash, not because
-#                     the two implementations disagree on a shared input.
+# [DECIDE_RUST_ONLY]  same shape, dirty=unknown. The bash harness has only a
+#                     two-valued dirtiness test, so it would read "unknown"
+#                     as clean — the opposite of the fail-safe. The row is
+#                     inexpressible there, not disputed.
 # [TOKEN]             <raw>|<expected-resolution>
-# [TOKEN_RUST_ONLY]    same shape — bash's `sed 's/[[:space:]]//'` is
-#                      locale-dependent (`[:space:]` under a UTF-8 locale can
-#                      class NBSP as space and strip it, observed on this
-#                      very suite), so bash's answer for this row is not
-#                      reliably "skip" the way the C locale alone would
-#                      suggest. Rust's ASCII-only trim has no such
-#                      dependency, so the pin lives on the Rust side only.
+# [TOKEN_RUST_ONLY]    same shape. The bash harness trims with a
+#                      locale-dependent [:space:] class that can strip NBSP,
+#                      so its answer for this row is not reliably "skip".
+#                      Rust's ASCII-only trim has no such dependency.
 #
 # direction ∈ bidirectional|push-only|pull-only
 # state ∈ synced|unsynced|locally-modified|remotely-modified|conflict
@@ -29,11 +22,10 @@
 # (empty) is the empty-value sentinel, as in work-item-file-dirty.golden and
 # work-item-canonicalise-id.golden.
 #
-# (nbsp) marks a leading U+00A0 in <raw> — invisible in review otherwise.
-# Rust resolves it to skip: a Unicode-aware to_lowercase()/trim() would
-# resolve it to accept-remote instead — turning the deliberately safe
-# default into a local overwrite for whitespace no human can see. ASCII-only
-# trim_matches(char::is_ascii_whitespace) never strips it.
+# (nbsp) marks a leading U+00A0 in <raw>, invisible in review otherwise. It
+# must resolve to skip: a Unicode-aware fold-and-trim would resolve it to
+# accept-remote instead, turning the deliberately safe default into a local
+# overwrite for whitespace no human can see.
 
 [DECIDE]
 bidirectional|synced|0|noop

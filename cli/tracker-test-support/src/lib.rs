@@ -2,12 +2,9 @@
 //! in [`contract`] that every implementation — this fake included — must
 //! satisfy.
 //!
-//! Consumed only by other crates' test targets: no dev-dependency edge points
-//! back here, matching `vcs-test-support`'s own precedent.
-//!
 //! The `ContractSubject` accessors panic when a subject was not configured
-//! for the condition they supply — deliberately, since that is a test-setup
-//! mistake in the caller, not a runtime condition to recover from.
+//! for the condition they supply: that is a test-setup mistake in the
+//! caller, not a runtime condition to recover from.
 #![allow(clippy::expect_used, clippy::missing_panics_doc)]
 
 pub mod contract;
@@ -21,10 +18,8 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
 
-/// One call the fake observed, in the order it happened.
-///
-/// Recording the pushed title and body on `Create`/`Update` is what lets a
-/// test assert the whole-content contract rather than only the call count.
+/// One call the fake observed, carrying enough of the request for a test to
+/// assert the whole-content contract rather than only the call count.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Call {
     Create {
@@ -58,7 +53,6 @@ pub struct RecordingTracker {
 }
 
 impl RecordingTracker {
-    /// A tracker holding exactly these issues, with no induced failure.
     #[must_use]
     pub const fn holding(issues: Vec<(ExternalId, RemoteIssue)>) -> Self {
         Self {
@@ -72,8 +66,8 @@ impl RecordingTracker {
         }
     }
 
-    /// A tracker whose bulk retrieval cannot account for `unprovable` —
-    /// those ids come back `indeterminate`, never `absent`.
+    /// A tracker whose bulk retrieval cannot account for `unprovable`: those
+    /// ids come back `indeterminate`, never `absent`.
     #[must_use]
     pub fn truncating(
         issues: Vec<(ExternalId, RemoteIssue)>,
@@ -85,9 +79,9 @@ impl RecordingTracker {
         }
     }
 
-    /// A tracker whose write to any id in `lossy` is acknowledged by
-    /// nothing: the response is lost, so the fake cannot say whether the
-    /// mutation applied, and reports it `Terminal`.
+    /// A tracker whose write to any id in `lossy` goes unacknowledged: the
+    /// fake cannot say whether the mutation applied, so it reports
+    /// `Terminal`.
     #[must_use]
     pub fn losing(
         issues: Vec<(ExternalId, RemoteIssue)>,
@@ -104,7 +98,6 @@ impl RecordingTracker {
         tracker
     }
 
-    /// Fail every `update` to `id` with `error`.
     #[must_use]
     pub fn failing_update(
         mut self,
@@ -115,29 +108,26 @@ impl RecordingTracker {
         self
     }
 
-    /// Fail every `create` with `error`, and create nothing.
     #[must_use]
     pub fn failing_create(mut self, error: TrackerError) -> Self {
         self.create_failure = Some((error, false));
         self
     }
 
-    /// Fail every `create` with `error`, but record the issue as created
-    /// first — the terminal-failure-that-in-fact-succeeded shape.
+    /// The terminal-failure-that-in-fact-succeeded shape: the issue is
+    /// recorded as created, then the call reports `error`.
     #[must_use]
     pub fn creating_then_failing(mut self, error: TrackerError) -> Self {
         self.create_failure = Some((error, true));
         self
     }
 
-    /// Fail every `show` of `id` with `error`.
     #[must_use]
     pub fn failing_show(mut self, id: ExternalId, error: TrackerError) -> Self {
         self.show_failures.push((id, error));
         self
     }
 
-    /// A snapshot of every call made so far, in order.
     #[must_use]
     pub fn calls(&self) -> Vec<Call> {
         self.calls.borrow().clone()

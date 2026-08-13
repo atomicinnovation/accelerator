@@ -1,5 +1,4 @@
-//! Input classification and the candidate-search cascade. Port of
-//! `work-item-resolve-id.sh:65-241`.
+//! Input classification and the candidate-search cascade.
 //!
 //! Both stages avoid `corpus_adapters::work_item_pattern` (which needs the
 //! `regex` crate) deliberately: `work`'s own import-restriction rule
@@ -166,7 +165,8 @@ fn match_full_id(input: &str, pattern: &str) -> Option<FullIdMatch> {
 }
 
 /// Classifies `input` as one of path / full ID / bare number / invalid.
-/// Port of `classify_input` (`work-item-resolve-id.sh:65-94`).
+/// Classifies a raw user input into the shape the search cascade dispatches
+/// on.
 #[must_use]
 pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
     if input.is_empty() {

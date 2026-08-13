@@ -1,15 +1,8 @@
-//! Pins `exit_codes.rs`'s 70-73 constants against
-//! `work-item-bridge-codes.sh`'s `readonly E_DISPATCH_*` lines — the bash
-//! taxonomy this binary now shares.
+//! Pins `exit_codes.rs`'s 70-73 constants against the `E_DISPATCH_*` lines
+//! the bridge scripts declare.
 //!
-//! `accelerator-work` is bin-only (no `[lib]` target, matching every other
-//! `*-cli` crate in the workspace), so this parses both committed sources
-//! textually rather than importing `exit_codes` at runtime — the same
-//! textual-comparison shape a golden-fixture parity test already uses,
-//! applied to two hand-maintained source files instead of a fixture and an
-//! implementation. Reuses `cli/tracker/tests/fixtures/dispatch-codes.txt` as
-//! the port's own membership pin rather than reading it from here, keeping
-//! that fixture free of a cross-crate test dependency.
+//! `accelerator-work` is bin-only, so both sides are parsed textually
+//! rather than one of them imported.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;

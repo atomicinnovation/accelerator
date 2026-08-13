@@ -1,10 +1,8 @@
 //! Apply ordering, the induced-crash re-run, and post-overwrite hashing.
 //!
-//! One double plays tracker, reader and writer at once, so every call —
-//! tracker or store — lands in one ordered log: the shape
-//! `cli/migrate/tests/lifecycle.rs` uses for its own spy, extended to
-//! retain written bytes so a second run can read back what the first
-//! actually wrote.
+//! One double plays tracker, reader and writer at once, so every call lands
+//! in a single ordered log, and retains written bytes so a second run can
+//! read back what the first wrote.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::unimplemented)]
 
 use std::cell::RefCell;
@@ -150,9 +148,8 @@ const fn item_content() -> &'static str {
     "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nBody text\n"
 }
 
-/// `push`'s local-file read goes through real `std::fs`, not the injected
-/// `Fake` — unlike `pull`'s write and every baseline access, which do.
-/// Push tests need an actual file on disk for that read to succeed.
+/// `push`'s local-file read goes through real `std::fs`, unlike `pull`'s
+/// write and every baseline access, so push tests need a file on disk.
 fn real_item_file(dir: &tempfile::TempDir, content: &str) -> PathBuf {
     let path = dir.path().join("0001.md");
     std::fs::write(&path, content).expect("seed the real item file");

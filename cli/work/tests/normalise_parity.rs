@@ -1,14 +1,10 @@
 //! Pins `work::normalise` against
-//! `skills/work/scripts/test-fixtures/work-item-normalise/case-*/`, captured
-//! from the live `work-item-normalise.sh`. AC 19 is new work, not a
-//! re-point: no prior Rust test held these functions to the bash oracle.
+//! `skills/work/scripts/test-fixtures/work-item-normalise/case-*/`.
 //!
 //! `case-file-mode` exercises `filter_frontmatter_keys` and `trim_lines`
-//! together, reproducing the script's own unconditional-separator
-//! composition (`fm=$(…); body=$(…); printf '%s\n%s\n' "$fm" "$body"`) —
-//! command substitution strips each side's trailing newlines and `printf`
-//! adds exactly one back to each, whichever side is empty. `case-stdin-mode`
-//! and `case-nbsp-not-trimmed` exercise `trim_lines` alone.
+//! together, with the separator between them emitted unconditionally
+//! whichever side is empty. `case-stdin-mode` and `case-nbsp-not-trimmed`
+//! exercise `trim_lines` alone.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::path::Path;
@@ -35,9 +31,8 @@ fn is_fence(line: &str) -> bool {
     line.starts_with("---") && line[3..].chars().all(char::is_whitespace)
 }
 
-/// Splits a `<file>`-mode input into its raw frontmatter and body, matching
-/// `config_extract_frontmatter`/`config_extract_body`'s `^---[[:space:]]*$`
-/// fence recognition.
+/// Splits a `<file>`-mode input into its raw frontmatter and body at the
+/// `^---[[:space:]]*$` fences.
 fn split_frontmatter_and_body(content: &str) -> Option<(String, String)> {
     let mut lines = content.lines();
     if !is_fence(lines.next()?) {

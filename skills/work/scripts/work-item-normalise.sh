@@ -12,7 +12,7 @@ set -euo pipefail
 #   work-item-normalise.sh <file>     # normalise a local work-item file
 #   work-item-normalise.sh --stdin    # normalise content on stdin (remote body)
 #
-# Normalisation (the fixed minimum from the plan's Decisions Locked #3):
+# Normalisation (the fixed minimum):
 #   - drop the ignored top-level frontmatter keys (IGNORE_KEYS) — provenance /
 #     remote-managed fields that are not authored content, so a bare re-save that
 #     only restamps last_updated/revision is NOT a change;

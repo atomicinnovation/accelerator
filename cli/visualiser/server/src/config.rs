@@ -635,7 +635,7 @@ mod tests {
 
     #[test]
     fn idle_timeout_bare_zero_disables() {
-        // The bare "0" arrives as a JSON string "0" from config-read-value.sh.
+        // A bare 0 arrives as the JSON string "0", never as a number.
         let cfg = config_with_idle_timeout(r#""0""#);
         assert_eq!(
             cfg.resolve_idle_limit_ms().unwrap(),

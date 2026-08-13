@@ -78,10 +78,9 @@ pub struct RunReport {
 }
 
 impl RunReport {
-    /// Items this run left for a human: `Prompt`, `SkipConflict`,
-    /// `SkipDirty`, `RemoteAbsent` and `Indeterminate`. Derived, never
-    /// stored — a filter applied to a stored field and not to the report
-    /// could disagree, yielding a run that reports conflicts and exits 0.
+    /// Items this run left for a human. Derived, never stored: a stored
+    /// field could disagree with the report, yielding a run that prints
+    /// conflicts and exits 0.
     pub fn awaiting_human(&self) -> impl Iterator<Item = &ReportedItem> {
         self.reported.iter().filter(|item| {
             matches!(
@@ -118,9 +117,9 @@ fn reconstruct_pulled_content(
 /// execute.
 ///
 /// Refuses before any write, in both modes, when the plan's pull or push
-/// count exceeds its bound; a preview that reported an over-threshold plan
-/// and exited 0 would break preview's own fidelity guarantee for exactly
-/// the plan with the largest blast radius.
+/// count exceeds its bound: a preview that reported an over-threshold plan
+/// and exited 0 would mispredict exactly the run with the largest blast
+/// radius.
 ///
 /// # Errors
 ///

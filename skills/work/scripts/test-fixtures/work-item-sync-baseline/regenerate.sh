@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regenerates expected.json for each work-item-sync-baseline case-* fixture
-# from the live bash scripts — never from the Rust port. This corpus is the
-# classification-stability oracle a Rust rewrite of the digest recipes must
-# reproduce byte for byte.
-#
-# Must be regenerated while work-item-project-remote.sh still exists and
-# implements the recipe this corpus pins; frozen thereafter, since the
-# script that generates the corpus and the script the corpus is meant to
-# hold to the same standard cannot both be replaced by the same change
-# without the comparison becoming circular.
+# Regenerates expected.json for each case-* fixture from the live bash
+# scripts, never from a port of them. This corpus is the
+# classification-stability oracle any reimplementation of the digest
+# recipes must reproduce byte for byte, so regenerating it from a port
+# would make the comparison circular and the whole corpus vacuous.
 #
 # Each case directory holds:
 #   local.md           the work item (when the case exercises the local

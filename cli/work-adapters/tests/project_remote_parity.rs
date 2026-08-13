@@ -1,11 +1,9 @@
 //! Pins `work_adapters::project_remote` against the committed
-//! `test-fixtures/work-item-project-remote/case-*` fixtures — previously
-//! covered by no Rust test, only the module's own inline unit tests.
+//! `test-fixtures/work-item-project-remote/case-*` fixtures.
 //!
 //! Each `expected.txt` is four lines: `integration=<name>`,
-//! `updated=<value>`, then `project`'s own two-line body verbatim (any
-//! further lines are human commentary and ignored). `project`'s body
-//! output carries no trailing newline, matching `format!("{a}\n{b}")`.
+//! `updated=<value>`, then the projected two-line body verbatim. Any
+//! further lines are human commentary and ignored.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::path::Path;

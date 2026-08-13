@@ -1,5 +1,4 @@
 //! The sync baseline document: `<integrations>/<system>/last-sync.json`.
-//! Port of `work-item-sync-baseline.sh`'s read/render contract.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -8,9 +7,8 @@ use std::path::PathBuf;
 use serde_json::Value;
 use tracker::RemoteTimestamp;
 
-/// One item's baseline record, exactly as persisted: all three fields are
-/// raw strings, with an empty string meaning absent — the same convention
-/// bash's `// empty` plus `[ -n ]` uses.
+/// One item's baseline record, exactly as persisted: raw strings, with an
+/// empty string meaning absent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub remote_updated_at: RemoteTimestamp,
@@ -20,20 +18,18 @@ pub struct Entry {
 
 /// Whether reading the document had to degrade, and how.
 ///
-/// Reported rather than swallowed, even though behaviour is unaffected: a
+/// Reported rather than swallowed even though behaviour is unaffected: a
 /// conflict-markered `last-sync.json` turns one silent parse failure into a
-/// corpus-wide re-sync with nothing pointing at the cause unless this is
-/// surfaced.
+/// corpus-wide re-sync with nothing pointing at the cause.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Degradation {
     None,
-    /// The whole document was not valid JSON (or not a JSON object) —
-    /// degrades to an empty baseline, forcing a full re-hash.
+    /// Degrades to an empty baseline, forcing a full re-hash.
     Unparseable {
         detail: String,
     },
-    /// The document parsed, but one or more entries were not JSON objects
-    /// and could not be read at all. Every other entry is preserved.
+    /// One or more entries were not JSON objects. Every other entry is
+    /// preserved.
     EntriesDiscarded {
         ids: Vec<String>,
     },
@@ -56,10 +52,8 @@ fn stamp_from_json(raw: &str) -> RemoteTimestamp {
     }
 }
 
-/// Reads one string field, tolerating a missing or wrongly-typed value as
-/// empty — mirroring bash's `jq -r '.field // empty'`. Never discards the
-/// entry over one bad field: only a whole-entry problem (not a JSON object
-/// at all) does that.
+/// Tolerates a missing or wrongly-typed value as empty. One bad field never
+/// discards the entry; only a whole-entry problem does.
 fn string_field(object: &serde_json::Map<String, Value>, key: &str) -> String {
     object
         .get(key)
@@ -101,11 +95,10 @@ impl Baseline {
         }
     }
 
-    /// Reads the document. `None` (no file yet) and unparseable content
-    /// both degrade to an empty baseline — every baseline hash absent, so
-    /// every item classifies fully re-hashed rather than crashing — but
-    /// only unparseable content is reported as a [`Degradation`]: a missing
-    /// file is the routine first-sync state, not a problem.
+    /// A missing file and unparseable content both degrade to an empty
+    /// baseline, forcing a full re-hash rather than crashing. Only the
+    /// latter is a [`Degradation`]: a missing file is the routine
+    /// first-sync state.
     #[must_use]
     pub fn read(content: Option<&str>) -> (Self, Degradation) {
         let Some(raw) = content else {
@@ -124,9 +117,8 @@ impl Baseline {
             );
         };
 
-        // A missing or non-integer timestamp reads as 0 — bash is tolerant
-        // twice over (`jq -r '.timestamp // 0'` plus the classify script's
-        // own non-numeric coercion) — with every entry still preserved.
+        // A missing or non-integer timestamp reads as 0, preserving every
+        // entry rather than discarding the document.
         let timestamp =
             object.get("timestamp").and_then(Value::as_u64).unwrap_or(0);
 
@@ -154,15 +146,12 @@ impl Baseline {
     }
 
     /// Compact single-line JSON, `timestamp` before `items`, with a
-    /// trailing newline — matching `jq -c`'s own output and the field
-    /// order `work-item-sync-baseline.sh`'s own `jq` calls construct.
+    /// trailing newline.
     ///
     /// Built by hand rather than through `serde_json::Value`: this crate's
-    /// `serde_json` runs without `preserve_order`, so a `Map`/`Value`
-    /// serialises its keys alphabetically (`items` before `timestamp`),
-    /// which `project_remote`'s canonicalisation depends on elsewhere in
-    /// this same crate — turning that feature on to fix ordering here would
-    /// break it there.
+    /// `serde_json` runs without `preserve_order`, so a `Map` would
+    /// serialise alphabetically, and enabling that feature to fix the order
+    /// here would break the canonicalisation `project_remote` depends on.
     #[must_use]
     pub fn render(&self) -> String {
         let mut items = String::from("{");
@@ -201,8 +190,7 @@ impl Baseline {
     }
 }
 
-/// `<integrations>/<integration>/last-sync.json`, matching
-/// `_wisb_path` (`work-item-sync-baseline.sh:54-75`).
+/// `<integrations>/<integration>/last-sync.json`.
 #[must_use]
 pub fn path(integrations_dir: &Path, integration: &str) -> PathBuf {
     integrations_dir.join(integration).join("last-sync.json")

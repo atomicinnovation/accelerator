@@ -13,17 +13,14 @@ use crate::sync::baseline::Entry;
 
 /// Reads and writes one baseline document.
 ///
-/// Re-reads immediately before every render — matching bash's own
-/// per-mutation semantics (`work-item-sync-baseline.sh` re-reads inside
-/// every `set`/`remove`/`set-timestamp`) rather than holding one in-memory
-/// document for a whole run, which would widen the lost-update window from
-/// a single write to an entire run while the bash engine stays live beside
-/// this one.
+/// Every mutation re-reads before it renders, rather than holding one
+/// in-memory document for a whole run, which would widen the lost-update
+/// window from a single write to the entire run.
 ///
-/// The read side is injected too, not reached through `std::fs` directly:
-/// with a write-only seam, a spy `AtomicWrite` would see the writes while
-/// reads came from disk, so successive `set` calls would each start from the
-/// pre-run document.
+/// The read side is injected as well as the write side: with a write-only
+/// seam, a spy `AtomicWrite` would see the writes while reads still came
+/// from disk, so successive `set` calls would each start from the pre-run
+/// document.
 pub struct BaselineStore<'a> {
     path: PathBuf,
     reader: &'a dyn FileReader,
@@ -83,13 +80,11 @@ impl<'a> BaselineStore<'a> {
         self.write_document(&baseline)
     }
 
-    /// Blanks the named items' `local_hash`, then advances the timestamp —
-    /// one operation, not two, because the blank-then-advance ordering is
-    /// load-bearing and a two-call API could be called in the wrong order
-    /// or half-called. A failed write here leaves the timestamp
-    /// untouched by construction: both mutations are applied to one
-    /// in-memory document before the single persisting write, so a write
-    /// failure loses neither the blank nor the advance in isolation.
+    /// Blanks the named items' `local_hash` and advances the timestamp as
+    /// one operation: the ordering is load-bearing, and a two-call API
+    /// could be called in the wrong order or half-called. Both mutations
+    /// reach one in-memory document before the single write, so a failure
+    /// loses neither in isolation.
     ///
     /// # Errors
     ///

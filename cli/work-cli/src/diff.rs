@@ -1,8 +1,7 @@
-//! Adapter/binary wiring for `work diff`. Port of
-//! `work-item-section-diff.sh`'s CLI-level error arms; extraction and
-//! comparison come from `work::section_diff::differing_sections`, and each
-//! differing section's rendering comes from
-//! `work_adapters::diff_shellout::render`.
+//! Adapter/binary wiring for `work diff`: this module owns the CLI-level
+//! error arms only. Extraction and comparison come from
+//! `work::section_diff::differing_sections`, and each differing section's
+//! rendering from `work_adapters::diff_shellout::render`.
 
 use std::path::Path;
 

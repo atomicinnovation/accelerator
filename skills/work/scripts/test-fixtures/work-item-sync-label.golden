@@ -1,4 +1,4 @@
-# work-item-sync-label.sh golden file.
+# The sync-label golden: one oracle read by every implementation.
 #
 # Format, per section:
 #   [CLASSIFY]  <raw-external-id>|<expected-status>
@@ -9,20 +9,18 @@
 # work-item-canonicalise-id.golden. A trailing empty field would be invisible
 # in review and lost to any trailing-whitespace trim.
 #
-# Outputs carry NO trailing newline (printf without \n,
-# work-item-sync-label.sh:57-61).
+# Outputs carry NO trailing newline.
 #
-# CLASSIFY strips one combined [[:space:]"'] class from both ends (:45) — not
-# quotes and then whitespace. The mixed rows below are what distinguish the
-# two.
+# CLASSIFY strips whitespace and quotes as one combined class from both
+# ends, not quotes and then whitespace. The mixed rows below are what
+# distinguish the two.
 #
-# remote-absent and indeterminate are exit-1 rows: --label renders five
-# states and rejects those two (work-item-sync-label.sh:54-67). Those rows
-# pin the exit status only, not the message. They are classified states the
-# caller handles, never labels /list-work-items renders.
+# remote-absent and indeterminate are exit-1 rows: only five states render a
+# label, and those rows pin the exit status alone, not the message. They are
+# classified states the caller handles, never labels /list-work-items
+# renders.
 #
-# DEFAULT is the composed no-flag arm (:104-106) — the arm
-# list-work-items/SKILL.md:289 actually invokes.
+# DEFAULT is the composed no-flag arm, the one /list-work-items invokes.
 
 [CLASSIFY]
 PROJ-0042|synced

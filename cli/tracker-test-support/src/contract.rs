@@ -1,28 +1,15 @@
 //! The `RemoteTracker` contract harness, parameterised over implementations.
 //!
-//! 0204 handed over a gap that neither the port's own types nor
-//! `tracker/tests/port.rs`'s trait-object test can close: an implementor
-//! that quietly stops implementing an operation once the trait gains a
-//! default-bodied method is invisible to both, because Rust has no
-//! compile-time assertion that a trait method is required, and an
-//! all-through-a-trait-object test provably does not catch it. The only
-//! mitigation available is this harness's per-operation behavioural
-//! assertions — an implementor inheriting a no-op or panicking default fails
-//! them. Recorded here so the next reader does not re-derive it.
+//! Behavioural assertions are the only available check that an implementor
+//! still implements every operation: Rust has no compile-time assertion that
+//! a trait method is required, so an implementor inheriting a default body
+//! is invisible to both the port's types and a trait-object test.
 //!
-//! [`unaccounted_id_is_indeterminate_not_absent`] and
-//! [`a_failing_read_is_retryable`] hold obligations the port documents but
-//! cannot enforce, and are conditions an implementation must be *induced*
-//! into rather than behaviours it exhibits unprompted. That is why every
-//! function here takes a [`ContractSubject`] rather than a bare
-//! `&dyn RemoteTracker`: truncation and a lost write are configurations of
-//! the fake (`RecordingTracker::truncating`, `::losing`), and a real client
-//! supplies the same conditions through `unaccountable_id`/`unreadable_id`
-//! rather than being asked to misbehave.
-//!
-//! Every function here panics on a violated property rather than returning
-//! a `Result` — the same shape a `#[test]` function itself uses, since these
-//! are assertions a caller invokes from inside its own test.
+//! Every function takes a [`ContractSubject`] rather than a bare
+//! `&dyn RemoteTracker` because truncation and a lost write are conditions
+//! an implementation must be *induced* into: the fake configures itself,
+//! and a real client nominates ids through `unaccountable_id`/
+//! `unreadable_id` rather than being asked to misbehave.
 #![allow(clippy::expect_used, clippy::missing_panics_doc)]
 
 use std::fmt::Display;
@@ -33,8 +20,8 @@ use tracker::FetchOutcome;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
 
-/// One implementation under test, plus the ids it can supply the two
-/// induced conditions with.
+/// One implementation under test, plus the ids it supplies the two induced
+/// conditions with.
 pub trait ContractSubject {
     fn tracker(&self) -> &dyn RemoteTracker;
 
@@ -48,9 +35,6 @@ pub trait ContractSubject {
 
 /// Every distinct id in `requested` appears in exactly one of `outcome`'s
 /// three vectors.
-///
-/// Lifted verbatim from `tracker/tests/port.rs`'s own `partitions_totally` —
-/// dependency-free, so it is shared rather than duplicated.
 pub fn partitions_totally(outcome: &FetchOutcome, requested: &[ExternalId]) {
     let mut reported: Vec<&ExternalId> = outcome
         .found
@@ -77,7 +61,6 @@ pub fn partitions_totally(outcome: &FetchOutcome, requested: &[ExternalId]) {
     );
 }
 
-/// A created issue can immediately be read back.
 pub fn create_then_show_round_trips(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let created = tracker
@@ -92,7 +75,6 @@ pub fn create_then_show_round_trips(subject: &dyn ContractSubject) {
     );
 }
 
-/// `update` replaces an issue's content, not merges into it.
 pub fn update_replaces_whole_content(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let id = tracker
@@ -114,7 +96,6 @@ pub fn update_replaces_whole_content(subject: &dyn ContractSubject) {
     assert_ne!(before, after, "update must replace the issue's content");
 }
 
-/// A bulk fetch partitions every requested id exactly once.
 pub fn fetch_all_partitions_totally(
     subject: &dyn ContractSubject,
     ids: &[ExternalId],
@@ -126,9 +107,8 @@ pub fn fetch_all_partitions_totally(
     partitions_totally(&outcome, ids);
 }
 
-/// An id a bulk retrieval could not account for is `indeterminate`, never
-/// `absent` — inferring absence from an incomplete retrieval is what makes a
-/// sync delete an issue that still exists.
+/// Inferring absence from an incomplete retrieval is what makes a sync
+/// delete an issue that still exists.
 pub fn unaccounted_id_is_indeterminate_not_absent(
     subject: &dyn ContractSubject,
 ) {
@@ -147,8 +127,8 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
     );
 }
 
-/// `show`'s error is never `Terminal` — a read mutates nothing, so the
-/// terminal class, which means "a mutation may have applied", cannot arise.
+/// A read mutates nothing, so the terminal class — "a mutation may have
+/// applied" — cannot arise.
 pub fn a_failing_read_is_retryable(subject: &dyn ContractSubject) {
     let id = subject.unreadable_id();
     let error = subject
@@ -161,8 +141,6 @@ pub fn a_failing_read_is_retryable(subject: &dyn ContractSubject) {
     );
 }
 
-/// The reason the harness must fail rather than skip when the opt-in
-/// environment variable is absent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContractGateError {
     NotOptedIn,
@@ -182,20 +160,15 @@ impl Display for ContractGateError {
 
 impl std::error::Error for ContractGateError {}
 
-/// The conformance set: properties every implementation must satisfy.
+/// The conformance set: properties every implementation must satisfy
+/// unprompted, excluding the two that need a deliberately configured
+/// subject.
 ///
-/// Excludes the shape-specific obligations
-/// ([`unaccounted_id_is_indeterminate_not_absent`],
-/// [`a_failing_read_is_retryable`]), which need a subject deliberately
-/// configured into the condition they assert rather than one exhibiting it
-/// unprompted.
-///
-/// Errors — never skips — when `ACCELERATOR_TRACKER_CONTRACT` is not `1`, so
-/// a dropped or misspelled env var in the task, or a hand run of the
-/// profile, cannot make every contract binary exit 0 having asserted
-/// nothing. Returns the count of properties executed, which the caller must
-/// assert is non-zero: a count assertion alone cannot distinguish "gate
-/// closed" from "ran nothing", because both give zero.
+/// Errors rather than skips when the gate is closed, so a dropped or
+/// misspelled env var cannot make every contract binary exit 0 having
+/// asserted nothing. The returned count of properties executed must be
+/// asserted non-zero by the caller: on its own a count assertion cannot
+/// distinguish a closed gate from an empty run, since both give zero.
 ///
 /// # Errors
 ///

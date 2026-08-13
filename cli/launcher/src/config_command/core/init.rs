@@ -51,9 +51,9 @@ fn resolve_path(
 mod tests {
     use config::{catalogue, render_value};
 
-    /// The `(key, dir)` pairs `init.sh`'s `DIR_DEFAULTS` array hard-coded,
-    /// captured so the catalogue coincidence is pinned once the shell script is
-    /// gone.
+    /// The `(key, dir)` pairs the legacy `DIR_DEFAULTS` array hard-coded,
+    /// captured so the catalogue's agreement with them stays pinned now the
+    /// original is gone.
     const LEGACY_DIR_DEFAULTS: &[(&str, &str)] = &[
         ("plans", "meta/plans"),
         ("research_codebase", "meta/research/codebase"),

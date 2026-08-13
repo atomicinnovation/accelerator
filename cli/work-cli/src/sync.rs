@@ -41,11 +41,9 @@ impl RunClock for SystemClock {
     }
 }
 
-/// Shells the real VCS to answer dirtiness, per the mode `work::file_dirty`
-/// expects: one whole-tree `jj diff --name-only` probed once and reused,
-/// or a per-path `git status --porcelain -- <path>` — a failed probe
-/// (neither `.jj` nor `.git` present, or the shellout itself fails) yields
-/// [`Dirtiness::Unknown`].
+/// Shells the real VCS to answer dirtiness: one whole-tree probe under jj,
+/// reused across items, or a per-path probe under git. Any failure —
+/// including no VCS at all — yields [`Dirtiness::Unknown`].
 struct ShelledWorkingCopyStatus {
     repo_root: PathBuf,
     jj_status_text: Option<String>,

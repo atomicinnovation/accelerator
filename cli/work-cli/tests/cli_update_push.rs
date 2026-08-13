@@ -1,11 +1,9 @@
 //! CLI-boundary tests for `update --push`.
 //!
 //! Same constraint as `cli_create_push.rs`: `accelerator-work` is bin-only,
-//! so a subprocess always resolves through `ConfiguredTrackers`, which has
-//! no client wired for any provider yet. `tracker.update`'s `Ok`/
-//! `Retryable`/`Terminal` branches are consequently unreachable from this
-//! suite; what is reachable — the unsynced refusal and the
-//! `SelectionError` exit codes — is covered here.
+//! so `tracker.update`'s branches are unreachable from a subprocess. What
+//! is reachable — the unsynced refusal and the `SelectionError` exit codes
+//! — is covered here.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::fs;

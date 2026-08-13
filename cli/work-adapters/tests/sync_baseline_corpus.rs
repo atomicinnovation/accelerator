@@ -1,15 +1,12 @@
 //! The classification-stability oracle: for each
 //! `skills/work/scripts/test-fixtures/work-item-sync-baseline/case-*`
-//! fixture, feeds `remote.json` through `project_remote` and
-//! `digest::remote_body`, or `local.md` through `digest::local`, and
-//! asserts the result matches `expected.json` — captured from the live
-//! bash scripts by `regenerate.sh`, never from this Rust code.
+//! fixture, asserts the digest recipes reproduce the committed
+//! `expected.json`, which is captured independently of this code.
 //!
 //! Digest equality is necessary but not sufficient for classification
-//! stability; a wrong branch order or a read-back bug in `classify` could
-//! still mass-reclassify a real corpus even with every digest here
-//! matching. `cli/work-cli/tests/cli_sync.rs`'s end-to-end case closes that
-//! gap once the `sync` command exists.
+//! stability: a wrong branch order or a read-back bug in `classify` could
+//! still mass-reclassify a real corpus with every digest here matching.
+//! `cli/work-cli/tests/cli_sync.rs` closes that gap end to end.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;

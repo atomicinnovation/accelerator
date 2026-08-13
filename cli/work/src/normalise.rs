@@ -1,13 +1,9 @@
-//! Content normalisation for the sync change-detection contract. Port of
-//! `_win_trim` and the `<file>`-mode `IGNORE_KEYS` filter
-//! (`work-item-normalise.sh:49-80`).
+//! Content normalisation for the sync change-detection contract.
 //!
 //! Trimming is ASCII-whitespace-only (`char::is_ascii_whitespace`), not
-//! Rust's Unicode-aware `str::trim` — the shell runs under `LANG=C
-//! LC_ALL=C`, so `[[:space:]]` means ASCII whitespace exactly. A
-//! Unicode-aware trim would normalise non-ASCII-whitespace content
-//! differently across machines, silently breaking the cross-machine
-//! baseline guarantee.
+//! Rust's Unicode-aware `str::trim`. A Unicode-aware trim would normalise
+//! non-ASCII-whitespace content differently across machines, silently
+//! breaking the cross-machine baseline guarantee.
 
 /// Top-level frontmatter keys the sync engine's change-detection ignores as
 /// provenance rather than authored content.
@@ -44,8 +40,7 @@ fn join_with_trailing_newlines(lines: &[String]) -> String {
     out
 }
 
-/// Per-line ASCII-whitespace trim plus trailing-blank-line strip. Port of
-/// `_win_trim` (`work-item-normalise.sh:49-57`) — the `--stdin` mode.
+/// Per-line ASCII-whitespace trim plus trailing-blank-line strip.
 #[must_use]
 pub fn trim_lines(content: &str) -> String {
     join_with_trailing_newlines(&trimmed_lines(content))
@@ -73,10 +68,6 @@ fn top_level_key(line: &str) -> Option<&str> {
 
 /// Drops ignored top-level frontmatter keys, then trims as [`trim_lines`]
 /// does.
-///
-/// Port of `_win_filter_frontmatter` (`work-item-normalise.sh:62-80`) — the
-/// `<file>`-mode normaliser. Not yet called by any user-facing command;
-/// the future sync-engine's change-detection flow is its intended caller.
 #[must_use]
 pub fn filter_frontmatter_keys(frontmatter_raw: &str) -> String {
     let mut lines: Vec<String> = Vec::new();

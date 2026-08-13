@@ -1,16 +1,11 @@
 //! CLI-boundary tests for `create --push`.
 //!
-//! `accelerator-work` is bin-only (no `[lib]` target — see
-//! `cli_sync.rs`'s own note), so a real subprocess invocation always
-//! resolves through `ConfiguredTrackers`, which has no client wired for
-//! any provider yet. `tracker.create`'s `Ok`/`Retryable`/`Terminal`
-//! branches — and therefore the `loud-terminal` exit-71 row — are
-//! consequently unreachable from this suite; they are unit-tested against
-//! `work::sync::push_decide` and `work::sync::push_precondition` directly
-//! instead. What subprocess tests *can* drive end to end, because they
-//! never require a live client, is the whole pending-push marker state
-//! machine (`push_precondition`'s five branches) and the
-//! `SelectionError`-as-dispatcher-code `local-save` path.
+//! `accelerator-work` is bin-only, so a subprocess always resolves through
+//! `ConfiguredTrackers`, which has no client wired for any provider yet.
+//! `tracker.create`'s success and failure branches are therefore
+//! unreachable here and are unit-tested against `work::sync::push_decide`
+//! instead; what this suite drives end to end is the pending-push marker
+//! state machine and the `SelectionError` paths.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::fs;

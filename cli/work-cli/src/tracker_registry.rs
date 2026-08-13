@@ -1,5 +1,4 @@
-//! Resolves a `RemoteTracker` from the `work.integration` config key —
-//! the composition root selecting `Box<dyn RemoteTracker>`, above the port.
+//! Resolves a `RemoteTracker` from the `work.integration` config key.
 
 use tracker::RemoteTracker;
 
@@ -40,10 +39,9 @@ pub trait TrackerRegistry {
     ) -> Result<Box<dyn RemoteTracker>, SelectionError>;
 }
 
-/// The production registry. Every provider is unwired until 0171: the four
-/// trackers the create/update bridges' own dispatch taxonomy recognises
-/// (`linear`, `jira`, `trello`, `github-issues`) are all not-yet-available;
-/// everything else falls to `Unrecognised`.
+/// The production registry. No provider has a client yet: the four
+/// recognised trackers (`linear`, `jira`, `trello`, `github-issues`) report
+/// not-available, and everything else falls to `Unrecognised`.
 pub struct ConfiguredTrackers;
 
 impl TrackerRegistry for ConfiguredTrackers {
