@@ -267,37 +267,42 @@ echo ""
 # ============================================================
 echo "=== Decision seam: every row of the push state machine ==="
 echo ""
-assert_eq "accept-success → write-once" "write-once" \
-  "$(bash "$DECIDE" --code 0 --attempt 1)"
-assert_eq "success-but-write-failed → loud-terminal" "loud-terminal" \
-  "$(bash "$DECIDE" --code 0 --attempt 1 --write-failed)"
-assert_eq "retryable, attempt 1 → retry" "retry" \
-  "$(bash "$DECIDE" --code 70 --attempt 1)"
-assert_eq "retryable, attempt 2 (exhausted) → local-save" "local-save" \
-  "$(bash "$DECIDE" --code 70 --attempt 2)"
-assert_eq "terminal-post-create → loud-terminal" "loud-terminal" \
-  "$(bash "$DECIDE" --code 71 --attempt 1)"
-assert_eq "terminal on the retry → loud-terminal" "loud-terminal" \
-  "$(bash "$DECIDE" --code 71 --attempt 2)"
-assert_eq "not-available → local-save" "local-save" \
-  "$(bash "$DECIDE" --code 72 --attempt 1)"
-assert_eq "unrecognised → local-save" "local-save" \
-  "$(bash "$DECIDE" --code 73 --attempt 1)"
-# A retry that then succeeds re-enters as code 0 → write-once.
-assert_eq "retry-then-success → write-once" "write-once" \
-  "$(bash "$DECIDE" --code 0 --attempt 2)"
 assert_exit_code "non-integer --code → usage error (2)" 2 \
   bash "$DECIDE" --code abc --attempt 1
 assert_exit_code "non-integer --attempt → usage error (2)" 2 \
   bash "$DECIDE" --code 0 --attempt x
 assert_exit_code "unrecognised flag → usage (2)" 2 \
   bash "$DECIDE" --bogus
-assert_eq "unknown dispatcher code → loud-terminal (conservative)" \
-  "loud-terminal" "$(bash "$DECIDE" --code 99 --attempt 1)"
-assert_eq "--write-failed is consulted only under code 0 (retryable)" \
-  "retry" "$(bash "$DECIDE" --code 70 --attempt 1 --write-failed)"
-assert_eq "--write-failed is consulted only under code 0 (terminal)" \
-  "loud-terminal" "$(bash "$DECIDE" --code 71 --attempt 1 --write-failed)"
+
+# Shared table with cli/work/tests/sync_push_decide.rs.
+PUSH_DECIDE_GOLDEN="$SCRIPT_DIR/test-fixtures/work-item-push-decide.golden"
+PUSH_DECIDE_EXPECTED_ROWS=12
+PUSH_DECIDE_RAN=0
+# Read by redirect from the file directly, never a pipeline, so PASS/FAIL
+# updates are not lost to a subshell.
+while IFS= read -r PUSH_DECIDE_LINE; do
+  case "$PUSH_DECIDE_LINE" in
+    \#* | "") continue ;;
+  esac
+  IFS='|' read -r PD_CODE PD_ATTEMPT PD_WRITE_FAILED PD_EXPECTED \
+    <<<"$PUSH_DECIDE_LINE"
+  PUSH_DECIDE_RAN=$((PUSH_DECIDE_RAN + 1))
+  if [ "$PD_WRITE_FAILED" = "1" ]; then
+    PD_ACTUAL=$(bash "$DECIDE" --code "$PD_CODE" --attempt "$PD_ATTEMPT" --write-failed)
+  else
+    PD_ACTUAL=$(bash "$DECIDE" --code "$PD_CODE" --attempt "$PD_ATTEMPT")
+  fi
+  assert_eq "code=$PD_CODE/attempt=$PD_ATTEMPT/write-failed=$PD_WRITE_FAILED" \
+    "$PD_EXPECTED" "$PD_ACTUAL"
+done <"$PUSH_DECIDE_GOLDEN"
+
+if [ "$PUSH_DECIDE_RAN" -eq "$PUSH_DECIDE_EXPECTED_ROWS" ]; then
+  echo "  PASS: ran $PUSH_DECIDE_RAN push-decide rows (expected $PUSH_DECIDE_EXPECTED_ROWS)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: ran $PUSH_DECIDE_RAN push-decide rows, expected $PUSH_DECIDE_EXPECTED_ROWS"
+  FAIL=$((FAIL + 1))
+fi
 echo ""
 
 test_summary

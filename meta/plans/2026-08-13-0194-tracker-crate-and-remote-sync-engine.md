@@ -3194,25 +3194,58 @@ engine also reads, during the window both engines are live.
 
 #### Automated Verification
 
-- [ ] `create --push` and `update --push` tests including the idempotency case pass: `mise run test:unit:cli`
-- [ ] The marker's reuse guard and fail-closed read pass: `mise run test:unit:cli`
-- [ ] The push-decide port matches the shared table, both implementations:
+- [x] `create --push` and `update --push` tests including the idempotency case pass: `mise run test:unit:cli`
+- [x] The marker's reuse guard and fail-closed read pass: `mise run test:unit:cli`
+- [x] The push-decide port matches the shared table, both implementations:
       `mise run test:unit:cli` and `mise run test:integration:work`
-- [ ] The CLI surface golden matches after a deliberate update: `mise run test:unit:cli`
-- [ ] Every bash suite still passes and `_EXPECTED_WORK_SUITES` is unchanged: `mise run test:integration:work`
-- [ ] Format, lint and types: `mise run cli:check`
-- [ ] Whole tree green: `mise run`
+- [x] The CLI surface golden matches after a deliberate update: `mise run test:unit:cli`
+- [x] Every bash suite still passes and `_EXPECTED_WORK_SUITES` is unchanged: `mise run test:integration:work`
+- [x] Format, lint and types: `mise run cli:check`
+- [x] Whole tree green: `mise run`
 
 #### Manual Verification
 
-- [ ] A written marker does not appear in `jj status`
-- [ ] Every script named in the work item is still present:
+- [x] A written marker does not appear in `jj status`
+- [x] Every script named in the work item is still present:
       `ls skills/work/scripts/work-item-*.sh`
-- [ ] `/create-work-item` and `/sync-work-items` still drive bash only —
+- [x] `/create-work-item` and `/sync-work-items` still drive bash only —
       `grep -rn "accelerator work sync\|work create --push" skills/` returns
       nothing
-- [ ] `accelerator work create --push --help` and `update --push --help` state
+- [x] `accelerator work create --push --help` and `update --push --help` state
       that failures are reported rather than prompted
+
+**Deviations recorded**:
+
+- **Same no-`[lib]`-target constraint as Phase 4.** A subprocess invocation
+  of the real binary always resolves through `ConfiguredTrackers`, which
+  has no client wired for any provider yet, so `tracker.create`'s and
+  `tracker.update`'s `Ok`/`Retryable`/`Terminal` branches — and therefore
+  `create --push`'s `write-once`/`retry`/`loud-terminal` rows from a live
+  call, `update --push`'s `Retryable`/`Terminal` rows, and `sync`'s
+  outstanding-marker warning (which only fires after a run the engine
+  actually completed) — are unreachable from `cli_create_push.rs` and
+  `cli_update_push.rs`. What those suites cover instead, because it never
+  needs a live client: the whole `push_precondition` state machine driven
+  through the real binary by pre-planting marker files (reuse, fingerprint
+  mismatch, already-written, prior-attempt-unknown, a truncated marker),
+  the `SelectionError`-as-dispatcher-code `local-save` path, and the
+  unsynced-target refusal. `push_decide` and `push_precondition` themselves
+  are unit-tested directly in `work` against the shared golden and the five
+  marker branches, closing the gap a subprocess cannot reach. The same
+  follow-up as Phase 4 — a `[lib]` target for `work-cli` — would let a
+  fake `TrackerRegistry` drive the deferred scenarios without a subprocess.
+- **`update --push` calls `tracker.update` directly, not through
+  `ItemApplier::push`.** The plan's ordering — push before the local write,
+  so failure leaves the file untouched by construction — conflicts with
+  `ItemApplier::push`'s own sequencing, which reads the local file from
+  disk (to hash it for the baseline) as its last step, after the update
+  call. Reusing it as one call would mean writing the local file *before*
+  knowing the push succeeded, or calling `tracker.update` a second time
+  to reorder around it. `update.rs` instead calls `tracker.update`
+  directly to gate on its outcome, writes the local file only on success,
+  then replicates `ItemApplier::push`'s post-update tail (show, hash,
+  baseline set) inline — a few duplicated lines in exchange for the
+  correct write-only-after-success property and exactly one remote call.
 
 ---
 

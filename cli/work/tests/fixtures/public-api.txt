@@ -15,6 +15,7 @@ impl core::marker::StructuralPartialEq for work::create::FieldValue
 pub struct work::create::CreateInputs<'a>
 pub work::create::CreateInputs::author: &'a str
 pub work::create::CreateInputs::date: &'a str
+pub work::create::CreateInputs::external_id: core::option::Option<&'a str>
 pub work::create::CreateInputs::id: &'a str
 pub work::create::CreateInputs::kind: &'a str
 pub work::create::CreateInputs::linkage: work::create::TypedLinkage<'a>
@@ -329,6 +330,83 @@ pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
 pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub mod work::sync::push_decide
+pub enum work::sync::push_decide::PushOutcome
+pub work::sync::push_decide::PushOutcome::LocalSave
+pub work::sync::push_decide::PushOutcome::LoudTerminal
+pub work::sync::push_decide::PushOutcome::Retry
+pub work::sync::push_decide::PushOutcome::WriteOnce
+impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
+impl core::clone::Clone for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome
+impl core::cmp::Eq for work::sync::push_decide::PushOutcome
+impl core::cmp::PartialEq for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::eq(&self, other: &work::sync::push_decide::PushOutcome) -> bool
+impl core::fmt::Debug for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::push_decide::PushOutcome
+impl core::marker::StructuralPartialEq for work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome
+pub mod work::sync::push_precondition
+pub enum work::sync::push_precondition::MarkerState<'a>
+pub work::sync::push_precondition::MarkerState::Absent
+pub work::sync::push_precondition::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
+pub work::sync::push_precondition::MarkerState::Unreadable
+pub enum work::sync::push_precondition::PendingPush
+pub work::sync::push_precondition::PendingPush::Attempted
+pub work::sync::push_precondition::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
+pub work::sync::push_precondition::PendingPush::Created
+pub work::sync::push_precondition::PendingPush::Created::external_id: tracker::ExternalId
+pub work::sync::push_precondition::PendingPush::Created::request: work::sync::push_precondition::RequestFingerprint
+impl core::clone::Clone for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::clone(&self) -> work::sync::push_precondition::PendingPush
+impl core::cmp::Eq for work::sync::push_precondition::PendingPush
+impl core::cmp::PartialEq for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync::push_precondition::PendingPush) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::push_precondition::PushPrecondition
+pub work::sync::push_precondition::PushPrecondition::Proceed
+pub work::sync::push_precondition::PushPrecondition::Refuse(work::sync::push_precondition::RefusalReason)
+pub work::sync::push_precondition::PushPrecondition::ReuseId(tracker::ExternalId)
+impl core::clone::Clone for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::clone(&self) -> work::sync::push_precondition::PushPrecondition
+impl core::cmp::Eq for work::sync::push_precondition::PushPrecondition
+impl core::cmp::PartialEq for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::eq(&self, other: &work::sync::push_precondition::PushPrecondition) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PushPrecondition
+pub enum work::sync::push_precondition::RefusalReason
+pub work::sync::push_precondition::RefusalReason::AlreadyWritten
+pub work::sync::push_precondition::RefusalReason::FingerprintMismatch
+pub work::sync::push_precondition::RefusalReason::MarkerUnreadable
+pub work::sync::push_precondition::RefusalReason::PriorAttemptUnknownOutcome
+impl core::clone::Clone for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
+impl core::cmp::Eq for work::sync::push_precondition::RefusalReason
+impl core::cmp::PartialEq for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::eq(&self, other: &work::sync::push_precondition::RefusalReason) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::push_precondition::RefusalReason
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::RefusalReason
+pub struct work::sync::push_precondition::RequestFingerprint
+pub work::sync::push_precondition::RequestFingerprint::attempted_at: u64
+pub work::sync::push_precondition::RequestFingerprint::digest: alloc::string::String
+pub work::sync::push_precondition::RequestFingerprint::failure: core::option::Option<alloc::string::String>
+pub work::sync::push_precondition::RequestFingerprint::title: alloc::string::String
+impl core::clone::Clone for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::clone(&self) -> work::sync::push_precondition::RequestFingerprint
+impl core::cmp::Eq for work::sync::push_precondition::RequestFingerprint
+impl core::cmp::PartialEq for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::eq(&self, other: &work::sync::push_precondition::RequestFingerprint) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub mod work::sync::state
 pub enum work::sync::state::SyncState
 pub work::sync::state::SyncState::Conflict
@@ -387,6 +465,66 @@ impl core::fmt::Debug for work::sync::decide::Dirtiness
 pub fn work::sync::decide::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::decide::Dirtiness
 impl core::marker::StructuralPartialEq for work::sync::decide::Dirtiness
+pub enum work::sync::MarkerState<'a>
+pub work::sync::MarkerState::Absent
+pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
+pub work::sync::MarkerState::Unreadable
+pub enum work::sync::PendingPush
+pub work::sync::PendingPush::Attempted
+pub work::sync::PendingPush::Attempted::request: work::sync::push_precondition::RequestFingerprint
+pub work::sync::PendingPush::Created
+pub work::sync::PendingPush::Created::external_id: tracker::ExternalId
+pub work::sync::PendingPush::Created::request: work::sync::push_precondition::RequestFingerprint
+impl core::clone::Clone for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::clone(&self) -> work::sync::push_precondition::PendingPush
+impl core::cmp::Eq for work::sync::push_precondition::PendingPush
+impl core::cmp::PartialEq for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync::push_precondition::PendingPush) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PendingPush
+pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::PushOutcome
+pub work::sync::PushOutcome::LocalSave
+pub work::sync::PushOutcome::LoudTerminal
+pub work::sync::PushOutcome::Retry
+pub work::sync::PushOutcome::WriteOnce
+impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
+impl core::clone::Clone for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome
+impl core::cmp::Eq for work::sync::push_decide::PushOutcome
+impl core::cmp::PartialEq for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::eq(&self, other: &work::sync::push_decide::PushOutcome) -> bool
+impl core::fmt::Debug for work::sync::push_decide::PushOutcome
+pub fn work::sync::push_decide::PushOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::push_decide::PushOutcome
+impl core::marker::StructuralPartialEq for work::sync::push_decide::PushOutcome
+pub enum work::sync::PushPrecondition
+pub work::sync::PushPrecondition::Proceed
+pub work::sync::PushPrecondition::Refuse(work::sync::push_precondition::RefusalReason)
+pub work::sync::PushPrecondition::ReuseId(tracker::ExternalId)
+impl core::clone::Clone for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::clone(&self) -> work::sync::push_precondition::PushPrecondition
+impl core::cmp::Eq for work::sync::push_precondition::PushPrecondition
+impl core::cmp::PartialEq for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::eq(&self, other: &work::sync::push_precondition::PushPrecondition) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::PushPrecondition
+pub fn work::sync::push_precondition::PushPrecondition::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::PushPrecondition
+pub enum work::sync::RefusalReason
+pub work::sync::RefusalReason::AlreadyWritten
+pub work::sync::RefusalReason::FingerprintMismatch
+pub work::sync::RefusalReason::MarkerUnreadable
+pub work::sync::RefusalReason::PriorAttemptUnknownOutcome
+impl core::clone::Clone for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::clone(&self) -> work::sync::push_precondition::RefusalReason
+impl core::cmp::Eq for work::sync::push_precondition::RefusalReason
+impl core::cmp::PartialEq for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::eq(&self, other: &work::sync::push_precondition::RefusalReason) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::RefusalReason
+pub fn work::sync::push_precondition::RefusalReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::push_precondition::RefusalReason
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::RefusalReason
 pub enum work::sync::RemotePresence
 pub work::sync::RemotePresence::Absent
 pub work::sync::RemotePresence::Indeterminate
@@ -507,6 +645,19 @@ impl core::marker::StructuralPartialEq for work::sync::plan::PlannedAction
 pub struct work::sync::RemoteFacts<'a>
 pub work::sync::RemoteFacts::presence: work::sync::classify::RemotePresence
 pub work::sync::RemoteFacts::remote_updated: &'a tracker::RemoteTimestamp
+pub struct work::sync::RequestFingerprint
+pub work::sync::RequestFingerprint::attempted_at: u64
+pub work::sync::RequestFingerprint::digest: alloc::string::String
+pub work::sync::RequestFingerprint::failure: core::option::Option<alloc::string::String>
+pub work::sync::RequestFingerprint::title: alloc::string::String
+impl core::clone::Clone for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::clone(&self) -> work::sync::push_precondition::RequestFingerprint
+impl core::cmp::Eq for work::sync::push_precondition::RequestFingerprint
+impl core::cmp::PartialEq for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::eq(&self, other: &work::sync::push_precondition::RequestFingerprint) -> bool
+impl core::fmt::Debug for work::sync::push_precondition::RequestFingerprint
+pub fn work::sync::push_precondition::RequestFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::push_precondition::RequestFingerprint
 pub struct work::sync::Subject<'a>
 pub work::sync::Subject::baseline_timestamp: u64
 pub work::sync::Subject::external_id: core::option::Option<&'a tracker::ExternalId>
@@ -529,6 +680,8 @@ pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, st
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome
+pub fn work::sync::push_precondition(marker: &work::sync::push_precondition::MarkerState<'_>, request_digest: &str, corpus_carries: &dyn core::ops::function::Fn(&tracker::ExternalId) -> bool) -> work::sync::push_precondition::PushPrecondition
 pub fn work::sync::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
 pub mod work::tags
 pub enum work::tags::TagAction

@@ -87,6 +87,7 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
+      --push                         Push the new item to the configured remote tracker before writing it locally. A failure is reported, not prompted; the file is still written either way (see `--help`'s exit-code notes)
   -h, --help                         Print help
 
 === accelerator-work update --help ===
@@ -103,6 +104,7 @@ Options:
       --remove-tag <REMOVE_TAGS>  A tag to remove; repeatable
       --append <APPENDS>          A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY` (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
+      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged) or 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict)
   -h, --help                      Print help
 
 === accelerator-work canonicalise-id --help ===

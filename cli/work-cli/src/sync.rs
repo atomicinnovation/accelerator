@@ -119,7 +119,7 @@ impl WorkingCopyStatus for ShelledWorkingCopyStatus {
     }
 }
 
-fn integrations_dir(
+pub fn integrations_dir(
     config: &dyn ConfigAccess,
     root: &Path,
 ) -> Result<PathBuf, kernel::Error> {
@@ -136,6 +136,38 @@ fn integrations_dir(
     } else {
         root.join(path)
     })
+}
+
+fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
+    let Ok(markers) = work_adapters::sync::pending_push::outstanding(
+        integrations_root,
+        integration,
+    ) else {
+        return;
+    };
+    for (path, marker) in markers {
+        let (request, external_id) = match &marker {
+            work::sync::PendingPush::Attempted { request } => (request, None),
+            work::sync::PendingPush::Created {
+                request,
+                external_id,
+            } => (request, Some(external_id.as_str())),
+        };
+        eprintln!(
+            "warning: {} names a pending push for '{}' attempted at {}{}{}",
+            path.display(),
+            request.title,
+            request.attempted_at,
+            request
+                .failure
+                .as_deref()
+                .map(|detail| format!(", failure: {detail}"))
+                .unwrap_or_default(),
+            external_id
+                .map(|id| format!(", external_id: {id}"))
+                .unwrap_or_default()
+        );
+    }
 }
 
 fn discover_items(work_dir: &Path) -> Vec<LocalItem> {
@@ -401,6 +433,7 @@ pub fn run_sync(
                 );
             }
             println!("{}", render_report(&report));
+            warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
         Err(RunError::Refused {

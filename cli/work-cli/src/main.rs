@@ -189,6 +189,7 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
         author: cli_args.author,
         producer: cli_args.producer,
         body_file: cli_args.body_file,
+        push: cli_args.push,
     }
 }
 
@@ -211,10 +212,33 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     let store = composed.store.with_plugin_root(plugin_root_from_env());
     let args = create_args_from_cli(cli_args);
 
-    match create::run(&start, service, &store, &args) {
-        create::RunOutcome::Created(path) => {
+    match create::run(
+        &start,
+        service,
+        &store,
+        &args,
+        &tracker_registry::ConfiguredTrackers,
+    ) {
+        create::RunOutcome::Created { path, push } => {
             println!("{}", path.display());
-            ExitCode::SUCCESS
+            let exit_code = push.as_ref().map_or(exit_codes::CLEAN, |report| {
+                if matches!(
+                    report.outcome,
+                    work::sync::PushOutcome::LoudTerminal
+                ) {
+                    exit_codes::TERMINAL
+                } else {
+                    exit_codes::CLEAN
+                }
+            });
+            if let Some(report) = &push {
+                println!(
+                    "{}\t{}",
+                    report.outcome.keyword(),
+                    report.external_id.as_deref().unwrap_or("")
+                );
+            }
+            ExitCode::from(exit_code)
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
@@ -224,11 +248,47 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
 }
 
 fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
-    match update::run(cli_args) {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    match update::run(
+        &start,
+        service,
+        cli_args,
+        &tracker_registry::ConfiguredTrackers,
+    ) {
         update::RunOutcome::Updated => ExitCode::SUCCESS,
         update::RunOutcome::Failed(message) => {
             eprintln!("{message}");
             ExitCode::FAILURE
+        }
+        update::RunOutcome::PushNotAvailable(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::NOT_AVAILABLE)
+        }
+        update::RunOutcome::PushUnrecognised(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::UNRECOGNISED)
+        }
+        update::RunOutcome::PushRetryable(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::RETRYABLE)
+        }
+        update::RunOutcome::PushTerminal(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::TERMINAL)
         }
     }
 }

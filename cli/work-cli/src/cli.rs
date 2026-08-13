@@ -119,6 +119,14 @@ pub struct UpdateArgs {
     /// repeatable.
     #[arg(long = "remove", value_parser = parse_key_value)]
     pub removes: Vec<(String, String)>,
+    /// Replace the item's remote issue with its whole rendered content
+    /// before writing the edit locally. Refused when the item has no
+    /// `external_id` — see `create --push` for an unsynced item. Unlike
+    /// `create --push`, a failed push leaves the local file untouched:
+    /// exit 70 (retryable, unchanged) or 71 (terminal, baseline entry
+    /// cleared so the next `sync` reconciles it as a conflict).
+    #[arg(long)]
+    pub push: bool,
 }
 
 /// `work create`'s flags — a separate [`Args`] struct (boxed at the
@@ -170,6 +178,11 @@ pub struct CreateArgs {
     /// body.
     #[arg(long = "body-file")]
     pub body_file: Option<PathBuf>,
+    /// Push the new item to the configured remote tracker before writing
+    /// it locally. A failure is reported, not prompted; the file is still
+    /// written either way (see `--help`'s exit-code notes).
+    #[arg(long)]
+    pub push: bool,
 }
 
 /// `work sync`'s flags — boxed for the same reason as [`CreateArgs`].
