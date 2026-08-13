@@ -12,7 +12,7 @@ parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0174"]
 tags: [rust, work-items, sync, tracker]
-last_updated: "2026-08-12T00:35:00+00:00"
+last_updated: "2026-08-13T12:20:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -241,9 +241,20 @@ and the per-tracker projection seam. See Drafting Notes.
   mutation, safe to retry) reports a retry-safe failure and leaves the
   baseline entry alone; `E_DISPATCH_TERMINAL` (mutation state uncertain,
   never auto-retried) additionally clears the item's baseline entry, so
-  the next `sync` classifies it `indeterminate` and writes neither side
-  until a human resolves it. Neither case may leave the local file
-  silently diverged from a replace that may have actually applied.
+  the next `sync` classifies it `conflict` and, under a bidirectional run,
+  writes neither side. Neither case may leave the local file silently
+  diverged from a replace that may have actually applied.
+
+  `conflict`, not `indeterminate`: a cleared entry leaves both hashes
+  absent, so both sides default to changed and the 2x2 verdict is
+  `conflict`. `indeterminate` is reachable only from a failed or truncated
+  remote *read*, so no amount of local bookkeeping can produce it. The
+  safety property is unchanged — neither side is written — but `conflict`
+  is *resolvable*, so a later `--resolve <id>=remote` can pull the remote
+  over the local for an update that may never have applied. Accepted
+  rather than mitigated: the alternative, persisting an uncertainty flag
+  the classifier honours, widens the baseline schema that the live bash
+  engine also reads during the window both implementations are live.
 - Partition tests so the default `cargo test`/`cargo nextest run` invocation
   exercises the parity/characterization suite only (no live network calls);
   gate the contract/integration suite exercising real remote calls behind a
@@ -379,19 +390,33 @@ and the per-tracker projection seam. See Drafting Notes.
       retry) the baseline entry is left intact, and on
       `E_DISPATCH_TERMINAL` (mutation state uncertain, never
       auto-retried) the item's baseline entry is cleared, so a subsequent
-      `sync` classifies it `indeterminate` and writes neither side.
+      bidirectional `sync` classifies it `conflict` and writes neither
+      side.
 - [ ] A characterization test captures `work-item-push-decide.sh`'s
       pre-port behaviour — every documented `--code` × `--attempt`
       combination plus `--write-failed`, and at least one error path
       (non-integer arguments) — and passes against the unmodified script.
-- [ ] The fixture tables behind `test-work-item-sync-apply.sh`,
-      `test-work-item-fetch-remote.sh`, `test-work-item-create-remote.sh`,
-      `test-work-item-update-remote.sh` and the classify, decide, baseline,
-      label and project sections of `test-work-item-scripts.sh` are lifted
-      into committed Rust test data, and both implementations pass against
-      them: the Rust suite against the lifted tables, and the bash suites
-      unchanged against the scripts, which remain in place. The Rust suite
-      makes no live network call.
+- [ ] The fixture tables behind the classify, decide, label and project
+      sections of `test-work-item-scripts.sh`, and `work-item-push-decide.sh`'s
+      characterization rows, are lifted into committed test data that **both**
+      implementations loop, and both pass against it: the Rust suite against
+      the shared tables, and the bash suites against the same tables rather
+      than against inline assertions. The Rust suite makes no live network
+      call.
+
+      Three exclusions, each because the material is not this story's to
+      lift. The tables behind `test-work-item-sync-apply.sh`,
+      `test-work-item-fetch-remote.sh`, `test-work-item-create-remote.sh` and
+      `test-work-item-update-remote.sh` exercise the bash **bridge** scripts —
+      the shell-out plumbing to a live provider — whose Rust counterparts are
+      0171's client adapters, not this story's code; their behavioural content
+      lands in 0171 as the contract harness run against each real client. The
+      baseline section is replaced by typed unit tests plus a bash-generated
+      corpus, because its cases assert file-level atomicity a table cannot
+      express. And the fixtures live under
+      `skills/work/scripts/test-fixtures/` rather than in Rust-only test data,
+      so a single oracle holds both implementations while the bash path stays
+      live.
 - [ ] The bash-generated baseline corpus is committed under
       `test-fixtures/` while `work-item-project-remote.sh` still exists, so
       the classification-stability check below survives 0171's removal of
@@ -821,7 +846,10 @@ Criteria and Drafting Notes.
     to define the outcome its own criterion verified. Settled: the local
     file is never written, both cases exit non-zero, and
     `E_DISPATCH_TERMINAL` additionally clears the baseline entry so the
-    next `sync` classifies the item `indeterminate`.
+    next `sync` classifies the item `indeterminate`. **Superseded** by the
+    2026-08-13 amendment at the end of these notes: a cleared entry
+    classifies `conflict`, and `indeterminate` is unreachable from local
+    bookkeeping.
   - **Label anti-drift gate.** The no-shim decision cited shared golden
     fixtures, but none covered labelling. Settled: a new
     `test-fixtures/work-item-sync-label.golden` over the seven states,
@@ -867,6 +895,27 @@ Criteria and Drafting Notes.
   the variant does not survive a round trip through `last-sync.json`.
   `NotRead` is also the one variant no port operation returns; this story
   writes it.
+
+- Amended 2026-08-13, following plan review 1 (three passes, eight lenses,
+  `meta/reviews/plans/2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1.md`).
+  Two acceptance criteria were wrong in ways that would have failed a correct
+  implementation at validation, so both were corrected here rather than
+  worked around in the plan:
+  - **AC 14 and its Requirements bullet said `indeterminate`.** They now say
+    `conflict`, with the reasoning inline. The correctness lens verified
+    against `work-item-sync-classify.sh:161-185` that a cleared baseline
+    entry leaves both sides defaulting to changed, and that `Indeterminate`
+    is reachable only from `RemotePresence::Indeterminate` — a failed read —
+    so the state the criterion demanded cannot arise from clearing an entry.
+    This supersedes the review-2 note above, which settled on
+    `indeterminate` without checking the classifier's branch order.
+  - **AC 16 named four bash suites whose tables this story does not lift.**
+    Narrowed to the sections actually lifted, with the three exclusions and
+    their reasons stated. The criterion also now requires the shared tables
+    to be looped by *both* implementations rather than transcribed into
+    Rust-only test data — the review found that two independent
+    transcriptions can drift green while the bash path is still live, which
+    the one-oracle wording is what prevents.
 
 ## References
 
