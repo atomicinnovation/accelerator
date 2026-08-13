@@ -5,8 +5,7 @@ use std::time::Instant;
 
 use design::executor::ports::Clock;
 
-/// The interval between readiness checks, matching the retired shell's own
-/// 300 × 0.1s poll.
+/// The interval between readiness checks.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Elapsed seconds since construction.
@@ -52,9 +51,9 @@ mod tests {
     }
 
     /// Short enough that a 30-second budget is ~300 checks, long enough not to
-    /// spin — the shell's own figure.
+    /// spin.
     #[test]
-    fn the_poll_interval_matches_the_retired_shell_s() {
+    fn the_poll_interval_is_a_tenth_of_a_second() {
         assert_eq!(POLL_INTERVAL.as_millis(), 100);
     }
 }

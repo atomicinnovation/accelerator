@@ -189,7 +189,7 @@ mod tests {
         );
     }
 
-    /// The same bytes the retained JavaScript reads.
+    /// The same bytes `identity-handoff.js` parses.
     ///
     /// One fixture, two readers: a change to either side of the language
     /// boundary fails a test rather than a crawl.

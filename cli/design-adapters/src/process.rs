@@ -4,21 +4,17 @@
 //! no-subprocess rule to the sibling `filesystem` and `environment` modules
 //! rather than to the crate.
 //!
-//! Three properties come from shell primitives the port removes, and each is
-//! reproduced explicitly rather than inherited. `nohup … & disown` made the
-//! daemon SIGHUP-immune and reparented, so the spawn calls `setsid`; without it
-//! a Ctrl-C in an interactive session kills the daemon mid-crawl.
-//! `>>"$BOOTSTRAP_LOG" 2>&1` kept the daemon's chatter out of the caller's
-//! streams, so the spawn redirects rather than inheriting. And `umask 077` was
-//! inherited by the daemon too, not only the launcher — every file the daemon
-//! creates without an explicit mode, notably screenshot output, lands `0600`
-//! today — so the child's `pre_exec` sets it as well.
+//! Three properties of the spawned daemon are set explicitly rather than
+//! inherited. It calls `setsid`, without which a Ctrl-C in an interactive
+//! session kills the daemon mid-crawl. It redirects the child's streams to the
+//! bootstrap log, keeping the daemon's chatter out of the caller's. And the
+//! child's `pre_exec` sets the umask, so every file the daemon creates without
+//! an explicit mode — notably screenshot output — lands `0600`.
 //!
-//! It is deliberately **not** a double fork. The shell spawned the daemon as a
-//! direct child, so `$!` was the daemon's own pid, which both the
-//! kill-on-timeout and the identity handoff need. `setsid` before `exec`
-//! preserves that pid; a double fork does not, because the launcher never
-//! learns the grandchild's.
+//! It is deliberately **not** a double fork. Both the kill-on-timeout and the
+//! identity handoff need the daemon's own pid; `setsid` before `exec` preserves
+//! it, while a double fork loses it, because the launcher never learns the
+//! grandchild's.
 
 use std::fmt::Write as _;
 use std::fs::File;
@@ -177,10 +173,9 @@ impl Spawner for DaemonSpawner {
 }
 
 impl DaemonSpawner {
-    /// Truncated and `0600` before the daemon writes, so the timeout envelope's
-    /// "check this log" points at *this* attempt's output rather than a
-    /// previous one's, under a umask the Rust binary does not inherit from a
-    /// shell.
+    /// Truncated and `0600` before the daemon writes, so the timeout
+    /// envelope's "check this log" points at *this* attempt's output rather
+    /// than a previous one's.
     fn prepare_bootstrap_log(&self) -> Result<File, kernel::Error> {
         let log = OpenOptions::new()
             .create(true)
@@ -190,9 +185,8 @@ impl DaemonSpawner {
             .open(&self.bootstrap_log)
             .map_err(failed("open the bootstrap log"))?;
         // `mode` applies only when the file is created, so an existing log
-        // keeps whatever permissions it had — which the shell's unconditional
-        // `chmod 0600` did not allow. The daemon's stderr lands here, so a
-        // world-readable log is a disclosure route for anything it prints.
+        // keeps whatever permissions it had. The daemon's stderr lands here,
+        // so a world-readable log is a disclosure route for anything it prints.
         log.set_permissions(std::fs::Permissions::from_mode(0o600))
             .map_err(failed("restrict the bootstrap log"))?;
         Ok(log)

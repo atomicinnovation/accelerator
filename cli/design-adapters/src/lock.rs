@@ -1,15 +1,12 @@
 //! The launcher lock: one backend, released at exit on every path.
 //!
-//! The shell carried two — `flock(1)` when the binary was present, a `mkdir`
-//! sentinel otherwise — because that binary is absent on macOS. In Rust
-//! `flock(2)` is available on every supported target, so the dichotomy and the
-//! `ACCELERATOR_LOCK_FORCE_MKDIR` escape hatch both go, along with the
-//! `owner.<nonce>` sentinel protocol neither backend needed here.
+//! `flock(2)` is available on every supported target, so there is one backend
+//! and no sentinel protocol.
 //!
 //! Rust opens files `O_CLOEXEC` by default, so the descriptor does **not**
-//! leak into the daemon the way the shell's did. That is deliberate: holding
-//! the lock for the daemon's lifetime makes a stale-start-time recovery while
-//! the daemon still lives report `another-launcher-running` falsely.
+//! leak into the daemon. That is deliberate: holding the lock for the daemon's
+//! lifetime would make a stale-start-time recovery while the daemon still
+//! lives report `another-launcher-running` falsely.
 
 use std::cell::Cell;
 use std::fs::File;

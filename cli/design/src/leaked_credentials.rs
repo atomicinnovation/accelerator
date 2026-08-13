@@ -81,9 +81,8 @@ mod tests {
         assert!(scan("anything at all", &secrets).is_empty());
     }
 
-    /// The one genuinely new behaviour among the ported subcommands: the shell
-    /// matched only the whole `Name: value` pair, so an artefact rendering
-    /// just the token — the likely leakage shape — matched nothing.
+    /// Matching only the whole `Name: value` pair would miss an artefact
+    /// rendering just the token, which is the likely leakage shape.
     #[test]
     fn the_value_half_of_a_header_pair_is_a_needle_of_its_own() {
         let secrets = [secret(

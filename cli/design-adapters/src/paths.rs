@@ -1,13 +1,11 @@
 //! Resolving the launcher's plugin root, lockhash namespace and state
 //! directory.
 //!
-//! The digest here is the one number that must agree with a script this change
-//! does not delete. `ensure-playwright.sh` is the only thing that populates the
-//! namespace, and it computes `sha256sum FILE | cut -c1-8` over the shipped
-//! `package-lock.json`. Off by anything at all and the executor looks in a
-//! directory the surviving bootstrap never fills, so every invocation returns
-//! `playwright-not-installed` at exit 3 on a correctly-bootstrapped machine —
-//! a failure that looks like a broken install rather than a broken port.
+//! The digest must agree with `ensure-playwright.sh`, which is the only thing
+//! that populates the namespace and computes `sha256sum FILE | cut -c1-8` over
+//! the shipped `package-lock.json`. Off by anything at all and the executor
+//! looks in a directory the bootstrap never fills, so every invocation returns
+//! `playwright-not-installed` at exit 3 on a correctly-bootstrapped machine.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -16,10 +14,10 @@ use std::path::PathBuf;
 use design::executor::ports::PathResolution;
 use sha2::Digest as _;
 
-/// The number of hex characters the shell's `cut -c1-8` keeps.
+/// The number of hex characters `cut -c1-8` keeps in the bootstrap script.
 const LOCKHASH_LENGTH: usize = 8;
 
-/// Where the state directory sits under the repository, matching the shell.
+/// Where the state directory sits under the repository.
 const STATE_DIR_LEAF: &str = "inventory-design-playwright";
 const BOOTSTRAP_LOG: &str = "server.bootstrap.log";
 
@@ -168,9 +166,8 @@ mod tests {
         }
     }
 
-    /// The digest is over the file's bytes exactly, with no trailing-newline or
-    /// whitespace normalisation — the shell hashed the file, not its content
-    /// interpreted.
+    /// The digest is over the file's bytes exactly, with no trailing-newline
+    /// or whitespace normalisation, so it agrees with hashing the file itself.
     #[test]
     fn a_trailing_newline_changes_the_digest() {
         assert_ne!(lockhash_of(b"{}"), lockhash_of(b"{}\n"));
@@ -210,10 +207,10 @@ mod tests {
         Ok(())
     }
 
-    /// The leaf the shell appended, so an existing install's state directory is
-    /// the one this port finds.
+    /// Pinned so an existing install's state directory is the one this port
+    /// finds.
     #[test]
-    fn the_state_directory_keeps_the_shell_s_layout() {
+    fn the_state_directory_keeps_its_layout() {
         assert_eq!(
             HostPaths::state_dir_for(
                 Path::new("/repo"),

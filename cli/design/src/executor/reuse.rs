@@ -2,8 +2,7 @@
 //! one must be spawned.
 //!
 //! A pure function of (recorded state, observed state), total by construction
-//! rather than by enumeration, so every case the shell never named still has
-//! an answer.
+//! rather than by enumeration, so no combination is left without an answer.
 
 use crate::executor::daemon_identity::ObservedDaemon;
 use crate::executor::daemon_identity::ObservedStartTime;
@@ -29,8 +28,7 @@ pub enum Reuse {
     /// Recovery **never signals**. A contradicted start time proves only that
     /// the live process is not the recorded daemon; it says nothing about what
     /// that process actually is, and on a developer machine a recycled pid is
-    /// as likely to be an editor or a build. The retired shell signalled on no
-    /// recovery path either.
+    /// as likely to be an editor or a build.
     Recover,
 }
 
@@ -166,10 +164,9 @@ mod tests {
         }
     }
 
-    /// A deliberate correction: the shell accepted any live pid when the
-    /// recorded value was empty, bypassing the guard entirely — which is
-    /// precisely the state a truncated write or an interrupted migration
-    /// leaves behind.
+    /// An empty recorded value bypasses the PID-recycle guard entirely, and it
+    /// is precisely what a truncated write or an interrupted migration leaves
+    /// behind, so it recovers rather than trusting liveness alone.
     #[test]
     fn an_absent_or_unparseable_start_time_recovers() {
         for observed in [live(1000), live_unavailable()] {

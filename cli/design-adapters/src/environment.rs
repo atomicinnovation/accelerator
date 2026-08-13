@@ -1,8 +1,7 @@
 //! The `ACCELERATOR_BROWSER_*` reads.
 //!
-//! An unset variable and one set to the empty string are the same thing here,
-//! matching the shell's `${VAR:-}` idiom: an exported-but-blank credential
-//! configures nothing.
+//! An unset variable and one set to the empty string are the same thing here:
+//! an exported-but-blank credential configures nothing.
 
 use design::leaked_credentials::NamedSecret;
 use design::Credentials;
@@ -12,8 +11,7 @@ const USERNAME: &str = "ACCELERATOR_BROWSER_USERNAME";
 const PASSWORD: &str = "ACCELERATOR_BROWSER_PASSWORD";
 const LOGIN_URL: &str = "ACCELERATOR_BROWSER_LOGIN_URL";
 
-/// Every variable the credential vocabulary covers, in the order the shell
-/// scanned them.
+/// Every variable the credential vocabulary covers, in scan order.
 pub const CREDENTIAL_VARIABLES: [&str; 4] =
     [AUTH_HEADER, USERNAME, PASSWORD, LOGIN_URL];
 

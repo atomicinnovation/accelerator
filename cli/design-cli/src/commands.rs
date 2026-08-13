@@ -284,7 +284,7 @@ mod tests {
     }
 
     /// The argument cannot be interpreted as a file to scan, so it is a usage
-    /// error — a deliberate split from the shell's conflated exit 1.
+    /// error rather than a rejection of its contents.
     #[test]
     fn scrubbing_a_nonexistent_file_refuses_rather_than_rejecting(
     ) -> Result<(), TestError> {

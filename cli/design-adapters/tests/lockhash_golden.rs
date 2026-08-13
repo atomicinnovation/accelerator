@@ -1,17 +1,16 @@
 //! The lockhash namespace digest, against the shipped lockfile and against
 //! `ensure-playwright.sh`'s own function.
 //!
-//! This is the one number that must agree with a script this change does not
-//! delete. `ensure-playwright.sh` is the only thing that populates the
-//! namespace; the executor only ever reads it. Off by anything and every
-//! invocation returns `playwright-not-installed` at exit 3 on a machine whose
-//! runtime is installed perfectly well.
+//! `ensure-playwright.sh` is the only thing that populates the namespace; the
+//! executor only ever reads it. Off by anything and every invocation returns
+//! `playwright-not-installed` at exit 3 on a machine whose runtime is installed
+//! perfectly well.
 //!
 //! Two assertions, because they fail for different reasons. The golden catches
-//! a change in the port's arithmetic. The cross-check catches the two
-//! implementations diverging while the shell one still exists — and is written
-//! to fail loudly rather than skip if the tooling it needs is absent, since a
-//! silently-skipped cross-check is the same as not having one.
+//! a change in this crate's arithmetic. The cross-check catches the two
+//! implementations diverging — and is written to fail loudly rather than skip
+//! if the tooling it needs is absent, since a silently-skipped cross-check is
+//! the same as not having one.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -63,10 +62,10 @@ fn the_shipped_lockfile_hashes_to_its_recorded_namespace(
 /// The same digest as `sha256sum FILE | cut -c1-8`, computed by the host's own
 /// tooling rather than by this crate.
 ///
-/// The shell picks `sha256sum` when present and falls back to `shasum -a 256`,
-/// so both are tried here for the same reason.
+/// `ensure-playwright.sh` picks `sha256sum` when present and falls back to
+/// `shasum -a 256`, so both are tried here for the same reason.
 #[test]
-fn the_port_agrees_with_the_shell_s_own_digest_function(
+fn the_digest_agrees_with_the_bootstrap_script_s_own_function(
 ) -> Result<(), TestError> {
     let lockfile = shipped_lockfile();
 

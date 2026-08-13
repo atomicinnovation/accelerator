@@ -1,8 +1,6 @@
-//! `accelerator-corpus metadata derive` against the shape
-//! `scripts/test-metadata-helpers.sh` held all three bash helpers to,
-//! replayed inside a hermetically isolated git and jj tempdir.
+//! `accelerator-corpus metadata derive` against the block shape its consumers
+//! hold it to, replayed inside a hermetically isolated git and jj tempdir.
 //!
-//! Unconditional, like `adr_goldens.rs`: no `bash-parity` feature gate.
 //! Covers the success path only — the one concrete Rust-side failure
 //! condition (`SystemClock::try_new`'s `ClockError`, driven by host tzdata
 //! availability) can't be forced hermetically through the compiled binary,
@@ -50,11 +48,9 @@ fn derive_in_with(
     Ok(String::from_utf8(output.stdout)?)
 }
 
-/// The shape `scripts/test-metadata-helpers.sh` held all three bash helpers
-/// to, and `corpus-adapters/tests/metadata.rs::assert_satisfies_the_helper_contract`
-/// pins for the crate's own `derive`/`render` — duplicated here (a separate
-/// test binary cannot import another crate's private test helper) rather
-/// than only asserted transitively.
+/// The block shape `corpus-adapters` pins for its own `derive`/`render`,
+/// duplicated here because a separate test binary cannot import another
+/// crate's private test helper.
 fn assert_satisfies_the_helper_contract(block: &str) {
     let lines: Vec<&str> = block.lines().collect();
 
@@ -128,10 +124,9 @@ fn a_jj_repository_satisfies_the_helper_contract() -> Result<(), TestError> {
     Ok(())
 }
 
-/// `inventory-metadata.sh`'s `date '+%Y-%m-%d-%H%M%S'` shape. The renderer
-/// itself is pinned digit-for-digit against a fixed instant in
-/// `corpus-adapters`; `derive_at` builds its own `SystemClock`, so through the
-/// compiled binary only the shape is observable.
+/// The `%Y-%m-%d-%H%M%S` shape. The renderer itself is pinned digit-for-digit
+/// against a fixed instant in `corpus-adapters`; `derive_at` builds its own
+/// `SystemClock`, so through the compiled binary only the shape is observable.
 fn assert_is_a_compact_time_stamp(stamp: &str) {
     let fields: Vec<&str> = stamp.split('-').collect();
     assert_eq!(
@@ -152,7 +147,7 @@ fn assert_is_a_compact_time_stamp(stamp: &str) {
 }
 
 #[test]
-fn the_compact_time_format_renders_the_shape_the_bash_helper_did(
+fn the_compact_time_format_renders_a_date_and_a_time_of_day(
 ) -> Result<(), TestError> {
     let work = tempdir("compact")?;
     let env = Hermetic::rooted_at(work.path())?;
@@ -200,12 +195,11 @@ fn omitting_the_format_keeps_today_s_underscored_stamp() -> Result<(), TestError
     Ok(())
 }
 
-/// The four lines `inventory-metadata.sh` and `gap-metadata.sh` emitted, in
-/// order, with their labels — recorded from the scripts themselves before they
-/// were deleted. AC15 is byte-for-byte on the timestamp component (pinned
-/// against a fixed instant in `corpus-adapters`) and label/order-equivalent on
-/// the rest, which is what is actually true: `derive_at` builds its own clock
-/// and the revision is the repository's, so neither is reproducible here.
+/// The four lines the design skills consume, in order, with their labels.
+///
+/// The timestamp component is pinned byte-for-byte against a fixed instant in
+/// `corpus-adapters`; here only labels and order are asserted, because
+/// `derive_at` builds its own clock and the revision is the repository's.
 fn labels_of(block: &str) -> Vec<&str> {
     block
         .lines()
@@ -213,10 +207,9 @@ fn labels_of(block: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Both retired scripts, replayed through the subcommand that replaces them.
+/// Both filename-stamp formats the design skills ask for.
 #[test]
-fn each_retired_metadata_script_s_block_is_reproduced() -> Result<(), TestError>
-{
+fn each_filename_stamp_format_renders_its_own_block() -> Result<(), TestError> {
     for (format, stamp_label) in [
         ("compact-time", "Timestamp For Filename"),
         ("date-only", "Date For Filename"),
@@ -241,19 +234,17 @@ fn each_retired_metadata_script_s_block_is_reproduced() -> Result<(), TestError>
                 "Current Revision",
                 "Repository Name",
             ],
-            "{format} drifted from the retired script's labels or ordering:\n\
-             {block}"
+            "{format} drifted from the expected labels or ordering:\n{block}"
         );
     }
     Ok(())
 }
 
-/// `gap-metadata.sh` emitted `date '+%Y-%m-%d'` under a `Date For Filename`
-/// label — a different format from `inventory-metadata.sh`'s, which an earlier
-/// reading of this migration missed.
+/// The `Date For Filename` label carries `%Y-%m-%d` — a different format from
+/// the compact stamp, and easy to conflate with it.
 #[test]
-fn the_date_only_format_renders_the_shape_the_gap_helper_did(
-) -> Result<(), TestError> {
+fn the_date_only_format_renders_a_date_without_a_time() -> Result<(), TestError>
+{
     let work = tempdir("date-only-shape")?;
     let env = Hermetic::rooted_at(work.path())?;
     let repo = work.path().join("repo");

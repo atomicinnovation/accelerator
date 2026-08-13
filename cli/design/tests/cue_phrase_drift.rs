@@ -1,8 +1,8 @@
 //! The cue-phrase pattern slice against the file that declares itself
 //! canonical for both `extract-work-items` and this audit.
 //!
-//! The patterns are compiled in so the domain crate needs no regex engine; the
-//! shared-file contract stays an executable assertion rather than a comment.
+//! The patterns are compiled in so the domain crate needs no regex engine, so
+//! the shared-file contract is asserted here rather than assumed.
 
 use design::cue_phrase_audit::CASE_SENSITIVE_CUE_PHRASE_PATTERN;
 use design::CUE_PHRASE_PATTERNS;

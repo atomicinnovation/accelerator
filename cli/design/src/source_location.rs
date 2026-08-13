@@ -20,10 +20,8 @@ pub enum SourceLocation {
         scheme: Scheme,
         host: Host,
     },
-    /// `about:blank` names no host and reaches no network. The shell
-    /// classifies it as its own scheme and then accepts it by falling through
-    /// every rejection, so it is modelled explicitly rather than left to
-    /// emerge from the absence of a check.
+    /// `about:blank` names no host and reaches no network. It is modelled
+    /// explicitly rather than left to emerge from the absence of a check.
     Blank,
     RepositoryPath(String),
 }
@@ -36,8 +34,8 @@ pub enum LocationError {
     /// A `../` component anywhere in a path location.
     PathEscape(String),
     /// The authority as written, and why it could not be canonicalised. The
-    /// authority is carried so the message can name the host the shell named,
-    /// which canonicalisation itself never produced for a rejected input.
+    /// authority is carried so the message can name the host as the caller
+    /// wrote it, which canonicalisation never produces for a rejected input.
     Host { authority: String, error: HostError },
 }
 
@@ -176,9 +174,8 @@ mod tests {
         Ok(())
     }
 
-    /// The shell classifies `about:blank` as its own scheme and then accepts
-    /// it by falling through every rejection. A reimplementation of the
-    /// decision tree would plausibly turn that accept into a rejection.
+    /// `about:blank` is the one accepted `about:` URL, and the accept is easy
+    /// to lose to a decision tree that refuses the scheme wholesale.
     #[test]
     fn about_blank_is_accepted_while_every_other_about_url_is_not() {
         assert_eq!(parse("about:blank"), Ok(SourceLocation::Blank));

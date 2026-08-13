@@ -130,12 +130,6 @@ async function withDaemon(body) {
   });
 }
 
-// -- ping ----------------------------------------------------------------
-
-// Extracted from lib/daemon.test.js, where it gated itself on the namespace and
-// returned early when absent — which `node --test` reports as passed, not
-// skipped. That left daemon.test.js unable to satisfy a zero-skip assertion,
-// and hid a real absence behind a green tick.
 test('ping returns ok: true without launching a browser', { timeout: 20000 }, async () => {
   await withDaemon(async info => {
     const res = await send(info.url, { protocol: 1, command: 'ping' });
@@ -145,12 +139,9 @@ test('ping returns ok: true without launching a browser', { timeout: 20000 }, as
   });
 });
 
-// -- links: the data-exposure contract -----------------------------------
-
-// Ported from test-run.sh, which was its only copy. It is a privacy contract
-// over the retained daemon implementation — what a crawl may hand back about a
-// page's anchors — and extracting real anchors from a real page needs a real
-// Chromium, so unlike the spawn properties there is no honest way to make it
+// A privacy contract over the daemon — what a crawl may hand back about a
+// page's anchors. Extracting real anchors from a real page needs a real
+// Chromium, so unlike the spawn properties there is no honest way to make this
 // runtime-free.
 
 const FIXTURE_URL = `file://${resolve(import.meta.dirname, '__fixtures__/links.html')}`;

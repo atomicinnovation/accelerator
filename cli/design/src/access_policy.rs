@@ -119,8 +119,8 @@ mod tests {
         Ok(())
     }
 
-    /// The skill's primary documented invocation, and the carve-out the shell
-    /// applies before internal classification.
+    /// The skill's primary documented invocation, carved out ahead of internal
+    /// classification.
     #[test]
     fn loopback_is_accepted_on_http_with_no_flags_at_all(
     ) -> Result<(), TestError> {
@@ -187,11 +187,11 @@ mod tests {
         Ok(())
     }
 
-    /// The label vocabulary is user-facing text, and the shell's own wording
-    /// for the RFC 1918 case must survive the restructuring.
+    /// The label vocabulary is user-facing text, pinned so a restructuring of
+    /// the reach model cannot silently reword a rejection.
     #[test]
-    fn the_rfc1918_rejection_keeps_the_shell_s_wording() -> Result<(), TestError>
-    {
+    fn the_rfc1918_rejection_names_the_reach_and_the_recovering_flag(
+    ) -> Result<(), TestError> {
         let Verdict::Rejected(reason) = with_no_flags("http://10.0.0.1")?
         else {
             return Err("expected a rejection".into());

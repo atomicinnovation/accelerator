@@ -108,17 +108,17 @@ focused summary to the parent:
 | **documents-analyser**      | Extracts insights from meta documents                             | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
 | **reviewer**                | Evaluates code/plans through a specific quality lens              | Read, Grep, Glob, LS                                                                                                                                                                                                                                |
 | **web-search-researcher**   | Researches external documentation and resources                   | WebSearch, WebFetch, Read, Grep, Glob, LS                                                                                                                                                                                                           |
-| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | `Bash(run.sh navigate)`, `Bash(run.sh snapshot)`                   |
-| **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | `Bash(run.sh navigate\|snapshot\|screenshot\|evaluate\|click\|type\|wait_for)` |
+| **browser-locator**         | Locates routes/screens/components in a running app via Playwright | Bash (`accelerator design executor navigate\|snapshot`)                   |
+| **browser-analyser**        | Analyses screens, captures state and screenshots via Playwright   | Bash (`accelerator design executor navigate\|snapshot\|screenshot\|evaluate\|click\|type\|wait_for`) |
 
 The separation between locators (find, no Read) and analysers (understand, with
 Read) is deliberate: it prevents any single agent from needing to both search
 broadly and read deeply, keeping each agent's context bounded.
 
-`browser-*` agents drive Playwright through the skill-shipped executor
-(`run.sh`), a Bash wrapper around a Node.js TCP daemon that runs Chromium.
-No MCP server is required. See `skills/design/inventory-design/PROTOCOL.md`
-for the executor wire protocol.
+`browser-*` agents drive Playwright through `accelerator design executor`,
+which launches and reuses a Node.js TCP daemon running Chromium. No MCP server
+is required. See `skills/design/inventory-design/PROTOCOL.md` for the executor
+wire protocol.
 
 ## VCS Detection
 

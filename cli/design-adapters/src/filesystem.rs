@@ -1,4 +1,4 @@
-//! Reading the files the ported subcommands act on.
+//! Reading the files the subcommands act on.
 
 use std::path::Path;
 
@@ -6,8 +6,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DirectoryCheck {
     Directory,
-    /// Absent, or present but not a directory. The shell conflates the two in
-    /// one message, and the port preserves that.
+    /// Absent, or present but not a directory: one message covers both.
     NotADirectory,
 }
 

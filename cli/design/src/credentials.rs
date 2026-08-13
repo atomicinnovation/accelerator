@@ -1,12 +1,9 @@
 //! Which authentication mode the configured environment selects.
 //!
-//! Ported behaviour-for-behaviour from the shell, including a known defect:
-//! the header path the `header` mode selects is inert downstream — the daemon
-//! imports its handler and never calls it, and the origin allowlist that
-//! handler needs is set nowhere. Wiring it up is new feature work and
-//! retiring it removes a documented capability, so neither belongs in a
-//! behaviour-preserving migration. Callers are warned in the command's help
-//! text instead.
+//! The `header` mode is inert downstream: the daemon imports its handler and
+//! never calls it, and the origin allowlist that handler needs is set nowhere.
+//! The mode still resolves, and the command's help text warns callers, because
+//! it remains a documented capability.
 
 use std::fmt;
 

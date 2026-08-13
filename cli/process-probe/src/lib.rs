@@ -51,10 +51,10 @@ pub fn start_time(pid: i32) -> Option<u64> {
 ///
 /// Two details are load-bearing. The `comm` field is parenthesised and may
 /// itself contain parentheses and spaces, so the scan takes everything after
-/// the **last** `)` rather than the first. And the division truncates, matching
-/// the retired shell and JavaScript implementations — a floating-point or
-/// `(btime * hz + ticks) / hz` form differs by up to a second, which is the
-/// whole tolerance budget the identity check spends on boundary drift.
+/// the **last** `)` rather than the first. And the division truncates: a
+/// floating-point or `(btime * hz + ticks) / hz` form differs by up to a
+/// second, which is the whole tolerance budget the identity check spends on
+/// boundary drift.
 #[must_use]
 pub fn start_time_from_proc_stat(
     stat: &str,

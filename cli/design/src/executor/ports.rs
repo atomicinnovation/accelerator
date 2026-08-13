@@ -57,11 +57,7 @@ pub enum LockOutcome {
     HeldByAnother,
 }
 
-/// The single lock backend.
-///
-/// The shell's flock-or-mkdir dichotomy existed because the `flock(1)` binary
-/// is absent on macOS — a constraint that vanishes here, where `flock(2)` is
-/// available on every supported target.
+/// The single lock backend, `flock(2)` on every supported target.
 pub trait Lock {
     /// # Errors
     ///
@@ -84,20 +80,18 @@ pub trait Spawner {
     fn spawn(&self) -> Result<Identity, kernel::Error>;
 }
 
-/// Signalling, kept apart from creation: bundling them made one port do two
-/// unrelated things, and only the start-poll timeout ever signals.
+/// Signalling, kept apart from creation: only the start-poll timeout signals.
 pub trait ProcessControl {
     fn terminate(&self, pid: i32);
 }
 
 /// Where the launcher's inputs and outputs live.
 ///
-/// `run.sh` derived all of these from `BASH_SOURCE`, so it always found its own
-/// sibling files. A dispatched sub-binary executes from the launcher's cache
-/// directory and cannot, so the paths are resolved through a port that refuses
-/// with a named error when it has nothing to resolve from — the failure mode an
-/// `ACCELERATOR_DESIGN_BIN` override would otherwise hit with no diagnosable
-/// message.
+/// A dispatched sub-binary executes from the launcher's cache directory, so it
+/// cannot find its own sibling files by location. The paths resolve through a
+/// port that refuses with a named error when it has nothing to resolve from —
+/// the failure mode an `ACCELERATOR_DESIGN_BIN` override would otherwise hit
+/// with no diagnosable message.
 ///
 /// Both path-bearing envelopes read their path from here, so each is
 /// byte-identical whatever directory the caller invoked from.

@@ -91,7 +91,7 @@
     {
       "id": 10,
       "name": "auth-header-precedence",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_AUTH_HEADER=Bearer-test, ACCELERATOR_BROWSER_USERNAME=alice, ACCELERATOR_BROWSER_PASSWORD=secret, ACCELERATOR_BROWSER_LOGIN_URL=https://example.com/login are all set.\n\nSimulate running resolve-auth.sh with these env vars.\n\nSave to outputs/:\n- auth-mode.md: Which mode is selected and why\n- warning.md: The warning message that would be emitted to stderr",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_AUTH_HEADER=Bearer-test, ACCELERATOR_BROWSER_USERNAME=alice, ACCELERATOR_BROWSER_PASSWORD=secret, ACCELERATOR_BROWSER_LOGIN_URL=https://example.com/login are all set.\n\nSimulate running accelerator design resolve-auth with these env vars.\n\nSave to outputs/:\n- auth-mode.md: Which mode is selected and why\n- warning.md: The warning message that would be emitted to stderr",
       "expected_output": "Auth mode is header (AUTH_HEADER takes precedence). Warning names the ignored form-login vars.",
       "files": [],
       "expectations": [
@@ -105,7 +105,7 @@
     {
       "id": 11,
       "name": "partial-credentials-fail-fast",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_USERNAME=alice and ACCELERATOR_BROWSER_PASSWORD=secret are set, but ACCELERATOR_BROWSER_LOGIN_URL is NOT set.\n\nSimulate running resolve-auth.sh with these env vars.\n\nSave to outputs/:\n- behavior.md: What the script outputs and what exit code it returns",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nEnvironment: ACCELERATOR_BROWSER_USERNAME=alice and ACCELERATOR_BROWSER_PASSWORD=secret are set, but ACCELERATOR_BROWSER_LOGIN_URL is NOT set.\n\nSimulate running accelerator design resolve-auth with these env vars.\n\nSave to outputs/:\n- behavior.md: What the script outputs and what exit code it returns",
       "expected_output": "Script exits non-zero and names the missing ACCELERATOR_BROWSER_LOGIN_URL variable.",
       "files": [],
       "expectations": [
@@ -118,7 +118,7 @@
     {
       "id": 12,
       "name": "url-scheme-rejection",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nA user invokes: /accelerator:inventory-design test-fs file:///etc/passwd\n\nSimulate running validate-source.sh with the location file:///etc/passwd.\n\nSave to outputs/:\n- behavior.md: What the script outputs, its exit code, and whether any artifact directory was created",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nA user invokes: /accelerator:inventory-design test-fs file:///etc/passwd\n\nSimulate running accelerator design validate-source with the location file:///etc/passwd.\n\nSave to outputs/:\n- behavior.md: What the script outputs, its exit code, and whether any artifact directory was created",
       "expected_output": "Script exits non-zero before any agent is spawned. Error names the rejected scheme. No artifact directory is created.",
       "files": [],
       "expectations": [
@@ -131,7 +131,7 @@
     {
       "id": 13,
       "name": "internal-host-rejection",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with each of the following invocations:\n1. validate-source.sh http://10.0.0.1/\n2. validate-source.sh http://169.254.169.254/\n3. validate-source.sh http://10.0.0.1/ --allow-internal\n4. validate-source.sh http://127.0.0.2/\n5. validate-source.sh http://127.0.0.2/ --allow-internal\n\nSave to outputs/:\n- behavior.md: Exit code and error message (or success) for each invocation",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running accelerator design validate-source with each of the following invocations:\n1. accelerator design validate-source http://10.0.0.1/\n2. accelerator design validate-source http://169.254.169.254/\n3. accelerator design validate-source http://10.0.0.1/ --allow-internal\n4. accelerator design validate-source http://127.0.0.2/\n5. accelerator design validate-source http://127.0.0.2/ --allow-internal\n\nSave to outputs/:\n- behavior.md: Exit code and error message (or success) for each invocation",
       "expected_output": "http://10.0.0.1/ and http://169.254.169.254/ fail without flag. http://10.0.0.1/ succeeds with --allow-internal. http://127.0.0.2/ (non-127.0.0.1 loopback) fails without flag and succeeds with --allow-internal.",
       "files": [],
       "expectations": [
@@ -164,7 +164,7 @@
     {
       "id": 18,
       "name": "localhost-default-allow",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running validate-source.sh with each of the following locations (no flags):\n1. http://localhost:8080\n2. http://127.0.0.1:3000\n3. http://LOCALHOST/\n4. http://localhost./\n\nSave to outputs/:\n- behavior.md: Exit code and result for each invocation",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate running accelerator design validate-source with each of the following locations (no flags):\n1. http://localhost:8080\n2. http://127.0.0.1:3000\n3. http://LOCALHOST/\n4. http://localhost./\n\nSave to outputs/:\n- behavior.md: Exit code and result for each invocation",
       "expected_output": "All four invocations succeed (exit 0) without any flags. The canonicalisation path (uppercase localhost, trailing dot) is exercised.",
       "files": [],
       "expectations": [
@@ -178,12 +178,12 @@
     {
       "id": 19,
       "name": "allow-internal-and-insecure-scheme-flag-passthrough",
-      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate the skill's Step 1 (validate-source.sh invocation) for the following user invocations:\n1. /inventory-design my-app http://192.168.1.1/ --allow-internal\n2. /inventory-design my-app http://example.com/ --allow-insecure-scheme\n3. /inventory-design my-app http://example.com/ --allow-internal  (wrong flag for public host)\n\nSave to outputs/:\n- behavior.md: How the skill passes each flag to validate-source.sh, and the result (pass or fail) for each case",
+      "prompt": "Read skills/design/inventory-design/SKILL.md fully. You are running the inventory-design skill.\n\nSimulate the skill's Step 1 (accelerator design validate-source invocation) for the following user invocations:\n1. /inventory-design my-app http://192.168.1.1/ --allow-internal\n2. /inventory-design my-app http://example.com/ --allow-insecure-scheme\n3. /inventory-design my-app http://example.com/ --allow-internal  (wrong flag for public host)\n\nSave to outputs/:\n- behavior.md: How the skill passes each flag to accelerator design validate-source, and the result (pass or fail) for each case",
       "expected_output": "Case 1: --allow-internal is passed and the internal host is accepted. Case 2: --allow-insecure-scheme is passed and the public http host is accepted. Case 3: --allow-internal alone does not unlock a public http host; the skill reports an error naming --allow-insecure-scheme.",
       "files": [],
       "expectations": [
-        "Skill passes --allow-internal to validate-source.sh when user supplies it",
-        "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+        "Skill passes --allow-internal to accelerator design validate-source when user supplies it",
+        "Skill passes --allow-insecure-scheme to accelerator design validate-source when user supplies it",
         "http://192.168.1.1/ succeeds when --allow-internal is provided",
         "http://example.com/ succeeds when --allow-insecure-scheme is provided",
         "http://example.com/ with only --allow-internal fails and error names --allow-insecure-scheme",

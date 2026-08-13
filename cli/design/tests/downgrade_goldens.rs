@@ -2,13 +2,11 @@
 //! compiled-in tables agreeing with the files they were lifted from.
 //!
 //! Exhaustive by construction: the golden test iterates the reason enum, so a
-//! variant added without a golden fails rather than going unchecked. That is
-//! what replaces `test-notify-downgrade.sh`'s message-key/fixture
-//! set-equality check.
+//! variant added without a golden fails rather than going unchecked, and a
+//! golden left behind by a removed variant fails too.
 //!
 //! To regenerate a golden after a deliberate message change, run this suite
-//! with `UPDATE_DOWNGRADE_GOLDENS=1`. That is the replacement for
-//! `regenerate-notify-downgrade-fixtures.sh`.
+//! with `UPDATE_DOWNGRADE_GOLDENS=1`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -66,12 +64,11 @@ fn no_golden_survives_without_a_reason_to_produce_it() -> Result<(), TestError>
     Ok(())
 }
 
-/// The shell read its messages from this file at runtime. The table is now
-/// compiled in, so exhaustiveness is a compile error — but the file is still
-/// the record of what the shell emitted, and the two must not diverge
-/// silently while `ensure-playwright.sh` is still passing these keys through.
+/// A data-shaped record of the same vocabulary, kept as the second half of a
+/// two-sided check: the keys must stay exactly those `ensure-playwright.sh`
+/// passes through to `--reason`, and neither side may gain an entry alone.
 #[test]
-fn the_compiled_table_still_agrees_with_the_shell_s_message_file(
+fn the_compiled_table_still_agrees_with_the_recorded_messages(
 ) -> Result<(), TestError> {
     const MESSAGES: &str =
         include_str!("fixtures/notify-downgrade-messages.json");
@@ -84,7 +81,7 @@ fn the_compiled_table_still_agrees_with_the_shell_s_message_file(
         assert_eq!(
             reason.message(),
             recorded,
-            "{} drifted from the shell's message file",
+            "{} drifted from the recorded messages",
             reason.key()
         );
     }

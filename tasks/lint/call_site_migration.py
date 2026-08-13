@@ -6,9 +6,6 @@ reader in the product. Two anti-regression guards remain, both cheap:
 * **Grep B** — no ``skills/**/SKILL.md`` names a ``scripts/config-`` script;
   a reintroduced bash config call site would prompt at load and bypass the
   launcher contract. The retained ``config-common.sh`` (0174) is permitted.
-  ``config-read-browser-executor.sh`` was the other exemption until the
-  browser agents began invoking ``accelerator design executor`` as a bare
-  command, which needs no path resolved for them.
 * **``--allow-legacy-layout`` confinement** — the flag stays inside the
   allowlisted ``doc-type-table.sh``; anywhere else it would silently suppress
   the uniform legacy-layout refusal. The meta-directory migration engine

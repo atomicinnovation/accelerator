@@ -3,7 +3,7 @@
 //! The record is read from `server-info.json` **alone**. That file is the one
 //! value published by one atomic rename; `server.pid` is a second,
 //! independently-renamed file a reader can observe between the two writes, so
-//! its continued presence is a compatibility artefact this port does not read.
+//! nothing here reads it.
 
 use std::fs;
 use std::path::Path;
@@ -62,11 +62,9 @@ pub fn interpret(body: &str) -> RecordedState {
 
 /// A record with **no** source key reads as `Wallclock`, not `Probe`.
 ///
-/// The retired writer fell back to a wall-clock value on *any* failure — not
-/// only an unsupported platform, but an unreadable `/proc` or a failing
-/// `getconf` under load — so a pre-upgrade record's provenance is genuinely
-/// unknown. Reading it as a kernel probe would hold it to the one-second
-/// tolerance on the strength of a guess.
+/// A record written before the source key existed carries a value of genuinely
+/// unknown provenance, and reading it as a kernel probe would hold it to the
+/// one-second tolerance on the strength of a guess.
 ///
 /// A source that is present but recognised as neither reads as absent: the
 /// reader cannot validate what it cannot interpret.
@@ -106,8 +104,7 @@ impl StateStore for StateDirectory {
     fn clear(&self) -> Result<(), kernel::Error> {
         remove(&self.info_path())?;
         // Removed too, despite not being read: leaving it would let anything
-        // still reading the compatibility file see a daemon this launcher has
-        // just declared stale.
+        // that does read it see a daemon this launcher has just declared stale.
         remove(&self.root.join(SERVER_PID))
     }
 

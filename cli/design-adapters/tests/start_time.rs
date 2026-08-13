@@ -1,22 +1,11 @@
-//! The start-time probe against the locale and timezone hazards that made the
-//! shell version fragile.
+//! The start-time probe against the locale and timezone hazards a
+//! date-string-parsing implementation is exposed to.
 //!
-//! `test-run.sh` sourced `run.sh` and asserted `start_time_of` agreed under
-//! `LANG=C` and `de_DE.UTF-8`, because the shell parsed `ps -p <pid> -o lstart=`
-//! with a fixed `%a %b %d %H:%M:%S %Y` pattern that localises day and month
-//! names — and on `de_DE` even the field order. When it disagreed, every reuse
-//! check failed and the launcher respawned the daemon between commands, losing
-//! the crawl's page state.
-//!
-//! That guard covers the exact bug ADR-0058 names, so it survives here. It does
-//! **not** additionally assert agreement with `lib/state.js`: the JavaScript
-//! probe is gone, so there is one implementation and nothing to agree with. The
-//! equality the shell guard needed is replaced by single ownership, which is
-//! the stronger property.
-//!
-//! It also covers an axis the shell version never had. Reading a kernel epoch
-//! value is what removes the locale hazard, and `TZ`-independence should be
-//! proven rather than assumed.
+//! Reading a kernel epoch value removes both hazards by construction, but a
+//! probe that regressed to parsing `ps -p <pid> -o lstart=` would localise day
+//! and month names — and in some locales the field order — so every reuse check
+//! would fail and the launcher would respawn the daemon between commands,
+//! losing the crawl's page state.
 
 use design::executor::daemon_identity::ObservedDaemon;
 use design::executor::daemon_identity::ObservedStartTime;
@@ -57,7 +46,6 @@ fn with_env<T>(name: &str, value: Option<&str>, body: impl FnOnce() -> T) -> T {
     outcome
 }
 
-/// The guard `test-run.sh:44-63` carried, in the language that replaced it.
 #[test]
 fn the_probe_agrees_across_locales() -> Result<(), TestError> {
     let baseline =
@@ -75,17 +63,13 @@ fn the_probe_agrees_across_locales() -> Result<(), TestError> {
     Ok(())
 }
 
-/// An axis the shell guard never had.
-///
 /// A `ps`-parsing implementation reads a wall-clock string with no offset, so
 /// its result depends on the zone it is interpreted in. A `p_starttime` or
 /// `/proc` read is already epoch-based and cannot.
 ///
 /// This proves TZ-independence only, not immunity from a DST fall-back: a live
 /// process's start time is one fixed instant, so varying `TZ` around a test run
-/// cannot exercise the ambiguous repeated hour. That ambiguity is the reason
-/// `ps -p <pid> -o lstart=` was rejected in the first place, not something this
-/// guard additionally proves.
+/// cannot exercise the ambiguous repeated hour.
 #[test]
 fn the_probe_agrees_across_timezones() -> Result<(), TestError> {
     let baseline =
@@ -104,11 +88,10 @@ fn the_probe_agrees_across_timezones() -> Result<(), TestError> {
     Ok(())
 }
 
-/// The tick rate comes from `sysconf`, compiled into the binary, not from the
-/// `getconf` program the retired JavaScript shelled out to.
+/// The tick rate comes from `sysconf`, compiled into the binary, rather than
+/// from a `getconf` subprocess that may simply be absent in a distroless or
+/// static-musl container.
 ///
-/// That program may simply be absent in a distroless or static-musl container,
-/// where the previous implementation would fall through to its weakest path.
 /// Asserted over the source, because the property is the *absence* of a
 /// subprocess, which a passing call cannot demonstrate.
 #[test]

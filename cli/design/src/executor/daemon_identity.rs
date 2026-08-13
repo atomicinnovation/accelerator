@@ -17,10 +17,9 @@ pub enum RecordedStartTime {
     /// measure different things — so it carries no PID-recycle guard.
     ///
     /// A record with no source key at all reads as this rather than as
-    /// `Probe`: the retired writer fell back to wall-clock on *any* failure,
-    /// so a pre-upgrade record's provenance is genuinely unknown, and holding
-    /// it to the tolerance on the strength of a guess would respawn the daemon
-    /// on every invocation.
+    /// `Probe`: its provenance is genuinely unknown, and holding it to the
+    /// tolerance on the strength of a guess would respawn the daemon on every
+    /// invocation.
     Wallclock(u64),
     /// The launcher's own probe could not read a start time to hand over.
     WriterUnavailable,

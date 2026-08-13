@@ -1,13 +1,13 @@
 //! Why a Playwright-driven inventory fell back to the code-only crawler.
 //!
-//! Today's six-reason vocabulary, ported unchanged. `ensure-playwright.sh`
-//! still emits five of these and passes them verbatim to `--reason`, so a new
-//! vocabulary would make every real downgrade a usage error — failing the
-//! graceful-degradation path on exactly the machines that need it.
+//! `ensure-playwright.sh` emits five of these six keys and passes them
+//! verbatim to `--reason`, so a change to the vocabulary makes every real
+//! downgrade a usage error — failing the graceful-degradation path on exactly
+//! the machines that need it.
 //!
 //! The message table lives here as a `match` rather than being loaded from
 //! disk, so exhaustiveness is a compile error rather than a runtime lookup
-//! miss. A drift test pins it against the on-disk fixture the shell read.
+//! miss. A drift test pins it against the recorded messages.
 
 use std::fmt;
 use std::str::FromStr;
@@ -35,7 +35,7 @@ impl DowngradeReason {
         Self::DiskFloorNotMet,
     ];
 
-    /// The key the shell passes to `--reason`.
+    /// The key a caller passes to `--reason`.
     #[must_use]
     pub const fn key(self) -> &'static str {
         match self {
@@ -128,17 +128,16 @@ mod tests {
         Ok(())
     }
 
-    /// The shell filtered these out of text it read from a file at runtime.
-    /// The table is now compiled in, so the branch is unreachable by
-    /// construction — the invariant is asserted over the shipped data instead.
+    /// The messages reach a terminal unfiltered, so the invariant is asserted
+    /// over the shipped data rather than enforced at print time.
     #[test]
     fn every_message_is_printable_ascii_free_of_bidi_overrides() {
         for reason in DowngradeReason::ALL {
             for character in reason.message().chars() {
                 assert!(
                     matches!(character, ' '..='~'),
-                    "{reason}'s message carries {character:?}, which the \
-                     shell's runtime filter would have stripped"
+                    "{reason}'s message carries {character:?}, which is not \
+                     printable ASCII"
                 );
             }
         }

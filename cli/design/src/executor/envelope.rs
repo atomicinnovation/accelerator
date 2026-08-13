@@ -14,11 +14,10 @@
 //! The `category` does **not** determine the exit code. `another-launcher-running`
 //! and `daemon-start-timeout` are both `usage` yet exit 1, because both are
 //! outcomes the tool evaluated and rejected rather than malformed invocations —
-//! the exit-2-means-usage rule the ported subcommands follow does not hold
-//! here, and the table below records that rather than leaving it inferred.
+//! the exit-2-means-usage rule the other subcommands follow does not hold here,
+//! and the table below records that rather than leaving it inferred.
 //!
-//! Exit 3 keeps its meaning: the runtime still has to be bootstrapped
-//! separately, so the condition it names still arises.
+//! Exit 3 names a runtime that has to be bootstrapped separately.
 
 use std::fmt;
 
@@ -132,9 +131,9 @@ mod tests {
         ]
     }
 
-    /// The retired shell's own envelopes, byte for byte.
+    /// The exact bytes the inventory skill discriminates on.
     #[test]
-    fn each_envelope_reproduces_the_shell_s_json() {
+    fn each_envelope_renders_its_documented_json() {
         assert_eq!(
             LauncherError::NoRepo.render(),
             r#"{"error":"no-repo","message":"inventory-design must be run inside a git or jj repository (no enclosing repo found)","category":"usage"}"#

@@ -581,12 +581,12 @@ These codes can be returned by any command regardless of op:
 
 ---
 
-## Detected-Condition → `notify-downgrade.sh` Enum Mapping
+## Detected-Condition → `notify-downgrade` Enum Mapping
 
 `ensure-playwright.sh` and `executor ping` emit structured downgrade signals so
 SKILL.md Step 4 can select the right user-facing message.
 
-| Condition                               | Exit | `ACCELERATOR_DOWNGRADE_REASON`       | `notify-downgrade.sh --reason` |
+| Condition                               | Exit | `ACCELERATOR_DOWNGRADE_REASON`       | `notify-downgrade --reason` |
 |-----------------------------------------|------|--------------------------------------|--------------------------------|
 | `node` not found on `$PATH`             | 10   | `node-missing`                       | `node-missing`                 |
 | Node < 20 detected                      | 11   | `node-too-old`                       | `node-too-old`                 |
@@ -597,7 +597,7 @@ SKILL.md Step 4 can select the right user-facing message.
 | `executor ping` returns error or non-zero | —  | (caller uses `executor-ping-failed`) | `executor-ping-failed`         |
 
 SKILL.md Steps 4–5 read `ACCELERATOR_DOWNGRADE_REASON` from stderr, then pass it
-verbatim to `notify-downgrade.sh --reason <enum>`.
+verbatim to `accelerator design notify-downgrade --reason <enum>`.
 
 ---
 

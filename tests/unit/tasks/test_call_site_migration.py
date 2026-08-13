@@ -40,9 +40,6 @@ def test_grep_b_permits_config_common(tmp_path: Path) -> None:
 def test_grep_b_flags_the_retired_browser_executor_reader(
     tmp_path: Path,
 ) -> None:
-    # It was exempt while the browser agents needed a resolved path; they now
-    # invoke the launcher as a bare command, so a reintroduction is a
-    # regression like any other.
     _write(
         tmp_path,
         "skills/x/SKILL.md",

@@ -176,11 +176,10 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # git. Owned by check-zero-spawn.
     "test:integration:zero-spawn:strong": "shadows the real git/jj with "
     "sudo; CI-only by design",
-    # Needs a bootstrapped Playwright runtime, which no CI lane provisions.
-    # In the roll-up it would fail every build; the alternative — skipping
-    # without one — is what let a whole suite evaporate silently before. It
-    # fails rather than skips, so it is runnable on demand and honest when
-    # the runtime is absent.
+    # Needs a bootstrapped Playwright runtime, which no CI lane provisions, so
+    # in the roll-up it would fail every build. It fails rather than skips
+    # without one, which keeps it runnable on demand and honest when the
+    # runtime is absent.
     "test:integration:design-automation": "needs a Playwright runtime no CI "
     "lane provisions; fails rather than skips without one",
 }

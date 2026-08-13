@@ -59,10 +59,6 @@ def templates(context: Context) -> None:
 # gated itself on an absent runtime looked identical to a passing one. Both
 # floors are asserted, and the executed count comes from the runner's own TAP
 # summary rather than from anything this task counts itself.
-#
-# Dropped from ten as `identity.js` and `lock.js` retired with their suites —
-# neither had a production caller — and gained one as the identity handoff
-# arrived.
 _EXPECTED_DESIGN_AUTOMATION_SUITES = 9
 
 # Today's executed total across those files. An at-least floor: a suite may
@@ -110,9 +106,9 @@ def _test_callback_ranges(source: str) -> list[tuple[int, int]]:
     return ranges
 
 
-# A bare early return inside a test body reports as *passed*, not skipped — the
-# pattern that let `identity.test.js` cross-validate against a script that no
-# longer existed and stay green for months.
+# A bare early return inside a test body reports as *passed*, not skipped, so a
+# suite that gates itself on an absent runtime stays green while asserting
+# nothing.
 # Matches a return that yields nothing, wherever it sits on the line — the
 # common shape is a guard clause (`if (!installed) return;`), not a statement
 # alone on its own line.

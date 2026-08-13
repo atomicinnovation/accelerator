@@ -25,8 +25,8 @@ impl std::error::Error for HostError {}
 
 impl HostError {
     /// The rejection as the caller reads it. Only the numeric-encoding case
-    /// names the authority, matching the shell: the others describe a property
-    /// of the URL rather than of a host it successfully identified.
+    /// names the authority; the others describe a property of the URL rather
+    /// than of a host it successfully identified.
     #[must_use]
     pub fn message(&self, authority: &str) -> String {
         match self {

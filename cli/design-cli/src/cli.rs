@@ -142,11 +142,10 @@ mod tests {
         }
     }
 
-    /// The shell's own `--reason` keys, which `ensure-playwright.sh` still
-    /// emits verbatim, must remain the accepted spelling.
+    /// `ensure-playwright.sh` emits these keys verbatim, so each must remain
+    /// the accepted spelling.
     #[test]
-    fn every_shell_reason_key_parses() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn every_reason_key_parses() -> Result<(), Box<dyn std::error::Error>> {
         for reason in DowngradeReason::ALL {
             let cli = Cli::try_parse_from([
                 "accelerator-design",

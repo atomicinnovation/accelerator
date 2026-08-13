@@ -1,5 +1,4 @@
-//! The `/proc/<pid>/stat` arithmetic, pinned against the fixtures that
-//! recorded the shell launcher's own contract.
+//! The `/proc/<pid>/stat` arithmetic, pinned against recorded fixtures.
 //!
 //! The parse is a pure function so it runs on every host, not only Linux: the
 //! platform read is what needs `/proc`, not the arithmetic on what it returns.
@@ -8,8 +7,7 @@ use process_probe::start_time_from_proc_stat;
 
 type TestError = Box<dyn std::error::Error>;
 
-/// The fixtures are labelled key-value files, one field per line, as the
-/// retired JavaScript suite read them.
+/// The fixtures are labelled key-value files, one field per line.
 fn field<'a>(fixture: &'a str, key: &str) -> Option<&'a str> {
     fixture
         .lines()
@@ -35,10 +33,10 @@ fn the_recorded_fixture_yields_its_recorded_start_time() -> Result<(), TestError
     Ok(())
 }
 
-/// Truncating integer division, matching the shell's `$(( ))` and the retired
-/// JavaScript's `Math.floor`. Computing `(btime * hz + ticks) / hz` in floating
-/// point would differ by up to a second here, which is the entire ±1s tolerance
-/// the identity check exists to provide for whole-second-boundary drift.
+/// Truncating integer division. Computing `(btime * hz + ticks) / hz` in
+/// floating point would differ by up to a second here, which is the entire ±1s
+/// tolerance the identity check exists to provide for whole-second-boundary
+/// drift.
 ///
 /// The same fixture also carries parentheses and spaces inside its `comm`
 /// field, so a non-greedy scan for the closing paren would mis-index every

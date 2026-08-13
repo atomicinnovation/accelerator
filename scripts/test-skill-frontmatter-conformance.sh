@@ -406,11 +406,6 @@ assert_true "guard reads templates-schema.tsv" \
 
 # =============================================================================
 # Design skill, agent and docs structure
-#
-# Re-homed from scripts/test-design.sh, which retired with the shell scripts it
-# drove. Every assertion below is about the *shape* of a skill, an agent or a
-# docs page — none of it exercises a script — so this suite, already a
-# by-name required gate, is where it belongs.
 # =============================================================================
 
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

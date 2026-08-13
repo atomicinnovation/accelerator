@@ -109,8 +109,6 @@ function authed(extra = {}) {
   return { 'x-accelerator-token': TEST_TOKEN, ...extra };
 }
 
-// -- Protocol-version check ---------------------------------------------
-
 test('protocol mismatch returns protocol-mismatch error', { timeout: 5000 }, async () => {
   await withTmpDir(async dir => {
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000' };
@@ -126,8 +124,6 @@ test('protocol mismatch returns protocol-mismatch error', { timeout: 5000 }, asy
   });
 });
 
-// -- daemon-status returns running without spawning browser --------------
-
 test('daemon-status returns state: running', { timeout: 5000 }, async () => {
   await withTmpDir(async dir => {
     const daemonEnv = { ...process.env, ACCELERATOR_PLAYWRIGHT_IDLE_MS: '5000' };
@@ -142,8 +138,6 @@ test('daemon-status returns state: running', { timeout: 5000 }, async () => {
     }
   });
 });
-
-// -- daemon-stop --------------------------------------------------------
 
 test('daemon-stop writes server-stopped.json and removes state files', { timeout: 8000 }, async () => {
   await withTmpDir(async dir => {
@@ -162,8 +156,6 @@ test('daemon-stop writes server-stopped.json and removes state files', { timeout
   });
 });
 
-// -- IDLE_MS default ---------------------------------------------------
-
 test('daemon module declares IDLE_MS default of 10 minutes', async () => {
   const src = readFileSync(
     new URL('./daemon.js', import.meta.url).pathname, 'utf8');
@@ -171,8 +163,6 @@ test('daemon module declares IDLE_MS default of 10 minutes', async () => {
   // requiring a 10-minute wait).
   assert.match(src, /IDLE_MS\s*=\s*parseInt\(process\.env\.ACCELERATOR_PLAYWRIGHT_IDLE_MS\s*\|\|\s*'600000'/);
 });
-
-// -- idle timer ---------------------------------------------------------
 
 test('idle timer shuts down daemon and writes server-stopped.json', { timeout: 5000 }, async () => {
   await withTmpDir(async dir => {
@@ -189,8 +179,6 @@ test('idle timer shuts down daemon and writes server-stopped.json', { timeout: 5
     }
   });
 });
-
-// -- Request authentication ---------------------------------------------
 
 // The token defends two things the 0600 file cannot: a different local user on
 // a shared host (a loopback socket is not a uid boundary), and the pages the
@@ -296,14 +284,10 @@ test('a daemon whose handoff never arrives exits without publishing', { timeout:
   });
 });
 
-// -- Guards re-homed from scripts/test-design.sh -------------------------
-
 // Three of these sweep a tree for a forbidden string, and that tree now
 // contains this very file. Every needle is therefore built from concatenated
 // fragments, and no title, comment or assertion message below writes the
 // phrase whole — otherwise the check would find itself and invert permanently.
-// The shell version got away with literals only because it lived outside the
-// directories it scanned, which stops being true the moment it moves in here.
 
 import { readdirSync, statSync } from 'node:fs';
 
@@ -320,10 +304,8 @@ function sourceFilesUnder(root) {
   return found;
 }
 
-// The two scopes the shell version used, kept distinct. The deny-list sweeps
-// covered lib/ and run.js — the executor's own implementation — while the
-// watcher sweep covered the whole tree, so a reintroduction anywhere would be
-// caught.
+// The deny-list sweeps cover the executor's own implementation, while the
+// watcher sweep covers the whole tree, so a reintroduction anywhere is caught.
 function executorImplementation() {
   return [
     ...sourceFilesUnder(pathResolve(EXECUTOR_SRC, 'lib')),

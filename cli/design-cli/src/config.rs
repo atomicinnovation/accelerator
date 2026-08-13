@@ -1,8 +1,7 @@
 //! The one configuration read the executor makes.
 //!
-//! `run.sh` shelled out to `bin/accelerator config path tmp`, paying a whole
-//! nested launcher bootstrap on every invocation. In process it is a library
-//! call.
+//! A library call rather than a nested `accelerator config path tmp`
+//! invocation, so the executor pays no launcher bootstrap of its own.
 
 use std::path::Path;
 

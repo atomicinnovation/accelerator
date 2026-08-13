@@ -59,12 +59,11 @@ impl HostReach {
 
 /// The one hostname classified without resolving it.
 ///
-/// The shell's carve-out names `localhost` alongside `127.0.0.1`, and it is
-/// the skill's primary documented invocation. Resolving it would be a DNS
-/// lookup this module deliberately does not make, and treating it as public
-/// would reject `http://localhost:3000` — so the name is honoured as written.
-/// Exactly the name, as the shell matched it: a `foo.localhost` subdomain
-/// resolves wherever its zone says.
+/// `http://localhost:3000` is the skill's primary documented invocation.
+/// Resolving the name would be a DNS lookup this module deliberately does not
+/// make, and treating it as public would reject that invocation, so the name is
+/// honoured as written. Exactly the name: a `foo.localhost` subdomain resolves
+/// wherever its zone says.
 const LOOPBACK_NAME: &str = "localhost";
 
 /// Classifies the address `host` names; any other hostname is
@@ -191,7 +190,8 @@ mod tests {
     }
 
     #[test]
-    fn the_shell_s_own_classifications_survive() -> Result<(), HostError> {
+    fn each_headline_address_classifies_as_its_own_reach(
+    ) -> Result<(), HostError> {
         assert_eq!(reach("127.0.0.1")?, HostReach::Loopback);
         assert_eq!(reach("[::1]")?, HostReach::Loopback);
         assert_eq!(reach("[::ffff:127.0.0.1]")?, HostReach::Loopback);
@@ -216,12 +216,11 @@ mod tests {
         Ok(())
     }
 
-    /// The encodings `classify_internal`'s regexes never matched. Each is a
-    /// route to a link-local metadata endpoint or an internal host that the
-    /// shell would have classified public.
+    /// Each is a route to a link-local metadata endpoint or an internal host
+    /// through an encoding a literal-string match would let past.
     #[test]
-    fn every_newly_rejected_encoding_classifies_internally(
-    ) -> Result<(), HostError> {
+    fn every_indirect_encoding_classifies_internally() -> Result<(), HostError>
+    {
         for (authority, expected) in [
             ("[::ffff:169.254.169.254]", HostReach::LinkLocal),
             ("[::ffff:10.0.0.1]", HostReach::Private),
@@ -242,11 +241,10 @@ mod tests {
         Ok(())
     }
 
-    /// `::1` fully expanded is the same address, so it is loopback rather than
-    /// a newly-rejected encoding — the widening from the shell's two literal
-    /// strings to every address `is_loopback` holds for.
+    /// Loopback is every address `is_loopback` holds for, not two literal
+    /// strings, so `::1` fully expanded is the same address.
     #[test]
-    fn the_widened_loopback_set_covers_the_expanded_and_ranged_forms(
+    fn the_loopback_set_covers_the_expanded_and_ranged_forms(
     ) -> Result<(), HostError> {
         for authority in
             ["[0:0:0:0:0:0:0:1]", "127.0.0.2", "127.1.2.3", "[::1]"]
@@ -256,8 +254,7 @@ mod tests {
         Ok(())
     }
 
-    /// The shell's other literal carve-out. It is a name, so no address
-    /// predicate reaches it.
+    /// `localhost` is a name, so no address predicate reaches it.
     #[test]
     fn the_loopback_name_is_honoured_without_being_resolved(
     ) -> Result<(), HostError> {

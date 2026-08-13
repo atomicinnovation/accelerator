@@ -99,8 +99,7 @@ fn resolve() -> Result<Resolved, LaunchFailure> {
     })
 }
 
-/// Mode 0700, matching the shell: the directory holds a daemon's URL and its
-/// request token.
+/// Mode 0700: the directory holds a daemon's URL and its request token.
 fn create_state_dir(state_dir: &Path) -> Result<(), LaunchFailure> {
     use std::os::unix::fs::DirBuilderExt as _;
 

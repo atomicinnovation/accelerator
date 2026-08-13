@@ -18,8 +18,6 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const RUN_JS = resolve(__dir, 'run.js');
 const FIXTURES_DIR = resolve(__dir, '__fixtures__');
 
-// -- Helpers -------------------------------------------------------------
-
 function withTmpDir(fn) {
   const dir = realpathSync(mkdtempSync(resolve(tmpdir(), 'runjs-test-')));
   return Promise.resolve(fn(dir)).finally(() => rmSync(dir, { recursive: true, force: true }));
@@ -103,8 +101,6 @@ function requireRuntime() {
   );
 }
 
-// -- ping ----------------------------------------------------------------
-
 test('ping: exits 0 with ok: true and chromium path, < 500ms', { timeout: 15000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
@@ -144,8 +140,6 @@ test('ping: corrupted bootstrap → category: bootstrap', { timeout: 10000 }, as
   });
 });
 
-// -- navigate + snapshot ------------------------------------------------
-
 test('navigate then snapshot produces non-empty JSON', { timeout: 30000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
@@ -165,8 +159,6 @@ test('navigate then snapshot produces non-empty JSON', { timeout: 30000 }, async
     }
   });
 });
-
-// -- screenshot ----------------------------------------------------------
 
 test('screenshot writes a non-empty PNG to the output root', { timeout: 30000 }, async () => {
   requireRuntime();
@@ -193,8 +185,6 @@ test('screenshot writes a non-empty PNG to the output root', { timeout: 30000 },
     });
   });
 });
-
-// -- screenshot path-guard (integration boundary) ----------------------
 
 test('screenshot: unset output root → screenshot-output-root-unset', { timeout: 10000 }, async () => {
   requireRuntime();
@@ -234,8 +224,6 @@ test('screenshot: absolute path outside root → screenshot-path-outside-output-
   });
 });
 
-// -- evaluate -----------------------------------------------------------
-
 test('evaluate: expression result round-trips', { timeout: 20000 }, async () => {
   requireRuntime();
   await withTmpDir(async stateDir => {
@@ -271,8 +259,6 @@ test('evaluate: fetch call is NOT filtered (deny-list removed)', { timeout: 2000
     }
   });
 });
-
-// -- daemon lifecycle ----------------------------------------------------
 
 test('two consecutive client calls reuse the same daemon', { timeout: 30000 }, async () => {
   requireRuntime();

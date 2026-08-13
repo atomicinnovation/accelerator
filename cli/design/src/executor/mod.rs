@@ -1,11 +1,9 @@
 //! The Playwright launcher's decision logic.
 //!
-//! The chain is CLI → Node with no shell in between, and these 200-odd lines
-//! of shell encoded hard-won fixes that regress silently if a port misses
-//! them. So the reuse verdict, the identity contract, the forwarding
-//! allowlist and the envelope/exit-code taxonomy live here as pure functions
-//! over injected ports, where each is exercised directly rather than through a
-//! real process and real elapsed time.
+//! The reuse verdict, the identity contract, the forwarding allowlist and the
+//! envelope/exit-code taxonomy are pure functions over injected ports, so each
+//! is exercised directly rather than through a real process and real elapsed
+//! time.
 
 pub mod daemon_identity;
 pub mod envelope;

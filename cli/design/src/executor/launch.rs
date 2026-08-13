@@ -1,24 +1,19 @@
 //! The launcher's sequence: reuse if we can, otherwise take the lock, re-check,
 //! recover, spawn, wait for readiness, and hand the process image to the client.
 //!
-//! Two corrections to the shell are load-bearing here.
+//! Two invariants are load-bearing here.
 //!
-//! **The pre-lock check is read-only.** The shell's first check ended in an
-//! unconditional removal of the state files when the daemon looked dead — but
-//! the two files are written as separate atomic renames, so a launcher reading
-//! between them, or racing a daemon that has just written both, judged a
-//! *live* daemon stale and deleted its state outside any lock. Two launchers
-//! starting concurrently could therefore orphan a healthy daemon and spawn a
-//! second, losing page state mid-crawl: exactly the symptom the start-time
-//! contract exists to prevent. So the pre-lock check short-circuits on a hit or
-//! falls through, and removal happens only under the lock.
+//! **The pre-lock check is read-only.** The state's two files are written as
+//! separate atomic renames, so a launcher reading between them — or racing a
+//! daemon that has just written both — would judge a *live* daemon stale. Were
+//! it free to delete outside the lock, two launchers starting concurrently
+//! could orphan a healthy daemon and spawn a second, losing page state
+//! mid-crawl. So the pre-lock check short-circuits on a hit or falls through,
+//! and removal happens only under the lock.
 //!
-//! **The lock releases at launcher exit, on every path.** The two shell
-//! backends genuinely differed — one leaked its descriptor into the daemon, the
-//! other removed its directory before exec — and one guard cannot reproduce
-//! both. Releasing at exit is the more defensible: holding it for the daemon's
-//! lifetime makes a stale-start-time recovery while the daemon still lives
-//! report `another-launcher-running` falsely.
+//! **The lock releases at launcher exit, on every path.** Holding it for the
+//! daemon's lifetime would make a stale-start-time recovery while the daemon
+//! still lives report `another-launcher-running` falsely.
 
 use std::convert::Infallible;
 
@@ -147,9 +142,8 @@ impl<'ports> Launcher<'ports> {
         }
     }
 
-    /// The lock is released immediately before this, mirroring the shell's own
-    /// explicit release before `exec`: no destructor runs once the process
-    /// image is replaced.
+    /// Every caller releases the lock immediately before this: no destructor
+    /// runs once the process image is replaced.
     fn hand_over(
         arguments: &[String],
         client: Box<dyn RunClient + 'ports>,

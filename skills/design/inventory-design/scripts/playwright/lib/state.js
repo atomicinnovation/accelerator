@@ -29,16 +29,11 @@ export function ensureStateDir(stateDir) {
   mkdirSync(stateDir, { recursive: true, mode: 0o700 });
 }
 
-// The start time is no longer computed here.
-//
-// It used to be probed from /proc or `ps`, falling back to Date.now() on ANY
-// failure — an unreadable /proc, a failing `getconf`, a non-linux/darwin
-// platform. That fallback is the weakest value the reuse check can be given,
-// and on macOS it was the only one available, since Node has no sysctl binding.
-//
-// The launcher now observes it with the same probe it will later compare
-// against, and hands it over the identity pipe. Two implementations cannot
-// disagree when there is only one.
+// The start time is deliberately not computed here. The launcher observes it
+// with the same probe it will later compare against and hands it over the
+// identity pipe, so there is only one implementation and nothing to disagree
+// with. Node has no sysctl binding, so a probe on this side could only fall
+// back to a wall-clock value — the weakest input the reuse check can be given.
 
 export function writeServerInfo(stateDir, info) {
   atomicWrite(resolve(stateDir, SERVER_INFO_FILE), JSON.stringify(info));

@@ -1,11 +1,8 @@
-//! `accelerator-design` against the behaviour the five migrated shell scripts
-//! and their bash suites asserted.
+//! `accelerator-design`'s subcommands, through the binary.
 //!
-//! Every row of `meta/migrations/0196-design-cli-migration-checklist.md` that
-//! is not a recorded drop lands here or in a named unit test. Exit codes are
-//! asserted explicitly, because two of them changed: `scrub-secrets` and
-//! `audit-cue-phrases` now split usage error onto 2, where the shell
-//! conflated it with a domain rejection on 1.
+//! Exit codes are asserted explicitly throughout: `scrub-secrets` and
+//! `audit-cue-phrases` report a usage error on 2 and a domain rejection on 1,
+//! and callers discriminate on the difference.
 
 use std::fs;
 use std::path::Path;
@@ -16,8 +13,8 @@ type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-design");
 
-/// Runs the binary with an empty environment, the way the bash suites used
-/// `env -i`, so a developer's own `ACCELERATOR_BROWSER_*` cannot leak in.
+/// Runs the binary with an empty environment, so a developer's own
+/// `ACCELERATOR_BROWSER_*` cannot leak in.
 fn run(arguments: &[&str], environment: &[(&str, &str)]) -> Output {
     let mut command = Command::new(BIN);
     command.args(arguments);
@@ -63,8 +60,6 @@ fn validate_stderr(location: &str, flags: &[&str]) -> String {
     arguments.extend_from_slice(flags);
     stderr(&arguments)
 }
-
-// -- validate-source ---------------------------------------------------------
 
 #[test]
 fn https_and_repository_paths_are_accepted() -> Result<(), TestError> {
@@ -125,12 +120,10 @@ fn every_loopback_form_is_accepted_with_no_flags() {
     }
 }
 
-/// A deliberate widening: the shell allowed the two literal strings
-/// `localhost` and `127.0.0.1` and treated the rest of `127.0.0.0/8` and `::1`
-/// as internal. A loopback destination is the local machine talking to
-/// itself, so the whole set is allowed.
+/// A loopback destination is the local machine talking to itself, so the whole
+/// of `127.0.0.0/8` and `::1` is allowed, not two literal strings.
 #[test]
-fn the_widened_loopback_set_no_longer_needs_allow_internal() {
+fn the_whole_loopback_set_needs_no_allow_internal() {
     for location in ["http://127.0.0.2/", "http://[::1]/", "http://[::1]:8080/"]
     {
         assert_eq!(validate(location, &[]), 0, "{location}");
@@ -156,9 +149,8 @@ fn internal_hosts_need_allow_internal_and_are_recovered_by_it() {
     }
 }
 
-/// The most error-prone arithmetic in the shell, and the reason both edges and
-/// both just-outside cases are pinned — differentiated by which flag the
-/// stderr names, since all four exit 1.
+/// Both edges and both just-outside cases are pinned, differentiated by which
+/// flag the stderr names, since all four exit 1.
 #[test]
 fn the_rfc1918_boundary_is_pinned_at_both_edges_and_just_outside() {
     for inside in ["http://172.16.0.1/", "http://172.31.255.255/"] {
@@ -180,8 +172,7 @@ fn the_rfc1918_boundary_is_pinned_at_both_edges_and_just_outside() {
     }
 }
 
-/// It names no host, so no flag recovers it — a deliberate narrowing from the
-/// shell, where `--allow-internal` accepted it.
+/// It names no host, so there is nothing for a flag to recover into.
 #[test]
 fn the_unspecified_address_is_refused_under_every_flag() {
     for location in ["http://0.0.0.0/", "http://[::]/"] {
@@ -278,8 +269,6 @@ fn a_missing_location_is_a_usage_error() {
     assert_eq!(code(&["validate-source"]), 2);
 }
 
-// -- resolve-auth ------------------------------------------------------------
-
 const HEADER: &str = "ACCELERATOR_BROWSER_AUTH_HEADER";
 const USERNAME: &str = "ACCELERATOR_BROWSER_USERNAME";
 const PASSWORD: &str = "ACCELERATOR_BROWSER_PASSWORD";
@@ -315,7 +304,7 @@ fn no_variables_resolve_to_none() {
 }
 
 /// The environment names an intent the tool cannot act on — a malformed
-/// invocation rather than a judged input, so exit 2 rather than the shell's 1.
+/// invocation rather than a judged input, so exit 2.
 #[test]
 fn a_partial_form_configuration_is_a_usage_error_naming_what_is_missing() {
     let environment = [(USERNAME, "u"), (PASSWORD, "p")];
@@ -323,8 +312,6 @@ fn a_partial_form_configuration_is_a_usage_error_naming_what_is_missing() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains(LOGIN_URL));
 }
-
-// -- scrub-secrets -----------------------------------------------------------
 
 fn write(
     directory: &Path,
@@ -362,8 +349,8 @@ fn a_literal_value_is_caught_and_the_variable_named_not_the_value(
     Ok(())
 }
 
-/// The value half of a `Name: value` header pair is a needle of its own — the
-/// one genuinely new behaviour, with no shell equivalent.
+/// The value half of a `Name: value` header pair is a needle of its own, since
+/// that is the shape a leak most likely takes.
 #[test]
 fn the_value_half_of_a_header_pair_is_caught() -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
@@ -381,8 +368,8 @@ fn the_value_half_of_a_header_pair_is_caught() -> Result<(), TestError> {
     Ok(())
 }
 
-/// The argument cannot be interpreted as a file to scan, so exit 2 — the
-/// deliberate split from the shell's conflated 1.
+/// The argument cannot be interpreted as a file to scan, so exit 2 rather than
+/// the 1 a scanned-and-rejected body earns.
 #[test]
 fn scrubbing_a_nonexistent_file_is_a_usage_error() {
     assert_eq!(code(&["scrub-secrets", "/nonexistent-by-construction"]), 2);
@@ -392,8 +379,6 @@ fn scrubbing_a_nonexistent_file_is_a_usage_error() {
 fn scrub_secrets_without_a_file_is_a_usage_error() {
     assert_eq!(code(&["scrub-secrets"]), 2);
 }
-
-// -- notify-downgrade --------------------------------------------------------
 
 #[test]
 fn every_reason_prints_its_message_and_exits_zero() {
@@ -432,8 +417,6 @@ fn the_forward_compatible_flags_are_accepted() {
         0
     );
 }
-
-// -- audit-cue-phrases -------------------------------------------------------
 
 const COMPLIANT: &str = "\
 # Gap
@@ -523,8 +506,6 @@ fn auditing_a_nonexistent_file_is_a_usage_error() {
 fn audit_cue_phrases_without_a_file_is_a_usage_error() {
     assert_eq!(code(&["audit-cue-phrases"]), 2);
 }
-
-// -- the surface itself ------------------------------------------------------
 
 #[test]
 fn every_migrated_script_has_a_subcommand() {
