@@ -1,6 +1,5 @@
 //! Artifact-metadata derivation, asserted behind faked ports so every field is
-//! deterministic, plus the contract the three bash helpers are held to by
-//! `scripts/test-metadata-helpers.sh`.
+//! deterministic, plus the block contract its consumers are held to.
 
 mod common;
 
@@ -97,7 +96,7 @@ fn an_unanswerable_revision_blanks_only_the_revision() {
     );
 }
 
-/// The shape `scripts/test-metadata-helpers.sh` holds all three helpers to.
+/// The shape every derived metadata block holds to.
 fn assert_satisfies_the_helper_contract(block: &str) {
     let lines: Vec<&str> = block.lines().collect();
 

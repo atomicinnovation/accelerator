@@ -7,11 +7,13 @@
 // or per-op wall-clock timeout.
 
 import { createServer } from 'node:http';
-import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir, processStartSeconds } from './state.js';
+import { timingSafeEqual } from 'node:crypto';
+import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
+import { readIdentity } from './identity-handoff.js';
 import { makeAuthHeaderHandler } from './auth-header.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
-import { makeError, protocolMismatch, PROTOCOL } from './errors.js';
+import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
@@ -23,6 +25,12 @@ const WALL_CLOCK_RAW = parseInt(process.env.ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS
 const WALL_CLOCK_CEILING = 1800000; // 30 min hard ceiling
 const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 
+// How long past the budget the backstop waits. It sits deliberately outside
+// WALL_CLOCK_MS — and so outside the ceiling — because it guards the operations
+// that ignore their own timeout entirely, `page.evaluate` above all, rather than
+// the ones that honour it.
+const WALL_CLOCK_GRACE_MS = 2000;
+
 // BLOCKING_OPS membership: operations that perform browser I/O and must
 // be wall-clock bounded. `links` joins the set because page.evaluate()
 // can hang on a hostile page, mirroring the existing `evaluate` and
@@ -30,6 +38,11 @@ const WALL_CLOCK_MS = Math.min(WALL_CLOCK_RAW, WALL_CLOCK_CEILING);
 const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'links', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
 
 export async function startDaemon({ stateDir }) {
+  // Before the state dir, before any browser, before the listening socket: if
+  // the launcher did not complete its handoff there is nothing to publish, and
+  // a daemon that ran on anyway would be unsupervised and un-recorded.
+  const identity = readIdentity();
+
   ensureStateDir(stateDir);
 
   let browser = null;
@@ -37,7 +50,6 @@ export async function startDaemon({ stateDir }) {
   let shutdownInitiated = false;
   let idleTimer = null;
   let wallClockTimer = null;
-  let currentOp = null; // { name, res, conn }
 
   // ------ Shutdown --------------------------------------------------------
 
@@ -52,7 +64,7 @@ export async function startDaemon({ stateDir }) {
 
     // Stop being discoverable before the browser goes away. Closing the
     // browser first leaves a window as long as Chromium takes to exit in
-    // which run.sh's reuse check still passes — the pid is live and
+    // which the launcher's reuse check still passes — the pid is live and
     // server-info.json is present — so the next launcher dispatches onto a
     // dead page and the caller sees `Target page, context or browser has
     // been closed` instead of a clean respawn.
@@ -71,9 +83,27 @@ export async function startDaemon({ stateDir }) {
     idleTimer = setTimeout(() => shutdown('idle'), IDLE_MS).unref();
   }
 
+  // ------ Responding ------------------------------------------------------
+
+  // Both the operation and its backstop can reach the same response, and only
+  // one of them may answer: the backstop fires precisely when the operation is
+  // still running, so a later completion must not write a second body onto a
+  // finished response.
+  function respond(res, status, body) {
+    if (res.writableEnded || res.headersSent) return false;
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+    return true;
+  }
+
   // ------ Wall-clock per-op timer ----------------------------------------
 
-  function armWallClock(opName, conn) {
+  // The backstop fires after the budget, not on it. Every bounded operation
+  // passes WALL_CLOCK_MS to Playwright as its own timeout, so a backstop armed
+  // for the same instant pre-empts the graceful path it exists to protect: the
+  // caller gets a dead daemon where the operation was about to return a typed
+  // envelope. The grace is what leaves room for that envelope.
+  function armWallClock(opName, res) {
     clearTimeout(wallClockTimer);
     wallClockTimer = setTimeout(async () => {
       const envelope = makeError({
@@ -83,12 +113,13 @@ export async function startDaemon({ stateDir }) {
         retryable: false,
         details: { op: opName, wall_clock_ms: WALL_CLOCK_MS },
       });
-      try {
-        conn.write(JSON.stringify(envelope) + '\n');
-        await new Promise(r => setTimeout(r, 500));
-      } catch {}
+      // A complete response, not a raw write. Writing the envelope onto the
+      // socket and then exiting leaves an HTTP client waiting on a chunked body
+      // that never ends — so the one caller who needs to hear about this is the
+      // one caller who never does.
+      respond(res, 200, envelope);
       await shutdown('wall-clock', { op: opName, wall_clock_ms: WALL_CLOCK_MS });
-    }, WALL_CLOCK_MS);
+    }, WALL_CLOCK_MS + WALL_CLOCK_GRACE_MS);
   }
 
   function disarmWallClock() {
@@ -110,7 +141,7 @@ export async function startDaemon({ stateDir }) {
 
   // ------ Request handler -------------------------------------------------
 
-  async function handleRequest(req) {
+  async function handleRequest(req, { onBrowserReady } = {}) {
     if (req.protocol !== PROTOCOL) return protocolMismatch(req.protocol);
 
     const cmd = req.command;
@@ -152,7 +183,7 @@ export async function startDaemon({ stateDir }) {
     if (shutdownInitiated) {
       return makeError({
         error: 'daemon-stopping',
-        message: 'The daemon is shutting down. Run the command again; run.sh will spawn a new one.',
+        message: 'The daemon is shutting down. Run the command again; the launcher will spawn a new one.',
         category: 'browser',
         retryable: true,
       });
@@ -160,6 +191,7 @@ export async function startDaemon({ stateDir }) {
 
     // All remaining commands require the browser
     await ensureBrowser();
+    onBrowserReady?.();
 
     switch (cmd) {
       case 'navigate': {
@@ -281,9 +313,75 @@ export async function startDaemon({ stateDir }) {
     }
   }
 
+  // ------ Request authentication ------------------------------------------
+
+  // A loopback TCP socket is not a uid boundary on Unix. A different local
+  // user on a shared host cannot read the 0600 server-info.json holding this
+  // token, but could otherwise connect to this port and drive the crawl's
+  // browser session — and the pages the crawl itself visits could reach it by
+  // CSRF or DNS rebinding. The token closes both.
+  //
+  // It does NOT defend against a same-uid process, which can simply read the
+  // token file. That is stated rather than implied, so nobody mistakes this
+  // for a sandbox.
+  function authenticate(req) {
+    // A legitimate client has no reason to send one, and a browser cannot
+    // suppress it — so its presence means the request came from a page.
+    if (req.headers.origin !== undefined) {
+      return makeError({
+        error: 'origin-rejected',
+        message: 'Requests carrying an Origin header are refused: this daemon serves no browser origin.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+
+    // Header only. A query parameter lands in logs, referrers and process
+    // listings, so a valid token presented that way is still refused.
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (url.searchParams.has(TOKEN_HEADER) || url.searchParams.has('token')) {
+      return makeError({
+        error: 'token-rejected',
+        message: 'The request token must be sent as a header, never as a query parameter.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+
+    if (!tokenMatches(req.headers[TOKEN_HEADER])) {
+      return makeError({
+        error: 'unauthenticated',
+        message: 'Missing or invalid request token.',
+        category: 'usage',
+        retryable: false,
+      });
+    }
+    return null;
+  }
+
+  function tokenMatches(presented) {
+    if (typeof presented !== 'string') return false;
+    const expected = Buffer.from(identity.token, 'utf8');
+    const actual = Buffer.from(presented, 'utf8');
+    // timingSafeEqual throws on a length mismatch, so the lengths are compared
+    // first. That leaks only the length, which is fixed and public anyway.
+    if (expected.length !== actual.length) return false;
+    return timingSafeEqual(expected, actual);
+  }
+
   // ------ HTTP server -----------------------------------------------------
 
   const server = createServer((req, res) => {
+    // Refused before the body is read, from the very first accepted
+    // connection.
+    const refusal = authenticate(req);
+    if (refusal) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(refusal));
+      req.resume();
+      return;
+    }
+
     const chunks = [];
     req.on('data', c => chunks.push(c));
     req.on('end', async () => {
@@ -299,19 +397,26 @@ export async function startDaemon({ stateDir }) {
       }
 
       const isBlocking = BLOCKING_OPS.has(parsed.command);
-      if (isBlocking) armWallClock(parsed.command, res);
 
       let result;
       try {
-        result = await handleRequest(parsed);
+        result = await handleRequest(parsed, {
+          // Armed once the browser exists, not before the call: acquiring
+          // Chromium can outrun any sane per-op budget, and charging a cold
+          // start to the operation kills the daemon on its first browser
+          // command. The hook fires after `ensureBrowser`, so the commands that
+          // return before it — and a request arriving mid-shutdown — arm nothing.
+          onBrowserReady: () => {
+            if (isBlocking) armWallClock(parsed.command, res);
+          },
+        });
       } catch (e) {
         result = makeError({ error: 'internal-error', message: e.message || String(e), category: 'browser', retryable: false });
       }
 
       if (isBlocking) disarmWallClock();
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
+      respond(res, 200, result);
     });
   });
 
@@ -321,11 +426,13 @@ export async function startDaemon({ stateDir }) {
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address();
       const url = `http://127.0.0.1:${port}/`;
-      const startTime = processStartSeconds();
       writeServerInfo(stateDir, {
         protocol: PROTOCOL,
-        pid: process.pid,
-        start_time: startTime,
+        // The launcher's own observation, relayed rather than recomputed.
+        pid: identity.pid,
+        start_time: identity.start_time,
+        start_time_source: identity.start_time_source,
+        token: identity.token,
         host: '127.0.0.1',
         port,
         url,
@@ -336,15 +443,6 @@ export async function startDaemon({ stateDir }) {
     });
     server.once('error', reject);
   });
-
-  // Redirect stdout/stderr away from terminal once ready (daemon mode)
-  if (!process.env.ACCELERATOR_PLAYWRIGHT_KEEP_STDIO) {
-    try {
-      const { openSync } = await import('node:fs');
-      const devNull = openSync('/dev/null', 'r+');
-      // Don't redirect; keep logging available
-    } catch {}
-  }
 
   resetIdle();
 

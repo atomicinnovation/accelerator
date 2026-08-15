@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CLI dispatch. Routes to daemon.start() or client.callRemote().
-// run.sh calls: node run.js <command> [json-args]
-// run.sh daemon launch: node run.js daemon --state-dir <dir>
+// The launcher calls: node run.js <command> [json-args]
+// Daemon launch: node run.js daemon --state-dir <dir>
 
 import { callRemote } from './lib/client.js';
 
@@ -30,7 +30,7 @@ if (command === 'daemon') {
 } else {
   // Client subcommands: forward to the running daemon
   if (!stateDir) {
-    process.stderr.write('run.js: ACCELERATOR_PLAYWRIGHT_STATE_DIR is not set (use run.sh, not run.js directly)\n');
+    process.stderr.write('run.js: ACCELERATOR_PLAYWRIGHT_STATE_DIR is not set (use `accelerator design executor`, not run.js directly)\n');
     process.exit(2);
   }
   let extraArgs = {};

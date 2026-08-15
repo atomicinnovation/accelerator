@@ -1,4 +1,4 @@
-# Canonical cue-phrase patterns for extract-work-items and audit-cue-phrases.sh.
+# Canonical cue-phrase patterns for extract-work-items and audit-cue-phrases.
 # One ERE alternative per non-comment line.
 # Lines starting with # are comments.
 #

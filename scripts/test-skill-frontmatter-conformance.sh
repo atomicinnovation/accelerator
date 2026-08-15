@@ -404,4 +404,298 @@ assert_true "guard sources frontmatter-emission-rules.sh" \
 assert_true "guard reads templates-schema.tsv" \
   grep -qF 'templates-schema.tsv' "$SCRIPT_DIR/test-skill-frontmatter-conformance.sh"
 
+# =============================================================================
+# Design skill, agent and docs structure
+# =============================================================================
+
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+INIT="$PLUGIN_ROOT/skills/config/init/SKILL.md"
+CONFIGURE="$PLUGIN_ROOT/skills/config/configure/SKILL.md"
+DOCS_INTERNALS="$PLUGIN_ROOT/docs-site/src/content/docs/internals.md"
+DOCS_CONFIGURATION="$PLUGIN_ROOT/docs-site/src/content/docs/configuration.md"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "=== Foundation: init SKILL.md ==="
+
+assert_contains "init lists research_design_inventories path key" \
+  "$(cat "$INIT")" "research_design_inventories"
+assert_contains "init lists research_design_gaps path key" \
+  "$(cat "$INIT")" "research_design_gaps"
+# Derive the expected count from the Path Resolution list rather than
+# hardcoding it (the marker's correctness is invariant-tested in
+# test-config.sh; here we just need a value that auto-tracks the file).
+EXPECTED_DIR_COUNT=$(grep -cE '^\*\*[A-Za-z][^*]* directory\*\*:' "$INIT")
+assert_contains "init declares directory count via marker" \
+  "$(cat "$INIT")" "<!-- DIR_COUNT:${EXPECTED_DIR_COUNT} -->"
+assert_contains "init summary lists design inventories directory" \
+  "$(cat "$INIT")" "{design inventories directory}"
+assert_contains "init summary lists design gaps directory" \
+  "$(cat "$INIT")" "{design gaps directory}"
+
+echo ""
+
+echo "=== Foundation: configure SKILL.md ==="
+
+assert_contains "configure paths table includes research_design_inventories" \
+  "$(cat "$CONFIGURE")" "research_design_inventories"
+assert_contains "configure paths table includes research_design_gaps" \
+  "$(cat "$CONFIGURE")" "research_design_gaps"
+
+echo ""
+
+echo "=== Design key call sites use canonical research_design_* form ==="
+assert_exit_code "no SKILL.md or agent uses bare design_(inventories|gaps)" 1 \
+  bash -c "grep -rE --exclude-dir=node_modules --exclude-dir=target 'config path design_(inventories|gaps)\\b' \"$PLUGIN_ROOT/skills\" \"$PLUGIN_ROOT/agents\""
+
+echo ""
+
+echo "=== Foundation: docs ==="
+
+assert_contains "internals meta/ table lists design-inventories/" \
+  "$(cat "$DOCS_INTERNALS")" "design-inventories/"
+assert_contains "internals meta/ table lists design-gaps/" \
+  "$(cat "$DOCS_INTERNALS")" "design-gaps/"
+assert_contains "configuration template keys include design-inventory" \
+  "$(cat "$DOCS_CONFIGURATION")" "design-inventory"
+assert_contains "configuration template keys include design-gap" \
+  "$(cat "$DOCS_CONFIGURATION")" "design-gap"
+
+echo ""
+
+echo "=== Browser agents ==="
+
+LOC="$PLUGIN_ROOT/agents/browser-locator.md"
+ANA="$PLUGIN_ROOT/agents/browser-analyser.md"
+
+assert_file_exists "browser-locator.md exists" "$LOC"
+assert_file_exists "browser-analyser.md exists" "$ANA"
+
+# Extract the tools: field from YAML frontmatter, sort items, join with comma.
+# Handles both single-line "tools: a, b, c" and wrapped continuation lines.
+# Strips leading whitespace (from YAML block-scalar continuation lines).
+extract_tools() {
+  local file="$1"
+  # Extract text between first and second --- (the frontmatter)
+  # Find the tools: line, then collect it plus any continuation lines
+  awk '
+    /^---/ { fm++; next }
+    fm == 1 && /^tools:/ { line = $0; in_tools = 1; next }
+    fm == 1 && in_tools && /^  / { line = line " " $0; next }
+    fm == 1 && in_tools { in_tools = 0 }
+    fm == 2 { exit }
+    END { print line }
+  ' "$file" |
+    sed 's/^tools:[[:space:]]*//' |
+    sed 's/^>[[:space:]]*//' |
+    tr ',' '\n' |
+    sed 's/^[[:space:]]*//' |
+    sed 's/[[:space:]]*$//' |
+    grep -v '^$' |
+    sort |
+    tr '\n' ',' |
+    sed 's/,$//'
+}
+
+LOC_TOOLS="$(extract_tools "$LOC")"
+ANA_TOOLS="$(extract_tools "$ANA")"
+
+assert_eq "browser-locator declares exactly Bash as its tool" \
+  "Bash" \
+  "$LOC_TOOLS"
+assert_eq "browser-analyser declares exactly Bash as its tool" \
+  "Bash" \
+  "$ANA_TOOLS"
+assert_not_contains "browser-locator declares no mcp__playwright__ tools" \
+  "$LOC_TOOLS" "mcp__playwright__"
+assert_not_contains "browser-analyser declares no mcp__playwright__ tools" \
+  "$ANA_TOOLS" "mcp__playwright__"
+
+echo ""
+
+echo "=== executor evaluate payload allowlist ==="
+
+ANA_BODY="$(cat "$ANA")"
+for forbidden in "fetch" "XMLHttpRequest" "document.cookie" \
+  "localStorage" "sessionStorage" "indexedDB" \
+  "eval" "innerHTML" "window.open"; do
+  assert_contains "browser-analyser body forbids $forbidden in executor evaluate" \
+    "$ANA_BODY" "$forbidden"
+done
+
+echo ""
+
+echo "=== .mcp.json ==="
+
+assert_exit_code ".claude-plugin/.mcp.json does not exist (MCP path removed)" 1 \
+  test -e "$PLUGIN_ROOT/.claude-plugin/.mcp.json"
+
+echo ""
+
+echo "=== inventory-design: skill structure ==="
+
+SKILL="$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md"
+assert_file_exists "inventory-design SKILL.md exists" "$SKILL"
+assert_contains "name field set" "$(cat "$SKILL")" "name: inventory-design"
+assert_contains "argument-hint declares positional source-id and location" \
+  "$(cat "$SKILL")" 'argument-hint: "[source-id] [location]'
+assert_contains "disable-model-invocation true" \
+  "$(cat "$SKILL")" "disable-model-invocation: true"
+assert_contains "argument-hint includes --allow-internal flag" \
+  "$(cat "$SKILL")" "--allow-internal"
+assert_contains "argument-hint includes --allow-insecure-scheme flag" \
+  "$(cat "$SKILL")" "--allow-insecure-scheme"
+assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
+  "$(cat "$SKILL")" "mcp__playwright__"
+# shellcheck disable=SC2016 # single-quoted assert pattern; ${CLAUDE_PLUGIN_ROOT} is a literal allowed-tools entry matched verbatim, intentionally not shell-expanded
+assert_contains "allowed-tools enumerates inventory-design scripts glob" \
+  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)'
+assert_contains "loads config context" \
+  "$(cat "$SKILL")" "accelerator config context"
+assert_contains "loads agent names" \
+  "$(cat "$SKILL")" "accelerator config agents"
+assert_contains "ends with skill-instructions hook" \
+  "$(tail -n 5 "$SKILL")" "accelerator config instructions inventory-design"
+assert_contains "Agent Names defaults include browser-locator" \
+  "$(cat "$SKILL")" "accelerator:browser-locator"
+assert_contains "Agent Names defaults include browser-analyser" \
+  "$(cat "$SKILL")" "accelerator:browser-analyser"
+
+echo ""
+
+echo "=== inventory-design: evals ==="
+
+EVALS="$PLUGIN_ROOT/skills/design/inventory-design/evals/evals.json"
+BENCH="$PLUGIN_ROOT/skills/design/inventory-design/evals/benchmark.json"
+assert_file_exists "evals.json exists" "$EVALS"
+assert_file_exists "benchmark.json exists" "$BENCH"
+assert_eq "evals.json is valid JSON" "$(jq empty "$EVALS" 2>&1)" ""
+assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
+
+echo ""
+
+echo "=== analyse-design-gaps: skill structure ==="
+
+SKILL="$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md"
+assert_file_exists "analyse-design-gaps SKILL.md exists" "$SKILL"
+assert_contains "name field set" "$(cat "$SKILL")" "name: analyse-design-gaps"
+assert_contains "argument-hint two positional ids" \
+  "$(cat "$SKILL")" 'argument-hint: "[current-source-id] [target-source-id]"'
+assert_contains "instructs cue-phrase prose" \
+  "$(cat "$SKILL")" "we need"
+assert_contains "skill body invokes the cue-phrase audit subcommand" \
+  "$(cat "$SKILL")" "accelerator design audit-cue-phrases"
+
+echo ""
+
+assert_contains "ends with skill-instructions hook" \
+  "$(tail -n 5 "$SKILL")" "accelerator config instructions analyse-design-gaps"
+echo "=== analyse-design-gaps: evals ==="
+
+EVALS="$PLUGIN_ROOT/skills/design/analyse-design-gaps/evals/evals.json"
+BENCH="$PLUGIN_ROOT/skills/design/analyse-design-gaps/evals/benchmark.json"
+assert_file_exists "evals.json exists" "$EVALS"
+assert_file_exists "benchmark.json exists" "$BENCH"
+assert_eq "evals.json is valid JSON" "$(jq empty "$EVALS" 2>&1)" ""
+assert_eq "benchmark.json is valid JSON" "$(jq empty "$BENCH" 2>&1)" ""
+
+echo ""
+
+echo "=== browser-locator links contract ==="
+assert_contains "browser-locator body documents the links command" \
+  "$(cat "$LOC")" "accelerator design executor links"
+assert_contains "browser-locator body uses pathname as route identifier" \
+  "$(cat "$LOC")" "Use \`pathname\`"
+assert_contains "browser-locator body restricts route names to links output" \
+  "$(cat "$LOC")" "Routes come from"
+assert_contains "browser-locator body requires same_origin filter" \
+  "$(cat "$LOC")" "same_origin: true"
+assert_not_contains "browser-analyser body does NOT advertise the links command" \
+  "$(cat "$ANA")" "accelerator design executor links"
+
+echo ""
+
+# =============================================================================
+# Design script references resolve
+# =============================================================================
+# A call site left pointing at a deleted script fails here, at merge, rather
+# than at run time — where the symptom was a headless Chromium held until its
+# idle timeout, with nothing to attribute it to. The migration that emptied
+# these directories moved three call sites and missed two.
+
+echo "=== Design script references resolve ==="
+
+DESIGN_REFERRERS="$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md
+$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md
+$PLUGIN_ROOT/agents/browser-locator.md
+$PLUGIN_ROOT/agents/browser-analyser.md"
+
+# Call sites only. `Bash(...)` lines are permission grants, checked against
+# their call sites below rather than against the filesystem, and a path ending
+# in `/` is a grant's glob prefix rather than a file anyone invokes.
+design_script_paths() {
+  grep -v 'Bash(' "$1" |
+    grep -oE '\$\{CLAUDE_PLUGIN_ROOT\}/skills/design/[A-Za-z0-9_./-]+' |
+    grep '/scripts/' |
+    grep -v '/$' |
+    sort -u
+}
+
+# The path a grant or call site names, with the plugin-root placeholder removed
+# so a failure message reads as a repository path. Prefix removal rather than
+# `${var//}`: the pattern carries both braces and slashes, which is where the
+# bash 3.2 floor has bitten before.
+without_plugin_root() {
+  printf '%s\n' "${1#\$\{CLAUDE_PLUGIN_ROOT\}/}"
+}
+
+while IFS= read -r referrer; do
+  [ -f "$referrer" ] || continue
+  for reference in $(design_script_paths "$referrer"); do
+    relative="$(without_plugin_root "$reference")"
+    assert_file_exists "$(basename "$referrer") names an existing $relative" \
+      "$PLUGIN_ROOT/$relative"
+  done
+done <<EOF
+$DESIGN_REFERRERS
+EOF
+
+echo ""
+
+# =============================================================================
+# Design script grants have call sites
+# =============================================================================
+# The check above cannot see this class: a grant whose directory still exists
+# but whose scripts have all been migrated away reads as valid while handing
+# the model Bash access to a tree the skill no longer invokes.
+
+echo "=== Design script grants have call sites ==="
+
+# Everything after the closing frontmatter delimiter.
+skill_body() {
+  awk 'BEGIN { d = 0 } /^---$/ && d < 2 { d++; next } d >= 2' "$1"
+}
+
+# The literal prefix a grant authorises, i.e. the rule without its trailing
+# glob, so `.../scripts/*` is satisfied by any invocation under `.../scripts/`.
+granted_script_prefixes() {
+  sed -n '1,/^---$/p' "$1" |
+    grep -oE 'Bash\(\$\{CLAUDE_PLUGIN_ROOT\}/skills/[A-Za-z0-9_./-]+\*?\)' |
+    sed -e 's|^Bash(||' -e 's|)$||' -e 's|\*$||' |
+    grep '/scripts/' |
+    sort -u
+}
+
+for skill in "$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md" \
+  "$PLUGIN_ROOT/skills/design/analyse-design-gaps/SKILL.md"; do
+  for prefix in $(granted_script_prefixes "$skill"); do
+    assert_contains \
+      "$(basename "$(dirname "$skill")") invokes what it grants: $(without_plugin_root "$prefix")" \
+      "$(skill_body "$skill")" "$prefix"
+  done
+done
+
+echo ""
+
 test_summary

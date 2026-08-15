@@ -60,6 +60,7 @@ _SUBBINARY_MANIFESTS: Mapping[str, Path] = MappingProxyType(
         "corpus": CLI_DIR / "corpus-cli/Cargo.toml",
         "collaboration": CLI_DIR / "collaboration-cli/Cargo.toml",
         "migrate": CLI_DIR / "migrate-cli/Cargo.toml",
+        "design": CLI_DIR / "design-cli/Cargo.toml",
     }
 )
 

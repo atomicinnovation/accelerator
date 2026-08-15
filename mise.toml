@@ -259,9 +259,21 @@ description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/integration/tasks -v"
 
+[tasks."test:unit:design-automation"]
+description = "Run the runtime-free Playwright-executor JavaScript suites"
+run = "invoke test.unit.design-automation"
+
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates", "test:unit:cli"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates", "test:unit:cli", "test:unit:design-automation"]
+
+# Deliberately absent from `test:integration` and the bare default task: these
+# suites need a bootstrapped Playwright runtime, which no CI lane provisions.
+# They fail rather than skip when one is missing, so an absent runtime is a
+# visible refusal instead of a silent pass.
+[tasks."test:integration:design-automation"]
+description = "Run the Playwright-executor suites that need a real runtime (opt-in)"
+run = "invoke test.integration.design-automation"
 
 [tasks."test:integration:visualiser"]
 description = "Run visualiser integration tests"

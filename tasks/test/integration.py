@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shlex
 import tempfile
@@ -7,7 +8,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 
-from .helpers import accelerator_env, run_shell_suites
+from .helpers import accelerator_env, repo_root, run_shell_suites
 
 # An env gate rather than a `--yes` flag: a task name can be tab-completed by
 # accident, and the CI step sets this in `env:`.
@@ -38,8 +39,9 @@ _ABSOLUTE_VCS_PATHS = (
 # linkage validators retired in favour of `accelerator corpus`. Dropped to 15
 # as the meta-directory migration engine's interactive wire-protocol harness
 # retired in favour of the native accelerator-migrate port. Raised to 16 to
-# correct a floor left one behind the real discovered count.
-_EXPECTED_CONFIG_SUITES = 16
+# correct a floor left one behind the real discovered count. Dropped to 15 as
+# test-metadata-helpers.sh retired with the shell metadata helpers.
+_EXPECTED_CONFIG_SUITES = 15
 
 # The skills/work subtree discoverable shell suites. At-least floor (mirror of
 # the migrate/config guards) so a dropped exec bit can't silently shrink the
@@ -395,3 +397,68 @@ def integrations(context: Context) -> None:
     _require_suite_floor(
         suites, _EXPECTED_INTEGRATIONS_SUITES, (), "integrations"
     )
+
+
+# The Playwright-executor suites that need a real runtime.
+#
+# Discovered by name, not by a glob, so this lane's file set is stated rather
+# than implied and can never overlap the unit lane's `lib/*.test.js`.
+_DESIGN_AUTOMATION_RUNTIME_SUITES = (
+    "test-run.js",
+    "daemon-runtime.test.js",
+)
+
+_PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
+
+
+def _playwright_namespace_root(root: Path) -> Path:
+    """Resolve the namespace `ensure-playwright.sh` populates, its way."""
+    cache_root = os.environ.get("ACCELERATOR_PLAYWRIGHT_CACHE") or str(
+        Path.home() / ".cache/accelerator/playwright"
+    )
+    lockfile = root / _PLAYWRIGHT_DIR / "package-lock.json"
+    lockhash = hashlib.sha256(lockfile.read_bytes()).hexdigest()[:8]
+    return Path(cache_root) / lockhash
+
+
+@task
+def design_automation(context: Context) -> None:
+    """Run the Playwright-executor suites that need a real runtime (opt-in).
+
+    Deliberately outside `test:integration` and the bare default task: no CI
+    lane provisions a Playwright runtime. Rather than skip without one — which
+    is indistinguishable from passing — this refuses up front, following the
+    `docker info` preflight precedent in `tasks/test/e2e.py`.
+    """
+    root = repo_root()
+    namespace = _playwright_namespace_root(root)
+    entry = namespace / "node_modules/playwright/index.js"
+    if not entry.exists():
+        raise Exit(
+            f"Playwright is not installed for this lockhash namespace "
+            f"({namespace}). Run "
+            f"{_PLAYWRIGHT_DIR}/ensure-playwright.sh, then retry. This lane "
+            "fails rather than skipping: a skipped runtime suite is "
+            "indistinguishable from a passing one.",
+            code=1,
+        )
+
+    suites = [
+        root / _PLAYWRIGHT_DIR / name
+        for name in _DESIGN_AUTOMATION_RUNTIME_SUITES
+    ]
+    missing = [str(path) for path in suites if not path.exists()]
+    if missing:
+        raise Exit(
+            f"named runtime suite(s) missing: {', '.join(missing)}", code=1
+        )
+
+    discovered = " ".join(str(path) for path in suites)
+    result = context.run(
+        f"node --test {discovered}",
+        warn=True,
+        pty=False,
+        env={"ACCELERATOR_PLAYWRIGHT_NS_ROOT": str(namespace)},
+    )
+    if result.exited != 0:
+        raise Exit("design-automation runtime tests failed", code=1)

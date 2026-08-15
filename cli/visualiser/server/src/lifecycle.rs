@@ -69,7 +69,7 @@ pub(crate) fn owner_alive(pid: i32, expected_start_time: Option<u64>) -> bool {
         return false;
     }
     match expected_start_time {
-        Some(expected) => match crate::server::process_start_time(pid) {
+        Some(expected) => match process_probe::start_time(pid) {
             Some(current) => current == expected,
             // If we recorded a start-time at launch but can't obtain
             // one now, treat it as identity-mismatch (conservative).
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn start_time_mismatch_treats_pid_as_dead() {
         let me = std::process::id() as i32;
-        let real_start = crate::server::process_start_time(me);
+        let real_start = process_probe::start_time(me);
         if real_start.is_none() {
             // Platform without start-time support; skip.
             return;

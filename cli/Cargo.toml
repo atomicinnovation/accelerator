@@ -26,7 +26,11 @@ members = [
     "migrate",
     "migrate-adapters",
     "migrate-cli",
-    "tracker"
+    "tracker",
+    "design",
+    "design-adapters",
+    "design-cli",
+    "process-probe"
 ]
 
 [workspace.package]
@@ -80,6 +84,9 @@ serde-saphyr = "=0.0.29"
 # so the exact-pin discipline is not warranted here.
 tempfile = "3"
 rand = "0.9"
+# Two consumers: process-probe's sysconf/sysctl start-time reads, and the
+# visualiser server, which delegated its own copy of that read to it.
+libc = "0.2"
 rustix = { version = "1", features = ["process", "fs"] }
 # jj-lib and gix are a matched pair, pinned asymmetrically. jj-lib is EXACT
 # because it declares its API unstable and a patch can shift its MSRV or its own

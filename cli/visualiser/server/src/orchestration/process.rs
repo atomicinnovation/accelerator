@@ -12,7 +12,13 @@ use nix::errno::Errno;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-pub(crate) use crate::server::process_start_time;
+/// The shared epoch read, under the name this module's callers already use.
+///
+/// The identity semantics built on top of it stay here: `identity_matches`
+/// treats an unreadable expected start time as an unconditional mismatch, and
+/// `terminate` escalates SIGTERM to SIGKILL. Neither belongs in the primitive,
+/// and the Playwright launcher deliberately makes different choices on both.
+pub(crate) use process_probe::start_time as process_start_time;
 
 /// Whether the process `pid` is currently alive.
 #[must_use]

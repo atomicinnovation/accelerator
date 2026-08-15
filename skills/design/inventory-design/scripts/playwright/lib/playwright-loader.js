@@ -8,7 +8,7 @@
 // would all be undefined on the returned namespace.
 //
 // Trust boundary: `nsRoot` is treated as fully trusted. In production it
-// is set by run.sh from a lockhash digest under
+// is set by the launcher from a lockhash digest under
 // $HOME/.cache/accelerator/playwright. The value drives an arbitrary
 // import() call; any new caller must derive it from an equally trusted
 // source.

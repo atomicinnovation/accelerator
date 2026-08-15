@@ -4,7 +4,6 @@ import { writeFileSync, renameSync, mkdirSync, rmSync, existsSync, readFileSync 
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { execSync } from 'node:child_process';
 
 export const SERVER_INFO_FILE = 'server-info.json';
 export const SERVER_PID_FILE = 'server.pid';
@@ -30,35 +29,11 @@ export function ensureStateDir(stateDir) {
   mkdirSync(stateDir, { recursive: true, mode: 0o700 });
 }
 
-// Return seconds-resolution kernel-recorded start time for our own
-// process — matching what launcher-helpers.sh `start_time_of` reads.
-// Using Date.now() at server.listen() time can drift a whole second
-// past `ps lstart` on busy systems (module loading takes time), which
-// then makes the launcher's reuse short-circuit declare a live daemon
-// stale and respawn a fresh one. Reading from the same source as the
-// launcher eliminates the race.
-export function processStartSeconds() {
-  try {
-    if (process.platform === 'linux') {
-      const stat = readFileSync('/proc/self/stat', 'utf8');
-      const fields = stat.replace(/^.*\) /, '').split(' ');
-      const startticks = parseInt(fields[19], 10);
-      const btimeMatch = readFileSync('/proc/stat', 'utf8').match(/^btime (\d+)/m);
-      const hz = parseInt(execSync('getconf CLK_TCK', { encoding: 'utf8' }).trim(), 10);
-      if (btimeMatch && hz > 0 && Number.isFinite(startticks)) {
-        return parseInt(btimeMatch[1], 10) + Math.floor(startticks / hz);
-      }
-    } else if (process.platform === 'darwin') {
-      const out = execSync(`ps -p ${process.pid} -o lstart=`, {
-        env: { ...process.env, LANG: 'C', LC_ALL: 'C' },
-        encoding: 'utf8',
-      }).trim();
-      const d = new Date(out);
-      if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000);
-    }
-  } catch {}
-  return Math.floor(Date.now() / 1000);
-}
+// The start time is deliberately not computed here. The launcher observes it
+// with the same probe it will later compare against and hands it over the
+// identity pipe, so there is only one implementation and nothing to disagree
+// with. Node has no sysctl binding, so a probe on this side could only fall
+// back to a wall-clock value — the weakest input the reuse check can be given.
 
 export function writeServerInfo(stateDir, info) {
   atomicWrite(resolve(stateDir, SERVER_INFO_FILE), JSON.stringify(info));

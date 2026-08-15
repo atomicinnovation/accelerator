@@ -71,16 +71,17 @@ fn run_adr(action: AdrAction) -> Result<Outcome, kernel::Error> {
 
 fn run_metadata(action: &MetadataAction) -> Result<Outcome, kernel::Error> {
     match action {
-        MetadataAction::Derive => {
+        MetadataAction::Derive {
+            filename_timestamp_format,
+        } => {
+            let format =
+                FilenameTimestampFormat::from(*filename_timestamp_format);
             let derived = corpus_adapters::metadata::derive_at(
                 &current_dir()?,
-                FilenameTimestampFormat::DateTimeUnderscored,
+                format,
                 &corpus_adapters::metadata::VcsBackedRepoFactsProbe,
             );
-            metadata::run_derive(
-                derived,
-                FilenameTimestampFormat::DateTimeUnderscored,
-            )
+            metadata::run_derive(derived, format)
         }
     }
 }

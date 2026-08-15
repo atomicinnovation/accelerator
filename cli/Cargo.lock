@@ -56,6 +56,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-design"
+version = "1.24.0-pre.38"
+dependencies = [
+ "clap",
+ "config",
+ "config-adapters",
+ "design",
+ "design-adapters",
+ "kernel",
+ "tempfile",
+ "vcs-adapters",
+]
+
+[[package]]
 name = "accelerator-migrate"
 version = "1.24.0-pre.38"
 dependencies = [
@@ -116,6 +130,7 @@ dependencies = [
  "nix",
  "notify",
  "predicates",
+ "process-probe",
  "regex",
  "reqwest",
  "rust-embed",
@@ -1009,6 +1024,28 @@ checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
 dependencies = [
  "derive_builder_core",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "design"
+version = "1.24.0-pre.38"
+dependencies = [
+ "kernel",
+]
+
+[[package]]
+name = "design-adapters"
+version = "1.24.0-pre.38"
+dependencies = [
+ "design",
+ "kernel",
+ "libc",
+ "process-probe",
+ "rand 0.9.5",
+ "regex",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
 ]
 
 [[package]]
@@ -3505,6 +3542,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "process-probe"
+version = "1.24.0-pre.38"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

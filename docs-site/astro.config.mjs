@@ -99,6 +99,7 @@ export default defineConfig({
             'releases-and-compatibility',
             'visualiser',
             'collaboration',
+            'design',
           ],
         },
         {

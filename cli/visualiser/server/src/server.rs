@@ -321,7 +321,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let info = ServerInfo {
         version: crate::VERSION.to_string(),
         pid: std::process::id() as i32,
-        start_time: process_start_time(std::process::id() as i32),
+        start_time: process_probe::start_time(std::process::id() as i32),
         host: state.cfg.host.clone(),
         port: local.port(),
         url: format!("http://{}:{}", state.cfg.host, local.port()),
@@ -518,82 +518,6 @@ fn write_pid_file(path: &Path, pid: i32) -> std::io::Result<()> {
     write_state_file(path, format!("{pid}\n").as_bytes())
 }
 
-/// Seconds-since-epoch at which `pid` started, if obtainable.
-/// macOS: `ps -p <pid> -o lstart=` → `date -j -f` → epoch.
-/// Linux: `/proc/<pid>/stat` field 22 (clock ticks since boot) +
-///        `/proc/stat` `btime` → absolute epoch.
-/// Returns None on any parse or IO failure — the caller falls back
-/// to bare PID comparison.
-pub(crate) fn process_start_time(pid: i32) -> Option<u64> {
-    #[cfg(target_os = "linux")]
-    {
-        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-        // Field 22 (1-indexed) is starttime in clock ticks since boot.
-        // The command field (field 2) is wrapped in parens and may
-        // contain spaces, so skip past the last ')' before splitting.
-        let tail = stat.rsplit_once(')').map(|(_, t)| t)?;
-        let starttime_ticks: u64 =
-            tail.split_whitespace().nth(19)?.parse().ok()?;
-        let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as u64;
-        if hz == 0 {
-            return None;
-        }
-        let btime_line = std::fs::read_to_string("/proc/stat")
-            .ok()?
-            .lines()
-            .find(|l| l.starts_with("btime "))?
-            .to_string();
-        let btime: u64 = btime_line.split_whitespace().nth(1)?.parse().ok()?;
-        Some(btime + starttime_ticks / hz)
-    }
-    #[cfg(target_os = "macos")]
-    {
-        // Read p_starttime directly via sysctl(KERN_PROC_PID) rather than
-        // shelling out to `ps` + `date`. The subprocess approach races with
-        // Tokio's internal infrastructure when tests run in parallel, causing
-        // sporadic None returns. tv_sec is a UTC epoch value and matches what
-        // `date -j -f "%a %b %d %H:%M:%S %Y" "$(ps -p pid -o lstart=)" +%s`
-        // returns in _launcher-helpers.sh: both truncate to the same second.
-        //
-        // libc does not export kinfo_proc, so we use a raw byte buffer.
-        // p_starttime (a timeval) is the first field of extern_proc's p_un
-        // union, which is the first field of kinfo_proc — tv_sec is at byte 0.
-        //
-        // CTL_KERN=1, KERN_PROC=14, KERN_PROC_PID=1 (stable macOS ABI).
-        // sizeof(kinfo_proc) = 648 on all 64-bit macOS targets.
-        const CTL_KERN: libc::c_int = 1;
-        const KERN_PROC: libc::c_int = 14;
-        const KERN_PROC_PID: libc::c_int = 1;
-        const KINFO_PROC_SIZE: usize = 648;
-        let mut buf = [0u8; KINFO_PROC_SIZE];
-        let mut size: usize = KINFO_PROC_SIZE;
-        let mib = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid];
-        let ret = unsafe {
-            libc::sysctl(
-                mib.as_ptr().cast_mut(),
-                mib.len() as libc::c_uint,
-                buf.as_mut_ptr().cast::<libc::c_void>(),
-                &raw mut size,
-                std::ptr::null_mut(),
-                0,
-            )
-        };
-        if ret != 0 || size == 0 {
-            return None;
-        }
-        let tv_sec = i64::from_ne_bytes(buf[..8].try_into().ok()?);
-        if tv_sec <= 0 {
-            return None;
-        }
-        Some(tv_sec as u64)
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-    {
-        let _ = pid;
-        None
-    }
-}
-
 /// Whether the containerised visual-regression flow has opted into a
 /// non-loopback bind and a relaxed Host-header guard.
 ///
@@ -752,16 +676,6 @@ mod tests {
         assert!(content.ends_with('\n'));
         let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
-    }
-
-    #[test]
-    fn process_start_time_is_stable_for_same_pid() {
-        let me = std::process::id() as i32;
-        let first = process_start_time(me);
-        let second = process_start_time(me);
-        assert_eq!(first, second, "start_time must be stable for the same PID");
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        assert!(first.is_some(), "start_time should resolve on Linux/macOS");
     }
 
     #[tokio::test]
@@ -926,7 +840,7 @@ mod tests {
         let info = ServerInfo {
             version: crate::VERSION.to_string(),
             pid: std::process::id() as i32,
-            start_time: process_start_time(std::process::id() as i32),
+            start_time: process_probe::start_time(std::process::id() as i32),
             host: "127.0.0.1".into(),
             port,
             url: format!("http://127.0.0.1:{port}"),

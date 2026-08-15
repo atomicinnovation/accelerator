@@ -61,6 +61,9 @@ The full documentation site is published at
   CLI](https://atomicinnovation.github.io/accelerator/collaboration/) — the
   `accelerator collaboration` sub-binary the GitHub PR skills use to resolve a
   PR's base repository and update its body.
+- [Design CLI](https://atomicinnovation.github.io/accelerator/design/) — the
+  `accelerator design` sub-binary the design skills use to validate a crawl
+  source, scrub credentials from artefacts, and audit gap documents.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —

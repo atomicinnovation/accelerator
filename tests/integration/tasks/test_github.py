@@ -42,6 +42,10 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
             "The collaboration pr base-repo|update-body sub-binary."
         ),
         "migrate": "Apply pending meta-directory schema migrations.",
+        "design": (
+            "The design validate-source|resolve-auth|scrub-secrets|"
+            "notify-downgrade|audit-cue-phrases sub-binary."
+        ),
     }
 )
 
@@ -544,6 +548,7 @@ class TestBuilderSeams:
             "corpus",
             "collaboration",
             "migrate",
+            "design",
         )
 
 

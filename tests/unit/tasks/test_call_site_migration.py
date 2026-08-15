@@ -28,13 +28,24 @@ def test_grep_b_flags_a_skill_md_script_reference(tmp_path: Path) -> None:
     assert gate.grep_b_hits(tmp_path)
 
 
-def test_grep_b_permits_the_browser_executor(tmp_path: Path) -> None:
+def test_grep_b_permits_config_common(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "skills/x/SKILL.md",
+        "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-common.sh`\n",
+    )
+    assert gate.grep_b_hits(tmp_path) == []
+
+
+def test_grep_b_flags_the_retired_browser_executor_reader(
+    tmp_path: Path,
+) -> None:
     _write(
         tmp_path,
         "skills/x/SKILL.md",
         "!`${CLAUDE_PLUGIN_ROOT}/scripts/config-read-browser-executor.sh`\n",
     )
-    assert gate.grep_b_hits(tmp_path) == []
+    assert gate.grep_b_hits(tmp_path)
 
 
 def test_stray_legacy_flag_is_flagged(tmp_path: Path) -> None:

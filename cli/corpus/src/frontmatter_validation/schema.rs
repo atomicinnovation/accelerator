@@ -43,7 +43,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
         linkage_type: "plan",
         code_state_anchored: true,
         extras: &["reviewer"],
-        status_vocab: &["draft", "ready", "in-progress", "done"],
+        status_vocab: &["draft", "ready", "in-progress", "done", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &[
             "parent",

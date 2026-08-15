@@ -65,6 +65,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
     "test:integration:zero-spawn:strong": "the same suite, with the real "
     "git/jj shadowed",
+    "test:integration:design-automation": "node --test against a Playwright "
+    "runtime; reaches no accelerator binary",
 }
 
 
@@ -174,6 +176,12 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # git. Owned by check-zero-spawn.
     "test:integration:zero-spawn:strong": "shadows the real git/jj with "
     "sudo; CI-only by design",
+    # Needs a bootstrapped Playwright runtime, which no CI lane provisions, so
+    # in the roll-up it would fail every build. It fails rather than skips
+    # without one, which keeps it runnable on demand and honest when the
+    # runtime is absent.
+    "test:integration:design-automation": "needs a Playwright runtime no CI "
+    "lane provisions; fails rather than skips without one",
 }
 
 

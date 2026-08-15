@@ -10,8 +10,9 @@ argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-
 disable-model-invocation: true
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/*)
 ---
 
 # Inventory Design
@@ -52,7 +53,7 @@ snapshots.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/validate-source.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design validate-source \
   "<location>" ${allow_internal_flag} ${allow_insecure_scheme_flag}
 ```
 
@@ -80,13 +81,21 @@ naming the offending characters and stop.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/resolve-auth.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design resolve-auth
 ```
 
 Capture the output (`header`, `form`, or `none`). If it exits non-zero, report
 the error to the user and stop.
 
-**Auth-header origin allowlist (security-critical)**: if auth mode is `header`,
+> [!WARNING]
+> **The header-auth path is currently inert.** The daemon imports its
+> auth-header handler and never calls it, and the origin allowlist that handler
+> requires (`ACCELERATOR_BROWSER_LOCATION_ORIGIN`) is set nowhere. An
+> authenticated crawl therefore produces an *unauthenticated* inventory, and the
+> allowlist described below is not enforced by anything. Do not put a live
+> credential in `ACCELERATOR_BROWSER_AUTH_HEADER` until that is wired up.
+
+**Auth-header origin allowlist (security-critical, once wired up)**: if auth mode is `header`,
 the `ACCELERATOR_BROWSER_AUTH_HEADER` value is injected **only** on navigations
 whose origin (scheme+host+port) matches the resolved `[location]` origin or the
 `ACCELERATOR_BROWSER_LOGIN_URL` origin. On any cross-origin navigation (off-site
@@ -129,20 +138,21 @@ Capture its stdout, stderr, and exit code.
     and record it in `Crawl Notes`. Then skip to Step 7 (no ping needed).
   - If provisional mode was `runtime`: hard-fail with the bootstrap stderr and stop.
 
-**Downgrade notice**: run `notify-downgrade.sh --from <mode> --to code --reason <enum>` and
+**Downgrade notice**: run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design notify-downgrade --from <mode>
+--to code --reason <enum>` and
 print its stdout **before the crawl starts** (not only in Crawl Notes).
 
 ### 5. Confirm Executor Liveness
 
 Only if Step 4 succeeded (bootstrap ready), run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh ping
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor ping
 ```
 
 - **Returns `{"ok":true,...}`** → executor is healthy; proceed to Step 6.
 - **Returns error JSON or fails** → treat as `executor-ping-failed`.
-  - If provisional mode was `hybrid`: downgrade to `code`. Run `notify-downgrade.sh --from hybrid
-    --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
+  - If provisional mode was `hybrid`: downgrade to `code`. Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design
+    notify-downgrade --from hybrid --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
   - If provisional mode was `runtime`: hard-fail with the ping error and stop.
 
 ### 6. Finalize Crawler Mode
@@ -213,7 +223,8 @@ Compile agent findings into the five inventory categories:
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/inventory-metadata.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive \
+  --filename-timestamp-format compact-time
 ```
 
 ### 11. Populate frontmatter and write artifact (atomic)
@@ -270,7 +281,7 @@ the values resolved in earlier steps.
 **Pre-write secret scrubber**: before moving the tmp directory to its final name,
 run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/scrub-secrets.sh \
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design scrub-secrets \
   "<tmp_dir>/inventory.md"
 ```
 If it exits non-zero, delete the tmp directory and report the error. Do not write
@@ -296,10 +307,11 @@ authoritative (the resolver uses `sequence` as its primary tiebreaker).
 
 If a Playwright daemon was started (Steps 4–5 succeeded), stop it:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/playwright/run.sh daemon-stop
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor daemon-stop
 ```
 
-This is belt-and-braces — the browser agents also call `run.sh daemon-stop` as their final
+This is belt-and-braces — the browser agents also call `accelerator design executor
+daemon-stop` as their final
 action. Running it here ensures cleanup even if an agent exits abnormally.
 
 ### 13. Present Summary

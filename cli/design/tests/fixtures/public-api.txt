@@ -1,0 +1,762 @@
+pub mod design
+pub mod design::access_policy
+pub struct design::access_policy::Allowances
+pub design::access_policy::Allowances::insecure_scheme: bool
+pub design::access_policy::Allowances::internal: bool
+impl core::clone::Clone for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::clone(&self) -> design::access_policy::Allowances
+impl core::cmp::Eq for design::access_policy::Allowances
+impl core::cmp::PartialEq for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::eq(&self, other: &design::access_policy::Allowances) -> bool
+impl core::default::Default for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::default() -> design::access_policy::Allowances
+impl core::fmt::Debug for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::access_policy::Allowances
+impl core::marker::StructuralPartialEq for design::access_policy::Allowances
+pub fn design::access_policy::evaluate(location: &design::source_location::SourceLocation, allowances: design::access_policy::Allowances) -> design::verdict::Verdict<alloc::string::String>
+pub mod design::credentials
+pub enum design::credentials::AuthMode
+pub design::credentials::AuthMode::Form
+pub design::credentials::AuthMode::Header
+pub design::credentials::AuthMode::None
+impl core::clone::Clone for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::clone(&self) -> design::credentials::AuthMode
+impl core::cmp::Eq for design::credentials::AuthMode
+impl core::cmp::PartialEq for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::eq(&self, other: &design::credentials::AuthMode) -> bool
+impl core::fmt::Debug for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::credentials::AuthMode
+impl core::marker::StructuralPartialEq for design::credentials::AuthMode
+pub struct design::credentials::Credentials
+pub design::credentials::Credentials::auth_header: core::option::Option<alloc::string::String>
+pub design::credentials::Credentials::login_url: core::option::Option<alloc::string::String>
+pub design::credentials::Credentials::password: core::option::Option<alloc::string::String>
+pub design::credentials::Credentials::username: core::option::Option<alloc::string::String>
+impl core::clone::Clone for design::credentials::Credentials
+pub fn design::credentials::Credentials::clone(&self) -> design::credentials::Credentials
+impl core::cmp::Eq for design::credentials::Credentials
+impl core::cmp::PartialEq for design::credentials::Credentials
+pub fn design::credentials::Credentials::eq(&self, other: &design::credentials::Credentials) -> bool
+impl core::default::Default for design::credentials::Credentials
+pub fn design::credentials::Credentials::default() -> design::credentials::Credentials
+impl core::fmt::Debug for design::credentials::Credentials
+pub fn design::credentials::Credentials::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::credentials::Credentials
+pub struct design::credentials::PartialConfiguration
+pub design::credentials::PartialConfiguration::missing: alloc::vec::Vec<&'static str>
+impl core::clone::Clone for design::credentials::PartialConfiguration
+pub fn design::credentials::PartialConfiguration::clone(&self) -> design::credentials::PartialConfiguration
+impl core::cmp::Eq for design::credentials::PartialConfiguration
+impl core::cmp::PartialEq for design::credentials::PartialConfiguration
+pub fn design::credentials::PartialConfiguration::eq(&self, other: &design::credentials::PartialConfiguration) -> bool
+impl core::error::Error for design::credentials::PartialConfiguration
+impl core::fmt::Debug for design::credentials::PartialConfiguration
+pub fn design::credentials::PartialConfiguration::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::credentials::PartialConfiguration
+pub fn design::credentials::PartialConfiguration::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::credentials::PartialConfiguration
+pub struct design::credentials::Resolution
+pub design::credentials::Resolution::mode: design::credentials::AuthMode
+pub design::credentials::Resolution::warning: core::option::Option<alloc::string::String>
+impl core::clone::Clone for design::credentials::Resolution
+pub fn design::credentials::Resolution::clone(&self) -> design::credentials::Resolution
+impl core::cmp::Eq for design::credentials::Resolution
+impl core::cmp::PartialEq for design::credentials::Resolution
+pub fn design::credentials::Resolution::eq(&self, other: &design::credentials::Resolution) -> bool
+impl core::fmt::Debug for design::credentials::Resolution
+pub fn design::credentials::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::credentials::Resolution
+pub fn design::credentials::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::PartialConfiguration>
+pub mod design::cue_phrase_audit
+pub struct design::cue_phrase_audit::UncuedSection
+pub design::cue_phrase_audit::UncuedSection::name: alloc::string::String
+impl core::clone::Clone for design::cue_phrase_audit::UncuedSection
+pub fn design::cue_phrase_audit::UncuedSection::clone(&self) -> design::cue_phrase_audit::UncuedSection
+impl core::cmp::Eq for design::cue_phrase_audit::UncuedSection
+impl core::cmp::PartialEq for design::cue_phrase_audit::UncuedSection
+pub fn design::cue_phrase_audit::UncuedSection::eq(&self, other: &design::cue_phrase_audit::UncuedSection) -> bool
+impl core::fmt::Debug for design::cue_phrase_audit::UncuedSection
+pub fn design::cue_phrase_audit::UncuedSection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::cue_phrase_audit::UncuedSection
+pub const design::cue_phrase_audit::CASE_SENSITIVE_CUE_PHRASE_PATTERN: &str
+pub const design::cue_phrase_audit::CUE_PHRASE_PATTERNS: [&str; 3]
+pub trait design::cue_phrase_audit::CuePhraseMatcher
+pub fn design::cue_phrase_audit::CuePhraseMatcher::matches(&self, text: &str) -> bool
+pub fn design::cue_phrase_audit::audit(document: &str, matcher: &dyn design::cue_phrase_audit::CuePhraseMatcher) -> alloc::vec::Vec<design::cue_phrase_audit::UncuedSection>
+pub mod design::executor
+pub mod design::executor::daemon_identity
+pub enum design::executor::daemon_identity::ObservedDaemon
+pub design::executor::daemon_identity::ObservedDaemon::Absent
+pub design::executor::daemon_identity::ObservedDaemon::Live(design::executor::daemon_identity::ObservedStartTime)
+impl core::clone::Clone for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::clone(&self) -> design::executor::daemon_identity::ObservedDaemon
+impl core::cmp::Eq for design::executor::daemon_identity::ObservedDaemon
+impl core::cmp::PartialEq for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::eq(&self, other: &design::executor::daemon_identity::ObservedDaemon) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::ObservedDaemon
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::ObservedDaemon
+pub enum design::executor::daemon_identity::ObservedStartTime
+pub design::executor::daemon_identity::ObservedStartTime::Known(u64)
+pub design::executor::daemon_identity::ObservedStartTime::Unavailable
+impl core::clone::Clone for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::clone(&self) -> design::executor::daemon_identity::ObservedStartTime
+impl core::cmp::Eq for design::executor::daemon_identity::ObservedStartTime
+impl core::cmp::PartialEq for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::eq(&self, other: &design::executor::daemon_identity::ObservedStartTime) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::ObservedStartTime
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::ObservedStartTime
+pub enum design::executor::daemon_identity::RecordedStartTime
+pub design::executor::daemon_identity::RecordedStartTime::AbsentOrUnparseable
+pub design::executor::daemon_identity::RecordedStartTime::Probe(u64)
+pub design::executor::daemon_identity::RecordedStartTime::Wallclock(u64)
+pub design::executor::daemon_identity::RecordedStartTime::WriterUnavailable
+impl core::clone::Clone for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::clone(&self) -> design::executor::daemon_identity::RecordedStartTime
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedStartTime
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::eq(&self, other: &design::executor::daemon_identity::RecordedStartTime) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedStartTime
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedStartTime
+pub enum design::executor::daemon_identity::RecordedState
+pub design::executor::daemon_identity::RecordedState::Daemon(design::executor::daemon_identity::RecordedDaemon)
+pub design::executor::daemon_identity::RecordedState::None
+pub design::executor::daemon_identity::RecordedState::PidUnparseable
+impl core::clone::Clone for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::clone(&self) -> design::executor::daemon_identity::RecordedState
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedState
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::eq(&self, other: &design::executor::daemon_identity::RecordedState) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedState
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedState
+pub struct design::executor::daemon_identity::RecordedDaemon
+pub design::executor::daemon_identity::RecordedDaemon::pid: i32
+pub design::executor::daemon_identity::RecordedDaemon::start_time: design::executor::daemon_identity::RecordedStartTime
+impl core::clone::Clone for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::clone(&self) -> design::executor::daemon_identity::RecordedDaemon
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedDaemon
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::eq(&self, other: &design::executor::daemon_identity::RecordedDaemon) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedDaemon
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedDaemon
+pub mod design::executor::envelope
+pub enum design::executor::envelope::LauncherError
+pub design::executor::envelope::LauncherError::AnotherLauncherRunning
+pub design::executor::envelope::LauncherError::DaemonStartTimeout
+pub design::executor::envelope::LauncherError::DaemonStartTimeout::bootstrap_log: alloc::string::String
+pub design::executor::envelope::LauncherError::NoRepo
+pub design::executor::envelope::LauncherError::PlaywrightNotInstalled
+pub design::executor::envelope::LauncherError::PlaywrightNotInstalled::namespace_root: alloc::string::String
+impl design::executor::envelope::LauncherError
+pub const fn design::executor::envelope::LauncherError::category(&self) -> &'static str
+pub const fn design::executor::envelope::LauncherError::code(&self) -> &'static str
+pub const fn design::executor::envelope::LauncherError::exit_code(&self) -> u8
+pub fn design::executor::envelope::LauncherError::message(&self) -> alloc::string::String
+pub fn design::executor::envelope::LauncherError::render(&self) -> alloc::string::String
+impl core::clone::Clone for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::clone(&self) -> design::executor::envelope::LauncherError
+impl core::cmp::Eq for design::executor::envelope::LauncherError
+impl core::cmp::PartialEq for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::eq(&self, other: &design::executor::envelope::LauncherError) -> bool
+impl core::fmt::Debug for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::envelope::LauncherError
+pub mod design::executor::forwardable
+pub enum design::executor::forwardable::NotForwardable
+pub design::executor::forwardable::NotForwardable::Internal(alloc::string::String)
+pub design::executor::forwardable::NotForwardable::Unknown(alloc::string::String)
+impl core::clone::Clone for design::executor::forwardable::NotForwardable
+pub fn design::executor::forwardable::NotForwardable::clone(&self) -> design::executor::forwardable::NotForwardable
+impl core::cmp::Eq for design::executor::forwardable::NotForwardable
+impl core::cmp::PartialEq for design::executor::forwardable::NotForwardable
+pub fn design::executor::forwardable::NotForwardable::eq(&self, other: &design::executor::forwardable::NotForwardable) -> bool
+impl core::error::Error for design::executor::forwardable::NotForwardable
+impl core::fmt::Debug for design::executor::forwardable::NotForwardable
+pub fn design::executor::forwardable::NotForwardable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::forwardable::NotForwardable
+pub fn design::executor::forwardable::NotForwardable::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::forwardable::NotForwardable
+pub const design::executor::forwardable::FORWARDABLE_COMMANDS: [&str; 11]
+pub fn design::executor::forwardable::check(command: &str) -> core::result::Result<(), design::executor::forwardable::NotForwardable>
+pub mod design::executor::handoff
+pub enum design::executor::handoff::MalformedIdentity
+pub design::executor::handoff::MalformedIdentity::EmptyToken
+pub design::executor::handoff::MalformedIdentity::Truncated
+pub design::executor::handoff::MalformedIdentity::Truncated::fields: usize
+pub design::executor::handoff::MalformedIdentity::UnknownStartTimeSource(alloc::string::String)
+pub design::executor::handoff::MalformedIdentity::UnparseablePid(alloc::string::String)
+pub design::executor::handoff::MalformedIdentity::UnparseableStartTime(alloc::string::String)
+impl core::clone::Clone for design::executor::handoff::MalformedIdentity
+pub fn design::executor::handoff::MalformedIdentity::clone(&self) -> design::executor::handoff::MalformedIdentity
+impl core::cmp::Eq for design::executor::handoff::MalformedIdentity
+impl core::cmp::PartialEq for design::executor::handoff::MalformedIdentity
+pub fn design::executor::handoff::MalformedIdentity::eq(&self, other: &design::executor::handoff::MalformedIdentity) -> bool
+impl core::error::Error for design::executor::handoff::MalformedIdentity
+impl core::fmt::Debug for design::executor::handoff::MalformedIdentity
+pub fn design::executor::handoff::MalformedIdentity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::handoff::MalformedIdentity
+pub fn design::executor::handoff::MalformedIdentity::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::handoff::MalformedIdentity
+pub struct design::executor::handoff::Identity
+pub design::executor::handoff::Identity::pid: i32
+pub design::executor::handoff::Identity::start_time: design::executor::daemon_identity::RecordedStartTime
+pub design::executor::handoff::Identity::token: alloc::string::String
+impl design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::parse(raw: &str) -> core::result::Result<Self, design::executor::handoff::MalformedIdentity>
+pub fn design::executor::handoff::Identity::render(&self) -> alloc::string::String
+impl core::clone::Clone for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::clone(&self) -> design::executor::handoff::Identity
+impl core::cmp::Eq for design::executor::handoff::Identity
+impl core::cmp::PartialEq for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::eq(&self, other: &design::executor::handoff::Identity) -> bool
+impl core::fmt::Debug for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::handoff::Identity
+pub mod design::executor::launch
+pub enum design::executor::launch::LaunchFailure
+pub design::executor::launch::LaunchFailure::Envelope(design::executor::envelope::LauncherError)
+pub design::executor::launch::LaunchFailure::Failed(kernel::Error)
+impl core::convert::From<kernel::Error> for design::executor::launch::LaunchFailure
+pub fn design::executor::launch::LaunchFailure::from(error: kernel::Error) -> Self
+impl core::fmt::Debug for design::executor::launch::LaunchFailure
+pub fn design::executor::launch::LaunchFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct design::executor::launch::Launcher<'ports>
+pub design::executor::launch::Launcher::bootstrap_log: alloc::string::String
+pub design::executor::launch::Launcher::clock: &'ports dyn design::executor::ports::Clock
+pub design::executor::launch::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::launch::Launcher::lock: &'ports dyn design::executor::ports::Lock
+pub design::executor::launch::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
+pub design::executor::launch::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
+pub design::executor::launch::Launcher::state: &'ports dyn design::executor::ports::StateStore
+impl<'ports> design::executor::launch::Launcher<'ports>
+pub fn design::executor::launch::Launcher<'ports>::launch(&self, arguments: &[alloc::string::String], client: alloc::boxed::Box<(dyn design::executor::ports::RunClient + 'ports)>) -> core::result::Result<core::convert::Infallible, design::executor::launch::LaunchFailure>
+pub const design::executor::launch::START_TIMEOUT_SECONDS: u64
+pub mod design::executor::ports
+pub enum design::executor::ports::LockOutcome
+pub design::executor::ports::LockOutcome::Acquired
+pub design::executor::ports::LockOutcome::HeldByAnother
+impl core::clone::Clone for design::executor::ports::LockOutcome
+pub fn design::executor::ports::LockOutcome::clone(&self) -> design::executor::ports::LockOutcome
+impl core::cmp::Eq for design::executor::ports::LockOutcome
+impl core::cmp::PartialEq for design::executor::ports::LockOutcome
+pub fn design::executor::ports::LockOutcome::eq(&self, other: &design::executor::ports::LockOutcome) -> bool
+impl core::fmt::Debug for design::executor::ports::LockOutcome
+pub fn design::executor::ports::LockOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::ports::LockOutcome
+impl core::marker::StructuralPartialEq for design::executor::ports::LockOutcome
+pub trait design::executor::ports::Clock
+pub fn design::executor::ports::Clock::now_seconds(&self) -> u64
+pub fn design::executor::ports::Clock::sleep_poll_interval(&self)
+pub trait design::executor::ports::Lock
+pub fn design::executor::ports::Lock::acquire(&self) -> core::result::Result<design::executor::ports::LockOutcome, kernel::Error>
+pub fn design::executor::ports::Lock::release(&self)
+pub trait design::executor::ports::PathResolution
+pub fn design::executor::ports::PathResolution::bootstrap_log(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
+pub fn design::executor::ports::PathResolution::namespace_root(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
+pub fn design::executor::ports::PathResolution::plugin_root(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
+pub trait design::executor::ports::ProcessControl
+pub fn design::executor::ports::ProcessControl::terminate(&self, pid: i32)
+pub trait design::executor::ports::ProcessProbe
+pub fn design::executor::ports::ProcessProbe::observe(&self, pid: i32) -> design::executor::daemon_identity::ObservedDaemon
+pub trait design::executor::ports::RunClient
+pub fn design::executor::ports::RunClient::run(self: alloc::boxed::Box<Self>, arguments: &[alloc::string::String]) -> core::result::Result<core::convert::Infallible, kernel::Error>
+pub trait design::executor::ports::Spawner
+pub fn design::executor::ports::Spawner::spawn(&self) -> core::result::Result<design::executor::handoff::Identity, kernel::Error>
+pub trait design::executor::ports::StateStore
+pub fn design::executor::ports::StateStore::clear(&self) -> core::result::Result<(), kernel::Error>
+pub fn design::executor::ports::StateStore::clear_stop_reason(&self) -> core::result::Result<(), kernel::Error>
+pub fn design::executor::ports::StateStore::read(&self) -> design::executor::daemon_identity::RecordedState
+pub mod design::executor::reuse
+pub enum design::executor::reuse::Reuse
+pub design::executor::reuse::Reuse::Recover
+pub design::executor::reuse::Reuse::Reuse(i32)
+impl core::clone::Clone for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::clone(&self) -> design::executor::reuse::Reuse
+impl core::cmp::Eq for design::executor::reuse::Reuse
+impl core::cmp::PartialEq for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::eq(&self, other: &design::executor::reuse::Reuse) -> bool
+impl core::fmt::Debug for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::reuse::Reuse
+impl core::marker::StructuralPartialEq for design::executor::reuse::Reuse
+pub const fn design::executor::reuse::evaluate(recorded: design::executor::daemon_identity::RecordedState, observed: design::executor::daemon_identity::ObservedDaemon) -> design::executor::reuse::Reuse
+pub enum design::executor::LauncherError
+pub design::executor::LauncherError::AnotherLauncherRunning
+pub design::executor::LauncherError::DaemonStartTimeout
+pub design::executor::LauncherError::DaemonStartTimeout::bootstrap_log: alloc::string::String
+pub design::executor::LauncherError::NoRepo
+pub design::executor::LauncherError::PlaywrightNotInstalled
+pub design::executor::LauncherError::PlaywrightNotInstalled::namespace_root: alloc::string::String
+impl design::executor::envelope::LauncherError
+pub const fn design::executor::envelope::LauncherError::category(&self) -> &'static str
+pub const fn design::executor::envelope::LauncherError::code(&self) -> &'static str
+pub const fn design::executor::envelope::LauncherError::exit_code(&self) -> u8
+pub fn design::executor::envelope::LauncherError::message(&self) -> alloc::string::String
+pub fn design::executor::envelope::LauncherError::render(&self) -> alloc::string::String
+impl core::clone::Clone for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::clone(&self) -> design::executor::envelope::LauncherError
+impl core::cmp::Eq for design::executor::envelope::LauncherError
+impl core::cmp::PartialEq for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::eq(&self, other: &design::executor::envelope::LauncherError) -> bool
+impl core::fmt::Debug for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::envelope::LauncherError
+pub fn design::executor::envelope::LauncherError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::envelope::LauncherError
+pub enum design::executor::ObservedDaemon
+pub design::executor::ObservedDaemon::Absent
+pub design::executor::ObservedDaemon::Live(design::executor::daemon_identity::ObservedStartTime)
+impl core::clone::Clone for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::clone(&self) -> design::executor::daemon_identity::ObservedDaemon
+impl core::cmp::Eq for design::executor::daemon_identity::ObservedDaemon
+impl core::cmp::PartialEq for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::eq(&self, other: &design::executor::daemon_identity::ObservedDaemon) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::ObservedDaemon
+pub fn design::executor::daemon_identity::ObservedDaemon::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::ObservedDaemon
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::ObservedDaemon
+pub enum design::executor::ObservedStartTime
+pub design::executor::ObservedStartTime::Known(u64)
+pub design::executor::ObservedStartTime::Unavailable
+impl core::clone::Clone for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::clone(&self) -> design::executor::daemon_identity::ObservedStartTime
+impl core::cmp::Eq for design::executor::daemon_identity::ObservedStartTime
+impl core::cmp::PartialEq for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::eq(&self, other: &design::executor::daemon_identity::ObservedStartTime) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::ObservedStartTime
+pub fn design::executor::daemon_identity::ObservedStartTime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::ObservedStartTime
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::ObservedStartTime
+pub enum design::executor::RecordedStartTime
+pub design::executor::RecordedStartTime::AbsentOrUnparseable
+pub design::executor::RecordedStartTime::Probe(u64)
+pub design::executor::RecordedStartTime::Wallclock(u64)
+pub design::executor::RecordedStartTime::WriterUnavailable
+impl core::clone::Clone for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::clone(&self) -> design::executor::daemon_identity::RecordedStartTime
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedStartTime
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::eq(&self, other: &design::executor::daemon_identity::RecordedStartTime) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedStartTime
+pub fn design::executor::daemon_identity::RecordedStartTime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedStartTime
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedStartTime
+pub enum design::executor::RecordedState
+pub design::executor::RecordedState::Daemon(design::executor::daemon_identity::RecordedDaemon)
+pub design::executor::RecordedState::None
+pub design::executor::RecordedState::PidUnparseable
+impl core::clone::Clone for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::clone(&self) -> design::executor::daemon_identity::RecordedState
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedState
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::eq(&self, other: &design::executor::daemon_identity::RecordedState) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedState
+pub fn design::executor::daemon_identity::RecordedState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedState
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedState
+pub enum design::executor::Reuse
+pub design::executor::Reuse::Recover
+pub design::executor::Reuse::Reuse(i32)
+impl core::clone::Clone for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::clone(&self) -> design::executor::reuse::Reuse
+impl core::cmp::Eq for design::executor::reuse::Reuse
+impl core::cmp::PartialEq for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::eq(&self, other: &design::executor::reuse::Reuse) -> bool
+impl core::fmt::Debug for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::reuse::Reuse
+impl core::marker::StructuralPartialEq for design::executor::reuse::Reuse
+pub struct design::executor::Identity
+pub design::executor::Identity::pid: i32
+pub design::executor::Identity::start_time: design::executor::daemon_identity::RecordedStartTime
+pub design::executor::Identity::token: alloc::string::String
+impl design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::parse(raw: &str) -> core::result::Result<Self, design::executor::handoff::MalformedIdentity>
+pub fn design::executor::handoff::Identity::render(&self) -> alloc::string::String
+impl core::clone::Clone for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::clone(&self) -> design::executor::handoff::Identity
+impl core::cmp::Eq for design::executor::handoff::Identity
+impl core::cmp::PartialEq for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::eq(&self, other: &design::executor::handoff::Identity) -> bool
+impl core::fmt::Debug for design::executor::handoff::Identity
+pub fn design::executor::handoff::Identity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::executor::handoff::Identity
+pub struct design::executor::Launcher<'ports>
+pub design::executor::Launcher::bootstrap_log: alloc::string::String
+pub design::executor::Launcher::clock: &'ports dyn design::executor::ports::Clock
+pub design::executor::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::Launcher::lock: &'ports dyn design::executor::ports::Lock
+pub design::executor::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
+pub design::executor::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
+pub design::executor::Launcher::state: &'ports dyn design::executor::ports::StateStore
+impl<'ports> design::executor::launch::Launcher<'ports>
+pub fn design::executor::launch::Launcher<'ports>::launch(&self, arguments: &[alloc::string::String], client: alloc::boxed::Box<(dyn design::executor::ports::RunClient + 'ports)>) -> core::result::Result<core::convert::Infallible, design::executor::launch::LaunchFailure>
+pub struct design::executor::RecordedDaemon
+pub design::executor::RecordedDaemon::pid: i32
+pub design::executor::RecordedDaemon::start_time: design::executor::daemon_identity::RecordedStartTime
+impl core::clone::Clone for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::clone(&self) -> design::executor::daemon_identity::RecordedDaemon
+impl core::cmp::Eq for design::executor::daemon_identity::RecordedDaemon
+impl core::cmp::PartialEq for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::eq(&self, other: &design::executor::daemon_identity::RecordedDaemon) -> bool
+impl core::fmt::Debug for design::executor::daemon_identity::RecordedDaemon
+pub fn design::executor::daemon_identity::RecordedDaemon::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::daemon_identity::RecordedDaemon
+impl core::marker::StructuralPartialEq for design::executor::daemon_identity::RecordedDaemon
+pub mod design::host
+pub enum design::host::HostError
+pub design::host::HostError::ControlCharacter
+pub design::host::HostError::Empty
+pub design::host::HostError::NumericEncoding
+pub design::host::HostError::Userinfo
+impl design::host::HostError
+pub fn design::host::HostError::message(&self, authority: &str) -> alloc::string::String
+impl core::clone::Clone for design::host::HostError
+pub fn design::host::HostError::clone(&self) -> design::host::HostError
+impl core::cmp::Eq for design::host::HostError
+impl core::cmp::PartialEq for design::host::HostError
+pub fn design::host::HostError::eq(&self, other: &design::host::HostError) -> bool
+impl core::error::Error for design::host::HostError
+impl core::fmt::Debug for design::host::HostError
+pub fn design::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::host::HostError
+pub fn design::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::host::HostError
+pub struct design::host::Host
+impl design::host::Host
+pub const fn design::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
+pub fn design::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, design::host::HostError>
+impl core::clone::Clone for design::host::Host
+pub fn design::host::Host::clone(&self) -> design::host::Host
+impl core::cmp::Eq for design::host::Host
+impl core::cmp::PartialEq for design::host::Host
+pub fn design::host::Host::eq(&self, other: &design::host::Host) -> bool
+impl core::fmt::Debug for design::host::Host
+pub fn design::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::host::Host
+pub fn design::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::host::Host
+pub mod design::host_reach
+pub enum design::host_reach::HostReach
+pub design::host_reach::HostReach::LinkLocal
+pub design::host_reach::HostReach::Loopback
+pub design::host_reach::HostReach::Private
+pub design::host_reach::HostReach::Public
+pub design::host_reach::HostReach::Reserved
+pub design::host_reach::HostReach::Unspecified
+impl design::host_reach::HostReach
+pub const fn design::host_reach::HostReach::description(self) -> &'static str
+impl core::clone::Clone for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::clone(&self) -> design::host_reach::HostReach
+impl core::cmp::Eq for design::host_reach::HostReach
+impl core::cmp::PartialEq for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::eq(&self, other: &design::host_reach::HostReach) -> bool
+impl core::fmt::Debug for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::host_reach::HostReach
+impl core::marker::StructuralPartialEq for design::host_reach::HostReach
+pub fn design::host_reach::classify(host: &design::host::Host) -> design::host_reach::HostReach
+pub mod design::leaked_credentials
+pub struct design::leaked_credentials::NamedSecret
+pub design::leaked_credentials::NamedSecret::name: alloc::string::String
+pub design::leaked_credentials::NamedSecret::value: alloc::string::String
+impl core::clone::Clone for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::clone(&self) -> design::leaked_credentials::NamedSecret
+impl core::cmp::Eq for design::leaked_credentials::NamedSecret
+impl core::cmp::PartialEq for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::eq(&self, other: &design::leaked_credentials::NamedSecret) -> bool
+impl core::fmt::Debug for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
+pub mod design::runtime
+pub mod design::runtime::downgrade
+pub enum design::runtime::downgrade::DowngradeReason
+pub design::runtime::downgrade::DowngradeReason::BootstrapFailed
+pub design::runtime::downgrade::DowngradeReason::CacheUnwritable
+pub design::runtime::downgrade::DowngradeReason::DiskFloorNotMet
+pub design::runtime::downgrade::DowngradeReason::ExecutorPingFailed
+pub design::runtime::downgrade::DowngradeReason::NodeMissing
+pub design::runtime::downgrade::DowngradeReason::NodeTooOld
+impl design::runtime::downgrade::DowngradeReason
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
+pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
+impl core::clone::Clone for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::clone(&self) -> design::runtime::downgrade::DowngradeReason
+impl core::cmp::Eq for design::runtime::downgrade::DowngradeReason
+impl core::cmp::PartialEq for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::eq(&self, other: &design::runtime::downgrade::DowngradeReason) -> bool
+impl core::fmt::Debug for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::downgrade::DowngradeReason
+impl core::marker::StructuralPartialEq for design::runtime::downgrade::DowngradeReason
+impl core::str::traits::FromStr for design::runtime::downgrade::DowngradeReason
+pub type design::runtime::downgrade::DowngradeReason::Err = design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::DowngradeReason::from_str(key: &str) -> core::result::Result<Self, Self::Err>
+pub struct design::runtime::downgrade::UnknownReason(pub alloc::string::String)
+impl core::clone::Clone for design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::UnknownReason::clone(&self) -> design::runtime::downgrade::UnknownReason
+impl core::cmp::Eq for design::runtime::downgrade::UnknownReason
+impl core::cmp::PartialEq for design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::UnknownReason::eq(&self, other: &design::runtime::downgrade::UnknownReason) -> bool
+impl core::error::Error for design::runtime::downgrade::UnknownReason
+impl core::fmt::Debug for design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::UnknownReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::UnknownReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::downgrade::UnknownReason
+pub mod design::source_location
+pub enum design::source_location::LocationError
+pub design::source_location::LocationError::Host
+pub design::source_location::LocationError::Host::authority: alloc::string::String
+pub design::source_location::LocationError::Host::error: design::host::HostError
+pub design::source_location::LocationError::PathEscape(alloc::string::String)
+pub design::source_location::LocationError::Scheme(alloc::string::String)
+impl core::clone::Clone for design::source_location::LocationError
+pub fn design::source_location::LocationError::clone(&self) -> design::source_location::LocationError
+impl core::cmp::Eq for design::source_location::LocationError
+impl core::cmp::PartialEq for design::source_location::LocationError
+pub fn design::source_location::LocationError::eq(&self, other: &design::source_location::LocationError) -> bool
+impl core::error::Error for design::source_location::LocationError
+impl core::fmt::Debug for design::source_location::LocationError
+pub fn design::source_location::LocationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::source_location::LocationError
+pub fn design::source_location::LocationError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::source_location::LocationError
+pub enum design::source_location::Scheme
+pub design::source_location::Scheme::Http
+pub design::source_location::Scheme::Https
+impl core::clone::Clone for design::source_location::Scheme
+pub fn design::source_location::Scheme::clone(&self) -> design::source_location::Scheme
+impl core::cmp::Eq for design::source_location::Scheme
+impl core::cmp::PartialEq for design::source_location::Scheme
+pub fn design::source_location::Scheme::eq(&self, other: &design::source_location::Scheme) -> bool
+impl core::fmt::Debug for design::source_location::Scheme
+pub fn design::source_location::Scheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::source_location::Scheme
+impl core::marker::StructuralPartialEq for design::source_location::Scheme
+pub enum design::source_location::SourceLocation
+pub design::source_location::SourceLocation::Blank
+pub design::source_location::SourceLocation::RepositoryPath(alloc::string::String)
+pub design::source_location::SourceLocation::Url
+pub design::source_location::SourceLocation::Url::host: design::host::Host
+pub design::source_location::SourceLocation::Url::scheme: design::source_location::Scheme
+impl core::clone::Clone for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::clone(&self) -> design::source_location::SourceLocation
+impl core::cmp::Eq for design::source_location::SourceLocation
+impl core::cmp::PartialEq for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::eq(&self, other: &design::source_location::SourceLocation) -> bool
+impl core::fmt::Debug for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::source_location::SourceLocation
+pub fn design::source_location::parse(location: &str) -> core::result::Result<design::source_location::SourceLocation, design::source_location::LocationError>
+pub mod design::verdict
+pub enum design::verdict::Verdict<Reason>
+pub design::verdict::Verdict::Accepted
+pub design::verdict::Verdict::Rejected(Reason)
+impl<Reason> design::verdict::Verdict<Reason>
+pub const fn design::verdict::Verdict<Reason>::is_accepted(&self) -> bool
+pub fn design::verdict::Verdict<Reason>::map_reason<Other>(self, rewrite: impl core::ops::function::FnOnce(Reason) -> Other) -> design::verdict::Verdict<Other>
+impl<Reason: core::clone::Clone> core::clone::Clone for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::clone(&self) -> design::verdict::Verdict<Reason>
+impl<Reason: core::cmp::Eq> core::cmp::Eq for design::verdict::Verdict<Reason>
+impl<Reason: core::cmp::PartialEq> core::cmp::PartialEq for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::eq(&self, other: &design::verdict::Verdict<Reason>) -> bool
+impl<Reason: core::fmt::Debug> core::fmt::Debug for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<Reason> core::marker::StructuralPartialEq for design::verdict::Verdict<Reason>
+pub enum design::AuthMode
+pub design::AuthMode::Form
+pub design::AuthMode::Header
+pub design::AuthMode::None
+impl core::clone::Clone for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::clone(&self) -> design::credentials::AuthMode
+impl core::cmp::Eq for design::credentials::AuthMode
+impl core::cmp::PartialEq for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::eq(&self, other: &design::credentials::AuthMode) -> bool
+impl core::fmt::Debug for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::credentials::AuthMode
+pub fn design::credentials::AuthMode::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::credentials::AuthMode
+impl core::marker::StructuralPartialEq for design::credentials::AuthMode
+pub enum design::DowngradeReason
+pub design::DowngradeReason::BootstrapFailed
+pub design::DowngradeReason::CacheUnwritable
+pub design::DowngradeReason::DiskFloorNotMet
+pub design::DowngradeReason::ExecutorPingFailed
+pub design::DowngradeReason::NodeMissing
+pub design::DowngradeReason::NodeTooOld
+impl design::runtime::downgrade::DowngradeReason
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
+pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
+impl core::clone::Clone for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::clone(&self) -> design::runtime::downgrade::DowngradeReason
+impl core::cmp::Eq for design::runtime::downgrade::DowngradeReason
+impl core::cmp::PartialEq for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::eq(&self, other: &design::runtime::downgrade::DowngradeReason) -> bool
+impl core::fmt::Debug for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::runtime::downgrade::DowngradeReason
+pub fn design::runtime::downgrade::DowngradeReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::downgrade::DowngradeReason
+impl core::marker::StructuralPartialEq for design::runtime::downgrade::DowngradeReason
+impl core::str::traits::FromStr for design::runtime::downgrade::DowngradeReason
+pub type design::runtime::downgrade::DowngradeReason::Err = design::runtime::downgrade::UnknownReason
+pub fn design::runtime::downgrade::DowngradeReason::from_str(key: &str) -> core::result::Result<Self, Self::Err>
+pub enum design::HostError
+pub design::HostError::ControlCharacter
+pub design::HostError::Empty
+pub design::HostError::NumericEncoding
+pub design::HostError::Userinfo
+impl design::host::HostError
+pub fn design::host::HostError::message(&self, authority: &str) -> alloc::string::String
+impl core::clone::Clone for design::host::HostError
+pub fn design::host::HostError::clone(&self) -> design::host::HostError
+impl core::cmp::Eq for design::host::HostError
+impl core::cmp::PartialEq for design::host::HostError
+pub fn design::host::HostError::eq(&self, other: &design::host::HostError) -> bool
+impl core::error::Error for design::host::HostError
+impl core::fmt::Debug for design::host::HostError
+pub fn design::host::HostError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::host::HostError
+pub fn design::host::HostError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::host::HostError
+pub enum design::HostReach
+pub design::HostReach::LinkLocal
+pub design::HostReach::Loopback
+pub design::HostReach::Private
+pub design::HostReach::Public
+pub design::HostReach::Reserved
+pub design::HostReach::Unspecified
+impl design::host_reach::HostReach
+pub const fn design::host_reach::HostReach::description(self) -> &'static str
+impl core::clone::Clone for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::clone(&self) -> design::host_reach::HostReach
+impl core::cmp::Eq for design::host_reach::HostReach
+impl core::cmp::PartialEq for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::eq(&self, other: &design::host_reach::HostReach) -> bool
+impl core::fmt::Debug for design::host_reach::HostReach
+pub fn design::host_reach::HostReach::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::host_reach::HostReach
+impl core::marker::StructuralPartialEq for design::host_reach::HostReach
+pub enum design::Reuse
+pub design::Reuse::Recover
+pub design::Reuse::Reuse(i32)
+impl core::clone::Clone for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::clone(&self) -> design::executor::reuse::Reuse
+impl core::cmp::Eq for design::executor::reuse::Reuse
+impl core::cmp::PartialEq for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::eq(&self, other: &design::executor::reuse::Reuse) -> bool
+impl core::fmt::Debug for design::executor::reuse::Reuse
+pub fn design::executor::reuse::Reuse::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::executor::reuse::Reuse
+impl core::marker::StructuralPartialEq for design::executor::reuse::Reuse
+pub enum design::SourceLocation
+pub design::SourceLocation::Blank
+pub design::SourceLocation::RepositoryPath(alloc::string::String)
+pub design::SourceLocation::Url
+pub design::SourceLocation::Url::host: design::host::Host
+pub design::SourceLocation::Url::scheme: design::source_location::Scheme
+impl core::clone::Clone for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::clone(&self) -> design::source_location::SourceLocation
+impl core::cmp::Eq for design::source_location::SourceLocation
+impl core::cmp::PartialEq for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::eq(&self, other: &design::source_location::SourceLocation) -> bool
+impl core::fmt::Debug for design::source_location::SourceLocation
+pub fn design::source_location::SourceLocation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::source_location::SourceLocation
+pub enum design::Verdict<Reason>
+pub design::Verdict::Accepted
+pub design::Verdict::Rejected(Reason)
+impl<Reason> design::verdict::Verdict<Reason>
+pub const fn design::verdict::Verdict<Reason>::is_accepted(&self) -> bool
+pub fn design::verdict::Verdict<Reason>::map_reason<Other>(self, rewrite: impl core::ops::function::FnOnce(Reason) -> Other) -> design::verdict::Verdict<Other>
+impl<Reason: core::clone::Clone> core::clone::Clone for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::clone(&self) -> design::verdict::Verdict<Reason>
+impl<Reason: core::cmp::Eq> core::cmp::Eq for design::verdict::Verdict<Reason>
+impl<Reason: core::cmp::PartialEq> core::cmp::PartialEq for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::eq(&self, other: &design::verdict::Verdict<Reason>) -> bool
+impl<Reason: core::fmt::Debug> core::fmt::Debug for design::verdict::Verdict<Reason>
+pub fn design::verdict::Verdict<Reason>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<Reason> core::marker::StructuralPartialEq for design::verdict::Verdict<Reason>
+pub struct design::Allowances
+pub design::Allowances::insecure_scheme: bool
+pub design::Allowances::internal: bool
+impl core::clone::Clone for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::clone(&self) -> design::access_policy::Allowances
+impl core::cmp::Eq for design::access_policy::Allowances
+impl core::cmp::PartialEq for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::eq(&self, other: &design::access_policy::Allowances) -> bool
+impl core::default::Default for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::default() -> design::access_policy::Allowances
+impl core::fmt::Debug for design::access_policy::Allowances
+pub fn design::access_policy::Allowances::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::access_policy::Allowances
+impl core::marker::StructuralPartialEq for design::access_policy::Allowances
+pub struct design::Credentials
+pub design::Credentials::auth_header: core::option::Option<alloc::string::String>
+pub design::Credentials::login_url: core::option::Option<alloc::string::String>
+pub design::Credentials::password: core::option::Option<alloc::string::String>
+pub design::Credentials::username: core::option::Option<alloc::string::String>
+impl core::clone::Clone for design::credentials::Credentials
+pub fn design::credentials::Credentials::clone(&self) -> design::credentials::Credentials
+impl core::cmp::Eq for design::credentials::Credentials
+impl core::cmp::PartialEq for design::credentials::Credentials
+pub fn design::credentials::Credentials::eq(&self, other: &design::credentials::Credentials) -> bool
+impl core::default::Default for design::credentials::Credentials
+pub fn design::credentials::Credentials::default() -> design::credentials::Credentials
+impl core::fmt::Debug for design::credentials::Credentials
+pub fn design::credentials::Credentials::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::credentials::Credentials
+pub struct design::Host
+impl design::host::Host
+pub const fn design::host::Host::address(&self) -> core::option::Option<core::net::ip_addr::IpAddr>
+pub fn design::host::Host::canonicalise(authority: &str) -> core::result::Result<Self, design::host::HostError>
+impl core::clone::Clone for design::host::Host
+pub fn design::host::Host::clone(&self) -> design::host::Host
+impl core::cmp::Eq for design::host::Host
+impl core::cmp::PartialEq for design::host::Host
+pub fn design::host::Host::eq(&self, other: &design::host::Host) -> bool
+impl core::fmt::Debug for design::host::Host
+pub fn design::host::Host::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::host::Host
+pub fn design::host::Host::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::host::Host
+pub struct design::NamedSecret
+pub design::NamedSecret::name: alloc::string::String
+pub design::NamedSecret::value: alloc::string::String
+impl core::clone::Clone for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::clone(&self) -> design::leaked_credentials::NamedSecret
+impl core::cmp::Eq for design::leaked_credentials::NamedSecret
+impl core::cmp::PartialEq for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::eq(&self, other: &design::leaked_credentials::NamedSecret) -> bool
+impl core::fmt::Debug for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
+pub const design::CUE_PHRASE_PATTERNS: [&str; 3]
+pub trait design::CuePhraseMatcher
+pub fn design::CuePhraseMatcher::matches(&self, text: &str) -> bool
+pub fn design::audit(document: &str, matcher: &dyn design::cue_phrase_audit::CuePhraseMatcher) -> alloc::vec::Vec<design::cue_phrase_audit::UncuedSection>
+pub fn design::evaluate(location: &design::source_location::SourceLocation, allowances: design::access_policy::Allowances) -> design::verdict::Verdict<alloc::string::String>
+pub fn design::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::PartialConfiguration>
+pub fn design::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
