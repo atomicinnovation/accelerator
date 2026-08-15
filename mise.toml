@@ -143,8 +143,10 @@ description = "Apply npm's non-breaking advisory fixes to the docs-site lockfile
 depends = ["deps:install:docs"]
 run = "invoke docs.audit-fix"
 
-# Deliberately NOT in the aggregate `check`: it writes gitignored artefacts
-# and needs network + a Chromium install, so the docs CI lane owns it.
+# Deliberately NOT in the aggregate `check`, which must stay the fast
+# read-only set CI's check lane runs: this writes gitignored artefacts and
+# needs network + a Chromium install. The bare default task does depend on
+# it, so a full local run still catches what the docs CI lane catches.
 [tasks."docs:check"]
 description = "Docs gate: strict site build incl. link validation + npm audit (CI-owned; needs network + Chromium)"
 depends = ["docs:build", "docs:generate:check", "docs:audit:check"]
@@ -618,8 +620,8 @@ description = "Run all read-only format, lint, and type checks (what CI runs)"
 depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "public-api:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
-description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, test (heavy — reformats in place + compiles Rust several times; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "public-api:check", "test"]
+description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, docs gate, test (heavy — reformats in place, compiles Rust several times, needs network + Chromium; for a fast inner loop use a single <component>:check)"
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "public-api:check", "docs:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

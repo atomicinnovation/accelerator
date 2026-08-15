@@ -632,3 +632,4 @@ locally with the mapped command:
 | `check-supply-chain`                  | `mise run deny:check`                                                                                                                                                                |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`, `public-api:check`)                                                                                                                  |
 | `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |
+| `check-docs`                          | `mise run docs:check` (absent from the aggregate `check` — needs network + Chromium — but reached by a bare `mise run`)                                                              |
