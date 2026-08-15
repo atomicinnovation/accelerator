@@ -19,15 +19,17 @@ fn the_conformance_properties_hold_against_the_recording_tracker(
 }
 
 #[test]
-fn an_unaccountable_id_is_indeterminate_not_absent() {
+fn an_unaccountable_id_is_indeterminate_not_absent(
+) -> Result<(), Box<dyn std::error::Error>> {
     let unseen = ExternalId::new("REC-unseen".to_owned());
     let subject = RecordingTracker::truncating(Vec::new(), vec![unseen]);
 
-    contract::unaccounted_id_is_indeterminate_not_absent(&subject);
+    contract::unaccounted_id_is_indeterminate_not_absent(&subject)?;
+    Ok(())
 }
 
 #[test]
-fn a_failing_show_is_retryable() {
+fn a_failing_show_is_retryable() -> Result<(), Box<dyn std::error::Error>> {
     let id = ExternalId::new("REC-1".to_owned());
     let subject = RecordingTracker::holding(Vec::new()).failing_show(
         id,
@@ -36,5 +38,6 @@ fn a_failing_show_is_retryable() {
         },
     );
 
-    contract::a_failing_read_is_retryable(&subject);
+    contract::a_failing_read_is_retryable(&subject)?;
+    Ok(())
 }

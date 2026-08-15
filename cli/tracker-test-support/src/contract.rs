@@ -61,7 +61,13 @@ pub fn partitions_totally(outcome: &FetchOutcome, requested: &[ExternalId]) {
     );
 }
 
-pub fn create_then_show_round_trips(subject: &dyn ContractSubject) {
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn create_then_show_round_trips(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
     let tracker = subject.tracker();
     let created = tracker
         .create("Contract title", "Contract body\n", "story")
@@ -73,9 +79,16 @@ pub fn create_then_show_round_trips(subject: &dyn ContractSubject) {
         !issue.body.is_empty(),
         "a freshly created issue must project a non-empty body"
     );
+    Ok(())
 }
 
-pub fn update_replaces_whole_content(subject: &dyn ContractSubject) {
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn update_replaces_whole_content(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
     let tracker = subject.tracker();
     let id = tracker
         .create("Original title", "Original body\n", "story")
@@ -94,24 +107,35 @@ pub fn update_replaces_whole_content(subject: &dyn ContractSubject) {
         .body;
 
     assert_ne!(before, after, "update must replace the issue's content");
+    Ok(())
 }
 
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
 pub fn fetch_all_partitions_totally(
     subject: &dyn ContractSubject,
     ids: &[ExternalId],
-) {
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
     let outcome = subject
         .tracker()
         .fetch_all(ids)
         .expect("fetch_all must succeed for a conformant implementation");
     partitions_totally(&outcome, ids);
+    Ok(())
 }
 
 /// Inferring absence from an incomplete retrieval is what makes a sync
 /// delete an issue that still exists.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
 pub fn unaccounted_id_is_indeterminate_not_absent(
     subject: &dyn ContractSubject,
-) {
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
     let unseen = subject.unaccountable_id();
     let outcome = subject
         .tracker()
@@ -125,11 +149,19 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
         outcome.indeterminate.contains(&unseen),
         "an id the retrieval could not account for must be reported indeterminate"
     );
+    Ok(())
 }
 
 /// A read mutates nothing, so the terminal class — "a mutation may have
 /// applied" — cannot arise.
-pub fn a_failing_read_is_retryable(subject: &dyn ContractSubject) {
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn a_failing_read_is_retryable(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
     let id = subject.unreadable_id();
     let error = subject
         .tracker()
@@ -139,6 +171,7 @@ pub fn a_failing_read_is_retryable(subject: &dyn ContractSubject) {
         !matches!(error, TrackerError::Terminal { .. }),
         "a read must never be classified terminal"
     );
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,6 +193,25 @@ impl Display for ContractGateError {
 
 impl std::error::Error for ContractGateError {}
 
+fn opted_in(raw: Option<&str>) -> bool {
+    raw == Some("1")
+}
+
+/// The opt-in gate, checked by every entry point that touches the tracker
+/// rather than by [`run_all`] alone: a caller reaching a property function
+/// directly must not thereby reach a live provider.
+fn ensure_opted_in() -> Result<(), ContractGateError> {
+    if opted_in(
+        std::env::var("ACCELERATOR_TRACKER_CONTRACT")
+            .ok()
+            .as_deref(),
+    ) {
+        Ok(())
+    } else {
+        Err(ContractGateError::NotOptedIn)
+    }
+}
+
 /// The conformance set: properties every implementation must satisfy
 /// unprompted, excluding the two that need a deliberately configured
 /// subject.
@@ -177,13 +229,65 @@ pub fn run_all(
     subject: &dyn ContractSubject,
     ids: &[ExternalId],
 ) -> Result<usize, ContractGateError> {
-    if std::env::var("ACCELERATOR_TRACKER_CONTRACT").as_deref() != Ok("1") {
-        return Err(ContractGateError::NotOptedIn);
-    }
-
-    create_then_show_round_trips(subject);
-    update_replaces_whole_content(subject);
-    fetch_all_partitions_totally(subject, ids);
+    create_then_show_round_trips(subject)?;
+    update_replaces_whole_content(subject)?;
+    fetch_all_partitions_totally(subject, ids)?;
 
     Ok(3)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::opted_in;
+    use super::ContractGateError;
+    use crate::RecordingTracker;
+
+    type GatedCall = fn(&RecordingTracker) -> Result<(), ContractGateError>;
+
+    /// Every entry point that touches the tracker, so a new one added
+    /// without a gate fails this rather than reaching a live provider.
+    fn gated_calls() -> Vec<(&'static str, GatedCall)> {
+        vec![
+            ("create_then_show_round_trips", |subject| {
+                super::create_then_show_round_trips(subject)
+            }),
+            ("update_replaces_whole_content", |subject| {
+                super::update_replaces_whole_content(subject)
+            }),
+            ("fetch_all_partitions_totally", |subject| {
+                super::fetch_all_partitions_totally(subject, &[])
+            }),
+            ("unaccounted_id_is_indeterminate_not_absent", |subject| {
+                super::unaccounted_id_is_indeterminate_not_absent(subject)
+            }),
+            ("a_failing_read_is_retryable", |subject| {
+                super::a_failing_read_is_retryable(subject)
+            }),
+        ]
+    }
+
+    #[test]
+    fn every_tracker_touching_entry_point_refuses_when_the_gate_is_closed() {
+        // nextest runs each test in its own process, so removing the
+        // variable here cannot race another test.
+        std::env::remove_var("ACCELERATOR_TRACKER_CONTRACT");
+        let subject = RecordingTracker::holding(Vec::new());
+
+        for (name, call) in gated_calls() {
+            assert_eq!(
+                call(&subject),
+                Err(ContractGateError::NotOptedIn),
+                "{name} ran with the gate closed — it would reach a live \
+                 provider once a real client implements ContractSubject"
+            );
+        }
+    }
+
+    #[test]
+    fn only_the_exact_opt_in_value_opens_the_gate() {
+        assert!(opted_in(Some("1")));
+        for closed in [None, Some(""), Some("0"), Some("true"), Some(" 1")] {
+            assert!(!opted_in(closed), "{closed:?} must not open the gate");
+        }
+    }
 }

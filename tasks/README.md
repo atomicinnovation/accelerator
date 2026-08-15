@@ -203,11 +203,15 @@ is a substring predicate that would silently pull a future
 Run the excluded suite with `mise run test:integration:tracker-contract`,
 which selects `profile.contract` (`binary(=contract)`) and sets
 `ACCELERATOR_TRACKER_CONTRACT=1`. That variable is a second, independent
-gate owned by the harness itself (`tracker-test-support::contract::run_all`
-errors, rather than skips, when it is unset) — belt and braces, because a
-filter is one line of config standing between a plain test run and a
-contract harness that, once real provider clients exist, makes live remote
-calls.
+gate owned by the harness itself: **every** entry point that touches the
+tracker checks it and errors, rather than skips, when it is unset — not
+`run_all` alone, since a caller reaching a property function directly must
+not thereby reach a live provider. Belt and braces, because the filter is
+one line of config standing between a plain test run and a contract harness
+that, once real provider clients exist, makes live remote calls. Each
+function returns `Result<(), ContractGateError>`, so `-D warnings` plus
+`must_use` makes an ignored gate a compile error rather than a silent
+bypass.
 
 `tests/unit/tasks/test_nextest_filter.py` guards the filter's exact spelling
 and that `tasks/test/cli.py` passes neither `--profile` nor
