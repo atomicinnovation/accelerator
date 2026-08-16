@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import subprocess
 from collections.abc import Mapping
@@ -24,6 +23,8 @@ from tasks.github import (
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.paths import DEBUG_ARCHIVE_DIRS, DISPATCHED_SUBBINARIES
 from tasks.shared.targets import TARGETS
+from tests.support.artefacts import build_shim
+from tests.support.tools import require
 
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -258,18 +259,6 @@ class TestIsPreReleaseVersion:
 
 
 # ── upload_and_verify_release() (unified single-gate publish) ─────────
-
-
-def _in_ci() -> bool:
-    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
-
-
-def _require(name: str) -> None:
-    if shutil.which(name):
-        return
-    if _in_ci():
-        pytest.fail(f"{name} not on PATH — provisioning regression in CI")
-    pytest.skip(f"{name} not on PATH")
 
 
 def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
@@ -555,28 +544,10 @@ class TestBuilderSeams:
 class TestReverifyViaShim:
     @pytest.fixture(scope="class")
     def shim_bin(self) -> Path:
-        _require("cargo")
-        subprocess.run(
-            [
-                "cargo",
-                "build",
-                "--quiet",
-                "-p",
-                "accelerator-verify",
-                "--manifest-path",
-                str(_REPO_ROOT / "cli/Cargo.toml"),
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        shim = _REPO_ROOT / "cli/target/debug/accelerator-verify"
-        if not (shim.exists() and os.access(shim, os.X_OK)):
-            pytest.fail(f"shim not built: {shim}")
-        return shim
+        return build_shim()
 
     def _keypair(self, tmp_path: Path, name: str) -> tuple[Path, Path]:
-        _require("minisign")
+        require("minisign")
         pub = tmp_path / f"{name}.pub"
         sec = tmp_path / f"{name}.sec"
         subprocess.run(

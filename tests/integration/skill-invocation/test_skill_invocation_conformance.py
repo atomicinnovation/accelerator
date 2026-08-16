@@ -34,8 +34,6 @@ from tests.integration.support.installation import (
     REPO_BIN,
     REPO_ROOT,
     Installation,
-    build_launcher,
-    build_shim,
     copy_bootstrap,
     generate_keys,
     host_platform,
@@ -43,6 +41,7 @@ from tests.integration.support.installation import (
     run_bootstrap,
     write_downloader,
 )
+from tests.support.artefacts import build_launcher, build_shim
 
 _SKILLS = REPO_ROOT / "skills"
 

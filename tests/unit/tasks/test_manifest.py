@@ -11,8 +11,6 @@ together cover the full parse → verify → resolve path against producer bytes
 
 import hashlib
 import json
-import os
-import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -33,6 +31,8 @@ from tasks.shared.errors import ManifestError
 from tasks.shared.paths import CLI_DIR, load_toml
 from tasks.shared.targets import TARGETS
 from tasks.signing import generate, sign_file
+from tests.support.artefacts import build_shim
+from tests.support.tools import require
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCHEMA = _REPO_ROOT / "cli/launcher/tests/fixtures/manifest.schema.json"
@@ -42,44 +42,13 @@ _REAL_VERSION = json.loads(
 _PLATFORMS = tuple(platform for _, platform in TARGETS)
 
 
-def _in_ci() -> bool:
-    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
-
-
-def _require(name: str) -> None:
-    if shutil.which(name):
-        return
-    message = f"{name} not on PATH"
-    if _in_ci():
-        pytest.fail(f"{message} — provisioning regression in CI")
-    pytest.skip(message)
-
-
 @pytest.fixture(scope="module")
 def shim_bin() -> Path:
-    _require("cargo")
-    subprocess.run(
-        [
-            "cargo",
-            "build",
-            "--quiet",
-            "-p",
-            "accelerator-verify",
-            "--manifest-path",
-            str(_REPO_ROOT / "cli/Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    shim = _REPO_ROOT / "cli/target/debug/accelerator-verify"
-    if not (shim.exists() and os.access(shim, os.X_OK)):
-        pytest.fail(f"shim not built: {shim}")
-    return shim
+    return build_shim()
 
 
 def _keypair(tmp_path: Path) -> tuple[Path, Path]:
-    _require("minisign")
+    require("minisign")
     pub = tmp_path / "release.pub"
     sec = tmp_path / "release.sec"
     generate(MagicMock(spec=Context), pub_path=str(pub), sec_path=str(sec))
@@ -147,7 +116,7 @@ class TestBuildManifest:
 
 class TestCollectEntries:
     def test_sources_description_and_signature(self, tmp_path):
-        _require("minisign")
+        require("minisign")
         _, sec = _keypair(tmp_path)
         staging = tmp_path / "dist"
         payloads = _stage_and_sign(staging, "foo", sec)
@@ -165,7 +134,7 @@ class TestCollectEntries:
             assert payloads[platform]  # staged
 
     def test_missing_description_raises(self, tmp_path):
-        _require("minisign")
+        require("minisign")
         _, sec = _keypair(tmp_path)
         staging = tmp_path / "dist"
         _stage_and_sign(staging, "foo", sec)

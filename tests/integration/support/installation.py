@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.tools import require
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REPO_BOOTSTRAP = REPO_ROOT / "bin/accelerator"
 REPO_BIN = REPO_ROOT / "bin"
@@ -90,20 +92,6 @@ sys.exit(22)
 """
 
 
-def in_ci() -> bool:
-    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
-
-
-def require(name: str) -> None:
-    """Skip locally, fail in CI: a missing tool there is a provisioning bug."""
-    if shutil.which(name):
-        return
-    message = f"{name} not on PATH"
-    if in_ci():
-        pytest.fail(f"{message} — provisioning regression in CI")
-    pytest.skip(message)
-
-
 def host_platform() -> str:
     """The running host's release-asset alias, e.g. ``darwin-arm64``."""
     arch = {
@@ -118,43 +106,6 @@ def host_platform() -> str:
             f"unsupported host: {platform.system()}/{platform.machine()}"
         )
     return f"{system}-{arch}"
-
-
-def _cargo_build(package: str, binary: str) -> Path:
-    require("cargo")
-    subprocess.run(
-        [
-            "cargo",
-            "build",
-            "--quiet",
-            *package.split(),
-            "--manifest-path",
-            str(REPO_ROOT / "cli/Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    built = REPO_ROOT / "cli/target/debug" / binary
-    if not (built.exists() and os.access(built, os.X_OK)):
-        pytest.fail(f"not built: {built}")
-    return built
-
-
-def build_shim() -> Path:
-    """Build and return the real `accelerator-verify` shim from `cli/`."""
-    return _cargo_build("-p accelerator-verify", "accelerator-verify")
-
-
-def build_launcher() -> Path:
-    """Build and return the real launcher from `cli/`.
-
-    Built here rather than behind a `mise` build edge so a suite using it still
-    runs standalone under a bare `uv run pytest`. A suite that calls this must
-    therefore *not* also gain a `build:cli:dev` dependency: the two would
-    contend on cargo's target lock and the asserted edge would be inert.
-    """
-    return _cargo_build("--bin accelerator", "accelerator")
 
 
 def generate_keys(key_dir: Path) -> Path:
