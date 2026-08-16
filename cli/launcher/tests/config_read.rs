@@ -192,7 +192,7 @@ fn get_of_an_unset_key_prints_the_callers_default() -> TestResult {
     Ok(())
 }
 
-/// The presence probe `jira-auth.sh:228` depends on: an explicitly empty
+/// The presence probe `jira-auth.sh` depends on: an explicitly empty
 /// default yields empty on a miss, with no catalogue lookup for `get`.
 #[test]
 fn get_with_an_explicit_empty_default_yields_empty_on_a_miss() -> TestResult {
@@ -854,11 +854,11 @@ fn review_matches_the_baseline_goldens_for_every_mode() -> TestResult {
 
 #[test]
 fn review_renders_the_catalogue_defaults_per_mode() -> TestResult {
-    // Replaces the catalogue drift test's dropped config-read-review.sh runtime
-    // cross-check: the rendered `review` output must carry the catalogue defaults
-    // per key and mode. `max lenses` and the work-item severity/count track
-    // `default_for`; `min lenses` is mode-specific (3 for work-item, 4 otherwise)
-    // and is asserted literally, since it is deliberately NOT `default_for`.
+    // The rendered `review` output must carry the catalogue defaults per key
+    // and mode. `max lenses` and the work-item severity/count track
+    // `default_for`; `min lenses` is mode-specific (3 for work-item, 4
+    // otherwise) and is asserted literally, since it is deliberately NOT
+    // `default_for`.
     fn scalar(key: &str) -> Result<String, Box<dyn Error>> {
         match config::catalogue::default_for(key) {
             Some(config::Value::Scalar(config::Scalar::String(text))) => {

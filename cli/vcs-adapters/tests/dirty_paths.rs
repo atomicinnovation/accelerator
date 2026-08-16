@@ -16,8 +16,11 @@ fn tempdir(tag: &str) -> Result<tempfile::TempDir, TestError> {
         .tempdir()?)
 }
 
+/// An untracked file counts as dirty because it is the least recoverable
+/// thing in the tree: overwriting one destroys content no commit holds. Both
+/// idioms report it, so the two backends return the same list.
 #[test]
-fn git_reports_a_modified_tracked_file_and_excludes_untracked(
+fn git_reports_a_modified_tracked_file_and_an_untracked_one(
 ) -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
     let work = tempdir("git")?;
@@ -36,7 +39,57 @@ fn git_reports_a_modified_tracked_file_and_excludes_untracked(
     let mut paths = probe.dirty_paths(&root, VcsKind::Git)?;
     paths.sort();
 
-    assert_eq!(paths, vec!["meta/a.md".to_owned()]);
+    assert_eq!(
+        paths,
+        vec!["meta/a.md".to_owned(), "meta/untracked.md".to_owned()]
+    );
+    Ok(())
+}
+
+#[test]
+fn git_excludes_an_ignored_file() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-ignored")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &root)?;
+    fs::write(root.join(".gitignore"), "build/\n*.log\n")?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "."], &root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &root)?;
+
+    fs::create_dir_all(root.join("build"))?;
+    fs::write(root.join("build/artifact.md"), "x\n")?;
+    fs::write(root.join("noisy.log"), "x\n")?;
+
+    let probe = InProcessProbe;
+    let paths = probe.dirty_paths(&root, VcsKind::Git)?;
+
+    assert!(paths.is_empty(), "{paths:?}");
+    Ok(())
+}
+
+#[test]
+fn jj_excludes_an_ignored_file() -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempdir("jj-ignored")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.jj(&["git", "init", "--no-colocate"], &root)?;
+    fs::write(root.join(".gitignore"), "build/\n*.log\n")?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.jj(&["commit", "-m", "init"], &root)?;
+
+    fs::create_dir_all(root.join("build"))?;
+    fs::write(root.join("build/artifact.md"), "x\n")?;
+    fs::write(root.join("noisy.log"), "x\n")?;
+
+    let probe = InProcessProbe;
+    let paths = probe.dirty_paths(&root, VcsKind::Jj)?;
+
+    assert!(paths.is_empty(), "{paths:?}");
     Ok(())
 }
 

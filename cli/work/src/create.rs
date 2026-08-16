@@ -30,6 +30,9 @@ pub struct CreateInputs<'a> {
     pub author: &'a str,
     pub producer: &'a str,
     pub date: &'a str,
+    /// `None` for a plain `create`, or a `--push` that saved locally
+    /// without reaching the tracker.
+    pub external_id: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,7 +77,8 @@ pub const KNOWN_FRONTMATTER_KEYS: &[&str] = &[
 /// `blocks`/`blocked_by`/`derived_from`/`relates_to`/`tags`), then
 /// `last_updated`/`last_updated_by` (identical to `date`/`author` at
 /// creation time) and `schema_version: 1` unconditionally. `external_id`
-/// is never written by `create` — omitted entirely, matching the
+/// is written only when `inputs.external_id` is `Some` — a successful
+/// `create --push` — and omitted entirely otherwise, matching the
 /// template's "omit when not linked" comment.
 #[must_use]
 pub fn compose_frontmatter(
@@ -139,6 +143,12 @@ pub fn compose_frontmatter(
     if let Some(source) = inputs.linkage.source {
         fields
             .push(("source".to_owned(), FieldValue::Scalar(source.to_owned())));
+    }
+    if let Some(external_id) = inputs.external_id {
+        fields.push((
+            "external_id".to_owned(),
+            FieldValue::Scalar(external_id.to_owned()),
+        ));
     }
     push_sequence_if_non_empty(&mut fields, "tags", inputs.tags);
 
@@ -263,6 +273,7 @@ mod tests {
             author: "Toby Clemson",
             producer: "accelerator-work",
             date: "2026-08-07T00:00:00+00:00",
+            external_id: None,
         }
     }
 
@@ -322,6 +333,18 @@ mod tests {
         assert!(keys.contains(&"tags"));
         assert!(!keys.contains(&"blocked_by"));
         assert!(!keys.contains(&"external_id"));
+    }
+
+    #[test]
+    fn external_id_is_written_only_when_supplied() {
+        let mut with_id = inputs(empty_linkage(), &[]);
+        with_id.external_id = Some("ENG-1");
+        let fields = compose_frontmatter(&with_id);
+        let value = fields
+            .iter()
+            .find(|(key, _)| key == "external_id")
+            .map(|(_, value)| value.clone());
+        assert_eq!(value, Some(FieldValue::Scalar("ENG-1".to_owned())));
     }
 
     #[test]

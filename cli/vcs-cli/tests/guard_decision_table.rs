@@ -1,5 +1,5 @@
-//! The 138-row `vcs guard` decision table (Phase 1), replayed end to end
-//! through the compiled `accelerator-vcs` binary over real jj/git checkouts.
+//! The 138-row `vcs guard` decision table, replayed end to end through the
+//! compiled `accelerator-vcs` binary over real jj/git checkouts.
 #![cfg(feature = "bash-parity")]
 
 use std::fs;

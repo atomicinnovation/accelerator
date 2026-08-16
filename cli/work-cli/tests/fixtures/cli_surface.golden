@@ -12,6 +12,7 @@ Commands:
   update           Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   canonicalise-id  Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
   next-number      Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  sync             Reconcile local work items with the configured remote tracker (`work.integration`)
   help             Print this message or the help of the given subcommand(s)
 
 Options:
@@ -86,6 +87,7 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
+      --push                         Push the new item to the configured remote tracker before writing it locally. A failure is reported, not prompted; the file is still written either way (see `--help`'s exit-code notes)
   -h, --help                         Print help
 
 === accelerator-work update --help ===
@@ -102,6 +104,7 @@ Options:
       --remove-tag <REMOVE_TAGS>  A tag to remove; repeatable
       --append <APPENDS>          A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY` (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
+      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged) or 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict)
   -h, --help                      Print help
 
 === accelerator-work canonicalise-id --help ===
@@ -124,4 +127,40 @@ Options:
       --project <PROJECT>  The project code, when the configured pattern needs one
       --count <COUNT>      How many sequential IDs to print [default: 1]
   -h, --help               Print help
+
+=== accelerator-work sync --help ===
+Reconcile local work items with the configured remote tracker (`work.integration`).
+
+Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 1 an internal error; 2 a usage error; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker. The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
+
+Usage: accelerator-work sync [OPTIONS]
+
+Options:
+      --push-only
+          Push local changes only; never write a local file
+
+      --pull-only
+          Pull remote changes only; never write to the remote
+
+      --preview
+          Report the actions a run would take without performing any of them. Remote reads still occur (this is what counts against rate limits); no create, update or local write does
+
+      --resolve <RESOLUTIONS>
+          An `<id>=<remote|local|skip>` order for a reported conflict; repeatable. An unrecognised token is treated as `skip`, with a warning naming the token and the accepted set
+
+      --per-item-reads
+          Read each item with its own request instead of one bulk retrieval
+
+      --max-pulls <MAX_PULLS>
+          Refuse the run if it would overwrite more than this many local files from the remote. 0 refuses every pull
+          
+          [default: 25]
+
+      --max-pushes <MAX_PUSHES>
+          Refuse the run if it would replace more than this many remote issues. 0 refuses every push
+          
+          [default: 25]
+
+  -h, --help
+          Print help (see a summary with '-h')
 

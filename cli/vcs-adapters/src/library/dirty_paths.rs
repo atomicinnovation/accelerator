@@ -3,6 +3,10 @@
 //! `jj-lib` snapshot (matching what the `jj` binary itself does before a
 //! diff) followed by a tree-diff against the working-copy commit's parent.
 //!
+//! Both sides count untracked files and exclude ignored ones: git's dirwalk
+//! is asked for `UntrackedFiles::Files`, and jj auto-tracks. `.gitignore` is
+//! honoured by each backend's own walk, so neither reports build output.
+//!
 //! Neither side shells out. The jj side writes tree/blob objects into the
 //! backend as an unavoidable consequence of computing the new tree's id
 //! (exactly as `jj diff` does) but never calls `LockedWorkspace::finish` —
@@ -38,7 +42,7 @@ pub(super) fn git_dirty_paths(root: &Path) -> Result<Vec<String>, Error> {
             path: root.to_path_buf(),
             source: Box::new(error),
         })?
-        .untracked_files(gix::status::UntrackedFiles::None);
+        .untracked_files(gix::status::UntrackedFiles::Files);
     let iter = status.into_iter(Vec::<gix::bstr::BString>::new()).map_err(
         |error| Error::Git {
             path: root.to_path_buf(),

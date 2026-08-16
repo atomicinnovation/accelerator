@@ -71,7 +71,7 @@ FM_FOREIGN_REF_KEYS=(work_item_id)
 # plan is optional; a `reviewer` on a review is always-valued — treating it as
 # optional only relaxes the presence requirement, never forbids it).
 # `work_item_id` is the foreign-ref alias the work-item-review row still lists
-# transitionally (dropped by Phase 5b of story 0070); omit-when-empty, never
+# transitionally; omit-when-empty, never
 # required.
 FM_OPTIONAL_EXTRAS="external_id reviewer pr_url merge_commit decision_makers work_item_id"
 

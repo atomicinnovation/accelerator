@@ -1,8 +1,7 @@
 //! Doctests `skills/config/migrate/SKILL.md`'s "Worked example" against the
-//! compiled binary, so the example cannot silently drift once its bash-era
-//! verification (`test-migrate-interactive.sh`'s `extract_block` scraping)
-//! is gone. Ports that scraping technique — marker-delimited fenced blocks —
-//! to Rust, then drives the exact scenario the doc describes: an ambiguous
+//! compiled binary, so the example cannot silently drift. Scrapes the doc's
+//! marker-delimited fenced blocks, then drives the exact scenario it
+//! describes: an ambiguous
 //! `## References` body linkage in `meta/work/0001-improve-startup-time.md`
 //! pointing at `meta/work/0042-add-a-caching-layer.md`, migrations 0001-0006
 //! already applied, `0007-unify-meta-corpus-frontmatter` pending.

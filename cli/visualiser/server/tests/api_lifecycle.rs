@@ -160,9 +160,9 @@ async fn lifecycle_unknown_slug_is_404() {
 
 #[tokio::test]
 async fn work_item_review_with_path_target_appears_in_work_item_cluster() {
-    // End-to-end Phase 4 guard: a work-item-review whose `target:`
-    // points at a work-item by path joins the work-item's cluster via
-    // the typed-linkage chain.
+    // End-to-end guard: a work-item-review whose `target:` points at a
+    // work-item by path joins the work-item's cluster via the
+    // typed-linkage chain.
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
     std::fs::create_dir_all(root.join("meta/work")).unwrap();

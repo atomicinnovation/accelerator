@@ -1,0 +1,50 @@
+# The sync-label golden: one oracle read by every implementation.
+#
+# Format, per section:
+#   [CLASSIFY]  <raw-external-id>|<expected-status>
+#   [LABEL]     <status>|<exit>|<expected-output>
+#   [DEFAULT]   <raw-external-id>|<expected-output>
+#
+# (empty) is the empty-value sentinel, as in work-item-file-dirty.golden and
+# work-item-canonicalise-id.golden. A trailing empty field would be invisible
+# in review and lost to any trailing-whitespace trim.
+#
+# Outputs carry NO trailing newline.
+#
+# CLASSIFY strips whitespace and quotes as one combined class from both
+# ends, not quotes and then whitespace. The mixed rows below are what
+# distinguish the two.
+#
+# remote-absent and indeterminate are exit-1 rows: only five states render a
+# label, and those rows pin the exit status alone, not the message. They are
+# classified states the caller handles, never labels /list-work-items
+# renders.
+#
+# DEFAULT is the composed no-flag arm, the one /list-work-items invokes.
+
+[CLASSIFY]
+PROJ-0042|synced
+BLA-123|synced
+atomic-innovation/accelerator#42|synced
+"PROJ-0042"|synced
+'PROJ-0042'|synced
+   "PROJ-0042"   |synced
+(empty)|unsynced
+""|unsynced
+   |unsynced
+"  "|unsynced
+'"|unsynced
+
+[LABEL]
+synced|0|🟢 synced
+unsynced|0|⚪ unsynced
+locally-modified|0|🔵 locally modified
+remotely-modified|0|🟣 remotely modified
+conflict|0|🔴 conflict
+remote-absent|1|(empty)
+indeterminate|1|(empty)
+bogus|1|(empty)
+
+[DEFAULT]
+PROJ-0042|🟢 synced
+(empty)|⚪ unsynced

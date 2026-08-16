@@ -3,6 +3,7 @@
 //! module entirely — it is never called on that path.
 
 use crate::manifest::classify;
+use crate::manifest::is_runner_managed;
 use crate::manifest::is_session_log;
 use crate::manifest::Ownership;
 use crate::manifest::RunnerPaths;
@@ -73,7 +74,12 @@ impl Preflight<'_> {
             return Ok((guard, PreflightOutcome::Clean));
         }
 
-        let dirty = self.scanner.dirty_paths(&SCOPES)?;
+        let dirty: Vec<String> = self
+            .scanner
+            .dirty_paths(&SCOPES)?
+            .into_iter()
+            .filter(|path| !is_runner_managed(path, &self.runner))
+            .collect();
         if dirty.is_empty() {
             self.manifest.write_manifest(&[])?;
             self.manifest.write_run_id(self.revision.as_deref())?;

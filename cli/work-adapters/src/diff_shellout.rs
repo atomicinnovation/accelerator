@@ -2,8 +2,7 @@
 //! output.
 //!
 //! The same "shell the real tool" adapter pattern already established for
-//! `vcs status`/`vcs log`. Port of `work-item-section-diff.sh:104-109`'s
-//! exact header format.
+//! `vcs status`/`vcs log`.
 //!
 //! This is the crate's one subprocess-spawning module, isolated (via
 //! `cli/pup.ron`'s `work_adapters_filesystem_reads_in_process` rule) from

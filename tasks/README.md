@@ -186,6 +186,37 @@ crate acquiring or replacing one is a hard failure needing either an `allow`
 addition (permissive) or a justified `[[licenses.exceptions]]` (copyleft), with
 the `uluru` MPL-2.0 entry as the template.
 
+### Contract-suite filtering
+
+Any crate's `tests/contract.rs` is excluded from the default test run —
+`test:unit:cli`'s `cargo nextest run`/`cargo llvm-cov nextest` — by
+`cli/.config/nextest.toml`, the first `.config/` directory in the tree (every
+other `cli/` tool config is flat: `rustfmt.toml`, `clippy.toml`, `deny.toml`,
+`pup.ron`). Its `profile.default.default-filter` is `not binary(=contract)`,
+matched by binary name rather than crate, so a contract crate's *unit* tests
+(e.g. `tracker-test-support`'s own `src/lib.rs` tests) keep running in the
+default pass while its behavioural contract harness needs an explicit
+opt-in. `binary(=contract)` is the exact-match form — bare `binary(contract)`
+is a substring predicate that would silently pull a future
+`contract_helpers`/`contract_smoke` binary into the contract profile too.
+
+Run the excluded suite with `mise run test:integration:tracker-contract`,
+which selects `profile.contract` (`binary(=contract)`) and sets
+`ACCELERATOR_TRACKER_CONTRACT=1`. That variable is a second, independent
+gate owned by the harness itself: **every** entry point that touches the
+tracker checks it and errors, rather than skips, when it is unset — not
+`run_all` alone, since a caller reaching a property function directly must
+not thereby reach a live provider. Belt and braces, because the filter is
+one line of config standing between a plain test run and a contract harness
+that, once real provider clients exist, makes live remote calls. Each
+function returns `Result<(), ContractGateError>`, so `-D warnings` plus
+`must_use` makes an ignored gate a compile error rather than a silent
+bypass.
+
+`tests/unit/tasks/test_nextest_filter.py` guards the filter's exact spelling
+and that `tasks/test/cli.py` passes neither `--profile` nor
+`--ignore-default-filter`, either of which would bypass it silently.
+
 ### Zero-spawn strong form
 
 The library-backed VCS adapter reads git and jj **in-process**. Two mechanisms
@@ -576,6 +607,10 @@ owes five things. `cli/tracker/` is the worked example.
   (`__H` in the `corpus` and `tracker` snapshots is *not* an instance: it comes
   from std's `Hash` derive, which no dependency bump touches.)
 
+  If the new crate's tests include a `tests/contract.rs` binary, see
+  "Contract-suite filtering" above — it is excluded from `test:unit:cli` by
+  name and needs no per-crate registration of its own.
+
   Read such a diff as the pin doing its job, not as noise to absorb: a crate
   exposing a dependency's type in its own surface is now visible rather than
   merely true. Prefer removing the exposure to accepting the snapshot — a
@@ -597,3 +632,4 @@ locally with the mapped command:
 | `check-supply-chain`                  | `mise run deny:check`                                                                                                                                                                |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`, `public-api:check`)                                                                                                                  |
 | `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |
+| `check-docs`                          | `mise run docs:check` (absent from the aggregate `check` — needs network + Chromium — but reached by a bare `mise run`)                                                              |

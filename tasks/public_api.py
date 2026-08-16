@@ -35,6 +35,10 @@ _COMPOSITION_ROOT = (
     "a composition root: it owns a binary, and its library surface exists only "
     "to be wired up by its own main"
 )
+_TEST_SUPPORT = (
+    "test support: consumed only by other crates' test targets, where a"
+    " widened surface is caught by the tests that use it failing to compile"
+)
 
 _EXEMPT_MEMBERS = {
     "config-adapters": _ADAPTER,
@@ -67,10 +71,8 @@ _EXEMPT_MEMBERS = {
         " is the epoch value itself, held by the fixture-replayed arithmetic"
         " tests and by the identity semantics each caller builds on top"
     ),
-    "vcs-test-support": (
-        "test support: consumed only by other crates' test targets, where a"
-        " widened surface is caught by the tests that use it failing to compile"
-    ),
+    "tracker-test-support": _TEST_SUPPORT,
+    "vcs-test-support": _TEST_SUPPORT,
 }
 
 

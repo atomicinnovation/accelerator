@@ -1,12 +1,10 @@
 //! Pure decision logic for `vcs guard`: which `git` subcommands have a jj
 //! equivalent, and quote-aware compound-command splitting.
 //!
-//! Reproduces `hooks/vcs-guard.sh`'s blocklist, allowlist, and jj-equivalent
-//! suggestions verbatim. The compound-command splitter is a declared
-//! departure: it is quote-aware (tracking single- and double-quote state,
-//! splitting on `&&`/`||`/`;`/`|` only when unquoted) rather than porting the
-//! shell's quote-blind `sed`-then-split, which wrongly splits inside a quoted
-//! argument such as `git commit -m "build && test"`.
+//! The compound-command splitter is quote-aware, tracking single- and
+//! double-quote state and splitting on `&&`/`||`/`;`/`|` only when
+//! unquoted. A quote-blind split would break inside a quoted argument such
+//! as `git commit -m "build && test"`.
 
 /// The outcome of evaluating a Bash tool call's command text.
 #[derive(Debug, Clone, PartialEq, Eq)]

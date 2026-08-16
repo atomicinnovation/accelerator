@@ -72,6 +72,20 @@ pub enum Command {
         #[arg(long, default_value_t = 1)]
         count: u32,
     },
+    /// Reconcile local work items with the configured remote tracker
+    /// (`work.integration`).
+    ///
+    /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
+    /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
+    /// read failed or every per-item failure was retryable; 71 any
+    /// per-item failure was terminal; 1 an internal error; 2 a usage
+    /// error; 5 refused (would exceed --max-pulls/--max-pushes, zero
+    /// writes); 72 the configured tracker is recognised but has no client
+    /// built yet; 73 work.integration is unset or names an unrecognised
+    /// tracker. The report on stdout is authoritative: check it for
+    /// `unresolved` lines regardless of exit code, since a 71 run may
+    /// also carry conflicts.
+    Sync(Box<SyncArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -105,6 +119,14 @@ pub struct UpdateArgs {
     /// repeatable.
     #[arg(long = "remove", value_parser = parse_key_value)]
     pub removes: Vec<(String, String)>,
+    /// Replace the item's remote issue with its whole rendered content
+    /// before writing the edit locally. Refused when the item has no
+    /// `external_id` — see `create --push` for an unsynced item. Unlike
+    /// `create --push`, a failed push leaves the local file untouched:
+    /// exit 70 (retryable, unchanged) or 71 (terminal, baseline entry
+    /// cleared so the next `sync` reconciles it as a conflict).
+    #[arg(long)]
+    pub push: bool,
 }
 
 /// `work create`'s flags — a separate [`Args`] struct (boxed at the
@@ -156,4 +178,42 @@ pub struct CreateArgs {
     /// body.
     #[arg(long = "body-file")]
     pub body_file: Option<PathBuf>,
+    /// Push the new item to the configured remote tracker before writing
+    /// it locally. A failure is reported, not prompted; the file is still
+    /// written either way (see `--help`'s exit-code notes).
+    #[arg(long)]
+    pub push: bool,
+}
+
+/// `work sync`'s flags, boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct SyncArgs {
+    /// Push local changes only; never write a local file.
+    #[arg(long, conflicts_with = "pull_only")]
+    pub push_only: bool,
+    /// Pull remote changes only; never write to the remote.
+    #[arg(long)]
+    pub pull_only: bool,
+    /// Report the actions a run would take without performing any of
+    /// them. Remote reads still occur (this is what counts against rate
+    /// limits); no create, update or local write does.
+    #[arg(long)]
+    pub preview: bool,
+    /// An `<id>=<remote|local|skip>` order for a reported conflict;
+    /// repeatable. An unrecognised token is treated as `skip`, with a
+    /// warning naming the token and the accepted set.
+    #[arg(long = "resolve", value_parser = parse_key_value)]
+    pub resolutions: Vec<(String, String)>,
+    /// Read each item with its own request instead of one bulk retrieval.
+    #[arg(long)]
+    pub per_item_reads: bool,
+    /// Refuse the run if it would overwrite more than this many local
+    /// files from the remote. 0 refuses every pull.
+    #[arg(long, default_value_t = 25)]
+    pub max_pulls: usize,
+    /// Refuse the run if it would replace more than this many remote
+    /// issues. 0 refuses every push.
+    #[arg(long, default_value_t = 25)]
+    pub max_pushes: usize,
 }

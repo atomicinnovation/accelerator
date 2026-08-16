@@ -161,6 +161,7 @@ dependencies = [
  "document",
  "kernel",
  "tempfile",
+ "tracker",
  "work",
  "work-adapters",
 ]
@@ -3078,6 +3079,7 @@ dependencies = [
  "tracing",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -4822,6 +4824,13 @@ name = "tracker"
 version = "1.24.0-pre.38"
 
 [[package]]
+name = "tracker-test-support"
+version = "1.24.0-pre.38"
+dependencies = [
+ "tracker",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5416,17 +5425,25 @@ version = "1.24.0-pre.38"
 dependencies = [
  "corpus",
  "kernel",
+ "serde_json",
+ "tracker",
 ]
 
 [[package]]
 name = "work-adapters"
 version = "1.24.0-pre.38"
 dependencies = [
+ "corpus",
  "kernel",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
+ "tracing",
+ "tracker",
+ "tracker-test-support",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
  "work",
 ]
 

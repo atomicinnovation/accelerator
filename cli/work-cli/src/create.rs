@@ -20,6 +20,8 @@ use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
+use tracker::ExternalId;
+use tracker::TrackerError;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
 use work::create::resolve_author;
@@ -29,13 +31,23 @@ use work::create::TypedLinkage;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
+use work::sync::MarkerState;
+use work::sync::PendingPush;
+use work::sync::PushOutcome;
+use work::sync::PushPrecondition;
+use work::sync::RefusalReason;
+use work::sync::RequestFingerprint;
 use work_adapters::author::VcsBackedIdentityProbe;
 use work_adapters::filesystem::FilesystemLister;
 
 use crate::config::configured_override;
+use crate::config::effective_nonempty;
 use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 use crate::config::templates_dir;
+use crate::exit_codes;
+use crate::tracker_registry::SelectionError;
+use crate::tracker_registry::TrackerRegistry;
 
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
@@ -57,10 +69,19 @@ pub struct CreateArgs {
     pub author: Option<String>,
     pub producer: String,
     pub body_file: Option<PathBuf>,
+    pub push: bool,
+}
+
+pub struct PushReport {
+    pub outcome: PushOutcome,
+    pub external_id: Option<String>,
 }
 
 pub enum RunOutcome {
-    Created(PathBuf),
+    Created {
+        path: PathBuf,
+        push: Option<PushReport>,
+    },
     Failed(String),
 }
 
@@ -229,12 +250,266 @@ fn resolve_body(
         .replace(TITLE_PLACEHOLDER, &args.title))
 }
 
+fn corpus_carries_external_id(
+    work_dir: &Path,
+    external_id: &ExternalId,
+) -> bool {
+    let Ok(entries) = std::fs::read_dir(work_dir) else {
+        return false;
+    };
+    entries.filter_map(Result::ok).any(|entry| {
+        let path = entry.path();
+        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("md") {
+            return false;
+        }
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            return false;
+        };
+        let Ok((frontmatter, _)) =
+            work_adapters::sync::digest::split_frontmatter_and_body(&content)
+        else {
+            return false;
+        };
+        work::show::read_field_raw(&frontmatter, "external_id").is_some_and(
+            |raw| {
+                raw.trim_matches(|c: char| {
+                    c.is_ascii_whitespace() || c == '"' || c == '\''
+                }) == external_id.as_str()
+            },
+        )
+    })
+}
+
+fn refusal_message(
+    reason: RefusalReason,
+    marker_path: &Path,
+    marker: Option<&PendingPush>,
+) -> String {
+    match reason {
+        RefusalReason::MarkerUnreadable => format!(
+            "E_PUSH_MARKER_UNREADABLE: the pending-push marker at {} could \
+             not be parsed; a previous create may have partially applied. \
+             Inspect or remove the marker before retrying.",
+            marker_path.display()
+        ),
+        RefusalReason::PriorAttemptUnknownOutcome => {
+            let Some(PendingPush::Attempted { request }) = marker else {
+                unreachable!("PriorAttemptUnknownOutcome always carries an Attempted marker")
+            };
+            format!(
+                "E_PUSH_PENDING: a previous create attempt for '{}' at {} \
+                 (recorded at {}{}) has an unknown outcome — a remote \
+                 issue may already exist. Inspect it, then remove the \
+                 marker to retry.",
+                request.title,
+                marker_path.display(),
+                request.attempted_at,
+                request
+                    .failure
+                    .as_deref()
+                    .map(|detail| format!(", failure: {detail}"))
+                    .unwrap_or_default()
+            )
+        }
+        RefusalReason::FingerprintMismatch => format!(
+            "E_PUSH_FINGERPRINT_MISMATCH: the pending-push marker at {} was \
+             recorded for a different request with the same title but a \
+             different body or kind. Remove the marker to force a new \
+             create.",
+            marker_path.display()
+        ),
+        RefusalReason::AlreadyWritten => {
+            let Some(PendingPush::Created { external_id, .. }) = marker else {
+                unreachable!("AlreadyWritten always carries a Created marker")
+            };
+            format!(
+                "E_PUSH_ALREADY_WRITTEN: the pending-push marker at {} \
+                 claims external_id '{}', already carried by a work item \
+                 on disk. Remove the marker if this is a genuine duplicate \
+                 create.",
+                marker_path.display(),
+                external_id.as_str()
+            )
+        }
+    }
+}
+
+const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
+    match error {
+        SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
+        SelectionError::Unset | SelectionError::Unrecognised { .. } => {
+            exit_codes::UNRECOGNISED
+        }
+    }
+}
+
+const fn dispatch_code_for_tracker_error(error: &TrackerError) -> u8 {
+    match error {
+        TrackerError::Retryable { .. } => exit_codes::RETRYABLE,
+        TrackerError::Terminal { .. } => exit_codes::TERMINAL,
+    }
+}
+
+fn attempted_at_epoch() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default()
+}
+
+struct PushExecution {
+    outcome: PushOutcome,
+    external_id: Option<String>,
+    marker_to_delete_after_write: Option<PathBuf>,
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+fn execute_push(
+    integrations_root: &Path,
+    integration: &str,
+    slug: &str,
+    args: &CreateArgs,
+    body: &str,
+    work_dir: &Path,
+    registry: &dyn TrackerRegistry,
+) -> Result<PushExecution, String> {
+    let marker_path = work_adapters::sync::pending_push::path(
+        integrations_root,
+        integration,
+        slug,
+    );
+    let marker_store =
+        FileCorpusStore::new(marker_path.parent().unwrap_or(integrations_root));
+    let marker_content = std::fs::read_to_string(&marker_path).ok();
+    let parsed =
+        work_adapters::sync::pending_push::read(marker_content.as_deref());
+    let digest = work_adapters::sync::pending_push::request_digest(
+        &args.title,
+        body,
+        &args.kind,
+    );
+
+    let marker_state = match &parsed {
+        Err(_) => MarkerState::Unreadable,
+        Ok(None) => MarkerState::Absent,
+        Ok(Some(marker)) => MarkerState::Present(marker),
+    };
+    let corpus_carries =
+        |id: &ExternalId| corpus_carries_external_id(work_dir, id);
+    let precondition =
+        work::sync::push_precondition(&marker_state, &digest, &corpus_carries);
+
+    match precondition {
+        PushPrecondition::Refuse(reason) => Err(refusal_message(
+            reason,
+            &marker_path,
+            parsed.ok().flatten().as_ref(),
+        )),
+        PushPrecondition::ReuseId(external_id) => Ok(PushExecution {
+            outcome: PushOutcome::WriteOnce,
+            external_id: Some(external_id.as_str().to_owned()),
+            marker_to_delete_after_write: Some(marker_path),
+        }),
+        PushPrecondition::Proceed => {
+            let tracker = match registry.resolve(integration) {
+                Ok(tracker) => tracker,
+                Err(error) => {
+                    let outcome = work::sync::push_decide(
+                        dispatch_code_for_selection_error(&error),
+                        1,
+                        false,
+                    );
+                    return Ok(PushExecution {
+                        outcome,
+                        external_id: None,
+                        marker_to_delete_after_write: None,
+                    });
+                }
+            };
+
+            let fingerprint = RequestFingerprint {
+                title: args.title.clone(),
+                digest,
+                attempted_at: attempted_at_epoch(),
+                failure: None,
+            };
+            let attempted = PendingPush::Attempted {
+                request: fingerprint.clone(),
+            };
+            AtomicWrite::write(
+                &marker_store,
+                &marker_path,
+                work_adapters::sync::pending_push::render(&attempted)
+                    .as_bytes(),
+            )
+            .map_err(|error| error.to_string())?;
+
+            match tracker.create(&args.title, body, &args.kind) {
+                Ok(external_id) => {
+                    let created = PendingPush::Created {
+                        request: fingerprint,
+                        external_id: external_id.clone(),
+                    };
+                    AtomicWrite::write(
+                        &marker_store,
+                        &marker_path,
+                        work_adapters::sync::pending_push::render(&created)
+                            .as_bytes(),
+                    )
+                    .map_err(|error| error.to_string())?;
+                    Ok(PushExecution {
+                        outcome: PushOutcome::WriteOnce,
+                        external_id: Some(external_id.as_str().to_owned()),
+                        marker_to_delete_after_write: Some(marker_path),
+                    })
+                }
+                Err(error @ TrackerError::Retryable { .. }) => {
+                    std::fs::remove_file(&marker_path).ok();
+                    let outcome = work::sync::push_decide(
+                        dispatch_code_for_tracker_error(&error),
+                        1,
+                        false,
+                    );
+                    Ok(PushExecution {
+                        outcome,
+                        external_id: None,
+                        marker_to_delete_after_write: None,
+                    })
+                }
+                Err(TrackerError::Terminal { detail }) => {
+                    let failed = PendingPush::Attempted {
+                        request: RequestFingerprint {
+                            failure: Some(detail),
+                            ..fingerprint
+                        },
+                    };
+                    AtomicWrite::write(
+                        &marker_store,
+                        &marker_path,
+                        work_adapters::sync::pending_push::render(&failed)
+                            .as_bytes(),
+                    )
+                    .map_err(|error| error.to_string())?;
+                    let outcome =
+                        work::sync::push_decide(exit_codes::TERMINAL, 1, false);
+                    Ok(PushExecution {
+                        outcome,
+                        external_id: None,
+                        marker_to_delete_after_write: None,
+                    })
+                }
+            }
+        }
+    }
+}
+
 fn try_run(
     start: &Path,
     config: &dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &CreateArgs,
-) -> Result<PathBuf, String> {
+    registry: &dyn TrackerRegistry,
+) -> Result<(PathBuf, Option<PushReport>), String> {
     let scheme = resolve_scheme(config).map_err(|error| error.to_string())?;
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
@@ -264,6 +539,43 @@ fn try_run(
     let author =
         resolve_author(args.author.as_deref(), &VcsBackedIdentityProbe)?;
     let resolved_template = resolve_and_check_template(config, templates)?;
+    let body = resolve_body(args, &resolved_template, &id)?;
+
+    let slug = slugify(&args.title);
+    let target = work_dir.join(format!("{id}-{slug}.md"));
+    if target.exists() {
+        return Err(format!(
+            "refusing to overwrite an existing file: {}",
+            target.display()
+        ));
+    }
+
+    let (external_id, push_report, marker_to_delete_after_write) = if args.push
+    {
+        let integration = effective_nonempty(config, "work.integration")
+            .map_err(|error| error.to_string())?;
+        let integrations_root = crate::sync::integrations_dir(config, &root)
+            .map_err(|error| error.to_string())?;
+        let execution = execute_push(
+            &integrations_root,
+            &integration,
+            &slug,
+            args,
+            &body,
+            &work_dir,
+            registry,
+        )?;
+        (
+            execution.external_id.clone(),
+            Some(PushReport {
+                outcome: execution.outcome,
+                external_id: execution.external_id,
+            }),
+            execution.marker_to_delete_after_write,
+        )
+    } else {
+        (None, None, None)
+    };
 
     let inputs = CreateInputs {
         id: &id,
@@ -283,25 +595,20 @@ fn try_run(
         author: &author,
         producer: &args.producer,
         date: &metadata.datetime_utc,
+        external_id: external_id.as_deref(),
     };
     let frontmatter_block = render_frontmatter(&inputs)?;
-    let body = resolve_body(args, &resolved_template, &id)?;
-
-    let slug = slugify(&args.title);
-    let target = work_dir.join(format!("{id}-{slug}.md"));
-    if target.exists() {
-        return Err(format!(
-            "refusing to overwrite an existing file: {}",
-            target.display()
-        ));
-    }
 
     let content = format!("{frontmatter_block}{body}");
     let store = FileCorpusStore::new(&work_dir);
     AtomicWrite::write(&store, &target, content.as_bytes())
         .map_err(|error| error.to_string())?;
 
-    Ok(target)
+    if let Some(marker_path) = marker_to_delete_after_write {
+        std::fs::remove_file(&marker_path).ok();
+    }
+
+    Ok((target, push_report))
 }
 
 /// # Errors
@@ -313,9 +620,10 @@ pub fn run(
     config: &dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &CreateArgs,
+    registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
-    match try_run(start, config, templates, args) {
-        Ok(path) => RunOutcome::Created(path),
+    match try_run(start, config, templates, args, registry) {
+        Ok((path, push)) => RunOutcome::Created { path, push },
         Err(message) => RunOutcome::Failed(message),
     }
 }

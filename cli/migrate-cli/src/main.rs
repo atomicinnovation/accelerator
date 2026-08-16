@@ -233,6 +233,7 @@ fn run_default(
             skipped: RUNNER_SKIPPED,
             run_paths: RUNNER_RUN_PATHS,
             run_id: RUNNER_RUN_ID,
+            lock_dir: migrate_adapters::run_lock::LOCK_DIR,
         },
         revision: ctx.revision(),
         force: force_requested(),

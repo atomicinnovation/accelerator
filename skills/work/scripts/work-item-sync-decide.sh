@@ -20,7 +20,7 @@ set -euo pipefail
 #         skip-conflict report a conflict and leave both sides unchanged
 #         skip-dirty    skip a pull whose local file has uncommitted changes
 #         prompt        hand to the interactive conflict/dirty resolver
-#                       (bidirectional only; Phase 7)
+#                       (bidirectional only)
 #         noop          nothing to do / forbidden-write cell / unknown remote
 #       <state> ∈ synced | locally-modified | remotely-modified | conflict
 #                | remote-absent | indeterminate | unsynced
@@ -28,7 +28,7 @@ set -euo pipefail
 #       local file; a dirty file must never be silently overwritten).
 #
 #   resolve-conflict-token <raw>
-#       Map a typed conflict-prompt token to ONE action (Phase 7). After trimming
+#       Map a typed conflict-prompt token to ONE action. After trimming
 #       and case-folding: remote→accept-remote, local→push-local; EMPTY or any
 #       UNRECOGNISED token→skip (never a destructive write). The SKILL owns the
 #       re-prompt-once wording; the safe default lives here so the
@@ -134,7 +134,7 @@ _wisd_decide() {
       esac
       ;;
     conflict)
-      # Both ahead. Bidirectional resolves interactively (Phase 7); directional
+      # Both ahead. Bidirectional resolves interactively; directional
       # modes report and skip (a resolution would need a write the mode forbids).
       case "$mode" in
         bidirectional) printf 'prompt\n' ;;

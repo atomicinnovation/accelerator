@@ -819,7 +819,7 @@ mod tests {
                     timestamp >= before && timestamp <= after,
                     "timestamp {timestamp} not within [{before}, {after}]"
                 );
-                // AC6 verbatim — 1-second tolerance against broadcast wall-clock.
+                // 1-second tolerance against broadcast wall-clock.
                 assert!(
                     (after - timestamp).num_milliseconds().abs() < 1_000,
                     "AC6: timestamp {timestamp} not within 1s of broadcast time {after}"

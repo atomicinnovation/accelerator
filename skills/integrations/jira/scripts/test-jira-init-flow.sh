@@ -114,7 +114,7 @@ PROJ_COUNT=$(jq '.projects | length' "$PROJECTS_JSON")
 assert_eq "projects.json has 2 projects" "2" "$PROJ_COUNT"
 assert_eq "first project key" "ENG" "$(jq -r '.projects[0].key' "$PROJECTS_JSON")"
 
-# fields.json: already validated in Phase 6
+# fields.json: already validated above
 FIELD_COUNT=$(jq '.fields | length' "$FIELDS_JSON")
 assert_eq "fields.json populated" "9" "$FIELD_COUNT"
 

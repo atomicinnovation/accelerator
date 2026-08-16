@@ -40,8 +40,8 @@ echo "=== SKILL.md frontmatter population prose ==="
 
 SKILLS_TSV="$SCRIPT_DIR/skills-schema.tsv"
 
-# Allowlists for the Phase 11 discovery assertion. Together they must cover
-# every SKILL.md surfaced by Pass A or Pass B (see Phase 11 of the plan).
+# Allowlists for the discovery assertion below. Together they must cover
+# every SKILL.md surfaced by Pass A or Pass B.
 IN_SCOPE_PRODUCERS=(
   skills/work/create-work-item/SKILL.md
   skills/work/extract-work-items/SKILL.md
@@ -342,11 +342,8 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# Phase 11 discovery assertion: every SKILL.md surfaced by Pass A or Pass B
-# must appear in one of the three allowlists. The patterns are kept here
-# (rather than in the work item) so the test and the work-item's recorded
-# Discovery Pass Record share a single source of truth (the work-item
-# references this script by name).
+# Discovery assertion: every SKILL.md surfaced by Pass A or Pass B must
+# appear in one of the three allowlists.
 echo "--- Discovery pass: every emitting/template-consuming SKILL is allowlisted ---"
 DISCOVERY_PATTERNS=(
   'accelerator config template '

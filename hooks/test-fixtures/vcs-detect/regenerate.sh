@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regenerate AC5 golden snapshots for vcs-detect.sh.
+# Regenerate the vcs-detect golden snapshots.
 #
 # Pre-conditions:
 #   - jj, git, jq, realpath on PATH (via `mise install` from repo root)
 #   - hooks/vcs-detect.sh and scripts/vcs-common.sh are in the pre-0058
-#     state (verified against CAPTURE-SOURCE.txt by the AC5 test).
+#     state (verified against CAPTURE-SOURCE.txt by the goldens test).
 #
 # Determinism guarantees:
 #   - TMPDIR is explicitly /tmp (or realpath-resolved). macOS
@@ -44,7 +44,7 @@ WORKDIR="$WORK/main-git" && mkdir -p "$WORKDIR"
 (cd "$WORKDIR" && CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$HOOK") \
   >"$SCRIPT_DIR/main-git-checkout.json"
 
-# Record source provenance so the AC5 test can verify the snapshots
+# Record source provenance so the goldens test can verify the snapshots
 # match the production code state they were captured against.
 {
   printf 'hooks/vcs-detect.sh: '

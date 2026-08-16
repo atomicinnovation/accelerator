@@ -1,11 +1,10 @@
 //! Raw frontmatter field reads, operating on already-extracted frontmatter
-//! text. Port of `work-item-read-field.sh:53-79`.
+//! text.
 
 /// First-match-wins line scan for a `<field>:` prefix.
 ///
 /// Trims both ends of the value, then strips one leading and one trailing
-/// quote character (independently — a mismatched `'foo"` loses both,
-/// matching the shell's own sequential-sed behaviour).
+/// quote character independently, so a mismatched `'foo"` loses both.
 #[must_use]
 pub fn read_field_raw(frontmatter: &str, field: &str) -> Option<String> {
     let prefix = format!("{field}:");

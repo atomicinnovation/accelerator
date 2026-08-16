@@ -699,6 +699,112 @@ def test_real_tracker_rule_permits_std_and_crate_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The tracker-test-support import rule ---
+#
+# Driven against a workspace whose crates are literally named
+# `tracker-test-support` and `work`, so the hyphen-to-underscore matcher is
+# exercised directly. The compliant control must actually import `tracker`:
+# a matcher that silently resolves nothing would pass an import-free
+# control.
+
+_TRACKER_TEST_SUPPORT_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["tracker-test-support", "tracker", "work"]
+"""
+
+_TRACKER_TEST_SUPPORT_MANIFEST = """\
+[package]
+name = "tracker-test-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tracker = { path = "../tracker" }
+work = { path = "../work" }
+"""
+
+_TRACKER_TEST_SUPPORT_LIB_VIOLATION = (
+    "use work::WorkItem;\n\npub fn make() -> WorkItem {\n    WorkItem\n}\n"
+)
+_TRACKER_TEST_SUPPORT_LIB_COMPLIANT = (
+    "use tracker::ExternalId;\n\n"
+    "pub fn make() -> ExternalId {\n    ExternalId::new(String::new())\n}\n"
+)
+
+
+def _write_tracker_test_support_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_TRACKER_TEST_SUPPORT_WORKSPACE)
+
+    support_src = root / "tracker-test-support/src"
+    support_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker-test-support/Cargo.toml").write_text(
+        _TRACKER_TEST_SUPPORT_MANIFEST
+    )
+    (support_src / "lib.rs").write_text(lib_body)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST_MIN)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB_MIN)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+
+_TRACKER_MANIFEST_MIN = """\
+[package]
+name = "tracker"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_TRACKER_LIB_MIN = (
+    "pub struct ExternalId(String);\n\n"
+    "impl ExternalId {\n"
+    "    #[must_use]\n"
+    "    pub const fn new(value: String) -> Self {\n"
+    "        Self(value)\n"
+    "    }\n"
+    "}\n"
+)
+
+
+def test_tracker_test_support_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_test_support_probe(
+        tmp_path, _TRACKER_TEST_SUPPORT_LIB_VIOLATION
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "tracker_test_support_imports_only_permitted" in output, output
+
+
+def test_tracker_test_support_rule_permits_importing_tracker(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_tracker_test_support_probe(
+        tmp_path, _TRACKER_TEST_SUPPORT_LIB_COMPLIANT
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The remaining whole-crate domain rules ---
 #
 # Each is driven against a workspace whose crate is literally named for it,
@@ -709,7 +815,7 @@ def test_real_tracker_rule_permits_std_and_crate_imports(
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
     ("vcs", "vcs_domain_imports_only_permitted", ()),
-    ("work", "work_domain_imports_only_permitted", ("corpus",)),
+    ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
     (
         "migrate",
         "migrate_domain_imports_only_permitted",
@@ -722,7 +828,7 @@ _DOMAIN_RULES = [
 # (cross-rejection) cases below can attempt an import that its own rule does
 # not permit and have cargo-pup reject it, rather than the import failing to
 # resolve for an unrelated reason.
-_ALL_EXTRA_CRATES = ("corpus", "document")
+_ALL_EXTRA_CRATES = ("corpus", "document", "tracker")
 
 
 def _extra_crate_manifest(name: str) -> str:

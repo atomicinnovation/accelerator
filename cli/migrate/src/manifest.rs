@@ -17,6 +17,9 @@ pub struct RunnerPaths<'a> {
     pub skipped: &'a str,
     pub run_paths: &'a str,
     pub run_id: &'a str,
+    /// The run-lock directory, matched by prefix: its sentinel carries a
+    /// per-acquisition nonce, and the lock is held across every scan.
+    pub lock_dir: &'a str,
 }
 
 /// Classifies one repo-relative dirty path.
@@ -32,11 +35,7 @@ pub fn classify(
     manifest: &[String],
     base_revision_matches: bool,
 ) -> Ownership {
-    if path == runner.applied
-        || path == runner.skipped
-        || path == runner.run_paths
-        || path == runner.run_id
-    {
+    if is_runner_managed(path, runner) {
         return Ownership::RunnerManaged;
     }
     if base_revision_matches && is_session_artefact(path) {
@@ -46,6 +45,21 @@ pub fn classify(
         return Ownership::Manifested;
     }
     Ownership::Foreign
+}
+
+/// The runner's own append-only bookkeeping, owned by pattern rather than by
+/// manifest.
+///
+/// Unlike a session artefact, ownership here needs no matching base revision:
+/// these four paths hold nothing the user authored, so a run that finds them
+/// dirty has found its own writing, whatever revision recorded them.
+#[must_use]
+pub fn is_runner_managed(path: &str, runner: &RunnerPaths<'_>) -> bool {
+    path == runner.applied
+        || path == runner.skipped
+        || path == runner.run_paths
+        || path == runner.run_id
+        || path.starts_with(runner.lock_dir)
 }
 
 const SESSION_PREFIX: &str = ".accelerator/state/migrations-";

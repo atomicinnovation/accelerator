@@ -1,14 +1,9 @@
-//! The per-tracker remote-payload projection seam. Port of
-//! `work-item-project-remote.sh:39-106`.
+//! The per-tracker remote-payload projection seam.
 //!
 //! Lives in `work-adapters`, not the `work` domain crate: this is JSON
-//! field extraction, adapter-shaped I/O-adjacent logic, not a domain
-//! decision, and typing it against `serde_json::Value` would need a
-//! dependency `work`'s own import-restriction rule does not permit.
-//!
-//! Not called by any of the five user-facing commands — its only consumer
-//! is `sync-work-items`' bidirectional diff/apply flow, which today shells
-//! out to the bash script directly rather than calling this projection.
+//! field extraction, not a domain decision, and typing it against
+//! `serde_json::Value` would need a dependency `work`'s own
+//! import-restriction rule does not permit.
 
 use serde_json::Value;
 

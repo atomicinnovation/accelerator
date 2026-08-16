@@ -1,5 +1,4 @@
-//! Contract for the Model-1 config composition (`compose::load`): the full
-//! resolved set the retired `write-visualiser-config.sh` produced — the 13
+//! Contract for the Model-1 config composition (`compose::load`): the 13
 //! doc-path keys, the template set with three-tier resolution incl.
 //! `config_override_source`, the kanban columns, and the work-item scheme.
 

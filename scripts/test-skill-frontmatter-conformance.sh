@@ -86,7 +86,7 @@ schema_index() { # $1 type -> index or ""
   return 0
 }
 
-# ---- Producer set (Phase 1 reconciliation) ---------------------------------
+# ---- Producer set -----------------------------------------------------------
 EMITTERS=(
   skills/work/create-work-item/SKILL.md
   skills/work/extract-work-items/SKILL.md

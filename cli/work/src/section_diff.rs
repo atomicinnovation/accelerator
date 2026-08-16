@@ -1,9 +1,8 @@
 //! Section extraction and comparison for conflict-resolution diffing.
 //!
-//! Port of `work-item-section-diff.sh:39-115`, minus the `sha256` step — a
-//! direct `String` equality check after normalisation is behaviourally
-//! identical, since the shell only hashes to sidestep `diff`'s exit-status
-//! portability trap when deciding whether to print a section at all.
+//! Compares normalised `String`s directly rather than hashing them: the
+//! two are behaviourally identical here, and hashing only ever existed to
+//! sidestep `diff`'s exit-status portability trap.
 
 use crate::normalise::trim_lines;
 
@@ -25,8 +24,7 @@ impl SectionName {
 }
 
 /// Ordered, de-duplicated `## ` heading list across both files, in
-/// first-appearance order (local first, then remote). Port of
-/// `_wisd_heading_union` (`work-item-section-diff.sh:64-71`).
+/// first-appearance order: local first, then remote.
 #[must_use]
 pub fn heading_union(local: &[String], remote: &[String]) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
@@ -39,9 +37,8 @@ pub fn heading_union(local: &[String], remote: &[String]) -> Vec<String> {
     out
 }
 
-/// Port of `config_extract_frontmatter`'s awk (`scripts/config-common.sh`):
-/// empty when line 1 is not `---` (no frontmatter) or the frontmatter never
-/// closes (both are the script's own failure arms, whose stdout is empty).
+/// Empty when line 1 is not `---` (no frontmatter) or the frontmatter never
+/// closes — both are failure arms, and neither is distinguished here.
 fn extract_frontmatter(content: &str) -> String {
     let mut lines = content.lines();
     let Some(first) = lines.next() else {
@@ -67,9 +64,9 @@ fn extract_frontmatter(content: &str) -> String {
     }
 }
 
-/// Port of `config_extract_body`'s awk: the whole file verbatim when line 1
-/// is not `---` (no frontmatter), empty when the frontmatter never closes,
-/// otherwise everything after the closing `---` line.
+/// The whole file verbatim when line 1 is not `---` (no frontmatter), empty
+/// when the frontmatter never closes, otherwise everything after the
+/// closing `---` line.
 fn body_after_frontmatter(content: &str) -> String {
     let mut lines = content.lines();
     let Some(first) = lines.next() else {
@@ -104,8 +101,7 @@ fn body_after_frontmatter(content: &str) -> String {
     }
 }
 
-/// Extracts one named section's raw content. Port of `_wisd_section`
-/// (`work-item-section-diff.sh:40-57`).
+/// Extracts one named section's raw content.
 #[must_use]
 pub fn extract_section(content: &str, name: &SectionName) -> String {
     match name {

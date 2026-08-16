@@ -1,0 +1,22 @@
+# The push-decision golden: one oracle read by every implementation.
+#
+# Format: <code>|<attempt>|<write-failed>|<expected-outcome>
+#
+# code is the dispatcher exit code (0 success; 70 retryable; 71 terminal;
+# 72 not-available; 73 unrecognised; anything else is an unknown code,
+# handled conservatively). attempt is 1 (first) or 2 (the one retry).
+# write-failed is 0|1 — consulted only when code is 0.
+# expected ∈ write-once|retry|local-save|loud-terminal
+
+0|1|0|write-once
+0|1|1|loud-terminal
+70|1|0|retry
+70|2|0|local-save
+71|1|0|loud-terminal
+71|2|0|loud-terminal
+72|1|0|local-save
+73|1|0|local-save
+0|2|0|write-once
+99|1|0|loud-terminal
+70|1|1|retry
+71|1|1|loud-terminal

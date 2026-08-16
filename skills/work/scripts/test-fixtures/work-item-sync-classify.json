@@ -1,0 +1,263 @@
+{
+  "baseline_timestamp": 1700000000,
+  "local_content": "---\nstatus: ready\n---\n\nBody text\n",
+  "remote_body": "Body text\n",
+  "remote_updated_reported": "2026-06-01T10:00:00.000+0000",
+  "remote_updated_ticked": "2026-12-01T00:00:00.000+0000",
+  "cases": [
+    {
+      "name": "neither side changed, remote proven unchanged without a body",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "rust_only": {
+        "expect_mtime_called": true,
+        "expect_local_digest_called": true
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "local edited, remote unchanged",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "expect": "locally-modified"
+    },
+    {
+      "name": "remote edited (updated differs, body differs), local unchanged",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "expect": "remotely-modified"
+    },
+    {
+      "name": "both sides changed",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "expect": "conflict"
+    },
+    {
+      "name": "remote body matches baseline hash despite a ticked updated",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "whitespace-equivalent local stays synced",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "mtime pre-filter short-circuits without hashing",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": -100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "rust_only": {
+        "expect_mtime_called": true,
+        "expect_local_digest_called": false
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "no external_id is presence-only unsynced, even with a baseline entry",
+      "applies_to": ["rust", "bash"],
+      "external_id": "",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "expect": "unsynced"
+    },
+    {
+      "name": "tracked but absent from a successful fetch",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "absent",
+      "expect": "remote-absent"
+    },
+    {
+      "name": "failed or timed-out remote read",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "indeterminate",
+      "expect": "indeterminate"
+    },
+    {
+      "name": "first-sync on dirty: no baseline entry, both sides ahead",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "not_reported"},
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "rust_only": {
+        "expect_mtime_called": false
+      },
+      "expect": "conflict"
+    },
+    {
+      "name": "not-reported vs not-reported proves nothing, not equal",
+      "applies_to": ["rust"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "not_reported"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "not_reported"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "expect": "conflict"
+    },
+    {
+      "name": "not-read vs not-read proves nothing, not equal",
+      "applies_to": ["rust"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "not_read"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "not_read"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "expect": "conflict"
+    },
+    {
+      "name": "matching updated but absent remote_hash is still remote-changed",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "absent",
+        "local_hash": "from-content"
+      },
+      "rust_only": {
+        "expect_remote_body_called": false
+      },
+      "expect": "remotely-modified"
+    },
+    {
+      "name": "an unreadable mtime forces the hash",
+      "applies_to": ["rust"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_absent": true,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "rust_only": {
+        "expect_mtime_called": true,
+        "expect_local_digest_called": true
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "mtime equals the baseline timestamp exactly (inclusive boundary)",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 0,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "rust_only": {
+        "expect_local_digest_called": false
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "absent local_hash forces local-changed with no mtime or digest call",
+      "applies_to": ["rust", "bash"],
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "absent"
+      },
+      "rust_only": {
+        "expect_mtime_called": false,
+        "expect_local_digest_called": false
+      },
+      "expect": "locally-modified"
+    }
+  ]
+}

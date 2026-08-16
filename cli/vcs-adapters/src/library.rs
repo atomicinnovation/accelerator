@@ -376,10 +376,13 @@ impl InProcessProbe {
     }
 
     /// Every repo-relative path that differs from the last committed tree —
-    /// git via `gix::Repository::status` (untracked files excluded, mirroring
-    /// `git status --porcelain` filtered to tracked changes only), jj via a
-    /// real snapshot-then-diff (untracked files included, since jj auto-tracks
-    /// by default, mirroring `jj diff --name-only`).
+    /// git via `gix::Repository::status`, jj via a real snapshot-then-diff.
+    ///
+    /// Untracked files count on both sides, and ignored files on neither, so
+    /// the two idioms return the same list for the same tree. An untracked
+    /// file is the least recoverable thing in a working copy — no commit
+    /// holds its content — so a caller gating a destructive write on this
+    /// must see it.
     ///
     /// # Errors
     ///

@@ -88,7 +88,10 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner.
+        // additionally permits corpus for WorkItemIdScheme/IdScanner and
+        // tracker for the sync engine's RemoteTracker vocabulary. Both are
+        // zero-dependency port crates, so neither edge can drag a transitive
+        // graph into the domain.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),
@@ -98,6 +101,7 @@
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
                         "^corpus(::|$)",
+                        "^tracker(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,
@@ -108,7 +112,7 @@
         // The whole tracker crate is domain: the port a remote issue tracker
         // satisfies, and nothing else. Unlike its sibling domain rules it
         // omits the kernel::Error allowance — the crate declares no
-        // dependencies, so such an import could not compile.
+        // dependencies, so that import could not compile.
         Module((
             name: "tracker_domain_imports_only_permitted",
             matches: Module("^tracker($|::)"),
@@ -116,6 +120,23 @@
                 RestrictImports(
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // tracker-test-support is a fake plus a contract harness, consumed
+        // only by other crates' test targets.
+        Module((
+            name: "tracker_test_support_imports_only_permitted",
+            matches: Module("^tracker_test_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^tracker(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,

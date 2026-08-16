@@ -11,7 +11,7 @@ source "$WORK_COMMON_SCRIPT_DIR/log-common.sh"
 # (possibly empty) for the caller to use as its default.
 #
 # Both reads intentionally omit `2>/dev/null` and `||` fallback so that
-# Phase 2's enum validation hard-fail (log_die) propagates via set -euo
+# the enum validation hard-fail (log_die) propagates via set -euo
 # pipefail, and real script errors on the default_project_code read are
 # surfaced rather than masked into a silent empty value.
 work_resolve_default_project() {

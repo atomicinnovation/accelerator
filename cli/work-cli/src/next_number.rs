@@ -1,7 +1,6 @@
 //! Adapter/binary wiring for `work next-number`: a thin display wrapper
 //! around `work::next_number::allocate` — never writes a file, never
-//! commits a number. Exact behavioural match for
-//! `work-item-next-number.sh --project <code> --count <count>`.
+//! commits a number.
 
 use std::path::Path;
 

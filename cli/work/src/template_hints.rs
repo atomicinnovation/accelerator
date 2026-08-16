@@ -1,5 +1,4 @@
-//! Template-hint-comment parsing. Port of
-//! `work-item-template-field-hints.sh:52-88`.
+//! Template-hint-comment parsing.
 
 /// Hardcoded fallback values matching the shipping template's own trailing
 /// comments — empty for any field other than `kind`/`status`/`priority`.

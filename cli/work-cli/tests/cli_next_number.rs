@@ -1,5 +1,5 @@
-//! CLI-boundary tests for `work next-number`: display-only allocation
-//! preview, matching `work-item-next-number.sh --project PROJ --count N`.
+//! CLI-boundary tests for `work next-number`: a display-only allocation
+//! preview.
 
 use std::fs;
 use std::path::Path;

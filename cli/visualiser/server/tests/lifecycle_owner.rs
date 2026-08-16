@@ -43,8 +43,8 @@ async fn owner_pid_death_triggers_shutdown() {
 
 #[tokio::test]
 async fn owner_exit_still_fires_while_idle_disabled() {
-    // AC5/AC7: with idle disabled the server must STILL exit on owner-process
-    // exit. The disable smoke test in lifecycle_idle.rs uses owner_pid 0, which
+    // With idle disabled the server must STILL exit on owner-process exit.
+    // The disable smoke test in lifecycle_idle.rs uses owner_pid 0, which
     // short-circuits the owner check and proves nothing about this clause — so
     // this test pairs a dead owner PID with the disable sentinel.
     let child = tokio::process::Command::new("sh")

@@ -1,5 +1,5 @@
 //! `vcs guard`: the `PreToolUse` hook blocking (or warning about) git VCS
-//! commands with jj equivalents, reproducing `hooks/vcs-guard.sh`.
+//! commands with jj equivalents.
 
 use std::path::Path;
 

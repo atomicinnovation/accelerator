@@ -1,0 +1,8 @@
+# `binary(=contract)` is the exact-match form; bare `binary(contract)` is a
+# substring predicate that would also capture a future `contract_helpers` or
+# `contract_smoke` binary.
+[profile.default]
+default-filter = 'not binary(=contract)'
+
+[profile.contract]
+default-filter = 'binary(=contract)'
