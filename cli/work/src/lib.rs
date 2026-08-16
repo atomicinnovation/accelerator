@@ -4,7 +4,6 @@
 //! no subprocess, no regex — those live in the adapter/binary layers.
 
 pub mod create;
-pub mod file_dirty;
 pub mod next_number;
 pub mod normalise;
 pub mod own_identity;

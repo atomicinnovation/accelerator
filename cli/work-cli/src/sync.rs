@@ -9,7 +9,6 @@ use ::config::ConfigAccess;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
-use work::sync::Dirtiness;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
@@ -17,13 +16,13 @@ use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
-use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
+use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::cli::SyncArgs;
 use crate::exit_codes;
@@ -38,82 +37,6 @@ impl RunClock for SystemClock {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|duration| duration.as_secs())
             .map_err(|error| kernel::Error::Failed(error.to_string()))
-    }
-}
-
-/// Shells the real VCS to answer dirtiness: one whole-tree probe under jj,
-/// reused across items, or a per-path probe under git. Any failure —
-/// including no VCS at all — yields [`Dirtiness::Unknown`].
-struct ShelledWorkingCopyStatus {
-    repo_root: PathBuf,
-    jj_status_text: Option<String>,
-}
-
-impl ShelledWorkingCopyStatus {
-    fn new(repo_root: PathBuf) -> Self {
-        let jj_status_text = if repo_root.join(".jj").is_dir() {
-            std::process::Command::new("jj")
-                .arg("diff")
-                .arg("--name-only")
-                .current_dir(&repo_root)
-                .output()
-                .ok()
-                .filter(|output| output.status.success())
-                .and_then(|output| String::from_utf8(output.stdout).ok())
-        } else {
-            None
-        };
-        Self {
-            repo_root,
-            jj_status_text,
-        }
-    }
-}
-
-impl WorkingCopyStatus for ShelledWorkingCopyStatus {
-    fn is_dirty(&self, path: &Path) -> Dirtiness {
-        let Ok(relative) = path.strip_prefix(&self.repo_root) else {
-            return Dirtiness::Unknown;
-        };
-        let relative_str = relative.to_string_lossy();
-
-        if let Some(status_text) = &self.jj_status_text {
-            return if work::file_dirty::is_dirty(
-                work::file_dirty::VcsMode::Jj,
-                &relative_str,
-                status_text,
-            ) {
-                Dirtiness::Dirty
-            } else {
-                Dirtiness::Clean
-            };
-        }
-
-        if self.repo_root.join(".git").exists() {
-            return std::process::Command::new("git")
-                .arg("status")
-                .arg("--porcelain")
-                .arg("--")
-                .arg(path)
-                .current_dir(&self.repo_root)
-                .output()
-                .ok()
-                .filter(|output| output.status.success())
-                .map_or(Dirtiness::Unknown, |output| {
-                    let text = String::from_utf8_lossy(&output.stdout);
-                    if work::file_dirty::is_dirty(
-                        work::file_dirty::VcsMode::Git,
-                        &relative_str,
-                        &text,
-                    ) {
-                        Dirtiness::Dirty
-                    } else {
-                        Dirtiness::Clean
-                    }
-                });
-        }
-
-        Dirtiness::Unknown
     }
 }
 
@@ -380,7 +303,7 @@ pub fn run_sync(
     );
     let mut baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
-    let status = ShelledWorkingCopyStatus::new(root);
+    let status = VcsWorkingCopyStatus::probed_from(&root);
     let clock = SystemClock;
 
     let ports = SyncPorts {

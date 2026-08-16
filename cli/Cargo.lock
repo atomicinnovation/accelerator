@@ -3079,6 +3079,7 @@ dependencies = [
  "tracing",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -5437,10 +5438,12 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "tracing",
  "tracker",
  "tracker-test-support",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
  "work",
 ]
 

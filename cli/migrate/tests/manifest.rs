@@ -12,6 +12,7 @@ const fn runner() -> RunnerPaths<'static> {
         skipped: ".accelerator/state/migrations-skipped",
         run_paths: ".accelerator/state/migrations-run-paths.txt",
         run_id: ".accelerator/state/migrations-run.id",
+        lock_dir: ".accelerator/state/migrate-run.lockdir",
     }
 }
 

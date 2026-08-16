@@ -84,10 +84,12 @@ impl core::marker::Copy for migrate::manifest::Ownership
 impl core::marker::StructuralPartialEq for migrate::manifest::Ownership
 pub struct migrate::manifest::RunnerPaths<'a>
 pub migrate::manifest::RunnerPaths::applied: &'a str
+pub migrate::manifest::RunnerPaths::lock_dir: &'a str
 pub migrate::manifest::RunnerPaths::run_id: &'a str
 pub migrate::manifest::RunnerPaths::run_paths: &'a str
 pub migrate::manifest::RunnerPaths::skipped: &'a str
 pub fn migrate::manifest::classify(path: &str, runner: &migrate::manifest::RunnerPaths<'_>, manifest: &[alloc::string::String], base_revision_matches: bool) -> migrate::manifest::Ownership
+pub fn migrate::manifest::is_runner_managed(path: &str, runner: &migrate::manifest::RunnerPaths<'_>) -> bool
 pub fn migrate::manifest::is_session_artefact(path: &str) -> bool
 pub fn migrate::manifest::is_session_log(path: &str) -> bool
 pub mod migrate::migrations

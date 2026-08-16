@@ -18,6 +18,10 @@ use migrate::ports::RunLockGuard;
 
 const CEILING_MS: u64 = 2_000;
 
+/// Repo-relative, so the pre-flight can recognise the lock it is itself
+/// holding as its own rather than as dirt in the tree it is scanning.
+pub const LOCK_DIR: &str = ".accelerator/state/migrate-run.lockdir";
+
 pub struct FileRunLock {
     lockdir: PathBuf,
 }
@@ -26,9 +30,7 @@ impl FileRunLock {
     #[must_use]
     pub fn new(root: impl AsRef<Path>) -> Self {
         Self {
-            lockdir: root
-                .as_ref()
-                .join(".accelerator/state/migrate-run.lockdir"),
+            lockdir: root.as_ref().join(LOCK_DIR),
         }
     }
 }

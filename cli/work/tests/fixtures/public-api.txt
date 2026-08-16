@@ -48,21 +48,6 @@ pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option:
 pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
 pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
 pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
-pub mod work::file_dirty
-pub enum work::file_dirty::VcsMode
-pub work::file_dirty::VcsMode::Git
-pub work::file_dirty::VcsMode::Indeterminate
-pub work::file_dirty::VcsMode::Jj
-impl core::clone::Clone for work::file_dirty::VcsMode
-pub fn work::file_dirty::VcsMode::clone(&self) -> work::file_dirty::VcsMode
-impl core::cmp::Eq for work::file_dirty::VcsMode
-impl core::cmp::PartialEq for work::file_dirty::VcsMode
-pub fn work::file_dirty::VcsMode::eq(&self, other: &work::file_dirty::VcsMode) -> bool
-impl core::fmt::Debug for work::file_dirty::VcsMode
-pub fn work::file_dirty::VcsMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::file_dirty::VcsMode
-impl core::marker::StructuralPartialEq for work::file_dirty::VcsMode
-pub fn work::file_dirty::is_dirty(mode: work::file_dirty::VcsMode, path_relative: &str, status_text: &str) -> bool
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingProject

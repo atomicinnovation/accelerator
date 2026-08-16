@@ -108,7 +108,36 @@ const fn runner() -> RunnerPaths<'static> {
         skipped: ".accelerator/state/migrations-skipped",
         run_paths: ".accelerator/state/migrations-run-paths.txt",
         run_id: ".accelerator/state/migrations-run.id",
+        lock_dir: ".accelerator/state/migrate-run.lockdir",
     }
+}
+
+/// The run lock is acquired before the scan and released after it, so its
+/// sentinel is present for every scan a run ever performs. Its filename
+/// carries a fresh nonce, so ownership here is by prefix, not by equality.
+#[test]
+fn the_held_run_locks_sentinel_is_never_dirt() -> Result<(), TestError> {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(vec![
+        ".accelerator/state/migrate-run.lockdir/owner.e218f68e83638d9b"
+            .to_owned(),
+    ]);
+    let manifest = InMemoryManifestStore::default();
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-1".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    let (_guard, outcome) = preflight.run()?;
+
+    assert!(matches!(outcome, PreflightOutcome::Clean));
+    Ok(())
 }
 
 #[test]
@@ -132,6 +161,98 @@ fn a_clean_tree_mints_a_fresh_manifest_and_run_id() -> Result<(), TestError> {
     assert!(matches!(outcome, PreflightOutcome::Clean));
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
     assert_eq!(manifest.run_id()?, Some("rev-1".to_owned()));
+    Ok(())
+}
+
+/// The runner's own ledger is owned by pattern, not by manifest, so a run
+/// that has nothing else dirty is clean even when no prior manifest exists.
+/// An uncommitted ledger would otherwise refuse every run but the first.
+#[test]
+fn a_tree_dirty_only_in_the_runners_own_bookkeeping_is_clean(
+) -> Result<(), TestError> {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(vec![
+        ".accelerator/state/migrations-applied".to_owned(),
+        ".accelerator/state/migrations-skipped".to_owned(),
+        ".accelerator/state/migrations-run-paths.txt".to_owned(),
+        ".accelerator/state/migrations-run.id".to_owned(),
+    ]);
+    let manifest = InMemoryManifestStore::default();
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-1".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    let (_guard, outcome) = preflight.run()?;
+
+    assert!(matches!(outcome, PreflightOutcome::Clean));
+    assert_eq!(manifest.manifest()?, Some(Vec::new()));
+    assert_eq!(manifest.run_id()?, Some("rev-1".to_owned()));
+    Ok(())
+}
+
+/// Filtering the ledger out must not soften the gate around it: a foreign
+/// document alongside the ledger still refuses.
+#[test]
+fn foreign_dirt_beside_the_runners_bookkeeping_still_refuses() {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(vec![
+        ".accelerator/state/migrations-applied".to_owned(),
+        "meta/work/0001-foo.md".to_owned(),
+    ]);
+    let manifest = InMemoryManifestStore::default();
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-1".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    assert!(matches!(preflight.run(), Err(PreflightError::ForeignDirt)));
+}
+
+/// A resumed run's affordance lists what the user must review. The ledger is
+/// the runner's own append-only bookkeeping, not a document under review.
+#[test]
+fn the_runners_bookkeeping_is_absent_from_the_resume_affordance(
+) -> Result<(), TestError> {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(vec![
+        ".accelerator/state/migrations-applied".to_owned(),
+        "meta/work/0001-foo.md".to_owned(),
+    ]);
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["meta/work/0001-foo.md".to_owned()],
+        Some("rev-1"),
+    );
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest: &manifest,
+        runner: runner(),
+        revision: Some("rev-1".to_owned()),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+
+    let (_guard, outcome) = preflight.run()?;
+
+    let PreflightOutcome::Resumed { affordance } = outcome else {
+        return Err("expected a resumed outcome".into());
+    };
+    assert_eq!(affordance.len(), 1);
+    assert_eq!(affordance[0].path, "meta/work/0001-foo.md");
     Ok(())
 }
 
@@ -214,11 +335,16 @@ fn a_foreign_dirty_path_refuses() {
     assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
 }
 
+/// The fail-closed usability gate, kept for every class ownership cannot
+/// settle by pattern alone. A session artefact needs a usable manifest at a
+/// matching revision; the runner's own bookkeeping does not, and is filtered
+/// out before this gate is reached.
 #[test]
-fn an_absent_manifest_or_run_id_refuses_even_a_runner_managed_dirty_path() {
+fn an_absent_manifest_or_run_id_refuses_even_a_session_artefact() {
     let lock = AlwaysLock;
-    let scanner =
-        StubScanner(vec![".accelerator/state/migrations-applied".to_owned()]);
+    let scanner = StubScanner(vec![
+        ".accelerator/state/migrations-0099-session.jsonl".to_owned(),
+    ]);
     let manifest = InMemoryManifestStore::default();
     let no_op = |_: &str| 0;
     let preflight = Preflight {
