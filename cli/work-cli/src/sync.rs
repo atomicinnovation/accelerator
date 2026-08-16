@@ -44,13 +44,8 @@ pub fn integrations_dir(
     config: &dyn ConfigAccess,
     root: &Path,
 ) -> Result<PathBuf, kernel::Error> {
-    let configured =
+    let relative =
         crate::config::effective_nonempty(config, "paths.integrations")?;
-    let relative = if configured.is_empty() {
-        ".accelerator/state/integrations".to_owned()
-    } else {
-        configured
-    };
     let path = Path::new(&relative);
     Ok(if path.is_absolute() {
         path.to_path_buf()

@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn the_path_defaults_relied_on_as_fallbacks_are_present_and_non_empty() {
-        for key in ["paths.tmp", "paths.templates"] {
+        for key in ["paths.tmp", "paths.templates", "paths.integrations"] {
             let default = default_for(key);
             assert!(
                 matches!(
