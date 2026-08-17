@@ -9,10 +9,10 @@ status: draft
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: ["work-item:0167", "work-item:0168", "work-item:0169", "work-item:0170", "work-item:0171", "work-item:0172", "work-item:0195", "work-item:0196", "work-item:0197"]
+blocked_by: ["work-item:0167", "work-item:0168", "work-item:0169", "work-item:0170", "work-item:0172", "work-item:0195", "work-item:0196", "work-item:0197", "work-item:0211", "work-item:0212"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [shell, tooling, ci, cleanup]
-last_updated: "2026-06-28T17:01:56+00:00"
+last_updated: "2026-08-17T08:44:49+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-195"
@@ -59,6 +59,18 @@ Playwright executor) and stays under the bash-3.2 floor.
 - Keep the surviving thin shell (launcher bootstrap, hook wrapper, Playwright
   executor) bash-3.2-safe; decide whether a reduced bashisms check still guards
   them or whether the surviving set is small enough to review by hand.
+- Do **not** carry the work-item or integration clusters. 0171 was widened on
+  2026-08-17 to delete every `work-item-*.sh` and `test-work-item-*.sh` outright
+  — including `work-item-sync-label.sh`, `work-item-normalise.sh` and
+  `work-item-file-dirty.sh`, which earlier drafts of both stories deferred here —
+  and to migrate the jira and linear integration scripts. It therefore owns the
+  removal of `_EXPECTED_WORK_SUITES` (floor and `_require_suite_floor` call
+  alike, not a decrement), the `_EXPECTED_INTEGRATIONS_SUITES` retirement, and
+  eight of the twenty-two `SHELL_LIBRARIES` entries: the
+  `skills/work/scripts/work-item-bridge-codes.sh` entry plus all seven jira and
+  linear library entries. This story's lockstep obligation covers only what
+  remains — the fourteen `scripts/*.sh` entries and the config, hooks, decisions
+  and github floors.
 
 ## Acceptance Criteria
 
@@ -97,6 +109,20 @@ Playwright executor) and stays under the bash-3.2 floor.
   `tasks/format/scripts.py:9` (shfmt); `tasks/lint/scripts.py:70` (shellcheck);
   `tasks/shared/sources.py:60` (`shell_sources`); `.shellcheckrc`;
   `.editorconfig:36-39`; `.github/workflows/main.yml:99` (`check-scripts`).
+- Floor ownership as of 2026-08-17. `tasks/test/integration.py` declares six:
+  `_EXPECTED_CONFIG_SUITES = 15` (:45), `_EXPECTED_WORK_SUITES = 5` (:51),
+  `_EXPECTED_INTEGRATIONS_SUITES = 32` (:57), `_EXPECTED_HOOKS_SUITES = 1` (:76),
+  `_EXPECTED_DECISIONS_SUITES = 0` (:77) and `_EXPECTED_GITHUB_SUITES = 0` (:78).
+  0171 removes the work and integrations pair; the other four are this story's,
+  alongside whichever the config and hooks clusters' own stories decrement.
+- `SHELL_LIBRARIES` ownership: 0171 clears the single `skills/work/scripts/`
+  entry and the seven `skills/integrations/{jira,linear}/scripts/` entries. The
+  fourteen `scripts/*.sh` entries — `fs-common`, `hash-common`, `log-common`,
+  `work-common`, `config-defaults`, `config-common`, `atomic-common`,
+  `vcs-common`, `doc-type-table`, `doc-type-inference`,
+  `frontmatter-emission-rules`, `frontmatter-fixtures`, `test-helpers` and
+  `accelerator-scaffold` — retire under their own subdomain stories, and the
+  frozenset itself disappears here once the last is gone.
 
 ## Drafting Notes
 
@@ -104,6 +130,15 @@ Playwright executor) and stays under the bash-3.2 floor.
   incrementally inside the subdomain stories (lockstep floor decrements), with the
   final checker/CI-job removals gated on all clusters retiring — hence the broad
   `blocked_by`.
+- Updated 2026-08-17: scope moved out to 0171. Earlier drafts of 0171 retained
+  `work-item-sync-label.sh` and `work-item-normalise.sh` and left
+  `work-item-file-dirty.sh` undecided, all three landing here as residue; 0171
+  now deletes the whole `work-item-*.sh` surface itself. This story's generic
+  lockstep language did not name the residue, so nothing here was wrong — but it
+  did leave ownership of the work and integrations floors and eight
+  `SHELL_LIBRARIES` entries ambiguous between the two items. Both are now stated
+  explicitly in Requirements and Technical Notes, so a floor cannot be
+  decremented twice or missed entirely.
 
 > Extracted from source documents without interactive enrichment.
 > Acceptance criteria, dependencies, and kind may need refinement before
