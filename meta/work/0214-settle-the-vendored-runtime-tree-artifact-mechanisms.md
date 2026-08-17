@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0210"
+id: "0214"
 title: "Settle the vendored-runtime tree-artifact mechanisms"
 date: "2026-08-15T13:24:07+00:00"
 author: Toby Clemson
@@ -17,7 +17,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0210: Settle the vendored-runtime tree-artifact mechanisms
+# 0214: Settle the vendored-runtime tree-artifact mechanisms
 
 **Kind**: Spike
 **Status**: Ready
