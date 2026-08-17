@@ -2,16 +2,16 @@
 type: work-item
 id: "0197"
 title: "accelerator-collaboration: PR Helper CLI"
-date: 2026-08-05T19:03:35+00:00
+date: "2026-08-05T19:03:35+00:00"
 author: Toby Clemson
 producer: review-work-item
 status: done
 kind: story
 priority: medium
-parent: work-item:0136
-derived_from: [work-item:0173]
+parent: "work-item:0136"
+derived_from: ["work-item:0173"]
 tags: [rust, collaboration, cli, github, gh]
-last_updated: 2026-08-08T16:30:32+00:00
+last_updated: "2026-08-08T16:30:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
