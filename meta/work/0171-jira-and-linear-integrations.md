@@ -236,7 +236,9 @@ settled and closed.
   named subcommand or a recorded internal-helper classification — *pending*
   (0211).
 - Conflict-flow walkthrough evidence, one run per fixture including the clean
-  exit-`0` case — *pending* (0213).
+  exit-`0` case, committed under `skills/work/sync-work-items/evals/` in the
+  reduced secret-scrubbed shape of `cli/tracker-test-support/src/evidence.rs` —
+  *pending* (0213).
 - Pre-deletion transcriptions: the four `curl` exit-code tables, the ADF node-type
   inventory, and the per-test assertion-count and fixture-case baseline for the
   eleven converted tests — *pending*.
@@ -245,7 +247,6 @@ settled and closed.
 - Per-flow fixture capture source (credentialed target or mock-served) —
   *pending*.
 - Cross-skill `jq`/`curl` `allowed-tools` audit result — *pending*.
-- Conflict-flow walkthrough evidence — *pending*.
 - Identifier-safety check — **decided**: carried forward, an unsafe identifier
   is a `Terminal` failure.
 
