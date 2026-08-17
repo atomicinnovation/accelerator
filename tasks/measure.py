@@ -76,6 +76,7 @@ from tasks.shared.measurement import (
     tmp_containment,
     unchanged_artefacts,
     unpaired_interval,
+    unpaired_ratio_interval,
     validate_dispatch,
     validate_sample,
 )
@@ -208,6 +209,7 @@ _CACHED_ENTRY_PREFIXES = (
     "vcs-",
 )
 
+SHA256_HEX_LENGTH = 64
 FAST_BACKEND = "sha256sum"
 FALLBACK_BACKEND = "shasum"
 
@@ -1391,6 +1393,70 @@ def build_rig(
     )
 
 
+@dataclass(frozen=True)
+class RecordPaths:
+    attempt: int
+    record: Path
+    samples: Path
+
+
+def next_record_paths(
+    directory: Path, *, rehearse: bool = False
+) -> RecordPaths:
+    """Where this attempt's record and raw samples go.
+
+    Numbered, and never reusing a number: an invalidated session's record is
+    evidence that an attempt was made and what invalidated it, so a re-run must
+    not clobber it. The criterion's retry discipline depends on every attempt
+    being on the record, not only the one that produced a verdict.
+    """
+    if rehearse:
+        stem = "warm-dispatch-rehearsal"
+        return RecordPaths(
+            attempt=0,
+            record=directory / f"{stem}.json",
+            samples=directory / f"{stem}-samples.json",
+        )
+    taken = []
+    for path in directory.glob("warm-dispatch-*.json"):
+        suffix = path.stem.removeprefix("warm-dispatch-")
+        if suffix.isdigit():
+            taken.append(int(suffix))
+    attempt = max(taken, default=0) + 1
+    return RecordPaths(
+        attempt=attempt,
+        record=directory / f"warm-dispatch-{attempt}.json",
+        samples=directory / f"warm-dispatch-{attempt}-samples.json",
+    )
+
+
+def backend_delta_check(
+    *, fast_ms: float, fallback_ms: float | None
+) -> dict[str, object]:
+    """Cross-check the direct digest measurement against the backend delta.
+
+    The delta is a **cross-check**, never the measurement: it yields twice the
+    difference between the two backends, whereas the composition budget needs
+    the absolute cost under the gating configuration. Recovering the absolute
+    figure from the delta alone would mean importing a per-call figure from
+    another session, which is exactly what measuring it directly avoids.
+    """
+    delta = None if fallback_ms is None else fallback_ms - fast_ms
+    return {
+        "absolute_under_the_gating_backend_ms": fast_ms,
+        "fallback_backend_ms": fallback_ms,
+        "delta_ms": delta,
+        "implied_per_call_difference_ms": (
+            None if delta is None else delta / 2
+        ),
+        "role": (
+            "the delta is a cross-check on the direct measurement, not a "
+            "substitute for it: it carries twice the per-call difference "
+            "between the backends, not the absolute cost the budget needs"
+        ),
+    }
+
+
 def warm_cache_gaps(
     *, version: str, cache_root_entries: Sequence[str], platform: str
 ) -> list[str]:
@@ -1564,6 +1630,7 @@ def run_session(
             plugin_root, session, rig, strict=not rehearse
         )
         record["quietness"] = quietness(session.host, entry)
+        report_load(record["quietness"])
         record["tools"] = {
             "fast": tool_provenance(rig.fast_farm, session.diagnostics),
             "fallback": tool_provenance(rig.fallback_farm, session.diagnostics),
@@ -1653,14 +1720,23 @@ def run_session(
         record["analysis"]["validity"] = str(  # type: ignore[index]
             Validity.INVALID_POST_RUN
         )
-    destination = record_path or (
-        plugin_root
-        / "meta/measurements"
-        / ("warm-dispatch-rehearsal.json" if rehearse else "warm-dispatch.json")
+    paths = next_record_paths(
+        (record_path or plugin_root / "meta/measurements"), rehearse=rehearse
     )
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(record, indent=2, default=str))
-    print(f"record written to {destination}")
+    paths.record.parent.mkdir(parents=True, exist_ok=True)
+    record["attempt"] = paths.attempt
+    record["samples_path"] = paths.samples.name
+    # The raw samples are the only thing a later question can be re-asked of.
+    # Without them an invalidated session is unrecoverable: nothing can be
+    # re-derived, no estimator can be corrected, and the ten minutes are gone.
+    paths.samples.write_text(
+        json.dumps(
+            {str(variant): list(values) for variant, values in samples.items()}
+        )
+    )
+    paths.record.write_text(json.dumps(record, indent=2, default=str))
+    print(f"record written to {paths.record}")
+    print(f"raw samples written to {paths.samples}")
     if session.failures:
         raise Exit(
             "teardown verify failed — the session is invalidated (branch 5b), "
@@ -1813,7 +1889,7 @@ def close_the_budget(
     version = plugin_version(plugin_root)
     launcher_terms = decompose_terms(plugin_root, version=version)
     true_floor, bash_floor = last_floors(floors)
-    shell_terms = measure_shell_terms(
+    shell_terms, backend_check = measure_shell_terms(
         plugin_root,
         rig,
         runner,
@@ -1844,6 +1920,7 @@ def close_the_budget(
     observed = summarise(fast).median
     verdict = residual_verdict(summed, observed, attempts_used=0)
     report["residual"] = asdict(verdict)
+    report["digest_backend_cross_check"] = backend_check
     report["observed_median_ms"] = observed
     report["cross_checked_fraction"] = verdict.total / observed
     report["uncross_checked_fraction"] = 1.0 - (verdict.total / observed)
@@ -1858,7 +1935,7 @@ def measure_shell_terms(
     version: str,
     bash_floor: float,
     true_floor: float,
-) -> dict[str, Interval]:
+) -> tuple[dict[str, Interval], dict[str, object]]:
     """Measure the terms that live outside the launcher's library surface.
 
     Each is a marginal over the fork floor where it is a process launch, so the
@@ -1869,17 +1946,17 @@ def measure_shell_terms(
     backends rather than the absolute cost under the gating configuration.
     """
     cache_root = plugin_root / "bin"
+    targets = staged_shim_targets(plugin_root)
+    fast_digest_ms = measure_digest_bracket(
+        runner,
+        farm=rig.fast_farm,
+        cwd=rig.fixture,
+        temp_root=rig.temp_parent,
+        targets=targets,
+    )
     terms: dict[str, Interval] = {
         "bash startup": _point(bash_floor),
-        "two sha256_file calls": _point(
-            measure_digest_bracket(
-                runner,
-                farm=rig.fast_farm,
-                cwd=rig.fixture,
-                temp_root=rig.temp_parent,
-                targets=staged_shim_targets(plugin_root),
-            )
-        ),
+        "two sha256_file calls": _point(fast_digest_ms),
     }
     shim = _newest(cache_root, "accelerator-verify-*-*")
     launcher = _newest(cache_root, f"accelerator-launcher-{version}-*")
@@ -1921,7 +1998,21 @@ def measure_shell_terms(
                 floor=true_floor,
             )
         )
-    return terms
+    fallback_digest_ms = measure_digest_bracket(
+        runner,
+        farm=rig.fallback_farm,
+        cwd=rig.fixture,
+        temp_root=rig.temp_parent,
+        targets=staged_shim_targets(plugin_root),
+        backend=FALLBACK_BACKEND,
+    )
+    return (
+        terms,
+        backend_delta_check(
+            fast_ms=terms["two sha256_file calls"].point,
+            fallback_ms=fallback_digest_ms,
+        ),
+    )
 
 
 def _sidecar(binary: Path) -> Path:
@@ -2013,8 +2104,8 @@ def analyse(
             fallback, lambda v: summarise(v).median, RESAMPLES, rng
         ),
         "C4": _absolute(fallback, lambda v: summarise(v).p90, RESAMPLES, rng),
-        "C5": _ratio(baseline, fast, RESAMPLES, rng),
-        "C6": _ratio(baseline, fallback, RESAMPLES, rng),
+        "C5": _ratio(baseline, fast, RESAMPLES, rng, paired=True),
+        "C6": _ratio(baseline, fallback, RESAMPLES, rng, paired=False),
     }
     ratios: dict[str, object] = {}
     robustness_ok: bool | None = None
@@ -2258,10 +2349,30 @@ def _ratio(
     variant: Sequence[float],
     resamples: int,
     rng: random.Random,
+    *,
+    paired: bool,
 ) -> Interval | None:
-    if not baseline or len(baseline) != len(variant):
+    """Build a ratio cell's interval, paired or not as the block dictates.
+
+    C5's arms are interleaved pairs, so it takes the paired estimator. C6's
+    variant comes from the single-arm fallback block, which has no baseline of
+    its own, so it takes the unpaired one — demanding equal lengths there
+    produced no figure at all rather than the ungated context the criterion
+    asks to be recorded.
+    """
+    if not baseline or not variant:
         return None
-    return paired_ratio_interval(
+    if paired:
+        if len(baseline) != len(variant):
+            return None
+        return paired_ratio_interval(
+            baseline,
+            variant,
+            resamples=resamples,
+            confidence=CONFIDENCE,
+            rng=rng,
+        )
+    return unpaired_ratio_interval(
         baseline,
         variant,
         resamples=resamples,
@@ -2288,6 +2399,36 @@ def quietness(
             ambient_diagnostic_runner, entry.power_probes if entry else ()
         ),
     }
+
+
+def report_load(quietness_record: Mapping[str, object]) -> None:
+    """Print the observed load beside the CPU count, and flag oversubscription.
+
+    Deliberately **not** a gate: the direction of the load bias on the ratio is
+    unresolved, so refusing on load would encode an unsupported model. But the
+    instrument floors can pass on a loaded host, and a session invalidated by
+    drift after ten minutes of sampling is worth avoiding — so the figure is put
+    in front of the operator before the sampling starts rather than only in the
+    record afterwards.
+    """
+    load = quietness_record.get("loadavg")
+    count = quietness_record.get("cpu_count")
+    one_minute = load[0] if isinstance(load, (list, tuple)) and load else None
+    print(
+        f"load {load} over {count} cpus (rung: "
+        f"{quietness_record.get('cpu_count_rung')})"
+    )
+    if (
+        isinstance(one_minute, (int, float))
+        and isinstance(count, int)
+        and one_minute > count
+    ):
+        print(
+            f"⚠ the host is oversubscribed ({one_minute:.1f} > {count}). The "
+            f"instrument floors may still pass, but drift is the diagnostic "
+            f"that fails on a host which is not in a steady state — consider "
+            f"waiting for the machine to settle before spending the session."
+        )
 
 
 def floors_hold(
@@ -2448,6 +2589,7 @@ def measure_digest_bracket(
     temp_root: Path,
     targets: Sequence[Path],
     samples: int = FLOOR_SAMPLES,
+    backend: str = FAST_BACKEND,
 ) -> float:
     """Cost of the bootstrap's two `sha256_file` substitutions, directly.
 
@@ -2456,17 +2598,36 @@ def measure_digest_bracket(
     this, not a substitute for it: that delta yields twice the difference
     between the backends, whereas the budget needs the absolute cost under the
     gating configuration.
+
+    The bracket prints its digests and they are asserted, because a backend
+    absent from the farm makes the substitution empty rather than making the
+    script fail — so an unmeasured bracket returns a plausible small number
+    instead of an error.
     """
     environment = farm_environment(farm, temp_root=temp_root)
     bash = str(farm / "bash")
+    invocation = (
+        f"{FALLBACK_BACKEND} -a 256"
+        if backend == FALLBACK_BACKEND
+        else FAST_BACKEND
+    )
     body = "; ".join(
-        f"d=$(sha256sum \"{target}\" | awk '{{print $1}}')"
-        for target in targets
+        f"{invocation} \"{target}\" | awk '{{print $1}}'" for target in targets
     )
     loaded = [
         runner([bash, "-c", body], cwd=cwd, env=environment)
         for _ in range(samples)
     ]
+    digests = loaded[0].stdout.split()
+    if len(digests) != len(targets) or not all(
+        len(digest) == SHA256_HEX_LENGTH for digest in digests
+    ):
+        raise PreconditionFailureError(
+            f"the {backend} bracket computed {digests} rather than "
+            f"{len(targets)} digests — the backend is missing from the farm at "
+            f"{farm}, and the timing would be of a failed lookup: "
+            f"{loaded[0].stderr[:200]}"
+        )
     empty = [
         runner([bash, "-c", ":"], cwd=cwd, env=environment)
         for _ in range(samples)

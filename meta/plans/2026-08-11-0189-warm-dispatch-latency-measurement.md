@@ -2557,9 +2557,60 @@ cells are not corroborated and must not be read as such** — a noisy host is
 where the ratio is least trustworthy, which is the whole reason the session is
 gated on quietness.
 
+### Attempt 1 — invalidated (branch 5b)
+
+Recorded 2026-08-17 on darwin-arm64, full record at
+`meta/measurements/warm-dispatch-1.json`. **Every figure below is explicitly
+non-gating**, because the session selects branch 5b. It is kept as the record of
+an attempt, not as evidence about the criterion.
+
+**The failing witness is the drift diagnostic**: Block A's first-third ratio
+1.3175 against its last-third 1.3043, |Δ| = 0.0132 against a pre-registered band
+of 0.005. Nothing else failed — both instrument floors cleared their gate at
+both ends (5.65 / 1.69 ms pre, 6.07 / 1.43 ms post), no precondition was
+violated, no `ACCELERATOR_*` key was set, `jj` matched its pin, the cache was
+warm, the warm-up dispatch blocked, and the teardown verify passed with every
+artefact absent.
+
+| Cell | Statistic | Interval | Ceiling | Branch had the session been valid |
+| --- | --- | --- | --- | --- |
+| C1 | `median(G)` fast | 40.96 [40.88, 41.06] | ≤ 50 | 1 |
+| C2 | `p90(G)` fast | 45.96 [45.80, 46.17] | ≤ 60 | 1 |
+| C3 | `median(G)` fallback | 55.47 [55.23, 55.87] | ≤ 70 | 1 |
+| C4 | `p90(G)` fallback | 62.60 [62.07, 62.91] | ≤ 80 | 1 |
+| C5 | ratio, fast | 1.3177 [1.3149, 1.3207] | ≤ 1.3 | **2 — fail** |
+| C6 | ratio, fallback | not recorded (estimator defect; 1.7846 from the medians) | — | ungated |
+
+⚠️ **The asymmetry is the finding worth carrying into attempt 2.** The primary
+gate — the absolute budget C1-C4, designated primary precisely because it is
+re-runnable and bounds what users feel — clears every ceiling with 18% to 26%
+of headroom. The cell that fails is C5, the *demoted historical comparison*,
+and it fails with its whole interval above the threshold at an achieved upper
+distance of 0.0030, tighter than the 0.0036 target. That is a decidable fail,
+not an indeterminate one.
+
+The mechanism is visible in the dispersion: `G` came in **faster** than 0205's
+(median 40.96 against 42.28 ms) while `B` came in faster still (31.09 against
+33.00 ms), so the ratio rose even as the absolute figure improved. Both
+floor-subtracted treatments agree — `true`-floor 1.3359, bash-floor 1.3883 —
+and `median(Gᵢ/Bᵢ)` at 1.3180 sits on top of the ratio of medians at 1.3177,
+so the two estimators do not diverge.
+
+Sizing: the in-session pilot measured an upper distance of 0.0209 over 200
+pairs and sized Block A up to **6,762 pairs**, inside the 6,900 cap; the
+session ran 589 s, inside the 35-minute budget. Composition budget: seven terms
+summing to 30.11 ms against an observed 40.96, residual −10.85 ms and 73.5%
+cross-checked. `dirname` spawns: 1.
+
+⚠️ **A load average of 38.25 over 16 CPUs was recorded** while both floors
+passed. Load is not a gate here and the direction of its bias on the ratio is
+unresolved, so this is context rather than an explanation — but it is consistent
+with a host that was not in a steady state, which is what the drift diagnostic
+detects.
+
 ### Latency figures
 
-_Pending Phase 3's operator run._ Slots: `B`, `G` and the two-sided 95% interval **per digest
+_Pending a valid session. Attempt 1 is recorded above as invalidated._ Slots: `B`, `G` and the two-sided 95% interval **per digest
 backend**; all three ratios with their intervals and their three roles (raw
 gates, `true`-floor robustness check, bash-floor diagnostic); `median(Gᵢ/Bᵢ)`
 alongside the ratio of medians; n/min/median/p90/IQR per variant;
@@ -2635,6 +2686,40 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   reopening the threshold on 0169 before 0189 measured anything. This plan lands
   it on 0189 because 0169 is closed, and records the departure at all four 0169
   discharge points.
+- **Attempt 1 was invalidated by drift, and three harness defects were found in
+  its record.** Recorded 2026-08-17 as
+  `meta/measurements/warm-dispatch-1.json`; every figure in it is non-gating.
+  The three defects, all fixed before attempt 2:
+
+  **C6 recorded no interval.** It was computed with the *paired* estimator, but
+  Block B is single-arm by design and takes no baseline samples, so the arms
+  differ in length and the estimator returned nothing — the cell fell to branch
+  7 for an implementation reason rather than the host reason branch 7 exists
+  for. C6 now takes an unpaired ratio-of-medians bootstrap. From attempt 1's
+  recorded medians it would have read **1.7846**, against the predicted ~1.79.
+
+  **Raw samples were not persisted**, so ten minutes of sampling could not be
+  re-interrogated and C6 could not be re-derived without another session. Each
+  attempt now writes a `-samples.json` sidecar, and records are numbered so a
+  re-run cannot clobber an invalidated attempt's evidence.
+
+  **The dual-backend cross-check measured the wrong thing silently.** The
+  bracket's `backend` parameter was accepted and ignored — the body hard-coded
+  `sha256sum`, which the fallback farm deliberately lacks, so the substitution
+  came back empty, the bracket timed a failed lookup, and the fallback figure
+  landed *below* the fast one for a **negative** delta. Exactly the
+  silent-degradation class as the `chmod` defect below: a missing command makes
+  `$(...)` empty rather than making the script fail. The bracket now asserts it
+  computed one 64-hex digest per target and names the absent backend with its
+  stderr. Re-measured, the delta is **+14.4 ms** (~7.2 ms per call, against
+  0186's 8.44 ms) — the right sign and order.
+
+  ⚠️ Attempt 1 also recorded a one-minute load average of **38.25 on 16 CPUs**
+  while both instrument floors passed their gate. The floors are the gate and
+  load is deliberately not one, since the direction of the load bias is
+  unresolved — but the pairing is now printed **before** sampling with an
+  oversubscription warning, because a session invalidated by drift after ten
+  minutes is worth avoiding and the floors alone did not catch it.
 - **The farm's tool set was hand-written and missed `chmod`**, which the plan
   warned about in exactly these terms and which the implementation did anyway.
   `probe_exec_capable` (`bin/accelerator:180-191`) writes a probe file and

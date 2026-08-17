@@ -172,6 +172,34 @@ def unpaired_interval(
     return _bounds(replicates, statistic(samples), confidence)
 
 
+def unpaired_ratio_interval(
+    baseline: Sequence[float],
+    variant: Sequence[float],
+    *,
+    resamples: int,
+    confidence: float,
+    rng: random.Random,
+) -> Interval:
+    """Percentile bootstrap on a ratio of medians over **independent** arms.
+
+    The estimator for a ratio whose two arms were not sampled as pairs: each
+    arm is resampled to its own length, so arms of different length are
+    admissible. Pairing them is not merely unnecessary here, it is impossible —
+    the fallback block is single-arm by design, taking no baseline samples
+    because its own cells are absolute and its ratio is not gated.
+    """
+    if not baseline or not variant:
+        raise ValueError("unpaired ratio over an empty arm")
+    baseline_draws = _resample_indices(rng, len(baseline))
+    variant_draws = _resample_indices(rng, len(variant))
+    replicates = [
+        median([variant[i] for i in next(variant_draws)])
+        / median([baseline[i] for i in next(baseline_draws)])
+        for _ in range(resamples)
+    ]
+    return _bounds(replicates, median(variant) / median(baseline), confidence)
+
+
 def required_samples(
     pilot_n: int, achieved_distance: float, target_distance: float
 ) -> int:

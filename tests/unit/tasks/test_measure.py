@@ -41,6 +41,7 @@ from tasks.measure import (
     RunResult,
     StaleManifestError,
     assert_backends,
+    backend_delta_check,
     build_farm,
     cells_for,
     classify_cell,
@@ -51,7 +52,9 @@ from tasks.measure import (
     gate_floors,
     jj_pin,
     last_floors,
+    measure_digest_bracket,
     measure_floors,
+    next_record_paths,
     parse_term_report,
     plugin_version,
     recover_baseline,
@@ -107,6 +110,7 @@ from tasks.shared.measurement import (
     tmp_containment,
     unchanged_artefacts,
     unpaired_interval,
+    unpaired_ratio_interval,
     validate_sample,
 )
 
@@ -2155,3 +2159,203 @@ class TestWarmCachePrecondition:
         )
         assert gaps
         assert any("vcs" in gap for gap in gaps)
+
+
+class TestUnpairedRatioInterval:
+    """C6's estimator: the two arms are independent, not paired.
+
+    Block B is single-arm by design — it takes no `B` samples, because the
+    fallback cells are absolute and C6 is not gated. Pairing its samples with
+    Block A's baseline is therefore impossible, and the paired estimator
+    silently produced no figure at all when the arms differed in length.
+    """
+
+    def test_the_point_estimate_is_the_ratio_of_the_two_medians(self):
+        baseline = [31.0] * 400
+        variant = [55.0] * 900
+        interval = unpaired_ratio_interval(
+            baseline, variant, resamples=100, confidence=0.95, rng=rng()
+        )
+        assert interval.point == pytest.approx(55.0 / 31.0)
+
+    def test_arms_of_different_length_are_accepted(self):
+        interval = unpaired_ratio_interval(
+            [31 + (i % 5) for i in range(600)],
+            [55 + (i % 7) for i in range(900)],
+            resamples=200,
+            confidence=0.95,
+            rng=rng(),
+        )
+        assert interval.lower <= interval.point <= interval.upper
+
+    def test_the_same_seed_reproduces_the_bounds(self):
+        args = ([31.0, 32.0, 33.0] * 40, [55.0, 56.0] * 60)
+        first = unpaired_ratio_interval(
+            *args, resamples=150, confidence=0.95, rng=rng()
+        )
+        second = unpaired_ratio_interval(
+            *args, resamples=150, confidence=0.95, rng=rng()
+        )
+        assert first == second
+
+    def test_zero_variance_arms_collapse_to_zero_width(self):
+        interval = unpaired_ratio_interval(
+            [31.0] * 50, [55.0] * 90, resamples=80, confidence=0.95, rng=rng()
+        )
+        assert interval.lower == interval.upper
+
+    def test_an_empty_arm_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            unpaired_ratio_interval(
+                [], [55.0], resamples=10, confidence=0.95, rng=rng()
+            )
+
+    def test_it_reproduces_the_recorded_session_c6(self):
+        # The invalidated session recorded median(B) = 31.085 and
+        # median(G-fallback) = 55.474, which the paired estimator dropped.
+        interval = unpaired_ratio_interval(
+            [31.085] * 100,
+            [55.474] * 100,
+            resamples=50,
+            confidence=0.95,
+            rng=rng(),
+        )
+        assert interval.point == pytest.approx(1.7846, abs=1e-4)
+
+
+class TestBackendDeltaCrossCheck:
+    def test_the_delta_is_the_fallback_cost_less_the_fast_cost(self):
+        check = backend_delta_check(fast_ms=5.79, fallback_ms=22.7)
+        assert check["delta_ms"] == pytest.approx(16.91)
+
+    def test_it_reports_the_implied_per_call_difference(self):
+        # The delta covers two calls, so per call it is half of it.
+        check = backend_delta_check(fast_ms=5.79, fallback_ms=22.7)
+        assert check["implied_per_call_difference_ms"] == pytest.approx(8.455)
+
+    def test_it_states_that_the_delta_is_not_the_absolute_figure(self):
+        check = backend_delta_check(fast_ms=5.79, fallback_ms=22.7)
+        assert "cross-check" in check["role"]
+        assert check["absolute_under_the_gating_backend_ms"] == pytest.approx(
+            5.79
+        )
+
+    def test_a_missing_fallback_measurement_yields_no_delta(self):
+        check = backend_delta_check(fast_ms=5.79, fallback_ms=None)
+        assert check["delta_ms"] is None
+
+
+class TestRecordPaths:
+    def test_the_first_attempt_is_numbered_one(self, tmp_path):
+        paths = next_record_paths(tmp_path)
+        assert paths.attempt == 1
+        assert paths.record.name == "warm-dispatch-1.json"
+        assert paths.samples.name == "warm-dispatch-1-samples.json"
+
+    def test_an_existing_attempt_is_never_overwritten(self, tmp_path):
+        (tmp_path / "warm-dispatch-1.json").write_text("{}")
+        paths = next_record_paths(tmp_path)
+        assert paths.attempt == 2
+        assert not paths.record.exists(), (
+            "an invalidated session's record is evidence of an attempt; a "
+            "re-run must not clobber it"
+        )
+
+    def test_gaps_in_the_numbering_do_not_reuse_a_number(self, tmp_path):
+        (tmp_path / "warm-dispatch-1.json").write_text("{}")
+        (tmp_path / "warm-dispatch-3.json").write_text("{}")
+        assert next_record_paths(tmp_path).attempt == 4
+
+    def test_a_rehearsal_keeps_its_own_unnumbered_name(self, tmp_path):
+        paths = next_record_paths(tmp_path, rehearse=True)
+        assert paths.attempt == 0
+        assert "rehearsal" in paths.record.name
+
+
+class TestDigestBracket:
+    """The bracket must fail loudly when its backend is absent.
+
+    A backend missing from the farm makes `$(...)` empty rather than making the
+    script fail, so the bracket times a failed lookup and returns a plausible
+    small number — which is how the fallback-backend figure came back *smaller*
+    than the fast one, implying a negative delta.
+    """
+
+    def farm(self, tmp_path):
+        farm = tmp_path / "farm"
+        farm.mkdir()
+        (farm / "bash").write_text("")
+        return farm
+
+    def runner_returning(self, stdout, stderr=""):
+        def runner(argv, *, cwd, env):
+            del cwd, env
+            empty = argv[-1] == ":"
+            return RunResult(
+                stdout="" if empty else stdout,
+                stderr="" if empty else stderr,
+                exit_code=0,
+                elapsed_ms=4.0 if empty else 11.0,
+            )
+
+        return runner
+
+    def targets(self, tmp_path):
+        return [tmp_path / "one", tmp_path / "two"]
+
+    def test_two_digests_give_the_marginal_cost(self, tmp_path):
+        stdout = f"{'a' * 64}\n{'b' * 64}\n"
+        marginal = measure_digest_bracket(
+            self.runner_returning(stdout),
+            farm=self.farm(tmp_path),
+            cwd=tmp_path,
+            temp_root=tmp_path,
+            targets=self.targets(tmp_path),
+            samples=2,
+        )
+        assert marginal == pytest.approx(7.0)
+
+    def test_an_absent_backend_is_refused_rather_than_timed(self, tmp_path):
+        with pytest.raises(PreconditionFailureError, match="missing from the"):
+            measure_digest_bracket(
+                self.runner_returning("", "bash: sha256sum: command not found"),
+                farm=self.farm(tmp_path),
+                cwd=tmp_path,
+                temp_root=tmp_path,
+                targets=self.targets(tmp_path),
+                samples=2,
+            )
+
+    def test_the_absence_diagnostic_carries_the_stderr(self, tmp_path):
+        with pytest.raises(PreconditionFailureError, match="command not found"):
+            measure_digest_bracket(
+                self.runner_returning("", "bash: shasum: command not found"),
+                farm=self.farm(tmp_path),
+                cwd=tmp_path,
+                temp_root=tmp_path,
+                targets=self.targets(tmp_path),
+                samples=2,
+                backend=FALLBACK_BACKEND,
+            )
+
+    def test_a_short_digest_is_refused(self, tmp_path):
+        with pytest.raises(PreconditionFailureError):
+            measure_digest_bracket(
+                self.runner_returning("deadbeef\ncafebabe\n"),
+                farm=self.farm(tmp_path),
+                cwd=tmp_path,
+                temp_root=tmp_path,
+                targets=self.targets(tmp_path),
+                samples=2,
+            )
+
+    def test_one_digest_for_two_targets_is_refused(self, tmp_path):
+        with pytest.raises(PreconditionFailureError):
+            measure_digest_bracket(
+                self.runner_returning(f"{'a' * 64}\n"),
+                farm=self.farm(tmp_path),
+                cwd=tmp_path,
+                temp_root=tmp_path,
+                targets=self.targets(tmp_path),
+                samples=2,
+            )
