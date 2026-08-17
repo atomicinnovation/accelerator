@@ -19,7 +19,7 @@ schema_version: 1
 # 0197: accelerator-collaboration: PR Helper CLI
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

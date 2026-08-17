@@ -5,7 +5,7 @@ title: "Converge corpus-adapters on the Library-Backed VCS Adapter"
 date: "2026-07-31T08:36:03+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: task
 priority: medium
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0185: Converge corpus-adapters on the Library-Backed VCS Adapter
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
