@@ -33,8 +33,6 @@ from tests.integration.support.installation import (
     Installation as Harness,
 )
 from tests.integration.support.installation import (
-    build_launcher,
-    build_shim,
     copy_bootstrap,
     download_log,
     dumped_env,
@@ -47,6 +45,7 @@ from tests.integration.support.installation import (
 from tests.integration.support.installation import (
     host_platform as _resolve_host_platform,
 )
+from tests.support.artefacts import build_launcher, build_shim
 
 _HERE = Path(__file__).resolve().parent
 

@@ -5,8 +5,6 @@ The sign → verify round-trips run against the real `minisign` CLI and the real
 missing tool is a CI provisioning regression (fail) rather than a local skip.
 """
 
-import os
-import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -25,21 +23,10 @@ from tasks.signing import (
     resolve_secret_key,
     sign_file,
 )
+from tests.support.artefacts import build_shim
+from tests.support.tools import require
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-
-
-def _in_ci() -> bool:
-    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
-
-
-def _require(name: str) -> None:
-    if shutil.which(name):
-        return
-    message = f"{name} not on PATH"
-    if _in_ci():
-        pytest.fail(f"{message} — provisioning regression in CI")
-    pytest.skip(message)
 
 
 @pytest.fixture
@@ -51,30 +38,11 @@ def ctx():
 
 @pytest.fixture(scope="module")
 def shim_bin() -> Path:
-    """Build and return the real `accelerator-verify` shim from `cli/`."""
-    _require("cargo")
-    subprocess.run(
-        [
-            "cargo",
-            "build",
-            "--quiet",
-            "-p",
-            "accelerator-verify",
-            "--manifest-path",
-            str(_REPO_ROOT / "cli/Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    shim = _REPO_ROOT / "cli/target/debug/accelerator-verify"
-    if not (shim.exists() and os.access(shim, os.X_OK)):
-        pytest.fail(f"shim not built: {shim}")
-    return shim
+    return build_shim()
 
 
 def _keypair(tmp_path: Path, name: str = "release") -> tuple[Path, Path]:
-    _require("minisign")
+    require("minisign")
     pub = tmp_path / f"{name}.pub"
     sec = tmp_path / f"{name}.sec"
     generate(MagicMock(spec=Context), pub_path=str(pub), sec_path=str(sec))
