@@ -29,6 +29,8 @@ pub struct Manifest {
     pub version: String,
     #[serde(default)]
     pub binaries: BTreeMap<String, BinaryEntry>,
+    #[serde(default)]
+    pub artifacts: BTreeMap<String, ArtifactEntry>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +45,38 @@ pub struct BinaryEntry {
 pub struct PlatformEntry {
     pub sha256: String,
     pub signature: String,
+}
+
+/// A directory-tree artifact, published as one signed archive per platform.
+///
+/// A platform this release does not publish is represented by omitting its key,
+/// never by the all-zeros sentinel `binaries` uses: a sentinel entry has no
+/// archive, so its three sizes would have no honest value but zero — which is
+/// the value the consumer must treat as a defect.
+#[derive(Debug, Deserialize)]
+pub struct ArtifactEntry {
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub platforms: BTreeMap<String, ArtifactPlatformEntry>,
+}
+
+/// One platform's tree archive.
+///
+/// The three sizes are required rather than defaulted: a defaulted zero would
+/// silently disable both the download cap and the decompression-bomb ceiling,
+/// which is the failure mode a default exists to avoid.
+#[derive(Debug, Deserialize)]
+pub struct ArtifactPlatformEntry {
+    pub sha256: String,
+    pub signature: String,
+    /// Bounds the download.
+    pub archive_size: u64,
+    /// With `archive_size`, bounds extraction and the free-space precheck —
+    /// both copies exist on disk at once.
+    pub uncompressed_size: u64,
+    /// Bounds the entry count during extraction.
+    pub entry_count: u64,
 }
 
 impl PlatformEntry {
@@ -118,6 +152,17 @@ impl Manifest {
     ) -> Option<&PlatformEntry> {
         self.binaries.get(binary)?.platforms.get(platform)
     }
+
+    /// Look up a tree artifact's entry for a platform, or `None` if this
+    /// release publishes none for it.
+    #[must_use]
+    pub fn artifact_platform_entry(
+        &self,
+        artifact: &str,
+        platform: &str,
+    ) -> Option<&ArtifactPlatformEntry> {
+        self.artifacts.get(artifact)?.platforms.get(platform)
+    }
 }
 
 #[cfg(test)]
@@ -146,6 +191,91 @@ mod tests {
             .platform_entry("visualiser", "darwin-arm64")
             .ok_or("missing entry")?;
         assert_eq!(entry.bare_sha256("visualiser")?.len(), 64);
+        Ok(())
+    }
+
+    #[test]
+    fn parses_the_artifacts_map_from_the_golden_fixture(
+    ) -> Result<(), Box<dyn Error>> {
+        let value: serde_json::Value = serde_json::from_str(GOLDEN)?;
+        let version = value["version"].as_str().ok_or("no version")?;
+        let manifest =
+            Manifest::parse_and_validate(GOLDEN.as_bytes(), version)?;
+        let entry = manifest
+            .artifact_platform_entry("browser", "linux-x64")
+            .ok_or("missing artifact entry")?;
+        assert_eq!(entry.sha256.len(), 64);
+        assert!(entry.archive_size > 0);
+        assert!(entry.uncompressed_size > entry.archive_size);
+        assert!(entry.entry_count > 0);
+        Ok(())
+    }
+
+    #[test]
+    fn an_absent_artifact_platform_yields_none() -> Result<(), Box<dyn Error>> {
+        let value: serde_json::Value = serde_json::from_str(GOLDEN)?;
+        let version = value["version"].as_str().ok_or("no version")?;
+        let manifest =
+            Manifest::parse_and_validate(GOLDEN.as_bytes(), version)?;
+        assert!(manifest
+            .artifact_platform_entry("browser", "solaris-sparc")
+            .is_none());
+        assert!(manifest
+            .artifact_platform_entry("nonesuch", "linux-x64")
+            .is_none());
+        Ok(())
+    }
+
+    fn artifact_manifest_json(platform_entry: &str) -> String {
+        format!(
+            "{{\"schema_version\":1,\"version\":\"{VERSION}\",\
+             \"binaries\":{{}},\"artifacts\":{{\
+             \"browser\":{{\"description\":\"Headless shell\",\
+             \"platforms\":{{\"linux-x64\":{platform_entry}}}}}}}}}"
+        )
+    }
+
+    #[test]
+    fn an_artifact_platform_entry_missing_a_size_is_rejected() {
+        for omitted in ["archive_size", "uncompressed_size", "entry_count"] {
+            let mut fields = vec![
+                "\"sha256\":\"aa\"".to_owned(),
+                "\"signature\":\"sig\"".to_owned(),
+                "\"archive_size\":10".to_owned(),
+                "\"uncompressed_size\":20".to_owned(),
+                "\"entry_count\":3".to_owned(),
+            ];
+            fields.retain(|field| !field.contains(omitted));
+            let json =
+                artifact_manifest_json(&format!("{{{}}}", fields.join(",")));
+            assert!(
+                Manifest::parse_and_validate(json.as_bytes(), VERSION).is_err(),
+                "expected a parse failure with {omitted} omitted"
+            );
+        }
+    }
+
+    #[test]
+    fn ignores_unknown_additive_fields_inside_an_artifact_entry(
+    ) -> Result<(), Box<dyn Error>> {
+        let json = artifact_manifest_json(
+            "{\"sha256\":\"aa\",\"signature\":\"sig\",\"archive_size\":10,\
+             \"uncompressed_size\":20,\"entry_count\":3,\"future_field\":42}",
+        );
+        let manifest = Manifest::parse_and_validate(json.as_bytes(), VERSION)?;
+        assert!(manifest
+            .artifact_platform_entry("browser", "linux-x64")
+            .is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn a_manifest_without_artifacts_still_resolves_binaries(
+    ) -> Result<(), Box<dyn Error>> {
+        let json = manifest_json(VERSION, &"a".repeat(64));
+        let manifest = Manifest::parse_and_validate(json.as_bytes(), VERSION)?;
+        assert!(manifest.artifacts.is_empty());
+        assert!(manifest.platform_entry("foo", "darwin-arm64").is_some());
         Ok(())
     }
 
