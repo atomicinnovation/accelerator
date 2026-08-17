@@ -538,30 +538,64 @@ Four dispositions, with what each costs:
    hook. ⚠️ Requires an approver named outside this measurement and a rationale
    that does not appeal to the observed number.
 
-⚠️ **Whatever is decided, the drift band needs re-deriving first**, because
-until it is no session can be valid — see the next subsection.
+⚠️ **The drift band has been re-derived, and it does not stand in the way.**
+Attempt 2 is genuinely invalid on drift (`p = 0.0050`), but the ratio sits above
+1.3 in every tenth of the session, so the C5 finding is robust to the
+invalidation and any disposition above can be taken on it. See the next
+subsection.
 
-### The drift band may be unattainable, 2026-08-17
+### The drift band, re-derived 2026-08-17
 
-Both sessions failed the drift diagnostic, and **in opposite directions**:
-attempt 1 at −0.0132, attempt 2 at +0.0091, against a band of 0.005. So it is
-session-scale wander rather than a thermal ramp, and it is not load: attempt 2
-ran at a quarter of attempt 1's load with a third of its dispersion and still
-failed. Every cell in both sessions is therefore branch 5b, `closure_verdict` is
-false, and this item cannot close — which is the unsatisfiable-by-construction
-shape the criterion guards against elsewhere.
+**Retracting the claim that the band may be unattainable.** An earlier version of
+this subsection reasoned that, because both sessions failed the 0.005 band in
+opposite directions, no session could ever be valid. Re-deriving the band from
+attempt 2's persisted samples refutes that: **a stationary session clears 0.005
+88.8% of the time.** The constant was too tight, carrying an unstated
+false-positive rate of ~11% — not unattainable.
 
-The band's stated derivation is "about a quarter of C5's 0.0187 margin". **That
-margin does not exist**: the ratio is 1.34, so C5 has no margin to take a
-quarter of. The band therefore rests on a quantity the measurement disproved,
-which is a reason to re-derive it that does not appeal to the fact that it
-failed. A defensible replacement would be calibrated against the observed
-session-scale wander of the instrument, measured rather than inferred from a
-margin.
+**The basis.** Permuting the pair *order* destroys temporal structure while
+preserving the pairing and both arms' dispersion, so the spread of the
+first-third-versus-last-third statistic over permutations is what no-drift looks
+like at this sample size on this instrument. A quantile of that null is a band
+with a **stated** false-positive rate, derived without reference to the observed
+drift — scrambling the session's order leaves the band unchanged while changing
+the observed statistic completely. It is a **procedure**, not a constant: the
+null narrows with n, so one number is too tight at large n and too loose at
+small n.
 
-Re-deriving it needs no new sampling: attempt 2's raw samples are persisted
-beside its record, so a re-derived band can be applied to the session already
-taken.
+At attempt 2's n = 1,700, over 10,000 permutations, observed |Δ| = 0.00915:
+
+| Band | Value | Fires |
+| --- | --- | --- |
+| superseded constant | 0.00500 | yes |
+| null quantile 0.90 | 0.00517 | yes |
+| **null quantile 0.95 (adopted)** | **0.00615** | **yes** |
+| null quantile 0.99 | 0.00825 | yes |
+| null quantile 0.999 | 0.01054 | no |
+
+**Attempt 2 genuinely drifted.** `P(|Δ| ≥ observed | no drift) = 0.0050`. The
+verdict is unchanged at every quantile up to 0.99, so the change of basis does
+not rescue the session — the branch-5b invalidation stands, and it stands on a
+sounder footing than the constant gave it. The harness now computes the band and
+the significance per session and records the superseded constant's verdict
+alongside, so a reader can see whether the change of basis changed the outcome
+rather than taking it on trust.
+
+⚠️ **The drift is real but immaterial to C5.** Sliced into ten equal windows in
+collection order, the ratio runs 1.3364, 1.3353, 1.3415, 1.3421, 1.3404, 1.3411,
+1.3373, 1.3427, 1.3569, 1.3506 — a range of 0.0216, **every window above 1.3 by
+at least 0.035**. The drift moves the ratio *within* a band that lies wholly
+above the threshold, so it does not explain the level and the C5 finding survives
+the invalidation. Any disposition in the preceding subsection can be taken on
+that basis.
+
+This also explains why every rehearsal reported branch 5b: at n = 8 the null's
+0.95 quantile is ~0.078, so the 0.005 constant fired on pure sampling noise.
+
+⚠️ Adopting the derived band as the *gate* rather than as a recorded diagnostic
+is a criterion change. It is implemented as the computed default because its
+predecessor's stated basis no longer exists, and because it changes no verdict
+here — but confirming it belongs with whoever settles the threshold above.
 
 ### Limitations
 
@@ -627,10 +661,14 @@ taken.
   live. No default is offered deliberately — every disposition changes either
   the shipped code, the criterion, or the closure terms, and none of those is a
   measurement's call.
-- **Is the drift band of 0.005 attainable at all?** Both sessions failed it in
-  opposite directions, so until it is re-derived no session can be valid and
-  this item cannot close. See [The drift band may be
-  unattainable](#the-drift-band-may-be-unattainable-2026-08-17).
+- **Should the re-derived drift band be the gate?** **Answered 2026-08-17 as to
+  the number, open as to its adoption.** The band is re-derived from attempt 2's
+  own null at 0.00615 for a stated 5% false-positive rate, replacing a constant
+  whose rate was an unstated ~11%; the harness computes it per session. Attempt 2
+  drifted at `p = 0.0050` under either, so no verdict turns on it. **Default if
+  unresolved**: the derived band stands as the computed diagnostic and the
+  session stays invalidated. See [The drift band,
+  re-derived](#the-drift-band-re-derived-2026-08-17).
 
 ## Dependencies
 

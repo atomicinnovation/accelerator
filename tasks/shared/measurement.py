@@ -996,6 +996,96 @@ def thirds(
     return (list(samples[:size]), list(samples[len(samples) - size :]))
 
 
+def drift_statistic(
+    baseline: Sequence[float], variant: Sequence[float]
+) -> float:
+    """Measure the gated ratio's shift from the first third to the last.
+
+    Banded on the gated quantity rather than per variant: a shift in one
+    variant alone can move the ratio by several times its margin while each
+    variant's own band looks clean, and a benign common drift would discard a
+    good session.
+    """
+    _require_pairs(baseline, variant)
+    first_b, last_b = thirds(baseline)
+    first_g, last_g = thirds(variant)
+    if not first_b:
+        return 0.0
+    return ratio_of_medians(last_b, last_g) - ratio_of_medians(first_b, first_g)
+
+
+def _permuted_statistics(
+    baseline: Sequence[float],
+    variant: Sequence[float],
+    *,
+    permutations: int,
+    rng: random.Random,
+) -> list[float]:
+    """Sample |drift| over random orderings of the same pairs.
+
+    Permuting the pair *order* destroys temporal structure while preserving the
+    pairing and both arms' dispersion, so this is the distribution of the
+    statistic under the null hypothesis of no drift — at this sample size and
+    this instrument's spread, rather than at an assumed one.
+    """
+    _require_pairs(baseline, variant)
+    pairs = list(zip(baseline, variant, strict=True))
+    observed = []
+    for _ in range(permutations):
+        rng.shuffle(pairs)
+        observed.append(
+            abs(drift_statistic([b for b, _ in pairs], [g for _, g in pairs]))
+        )
+    return sorted(observed)
+
+
+def drift_band_from_permutation(
+    baseline: Sequence[float],
+    variant: Sequence[float],
+    *,
+    permutations: int,
+    quantile: float,
+    rng: random.Random,
+) -> float:
+    """Derive a drift band with a stated false-positive rate.
+
+    The `quantile` of the no-drift null: a stationary session exceeds it
+    `1 - quantile` of the time, by construction. Derived from the null rather
+    than from the observed drift, so it is not circular — scrambling the
+    session's order leaves the band essentially unchanged while changing the
+    observed statistic completely.
+
+    It necessarily depends on the sample size and the instrument's dispersion,
+    so it is a **procedure** to run per session rather than a constant: one
+    fixed number is too tight at large n and too loose at small n.
+    """
+    return percentile(
+        _permuted_statistics(
+            baseline, variant, permutations=permutations, rng=rng
+        ),
+        quantile,
+    )
+
+
+def drift_significance(
+    baseline: Sequence[float],
+    variant: Sequence[float],
+    *,
+    permutations: int,
+    rng: random.Random,
+) -> float:
+    """Report the share of no-drift orderings drifting at least this much.
+
+    Recorded alongside the band because it says *how far* outside the null a
+    session sits, where the band only says whether it is outside at all.
+    """
+    observed = abs(drift_statistic(baseline, variant))
+    null = _permuted_statistics(
+        baseline, variant, permutations=permutations, rng=rng
+    )
+    return sum(1 for value in null if value >= observed) / len(null)
+
+
 def dirname_spawn_count(trace: str) -> int:
     """Count `dirname` spawns in a `bash -x` trace.
 

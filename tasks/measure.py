@@ -52,6 +52,9 @@ from tasks.shared.measurement import (
     classify,
     closure_verdict,
     dirname_spawn_count,
+    drift_band_from_permutation,
+    drift_significance,
+    drift_statistic,
     drift_verdict,
     expected_decision,
     generate_schedule,
@@ -94,7 +97,18 @@ MEDIAN_TARGET_MS = 1.0
 P90_TARGET_MS = 2.0
 RATIO_TARGET = 0.0036
 RATIO_ESCALATION_TARGET = 0.0018
-DRIFT_BAND = 0.005
+# The superseded constant band. Retained only so a record can state both
+# verdicts: its derivation was "about a quarter of C5's 0.0187 margin", and the
+# measurement disproved that margin. It sits at the 88.8th percentile of the
+# no-drift null at n = 1,700 on this instrument, so its false-positive rate was
+# an unstated ~11%.
+SUPERSEDED_DRIFT_BAND = 0.005
+# The band is now derived per session from the order-permutation null at this
+# quantile, giving a stated false-positive rate. A constant cannot serve: the
+# null narrows with the sample size, so one number is too tight at large n and
+# too loose at small n.
+DRIFT_QUANTILE = 0.95
+DRIFT_PERMUTATIONS = 2000
 BLOCK_A_PAIRS = 1700
 BLOCK_B_SAMPLES = 900
 BLOCK_A_MAX_PAIRS = 6900
@@ -235,7 +249,9 @@ def criterion_constants() -> dict[str, float]:
         "P90_TARGET_MS": P90_TARGET_MS,
         "RATIO_TARGET": RATIO_TARGET,
         "RATIO_ESCALATION_TARGET": RATIO_ESCALATION_TARGET,
-        "DRIFT_BAND": DRIFT_BAND,
+        "SUPERSEDED_DRIFT_BAND": SUPERSEDED_DRIFT_BAND,
+        "DRIFT_QUANTILE": DRIFT_QUANTILE,
+        "DRIFT_PERMUTATIONS": DRIFT_PERMUTATIONS,
         "BLOCK_A_PAIRS": BLOCK_A_PAIRS,
         "BLOCK_B_SAMPLES": BLOCK_B_SAMPLES,
         "BLOCK_A_MAX_PAIRS": BLOCK_A_MAX_PAIRS,
@@ -2123,11 +2139,8 @@ def analyse(
                 ratio_of_medians(last_b, last_g) if last_b else None
             ),
         }
-        first_ratio = ratio_of_medians(first_b, first_g) if first_b else 0.0
-        last_ratio = ratio_of_medians(last_b, last_g) if last_b else 0.0
-        ratios["drift_holds"] = bool(
-            first_b and drift_holds(first_ratio, last_ratio)
-        )
+        ratios["drift"] = assess_drift(baseline, fast, rng=rng)
+        ratios["drift_holds"] = bool(ratios["drift"]["holds"])
     validity = (
         Validity.VALID
         if ratios.get("drift_holds", True)
@@ -2439,8 +2452,38 @@ def floors_hold(
     return (holds, retry_budget(attempts_used, cap=FLOOR_RETRY_CAP))
 
 
-def drift_holds(first_third: float, last_third: float) -> bool:
-    return drift_verdict(first_third, last_third, band=DRIFT_BAND)
+def assess_drift(
+    baseline: Sequence[float], variant: Sequence[float], *, rng: random.Random
+) -> dict[str, object]:
+    """Judge the session's drift against a band derived from its own null.
+
+    Records the superseded constant's verdict alongside the derived one, so a
+    reader can see whether the change of basis changed the outcome rather than
+    having to take that on trust.
+    """
+    observed = drift_statistic(baseline, variant)
+    band = drift_band_from_permutation(
+        baseline,
+        variant,
+        permutations=DRIFT_PERMUTATIONS,
+        quantile=DRIFT_QUANTILE,
+        rng=rng,
+    )
+    significance = drift_significance(
+        baseline, variant, permutations=DRIFT_PERMUTATIONS, rng=rng
+    )
+    return {
+        "observed": observed,
+        "band": band,
+        "quantile": DRIFT_QUANTILE,
+        "permutations": DRIFT_PERMUTATIONS,
+        "significance": significance,
+        "holds": abs(observed) <= band,
+        "holds_under_superseded_constant": drift_verdict(
+            0.0, observed, band=SUPERSEDED_DRIFT_BAND
+        ),
+        "superseded_band": SUPERSEDED_DRIFT_BAND,
+    }
 
 
 def budget_closes(

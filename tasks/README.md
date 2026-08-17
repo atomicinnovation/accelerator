@@ -358,7 +358,9 @@ and every number in the function appears below, so the two cannot drift.
 - `P90_TARGET_MS` = 2
 - `RATIO_TARGET` = 0.0036
 - `RATIO_ESCALATION_TARGET` = 0.0018
-- `DRIFT_BAND` = 0.005
+- `SUPERSEDED_DRIFT_BAND` = 0.005
+- `DRIFT_QUANTILE` = 0.95
+- `DRIFT_PERMUTATIONS` = 2000
 - `BLOCK_A_PAIRS` = 1700
 - `BLOCK_B_SAMPLES` = 900
 - `BLOCK_A_MAX_PAIRS` = 6900

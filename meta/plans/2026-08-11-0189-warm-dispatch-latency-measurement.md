@@ -2662,13 +2662,26 @@ ms. One lever is roughly twice the gap.
 25%, 35%, 26% and 32%, and every one improved on attempt 1. The cell that fails
 is the one the criterion itself demotes to a historical comparison.
 
-**⚠️ The session is nonetheless invalid (branch 5b), on drift, for the second
-time.** Block A's first-third ratio 1.3388 against its last-third 1.3479, |Δ| =
-0.0091 against the pre-registered band of 0.005. Attempt 1 failed the same band
-at −0.0132. The two failures are in **opposite directions**, so this is
+**⚠️ The session is nonetheless invalid (branch 5b), on drift.** Block A's
+first-third ratio 1.3388 against its last-third 1.3479, |Δ| = 0.00915. Attempt 1
+failed the same check at −0.0132, in the opposite direction, so this is
 session-scale wander rather than a thermal ramp, and it is not attributable to
 load: attempt 2's load was a quarter of attempt 1's and its dispersion a third,
-yet it still failed. See the drift finding below.
+yet it still drifted.
+
+**The band was re-derived from this session's own samples** — permuting the pair
+order to build the no-drift null — and the invalidation survives it. The 0.95
+quantile of that null is **0.00615** against the observed 0.00915, and
+`P(|Δ| ≥ observed | no drift) = 0.0050`; the verdict is unchanged at every
+quantile up to 0.99. The superseded constant of 0.005 turns out to sit at the
+**88.8th** percentile of the null, so its false-positive rate was an unstated
+~11% — it was too tight, not unattainable as this plan's earlier note claimed.
+
+⚠️ **The drift does not explain C5's level.** Sliced into ten equal windows in
+collection order the ratio runs 1.3364, 1.3353, 1.3415, 1.3421, 1.3404, 1.3411,
+1.3373, 1.3427, 1.3569, 1.3506 — a spread of 0.0216 with **every window above
+1.3 by at least 0.035**. So the C5 finding is robust to the invalidation: no
+slice of this session approaches the threshold.
 
 **Composition budget**, re-measured in-session: bash startup 4.848, two
 `sha256_file` calls 4.316, shim minisign-verify of the launcher 6.435, launcher

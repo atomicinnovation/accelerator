@@ -85,6 +85,9 @@ from tasks.shared.measurement import (
     classify,
     closure_verdict,
     dirname_spawn_count,
+    drift_band_from_permutation,
+    drift_significance,
+    drift_statistic,
     drift_verdict,
     expected_decision,
     generate_schedule,
@@ -2426,3 +2429,118 @@ class TestUnrecordedCalibration:
         )
         assert "uncalibrated" in note
         assert "bash" in note or "shasum" in note
+
+
+def stationary_pairs(n: int, seed: int = 11):
+    """A stationary paired series: no temporal structure, realistic spread."""
+    source = random.Random(seed)
+    return (
+        [source.gauss(28.0, 1.0) for _ in range(n)],
+        [source.gauss(37.5, 1.0) for _ in range(n)],
+    )
+
+
+def drifting_pairs(n: int, shift: float, seed: int = 11):
+    """The same series with the variant ramping linearly across the session."""
+    baseline, variant = stationary_pairs(n, seed)
+    return (
+        baseline,
+        [value + shift * index / n for index, value in enumerate(variant)],
+    )
+
+
+class TestDriftStatistic:
+    def test_it_is_the_signed_last_third_minus_first_third_ratio(self):
+        baseline = [10.0] * 30
+        variant = [10.0] * 10 + [11.0] * 10 + [12.0] * 10
+        assert drift_statistic(baseline, variant) == pytest.approx(0.2)
+
+    def test_a_stationary_series_has_a_small_statistic(self):
+        assert abs(drift_statistic(*stationary_pairs(900))) < 0.02
+
+    def test_unequal_arms_raise(self):
+        with pytest.raises(ValueError, match="length"):
+            drift_statistic([1.0, 2.0], [1.0])
+
+
+class TestDriftBandFromPermutation:
+    """The band is derived from the null, never from the observed drift.
+
+    Permuting the pair *order* destroys temporal structure while preserving the
+    pairing and both arms' dispersion, so the resulting spread of the statistic
+    is what no-drift looks like at this sample size. A quantile of it is a band
+    with a stated false-positive rate — which the superseded constant, taken as
+    a fraction of a margin the measurement disproved, did not have.
+    """
+
+    def band(self, baseline, variant, **kwargs):
+        defaults = {"permutations": 300, "quantile": 0.95, "rng": rng()}
+        return drift_band_from_permutation(
+            baseline, variant, **{**defaults, **kwargs}
+        )
+
+    def test_the_band_is_positive_and_finite(self):
+        assert self.band(*stationary_pairs(600)) > 0
+
+    def test_it_is_reproducible_under_a_fixed_seed(self):
+        args = stationary_pairs(600)
+        assert self.band(*args) == self.band(*args)
+
+    def test_a_stationary_series_falls_inside_its_own_band(self):
+        baseline, variant = stationary_pairs(900)
+        assert abs(drift_statistic(baseline, variant)) <= self.band(
+            baseline, variant
+        )
+
+    def test_a_strongly_drifting_series_exceeds_its_band(self):
+        baseline, variant = drifting_pairs(900, shift=4.0)
+        assert abs(drift_statistic(baseline, variant)) > self.band(
+            baseline, variant
+        )
+
+    def test_the_band_does_not_depend_on_the_observed_ordering(self):
+        # The non-circularity property: the band measures the null, so
+        # scrambling the input's order must leave it essentially unchanged even
+        # though it changes the observed statistic beyond recognition.
+        baseline, variant = drifting_pairs(600, shift=4.0)
+        scrambled = list(zip(baseline, variant, strict=True))
+        random.Random(3).shuffle(scrambled)
+        rescrambled = (
+            [b for b, _ in scrambled],
+            [g for _, g in scrambled],
+        )
+        assert self.band(baseline, variant) == pytest.approx(
+            self.band(*rescrambled), rel=0.25
+        )
+
+    def test_a_higher_quantile_widens_the_band(self):
+        args = stationary_pairs(600)
+        assert self.band(*args, quantile=0.99) >= self.band(
+            *args, quantile=0.90
+        )
+
+    def test_more_samples_tighten_the_band(self):
+        assert self.band(*stationary_pairs(1500)) < self.band(
+            *stationary_pairs(300)
+        )
+
+
+class TestDriftSignificance:
+    def test_a_stationary_series_is_not_significant(self):
+        baseline, variant = stationary_pairs(900)
+        assert (
+            drift_significance(baseline, variant, permutations=300, rng=rng())
+            > 0.05
+        )
+
+    def test_a_strongly_drifting_series_is_significant(self):
+        baseline, variant = drifting_pairs(900, shift=4.0)
+        assert (
+            drift_significance(baseline, variant, permutations=300, rng=rng())
+            <= 0.01
+        )
+
+    def test_the_p_value_is_bounded(self):
+        baseline, variant = stationary_pairs(300)
+        p = drift_significance(baseline, variant, permutations=200, rng=rng())
+        assert 0.0 <= p <= 1.0
