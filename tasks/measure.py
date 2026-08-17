@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum, unique
@@ -1199,6 +1199,20 @@ def smoke_report(
     last release cut, and a lane that reddens on that would be red by default.
     """
     lines = [f"digest backends: {digest_backend_population()}"]
+    if live:
+        witness = FilesystemWitness()
+        priming = prime_cache(
+            plugin_root,
+            runner=runner,
+            entries=lambda: witness.entries(plugin_root / "bin"),
+            version=plugin_version(plugin_root),
+            platform=entry_platform(),
+        )
+        if priming["primed"]:
+            lines.append(
+                f"cache primed before capture; gaps closed: "
+                f"{not priming['gaps_after']}"
+            )
     with MeasurementSession(plugin_root) as session:
         if session.baseline is None:
             raise PreconditionFailureError("the session captured no baseline")
@@ -1455,6 +1469,55 @@ def next_record_paths(
         record=directory / f"warm-dispatch-{attempt}.json",
         samples=directory / f"warm-dispatch-{attempt}-samples.json",
     )
+
+
+def prime_cache(
+    plugin_root: Path,
+    *,
+    runner: MeasurementRunner,
+    entries: Callable[[], Sequence[str]],
+    version: str,
+    platform: str,
+) -> dict[str, object]:
+    """Populate the cache root before a baseline is captured, if it is cold.
+
+    A cold cache is a **prerequisite** of the live-dispatch smoke check, not a
+    cleanup failure: the check's own first dispatch fetches the launcher, the
+    shim and the sub-binary, so a session that captured its baseline first would
+    then correctly report five entries as appearing during the run. Priming
+    outside the witnessed window satisfies the prerequisite without weakening
+    the witness by a single assertion.
+
+    The measurement proper does the opposite — `check_preconditions` refuses a
+    cold cache — because a freshly fetched entry is not the warm path it times.
+    """
+    before = warm_cache_gaps(
+        version=version,
+        cache_root_entries=entries(),
+        platform=platform,
+    )
+    if not before:
+        return {"primed": False, "gaps_before": [], "gaps_after": []}
+    # The ambient environment, not a farm: the farms do not exist yet, and a
+    # cold fetch needs `curl` or `wget`, which a farm built for the two
+    # variants' own tool sets need not carry.
+    runner(
+        [
+            str(plugin_root / "bin/accelerator"),
+            "vcs",
+            "guard",
+            "--format=hook",
+            "--fail-safe",
+        ],
+        cwd=plugin_root,
+        env=dict(os.environ),
+    )
+    after = warm_cache_gaps(
+        version=version,
+        cache_root_entries=entries(),
+        platform=platform,
+    )
+    return {"primed": True, "gaps_before": before, "gaps_after": after}
 
 
 def backend_delta_check(

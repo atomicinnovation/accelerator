@@ -58,6 +58,7 @@ from tasks.measure import (
     next_record_paths,
     parse_term_report,
     plugin_version,
+    prime_cache,
     recover_baseline,
     recovery_argv,
     staged_shim_targets,
@@ -2544,3 +2545,129 @@ class TestDriftSignificance:
         baseline, variant = stationary_pairs(300)
         p = drift_significance(baseline, variant, permutations=200, rng=rng())
         assert 0.0 <= p <= 1.0
+
+
+class TestCachePriming:
+    """A cold cache is a prerequisite of the smoke check, not a cleanup failure.
+
+    The smoke check's own live dispatch populates the cache root on a fresh
+    runner, and the session's integrity witness then reports those entries as
+    appearing during the run — which they did. Priming *before* the baseline is
+    captured satisfies the prerequisite without weakening the witness by one
+    assertion.
+
+    The measurement proper does the opposite and refuses a cold cache, because
+    a freshly fetched entry is not the warm path it is timing.
+    """
+
+    def gaps_for(self, version, entries):
+        return warm_cache_gaps(
+            version=version,
+            cache_root_entries=entries,
+            platform="darwin-arm64",
+        )
+
+    def warm(self, version="1.24.0-pre.41"):
+        digest = "a" * 64
+        return [
+            f"accelerator-launcher-{version}-darwin-arm64",
+            f"accelerator-launcher-{version}-darwin-arm64.minisig",
+            f"vcs-{version}-{digest}",
+            f"vcs-{version}-{digest}.minisig",
+        ]
+
+    def test_a_warm_cache_is_left_alone(self, tmp_path):
+        dispatches = []
+
+        def runner(argv, *, cwd, env):
+            dispatches.append(argv)
+            return RunResult("", "", 0, 1.0)
+
+        report = prime_cache(
+            tmp_path,
+            runner=runner,
+            entries=self.warm,
+            version="1.24.0-pre.41",
+            platform="darwin-arm64",
+        )
+        assert report["primed"] is False
+        assert not dispatches, "a warm cache needs no fetch"
+
+    def test_a_cold_cache_is_primed_by_one_dispatch(self, tmp_path):
+        state = {"entries": []}
+        dispatches = []
+
+        def runner(argv, *, cwd, env):
+            dispatches.append(argv)
+            state["entries"] = self.warm()
+            return RunResult("", "", 0, 1.0)
+
+        report = prime_cache(
+            tmp_path,
+            runner=runner,
+            entries=lambda: state["entries"],
+            version="1.24.0-pre.41",
+            platform="darwin-arm64",
+        )
+        assert report["primed"] is True
+        assert len(dispatches) == 1
+        assert report["gaps_before"]
+        assert report["gaps_after"] == []
+
+    def test_a_fetch_that_does_not_close_the_gaps_is_reported(self, tmp_path):
+        def runner(argv, *, cwd, env):
+            return RunResult("", "no release published", 0, 1.0)
+
+        report = prime_cache(
+            tmp_path,
+            runner=runner,
+            entries=list,
+            version="1.24.0-pre.41",
+            platform="darwin-arm64",
+        )
+        assert report["primed"] is True
+        assert report["gaps_after"], (
+            "an unclosed gap must be reported, not swallowed — it is the "
+            "unmet-prerequisite signal the lane exists to surface"
+        )
+
+    def test_priming_uses_the_ambient_environment_not_a_farm(self, tmp_path):
+        seen = {}
+
+        def runner(argv, *, cwd, env):
+            seen["path"] = env.get("PATH")
+            return RunResult("", "", 0, 1.0)
+
+        prime_cache(
+            tmp_path,
+            runner=runner,
+            entries=list,
+            version="1.24.0-pre.41",
+            platform="darwin-arm64",
+        )
+        # The farms do not exist yet at priming time, and the fetch needs curl
+        # or wget, which a farm built for the two variants need not carry.
+        assert seen["path"] == os.environ.get("PATH")
+
+    def test_only_the_smoke_check_primes_the_cache(self):
+        """The measurement must refuse a cold cache, never populate it.
+
+        A freshly fetched entry is not the warm path the measurement times, and
+        the fetch would mutate the cache root its own integrity witness is
+        compared against. Asserted at the source, so the two paths cannot
+        converge by accident.
+        """
+        source = (REPO / "tasks/measure.py").read_text()
+        definitions = re.split(r"^def ", source, flags=re.MULTILINE)[1:]
+        callers = {
+            name
+            for name, body in ((d.split("(", 1)[0], d) for d in definitions)
+            # The definition of `prime_cache` names itself in its own signature.
+            if name != "prime_cache"
+            and re.search(r"(?<![\w_])prime_cache\(", body)
+        }
+        assert callers == {"smoke_report"}, (
+            f"prime_cache is called from {sorted(callers)}; only the smoke "
+            f"check may prime, because the measurement must refuse a cold "
+            f"cache rather than fetch into the root it witnesses"
+        )

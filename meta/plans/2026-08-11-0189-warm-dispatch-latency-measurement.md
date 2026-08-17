@@ -2879,6 +2879,27 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   three (1.3260 against 1.3423 and 1.3177), so a reader should note that the
   session which happened to pass is also the one most favourable to `G` — the
   quietest host produced both the tightest floors and the best ratio.
+- **The smoke check failed on a cold cache, which is every fresh CI runner.**
+  Found by the first CI run of the `check-measure-harness` job, on both OSes: the
+  live dispatch fetches the launcher, the shim and the sub-binary, and the
+  session's cache-root entry-set witness then correctly reported five entries as
+  appearing during the run, so verify failed and the job exited 1. A third
+  instance of the same blind spot as the `chmod` and `backend`-parameter defects —
+  the local cache was warm, so it never reproduced here.
+
+  The fix does not weaken the witness by a single assertion: a cold cache is a
+  **prerequisite** of the smoke check, so `prime_cache` satisfies it *before* the
+  baseline is captured, outside the witnessed window. The measurement proper still
+  refuses a cold cache, because a freshly fetched entry is not the warm path it
+  times and the fetch would mutate the root its own witness is compared against —
+  and a source-level test asserts `prime_cache` is called from the smoke check
+  alone, so the two paths cannot converge by accident. Verified against a
+  genuinely cold cache locally by moving the launcher and sub-binary entries
+  aside, including through the `--engine=git` path the CI lane uses.
+
+  ⚠️ The job is `continue-on-error: true`, so it never blocked the PR — but a
+  permanently red job is worthless, which is why this was fixed rather than
+  tolerated.
 - **The work-creation producer's id allocation collided, and its frontmatter
   needed repair.** `bin/accelerator work create` self-allocated 0210-0214, of
   which four were already claimed on other branches of the shared repository
