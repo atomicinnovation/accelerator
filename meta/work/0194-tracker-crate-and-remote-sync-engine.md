@@ -5,7 +5,7 @@ title: "Tracker Crate and Remote Sync Engine"
 date: "2026-08-05T18:18:52+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0194: Tracker Crate and Remote Sync Engine
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
