@@ -1,14 +1,9 @@
 """Pure analysis core for the warm-dispatch latency measurement.
 
-Everything decidable about a measurement session lives here as a function over
-recorded observations: the estimators, the sizing rule, the sampling schedule,
-the hook-envelope normalisation, the per-sample validity gate, the runaway
-brakes and the outcome taxonomy. The subprocess driver in `tasks/measure.py`
-holds only what genuinely needs a process, a clock or a filesystem.
-
-The criterion these functions implement is defined on work item 0189; the
-numeric constants live in `tasks/measure.py` and are bound to
-`tasks/README.md`'s `### Criterion constants` block by a lockstep guard.
+Everything decidable about a session is a function over recorded observations,
+so a defect surfaces as a failing test rather than as a plausible-looking
+figure. The driver in `tasks/measure.py` holds what needs a process, a clock or
+a filesystem, and the numeric constants it is judged against.
 """
 
 from __future__ import annotations
@@ -29,9 +24,8 @@ from pathlib import Path
 def percentile(values: Sequence[float], quantile: float) -> float:
     """Linearly interpolated percentile over `values`.
 
-    Linear interpolation rather than nearest-rank: the two conventions differ
-    materially at the sample sizes this harness runs, and only one can be the
-    recorded one.
+    Interpolated rather than nearest-rank; the two differ materially at the
+    sample sizes this runs at.
     """
     if not values:
         raise ValueError("percentile of an empty sample")
@@ -94,8 +88,8 @@ class Interval:
         """Distance from the point estimate to the upper bound.
 
         The gated tail for every `statistic ≤ ceiling` cell, and asymmetric
-        against the lower distance on a right-skewed latency distribution — so
-        a half-width would correspond to neither tail.
+        against the lower one on a right-skewed distribution, so a half-width
+        would correspond to neither.
         """
         return self.upper - self.point
 
@@ -126,10 +120,9 @@ def paired_ratio_interval(
 ) -> Interval:
     """Percentile bootstrap on `median(variant) / median(baseline)`.
 
-    Resamples pair *indices*, so each replicate keeps every drawn pair intact —
-    the estimator for a paired comparison. Unequal-length inputs raise rather
-    than being silently truncated to the shorter, which would misalign the
-    pairs into a confident wrong interval.
+    Resamples pair indices, so each replicate keeps every drawn pair intact.
+    Unequal-length inputs raise rather than being truncated to the shorter,
+    which would misalign the pairs into a confident wrong interval.
     """
     if len(baseline) != len(variant):
         raise ValueError(
@@ -180,13 +173,11 @@ def unpaired_ratio_interval(
     confidence: float,
     rng: random.Random,
 ) -> Interval:
-    """Percentile bootstrap on a ratio of medians over **independent** arms.
+    """Percentile bootstrap on a ratio of medians over independent arms.
 
-    The estimator for a ratio whose two arms were not sampled as pairs: each
-    arm is resampled to its own length, so arms of different length are
-    admissible. Pairing them is not merely unnecessary here, it is impossible —
-    the fallback block is single-arm by design, taking no baseline samples
-    because its own cells are absolute and its ratio is not gated.
+    Each arm is resampled to its own length, so arms of different length are
+    admissible — which they must be, since the block this serves is single-arm
+    and takes no baseline samples of its own.
     """
     if not baseline or not variant:
         raise ValueError("unpaired ratio over an empty arm")
@@ -205,9 +196,8 @@ def required_samples(
 ) -> int:
     """Size a sample: `n = n0 * (h0 / target)^2`, over **upper** distances.
 
-    Rounded up rather than truncating: a truncated n passes an approximate
-    round-trip while systematically under-sampling, which is how an escalation
-    lands in the terminal branch for a purely arithmetic reason.
+    Rounded up: a truncated n passes an approximate round-trip while
+    systematically under-sampling.
     """
     if target_distance <= 0:
         raise ValueError("target distance must be positive")
@@ -272,10 +262,9 @@ def generate_schedule(
 ) -> list[Sample]:
     """Build the two blocks' schedule: pilots first, then alternating.
 
-    `segment` counts *samples*, so a Block A segment holds half as many pairs.
-    Alternating segments keep monotone drift from landing wholly on one block
-    while keeping Block B's hashing load out of the pairs the ratio is computed
-    from.
+    `segment` counts samples, so a paired block's segment holds half as many
+    pairs. Alternating keeps monotone drift from landing wholly on one block
+    while keeping the heavier block's load out of the gated pairs.
     """
     schedule = _block_a_pairs(range(pilot_pairs), pilot=True, rng=rng)
     schedule += _block_b_samples(pilot_samples, pilot=True)
@@ -315,14 +304,10 @@ _LEGACY_DECISIONS = {"allow": Decision.ALLOW, "block": Decision.BLOCK}
 def normalise_envelope(stdout: str) -> tuple[Decision, str]:
     """Normalise a guard's stdout to `(decision, reason)`.
 
-    A total five-case union over both guards' wire shapes. It diverges
-    deliberately from `cli/vcs-cli/tests/guard_decision_table.rs` in two ways —
-    empty stdout normalises to `degraded` rather than `allow`, because a
-    fail-safe swallow and a genuine allow are the same bytes and only one of
-    them is a valid sample; and it carries a legacy branch the Rust function
-    has no need for. It strengthens the Rust check in two more: the deny arm
-    asserts `permissionDecision == "deny"` rather than inferring denial from
-    the presence of a reason, and the warn shape is accepted at both positions.
+    A total union over both guards' wire shapes. Empty stdout normalises to
+    `degraded` rather than `allow`, because a fail-safe swallow and a genuine
+    allow are the same bytes and only one of them is a valid sample. Denial is
+    asserted rather than inferred from the presence of a reason.
     """
     text = stdout.strip()
     if not text:
@@ -354,9 +339,7 @@ def expected_decision(probe_stdout: str) -> tuple[Decision, str]:
     """Derive the expected `(decision, reason)` from a pre-sampling probe.
 
     Refuses an expectation the sampling gate could not falsify: a degraded or
-    unrecognised probe means the harness does not know what the fixture emits,
-    and an `allow` expectation against a fixture pinned to the blocked decision
-    means the fixture is wrong.
+    unrecognised probe means the fixture's behaviour is unknown.
     """
     decision, reason = normalise_envelope(probe_stdout)
     if decision in {Decision.DEGRADED, Decision.UNRECOGNISED}:
@@ -384,11 +367,9 @@ def validate_dispatch(
 ) -> SampleVerdict:
     """Assert one dispatch reached the expected blocked decision.
 
-    Used on its own for the warm-up, where only the dispatched variant runs, and
-    pairwise by `validate_sample`. The stderr is carried into the diagnostic
-    because it is the only clue a degraded dispatch has: stdout is empty by
-    construction and the exit code is 0 whether the guard blocked, allowed, or
-    swallowed a failure under `--fail-safe`.
+    The stderr is carried into the diagnostic because it is the only clue a
+    degraded dispatch has: stdout is empty by construction and the exit code is
+    0 whether the guard blocked, allowed or swallowed a failure.
     """
     observed = normalise_envelope(raw)
     noise = stderr.strip()
@@ -424,9 +405,8 @@ def validate_sample(
 ) -> SampleVerdict:
     """Assert both variants produced the same blocked decision on one stdin.
 
-    The exit code carries no decision information — 0 for block, allow and a
-    fail-safe swallow alike — so the envelope is the only witness that a sample
-    exercised the path being timed.
+    The envelope is the only witness that a sample exercised the path being
+    timed; the exit code is 0 either way.
     """
     baseline = normalise_envelope(raw_b)
     variant = normalise_envelope(raw_g)
@@ -459,10 +439,9 @@ ABSOLUTE_OUTLIER_MS = 500.0
 def outlier_trip(sample: float, *, arm_median: float, arm_count: int) -> bool:
     """Report whether `sample` is out of range for its own arm.
 
-    Per arm rather than pooled: the arms span 33 to 59 ms, so a pooled median
-    is arm-blind. The absolute ceiling governs until the arm has enough samples
-    for a running median to mean anything — a network re-fetch is orders of
-    magnitude above either bound, so the trip is well defined from sample one.
+    Per arm rather than pooled, the arms differing by tens of milliseconds. The
+    absolute ceiling governs until a running median means anything; a network
+    re-fetch is orders of magnitude above either bound.
     """
     if arm_count < WARM_UP_SAMPLES:
         return sample > ABSOLUTE_OUTLIER_MS
@@ -478,21 +457,14 @@ def budget_exhausted(
 def drift_verdict(
     first_third: float, last_third: float, *, band: float
 ) -> bool:
-    """Report whether the session's drift is within `band`.
-
-    Banded on the gated ratio, not per variant: a shift in one variant alone
-    can move the ratio by several times the margin while each variant's own
-    band looks clean, and a benign common drift would discard a good session.
-    """
+    """Report whether the session's drift is within `band`."""
     return abs(last_third - first_third) <= band
 
 
 def retry_budget(attempts_used: int, *, cap: int) -> bool:
     """Report whether another recorded attempt is permitted.
 
-    Shared by the instrument-floor gate and the outlier abort, so an operator
-    cannot retry informally until the floors look good — that is optional
-    stopping through the back door.
+    Capped so that retrying until the numbers look good is not available.
     """
     return attempts_used < cap
 
@@ -500,10 +472,8 @@ def retry_budget(attempts_used: int, *, cap: int) -> bool:
 def log_appended_lines(before: str, after: str) -> list[str]:
     """Lines appended to an append-only log, or `[]` when it is unchanged.
 
-    Raises when the recorded prefix changed: the unverified log is only ever
-    appended to, by `fail_integrity` or the dev-override exec, so a rewritten
-    prefix is a different failure from a growth and must not be reported as a
-    diff.
+    Raises when the recorded prefix changed: a rewritten prefix is a different
+    failure from a growth and must not be reported as a diff.
     """
     if not after.startswith(before):
         raise ValueError(
@@ -563,11 +533,10 @@ def classify(
 ) -> Branch:
     """Select the one branch a cell's recorded state falls in.
 
-    An ordered cascade, first match wins, so precedence is stated rather than
-    implied. Two junctions depend on the order: a spent escalation is checked
-    before the positional branches, so one escalation cannot be spent twice;
-    and an invalid session outranks infeasible sizing, because an invalid
-    session's sizing is moot.
+    An ordered cascade, first match wins. Two junctions depend on that order: a
+    spent escalation is checked before the positional branches, so one cannot
+    be spent twice; and an invalid session outranks infeasible sizing, whose
+    sizing is moot.
     """
     if (robustness_ok is None) is not (cell_kind is CellKind.ABSOLUTE):
         raise IllFormedCellError(
@@ -612,10 +581,9 @@ class CellOutcome:
 def closure_verdict(cells: Sequence[CellOutcome]) -> bool:
     """Report whether every gating cell permits the item to close.
 
-    A gating cell closes on branch 1, or on branch 7 carrying a recorded
-    acceptance — the criterion requires branch 1 on every *applicable* gating
-    cell, and a cell that cannot be measured on this host is not evidence
-    against it. Non-gating cells are ignored in every branch.
+    A cell that cannot be measured on this host is not evidence against
+    closing, so it needs a recorded acceptance rather than blocking outright.
+    Non-gating cells are ignored in every branch.
     """
     gating = [cell for cell in cells if cell.gates]
     if not gating:
@@ -642,8 +610,8 @@ def accelerator_override_keys(
 ) -> list[str]:
     """Report the `ACCELERATOR_*` keys set in `env`, minus the permitted ones.
 
-    Matches key *names*: grepping `env` output also matches values, and is
-    line-oriented over values that may contain newlines.
+    Matches key names: matching `env` output would also match values, over
+    which it is not line-oriented.
     """
     return sorted(
         key
@@ -655,9 +623,9 @@ def accelerator_override_keys(
 def ceiling_directories(tmpdir: Path) -> str:
     """Canonicalise a temp root for `GIT_CEILING_DIRECTORIES`.
 
-    git ignores non-canonical entries and does not resolve symlinks itself,
-    and macOS `$TMPDIR` sits under a `/var → /private/var` symlink — so an
-    uncanonicalised entry is silently ignored on exactly the primary host.
+    git ignores non-canonical entries and resolves no symlinks itself, and the
+    primary host's temp root sits under one, so an uncanonicalised entry is
+    silently ignored exactly where it matters.
     """
     return str(Path(tmpdir).resolve())
 
@@ -665,9 +633,8 @@ def ceiling_directories(tmpdir: Path) -> str:
 def tmp_containment(path: Path, tmproot: Path) -> bool:
     """Report whether `path` lies strictly beneath `tmproot`.
 
-    Canonicalises both sides, for the same `/var → /private/var` reason: a
-    recorded canonical path and a `gettempdir()` root are otherwise different
-    strings for the same directory.
+    Canonicalises both sides: a recorded canonical path and a `gettempdir()`
+    root are otherwise different strings for the same directory.
     """
     resolved = Path(path).resolve()
     root = Path(tmproot).resolve()
@@ -687,9 +654,8 @@ def unchanged_artefacts(
 ) -> list[str]:
     """Report every witnessed artefact whose identity moved.
 
-    A missing file counts: every non-hit route ends in `cache::store`, which
-    renames a fresh inode over the entry, and a self-healing re-fetch unlinks
-    before it stores.
+    A missing file counts: a re-fetch unlinks before it stores, and every
+    non-hit route renames a fresh inode over the entry.
     """
     problems = []
     for name in sorted(set(before) | set(after)):
@@ -714,11 +680,9 @@ class CpuProbes:
 def resolve_cpu_count(probes: CpuProbes) -> tuple[int, str]:
     """Resolve the CPU count, reporting which rung fired.
 
-    cgroup v2's `cpu.max` first, since `/proc/loadavg` is host-scoped
-    regardless of cgroup membership and the two are recorded separately rather
-    than divided. The literal `max` means no quota is set — the rung did not
-    fire. cgroup v1 is explicitly out of scope, and the chain stops at
-    `process_cpu_count` because the pinned interpreter always has it.
+    A cgroup quota first, where one is set; the literal `max` means none is.
+    cgroup v1 is out of scope, and the chain stops at `process_cpu_count`
+    because the pinned interpreter always has it.
     """
     quota = (probes.cgroup_cpu_max or "").split()
     if len(quota) == 2 and quota[0] != "max":
@@ -737,10 +701,8 @@ def power_state(
 ) -> dict[str, str]:
     """Record each power probe's output, or `unknown` where it is absent.
 
-    Additive so one harness runs on both OSes. Driven by the *diagnostic*
-    runner, never the measurement runner: the measurement farm holds exactly
-    the two variants' tools, so routing these through it would return
-    `unknown` on every run by construction.
+    Additive so one harness runs on both OSes. Driven by the diagnostic runner,
+    never the measurement one, whose farm holds only the variants' own tools.
     """
     state = {}
     for probe in probes:
@@ -756,8 +718,7 @@ def pilot_sizing(
 ) -> tuple[int, bool]:
     """Size the run from a pilot's achieved **upper** distance.
 
-    Returns the required n and whether it is within `cap`; an n beyond the cap
-    is design-infeasible rather than a licence to relax the target.
+    An n beyond `cap` is infeasible rather than a licence to relax the target.
     """
     needed = required_samples(pilot_n, pilot_interval.upper_distance, target)
     return (needed, needed <= cap)
@@ -782,13 +743,12 @@ def residual_verdict(
     observed_median: float,
     attempts_used: int,
 ) -> ResidualVerdict:
-    """Close the composition budget against `max(±1.5 ms, propagated)`.
+    """Close the composition budget against `max(floor, propagated)`.
 
-    The floor is narrower than the smallest lever the plan costs and declines,
-    so the check can detect a term moving by as much as the decisions under
-    discussion; the propagated term stops the band being tighter than the
-    measurement can resolve. Triggered by the residual's **magnitude**: a sum
-    of six noisy medians lands negative roughly half the time, so a
+    The floor keeps the band able to detect a term moving by as much as the
+    changes under consideration; the propagated term stops it being tighter
+    than the measurement can resolve. Triggered by the residual's magnitude: a
+    sum of noisy medians lands negative roughly half the time, so a
     sign-triggered re-measurement would be a selection filter.
     """
     total = sum(term.point for term in term_intervals)
@@ -818,11 +778,10 @@ PLATFORM_KEY_ENV = "MEASURE_PLATFORM_KEY"
 class Calibration:
     """Where a platform entry's numbers came from.
 
-    `(system, machine)` under-determines them: the floor gates come from one
-    session on one chip, `/bin/bash` 3.2 and homebrew bash 5 differ materially
-    in startup within a single key, and the fallback ceilings encode one host's
-    Perl startup — so two hosts sharing a key would otherwise be judged by
-    numbers calibrated for one of them while reporting as calibrated.
+    `(system, machine)` under-determines them: two hosts sharing a key can
+    differ materially in shell startup and digest implementation, so without
+    this one would be judged by the other's numbers while reporting as
+    calibrated.
     """
 
     session: str
@@ -851,8 +810,7 @@ def platform_constants(
 ) -> PlatformEntry | None:
     """Look up the calibrated entry for `key`, or `None` if absent.
 
-    A key with no entry yields no gating verdict — its figures are recorded as
-    uncalibrated context instead.
+    A key with no entry yields no gating verdict, only recorded context.
     """
     return table.get(key)
 
@@ -887,9 +845,9 @@ def unconfirmed_calibration_fields(
 ) -> list[str]:
     """Name every provenance field this host does not confirm.
 
-    A field the reference session never recorded is **unconfirmable**, not
-    matching: treating an unrecorded value as agreement would report a verdict
-    as calibrated against a figure nobody measured.
+    An unrecorded field is unconfirmable rather than matching: treating it as
+    agreement would report a verdict calibrated against a figure nobody
+    measured.
     """
     if entry.calibration is None:
         return ["no calibration provenance at all"]
@@ -916,10 +874,8 @@ def resolve_platform_key(
 ) -> tuple[tuple[str, str], str]:
     """Resolve the platform key, reporting where it came from.
 
-    The override is deliberately un-prefixed: every `ACCELERATOR_*` key is
-    rejected by the preconditions, so a prefixed override could not coexist
-    with them. It is stripped from the subprocess environment and recorded in
-    the provenance set.
+    The override is deliberately un-prefixed, since every `ACCELERATOR_*` key
+    is rejected by the preconditions and so could not coexist with them.
     """
     if option:
         return (_split_key(option), "--platform-key")
@@ -944,10 +900,9 @@ def _split_key(value: str) -> tuple[str, str]:
 def subtract_floor(samples: Sequence[float], floor: float) -> list[float]:
     """Shift every sample down by a shared instrument floor, clamped at zero.
 
-    Used for the two recorded floor treatments. Subtracting a shared floor
-    makes a ratio *larger*, so raw medians are the lenient statistic for a
-    `ratio ≤ k` gate and the subtracted form is the check on it, never the
-    other way round.
+    Subtracting a shared floor makes a ratio larger, so raw medians are the
+    lenient statistic for a `ratio ≤ k` gate and the subtracted form is the
+    check on it, never the other way round.
     """
     return [max(0.0, sample - floor) for sample in samples]
 
@@ -972,11 +927,10 @@ def ratio_of_medians(
 def median_of_ratios(
     baseline: Sequence[float], variant: Sequence[float]
 ) -> float:
-    """`median(Gᵢ/Bᵢ)`, recorded alongside the ratio of medians.
+    """Take the median of the per-pair ratios, not of the medians.
 
-    Pairing enters the gated statistic only through the resampling, not the
-    estimator, so the two diverge under drift — their divergence is the most
-    direct drift diagnostic the collected data affords.
+    Pairing enters the gated statistic only through the resampling, so the two
+    diverge under drift and their divergence is itself a diagnostic.
     """
     _require_pairs(baseline, variant)
     return median([g / b for b, g in zip(baseline, variant, strict=True) if b])
@@ -987,8 +941,7 @@ def thirds(
 ) -> tuple[list[float], list[float]]:
     """Split into equal first and last thirds, dropping the remainder.
 
-    Equal-sized thirds, so the drift comparison is between like windows: an
-    uneven split would let the larger window's dispersion masquerade as drift.
+    Equal-sized, or the larger window's dispersion could masquerade as drift.
     """
     size = len(samples) // 3
     if size == 0:
@@ -1001,10 +954,9 @@ def drift_statistic(
 ) -> float:
     """Measure the gated ratio's shift from the first third to the last.
 
-    Banded on the gated quantity rather than per variant: a shift in one
-    variant alone can move the ratio by several times its margin while each
-    variant's own band looks clean, and a benign common drift would discard a
-    good session.
+    On the gated quantity rather than per variant: a shift in one arm alone can
+    move the ratio while each arm's own band looks clean, and a common drift in
+    both would discard a session that is fine.
     """
     _require_pairs(baseline, variant)
     first_b, last_b = thirds(baseline)
@@ -1021,12 +973,11 @@ def _permuted_statistics(
     permutations: int,
     rng: random.Random,
 ) -> list[float]:
-    """Sample |drift| over random orderings of the same pairs.
+    """Sample the drift statistic over random orderings of the same pairs.
 
-    Permuting the pair *order* destroys temporal structure while preserving the
-    pairing and both arms' dispersion, so this is the distribution of the
-    statistic under the null hypothesis of no drift — at this sample size and
-    this instrument's spread, rather than at an assumed one.
+    Permuting the order destroys temporal structure while preserving the
+    pairing and both arms' dispersion, giving the statistic's distribution
+    under no drift at this sample size and this instrument's spread.
     """
     _require_pairs(baseline, variant)
     pairs = list(zip(baseline, variant, strict=True))
@@ -1049,15 +1000,13 @@ def drift_band_from_permutation(
 ) -> float:
     """Derive a drift band with a stated false-positive rate.
 
-    The `quantile` of the no-drift null: a stationary session exceeds it
-    `1 - quantile` of the time, by construction. Derived from the null rather
-    than from the observed drift, so it is not circular — scrambling the
-    session's order leaves the band essentially unchanged while changing the
-    observed statistic completely.
+    The `quantile` of the no-drift null, which a stationary session exceeds
+    `1 - quantile` of the time by construction. Derived from the null rather
+    than the observed drift, so it is not circular: scrambling the session's
+    order leaves the band unchanged while changing the statistic completely.
 
-    It necessarily depends on the sample size and the instrument's dispersion,
-    so it is a **procedure** to run per session rather than a constant: one
-    fixed number is too tight at large n and too loose at small n.
+    Necessarily depends on the sample size and the dispersion, so it is a
+    procedure per session rather than a constant.
     """
     return percentile(
         _permuted_statistics(
@@ -1076,8 +1025,8 @@ def drift_significance(
 ) -> float:
     """Report the share of no-drift orderings drifting at least this much.
 
-    Recorded alongside the band because it says *how far* outside the null a
-    session sits, where the band only says whether it is outside at all.
+    Says how far outside the null a session sits, where the band says only
+    whether it is outside.
     """
     observed = abs(drift_statistic(baseline, variant))
     null = _permuted_statistics(
@@ -1089,10 +1038,8 @@ def drift_significance(
 def dirname_spawn_count(trace: str) -> int:
     """Count `dirname` spawns in a `bash -x` trace.
 
-    Observed rather than implied by fixture depth: `find_repo_root` tests `-e
-    "$dir/.jj"` on `$PWD` before its first `dirname` call, so the expected
-    count is zero at any depth — which, if it holds, makes the baseline
-    depth-insensitive and means no depth pinning is needed across platforms.
+    Observed rather than implied by fixture depth. A count independent of depth
+    means no depth pinning is needed across hosts.
     """
     return sum(
         1
@@ -1215,15 +1162,10 @@ _EXPLICIT_LOOKUP = re.compile(r"command -v ([a-z][a-z0-9_.-]*)")
 def spawned_executables(text: str) -> set[str]:
     """Enumerate the external executables a shell script reaches for.
 
-    Derived from the script rather than transcribed, because a hand-written
-    tool set is how the measurement farm came to be missing `chmod`: the
-    bootstrap's exec probe could not chmod its probe file, reported the cache
-    root unwritable, and `--fail-safe` turned that into an exit 0 with empty
-    stdout — the degraded shape that records a spuriously low latency.
-
-    Recognises commands in command position and `command -v` lookups, filtered
-    against a closed vocabulary; locally defined functions are excluded, since
-    they shadow any same-named executable.
+    Derived rather than transcribed: a tool missing from the farm exits 0 under
+    a fail-safe dispatch, recording a spuriously low latency instead of
+    failing. Locally defined functions are excluded, since they shadow any
+    same-named executable.
     """
     functions = set(re.findall(r"^\s*(\w+)\(\)", text, re.MULTILINE))
     candidates = {match.group(1) for match in _COMMAND_POSITION.finditer(text)}

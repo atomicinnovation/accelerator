@@ -346,9 +346,9 @@ form of the limitation.
 
 The pre-registered numbers a run is judged by, held in lockstep with
 `criterion_constants()` in `tasks/measure.py` by
-`tests/unit/tasks/test_measure.py`. Work item 0189's Latency Criterion is
-authoritative for the criterion *text*; this block and that function are
-authoritative for the *numbers*. Every constant below appears in the function
+`tests/unit/tasks/test_measure.py`. The work item is authoritative for the
+criterion *text*; this block and that function are authoritative for the
+*numbers*. Every constant below appears in the function
 and every number in the function appears below, so the two cannot drift.
 
 - `RESAMPLES` = 10000

@@ -27,6 +27,7 @@ from tasks.measure import (
     FALLBACK_BACKEND,
     FAST_BACKEND,
     FLOOR_RETRY_CAP,
+    GUARDED_FILES,
     MANIFEST_DIRNAME,
     MANIFEST_NAME,
     PLATFORM_TABLE,
@@ -967,8 +968,8 @@ class TestPowerState:
 
 class TestPilotSizing:
     def test_h_zero_is_the_upper_distance_not_the_half_width(self):
-        # 0205's interval: 0.0151 below the point, 0.0086 above it. The
-        # half-width 0.0119 corresponds to neither tail.
+        # 0.0151 below the point, 0.0086 above it: the half-width 0.0119
+        # corresponds to neither tail.
         interval = Interval(point=1.2813, lower=1.2662, upper=1.2899)
         n, feasible = pilot_sizing(
             interval, target=0.0043, pilot_n=300, cap=7000
@@ -1008,7 +1009,7 @@ class TestPlatformConstants:
                 true_floor_ms=1.95,
                 reference_bash="GNU bash, version 3.2.57",
                 calibration=Calibration(
-                    session="0205",
+                    session="calibrating-session",
                     chip="Apple M4 Max",
                     bash="GNU bash, version 3.2.57",
                     shasum="Perl shasum 6.04",
@@ -1140,9 +1141,8 @@ class TestCriterionConstantsLockstep:
     """The doc block and `criterion_constants()` must agree, both ways.
 
     Deliberately does not read `meta/`: no test under `tests/` does, and corpus
-    documents are guarded by `this_repositorys_own_corpus_is_clean` instead.
-    0189's criterion cites this table as the authoritative numeric source, so
-    the two cannot drift without the doc block changing.
+    documents have their own gate. This table is the authoritative numeric
+    source, so the two cannot drift without the doc block changing.
     """
 
     def block(self) -> dict[str, float]:
@@ -1747,7 +1747,8 @@ class TestRecoveryContract:
         }
 
     def test_the_layout_resolves_the_guards_own_relative_dependency(self):
-        # The guard reads "$SCRIPT_DIR/../scripts/vcs-common.sh".
+        # The recovered layout must satisfy the baseline's own relative
+        # lookup of its dependency.
         assert self.recovered("bin/vcs-guard") == "hooks/vcs-guard.sh"
         assert (
             self.recovered("scripts/vcs-common.sh") == "scripts/vcs-common.sh"
@@ -2371,14 +2372,14 @@ class TestUnrecordedCalibration:
 
     The criterion demotes a verdict to uncalibrated context when the observed
     host disagrees with the entry's provenance. That rule is only sound if the
-    provenance is real: 0205 recorded its chip and its floors but not which
-    `bash` or `shasum` it resolved, so asserting values for those two would make
-    the comparison confirm agreement with a figure nobody measured.
+    provenance is real. The calibrating session recorded its chip and its
+    floors but not which `bash` or `shasum` it resolved, so asserting values for
+    those two would confirm agreement with a figure nobody measured.
     """
 
     def entry(self, **overrides):
         base = {
-            "session": "0205",
+            "session": "calibrating-session",
             "chip": "Apple M4 Max",
             "bash": None,
             "shasum": None,
@@ -2406,7 +2407,8 @@ class TestUnrecordedCalibration:
         )
 
     def test_the_shipped_darwin_entry_records_no_bash_or_shasum(self):
-        # 0205 did not record them, so the table must not claim them.
+        # The calibrating session did not record them, so the table must not
+        # claim them.
         calibration = PLATFORM_TABLE[("Darwin", "arm64")].calibration
         assert calibration is not None
         assert calibration.bash is None
@@ -2548,16 +2550,11 @@ class TestDriftSignificance:
 
 
 class TestCachePriming:
-    """A cold cache is a prerequisite of the smoke check, not a cleanup failure.
+    """A cold cache is a prerequisite, not a cleanup failure.
 
-    The smoke check's own live dispatch populates the cache root on a fresh
-    runner, and the session's integrity witness then reports those entries as
-    appearing during the run — which they did. Priming *before* the baseline is
-    captured satisfies the prerequisite without weakening the witness by one
-    assertion.
-
-    The measurement proper does the opposite and refuses a cold cache, because
-    a freshly fetched entry is not the warm path it is timing.
+    The smoke check's own dispatch populates the cache root on a fresh runner,
+    and the integrity witness then reports those entries as appearing during
+    the run — which they did.
     """
 
     def gaps_for(self, version, entries):
@@ -2671,3 +2668,40 @@ class TestCachePriming:
             f"check may prime, because the measurement must refuse a cold "
             f"cache rather than fetch into the root it witnesses"
         )
+
+
+class TestGuardedFiles:
+    def test_the_baseline_is_recovered_not_read_from_the_tree(self):
+        """No guarded file may be one the measurement recovers from history.
+
+        The baseline and its dependency are read at a pinned revision, so the
+        live copies are not inputs to anything measured. Guarding them would
+        couple the harness to files that may be deleted.
+        """
+        recovered = {source for source, _ in RECOVERED_FILES.values()}
+        assert not recovered & set(GUARDED_FILES)
+
+    def test_an_absent_guarded_file_does_not_crash_the_capture(
+        self, plugin_root, tmp_path
+    ):
+        (plugin_root / "hooks/hooks.json").unlink()
+        with fake_session(plugin_root, tmp_path) as session:
+            assert session.baseline is not None
+            digests = session.baseline.guarded_file_digests
+            assert digests["hooks/hooks.json"] is None
+        assert session.failures == []
+
+    def test_a_guarded_file_appearing_mid_run_is_reported(
+        self, plugin_root, tmp_path
+    ):
+        (plugin_root / "hooks/hooks.json").unlink()
+        with fake_session(plugin_root, tmp_path) as session:
+            (plugin_root / "hooks/hooks.json").write_text("stub\n")
+        assert any("hooks.json changed" in f for f in session.failures)
+
+    def test_a_guarded_file_vanishing_mid_run_is_reported(
+        self, plugin_root, tmp_path
+    ):
+        with fake_session(plugin_root, tmp_path) as session:
+            (plugin_root / "hooks/hooks.json").unlink()
+        assert any("hooks.json changed" in f for f in session.failures)

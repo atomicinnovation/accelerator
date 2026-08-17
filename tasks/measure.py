@@ -1,15 +1,10 @@
 """Warm-dispatch latency measurement (quiet host; outside `check`/`default`).
 
-Measures the Rust `vcs guard` dispatched through the real bootstrap (`G`)
-against the shell guard it replaced (`B`), recovered from the revision
-preceding its deletion, and classifies the six cells work item 0189's Latency
-Criterion defines.
+Times the dispatched `vcs guard` (`G`) against the shell guard it replaced
+(`B`), recovered from history, and classifies the six cells C1-C6.
 
-The analysis lives in `tasks/shared/measurement.py` as pure functions; this
-module holds the per-platform constants, the artefact manifest and its
-capture/restore/verify context manager, the subprocess ports and the task
-surface. Prerequisites and the reason the namespace sits outside the aggregate
-`check` are documented in `tasks/README.md`'s `### The measure namespace`.
+Prerequisites and the reason the namespace sits outside the aggregate `check`
+are in `tasks/README.md`'s `### The measure namespace`.
 """
 
 from __future__ import annotations
@@ -86,32 +81,21 @@ from tasks.shared.measurement import (
 from tasks.shared.paths import REPO_ROOT
 
 # --- Criterion constants --------------------------------------------------
-# Held in lockstep with `tasks/README.md`'s `### Criterion constants` block by
-# tests/unit/tasks/test_measure.py, bidirectionally: every constant appears in
-# the doc block and every number in the doc block resolves to a name here.
+# Held in lockstep with `tasks/README.md`, bidirectionally: every constant
+# appears there and every number there resolves to a name here.
 
 RESAMPLES = 10000
 CONFIDENCE = 0.95
-# Raised from 1.3 to 1.4 on 2026-08-17, by author decision, after two sessions
-# measured 1.3177 and 1.3423. Inside the same 1.3-1.5 band the original came
-# from, so the band's provenance carries over unchanged — but it is the second
-# post-hoc relaxation of this threshold, which 0189's Latency Criterion records
-# as a deviation rather than as pre-registration.
 RATIO_THRESHOLD = 1.4
 MEDIAN_TARGET_MS = 1.0
 P90_TARGET_MS = 2.0
 RATIO_TARGET = 0.0036
 RATIO_ESCALATION_TARGET = 0.0018
-# The superseded constant band. Retained only so a record can state both
-# verdicts: its derivation was "about a quarter of C5's 0.0187 margin", and the
-# measurement disproved that margin. It sits at the 88.8th percentile of the
-# no-drift null at n = 1,700 on this instrument, so its false-positive rate was
-# an unstated ~11%.
+# Recorded alongside the derived band so a record states both verdicts. Its
+# false-positive rate was an unstated ~11%.
 SUPERSEDED_DRIFT_BAND = 0.005
-# The band is now derived per session from the order-permutation null at this
-# quantile, giving a stated false-positive rate. A constant cannot serve: the
-# null narrows with the sample size, so one number is too tight at large n and
-# too loose at small n.
+# A constant cannot serve: the null narrows with the sample size, so one number
+# is too tight at large n and too loose at small n.
 DRIFT_QUANTILE = 0.95
 DRIFT_PERMUTATIONS = 2000
 BLOCK_A_PAIRS = 1700
@@ -126,22 +110,19 @@ FLOOR_RETRY_CAP = 3
 SEED = 20260813
 SMOKE_N = 2
 REHEARSAL_N = 8
-# Per-term and per-floor sample counts. Not gate constants: they set how
-# precisely a recorded figure is known, not what it is judged against.
+# Not gate constants: these set how precisely a figure is known, not what it
+# is judged against.
 FLOOR_SAMPLES = 50
 TERM_SAMPLES = 200
 
-# The published digest of the release verification key. Comparing against a
-# published value — not the act of recording a digest — is what detects a key
-# substituted *before* the session; recording it detects one *during*.
+# Comparing against a published value detects a key substituted *before* the
+# session; recording the digest detects one *during*.
 RELEASE_KEY_SHA256 = (
     "0f3fe9a91ab6869ce36209691e06c722259e5754f2228b1539ef566b00f6fb2e"
 )
 
-# The revision preceding `hooks/vcs-guard.sh`'s deletion, and the commit it
-# resolves to. The commit id is recorded because a short hex prefix can be a jj
-# *change* id, and because a plain git clone has no `.jj` to resolve a revset
-# against.
+# The commit id is recorded as well as the revset: a short hex prefix can be a
+# jj *change* id, and a plain git clone has no `.jj` to resolve a revset.
 BASELINE_REVSET = "cf42441e2aad-"
 BASELINE_COMMIT = "2cfbf81e2e7b4934e868bd42c69374c335b05317"
 
@@ -153,12 +134,10 @@ STDIN_ENVELOPE = json.dumps(
     }
 )
 
-# 0205 recorded its chip and its instrument floors, but **not** which `bash` or
-# `shasum` it resolved. Those two are therefore `None` rather than a plausible
-# guess: the demotion rule compares the observed host against this provenance,
-# and asserting a value nobody measured would make it report agreement with a
-# figure that does not exist. Their absence demotes every verdict on this key to
-# uncalibrated context until a session records them.
+# `bash` and `shasum` are `None` because the calibrating session did not record
+# them. Asserting a value nobody measured would report agreement with a figure
+# that does not exist, so their absence demotes this key to uncalibrated context
+# until a session records them.
 _DARWIN_CALIBRATION = Calibration(
     session="0205",
     chip="Apple M4 Max",
@@ -169,14 +148,10 @@ _DARWIN_CALIBRATION = Calibration(
 PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
     ("Darwin", "arm64"): PlatformEntry(
         key="darwin-arm64",
-        # The union of both variants' spawns, derived mechanically from
-        # `bin/accelerator`, the recovered guard and `vcs-common.sh` rather
-        # than transcribed, plus the two floor binaries. A hand-written list
-        # omitted `chmod`, and its absence made the bootstrap's exec probe
-        # report the cache root unwritable — which `--fail-safe` turned into an
-        # exit 0 with empty stdout, the degraded shape that records a
-        # spuriously low latency. `tests/unit/tasks/test_measure.py` re-derives
-        # this set and fails if the scripts gain a spawn it lacks.
+        # The union of both variants' spawns plus the two floor binaries,
+        # derived rather than transcribed: a missing tool exits 0 under
+        # `--fail-safe`, which records a spuriously low latency instead of
+        # failing. A test re-derives this set from the scripts themselves.
         path_tools=(
             "awk",
             "bash",
@@ -223,11 +198,7 @@ PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
     ),
 }
 
-# The fast digest backend is `sha256sum`; the fallback is Perl `shasum -a 256`.
-# The two farms differ solely in whether the `sha256sum` link is present.
-# Cache-root entries the per-sample and post-run witnesses cover: the launcher
-# and its signature, the staged verify shim, and every dispatched sub-binary
-# asset (named `<token>-<version>-<digest>`).
+# The two farms differ solely in whether the fast backend's link is present.
 _CACHED_ENTRY_PREFIXES = (
     "accelerator-launcher-",
     "accelerator-verify-",
@@ -240,12 +211,7 @@ FALLBACK_BACKEND = "shasum"
 
 
 def criterion_constants() -> dict[str, float]:
-    """Every pre-registered number a run is judged by, by name.
-
-    One function so the lockstep guard has a single source to compare the doc
-    block against — including the per-platform ceilings and floor gates, which
-    must move with the mechanism rather than staying host-specific behind it.
-    """
+    """Every pre-registered number a run is judged by, by name."""
     constants: dict[str, float] = {
         "RESAMPLES": RESAMPLES,
         "CONFIDENCE": CONFIDENCE,
@@ -289,11 +255,10 @@ def criterion_constants() -> dict[str, float]:
 
 @unique
 class ArtefactKind(StrEnum):
-    """Every throwaway the harness creates, as one enumerated list.
+    """Every throwaway the harness creates.
 
-    Both teardown phases drive from this enumeration rather than from a
-    directory listing, so exhaustiveness is a property of the enumeration and
-    not of where the artefacts happen to live.
+    Teardown drives from this enumeration rather than a directory listing, so
+    exhaustiveness does not depend on where the artefacts live.
     """
 
     SCRATCH_TREE = "scratch-tree"
@@ -307,9 +272,11 @@ class ArtefactKind(StrEnum):
 MANIFEST_DIRNAME = ".accelerator-measure"
 MANIFEST_NAME = "manifest.json"
 GUARDED_PATHS = ("keys/", "bin/", "hooks/", "scripts/", "cli/")
+# The tree files a mid-run edit would invalidate the measurement through. The
+# baseline is recovered at a pinned revision, so its live counterparts are not
+# inputs and are deliberately absent here.
 GUARDED_FILES = (
     "bin/accelerator",
-    "scripts/vcs-common.sh",
     "hooks/hooks.json",
 )
 CACHE_TEMP_PREFIX = ".tmp-"
@@ -330,7 +297,7 @@ class Baseline:
     cache_root_entries: list[str]
     unverified_log: str | None
     repo_diff: str
-    guarded_file_digests: dict[str, str]
+    guarded_file_digests: dict[str, str | None]
     dev_launcher_marker: bool
     temp_root: str
 
@@ -374,10 +341,8 @@ class MeasurementRunner(Protocol):
 class DiagnosticRunner(Protocol):
     """Runs an untimed probe under the ambient environment.
 
-    Separate from the measurement runner for a concrete reason: the farm holds
-    exactly the two variants' tools, and `pmset` is not among them — so routing
-    power probes through the measurement runner would return `unknown` on every
-    run by construction.
+    Separate from the measurement runner because the farm holds only the two
+    variants' tools: probes routed through it would return `unknown` always.
     """
 
     def __call__(self, argv: Sequence[str]) -> str: ...
@@ -395,6 +360,18 @@ class HostProbe(Protocol):
     def loadavg(self) -> tuple[float, float, float]: ...
     def cpu_probes(self) -> CpuProbes: ...
     def temp_root(self) -> Path: ...
+
+
+def _digest_or_absent(path: Path) -> str | None:
+    """Digest the file, or return `None` when it is not there.
+
+    A guarded file may legitimately be deleted between releases; the harness
+    should report the change rather than die reading it.
+    """
+    try:
+        return _digest(path)
+    except OSError:
+        return None
 
 
 def _digest(path: Path) -> str:
@@ -453,8 +430,7 @@ class SystemHostProbe:
 def _cgroup_cpu_max() -> str | None:
     """Cgroup v2's `cpu.max` for this process's own leaf, or `None`.
 
-    v1 is explicitly out of scope: its per-controller hierarchy needs a
-    different traversal, and no lane this harness runs on uses it.
+    v1 is out of scope; its per-controller hierarchy needs a different walk.
     """
     try:
         leaf = Path("/proc/self/cgroup").read_text().strip().split(":")[-1]
@@ -472,10 +448,8 @@ def subprocess_measurement_runner(
 ) -> RunResult:
     """One `perf_counter`-bracketed dispatch.
 
-    The clock is read in this process rather than the child's: a per-call
-    interpreter startup inside the measured interval would dwarf the margin
-    under test. Everything else — the envelope normalisation, the validity
-    comparison, the inode witness — runs outside the bracket.
+    The clock is read here rather than in the child: an interpreter startup
+    inside the measured interval would dwarf the margin under test.
     """
     started = time.perf_counter()
     completed = subprocess.run(
@@ -499,9 +473,8 @@ def subprocess_measurement_runner(
 def raw_diagnostic_runner(argv: Sequence[str]) -> str:
     """Like the ambient runner, but returns stdout **unstripped**.
 
-    File recovery compares the recovered bytes against a recorded digest, so a
-    stripped trailing newline is the difference between an intact contract and
-    a reported rot.
+    Recovered bytes are compared against a recorded digest, so a stripped
+    trailing newline reads as corruption.
     """
     resolved = shutil.which(argv[0])
     if resolved is None:
@@ -530,9 +503,8 @@ _UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 def unwind_signals() -> tuple[signal.Signals, ...]:
     """List the signals the session unwinds on rather than dying under.
 
-    SIGHUP is not decoration: a closed terminal or a dropped ssh across a
-    multi-minute unattended run would otherwise terminate by default and bypass
-    the context manager entirely, leaving every artefact behind.
+    SIGHUP included: a dropped ssh across a long unattended run would otherwise
+    terminate by default and leave every artefact behind.
     """
     return _UNWIND_SIGNALS
 
@@ -540,10 +512,8 @@ def unwind_signals() -> tuple[signal.Signals, ...]:
 class MeasurementSession:
     """Captures baseline state on entry, restores and verifies on exit.
 
-    The manifest is written **first, before anything is created**, so a SIGKILL
-    or a power loss leaves a findable record: `mise run measure:teardown`
-    replays restore and verify from it, and the start-up refusal stops the next
-    run adopting the residue as its baseline.
+    The manifest is written before anything is created, so a SIGKILL leaves a
+    findable record for `mise run measure:teardown` to replay.
     """
 
     def __init__(
@@ -608,22 +578,16 @@ class MeasurementSession:
                 signal.signal(number, previous)  # type: ignore[arg-type]
 
     def _unwind(self, number: int, frame: FrameType | None) -> None:
-        """Turn a signal into an exception so the `with` block unwinds.
-
-        SIGHUP matters as much as SIGINT: a closed terminal across a
-        multi-minute unattended run would otherwise terminate by default and
-        bypass the context manager entirely.
-        """
+        """Turn a signal into an exception so the `with` block unwinds."""
         del frame
         raise KeyboardInterrupt(f"signal {number}")
 
     def capture(self) -> Baseline:
         """Record the state every exit assertion is measured against.
 
-        Two of these refuse the run outright rather than being reported at the
-        end: a substituted verification key, and a non-empty diff over the
-        paths the two variants are built from — ordinary mid-stack jj state
-        there invalidates the measurement from sample one.
+        A substituted verification key and a dirty diff over the guarded paths
+        refuse the run outright: both invalidate it from sample one, so
+        reporting them at the end would waste the session.
         """
         key = self.plugin_root / "keys/accelerator-release.pub"
         key_digest = _digest(key)
@@ -649,7 +613,8 @@ class MeasurementSession:
             unverified_log=self.witness.read_text(self._unverified_log()),
             repo_diff=diff,
             guarded_file_digests={
-                name: _digest(self.plugin_root / name) for name in GUARDED_FILES
+                name: _digest_or_absent(self.plugin_root / name)
+                for name in GUARDED_FILES
             },
             dev_launcher_marker=(
                 self.plugin_root / ".accelerator-dev-launcher"
@@ -660,10 +625,8 @@ class MeasurementSession:
     def _cached_names(self) -> list[str]:
         """List the cache entries a warm dispatch must not move.
 
-        The cached sub-binary asset as well as the launcher, its `.minisig` and
-        the staged verify shim: restricted to the launcher, the witness would
-        let a re-fetched or re-staged *sub-binary* inflate a sample undetected,
-        and that is the entry `cache::find` resolves on every dispatch.
+        The sub-binary is included: it is what a dispatch resolves, so omitting
+        it would let a re-fetch inflate a sample undetected.
         """
         return [
             name
@@ -677,12 +640,7 @@ class MeasurementSession:
     # -- artefacts --
 
     def register_artefact(self, kind: ArtefactKind, path: Path) -> Path:
-        """Record an artefact before creating it, and return its path.
-
-        Every creating call site goes through this seam, and a unit test
-        asserts the seam covers every kind — so the manifest's exhaustiveness
-        does not depend on anyone remembering to add a row.
-        """
+        """Record an artefact before creating it, and return its path."""
         resolved = Path(path).resolve()
         self.manifest.artefacts[str(kind)] = str(resolved)
         self.manifest.write(self.manifest_path)
@@ -693,8 +651,7 @@ class MeasurementSession:
     def restore(self) -> None:
         """Remove every recorded artefact, containment-checked, then stop.
 
-        Never resolves symlinks and never runs a recursive delete outside the
-        three admitted roots. Idempotent, so `measure:teardown` can replay it.
+        Never resolves symlinks, and idempotent so teardown can replay it.
         """
         for kind, recorded in sorted(self.manifest.artefacts.items()):
             path = Path(recorded)
@@ -709,12 +666,10 @@ class MeasurementSession:
     def _contained(self, path: Path) -> bool:
         """Three admitted roots, and no others.
 
-        The harness's temp parent; the gitignored `bin/.tmp-*` namespace, whose
-        prefix `store::TEMP_PREFIX` reserves; and the gitignored manifest
-        directory. The two in-repository allowances are tested first and
-        everything else under the plugin root is then refused outright, so a
-        temp root that happens to be an ancestor of the checkout cannot admit a
-        tracked path by transitivity.
+        The two in-repository allowances are tested first and everything else
+        under the plugin root refused outright, so a temp root that happens to
+        be an ancestor of the checkout cannot admit a tracked path by
+        transitivity.
         """
         if path.name.startswith(CACHE_TEMP_PREFIX) and path.parent == (
             self.cache_root
@@ -732,9 +687,8 @@ class MeasurementSession:
     def verify(self) -> list[str]:
         """Aggregate every exit assertion; never exit on the first failure.
 
-        Any failure here selects branch 5 of the taxonomy, so a cleanup failure
-        blocks the outcome-keyed closure guard rather than being recorded as a
-        documented fact beneath a passing verdict.
+        Any failure invalidates the session, so a cleanup failure blocks the
+        verdict rather than being recorded beneath a passing one.
         """
         problems = list(self.failures)
         problems += self._verify_artefacts_absent()
@@ -794,18 +748,16 @@ class MeasurementSession:
                 f"the guarded paths' diff changed during the run:\n{diff}"
             )
         for name, digest in self.baseline.guarded_file_digests.items():
-            if _digest(self.plugin_root / name) != digest:
+            if _digest_or_absent(self.plugin_root / name) != digest:
                 problems.append(f"{name} changed during the run")
         return problems
 
     def _verify_unverified_log(self) -> list[str]:
         """Treat the unverified log as append-only.
 
-        Any appended line is written by `fail_integrity` or the dev-override
-        exec, so growth *is* a trust-chain failure or an engaged override —
-        it invalidates the session rather than being attributed and tidied.
-        Attribution was never reliable: the record carries the bootstrap
-        subprocess's pid, and this repo has already been bitten by pid reuse.
+        Growth *is* a trust-chain failure or an engaged override, so it
+        invalidates the session rather than being attributed and tidied — the
+        record carries a subprocess pid, which pid reuse makes unreliable.
         """
         if self.baseline is None:
             return []
@@ -858,7 +810,7 @@ class Cell:
 
 
 def cells_for(entry: PlatformEntry) -> tuple[Cell, ...]:
-    """Build the six cells, in the order 0189's Latency Criterion lists."""
+    """Build the six cells, in the order the criterion lists them."""
     return (
         Cell(
             "C1",
@@ -950,10 +902,10 @@ def classify_cell(
 def create_fixture(root: Path, *, runner: DiagnosticRunner) -> Path:
     """Create a pure-jj fixture, colocation pinned off and asserted.
 
-    `jj git init` colocates by default at 0.43, and a colocated fixture emits
-    **warn** rather than the blocked decision — so the harness would silently
-    measure the wrong path. The assertion is on the resulting tree, not on the
-    flag, because the flag's meaning is what a version bump could change.
+    `jj git init` colocates by default, and a colocated fixture emits **warn**
+    rather than the blocked decision, so the wrong path would be measured
+    silently. Asserted on the resulting tree, not on the flag, because the
+    flag's meaning is what a version bump could change.
     """
     root.mkdir(parents=True, exist_ok=True)
     runner(
@@ -982,13 +934,10 @@ def build_farm(
 ) -> Path:
     """Build a symlink farm over the union of both variants' tools.
 
-    Enumerating from the baseline alone would break the variant being gated:
-    `G` spawns `uname`, `sed`, `awk` and possibly `curl`, none of which `B`
-    uses, and under `--fail-safe` each absence exits **0** — the degraded shape
-    that records a spuriously low latency. Links resolve to the concrete
-    binary, never a wrapper or a mise shim, because a shim re-resolves its
-    version from the config discovered at the cwd and the sampling cwd is the
-    fixture.
+    A missing tool exits 0 under `--fail-safe`, recording a spuriously low
+    latency rather than failing, so the union is required. Links resolve to the
+    concrete binary and never a mise shim, which would re-resolve its version
+    from the config discovered at the sampling cwd.
     """
     root.mkdir(parents=True, exist_ok=True)
     missing: list[str] = []
@@ -1012,9 +961,8 @@ def build_farm(
 def farm_environment(farm: Path, *, temp_root: Path) -> dict[str, str]:
     """Build the exact environment a sample is taken under.
 
-    `LC_ALL=C` rather than `LANG` alone: `B` is dominated by `grep`/`sed`/`awk`
-    spawns whose speed varies materially between `C` and a UTF-8 locale, an
-    uncontrolled multiplier on the denominator.
+    `LC_ALL=C` rather than `LANG` alone: the baseline is dominated by text-tool
+    spawns whose speed varies materially between `C` and a UTF-8 locale.
     """
     return {
         "PATH": str(farm),
@@ -1041,10 +989,8 @@ RECOVERED_FILES = {
 def recovery_argv(source: str, *, engine: str) -> list[str]:
     """Build the command that reads `source` at the pinned revision.
 
-    Two engines because two contexts: a jj workspace resolves the revset, while
-    a GitHub checkout has no `.jj` at all and needs the resolved commit id
-    through git — and `actions/checkout` defaults to a shallow fetch, so the
-    owning lane must set `fetch-depth: 0` for the git form to resolve.
+    Two engines because a GitHub checkout has no `.jj`. The git form needs
+    unshallowed history, so its lane must set `fetch-depth: 0`.
     """
     if engine == "jj":
         return ["jj", "file", "show", "-r", BASELINE_REVSET, source]
@@ -1054,19 +1000,16 @@ def recovery_argv(source: str, *, engine: str) -> list[str]:
 def recover_baseline(
     scratch: Path, *, runner: DiagnosticRunner, engine: str = "jj"
 ) -> Path:
-    """Recover the deleted shell guard and its one dependency into `scratch`.
+    """Recover the baseline and its one dependency into `scratch`.
 
-    Both at the same revision, so the subject is self-contained: pinning only
-    the guard would leave it resolving a mutable `scripts/vcs-common.sh`, which
-    a separate work item is scoped to change. The layout puts them where the
-    guard's own `"$SCRIPT_DIR/../scripts/vcs-common.sh"` resolves within
-    `scratch`, and nothing is written inside the repository — a staged copy in
-    `bin/` would park an unreviewed executable where the launcher execs from and
-    add an entry to the directory whose entry set is an integrity witness.
+    Both at the same revision, so the subject is self-contained rather than
+    resolving a live dependency that may change under it, and the layout
+    mirrors the original so the baseline's own relative lookup resolves within
+    `scratch`. Nothing is written inside the repository, whose cache root is
+    both an exec target and an integrity witness.
 
-    Each recovered file's digest is compared against its recorded provenance:
-    without that the recovery is verifiable only inside this jj workspace, and
-    the recorded `B` could drift silently under a rewritten history.
+    Digests are compared against recorded provenance, without which the
+    recovery is verifiable only inside a jj workspace.
     """
     guard = scratch / "bin/vcs-guard"
     for relative, (source, expected) in RECOVERED_FILES.items():
@@ -1087,10 +1030,10 @@ def recover_baseline(
 
 
 def entry_platform() -> str:
-    """Derive the platform alias `bin/accelerator` uses for this host.
+    """Derive the platform alias the bootstrap uses for this host.
 
-    Derived the way the bootstrap derives it, so the cache-entry names this
-    module predicts are the ones it actually writes.
+    Derived the same way, so the cache-entry names predicted here are the ones
+    actually written.
     """
     from tasks.shared.targets import host_platform
 
@@ -1112,8 +1055,7 @@ def warm_dispatch(
 
     Needs a quiet host, a pinned `PATH`, network egress and several minutes.
     `--rehearse` drives the whole path at a token sample count and stamps its
-    record non-gating, so the operator can check the session works before
-    committing to one that counts — it is a smoke run, never evidence.
+    record non-gating: a smoke run, never evidence.
     """
     del context
     key, source = resolve_platform_key(
@@ -1158,13 +1100,10 @@ def smoke_check(
 ) -> None:
     """Live-dispatch smoke check: n = 2, floors only, no gating figure.
 
-    Owns the `measure:*` namespace against rot — the module depends on volatile
-    external contracts (the digest-backend selection, the cache-root
-    derivation, the hook envelope shape, `jj`'s colocation default and a revset
-    anchoring two deleted files), and a module no automated path ever executes
-    rots invisibly. Emits no gating figure, by construction: the ceilings are
-    calibrated for a quiet darwin-arm64 host and the instrument-floor gate is
-    one no shared runner reliably clears.
+    Owns the `measure:*` namespace against rot, since it rests on several
+    volatile external contracts. Emits no gating figure by construction: the
+    ceilings are calibrated for a quiet host and no shared runner reliably
+    clears the instrument-floor gate.
     """
     del context
     print(smoke_report(REPO_ROOT, engine=engine, live=live))
@@ -1174,8 +1113,7 @@ def digest_backend_population() -> dict[str, str | None]:
     """Which digest backend this host resolves, recorded rather than assumed.
 
     The fast backend is absent from a stock macOS image and universal on linux,
-    so which cells a lane could ever enforce is a property of the runner. Costs
-    nothing to record and turns an assumption into a known number.
+    so which cells a lane could enforce is a property of the runner.
     """
     return {
         FAST_BACKEND: shutil.which(FAST_BACKEND),
@@ -1192,11 +1130,11 @@ def smoke_report(
 ) -> str:
     """Exercise every volatile contract the harness rests on, and report.
 
-    Fails on a rotted contract — a moved revision, a colocating `jj git init`,
-    an unbuildable farm, a baseline that no longer emits a decision. Reports an
-    absent published release for the tree's own version as an **unmet
-    prerequisite** rather than a failure: the tree is routinely ahead of the
-    last release cut, and a lane that reddens on that would be red by default.
+    Fails on a rotted contract — a moved revision, a colocating fixture, an
+    unbuildable farm, a baseline that no longer emits a decision. An absent
+    published release for the tree's own version is reported as an unmet
+    prerequisite rather than a failure, since the tree is routinely ahead of
+    the last release cut.
     """
     lines = [f"digest backends: {digest_backend_population()}"]
     if live:
@@ -1302,10 +1240,8 @@ def _live_dispatch(
         "--format=hook",
         "--fail-safe",
     ]
-    # One discarded warm-up, so the launcher takes the cache-hit branch and a
-    # still-degraded sample means an unmet prerequisite rather than a cold
-    # cache. Without it the first dispatch's fetch is indistinguishable from an
-    # absent release.
+    # A discarded warm-up, so a still-degraded sample means an unmet
+    # prerequisite rather than a cold cache.
     runner(argv, cwd=fixture, env=environment)
     results = [
         runner(argv, cwd=fixture, env=environment) for _ in range(SMOKE_N)
@@ -1350,9 +1286,8 @@ def build_rig(
 ) -> Rig:
     """Register, create and assert every throwaway the session samples under.
 
-    Registration precedes creation throughout, so a run killed between the two
-    leaves a manifest naming a path that does not exist rather than an artefact
-    no manifest names.
+    Registration precedes creation, so a run killed between the two leaves a
+    manifest naming a path that does not exist rather than an orphan.
     """
     if session.baseline is None:
         raise PreconditionFailureError("the session captured no baseline")
@@ -1446,10 +1381,8 @@ def next_record_paths(
 ) -> RecordPaths:
     """Where this attempt's record and raw samples go.
 
-    Numbered, and never reusing a number: an invalidated session's record is
-    evidence that an attempt was made and what invalidated it, so a re-run must
-    not clobber it. The criterion's retry discipline depends on every attempt
-    being on the record, not only the one that produced a verdict.
+    Numbered and never reused: an invalidated session's record is the evidence
+    that an attempt was made, so a re-run must not clobber it.
     """
     if rehearse:
         stem = "warm-dispatch-rehearsal"
@@ -1481,15 +1414,12 @@ def prime_cache(
 ) -> dict[str, object]:
     """Populate the cache root before a baseline is captured, if it is cold.
 
-    A cold cache is a **prerequisite** of the live-dispatch smoke check, not a
-    cleanup failure: the check's own first dispatch fetches the launcher, the
-    shim and the sub-binary, so a session that captured its baseline first would
-    then correctly report five entries as appearing during the run. Priming
-    outside the witnessed window satisfies the prerequisite without weakening
-    the witness by a single assertion.
-
-    The measurement proper does the opposite — `check_preconditions` refuses a
-    cold cache — because a freshly fetched entry is not the warm path it times.
+    A cold cache is a prerequisite of the smoke check, not a cleanup failure:
+    its own first dispatch fetches, and a baseline captured beforehand would
+    report those entries as appearing during the run. Priming outside the
+    witnessed window satisfies it without weakening the witness. The
+    measurement proper instead refuses a cold cache, a freshly fetched entry
+    not being the warm path it times.
     """
     before = warm_cache_gaps(
         version=version,
@@ -1498,9 +1428,8 @@ def prime_cache(
     )
     if not before:
         return {"primed": False, "gaps_before": [], "gaps_after": []}
-    # The ambient environment, not a farm: the farms do not exist yet, and a
-    # cold fetch needs `curl` or `wget`, which a farm built for the two
-    # variants' own tool sets need not carry.
+    # The ambient environment: no farm exists yet, and a cold fetch needs a
+    # downloader the variants themselves may not use.
     runner(
         [
             str(plugin_root / "bin/accelerator"),
@@ -1525,11 +1454,9 @@ def backend_delta_check(
 ) -> dict[str, object]:
     """Cross-check the direct digest measurement against the backend delta.
 
-    The delta is a **cross-check**, never the measurement: it yields twice the
-    difference between the two backends, whereas the composition budget needs
-    the absolute cost under the gating configuration. Recovering the absolute
-    figure from the delta alone would mean importing a per-call figure from
-    another session, which is exactly what measuring it directly avoids.
+    The delta is a cross-check, never the measurement: it yields twice the
+    difference between the backends, not the absolute cost under the gating
+    configuration.
     """
     delta = None if fallback_ms is None else fallback_ms - fast_ms
     return {
@@ -1553,10 +1480,8 @@ def warm_cache_gaps(
     """Name what the cache root lacks for a warm dispatch of `version`.
 
     The cache is keyed by version, so a tree bumped past its last fetch has a
-    full cache and a cold path. Without this check the first dispatch takes the
-    fetch branch, and if anything about that fetch fails `--fail-safe` reports
-    it as an exit 0 with empty stdout — an unexplained degraded sample rather
-    than a named unmet prerequisite.
+    full cache and a cold path. Unchecked, a failure in that fetch surfaces as
+    an exit 0 with empty stdout rather than a named prerequisite.
     """
     entries = set(cache_root_entries)
     gaps = []
@@ -1587,11 +1512,9 @@ def check_preconditions(
 ) -> dict[str, object]:
     """Assert every pre-sampling condition and return what was observed.
 
-    Failures here are branch 5a: no figures are produced, because a session
-    that cannot establish its own conditions has not measured the thing the
-    criterion names. A rehearsal passes `strict=False` and records the
-    violations instead — its record is stamped non-gating, so nothing it
-    produces can be mistaken for evidence.
+    A failure produces no figures at all: a session that cannot establish its
+    own conditions has measured nothing. A rehearsal passes `strict=False` and
+    records the violations instead, its record being stamped non-gating.
     """
     violations: list[str] = []
 
@@ -1673,8 +1596,8 @@ def gate_floors(
 ) -> dict[str, object]:
     """Measure both instrument floors and gate on them, retries recorded.
 
-    At most three recorded attempts: an operator free to retry informally until
-    the floors look good is running optional stopping through the back door.
+    Capped and recorded: retrying informally until the floors look good is
+    optional stopping through the back door.
     """
     attempts: list[dict[str, float]] = []
     while retry_budget(len(attempts), cap=FLOOR_RETRY_CAP):
@@ -1707,9 +1630,8 @@ def run_session(
 ) -> dict[str, object]:
     """Drive one recorded session end to end and return its record.
 
-    Pilot, size, sample, classify, close the composition budget, and write the
-    whole record to disk — one session, because the criterion's "same host,
-    same session" wording forbids assembling it from several.
+    Everything happens in the one session: figures assembled from several are
+    not comparable.
     """
     started = time.perf_counter()
     tools = entry.path_tools if entry else ("bash", "jj", "true")
@@ -1735,11 +1657,9 @@ def run_session(
                 "recorded attempts — the host is not quiet (branch 5a)"
             )
 
-        # The warm-up is discarded from the figures but **not** from the
-        # assertions: it is the first dispatch through the farm, so if the
-        # environment is wrong it is the cheapest place to find out. Letting it
-        # pass unchecked put the diagnostic 100 subprocesses later, attached to
-        # a sample rather than to the prerequisite that failed.
+        # Discarded from the figures but not from the assertions: the first
+        # dispatch through the farm is the cheapest place to find the
+        # environment wrong.
         warm_up = runner(
             rig.variants[Variant.FAST],
             cwd=rig.fixture,
@@ -1798,9 +1718,8 @@ def run_session(
     paths.record.parent.mkdir(parents=True, exist_ok=True)
     record["attempt"] = paths.attempt
     record["samples_path"] = paths.samples.name
-    # The raw samples are the only thing a later question can be re-asked of.
-    # Without them an invalidated session is unrecoverable: nothing can be
-    # re-derived, no estimator can be corrected, and the ten minutes are gone.
+    # Without the raw samples an invalidated session is unrecoverable: nothing
+    # can be re-derived and no estimator corrected.
     paths.samples.write_text(
         json.dumps(
             {str(variant): list(values) for variant, values in samples.items()}
@@ -1822,10 +1741,8 @@ def run_session(
 def observed_dirname_spawns(rig: Rig) -> int:
     """Trace the baseline once under `bash -x` and count its `dirname` spawns.
 
-    Observed rather than implied by fixture depth. If the count is zero the
-    baseline is depth-insensitive, which is a reproducibility property worth
-    recording: a hand-off host's shallow temp root then cannot perturb the
-    denominator.
+    Observed rather than implied by fixture depth. A count independent of depth
+    means another host's temp root cannot perturb the denominator.
     """
     environment = rig.environments[Variant.BASELINE]
     completed = subprocess.run(
@@ -1849,10 +1766,9 @@ def run_pilot(
 ) -> tuple[dict[str, int], dict[str, object]]:
     """Size the run from an in-session pilot whose samples are then discarded.
 
-    A dispersion estimate only: pooling the pilot into the analysed set would
-    make the final interval's coverage depend on a data-dependent stopping
-    rule. A size-up recomputes n from the **same** targets, never a relaxed
-    one, and is bounded by the same caps as the run it sizes.
+    A dispersion estimate only: pooling it into the analysed set would make the
+    final interval's coverage depend on a data-dependent stopping rule. A
+    size-up recomputes n from the same targets, never a relaxed one.
     """
     pilot_pairs = REHEARSAL_N if rehearse else PILOT_PAIRS
     pilot = sample_blocks(
@@ -1925,10 +1841,9 @@ def dispersion(
     }
 
 
-# Terms that compose the warm dispatch, in the order they run. Sub-operations
-# of a listed term (`verifier::sha256_hex` and `TrustedKeys::verifies` are both
-# inside `reverify`) are recorded as context and never summed, or the budget
-# would double-count them into a large negative residual.
+# The terms that compose a warm dispatch, in the order they run. A listed
+# term's own sub-operations are recorded as context and never summed, or the
+# budget would double-count them.
 SUMMED_TERMS = (
     "bash startup",
     "two sha256_file calls",
@@ -1950,13 +1865,10 @@ def close_the_budget(
 ) -> dict[str, object]:
     """Re-measure every warm-path term in-session and report the residual.
 
-    Rather than re-checking closure against a published decomposition: the
-    spike's own numbers carry a visible cross-session mismatch, so roughly half
-    its residual was session difference rather than unattributed cost.
-
-    Triggered by the residual's **magnitude**, never its sign: a sum of noisy
-    medians lands negative roughly half the time, so a sign trigger would be a
-    selection filter as well as an uncapped loop.
+    In-session rather than against published figures, which carry a
+    cross-session difference indistinguishable from unattributed cost.
+    Re-measurement is triggered by the residual's magnitude, never its sign: a
+    sum of noisy medians lands negative roughly half the time.
     """
     version = plugin_version(plugin_root)
     launcher_terms = decompose_terms(plugin_root, version=version)
@@ -2010,12 +1922,8 @@ def measure_shell_terms(
 ) -> tuple[dict[str, Interval], dict[str, object]]:
     """Measure the terms that live outside the launcher's library surface.
 
-    Each is a marginal over the fork floor where it is a process launch, so the
-    terms compose against a dispatch that pays that floor exactly once per
-    exec. The two `sha256_file` substitutions are measured **directly** as a
-    `bash -c` bracket: the dual-backend delta is the cross-check on that, not a
-    substitute for it, since the delta yields twice the difference between the
-    backends rather than the absolute cost under the gating configuration.
+    Each process launch is a marginal over the fork floor, so the terms compose
+    against a dispatch that pays that floor once per exec.
     """
     cache_root = plugin_root / "bin"
     targets = staged_shim_targets(plugin_root)
@@ -2090,9 +1998,8 @@ def measure_shell_terms(
 def _sidecar(binary: Path) -> Path:
     """Name the detached signature beside a cached entry.
 
-    Appended, never substituted: the cache names entries
-    `<token>-<version>-<digest>`, whose dotted version segment a suffix
-    replacement would eat.
+    Appended, never substituted: an entry name carries a dotted version segment
+    that a suffix replacement would eat.
     """
     return binary.with_name(binary.name + ".minisig")
 
@@ -2101,7 +2008,7 @@ def _point(value: float) -> Interval:
     """Wrap a term measured as one figure, with no interval of its own.
 
     Its zero upper distance contributes nothing to the propagated uncertainty,
-    which is why the residual band carries an absolute floor as well.
+    which is why the residual band also carries an absolute floor.
     """
     return Interval(point=value, lower=value, upper=value)
 
@@ -2135,12 +2042,7 @@ def _marginal(
 
 
 def staged_shim_targets(plugin_root: Path) -> list[Path]:
-    """Locate the two files the bootstrap hashes on every dispatch.
-
-    The verify shim's source and its content-addressed staged copy — the two
-    `sha256_file` call sites the composition budget needs an absolute figure
-    for.
-    """
+    """Locate the two files the bootstrap hashes on every dispatch."""
     cache_root = plugin_root / "bin"
     sources = sorted(cache_root.glob("accelerator-verify-*"))
     unstaged = [path for path in sources if len(path.name.split("-")) == 4]
@@ -2157,11 +2059,10 @@ def analyse(
 ) -> tuple[list[CellOutcome], dict[str, object]]:
     """Compute every cell's interval, classify it, and record the diagnostics.
 
-    The three floor treatments are computed in their three fixed roles: raw
-    medians gate, the `true`-floor-subtracted point estimate is the robustness
-    check, and the bash-floor-subtracted ratio is diagnostic only because it
-    over-subtracts — bash startup is real cost the dispatched variant pays,
-    since the bootstrap *is* a bash script.
+    The three floor treatments keep fixed roles: raw medians gate, the
+    `true`-floor-subtracted point estimate is the robustness check, and the
+    bash-floor-subtracted ratio is diagnostic only because it over-subtracts —
+    bash startup is real cost the dispatched variant pays.
     """
     rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
     baseline = list(samples[Variant.BASELINE])
@@ -2192,10 +2093,9 @@ def analyse(
             subtract_floor(fast, bash_floor),
         )
         robustness_ok = true_subtracted <= RATIO_THRESHOLD
-        # The robustness condition gates on the point estimate, a weakening
-        # whose only justification — undecidability at a 0.003 margin — expired
-        # when the threshold moved to 1.4. Its interval is recorded so the gate
-        # can be moved to the upper bound without another measurement.
+        # The robustness condition gates on the point estimate. Its interval
+        # is recorded too, so the gate can move to the upper bound without
+        # another measurement.
         robustness_interval = paired_ratio_interval(
             subtract_floor(baseline, true_floor),
             subtract_floor(fast, true_floor),
@@ -2263,8 +2163,8 @@ def analyse(
 def last_floors(floors: Mapping[str, object]) -> tuple[float, float]:
     """Read the final attempt's floors, or zero when none ran.
 
-    The final attempt, not the first: only the attempt that cleared the gate is
-    the instrument the samples were taken under.
+    The final attempt, not the first: only the one that cleared the gate is the
+    instrument the samples were taken under.
     """
     attempts = floors.get("attempts")
     if not isinstance(attempts, list) or not attempts:
@@ -2291,8 +2191,8 @@ def _report_cell(
 def assert_backends(fast_farm: Path, fallback_farm: Path) -> None:
     """Assert both farms in both directions before sampling either block.
 
-    A fast farm missing its `sha256sum` link would silently measure the
-    fallback backend under the cells carrying C1, C2 and C5.
+    A fast farm missing its backend link would silently measure the fallback
+    one under the cells gated on the fast backend.
     """
     if not (fast_farm / FAST_BACKEND).exists():
         raise PreconditionFailureError(
@@ -2323,10 +2223,8 @@ def sample_blocks(
 ) -> dict[Variant, list[float]]:
     """Take one block's samples, gated and braked on every one of them.
 
-    `started` is the *session's* start, not this call's: the wall-clock budget
-    covers the whole session — the pilot, the initial run and any escalated run
-    — because escalation happens inside the one session the criterion's "same
-    host, same session" wording requires.
+    `started` is the session's start, not this call's: the wall-clock budget
+    covers the pilot and every subsequent run together.
     """
     schedule = generate_schedule(
         block_a_pairs=0 if pilot else block_a_pairs,
@@ -2389,8 +2287,7 @@ def _gate_sample(
     """Assert this sample exercised the path being timed, and abort if not.
 
     Runs outside the timed bracket. A fail-safe swallow exits 0 with empty
-    stdout and skips both the re-verification and the sub-binary run, so it
-    records a spuriously *low* latency — the failure this gate exists to catch.
+    stdout having skipped most of the work, recording a spuriously low latency.
     """
     pending[variant] = stdout
     if variant is Variant.FALLBACK:
@@ -2438,11 +2335,9 @@ def _ratio(
 ) -> Interval | None:
     """Build a ratio cell's interval, paired or not as the block dictates.
 
-    C5's arms are interleaved pairs, so it takes the paired estimator. C6's
-    variant comes from the single-arm fallback block, which has no baseline of
-    its own, so it takes the unpaired one — demanding equal lengths there
-    produced no figure at all rather than the ungated context the criterion
-    asks to be recorded.
+    The fast block's arms are interleaved pairs; the fallback block is
+    single-arm and has no baseline of its own, so pairing it is impossible
+    rather than merely unnecessary.
     """
     if not baseline or not variant:
         return None
@@ -2470,9 +2365,8 @@ def quietness(
 ) -> dict[str, object]:
     """Record load and the CPU count as two values, never a derived ratio.
 
-    On linux `/proc/loadavg` is host-scoped regardless of cgroup membership, so
-    dividing it by a container's quota yields a meaningless number. Load is
-    read through `os.getloadavg()`, which exists on both OSes.
+    On linux the load average is host-scoped regardless of cgroup membership,
+    so dividing it by a container's quota yields a meaningless number.
     """
     count, rung = resolve_cpu_count(host.cpu_probes())
     return {
@@ -2488,12 +2382,9 @@ def quietness(
 def report_load(quietness_record: Mapping[str, object]) -> None:
     """Print the observed load beside the CPU count, and flag oversubscription.
 
-    Deliberately **not** a gate: the direction of the load bias on the ratio is
-    unresolved, so refusing on load would encode an unsupported model. But the
-    instrument floors can pass on a loaded host, and a session invalidated by
-    drift after ten minutes of sampling is worth avoiding — so the figure is put
-    in front of the operator before the sampling starts rather than only in the
-    record afterwards.
+    Deliberately not a gate: the direction of the load bias is unresolved, so
+    refusing on it would encode an unsupported model. Printed before sampling
+    because the floors can pass on a loaded host that then fails on drift.
     """
     load = quietness_record.get("loadavg")
     count = quietness_record.get("cpu_count")
@@ -2524,9 +2415,8 @@ def floors_hold(
 ) -> tuple[bool, bool]:
     """Report whether the instrument floors clear their gate, and may retry.
 
-    A breach is a precondition failure, not a note: the floors are calibrated
-    ~10% above the ones the confirmed result's own session implies, so a
-    session that cannot reach them is not measuring the same instrument.
+    A breach is a precondition failure, not a note: a session that cannot reach
+    the calibrated floors is not measuring the same instrument.
     """
     holds = (
         bash_floor_ms <= entry.bash_floor_ms
@@ -2540,9 +2430,8 @@ def assess_drift(
 ) -> dict[str, object]:
     """Judge the session's drift against a band derived from its own null.
 
-    Records the superseded constant's verdict alongside the derived one, so a
-    reader can see whether the change of basis changed the outcome rather than
-    having to take that on trust.
+    Records the superseded constant's verdict alongside, so a reader can see
+    whether the change of basis changed the outcome.
     """
     observed = drift_statistic(baseline, variant)
     band = drift_band_from_permutation(
@@ -2578,10 +2467,9 @@ def budget_closes(
 def observed_chip(diagnostics: DiagnosticRunner) -> str:
     """Read the chip's brand string, not `platform.processor()`.
 
-    On darwin `platform.processor()` returns `"arm"`, which no calibration
-    provenance can meaningfully agree or disagree with — the entry's floors are
-    calibrated per chip generation, so the brand string is the field that
-    carries the distinction.
+    On darwin that returns `"arm"`, which no calibration provenance can
+    meaningfully agree or disagree with: floors are calibrated per chip
+    generation, and only the brand string carries that distinction.
     """
     for argv in (
         ["sysctl", "-n", "machdep.cpu.brand_string"],
@@ -2599,11 +2487,7 @@ def observed_chip(diagnostics: DiagnosticRunner) -> str:
 def record_provenance(
     session: MeasurementSession, rig: Rig, entry: PlatformEntry | None
 ) -> dict[str, object]:
-    """Everything about the host and instrument the figures are read against.
-
-    Gathered in one place so the record is complete whether or not the session
-    goes on to produce a verdict.
-    """
+    """Gather everything the figures are read against, verdict or not."""
     quietness_record = quietness(session.host, entry)
     report_load(quietness_record)
     tools = {
@@ -2641,9 +2525,8 @@ def observed_calibration(
 ) -> dict[str, object]:
     """Compare this host against the entry's calibration provenance.
 
-    Evaluated during the run rather than left as an unreached helper: the
-    criterion demotes a verdict to uncalibrated context on a provenance
-    disagreement, and a rule no run evaluates demotes nothing.
+    A provenance disagreement demotes the verdict to uncalibrated context, so
+    this is evaluated during the run rather than left as an unreached helper.
     """
 
     def version_of(tool: str) -> str:
@@ -2696,11 +2579,9 @@ def measure_floors(
 ) -> tuple[float, float]:
     """Median cost of a trivial bash script and of `true`, in milliseconds.
 
-    Both resolved through the farm the samples are taken under, so the floor
-    and the measurement share an instrument. Measured before *and* after
-    sampling: 1,700-plus samples hashing megabytes each drive real thermal
-    load, and the end-of-run pair is the cheapest witness that the instrument
-    itself did not move across the session.
+    Resolved through the farm the samples are taken under, so floor and
+    measurement share an instrument. Taken before and after sampling, the pair
+    being the cheapest witness that the instrument did not move.
     """
     environment = farm_environment(farm, temp_root=temp_root)
     bash = farm / "bash"
@@ -2727,11 +2608,8 @@ def decompose_terms(
 ) -> dict[str, Interval]:
     """Re-measure the launcher-side warm-path terms in this same session.
 
-    Rather than re-checking closure against a published decomposition: the
-    spike's own numbers carry a visible cross-session mismatch, so roughly half
-    its residual was session difference rather than unattributed cost. The
-    `reverify` figure comes from a replica of a private method — see the
-    warning in `cli/launcher/tests/warm_terms.rs`.
+    One term is measured by a replica of a private method; the caveat is on the
+    test that reports it.
     """
     environment = dict(os.environ)
     environment["ACCELERATOR_MEASURE_CACHE_ROOT"] = str(plugin_root / "bin")
@@ -2765,11 +2643,7 @@ def decompose_terms(
 
 
 def parse_term_report(stdout: str) -> dict[str, Interval]:
-    """Parse the term harness's JSON lines into intervals by term name.
-
-    Each term carries its own percentile interval, which the residual band
-    propagates — the band must not be tighter than the measurement can resolve.
-    """
+    """Parse the term harness's JSON lines into intervals by term name."""
     terms: dict[str, Interval] = {}
     for line in stdout.splitlines():
         stripped = line.strip()
@@ -2794,18 +2668,11 @@ def measure_digest_bracket(
     samples: int = FLOOR_SAMPLES,
     backend: str = FAST_BACKEND,
 ) -> float:
-    """Cost of the bootstrap's two `sha256_file` substitutions, directly.
+    """Cost of the bootstrap's two digest substitutions, directly.
 
-    A `bash -c` bracket marginal over an empty body, which is the quantity the
-    composition budget needs. The dual-backend delta is the **cross-check** on
-    this, not a substitute for it: that delta yields twice the difference
-    between the backends, whereas the budget needs the absolute cost under the
-    gating configuration.
-
-    The bracket prints its digests and they are asserted, because a backend
-    absent from the farm makes the substitution empty rather than making the
-    script fail — so an unmeasured bracket returns a plausible small number
-    instead of an error.
+    A `bash -c` bracket marginal over an empty body. The digests are asserted
+    because an absent backend makes the substitution empty rather than failing
+    the script, so an unmeasured bracket would return a plausible small number.
     """
     environment = farm_environment(farm, temp_root=temp_root)
     bash = str(farm / "bash")
@@ -2843,9 +2710,8 @@ def measure_digest_bracket(
 def ancestor_pids(diagnostics: DiagnosticRunner) -> set[int]:
     """Every pid from this process up to init.
 
-    The driving Claude Code session is an *ancestor* of the harness, several
-    frames up through a shell, so excluding `getpid`/`getppid` alone would
-    leave it counted as a competing session and refuse every run.
+    The driving session is an ancestor several frames up, so excluding
+    `getpid`/`getppid` alone would count it as a competitor and refuse the run.
     """
     pids: set[int] = set()
     current = os.getpid()
@@ -2864,17 +2730,10 @@ def ancestor_pids(diagnostics: DiagnosticRunner) -> set[int]:
 def concurrent_sessions(diagnostics: DiagnosticRunner) -> list[str]:
     """List Claude Code sessions other than the one driving this run.
 
-    Matched on the executable *name* being exactly `claude`, not on the command
-    line containing it: a full-command-line match also catches the desktop
-    app's helper processes and any shell command that merely mentions the word,
-    which would refuse a run on most developer machines.
-
-    A concurrent session appends to the unverified log and can flip the
-    launcher or shim inode, failing the branch witness for a benign reason —
-    and an unenforced precondition makes that indistinguishable from tampering.
-    The driving session's own ancestry is excluded, but its dispatch count is
-    still recorded: the exclusion suppresses *detection* of its interference,
-    not the interference itself.
+    Matched on the executable name exactly: a command-line match also catches
+    the desktop app's helpers and any command mentioning the word. A concurrent
+    session can flip a cached inode, failing an integrity witness for a benign
+    reason indistinguishable from tampering.
     """
     try:
         listing = diagnostics(["pgrep", "-x", "claude"])
@@ -2893,9 +2752,9 @@ def tool_provenance(
 ) -> dict[str, dict[str, str]]:
     """Every farm link's target realpath and version, re-probed through it.
 
-    Re-probed *through the farm* rather than trusted from the pre-build probe:
-    a mise shim re-resolves its version from the config discovered at the cwd,
-    and the sampling cwd is the fixture — outside every mise config.
+    Re-probed through the farm rather than trusted from the pre-build probe: a
+    mise shim re-resolves its version from the config found at the cwd, and the
+    sampling cwd is outside every mise config.
     """
     record = {}
     for link in sorted(farm.iterdir()):
@@ -2918,12 +2777,11 @@ def plugin_version(plugin_root: Path) -> str:
 
 
 def jj_pin(plugin_root: Path) -> str:
-    """Read the `jj` version `mise.toml` pins, in lockstep with `jj-lib`.
+    """Read the `jj` version `mise.toml` pins.
 
-    Asserted rather than merely recorded: the fixture's `git.colocate=false`
-    incantation is justified by one release's default, so a differently
-    versioned `jj` could change which repo mode the fixture is in — the exact
-    failure the pin exists to prevent.
+    Asserted rather than merely recorded: the fixture's colocation flag is
+    justified by one release's default, so a differently versioned `jj` could
+    change which mode the fixture is in.
     """
     import tomllib
 

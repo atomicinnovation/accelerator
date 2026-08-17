@@ -1,21 +1,16 @@
 //! Launcher-side term decomposition for the warm-dispatch measurement.
 //!
-//! Reports the two warm-path terms that are only reachable from inside the
-//! crate — `cache::find`'s directory scan and the cache-hit re-verification —
-//! as JSON on stdout, so `tasks/measure.py` can close its composition budget
-//! against figures taken in the same session as the confirmatory `G` rather
-//! than importing them across sessions.
+//! Reports as JSON on stdout the warm-path terms reachable only from inside
+//! the crate, so the harness can close its budget against figures from the
+//! same session rather than importing them across sessions.
 //!
 //! `#[ignore]` by design: it reads the operator's live cache root and reports
-//! timings rather than asserting a threshold, so it is meaningless on a CI
-//! runner and must never gate one. Run it through
-//! `mise run measure:warm-dispatch`, which invokes it explicitly.
+//! timings rather than asserting a threshold, so it is meaningless on a shared
+//! runner and must never gate one.
 //!
-//! The re-verification body below **replicates** the resolver's private
-//! `reverify`, which no public surface exposes. Re-read
-//! `cli/launcher/src/launch/outbound/resolve/mod.rs` at the revision of any
-//! re-measurement before trusting the figure: a refactor of that method would
-//! silently invalidate the replica, and nothing here would fail.
+//! ⚠️ The re-verification body **replicates** a private method that no public
+//! surface exposes. Re-read that method before trusting the figure: a refactor
+//! would silently invalidate the replica, and nothing here would fail.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -122,9 +117,6 @@ fn warm_terms_are_reported() -> Result<(), TestError> {
     })?;
     let keys = TrustedKeys::embedded()?;
 
-    // The replica of the resolver's private `reverify`: read the bytes, read
-    // the detached signature, then `verify_binary`, which compares the
-    // name-derived sha256 and only then checks the minisign signature.
     let reverifications: Vec<f64> = (0..SAMPLES)
         .map(|_| {
             time(|| -> Result<(), TestError> {
