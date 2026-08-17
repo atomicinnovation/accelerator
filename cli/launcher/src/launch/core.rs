@@ -1,5 +1,6 @@
 //! The launcher's dispatch/resolution core and the ports it speaks through.
 
+pub mod tree;
 pub mod tree_entry;
 
 use std::ffi::OsString;
@@ -90,6 +91,7 @@ pub enum ResolutionError {
         program: PathBuf,
         source: std::io::Error,
     },
+    Tree(tree::TreeError),
 }
 
 impl Display for ResolutionError {
@@ -160,6 +162,7 @@ impl Display for ResolutionError {
                 "failed to exec {}: {source}",
                 program.display()
             ),
+            Self::Tree(error) => write!(formatter, "{error}"),
         }
     }
 }
@@ -168,6 +171,16 @@ impl std::error::Error for ResolutionError {}
 
 impl From<ResolutionError> for kernel::Error {
     fn from(error: ResolutionError) -> Self {
+        // The tree taxonomy classifies itself, so a variant added there without
+        // a class does not compile — which the two lists below cannot offer,
+        // since nothing links them to the enum they enumerate.
+        if let ResolutionError::Tree(ref tree_error) = error {
+            let message = error.to_string();
+            return match tree_error.class() {
+                tree::ErrorClass::Refusal => Self::Refusal(message),
+                tree::ErrorClass::Failed => Self::Failed(message),
+            };
+        }
         match error {
             ResolutionError::ChecksumMismatch { .. }
             | ResolutionError::SignatureMismatch { .. }
@@ -190,6 +203,8 @@ impl From<ResolutionError> for kernel::Error {
                 let message = error.to_string();
                 Self::Failed(message)
             }
+            // Classified above, before this match is reached.
+            ResolutionError::Tree(_) => Self::Failed(error.to_string()),
         }
     }
 }
