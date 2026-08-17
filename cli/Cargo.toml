@@ -94,6 +94,22 @@ rand = "0.9"
 # visualiser server, which delegated its own copy of that read to it.
 libc = "0.2"
 rustix = { version = "1", features = ["process", "fs"] }
+# Exact-pinned: pre-1.0, and its entry classification, PAX/GNU long-name
+# handling and symlink semantics are exactly what the tree extractor's
+# admission rules sit on top of, so a patch bump could shift the trust boundary
+# without a pin-edit review. default-features = false drops the `xattr` feature,
+# whose transitive edge buys nothing once archive-supplied extended attributes
+# are discarded outright.
+tar = { version = "=0.4.46", default-features = false }
+# The pure-Rust backend is load-bearing, not stylistic: the `zlib`, `zlib-ng`
+# and `zlib-rs` backends pull `libz-sys`/`zlib-ng-sys`, which need a C toolchain
+# and would break the fully-static musl cross-build. Cargo unifies features
+# across the workspace, so a future crate enabling a C backend would pull it
+# into the launcher silently — hence the absence guard in the launcher's
+# feature-graph test.
+flate2 = { version = "1", default-features = false, features = [
+    "rust_backend",
+] }
 # jj-lib and gix are a matched pair, pinned asymmetrically. jj-lib is EXACT
 # because it declares its API unstable and a patch can shift its MSRV or its own
 # gix requirement; gix is TILDE because ~0.85.0 is the range jj-lib already
