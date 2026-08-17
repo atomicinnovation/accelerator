@@ -33,6 +33,18 @@ minisign-verify = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+# Declared directly rather than reached transitively through `store`: the tree
+# resolver needs flock, openat with O_NOFOLLOW, fstatat and utimensat, and
+# depending on a transitive edge is the coupling the workspace's pin discipline
+# exists to prevent.
+rustix = { workspace = true }
+# The generation suffix is drawn from the platform CSPRNG. "Fresh by
+# construction" is what removes the rename-collision branch when a materialised
+# tree is published, and this repository has already been bitten by pid reuse in
+# cache paths.
+rand = { workspace = true }
 
 [build-dependencies]
 vergen = { workspace = true }
