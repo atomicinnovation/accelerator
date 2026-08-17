@@ -7,7 +7,7 @@ author: Toby Clemson
 producer: create-adr
 status: accepted
 relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0061", "adr:ADR-0062",
-  "work-item:0196", "work-item:0210"]
+  "work-item:0196", "work-item:0214"]
 tags: [architecture, distribution, cache, launcher, plugin, design]
 last_updated: "2026-08-17T12:21:50+00:00"
 last_updated_by: Toby Clemson
@@ -174,4 +174,4 @@ incurring every shared-store cost, and adds a second root to validate and own.
   https://code.claude.com/docs/en/plugins-reference#plugin-caching-and-file-resolution
 - `cli/launcher/src/launch/outbound/resolve/cache_root.rs` — cache-root selection
   and the `allowed-tools` reason there is no XDG fallback
-- `meta/work/0210-settle-the-vendored-runtime-tree-artifact-mechanisms.md`
+- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md`

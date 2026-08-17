@@ -8,7 +8,7 @@ producer: create-adr
 status: accepted
 supersedes: ["adr:ADR-0060"]
 relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059",
-  "work-item:0164", "work-item:0186", "work-item:0196", "work-item:0210"]
+  "work-item:0164", "work-item:0186", "work-item:0196", "work-item:0214"]
 tags: [architecture, distribution, integrity, manifest, launcher, cache,
   design]
 last_updated: "2026-08-17T12:21:50+00:00"
@@ -31,7 +31,7 @@ extraction, atomic materialisation by directory rename, a read-only seal, and
 exemption from the per-exec re-verification single-file sub-binaries keep. Those
 decisions hold and are restated here.
 
-Three of its mechanisms did not survive contact with evidence. Work-item:0210
+Three of its mechanisms did not survive contact with evidence. Work-item:0214
 settled each against prototypes, and this ADR replaces ADR-0060 rather than
 annotating it, because one of the three contradicts an assertion in its Decision
 section.
@@ -225,7 +225,7 @@ owner pid was an ephemeral shell.
 - ADR-0046 (zero-setup static binary distribution), ADR-0054 (git-style modular
   CLI), ADR-0057 (browser automation as a glibc-only capability), ADR-0059
   (build-time assembly of vendored browser artifacts)
-- `meta/work/0210-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
+- `meta/work/0214-settle-the-vendored-runtime-tree-artifact-mechanisms.md` —
   settled all three mechanisms against prototypes; carries the measurements
 - `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — the
   corruption-check-versus-trust-check distinction
