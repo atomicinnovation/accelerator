@@ -9,6 +9,7 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "http-test-support",
  "kernel",
  "minisign-verify",
  "reqwest",
@@ -34,6 +35,7 @@ dependencies = [
  "config-adapters",
  "github",
  "http",
+ "http-test-support",
  "kernel",
  "tempfile",
  "tokio",
@@ -1406,6 +1408,7 @@ version = "1.24.0-pre.43"
 dependencies = [
  "collaboration",
  "http",
+ "http-test-support",
  "octocrab",
  "tokio",
  "tracing",
@@ -2357,6 +2360,10 @@ dependencies = [
  "http",
  "serde",
 ]
+
+[[package]]
+name = "http-test-support"
+version = "1.24.0-pre.42"
 
 [[package]]
 name = "httparse"

@@ -41,3 +41,4 @@ vergen-gitcl = { workspace = true }
 [dev-dependencies]
 time = { workspace = true }
 tempfile = { workspace = true }
+http-test-support = { path = "../http-test-support" }

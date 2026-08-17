@@ -144,6 +144,26 @@
                 ),
             ],
         )),
+        // http-test-support's whole value is being std-only: it must stall a
+        // connection and drop one mid-body, which no HTTP client library
+        // exposes. Expressed as a `denied` list rather than `allowed_only`
+        // because cargo-pup resolves a grouped `use std::io::{a, b}` to an
+        // empty module name, which an `allowed_only` rule would reject.
+        Module((
+            name: "http_test_support_is_std_only",
+            matches: Module("^http_test_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // Isolates work-adapters' pure-read filesystem module from the
         // subprocess-spawning modules a later phase adds (diff_shellout,
         // author) — same shape as vcs_adapters_library_reads_in_process

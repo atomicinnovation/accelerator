@@ -6,13 +6,11 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
-mod common;
-
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use common::MockServer;
+use http_test_support::{MockServer, RequestKey, Route};
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -79,16 +77,21 @@ fn base_repo_prints_owner_slash_repo_on_success() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo",
-        200,
-        &repository_json("candidate-owner", "candidate-repo"),
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
     );
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo/pulls/42",
-        200,
-        &pull_request_json(42),
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
     );
 
     let output = run(repo.path(), &server, &["pr", "base-repo", "42"])?;
@@ -105,10 +108,11 @@ fn base_repo_reports_a_repository_lookup_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo",
-        404,
-        "{\"message\":\"Not Found\"}",
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 404,
+            body: "{\"message\":\"Not Found\"}".to_owned(),
+        },
     );
 
     let output = run(repo.path(), &server, &["pr", "base-repo", "42"])?;
@@ -125,22 +129,31 @@ fn update_body_succeeds() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo",
-        200,
-        &repository_json("candidate-owner", "candidate-repo"),
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
     );
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo/pulls/42",
-        200,
-        &pull_request_json(42),
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
     );
     server.route(
-        "PATCH",
-        "/repos/candidate-owner/candidate-repo/pulls/42",
-        200,
-        &pull_request_json(42),
+        RequestKey::new(
+            "PATCH",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
     );
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;
@@ -166,22 +179,31 @@ fn update_body_reports_a_patch_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo",
-        200,
-        &repository_json("candidate-owner", "candidate-repo"),
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
     );
     server.route(
-        "GET",
-        "/repos/candidate-owner/candidate-repo/pulls/42",
-        200,
-        &pull_request_json(42),
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
     );
     server.route(
-        "PATCH",
-        "/repos/candidate-owner/candidate-repo/pulls/42",
-        422,
-        "{\"message\":\"Validation Failed\"}",
+        RequestKey::new(
+            "PATCH",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 422,
+            body: "{\"message\":\"Validation Failed\"}".to_owned(),
+        },
     );
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;

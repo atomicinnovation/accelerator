@@ -805,6 +805,95 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The http-test-support std-only rule ---
+#
+# Driven against a workspace whose crates are literally named
+# `http-test-support` and `reqwest`, so the denied pattern is exercised
+# against a real resolved import. The stand-in `reqwest` crate is a local
+# stub: the rule matches on the import path, and building the real client
+# here would cost a full TLS-stack compile for no extra signal. The
+# compliant control must actually import something, so a matcher that
+# resolved nothing could not pass it silently.
+
+_HTTP_TEST_SUPPORT_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["http-test-support", "reqwest"]
+"""
+
+_HTTP_TEST_SUPPORT_MANIFEST = """\
+[package]
+name = "http-test-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = { path = "../reqwest" }
+"""
+
+_REQWEST_STUB_MANIFEST = """\
+[package]
+name = "reqwest"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_REQWEST_STUB_LIB = "pub struct Client;\n"
+
+_HTTP_TEST_SUPPORT_LIB_VIOLATION = (
+    "use reqwest::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
+)
+_HTTP_TEST_SUPPORT_LIB_COMPLIANT = (
+    "use std::net::TcpListener;\n\n"
+    "pub fn bind() -> std::io::Result<TcpListener> {\n"
+    '    TcpListener::bind("127.0.0.1:0")\n'
+    "}\n"
+)
+
+
+def _write_http_test_support_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_HTTP_TEST_SUPPORT_WORKSPACE)
+
+    support_src = root / "http-test-support/src"
+    support_src.mkdir(parents=True, exist_ok=True)
+    (root / "http-test-support/Cargo.toml").write_text(
+        _HTTP_TEST_SUPPORT_MANIFEST
+    )
+    (support_src / "lib.rs").write_text(lib_body)
+
+    stub_src = root / "reqwest/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "reqwest/Cargo.toml").write_text(_REQWEST_STUB_MANIFEST)
+    (stub_src / "lib.rs").write_text(_REQWEST_STUB_LIB)
+
+
+def test_http_test_support_rule_rejects_importing_an_http_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_http_test_support_probe(tmp_path, _HTTP_TEST_SUPPORT_LIB_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "http_test_support_is_std_only" in output, output
+
+
+def test_http_test_support_rule_permits_std_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_http_test_support_probe(tmp_path, _HTTP_TEST_SUPPORT_LIB_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The remaining whole-crate domain rules ---
 #
 # Each is driven against a workspace whose crate is literally named for it,
