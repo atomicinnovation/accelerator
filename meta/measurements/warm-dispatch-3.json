@@ -1,0 +1,550 @@
+{
+  "blocks": "AB",
+  "gating": true,
+  "preconditions": {
+    "violations": [],
+    "concurrent_sessions": [],
+    "accelerator_env_keys": [],
+    "dev_launcher_marker": false,
+    "plugin_root": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system",
+    "plugin_version": "1.24.0-pre.41",
+    "jj": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d",
+    "jj_pin": "0.43.0",
+    "driving_session_pid": 36976,
+    "fixture": "/private/var/folders/yn/t_rffw516d3_bxq89qx2p5jh0000gn/T/accelerator-measure-kgwscork/fixture",
+    "fixture_depth": 9,
+    "stdin_envelope": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git status\"}}",
+    "expected_reason": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status",
+    "baseline_commit": "2cfbf81e2e7b4934e868bd42c69374c335b05317",
+    "warm_cache_gaps": [],
+    "recovered_digests": {
+      "bin/vcs-guard": "3dc02b9ab1c5b6865c4f17116a558bceb383a517f2769de269366c45974ac2bb",
+      "scripts/vcs-common.sh": "e929f943726134b254a5539ccd673f3f2b154e9ed3093a60ba131e52f04a924a"
+    }
+  },
+  "quietness": {
+    "loadavg": [
+      3.8115234375,
+      4.46875,
+      5.09228515625
+    ],
+    "cpu_count": 16,
+    "cpu_count_rung": "process-cpu-count",
+    "power": {
+      "pmset": "System-wide power settings:\nCurrently in use:\n standby              1\n Sleep On Power Button 1\n hibernatefile        /var/vm/sleepimage\n powernap             1\n networkoversleep     0\n disksleep            10\n sleep                15 (sleep prevented by powerd, sharingd, useractivityd)\n hibernatemode        0\n ttyskeepawake        1\n displaysleep         5\n tcpkeepalive         1\n powermode            0\n womp                 0"
+    }
+  },
+  "tools": {
+    "fast": {
+      "awk": {
+        "target": "/usr/bin/awk",
+        "version": "awk version 20200816"
+      },
+      "bash": {
+        "target": "/opt/homebrew/Cellar/bash/5.3.15/bin/bash",
+        "version": "GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)"
+      },
+      "cat": {
+        "target": "/bin/cat",
+        "version": "unknown"
+      },
+      "chmod": {
+        "target": "/bin/chmod",
+        "version": "unknown"
+      },
+      "cp": {
+        "target": "/bin/cp",
+        "version": "unknown"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.7.1 (x86_64-apple-darwin25.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.68.0"
+      },
+      "date": {
+        "target": "/bin/date",
+        "version": "unknown"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "unknown"
+      },
+      "git": {
+        "target": "/opt/homebrew/Cellar/git/2.55.0/bin/git",
+        "version": "git version 2.55.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "unknown"
+      },
+      "jj": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/bin/kill",
+        "version": "unknown"
+      },
+      "mkdir": {
+        "target": "/bin/mkdir",
+        "version": "unknown"
+      },
+      "mv": {
+        "target": "/bin/mv",
+        "version": "unknown"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "unknown"
+      },
+      "realpath": {
+        "target": "/bin/realpath",
+        "version": "unknown"
+      },
+      "rm": {
+        "target": "/bin/rm",
+        "version": "unknown"
+      },
+      "rmdir": {
+        "target": "/bin/rmdir",
+        "version": "unknown"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "unknown"
+      },
+      "sha256sum": {
+        "target": "/sbin/sha256sum",
+        "version": "sha256sum (Darwin) 1.0"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.02"
+      },
+      "sleep": {
+        "target": "/bin/sleep",
+        "version": "unknown"
+      },
+      "timeout": {
+        "target": "/opt/homebrew/Cellar/coreutils/9.11/bin/gtimeout",
+        "version": "timeout (GNU coreutils) 9.11"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "unknown"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "unknown"
+      },
+      "wget": {
+        "target": "/opt/homebrew/Cellar/wget/1.25.0/bin/wget",
+        "version": "GNU Wget 1.25.0 built on darwin24.1.0."
+      }
+    },
+    "fallback": {
+      "awk": {
+        "target": "/usr/bin/awk",
+        "version": "awk version 20200816"
+      },
+      "bash": {
+        "target": "/opt/homebrew/Cellar/bash/5.3.15/bin/bash",
+        "version": "GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)"
+      },
+      "cat": {
+        "target": "/bin/cat",
+        "version": "unknown"
+      },
+      "chmod": {
+        "target": "/bin/chmod",
+        "version": "unknown"
+      },
+      "cp": {
+        "target": "/bin/cp",
+        "version": "unknown"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.7.1 (x86_64-apple-darwin25.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.68.0"
+      },
+      "date": {
+        "target": "/bin/date",
+        "version": "unknown"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "unknown"
+      },
+      "git": {
+        "target": "/opt/homebrew/Cellar/git/2.55.0/bin/git",
+        "version": "git version 2.55.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "unknown"
+      },
+      "jj": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/bin/kill",
+        "version": "unknown"
+      },
+      "mkdir": {
+        "target": "/bin/mkdir",
+        "version": "unknown"
+      },
+      "mv": {
+        "target": "/bin/mv",
+        "version": "unknown"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "unknown"
+      },
+      "realpath": {
+        "target": "/bin/realpath",
+        "version": "unknown"
+      },
+      "rm": {
+        "target": "/bin/rm",
+        "version": "unknown"
+      },
+      "rmdir": {
+        "target": "/bin/rmdir",
+        "version": "unknown"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "unknown"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.02"
+      },
+      "sleep": {
+        "target": "/bin/sleep",
+        "version": "unknown"
+      },
+      "timeout": {
+        "target": "/opt/homebrew/Cellar/coreutils/9.11/bin/gtimeout",
+        "version": "timeout (GNU coreutils) 9.11"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "unknown"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "unknown"
+      },
+      "wget": {
+        "target": "/opt/homebrew/Cellar/wget/1.25.0/bin/wget",
+        "version": "GNU Wget 1.25.0 built on darwin24.1.0."
+      }
+    }
+  },
+  "interpreter": {
+    "executable": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system/.venv/bin/python3",
+    "version": "3.14.4 (main, Apr 14 2026, 14:46:33) [Clang 22.1.3 ]",
+    "clock": "namespace(implementation='mach_absolute_time()', monotonic=True, adjustable=False, resolution=4.166666666666666e-08)",
+    "seed": 20260813
+  },
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "25.3.0",
+    "platform": "macOS-26.3-arm64-arm-64bit-Mach-O"
+  },
+  "dirname_spawns": 1,
+  "calibration": {
+    "observed": {
+      "chip": "Apple M4 Max",
+      "bash": "GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)",
+      "shasum": "6.02"
+    },
+    "recorded": {
+      "session": "0205",
+      "chip": "Apple M4 Max",
+      "bash": null,
+      "shasum": null
+    },
+    "unconfirmed": [
+      "bash: the 0205 session recorded none, so 'GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)' confirms nothing",
+      "shasum: the 0205 session recorded none, so '6.02' confirms nothing"
+    ],
+    "holds": false,
+    "note": "uncalibrated for this host \u2014 bash: the 0205 session recorded none, so 'GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)' confirms nothing; shasum: the 0205 session recorded none, so '6.02' confirms nothing"
+  },
+  "floors_pre": {
+    "when": "pre",
+    "attempts": [
+      {
+        "bash_ms": 4.44889601203613,
+        "true_ms": 1.3391249813139439
+      }
+    ],
+    "holds": true
+  },
+  "warm_up": {
+    "valid": true,
+    "diagnostic": "",
+    "elapsed_ms": 48.649042029865086
+  },
+  "pilot": {
+    "block_a": {
+      "achieved_upper_distance": 0.01312584992114374,
+      "required": 2659,
+      "feasible": true
+    },
+    "block_b": {
+      "achieved_upper_distance": 0.26822954532690346,
+      "required": 200,
+      "feasible": true
+    },
+    "sizes": {
+      "block_a_pairs": 2659,
+      "block_b_samples": 900
+    },
+    "discarded": {
+      "B": 200,
+      "G-fast": 200,
+      "G-fallback": 200
+    }
+  },
+  "floors_post": {
+    "when": "post",
+    "attempts": [
+      {
+        "bash_ms": 4.254687490174547,
+        "true_ms": 1.3485835224855691
+      }
+    ],
+    "holds": true
+  },
+  "dispersion": {
+    "B": {
+      "n": 2659,
+      "minimum": 25.18162498017773,
+      "median": 26.7958749900572,
+      "p90": 28.895783203188333,
+      "iqr": 1.1917704832740128
+    },
+    "G-fast": {
+      "n": 2659,
+      "minimum": 33.99920801166445,
+      "median": 35.53145896876231,
+      "p90": 38.22957501979545,
+      "iqr": 1.641562965232879
+    },
+    "G-fallback": {
+      "n": 900,
+      "minimum": 49.40220800926909,
+      "median": 51.49579150020145,
+      "p90": 55.29113778611645,
+      "iqr": 1.9025099754799157
+    }
+  },
+  "terms": {
+    "terms": {
+      "cache::find": {
+        "point": 0.0357,
+        "lower": 0.0167,
+        "upper": 0.0422
+      },
+      "reverify": {
+        "point": 6.0487,
+        "lower": 5.7755,
+        "upper": 6.1168
+      },
+      "verifier::sha256_hex": {
+        "point": 4.3268,
+        "lower": 4.1204,
+        "upper": 4.4359
+      },
+      "TrustedKeys::verifies": {
+        "point": 1.6483,
+        "lower": 1.6374,
+        "upper": 1.7397
+      },
+      "bash startup": {
+        "point": 4.44889601203613,
+        "lower": 4.44889601203613,
+        "upper": 4.44889601203613
+      },
+      "two sha256_file calls": {
+        "point": 3.8237289991229773,
+        "lower": 3.8237289991229773,
+        "upper": 3.8237289991229773
+      },
+      "shim minisign-verify of the launcher": {
+        "point": 6.4711250306572765,
+        "lower": 6.4711250306572765,
+        "upper": 6.4711250306572765
+      },
+      "launcher startup net of the fork floor": {
+        "point": 2.218124980572611,
+        "lower": 2.218124980572611,
+        "upper": 2.218124980572611
+      },
+      "vcs exec and guard work net of the fork floor": {
+        "point": 1.995500031625852,
+        "lower": 1.995500031625852,
+        "upper": 1.995500031625852
+      }
+    },
+    "summed": [
+      "bash startup",
+      "two sha256_file calls",
+      "shim minisign-verify of the launcher",
+      "launcher startup net of the fork floor",
+      "cache::find",
+      "reverify",
+      "vcs exec and guard work net of the fork floor"
+    ],
+    "sub_operations_not_summed": [
+      "verifier::sha256_hex",
+      "TrustedKeys::verifies"
+    ],
+    "cache_root_entries": 21,
+    "cache_root_bytes": 47835582,
+    "residual": {
+      "total": 25.041775054014845,
+      "signed_residual": -10.489683914747463,
+      "absolute_residual": 10.489683914747463,
+      "band": 1.5,
+      "closed": false,
+      "remeasure": true
+    },
+    "digest_backend_cross_check": {
+      "absolute_under_the_gating_backend_ms": 3.8237289991229773,
+      "fallback_backend_ms": 19.576333492295817,
+      "delta_ms": 15.75260449317284,
+      "implied_per_call_difference_ms": 7.87630224658642,
+      "role": "the delta is a cross-check on the direct measurement, not a substitute for it: it carries twice the per-call difference between the backends, not the absolute cost the budget needs"
+    },
+    "observed_median_ms": 35.53145896876231,
+    "cross_checked_fraction": 0.7047775627798022,
+    "uncross_checked_fraction": 0.2952224372201978
+  },
+  "analysis": {
+    "intervals": {
+      "C1": {
+        "point": 35.53145896876231,
+        "lower": 35.466708010062575,
+        "upper": 35.58416699524969
+      },
+      "C2": {
+        "point": 38.22957501979545,
+        "lower": 37.97879220219329,
+        "upper": 38.426724774762995
+      },
+      "C3": {
+        "point": 51.49579150020145,
+        "lower": 51.41125002410263,
+        "upper": 51.61602832522476
+      },
+      "C4": {
+        "point": 55.29113778611645,
+        "lower": 54.888870840659365,
+        "upper": 55.665833002422005
+      },
+      "C5": {
+        "point": 1.3260048041702877,
+        "lower": 1.3236344664376767,
+        "upper": 1.3278957245535559
+      },
+      "C6": {
+        "point": 1.9217805546304918,
+        "lower": 1.917209653913239,
+        "upper": 1.9266275643960693
+      }
+    },
+    "ratios": {
+      "raw_gates": 1.3260048041702877,
+      "true_floor_subtracted_robustness_check": 1.3431539366063943,
+      "true_floor_subtracted_interval": {
+        "point": 1.3431539366063943,
+        "lower": 1.3406755154108787,
+        "upper": 1.345113073968851
+      },
+      "robustness_holds_on_the_upper_bound": true,
+      "bash_floor_subtracted_diagnostic_only": 1.3909067076716195,
+      "median_of_ratios": 1.3308004929496695,
+      "p90_ratio_context": 1.323015706166332,
+      "drift_first_third": 1.3298985424560548,
+      "drift_last_third": 1.326821376975087,
+      "drift": {
+        "observed": -0.003077165480967814,
+        "band": 0.005271066620921816,
+        "quantile": 0.95,
+        "permutations": 2000,
+        "significance": 0.228,
+        "holds": true,
+        "holds_under_superseded_constant": true,
+        "superseded_band": 0.005
+      },
+      "drift_holds": true
+    },
+    "validity": "valid",
+    "elapsed_s": 246.97913420799887
+  },
+  "cells": [
+    {
+      "cell": "C1",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C2",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C3",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C4",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C5",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C6",
+      "gates": false,
+      "branch": "2",
+      "accepted_by": null
+    }
+  ],
+  "closure_verdict": true,
+  "teardown": [],
+  "attempt": 3,
+  "samples_path": "warm-dispatch-3-samples.json"
+}

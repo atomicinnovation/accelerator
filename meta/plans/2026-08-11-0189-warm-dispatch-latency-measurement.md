@@ -5,7 +5,7 @@ title: "Warm-Dispatch Latency Measurement Implementation Plan"
 date: "2026-08-11T19:43:42+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
 derived_from:
@@ -17,7 +17,7 @@ relates_to:
 tags: [cli, launcher, performance, bootstrap, measurement]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
-last_updated: "2026-08-17T12:00:00+00:00"
+last_updated: "2026-08-17T13:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1967,63 +1967,63 @@ share of `G` remains uncross-checked as a stated limit rather than as coverage.
 
 #### Automated Verification:
 
-- [ ] The recovered baseline runs and exits cleanly against the test envelope,
+- [x] The recovered baseline runs and exits cleanly against the test envelope,
   and its raw envelope shape is probed and recorded before sampling
-- [ ] The fixture's blocked decision shape is asserted on a probe sample before
+- [x] The fixture's blocked decision shape is asserted on a probe sample before
   sampling begins
-- [ ] Preconditions pass over the environment actually handed to
+- [x] Preconditions pass over the environment actually handed to
   `subprocess.run` — including the published-release check, the
   concurrent-session check, `LC_ALL`/`TZ`, and `jj`'s version against the
   `mise.toml` pin — and the observed `ACCELERATOR_*` keys, both `PATH` farms'
   contents and every resolved tool path and version are printed
-- [ ] The fallback farm positively fails `command -v sha256sum` and resolves
+- [x] The fallback farm positively fails `command -v sha256sum` and resolves
   `shasum`
-- [ ] Pre- and post-sampling instrument floors clear the ≤ 7.8 / ≤ 1.95 ms gate,
+- [x] Pre- and post-sampling instrument floors clear the ≤ 7.8 / ≤ 1.95 ms gate,
   with every retry attempt and its floors recorded, capped at three
-- [ ] Every sample's normalised decision matches the expected `block` for both
+- [x] Every sample's normalised decision matches the expected `block` for both
   variants, using Phase 2's five-case union; the run aborts on first mismatch
-- [ ] The inode/mtime witness runs **per sample** and the outlier trip and
+- [x] The inode/mtime witness runs **per sample** and the outlier trip and
   wall-clock budget are armed
-- [ ] The unverified log is byte-identical to its captured contents
+- [x] The unverified log is byte-identical to its captured contents
 
 #### Manual Verification:
 
-- [ ] `B`, `G`, the ratio and the two-sided 95% interval are recorded **per
+- [x] `B`, `G`, the ratio and the two-sided 95% interval are recorded **per
   digest backend**, with n, min, median, p90, IQR per variant and
   `p90(G)/p90(B)` as context
-- [ ] All three ratios are recorded with intervals, in their three roles — raw
+- [x] All three ratios are recorded with intervals, in their three roles — raw
   gates, `true`-floor-subtracted is the robustness check that must also clear,
   bash-floor-subtracted is diagnostic only with its over-subtraction stated
-- [ ] `median(Gᵢ/Bᵢ)` is recorded alongside the ratio of medians, and a material
+- [x] `median(Gᵢ/Bᵢ)` is recorded alongside the ratio of medians, and a material
   divergence between them is reported as a drift finding
-- [ ] The first-third/last-third drift diagnostic is within the band §2 states
+- [x] The first-third/last-third drift diagnostic is within the band §2 states
   (on `median(G)/median(B)`, not per variant)
-- [ ] **C1-C5** are each classified into exactly one branch and C6's figures are
+- [x] **C1-C5** are each classified into exactly one branch and C6's figures are
   recorded without a branch, and `closure_verdict` held (every gating cell
   branch 1, or branch 7 with a recorded acceptance); C6's figures recorded
   without a branch
-- [ ] Quietness is evidenced two ways — raw load with its CPU-count rung, and
+- [x] Quietness is evidenced two ways — raw load with its CPU-count rung, and
   both instrument floors against their gate — and the resolved `bash` matches
   the calibration provenance recorded on the platform entry (0205's session),
   not 0186's
-- [ ] Baseline provenance is recorded: resolved git commit id, and the sha256 of
+- [x] Baseline provenance is recorded: resolved git commit id, and the sha256 of
   **both** files recovered into `T`
-- [ ] The envelope, fixture path and canonicalised depth, **observed** `dirname`
+- [x] The envelope, fixture path and canonicalised depth, **observed** `dirname`
   spawn count from a `bash -x` trace, host/OS/chip, plugin version, tool paths
   and versions, interpreter, clock info, seed, locale and power state are
   recorded
-- [ ] The term set is re-measured in-session, the residual reported signed and
+- [x] The term set is re-measured in-session, the residual reported signed and
   absolute against the band §7 states, with re-measurement triggered by
   magnitude only and capped at two recorded attempts
-- [ ] The two `sha256_file` calls are measured directly in-session, with the
+- [x] The two `sha256_file` calls are measured directly in-session, with the
   backend delta reported as the cross-check and their agreement stated; the
   residual uncross-checked fraction is stated as a number
-- [ ] The cache-root entry count and total size are recorded
-- [ ] The harness invocation and its full output are recorded; the harness
+- [x] The cache-root entry count and total size are recorded
+- [x] The harness invocation and its full output are recorded; the harness
   itself is cited by path, since Phase 2 committed it
-- [ ] `T` and the fixture root do not exist, asserted positively by recorded
+- [x] `T` and the fixture root do not exist, asserted positively by recorded
   resolved path, and the cache-root entry set matches its captured list
-- [ ] The teardown's restore and verify phases both ran and passed, and `mise
+- [x] The teardown's restore and verify phases both ran and passed, and `mise
   run cli:check` ran as a separate post-run step
 
 ---
@@ -2233,35 +2233,35 @@ a follow-up **dissolves**: Phase 2 commits the harness, which is the decision.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-corpus -E
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-corpus -E
   'test(this_repositorys_own_corpus_is_clean)'` is green
-- [ ] `mise run check` is green
-- [ ] `mise run` (bare default task) exits 0 end-to-end
+- [x] `mise run check` is green
+- [x] `mise run` (bare default task) exits 0 end-to-end
 
 #### Manual Verification:
 
-- [ ] All four 0169 record locations carry the figures, each **unticked**, each
+- [x] All four 0169 record locations carry the figures, each **unticked**, each
   with a dated resolution naming the superseded threshold, the measured value,
   the reason and where the obligation is discharged
-- [ ] Each 0169 resolution carries an inline note wherever the method differed
+- [x] Each 0169 resolution carries an inline note wherever the method differed
   from the criterion as written
-- [ ] Each 0169 resolution states that the criterion decision was taken on 0189
+- [x] Each 0169 resolution states that the criterion decision was taken on 0189
   rather than on 0169, contrary to 0205's stated sequencing
-- [ ] 0189 carries a `## Validation Results` section, named as the authoritative
+- [x] 0189 carries a `## Validation Results` section, named as the authoritative
   summary, with criterion **10** ticked only if every gating cell selected
   branch 1, and criterion **11**'s latency clause discharged
-- [ ] 0189's `status` and its body `**Status**:` line both reflect whether every
+- [x] 0189's `status` and its body `**Status**:` line both reflect whether every
   criterion is discharged and the outcome-keyed closure guard is satisfied
-- [ ] 0191's existing section headed "**The saving is backend-dependent.**"
+- [x] 0191's existing section headed "**The saving is backend-dependent.**"
   carries the measured figures, with the fallback saving marked a projection and
   quoted as ~4-5×, not an order of magnitude
-- [ ] **Five** follow-up work items exist with producer-assigned ids, titles,
+- [x] **Five** follow-up work items exist with producer-assigned ids, titles,
   `kind`, `priority`, parent and back-links on 0189, 0191 and 0136; the "Remove
   the cache-hit sha256 from warm dispatch" is present regardless of Phase 3's
   branch, and it carries the name/version-binding acceptance criterion
-- [ ] `last_updated`/`last_updated_by` refreshed on every meta document touched
-- [ ] **The Deviations section is complete, or explicitly records "none"**
-- [ ] The teardown's restore and verify phases both ran and passed
+- [x] `last_updated`/`last_updated_by` refreshed on every meta document touched
+- [x] **The Deviations section is complete, or explicitly records "none"**
+- [x] The teardown's restore and verify phases both ran and passed
 
 ---
 
@@ -2729,6 +2729,59 @@ the *absolute* cells are judged against ceilings whose calibration cannot be
 confirmed on the instrument-identity axis, while C5, being a within-session
 ratio, is unaffected by it.
 
+### Attempt 3 — the valid session, and the one the criterion is met on
+
+Recorded 2026-08-17, `meta/measurements/warm-dispatch-3.json` with its raw
+samples beside it. **`closure_verdict` holds.** Quietest of the three by every
+measure: load 3.81 over 16 CPUs, instrument floors 4.449/1.339 ms before and
+4.255/1.349 ms after, each clearing on the first attempt at each end. n = 2,659
+interleaved pairs after the in-session pilot sized Block A up from 1,700 (achieved
+pilot upper distance 0.0131), plus 900 Block B samples; 247 s.
+
+| Cell | Statistic | Interval | Ceiling | Headroom | Branch |
+| --- | --- | --- | --- | --- | --- |
+| C1 | `median(G)` fast | 35.531 [35.467, 35.584] | ≤ 50 | 29% | **1** |
+| C2 | `p90(G)` fast | 38.230 [37.979, 38.427] | ≤ 60 | 36% | **1** |
+| C3 | `median(G)` fallback | 51.496 [51.411, 51.616] | ≤ 70 | 26% | **1** |
+| C4 | `p90(G)` fallback | 55.291 [54.889, 55.666] | ≤ 80 | 31% | **1** |
+| C5 | ratio, fast | 1.3260 [1.3236, 1.3279] | ≤ 1.4 | 5.2% | **1** |
+| C6 | ratio, fallback | 1.9218 [1.9172, 1.9266] | recorded | — | 2, ungated |
+
+Dispersion — `B`: n = 2,659, min 25.182, median 26.796, p90 28.896, IQR 1.192.
+`G-fast`: min 33.999, median 35.531, p90 38.230, IQR 1.642. `G-fallback`: n = 900,
+min 49.402, median 51.496, p90 55.291, IQR 1.903. `p90(G)/p90(B)` 1.3230.
+
+Three floor treatments in their three roles: raw medians **gate** at 1.3260; the
+`true`-floor-subtracted **robustness check** is 1.3432 [1.3407, 1.3451], clearing
+1.4 in the stated point-estimate form *and* the upper-bound form, so the
+deliberate weakening decided nothing; the bash-floor-subtracted **diagnostic** is
+1.3909. `median(Gᵢ/Bᵢ)` 1.3308 against the ratio of medians 1.3260, agreeing to
+0.005.
+
+**Validity holds.** Drift −0.00308 against a band of 0.00527 derived from this
+session's own permutation null at the 0.95 quantile, `p = 0.228`; it also holds
+under the superseded 0.005 constant, so no verdict turns on the change of basis.
+Every per-sample check passed; the inode/mtime witness, the outlier trip and the
+wall-clock budget never fired.
+
+**Composition budget**: bash startup 4.449, two `sha256_file` calls 3.824, shim
+minisign-verify 6.471, launcher startup net of the fork floor 2.218,
+`cache::find` 0.036, `reverify` 6.049, `vcs` exec plus guard work net of the fork
+floor 1.996 — summing to 25.042 against an observed 35.531, residual −10.49 ms,
+**70.5%** cross-checked and a **29.5%** uncross-checked share stated as a limit.
+Backend cross-check +15.753 ms (7.876 per call against 0186's 8.44). Cache root
+21 entries, 47.8 MB.
+
+⚠️ **C5 does not meet 1.3**, which was the threshold until the same day. It misses
+by **0.747 ms** of `median(G)` — a shortfall 0191's measured 2.48 ms covers three
+times over, which is why that item now carries a re-measurement criterion.
+
+⚠️ **The verdict is uncalibrated on two provenance fields**: 0205 recorded neither
+the `bash` nor the `shasum` it resolved, so this host's `bash` 5.3.15 and
+`shasum` 6.02 confirm nothing. The chip matches. C5 is a within-session ratio and
+unaffected; the absolute ceilings are the cells whose instrument identity cannot
+be confirmed.
+
 ### Latency figures
 
 _Superseded by the two attempts recorded above; retained as the slot list._
@@ -2751,7 +2804,11 @@ CPU-count rung; power state; the fallback prediction and whether it held.
 
 ### Composition budget
 
-_Pending Phase 3._ Slots: the **in-session** re-measured term set against the
+Recorded from attempt 3 above; the term set, the residual against its band, the
+direct digest measurement with its backend cross-check, the cross-checked and
+uncross-checked fractions, and the cache-root count and size are all in that
+section. 0188's 4.81 / 4.03 ms pair remains the recorded bound on fixture bias.
+Slots: the **in-session** re-measured term set against the
 confirmatory `median(G)`; the residual signed and absolute against the ±1.5 ms
 band §7 states, with the magnitude-only trigger and the two-attempt cap
 honoured; the two `sha256_file` calls measured **directly** with the backend
@@ -2762,7 +2819,12 @@ recorded bound on fixture bias.
 
 ### Cleanup evidence
 
-_Pending Phase 3._ Slots: the **per-sample** inode/mtime witness and whether the
+All three attempts: the per-sample inode/mtime witness ran on every sample and
+never fired, and neither the outlier trip nor the wall-clock budget fired in any
+session. Teardown restore and verify passed on all three, with every artefact in
+the manifest table positively absent by recorded resolved path and the cache-root
+entry set matching its captured list. The unverified log was byte-identical
+throughout. Slots: the **per-sample** inode/mtime witness and whether the
 outlier trip or wall-clock budget fired; positive absence of `T` and the fixture
 root by recorded resolved path; the cache-root entry set against its captured
 list; the unverified log's byte-identity (append-only — any growth is a branch-5
@@ -2808,6 +2870,27 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   reopening the threshold on 0169 before 0189 measured anything. This plan lands
   it on 0189 because 0169 is closed, and records the departure at all four 0169
   discharge points.
+- **Three attempts were needed, and all three are recorded.** Attempts 1 and 2
+  were invalidated on drift and attempt 3 is the valid session. The plan
+  pre-registers "no sampling beyond the single escalation branch 3 permits", which
+  governs *extending* a session; re-running after a recorded invalidation is a
+  different act and every attempt is on the record with its own numbered file, so
+  nothing was discarded silently. ⚠️ Attempt 3 also has the lowest ratio of the
+  three (1.3260 against 1.3423 and 1.3177), so a reader should note that the
+  session which happened to pass is also the one most favourable to `G` — the
+  quietest host produced both the tightest floors and the best ratio.
+- **The work-creation producer's id allocation collided, and its frontmatter
+  needed repair.** `bin/accelerator work create` self-allocated 0210-0214, of
+  which four were already claimed on other branches of the shared repository
+  (0210 twice over): the allocator sees one checkout's `meta/work/` and not
+  sibling workspaces' unmerged commits, so in a multi-workspace repository its
+  ids are a proposal, not a reservation. The five were re-numbered to 0215-0219
+  above the repo-wide maximum. It also emitted **unquoted** linkage values and
+  omitted the `# NNNN: Title` heading and the `**Kind**/**Status**/**Priority**/
+  **Author**` block when `--body-file` was used, all of which its own corpus gate
+  rejects; each was repaired by hand. The plan's instruction to create these
+  through the producer was followed — the producer's output simply needed fixing
+  after the fact.
 - **The threshold was relaxed a second time, from 1.3 to 1.4** (2026-08-17,
   author decision, Toby Clemson), after two sessions measured 1.3177 and 1.3423.
   This deviation compounds the first one recorded above rather than replacing it:
@@ -2980,7 +3063,16 @@ explicitly for any category left empty.
 
 ### Discharge record
 
-_Pending Phase 4._ Slots: 0169's four locations resolved, unticked, with dated
+Completed 2026-08-17. 0169's four locations carry the figures and each stays
+**unticked** with a dated resolution naming the superseded threshold, the measured
+value, the reason and the 0189-not-0169 ownership departure: the work item's own
+criterion, its five `_pending_` Validation Results slots, the 0169 plan's Phase 10
+criterion, and the 0169 validation's unchecked item. 0189 carries its
+`## Validation Results` as the authoritative summary, criteria 10 and 11 ticked,
+and `status: done` with its body line in lockstep. 0191's backend section carries
+the measured figures and the 0.747 ms shortfall. Five follow-ups exist as
+**0215-0219**, re-numbered above the repo-wide maximum after the producer's
+allocation collided with four ids already claimed on other branches. Slots: 0169's four locations resolved, unticked, with dated
 notes naming the 0189-not-0169 ownership departure; 0189's Validation Results
 added, criteria **10** and **11** discharged, `status` and its body line set;
 0191's existing backend section amended with the measured figures; the **five**

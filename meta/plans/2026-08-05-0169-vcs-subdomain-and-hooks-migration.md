@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migrat
 tags: [rust, vcs, hooks, migration]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
-last_updated: "2026-08-13T16:00:13+00:00"
+last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1529,6 +1529,22 @@ found.
       was measured at a ratio of medians of 1.2813 (n = 300, 95% CI [1.2662,
       1.2899]) and fails. The threshold is superseded, and the obligation is
       discharged on work item 0189 under the criterion recorded there.
+
+      **Resolved 2026-08-17 — recorded, not met, discharged on 0189.** Measured
+      under the committed harness on a quiet darwin-arm64 host, third and valid
+      attempt (`meta/measurements/warm-dispatch-3.json`): **B = 26.796 ms**,
+      **G = 35.531 ms**, **ratio 1.3260** (95% CI [1.3236, 1.3279], n = 2,659
+      interleaved pairs). **Stays unticked**: `G ≤ 1.1 × B` was not met. The
+      threshold is superseded twice — 1.1 → 1.3 → **1.4** — and the ratio is
+      demoted beneath an absolute `median`/`p90` budget the same session clears
+      by 26% to 36%. 1.1 was calibrated against a cost model attributing `jj`
+      and `git` spawns to a baseline that makes neither.
+
+      ⚠️ The criterion decision was taken **on 0189, not on 0169**, contrary to
+      0205's stated sequencing, because 0169 is closed. Method deviations from
+      this criterion as written: n = 2,659 rather than 20, an interval bound
+      rather than a bare median rule, the ratio demoted beneath an absolute
+      budget, and a per-backend six-cell split.
 - [ ] The release-cut deployment gate (Phase 9's note) is scheduled with
       whoever performs epic-0136 releases before `hooks.json`'s rewrite
       reaches an installed-plugin path — **owner action, not code**: flagging

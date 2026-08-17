@@ -9,7 +9,7 @@ status: complete
 result: pass
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-13T16:00:13+00:00"
+last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -210,6 +210,18 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
      `accelerator vcs guard` invocations (G) against the same stdin payload
      and pure-jj fixture. Confirm `G ≤ 1.1 × B` and record B, G, the ratio,
      payload, fixture, and host in the work item's Validation Results.
+
+     **Resolved 2026-08-17 — recorded, not met, discharged on 0189.** Measured
+     under the committed harness on a quiet darwin-arm64 host, third and valid
+     attempt (`meta/measurements/warm-dispatch-3.json`): **B = 26.796 ms**,
+     **G = 35.531 ms**, **ratio 1.3260** (95% CI [1.3236, 1.3279], n = 2,659
+     pairs). Filled into 0169's Validation Results. **Stays unticked**: `G ≤ 1.1
+     × B` was not met, and the threshold is superseded twice over (1.1 → 1.3 →
+     **1.4**) with the ratio demoted beneath an absolute budget the session
+     clears by 26% to 36%. ⚠️ The criterion decision was taken on **0189**, not
+     on 0169, contrary to 0205's sequencing, because 0169 is closed. Method
+     deviations: n = 2,659 not 20, an interval bound not a bare median rule, the
+     ratio demoted, and a per-backend six-cell split.
 
 3. **Work item hygiene** (not user-facing, but recommended before closing
    the story):
