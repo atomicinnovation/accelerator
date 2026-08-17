@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accelerator"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "config",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-collaboration"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "collaboration",
@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-corpus"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "config",
@@ -57,7 +57,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-design"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "config",
@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-migrate"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "config-adapters",
@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-vcs"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "kernel",
@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-verify"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "minisign-verify",
  "tempfile",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-visualiser"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -151,7 +151,7 @@ dependencies = [
 
 [[package]]
 name = "accelerator-work"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "clap",
  "config",
@@ -717,7 +717,7 @@ dependencies = [
 
 [[package]]
 name = "collaboration"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "kernel",
  "vcs",
@@ -749,7 +749,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "config"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "kernel",
  "tempfile",
@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "config-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "config",
  "document",
@@ -789,14 +789,14 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "corpus-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "corpus",
  "document",
@@ -1029,14 +1029,14 @@ dependencies = [
 
 [[package]]
 name = "design"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "design-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "design",
  "kernel",
@@ -1090,7 +1090,7 @@ dependencies = [
 
 [[package]]
 name = "document"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "serde",
  "serde-saphyr",
@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "github"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "collaboration",
  "http",
@@ -2869,7 +2869,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -3056,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "migrate"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "corpus",
  "document",
@@ -3065,7 +3065,7 @@ dependencies = [
 
 [[package]]
 name = "migrate-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "config",
  "config-adapters",
@@ -3548,7 +3548,7 @@ dependencies = [
 
 [[package]]
 name = "process-probe"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "libc",
 ]
@@ -4337,7 +4337,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "rustix",
  "tempfile",
@@ -4821,11 +4821,11 @@ dependencies = [
 
 [[package]]
 name = "tracker"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 
 [[package]]
 name = "tracker-test-support"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "tracker",
 ]
@@ -4946,14 +4946,14 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vcs"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "kernel",
 ]
 
 [[package]]
 name = "vcs-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "dunce",
  "etcetera",
@@ -4970,7 +4970,7 @@ dependencies = [
 
 [[package]]
 name = "vcs-test-support"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "regex",
  "serde",
@@ -5421,7 +5421,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "work"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "corpus",
  "kernel",
@@ -5431,7 +5431,7 @@ dependencies = [
 
 [[package]]
 name = "work-adapters"
-version = "1.24.0-pre.41"
+version = "1.24.0-pre.42"
 dependencies = [
  "corpus",
  "kernel",
