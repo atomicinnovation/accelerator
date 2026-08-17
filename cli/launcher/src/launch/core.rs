@@ -1,5 +1,7 @@
 //! The launcher's dispatch/resolution core and the ports it speaks through.
 
+pub mod tree_entry;
+
 use std::ffi::OsString;
 use std::fmt;
 use std::fmt::Display;
