@@ -13,7 +13,7 @@ blocked_by: ["work-item:0169"]
 relates_to:
   ["work-item:0186", "work-item:0164", "work-item:0191", "work-item:0205"]
 tags: [cli, launcher, performance, bootstrap]
-last_updated: "2026-08-13T16:00:13+00:00"
+last_updated: "2026-08-17T12:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -480,6 +480,89 @@ materially different quiet-host ratio could fail it. That is the intended
 behaviour of a gate; it is stated here so a pass is not mistaken for a
 comfortable one.
 
+### The ratio threshold is reopened, 2026-08-17
+
+**C5 is not met, and the measurement is what reopens it.** Two sessions under
+the committed harness, recorded at `meta/measurements/warm-dispatch-1.json` and
+`-2.json`, put the ratio's whole 95% interval above 1.3. **This subsection is a
+decision brief, not a decision**: the threshold is unchanged until an approver
+named outside the measurement records one, on the same terms this section's
+Provenance paragraph sets for the band itself.
+
+| Session | Load / 16 cpus | `median(B)` | `median(G)` | C5 | Interval |
+| --- | --- | --- | --- | --- | --- |
+| 0205, n = 300 | 19 | 33.00 | 42.28 | 1.2813 | [1.2662, 1.2899] |
+| Attempt 1, n = 6,762 | 38.25 | 31.09 | 40.96 | 1.3177 | [1.3149, 1.3207] |
+| Attempt 2, n = 1,700 | 10.63 | 27.98 | 37.56 | **1.3423** | [1.3395, 1.3445] |
+
+Three things the evidence settles, none of which depends on a threshold choice:
+
+- **The absolute budget passes comfortably and improves as the host quietens.**
+  Attempt 2 clears C1-C4 by 25%, 35%, 26% and 32%. The primary gate is not in
+  question.
+- **A quieter host raises the ratio.** Both variants get faster; `B` gets
+  proportionally faster, because it is dominated by process spawns while `G`
+  carries fixed verification work. So no amount of additional quiet brings C5
+  down — the trend runs the wrong way, which also disposes of any expectation
+  that 0205's 1.2813 was the pessimistic figure.
+- **The miss is 1.25 ms of `median(G)`.** C5's upper bound reaches 1.3 at
+  `median(G)` = 36.31 against the measured 37.56.
+
+Four dispositions, with what each costs:
+
+1. **Keep 1.3 and take one lever.** 0191 (batching the two `sha256_file`
+   substitutions into one invocation) is measured at 2.48 ms on the fast
+   backend, roughly twice the gap, and weakens nothing — both digests are still
+   computed and compared. Projected C5 ≈ 1.254. ⚠️ This is the route [Why the
+   criterion was reframed](#why-the-criterion-was-reframed) declines, on the
+   ground that it sets verification posture by an arithmetic target. 0191's own
+   merit is independent of that, so the objection is to the *sequencing*, not to
+   the change.
+2. **Raise the threshold to 1.4.** Inside the author's stated 1.3–1.5 band, so
+   it needs no new band provenance, and it clears both attempts by ~0.055 —
+   about 25 achieved upper-distances. ⚠️ It would be the **second** post-hoc
+   relaxation of the same threshold, and it voids the first one's stated
+   mitigation, that "the floor of the band was taken".
+3. **Retire C5 as a gate and keep it as a recorded comparison.** This section
+   already calls C5 "the historical comparison that discharges 0169's inherited
+   ratio wording" while also marking it `Gates: yes` — a comparison that gates
+   is still a gate, and the two readings are in tension. Discharging 0169 by
+   *recording* 1.3423 rather than passing 1.3 is consistent with the demotion
+   already made, and leaves the criterion purely absolute and re-runnable, which
+   is the property C1-C4 were made primary for. ⚠️ It removes the only cell that
+   compares against the artefact 0169 actually shipped against.
+4. **Close 0189 with a named accepted deviation.** The available
+   value-independent rationale: 37.56 ms for a fully signature-verified,
+   jj-lib-backed guard against 27.98 ms for an unverified stat-and-grep script
+   is a **9.58 ms** premium for the whole trust chain, and imperceptible on a
+   hook. ⚠️ Requires an approver named outside this measurement and a rationale
+   that does not appeal to the observed number.
+
+⚠️ **Whatever is decided, the drift band needs re-deriving first**, because
+until it is no session can be valid — see the next subsection.
+
+### The drift band may be unattainable, 2026-08-17
+
+Both sessions failed the drift diagnostic, and **in opposite directions**:
+attempt 1 at −0.0132, attempt 2 at +0.0091, against a band of 0.005. So it is
+session-scale wander rather than a thermal ramp, and it is not load: attempt 2
+ran at a quarter of attempt 1's load with a third of its dispersion and still
+failed. Every cell in both sessions is therefore branch 5b, `closure_verdict` is
+false, and this item cannot close — which is the unsatisfiable-by-construction
+shape the criterion guards against elsewhere.
+
+The band's stated derivation is "about a quarter of C5's 0.0187 margin". **That
+margin does not exist**: the ratio is 1.34, so C5 has no margin to take a
+quarter of. The band therefore rests on a quantity the measurement disproved,
+which is a reason to re-derive it that does not appeal to the fact that it
+failed. A defensible replacement would be calibrated against the observed
+session-scale wander of the instrument, measured rather than inferred from a
+margin.
+
+Re-deriving it needs no new sampling: attempt 2's raw samples are persisted
+beside its record, so a re-derived band can be applied to the session already
+taken.
+
 ### Limitations
 
 - **Verified on darwin-arm64 only.** Of the four shipped platforms, darwin-x64
@@ -535,6 +618,19 @@ comfortable one.
   not "filesystem permissions on the cache root", so it discharges what
   acceptance criteria 3 and 4 ask for; a validator reading those criteria
   literally should look for byte poisoning, not for a failing verifier.
+
+- **Is `G ≤ 1.3 × B` the right threshold, given that it is not met?**
+  **Reopened 2026-08-17** by the measurement — see [The ratio threshold is
+  reopened](#the-ratio-threshold-is-reopened-2026-08-17) for the evidence and
+  the four dispositions. **Default if unresolved**: none. The threshold stays at
+  1.3 and this item stays open; criterion 10 is unticked and the obligation is
+  live. No default is offered deliberately — every disposition changes either
+  the shipped code, the criterion, or the closure terms, and none of those is a
+  measurement's call.
+- **Is the drift band of 0.005 attainable at all?** Both sessions failed it in
+  opposite directions, so until it is re-derived no session can be valid and
+  this item cannot close. See [The drift band may be
+  unattainable](#the-drift-band-may-be-unattainable-2026-08-17).
 
 ## Dependencies
 

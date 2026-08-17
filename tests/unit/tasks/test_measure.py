@@ -43,6 +43,7 @@ from tasks.measure import (
     assert_backends,
     backend_delta_check,
     build_farm,
+    calibration_note,
     cells_for,
     classify_cell,
     create_fixture,
@@ -2359,3 +2360,69 @@ class TestDigestBracket:
                 targets=self.targets(tmp_path),
                 samples=2,
             )
+
+
+class TestUnrecordedCalibration:
+    """A provenance field the reference session never recorded cannot match.
+
+    The criterion demotes a verdict to uncalibrated context when the observed
+    host disagrees with the entry's provenance. That rule is only sound if the
+    provenance is real: 0205 recorded its chip and its floors but not which
+    `bash` or `shasum` it resolved, so asserting values for those two would make
+    the comparison confirm agreement with a figure nobody measured.
+    """
+
+    def entry(self, **overrides):
+        base = {
+            "session": "0205",
+            "chip": "Apple M4 Max",
+            "bash": None,
+            "shasum": None,
+        }
+        return replace(
+            PLATFORM_TABLE[("Darwin", "arm64")],
+            calibration=Calibration(**{**base, **overrides}),
+        )
+
+    def test_an_unrecorded_field_cannot_be_confirmed(self):
+        assert not calibration_holds(
+            self.entry(),
+            observed_chip="Apple M4 Max",
+            observed_bash="GNU bash, version 5.3.15(1)-release",
+            observed_shasum="6.02",
+        )
+
+    def test_a_fully_recorded_matching_provenance_holds(self):
+        entry = self.entry(bash="GNU bash, version 5.3.15", shasum="6.02")
+        assert calibration_holds(
+            entry,
+            observed_chip="Apple M4 Max",
+            observed_bash="GNU bash, version 5.3.15",
+            observed_shasum="6.02",
+        )
+
+    def test_the_shipped_darwin_entry_records_no_bash_or_shasum(self):
+        # 0205 did not record them, so the table must not claim them.
+        calibration = PLATFORM_TABLE[("Darwin", "arm64")].calibration
+        assert calibration is not None
+        assert calibration.bash is None
+        assert calibration.shasum is None
+
+    def test_the_shipped_entry_never_reports_itself_calibrated(self):
+        entry = PLATFORM_TABLE[("Darwin", "arm64")]
+        assert not calibration_holds(
+            entry,
+            observed_chip="Apple M4 Max",
+            observed_bash="anything",
+            observed_shasum="anything",
+        )
+
+    def test_the_note_names_what_could_not_be_confirmed(self):
+        note = calibration_note(
+            PLATFORM_TABLE[("Darwin", "arm64")],
+            chip="Apple M4 Max",
+            bash="GNU bash, version 5.3.15",
+            shasum="6.02",
+        )
+        assert "uncalibrated" in note
+        assert "bash" in note or "shasum" in note

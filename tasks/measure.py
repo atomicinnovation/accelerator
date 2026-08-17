@@ -48,7 +48,6 @@ from tasks.shared.measurement import (
     Variant,
     accelerator_override_keys,
     budget_exhausted,
-    calibration_holds,
     ceiling_directories,
     classify,
     closure_verdict,
@@ -75,6 +74,7 @@ from tasks.shared.measurement import (
     thirds,
     tmp_containment,
     unchanged_artefacts,
+    unconfirmed_calibration_fields,
     unpaired_interval,
     unpaired_ratio_interval,
     validate_dispatch,
@@ -134,11 +134,17 @@ STDIN_ENVELOPE = json.dumps(
     }
 )
 
+# 0205 recorded its chip and its instrument floors, but **not** which `bash` or
+# `shasum` it resolved. Those two are therefore `None` rather than a plausible
+# guess: the demotion rule compares the observed host against this provenance,
+# and asserting a value nobody measured would make it report agreement with a
+# figure that does not exist. Their absence demotes every verdict on this key to
+# uncalibrated context until a session records them.
 _DARWIN_CALIBRATION = Calibration(
     session="0205",
     chip="Apple M4 Max",
-    bash="/bin/bash 3.2.57(1)-release",
-    shasum="Perl shasum 6.04",
+    bash=None,
+    shasum=None,
 )
 
 PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
@@ -1629,25 +1635,7 @@ def run_session(
         record["preconditions"] = check_preconditions(
             plugin_root, session, rig, strict=not rehearse
         )
-        record["quietness"] = quietness(session.host, entry)
-        report_load(record["quietness"])
-        record["tools"] = {
-            "fast": tool_provenance(rig.fast_farm, session.diagnostics),
-            "fallback": tool_provenance(rig.fallback_farm, session.diagnostics),
-        }
-        record["interpreter"] = {
-            "executable": sys.executable,
-            "version": sys.version,
-            "clock": str(time.get_clock_info("perf_counter")),
-            "seed": SEED,
-        }
-        record["host"] = {
-            "system": platform.system(),
-            "machine": platform.machine(),
-            "release": platform.release(),
-            "platform": platform.platform(),
-        }
-        record["dirname_spawns"] = observed_dirname_spawns(rig)
+        record.update(record_provenance(session, rig, entry))
 
         if entry is None:
             raise PreconditionFailureError(
@@ -2461,18 +2449,107 @@ def budget_closes(
     return residual_verdict(terms, observed_median, attempts_used)
 
 
+def observed_chip(diagnostics: DiagnosticRunner) -> str:
+    """Read the chip's brand string, not `platform.processor()`.
+
+    On darwin `platform.processor()` returns `"arm"`, which no calibration
+    provenance can meaningfully agree or disagree with — the entry's floors are
+    calibrated per chip generation, so the brand string is the field that
+    carries the distinction.
+    """
+    for argv in (
+        ["sysctl", "-n", "machdep.cpu.brand_string"],
+        ["lscpu", "-J"],
+    ):
+        try:
+            observed = diagnostics(argv).strip()
+        except FileNotFoundError, PermissionError:
+            continue
+        if observed:
+            return observed.splitlines()[0]
+    return platform.processor() or platform.machine()
+
+
+def record_provenance(
+    session: MeasurementSession, rig: Rig, entry: PlatformEntry | None
+) -> dict[str, object]:
+    """Everything about the host and instrument the figures are read against.
+
+    Gathered in one place so the record is complete whether or not the session
+    goes on to produce a verdict.
+    """
+    quietness_record = quietness(session.host, entry)
+    report_load(quietness_record)
+    tools = {
+        "fast": tool_provenance(rig.fast_farm, session.diagnostics),
+        "fallback": tool_provenance(rig.fallback_farm, session.diagnostics),
+    }
+    provenance: dict[str, object] = {
+        "quietness": quietness_record,
+        "tools": tools,
+        "interpreter": {
+            "executable": sys.executable,
+            "version": sys.version,
+            "clock": str(time.get_clock_info("perf_counter")),
+            "seed": SEED,
+        },
+        "host": {
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "release": platform.release(),
+            "platform": platform.platform(),
+        },
+        "dirname_spawns": observed_dirname_spawns(rig),
+    }
+    if entry is not None:
+        calibration = observed_calibration(
+            entry, tools["fast"], chip=observed_chip(session.diagnostics)
+        )
+        provenance["calibration"] = calibration
+        print(f"calibration: {calibration['note']}")
+    return provenance
+
+
+def observed_calibration(
+    entry: PlatformEntry, tools: Mapping[str, object], *, chip: str
+) -> dict[str, object]:
+    """Compare this host against the entry's calibration provenance.
+
+    Evaluated during the run rather than left as an unreached helper: the
+    criterion demotes a verdict to uncalibrated context on a provenance
+    disagreement, and a rule no run evaluates demotes nothing.
+    """
+
+    def version_of(tool: str) -> str:
+        record = tools.get(tool)
+        if isinstance(record, dict):
+            return str(record.get("version", "unknown"))
+        return "unknown"
+
+    bash = version_of("bash")
+    shasum = version_of(FALLBACK_BACKEND)
+    unconfirmed = unconfirmed_calibration_fields(
+        entry, observed_chip=chip, observed_bash=bash, observed_shasum=shasum
+    )
+    return {
+        "observed": {"chip": chip, "bash": bash, "shasum": shasum},
+        "recorded": asdict(entry.calibration) if entry.calibration else None,
+        "unconfirmed": unconfirmed,
+        "holds": not unconfirmed,
+        "note": calibration_note(entry, chip=chip, bash=bash, shasum=shasum),
+    }
+
+
 def calibration_note(
     entry: PlatformEntry, *, chip: str, bash: str, shasum: str
 ) -> str:
-    if calibration_holds(
+    """State whether this host is judged by numbers calibrated for it."""
+    unconfirmed = unconfirmed_calibration_fields(
         entry, observed_chip=chip, observed_bash=bash, observed_shasum=shasum
-    ):
-        return "calibrated"
-    return (
-        "uncalibrated for this host: the observed chip, bash or shasum "
-        "disagrees with the entry's provenance — figures are context, not a "
-        "verdict"
     )
+    if not unconfirmed:
+        return "calibrated"
+    return "uncalibrated for this host — " + "; ".join(unconfirmed)
 
 
 def percentile_of(values: Sequence[float], quantile: float) -> float:

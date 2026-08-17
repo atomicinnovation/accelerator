@@ -827,8 +827,8 @@ class Calibration:
 
     session: str
     chip: str
-    bash: str
-    shasum: str
+    bash: str | None
+    shasum: str | None
 
 
 @dataclass(frozen=True)
@@ -868,10 +868,47 @@ def calibration_holds(
     if entry.calibration is None:
         return False
     return (
-        entry.calibration.chip == observed_chip
-        and entry.calibration.bash == observed_bash
-        and entry.calibration.shasum == observed_shasum
+        unconfirmed_calibration_fields(
+            entry,
+            observed_chip=observed_chip,
+            observed_bash=observed_bash,
+            observed_shasum=observed_shasum,
+        )
+        == []
     )
+
+
+def unconfirmed_calibration_fields(
+    entry: PlatformEntry,
+    *,
+    observed_chip: str,
+    observed_bash: str,
+    observed_shasum: str,
+) -> list[str]:
+    """Name every provenance field this host does not confirm.
+
+    A field the reference session never recorded is **unconfirmable**, not
+    matching: treating an unrecorded value as agreement would report a verdict
+    as calibrated against a figure nobody measured.
+    """
+    if entry.calibration is None:
+        return ["no calibration provenance at all"]
+    observed = {
+        "chip": observed_chip,
+        "bash": observed_bash,
+        "shasum": observed_shasum,
+    }
+    unconfirmed = []
+    for field, seen in observed.items():
+        recorded = getattr(entry.calibration, field)
+        if recorded is None:
+            unconfirmed.append(
+                f"{field}: the {entry.calibration.session} session recorded "
+                f"none, so {seen!r} confirms nothing"
+            )
+        elif recorded != seen:
+            unconfirmed.append(f"{field}: {seen!r} != recorded {recorded!r}")
+    return unconfirmed
 
 
 def resolve_platform_key(

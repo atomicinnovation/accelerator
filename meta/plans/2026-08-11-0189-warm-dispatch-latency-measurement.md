@@ -17,7 +17,7 @@ relates_to:
 tags: [cli, launcher, performance, bootstrap, measurement]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
-last_updated: "2026-08-13T16:00:13+00:00"
+last_updated: "2026-08-17T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2608,9 +2608,104 @@ unresolved, so this is context rather than an explanation — but it is consiste
 with a host that was not in a steady state, which is what the drift diagnostic
 detects.
 
+### Attempt 2 — the measured session
+
+Recorded 2026-08-17 on a quiet darwin-arm64 host (Apple M4 Max, macOS 26.3),
+full record at `meta/measurements/warm-dispatch-2.json` with its raw samples
+beside it at `warm-dispatch-2-samples.json`. n = 1,700 Block A pairs and 900
+Block B samples, 192 s, seed 20260813, ≥ 10,000 resamples per interval.
+
+**This is the session the criterion should be read against.** Load 10.63 over 16
+CPUs against attempt 1's 38.25; instrument floors 4.85 / 1.40 ms pre and 4.62 /
+1.39 ms post, against a gate of ≤ 7.8 / ≤ 1.95 and against 0205's own 7.04 /
+1.72; per-variant IQRs a third of attempt 1's (1.21 / 1.20 / 1.62 against 3.99 /
+3.99 / 5.83). The pilot's achieved upper distance was 0.0051, so no size-up was
+needed and Block A ran at its tabled 1,700.
+
+| Cell | Statistic | Interval | Upper distance | Ceiling | Branch |
+| --- | --- | --- | --- | --- | --- |
+| C1 | `median(G)` fast | 37.560 [37.498, 37.619] | 0.058 | ≤ 50 | 1 but for validity |
+| C2 | `p90(G)` fast | 39.245 [39.051, 39.490] | 0.245 | ≤ 60 | 1 but for validity |
+| C3 | `median(G)` fallback | 52.004 [51.886, 52.109] | 0.105 | ≤ 70 | 1 but for validity |
+| C4 | `p90(G)` fallback | 54.450 [54.155, 54.833] | 0.384 | ≤ 80 | 1 but for validity |
+| C5 | ratio, fast | **1.3423 [1.3395, 1.3445]** | 0.0022 | ≤ 1.3 | **2 — fail** |
+| C6 | ratio, fallback | 1.8585 [1.8527, 1.8635] | 0.0050 | ungated | recorded |
+
+Dispersion: `B` n = 1,700, min 26.534, median 27.982, p90 29.795, IQR 1.212.
+`G-fast` n = 1,700, min 35.448, median 37.560, p90 39.245, IQR 1.199.
+`G-fallback` n = 900, min 50.042, median 52.004, p90 54.450, IQR 1.621.
+`p90(G)/p90(B)` = 1.3171 as context.
+
+**All three floor treatments in their three roles**: raw medians gate at
+**1.3423**; the `true`-floor-subtracted robustness check is **1.3603**, so it
+fails too and in the same direction; the bash-floor-subtracted diagnostic is
+1.4140, over-subtracting as stated. `median(Gᵢ/Bᵢ)` is 1.3409 against a ratio of
+medians of 1.3423 — the two estimators agree to 0.0014, so pairing is not
+carrying a drift artefact.
+
+**❌ C5 fails, and quietness made it worse.** Both variants sped up against
+attempt 1 — `G` 40.96 → 37.56, `B` 31.09 → 27.98 — but `B` sped up
+proportionally more, so the ratio rose from 1.3177 to 1.3423. Both sessions put
+the entire interval above 1.3; this one does so at an upper distance of 0.0022,
+tighter than the 0.0036 target, so the fail is decidable rather than
+indeterminate. Against 0205's 1.2813 the direction is consistent: every session
+this plan has evidence for exceeds the threshold, and the two taken under this
+harness exceed it by 18 to 65 achieved upper-distances.
+
+⚠️ **In absolute terms the miss is 1.25 ms.** Bringing C5's upper bound to 1.3
+requires `median(G)` at 36.31 rather than 37.560. Work item 0191 — batching the
+bootstrap's two `sha256_file` substitutions into one invocation — is measured at
+2.48 ms on the fast backend, and this session measured those two calls at 4.316
+ms. One lever is roughly twice the gap.
+
+**The primary gate is not close to breaching.** C1-C4 clear their ceilings by
+25%, 35%, 26% and 32%, and every one improved on attempt 1. The cell that fails
+is the one the criterion itself demotes to a historical comparison.
+
+**⚠️ The session is nonetheless invalid (branch 5b), on drift, for the second
+time.** Block A's first-third ratio 1.3388 against its last-third 1.3479, |Δ| =
+0.0091 against the pre-registered band of 0.005. Attempt 1 failed the same band
+at −0.0132. The two failures are in **opposite directions**, so this is
+session-scale wander rather than a thermal ramp, and it is not attributable to
+load: attempt 2's load was a quarter of attempt 1's and its dispersion a third,
+yet it still failed. See the drift finding below.
+
+**Composition budget**, re-measured in-session: bash startup 4.848, two
+`sha256_file` calls 4.316, shim minisign-verify of the launcher 6.435, launcher
+startup net of the fork floor 2.494, `cache::find` 0.020, `reverify` 5.954, and
+`vcs` exec plus guard work net of the fork floor 2.376 — summing to 26.443
+against an observed median of 37.560, a signed residual of **−11.117 ms** against
+a ±1.5 ms band, and **70.4%** of `G` cross-checked. The sub-operations inside
+`reverify` are recorded but not summed. The dual-backend cross-check gives a
+delta of **+15.219 ms**, or 7.61 ms per call, against 0186's 8.44 ms — the right
+sign and order, confirming the direct figure. Cache root: 21 entries, 47.8 MB.
+
+**Provenance**: plugin version 1.24.0-pre.41 with a published signed release;
+`jj` 0.43.0 matching the `mise.toml` pin; no `ACCELERATOR_*` key set; no
+concurrent Claude Code session; no warm-cache gap; dev-launcher marker absent;
+fixture depth 9 with an observed `dirname` spawn count of **1**; warm-up
+dispatch validated as blocking; both farms 28 tools with every link's realpath
+and version recorded; `LC_ALL=C`, `TZ=UTC`; CPython 3.14.4 with
+`mach_absolute_time()` as `perf_counter`; teardown restore and verify both
+passed with every artefact positively absent and the cache-root entry set
+unchanged.
+
+⚠️ **The verdict is uncalibrated, and that is a defect in the table rather than
+in the host.** The criterion demotes a verdict to context when the observed host
+disagrees with the platform entry's calibration provenance. Two of that
+provenance's four fields — resolved `bash` and `shasum` — were **never recorded
+by 0205** and had been filled in with plausible values that no session measured.
+They are now `None`, and an unrecorded field is treated as unconfirmable rather
+than as agreement, so this host reports "uncalibrated: the 0205 session recorded
+none". The chip matches (Apple M4 Max). The consequence for reading this record:
+the *absolute* cells are judged against ceilings whose calibration cannot be
+confirmed on the instrument-identity axis, while C5, being a within-session
+ratio, is unaffected by it.
+
 ### Latency figures
 
-_Pending a valid session. Attempt 1 is recorded above as invalidated._ Slots: `B`, `G` and the two-sided 95% interval **per digest
+_Superseded by the two attempts recorded above; retained as the slot list._
+Slots: `B`, `G` and the two-sided 95% interval **per digest
 backend**; all three ratios with their intervals and their three roles (raw
 gates, `true`-floor robustness check, bash-floor diagnostic); `median(Gᵢ/Bᵢ)`
 alongside the ratio of medians; n/min/median/p90/IQR per variant;
