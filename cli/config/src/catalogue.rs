@@ -119,10 +119,12 @@ pub fn is_valid_work_integration(value: &str) -> bool {
 /// default applies — so `dump` surfaces them by presence only. The bash mirror
 /// is `EXTRA_KEYS` in `config-defaults.sh`.
 pub const EXTRA_KEYS: &[&str] = &[
+    "jira.allowed_sites",
     "jira.site",
     "jira.email",
     "jira.token",
     "jira.token_cmd",
+    "linear.team_id",
     "linear.token",
     "linear.token_cmd",
     "github.token",

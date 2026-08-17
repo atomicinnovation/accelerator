@@ -144,6 +144,47 @@
                 ),
             ],
         )),
+        // remote-projection is pure JSON field extraction shared by the sync
+        // engine and both provider clients: no process spawning, no
+        // transport. Expressed as `denied` for the grouped-import reason
+        // recorded on the config-command rule below.
+        Module((
+            name: "remote_projection_extracts_json_only",
+            matches: Module("^remote_projection($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // tracker-support carries the policy both provider clients share —
+        // credentials, retry schedule, identifier safety, transport bounds.
+        // It runs the credential helper, so std::process is deliberately
+        // permitted; what it must never grow is a transport of its own,
+        // which is what would let provider specifics follow.
+        Module((
+            name: "tracker_support_carries_policy_not_transport",
+            matches: Module("^tracker_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                        "^jira_client(::|$)",
+                        "^linear_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // http-test-support's whole value is being std-only: it must stall a
         // connection and drop one mid-body, which no HTTP client library
         // exposes. Expressed as a `denied` list rather than `allowed_only`

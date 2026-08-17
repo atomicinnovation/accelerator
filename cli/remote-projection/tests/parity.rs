@@ -1,4 +1,4 @@
-//! Pins `work_adapters::project_remote` against the committed
+//! Pins `remote_projection` against the committed
 //! `test-fixtures/work-item-project-remote/case-*` fixtures.
 //!
 //! Each `expected.txt` is four lines: `integration=<name>`,
@@ -9,9 +9,9 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use work_adapters::project_remote::parse_integration;
-use work_adapters::project_remote::project;
-use work_adapters::project_remote::Op;
+use remote_projection::parse_integration;
+use remote_projection::project;
+use remote_projection::Op;
 
 type TestError = Box<dyn std::error::Error>;
 

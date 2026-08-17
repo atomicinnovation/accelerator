@@ -665,9 +665,18 @@ recognised. Other `visualiser.*` keys are not consumed by any plugin script.
 Configure access to a Jira Cloud tenant. One key belongs in team-shared
 `config.md`:
 
-| Key    | Default | Description                                |
-|--------|---------|--------------------------------------------|
-| `site` | (empty) | Cloud subdomain (e.g. `atomic-innovation`) |
+| Key              | Default | Description                                            |
+|------------------|---------|--------------------------------------------------------|
+| `site`           | (empty) | Cloud subdomain (e.g. `atomic-innovation`)             |
+| `allowed_sites`  | (empty) | Extra exact hostnames the Rust client may send the token to, beyond `*.atlassian.net` |
+
+`allowed_sites` exists for self-hosted and non-`atlassian.net` tenants. The
+Rust client refuses to send credentials to any host outside `*.atlassian.net`
+unless it is listed here as an exact hostname — no wildcard expansion, matched
+at a label boundary, so neither `atlassian.net.example.com` nor
+`evil-atlassian.net` is admitted. Like `token_cmd`, it is refused when the file
+it came from is tracked by version control: a committed allowlist is a
+credential-destination decision a clone would inherit.
 
 Example shared configuration in `config.md`:
 
@@ -753,18 +762,31 @@ alphabetically.
 
 #### Recognised keys
 
-Only `jira.site`, `jira.email`, `jira.token`, and `jira.token_cmd` are
-recognised. Other `jira.*` keys are not consumed by any plugin script.
+Only `jira.site`, `jira.allowed_sites`, `jira.email`, `jira.token`, and
+`jira.token_cmd` are recognised. Other `jira.*` keys are not consumed by any
+plugin script. `jira.allowed_sites` has no bash consumer — it is read by the
+Rust client only.
 
 ### linear
 
 Configure access to Linear. Linear is single-tenant SaaS, so there is no
 site/subdomain key — authentication is a personal API token only.
 
+One key belongs in team-shared `config.md`:
+
+| Key       | Default | Description                                              |
+|-----------|---------|----------------------------------------------------------|
+| `team_id` | (empty) | The Linear team the client creates and searches issues in |
+
+`team_id` has no bash consumer: the shell path reads `.team.id` from the
+`catalogue.json` that `/init-linear` writes, and the Rust client falls back to
+that same file when the key is unset, so an already-onboarded repository needs
+no new configuration.
+
 #### Personal settings (do not commit)
 
-Both keys are personal and **must live exclusively in `config.local.md`**,
-which is gitignored:
+Both token keys are personal and **must live exclusively in
+`config.local.md`**, which is gitignored:
 
 | Key         | Default | Description                                            |
 |-------------|---------|--------------------------------------------------------|
@@ -803,8 +825,8 @@ for Jira.
 
 #### Recognised keys
 
-Only `linear.token` and `linear.token_cmd` are recognised. Other `linear.*`
-keys are not consumed by any plugin script.
+Only `linear.team_id`, `linear.token` and `linear.token_cmd` are recognised.
+Other `linear.*` keys are not consumed by any plugin script.
 
 ### templates
 

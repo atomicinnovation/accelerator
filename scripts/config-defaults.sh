@@ -198,7 +198,10 @@ VISUALISER_DEFAULTS=(
 
 # Integration and tool config keys read ad-hoc by their own consumers
 # (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through the
-# catalogue. Unlike VISUALISER_KEYS above, these carry NO catalogue default — an
+# catalogue. Two of them — jira.allowed_sites and linear.team_id — have no bash
+# consumer at all: they are read only by the Rust provider clients, and live
+# here so `config dump` surfaces them and the documented surface matches the
+# shipped one. Unlike VISUALISER_KEYS above, these carry NO catalogue default — an
 # unset key means "the consumer's own default applies" — so they live here as a
 # plain registry, NOT in the Rust catalogue or the drift-tested key count.
 # config-dump.sh iterates this to surface them; test-config.sh pins it to the
@@ -206,10 +209,12 @@ VISUALISER_DEFAULTS=(
 # Adding a key a consumer reads means adding it here — or to VISUALISER_KEYS if it
 # has a default — or the drift test fails.
 EXTRA_KEYS=(
+  "jira.allowed_sites"
   "jira.site"
   "jira.email"
   "jira.token"
   "jira.token_cmd"
+  "linear.team_id"
   "linear.token"
   "linear.token_cmd"
   "github.token"

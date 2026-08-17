@@ -3822,6 +3822,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "remote-projection"
+version = "1.24.0-pre.42"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "reqwest"
 version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4831,6 +4838,14 @@ name = "tracker"
 version = "1.24.0-pre.43"
 
 [[package]]
+name = "tracker-support"
+version = "1.24.0-pre.42"
+dependencies = [
+ "config",
+ "tempfile",
+]
+
+[[package]]
 name = "tracker-test-support"
 version = "1.24.0-pre.43"
 dependencies = [
@@ -5442,6 +5457,7 @@ version = "1.24.0-pre.43"
 dependencies = [
  "corpus",
  "kernel",
+ "remote-projection",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",

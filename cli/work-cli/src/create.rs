@@ -343,13 +343,6 @@ const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     }
 }
 
-const fn dispatch_code_for_tracker_error(error: &TrackerError) -> u8 {
-    match error {
-        TrackerError::Retryable { .. } => exit_codes::RETRYABLE,
-        TrackerError::Terminal { .. } => exit_codes::TERMINAL,
-    }
-}
-
 fn attempted_at_epoch() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -466,7 +459,7 @@ fn execute_push(
                 Err(error @ TrackerError::Retryable { .. }) => {
                     std::fs::remove_file(&marker_path).ok();
                     let outcome = work::sync::push_decide(
-                        dispatch_code_for_tracker_error(&error),
+                        exit_codes::for_tracker_error(&error),
                         1,
                         false,
                     );

@@ -20,8 +20,10 @@ _PINNED_CRATES = (
     "document",
     "kernel",
     "migrate",
+    "remote-projection",
     "store",
     "tracker",
+    "tracker-support",
     "vcs",
     "work",
 )

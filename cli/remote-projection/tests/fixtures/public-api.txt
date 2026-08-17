@@ -1,0 +1,27 @@
+pub mod remote_projection
+pub enum remote_projection::Integration
+pub remote_projection::Integration::Jira
+pub remote_projection::Integration::Linear
+impl core::clone::Clone for remote_projection::Integration
+pub fn remote_projection::Integration::clone(&self) -> remote_projection::Integration
+impl core::cmp::Eq for remote_projection::Integration
+impl core::cmp::PartialEq for remote_projection::Integration
+pub fn remote_projection::Integration::eq(&self, other: &remote_projection::Integration) -> bool
+impl core::fmt::Debug for remote_projection::Integration
+pub fn remote_projection::Integration::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for remote_projection::Integration
+impl core::marker::StructuralPartialEq for remote_projection::Integration
+pub enum remote_projection::Op
+pub remote_projection::Op::Body
+pub remote_projection::Op::Updated
+impl core::clone::Clone for remote_projection::Op
+pub fn remote_projection::Op::clone(&self) -> remote_projection::Op
+impl core::cmp::Eq for remote_projection::Op
+impl core::cmp::PartialEq for remote_projection::Op
+pub fn remote_projection::Op::eq(&self, other: &remote_projection::Op) -> bool
+impl core::fmt::Debug for remote_projection::Op
+pub fn remote_projection::Op::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for remote_projection::Op
+impl core::marker::StructuralPartialEq for remote_projection::Op
+pub fn remote_projection::parse_integration(value: &str) -> core::option::Option<remote_projection::Integration>
+pub fn remote_projection::project(integration: remote_projection::Integration, op: remote_projection::Op, remote_json: &serde_json::value::Value) -> alloc::string::String

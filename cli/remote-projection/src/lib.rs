@@ -1,9 +1,16 @@
 //! The per-tracker remote-payload projection seam.
 //!
-//! Lives in `work-adapters`, not the `work` domain crate: this is JSON
-//! field extraction, not a domain decision, and typing it against
+//! A crate of its own rather than a module of `work-adapters`: the provider
+//! clients and the sync engine both project, and this is JSON field
+//! extraction rather than a domain decision — typing it against
 //! `serde_json::Value` would need a dependency `work`'s own
 //! import-restriction rule does not permit.
+//!
+//! [`project`] deliberately emits **no** trailing newline, where the bash
+//! `printf '%s\n%s\n'` emits one. The committed parity fixtures reconstruct
+//! the expected body line-wise and carry none either, so the asymmetry is
+//! load-bearing here; a caller populating `tracker::RemoteIssue.body`, whose
+//! port contract requires the newline, appends it.
 
 use serde_json::Value;
 

@@ -14,8 +14,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 
+use remote_projection as project_remote;
 use serde_json::Value;
-use work_adapters::project_remote;
 use work_adapters::sync::digest;
 
 type TestError = Box<dyn std::error::Error>;

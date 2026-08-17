@@ -805,6 +805,111 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The remote-projection and tracker-support rules ---
+#
+# Both are `denied`-only rules over a whole crate, driven against a workspace
+# whose crate is literally named for it. remote-projection must not spawn;
+# tracker-support may (it runs the credential helper) but must not grow a
+# transport. Each compliant control imports something real, so a matcher that
+# resolved nothing could not pass it silently.
+
+_SHARED_CRATE_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["{crate}", "reqwest"]
+"""
+
+_SHARED_CRATE_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = {{ path = "../reqwest" }}
+"""
+
+_SPAWN_VIOLATION = (
+    "use std::process::Command;\n\n"
+    'pub fn make() -> Command {\n    Command::new("jq")\n}\n'
+)
+_TRANSPORT_VIOLATION = (
+    "use reqwest::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
+)
+_PROJECTION_COMPLIANT = (
+    "use std::collections::BTreeMap;\n\n"
+    "pub fn make() -> BTreeMap<String, String> {\n"
+    "    BTreeMap::new()\n"
+    "}\n"
+)
+_POLICY_COMPLIANT = (
+    "use std::process::Command;\n\n"
+    'pub fn helper() -> Command {\n    Command::new("bash")\n}\n'
+)
+
+
+def _write_shared_crate_probe(root: Path, crate: str, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(
+        _SHARED_CRATE_WORKSPACE.format(crate=crate)
+    )
+
+    crate_src = root / crate / "src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / crate / "Cargo.toml").write_text(
+        _SHARED_CRATE_MANIFEST.format(crate=crate)
+    )
+    (crate_src / "lib.rs").write_text(lib_body)
+
+    stub_src = root / "reqwest/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "reqwest/Cargo.toml").write_text(_REQWEST_STUB_MANIFEST)
+    (stub_src / "lib.rs").write_text(_REQWEST_STUB_LIB)
+
+
+def test_remote_projection_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "remote-projection", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "remote_projection_extracts_json_only" in output, output
+
+
+def test_remote_projection_rule_permits_json_extraction(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shared_crate_probe(
+        tmp_path, "remote-projection", _PROJECTION_COMPLIANT
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tracker-support", _TRANSPORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "tracker_support_carries_policy_not_transport" in output, output
+
+
+def test_tracker_support_rule_permits_running_the_credential_helper(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tracker-support", _POLICY_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The http-test-support std-only rule ---
 #
 # Driven against a workspace whose crates are literally named

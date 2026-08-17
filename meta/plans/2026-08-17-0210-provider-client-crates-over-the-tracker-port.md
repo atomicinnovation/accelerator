@@ -967,57 +967,57 @@ comment says so.
 
 #### Automated Verification
 
-- [ ] `remote-projection` and `tracker-support` build and their snapshots are
+- [x] `remote-projection` and `tracker-support` build and their snapshots are
       committed: `mise run lint:cli:public-api:check`
-- [ ] The moved projection's existing tests all pass, including
+- [x] The moved projection's existing tests all pass, including
       `jira_body_canonicalisation_is_independent_of_key_order`:
       `cd cli && cargo nextest run -p remote-projection`
-- [ ] No `work-adapters` re-export of the projection remains, and its callers
+- [x] No `work-adapters` re-export of the projection remains, and its callers
       still pass: `cd cli && cargo nextest run -p work-adapters`
-- [ ] The exit-code fixture has a row for every arm of all five mappers,
+- [x] The exit-code fixture has a row for every arm of all five mappers,
       asserted by a test counting rows per (provider, operation) against the
       committed expected counts
-- [ ] The differential test agrees with the running bash for every code 0-130
+- [x] The differential test agrees with the running bash for every code 0-130
       across all five mappers, asserts a non-zero comparison count, and fails
       when bash is unavailable rather than skipping
-- [ ] Its committed sibling test proves it can fail, by feeding the comparison
+- [x] Its committed sibling test proves it can fail, by feeding the comparison
       function a wrong classification and asserting the message names the code
-- [ ] `resolve_token` covers every precedence branch, and a `token_cmd` that
+- [x] `resolve_token` covers every precedence branch, and a `token_cmd` that
       prints a sentinel secret and exits non-zero leaks it into neither the
       error's `Display`, its `Debug`, nor stderr
-- [ ] A `token_cmd` that hangs is abandoned at the timeout; one that prints
+- [x] A `token_cmd` that hangs is abandoned at the timeout; one that prints
       unbounded output is truncated rather than buffered without limit
-- [ ] `identifier_is_safe` accepts and rejects exactly the committed fixture set
-- [ ] A `token_cmd` resolved from a VCS-tracked provenance file is **refused**
+- [x] `identifier_is_safe` accepts and rejects exactly the committed fixture set
+- [x] A `token_cmd` resolved from a VCS-tracked provenance file is **refused**
       with its distinct diagnostic rather than executed, and so is a
       `jira.allowed_sites` entry from the same source
-- [ ] A sentinel variable exported by the parent process is not visible to the
+- [x] A sentinel variable exported by the parent process is not visible to the
       helper, proving the environment scrub
-- [ ] Folding `RetryPolicy::delay_for` over attempts yields the expected sequence
+- [x] Folding `RetryPolicy::delay_for` over attempts yields the expected sequence
       with a seeded jitter source, honours a `Retry-After` as a duration, caps at
       60s, and returns `None` once attempts are exhausted — asserted without
       sleeping
-- [ ] The baseline guard compares case-name sets per subdirectory, names the case
+- [x] The baseline guard compares case-name sets per subdirectory, names the case
       that appeared or vanished, and derives the per-directory counts from those
       sets rather than from a committed number
-- [ ] `linear.team_id` is dumpable: `accelerator config dump` lists it
-- [ ] `dump.golden` matches after regeneration, with both new keys present:
+- [x] `linear.team_id` is dumpable: `accelerator config dump` lists it
+- [x] `dump.golden` matches after regeneration, with both new keys present:
       `cd cli && cargo nextest run -p accelerator config_read` (a suite with a
       documented flake history under parallel load — re-run before treating a
       failure as a golden mismatch)
-- [ ] The Rust and bash `EXTRA_KEYS` lists agree, asserted by a test
-- [ ] `for_tracker_error` has no `#[allow(dead_code)]` and `create.rs` has no
+- [x] The Rust and bash `EXTRA_KEYS` lists agree, asserted by a test
+- [x] `for_tracker_error` has no `#[allow(dead_code)]` and `create.rs` has no
       match on `TrackerError` of its own:
       `rg -n "allow\(dead_code\)" cli/work-cli/src/exit_codes.rs` returns nothing
-- [ ] `cli/work-cli` tests pass: `cd cli && cargo nextest run -p accelerator-work`
-- [ ] Full local mirror: `mise run`
+- [x] `cli/work-cli` tests pass: `cd cli && cargo nextest run -p accelerator-work`
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 
-- [ ] The exit-code fixture reads as a table a human can diff against the five
+- [x] The exit-code fixture reads as a table a human can diff against the five
       bash `case` statements side by side — a cross-check the differential test
       now backs rather than substitutes for
-- [ ] The bash-parity baseline names all eleven tests 0212 will convert
+- [x] The bash-parity baseline names all eleven tests 0212 will convert
 
 ---
 
