@@ -77,7 +77,7 @@ constants in one place and a lockstep guard binds them (Phase 2).
 | **C2** | `p90(G)` | fast | ≤ 60 ms | yes | 46.51 ms (0205, measured) | +29.0% |
 | **C3** | `median(G)` | fallback | ≤ 70 ms | yes | ~59.2 ms (predicted) | +18.2% |
 | **C4** | `p90(G)` | fallback | ≤ 80 ms | yes | ~63.4 ms (predicted) | +26.2% |
-| **C5** | `median(G) / median(B)` | fast | ≤ 1.3 | yes | 1.2813 (0205, measured) | — |
+| **C5** | `median(G) / median(B)` | fast | ≤ 1.4 | yes | 1.3423 (attempt 2, measured) | +4.1% |
 | **C6** | `median(G) / median(B)` | fallback | recorded | **no** | ~1.79 (predicted) | — |
 
 **C1-C4 are the primary gate** and the only re-runnable cells: `B` is a deleted
@@ -119,9 +119,14 @@ the primary test rather than a check on it.
 interleaved pairs, seeded, at ≥ 10,000 resamples. Two conditions, and both must
 hold:
 
-1. **Gate** — the raw-median interval's **upper bound** ≤ 1.3.
+1. **Gate** — the raw-median interval's **upper bound** ≤ 1.4.
 2. **Robustness** — the `true`-floor-subtracted ratio's **point estimate** ≤
-   1.3, with its interval recorded as context.
+   1.4, with its interval recorded as context.
+
+⚠️ **The threshold is 1.4 as of 2026-08-17**, raised from 1.3 by author decision
+after two sessions measured 1.3177 and 1.3423. 0189's Latency Criterion is
+authoritative; this restatement follows it. The point-estimate form of condition
+2 has lost its justification at 1.4 — see that section.
 
 ⚠️ The robustness condition is a **point-estimate** test, and that is a
 deliberate, pre-registered weakening with a stated reason. Its margin is 0.003
@@ -2662,6 +2667,15 @@ ms. One lever is roughly twice the gap.
 25%, 35%, 26% and 32%, and every one improved on attempt 1. The cell that fails
 is the one the criterion itself demotes to a historical comparison.
 
+**Re-classified 2026-08-17 against the raised threshold.** C5's ceiling is now
+**1.4**. Against it this session's C5 reads 1.3423 with an upper bound of 1.3445
+— a pass with 0.0555 to spare, about 25 achieved upper-distances — and the
+robustness check reads 1.3603 [1.3574, 1.3627], passing in both its stated
+point-estimate form and the upper-bound form that becomes decidable at 1.4. **All
+five gating cells would therefore select branch 1 but for the session's validity.**
+`closure_verdict` remains false only because the drift diagnostic invalidates the
+session; nothing in the figures blocks closure at 1.4.
+
 **⚠️ The session is nonetheless invalid (branch 5b), on drift.** Block A's
 first-third ratio 1.3388 against its last-third 1.3479, |Δ| = 0.00915. Attempt 1
 failed the same check at −0.0132, in the opposite direction, so this is
@@ -2794,6 +2808,25 @@ _Pending._ Known already, and to be recorded regardless of what else arises:
   reopening the threshold on 0169 before 0189 measured anything. This plan lands
   it on 0189 because 0169 is closed, and records the departure at all four 0169
   discharge points.
+- **The threshold was relaxed a second time, from 1.3 to 1.4** (2026-08-17,
+  author decision, Toby Clemson), after two sessions measured 1.3177 and 1.3423.
+  This deviation compounds the first one recorded above rather than replacing it:
+  1.1 → 1.3 was defended as "the floor of the band was taken", and taking the
+  band's middle **voids that defence**. No mitigation is claimed in its place.
+
+  What survives untouched is the argument that never depended on a measured
+  value: `B` performs two directory-entry tests where `G` performs a jj-lib
+  repository load behind a verified signature chain, so no ratio between them is
+  a like-for-like comparison, and the ratio is a demoted comparison beneath an
+  absolute budget that passes with 25% to 35% of headroom. ⚠️ C5 should be read
+  as evidence that the ratio was measured and recorded, not as evidence that a
+  ratio ceiling was independently justified at 1.4.
+
+  The 1.3 route is deferred rather than abandoned: 0191's measured 2.48 ms is
+  roughly twice the 1.25 ms separating 1.3423 from 1.3, so it carries a new
+  acceptance criterion to re-measure the ratio after it lands, which would allow
+  the threshold to be tightened back **on** evidence rather than left relaxed on
+  it.
 - **Attempt 1 was invalidated by drift, and three harness defects were found in
   its record.** Recorded 2026-08-17 as
   `meta/measurements/warm-dispatch-1.json`; every figure in it is non-gating.

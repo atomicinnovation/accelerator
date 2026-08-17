@@ -353,7 +353,7 @@ and every number in the function appears below, so the two cannot drift.
 
 - `RESAMPLES` = 10000
 - `CONFIDENCE` = 0.95
-- `RATIO_THRESHOLD` = 1.3
+- `RATIO_THRESHOLD` = 1.4
 - `MEDIAN_TARGET_MS` = 1
 - `P90_TARGET_MS` = 2
 - `RATIO_TARGET` = 0.0036

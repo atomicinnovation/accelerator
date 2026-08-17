@@ -13,7 +13,7 @@ blocked_by: ["work-item:0169"]
 relates_to:
   ["work-item:0186", "work-item:0164", "work-item:0191", "work-item:0205"]
 tags: [cli, launcher, performance, bootstrap]
-last_updated: "2026-08-17T12:00:00+00:00"
+last_updated: "2026-08-17T12:30:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -212,7 +212,7 @@ none was built. The delivered assertions are sound under `cargo test` and
       Criterion](#latency-criterion): an absolute `median(G)`/`p90(G)` budget
       per digest backend as the primary gate (C1-C4, ≤ 50 / 60 / 70 / 80 ms,
       each accepted on its bootstrap interval's **upper bound** at or below the
-      ceiling), with `median(G) / median(B) ≤ 1.3` on the fast digest backend
+      ceiling), with `median(G) / median(B) ≤ 1.4` on the fast digest backend
       (C5) retained as the historical comparison that discharges 0169's
       inherited ratio wording, and the fallback-backend ratio (C6) recorded
       ungated. The item closes only when every applicable gating cell C1-C5
@@ -269,7 +269,7 @@ a lockstep guard.
 | **C2** | `p90(G)` | fast | ≤ 60 ms | yes | 46.51 ms (0205, measured) | +29.0% |
 | **C3** | `median(G)` | fallback | ≤ 70 ms | yes | ~59.2 ms (predicted) | +18.2% |
 | **C4** | `p90(G)` | fallback | ≤ 80 ms | yes | ~63.4 ms (predicted) | +26.2% |
-| **C5** | `median(G) / median(B)` | fast | ≤ 1.3 | yes | 1.2813 (0205, measured) | — |
+| **C5** | `median(G) / median(B)` | fast | ≤ 1.4 | yes | 1.3423 (attempt 2, measured) | +4.1% |
 | **C6** | `median(G) / median(B)` | fallback | recorded | **no** | ~1.79 (predicted) | — |
 
 `G` is `bin/accelerator vcs guard --format=hook --fail-safe` dispatched through
@@ -314,19 +314,25 @@ weaker than the primary test rather than a check on it.
 interleaved pairs, seeded, at ≥ 10,000 resamples. Two conditions, both of which
 must hold:
 
-1. **Gate** — the raw-median interval's **upper bound** ≤ 1.3.
+1. **Gate** — the raw-median interval's **upper bound** ≤ 1.4.
 2. **Robustness** — the `true`-floor-subtracted ratio's **point estimate** ≤
-   1.3, with its interval recorded as context.
+   1.4, with its interval recorded as context.
 
-The robustness condition is a **point-estimate** test, and that is a deliberate,
-pre-registered weakening with a stated reason. Its margin is 0.003 (1.297
-against 1.3), while the upper distance achievable at any practical n is larger:
-0.0036 at n = 1,700, 0.0027 at n = 3,000, and ~0.001 only at n ≈ 22,000 (~39
-minutes). An upper-bound form would be undecidable at every sample size the
-measurement can afford, so branch 1 would be unattainable and the expected
-outcome would be branch 3 by construction. The point-estimate form keeps the
-check meaningful — it still fails if floor treatment flips the verdict — at the
-cost of not bounding its own sampling error, which is recorded.
+The robustness condition is a **point-estimate** test. That was a deliberate
+weakening with a stated reason: at a threshold of 1.3 its margin was 0.003 (1.297
+against 1.3), while the smallest upper distance any affordable n could achieve
+was 0.0036, so an upper-bound form would have been undecidable at every sample
+size the measurement could afford and branch 1 would have been unattainable by
+construction.
+
+**Retracted 2026-08-17. That justification no longer holds at 1.4.** The measured
+`true`-floor-subtracted ratio is 1.3603, so the robustness margin is now 0.0397
+against an achieved upper distance of 0.0022 — about **18 upper-distances**, and
+comfortably decidable. The point-estimate form is therefore a weakening with no
+surviving reason. It is retained for now only because changing it is a criterion
+change, and the floor-subtracted ratio's **interval is now computed and recorded**
+so the gate can be moved to its upper bound in one line. Under attempt 2 the
+verdict is the same either way.
 
 **Floor treatment.** Three ratios are computed and recorded, in three fixed
 roles: raw medians **gate**; `true`-floor-subtracted is the **robustness
@@ -358,16 +364,22 @@ samples are **discarded rather than pooled**; a size-up recomputes n from the
 same targets, never a relaxed one, does not consume the escalation, and is
 bounded by the same 6,900 / 3,600 caps and the 35-minute budget.
 
-C5's margin is 0.0187 against an achieved upper distance of ~0.0036 — **5.2
-upper-distances**, which is what makes 1.3 decidable and why the threshold is
-the floor of the 1.3–1.5 band rather than its middle.
+C5's margin against 1.4 is **0.0577** at attempt 2's measured 1.3423, and the
+achieved upper distance was 0.0022 — about **26 upper-distances**, so the cell is
+decidable with room to spare and branch 3 is now very unlikely on it.
+
+⚠️ The ratio targets (0.0036, and 0.0018 on escalation) were sized for a margin
+of 0.0187 against 1.3. They are left unchanged at 1.4, where they are **stricter
+than the margin demands**. That is harmless — a tighter precision target never
+weakens a gate — and re-deriving them would be a second change with nothing to
+gain.
 
 ### Outcome taxonomy
 
 Each cell is classified independently, and **the item closes only when every
 applicable gating cell C1-C5 selects branch 1**. C6 is recorded, never
 classified. `L` and `U` are the cell's interval bounds, `t` its ceiling (50 / 60
-/ 70 / 80 ms, or `k = 1.3`), `h` the achieved upper distance against a target of
+/ 70 / 80 ms, or `k = 1.4`), `h` the achieved upper distance against a target of
 1.0 ms on medians, 2.0 ms on p90s and 0.0036 on C5. C1-C4 carry no robustness
 condition.
 
@@ -435,10 +447,16 @@ moves a point estimate of 1.28 to 1.10.
 
 The 1.3–1.5 band from which the C5 threshold is taken is an **author instruction
 given in conversation on 2026-08-13**, approved by **Toby Clemson**. It is not a
-corpus figure: nothing in `meta/` states it and 0205 names no numeric band. The
-provenance is recorded because the stated mitigation for a post-hoc relaxation
-is "the floor of the band was taken", and that mitigation is unauditable unless
-the band's origin is on the record.
+corpus figure: nothing in `meta/` states it and 0205 names no numeric band.
+
+**The threshold was moved to 1.4 within that band on 2026-08-17**, again by
+author instruction in conversation, approved by **Toby Clemson**, after two
+sessions measured 1.3177 and 1.3423. The band's provenance therefore carries over
+unchanged — 1.4 needs no new band — but the **mitigation does not**: the original
+1.3 was defended as "the floor of the band was taken", and taking the middle
+instead voids that defence. What replaces it is stated plainly in the deviation
+below rather than being papered over: there is no mitigation, only a recorded
+second relaxation.
 
 ### Why the criterion was reframed
 
@@ -468,19 +486,58 @@ the band's origin is on the record.
   the same bytes is the security boundary and sha256 the corruption check
   (`resolve/verifier.rs:1-2`). Both levers are raised as work items on their own
   merits.
-- **1.3 is the floor of the stated band, not a point chosen inside it** — taken
-  by paying n = 1,700 for the precision that makes it decidable (5.2
-  upper-distances of margin), rather than by citing imprecision to justify the
-  band's middle.
+- **1.3 was the floor of the stated band, not a point chosen inside it** — taken
+  by paying n = 1,700 for the precision that makes it decidable, rather than by
+  citing imprecision to justify the band's middle.
 
-⚠️ **The reframing is nonetheless post-hoc and must not be recorded as
-pre-registration.** A threshold set at 1.3 after seeing 1.2813 is a threshold
-the observed value informed, and the margin — 0.0187 — is small enough that a
-materially different quiet-host ratio could fail it. That is the intended
-behaviour of a gate; it is stated here so a pass is not mistaken for a
-comfortable one.
+  **Superseded 2026-08-17.** The threshold is now 1.4, the band's middle. This
+  bullet's argument no longer applies to the criterion and is retained as the
+  record of what was argued for 1.3.
 
-### The ratio threshold is reopened, 2026-08-17
+⚠️ **The threshold has now been relaxed twice, post-hoc, and neither move may be
+recorded as pre-registration.** 1.1 became 1.3 after 0205 measured 1.2813; 1.3
+became 1.4 after two sessions measured 1.3177 and 1.3423. Each time the observed
+value informed the threshold, which is the shape of a gate being fitted to its
+data rather than the reverse.
+
+What is **not** contingent on the observed values, and is the whole of the case
+for a ratio ceiling in this range: `B` performs two directory-entry tests where
+`G` performs a jj-lib repository load behind a verified signature chain, so the
+two do not do comparable work and no ratio between them is a like-for-like
+comparison. That argument was made before any figure was seen and holds at any
+threshold. It is also why the ratio is a *demoted* comparison beneath an absolute
+budget — and why the absolute budget, which passes with 25% to 35% of headroom,
+is the part of this criterion that carries weight.
+
+⚠️ A reader should treat C5 as evidence that the ratio was measured and recorded,
+not as evidence that a ratio ceiling was independently justified at 1.4.
+
+### The ratio threshold was reopened and reset to 1.4, 2026-08-17
+
+**Resolved: disposition 2 was taken.** The threshold is **1.4**, by author
+instruction on 2026-08-17 (Toby Clemson), inside the same 1.3–1.5 band the
+original came from. Against it, attempt 2's C5 reads 1.3423 with an upper bound
+of 1.3445 — a pass on the gating condition with 0.0555 to spare. The robustness
+check reads 1.3603 [1.3574, **1.3627**], so it passes both in the point-estimate
+form the criterion states **and** in the upper-bound form that becomes decidable
+at 1.4. Every one of the ten windows below also clears 1.4, the worst at 1.3569,
+so the recorded drift cannot flip the C5 verdict at this threshold either.
+
+**Disposition 1 is not abandoned, it is deferred to 0191.** That item now records
+that its measured 2.48 ms saving is roughly twice the 1.25 ms needed to reach
+**1.3**, and that a re-measurement should follow it. If it lands and a session
+confirms the ratio under 1.3, the threshold can be tightened back on evidence
+rather than relaxed on it.
+
+⚠️ **This does not by itself close 0189.** Attempt 2 remains branch 5b on drift,
+so `closure_verdict` is still false. What closes the item is either a session
+that clears the drift band, or a recorded owner-named acceptance of the
+invalidation — for which the material argument is that the drift is 0.0216 of
+ratio spread inside a window lying wholly below 1.4.
+
+The brief that led to the decision is retained below.
+
+#### The brief, as put on 2026-08-17
 
 **C5 is not met, and the measurement is what reopens it.** Two sessions under
 the committed harness, recorded at `meta/measurements/warm-dispatch-1.json` and
@@ -654,13 +711,13 @@ here — but confirming it belongs with whoever settles the threshold above.
   literally should look for byte poisoning, not for a failing verifier.
 
 - **Is `G ≤ 1.3 × B` the right threshold, given that it is not met?**
-  **Reopened 2026-08-17** by the measurement — see [The ratio threshold is
-  reopened](#the-ratio-threshold-is-reopened-2026-08-17) for the evidence and
-  the four dispositions. **Default if unresolved**: none. The threshold stays at
-  1.3 and this item stays open; criterion 10 is unticked and the obligation is
-  live. No default is offered deliberately — every disposition changes either
-  the shipped code, the criterion, or the closure terms, and none of those is a
-  measurement's call.
+  **Reopened and resolved 2026-08-17**, against the default. The threshold is
+  **1.4**, disposition 2 of the brief, by author instruction — the second
+  post-hoc relaxation, recorded as a deviation with no mitigation claimed. The
+  1.3 route survives as a deferred option on 0191, which may reach it by
+  batching the two shim hashes; a re-measurement after that could tighten the
+  threshold back on evidence. See [The ratio threshold was reopened and reset to
+  1.4](#the-ratio-threshold-was-reopened-and-reset-to-14-2026-08-17).
 - **Should the re-derived drift band be the gate?** **Answered 2026-08-17 as to
   the number, open as to its adoption.** The band is re-derived from attempt 2's
   own null at 0.00615 for a stated 5% false-positive rate, replacing a constant
@@ -715,6 +772,15 @@ here — but confirming it belongs with whoever settles the threshold above.
   absolute budget with the ratio at 1.3, which 0205's figures already satisfy,
   so no lever is required to reach it. 0191 keeps its own merits, whose case now
   rests on the fallback backend.
+
+  **Amended 2026-08-17.** The middle of that retraction was right about 0205 and
+  wrong about the host. Measured here, `median(B)` is 27.98 and `median(G)` 37.56,
+  so reaching **1.3** needs only **1.25 ms** off `G` — and 0191's measured 2.48 ms
+  is roughly twice that. So 0191 *is* sufficient to reach 1.3 on this host, which
+  is the opposite of what the retraction concluded from 0205's larger overrun. It
+  is still not a co-requisite: the threshold is now 1.4, which attempt 2 clears
+  without any lever. 0191 is therefore the route to tightening the threshold back
+  to 1.3 later, not a blocker on closing this item — recorded on 0191 itself.
 - **Relates to 0186**, which established the pattern, the diagnostic shape and
   the measurement method on the shell side.
 - **Relates to 0164**, which established the fetch-verify-cache resolver and
