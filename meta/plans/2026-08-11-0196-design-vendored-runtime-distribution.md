@@ -15,7 +15,7 @@ supersedes: ["plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"
 tags: [rust, design, playwright, launcher, release-pipeline, tree-artifacts, distribution]
 revision: "2cd521542aea64abb6cd81dc104505d8c7609519"
 repository: "accelerator"
-last_updated: "2026-08-17T15:29:53+00:00"
+last_updated: "2026-08-18T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -297,8 +297,11 @@ path's envelopes), **AC3** (the bootstrap step's call site), **AC4**
   `requests`/`httpx`/`urllib` dependency, and every network operation shells out to
   `gh`. `gpg` is not pinned in `mise.toml`, whose `[settings] lockfile = true` (`:46`)
   hash-pins aqua/ubi artifacts only.
-- `tasks/signing.py:24-43` signs with `minisign -S`, **no `-H` prehash**, one file per
-  invocation, under a 120-second per-file timeout sized for an 8MB binary.
+- `tasks/signing.py:24-43` signs with `minisign -S`, one file per invocation, under a
+  120-second per-file timeout sized for an 8MB binary. The absent `-H` is **not** an
+  absent prehash: at the pinned `minisign 0.12` the two forms produce byte-identical
+  signatures, and `cli/verify`'s `allow_legacy = false` proves the output is prehashed
+  already.
 - `_release_reverifies` is built at `tasks/github.py:344`, *before* the `try` — so a
   manifest `KeyError` raises outside the delete envelope. The `except Exception` arm
   that runs `gh release delete --cleanup-tag` (`:359-364`) is reachable only from
@@ -378,8 +381,9 @@ Decisions taken during planning, so no phase carries an open question:
   vocabulary, not dropped. Both still arise and both are now *more* likely.
 - **The archive format is `tar.gz`, flat in `dist/release/`**, because the attest globs
   do not cross `/`.
-- **Tree archives are signed prehashed (`-S -H`)**, single-file binaries and attestation
-  documents plainly (`-S`), so the launcher never buffers ~120MB to verify.
+- **Every release signature is already prehashed** at the pinned `minisign 0.12`, where
+  `-S` prehashes by default and `-H` is a no-op, so the launcher never buffers ~120MB to
+  verify and no signing-side change is needed to make that true.
 - **Assembly runs in an upstream job with `permissions: {}`**, not as a step inside
   `release`, which is what makes the functional smoke gate expressible at all.
 - **`flock` is the only cross-process liveness mechanism** — for the in-use lease and for
@@ -506,24 +510,26 @@ and truncated file; the fetcher owns the incremental digests and returns them in
 previous attempt's bytes or its digest state. An implementer who follows the signature
 gets the correct behaviour rather than having to remember a rule stated in prose.
 
-⚠️ **`StreamedBody` carries two digests, not one, because prehashed minisign hashes with
-BLAKE2b.** `minisign-verify`'s prehashed mode signs a BLAKE2b-512 hash of the file, while
-`archive_sha256` and the manifest comparison need sha256 — so single-pass verification
-needs both computed concurrently over the one stream:
+⚠️ **Two digests are computed over the one stream, but only one of them belongs to the
+fetcher.** Prehashed minisign hashes with BLAKE2b-512 while `archive_sha256` and the
+manifest comparison need sha256, so both must be computed concurrently or the ~60-120MB
+archive is read a second time from disk immediately before ~294MB of extraction writes —
+discarding the "no second pass" property prehashing exists for.
+
+The fetcher owns sha256, because that is what bounds and identifies the transfer:
 
 ```rust
 pub(super) struct StreamedBody {
     pub bytes: u64,
     pub sha256: [u8; 32],
-    pub prehash: [u8; 64],
 }
 ```
 
-Carrying only sha256 would force a second full read of the ~60-120MB archive from disk
-immediately before ~294MB of extraction writes — quietly discarding the "no second pass"
-property that justified prehashing in the first place. So a third precondition joins the
-two below: that `minisign-verify` accepts a **caller-supplied** prehash rather than only a
-file path.
+The BLAKE2b state lives in the sink, because `minisign-verify` at the pinned version
+offers no caller-supplied-prehash entry point — only the incremental
+`verify_stream` → `update`/`finalize` (see the signature discussion below). Since
+`open_sink` yields a fresh sink per attempt, the signature state resets in lockstep with
+the file rather than in a second place the implementer must remember.
 
 **The deadline is a throughput floor, not a number picked once.** `TOTAL_TIMEOUT`'s
 300s per attempt was sized for a multi-MB binary. It governs the *compressed archive*,
@@ -535,7 +541,7 @@ measurement and the two phases are independent.** The interim is derived from th
 plan's own ~120MB compressed estimate at a 200 KB/s sustained floor — 600s per attempt —
 which is a real bound rather than a placeholder, and it is deliberately conservative in
 the direction that fails a stalled link slowly rather than failing a slow-but-healthy
-one early (the progress floor below is what makes that safe). Phase 3 carries an
+one early (the idle bound below is what makes that safe). Phase 3 carries an
 explicit criterion that the constant has been re-derived from Phase 2's measured archive
 sizes, so the cross-phase handoff is checked rather than assumed.
 
@@ -557,7 +563,7 @@ reqwest has no idle timeout and that the total deadline is "the only bound on a
 slow-but-progressing transfer". Enlarging that deadline widens the window in which a
 connection stalled at byte one is indistinguishable from a slow one — three times
 over, inside a tool call with no progress output and no cancel. The copy loop
-therefore enforces a progress floor, so the large deadline bounds legitimate slow
+therefore runs under an idle bound, so the large deadline bounds legitimate slow
 transfers while stalls fail quickly. Both numbers are named constants beside the
 deadline.
 
@@ -572,39 +578,52 @@ version.** Verified against the vendored source for `reqwest = "=0.12.28"`:
 `fetcher.rs:12-14` records that blocking reqwest has none. `RequestBuilder::timeout` *is*
 present on the blocking path, so the per-request total override above is unaffected.
 
-So the mechanism is **a blocking client constructed from an async `ClientBuilder` that
-sets `read_timeout`**, which keeps the idle bound inside the library rather than
-hand-rolling one. That construction is verified present: `impl From<async_impl::ClientBuilder>
-for blocking::ClientBuilder` at `blocking/client.rs:1190-1197`, with the bound reaching
-blocking body reads through `async_impl::body`'s read-timeout wrapper.
+🔴 **Reaching `read_timeout` through the async builder does not work, and this was
+established by running it rather than by reading the source.** An earlier revision
+specified exactly that: a blocking client built from
+`impl From<async_impl::ClientBuilder> for blocking::ClientBuilder`
+(`blocking/client.rs:1190-1197`) with `read_timeout` set on the async side, on the
+reasoning that the bound would reach blocking body reads through `async_impl::body`'s
+read-timeout wrapper. The conversion compiles and the `From` impl is where the plan said,
+but **every streamed body read then panics**:
 
-⚠️ **Two semantics of that conversion must be handled, or it silently changes the
-single-file path.** Both verified against the vendored source:
+```text
+there is no reactor running, must be called from the context of a Tokio 1.x runtime
+  at reqwest-0.12.28/src/async_impl/body.rs:346
+```
 
-- **`From` resets the client timeout to 30 seconds.** It sets `timeout: Timeout::default()`
-  (`:1194`), and `impl Default for Timeout` is `Some(Duration::from_secs(30))`
-  (`:1500-1504`), consumed as `req.timeout().copied().or(self.timeout.0)`. Today's fetcher
-  sets `.timeout(TOTAL_TIMEOUT)` = 300s explicitly (`fetcher.rs:90`) and the existing
-  small-asset callers pass no per-request timeout, so converting without re-applying it
-  would drop every manifest, sidecar and attestation GET from 300s to 30s. The builder
-  therefore re-applies `timeout`, `connect_timeout`, `redirect` and `https_only` after the
-  conversion, and a criterion pins the effective client-level deadline.
+The read-timeout wrapper arms a Tokio timer on poll, and the blocking `wait` path drives
+the future on the calling thread with no runtime context. That is presumably *why*
+`read_timeout` is absent from the blocking builder — it is unsupported there, not merely
+unexposed. The plan's two conversion caveats below were both correct and both moot.
+
+**The mechanism is instead the per-request timeout, set to the idle bound rather than to
+the attempt deadline.** That follows from the second caveat this section already recorded,
+read as a capability rather than as a hazard:
+
 - **A per-request timeout becomes a per-*read* bound once the body is streamed.**
   `impl Read for blocking::Response` (`blocking/response.rs:435-444`) wraps each `read` in
   `wait::timeout(..., self.timeout)`. So `RequestBuilder::timeout` is a whole-attempt
   deadline only for the buffered `bytes()` path the existing `get` uses; on the streaming
-  path it bounds one read, and the retry loop's own wall-clock bound is what bounds an
-  attempt. Stated here rather than discovered later, because the 600s value looks like an
-  attempt deadline and is not one.
+  path it bounds one read. A bound on one read *is* an idle bound: a slow-but-progressing
+  transfer resets it on every chunk, while a connection that stops sending fails within it.
+- **`From`'s other semantics stop mattering**, because there is no conversion. The client
+  keeps its existing `Client::builder()` construction, so the manifest, sidecar and
+  attestation GETs keep their 300s client-level deadline with nothing to re-apply.
 
-If the conversion proves impractical, the fallback is a watchdog — and its cost must be
-stated rather than assumed cheap: the reading thread owns the `Response` by value while
-blocked inside `Read::read`, so no other thread can drop it, and the realistic shape is
-running the transfer on a spawned thread and abandoning it, leaking a thread, a connection
-and a partially-written sink per stalled attempt. Whichever is chosen, the **enlarged
-per-attempt deadline is conditional on a working idle bound**: without one, 600s × 3
-attempts is a 30-minute stall inside a tool call, so the deadline reverts to something a
-user can wait out.
+So the streaming request passes the **idle** bound as its per-request timeout, and the
+attempt and whole-loop deadlines are enforced by the copy loop between reads. That
+ordering is what makes the loop's checks reachable at all: they can only run between
+reads, so they depend on the per-read bound to guarantee a read returns. Measured against
+the scripted stall fixture, a stalled transfer fails in one idle bound rather than waiting
+out 600s × 3.
+
+The watchdog fallback is therefore **not taken**, and its cost is recorded only so a
+future reader knows what was avoided: the reading thread owns the `Response` by value
+while blocked inside `Read::read`, so no other thread can drop it, and the realistic shape
+is running the transfer on a spawned thread and abandoning it, leaking a thread, a
+connection and a partially-written sink per stalled attempt. The **enlarged per-attempt
+deadline was conditional on a working idle bound**, and it has one.
 
 `SO_RCVTIMEO` over an extracted socket is **rejected**, not offered as an alternative:
 it is not reachable through blocking `reqwest` over rustls without unsafe socket
@@ -617,19 +636,33 @@ and is currently unused: `cli/launcher/tests/common/mod.rs:30-32` declares
 `Route::Stall(Duration)` and `:163-172` serves it, and no test in `resolution.rs`
 reaches it today.
 
-**Tree archives are signed prehashed (`minisign -S -H`); single-file binaries are
-not.** sha256 streams trivially, but `TrustedKeys::verifies(&self, data: &[u8],
-signature: &str)` (`keys.rs:62-69`) is a contiguous-slice API, and incremental Ed25519
-verification is only possible in minisign's *prehashed* mode. `tasks/signing.py:24-43`
-signs with a plain `minisign -S` and no `-H` — confirmed against the current source,
-not assumed.
+🔴 **Every release signature is already prehashed, so the `-H` distinction this section
+was built on does not exist.** An earlier revision specified tree archives signed
+`minisign -S -H` against single-file binaries signed `-S`, reasoning from the true
+observation that `tasks/signing.py:24-43` passes no `-H`. The inference from that
+observation was wrong. Measured against the pinned `minisign 0.12` (`mise.toml:35`):
 
-The decision is prehash, taken here rather than deferred, because the alternative has a
-resource consequence rather than a stylistic one: buffering means reading a ~120MB
-archive into a `Vec<u8>`, a peak RSS one to two orders of magnitude above anything the
-launcher does today, doubled when both trees materialise in one session, in exactly the
-memory-limited containers AC6 and AC11 use — where the outcome is an OOM kill
-mid-materialisation rather than a diagnosable downgrade.
+```console
+$ minisign -S    -s sec.key -m payload.bin
+$ minisign -S -H -s sec.key -m payload.bin
+```
+
+produce **byte-identical** `.minisig` files, both carrying algorithm `ED` and a trusted
+comment ending `hashed`. At this version `-S` prehashes by default and `-H` is a no-op.
+
+Two things follow, and the second is load-bearing. The repository has been emitting
+prehashed signatures all along — which is why `cli/verify/src/main.rs` and
+`TrustedKeys::verifies` (`keys.rs:62-69`) both pass `allow_legacy = false` and still work,
+since that argument makes the verifier accept *only* prehashed signatures. And the
+streaming verification this section wants needs no signing change whatsoever: the archives
+are already in the form it requires.
+
+The resource argument the prehash decision rested on stands unchanged and is the reason
+the streaming path exists at all: buffering means reading a ~120MB archive into a
+`Vec<u8>`, a peak RSS one to two orders of magnitude above anything the launcher does
+today, doubled when both trees materialise in one session, in exactly the memory-limited
+containers AC6 and AC11 use — where the outcome is an OOM kill mid-materialisation rather
+than a diagnosable downgrade.
 
 Cross-process **resume** re-hashes the prefix already on disk rather than restoring a
 serialised digest state: neither `sha2` nor `minisign-verify` exposes a resumable
@@ -641,17 +674,32 @@ truncating on every one — otherwise an attempt that reaches 100MB followed by 
 dies at 1MB would leave 1MB, and a link failing early on the last attempt could oscillate
 without ever converging.
 
-So Phase 2 §5's signing arm passes `-H` **for tree artifacts only**, leaving
-`_subbinary_signing_targets()`'s form untouched, and the launcher verifies the archive
-from the streamed digest with no second pass and no buffer. Two preconditions are
-checked as the first step of this change, before any other work in Step 1a: that
-`minisign-verify` at the pinned version exposes prehashed verification, and that the
-vendored `cli/verify` shim accepts a `-H` signature. If either fails, the fallback is to
-verify the archive by digest against the **signed attestation** (Step 1b §2), which is
-small and plainly signed — not to buffer.
+So **Phase 2 §5's signing arm needs no per-target flag at all**, and
+`_subbinary_signing_targets()`'s form is untouched because there is nothing to
+distinguish it from. The launcher verifies the archive from the streamed digest with no
+second pass and no buffer.
 
-A test asserts each artifact class's signatures are in its expected form, so a
-signing-flag change fails loudly rather than silently degrading either side.
+Both preconditions were checked as the first step of this change, before any other work in
+Step 1a, and both hold — the second more strongly than expected. `cli/verify` accepts a
+prehashed signature; being an `allow_legacy = false` caller it accepts *nothing else*.
+
+⚠️ **`minisign-verify` exposes prehashed verification incrementally, not as a
+caller-supplied prehash.** At `=0.2.5` the only prehashed entry points are
+`PublicKey::verify` (which hashes the contiguous slice itself) and
+`verify_stream` → `StreamVerifier::update`/`finalize`. Nothing public accepts a
+precomputed BLAKE2b-512 digest. So the earlier revision's `StreamedBody` carrying a
+`prehash: [u8; 64]` alongside sha256 is not implementable and is not needed: the BLAKE2b
+state lives in a `StreamVerifier` held by the caller's sink, obtained fresh from
+`open_sink` on each attempt. `StreamedBody` carries the byte count and sha256 alone.
+
+That placement **strengthens** the per-attempt reset rather than weakening it. The
+signature state and the file are now created by the same call at the same moment, so they
+cannot get out of step; the fetcher still owns when a reset happens, which is the property
+the signature was shaped to guarantee.
+
+A test asserts the release signatures are prehashed, so a future minisign that defaults
+back to the legacy form fails loudly on both sides rather than silently producing
+signatures the launcher and the bootstrap shim would both reject.
 
 The download is capped at `archive_size` from the artifact's platform entry;
 `uncompressed_size` and `entry_count` bound the extraction in Step 1b §2.
@@ -1102,7 +1150,7 @@ under the per-`(name, platform)` single-flight lock:
    over every tree about to be materialised. A shortfall emits `disk-floor-not-met`
    before a single byte is fetched.
 4. Stream the archive to `trees/.tmp-<name>-<platform>-<D>.archive` via `get_streaming`,
-   under Step 1a's deadline, total bound and progress floor. **The temp archive is named
+   under Step 1a's deadline, total bound and idle bound. **The temp archive is named
    by artifact, platform and digest — not by generation** — for two reasons: it is what
    makes the `Range` resume in the next paragraph reachable at all (a generation-keyed
    name would be unique per attempt, so a later `ensure` could never find the partial),
@@ -1677,12 +1725,12 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       `entry_count`
 - [ ] A setuid archive member is materialised without its setuid bit, and an archive
       member marked executable keeps only its executable bit
-- [ ] A streaming fetch whose first attempt fails after N bytes succeeds on retry,
+- [x] A streaming fetch whose first attempt fails after N bytes succeeds on retry,
       rather than producing a concatenated archive that can never verify
 - [ ] A stalled transfer fails fast rather than waiting out the full deadline three
       times, driven by `Route::Stall` (`tests/common/mod.rs:30-32`) which stops sending
       rather than trickling
-- [ ] The retry loop's **total** wall clock is bounded across all three attempts, not
+- [x] The retry loop's **total** wall clock is bounded across all three attempts, not
       only per attempt, and the reported failure names that bound
 - [ ] An interrupted download resumes: a second `ensure` for the same digest issues a
       `Range` request rather than restarting from byte zero, and the resumed archive
@@ -1690,9 +1738,9 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [ ] ⏱️ Peak RSS during a cold materialisation of the larger tree stays within a stated
       ceiling, asserted under a container memory limit set to it — the check that keeps
       the prehashed-signature decision from silently regressing into a full buffer
-- [ ] Each artifact class's release signatures are in their expected form (`-S -H` for
-      tree archives, `-S` for single-file binaries), so a signing-flag change fails
-      loudly on both sides
+- [ ] Release signatures are **prehashed** for both artifact classes, so a future
+      minisign defaulting back to the legacy form fails loudly rather than silently
+      producing signatures the launcher and the bootstrap shim would both reject
 - [ ] A second resolution of the same tree issues **zero** HTTP requests, asserted
       against the `MockServer`'s request count
 - [ ] A resolution with the release host unreachable still succeeds on a populated
@@ -1780,7 +1828,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       without a classification must not compile
 - [ ] Under `--fail-safe`, a hostile archive (path escape, failed attestation) hard-fails
       while pointer damage degrades and re-materialises
-- [ ] `manifest.example.json` with an added `artifacts` key still parses, and a manifest
+- [x] `manifest.example.json` with an added `artifacts` key still parses, and a manifest
       *without* `artifacts` still resolves single-file binaries
 - [ ] `BUILTIN_SUBCOMMANDS` and the clap `Command` enum agree, with
       `test_dispatch_coherence.py:606-611` and `:628-635` updated in the same change
@@ -2287,15 +2335,13 @@ Five arms follow, and none is optional:
    expected list from the launcher plus `_subbinary_signing_targets()` and raises on
    any missing member, deliberately never scanning a directory. A
    `_tree_artifact_signing_targets()` arm joins it, so a partial assembly fails closed
-   exactly as a partial cross-compile does. Tree **archives** are signed
-   `minisign -S -H` (prehashed) so the launcher can verify from its streamed digest with
-   no ~120MB buffer — see Step 1a §2 — while single-file binaries and the small
-   attestation documents keep the plain `-S` form; `sign_file` gains the flag as a
-   per-target property rather than changing globally. ⏱️ `sign_file` (`:24-43`) runs one
-   invocation per file under a **120-second timeout sized for an 8MB binary**; eight
-   ~120MB archives plus eight documents join the existing 32 invocations, so the timeout
-   is **re-derived from a measured `-S -H` run over a real archive and stated as a
-   number**, not inherited.
+   exactly as a partial cross-compile does. `sign_file` needs **no per-target flag**: the pinned
+   `minisign 0.12` prehashes under a plain `-S`, so tree archives are already in the form
+   the launcher's streamed verification requires — see Step 1a §2. ⏱️ `sign_file`
+   (`:24-43`) runs one invocation per file under a **120-second timeout sized for an 8MB
+   binary**; eight ~120MB archives plus eight documents join the existing 32 invocations,
+   so the timeout is **re-derived from a measured signing run over a real archive and
+   stated as a number**, not inherited.
 2. **Manifest** — `collect_artifact_entries()` mirrors `collect_entries`
    (`tasks/manifest.py:81-108`) and a second key joins `build_manifest` (`:111-130`). It
    emits more than `collect_entries` does: alongside `sha256` and the inline signature
@@ -2758,7 +2804,8 @@ rather than ship.
       explicitly — both are values `assemble-runtime` cannot know or must not freeze, and a
       future contributor adding either would reintroduce the two-values-for-one-archive
       and unbreakable-layout-loop failures
-- [ ] Tree archives are signed `-S -H` and the small documents `-S`, asserted per class
+- [ ] Every signed asset's `.minisig` is prehashed, asserted per artifact class, so the
+      launcher's streamed verification cannot silently lose its precondition
 - [ ] `_assert_staged_manifest_is_current` rejects a manifest whose `artifacts` keys
       differ from `TREE_ARTIFACTS`, **and** one missing exactly one `(artifact, platform)`
       entry from the full `TREE_ARTIFACTS × TARGETS` cross-product
@@ -2825,10 +2872,10 @@ rather than ship.
 
 - [ ] A full local dry-run assembly produces both artifacts for one platform, and their
       measured sizes are recorded for Phase 3's re-derivation of Step 1a's fetch deadline
-- [ ] Each produced `.tar.gz` has a `-S -H` `.minisig` that the CLI-side verifier and
+- [ ] Each produced `.tar.gz` has a prehashed `.minisig` that the CLI-side verifier and
       `minisign-verify` both accept, and each `.sealed` a `-S` signature the launcher's
       embedded-key path accepts
-- [ ] `sign_file`'s timeout is re-derived from a measured `-S -H` run over a real ~120MB
+- [ ] `sign_file`'s timeout is re-derived from a measured signing run over a real ~120MB
       archive and recorded as a number
 - [ ] `timeout-minutes` for the publishing jobs is set from a measured double-pass dry run
 - [ ] The upload list and the re-verify list, printed for one platform, each contain both
