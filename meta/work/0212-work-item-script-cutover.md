@@ -13,7 +13,7 @@ blocked_by: ["work-item:0210"]
 blocks: ["work-item:0211", "work-item:0174"]
 relates_to: ["work-item:0194", "work-item:0213"]
 tags: [rust, cutover, work-items, fixtures, cli]
-last_updated: "2026-08-17T11:17:18+00:00"
+last_updated: "2026-08-17T13:43:17+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -264,6 +264,6 @@ entirety, not merely its superseded sections.
 ## References
 
 - Parent: `meta/work/0171-jira-and-linear-integrations.md`
-- Blocked by: `meta/work/0210-provider-client-crates-over-the-tracker-port.md`,
-  `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`
+- Blocked by: `meta/work/0210-provider-client-crates-over-the-tracker-port.md`
+- Blocks: `meta/work/0211-integration-binaries-and-bash-cluster-retirement.md`
 - Related: 0194, 0174
