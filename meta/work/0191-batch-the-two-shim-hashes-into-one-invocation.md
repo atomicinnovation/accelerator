@@ -9,9 +9,11 @@ status: draft
 kind: task
 priority: low
 parent: "work-item:0136"
-relates_to: ["work-item:0186", "work-item:0169"]
+relates_to:
+  ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205",
+   "work-item:0215", "work-item:0216"]
 tags: [shell, performance, bootstrap, bash-3.2]
-last_updated: "2026-08-03T00:00:00+00:00"
+last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -38,6 +40,56 @@ largest remaining warm-path term. 0186 deliberately did **not** absorb this: it
 needs a branch to preserve today's short-circuit, and ~2.5 ms is essentially the
 whole of 0169's ~2.4 ms shortfall, so it deserves its own before/after rather
 than riding along inside another change's measurement.
+
+**Retracted 2026-08-13.** The shortfall was **5.98 ms**, not ~2.4 ms. Work item
+0205 measured warm dispatch at `median(G) = 42.28 ms` against `median(B) = 33.00
+ms` — a ratio of medians of 1.2813 against the inherited `G ≤ 1.1 × B` ceiling
+of 36.30 ms. This item's saving on that host is a **measured 2.48 ms** (the 7.05
+ms and 4.57 ms rows below), so it was never sufficient to reach the inherited
+threshold; it covers under half the overrun. And under the criterion 0189 now
+carries — an absolute `median`/`p90` budget per digest backend with the ratio
+retained at 1.3 as a historical comparison — this item is **not a latency-gate
+co-requisite at all**. Its case now rests on the fallback backend, per "The
+saving is backend-dependent" below. The item's own merits are unaffected.
+
+**Amended 2026-08-17: this item may reach a ratio of 1.3, and a re-measurement
+should follow it.** The retraction above reasoned from 0205's figures, where the
+overrun was 5.98 ms and this item's 2.48 ms could not cover it. Two sessions
+under the committed harness measured the same host quieter, and the arithmetic
+inverts:
+
+| | 0205 | Attempt 2 (invalid) | **Attempt 3 (valid)** |
+| --- | --- | --- | --- |
+| `median(B)` | 33.00 ms | 27.98 ms | **26.796 ms** |
+| `median(G)` | 42.28 ms | 37.56 ms | **35.531 ms** |
+| ratio of medians | 1.2813 | 1.3423 | **1.3260** [1.3236, 1.3279] |
+| `median(G)` needed for a ratio of 1.3 | 42.90 (already met) | 36.31 ms | **34.784 ms** |
+| shortfall against 1.3 | none | 1.25 ms | **0.747 ms** |
+| this item's measured saving (fast backend) | 2.48 ms | 2.48 ms | 2.48 ms |
+
+Attempt 3 is the valid, closing session (`meta/measurements/warm-dispatch-3.json`);
+attempt 2 is retained above because it was quoted here first.
+
+**So 2.48 ms against a 0.747 ms shortfall — over three times what is needed.**
+The two `sha256_file` substitutions were re-measured in attempt 3's own session at
+**3.824 ms** combined (4.316 ms in attempt 2), consistent with the 7.05 ms row
+below once the 2.02 ms bash baseline is netted off, so the saving is expected to
+hold on this host.
+
+⚠️ **The projection is a projection.** It assumes `median(B)` is unmoved by a
+change that touches only `G`, which is sound, and that the whole 2.48 ms lands
+on the warm path, which the short-circuit below could reduce on a cold run but
+not on the warm one this ratio is measured over. Projected ratio ≈ **1.233**.
+
+**What 0189 now expects of this item.** 0189's C5 threshold was raised from 1.3
+to **1.4** on 2026-08-17 by author decision, which attempt 3 clears without any
+lever, so this item is **not** a blocker on closing 0189. Its role is the
+opposite: if it lands and a fresh session confirms the ratio under 1.3, the
+threshold can be **tightened back to 1.3 on evidence** rather than left relaxed
+on it. That is the only route on the table that reverses a post-hoc relaxation.
+**Re-measure with `mise run measure:warm-dispatch` after this item lands** and
+record the before/after ratio alongside the before/after millisecond figures
+this item's own criteria already ask for.
 
 Measured on darwin-arm64 (macOS 26.3, Apple M4 Max):
 
@@ -91,13 +143,25 @@ input is missing.
       diagnostic from the missing second input.
 - [ ] Warm-path median measured before and after in one session on one host,
       both figures and the resolved backend recorded.
+- [ ] **The warm-dispatch ratio is re-measured after this lands**, via `mise run
+      measure:warm-dispatch`, and the before/after `median(G) / median(B)`
+      recorded beside the millisecond figures. Added 2026-08-17: this item's
+      2.48 ms is over three times the 0.747 ms that separates the measured
+      1.3260 from a ratio of 1.3, so it is the route to tightening 0189's C5
+      threshold back from 1.4 to 1.3 on evidence. ⚠️ Reaching 1.3 is **not** a pass
+      condition for this item — its own case stands on the millisecond saving —
+      but the re-measurement is, because without it the tightening has nothing
+      to rest on.
 - [ ] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
 - [ ] `mise run` (bare default task) exits 0 end-to-end.
 
 ## Dependencies
 
 - **Relates to**: 0186 (measured the saving and declined to absorb it), 0169
-  (whose latency gate this most directly affects).
+  (whose latency gate this most directly affects), 0189 (measured the ratio this
+  item can move), **0215** (the other warm-path lever — removing the cache-hit
+  sha256) and **0216** (which may cut the digest cost instead, changing what this
+  item is worth).
 - **Parent**: epic 0136.
 
 ## Assumptions

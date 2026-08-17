@@ -403,6 +403,50 @@ jobs:
       - name: Run visualiser frontend checks
         run: mise run frontend:check
 
+  check-measure-harness:
+    name: Check measurement harness
+    runs-on: ${{ matrix.os }}
+    # Non-blocking, and absent from the prerelease `needs` list on purpose: the
+    # harness dispatches through the real bootstrap, so it needs network egress
+    # and a published signed release for the tree's own version — and the tree
+    # is routinely ahead of the last cut. The task reports that as an unmet
+    # prerequisite rather than a failure; continue-on-error covers the rest.
+    #
+    # It exists because test:integration:measure is excluded from the
+    # test:integration roll-up, and an exclusion with no owner just restores the
+    # unowned state the module would rot in. It also records `sha256sum`'s
+    # resolution on both lanes, so the fast-backend population is a known number
+    # rather than an assumption.
+    continue-on-error: true
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          # The recovery contract reads two deleted files at a pinned commit.
+          # A GitHub checkout has no .jj, so the harness uses the git form —
+          # which needs unshallowed history.
+          fetch-depth: 0
+
+      - name: Install dependencies
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
+        with:
+          install: true
+          cache: true
+          cache_key_prefix: mise-measure-v1
+          experimental: true
+
+      - name: Record the digest-backend population
+        run: command -v sha256sum || echo "sha256sum absent on this runner"
+
+      - name: Run the measurement harness smoke check
+        run: mise run test:integration:measure -- --engine=git
+
   check-docs:
     name: Check documentation site
     runs-on: ubuntu-latest

@@ -98,6 +98,19 @@ tracked on the items themselves.
   2026-08-10 from 0185's licensing finding; joins the release upload set 0165
   owns, and the notice obligation predates 0185 for four of the five affected
   binaries)*
+
+**Warm-path performance (filed 2026-08-17 from 0189's warm-dispatch
+measurement):**
+- 0215 — Remove the Cache-Hit sha256 from Warm Dispatch *(6.05 ms of a 35.53 ms
+  dispatch; must preserve the name/version binding the signature does not carry)*
+- 0216 — Close the sha2 Hardware-Intrinsics Gap *(spike: sha256 at ~550 MB/s
+  against openssl's 1,708, and BLAKE2b outruns it 2.6x; may make 0215 moot)*
+- 0217 — Measure Warm Dispatch on Linux *(0189 verified darwin-arm64 only;
+  darwin-x64 and linux-arm64 have no CI lane at all)*
+- 0218 — Bound Cache-Root Growth *(`cache::find` scans a never-evicted directory
+  on every dispatch)*
+- 0219 — Own the Recurring Absolute-Budget Check *(0189's primary gate is
+  re-runnable in principle and re-run by nothing)*
 - 0174 — Retire Shell Tooling and CI Guards
 
 The target architecture (git-style `accelerator` launcher dispatching to
@@ -132,8 +145,8 @@ questions are answered:)*
 
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
-- Children: 0162–0174, 0185–0188, 0194–0197 and 0203–0204 (parented to this
-  epic).
+- Children: 0162–0174, 0185–0188, 0194–0197, 0203–0204 and 0215–0219 (parented
+  to this epic; 0215–0219 filed 2026-08-17 from 0189's measurement).
   Note 0178, 0179 and 0180 are parented to 0166 rather than directly to this
   epic, so they are grandchildren and are covered transitively by 0166's
   completion.

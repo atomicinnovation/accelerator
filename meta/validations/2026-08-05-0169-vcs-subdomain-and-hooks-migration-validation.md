@@ -9,7 +9,7 @@ status: complete
 result: pass
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-06T00:45:48+00:00"
+last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -28,6 +28,12 @@ schema_version: 1
 ✓ Phase 8: Sub-Binary Registration and Skill Repoint — Fully implemented
 ✓ Phase 9: `hooks.json` Rewrite and Shell Deletion — Fully implemented
 ✓ Phase 10: Hand-offs, Documentation, and Validation — Automated portion complete; three manual/release-gated items explicitly deferred (see below)
+
+**Retracted 2026-08-13.** None of the three is release-gated any longer.
+`v1.24.0-pre.35` and `v1.24.0-pre.36` both ship `accelerator-vcs-darwin-arm64`
+alongside its `.minisig`, and `pre.36`'s signed `manifest.json` carries `vcs`
+entries for all four platforms — see the retraction on the "Three
+manual/release-gated items" passage below.
 
 All ten phases have a corresponding commit on the current branch, in the
 sequence the plan specifies (fixture capture precedes deletion, satisfying
@@ -170,6 +176,18 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
      rewrite reaching an installed-plugin path is explicitly an owner
      action, not a code change this plan can complete.
 
+  **Retracted 2026-08-13.** The release premise all three rest on is false as
+  of `v1.24.0-pre.35`. Both `pre.35` and `pre.36` ship
+  `accelerator-vcs-darwin-arm64` with its `.minisig`, and `pre.36`'s signed
+  `manifest.json` carries `vcs` entries for all four platforms at
+  `schema_version: 1`. Specifically: item 2's "a published, minisign-signed
+  `accelerator-vcs` release asset that does not yet exist" is wrong — work item
+  0205 dispatched exactly that path with no `ACCELERATOR_VCS_BIN` override and
+  measured it; and item 3's release cut has been performed. Item 2's threshold
+  `G ≤ 1.1 × B` is separately superseded — it was measured at a ratio of medians
+  of 1.2813 and fails; the obligation is discharged on work item 0189 under the
+  criterion recorded there, not here.
+
   All three are pre-declared in the plan and work item as blocked on an
   external release process, not oversights — but they mean the story is not
   yet fully closed out from a user-facing standpoint until that release
@@ -192,6 +210,18 @@ c50b5e4e8414 Record 0169 hand-offs, spin off two follow-up work items, fix a lau
      `accelerator vcs guard` invocations (G) against the same stdin payload
      and pure-jj fixture. Confirm `G ≤ 1.1 × B` and record B, G, the ratio,
      payload, fixture, and host in the work item's Validation Results.
+
+     **Resolved 2026-08-17 — recorded, not met, discharged on 0189.** Measured
+     under the committed harness on a quiet darwin-arm64 host, third and valid
+     attempt (`meta/measurements/warm-dispatch-3.json`): **B = 26.796 ms**,
+     **G = 35.531 ms**, **ratio 1.3260** (95% CI [1.3236, 1.3279], n = 2,659
+     pairs). Filled into 0169's Validation Results. **Stays unticked**: `G ≤ 1.1
+     × B` was not met, and the threshold is superseded twice over (1.1 → 1.3 →
+     **1.4**) with the ratio demoted beneath an absolute budget the session
+     clears by 26% to 36%. ⚠️ The criterion decision was taken on **0189**, not
+     on 0169, contrary to 0205's sequencing, because 0169 is closed. Method
+     deviations: n = 2,659 not 20, an interval bound not a bare median rule, the
+     ratio demoted, and a per-backend six-cell split.
 
 3. **Work item hygiene** (not user-facing, but recommended before closing
    the story):

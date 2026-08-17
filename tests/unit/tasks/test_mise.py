@@ -68,6 +68,7 @@ _NO_LAUNCHER_NEEDED = {
     "git/jj shadowed",
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
+    "test:integration:measure": "fetches the released launcher; builds nothing",
 }
 
 
@@ -183,7 +184,71 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # runtime is absent.
     "test:integration:design-automation": "needs a Playwright runtime no CI "
     "lane provisions; fails rather than skips without one",
+    # Membership would put it under `test` -> `default` and on both CI legs,
+    # including macos-latest, which resolves no sha256sum. It dispatches through
+    # the real bootstrap, so it needs network egress and a published signed
+    # release for the tree's own version. Owned by its own non-blocking job.
+    "test:integration:measure": "live release fetch; quiet-host harness, "
+    "owned by its own lane",
 }
+
+
+# The measurement harness needs a quiet host, network egress and several
+# minutes, so no task reaching it may be reachable from the CI mirror. Keyed on
+# the `run` string rather than the `measure:*` name prefix: the prefix form does
+# not match `test:integration:measure`, so the one live-dispatch path the guard
+# exists to contain would be invisible to it.
+_MEASURE_MODULE = "tasks/measure.py"
+_MEASURE_INVOCATION = "invoke measure."
+
+
+def _tasks_reaching_measure(mise: dict) -> set[str]:
+    return {
+        name
+        for name, body in mise["tasks"].items()
+        if _MEASURE_INVOCATION in str(body.get("run", ""))
+    }
+
+
+def _transitive_depends(mise: dict, task: str) -> set[str]:
+    """Every task reachable from `task` through `depends`, at any depth.
+
+    A single-level assertion would stay green if a future edge added a
+    measure-reaching task under any task already inside the closure — and
+    `default` reaches work through `lint:check` rather than through `check`, so
+    one-level assertions miss real indirection.
+    """
+    seen: set[str] = set()
+    frontier = [task]
+    while frontier:
+        current = frontier.pop()
+        for dependency in _task_depends(mise, current):
+            if dependency not in seen and dependency in mise["tasks"]:
+                seen.add(dependency)
+                frontier.append(dependency)
+            else:
+                seen.add(dependency)
+    return seen
+
+
+def test_the_measure_module_is_reached_by_at_least_one_task(mise):
+    # Otherwise the guards below are vacuous, and the module rots invisibly.
+    assert _tasks_reaching_measure(mise) >= {
+        "measure:warm-dispatch",
+        "measure:teardown",
+        "test:integration:measure",
+    }
+
+
+@pytest.mark.parametrize("root", ["check", "default"])
+def test_no_measure_reaching_task_is_in_the_ci_mirror(mise, root):
+    closure = _transitive_depends(mise, root)
+    offenders = sorted(closure & _tasks_reaching_measure(mise))
+    assert not offenders, (
+        f"{offenders} reach {_MEASURE_MODULE} from the transitive closure of "
+        f"{root}.depends — every `mise run` would become a benchmark needing a "
+        f"quiet host and network egress"
+    )
 
 
 def test_every_integration_task_is_in_the_rollup_or_excluded_with_a_reason(

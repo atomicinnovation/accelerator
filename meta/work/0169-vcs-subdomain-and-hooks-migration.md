@@ -14,7 +14,7 @@ blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173",
 relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [rust, vcs, hooks, migration]
-last_updated: "2026-08-11T13:21:34+00:00"
+last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-190"
@@ -387,6 +387,43 @@ segment matches; the first matching segment names the reported subcommand.
       Record B, G, the ratio, the payload, the fixture and the host in
       Validation Results. Not a CI job — which means "not automated", not "not
       required".
+      **Resolved 2026-08-17 — recorded, not met, and discharged on 0189.**
+      Measured on a quiet darwin-arm64 host (Apple M4 Max, macOS 26.3) under the
+      committed harness `mise run measure:warm-dispatch`, third and valid
+      attempt, record at `meta/measurements/warm-dispatch-3.json`:
+      **B = 26.796 ms**, **G = 35.531 ms**, **ratio of medians = 1.3260**
+      (two-sided 95% paired-bootstrap CI [1.3236, 1.3279], n = 2,659 interleaved
+      pairs). Payload: the `PreToolUse` envelope for a blocked `git status`.
+      Fixture: a fresh pure-jj scratch repository, colocation pinned off.
+
+      **This criterion stays unticked: `G ≤ 1.1 × B` was not met, and neither
+      was the 1.3 that superseded it.** The threshold is superseded twice over —
+      1.1 → 1.3 → **1.4**, the last on 2026-08-17 by author decision — and the
+      ratio is demoted beneath an absolute `median`/`p90` budget, which the same
+      session clears with 26% to 36% of headroom. The obligation is discharged
+      at **work item 0189**, whose Latency Criterion is authoritative; ticking a
+      box whose stated threshold was not met would be the post-hoc relaxation
+      that criterion records as a deviation.
+
+      **Why 1.1 was never reachable**: it was calibrated against a cost model
+      attributing `jj` and `git` spawns to this baseline. The recovered guard
+      calls `find_repo_root` (`scripts/vcs-common.sh:8-18`), a pure-bash upward
+      walk, and decides mode by two literal `[ -d ]` tests — there is no `jj`
+      spawn and no `git` spawn anywhere in B. B does two directory-entry tests
+      where G loads the repository through jj-lib behind a verified signature
+      chain, so no ratio between them is a like-for-like comparison.
+
+      ⚠️ **The criterion decision was taken on 0189, not here**, contrary to
+      0205's recommendation that "0169 decides what the criterion should be"
+      before 0189 measures. 0169 is closed, so the decision was landed on the
+      open item that inherited the obligation.
+
+      ⚠️ **Method deviations from this criterion as written**: n is 2,659 pairs
+      rather than 20; the gate is an interval's upper bound rather than a bare
+      median comparison; the ratio is demoted beneath an absolute budget; and
+      the criterion is split per digest backend into six identified cells. Full
+      record and rationale in
+      `meta/plans/2026-08-11-0189-warm-dispatch-latency-measurement.md`.
 - [x] `skills/vcs/commit/SKILL.md:13-14` invoke
       `${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs status --fail-safe` and
       `… vcs log --fail-safe` (the flag lets a cold-cache dispatch failure
@@ -697,8 +734,23 @@ story's, and the "~41 ms warm bootstrap" this item cites is **derived**
   **none needed**. This pre-checks the raw schema ahead of the guard's own
   implementation; Phase 10's "Claude Code floor check" manual item re-verifies
   the same shapes end to end once `vcs guard` is built.
-- **Warm-call latency**: B — _pending_; G — _pending_; ratio — _pending_;
-  payload and fixture — _pending_; host and OS version — _pending_.
+- **Warm-call latency**, filled 2026-08-17 from
+  `meta/measurements/warm-dispatch-3.json` (third attempt, the first valid one):
+  **B** — 26.796 ms median over 2,659 samples (min 25.182, p90 28.896, IQR
+  1.192); **G** — 35.531 ms median over 2,659 samples (min 33.999, p90 38.230,
+  IQR 1.642); **ratio** — 1.3260, 95% CI [1.3236, 1.3279], with the
+  `true`-floor-subtracted robustness ratio at 1.3432 [1.3407, 1.3451] and the
+  bash-floor-subtracted diagnostic at 1.3909; **payload** — the `PreToolUse`
+  envelope for a blocked `git status`, byte-identical to both variants;
+  **fixture** — a fresh pure-jj scratch repository outside the plugin root,
+  `jj --config git.colocate=false git init`, asserted non-colocated; **host and
+  OS** — Apple M4 Max, macOS 26.3 (darwin-arm64), load 3.81 over 16 CPUs,
+  instrument floors 4.45/1.34 ms before and 4.26/1.35 ms after sampling.
+
+  ⚠️ `G ≤ 1.1 × B` is **not met** and this hand-off's criterion above stays
+  unticked. The obligation is discharged on work item 0189 under a superseding
+  criterion; see the dated resolution on that criterion for the full reasoning
+  and the method deviations.
 
 ## Drafting Notes
 

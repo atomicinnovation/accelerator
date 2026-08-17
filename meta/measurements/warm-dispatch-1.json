@@ -1,0 +1,505 @@
+{
+  "blocks": "AB",
+  "gating": true,
+  "preconditions": {
+    "violations": [],
+    "concurrent_sessions": [],
+    "accelerator_env_keys": [],
+    "dev_launcher_marker": false,
+    "plugin_root": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system",
+    "plugin_version": "1.24.0-pre.41",
+    "jj": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d",
+    "jj_pin": "0.43.0",
+    "driving_session_pid": 21610,
+    "fixture": "/private/var/folders/yn/t_rffw516d3_bxq89qx2p5jh0000gn/T/accelerator-measure-gue4r9fm/fixture",
+    "fixture_depth": 9,
+    "stdin_envelope": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git status\"}}",
+    "expected_reason": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status",
+    "baseline_commit": "2cfbf81e2e7b4934e868bd42c69374c335b05317",
+    "warm_cache_gaps": [],
+    "recovered_digests": {
+      "bin/vcs-guard": "3dc02b9ab1c5b6865c4f17116a558bceb383a517f2769de269366c45974ac2bb",
+      "scripts/vcs-common.sh": "e929f943726134b254a5539ccd673f3f2b154e9ed3093a60ba131e52f04a924a"
+    }
+  },
+  "quietness": {
+    "loadavg": [
+      38.2529296875,
+      30.2216796875,
+      34.037109375
+    ],
+    "cpu_count": 16,
+    "cpu_count_rung": "process-cpu-count",
+    "power": {
+      "pmset": "System-wide power settings:\nCurrently in use:\n standby              1\n Sleep On Power Button 1\n hibernatefile        /var/vm/sleepimage\n powernap             1\n networkoversleep     0\n disksleep            10\n sleep                15 (sleep prevented by powerd, sharingd, WhatsApp)\n hibernatemode        0\n ttyskeepawake        1\n displaysleep         5\n tcpkeepalive         1\n powermode            0\n womp                 0"
+    }
+  },
+  "tools": {
+    "fast": {
+      "awk": {
+        "target": "/usr/bin/awk",
+        "version": "awk version 20200816"
+      },
+      "bash": {
+        "target": "/opt/homebrew/Cellar/bash/5.3.15/bin/bash",
+        "version": "GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)"
+      },
+      "cat": {
+        "target": "/bin/cat",
+        "version": "unknown"
+      },
+      "chmod": {
+        "target": "/bin/chmod",
+        "version": "unknown"
+      },
+      "cp": {
+        "target": "/bin/cp",
+        "version": "unknown"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.7.1 (x86_64-apple-darwin25.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.68.0"
+      },
+      "date": {
+        "target": "/bin/date",
+        "version": "unknown"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "unknown"
+      },
+      "git": {
+        "target": "/opt/homebrew/Cellar/git/2.55.0/bin/git",
+        "version": "git version 2.55.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "unknown"
+      },
+      "jj": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/bin/kill",
+        "version": "unknown"
+      },
+      "mkdir": {
+        "target": "/bin/mkdir",
+        "version": "unknown"
+      },
+      "mv": {
+        "target": "/bin/mv",
+        "version": "unknown"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "unknown"
+      },
+      "realpath": {
+        "target": "/bin/realpath",
+        "version": "unknown"
+      },
+      "rm": {
+        "target": "/bin/rm",
+        "version": "unknown"
+      },
+      "rmdir": {
+        "target": "/bin/rmdir",
+        "version": "unknown"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "unknown"
+      },
+      "sha256sum": {
+        "target": "/sbin/sha256sum",
+        "version": "sha256sum (Darwin) 1.0"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.02"
+      },
+      "sleep": {
+        "target": "/bin/sleep",
+        "version": "unknown"
+      },
+      "timeout": {
+        "target": "/opt/homebrew/Cellar/coreutils/9.11/bin/gtimeout",
+        "version": "timeout (GNU coreutils) 9.11"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "unknown"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "unknown"
+      },
+      "wget": {
+        "target": "/opt/homebrew/Cellar/wget/1.25.0/bin/wget",
+        "version": "GNU Wget 1.25.0 built on darwin24.1.0."
+      }
+    },
+    "fallback": {
+      "awk": {
+        "target": "/usr/bin/awk",
+        "version": "awk version 20200816"
+      },
+      "bash": {
+        "target": "/opt/homebrew/Cellar/bash/5.3.15/bin/bash",
+        "version": "GNU bash, version 5.3.15(1)-release (aarch64-apple-darwin25.4.0)"
+      },
+      "cat": {
+        "target": "/bin/cat",
+        "version": "unknown"
+      },
+      "chmod": {
+        "target": "/bin/chmod",
+        "version": "unknown"
+      },
+      "cp": {
+        "target": "/bin/cp",
+        "version": "unknown"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.7.1 (x86_64-apple-darwin25.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12 nghttp2/1.68.0"
+      },
+      "date": {
+        "target": "/bin/date",
+        "version": "unknown"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "unknown"
+      },
+      "git": {
+        "target": "/opt/homebrew/Cellar/git/2.55.0/bin/git",
+        "version": "git version 2.55.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (BSD grep, GNU compatible) 2.6.0-FreeBSD"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "unknown"
+      },
+      "jj": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/Users/tobyclemson/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/bin/kill",
+        "version": "unknown"
+      },
+      "mkdir": {
+        "target": "/bin/mkdir",
+        "version": "unknown"
+      },
+      "mv": {
+        "target": "/bin/mv",
+        "version": "unknown"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "unknown"
+      },
+      "realpath": {
+        "target": "/bin/realpath",
+        "version": "unknown"
+      },
+      "rm": {
+        "target": "/bin/rm",
+        "version": "unknown"
+      },
+      "rmdir": {
+        "target": "/bin/rmdir",
+        "version": "unknown"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "unknown"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.02"
+      },
+      "sleep": {
+        "target": "/bin/sleep",
+        "version": "unknown"
+      },
+      "timeout": {
+        "target": "/opt/homebrew/Cellar/coreutils/9.11/bin/gtimeout",
+        "version": "timeout (GNU coreutils) 9.11"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "unknown"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "unknown"
+      },
+      "wget": {
+        "target": "/opt/homebrew/Cellar/wget/1.25.0/bin/wget",
+        "version": "GNU Wget 1.25.0 built on darwin24.1.0."
+      }
+    }
+  },
+  "interpreter": {
+    "executable": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system/.venv/bin/python3",
+    "version": "3.14.4 (main, Apr 14 2026, 14:46:33) [Clang 22.1.3 ]",
+    "clock": "namespace(implementation='mach_absolute_time()', monotonic=True, adjustable=False, resolution=4.166666666666666e-08)",
+    "seed": 20260813
+  },
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "25.3.0",
+    "platform": "macOS-26.3-arm64-arm-64bit-Mach-O"
+  },
+  "dirname_spawns": 1,
+  "floors_pre": {
+    "when": "pre",
+    "attempts": [
+      {
+        "bash_ms": 5.6516250187996775,
+        "true_ms": 1.6854584973771125
+      }
+    ],
+    "holds": true
+  },
+  "warm_up": {
+    "valid": true,
+    "diagnostic": "",
+    "elapsed_ms": 59.1587089584209
+  },
+  "pilot": {
+    "block_a": {
+      "achieved_upper_distance": 0.020931896710420173,
+      "required": 6762,
+      "feasible": true
+    },
+    "block_b": {
+      "achieved_upper_distance": 0.6646875117439777,
+      "required": 200,
+      "feasible": true
+    },
+    "sizes": {
+      "block_a_pairs": 6762,
+      "block_b_samples": 900
+    },
+    "discarded": {
+      "B": 200,
+      "G-fast": 200,
+      "G-fallback": 200
+    }
+  },
+  "floors_post": {
+    "when": "post",
+    "attempts": [
+      {
+        "bash_ms": 6.066728994483128,
+        "true_ms": 1.431457989383489
+      }
+    ],
+    "holds": true
+  },
+  "dispersion": {
+    "B": {
+      "n": 6762,
+      "minimum": 26.65549999801442,
+      "median": 31.085166498087347,
+      "p90": 36.46191249717959,
+      "iqr": 3.991959019913338
+    },
+    "G-fast": {
+      "n": 6762,
+      "minimum": 35.50737496698275,
+      "median": 40.96039599971846,
+      "p90": 45.96389144426212,
+      "iqr": 3.9883647550595924
+    },
+    "G-fallback": {
+      "n": 900,
+      "minimum": 50.670625001657754,
+      "median": 55.47441649832763,
+      "p90": 62.60011253179982,
+      "iqr": 5.8306354767410085
+    }
+  },
+  "terms": {
+    "terms": {
+      "cache::find": {
+        "point": 0.0424,
+        "lower": 0.0269,
+        "upper": 0.0748
+      },
+      "reverify": {
+        "point": 6.2226,
+        "lower": 6.0716,
+        "upper": 6.6551
+      },
+      "verifier::sha256_hex": {
+        "point": 4.3927,
+        "lower": 4.3139,
+        "upper": 4.6698
+      },
+      "TrustedKeys::verifies": {
+        "point": 1.6479,
+        "lower": 1.6423,
+        "upper": 1.6939
+      },
+      "bash startup": {
+        "point": 5.6516250187996775,
+        "lower": 5.6516250187996775,
+        "upper": 5.6516250187996775
+      },
+      "two sha256_file calls": {
+        "point": 5.785395478596911,
+        "lower": 5.785395478596911,
+        "upper": 5.785395478596911
+      },
+      "shim minisign-verify of the launcher": {
+        "point": 6.532875006087124,
+        "lower": 6.532875006087124,
+        "upper": 6.532875006087124
+      },
+      "launcher startup net of the fork floor": {
+        "point": 2.2606874990742654,
+        "lower": 2.2606874990742654,
+        "upper": 2.2606874990742654
+      },
+      "vcs exec and guard work net of the fork floor": {
+        "point": 3.6188954836688936,
+        "lower": 3.6188954836688936,
+        "upper": 3.6188954836688936
+      }
+    },
+    "summed": [
+      "bash startup",
+      "two sha256_file calls",
+      "shim minisign-verify of the launcher",
+      "launcher startup net of the fork floor",
+      "cache::find",
+      "reverify",
+      "vcs exec and guard work net of the fork floor"
+    ],
+    "sub_operations_not_summed": [
+      "verifier::sha256_hex",
+      "TrustedKeys::verifies"
+    ],
+    "cache_root_entries": 21,
+    "cache_root_bytes": 47835582,
+    "residual": {
+      "total": 30.114478486226872,
+      "signed_residual": -10.845917513491585,
+      "absolute_residual": 10.845917513491585,
+      "band": 1.5,
+      "closed": false,
+      "remeasure": true
+    },
+    "observed_median_ms": 40.96039599971846,
+    "cross_checked_fraction": 0.7352096519387621,
+    "uncross_checked_fraction": 0.2647903480612379
+  },
+  "analysis": {
+    "intervals": {
+      "C1": {
+        "point": 40.96039599971846,
+        "lower": 40.88341601891443,
+        "upper": 41.058354487176985
+      },
+      "C2": {
+        "point": 45.96389144426212,
+        "lower": 45.804517267970375,
+        "upper": 46.17227090639062
+      },
+      "C3": {
+        "point": 55.47441649832763,
+        "lower": 55.23235400323756,
+        "upper": 55.873667006380856
+      },
+      "C4": {
+        "point": 62.60011253179982,
+        "lower": 62.065988457907224,
+        "upper": 62.9129795008339
+      },
+      "C5": {
+        "point": 1.3176830177904542,
+        "lower": 1.3149033575851625,
+        "upper": 1.3206525510745013
+      },
+      "C6": null
+    },
+    "ratios": {
+      "raw_gates": 1.3176830177904542,
+      "true_floor_subtracted_robustness_check": 1.3358954960162375,
+      "bash_floor_subtracted_diagnostic_only": 1.388275832906448,
+      "median_of_ratios": 1.3179656880205877,
+      "p90_ratio_context": 1.2606001247964578,
+      "drift_first_third": 1.317490701982687,
+      "drift_last_third": 1.304259541908538,
+      "drift_holds": false
+    },
+    "validity": "invalid-post-run",
+    "elapsed_s": 589.1300515409675
+  },
+  "cells": [
+    {
+      "cell": "C1",
+      "gates": true,
+      "branch": "5b",
+      "accepted_by": null
+    },
+    {
+      "cell": "C2",
+      "gates": true,
+      "branch": "5b",
+      "accepted_by": null
+    },
+    {
+      "cell": "C3",
+      "gates": true,
+      "branch": "5b",
+      "accepted_by": null
+    },
+    {
+      "cell": "C4",
+      "gates": true,
+      "branch": "5b",
+      "accepted_by": null
+    },
+    {
+      "cell": "C5",
+      "gates": true,
+      "branch": "5b",
+      "accepted_by": null
+    },
+    {
+      "cell": "C6",
+      "gates": false,
+      "branch": "7",
+      "accepted_by": null
+    }
+  ],
+  "closure_verdict": false,
+  "teardown": [],
+  "attempt": 1,
+  "samples_path": null,
+  "recorded_note": "Attempt 1, 2026-08-17. Invalidated post-run (branch 5b) by the drift diagnostic: first third 1.3175, last third 1.3043, |delta| 0.0132 against a 0.005 band. Every figure here is explicitly non-gating. C6 records no interval because the paired estimator was used for an unpaired cell \u2014 fixed after this attempt; from the recorded medians it would read 1.7846. Raw samples were not persisted by the harness at this revision, so nothing here can be re-derived."
+}

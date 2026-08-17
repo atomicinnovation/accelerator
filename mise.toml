@@ -317,6 +317,25 @@ description = "The strong form of the above: shadows the real git/jj with sudo f
 depends = ["deps:install:python", "build:cli:fixture-size"]
 run = "invoke test.integration.zero-spawn-strong"
 
+# Deliberately NOT in the aggregate `check`, the bare `default` task, or the
+# test:integration roll-up: a run needs a quiet host, a pinned PATH, network
+# egress and several minutes. Owned by its own non-blocking CI job. See
+# tasks/README.md#the-measure-namespace.
+[tasks."measure:warm-dispatch"]
+description = "Measure warm-dispatch latency vs the shell baseline (quiet host, network egress, ~8 min, up to ~30 min if the interval escalates)"
+depends = ["deps:install:python"]
+run = "invoke measure.warm-dispatch"
+
+[tasks."measure:teardown"]
+description = "Replay the measurement harness's restore and verify phases from a stale manifest"
+depends = ["deps:install:python"]
+run = "invoke measure.teardown"
+
+[tasks."test:integration:measure"]
+description = "Live-dispatch smoke check for the warm-dispatch harness (n=2, no gating figure)"
+depends = ["deps:install:python"]
+run = "invoke measure.smoke-check"
+
 [tasks."test:integration:pup"]
 description = "Run the cargo-pup architecture regression (needs the nightly lane; check-architecture only, not the test roll-up)"
 depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
