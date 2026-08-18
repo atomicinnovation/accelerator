@@ -1,0 +1,29 @@
+# Adversarial upload-URL cases for the *.linear.app allowlist.
+#
+# Format: <accept|reject> <url>, one per line. Evaluated with loopback denied,
+# so these are production semantics: an allowlist tested only against the cases
+# the implementation already handles tends to pass while the interesting ones
+# go unwritten, so the interesting ones are here.
+
+# The documented uploads host and any *.linear.app subdomain, at a label
+# boundary. A signed query is retained on the wire; it is only stripped in
+# diagnostics.
+accept https://uploads.linear.app/agent/file?sig=abc
+accept https://files.linear.app/x
+
+# Suffix look-alikes: a bare ends_with(".linear.app") or a substring match
+# would admit these.
+reject https://uploads.linear.app.evil.com/
+reject https://evil-linear.app/
+reject https://evil.com/?x=uploads.linear.app
+
+# A userinfo form whose real host is evil.com.
+reject https://uploads.linear.app@evil.com/
+
+# A non-https scheme, and an IP literal, neither of which is *.linear.app.
+reject http://uploads.linear.app/
+reject https://[::1]/
+
+# An IDN homoglyph — the "e" in "linear" is Cyrillic U+0435, so IDNA maps the
+# host to a punycode label that is not "linear".
+reject https://uploads.linеar.app/

@@ -242,6 +242,24 @@
                 ),
             ],
         )),
+        // The Linear mirror of jira_client_io_lives_in_cache: the transport,
+        // upload and discovery modules must stay off the filesystem, so the
+        // atomic writes and the advisory lock live only in the cache module and
+        // there is no second, unlocked write path beside the one holding the
+        // shared .lock the bash init also mkdir's.
+        Module((
+            name: "linear_client_io_lives_in_cache",
+            matches: Module("^linear_client::(transport|upload|discovery)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::fs(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // http-test-support's whole value is being std-only: it must stall a
         // connection and drop one mid-body, which no HTTP client library
         // exposes. Expressed as a `denied` list rather than `allowed_only`

@@ -1,0 +1,8 @@
+{
+  "team": { "id": "team-1", "key": "ENG", "name": "Engineering" },
+  "workflowStates": [
+    { "id": "s1", "name": "Todo", "type": "unstarted", "position": 0 },
+    { "id": "s2", "name": "In Progress", "type": "started", "position": 1 },
+    { "id": "s3", "name": "Done", "type": "completed", "position": 2 }
+  ]
+}

@@ -25,6 +25,7 @@ use tracker_support::TransportConfig;
 use crate::auth::check_identifier;
 use crate::auth::resolve_credentials;
 use crate::auth::Credentials;
+use crate::catalogue::CatalogueStates;
 use crate::classify::carries_errors;
 use crate::classify::classify;
 use crate::classify::classify_errors;
@@ -32,13 +33,13 @@ use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::error::ClientError;
 use crate::filter::compose;
-use crate::filter::FixedStates;
 use crate::filter::Search;
 use crate::filter::StateResolver;
 use crate::filter::FETCH_PAGE_SIZE;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
+use crate::upload::UploadTransport;
 
 const SHOW: &str = "query($id: String!) {
     issue(id: $id) {
@@ -69,6 +70,7 @@ type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
 
 pub struct LinearClient {
     transport: Transport,
+    upload: UploadTransport,
     team_key: Option<String>,
     states: Box<dyn StateResolver>,
 }
@@ -77,11 +79,13 @@ impl LinearClient {
     #[must_use]
     pub fn new(
         transport: Transport,
+        upload: UploadTransport,
         team_key: Option<String>,
         states: Box<dyn StateResolver>,
     ) -> Self {
         Self {
             transport,
+            upload,
             team_key,
             states,
         }
@@ -106,16 +110,19 @@ impl LinearClient {
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
-        Ok(Self::new(
-            transport,
-            team_key,
-            Box::new(FixedStates::default()),
-        ))
+        let upload = UploadTransport::production()?;
+        let states = CatalogueStates::load(integrations_root);
+        Ok(Self::new(transport, upload, team_key, Box::new(states)))
     }
 
     #[must_use]
     pub const fn transport(&self) -> &Transport {
         &self.transport
+    }
+
+    #[must_use]
+    pub(crate) const fn upload_transport(&self) -> &UploadTransport {
+        &self.upload
     }
 
     #[must_use]

@@ -396,11 +396,10 @@ This table is reproduced in 0211's deletion gate so the sibling can check it off
 
 ## Implementation Progress
 
-Phases 1 to 8 are implemented and committed. Phases 1 to 7 each landed with
-`mise run` green end to end; Phase 8 landed with `cli:check`, `deny:check`,
-`public-api:check`, `test:integration:deny`, `test:integration:pup`,
-`test:unit:tasks` and the jira-client + tracker-support suites green (the full
-`mise run` mirror is deferred to the Phase 10 close-out). Phase 9 is next.
+Phases 1 to 9 are implemented and committed. Phases 1 to 7 each landed with
+`mise run` green end to end; Phases 8 and 9 landed with `cli:check`,
+`deny:check`, `test:integration:pup` and the affected crate suites green (the
+full `mise run` mirror is deferred to the Phase 10 close-out). Phase 10 is next.
 
 | Phase | Status | Commit | Tests added |
 |---|---|---|---|
@@ -413,7 +412,7 @@ Phases 1 to 8 are implemented and committed. Phases 1 to 7 each landed with
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | done | `efe0a2a6` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
-| 9 — Linear provider surface | not started | | |
+| 9 — Linear provider surface | done | | 40 (comment 2, transition 3, attach 15, discovery 5, cache 7, catalogue 4, upload 3, +1 pup probe pair) |
 | 10 — Enforcement close-out | not started | | |
 
 One commit sits outside the phase sequence: `91129dfb` takes
@@ -610,6 +609,51 @@ four flows attach to `JiraClient` as inherent methods returning
 attach filename/path/boundary refusals, and a boxed request `Status`). No trait
 analogous to `RemoteTracker` — 0211 owns the port shape once a caller exists.
 
+**Phase 9 — `LinearClient::new` gained an upload-transport parameter.** The
+second transport (D-none; it is the attach PUT's own policy) is a constructor
+field, not lazily built, so the SSRF-relevant settings — loopback admission and
+the retry delay — are fixed at construction and cannot be flipped by an
+environment read. This rippled to the three existing `new` sites (the test
+support, the contract harness, the real-client sync test), which pass a
+production or loopback transport as their case needs.
+
+**Phase 9 — a CRLF-bearing echoed header is refused, not dropped.** The bash
+drops any echoed header carrying a CR or LF (`linear-attach-flow.sh:156`); the
+criterion says "refused", and refusing surfaces the tampering rather than
+letting the PUT proceed with a silently-stripped signed header and then fail on
+a signature mismatch. This is the one deliberate divergence from the attach
+oracle, and attach carries no differential test, so nothing else pins the bash
+behaviour.
+
+**Phase 9 — `StateResolver` gained a `resolve_all` default method.** Transition
+must tell an unknown state (`E_TRANSITION_STATE_NOT_IN_CATALOGUE`) from an
+ambiguous one (`E_TRANSITION_STATE_AMBIGUOUS`), which `resolve`'s single
+`Option` cannot express. The default collects `resolve`'s single answer;
+`CatalogueStates` — the cache-backed resolver Phase 6b deferred here, now wired
+into `from_config` — overrides it to return every id a display name matches, so
+the two catalogue states sharing a name resolve ambiguously.
+
+**Phase 9 — the cache infrastructure is duplicated, not shared.** `Filesystem`,
+`SystemFilesystem` and `CacheError` mirror `jira-client`'s rather than moving to
+`tracker-support`: the two clients may not import each other, and the shape
+carries no provider specifics D9 exists to keep from drifting — the same
+reasoning the test doubles are duplicated under. `SystemFilesystem` still
+delegates writes to `store::atomic_write` and locking to
+`corpus_adapters::acquire`, so the store-duplication guard passes.
+
+**Phase 9 — a `linear_client_io_lives_in_cache` pup rule was added.** The Linear
+mirror of `jira_client_io_lives_in_cache`, confining `std::fs` out of the
+`transport`, `upload` and `discovery` modules so the write path lives only in
+`cache`. It carries its own probe pair, and the fixture-driven allowlist unit
+test uses `include_str!` rather than a `std::fs` read so `upload` stays clean
+under the rule.
+
+**Phase 9 — the MIME criterion is met by the shared table test.** The sniffer is
+`tracker_support::mime::sniff`, whose table (including the octet-stream
+fallback) is pinned in `tracker-support/tests/mime.rs` from Phase 8; Phase 9
+adds an attach test asserting the sniffed type reaches the `fileUpload` request,
+which is the Linear-specific wiring.
+
 ### Outstanding
 
 - **One automated criterion is deliberately unticked** (Phase 5): the
@@ -622,8 +666,11 @@ analogous to `RemoteTracker` — 0211 owns the port shape once a caller exists.
   `contract_offline` is observably selected by the default profile.
 - **Every manual-verification item in Phases 5 and 6b remains open.** All of
   them need a credentialed tenant, which this machine does not have.
-- Phases 9 and 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
-  carry this deviation list alongside the D1-D16 register.
+- Phase 10 is unstarted. Phase 10's `## Decisions` copy onto 0171 should carry
+  this deviation list alongside the D1-D16 register.
+- **Phase 9's manual-verification items remain open** — uploading a real binary
+  to a live Linear issue and diffing live discovery output both need a
+  credentialed tenant.
 - **Phase 8's manual-verification items remain open** — attaching to a live Jira
   issue and diffing live discovery output both need a credentialed tenant.
 - **Phase 7's manual-verification items remain open** — all four need a live
@@ -3152,36 +3199,40 @@ so the skill can render choices.
 
 #### Automated Verification
 
-- [ ] The comment and transition mutations assert their exact document text and
+- [x] The comment and transition mutations assert their exact document text and
       variables via `MockServer::last_body`
-- [ ] A state name resolves to a UUID through the catalogue; an unknown name is a
+- [x] A state name resolves to a UUID through the catalogue; an unknown name is a
       typed error
-- [ ] Link-mode attach sends one `attachmentCreate`
-- [ ] Binary mode makes exactly three requests in order, asserted with
+- [x] Link-mode attach sends one `attachmentCreate`
+- [x] Binary mode makes exactly three requests in order, asserted with
       `MockServer::hits`
-- [ ] The upload PUT carries **no** `Authorization` header, asserted on captured
+- [x] The upload PUT carries **no** `Authorization` header, asserted on captured
       headers
-- [ ] Every row of the adversarial-URL fixture resolves as expected, including
+- [x] Every row of the adversarial-URL fixture resolves as expected, including
       `uploads.linear.app.evil.com` and `evil-linear.app` being **refused** —
       label-boundary matching, not suffix matching
-- [ ] A non-`*.linear.app` `uploadUrl` is refused before any bytes are sent
-- [ ] A `uploadUrl` on a non-https scheme is refused
-- [ ] An `assetUrl` on a foreign host is refused, before step 2
-- [ ] No diagnostic retains a URL query string, asserted on the error text
-- [ ] A loopback `uploadUrl` is refused through the production constructor
+- [x] A non-`*.linear.app` `uploadUrl` is refused before any bytes are sent
+- [x] A `uploadUrl` on a non-https scheme is refused
+- [x] An `assetUrl` on a foreign host is refused, before step 2
+- [x] No diagnostic retains a URL query string, asserted on the error text
+- [x] A loopback `uploadUrl` is refused through the production constructor
       regardless of process environment
-- [ ] The MIME sniffer matches its table, including the unknown-type fallback
-- [ ] An echoed header outside `x-amz-*` is dropped; one containing CRLF is
+- [x] The MIME sniffer matches its table, including the unknown-type fallback
+      (the shared `tracker-support::mime` table, plus an attach test asserting
+      the sniffed type reaches the `fileUpload` request)
+- [x] An echoed header outside `x-amz-*` is dropped; one containing CRLF is
       refused
-- [ ] A 30x response to the PUT is refused rather than followed
-- [ ] The upload timeout asserts 60s while the port transport still asserts 30s
-- [ ] A step-3 failure after a successful step 2 produces the orphaned-asset
+- [x] A 30x response to the PUT is refused rather than followed
+- [x] The upload timeout asserts 60s while the port transport still asserts 30s
+- [x] A step-3 failure after a successful step 2 produces the orphaned-asset
       error, not a generic failure
-- [ ] All three discovery queries assert their documents; the produced cache
+- [x] All three discovery queries assert their documents; the produced cache
       shapes match committed goldens
-- [ ] `deny:check` green — no MIME crate was added:
+- [x] `deny:check` green — no MIME crate was added:
       `mise run lint:cli:deny:check`
-- [ ] Full local mirror: `mise run`
+- [ ] Full local mirror: `mise run` (deferred to the Phase 10 close-out, as
+      Phase 8 was; `cli:check`, `deny:check`, `test:integration:pup` and the
+      linear-client + work-adapters + work-cli suites are green)
 
 #### Manual Verification
 

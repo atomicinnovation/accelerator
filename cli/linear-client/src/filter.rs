@@ -16,7 +16,17 @@ use crate::error::ClientError;
 /// A port from the outset so the cache-backed implementation can land later
 /// without a constructor change.
 pub trait StateResolver {
+    /// The single UUID a name resolves to, or `None` when it names no state or
+    /// more than one.
     fn resolve(&self, name: &str) -> Option<String>;
+
+    /// Every UUID whose display name matches, so a caller can tell an unknown
+    /// name from an ambiguous one — the distinction the transition flow draws
+    /// between `E_TRANSITION_STATE_NOT_IN_CATALOGUE` and
+    /// `E_TRANSITION_STATE_AMBIGUOUS`.
+    fn resolve_all(&self, name: &str) -> Vec<String> {
+        self.resolve(name).into_iter().collect()
+    }
 }
 
 /// A fixed map, used by the search suites and by any caller with no catalogue.

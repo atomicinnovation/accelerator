@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use linear_client::filter::FixedStates;
 use linear_client::transport::Transport;
-use linear_client::LinearClient;
+use linear_client::{LinearClient, UploadTransport};
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use tracker_support::{
@@ -134,6 +134,7 @@ fn live_client() -> LiveClient {
     LiveClient {
         client: LinearClient::new(
             transport,
+            UploadTransport::production().expect("the upload transport builds"),
             Some(team_key),
             Box::new(FixedStates::default()),
         ),

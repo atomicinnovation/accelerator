@@ -27,7 +27,7 @@ use jira_client::JiraClient;
 use linear_client::filter::FixedStates;
 use linear_client::transport::Transport as LinearTransport;
 use linear_client::Credentials as LinearCredentials;
-use linear_client::LinearClient;
+use linear_client::{LinearClient, UploadTransport};
 use reqwest::Url;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
@@ -157,6 +157,7 @@ fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
     .expect("the linear transport builds");
     LinearClient::new(
         transport,
+        UploadTransport::production().expect("the upload transport builds"),
         Some("ENG".to_owned()),
         Box::new(FixedStates::default()),
     )

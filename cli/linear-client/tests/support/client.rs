@@ -5,9 +5,9 @@
 use std::time::Duration;
 
 use http_test_support::MockServer;
-use linear_client::filter::FixedStates;
+use linear_client::filter::{FixedStates, StateResolver};
 use linear_client::transport::Transport;
-use linear_client::{Credentials, LinearClient};
+use linear_client::{Credentials, LinearClient, UploadTransport};
 use reqwest::Url;
 use tracker_support::{Secret, TokenSource, TransportConfig};
 
@@ -41,6 +41,38 @@ pub fn client_for(
     client_with(&server.base_url(), config, Some(TEAM_KEY.to_owned()))
 }
 
+/// The upload transport tests point at the mock: loopback admitted, and no wait
+/// between the bounded PUT attempts so a failure path runs in milliseconds.
+#[must_use]
+pub fn loopback_upload() -> UploadTransport {
+    UploadTransport::new(true, std::time::Duration::ZERO)
+        .expect("the upload transport builds")
+}
+
+/// A client whose catalogue-backed states are replaced by a fixed resolver, for
+/// the transition suites that assert name resolution.
+#[must_use]
+pub fn client_with_states(
+    server: &MockServer,
+    states: Box<dyn StateResolver>,
+) -> LinearClient {
+    let transport = Transport::new(
+        Url::parse(&format!("{}/graphql", server.base_url()))
+            .expect("an endpoint"),
+        credentials(),
+        TransportConfig::default(),
+        Box::new(RecordingSleeper::new()),
+        Box::new(NoJitter),
+    )
+    .expect("the transport builds");
+    LinearClient::new(
+        transport,
+        loopback_upload(),
+        Some(TEAM_KEY.to_owned()),
+        states,
+    )
+}
+
 /// `team_key` is `None` for the case where only `linear.team_id` is
 /// configured, so nothing can be proved about an identifier's scope.
 #[must_use]
@@ -57,5 +89,10 @@ pub fn client_with(
         Box::new(NoJitter),
     )
     .expect("the transport builds");
-    LinearClient::new(transport, team_key, Box::new(FixedStates::default()))
+    LinearClient::new(
+        transport,
+        loopback_upload(),
+        team_key,
+        Box::new(FixedStates::default()),
+    )
 }
