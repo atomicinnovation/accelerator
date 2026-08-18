@@ -206,6 +206,24 @@
                 ),
             ],
         )),
+        // linear-client is the mirror of the jira-client rule: the only place
+        // Linear request construction lives, and it may reach neither the work
+        // domain nor the sibling provider.
+        Module((
+            name: "linear_client_is_the_only_linear_transport",
+            matches: Module("^linear_client($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^work(::|$)",
+                        "^work_adapters(::|$)",
+                        "^jira_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // http-test-support's whole value is being std-only: it must stall a
         // connection and drop one mid-body, which no HTTP client library
         // exposes. Expressed as a `denied` list rather than `allowed_only`

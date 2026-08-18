@@ -2086,35 +2086,35 @@ else → 109 → terminal.
 
 #### Automated Verification
 
-- [ ] Every row of the status-and-body table is asserted per operation, including
+- [x] Every row of the status-and-body table is asserted per operation, including
       a `200` carrying an `errors` array and a `400` carrying
       `"code": "RATELIMITED"`
-- [ ] The 200-body auth row is Retryable on update, matching `_wiur_map_linear`
-- [ ] Every `provider = linear` row of the committed fixture is asserted, both
+- [x] The 200-body auth row is Retryable on update, matching `_wiur_map_linear`
+- [x] Every `provider = linear` row of the committed fixture is asserted, both
       layers of the create path included; the row-coverage guard fails on an
       unconsumed row
-- [ ] The differential test agrees with the running Linear mappers
-- [ ] Both directions of the divergence are asserted: `34` retryable on create
+- [x] The differential test agrees with the running Linear mappers
+- [x] Both directions of the divergence are asserted: `34` retryable on create
       and terminal on update; `18, 23, 25, 27, 29` the other way
-- [ ] A malformed token is refused, and a team-level `token_cmd` is refused with
+- [x] A malformed token is refused, and a team-level `token_cmd` is refused with
       its diagnostic
-- [ ] Constructing a `LinearClient` leaves `rustls::crypto::CryptoProvider::get_default()`
+- [x] Constructing a `LinearClient` leaves `rustls::crypto::CryptoProvider::get_default()`
       as `Some` (D7) — the same assertion Phase 3 makes, since Linear's
       `install_default()` call is a copy of Jira's and therefore the likelier to
       be omitted
-- [ ] The Linear transport carries the full Phase 3 bound set, asserted here
+- [x] The Linear transport carries the full Phase 3 bound set, asserted here
       because 6a is independently mergeable: 4 attempts on a persistent 503,
       `Retry-After` honoured as a duration, exactly one attempt on a connect, DNS
       or timeout failure, a 302 refused rather than followed, an oversized
       response rejected before deserialisation, and an injected timeout taking
       effect
-- [ ] The identifier fixture is exercised through `linear-client` as well, so
+- [x] The identifier fixture is exercised through `linear-client` as well, so
       both providers are held to the one shared rule
-- [ ] `team_id` resolves from `linear.team_id` when set and from
+- [x] `team_id` resolves from `linear.team_id` when set and from
       `catalogue.json`'s `.team.id` when not, with precedence asserted — an
       already-onboarded user with no key configured does not hit exit 74
-- [ ] `cd cli && cargo nextest run -p linear-client`
-- [ ] Full local mirror: `mise run`
+- [x] `cd cli && cargo nextest run -p linear-client`
+- [x] Full local mirror: `mise run`
 
 ---
 
