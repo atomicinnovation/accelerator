@@ -412,7 +412,7 @@ Phases 1 to 8 are implemented and committed. Phases 1 to 7 each landed with
 | 6a — `linear-client` foundation | done | `7adda8a3` | 34 |
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
-| 8 — Jira provider surface | done | `a3e81767` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
+| 8 — Jira provider surface | done | `efe0a2a6` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
 | 9 — Linear provider surface | not started | | |
 | 10 — Enforcement close-out | not started | | |
 
