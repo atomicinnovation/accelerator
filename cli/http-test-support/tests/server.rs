@@ -262,3 +262,37 @@ fn a_stalled_route_sends_its_headers_then_withholds_the_body() {
 
     assert!(outcome.is_err(), "the promised body must never arrive");
 }
+
+#[test]
+fn a_sequenced_route_answers_each_hit_in_turn() {
+    let server = MockServer::start();
+    let key = RequestKey::post("/graphql");
+    server.route(
+        key.clone(),
+        Route::Sequence(vec![
+            Route::Json {
+                status: 200,
+                body: "{\"first\":true}".to_owned(),
+            },
+            Route::Json {
+                status: 200,
+                body: "{\"second\":true}".to_owned(),
+            },
+            Route::Status(503),
+        ]),
+    );
+
+    let first = request(&server, "POST", "/graphql", &[], b"{}");
+    let second = request(&server, "POST", "/graphql", &[], b"{}");
+    let third = request(&server, "POST", "/graphql", &[], b"{}");
+    let fourth = request(&server, "POST", "/graphql", &[], b"{}");
+
+    assert_eq!(first.body, b"{\"first\":true}");
+    assert_eq!(second.body, b"{\"second\":true}");
+    assert_eq!(third.status, 503);
+    assert_eq!(
+        fourth.status, 503,
+        "the last entry repeats rather than becoming an unmatched key"
+    );
+    assert_eq!(server.hits(&key), 4);
+}

@@ -2202,32 +2202,32 @@ Registration mirrors Phase 5: a `denied`-only pup rule
 
 #### Automated Verification
 
-- [ ] All four port operations implemented against the port's own signatures;
+- [x] All four port operations implemented against the port's own signatures;
       `cd cli && cargo nextest run -p linear-client`
-- [ ] An empty `ids` request makes zero remote calls; duplicates are deduplicated
-- [ ] An id outside the configured team is `indeterminate`, not `absent`
-- [ ] The `IssueFilter` fixture covers every flag family under a row-coverage
+- [x] An empty `ids` request makes zero remote calls; duplicates are deduplicated
+- [x] An id outside the configured team is `indeterminate`, not `absent`
+- [x] The `IssueFilter` fixture covers every flag family under a row-coverage
       guard
-- [ ] Equality against `case-linear`'s line-reconstructed body, with the trailing
+- [x] Equality against `case-linear`'s line-reconstructed body, with the trailing
       newline asserted separately on `RemoteIssue.body`
-- [ ] sha256-after-normalise matches for `case-linear-empty-description` and
+- [x] sha256-after-normalise matches for `case-linear-empty-description` and
       `case-linear-markdown`
-- [ ] An empty-string description projects to an empty line, with no blank line
+- [x] An empty-string description projects to an empty line, with no blank line
       before it and a trailing newline
-- [ ] Every GraphQL request carries an explicit `first:`, asserted via
+- [x] Every GraphQL request carries an explicit `first:`, asserted via
       `MockServer::last_body`
-- [ ] The document construction is pinned by request-body assertions
-- [ ] Neither operation returns before T at T = 400ms and T = 1s, each returns
+- [x] The document construction is pinned by request-body assertions
+- [x] Neither operation returns before T at T = 400ms and T = 1s, each returns
       within 3×T with a timeout variant; `fetch_all` returns `Ok`
       all-`indeterminate`
-- [ ] The operation deadline fires on the slow-pages fixture
-- [ ] Default timeout asserts 30s; `MAX_PAGES` asserts 20
-- [ ] The offline contract conformance run passes for `LinearClient` in the
+- [x] The operation deadline fires on the slow-pages fixture
+- [x] Default timeout asserts 30s; `MAX_PAGES` asserts 20
+- [x] The offline contract conformance run passes for `LinearClient` in the
       default profile
 - [ ] The default profile selects no binary named exactly `contract`, and does
       select `contract_offline`
-- [ ] The pup probe pair passes: `mise run test:integration:pup`
-- [ ] Full local mirror: `mise run`
+- [x] The pup probe pair passes: `mise run test:integration:pup`
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 

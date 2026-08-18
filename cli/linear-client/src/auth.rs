@@ -92,14 +92,26 @@ pub fn resolve_team(
         .ok_or(ClientError::NoTeam)
 }
 
+/// The team **key** — the `ENG` in `ENG-42` — which is what decides whether a
+/// requested identifier was ever in this client's scope. Only the catalogue
+/// carries it; `linear.team_id` is the UUID alone.
+#[must_use]
+pub fn catalogue_team_key(integrations_root: &Path) -> Option<String> {
+    catalogue_field(integrations_root, "/team/key")
+}
+
 fn catalogue_team(integrations_root: &Path) -> Option<String> {
+    catalogue_field(integrations_root, "/team/id")
+}
+
+fn catalogue_field(integrations_root: &Path, pointer: &str) -> Option<String> {
     let catalogue = integrations_root.join("linear/catalogue.json");
     let raw = std::fs::read_to_string(catalogue).ok()?;
     let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
     parsed
-        .pointer("/team/id")
+        .pointer(pointer)
         .and_then(serde_json::Value::as_str)
-        .filter(|id| !id.is_empty())
+        .filter(|value| !value.is_empty())
         .map(str::to_owned)
 }
 

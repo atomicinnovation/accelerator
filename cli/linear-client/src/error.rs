@@ -21,6 +21,11 @@ pub enum ClientError {
          linear.team_id, or run /init-linear to write catalogue.json"
     )]
     NoTeam,
+    #[error(
+        "E_SEARCH_UNKNOWN_STATE: no workflow state named {name:?} in the \
+         catalogue — run /init-linear to refresh it"
+    )]
+    UnknownState { name: String },
     #[error("E_BAD_IDENTIFIER: {identifier:?} is refused — {reason}")]
     BadIdentifier { identifier: String, reason: String },
     #[error("E_GQL_CONNECT: {detail}")]

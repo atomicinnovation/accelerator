@@ -7,7 +7,9 @@
 
 pub mod auth;
 pub mod classify;
+pub mod client;
 pub mod error;
+pub mod filter;
 pub mod transport;
 
 pub use crate::auth::resolve_credentials;
@@ -16,6 +18,7 @@ pub use crate::classify::classify;
 pub use crate::classify::GraphQlError;
 pub use crate::classify::Operation;
 pub use crate::classify::Outcome;
+pub use crate::client::LinearClient;
 pub use crate::error::ClientError;
 pub use crate::transport::Received;
 pub use crate::transport::Transport;

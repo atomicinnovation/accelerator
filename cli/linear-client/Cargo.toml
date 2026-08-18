@@ -25,4 +25,5 @@ tracker-support = { path = "../tracker-support" }
 [dev-dependencies]
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
+remote-projection = { path = "../remote-projection" }
 tempfile = { workspace = true }

@@ -46,6 +46,13 @@ pub enum Route {
     Redirect { status: u16, location: String },
     /// 500 for the first `fail_times` hits, then 200 with the bytes.
     FlakyThenOk { fail_times: usize, body: Vec<u8> },
+    /// One response per hit, in order, with the last repeating once the
+    /// sequence is exhausted.
+    ///
+    /// The shape a single-endpoint API needs: Linear posts every operation to
+    /// `/graphql`, so a `(method, path)` key cannot distinguish a create from
+    /// the `show` that follows it.
+    Sequence(Vec<Route>),
     /// Send headers promising a body, then go idle for this long without
     /// sending it — so the client's body read stalls (exercises read timeout).
     Stall(Duration),
@@ -214,11 +221,18 @@ fn serve(listener: &TcpListener, shared: &Arc<Shared>) {
     }
 }
 
-fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
-    // The accepted socket may inherit the listener's non-blocking flag; force
-    // blocking so a large body's write_all cannot fail with WouldBlock.
-    stream.set_nonblocking(false)?;
-    let mut reader = BufReader::new(stream.try_clone()?);
+/// The request line, its headers and its body, read before any response byte
+/// is written.
+struct Incoming {
+    key: RequestKey,
+    query: Option<String>,
+    headers: HashMap<String, String>,
+    body: Vec<u8>,
+}
+
+fn read_request(
+    reader: &mut BufReader<TcpStream>,
+) -> std::io::Result<Incoming> {
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
 
@@ -255,7 +269,25 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         reader.read_exact(&mut body)?;
     }
 
-    let key = RequestKey { method, path };
+    Ok(Incoming {
+        key: RequestKey { method, path },
+        query,
+        headers,
+        body,
+    })
+}
+
+fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
+    // The accepted socket may inherit the listener's non-blocking flag; force
+    // blocking so a large body's write_all cannot fail with WouldBlock.
+    stream.set_nonblocking(false)?;
+    let mut reader = BufReader::new(stream.try_clone()?);
+    let Incoming {
+        key,
+        query,
+        headers,
+        body,
+    } = read_request(&mut reader)?;
     // Record before any response byte is written: the retry-count assertions
     // read this the instant the client call returns.
     let index = {
@@ -272,7 +304,13 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         index
     };
 
-    let route = shared.routes.lock().expect("routes").get(&key).cloned();
+    let route = shared
+        .routes
+        .lock()
+        .expect("routes")
+        .get(&key)
+        .cloned()
+        .map(|route| resolve(route, index));
     let response = match route {
         Some(Route::Json { status, body }) => http_response(
             status,
@@ -304,6 +342,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
                 http_response(200, &[], &body)
             }
         }
+        Some(Route::Sequence(_)) => {
+            unreachable!("resolve flattens a sequence before dispatch")
+        }
         Some(Route::Stall(delay)) => {
             // Promise a body in the headers, flush them, then stall without
             // sending it, so the client blocks reading the body.
@@ -322,6 +363,22 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
     Ok(())
+}
+
+/// Picks the response for this hit, so a sequence behaves like the API it
+/// stands in for. The last entry repeats rather than falling through to the
+/// unmatched status, which would turn one missing entry into a confusing 599.
+fn resolve(route: Route, index: usize) -> Route {
+    match route {
+        Route::Sequence(responses) => {
+            let last = responses.len().saturating_sub(1);
+            responses
+                .get(index.min(last))
+                .cloned()
+                .unwrap_or(Route::Status(UNMATCHED_STATUS))
+        }
+        other => other,
+    }
 }
 
 fn http_response(code: u16, headers: &[(&str, &str)], body: &[u8]) -> Vec<u8> {
