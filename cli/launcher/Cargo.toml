@@ -49,6 +49,8 @@ rand = { workspace = true }
 [build-dependencies]
 vergen = { workspace = true }
 vergen-gitcl = { workspace = true }
+# Reads the committed pins.toml to embed the expected tree-digest map.
+toml = { workspace = true }
 
 [dev-dependencies]
 time = { workspace = true }

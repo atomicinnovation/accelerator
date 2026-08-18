@@ -67,7 +67,11 @@ pub fn reap_orphans(
                 }
                 Residue::Generation => {
                     if is_reclaimable_generation(
-                        paths, name, &path, &referenced, clock,
+                        paths,
+                        name,
+                        &path,
+                        &referenced,
+                        clock,
                     ) {
                         remove(&path, &mut reclaimed);
                     }
@@ -90,12 +94,15 @@ enum Residue {
     Generation,
 }
 
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn classify(name: &str, keep_digests: &BTreeSet<String>) -> Option<Residue> {
     if let Some(rest) = name.strip_prefix(".tmp-") {
         if rest.ends_with(".archive") {
             // A partial archive for a digest the launcher still wants is a
             // resumable download, not an orphan.
-            if keep_digests.iter().any(|digest| rest.contains(digest.as_str()))
+            if keep_digests
+                .iter()
+                .any(|digest| rest.contains(digest.as_str()))
             {
                 return None;
             }
@@ -107,7 +114,8 @@ fn classify(name: &str, keep_digests: &BTreeSet<String>) -> Option<Residue> {
         return Some(Residue::TempTree);
     }
     // A generation directory: the fixed grammar, no sidecar suffix.
-    if name.contains(&format!("-{LAYOUT_VERSION}-")) && !has_sidecar_suffix(name)
+    if name.contains(&format!("-{LAYOUT_VERSION}-"))
+        && !has_sidecar_suffix(name)
     {
         return Some(Residue::Generation);
     }
@@ -121,6 +129,7 @@ fn has_sidecar_suffix(name: &str) -> bool {
 }
 
 /// The generation directory names any pointer currently references.
+#[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn referenced_generations(root: &Path) -> BTreeSet<String> {
     let mut referenced = BTreeSet::new();
     let Ok(entries) = std::fs::read_dir(root) else {
@@ -282,15 +291,14 @@ mod tests {
 
         let mut keep = BTreeSet::new();
         keep.insert(DIGEST.to_owned());
-        let reclaimed =
-            reap_orphans(&paths, &present(), &keep).expect("reap");
+        let reclaimed = reap_orphans(&paths, &present(), &keep).expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(archive.exists(), "a resumable partial was reclaimed");
     }
 
     #[test]
-    fn an_unreferenced_aged_generation_is_reclaimed_and_a_referenced_one_spared()
-    {
+    fn an_unreferenced_aged_generation_is_reclaimed_and_a_referenced_one_spared(
+    ) {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());
 
@@ -307,17 +315,17 @@ mod tests {
         );
         let referenced_dir = paths.generation(&referenced);
         fs::create_dir(&referenced_dir).expect("referenced");
-        fs::write(
-            paths.pointer("driver", "linux-x64", DIGEST),
-            &referenced,
-        )
-        .expect("pointer");
+        fs::write(paths.pointer("driver", "linux-x64", DIGEST), &referenced)
+            .expect("pointer");
 
         // The clock reads past the backstop, so both are old — only the
         // reference spares one of them.
         reap_orphans(&paths, &well_aged(), &BTreeSet::new()).expect("reap");
         assert!(!orphan_dir.exists(), "the orphan survived");
-        assert!(referenced_dir.exists(), "a referenced generation was reaped");
+        assert!(
+            referenced_dir.exists(),
+            "a referenced generation was reaped"
+        );
     }
 
     #[test]
