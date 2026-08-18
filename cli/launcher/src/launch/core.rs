@@ -271,6 +271,39 @@ pub fn run_external(
     }
 }
 
+/// Export the tree variables a dispatch's consumer needs, resolving each named
+/// tree through `AcquireSealedTree` only.
+///
+/// This is the sole tree entry point the dispatch path may take, and its
+/// signature is the enforcement: it accepts `&impl AcquireSealedTree`, so
+/// threading a `MaterialiseTree` — the network-reaching port — into the dispatch
+/// path is a compile error rather than a test failure. The whole design rests on
+/// a dispatch never fetching, and no probe-count test could catch a
+/// materialisation that happened to hit a warm cache.
+///
+/// Returns the resolved `(artifact, path, lease)` triples. A tree that is
+/// absent, unpointed or failing its checks simply yields nothing for that name —
+/// "not materialised yet" is the normal state, and the caller decides whether to
+/// `ensure`, downgrade, or proceed. The held leases must outlive the `exec`, so
+/// the caller keeps them until it has spawned the consumer.
+///
+/// # Errors
+///
+/// A [`tree::TreeError`] only where a tree's state is actively wrong; an absent
+/// or unusable tree is simply omitted from the result rather than erroring.
+pub fn acquire_trees(
+    resolver: &impl tree::AcquireSealedTree,
+    artifacts: &[&str],
+) -> Result<Vec<tree::AcquiredTree>, tree::TreeError> {
+    let mut acquired = Vec::new();
+    for artifact in artifacts {
+        if let Some(tree) = resolver.acquire(artifact)? {
+            acquired.push(tree);
+        }
+    }
+    Ok(acquired)
+}
+
 /// Derive the `ACCELERATOR_<SUB>_BIN` override variable: uppercase, mapping `-`
 /// to `_`.
 ///
