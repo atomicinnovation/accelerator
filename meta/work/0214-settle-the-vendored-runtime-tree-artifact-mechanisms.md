@@ -5,14 +5,14 @@ title: "Settle the vendored-runtime tree-artifact mechanisms"
 date: "2026-08-15T13:24:07+00:00"
 author: Toby Clemson
 producer: create-work-item
-status: ready
+status: done
 kind: spike
 priority: high
 parent: "work-item:0196"
 relates_to: ["work-item:0189", "work-item:0186", "work-item:0205"]
 derived_from: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: [rust, design, launcher, distribution, tree-artifacts, playwright]
-last_updated: "2026-08-17T10:37:32+00:00"
+last_updated: "2026-08-19T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -20,7 +20,7 @@ schema_version: 1
 # 0214: Settle the vendored-runtime tree-artifact mechanisms
 
 **Kind**: Spike
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
