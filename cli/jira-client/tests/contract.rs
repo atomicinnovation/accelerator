@@ -11,14 +11,17 @@
 //! closed — so a dropped variable cannot make this exit 0 having asserted
 //! nothing.
 //!
-//! Credentials are a different condition from the gate, and are treated
-//! differently. A bare `mise run` reaches this lane on a machine with no Jira
-//! tenant, and CI deliberately holds no provider secrets, so an unconfigured
-//! run **skips loudly** rather than failing the whole build. A run that *is*
-//! configured and then breaks the contract fails. What proves a live run
-//! actually happened is the committed evidence file, not this binary's exit
-//! status — and the port's invariants are enforced offline by
-//! `contract_offline.rs` in the default profile regardless.
+//! It needs a live tenant, so `test:integration:tracker-contract` is out of
+//! the `test:integration` roll-up and out of `default`: the lane is invoked
+//! deliberately, by someone who has configured one. An unconfigured run
+//! therefore **fails**, naming the variables it wants, rather than skipping —
+//! a harness that passes with nothing configured is the failure mode this
+//! whole design exists to avoid.
+//!
+//! The port's invariants do not depend on this binary: `contract_offline.rs`
+//! enforces them against a mock in the default profile. This is the
+//! live-tenant assurance beside it, and what proves it ran is the committed
+//! evidence file.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
@@ -66,8 +69,7 @@ impl ContractSubject for LiveClient {
     }
 }
 
-/// `None` when no tenant is configured, which is a skip rather than a failure.
-fn live_client() -> Option<LiveClient> {
+fn live_client() -> LiveClient {
     let environment = SystemEnvironment;
     let provenance = NothingTracked;
     let root = std::env::current_dir().expect("a working directory");
@@ -80,12 +82,14 @@ fn live_client() -> Option<LiveClient> {
         insecure_marker: root.join(".claude/insecure-local-ok"),
         command: CommandPolicy::rooted_at(root.clone()),
     };
-    let Ok(credentials) = jira_client::resolve_credentials(&context) else {
-        return None;
-    };
-    let Ok(project) = std::env::var("ACCELERATOR_JIRA_CONTRACT_PROJECT") else {
-        return None;
-    };
+    let credentials = jira_client::resolve_credentials(&context).expect(
+        "a live contract run needs a tenant: set ACCELERATOR_JIRA_SITE, \
+         ACCELERATOR_JIRA_EMAIL and ACCELERATOR_JIRA_TOKEN",
+    );
+    let project = std::env::var("ACCELERATOR_JIRA_CONTRACT_PROJECT").expect(
+        "a live contract run needs ACCELERATOR_JIRA_CONTRACT_PROJECT — the \
+         project new issues are created in",
+    );
     let transport = Transport::new(
         credentials,
         TransportConfig::default(),
@@ -94,7 +98,7 @@ fn live_client() -> Option<LiveClient> {
     )
     .expect("the transport builds");
 
-    Some(LiveClient {
+    LiveClient {
         client: JiraClient::new(
             transport,
             project,
@@ -109,17 +113,7 @@ fn live_client() -> Option<LiveClient> {
             std::env::var("ACCELERATOR_JIRA_CONTRACT_UNREADABLE")
                 .unwrap_or_else(|_| "ZZZZ-999998".to_owned()),
         ),
-    })
-}
-
-/// Announces a skip on stdout so a credentialed operator can tell it from a
-/// pass, and so the evidence file's absence has a visible cause.
-fn skip(test: &str) {
-    println!(
-        "SKIP {test}: no Jira tenant configured. Set ACCELERATOR_JIRA_SITE, \
-         ACCELERATOR_JIRA_EMAIL, ACCELERATOR_JIRA_TOKEN and \
-         ACCELERATOR_JIRA_CONTRACT_PROJECT to run the live harness."
-    );
+    }
 }
 
 /// The config service a live run reads. Kept behind a function so the harness
@@ -170,10 +164,7 @@ impl config::ConfigAccess for EnvironmentOnlyConfig {
 
 #[test]
 fn the_conformance_set_passes_against_a_live_tenant() {
-    let Some(subject) = live_client() else {
-        skip("the_conformance_set_passes_against_a_live_tenant");
-        return;
-    };
+    let subject = live_client();
     let ids = vec![subject.unaccountable_id()];
 
     let executed = run_all(&subject, &ids)
@@ -184,10 +175,7 @@ fn the_conformance_set_passes_against_a_live_tenant() {
 
 #[test]
 fn an_unaccounted_id_is_indeterminate_against_a_live_tenant() {
-    let Some(subject) = live_client() else {
-        skip("an_unaccounted_id_is_indeterminate_against_a_live_tenant");
-        return;
-    };
+    let subject = live_client();
     tracker_test_support::contract::unaccounted_id_is_indeterminate_not_absent(
         &subject,
     )
@@ -196,10 +184,7 @@ fn an_unaccounted_id_is_indeterminate_against_a_live_tenant() {
 
 #[test]
 fn a_failing_read_is_retryable_against_a_live_tenant() {
-    let Some(subject) = live_client() else {
-        skip("a_failing_read_is_retryable_against_a_live_tenant");
-        return;
-    };
+    let subject = live_client();
     tracker_test_support::contract::a_failing_read_is_retryable(&subject)
         .expect("the harness gate must be open for a live run");
 }

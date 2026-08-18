@@ -217,6 +217,18 @@ bypass.
 and that `tasks/test/cli.py` passes neither `--profile` nor
 `--ignore-default-filter`, either of which would bypass it silently.
 
+The lane is **out of the `test:integration` roll-up and out of `default`**,
+recorded with its reason in `_NOT_IN_INTEGRATION_ROLLUP`
+(`tests/unit/tasks/test_mise.py`). Its dependencies are external and cannot be
+guaranteed: a real tenant, credentials no CI job holds, and network egress.
+Because it is only ever invoked deliberately, an unconfigured run **fails**
+naming the variables it wants rather than skipping.
+
+What enforces the port's invariants continuously is each provider client's
+`tests/contract_offline.rs`, which runs the same conformance properties
+against a mock server in the default profile. This lane is the live-tenant
+assurance beside it, and what proves it ran is the committed evidence file.
+
 ### Zero-spawn strong form
 
 The library-backed VCS adapter reads git and jj **in-process**. Two mechanisms

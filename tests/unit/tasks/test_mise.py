@@ -39,6 +39,10 @@ _BUILD_SYSTEM_CHECK_GATES = ["lint:dispatch-coherence:check"]
 _LAUNCHER = "build:cli:dev"
 _INTEGRATION_PREFIX = "test:integration:"
 
+# The one lane whose dependencies are wholly external: a live tracker, its
+# credentials, and network egress.
+_CONTRACT_LANE = "test:integration:tracker-contract"
+
 # Integration tasks that reach the compiled launcher and so MUST carry the
 # build:cli:dev edge. All drive shell suites through accelerator_env(), except
 # hooks, whose surviving bash harness dispatches accelerator-vcs through the
@@ -61,7 +65,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:dev": "drives circusd with Python fake processes",
     "test:integration:deny": "cargo-deny over offline fixtures",
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
-    "test:integration:tracker-contract": "cargo nextest over a fake tracker",
+    "test:integration:tracker-contract": "cargo nextest against a live "
+    "tracker; reaches no accelerator binary",
     "test:integration:github": "shell suites run with no accelerator_env",
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
     "test:integration:zero-spawn:strong": "the same suite, with the real "
@@ -190,6 +195,16 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # release for the tree's own version. Owned by its own non-blocking job.
     "test:integration:measure": "live release fetch; quiet-host harness, "
     "owned by its own lane",
+    # Every provider client's contract binary talks to a real tenant, so the
+    # lane depends on credentials no CI job holds and no contributor
+    # necessarily has. Membership would put it under `test` -> `default` and
+    # fail every bare `mise run` on an unconfigured machine. The port's
+    # invariants are enforced offline instead, by each client's
+    # contract_offline binary in the default nextest profile; this lane is the
+    # live-tenant assurance beside it, and what proves it ran is the committed
+    # evidence file rather than its exit status.
+    "test:integration:tracker-contract": "live tracker credentials no CI job "
+    "holds; the offline conformance run is the enforcing route",
 }
 
 
@@ -248,6 +263,21 @@ def test_no_measure_reaching_task_is_in_the_ci_mirror(mise, root):
         f"{offenders} reach {_MEASURE_MODULE} from the transitive closure of "
         f"{root}.depends — every `mise run` would become a benchmark needing a "
         f"quiet host and network egress"
+    )
+
+
+@pytest.mark.parametrize("root", ["default", "test", "check"])
+def test_no_local_mirror_task_reaches_the_live_contract_lane(mise, root):
+    # The lane needs a real tenant, credentials no CI job holds and network
+    # egress. Reachable from any of these roots, an unconfigured machine could
+    # not run the local CI mirror at all — and the harness fails rather than
+    # skips by design, so there is no benign outcome. Roll-up membership alone
+    # would not catch a future edge added somewhere else in the closure.
+    closure = _transitive_depends(mise, root) | {root}
+
+    assert _CONTRACT_LANE not in closure, (
+        f"{_CONTRACT_LANE} is reachable from {root}.depends — every "
+        f"`mise run {root}` would then need live tracker credentials"
     )
 
 
