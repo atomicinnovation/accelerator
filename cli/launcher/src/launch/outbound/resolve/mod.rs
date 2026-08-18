@@ -6,6 +6,7 @@ pub mod cache_root;
 pub mod fetcher;
 pub mod keys;
 pub mod manifest;
+pub mod tree;
 pub mod verifier;
 
 use std::path::PathBuf;
