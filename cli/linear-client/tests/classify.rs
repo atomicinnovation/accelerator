@@ -143,11 +143,10 @@ fn every_row_classifies_per_operation() {
 
 #[test]
 fn the_two_hundred_body_auth_row_is_retryable_on_update() {
-    // _wiur_map_linear lists code 11 in its retryable clause, and the comment
-    // above it names only 34 as the terminal 200-body error. Making this
-    // terminal would tell the caller a provably-unapplied auth rejection may
-    // have mutated the remote, and change a push failure's exit code from 70
-    // to 71.
+    // Code 11 is retryable on update; only 34 is the terminal 200-body error.
+    // Making this terminal would tell the caller a provably-unapplied auth
+    // rejection may have mutated the remote, and change a push failure's exit
+    // code from 70 to 71.
     let error = classify(
         Outcome::SuccessWithErrors(GraphQlError::Auth),
         Operation::Update,

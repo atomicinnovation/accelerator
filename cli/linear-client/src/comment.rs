@@ -1,8 +1,7 @@
-//! Comment creation, transcribed from `linear-comment-flow.sh:126-128`.
+//! Comment creation.
 //!
-//! Linear comment bodies are Markdown-native (`linear-comment-flow.sh:14`), so
-//! there is no conversion layer in either direction — the body passes through
-//! verbatim.
+//! Linear comment bodies are Markdown-native, so there is no conversion layer
+//! in either direction — the body passes through verbatim.
 
 use serde_json::json;
 use serde_json::Value;

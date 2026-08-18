@@ -81,7 +81,7 @@ pub enum Node {
     Number(String),
     Text(String),
     Array(Vec<Node>),
-    /// A `BTreeMap`, so canonical output is key-sorted the way `jq -cS` is.
+    /// A `BTreeMap`, so canonical output is key-sorted.
     Object(BTreeMap<String, Node>),
 }
 
@@ -110,8 +110,8 @@ impl Node {
     /// Compact, key-sorted output, with every number emitted as the token it
     /// arrived as.
     ///
-    /// Strings are escaped by `serde_json`, so their rendering is identical to
-    /// the projection's previous behaviour and to the committed corpus.
+    /// Strings are escaped by `serde_json`, so their rendering matches the
+    /// committed corpus.
     #[must_use]
     pub fn canonical(&self) -> String {
         let mut out = String::new();

@@ -1,5 +1,4 @@
-//! The five-rung credential ladder both providers climb, transcribed from
-//! `jira-auth.sh:165-239` (`linear-auth.sh:177-250` is identical in shape).
+//! The five-rung credential ladder both providers climb.
 //!
 //! | # | Source | Notes |
 //! |---|---|---|
@@ -14,12 +13,12 @@
 //! consulted only when the personal one does not exist at all — not merely
 //! when it carries no token.
 //!
-//! Four deliberate divergences from the bash, each because the bash's
-//! behaviour is worse rather than because it is inconvenient:
+//! Four deliberate hardening choices, each made because the safer behaviour
+//! is worth it rather than for convenience:
 //!
-//! - a `token_cmd` in the shared config is **refused**, where the bash warns
-//!   and continues — a silently-ignored credential source is worse than a
-//!   loud one, and this follows `collaboration-cli`'s precedent
+//! - a `token_cmd` in the shared config is **refused** rather than warned
+//!   about and skipped — a silently-ignored credential source is worse than
+//!   a loud one
 //! - a `token_cmd` whose provenance file is VCS-tracked is refused: a
 //!   repository-relative `config.local.md` can simply be committed, and
 //!   `.gitignore` does not apply to an already-tracked file, so a hostile
@@ -373,8 +372,8 @@ fn level_value(
     })
 }
 
-/// The mode-0600 gate on the personal config file, with the bash's own
-/// override: `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
+/// The mode-0600 gate on the personal config file, with an override:
+/// `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
 /// `.claude/insecure-local-ok` is a regular, non-symlink, VCS-tracked file.
 fn refuse_insecure_personal_config(
     context: &CredentialContext<'_>,

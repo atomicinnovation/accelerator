@@ -8,14 +8,13 @@
 //! `jira.allowed_sites`.
 //!
 //! Suffix matching would accept `atlassian.net.evil.com` and
-//! `evil-atlassian.net`, which is the defect the Linear upload allowlist is
-//! written to avoid. Hosts are compared after `url`'s own IDNA
-//! normalisation, so a homoglyph form is compared in its punycode shape.
+//! `evil-atlassian.net`, so the host must match at a label boundary. Hosts
+//! are compared after `url`'s own IDNA normalisation, so a homoglyph form is
+//! compared in its punycode shape.
 //!
-//! The bash writes `jira.site` as a bare Cloud subdomain and builds
-//! `https://<site>.atlassian.net` from it (`jira-request.sh:240`). That form
-//! is still accepted — every already-working configuration keeps working —
-//! and the absolute-URL form exists for the self-hosted tenants
+//! A bare Cloud subdomain is accepted as `jira.site`, expanded to
+//! `https://<site>.atlassian.net` — every already-working configuration keeps
+//! working — and the absolute-URL form exists for the self-hosted tenants
 //! `jira.allowed_sites` is for.
 
 use config::ConfigAccess;

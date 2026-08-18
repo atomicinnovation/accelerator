@@ -325,10 +325,8 @@ fn the_keys_the_ladder_reads_are_jiras_own() {
 #[test]
 fn a_loopback_site_is_unreachable_through_config_whatever_the_environment() {
     let root = workspace();
-    // The bash implements its loopback escape hatch as ACCELERATOR_TEST_MODE=1
-    // plus ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST. Neither exists here: the
-    // test seam is the constructor, so no process state can turn the site
-    // validator off.
+    // No environment escape hatch exists: the test seam is the constructor,
+    // so no process state can turn the site validator off.
     let environment = FixedEnvironment::empty()
         .with("ACCELERATOR_JIRA_TOKEN", "t")
         .with("ACCELERATOR_TEST_MODE", "1")

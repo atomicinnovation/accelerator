@@ -1,6 +1,5 @@
-//! The behaviours the union of the launcher and github mock servers changed:
-//! `(method, path)` keying, request recording, and the stall response every
-//! read-timeout test depends on.
+//! The behaviours these tests pin down: `(method, path)` keying, request
+//! recording, and the stall response every read-timeout test depends on.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

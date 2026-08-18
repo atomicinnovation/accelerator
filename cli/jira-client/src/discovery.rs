@@ -1,12 +1,11 @@
-//! Init discovery, transcribed from `jira-init-flow.sh` and `jira-fields.sh`.
+//! Init discovery.
 //!
 //! The three GETs that populate the on-disk caches, returned as the cache
 //! shapes rather than written. Writing, locking and scaffold upkeep are
 //! composition concerns and live in [`crate::cache`].
 //!
-//! The interactive project-selection prompt (`jira-init-flow.sh:189-191`) is
-//! not ported — ADR-0045 forbids a client prompting — so `discover_projects`
-//! exposes the choices for the skill to render.
+//! No interactive project-selection prompt exists — a client does not prompt
+//! — so `discover_projects` exposes the choices for the skill to render.
 
 use reqwest::Method;
 use reqwest::Url;
@@ -141,8 +140,7 @@ fn field_entry(field: &Value) -> Value {
     entry
 }
 
-/// `.schema.custom` and `.schema.type`, kept only when one is present, matching
-/// the jq at `jira-fields.sh:66-69`.
+/// `.schema.custom` and `.schema.type`, kept only when one is present.
 fn schema_projection(field: &Value) -> Option<Value> {
     let custom = field.pointer("/schema/custom");
     let kind = field.pointer("/schema/type");
@@ -159,8 +157,8 @@ fn schema_projection(field: &Value) -> Option<Value> {
     Some(Value::Object(schema))
 }
 
-/// The slug recipe from `jira-fields.sh:62-65`: ASCII-lowercase, collapse every
-/// run of non-`[a-z0-9]` to a single `-`, then trim leading and trailing `-`.
+/// The slug recipe: ASCII-lowercase, collapse every run of non-`[a-z0-9]` to a
+/// single `-`, then trim leading and trailing `-`.
 fn slugify(name: &str) -> String {
     let mut slug = String::with_capacity(name.len());
     let mut pending_dash = false;

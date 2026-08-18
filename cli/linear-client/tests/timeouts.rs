@@ -1,5 +1,5 @@
-//! Timeout, page-cap and deadline behaviour, in Phase 5's asymmetric shape: a
-//! tight lower bound and a generous 3×T upper bound.
+//! Timeout, page-cap and deadline behaviour, in an asymmetric shape: a tight
+//! lower bound and a generous 3×T upper bound.
 
 #![allow(clippy::expect_used, clippy::panic)]
 

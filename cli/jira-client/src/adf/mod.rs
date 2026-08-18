@@ -1,12 +1,11 @@
-//! Both conversion directions between Atlassian Document Format and the
-//! bespoke Markdown subset the bash pipeline speaks.
+//! Both conversion directions between Atlassian Document Format and a
+//! bespoke Markdown subset.
 //!
 //! The dialect is not `CommonMark` and not ADF-complete: no text escaping, a
 //! fixed `code → em → strong → link` mark pipeline, `attrs.order` always 1 on
 //! the way in, seeded `localId`s, and silent drops for `strike`, `underline`
 //! and a `listItem`'s second and later children. No third-party crate
-//! reproduces it byte for byte, so it is hand-built and held to the running
-//! oracle by `tests/adf_differential.rs` for as long as the oracle exists.
+//! reproduces it byte for byte, so it is hand-built.
 //!
 //! The two directions accept different languages, deliberately. Rendering
 //! accepts a strictly larger one and degrades unknown nodes to a placeholder;
@@ -23,11 +22,6 @@ use std::fmt;
 use serde_json::Value;
 
 /// Why a conversion could not be performed.
-///
-/// The three `Unsupported*` variants and [`Self::BadInput`] are the bash's own
-/// exits 41 and 42. The remaining three are inputs on which the jq **aborts**
-/// — its message carries an input line number and its status is jq's own 5, so
-/// what this crate reproduces is the refusal, not the exit code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdfError {
     RootNotDoc { found: String },
@@ -40,7 +34,7 @@ pub enum AdfError {
 }
 
 impl AdfError {
-    /// The exit code the bash driver reports for this condition.
+    /// The exit code reported for this condition.
     #[must_use]
     pub const fn code(&self) -> u16 {
         match *self {
@@ -95,7 +89,7 @@ impl Error for AdfError {}
 
 /// The whole markdown-to-ADF pipeline: tokenise, then assemble.
 ///
-/// `seed` mirrors `JIRA_ADF_LOCALID_SEED`: `Some` gives the deterministic
+/// `seed` selects the localid form: `Some` gives the deterministic
 /// `00000000-0000-4000-8000-00000000000N` form, `None` the bare counter. It is
 /// a parameter rather than an environment read so a test needs no process
 /// state.
@@ -116,7 +110,7 @@ pub fn markdown_to_document(
 /// # Errors
 ///
 /// [`AdfError`] when the root is not a `doc`, a heading carries no level, or a
-/// list carries no content — the three shapes on which the oracle aborts.
+/// list carries no content.
 pub fn document_to_markdown(document: &Value) -> Result<String, AdfError> {
     render::to_markdown(document)
 }

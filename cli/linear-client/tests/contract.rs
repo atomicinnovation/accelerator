@@ -27,7 +27,7 @@ use tracker_support::{
 use tracker_test_support::contract::{run_all, ContractSubject};
 
 /// A live run resolves its token from the environment, where no provenance
-/// question arises; wiring the repository's own VCS is Phase 7's concern.
+/// question arises.
 struct NothingTracked;
 
 impl tracker_support::Provenance for NothingTracked {

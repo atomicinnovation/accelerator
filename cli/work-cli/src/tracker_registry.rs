@@ -73,9 +73,8 @@ pub trait TrackerRegistry {
 /// Answers `Provenance` for the credential trust boundary by reading whether a
 /// path is tracked in the repository at `root`, in-process.
 ///
-/// A read failure is treated as untracked — matching the bash oracle
-/// (`jira-auth.sh:90`), which returns false on any error — so an unreadable
-/// repository loosens the check rather than refusing every credential.
+/// A read failure is treated as untracked, so an unreadable repository
+/// loosens the check rather than refusing every credential.
 struct VcsProvenance {
     root: PathBuf,
     kind: VcsKind,

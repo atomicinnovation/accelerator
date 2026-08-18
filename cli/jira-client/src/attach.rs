@@ -1,13 +1,11 @@
-//! Attachment upload, transcribed from `jira-attach-flow.sh` and
-//! `jira-request.sh:315-320`: one `multipart/form-data` POST carrying
+//! Attachment upload: one `multipart/form-data` POST carrying
 //! `X-Atlassian-Token: no-check`, with one part per file.
 //!
-//! The bash performs its symlink and size checks as separate stat-then-open
-//! steps — a TOCTOU window in which a link can be repointed at a secret between
-//! the check and the read. Here each file is opened once and its type and size
-//! come from that handle's own metadata; attachment paths are confined to the
-//! repository root so a relative path cannot address an arbitrary readable
-//! file.
+//! Each file is opened once and its type and size come from that handle's own
+//! metadata, closing the check-then-read TOCTOU window in which a link could
+//! be repointed at a secret between a separate stat and open. Attachment paths
+//! are confined to the repository root so a relative path cannot address an
+//! arbitrary readable file.
 
 use std::fs::File;
 use std::io::Read as _;
@@ -22,7 +20,7 @@ use crate::multipart::Part;
 use crate::surface::SurfaceError;
 
 /// Jira Cloud's default per-file limit; over it the upload may be rejected, so
-/// a warning is emitted, matching `jira-attach-flow.sh:140`.
+/// a warning is emitted.
 const SIZE_WARN: u64 = 10 * 1024 * 1024;
 
 impl JiraClient {

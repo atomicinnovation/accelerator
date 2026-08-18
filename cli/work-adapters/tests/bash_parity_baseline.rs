@@ -1,5 +1,5 @@
 //! Keeps the committed bash-parity baseline describing the corpus it was
-//! taken against, so it cannot drift silently before 0212 reads it.
+//! taken against, so it cannot drift silently.
 
 #![allow(clippy::expect_used)]
 

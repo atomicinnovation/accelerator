@@ -6,11 +6,11 @@
 //! `serde_json::Value` would need a dependency `work`'s own
 //! import-restriction rule does not permit.
 //!
-//! [`project`] deliberately emits **no** trailing newline, where the bash
-//! `printf '%s\n%s\n'` emits one. The committed parity fixtures reconstruct
-//! the expected body line-wise and carry none either, so the asymmetry is
-//! load-bearing here; a caller populating `tracker::RemoteIssue.body`, whose
-//! port contract requires the newline, appends it.
+//! [`project`] deliberately emits **no** trailing newline. The committed
+//! parity fixtures reconstruct the expected body line-wise and carry none
+//! either, so the asymmetry is load-bearing here; a caller populating
+//! `tracker::RemoteIssue.body`, whose port contract requires the newline,
+//! appends it.
 
 pub mod json;
 
@@ -31,8 +31,7 @@ pub enum Op {
     Body,
 }
 
-/// `--integration <string>` parsing, matching the shell's exact accepted
-/// values (`jira`, `linear`).
+/// Parses `--integration <string>`, accepting only `jira` and `linear`.
 #[must_use]
 pub fn parse_integration(value: &str) -> Option<Integration> {
     match value {
@@ -46,17 +45,16 @@ fn string_at<'a>(value: &'a Value, pointer: &str) -> &'a str {
     value.pointer(pointer).and_then(Value::as_str).unwrap_or("")
 }
 
-/// A `jq -cS`-equivalent canonicalisation: compact, key-sorted. `serde_json`
-/// without the `preserve_order` feature already backs its object type with
-/// a `BTreeMap`, so `to_string` alone gives the same key-sorted,
-/// whitespace-free output `jq -cS` produces — no extra sorting step needed.
+/// Compact, key-sorted canonicalisation. `serde_json` without the
+/// `preserve_order` feature already backs its object type with a `BTreeMap`,
+/// so `to_string` alone gives key-sorted, whitespace-free output — no extra
+/// sorting step needed.
 fn canonicalise(value: &Value) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
 /// Projects `remote_json` into the comparable local shape. Always
-/// infallible: the shell's own `// ""`/`// null` defaults mean a missing
-/// field is never an error, only an empty result.
+/// infallible: a missing field yields an empty result rather than an error.
 #[must_use]
 pub fn project(
     integration: Integration,

@@ -1,8 +1,8 @@
-//! Comment operations, transcribed from `jira-comment-flow.sh`: `add` (POST),
-//! `list` (GET, offset pagination), `edit` (PUT) and `delete` (DELETE).
+//! Comment operations: `add` (POST), `list` (GET, offset pagination), `edit`
+//! (PUT) and `delete` (DELETE).
 //!
-//! `$EDITOR` and stdin body resolution stay out of the crate — ADR-0045 forbids
-//! an interactive surface in a client — so every operation takes an already
+//! `$EDITOR` and stdin body resolution stay out of the crate — a client
+//! exposes no interactive surface — so every operation takes an already
 //! resolved Markdown body, which the assembler converts to ADF.
 
 use reqwest::Method;
@@ -15,15 +15,15 @@ use crate::surface::SurfaceError;
 use crate::transport::Received;
 
 /// Comments per page when the caller names no size, and the inclusive bounds
-/// the endpoint accepts (`jira-comment-flow.sh:59,255`).
+/// the endpoint accepts.
 pub const DEFAULT_PAGE_SIZE: u32 = 50;
 const MIN_PAGE_SIZE: u32 = 1;
 const MAX_PAGE_SIZE: u32 = 100;
 
-/// The page cap, transcribed from `jira-comment-flow.sh:266`.
+/// The page cap.
 const MAX_PAGES: usize = 20;
 
-/// A visibility restriction on a comment (`jira-comment-flow.sh:166-168`).
+/// A visibility restriction on a comment.
 pub enum Visibility {
     Role(String),
     Group(String),
@@ -222,7 +222,6 @@ fn comment_payload(
     body: &str,
     visibility: Option<&Visibility>,
 ) -> Result<Value, SurfaceError> {
-    // The bash defaults an empty body to `{}` rather than converting.
     let document = if body.is_empty() {
         json!({})
     } else {

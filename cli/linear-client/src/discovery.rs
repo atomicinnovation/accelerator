@@ -1,12 +1,12 @@
-//! Init discovery, transcribed from `linear-init-flow.sh`.
+//! Init discovery.
 //!
 //! The three queries that populate the on-disk caches, returned as the cache
 //! shapes rather than written. Writing, locking and scaffold upkeep are
 //! composition concerns and live in [`crate::cache`].
 //!
-//! The interactive team selection (`linear-init-flow.sh:254`) is not ported —
-//! ADR-0045 forbids a client prompting — so [`LinearClient::list_teams`]
-//! exposes the choices for the skill to render.
+//! The interactive team selection is not ported — a client must not prompt —
+//! so [`LinearClient::list_teams`] exposes the choices for the skill to
+//! render.
 
 use serde_json::json;
 use serde_json::Value;

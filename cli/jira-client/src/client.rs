@@ -35,8 +35,7 @@ use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
 
-/// Jira's own bulk-read bounds, transcribed from
-/// `work-item-fetch-remote.sh:58-60`.
+/// Jira's own bulk-read bounds.
 const CHUNK: usize = 50;
 const PAGE_SIZE: u64 = 100;
 
@@ -180,10 +179,9 @@ impl JiraClient {
 
     /// One 50-key chunk, following the `nextPageToken` cursor.
     ///
-    /// The page cap is **per chunk**, matching
-    /// `work-item-fetch-remote.sh:110-141`: a global cap would mark whole
-    /// chunks indeterminate for a large corpus. A cap-hit, a deadline expiry
-    /// and a failure all resolve the same way — the chunk's keys become
+    /// The page cap is **per chunk**: a global cap would mark whole chunks
+    /// indeterminate for a large corpus. A cap-hit, a deadline expiry and a
+    /// failure all resolve the same way — the chunk's keys become
     /// indeterminate, never absent.
     fn fetch_chunk(
         &self,
@@ -407,8 +405,7 @@ impl RemoteTracker for JiraClient {
             absent: Vec::new(),
             indeterminate: Vec::new(),
         };
-        // The request is a set: duplicates are ignored, as `_wifr_linear_keys`
-        // does with `| unique`.
+        // The request is a set: duplicates are ignored.
         let mut seen = BTreeSet::new();
         let requested: Vec<&ExternalId> = ids
             .iter()

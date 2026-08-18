@@ -1,16 +1,14 @@
 //! Linear resolves a **token and a team**, and nothing else.
 //!
 //! A personal API key is user-scoped and grants access to every team the user
-//! belongs to, so there is no site and no email (`linear-auth.sh:13-15`).
+//! belongs to, so there is no site and no email.
 //!
-//! The team is the one value the bash never put in config. `linear-create-flow.sh:97-110`
-//! reads `.team.id` from the `catalogue.json` that `linear-init-flow.sh:184-196`
-//! writes, so every already-onboarded repository has a populated catalogue and
-//! no `linear.team_id`. Requiring the key outright would report an
-//! unconfigured tracker for users whose bash path works, and would leave one
-//! fact with two disagreeing sources of truth. Resolution is therefore the key
-//! first, then the catalogue — and the fallback goes when 0211 makes the key
-//! authoritative.
+//! The team is the one value that was historically not stored in config.
+//! `catalogue.json` carries `.team.id`, so an already-onboarded repository can
+//! have a populated catalogue and no `linear.team_id`. Requiring the key
+//! outright would report such a repository as an unconfigured tracker, and
+//! would leave one fact with two disagreeing sources of truth. Resolution is
+//! therefore the key first, then the catalogue.
 
 use std::path::Path;
 
@@ -115,14 +113,12 @@ fn catalogue_field(integrations_root: &Path, pointer: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// The malformed-token check, transcribed from `_linear_validate_token`
-/// (`linear-auth.sh:137-159`).
+/// The malformed-token check.
 ///
 /// A control byte is already refused by the shared ladder; the double-quote and
-/// backslash are Linear's own, because the bash writes the token into a
-/// `curl --config -` directive that either byte would corrupt. They are
-/// reproduced rather than dropped: the code they raise is re-exited verbatim by
-/// the transport and appears in the update mapper's retryable clause.
+/// backslash are Linear's own additions. They are reproduced rather than
+/// dropped: the code they raise is re-exited verbatim by the transport and
+/// appears in the update mapper's retryable clause.
 ///
 /// # Errors
 ///

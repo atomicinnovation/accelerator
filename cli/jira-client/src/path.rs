@@ -1,5 +1,4 @@
-//! Path validation, transcribed from `_req_validate_path`
-//! (`jira-request.sh:69-145`) — the conditions behind bash code 17.
+//! Path validation.
 //!
 //! Structure is checked on the encoded path; traversal is then checked again
 //! after each decoding round, up to a cap of eight. The two layers are what

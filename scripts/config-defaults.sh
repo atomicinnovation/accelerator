@@ -196,9 +196,9 @@ VISUALISER_DEFAULTS=(
   "8h"
 )
 
-# Integration and tool config keys read ad-hoc by their own consumers
-# (jira-auth.sh, linear-auth.sh, the visualiser launcher) rather than through the
-# catalogue. Two of them — jira.allowed_sites and linear.team_id — have no bash
+# Integration and tool config keys read ad-hoc by their own consumers rather
+# than through the catalogue. Two of them — jira.allowed_sites and
+# linear.team_id — have no bash
 # consumer at all: they are read only by the Rust provider clients, and live
 # here so `config dump` surfaces them and the documented surface matches the
 # shipped one. Unlike VISUALISER_KEYS above, these carry NO catalogue default — an

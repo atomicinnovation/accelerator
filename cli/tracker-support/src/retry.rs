@@ -1,5 +1,4 @@
-//! The bounded-retry schedule both providers run, transcribed from
-//! `jira-request.sh:404-430` (`linear-graphql.sh` carries the same block).
+//! The bounded-retry schedule both providers run.
 //!
 //! [`RetryPolicy::delay_for`] returns the delay as data rather than sleeping,
 //! and takes the hint per attempt because `Retry-After` arrives on each
@@ -24,8 +23,7 @@ pub trait Jitter {
     fn offset(&mut self, spread: u64) -> i64;
 }
 
-/// The production jitter: seeded from the clock, as the bash seeds itself
-/// from `$RANDOM ^ $(date +%s)`.
+/// The production jitter: seeded from the clock.
 pub struct ClockJitter;
 
 impl Jitter for ClockJitter {
@@ -76,9 +74,9 @@ impl RetryPolicy {
     /// The delay to take after `attempt` (1-based) failed, or `None` once the
     /// attempts are exhausted.
     ///
-    /// A `Retry-After` hint wins outright, clamped to 1s..=60s as the bash
-    /// clamps it; otherwise the delay is `2^(attempt - 1)` seconds with a
-    /// ±30% offset, clamped the same way.
+    /// A `Retry-After` hint wins outright, clamped to 1s..=60s; otherwise the
+    /// delay is `2^(attempt - 1)` seconds with a ±30% offset, clamped the same
+    /// way.
     pub fn delay_for(
         &self,
         attempt: usize,

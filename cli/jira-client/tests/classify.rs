@@ -13,9 +13,8 @@ const fn is_retryable(error: &TrackerError) -> bool {
     matches!(*error, TrackerError::Retryable { .. })
 }
 
-/// One row of the status table, transcribed from `jira-request.sh:363-442`:
-/// the observed outcome, the bash code it produces, and whether each
-/// operation can prove no mutation happened.
+/// One row of the status table: the observed outcome, the exit code it
+/// produces, and whether each operation can prove no mutation happened.
 struct StatusRow {
     outcome: Outcome,
     code: u16,
@@ -151,7 +150,7 @@ fn a_classification_names_the_provider_operation_and_code() {
     assert!(detail.contains("ABC-1"), "{detail}");
 }
 
-/// The committed transcription of the five bash mappers, filtered to Jira.
+/// One committed exit-code fixture row, filtered to Jira.
 struct FixtureRow {
     code: u16,
     operation: Operation,

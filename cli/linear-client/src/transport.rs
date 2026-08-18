@@ -1,10 +1,9 @@
 //! One endpoint, one method: `POST https://api.linear.app/graphql`.
 //!
-//! Transcribed from `linear-graphql.sh`. The bounds are the same shape as
-//! Jira's and asserted here rather than inherited by inspection, because this
-//! phase is independently mergeable: 30s per request
-//! (`linear-graphql.sh:519`), four attempts, the same jittered backoff, no
-//! redirects, and a bounded body read.
+//! The bounds are the same shape as Jira's and asserted here rather than
+//! inherited by inspection, because this crate is independently mergeable: 30s
+//! per request, four attempts, the same jittered backoff, no redirects, and a
+//! bounded body read.
 //!
 //! Query documents are hand-rolled strings with `serde_json` variables. Codegen
 //! was declined: `cynic` is MPL-2.0, `graphql_client` needs a 1.28 MB committed
@@ -155,10 +154,9 @@ impl Transport {
     ///
     /// A 200 carrying `errors[]` is **never** retried: re-issuing a
     /// non-idempotent mutation because its response reported an error is how a
-    /// duplicate gets created (`linear-graphql.sh:260-263`).
+    /// duplicate gets created.
     ///
-    /// A transport failure resolves on the first attempt with no retry, as the
-    /// bash exits 21 immediately.
+    /// A transport failure resolves on the first attempt with no retry.
     ///
     /// # Errors
     ///

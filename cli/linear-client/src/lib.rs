@@ -3,7 +3,7 @@
 //! a wire outcome into the port's `TrackerError`.
 //!
 //! No ADF layer: Linear is Markdown-native, so a body passes through verbatim
-//! in both directions (`linear-comment-flow.sh:14`).
+//! in both directions.
 
 pub mod attach;
 pub mod auth;

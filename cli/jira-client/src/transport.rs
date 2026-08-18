@@ -1,4 +1,4 @@
-//! The bounded HTTP transport, transcribed from `jira-request.sh:298-442`.
+//! The bounded HTTP transport.
 //!
 //! Every bound is a constructor parameter, never a post-construction setter: a
 //! `reqwest` client's timeout is fixed when the client is built, so a
@@ -114,9 +114,9 @@ impl Transport {
 
     /// Sends one request, retrying 429 and 5xx up to the policy's attempts.
     ///
-    /// A transport failure resolves on the first attempt with no retry, as the
-    /// bash exits 21 immediately: folding timeouts into the retry loop would
-    /// put the wall clock at four times the timeout plus backoffs.
+    /// A transport failure resolves on the first attempt with no retry:
+    /// folding timeouts into the retry loop would put the wall clock at four
+    /// times the timeout plus backoffs.
     ///
     /// # Errors
     ///
@@ -322,8 +322,7 @@ fn body_read_detail(error: &std::io::Error) -> String {
     }
     // reqwest boxes its own error opaquely inside the io::Error here, so a
     // stalled body read cannot be distinguished from a truncated one. Both are
-    // the same class — bash code 21 covers connect, DNS and timeout together —
-    // so the message says so rather than guessing which it was.
+    // the same class, so the message says so rather than guessing which it was.
     format!(
         "the response body could not be read — a stalled, truncated or \
          dropped body: {error}"

@@ -274,8 +274,7 @@ impl RemoteTracker for LinearClient {
         body: &str,
         _kind: &str,
     ) -> Result<ExternalId, TrackerError> {
-        // Linear has no per-issue type: `kind` has no destination, and the
-        // bash create flow sends none either.
+        // Linear has no per-issue type: `kind` has no destination.
         let variables = json!({"input": {
             "teamId": self.credentials().team_id,
             "title": title,

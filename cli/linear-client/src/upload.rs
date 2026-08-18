@@ -1,5 +1,5 @@
 //! The second transport: a raw `PUT` of file bytes to a URL the **server**
-//! nominated, transcribed from `linear-attach-flow.sh:126-186`.
+//! nominated.
 //!
 //! It is the one request in this crate that talks to a host the client did not
 //! choose, so its policy is deliberately different from the port transport's:
@@ -26,12 +26,12 @@ use crate::surface::SurfaceError;
 const UPLOADS_HOST: &str = "uploads.linear.app";
 const LINEAR_APP_SUFFIX: &str = ".linear.app";
 
-/// The bounded PUT retry, transcribed from `linear-attach-flow.sh:169`.
+/// The bounded PUT retry.
 const MAX_ATTEMPTS: usize = 3;
 
-/// The per-request timeout for the upload PUT, transcribed from
-/// `linear-attach-flow.sh:172`. Deliberately longer than the 30s port default:
-/// this is not a port operation, so the two do not contradict.
+/// The per-request timeout for the upload PUT. Deliberately longer than the
+/// 30s port default: this is not a port operation, so the two do not
+/// contradict.
 pub const UPLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The upload response bound. The PUT's response is small, but this is the one

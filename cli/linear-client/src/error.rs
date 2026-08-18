@@ -2,10 +2,9 @@
 //!
 //! Linear's auth band differs from Jira's: there is no site and no email, so
 //! no `E_AUTH_NO_SITE` (27) and no `E_AUTH_NO_EMAIL` (28). Linear's **27 is
-//! `E_TOKEN_MALFORMED`** — a token that would corrupt the `curl --config -`
-//! directive the bash writes. The check is reproduced because codes 25, 27 and
-//! 29 are re-exited verbatim by `linear-graphql.sh:481-489` and appear in
-//! `_wiur_map_linear`'s retryable clause.
+//! `E_TOKEN_MALFORMED`** — a token carrying a byte Linear refuses. The check
+//! is reproduced because codes 25, 27 and 29 are re-exited verbatim by the
+//! transport and appear in the update mapper's retryable clause.
 
 use thiserror::Error;
 use tracker_support::CredentialError;

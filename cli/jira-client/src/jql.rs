@@ -1,4 +1,4 @@
-//! JQL composition, transcribed from `jira-jql.sh`.
+//! JQL composition.
 //!
 //! Values are **quoted, never concatenated**. Identifiers reach this composer
 //! from work-item files, having originally come from a remote tracker; one
@@ -6,8 +6,8 @@
 //! change which issues the query returns — turning a targeted fetch into a
 //! project dump, or hiding issues that exist.
 //!
-//! The quoting is the oracle's: single quotes with any interior single quote
-//! doubled (`jira-jql.sh:76-81`), not double quotes with backslash escapes.
+//! The quoting uses single quotes with any interior single quote doubled, not
+//! double quotes with backslash escapes.
 
 use std::collections::BTreeMap;
 
@@ -23,8 +23,7 @@ pub trait AccountResolver {
 
 /// Resolves a field token to its `customfield_NNNNN` id.
 pub trait FieldResolver {
-    /// `None` means "not in the cache" — the token passes through to Jira, as
-    /// the bash does with a warning.
+    /// `None` means "not in the cache" — the token passes through to Jira.
     fn resolve(&self, token: &str) -> Option<String>;
 }
 
@@ -93,11 +92,10 @@ pub fn quote(value: &str) -> Result<String, ClientError> {
 
 /// The `key IN ('A-1', 'A-2')` clause `fetch_all` composes.
 ///
-/// The key clause is the **sole** filter. `work-item-fetch-remote.sh:26-30`
-/// passes `--all-projects` specifically so no injected `project = <default>`
-/// clause drops a cross-project key: an out-of-project key coming back unfound
-/// from a believed-complete read would be reported absent, and the sync would
-/// unlink a live issue.
+/// The key clause is the **sole** filter: no `project = <default>` clause is
+/// injected, so a cross-project key is never dropped. An out-of-project key
+/// coming back unfound from a believed-complete read would be reported absent,
+/// and the sync would unlink a live issue.
 ///
 /// # Errors
 ///
@@ -110,8 +108,7 @@ pub fn key_clause(keys: &[String]) -> Result<String, ClientError> {
     Ok(format!("key IN ({})", quoted.join(", ")))
 }
 
-/// A contains-match clause, `<field> ~ "<escaped>"`, transcribed from
-/// `jql_match` (`jira-jql.sh:162-172`).
+/// A contains-match clause, `<field> ~ "<escaped>"`.
 ///
 /// A different quoting from [`quote`]: Atlassian's double-quoted string rules,
 /// where `\` is escaped **before** `"` — reversing the order would double the
@@ -157,9 +154,8 @@ pub struct Search {
 
 /// Composes the search surface's JQL.
 ///
-/// Clause order is the oracle's: project, `IS EMPTY`, `IS NOT EMPTY`, each
-/// value family in its declared order, `watcher`, each text match, then any raw
-/// tail.
+/// Clause order: project, `IS EMPTY`, `IS NOT EMPTY`, each value family in its
+/// declared order, `watcher`, each text match, then any raw tail.
 ///
 /// # Errors
 ///

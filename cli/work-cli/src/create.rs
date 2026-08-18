@@ -1,7 +1,6 @@
 //! Adapter/binary wiring for `work create`: allocates the next ID under a
 //! per-directory lock, derives metadata, composes the frontmatter via
 //! `work::create::compose_frontmatter`, and performs one atomic write.
-//! `work create` has no bash original to inherit exit codes from.
 
 use std::path::Path;
 use std::path::PathBuf;

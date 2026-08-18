@@ -1,5 +1,5 @@
 //! Every rung of the credential ladder, and every hardening obligation the
-//! bash never carried.
+//! resolver enforces.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

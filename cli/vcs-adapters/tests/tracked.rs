@@ -1,6 +1,6 @@
 //! `InProcessProbe::is_tracked` against real jj/git repositories — the
 //! library-first counterpart of `git ls-files --error-unmatch` / `jj file
-//! list`, and the primitive the credential trust boundary (D12) rests on.
+//! list`, and the primitive the credential trust boundary rests on.
 #![cfg(feature = "bash-parity")]
 
 use std::fs;

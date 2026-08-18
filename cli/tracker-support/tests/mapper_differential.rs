@@ -7,9 +7,6 @@
 //! rather than skips when bash is unavailable — macOS and Linux both ship it,
 //! and a gate that passes when its tool is missing is exactly the failure mode
 //! the contract harness was built to avoid.
-//!
-//! 0212 deletes this test in the same commit that deletes the scripts it
-//! drives.
 
 #![allow(clippy::expect_used, clippy::panic)]
 

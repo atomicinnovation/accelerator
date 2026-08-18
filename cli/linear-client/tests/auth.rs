@@ -69,8 +69,8 @@ fn the_configured_key_outranks_the_catalogue() {
 
 #[test]
 fn an_already_onboarded_repository_resolves_from_the_catalogue() {
-    // No linear.team_id set, as every repository onboarded through the bash
-    // /init-linear has. Requiring the key would report this as unconfigured.
+    // No linear.team_id set, representing an already-onboarded repository.
+    // Requiring the key would report this as unconfigured.
     let root = workspace();
     let integrations = with_catalogue(root.path(), TEAM);
     let config = FixedConfig::new();

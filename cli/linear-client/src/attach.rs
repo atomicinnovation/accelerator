@@ -1,4 +1,4 @@
-//! Attachment creation, transcribed from `linear-attach-flow.sh`.
+//! Attachment creation.
 //!
 //! Link mode is one `attachmentCreate` mutation. Binary mode is three steps —
 //! `fileUpload` for a pre-signed URL, a raw PUT of the bytes to that URL
@@ -22,7 +22,7 @@ use crate::upload::url_is_allowed;
 use crate::upload::EchoedHeader;
 
 /// Linear's default per-file limit; over it the upload may be rejected, so a
-/// warning is emitted, matching `linear-attach-flow.sh:310`.
+/// warning is emitted.
 const SIZE_WARN: u64 = 10 * 1024 * 1024;
 
 const ATTACHMENT_CREATE: &str = "mutation($input: AttachmentCreateInput!) {

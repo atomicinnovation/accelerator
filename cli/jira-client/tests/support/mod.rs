@@ -55,7 +55,7 @@ impl config::ConfigAccess for FixedConfig {
         let found = match level {
             Some(Level::Personal) => self.personal.get(&name),
             Some(Level::Team) => self.team.get(&name),
-            // Full stack: personal over team, as the bash reads both files.
+            // Full stack: personal over team.
             None => self.personal.get(&name).or_else(|| self.team.get(&name)),
         };
         Ok(found.map_or(Resolved::Absent, |value| {

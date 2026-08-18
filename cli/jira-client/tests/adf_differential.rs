@@ -4,7 +4,7 @@
 //! The inventory and the fixtures were transcribed from the oracle by hand and
 //! the Rust was written to satisfy them, so the pair agrees with itself
 //! whether or not it agrees with the oracle. This removes that doubt while the
-//! assets are still on disk. 0212 deletes it alongside them.
+//! assets are still on disk.
 
 #![allow(clippy::expect_used, clippy::panic)]
 

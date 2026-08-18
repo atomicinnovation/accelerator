@@ -7,11 +7,7 @@
 //! lock-before-write, idempotent scaffold — is testable against a fake that can
 //! fail a write mid-flight or present a held lock. The production
 //! [`SystemFilesystem`] reuses the workspace's one atomic-write primitive and
-//! its one mkdir-lock rather than a second implementation of either. The lock
-//! mkdir's the same `.lock` path the bash `init` does, so the two mutually
-//! exclude during the 0210-to-0211 window; and its `owner.<nonce>` reclaim
-//! never matches the bash `holder.pid` sentinel, so neither steals the other's
-//! held lock.
+//! its one mkdir-lock rather than a second implementation of either.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -25,11 +21,10 @@ use store::NewFileMode;
 use store::WriteBounds;
 use thiserror::Error;
 
-/// The gitignored entries in a Jira state directory
-/// (`jira-common.sh:53-57`).
+/// The gitignored entries in a Jira state directory.
 const GITIGNORE_RULES: &[&str] = &["site.json", ".refresh-meta.json", ".lock/"];
 
-/// The lock directory name, shared with `jira_with_lock` so the two exclude.
+/// The lock directory name.
 const LOCK_DIR: &str = ".lock";
 
 #[derive(Debug, Error)]
@@ -93,7 +88,7 @@ impl<'a> JiraCache<'a> {
         Self { fs, state_dir }
     }
 
-    /// Writes `site.json` and refreshes the scaffold, as `_jira_verify` does.
+    /// Writes `site.json` and refreshes the scaffold.
     ///
     /// # Errors
     ///
@@ -103,8 +98,7 @@ impl<'a> JiraCache<'a> {
         self.ensure_scaffold()
     }
 
-    /// Writes `projects.json` and `fields.json` under one lock, as
-    /// `_jira_discover` does inside `jira_with_lock`.
+    /// Writes `projects.json` and `fields.json` under one lock.
     ///
     /// # Errors
     ///
@@ -153,9 +147,7 @@ impl<'a> JiraCache<'a> {
 ///
 /// Whole-file writes go through the store's one `atomic_write` primitive and
 /// the workspace's one mkdir-lock. Reusing both rather than reimplementing them
-/// is what the store-duplication guard enforces, and the lock's `owner.<nonce>`
-/// reclaim never touches the bash init's `holder.pid` sentinel, so the two
-/// exclude safely on the shared `.lock` path.
+/// is what the store-duplication guard enforces.
 pub struct SystemFilesystem {
     project_root: PathBuf,
     lock_options: LockOptions,

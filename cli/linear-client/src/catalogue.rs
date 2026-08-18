@@ -1,10 +1,9 @@
 //! The cache-backed [`StateResolver`], reading workflow states out of the
 //! `catalogue.json` that discovery writes.
 //!
-//! Name matching is case-insensitive and trimmed, transcribed from
-//! `linear-transition-flow.sh:116-134`: every state whose display name matches
-//! is collected, so a name two states share resolves ambiguously rather than
-//! silently picking one.
+//! Name matching is case-insensitive and trimmed: every state whose display
+//! name matches is collected, so a name two states share resolves ambiguously
+//! rather than silently picking one.
 
 use std::path::Path;
 
@@ -22,8 +21,7 @@ pub struct CatalogueStates {
 impl CatalogueStates {
     /// Loads the states from `<integrations_root>/linear/catalogue.json`,
     /// yielding an empty resolver when the catalogue is absent or unreadable —
-    /// the same "no catalogue, nothing resolves" outcome the bash reaches when
-    /// `catalogue.json` is missing.
+    /// so a missing catalogue resolves nothing rather than erroring.
     #[must_use]
     pub fn load(integrations_root: &Path) -> Self {
         let path = integrations_root.join("linear/catalogue.json");

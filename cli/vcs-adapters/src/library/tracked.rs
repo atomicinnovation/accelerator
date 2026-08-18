@@ -1,7 +1,5 @@
 //! In-process answer to "is this one repo-relative path tracked?" — git via
-//! the index, jj via the working-copy commit's tree. This is the library-first
-//! counterpart of the bash `_jira_is_vcs_tracked`
-//! (`skills/integrations/jira/scripts/jira-auth.sh:90`), which shells out to
+//! the index, jj via the working-copy commit's tree, matching
 //! `git ls-files --error-unmatch` / `jj file list`.
 //!
 //! The git side reads the index rather than a commit, so a path that is staged

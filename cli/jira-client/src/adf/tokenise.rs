@@ -1,5 +1,4 @@
-//! Markdown to the block-token stream, transcribed from
-//! `jira-md-tokenise.awk`.
+//! Markdown to the block-token stream.
 //!
 //! Two guards are reproduced with their quirks intact, because a work item's
 //! body already round-tripped through them: the table guard is narrow (a line
@@ -25,8 +24,7 @@ pub enum Token {
     HardBreak,
 }
 
-/// The token stream plus any non-fatal notices, which leave the exit status at
-/// zero exactly as the awk does.
+/// The token stream plus any non-fatal notices.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Tokenised {
     pub tokens: Vec<Token>,

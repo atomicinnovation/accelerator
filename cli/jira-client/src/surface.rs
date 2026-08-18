@@ -2,7 +2,7 @@
 //!
 //! These operations sit beyond the four `RemoteTracker` port methods — comment,
 //! transition, attach, discovery — and have no port of their own yet: the right
-//! shape is only visible once 0211 supplies a caller. Until then each returns
+//! shape is only visible once a caller exists. Until then each returns
 //! this concrete error, whose variants keep the distinctions a caller needs
 //! (a not-found transition from an ambiguous one, a refused filename from a
 //! failed request) rather than flattening them to a string.

@@ -205,8 +205,8 @@ fn the_real_lock_times_out_rather_than_stealing_a_bash_held_lock() {
     let dir = TempDir::new().expect("a temp dir");
     let lockdir = dir.path().join(".lock");
     std::fs::create_dir(&lockdir).expect("a pre-held lock");
-    // A bash holder writes holder.pid, which the owner.<nonce> reclaim never
-    // matches — so the lock is waited on, not stolen.
+    // A foreign holder writes holder.pid, which the owner.<nonce> reclaim
+    // never matches — so the lock is waited on, not stolen.
     std::fs::write(lockdir.join("holder.pid"), "999999\n")
         .expect("the bash sentinel is written");
 

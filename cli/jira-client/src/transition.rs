@@ -1,6 +1,5 @@
-//! Workflow transitions, transcribed from `jira-transition-flow.sh`: a GET to
-//! list the available transitions, a case-insensitive name match, then a POST
-//! to apply the resolved transition.
+//! Workflow transitions: a GET to list the available transitions, a
+//! case-insensitive name match, then a POST to apply the resolved transition.
 
 use reqwest::Method;
 use serde_json::json;

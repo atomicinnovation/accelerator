@@ -1,16 +1,11 @@
 //! The tracker-agnostic safety check on an identifier that will be written
 //! back into a work item's unquoted YAML frontmatter.
 //!
-//! Transcribed from `_wicr_identifier_safe`
-//! (`skills/work/scripts/work-item-create-remote.sh:62-87`). Scoped narrowly
-//! to what actually breaks an unquoted YAML scalar: `/`, `#` and `@` are
-//! permitted mid-token, because GitHub (`owner/repo#42`) and Trello
-//! identifiers legitimately carry them.
-//!
-//! One deliberate narrowing: the bash tests `[[:cntrl:]]` under `LC_ALL=C`,
-//! which is the C0 set plus DEL, while this accepts nothing `char::is_control`
-//! reports — so the C1 block is refused here and tolerated there. Refusing
-//! more than the oracle cannot corrupt a document the oracle accepted.
+//! Scoped narrowly to what actually breaks an unquoted YAML scalar: `/`, `#`
+//! and `@` are permitted mid-token, because GitHub (`owner/repo#42`) and
+//! Trello identifiers legitimately carry them. Every character
+//! `char::is_control` reports is refused, covering the C1 block as well as C0
+//! and DEL — refusing more can only keep a corrupting identifier out.
 
 use std::error::Error;
 use std::fmt;

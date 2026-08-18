@@ -1,17 +1,17 @@
 //! A hand-rolled content-type sniffer, shared by both providers' attachment
 //! uploads.
 //!
-//! The bash flows shell out to `file -b --mime-type` (and `curl` sniffs by
-//! extension); reproducing that with a dependency would enlarge the licence
-//! closure for a handful of magic numbers. The returned type is always from a
-//! **closed set** — never echoed from caller input — so a hostile filename or
-//! body cannot dictate the `Content-Type` a request carries.
+//! Hand-rolled rather than pulling in a dependency: matching a handful of
+//! magic numbers does not justify enlarging the licence closure. The returned
+//! type is always from a **closed set** — never echoed from caller input — so
+//! a hostile filename or body cannot dictate the `Content-Type` a request
+//! carries.
 
 /// The type returned when no signature matches and the sample is not text.
 pub const OCTET_STREAM: &str = "application/octet-stream";
 
 /// The number of leading bytes a text check inspects. A file larger than this
-/// is judged text on its opening bytes, as `file` judges on a bounded sample.
+/// is judged text on its opening bytes rather than by reading it whole.
 const TEXT_SAMPLE: usize = 8192;
 
 /// Infers a content type from a file's leading bytes.

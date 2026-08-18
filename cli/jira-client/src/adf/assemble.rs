@@ -1,4 +1,4 @@
-//! The block-token stream to ADF, transcribed from `jira-md-assemble.jq`.
+//! The block-token stream to ADF.
 //!
 //! Marks cannot nest except inside link text, which recurses and then appends
 //! the link mark to every child — giving the array order `[inner…, link]`.
@@ -12,7 +12,7 @@ use crate::adf::tokenise::Token;
 
 /// Assembles a `doc` from a token stream.
 ///
-/// `seed` mirrors `JIRA_ADF_LOCALID_SEED`: `Some` gives the deterministic
+/// `seed` selects the localid form: `Some` gives the deterministic
 /// `00000000-0000-4000-8000-00000000000N` form, `None` the bare counter as a
 /// string.
 #[must_use]
@@ -313,8 +313,8 @@ fn classify(token: &str) -> Vec<Value> {
         return vec![text_node(inner, &[json!({"type": "em"})])];
     }
     if let Some((label, href)) = link_parts(token) {
-        // The oracle's capture requires a non-empty label, and a token that
-        // fails it is silently dropped rather than emitted as text.
+        // A link requires a non-empty label; a token with an empty label is
+        // silently dropped rather than emitted as text.
         if label.is_empty() {
             return Vec::new();
         }
@@ -327,8 +327,8 @@ fn classify(token: &str) -> Vec<Value> {
     vec![text_node(token, &[])]
 }
 
-/// Strips one delimiter from each end, as the oracle's `$tok[n:-n]` does — so
-/// a one-character token yields an empty string.
+/// Strips one delimiter from each end, so a one-character token yields an
+/// empty string.
 fn strip_pair<'a>(token: &'a str, delimiter: &str) -> Option<&'a str> {
     if !token.starts_with(delimiter) {
         return None;

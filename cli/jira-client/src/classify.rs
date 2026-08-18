@@ -27,8 +27,7 @@ impl Operation {
     }
 }
 
-/// What the transport observed, in the terms `jira-request.sh:363-442`
-/// classifies on.
+/// What the transport observed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
     /// A response arrived with this status; 429 and 5xx here mean the retries
@@ -40,8 +39,8 @@ pub enum Outcome {
     Transport,
 }
 
-/// The bash exit code the same outcome produces, kept so a diagnostic can name
-/// the code a reader will find in the scripts and in `EXIT_CODES.md`.
+/// The exit code the same outcome produces, kept so a diagnostic can name a
+/// code readers already recognise.
 #[must_use]
 pub const fn bash_code(outcome: Outcome) -> u16 {
     match outcome {
@@ -71,11 +70,7 @@ pub fn classify(
     build(provably_unapplied, operation, bash_code(outcome), detail)
 }
 
-/// The bridge mappers' own tables.
-///
-/// Transcribed from `_wicr_map_jira` (`work-item-create-remote.sh:105-111`)
-/// and `_wiur_map_jira` (`work-item-update-remote.sh:51-57`), and driven by
-/// the committed fixture at
+/// The bridge mappers' own tables, driven by the committed fixture at
 /// `cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt`.
 #[must_use]
 pub fn classify_bash_code(

@@ -1,9 +1,8 @@
-//! Workflow transitions, transcribed from `linear-transition-flow.sh`.
+//! Workflow transitions.
 //!
 //! Unlike Jira there is no live transition lookup: the state name resolves to a
 //! UUID directly from the cached catalogue, and the same `issueUpdate` mutation
-//! the port's `update` uses carries it, with `stateId` as the input field
-//! (`:147-151`).
+//! the port's `update` uses carries it, with `stateId` as the input field.
 
 use serde_json::json;
 use serde_json::Value;

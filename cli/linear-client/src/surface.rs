@@ -1,11 +1,11 @@
 //! The error every provider-surface operation returns.
 //!
 //! These operations sit beyond the four `RemoteTracker` port methods — comment,
-//! transition, attach, discovery — and have no port of their own yet: the right
-//! shape is only visible once 0211 supplies a caller. Until then each returns
-//! this concrete error, whose variants keep the distinctions a caller needs (an
-//! unknown state from an ambiguous one, a refused upload host from a failed
-//! PUT) rather than flattening them to a string.
+//! transition, attach, discovery — and have no port of their own yet. Until
+//! one exists each returns this concrete error, whose variants keep the
+//! distinctions a caller needs (an unknown state from an ambiguous one, a
+//! refused upload host from a failed PUT) rather than flattening them to a
+//! string.
 
 use serde_json::Value;
 use thiserror::Error;

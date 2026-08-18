@@ -1,16 +1,13 @@
 //! Linear's classification **parses the response body**, not only the status.
 //!
-//! Transcribed from `linear-graphql.sh:99-141,250-336`. Three things a
-//! status-only classifier cannot reproduce:
+//! Three things a status-only classifier cannot reproduce:
 //!
 //! - a **200** can carry `errors[]`, and that is a failure
 //! - rate limiting arrives as **HTTP 400** with `"code": "RATELIMITED"`
 //! - complexity rejection has no machine-readable code, so the only signal is
 //!   the word `complexity` in a message
 //!
-//! Linear emits no 403, 404, 410 or 429 at all — those statuses are Jira-only,
-//! and codes 12-15, 17 and 19 are reserved in Linear's `EXIT_CODES.md` for
-//! exactly that reason.
+//! Linear emits no 403, 404, 410 or 429 at all — those statuses are Jira-only.
 
 use serde_json::Value;
 use tracker::TrackerError;
@@ -38,8 +35,7 @@ impl Operation {
 }
 
 /// How an `errors[]` array classifies. Order is load-bearing: auth, then
-/// complexity, then rate limit, then everything else
-/// (`_linear_classify_gql_error`).
+/// complexity, then rate limit, then everything else.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphQlError {
     Auth,
@@ -161,11 +157,7 @@ pub fn classify(
 
 /// The bridge mappers' own tables.
 ///
-/// Transcribed from `_wiur_map_linear` (`work-item-update-remote.sh:66-72`) and
-/// the two-layer create path — `_linear_map_no_file_failure`
-/// (`linear-create-flow.sh:177-182`) mapping its pre-send set to 108 and
-/// everything else to 109, which `_wicr_map_linear` then maps to retryable and
-/// terminal. Driven by the committed fixture at
+/// Driven by the committed fixture at
 /// `cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt`.
 #[must_use]
 pub fn classify_bash_code(

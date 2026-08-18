@@ -7,9 +7,7 @@
 //! lock-before-write, idempotent scaffold — is testable against a fake that can
 //! fail a write mid-flight or present a held lock. The production
 //! [`SystemFilesystem`] reuses the workspace's one atomic-write primitive and
-//! its one mkdir-lock rather than a second implementation of either, and the
-//! lock mkdir's the same `.lock` path the bash `init` does, so the two mutually
-//! exclude during the 0210-to-0211 window.
+//! its one mkdir-lock rather than a second implementation of either.
 //!
 //! Duplicated rather than shared with `jira-client`: the two clients may not
 //! import each other, and the shape carries no provider specifics that would
@@ -27,13 +25,13 @@ use store::NewFileMode;
 use store::WriteBounds;
 use thiserror::Error;
 
-/// The gitignored entries in the Linear state directory
-/// (`linear-common.sh:52-56`). `catalogue.json` is deliberately absent — team
-/// and states are team-scoped, not per-developer, so it is committed.
+/// The gitignored entries in the Linear state directory. `catalogue.json` is
+/// deliberately absent — team and states are team-scoped, not per-developer,
+/// so it is committed.
 const GITIGNORE_RULES: &[&str] =
     &["viewer.json", ".refresh-meta.json", ".lock/"];
 
-/// The lock directory name, shared with `linear_with_lock` so the two exclude.
+/// The lock directory name guarding the catalogue write.
 const LOCK_DIR: &str = ".lock";
 
 #[derive(Debug, Error)]
@@ -97,8 +95,7 @@ impl<'a> LinearCache<'a> {
         Self { fs, state_dir }
     }
 
-    /// Writes `viewer.json` and refreshes the scaffold, as `_linear_verify`
-    /// does.
+    /// Writes `viewer.json` and refreshes the scaffold.
     ///
     /// # Errors
     ///
@@ -108,8 +105,7 @@ impl<'a> LinearCache<'a> {
         self.ensure_scaffold()
     }
 
-    /// Writes `catalogue.json` under the advisory lock, as `_linear_discover`
-    /// does inside `linear_with_lock`.
+    /// Writes `catalogue.json` under the advisory lock.
     ///
     /// # Errors
     ///
@@ -153,10 +149,8 @@ impl<'a> LinearCache<'a> {
 /// The real filesystem.
 ///
 /// Whole-file writes go through the store's one `atomic_write` primitive and
-/// the workspace's one mkdir-lock. Reusing both rather than reimplementing them
-/// is what the store-duplication guard enforces, and the lock's `owner.<nonce>`
-/// reclaim never touches the bash init's `holder.pid` sentinel, so the two
-/// exclude safely on the shared `.lock` path.
+/// the workspace's one mkdir-lock. Reusing both rather than reimplementing
+/// them is what the store-duplication guard enforces.
 pub struct SystemFilesystem {
     project_root: PathBuf,
     lock_options: LockOptions,

@@ -1,4 +1,4 @@
-//! ADF to Markdown, transcribed from `jira-adf-render.jq`.
+//! ADF to Markdown.
 //!
 //! Untyped `serde_json::Value` end to end: a typed struct would reorder keys
 //! and its declaration-order serialisation would silently rehash every Jira
@@ -16,13 +16,13 @@ use crate::adf::AdfError;
 
 /// Renders a `doc` to the markdown subset, without a trailing newline.
 ///
-/// The bash driver's `jq -r` adds exactly one trailing newline for a non-empty
-/// document and none at all for an empty one; callers that need the driver's
-/// bytes add it back.
+/// The reference output has exactly one trailing newline for a non-empty
+/// document and none at all for an empty one; callers that need byte parity
+/// add it back.
 ///
 /// # Errors
 ///
-/// [`AdfError`] on the shapes the oracle aborts on.
+/// [`AdfError`] on an unrenderable shape.
 pub fn to_markdown(document: &Value) -> Result<String, AdfError> {
     let kind = document.get("type").and_then(Value::as_str);
     if kind != Some("doc") {
@@ -165,8 +165,8 @@ fn render_inline(node: &Value) -> String {
 /// `strong`, then `link`. Membership decides, not array order, so an ADF
 /// node's `marks` order is irrelevant and the nesting is always this one.
 ///
-/// A text node with no `.text` is not an error: jq's `null + x == x` leaves
-/// the delimiters around an empty string, which is what the oracle emits.
+/// A text node with no `.text` is not an error: the missing text is treated
+/// as an empty string, leaving any surrounding delimiters in place.
 fn render_text(node: &Value) -> String {
     let marks = node
         .get("marks")

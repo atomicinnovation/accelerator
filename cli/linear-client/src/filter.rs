@@ -1,4 +1,4 @@
-//! `IssueFilter` composition, transcribed from `linear-search-flow.sh:128-155`.
+//! `IssueFilter` composition.
 //!
 //! Linear's complexity is scored at 0.1 per property plus 1 per object,
 //! multiplied by a connection's page size, with a hard rejection above 10,000
@@ -49,8 +49,7 @@ pub struct Search {
     pub text: Option<String>,
 }
 
-/// The page size a fetch requests. 250 is Linear's bulk ceiling and the value
-/// `work-item-fetch-remote.sh:61` uses.
+/// The page size a fetch requests. 250 is Linear's bulk ceiling.
 pub const FETCH_PAGE_SIZE: u32 = 250;
 
 /// Composes the filter.

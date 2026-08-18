@@ -46,7 +46,7 @@ fn run(dir: &Path, args: &[&str]) -> Result<std::process::Output, TestError> {
         .env("ACCELERATOR_PLUGIN_ROOT", dir)
         .stdin(Stdio::null());
     // A credentialed machine must not resolve a real client and reach the
-    // network from the default suite (Phase 10's network-free goal).
+    // network from the default suite.
     common::scrub_provider_env(&mut command);
     Ok(command.output()?)
 }
