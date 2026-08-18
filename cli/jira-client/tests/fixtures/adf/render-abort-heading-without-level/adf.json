@@ -1,0 +1,15 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "heading",
+      "content": [
+        {
+          "type": "text",
+          "text": "no level"
+        }
+      ]
+    }
+  ]
+}

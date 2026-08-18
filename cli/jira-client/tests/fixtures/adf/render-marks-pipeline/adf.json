@@ -1,0 +1,92 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "code",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "em",
+          "marks": [
+            {
+              "type": "em"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "strong",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "both",
+          "marks": [
+            {
+              "type": "strong"
+            },
+            {
+              "type": "em"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "both-reversed",
+          "marks": [
+            {
+              "type": "em"
+            },
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "linked",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/a"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "all",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://x"
+              }
+            },
+            {
+              "type": "code"
+            },
+            {
+              "type": "strong"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

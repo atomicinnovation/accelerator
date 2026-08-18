@@ -1,0 +1,15 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "plain text with * and _ and ` unescaped"
+        }
+      ]
+    }
+  ]
+}

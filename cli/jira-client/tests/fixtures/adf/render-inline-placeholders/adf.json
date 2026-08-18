@@ -1,0 +1,41 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "emoji",
+          "attrs": {
+            "shortName": ":smile:"
+          }
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "1"
+          }
+        },
+        {
+          "type": "date",
+          "attrs": {
+            "timestamp": "0"
+          }
+        },
+        {
+          "type": "status",
+          "attrs": {
+            "text": "OPEN"
+          }
+        },
+        {
+          "type": "inlineCard",
+          "attrs": {
+            "url": "https://x"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# The bash aborts here rather than degrading to a placeholder. A jq
+# runtime error exits 5 and its message carries an input line number,
+# so the contract asserted is the class and the exit status, with the
+# observed message recorded for a human.
+bash_exit=5
+class=list-without-content
+# observed: jq: error (at <stdin>:11): null (null) has no keys

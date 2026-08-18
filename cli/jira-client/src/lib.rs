@@ -6,12 +6,16 @@
 //! phase — and no provider request construction for Jira belongs anywhere
 //! else.
 
+pub mod adf;
 pub mod auth;
 pub mod classify;
 pub mod error;
 pub mod path;
 pub mod transport;
 
+pub use crate::adf::document_to_markdown;
+pub use crate::adf::markdown_to_document;
+pub use crate::adf::AdfError;
 pub use crate::auth::resolve_credentials;
 pub use crate::auth::Credentials;
 pub use crate::classify::classify;

@@ -1472,7 +1472,7 @@ Byte-fidelity rules, transcribed from `jira-adf-render.jq`:
 - Bullet marker `- `, zero indent, items joined `\n` (R:61)
 - Ordered marker `<n>. ` where `n = index + (attrs.order // 1)`, zero indent,
   no padding (R:63-65)
-- Task marker `- [x] ` / `- [ ] `, exactly one space after the bracket (R:69)
+- Task marker `- [x] ` / `- [x] `, exactly one space after the bracket (R:69)
 - **No indentation anywhere** — nested structure is unrepresentable
 - Code fence exactly three backticks, language concatenated with **no
   separator**: `"```" + (.attrs.language // "")` (R:73)
@@ -1570,29 +1570,29 @@ someone will "fix" it, and the fix silently reclassifies corpus items.
 
 #### Automated Verification
 
-- [ ] The inventory fixture has a line for every node type and mark type in the
+- [x] The inventory fixture has a line for every node type and mark type in the
       table above, asserted by a test that cross-checks the fixture against the
       set of types the render and assemble code actually handles — an unlisted
       type fails the build
-- [ ] Both placeholder strings are asserted verbatim, in the correct positions
-- [ ] Every one of the four rejections is asserted with its exact code and
+- [x] Both placeholder strings are asserted verbatim, in the correct positions
+- [x] Every one of the four rejections is asserted with its exact code and
       message text
-- [ ] A round-trip test asserts the asymmetry rather than identity: render
+- [x] A round-trip test asserts the asymmetry rather than identity: render
       accepts every node type; assemble rejects three and is absent for the rest
-- [ ] `attrs.order` is 1 on assemble even for input `3. foo`
-- [ ] Empty `doc.content` renders to zero bytes
-- [ ] `a*b` assembles to three unmerged text nodes
-- [ ] A rejected href drops the mark and keeps the text bare
-- [ ] Each of the three render-abort conditions produces its typed error rather
+- [x] `attrs.order` is 1 on assemble even for input `3. foo`
+- [x] Empty `doc.content` renders to zero bytes
+- [x] `a*b` assembles to three unmerged text nodes
+- [x] A rejected href drops the mark and keeps the text bare
+- [x] Each of the three render-abort conditions produces its typed error rather
       than an invented default
-- [ ] The differential test agrees with the running jq and awk on every fixture
+- [x] The differential test agrees with the running jq and awk on every fixture
       case in both directions, asserts a non-zero comparison count, and fails
       when bash or jq is unavailable rather than skipping
-- [ ] Its committed sibling test proves it can fail, by feeding the comparison
+- [x] Its committed sibling test proves it can fail, by feeding the comparison
       function a wrong rendering and asserting the message names the rule
-- [ ] Every quirk test names `adf-fidelity-quirks.txt` as its rationale
-- [ ] `cd cli && cargo nextest run -p jira-client`
-- [ ] Full local mirror: `mise run`
+- [x] Every quirk test names `adf-fidelity-quirks.txt` as its rationale
+- [x] `cd cli && cargo nextest run -p jira-client`
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 

@@ -1,0 +1,27 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "codeBlock",
+      "attrs": {
+        "language": "rust"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "fn main() {}"
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "content": [
+        {
+          "type": "text",
+          "text": "no language"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "blockquote",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "quoted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "content": []
+    },
+    {
+      "type": "rule"
+    },
+    {
+      "type": "panel",
+      "attrs": {
+        "panelType": "info"
+      }
+    },
+    {
+      "type": "expand"
+    },
+    {
+      "type": "decisionList"
+    },
+    {
+      "type": "mediaSingle"
+    },
+    {
+      "type": "blockCard"
+    }
+  ]
+}
