@@ -12,7 +12,12 @@
 //! load-bearing here; a caller populating `tracker::RemoteIssue.body`, whose
 //! port contract requires the newline, appends it.
 
+pub mod json;
+
 use serde_json::Value;
+
+use crate::json::JsonError;
+use crate::json::Limits;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Integration {
@@ -79,6 +84,45 @@ pub fn project(
             format!("{title}\n{description}")
         }
     }
+}
+
+/// The same projection, from the response's raw bytes rather than a parsed
+/// `Value`, so a numeric literal survives verbatim.
+///
+/// `project` cannot preserve one: by the time a `Value` exists, `serde_json`
+/// has already re-rendered every number. The client reads a response body as
+/// text, so it can call this instead.
+///
+/// # Errors
+///
+/// [`JsonError`] when the payload is malformed or breaches a parse bound.
+pub fn project_raw(
+    integration: Integration,
+    op: Op,
+    remote_json: &str,
+) -> Result<String, JsonError> {
+    let node = json::parse(remote_json, &Limits::default())?;
+    let text = |pointer: &str| {
+        node.at(pointer).and_then(json::Node::as_text).unwrap_or("")
+    };
+    Ok(match (integration, op) {
+        (Integration::Jira, Op::Updated) => text("/fields/updated").to_owned(),
+        (Integration::Jira, Op::Body) => {
+            let summary = text("/fields/summary");
+            let description = node
+                .at("/fields/description")
+                .map_or_else(|| "null".to_owned(), json::Node::canonical);
+            format!("{summary}\n{description}")
+        }
+        (Integration::Linear, Op::Updated) => {
+            text("/data/issue/updatedAt").to_owned()
+        }
+        (Integration::Linear, Op::Body) => {
+            let title = text("/data/issue/title");
+            let description = text("/data/issue/description");
+            format!("{title}\n{description}")
+        }
+    })
 }
 
 #[cfg(test)]

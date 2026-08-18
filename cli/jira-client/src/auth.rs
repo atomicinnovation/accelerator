@@ -181,6 +181,18 @@ fn allowed_sites(
         .collect())
 }
 
+/// The Jira project a `create` targets, from `work.default_project_code` —
+/// the same key the work-item id pattern uses. There is no separate
+/// `jira.default_project_key`.
+///
+/// # Errors
+///
+/// [`ClientError::NoProject`] when the key is unset.
+pub fn project_code(config: &dyn ConfigAccess) -> Result<String, ClientError> {
+    configured(config, "work.default_project_code")?
+        .ok_or(ClientError::NoProject)
+}
+
 fn configured(
     config: &dyn ConfigAccess,
     name: &str,

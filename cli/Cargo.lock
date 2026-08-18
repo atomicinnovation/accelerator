@@ -2792,6 +2792,7 @@ dependencies = [
  "tracing",
  "tracker",
  "tracker-support",
+ "tracker-test-support",
 ]
 
 [[package]]
@@ -3843,6 +3844,8 @@ name = "remote-projection"
 version = "1.24.0-pre.42"
 dependencies = [
  "serde_json",
+ "sha2 0.10.9",
+ "work",
 ]
 
 [[package]]

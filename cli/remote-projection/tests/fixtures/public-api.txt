@@ -1,4 +1,62 @@
 pub mod remote_projection
+pub mod remote_projection::json
+pub enum remote_projection::json::JsonError
+pub remote_projection::json::JsonError::Depth
+pub remote_projection::json::JsonError::Depth::limit: usize
+pub remote_projection::json::JsonError::Malformed
+pub remote_projection::json::JsonError::Malformed::at: usize
+pub remote_projection::json::JsonError::NumberTooLong
+pub remote_projection::json::JsonError::NumberTooLong::limit: usize
+pub remote_projection::json::JsonError::StringTooLong
+pub remote_projection::json::JsonError::StringTooLong::limit: usize
+pub remote_projection::json::JsonError::Trailing
+pub remote_projection::json::JsonError::Trailing::at: usize
+impl core::clone::Clone for remote_projection::json::JsonError
+pub fn remote_projection::json::JsonError::clone(&self) -> remote_projection::json::JsonError
+impl core::cmp::Eq for remote_projection::json::JsonError
+impl core::cmp::PartialEq for remote_projection::json::JsonError
+pub fn remote_projection::json::JsonError::eq(&self, other: &remote_projection::json::JsonError) -> bool
+impl core::error::Error for remote_projection::json::JsonError
+impl core::fmt::Debug for remote_projection::json::JsonError
+pub fn remote_projection::json::JsonError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for remote_projection::json::JsonError
+pub fn remote_projection::json::JsonError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for remote_projection::json::JsonError
+pub enum remote_projection::json::Node
+pub remote_projection::json::Node::Array(alloc::vec::Vec<remote_projection::json::Node>)
+pub remote_projection::json::Node::Bool(bool)
+pub remote_projection::json::Node::Null
+pub remote_projection::json::Node::Number(alloc::string::String)
+pub remote_projection::json::Node::Object(alloc::collections::btree::map::BTreeMap<alloc::string::String, remote_projection::json::Node>)
+pub remote_projection::json::Node::Text(alloc::string::String)
+impl remote_projection::json::Node
+pub fn remote_projection::json::Node::as_text(&self) -> core::option::Option<&str>
+pub fn remote_projection::json::Node::at(&self, pointer: &str) -> core::option::Option<&Self>
+pub fn remote_projection::json::Node::canonical(&self) -> alloc::string::String
+impl core::clone::Clone for remote_projection::json::Node
+pub fn remote_projection::json::Node::clone(&self) -> remote_projection::json::Node
+impl core::cmp::Eq for remote_projection::json::Node
+impl core::cmp::PartialEq for remote_projection::json::Node
+pub fn remote_projection::json::Node::eq(&self, other: &remote_projection::json::Node) -> bool
+impl core::fmt::Debug for remote_projection::json::Node
+pub fn remote_projection::json::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for remote_projection::json::Node
+pub struct remote_projection::json::Limits
+pub remote_projection::json::Limits::max_depth: usize
+pub remote_projection::json::Limits::max_number_bytes: usize
+pub remote_projection::json::Limits::max_string_bytes: usize
+impl core::clone::Clone for remote_projection::json::Limits
+pub fn remote_projection::json::Limits::clone(&self) -> remote_projection::json::Limits
+impl core::cmp::Eq for remote_projection::json::Limits
+impl core::cmp::PartialEq for remote_projection::json::Limits
+pub fn remote_projection::json::Limits::eq(&self, other: &remote_projection::json::Limits) -> bool
+impl core::default::Default for remote_projection::json::Limits
+pub fn remote_projection::json::Limits::default() -> Self
+impl core::fmt::Debug for remote_projection::json::Limits
+pub fn remote_projection::json::Limits::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for remote_projection::json::Limits
+impl core::marker::StructuralPartialEq for remote_projection::json::Limits
+pub fn remote_projection::json::parse(text: &str, limits: &remote_projection::json::Limits) -> core::result::Result<remote_projection::json::Node, remote_projection::json::JsonError>
 pub enum remote_projection::Integration
 pub remote_projection::Integration::Jira
 pub remote_projection::Integration::Linear
@@ -25,3 +83,4 @@ impl core::marker::Copy for remote_projection::Op
 impl core::marker::StructuralPartialEq for remote_projection::Op
 pub fn remote_projection::parse_integration(value: &str) -> core::option::Option<remote_projection::Integration>
 pub fn remote_projection::project(integration: remote_projection::Integration, op: remote_projection::Op, remote_json: &serde_json::value::Value) -> alloc::string::String
+pub fn remote_projection::project_raw(integration: remote_projection::Integration, op: remote_projection::Op, remote_json: &str) -> core::result::Result<alloc::string::String, remote_projection::json::JsonError>

@@ -68,6 +68,16 @@ pub fn create_then_show_round_trips(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    create_then_show_round_trips_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn create_then_show_round_trips_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let created = tracker
         .create("Contract title", "Contract body\n", "story")
@@ -79,7 +89,6 @@ pub fn create_then_show_round_trips(
         !issue.body.is_empty(),
         "a freshly created issue must project a non-empty body"
     );
-    Ok(())
 }
 
 /// # Errors
@@ -89,6 +98,16 @@ pub fn update_replaces_whole_content(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    update_replaces_whole_content_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn update_replaces_whole_content_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let id = tracker
         .create("Original title", "Original body\n", "story")
@@ -107,7 +126,6 @@ pub fn update_replaces_whole_content(
         .body;
 
     assert_ne!(before, after, "update must replace the issue's content");
-    Ok(())
 }
 
 /// # Errors
@@ -118,12 +136,22 @@ pub fn fetch_all_partitions_totally(
     ids: &[ExternalId],
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    fetch_all_partitions_totally_property(subject, ids);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// See [`create_then_show_round_trips_property`].
+pub fn fetch_all_partitions_totally_property(
+    subject: &dyn ContractSubject,
+    ids: &[ExternalId],
+) {
     let outcome = subject
         .tracker()
         .fetch_all(ids)
         .expect("fetch_all must succeed for a conformant implementation");
     partitions_totally(&outcome, ids);
-    Ok(())
 }
 
 /// Inferring absence from an incomplete retrieval is what makes a sync
@@ -136,6 +164,18 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    unaccounted_id_is_indeterminate_not_absent_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn unaccounted_id_is_indeterminate_not_absent_property(
+    subject: &dyn ContractSubject,
+) {
     let unseen = subject.unaccountable_id();
     let outcome = subject
         .tracker()
@@ -149,7 +189,6 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
         outcome.indeterminate.contains(&unseen),
         "an id the retrieval could not account for must be reported indeterminate"
     );
-    Ok(())
 }
 
 /// A read mutates nothing, so the terminal class — "a mutation may have
@@ -162,6 +201,16 @@ pub fn a_failing_read_is_retryable(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    a_failing_read_is_retryable_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
     let id = subject.unreadable_id();
     let error = subject
         .tracker()
@@ -171,7 +220,6 @@ pub fn a_failing_read_is_retryable(
         !matches!(error, TrackerError::Terminal { .. }),
         "a read must never be classified terminal"
     );
-    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

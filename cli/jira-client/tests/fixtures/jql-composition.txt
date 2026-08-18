@@ -1,0 +1,45 @@
+# The search surface's JQL composition, one row per flag family and per
+# negation, transcribed from `jql_compose` (jira-jql.sh:193-322).
+#
+# A silently dropped family yields valid JQL over the WRONG issue set — a
+# silent-wrong-answer failure rather than a crash — so the test that reads this
+# file carries a row-coverage guard.
+#
+# Quoting is the oracle's: single quotes, with an interior single quote doubled.
+#
+# Spec grammar, semicolon separated:
+#   all                  all projects (no project clause)
+#   project=KEY          project clause
+#   <field>=v1,v2        a value family; a leading ~ negates that value
+#   watching             watcher = currentUser()
+#   text=VALUE           text contains-match
+#   empty=FIELD          FIELD IS EMPTY
+#   notempty=FIELD       FIELD IS NOT EMPTY
+#   raw=JQL              appended verbatim
+#
+# The resolvers the test injects: @me -> 5f:acct, `Story Points` ->
+# customfield_10016, and nothing else resolves.
+#
+# Columns: case <TAB> spec <TAB> expected JQL
+project	project=ENG	project = 'ENG'
+all-projects	all	
+status-positive	all;status=Open	status IN ('Open')
+status-negated	all;status=~Done	status NOT IN ('Done')
+status-both	all;status=Open,~Done	status IN ('Open') AND status NOT IN ('Done')
+labels	all;labels=infra,~stale	labels IN ('infra') AND labels NOT IN ('stale')
+assignee	all;assignee=alice	assignee IN ('alice')
+assignee-me	all;assignee=@me	assignee IN ('5f:acct')
+assignee-not-me	all;assignee=~@me	assignee NOT IN ('5f:acct')
+issuetype	all;issuetype=Bug,~Task	issuetype IN ('Bug') AND issuetype NOT IN ('Task')
+component	all;component=api	component IN ('api')
+reporter	all;reporter=~bob	reporter NOT IN ('bob')
+parent	all;parent=ENG-1	parent IN ('ENG-1')
+watching	all;watching	watcher = currentUser()
+text	all;text=needle	text ~ "needle"
+empty	all;empty=duedate	duedate IS EMPTY
+not-empty	all;notempty=assignee	assignee IS NOT EMPTY
+custom-field-resolved	all;empty=Story Points	customfield_10016 IS EMPTY
+custom-field-unresolved	all;empty=Unknown Field	Unknown Field IS EMPTY
+raw	all;raw=updated >= -7d	updated >= -7d
+project-and-status	project=ENG;status=Open	project = 'ENG' AND status IN ('Open')
+quote-doubling	all;status=it's	status IN ('it''s')

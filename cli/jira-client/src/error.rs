@@ -16,6 +16,11 @@ pub enum ClientError {
     NoSite,
     #[error("E_BAD_SITE: jira.site {site:?} is refused — {reason}")]
     BadSite { site: String, reason: String },
+    #[error(
+        "E_NO_PROJECT: work.default_project_code is not configured — a Jira \
+         create needs a project key"
+    )]
+    NoProject,
     #[error("E_AUTH_NO_EMAIL: jira.email is not configured")]
     NoEmail,
     #[error(
@@ -26,6 +31,10 @@ pub enum ClientError {
     AllowlistFromSharedConfig,
     #[error("{0}")]
     Credential(#[from] CredentialError),
+    #[error("{reason}")]
+    BadJql { reason: String },
+    #[error("E_BAD_IDENTIFIER: {identifier:?} is refused — {reason}")]
+    BadIdentifier { identifier: String, reason: String },
     #[error("E_REQ_BAD_PATH: {path:?} rejected — {reason}")]
     BadPath { path: String, reason: String },
     #[error("E_REQ_CONNECT: {detail}")]

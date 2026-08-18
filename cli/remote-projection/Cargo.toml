@@ -11,3 +11,7 @@ workspace = true
 
 [dependencies]
 serde_json = { workspace = true }
+
+[dev-dependencies]
+work = { path = "../work" }
+sha2 = { workspace = true }

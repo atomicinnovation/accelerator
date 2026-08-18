@@ -9,7 +9,9 @@
 pub mod adf;
 pub mod auth;
 pub mod classify;
+pub mod client;
 pub mod error;
+pub mod jql;
 pub mod path;
 pub mod transport;
 
@@ -21,6 +23,7 @@ pub use crate::auth::Credentials;
 pub use crate::classify::classify;
 pub use crate::classify::Operation;
 pub use crate::classify::Outcome;
+pub use crate::client::JiraClient;
 pub use crate::error::ClientError;
 pub use crate::transport::Received;
 pub use crate::transport::Transport;

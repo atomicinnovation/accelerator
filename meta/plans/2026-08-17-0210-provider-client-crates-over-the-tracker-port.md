@@ -1901,60 +1901,60 @@ substring and the rule name, plus a control carrying real imports.
 
 #### Automated Verification
 
-- [ ] All four port operations implemented against the port's own signatures —
+- [x] All four port operations implemented against the port's own signatures —
       `show` returns `Result<RemoteIssue, TrackerError>` and a 404 is `Retryable`,
       not an absence: `cd cli && cargo nextest run -p jira-client`
-- [ ] Each of the four malformed-identifier shapes returns `Terminal`: empty, a
+- [x] Each of the four malformed-identifier shapes returns `Terminal`: empty, a
       control character, LF/CR/TAB, leading `---`, leading `#` after optional
       whitespace
-- [ ] `/`, `#` and `@` mid-token are accepted
-- [ ] Identifier safety runs on ids from the local corpus, not only on `create`
+- [x] `/`, `#` and `@` mid-token are accepted
+- [x] Identifier safety runs on ids from the local corpus, not only on `create`
       responses; a traversal-bearing and a `?`-bearing issue key are each
       rejected before any request is sent
-- [ ] Every interpolated path segment is percent-encoded, and the path validator
+- [x] Every interpolated path segment is percent-encoded, and the path validator
       runs over the final composed path
-- [ ] An empty `ids` request makes zero remote calls
-- [ ] Duplicate ids are deduplicated before composition
-- [ ] The page cap is applied per 50-id chunk, not globally
-- [ ] Hostile identifiers (`X") OR project = FOO --`) leave exactly one bounded
+- [x] An empty `ids` request makes zero remote calls
+- [x] Duplicate ids are deduplicated before composition
+- [x] The page cap is applied per 50-id chunk, not globally
+- [x] Hostile identifiers (`X") OR project = FOO --`) leave exactly one bounded
       `key in` clause in the composed body
-- [ ] `fetch_all`'s JQL carries no `project =` clause
-- [ ] The JQL fixture covers all ten flag families, each negation, `@me`
+- [x] `fetch_all`'s JQL carries no `project =` clause
+- [x] The JQL fixture covers all ten flag families, each negation, `@me`
       resolution and an unresolvable field token, under a row-coverage guard
-- [ ] The adversarial-scalar table matches the pinned `jq -cS` for every row, with
+- [x] The adversarial-scalar table matches the pinned `jq -cS` for every row, with
       the jq version recorded in the fixture header and any accepted divergence
       listed explicitly
-- [ ] `serde_json`'s feature set is unchanged workspace-wide — `arbitrary_precision`
+- [x] `serde_json`'s feature set is unchanged workspace-wide — `arbitrary_precision`
       is absent from the graph
-- [ ] `RemoteIssue.body` ends in exactly one newline, while the moved parity test
+- [x] `RemoteIssue.body` ends in exactly one newline, while the moved parity test
       still compares `project(...)` without one
-- [ ] An id containing a legitimate `/` survives encoding and validation, while a
+- [x] An id containing a legitimate `/` survives encoding and validation, while a
       traversal and a double-encoded traversal are both refused
-- [ ] Equality against `case-jira` and `case-jira-reordered`'s line-reconstructed
+- [x] Equality against `case-jira` and `case-jira-reordered`'s line-reconstructed
       bodies (the fixtures are keyed metadata, not raw bodies), with the trailing
       newline asserted separately on `RemoteIssue.body`
-- [ ] Key-order invariance: the two projections equal each other
-- [ ] sha256-after-normalise equals the committed `remote_hash` for
+- [x] Key-order invariance: the two projections equal each other
+- [x] sha256-after-normalise equals the committed `remote_hash` for
       `case-jira-adf` and `case-jira-no-description`
-- [ ] The absent-description golden ends in the literal `null`, with no blank
+- [x] The absent-description golden ends in the literal `null`, with no blank
       line before the description and a trailing newline
-- [ ] `NotReported` for absent, `null` and empty-string stamps; `Reported` with
+- [x] `NotReported` for absent, `null` and empty-string stamps; `Reported` with
       bytes unaltered for `2026-01-01T00:00:00.000+0000`
-- [ ] Neither `show` nor `fetch_all` returns before T at T = 400ms and T = 1s,
+- [x] Neither `show` nor `fetch_all` returns before T at T = 400ms and T = 1s,
       each returns within 3×T, and the failure is a timeout variant — `show`
       failing, `fetch_all` `Ok` with all ids `indeterminate`
-- [ ] Default timeout asserts 30s; page cap asserts 20
-- [ ] A 21-page fixture stops at 20 and reports unseen ids `indeterminate`, not
+- [x] Default timeout asserts 30s; page cap asserts 20
+- [x] A 21-page fixture stops at 20 and reports unseen ids `indeterminate`, not
       `absent`
-- [ ] The operation deadline fires on a fixture whose pages are individually
+- [x] The operation deadline fires on a fixture whose pages are individually
       inside the request timeout, degrading to `Ok` all-`indeterminate`
-- [ ] JQL composition is pinned by request-body assertions via
+- [x] JQL composition is pinned by request-body assertions via
       `MockServer::last_body`
-- [ ] The offline contract conformance run passes for `JiraClient` against a
+- [x] The offline contract conformance run passes for `JiraClient` against a
       mock, in the default profile — partition totality, read-never-terminal and
       the create/show round-trip — and asserts a non-zero count of properties
       actually executed
-- [ ] `ContractSubject`'s gated wrappers still refuse when the gate is closed;
+- [x] `ContractSubject`'s gated wrappers still refuse when the gate is closed;
       `every_tracker_touching_entry_point_refuses_when_the_gate_is_closed` and
       `gated_calls()` both still pass after the ungated split
 - [ ] The default profile selects no binary named exactly `contract`, and **does**
@@ -1962,12 +1962,12 @@ substring and the rule name, plus a control carrying real imports.
       --message-format json` filtered by exact binary name. A substring grep
       cannot express this, since `nextest.toml` filters on `binary(=contract)`
       by design and `contract_offline` legitimately contains the substring
-- [ ] The pup probe pair passes: `mise run test:integration:pup`
-- [ ] `cli/tracker/src`, `cli/tracker/Cargo.toml` and
+- [x] The pup probe pair passes: `mise run test:integration:pup`
+- [x] `cli/tracker/src`, `cli/tracker/Cargo.toml` and
       `cli/tracker/tests/fixtures/public-api.txt` are all unchanged — the gate is
       those paths, not the whole directory, since no phase adds anything under
       `cli/tracker/`
-- [ ] Full local mirror: `mise run`
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 

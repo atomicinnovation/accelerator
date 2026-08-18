@@ -221,7 +221,7 @@ impl Transport {
         let mut bounded = response.take(limit as u64 + 1);
         bounded.read_to_end(&mut buffer).map_err(|error| {
             ClientError::Transport {
-                detail: format!("the response body could not be read: {error}"),
+                detail: body_read_detail(&error),
             }
         })?;
         if buffer.len() > limit {
@@ -252,6 +252,31 @@ fn retry_after(response: &reqwest::blocking::Response) -> Option<Duration> {
         .parse::<u64>()
         .ok()
         .map(Duration::from_secs)
+}
+
+/// A stalled body read surfaces as an `io::Error` wrapping the transport's own
+/// error, so the timeout has to be recovered from the source chain — otherwise
+/// a read that timed out reports only "error decoding response body", and the
+/// timeout suites cannot tell it from a malformed payload.
+fn body_read_detail(error: &std::io::Error) -> String {
+    let mut source: Option<&(dyn std::error::Error + 'static)> = Some(error);
+    while let Some(current) = source {
+        if let Some(transport) = current.downcast_ref::<reqwest::Error>() {
+            return connect_detail(transport);
+        }
+        source = current.source();
+    }
+    if error.kind() == std::io::ErrorKind::TimedOut {
+        return "the request timed out".to_owned();
+    }
+    // reqwest boxes its own error opaquely inside the io::Error here, so a
+    // stalled body read cannot be distinguished from a truncated one. Both are
+    // the same class — bash code 21 covers connect, DNS and timeout together —
+    // so the message says so rather than guessing which it was.
+    format!(
+        "the response body could not be read — a stalled, truncated or \
+         dropped body: {error}"
+    )
 }
 
 fn connect_detail(error: &reqwest::Error) -> String {
