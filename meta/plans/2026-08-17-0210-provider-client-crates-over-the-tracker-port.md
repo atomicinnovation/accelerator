@@ -408,7 +408,7 @@ end to end at the time of its commit. Phase 8 is next.
 | 5 — `jira-client` `impl RemoteTracker` | done | `8fe8521a` | 110 total, 26 in `remote-projection` |
 | 6a — `linear-client` foundation | done | `7adda8a3` | 34 |
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
-| 7 — Composition root | done | | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
+| 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | not started | | |
 | 9 — Linear provider surface | not started | | |
 | 10 — Enforcement close-out | not started | | |
