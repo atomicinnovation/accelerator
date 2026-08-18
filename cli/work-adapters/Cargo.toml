@@ -32,3 +32,8 @@ tempfile = { workspace = true }
 remote-projection = { path = "../remote-projection" }
 tracker-test-support = { path = "../tracker-test-support" }
 vcs-test-support = { path = "../vcs-test-support" }
+jira-client = { path = "../jira-client" }
+linear-client = { path = "../linear-client" }
+tracker-support = { path = "../tracker-support" }
+http-test-support = { path = "../http-test-support" }
+reqwest = { workspace = true }

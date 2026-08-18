@@ -28,6 +28,8 @@ set -euo pipefail
 #      idempotent, unlike create, so the hazard is uncertainty, not double-apply.)
 #   72 not-available — trello/github-issues update not built.
 #   73 unrecognised <sys> — fail closed.
+#   74 unconfigured — tracker wired but its configuration or credentials are
+#      missing; nothing sent, so fix the config rather than reconcile.
 
 _WIUR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=skills/work/scripts/work-item-bridge-codes.sh

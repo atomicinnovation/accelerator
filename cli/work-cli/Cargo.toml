@@ -24,13 +24,20 @@ path = "src/main.rs"
 work = { path = "../work" }
 work-adapters = { path = "../work-adapters" }
 tracker = { path = "../tracker" }
+tracker-support = { path = "../tracker-support" }
+jira-client = { path = "../jira-client" }
+linear-client = { path = "../linear-client" }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
 document = { path = "../document" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+http-test-support = { path = "../http-test-support" }

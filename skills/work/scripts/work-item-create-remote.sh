@@ -41,6 +41,9 @@ set -euo pipefail
 #       72  E_DISPATCH_NOT_AVAILABLE  trello/github-issues: no create path yet
 #       73  E_DISPATCH_UNRECOGNISED   <sys> not in {linear,jira,trello,github-issues}
 #                                     or empty — fail closed
+#       74  E_DISPATCH_UNCONFIGURED   tracker wired but its configuration or
+#                                     credentials are missing — nothing sent, save
+#                                     locally and fix the config
 #   - the integration's own error text is surfaced on stderr alongside the mapped code.
 
 _WICR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

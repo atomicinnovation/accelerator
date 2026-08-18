@@ -1,9 +1,10 @@
 # The dispatch exit-code taxonomy, held against TrackerError's two classes.
 #
-# 70 and 71 are the two classes the port expresses. 72 and 73 are
+# 70 and 71 are the two classes the port expresses. 72, 73 and 74 are
 # dispatch-routing outcomes that resolve ABOVE the port, at the composition
 # root selecting Box<dyn RemoteTracker> from work.integration: if the config
-# names a tracker with no client there is no port call to make.
+# names a tracker with no client, or a wired tracker whose credentials are
+# missing, there is no port call to make.
 #
 # This pins the taxonomy's membership. Which class a given wire condition
 # maps to is operation-scoped — see TrackerError's doc comment.
@@ -11,3 +12,4 @@ E_DISPATCH_RETRYABLE=70 Retryable
 E_DISPATCH_TERMINAL=71 Terminal
 E_DISPATCH_NOT_AVAILABLE=72 above-the-port
 E_DISPATCH_UNRECOGNISED=73 above-the-port
+E_DISPATCH_UNCONFIGURED=74 above-the-port

@@ -17,6 +17,7 @@ defined once in the sourced `work-item-bridge-codes.sh` (the single owner) so th
 | 71   | `E_DISPATCH_TERMINAL`      | Failure **at or after** a mutation (response lost/invalid). **NOT safe to auto-retry.** Read bridges never emit this.                                            |
 | 72   | `E_DISPATCH_NOT_AVAILABLE` | Tracker recognised but the operation is not built yet (`trello` / `github-issues`).                                                                              |
 | 73   | `E_DISPATCH_UNRECOGNISED`  | `<sys>` not in `{linear, jira, trello, github-issues}`, or empty. **Fail closed.**                                                                               |
+| 74   | `E_DISPATCH_UNCONFIGURED`  | Tracker recognised and wired, but its configuration or credentials are missing or refused. Nothing was sent — save locally and fix the config, never reconcile.  |
 
 ## `work-item-create-remote.sh` — push dispatcher taxonomy
 
@@ -33,6 +34,7 @@ must never be retried.
 | 71   | `E_DISPATCH_TERMINAL`       | Failure **at or after** the mutation (request sent; response/identifier lost or invalid). A remote issue **may already exist** — **NOT safe to retry.** |
 | 72   | `E_DISPATCH_NOT_AVAILABLE`  | `trello` / `github-issues`: no create path is built yet (work items 0049 / 0050).             |
 | 73   | `E_DISPATCH_UNRECOGNISED`   | `<sys>` is not one of `{linear, jira, trello, github-issues}`, or is empty. **Fail closed.**   |
+| 74   | `E_DISPATCH_UNCONFIGURED`   | Tracker wired but its configuration or credentials are missing or refused. Nothing was sent — **save locally and fix the config**, not reconcile. |
 
 Per-integration mapping (native code → taxonomy):
 
@@ -59,7 +61,7 @@ attempt number, and a post-dispatcher write-result flag:
 |-----------------|-------------------------------------------------------------------------------|
 | `write-once`    | dispatcher `0` and the local Write has not failed                             |
 | `retry`         | dispatcher `70` on the first attempt (offer exactly one retry)                |
-| `local-save`    | dispatcher `70` after the retry is exhausted, or `72`/`73`                     |
+| `local-save`    | dispatcher `70` after the retry is exhausted, or `72`/`73`/`74`                |
 | `loud-terminal` | dispatcher `71`, or dispatcher `0` but the single local Write then failed      |
 
 ## `work-item-fetch-remote.sh` — read bridge

@@ -396,8 +396,8 @@ This table is reproduced in 0211's deletion gate so the sibling can check it off
 
 ## Implementation Progress
 
-Phases 1 to 6b are implemented and committed; each landed with `mise run` green
-end to end at the time of its commit. Phase 7 is next.
+Phases 1 to 7 are implemented and committed; each landed with `mise run` green
+end to end at the time of its commit. Phase 8 is next.
 
 | Phase | Status | Commit | Tests added |
 |---|---|---|---|
@@ -408,7 +408,7 @@ end to end at the time of its commit. Phase 7 is next.
 | 5 — `jira-client` `impl RemoteTracker` | done | `8fe8521a` | 110 total, 26 in `remote-projection` |
 | 6a — `linear-client` foundation | done | `7adda8a3` | 34 |
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
-| 7 — Composition root | not started | | |
+| 7 — Composition root | done | | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | not started | | |
 | 9 — Linear provider surface | not started | | |
 | 10 — Enforcement close-out | not started | | |
@@ -513,6 +513,50 @@ status is a `TrackerError`, not a client error — and gained `TlsUnavailable`,
 std-only pup rule to admit `tracker_support`. These are test doubles rather than
 the policy D9 exists to keep from drifting.
 
+**Phase 7 — the production `Provenance` did not exist and was built here.** D12
+and Phase 3 assert "`cli/vcs` provides [VCS-tracked detection] natively"; it did
+not — there was no per-path tracked primitive anywhere, and every `Provenance`
+was a test double. So Phase 7 adds `InProcessProbe::is_tracked`
+(`cli/vcs-adapters/src/library/tracked.rs`): git via the index (`entry_by_path`),
+jj via the working-copy commit's tree (`path_value`, no snapshot, no write),
+mirroring `dirty_paths.rs`. `work-cli`'s `VcsProvenance` wraps it, treating a
+read failure as untracked to match the bash oracle. The `vcs-settings` lint
+gained a `tracked.rs` exemption: reading a commit's *tree* needs a loaded repo
+(`RepoLoader::load_at_head` → `UserSettings`), which the settings-free op-store
+route — yielding only the commit id — cannot reach. Both use jj-lib's own
+`with_defaults`, outside the private-defaults fragility the lint guards.
+
+**Phase 7 — `from_config` takes a `CredentialContext`, not `&dyn ConfigAccess`.**
+The plan's registry sketch (`JiraClient::from_config(self.config)`) predates the
+signatures Phases 3/6a landed: `JiraClient::from_config(&CredentialContext)` and
+`LinearClient::from_config(&CredentialContext, &Path)`. `ConfiguredTrackers`
+therefore takes the repo root too — `new(config, root)`, computed at each of the
+three call sites via `FileConfigStore::discover_root` — assembles the full
+context (mirroring the contract harnesses), and resolves Linear's
+`integrations_root` via `crate::sync::integrations_dir`.
+
+**Phase 7 — `dispatch-codes.txt` gains a 74 row, contradicting one stale
+criterion.** The plan's Changes section mandates adding
+`E_DISPATCH_UNCONFIGURED=74 above-the-port`; a leftover success-criterion line
+said the file was "deliberately unchanged". The Changes reasoning (74 is the
+same above-the-port species as 72/73, and the fixture pins taxonomy membership)
+wins. `cli/tracker/tests/errors.rs` stays green — its count guard tallies only
+`Class`-tagged rows.
+
+**Phase 7 — the work-cli real-client test asserts the resolution boundary, not a
+mocked 401.** `accelerator-work` is bin-only and `from_config` refuses a
+loopback base (that admission is a constructor parameter only), so a subprocess
+cannot point a resolved client at a mock. `sync_resolves_real_client.rs` instead
+proves resolution network-free — credentials + an empty corpus → exit 0, a
+scrubbed token → 74 — and the end-to-end 401/classification/truncation
+assertions live in `work-adapters/tests/sync_run_real_client.rs`, where a client
+is built directly against a `MockServer`.
+
+**Phase 7 — the env-scrub set derives four names, not five.** The four token
+env vars come from each client's `token_keys()`; `ACCELERATOR_ALLOW_INSECURE_LOCAL`
+has no `TokenKeys` field (it is the fifth-rung gate) and is a literal.
+`the_scrubbed_set_is_derived_from_the_token_ladders` pins the derivation.
+
 ### Outstanding
 
 - **One automated criterion is deliberately unticked** (Phase 5): the
@@ -525,8 +569,10 @@ the policy D9 exists to keep from drifting.
   `contract_offline` is observably selected by the default profile.
 - **Every manual-verification item in Phases 5 and 6b remains open.** All of
   them need a credentialed tenant, which this machine does not have.
-- Phases 7 to 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
+- Phases 8 to 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
   carry this deviation list alongside the D1-D16 register.
+- **Phase 7's manual-verification items remain open** — all four need a live
+  credentialed tenant this machine does not have.
 
 ### A note on the local CI mirror
 
@@ -2682,40 +2728,45 @@ it. The test asserts end-to-end outcomes, for both providers:
 
 #### Automated Verification
 
-- [ ] `ConfiguredTrackers::new(service)` compiles at all three sites; `mise run
-      cli:check`
-- [ ] Resolving `jira` with credentials configured returns a client, not an error
-- [ ] Resolving `jira` with nothing configured returns `Unconfigured`, exit 74,
+- [x] `ConfiguredTrackers::new(service, root)` compiles at all three sites;
+      `mise run cli:check` (signature took a repo root too — see Deviations)
+- [x] Resolving `jira` with credentials configured returns a client, not an error
+- [x] Resolving `jira` with nothing configured returns `Unconfigured`, exit 74,
       with the client's error reachable through `source()` — a missing site, a
       failed helper and a shared-config refusal are distinguishable
-- [ ] **74 decides `local-save` in `push_decide`, not `loud-terminal`**, in both
+- [x] **74 decides `local-save` in `push_decide`, not `loud-terminal`**, in both
       the Rust and the bash twin, with the golden regenerated
-- [ ] `exit_codes_parity.rs` passes with five `E_DISPATCH_*` constants
-- [ ] `sync_help_names_every_exit_code` passes with 74 in the help text, and
+- [x] `exit_codes_parity.rs` passes with five `E_DISPATCH_*` constants
+- [x] `sync_help_names_every_exit_code` passes with 74 in the help text, and
       `cli_surface.golden` is regenerated
-- [ ] Exit 74 is documented in `work-item-bridge-codes.sh`, `EXIT_CODES.md`, the
+- [x] Exit 74 is documented in `work-item-bridge-codes.sh`, `EXIT_CODES.md`, the
       four script headers and both SKILL.md dispatch tables; `dispatch-codes.txt`
-      is deliberately unchanged and its header says why
-- [ ] The flipped tests scrub the provider environment — `ACCELERATOR_JIRA_TOKEN`,
+      carries `E_DISPATCH_UNCONFIGURED=74 above-the-port` with its header
+      updated (the plan's Changes section overrides the stale "unchanged"
+      wording — see Deviations)
+- [x] The flipped tests scrub the provider environment — `ACCELERATOR_JIRA_TOKEN`,
       `ACCELERATOR_JIRA_TOKEN_CMD`, `ACCELERATOR_LINEAR_TOKEN`,
       `ACCELERATOR_LINEAR_TOKEN_CMD`, `ACCELERATOR_ALLOW_INSECURE_LOCAL` — with
-      the set derived from the crates' `TokenKeys` constants, so a credentialed
-      machine cannot make them resolve a real client
-- [ ] `trello` and `github-issues` still return `NotAvailable`, exit 72
-- [ ] An unrecognised name still returns `Unrecognised`, exit 73
-- [ ] All three exhaustive match sites handle `Unconfigured`
-- [ ] All seven flipped assertions pass: `cd cli && cargo nextest run -p
+      the four token names derived from the crates' `TokenKeys`, so a
+      credentialed machine cannot make them resolve a real client
+- [x] `trello` and `github-issues` still return `NotAvailable`, exit 72
+- [x] An unrecognised name still returns `Unrecognised`, exit 73
+- [x] All three exhaustive match sites handle `Unconfigured`
+- [x] The flipped assertions pass: `cd cli && cargo nextest run -p
       accelerator-work`
-- [ ] In `work-adapters`, for both providers: the expected `remote_hash` and
+- [x] In `work-adapters`, for both providers: the expected `remote_hash` and
       classification on a known payload, and `indeterminate` with no deletion on
       a truncated page
-- [ ] In `work-cli`, for both providers: resolution through `ConfiguredTrackers`
-      succeeds, and a 401 yields the expected process exit code
-- [ ] The tripwire passes on the tree as it stands, and fails on a planted
+- [x] In `work-cli`, for both providers: resolution through `ConfiguredTrackers`
+      succeeds network-free (empty corpus → exit 0), and a scrubbed token →
+      exit 74. The 401→classification assertion lives in the `work-adapters`
+      test, since a bin-only subprocess cannot point a resolved client at a
+      mock — see Deviations
+- [x] The tripwire passes on the tree as it stands, and fails on a planted
       `danger_accept_invalid_certs`
-- [ ] The tripwire **fails** on a planted violation, asserted by its sibling test
-- [ ] `cli_surface.golden` is regenerated with 74 in the sync help text
-- [ ] Full local mirror: `mise run`
+- [x] The tripwire **fails** on a planted violation, asserted by its sibling test
+- [x] `cli_surface.golden` is regenerated with 74 in the sync help text
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 

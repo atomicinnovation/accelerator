@@ -41,7 +41,9 @@ set -euo pipefail
 #
 # Exit taxonomy (shared with the create/update bridges — work-item-bridge-codes.sh):
 #   0 success; 70 retryable read failure / degrade; 72 not-available
-#   (trello/github-issues read not built); 73 unrecognised <sys>.
+#   (trello/github-issues read not built); 73 unrecognised <sys>; 74
+#   unconfigured (tracker wired but its configuration or credentials are
+#   missing — nothing read, fix the config).
 # A read mutates nothing, so 71 (terminal-may-have-mutated) does not apply here —
 # any underlying read failure collapses to 70 (the caller degrades to
 # presence-only). Per-key partial failures inside --keys are reported as

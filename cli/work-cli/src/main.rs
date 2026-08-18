@@ -211,13 +211,14 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     let service: &dyn ConfigAccess = &composed.service;
     let store = composed.store.with_plugin_root(plugin_root_from_env());
     let args = create_args_from_cli(cli_args);
+    let root = config_adapters::FileConfigStore::discover_root(&start);
 
     match create::run(
         &start,
         service,
         &store,
         &args,
-        &tracker_registry::ConfiguredTrackers,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
         create::RunOutcome::Created { path, push } => {
             println!("{}", path.display());
@@ -263,11 +264,12 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         }
     };
     let service: &dyn ConfigAccess = &composed.service;
+    let root = config_adapters::FileConfigStore::discover_root(&start);
     match update::run(
         &start,
         service,
         cli_args,
-        &tracker_registry::ConfiguredTrackers,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
         update::RunOutcome::Updated => ExitCode::SUCCESS,
         update::RunOutcome::Failed(message) => {
@@ -281,6 +283,10 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         update::RunOutcome::PushUnrecognised(message) => {
             eprintln!("{message}");
             ExitCode::from(exit_codes::UNRECOGNISED)
+        }
+        update::RunOutcome::PushUnconfigured(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::UNCONFIGURED)
         }
         update::RunOutcome::PushRetryable(message) => {
             eprintln!("{message}");
@@ -374,7 +380,13 @@ fn run_sync(args: &cli::SyncArgs) -> ExitCode {
         }
     };
     let service: &dyn ConfigAccess = &composed.service;
-    sync::run_sync(&start, service, args, &tracker_registry::ConfiguredTrackers)
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    sync::run_sync(
+        &start,
+        service,
+        args,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
+    )
 }
 
 fn main() -> ExitCode {

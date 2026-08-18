@@ -556,6 +556,7 @@ concurrently. Please re-run /create-work-item.
    | Accept → success but the **single Write fails** | `loud-terminal` (seam called with `--code 0 --write-failed`) | The remote issue exists and its identifier is known, but nothing is on disk. Print the **same loud guidance**, echoing the returned identifier and intended path; do **not** silently re-create (a re-run would duplicate). |
    | `72` not-available (trello/github-issues) | `local-save` | Tell the user create support for `<sys>` is not built yet (cite 0049/0050), the item is saved locally and will sync once support lands; Write without `external_id`. |
    | `73` unrecognised | `local-save` | Fail closed: report the misconfigured `work.integration` value; Write without `external_id`. |
+   | `74` unconfigured | `local-save` | The tracker is wired but its configuration or credentials are missing or refused; nothing was sent. Tell the user to fix the config (e.g. via /accelerator:configure), the item is saved locally and will sync once configured; Write without `external_id`. **Do not** print non-idempotent guidance — nothing left the machine. |
 
    The single Write is the only disk mutation on the success path —
    `external_id` is substituted **pre-write**, so the replace-only

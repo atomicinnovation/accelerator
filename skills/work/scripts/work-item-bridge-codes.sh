@@ -18,6 +18,10 @@
 #                                 built yet (trello / github-issues).
 #   73  E_DISPATCH_UNRECOGNISED   <sys> not in {linear,jira,trello,github-issues}
 #                                 or empty — fail closed.
+#   74  E_DISPATCH_UNCONFIGURED   tracker recognised and wired, but its
+#                                 configuration or credentials are missing —
+#                                 nothing was sent, so save locally and fix the
+#                                 config; never a reconciliation branch.
 #
 # Guarded against double-source: a caller that transitively sources this twice
 # (e.g. a test that sources two bridges) must not trip `readonly` re-declaration.
@@ -31,4 +35,5 @@ if [ -z "${_WORK_ITEM_BRIDGE_CODES_SOURCED:-}" ]; then
   readonly E_DISPATCH_TERMINAL=71
   readonly E_DISPATCH_NOT_AVAILABLE=72
   readonly E_DISPATCH_UNRECOGNISED=73
+  readonly E_DISPATCH_UNCONFIGURED=74
 fi

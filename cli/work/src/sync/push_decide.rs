@@ -28,6 +28,7 @@ impl PushOutcome {
 const RETRYABLE: u8 = 70;
 const NOT_AVAILABLE: u8 = 72;
 const UNRECOGNISED: u8 = 73;
+const UNCONFIGURED: u8 = 74;
 
 /// Maps a dispatcher outcome to the next action.
 ///
@@ -56,7 +57,7 @@ pub const fn push_decide(
                 PushOutcome::LocalSave
             }
         }
-        NOT_AVAILABLE | UNRECOGNISED => PushOutcome::LocalSave,
+        NOT_AVAILABLE | UNRECOGNISED | UNCONFIGURED => PushOutcome::LocalSave,
         // A known terminal failure and an unknown dispatcher code both mean
         // a remote issue may exist, so both take the conservative default.
         _ => PushOutcome::LoudTerminal,

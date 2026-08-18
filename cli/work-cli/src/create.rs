@@ -337,6 +337,7 @@ fn refusal_message(
 const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     match error {
         SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
+        SelectionError::Unconfigured { .. } => exit_codes::UNCONFIGURED,
         SelectionError::Unset | SelectionError::Unrecognised { .. } => {
             exit_codes::UNRECOGNISED
         }

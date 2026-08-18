@@ -276,7 +276,7 @@ assert_exit_code "unrecognised flag → usage (2)" 2 \
 
 # Shared table with cli/work/tests/sync_push_decide.rs.
 PUSH_DECIDE_GOLDEN="$SCRIPT_DIR/test-fixtures/work-item-push-decide.golden"
-PUSH_DECIDE_EXPECTED_ROWS=12
+PUSH_DECIDE_EXPECTED_ROWS=13
 PUSH_DECIDE_RAN=0
 # Read by redirect, never a pipeline: a piped `while read` runs in a
 # subshell, discarding every PASS/FAIL update.

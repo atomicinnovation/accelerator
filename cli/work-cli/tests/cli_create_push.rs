@@ -17,6 +17,8 @@ use work::sync::PendingPush;
 use work::sync::RequestFingerprint;
 use work_adapters::sync::pending_push;
 
+mod common;
+
 type TestError = Box<dyn std::error::Error>;
 
 fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
@@ -64,12 +66,14 @@ fn configure_integration(
 }
 
 fn run(dir: &Path, args: &[&str]) -> Result<std::process::Output, TestError> {
-    Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
         .args(args)
         .current_dir(dir)
         .env("ACCELERATOR_PLUGIN_ROOT", dir)
-        .stdin(std::process::Stdio::null())
-        .output()?)
+        .stdin(std::process::Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
 }
 
 const BODY: &str = "Just a body.\n";
@@ -154,8 +158,8 @@ fn an_unrecognised_tracker_also_local_saves() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_recognised_but_unbuilt_tracker_also_local_saves() -> Result<(), TestError>
-{
+fn a_wired_tracker_without_credentials_also_local_saves(
+) -> Result<(), TestError> {
     let repo = scratch_repo()?;
     configure_integration(repo.path(), "jira")?;
     let body_file = repo.path().join("body.txt");
