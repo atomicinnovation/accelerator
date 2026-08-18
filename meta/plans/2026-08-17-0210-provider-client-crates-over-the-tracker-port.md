@@ -396,8 +396,11 @@ This table is reproduced in 0211's deletion gate so the sibling can check it off
 
 ## Implementation Progress
 
-Phases 1 to 7 are implemented and committed; each landed with `mise run` green
-end to end at the time of its commit. Phase 8 is next.
+Phases 1 to 8 are implemented and committed. Phases 1 to 7 each landed with
+`mise run` green end to end; Phase 8 landed with `cli:check`, `deny:check`,
+`public-api:check`, `test:integration:deny`, `test:integration:pup`,
+`test:unit:tasks` and the jira-client + tracker-support suites green (the full
+`mise run` mirror is deferred to the Phase 10 close-out). Phase 9 is next.
 
 | Phase | Status | Commit | Tests added |
 |---|---|---|---|
@@ -409,7 +412,7 @@ end to end at the time of its commit. Phase 8 is next.
 | 6a — `linear-client` foundation | done | `7adda8a3` | 34 |
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
-| 8 — Jira provider surface | not started | | |
+| 8 — Jira provider surface | done | `a3e81767` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
 | 9 — Linear provider surface | not started | | |
 | 10 — Enforcement close-out | not started | | |
 
@@ -557,6 +560,56 @@ env vars come from each client's `token_keys()`; `ACCELERATOR_ALLOW_INSECURE_LOC
 has no `TokenKeys` field (it is the fifth-rung gate) and is a literal.
 `the_scrubbed_set_is_derived_from_the_token_ladders` pins the derivation.
 
+**Phase 8 — the cache lock reuses the canonical primitive, and the plan's shared
+contract was the wrong one.** The plan said `cache.rs` delegates to a lock
+"whose `owner.<nonce>` / `reclaiming.<pid>.<nonce>` sentinel contract is shared
+with `scripts/atomic-common.sh`". But the jira cache's actual concurrent peer is
+`jira_with_lock` (`jira-common.sh:140`), which uses a **different** `.lock`
+mkdir protocol with `holder.pid` / `holder.start` / `holder.cmd` sentinels — not
+`owner.<nonce>`. Reusing `corpus_adapters::acquire` (which the store-duplication
+guard *requires* over any reimplementation) is nonetheless safe: it mkdir's the
+same `.lock` path, so the two mutually exclude, and its reclaim only ever touches
+`owner.*` / `reclaiming.*` / legacy-`owner` sentinels, never the bash
+`holder.pid`, so neither steals the other's held lock. A stale bash lock is
+waited on to timeout rather than reclaimed — a safe failure, not a corruption.
+True cross-protocol stale recovery is left for 0211, which owns wiring the cache
+into the registry; nothing resolves it in 0210, so the interop is latent.
+
+**Phase 8 — the store-duplication guard forbids a second atomic-write.**
+`tasks/lint/store_duplication.py` flags any `NamedTempFile`/`.persist(`/`fs::rename`
+outside `cli/store/`. The first cut of `cache.rs` reimplemented the temp+rename
+write and the mkdir lock and was flagged. `SystemFilesystem` now delegates writes
+to `store::atomic_write` and locking to `corpus_adapters::acquire`, adding
+`corpus`, `corpus-adapters` and `store` as `jira-client` dependencies (all already
+in the production closure, so `deny:check` adds no crate).
+
+**Phase 8 — response-side ADF rendering is not ported.** The plan's prose says
+comment responses "render back through the ADF renderer". `jira-render-adf-fields.sh`
+is a post-fetch **display** transform that depends on the fields cache and
+dispatches on response shape; it constructs no provider request, so it sits
+outside the plan's stated end state ("no provider request construction remains in
+bash") and outside Phase 8's automated criteria. The crate ports request
+construction and returns the parsed response verbatim; 0211 can compose rendering
+from the existing `document_to_markdown` primitive.
+
+**Phase 8 — discovery shapes are asserted structurally, not against a golden
+JSON.** The criterion asked for a committed golden. The mock server's base is a
+loopback URL, so the derived `site` field is `127.0.0.1` rather than a stable
+value a golden could pin; the tests assert every projected field
+(`key`/`id`/`name`, the slug recipe, schema inclusion/omission) directly instead.
+
+**Phase 8 — the MIME sniffer lives in `tracker-support`.** Both providers' attach
+paths need it, so it is `tracker_support::mime::sniff` (a closed-set,
+magic-number-plus-text sniffer) rather than duplicated. This is the one Phase 8
+addition to a pinned public API: `cli/tracker-support/tests/fixtures/public-api.txt`
+gained three lines, regenerated via `public-api:update`.
+
+**Phase 8 — the provider surface is concrete, with a shared `SurfaceError`.** The
+four flows attach to `JiraClient` as inherent methods returning
+`jira_client::SurfaceError` (distinct variants for transition not-found/ambiguous,
+attach filename/path/boundary refusals, and a boxed request `Status`). No trait
+analogous to `RemoteTracker` — 0211 owns the port shape once a caller exists.
+
 ### Outstanding
 
 - **One automated criterion is deliberately unticked** (Phase 5): the
@@ -569,8 +622,10 @@ has no `TokenKeys` field (it is the fifth-rung gate) and is a literal.
   `contract_offline` is observably selected by the default profile.
 - **Every manual-verification item in Phases 5 and 6b remains open.** All of
   them need a credentialed tenant, which this machine does not have.
-- Phases 8 to 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
+- Phases 9 and 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
   carry this deviation list alongside the D1-D16 register.
+- **Phase 8's manual-verification items remain open** — attaching to a live Jira
+  issue and diffing live discovery output both need a credentialed tenant.
 - **Phase 7's manual-verification items remain open** — all four need a live
   credentialed tenant this machine does not have.
 
@@ -2926,38 +2981,41 @@ to wire, and the crate exposes `list_projects()` so the skill can render choices
 
 #### Automated Verification
 
-- [ ] All four comment shapes assert their exact method, path and body via
+- [x] All four comment shapes assert their exact method, path and body via
       `MockServer::last_body` and `last_query`
-- [ ] Comment `list` stops at 20 pages and reports truncation
-- [ ] Transition resolves a name case-insensitively; zero matches and ambiguous
+- [x] Comment `list` stops at 20 pages and reports truncation
+- [x] Transition resolves a name case-insensitively; zero matches and ambiguous
       matches each return a distinct typed error
-- [ ] A transition comment reaches `update.comment[].add` as ADF
-- [ ] Attach sends `multipart/form-data` with `X-Atlassian-Token: no-check`,
+- [x] A transition comment reaches `update.comment[].add` as ADF
+- [x] Attach sends `multipart/form-data` with `X-Atlassian-Token: no-check`,
       asserted on the captured headers, and one part per file
-- [ ] A symlink-to-device path is refused; a missing file is refused; a path
+- [x] A symlink-to-device path is refused; a missing file is refused; a path
       outside the repository root is refused
-- [ ] The device and size checks run on a single open handle — no re-stat
-- [ ] `test_launcher_feature_graph.py` passes **unchanged**, and `multipart`,
+- [x] The device and size checks run on a single open handle — no re-stat
+- [x] `test_launcher_feature_graph.py` passes **unchanged**, and `multipart`,
       `mime` and `mime_guess` are all absent from the graph:
       `mise run test:integration:deny`
-- [ ] `deny:check` green with no new crate in the closure:
-      `mise run lint:cli:deny:check`
-- [ ] `rustls-native-certs` still absent from the launcher feature graph
-- [ ] The hand-rolled multipart body is byte-asserted against a known fixture,
+- [x] `deny:check` green with no new crate in the closure:
+      `mise run deny:check` (task is `deny:check`, not `lint:cli:deny:check`)
+- [x] `rustls-native-certs` still absent from the launcher feature graph
+- [x] The hand-rolled multipart body is byte-asserted against a known fixture,
       including the boundary and per-part headers
-- [ ] A filename carrying `"`, CR, LF or a control byte is **refused**, not
+- [x] A filename carrying `"`, CR, LF or a control byte is **refused**, not
       escaped, and no part header can be injected through it
-- [ ] A file whose bytes contain the candidate boundary forces a fresh boundary
+- [x] A file whose bytes contain the candidate boundary forces a fresh boundary
       rather than a truncated body
-- [ ] All three discovery calls assert their endpoints; the returned cache shapes
-      match the committed golden JSON
-- [ ] The cache write path holds against a fake filesystem: atomic under an
+- [x] All three discovery calls assert their endpoints; the returned cache shapes
+      are asserted structurally (see Deviations — the mock's loopback base makes
+      the `site` field environment-derived, so field-level assertions replace a
+      committed golden JSON)
+- [x] The cache write path holds against a fake filesystem: atomic under an
       injected mid-write failure, typed contention error on a held lock,
       idempotent `.gitignore` / `.gitkeep` upkeep
-- [ ] `cache.rs` uses the existing lock primitives, asserted by the sentinel
-      names it writes matching the shared contract
-- [ ] No `std::fs` in the transport or discovery modules, enforced by extending
-      the crate's pup rule
+- [x] `cache.rs` uses the existing lock primitives (`corpus_adapters::acquire` +
+      `store::atomic_write`), asserted by the `owner.<nonce>` sentinel it writes
+      matching the shared contract
+- [x] No `std::fs` in the transport or discovery modules, enforced by the
+      `jira_client_io_lives_in_cache` pup rule and its probe pair
 - [ ] Full local mirror: `mise run`
 
 #### Manual Verification

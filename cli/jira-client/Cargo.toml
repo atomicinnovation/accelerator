@@ -15,10 +15,20 @@ workspace = true
 # provider, so the constructor installs ring itself.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+# The multipart boundary is a CSPRNG token; rand is already in the production
+# closure via corpus-adapters, so this adds no crate to the graph.
+rand = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 config = { path = "../config" }
+# The discovery cache reuses the workspace's one atomic-write and mkdir-lock
+# primitives rather than a second implementation — the store-duplication guard
+# enforces this, and the mkdir-lock's owner.<nonce> sentinel never reclaims the
+# bash init's holder.pid lock, so the two exclude safely on the shared path.
+corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
+store = { path = "../store" }
 remote-projection = { path = "../remote-projection" }
 tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }

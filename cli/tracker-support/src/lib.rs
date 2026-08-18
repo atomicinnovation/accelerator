@@ -9,6 +9,7 @@
 
 pub mod credentials;
 pub mod identifier;
+pub mod mime;
 pub mod retry;
 pub mod transport;
 
@@ -26,6 +27,7 @@ pub use crate::credentials::TokenKeys;
 pub use crate::credentials::TokenSource;
 pub use crate::identifier::identifier_is_safe;
 pub use crate::identifier::IdentifierRefusal;
+pub use crate::mime::sniff;
 pub use crate::retry::ClockJitter;
 pub use crate::retry::Jitter;
 pub use crate::retry::RetryPolicy;

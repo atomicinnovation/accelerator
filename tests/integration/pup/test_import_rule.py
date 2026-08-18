@@ -1209,6 +1209,46 @@ def test_jira_client_rule_permits_importing_the_port(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- jira-client's filesystem-confinement rule ---
+#
+# transport and discovery must stay off the filesystem; the atomic writes and
+# the advisory lock live only in the cache module. Driven against a crate named
+# `jira-client` with a `transport` module under the shipped cli/pup.ron.
+
+_JIRA_TRANSPORT_FS_VIOLATION = (
+    "use std::fs::File;\n\n"
+    "pub fn open() -> std::io::Result<File> {\n"
+    '    File::open("x")\n}\n'
+)
+_JIRA_TRANSPORT_COMPLIANT = "pub fn noop() {}\n"
+
+
+def _write_provider_io_probe(root: Path, transport_body: str) -> None:
+    _write_provider_probe(root, "pub mod transport;\n")
+    (root / "jira-client/src/transport.rs").write_text(transport_body)
+
+
+def test_jira_client_io_rule_rejects_std_fs_in_transport(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_io_probe(tmp_path, _JIRA_TRANSPORT_FS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_io_lives_in_cache" in output, output
+
+
+def test_jira_client_io_rule_permits_a_filesystem_free_transport(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_io_probe(tmp_path, _JIRA_TRANSPORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The remaining whole-crate domain rules ---
 #
 # Each is driven against a workspace whose crate is literally named for it,

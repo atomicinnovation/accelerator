@@ -121,16 +121,42 @@ impl JiraClient {
     /// for frontmatter safety first: ids read from the local corpus are as
     /// untrusted as ids from a response, having been written by a previous
     /// sync, by hand, or by a tracker that may since have been compromised.
-    fn issue_path(id: &str, suffix: &str) -> Result<String, ClientError> {
+    /// `suffix` is a fixed literal (`/comment`, `/transitions`), never
+    /// caller-supplied.
+    pub(crate) fn issue_path(
+        id: &str,
+        suffix: &str,
+    ) -> Result<String, ClientError> {
+        Self::assert_identifier(id)?;
+        let path = format!("{ISSUE_PATH}/{}{suffix}", path::encode_segment(id));
+        path::validate_composed(&path, &[id])?;
+        Ok(path)
+    }
+
+    /// The composed, validated path for a comment on an issue. Both the issue
+    /// key and the comment id are untrusted, so both are checked and encoded.
+    pub(crate) fn issue_comment_path(
+        key: &str,
+        comment_id: &str,
+    ) -> Result<String, ClientError> {
+        Self::assert_identifier(key)?;
+        Self::assert_identifier(comment_id)?;
+        let path = format!(
+            "{ISSUE_PATH}/{}/comment/{}",
+            path::encode_segment(key),
+            path::encode_segment(comment_id),
+        );
+        path::validate_composed(&path, &[key, comment_id])?;
+        Ok(path)
+    }
+
+    fn assert_identifier(id: &str) -> Result<(), ClientError> {
         tracker_support::identifier_is_safe(id).map_err(|refusal| {
             ClientError::BadIdentifier {
                 identifier: id.to_owned(),
                 reason: refusal.to_string(),
             }
-        })?;
-        let path = format!("{ISSUE_PATH}/{}{suffix}", path::encode_segment(id));
-        path::validate_composed(&path, &[id])?;
-        Ok(path)
+        })
     }
 
     /// Reads one issue, returning the response **text** as well as its parsed

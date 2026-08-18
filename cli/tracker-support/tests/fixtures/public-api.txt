@@ -135,6 +135,9 @@ pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, formatter: &mu
 impl core::marker::Copy for tracker_support::identifier::IdentifierRefusal
 impl core::marker::StructuralPartialEq for tracker_support::identifier::IdentifierRefusal
 pub fn tracker_support::identifier::identifier_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
+pub mod tracker_support::mime
+pub const tracker_support::mime::OCTET_STREAM: &str
+pub fn tracker_support::mime::sniff(sample: &[u8]) -> &'static str
 pub mod tracker_support::retry
 pub struct tracker_support::retry::ClockJitter
 impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
@@ -363,3 +366,4 @@ pub fn tracker_support::identifier_is_safe(candidate: &str) -> core::result::Res
 pub fn tracker_support::port_body(projection: &str) -> alloc::string::String
 pub fn tracker_support::refuse_tracked_source(provenance: &dyn tracker_support::credentials::Provenance, path: &std::path::Path, key: &str) -> core::result::Result<(), tracker_support::credentials::CredentialError>
 pub fn tracker_support::resolve_token(context: &tracker_support::credentials::CredentialContext<'_>, keys: &tracker_support::credentials::TokenKeys) -> core::result::Result<tracker_support::credentials::ResolvedToken, tracker_support::credentials::CredentialError>
+pub fn tracker_support::sniff(sample: &[u8]) -> &'static str

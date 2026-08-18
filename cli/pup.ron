@@ -206,6 +206,24 @@
                 ),
             ],
         )),
+        // jira-client's transport and discovery modules must stay off the
+        // filesystem: the atomic writes and the advisory lock are composition
+        // concerns confined to the cache module, so a std::fs import in either
+        // would be a second, unlocked write path beside the one that holds the
+        // shared .lock the bash init also mkdir's.
+        Module((
+            name: "jira_client_io_lives_in_cache",
+            matches: Module("^jira_client::(transport|discovery)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::fs(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // linear-client is the mirror of the jira-client rule: the only place
         // Linear request construction lives, and it may reach neither the work
         // domain nor the sibling provider.

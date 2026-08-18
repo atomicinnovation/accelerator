@@ -101,6 +101,12 @@ impl Transport {
         &self.config
     }
 
+    /// The base URL every request is joined onto.
+    #[must_use]
+    pub const fn base(&self) -> &Url {
+        &self.credentials.base
+    }
+
     #[must_use]
     pub fn deadline(&self) -> Deadline {
         Deadline::starting_now(self.config.deadline)
@@ -126,18 +132,63 @@ impl Transport {
     ) -> Result<Received, ClientError> {
         path::validate(path)?;
         let url = self.url(path, query)?;
+        self.execute(method, &url, path, &|request| match body {
+            Some(body) => request
+                .header("Content-Type", "application/json")
+                .body(body.to_owned()),
+            None => request,
+        })
+    }
 
+    /// Sends one request with a raw byte body, a caller-supplied content type
+    /// and extra headers — the shape the multipart attachment upload needs,
+    /// where the body is neither JSON nor a `&str` and the request carries
+    /// `X-Atlassian-Token: no-check`.
+    ///
+    /// The path is validated as [`send`] validates it. Attachment paths carry
+    /// no query.
+    ///
+    /// # Errors
+    ///
+    /// As [`Transport::send`].
+    pub fn send_bytes(
+        &self,
+        method: &Method,
+        path: &str,
+        content_type: &str,
+        headers: &[(&str, &str)],
+        body: &[u8],
+    ) -> Result<Received, ClientError> {
+        path::validate(path)?;
+        let url = self.url(path, &[])?;
+        self.execute(method, &url, path, &|request| {
+            let mut request = request.header("Content-Type", content_type);
+            for (name, value) in headers {
+                request = request.header(*name, *value);
+            }
+            request.body(body.to_vec())
+        })
+    }
+
+    /// The shared retry loop. `apply` attaches the body and any per-request
+    /// headers, rebuilt each attempt because a `reqwest` request is consumed
+    /// when sent.
+    fn execute(
+        &self,
+        method: &Method,
+        url: &Url,
+        path: &str,
+        apply: &dyn Fn(
+            reqwest::blocking::RequestBuilder,
+        ) -> reqwest::blocking::RequestBuilder,
+    ) -> Result<Received, ClientError> {
         for attempt in 1..=self.policy.max_attempts {
-            let mut request =
+            let request =
                 self.client.request(method.clone(), url.clone()).basic_auth(
                     &self.credentials.email,
                     Some(self.credentials.token.expose()),
                 );
-            if let Some(body) = body {
-                request = request
-                    .header("Content-Type", "application/json")
-                    .body(body.to_owned());
-            }
+            let request = apply(request);
 
             let response =
                 request.send().map_err(|error| ClientError::Transport {
