@@ -13,7 +13,7 @@ relates_to: ["work-item:0171", "work-item:0194", "work-item:0204", "work-item:02
 tags: [rust, jira, linear, integrations, reqwest, tracker, adf, graphql]
 revision: "7fbc11853805ac90798eb0b0923855a2d3380c22"
 repository: "accelerator"
-last_updated: "2026-08-18T11:40:00+00:00"
+last_updated: "2026-08-18T19:15:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -413,7 +413,7 @@ full `mise run` mirror is deferred to the Phase 10 close-out). Phase 10 is next.
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | done | `efe0a2a6` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
 | 9 — Linear provider surface | done | `3282ee59` | 40 (comment 2, transition 3, attach 15, discovery 5, cache 7, catalogue 4, upload 3, +1 pup probe pair) |
-| 10 — Enforcement close-out | not started | | |
+| 10 — Enforcement close-out | partial | | 4 (licence closure 2, no-network 2) |
 
 One commit sits outside the phase sequence: `91129dfb` takes
 `test:integration:tracker-contract` out of the `test:integration` roll-up and
@@ -654,6 +654,44 @@ fallback) is pinned in `tracker-support/tests/mime.rs` from Phase 8; Phase 9
 adds an attach test asserting the sniffed type reaches the `fileUpload` request,
 which is the Linear-specific wiring.
 
+**Phase 10 — the licence-set assertion delegates satisfiability to cargo-deny.**
+The plan's criterion assumed the closure carries only allow-listed SPDX ids, so
+a token-subset over the committed listing would hold. It does not: multi-licence
+crates print every operand of their OR-expression (adler2's `0BSD, MIT,
+Apache-2.0` is `0BSD OR MIT OR Apache-2.0`), so `0BSD`, `BSL-1.0`, `MIT-0` and
+`Unlicense` appear in the listing outside the allow-list yet are correctly
+accepted on an allowed alternative — and the `list` human/json/tsv layouts all
+flatten away the AND/OR structure needed to judge them. So
+`test_licence_closure.py` asserts acceptability via `cargo deny check licenses`
+(the SPDX-satisfiability oracle) and, separately, compares the licence-identifier
+*set* between `cli/licence-audit/new-trees.txt` and the live closure — a set
+comparison, not a byte diff, immune to version/count churn but redding on a
+genuine licence-set change.
+
+**Phase 10 — the network-free test lives in `work-cli` and parses the toml by
+hand.** Adding a `toml` dev-dependency to pin a two-line config was rejected;
+`no_network_by_default.rs` reads `cli/.config/nextest.toml` and asserts the
+`[profile.default]` `default-filter` equals `not binary(=contract)` exactly. It
+duplicates `test_nextest_filter.py`'s property in Rust, co-located with the
+binary whose default suite must stay network-free.
+
+**Phase 10 — the deviation list is not duplicated verbatim onto 0171.** Part 4
+mandates the D1-D16 register (copied verbatim) plus the copyleft answer and the
+evidence-run dates. The Outstanding note asked to also carry this deviation list;
+copying ~230 lines of phase-internal implementation history onto the epic would
+recreate the two-copies-diverge failure the register's own preamble warns
+against, and the list stays in this committed, referenced plan. 0171 therefore
+carries the register plus a pointer to this section rather than a second copy.
+
+**Phase 10 — contract evidence and manual verification remain blocked on a
+tenant.** No Jira tenant is configured on this host, and producing Linear
+evidence requires both the harness reduced-form emission (unwritten) and a live
+run that creates real issues in the user's Linear workspace — an outward-facing
+mutation deferred to the user's decision. The offline enforcement (licence
+closure, network-free default profile, the Decisions register) is the part
+Phase 10 could land without a tenant; the evidence guard and the harness emission
+are held until a credentialed run is authorised.
+
 ### Outstanding
 
 - **One automated criterion is deliberately unticked** (Phase 5): the
@@ -666,8 +704,12 @@ which is the Linear-specific wiring.
   `contract_offline` is observably selected by the default profile.
 - **Every manual-verification item in Phases 5 and 6b remains open.** All of
   them need a credentialed tenant, which this machine does not have.
-- Phase 10 is unstarted. Phase 10's `## Decisions` copy onto 0171 should carry
-  this deviation list alongside the D1-D16 register.
+- Phase 10 is **partial**: the offline enforcement landed (licence closure
+  evidence + set assertion, the network-free default-profile test, and the
+  D1-D16 register copied onto 0171 with the copyleft answer). Left open, both
+  tenant-gated: the contract evidence files with their guard and the harness
+  reduced-form emission, and the networking-disabled default-suite transcript.
+  The full `mise run` mirror is the remaining automated close-out step.
 - **Phase 9's manual-verification items remain open** — uploading a real binary
   to a live Linear issue and diffing live discovery output both need a
   credentialed tenant.
@@ -3341,32 +3383,39 @@ committed listing's path, and the date of the contract evidence runs.
 
 #### Automated Verification
 
-- [ ] `deny:check` green with any allowance committed:
+- [x] `deny:check` green with any allowance committed:
       `mise run lint:cli:deny:check`
-- [ ] The licence set across the closure is a subset of `cli/deny.toml`'s
+- [x] The licence set across the closure is a subset of `cli/deny.toml`'s
       allow-list plus its declared exceptions, asserted as a set rather than as a
-      byte diff of the listing
-- [ ] No binary named exactly `contract` is selected by the default profile,
-      asserted by exact name rather than by a substring pattern
-- [ ] `cli/tracker/tests/fixtures/public-api.txt` unchanged and
+      byte diff of the listing — `tests/integration/deny/test_licence_closure.py`
+      (delegates satisfiability to cargo-deny; see deviation below)
+- [x] No binary named exactly `contract` is selected by the default profile,
+      asserted by exact name rather than by a substring pattern —
+      `cli/work-cli/tests/no_network_by_default.rs`
+- [x] `cli/tracker/tests/fixtures/public-api.txt` unchanged and
       `cli/tracker/Cargo.toml` still declares no dependencies, asserted by
       `cli/tracker/tests/structure.rs` passing untouched
-- [ ] No Python in `cli/`'s dev-dependencies:
+- [x] No Python in `cli/`'s dev-dependencies:
       `rg -n "python" --glob 'cli/**/Cargo.toml'` returns nothing — recursive, so
       nested members like `cli/visualiser/server` are actually scanned
 - [ ] The committed evidence files carry no payloads and match no secret-shaped
-      pattern, asserted by the guard
-- [ ] Both client crates classified: `mise run test:unit:build-system`
-- [ ] Every pup rule added by this plan has a probe pair:
+      pattern, asserted by the guard — **blocked**: the evidence files need a
+      live tenant (Jira has none configured here) and the harness reduced-form
+      emission
+- [x] Both client crates classified: `mise run test:unit:tasks`
+      (`tests/unit/tasks/test_rust.py`)
+- [x] Every pup rule added by this plan has a probe pair:
       `mise run test:integration:pup`
 - [ ] Full local mirror green end-to-end: `mise run`
 
 #### Manual Verification
 
 - [ ] The default suite runs green with networking disabled, and the transcript
-      is committed
-- [ ] Both evidence files are dated no earlier than the final client commit
-- [ ] 0171's `## Decisions` reads as a record a later reader can act on without
+      is committed — **blocked**: per-process network disable is not available on
+      this macOS host
+- [ ] Both evidence files are dated no earlier than the final client commit —
+      **blocked** on the live contract runs
+- [x] 0171's `## Decisions` reads as a record a later reader can act on without
       rediscovering `gouqi` or v2
 
 ---

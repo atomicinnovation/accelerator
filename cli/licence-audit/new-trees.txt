@@ -1,0 +1,478 @@
+# Committed evidence for the licence closure of the cli/ workspace.
+#
+# Reproduce:
+#   cd cli && cargo deny list --layout crate --format human
+#
+# Generated: 2026-08-18
+# Tool: cargo-deny 0.19.8
+#
+# The enforcing assertion is NOT a byte diff of this file — it is
+# tests/integration/deny/test_licence_closure.py, which delegates
+# licence-set acceptability to cargo-deny and compares the licence
+# identifier SET here against the live closure, so an unrelated
+# version or count bump does not red a check carrying no licence
+# information. Regenerate with the command above only when that set
+# assertion reds because the closure's licence set genuinely changed.
+#
+# Multi-licence crates print every operand of their SPDX expression
+# (e.g. adler2's '0BSD, MIT, Apache-2.0' is '0BSD OR MIT OR
+# Apache-2.0'), so tokens outside cli/deny.toml's allow-list appear
+# here and are accepted via an allowed alternative. MPL-2.0 is
+# uluru's, carried under [[licenses.exceptions]].
+
+accelerator@1.24.0-pre.42 (1): MIT
+accelerator-collaboration@1.24.0-pre.42 (1): MIT
+accelerator-corpus@1.24.0-pre.42 (1): MIT
+accelerator-design@1.24.0-pre.42 (1): MIT
+accelerator-migrate@1.24.0-pre.42 (1): MIT
+accelerator-vcs@1.24.0-pre.42 (1): MIT
+accelerator-verify@1.24.0-pre.42 (1): MIT
+accelerator-visualiser@1.24.0-pre.42 (1): MIT
+accelerator-work@1.24.0-pre.42 (1): MIT
+adler2@2.0.1 (3): 0BSD, MIT, Apache-2.0
+adler32@1.2.0 (1): Zlib
+ahash@0.8.12 (2): MIT, Apache-2.0
+aho-corasick@1.1.5 (2): Unlicense, MIT
+alloc-no-stdlib@2.0.4 (1): BSD-3-Clause
+alloc-stdlib@0.2.4 (1): BSD-3-Clause
+allocator-api2@0.2.21 (2): MIT, Apache-2.0
+annotate-snippets@0.12.16 (2): MIT, Apache-2.0
+anstream@1.0.0 (2): MIT, Apache-2.0
+anstyle@1.0.14 (2): MIT, Apache-2.0
+anstyle-parse@1.0.0 (2): MIT, Apache-2.0
+anstyle-query@1.1.5 (2): MIT, Apache-2.0
+anyhow@1.0.104 (2): MIT, Apache-2.0
+arc-swap@1.9.2 (2): MIT, Apache-2.0
+arraydeque@0.5.1 (2): MIT, Apache-2.0
+arrayvec@0.7.8 (2): MIT, Apache-2.0
+async-compression@0.4.43 (2): MIT, Apache-2.0
+async-trait@0.1.92 (2): MIT, Apache-2.0
+atomic-waker@1.1.2 (2): Apache-2.0, MIT
+autocfg@1.5.1 (2): Apache-2.0, MIT
+aws-lc-rs@1.18.0 (2): ISC, Apache-2.0
+aws-lc-sys@0.44.0 (5): ISC, Apache-2.0, MIT, BSD-3-Clause, MIT-0
+axum@0.7.9 (1): MIT
+axum-core@0.4.5 (1): MIT
+base64@0.22.1 (2): MIT, Apache-2.0
+beef@0.5.2 (2): MIT, Apache-2.0
+bitflags@1.3.2 (2): MIT, Apache-2.0
+bitflags@2.13.1 (2): MIT, Apache-2.0
+blake2@0.10.6 (2): MIT, Apache-2.0
+block-buffer@0.10.4 (2): MIT, Apache-2.0
+block-buffer@0.12.1 (2): MIT, Apache-2.0
+brotli@8.0.4 (2): BSD-3-Clause, MIT
+brotli-decompressor@5.0.3 (2): BSD-3-Clause, MIT
+bstr@1.13.0 (2): MIT, Apache-2.0
+byteorder@1.5.0 (2): Unlicense, MIT
+bytes@1.12.1 (1): MIT
+camino@1.2.5 (2): MIT, Apache-2.0
+cargo-platform@0.1.9 (2): MIT, Apache-2.0
+cargo-platform@0.3.2 (2): MIT, Apache-2.0
+cargo_metadata@0.19.2 (1): MIT
+cargo_metadata@0.23.1 (1): MIT
+cc@1.4.2 (2): MIT, Apache-2.0
+cfg-if@1.0.4 (2): MIT, Apache-2.0
+cfg_aliases@0.1.1 (1): MIT
+chacha20@0.10.1 (2): MIT, Apache-2.0
+chrono@0.4.45 (2): MIT, Apache-2.0
+clap@4.6.1 (2): MIT, Apache-2.0
+clap_builder@4.6.0 (2): MIT, Apache-2.0
+clap_derive@4.6.1 (2): MIT, Apache-2.0
+clap_lex@1.1.0 (2): MIT, Apache-2.0
+clru@0.6.3 (1): MIT
+cmake@0.1.58 (2): MIT, Apache-2.0
+collaboration@1.24.0-pre.42 (1): MIT
+colorchoice@1.0.5 (2): MIT, Apache-2.0
+compression-codecs@0.4.38 (2): MIT, Apache-2.0
+compression-core@0.4.32 (2): MIT, Apache-2.0
+config@1.24.0-pre.42 (1): MIT
+config-adapters@1.24.0-pre.42 (1): MIT
+const-oid@0.10.2 (2): Apache-2.0, MIT
+core-foundation@0.10.1 (2): MIT, Apache-2.0
+core-foundation-sys@0.8.7 (2): MIT, Apache-2.0
+corpus@1.24.0-pre.42 (1): MIT
+corpus-adapters@1.24.0-pre.42 (1): MIT
+cpufeatures@0.2.17 (2): MIT, Apache-2.0
+cpufeatures@0.3.0 (2): MIT, Apache-2.0
+crc32fast@1.5.0 (2): MIT, Apache-2.0
+critical-section@1.2.0 (2): MIT, Apache-2.0
+crossbeam-channel@0.5.16 (2): MIT, Apache-2.0
+crossbeam-deque@0.8.7 (2): MIT, Apache-2.0
+crossbeam-epoch@0.9.20 (2): MIT, Apache-2.0
+crossbeam-utils@0.8.22 (2): MIT, Apache-2.0
+crypto-common@0.1.7 (2): MIT, Apache-2.0
+crypto-common@0.2.2 (2): MIT, Apache-2.0
+darling@0.20.11 (1): MIT
+darling_core@0.20.11 (1): MIT
+darling_macro@0.20.11 (1): MIT
+dary_heap@0.3.9 (2): MIT, Apache-2.0
+dashmap@6.2.1 (1): MIT
+data-encoding@2.11.1 (1): MIT
+deranged@0.5.8 (2): MIT, Apache-2.0
+derive_builder@0.20.2 (2): MIT, Apache-2.0
+derive_builder_core@0.20.2 (2): MIT, Apache-2.0
+derive_builder_macro@0.20.2 (2): MIT, Apache-2.0
+design@1.24.0-pre.42 (1): MIT
+design-adapters@1.24.0-pre.42 (1): MIT
+digest@0.10.7 (2): MIT, Apache-2.0
+digest@0.11.3 (2): MIT, Apache-2.0
+displaydoc@0.2.7 (2): MIT, Apache-2.0
+document@1.24.0-pre.42 (1): MIT
+dunce@1.0.5 (3): CC0-1.0, MIT-0, Apache-2.0
+either@1.17.0 (2): MIT, Apache-2.0
+encoding_rs@0.8.35 (3): Apache-2.0, MIT, BSD-3-Clause
+encoding_rs_io@0.1.8 (2): MIT, Apache-2.0
+enum-as-inner@0.6.1 (2): MIT, Apache-2.0
+equivalent@1.0.2 (2): Apache-2.0, MIT
+errno@0.3.14 (2): MIT, Apache-2.0
+etcetera@0.11.0 (2): MIT, Apache-2.0
+faster-hex@0.10.0 (1): MIT
+fastrand@2.5.0 (2): Apache-2.0, MIT
+file-rotate@0.7.6 (1): MIT
+filetime@0.2.29 (2): MIT, Apache-2.0
+find-msvc-tools@0.1.10 (2): MIT, Apache-2.0
+flate2@1.1.9 (2): MIT, Apache-2.0
+fnv@1.0.7 (2): Apache-2.0, MIT
+foldhash@0.2.0 (1): Zlib
+form_urlencoded@1.2.2 (2): MIT, Apache-2.0
+fs_extra@1.3.0 (1): MIT
+fsevent-sys@4.1.0 (1): MIT
+futures@0.3.33 (2): MIT, Apache-2.0
+futures-channel@0.3.33 (2): MIT, Apache-2.0
+futures-core@0.3.33 (2): MIT, Apache-2.0
+futures-executor@0.3.33 (2): MIT, Apache-2.0
+futures-io@0.3.33 (2): MIT, Apache-2.0
+futures-macro@0.3.33 (2): MIT, Apache-2.0
+futures-sink@0.3.33 (2): MIT, Apache-2.0
+futures-task@0.3.33 (2): MIT, Apache-2.0
+futures-util@0.3.33 (2): MIT, Apache-2.0
+generic-array@0.14.7 (1): MIT
+getrandom@0.2.17 (2): MIT, Apache-2.0
+getrandom@0.3.4 (2): MIT, Apache-2.0
+getrandom@0.4.3 (2): MIT, Apache-2.0
+github@1.24.0-pre.42 (1): MIT
+gix@0.85.0 (2): MIT, Apache-2.0
+gix-actor@0.41.2 (2): MIT, Apache-2.0
+gix-attributes@0.33.2 (2): MIT, Apache-2.0
+gix-bitmap@0.3.3 (2): MIT, Apache-2.0
+gix-chunk@0.7.3 (2): MIT, Apache-2.0
+gix-command@0.9.2 (2): MIT, Apache-2.0
+gix-commitgraph@0.37.1 (2): MIT, Apache-2.0
+gix-config@0.58.0 (2): MIT, Apache-2.0
+gix-config-value@0.18.1 (2): MIT, Apache-2.0
+gix-date@0.15.6 (2): MIT, Apache-2.0
+gix-diff@0.65.0 (2): MIT, Apache-2.0
+gix-dir@0.27.0 (2): MIT, Apache-2.0
+gix-discover@0.53.0 (2): MIT, Apache-2.0
+gix-error@0.2.5 (2): MIT, Apache-2.0
+gix-features@0.48.1 (2): MIT, Apache-2.0
+gix-filter@0.32.0 (2): MIT, Apache-2.0
+gix-fs@0.21.2 (2): MIT, Apache-2.0
+gix-glob@0.26.1 (2): MIT, Apache-2.0
+gix-hash@0.25.1 (2): MIT, Apache-2.0
+gix-hashtable@0.15.2 (2): MIT, Apache-2.0
+gix-ignore@0.21.1 (2): MIT, Apache-2.0
+gix-imara-diff@0.2.4 (1): Apache-2.0
+gix-index@0.53.0 (2): MIT, Apache-2.0
+gix-lock@23.0.1 (2): MIT, Apache-2.0
+gix-object@0.62.0 (2): MIT, Apache-2.0
+gix-odb@0.82.0 (2): MIT, Apache-2.0
+gix-pack@0.72.0 (2): MIT, Apache-2.0
+gix-packetline@0.21.5 (2): MIT, Apache-2.0
+gix-path@0.12.4 (2): MIT, Apache-2.0
+gix-pathspec@0.18.1 (2): MIT, Apache-2.0
+gix-protocol@0.63.0 (2): MIT, Apache-2.0
+gix-quote@0.7.2 (2): MIT, Apache-2.0
+gix-ref@0.65.0 (2): MIT, Apache-2.0
+gix-refspec@0.43.0 (2): MIT, Apache-2.0
+gix-revision@0.47.0 (2): MIT, Apache-2.0
+gix-revwalk@0.33.0 (2): MIT, Apache-2.0
+gix-sec@0.14.2 (2): MIT, Apache-2.0
+gix-shallow@0.12.1 (2): MIT, Apache-2.0
+gix-status@0.32.0 (2): MIT, Apache-2.0
+gix-submodule@0.32.0 (2): MIT, Apache-2.0
+gix-tempfile@23.0.2 (2): MIT, Apache-2.0
+gix-trace@0.1.21 (2): MIT, Apache-2.0
+gix-transport@0.57.2 (2): MIT, Apache-2.0
+gix-traverse@0.59.0 (2): MIT, Apache-2.0
+gix-url@0.36.2 (2): MIT, Apache-2.0
+gix-utils@0.3.5 (2): MIT, Apache-2.0
+gix-validate@0.11.3 (2): MIT, Apache-2.0
+gix-worktree@0.54.0 (2): MIT, Apache-2.0
+globset@0.4.20 (2): Unlicense, MIT
+granit-parser@0.0.7 (2): MIT, Apache-2.0
+hash32@0.3.1 (2): MIT, Apache-2.0
+hashbrown@0.14.5 (2): MIT, Apache-2.0
+hashbrown@0.16.1 (2): MIT, Apache-2.0
+hashbrown@0.17.1 (2): MIT, Apache-2.0
+heapless@0.8.0 (2): MIT, Apache-2.0
+heck@0.5.0 (2): MIT, Apache-2.0
+hex@0.4.3 (2): MIT, Apache-2.0
+hickory-proto@0.25.2 (2): MIT, Apache-2.0
+hickory-resolver@0.25.2 (2): MIT, Apache-2.0
+http@1.5.0 (2): MIT, Apache-2.0
+http-body@1.1.0 (1): MIT
+http-body-util@0.1.4 (1): MIT
+http-serde@2.1.1 (2): Apache-2.0, MIT
+http-test-support@1.24.0-pre.42 (1): MIT
+httparse@1.10.1 (2): MIT, Apache-2.0
+httpdate@1.0.3 (2): MIT, Apache-2.0
+humantime@2.4.0 (2): MIT, Apache-2.0
+hybrid-array@0.4.14 (2): MIT, Apache-2.0
+hyper@1.11.0 (1): MIT
+hyper-rustls@0.27.9 (3): Apache-2.0, ISC, MIT
+hyper-timeout@0.5.2 (2): MIT, Apache-2.0
+hyper-util@0.1.20 (1): MIT
+iana-time-zone@0.1.65 (2): MIT, Apache-2.0
+icu_collections@2.2.0 (1): Unicode-3.0
+icu_locale_core@2.2.0 (1): Unicode-3.0
+icu_normalizer@2.2.0 (1): Unicode-3.0
+icu_normalizer_data@2.2.0 (1): Unicode-3.0
+icu_properties@2.2.0 (1): Unicode-3.0
+icu_properties_data@2.2.0 (1): Unicode-3.0
+icu_provider@2.2.0 (1): Unicode-3.0
+ident_case@1.0.1 (2): MIT, Apache-2.0
+idna@1.1.0 (2): MIT, Apache-2.0
+idna_adapter@1.2.2 (2): Apache-2.0, MIT
+include-flate@0.3.4 (1): Apache-2.0
+include-flate-codegen@0.3.4 (1): Apache-2.0
+include-flate-compress@0.3.4 (1): Apache-2.0
+indexmap@2.14.0 (2): Apache-2.0, MIT
+inotify@0.9.6 (1): ISC
+inotify-sys@0.1.8 (1): ISC
+interim@0.2.1 (1): MIT
+ipnet@2.12.1 (2): MIT, Apache-2.0
+is_terminal_polyfill@1.70.2 (2): MIT, Apache-2.0
+itertools@0.14.0 (2): MIT, Apache-2.0
+itertools@0.15.0 (2): MIT, Apache-2.0
+itoa@1.0.18 (2): MIT, Apache-2.0
+jiff@0.2.35 (2): Unlicense, MIT
+jiff-core@0.1.0 (2): Unlicense, MIT
+jira-client@1.24.0-pre.42 (1): MIT
+jj-lib@0.43.0 (1): Apache-2.0
+jj-lib-proc-macros@0.43.0 (1): Apache-2.0
+jobserver@0.1.35 (2): MIT, Apache-2.0
+jsonwebtoken@10.4.0 (1): MIT
+kernel@1.24.0-pre.42 (1): MIT
+kstring@2.0.2 (2): MIT, Apache-2.0
+lazy_static@1.5.0 (2): MIT, Apache-2.0
+libc@0.2.189 (2): MIT, Apache-2.0
+libflate@2.3.1 (1): MIT
+libflate_lz77@2.3.0 (1): MIT
+linear-client@1.24.0-pre.42 (1): MIT
+linux-raw-sys@0.12.1 (3): Apache-2.0 WITH LLVM-exception, Apache-2.0, MIT
+litemap@0.8.2 (1): Unicode-3.0
+lock_api@0.4.14 (2): MIT, Apache-2.0
+log@0.4.33 (2): MIT, Apache-2.0
+logos@0.15.1 (2): MIT, Apache-2.0
+logos-codegen@0.15.1 (2): MIT, Apache-2.0
+logos-derive@0.15.1 (2): MIT, Apache-2.0
+maplit@1.0.2 (2): MIT, Apache-2.0
+matchers@0.2.0 (1): MIT
+matchit@0.7.3 (2): MIT, BSD-3-Clause
+maybe-async@0.2.11 (1): MIT
+memchr@2.8.3 (2): Unlicense, MIT
+memmap2@0.9.11 (2): MIT, Apache-2.0
+migrate@1.24.0-pre.42 (1): MIT
+migrate-adapters@1.24.0-pre.42 (1): MIT
+mime@0.3.17 (2): MIT, Apache-2.0
+mime_guess@2.0.5 (1): MIT
+minisign-verify@0.2.5 (1): MIT
+miniz_oxide@0.8.9 (3): MIT, Zlib, Apache-2.0
+mio@0.8.11 (1): MIT
+mio@1.2.2 (1): MIT
+moka@0.12.15 (2): MIT, Apache-2.0
+nix@0.28.0 (1): MIT
+no_std_io2@0.9.4 (2): Apache-2.0, MIT
+nohash-hasher@0.2.0 (2): Apache-2.0, MIT
+nonempty@0.12.0 (1): MIT
+notify@6.1.1 (1): CC0-1.0
+nu-ansi-term@0.50.3 (1): MIT
+num-bigint@0.4.8 (2): MIT, Apache-2.0
+num-conv@0.2.2 (2): MIT, Apache-2.0
+num-integer@0.1.46 (2): MIT, Apache-2.0
+num-traits@0.2.19 (2): MIT, Apache-2.0
+num_threads@0.1.7 (2): MIT, Apache-2.0
+octocrab@0.54.1 (2): MIT, Apache-2.0
+once_cell@1.21.4 (2): MIT, Apache-2.0
+openssl-probe@0.2.1 (2): MIT, Apache-2.0
+parking_lot@0.12.5 (2): MIT, Apache-2.0
+parking_lot_core@0.9.12 (2): MIT, Apache-2.0
+pem@3.0.6 (1): MIT
+percent-encoding@2.3.2 (2): MIT, Apache-2.0
+pest@2.8.8 (2): MIT, Apache-2.0
+pest_derive@2.8.8 (2): MIT, Apache-2.0
+pest_generator@2.8.8 (2): MIT, Apache-2.0
+pest_meta@2.8.8 (2): MIT, Apache-2.0
+pin-project@1.1.13 (2): Apache-2.0, MIT
+pin-project-internal@1.1.13 (2): Apache-2.0, MIT
+pin-project-lite@0.2.17 (2): Apache-2.0, MIT
+pkg-config@0.3.33 (2): MIT, Apache-2.0
+pollster@0.4.0 (2): Apache-2.0, MIT
+portable-atomic@1.15.0 (2): Apache-2.0, MIT
+potential_utf@0.1.5 (1): Unicode-3.0
+powerfmt@0.2.0 (2): MIT, Apache-2.0
+ppv-lite86@0.2.21 (2): MIT, Apache-2.0
+proc-macro-error-attr3@3.1.0 (2): MIT, Apache-2.0
+proc-macro-error3@3.1.0 (2): MIT, Apache-2.0
+proc-macro2@1.0.107 (2): MIT, Apache-2.0
+process-probe@1.24.0-pre.42 (1): MIT
+prodash@31.0.0 (1): MIT
+prost@0.14.4 (1): Apache-2.0
+prost-derive@0.14.4 (1): Apache-2.0
+quote@1.0.47 (2): MIT, Apache-2.0
+rand@0.10.2 (2): MIT, Apache-2.0
+rand@0.9.5 (2): MIT, Apache-2.0
+rand_chacha@0.10.0 (2): MIT, Apache-2.0
+rand_chacha@0.9.0 (2): MIT, Apache-2.0
+rand_core@0.10.1 (2): MIT, Apache-2.0
+rand_core@0.9.5 (2): MIT, Apache-2.0
+rayon@1.12.0 (2): MIT, Apache-2.0
+rayon-core@1.13.0 (2): MIT, Apache-2.0
+ref-cast@1.0.26 (2): MIT, Apache-2.0
+ref-cast-impl@1.0.26 (2): MIT, Apache-2.0
+regex@1.13.1 (2): MIT, Apache-2.0
+regex-automata@0.4.18 (2): MIT, Apache-2.0
+regex-syntax@0.8.11 (2): MIT, Apache-2.0
+remote-projection@1.24.0-pre.42 (1): MIT
+reqwest@0.12.28 (2): MIT, Apache-2.0
+resolv-conf@0.7.6 (2): MIT, Apache-2.0
+ring@0.17.14 (2): Apache-2.0, ISC
+rle-decode-fast@1.0.3 (2): MIT, Apache-2.0
+rust-embed@8.12.0 (1): MIT
+rust-embed-impl@8.12.0 (1): MIT
+rust-embed-utils@8.12.0 (1): MIT
+rustc_version@0.4.1 (2): MIT, Apache-2.0
+rustix@1.1.4 (3): Apache-2.0 WITH LLVM-exception, Apache-2.0, MIT
+rustls@0.23.41 (3): Apache-2.0, ISC, MIT
+rustls-native-certs@0.8.4 (3): Apache-2.0, ISC, MIT
+rustls-pki-types@1.15.1 (2): MIT, Apache-2.0
+rustls-webpki@0.103.13 (1): ISC
+rustversion@1.0.23 (2): MIT, Apache-2.0
+ryu@1.0.23 (2): Apache-2.0, BSL-1.0
+same-file@1.0.6 (2): Unlicense, MIT
+scopeguard@1.2.0 (2): MIT, Apache-2.0
+secrecy@0.10.3 (2): Apache-2.0, MIT
+security-framework@3.7.0 (2): MIT, Apache-2.0
+security-framework-sys@2.17.0 (2): MIT, Apache-2.0
+semver@1.0.28 (2): MIT, Apache-2.0
+serde@1.0.229 (2): MIT, Apache-2.0
+serde-saphyr@0.0.29 (2): MIT, Apache-2.0
+serde_core@1.0.229 (2): MIT, Apache-2.0
+serde_derive@1.0.229 (2): MIT, Apache-2.0
+serde_json@1.0.151 (2): MIT, Apache-2.0
+serde_path_to_error@0.1.20 (2): MIT, Apache-2.0
+serde_spanned@0.6.9 (2): MIT, Apache-2.0
+serde_spanned@1.1.1 (2): MIT, Apache-2.0
+serde_urlencoded@0.7.1 (2): MIT, Apache-2.0
+sha1@0.10.7 (2): MIT, Apache-2.0
+sha1-checked@0.10.0 (2): MIT, Apache-2.0
+sha2@0.10.9 (2): MIT, Apache-2.0
+sha2@0.11.0 (2): MIT, Apache-2.0
+sharded-slab@0.1.7 (1): MIT
+shell-words@1.1.1 (2): MIT, Apache-2.0
+shlex@2.0.1 (2): MIT, Apache-2.0
+signal-hook-registry@1.4.8 (2): MIT, Apache-2.0
+signature@2.2.0 (2): Apache-2.0, MIT
+simd-adler32@0.3.10 (1): MIT
+simple_asn1@0.6.4 (1): ISC
+slab@0.4.12 (1): MIT
+smallvec@1.15.2 (2): MIT, Apache-2.0
+snafu@0.8.9 (2): MIT, Apache-2.0
+snafu-derive@0.8.9 (2): MIT, Apache-2.0
+socket2@0.6.5 (2): MIT, Apache-2.0
+stable_deref_trait@1.2.1 (2): MIT, Apache-2.0
+static_assertions@1.1.0 (2): MIT, Apache-2.0
+store@1.24.0-pre.42 (1): MIT
+strsim@0.11.1 (1): MIT
+subtle@2.6.1 (1): BSD-3-Clause
+symlink@0.1.0 (2): MIT, Apache-2.0
+syn@2.0.119 (2): MIT, Apache-2.0
+syn@3.0.3 (2): MIT, Apache-2.0
+sync_wrapper@1.0.2 (1): Apache-2.0
+synstructure@0.13.2 (1): MIT
+tagptr@0.2.0 (2): MIT, Apache-2.0
+tempfile@3.27.0 (2): MIT, Apache-2.0
+thiserror@2.0.20 (2): MIT, Apache-2.0
+thiserror-impl@2.0.20 (2): MIT, Apache-2.0
+thread_local@1.1.10 (2): MIT, Apache-2.0
+time@0.3.55 (2): MIT, Apache-2.0
+time-core@0.1.9 (2): MIT, Apache-2.0
+time-macros@0.2.32 (2): MIT, Apache-2.0
+tinystr@0.8.3 (1): Unicode-3.0
+tinyvec@1.12.0 (3): Zlib, Apache-2.0, MIT
+tinyvec_macros@0.1.1 (3): MIT, Apache-2.0, Zlib
+tokio@1.53.1 (1): MIT
+tokio-macros@2.7.2 (1): MIT
+tokio-rustls@0.26.4 (2): MIT, Apache-2.0
+tokio-stream@0.1.19 (1): MIT
+tokio-util@0.7.19 (1): MIT
+toml@0.8.23 (2): MIT, Apache-2.0
+toml_datetime@0.6.11 (2): MIT, Apache-2.0
+toml_datetime@1.1.1+spec-1.1.0 (2): MIT, Apache-2.0
+toml_edit@0.22.27 (2): MIT, Apache-2.0
+toml_edit@0.25.13+spec-1.1.0 (2): MIT, Apache-2.0
+toml_parser@1.1.3+spec-1.1.0 (2): MIT, Apache-2.0
+toml_write@0.1.2 (2): MIT, Apache-2.0
+toml_writer@1.1.2+spec-1.1.0 (2): MIT, Apache-2.0
+tower@0.5.3 (1): MIT
+tower-http@0.5.2 (1): MIT
+tower-http@0.6.11 (1): MIT
+tower-layer@0.3.3 (1): MIT
+tower-service@0.3.3 (1): MIT
+tracing@0.1.44 (1): MIT
+tracing-appender@0.2.5 (1): MIT
+tracing-attributes@0.1.31 (1): MIT
+tracing-core@0.1.36 (1): MIT
+tracing-log@0.2.0 (1): MIT
+tracing-serde@0.2.0 (1): MIT
+tracing-subscriber@0.3.23 (1): MIT
+tracker@1.24.0-pre.42 (1): MIT
+tracker-support@1.24.0-pre.42 (1): MIT
+tracker-test-support@1.24.0-pre.42 (1): MIT
+try-lock@0.2.5 (1): MIT
+typenum@1.20.1 (2): MIT, Apache-2.0
+ucd-trie@0.1.7 (2): MIT, Apache-2.0
+uluru@3.1.0 (1): MPL-2.0
+unicase@2.9.0 (2): MIT, Apache-2.0
+unicode-bom@2.0.3 (1): Apache-2.0
+unicode-ident@1.0.24 (3): MIT, Apache-2.0, Unicode-3.0
+unicode-normalization@0.1.25 (2): MIT, Apache-2.0
+unicode-width@0.2.2 (2): MIT, Apache-2.0
+untrusted@0.7.1 (1): ISC
+untrusted@0.9.0 (1): ISC
+url@2.5.8 (2): MIT, Apache-2.0
+utf8_iter@1.0.4 (2): Apache-2.0, MIT
+utf8parse@0.2.2 (2): Apache-2.0, MIT
+uuid@1.24.0 (2): Apache-2.0, MIT
+vcs@1.24.0-pre.42 (1): MIT
+vcs-adapters@1.24.0-pre.42 (1): MIT
+vcs-test-support@1.24.0-pre.42 (1): MIT
+vergen@9.0.6 (2): MIT, Apache-2.0
+vergen-gitcl@1.0.8 (2): MIT, Apache-2.0
+vergen-lib@0.1.6 (2): MIT, Apache-2.0
+version_check@0.9.5 (2): MIT, Apache-2.0
+walkdir@2.5.0 (2): Unlicense, MIT
+want@0.3.1 (1): MIT
+web-time@1.1.0 (2): MIT, Apache-2.0
+webpki-roots@1.0.9 (1): CDLA-Permissive-2.0
+winnow@0.7.15 (1): MIT
+winnow@1.0.4 (1): MIT
+work@1.24.0-pre.42 (1): MIT
+work-adapters@1.24.0-pre.42 (1): MIT
+writeable@0.6.3 (1): Unicode-3.0
+yoke@0.8.3 (1): Unicode-3.0
+yoke-derive@0.8.2 (1): Unicode-3.0
+zerocopy@0.8.56 (3): BSD-2-Clause, Apache-2.0, MIT
+zerofrom@0.1.8 (1): Unicode-3.0
+zerofrom-derive@0.1.7 (1): Unicode-3.0
+zeroize@1.9.0 (2): Apache-2.0, MIT
+zeroize_derive@1.5.0 (2): Apache-2.0, MIT
+zerotrie@0.2.4 (1): Unicode-3.0
+zerovec@0.11.6 (1): Unicode-3.0
+zerovec-derive@0.11.3 (1): Unicode-3.0
+zlib-rs@0.6.7 (1): Zlib
+zmij@1.0.23 (1): MIT
+zstd@0.13.3 (1): MIT
+zstd-safe@7.2.4 (2): MIT, Apache-2.0
+zstd-sys@2.0.16+zstd.1.5.7 (2): MIT, Apache-2.0

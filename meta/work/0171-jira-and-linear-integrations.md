@@ -215,8 +215,16 @@ settled and closed.
   `skills/work/scripts/` removed — *open*.
 - The two binaries' exit-code contract and its document of record — *open*.
   Durable: it belongs in the CLI's own docs, not here.
-- Copyleft status of the `wiremock-rs` and `rustls` dependency trees, and
-  whether 0203 therefore becomes a release-path dependency — *pending*.
+- Copyleft status of the mock and `rustls` dependency trees, and whether 0203
+  therefore becomes a release-path dependency — **decided** (0210 Phase 10): no
+  copyleft is introduced. No mock library was adopted (D3), so the dev tree adds
+  none; `reqwest`, `rustls` and `hickory` were already in the closure via
+  `launcher`, and the hand-rolled multipart body keeps `mime`/`mime_guess` out,
+  so the production side adds no new SPDX id. The only copyleft in the closure is
+  `uluru`'s MPL-2.0, pre-existing and carried under `[[licenses.exceptions]]`.
+  0203 therefore does not become a release-path dependency of this line of work.
+  Evidence: `cli/licence-audit/new-trees.txt` and
+  `tests/integration/deny/test_licence_closure.py`.
 - `linear-graphql.sh` classified as a production script or a library entry —
   *pending*.
 - Consumer sweep result for the eighteen deleted work scripts (the grep command
@@ -240,6 +248,144 @@ settled and closed.
 - Conflict-flow walkthrough evidence — *pending*.
 - Identifier-safety check — **decided**: carried forward, an unsafe identifier
   is a `Terminal` failure.
+
+### Plan decision register (0210)
+
+The cross-cutting rationale from the 0210 provider-client plan, copied here
+verbatim so it survives the plan's archival. This is the single durable home for
+these decisions; the plan's own copy and this one must not be re-argued
+independently. The plan's implementation record — every place the running oracle
+corrected the plan's text — lives in that plan's `## Implementation Progress →
+Deviations from the plan as written`; it is not duplicated here.
+
+Copyleft answer (Phase 10): no copyleft is introduced by 0210. The production
+closure adds no new SPDX id, the dev tree adds none, and the only copyleft is
+`uluru`'s pre-existing MPL-2.0 exception — see the resolved copyleft decision
+above, with `cli/licence-audit/new-trees.txt` as the committed evidence.
+
+Contract evidence run dates: *pending* — the live-tenant runs producing
+`cli/{jira,linear}-client/tests/evidence/contract-run.txt` need a credentialed
+tenant and are recorded here when they land.
+
+**D1 — Build both clients, don't buy.** Linear has no viable crate. Jira has
+exactly one, `gouqi`, declined: bus-factor 1, silent since 2025-10-20, `full`
+pulls `rsa` (RUSTSEC-2023-0071) and `serde_yaml` (unmaintained), and its `Error`
+exposes `reqwest::Error` so an adapter boundary is needed anyway. Read as a
+reference for `/search/jql` cursor pagination and ADF node shapes, attributed
+under MIT; nothing vendored.
+
+**D2 — Jira REST v2 declined.** It would eliminate ADF, but the committed corpus
+pins ADF into the projection, so adopting it rehashes every Jira item and
+reclassifies the corpus as `remotely-modified` on first sync.
+
+**D3 — No mock library.** `wiremock`, `mockito` and `httpmock` all rejected: none
+can hang a connect phase or drop a connection mid-body, so the hand-rolled stall
+responder would survive regardless and the dependency would replace nothing. The
+two existing hand-rolled servers are unioned into `cli/http-test-support`.
+
+**D4 — GraphQL codegen declined.** `cynic` is MPL-2.0; `graphql_client` needs a
+1.28 MB committed schema. Neither catches Linear's non-functioning-stub
+deprecation mode, where a stub matches a committed schema, generates,
+type-checks and returns nothing. Only the contract test catches that.
+
+**D5 — ADF hand-built.** The bash dialect is a bespoke subset — no text escaping,
+a fixed `code → em → strong → link` pipeline, `attrs.order` always 1, seeded
+`localId`, silent drops for `strike`, `underline` and a `listItem`'s second and
+later children. No third-party crate reproduces it byte-for-byte.
+
+**D6 — Cargo unifies features per resolved package version**, across the whole
+selected graph, so a crate-local entry at the same pin is not an escape hatch.
+Two consequences, both binding:
+
+- `reqwest/multipart` is **not** enabled anywhere. The multipart body is
+  hand-rolled over the existing byte-body path, which also keeps `mime` and
+  `mime_guess` out of the closure.
+- `serde_json/arbitrary_precision` is **not** enabled. Number fidelity comes from
+  a local raw-token preserving re-serialiser in `remote-projection`. The feature
+  would change `Value::Number`'s representation and its `untagged`/`flatten`
+  behaviour in `launcher` — the binary that verifies signed artefacts — plus six
+  other crates.
+
+Applying this rule to one dependency and not the other would be arbitrary.
+
+**D7 — `rustls-tls-webpki-roots-no-provider` installs no crypto provider.** Every
+client calls `rustls::crypto::ring::default_provider().install_default()` in its
+constructor and declares `rustls`, as `cli/launcher/src/launch/outbound/tls.rs:10`
+already does. Omitting it fails every HTTPS request at handshake, and the offline
+harness is cleartext over `TcpListener` so no mock detects it. Verified by
+asserting `CryptoProvider::get_default()` is `Some` after construction — process
+state, needing no server, certificate or dev-dependency.
+
+**D8 — webpki-roots replaces curl's system trust store.** A user-visible
+narrowing: corporate TLS interception and private-CA self-hosted Jira lose a path
+that works today. The connect-failure diagnostic names certificate verification
+distinctly so the cause is readable from the error.
+
+**D9 — Shared policy lives in `cli/tracker-support`.** Credential resolution, the
+bounded-retry policy, `TransportConfig`, the identifier-safety predicate and the
+`port_body` newline adapter are common to both providers and to any third. The
+pup rules forbid the clients importing *each other*, which a common downward
+dependency does not do. Admission criterion: policy shared by two or more
+provider clients, no transport, no provider specifics.
+
+**D10 — Transcriptions are checked against the running bash.** A fixture
+transcribed by hand and code written to satisfy it agree with each other whether
+or not either agrees with the oracle. While the scripts exist, differential tests
+*execute* them — Phase 2 for the five mappers, Phase 4 for the ADF pipeline. Both
+assert a non-zero comparison count, fail rather than skip when bash or jq is
+absent, expose their comparison function to a committed sibling test that proves
+they can fail, and are deleted by 0212 with the assets they drive.
+
+**D11 — `Unconfigured` is exit 74, not 71.** 70 and 71 (`E_DISPATCH_RETRYABLE` /
+`E_DISPATCH_TERMINAL`) answer *whether a remote mutation may have applied*, and
+`push_decide` plus the SKILL.md tables emit non-idempotency guidance on 71.
+Unresolvable credentials provably touched nothing. 70 and 71 stay derived
+exclusively from `TrackerError`.
+
+**D12 — Credential-bearing config is a trust boundary, and `Level::Personal`
+alone is not one.** `.accelerator/config.local.md` is repository-relative, so a
+hostile repository can simply *track* it — `.gitignore` does not apply to an
+already-tracked file — and thereby supply a `token_cmd` that
+`accelerator work sync` executes through `bash -c` in a fresh clone, or a
+`jira.allowed_sites` entry blessing an attacker-controlled `jira.site`.
+
+Command-valued and allowlist-valued keys (`*.token_cmd`, `jira.allowed_sites`)
+are therefore **refused when their provenance file is VCS-tracked**, with a
+distinct diagnostic. The repo already has the primitive: `jira-auth.sh`'s
+`_jira_is_vcs_tracked` gates the `ACCELERATOR_ALLOW_INSECURE_LOCAL` marker on
+exactly this property, and `cli/vcs` provides it natively. The helper also runs
+with a scrubbed environment (`PATH`, `HOME`, `TERM` only) and a defined working
+directory, so the one deliberately-executed foreign code path is no more
+privileged than it needs to be.
+
+**D13 — A team-level `token_cmd` is refused, not ignored.** Both auth scripts
+warn and continue; `collaboration-cli` refuses. This plan follows
+`collaboration-cli`, because a silently-ignored credential source is worse than a
+loud one.
+
+**D14 — `jira.site` is a credential destination and is validated as one.** It is
+where the token is sent. Refused unless absolute `https://`, no userinfo, no
+query, no fragment, and a host matching the allow shape — matched **at a label
+boundary**, ASCII-lowercased, punycode-normalised, default port only. Suffix
+matching would accept `atlassian.net.evil.com` and `evil-atlassian.net`, which is
+the same defect the Linear upload allowlist is written to avoid. `*.atlassian.net`
+plus `jira.allowed_sites`, whose entries are exact hostnames with no wildcard
+expansion.
+
+**D15 — Bounding is the client's obligation, and the page cap does not provide
+it.** The port states a caller cannot supply it. Each request is bounded at 30s
+with 4 attempts on 429/5xx only; a transport failure resolves on the first
+attempt with no retry, matching bash. An operation-level deadline bounds the
+whole call, because 20 pages — multiplied again by Jira's 50-id chunks — puts a
+degraded tracker in the tens of minutes. Deadline expiry degrades exactly as a
+cap-hit does: truncation flagged, `Ok`, unseen ids `indeterminate`.
+
+**D16 — Timing assertions are asymmetric.** Tight lower bound (the call must not
+return before T — the property carrying signal), generous 3×T upper bound, and
+the error variant asserted. A 1.35×T bound leaves 140ms of slack at T = 400ms,
+inside scheduler jitter on a loaded runner, and this repo has a documented flake
+history. Retry timing is asserted as *data* through an injected `Sleeper` and
+seeded `Jitter`, never by wall clock.
 
 ## Dependencies
 
