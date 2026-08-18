@@ -412,7 +412,7 @@ full `mise run` mirror is deferred to the Phase 10 close-out). Phase 10 is next.
 | 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | done | `efe0a2a6` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
-| 9 — Linear provider surface | done | | 40 (comment 2, transition 3, attach 15, discovery 5, cache 7, catalogue 4, upload 3, +1 pup probe pair) |
+| 9 — Linear provider surface | done | `3282ee59` | 40 (comment 2, transition 3, attach 15, discovery 5, cache 7, catalogue 4, upload 3, +1 pup probe pair) |
 | 10 — Enforcement close-out | not started | | |
 
 One commit sits outside the phase sequence: `91129dfb` takes
