@@ -1,0 +1,9 @@
+# RemoteTracker contract conformance evidence
+# provider: jira
+# date: 2026-08-18
+# harness: test:integration:tracker-contract
+create_then_show_round_trips PASS 1 1243ms
+update_replaces_whole_content PASS 1 1565ms
+fetch_all_partitions_totally PASS 1 190ms
+a_failing_read_is_retryable PASS 1 165ms
+total PASS 4 3163ms

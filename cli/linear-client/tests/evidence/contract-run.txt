@@ -1,0 +1,10 @@
+# RemoteTracker contract conformance evidence
+# provider: linear
+# date: 2026-08-18
+# harness: test:integration:tracker-contract
+create_then_show_round_trips PASS 1 391ms
+update_replaces_whole_content PASS 1 946ms
+fetch_all_partitions_totally PASS 1 67ms
+unaccounted_id_is_indeterminate_not_absent PASS 1 73ms
+a_failing_read_is_retryable PASS 1 44ms
+total PASS 5 1521ms

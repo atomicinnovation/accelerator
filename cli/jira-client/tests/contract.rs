@@ -58,14 +58,26 @@ impl ContractSubject for LiveClient {
         &self.client
     }
 
-    /// An id outside every chunk the harness requests, so a complete retrieval
-    /// still cannot account for it.
+    /// A well-formed key with no matching issue, used by the partition test.
+    /// A live `/search/jql` returns it as a clean empty result, so the client
+    /// files it `absent` — see `can_nominate_indeterminate` below.
     fn unaccountable_id(&self) -> ExternalId {
         self.unaccountable.clone()
     }
 
     fn unreadable_id(&self) -> ExternalId {
         self.unreadable.clone()
+    }
+
+    /// Jira reaches `indeterminate` only through a failed search — a 5xx, a
+    /// page-cap or a deadline. A live tenant returns a 2xx empty result for any
+    /// benign but unmatched key, which the client correctly files `absent`, so
+    /// no id this subject could name is reported indeterminate. The property is
+    /// enforced offline instead, where the mock returns 500 for the search
+    /// (`contract_offline.rs`). Linear, whose team scope is a structural
+    /// indeterminate path, keeps the default.
+    fn can_nominate_indeterminate(&self) -> bool {
+        false
     }
 }
 
@@ -173,18 +185,41 @@ fn the_conformance_set_passes_against_a_live_tenant() {
     assert!(executed > 0, "the conformance set asserted nothing");
 }
 
-#[test]
-fn an_unaccounted_id_is_indeterminate_against_a_live_tenant() {
-    let subject = live_client();
-    tracker_test_support::contract::unaccounted_id_is_indeterminate_not_absent(
-        &subject,
-    )
-    .expect("the harness gate must be open for a live run");
-}
+// No live equivalent of `unaccounted_id_is_indeterminate`: Jira reaches
+// `indeterminate` only through a failed search, which a live tenant will not
+// produce for a benign id (`can_nominate_indeterminate` is false). The property
+// is enforced offline in `contract_offline.rs`, where the mock fails the
+// search.
 
 #[test]
 fn a_failing_read_is_retryable_against_a_live_tenant() {
     let subject = live_client();
     tracker_test_support::contract::a_failing_read_is_retryable(&subject)
         .expect("the harness gate must be open for a live run");
+}
+
+/// Emit the reduced evidence record for a live run, so the committed
+/// `tests/evidence/contract-run.txt` a verifier reads is produced by the
+/// harness rather than transcribed by hand. A no-op unless
+/// `ACCELERATOR_TRACKER_CONTRACT_EVIDENCE` names an output path, because
+/// evidence is generated deliberately, not on every contract run.
+#[test]
+fn writes_reduced_evidence_when_a_path_is_configured() {
+    let Some(path) = std::env::var_os("ACCELERATOR_TRACKER_CONTRACT_EVIDENCE")
+    else {
+        return;
+    };
+    let subject = live_client();
+    let ids = vec![subject.unaccountable_id()];
+    let records =
+        tracker_test_support::contract::timed_conformance(&subject, &ids)
+            .expect("the harness gate must be open for a live run");
+    let date = std::env::var("ACCELERATOR_TRACKER_CONTRACT_DATE").ok();
+    let rendered = tracker_test_support::evidence::render(
+        "jira",
+        date.as_deref(),
+        &records,
+    );
+    std::fs::write(&path, rendered)
+        .unwrap_or_else(|error| panic!("write evidence to {path:?}: {error}"));
 }

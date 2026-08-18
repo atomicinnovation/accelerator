@@ -263,9 +263,15 @@ closure adds no new SPDX id, the dev tree adds none, and the only copyleft is
 `uluru`'s pre-existing MPL-2.0 exception — see the resolved copyleft decision
 above, with `cli/licence-audit/new-trees.txt` as the committed evidence.
 
-Contract evidence run dates: *pending* — the live-tenant runs producing
-`cli/{jira,linear}-client/tests/evidence/contract-run.txt` need a credentialed
-tenant and are recorded here when they land.
+Contract evidence run dates: both `cli/{jira,linear}-client/tests/evidence/
+contract-run.txt` were produced from live-tenant runs on 2026-08-18. Jira
+carries 4 conformance records, not 5: `unaccounted_id_is_indeterminate` is
+offline-only for Jira, whose `indeterminate` outcome requires a failed search a
+live tenant will not produce for a benign id (a `ContractSubject::
+can_nominate_indeterminate` capability skips it for the live Jira subject). The
+live create also confirmed the harness must pass the port's empty "default" kind
+rather than a literal issue-type name, since Jira matches type names
+case-sensitively.
 
 **D1 — Build both clients, don't buy.** Linear has no viable crate. Jira has
 exactly one, `gouqi`, declined: bus-factor 1, silent since 2025-10-20, `full`

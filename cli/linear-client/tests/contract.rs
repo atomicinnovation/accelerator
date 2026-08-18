@@ -175,3 +175,29 @@ fn a_failing_read_is_retryable_against_a_live_team() {
     tracker_test_support::contract::a_failing_read_is_retryable(&subject)
         .expect("the harness gate must be open for a live run");
 }
+
+/// Emit the reduced evidence record for a live run, so the committed
+/// `tests/evidence/contract-run.txt` a verifier reads is produced by the
+/// harness rather than transcribed by hand. A no-op unless
+/// `ACCELERATOR_TRACKER_CONTRACT_EVIDENCE` names an output path, because
+/// evidence is generated deliberately, not on every contract run.
+#[test]
+fn writes_reduced_evidence_when_a_path_is_configured() {
+    let Some(path) = std::env::var_os("ACCELERATOR_TRACKER_CONTRACT_EVIDENCE")
+    else {
+        return;
+    };
+    let subject = live_client();
+    let ids = vec![subject.unaccountable_id()];
+    let records =
+        tracker_test_support::contract::timed_conformance(&subject, &ids)
+            .expect("the harness gate must be open for a live run");
+    let date = std::env::var("ACCELERATOR_TRACKER_CONTRACT_DATE").ok();
+    let rendered = tracker_test_support::evidence::render(
+        "linear",
+        date.as_deref(),
+        &records,
+    );
+    std::fs::write(&path, rendered)
+        .unwrap_or_else(|error| panic!("write evidence to {path:?}: {error}"));
+}

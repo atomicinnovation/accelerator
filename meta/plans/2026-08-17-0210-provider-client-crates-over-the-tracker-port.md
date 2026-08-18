@@ -413,7 +413,7 @@ full `mise run` mirror is deferred to the Phase 10 close-out). Phase 10 is next.
 | 7 — Composition root | done | `de655cb2` | 15 (real-client, resolution, tripwire, scrub-derivation) + `is_tracked` |
 | 8 — Jira provider surface | done | `efe0a2a6` | 44 (comment 9, transition 6, multipart 5, attach 5, discovery 5, cache 8, mime 3, +3) |
 | 9 — Linear provider surface | done | `3282ee59` | 40 (comment 2, transition 3, attach 15, discovery 5, cache 7, catalogue 4, upload 3, +1 pup probe pair) |
-| 10 — Enforcement close-out | partial | | 4 (licence closure 2, no-network 2) |
+| 10 — Enforcement close-out | partial | | 15 (licence closure 2, no-network 2, evidence render/guard 9, per-client hygiene 2) + both providers' committed contract evidence |
 
 One commit sits outside the phase sequence: `91129dfb` takes
 `test:integration:tracker-contract` out of the `test:integration` roll-up and
@@ -683,14 +683,55 @@ recreate the two-copies-diverge failure the register's own preamble warns
 against, and the list stays in this committed, referenced plan. 0171 therefore
 carries the register plus a pointer to this section rather than a second copy.
 
-**Phase 10 — contract evidence and manual verification remain blocked on a
-tenant.** No Jira tenant is configured on this host, and producing Linear
-evidence requires both the harness reduced-form emission (unwritten) and a live
-run that creates real issues in the user's Linear workspace — an outward-facing
-mutation deferred to the user's decision. The offline enforcement (licence
-closure, network-free default profile, the Decisions register) is the part
-Phase 10 could land without a tenant; the evidence guard and the harness emission
-are held until a credentialed run is authorised.
+**Phase 10 — the evidence machinery is built; only the live runs are deferred.**
+At the user's direction the tenant-independent half landed: the reduced-form
+renderer and its guard (`tracker_test_support::evidence::{render,
+is_reduced}`), the timing orchestrator (`contract::timed_conformance`,
+added to `gated_calls()` so the gate-closure guard covers it), a per-provider
+emitter test (`writes_reduced_evidence_when_a_path_is_configured`, gated and a
+no-op unless `ACCELERATOR_TRACKER_CONTRACT_EVIDENCE` names an output), and a
+default-profile guard per client (`evidence_hygiene.rs`) that refuses a committed
+file carrying payloads or secrets. The guard is proven by
+`tracker-test-support`'s own unit tests (clean render round-trips; email, Bearer,
+`ATATT`, `lin_api_` and payload lines each rejected). What remains is the live
+run itself: no Jira tenant is configured on this host, and a Linear run creates
+real issues in the user's workspace, so generating and committing the two
+`contract-run.txt` files is deferred to an authorised credentialed run. A live
+run produces the file via `ACCELERATOR_TRACKER_CONTRACT_EVIDENCE=<path>` (and an
+optional `ACCELERATOR_TRACKER_CONTRACT_DATE`) alongside the harness's own
+`ACCELERATOR_TRACKER_CONTRACT=1`.
+
+**Phase 10 — the guard uses no regex.** `tracker-test-support`'s pup rule admits
+only `std`/`core`/`alloc`/`tracker`/`crate`, so `is_reduced` parses the fixed
+`name PASS|FAIL count Nms` grammar by hand and treats any `@` as a violation
+rather than matching an email shape by pattern — a stronger, simpler rule since
+the reduced form never legitimately carries one.
+
+**Phase 10 — the first live runs corrected two Phase-5 harness assumptions.**
+Running the contract harnesses against real tenants (the manual verification
+Phases 5-9 always deferred) surfaced two fixture assumptions that had never been
+exercised:
+
+- The shared create property hardcoded issue type `"story"`; a real Jira project
+  offers `Story` and matches case-sensitively, so the create 400'd. The client
+  passing `kind` verbatim as the issue-type name is correct and by design
+  (nothing above the port maps a work-item kind to a tracker type). The fix is
+  in the fixture: the shared property now passes the empty kind — the port's
+  "tracker's configured default" — which the Jira client resolves to its
+  `DEFAULT_ISSUE_TYPE` (`Task`, present on the project) and Linear ignores. The
+  project's `reporter`-required flag turned out benign: Jira Cloud auto-fills it
+  with the token's user on an API create.
+- `unaccounted_id_is_indeterminate_not_absent` is unsatisfiable against a live
+  Jira tenant. Jira reaches `indeterminate` only through a failed search — a 5xx,
+  a page-cap or a deadline — and `/search/jql` returns a clean empty 2xx for any
+  benign but unmatched key, which the client correctly files `absent`. The
+  offline contract already enforces the property with a mock 500
+  (`contract_offline.rs`). Linear satisfies it live because its team scope is a
+  structural indeterminate path. Resolved by a `ContractSubject::
+  can_nominate_indeterminate` capability (default `true`): the live Jira subject
+  declares `false`, so the property is skipped for it in both the live test set
+  and the evidence emitter, while staying enforced offline and live for Linear.
+  This is why the committed Jira evidence carries 4 records and Linear's 5.
 
 ### Outstanding
 
@@ -704,12 +745,14 @@ are held until a credentialed run is authorised.
   `contract_offline` is observably selected by the default profile.
 - **Every manual-verification item in Phases 5 and 6b remains open.** All of
   them need a credentialed tenant, which this machine does not have.
-- Phase 10 is **partial**: the offline enforcement landed (licence closure
-  evidence + set assertion, the network-free default-profile test, and the
-  D1-D16 register copied onto 0171 with the copyleft answer). Left open, both
-  tenant-gated: the contract evidence files with their guard and the harness
-  reduced-form emission, and the networking-disabled default-suite transcript.
-  The full `mise run` mirror is the remaining automated close-out step.
+- Phase 10 is **all but complete**: the offline enforcement (licence closure
+  evidence + set assertion, the network-free default-profile test, the D1-D16
+  register on 0171 with the copyleft answer), the full evidence machinery, and
+  both providers' committed live contract evidence all landed. The two Phase-5
+  harness assumptions the live runs corrected are recorded in the deviations.
+  One item remains, environment-limited: the networking-disabled default-suite
+  transcript, which per-process network disable on this macOS host cannot
+  produce. The `mise run` mirror is green.
 - **Phase 9's manual-verification items remain open** — uploading a real binary
   to a live Linear issue and diffing live discovery output both need a
   credentialed tenant.
@@ -3398,23 +3441,28 @@ committed listing's path, and the date of the contract evidence runs.
 - [x] No Python in `cli/`'s dev-dependencies:
       `rg -n "python" --glob 'cli/**/Cargo.toml'` returns nothing — recursive, so
       nested members like `cli/visualiser/server` are actually scanned
-- [ ] The committed evidence files carry no payloads and match no secret-shaped
-      pattern, asserted by the guard — **blocked**: the evidence files need a
-      live tenant (Jira has none configured here) and the harness reduced-form
-      emission
+- [x] The committed evidence files carry no payloads and match no secret-shaped
+      pattern, asserted by the guard — both
+      `cli/{jira,linear}-client/tests/evidence/contract-run.txt` produced from
+      live tenant runs (2026-08-18) and passing `evidence_hygiene.rs`. Jira
+      carries 4 records (the indeterminate property is offline-only for it; see
+      deviations); Linear carries 5
 - [x] Both client crates classified: `mise run test:unit:tasks`
       (`tests/unit/tasks/test_rust.py`)
 - [x] Every pup rule added by this plan has a probe pair:
       `mise run test:integration:pup`
-- [ ] Full local mirror green end-to-end: `mise run`
+- [x] Full local mirror green end-to-end: `mise run` — green; one run also hit
+      the documented load-sensitive `test:integration:dev` circus/server-readiness
+      flake (unrelated to this plan's pure-Rust changes), which passes standalone
+      (17 passed)
 
 #### Manual Verification
 
 - [ ] The default suite runs green with networking disabled, and the transcript
       is committed — **blocked**: per-process network disable is not available on
       this macOS host
-- [ ] Both evidence files are dated no earlier than the final client commit —
-      **blocked** on the live contract runs
+- [x] Both evidence files are dated no earlier than the final client commit —
+      dated 2026-08-18, after Phase 9's `3282ee59`
 - [x] 0171's `## Decisions` reads as a record a later reader can act on without
       rediscovering `gouqi` or v2
 
