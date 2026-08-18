@@ -999,6 +999,117 @@ def test_http_test_support_rule_permits_std_imports(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The provider-client isolation rule ---
+#
+# jira-client must not reach up into the work domain nor across to the other
+# provider client. Driven against a workspace whose crates are literally named
+# for them, under the shipped cli/pup.ron. The compliant control imports the
+# port crate, which the rule must admit — a client that could not name
+# `tracker` could not implement it.
+
+_PROVIDER_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["jira-client", "linear-client", "work", "tracker"]
+"""
+
+_JIRA_CLIENT_MANIFEST = """\
+[package]
+name = "jira-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+linear-client = { path = "../linear-client" }
+work = { path = "../work" }
+tracker = { path = "../tracker" }
+"""
+
+_LINEAR_CLIENT_STUB_MANIFEST = """\
+[package]
+name = "linear-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_LINEAR_CLIENT_STUB_LIB = "pub struct LinearClient;\n"
+
+_JIRA_CLIENT_WORK_VIOLATION = (
+    "use work::WorkItem;\n\npub fn make() -> WorkItem {\n    WorkItem\n}\n"
+)
+_JIRA_CLIENT_SIBLING_VIOLATION = (
+    "use linear_client::LinearClient;\n\n"
+    "pub fn make() -> LinearClient {\n    LinearClient\n}\n"
+)
+_JIRA_CLIENT_COMPLIANT = (
+    "use tracker::ExternalId;\n\n"
+    "pub fn make() -> ExternalId {\n    ExternalId::new(String::new())\n}\n"
+)
+
+
+def _write_provider_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_PROVIDER_WORKSPACE)
+
+    client_src = root / "jira-client/src"
+    client_src.mkdir(parents=True, exist_ok=True)
+    (root / "jira-client/Cargo.toml").write_text(_JIRA_CLIENT_MANIFEST)
+    (client_src / "lib.rs").write_text(lib_body)
+
+    sibling_src = root / "linear-client/src"
+    sibling_src.mkdir(parents=True, exist_ok=True)
+    (root / "linear-client/Cargo.toml").write_text(_LINEAR_CLIENT_STUB_MANIFEST)
+    (sibling_src / "lib.rs").write_text(_LINEAR_CLIENT_STUB_LIB)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST_MIN)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB_MIN)
+
+
+def test_jira_client_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_WORK_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_is_the_only_jira_transport" in output, output
+
+
+def test_jira_client_rule_rejects_importing_the_sibling_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_SIBLING_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_is_the_only_jira_transport" in output, output
+
+
+def test_jira_client_rule_permits_importing_the_port(tmp_path: Path) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The remaining whole-crate domain rules ---
 #
 # Each is driven against a workspace whose crate is literally named for it,

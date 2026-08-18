@@ -49,6 +49,10 @@ _EXEMPT_MEMBERS = {
     "migrate-adapters": _ADAPTER,
     "vcs-adapters": _ADAPTER,
     "work-adapters": _ADAPTER,
+    "jira-client": (
+        f"{_ADAPTER}. The provider surface it exposes is what one composition"
+        " root wires, and it tracks Jira's API rather than the domain"
+    ),
     "github": (
         f"{_ADAPTER}. Named for the forge rather than as"
         " collaboration-adapters, but that is what it is"

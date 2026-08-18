@@ -1302,57 +1302,57 @@ rows present.
 
 #### Automated Verification
 
-- [ ] Every precedence branch has a test against Jira's `TokenKeys`, mirroring
+- [x] Every precedence branch has a test against Jira's `TokenKeys`, mirroring
       `collaboration-cli/src/auth.rs`'s nine: env wins over config, config wins
       over personal `token_cmd`, a team `token_cmd` is refused, nothing
       configured is a refusal, and a missing `site` or `email` is a refusal
-- [ ] The team-level `token_cmd` refusal carries the diagnostic text, asserted on
+- [x] The team-level `token_cmd` refusal carries the diagnostic text, asserted on
       the message string not just the variant
-- [ ] Every row of the status table is asserted per operation; the test fails if
+- [x] Every row of the status table is asserted per operation; the test fails if
       a status is added to the table without an assertion
-- [ ] Every `provider = jira` row of the committed fixture is asserted; the
+- [x] Every `provider = jira` row of the committed fixture is asserted; the
       row-coverage guard fails on an unconsumed row
-- [ ] The retry loop makes exactly 4 attempts on a persistent 503, asserted with
+- [x] The retry loop makes exactly 4 attempts on a persistent 503, asserted with
       `MockServer::hits`
-- [ ] The injected `Sleeper` records the durations it was asked to sleep, and the
+- [x] The injected `Sleeper` records the durations it was asked to sleep, and the
       recorded sequence matches expectation while the real clock is never
       consulted — this, not a wall-clock ceiling, is what proves the seam is
       wired. A "single-digit milliseconds" bound would be an order of magnitude
       tighter than the 1.35×T bound D16 already rejects as flake-prone
-- [ ] `Retry-After` is honoured as a **duration**, not merely as a trigger: with
+- [x] `Retry-After` is honoured as a **duration**, not merely as a trigger: with
       an injected clock and seeded jitter, `Retry-After: 7` yields exactly 7s
       where the default backoff would have been something else
-- [ ] A connect, DNS or timeout failure makes exactly **one** attempt — no retry
-- [ ] The constructed default timeout is 30s, asserted as the value handed to the
+- [x] A connect, DNS or timeout failure makes exactly **one** attempt — no retry
+- [x] The constructed default timeout is 30s, asserted as the value handed to the
       client builder; an injected 400ms timeout demonstrably takes effect
-- [ ] The Jira transport refuses a 302 rather than following it (Linear's is
+- [x] The Jira transport refuses a 302 rather than following it (Linear's is
       asserted in Phase 6a, where that crate first exists)
-- [ ] A response exceeding `max_response_bytes` is rejected before
+- [x] A response exceeding `max_response_bytes` is rejected before
       deserialisation, not buffered
-- [ ] Constructing a client leaves `rustls::crypto::CryptoProvider::get_default()`
+- [x] Constructing a client leaves `rustls::crypto::CryptoProvider::get_default()`
       as `Some`, proving the provider is installed. This is a direct assertion on
       process state needing no server, no certificate and no new dev-dependency —
       the plain-HTTP mock structurally cannot show it, and an https stub would
       breach both the std-only rule on `http-test-support` and Phase 10's
       unchanged-dev-closure expectation
-- [ ] `jira.site` is refused for `http://`, for a userinfo-bearing URL, for one
+- [x] `jira.site` is refused for `http://`, for a userinfo-bearing URL, for one
       carrying a query or fragment, and for a host outside the allow shape — each
       before any request is built
-- [ ] A `jira.site` at `Level::Team` failing the shape is refused
-- [ ] A `jira.allowed_sites` entry present at `Level::Team` is refused and does
+- [x] A `jira.site` at `Level::Team` failing the shape is refused
+- [x] A `jira.allowed_sites` entry present at `Level::Team` is refused and does
       **not** widen the accepted host set
-- [ ] A loopback base URL is reachable through `Transport::new` but unreachable
+- [x] A loopback base URL is reachable through `Transport::new` but unreachable
       through `from_config`, regardless of process environment
-- [ ] `max_response_bytes` defaults to 8 MiB, asserted as a unit value
-- [ ] A token carrying CR, LF or a control byte is refused
-- [ ] Path validation rejects traversal, `//`, a non-`/rest/api/3/` prefix, and a
+- [x] `max_response_bytes` defaults to 8 MiB, asserted as a unit value
+- [x] A token carrying CR, LF or a control byte is refused
+- [x] Path validation rejects traversal, `//`, a non-`/rest/api/3/` prefix, and a
       double-encoded traversal
-- [ ] `ClientError`'s variants survive to the caller with a working `source()`
+- [x] `ClientError`'s variants survive to the caller with a working `source()`
       chain — a missing site, a failed helper and a shared-config refusal are
       distinguishable, not one string
-- [ ] `cd cli && cargo nextest run -p jira-client`
-- [ ] `deny:check` green: `mise run lint:cli:deny:check`
-- [ ] Full local mirror: `mise run`
+- [x] `cd cli && cargo nextest run -p jira-client`
+- [x] `deny:check` green: `mise run lint:cli:deny:check`
+- [x] Full local mirror: `mise run`
 
 #### Manual Verification
 

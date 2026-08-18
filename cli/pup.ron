@@ -185,6 +185,27 @@
                 ),
             ],
         )),
+        // jira-client is the only place Jira request construction lives, and
+        // it must not reach up into the work domain or across to the other
+        // provider. `denied` rather than `allowed_only` because cargo-pup
+        // resolves a grouped `use a::{b, c}` to an empty module name, which a
+        // permit list would reject — forcing one single-item `use` per line
+        // through the whole crate.
+        Module((
+            name: "jira_client_is_the_only_jira_transport",
+            matches: Module("^jira_client($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^work(::|$)",
+                        "^work_adapters(::|$)",
+                        "^linear_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // http-test-support's whole value is being std-only: it must stall a
         // connection and drop one mid-body, which no HTTP client library
         // exposes. Expressed as a `denied` list rather than `allowed_only`

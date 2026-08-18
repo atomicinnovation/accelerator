@@ -35,6 +35,13 @@ pub enum Route {
     Bytes { status: u16, body: Vec<u8> },
     /// This status with an empty body.
     Status(u16),
+    /// This status with these response headers and this body — the shape a
+    /// client's `Retry-After` handling needs.
+    Headers {
+        status: u16,
+        headers: Vec<(String, String)>,
+        body: String,
+    },
     /// A redirect response to this absolute Location.
     Redirect { status: u16, location: String },
     /// 500 for the first `fail_times` hits, then 200 with the bytes.
@@ -276,6 +283,17 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             http_response(status, &[], &body)
         }
         Some(Route::Status(status)) => http_response(status, &[], &[]),
+        Some(Route::Headers {
+            status,
+            headers,
+            body,
+        }) => {
+            let borrowed: Vec<(&str, &str)> = headers
+                .iter()
+                .map(|(name, value)| (name.as_str(), value.as_str()))
+                .collect();
+            http_response(status, &borrowed, body.as_bytes())
+        }
         Some(Route::Redirect { status, location }) => {
             http_response(status, &[("Location", location.as_str())], &[])
         }
