@@ -5,7 +5,7 @@ title: "Provider Client Crates over the RemoteTracker Port Implementation Plan"
 date: "2026-08-17T14:32:39+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: in-progress
 work_item_id: "work-item:0210"
 parent: "work-item:0210"
 derived_from: ["codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0171", "work-item:0194", "work-item:0204", "work-item:02
 tags: [rust, jira, linear, integrations, reqwest, tracker, adf, graphql]
 revision: "7fbc11853805ac90798eb0b0923855a2d3380c22"
 repository: "accelerator"
-last_updated: "2026-08-17T15:51:15+00:00"
+last_updated: "2026-08-18T11:40:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -391,6 +391,160 @@ deletes that test**, since the tests invoke the scripts directly and would red
 the suite the moment the script vanished.
 
 This table is reproduced in 0211's deletion gate so the sibling can check it off.
+
+---
+
+## Implementation Progress
+
+Phases 1 to 6b are implemented and committed; each landed with `mise run` green
+end to end at the time of its commit. Phase 7 is next.
+
+| Phase | Status | Commit | Tests added |
+|---|---|---|---|
+| 1 — HTTP test-support crate | done | `bf7e7192` | 10 in `http-test-support` |
+| 2 — Shared crates and transcriptions | done | `7bb170ed` | 37 in `tracker-support`, 2 guards |
+| 3 — `jira-client` foundation | done | `9dd6aff2` | 38 |
+| 4 — `jira-client` ADF conversion | done | `ee93deec` | 30 + 56 fixture cases |
+| 5 — `jira-client` `impl RemoteTracker` | done | `8fe8521a` | 110 total, 26 in `remote-projection` |
+| 6a — `linear-client` foundation | done | `7adda8a3` | 34 |
+| 6b — `linear-client` `impl RemoteTracker` | done | `caa75991` | 67 total |
+| 7 — Composition root | not started | | |
+| 8 — Jira provider surface | not started | | |
+| 9 — Linear provider surface | not started | | |
+| 10 — Enforcement close-out | not started | | |
+
+One commit sits outside the phase sequence: `91129dfb` takes
+`test:integration:tracker-contract` out of the `test:integration` roll-up and
+out of `default`. Phase 5 created the first `tests/contract.rs`, and until then
+`binary(=contract)` selected nothing, so the lane passed trivially inside the
+local CI mirror; afterwards a bare `mise run` needed a live Jira tenant. The
+lane is now opt-in, recorded in `_NOT_IN_INTEGRATION_ROLLUP` with a guard
+asserting it is unreachable from the transitive closure of `default`, `test` and
+`check`, and the harness fails rather than skips when no tenant is configured.
+
+### Deviations from the plan as written
+
+Each is a place the implementation diverged from the plan's text, with the
+reason. Nothing here was a preference; every item is either a plan error the
+running oracle corrected, or a constraint the plan did not know about.
+
+**Corrections the oracle made to the plan's transcription.** Four in the ADF
+inventory alone, all found by executing `jq`/`awk` rather than reading it:
+
+- There are **three** render-abort conditions, not two. A `bulletList`,
+  `orderedList` or `taskList` with no `content` key aborts as well, because
+  those arms read `.content` with no `// []` fallback.
+- `a*b` yields three text nodes whose **middle one is an em-marked empty
+  string**, not a literal asterisk: the catch-all matches the single `*`, and
+  stripping one delimiter from each end of a one-character token leaves nothing.
+- `[](https://x)` is **dropped entirely** — neither the link nor its brackets
+  survive — because the assembler's capture requires a non-empty label.
+- A nested list as a `listItem`'s **first** child renders one inline placeholder
+  per `listItem`; only in the second-and-later position is it silently dropped.
+
+Two more in the JQL surface, found by running `jql_compose`: the bash emits
+`IN`/`NOT IN` **uppercase**, and `text ~ "…"` in **double** quotes with `\`
+escaped before `"`. Multi-value quoting is single quotes with interior quotes
+doubled, not the double-quoted form the plan described.
+
+**`jira.site` accepts two shapes.** D14 describes an absolute `https://` URL,
+but the bash stores a bare Cloud subdomain and builds
+`https://<site>.atlassian.net` (`jira-request.sh:240`). Refusing the subdomain
+form would break every existing configuration at Phase 7, so both are accepted
+and both validated; only the URL form can reach `jira.allowed_sites`.
+
+**`TransportConfig` carries no `base: Url`.** A `Url` reaches `tracker-support`
+only through `reqwest`, which its own pup rule bars. The bounds live there; each
+client's transport takes its base URL directly.
+
+**Linear team scope needs the team key, not the UUID.** "An id outside the
+configured team is indeterminate" is decidable only from the `<TEAM_KEY>-`
+prefix, and `linear.team_id` is the UUID alone — only `catalogue.json` carries
+the key. `LinearClient` therefore holds `team_key: Option<String>`, and when it
+is `None` no absence is provable and every unfound id is indeterminate, which
+is the port's own instruction for an implementation that cannot distinguish the
+two.
+
+**`port_body` must not append to a projection that already ends in a newline.**
+Linear's empty-string description projects as an empty line, so the projection
+*is* `"<title>\n"` — exactly the bytes the committed `remote_hash` covers.
+`work::normalise::trim_lines` pops trailing blank lines, so the collapse is
+hash-neutral in every case, which is what has been masking the difference.
+
+**The assemble direction is compared canonically, not byte-for-byte.** `jq`
+emits object keys in insertion order and `serde_json` emits them sorted, and D6
+forbids `preserve_order`; both sides pass through one serialiser. The render
+direction *is* byte-identical. Render-abort cases assert the class and the
+oracle's exit status rather than jq's message, which embeds an input line number
+and exits 5 rather than 40; the four assemble rejections do assert exact codes
+and message text.
+
+**Three accepted `jq`-versus-`serde_json` divergences**, listed in
+`cli/remote-projection/tests/fixtures/adversarial-scalars.txt` with rationale:
+jq 1.7.1 re-renders exponent notation through its decimal library (`1e999` →
+`1E+999`, `1e-5` → `0.00001`) and escapes U+007F where `serde_json` emits it
+raw. The other 21 rows match byte for byte. Jira payloads carry no exponent
+notation, so a real body cannot reach the divergence.
+
+**The baseline's `(6, 6, 15, 27, totalling 68)` figures do not reconcile** —
+they sum to 54, and the corpus holds 3/3/5/12 case entries per directory. The
+committed baseline records the case-name sets and the guard derives counts from
+them, as the plan says the guard should; the numbers themselves are not
+committed.
+
+**Additions to `http-test-support` the plan's union did not anticipate.**
+`Route::Headers`, because a mock had no way to send a `Retry-After` and the
+honoured-as-a-duration property was otherwise unassertable; and
+`Route::Sequence`, because Linear posts every operation to `/graphql` and a
+`(method, path)` key cannot tell a create from the `show` that follows it.
+
+**Registration landed in Phase 3 and 6a rather than Phase 5 §8.** A workspace
+member must be classified in `tasks/public_api.py` the moment it exists, or the
+coverage guard reds. Phase 5 §8 had nothing left to do.
+
+**Narrower dependency sets than the plan listed.** Neither client takes
+`kernel` (nothing routes through it) and neither takes `serde` (only
+`serde_json`). `ClientError` has no `Unclassified` variant — an unclassified
+status is a `TrackerError`, not a client error — and gained `TlsUnavailable`,
+`AllowlistFromSharedConfig` and `ConfigUnreadable`.
+
+**Test doubles are duplicated per client, deliberately.** Sharing
+`RecordingSleeper`/`NoJitter` would mean widening `tracker-test-support`'s
+std-only pup rule to admit `tracker_support`. These are test doubles rather than
+the policy D9 exists to keep from drifting.
+
+### Outstanding
+
+- **One automated criterion is deliberately unticked** (Phase 5): the
+  behavioural `cargo nextest list --message-format json` assertion. It costs a
+  full workspace test-binary build — over ten minutes cold, ~56s warm per
+  invocation — which would blunt either the default suite or a 0.77s
+  integration lane. What holds the property instead: the exact-match filter is
+  pinned by `tests/unit/tasks/test_nextest_filter.py`, each `contract` binary
+  fails closed on its own `ACCELERATOR_TRACKER_CONTRACT` gate, and
+  `contract_offline` is observably selected by the default profile.
+- **Every manual-verification item in Phases 5 and 6b remains open.** All of
+  them need a credentialed tenant, which this machine does not have.
+- Phases 7 to 10 are unstarted. Phase 10's `## Decisions` copy onto 0171 should
+  carry this deviation list alongside the D1-D16 register.
+
+### A note on the local CI mirror
+
+Two full `mise run` invocations during Phases 6a and 6b failed on
+**pre-existing, load-sensitive flakes in code this plan does not touch**, and
+both lanes pass standalone:
+
+- `test:integration:integrations` → `jira_with_lock` test (a), where the lock
+  directory is removed between `mkdir` succeeding and the holder writing
+  `holder.pid`/`holder.start` (`jira-common.sh:157-170`). It also failed on a
+  tree that predated `linear-client` entirely.
+- `test:integration:dev` → `test_detach_readiness_and_log_routing`, where
+  circusd writes no pidfile under load.
+
+Neither is caused by a provider client; a new crate only makes the machine
+busier, which shifts the timing. Treat a single full-run failure in either lane
+as suspect and re-run that lane alone before investigating the change under
+review.
 
 ---
 
