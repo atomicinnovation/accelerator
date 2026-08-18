@@ -1,0 +1,21 @@
+# Language-neutral pin data shared by the release pipeline and the
+# launcher's build step. ASSEMBLED_SHA256: one digest per tree artifact per
+# platform, the reviewed anchor the release job gates against and the launcher
+# embeds as its expected (artifact, platform) -> digest map. A drift test holds
+# these values, the launcher's compiled-in map, TREE_ARTIFACTS and the
+# manifest.example.json artifact keys in agreement.
+#
+# Phase 1 ships placeholder digests; the release pipeline overwrites them with
+# the digests of the deterministically assembled archives.
+
+[assembled_sha256.browser]
+darwin-arm64 = "9999999999999999999999999999999999999999999999999999999999999999"
+darwin-x64 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+linux-arm64 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+linux-x64 = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+
+[assembled_sha256.driver]
+darwin-arm64 = "5555555555555555555555555555555555555555555555555555555555555555"
+darwin-x64 = "6666666666666666666666666666666666666666666666666666666666666666"
+linux-arm64 = "7777777777777777777777777777777777777777777777777777777777777777"
+linux-x64 = "8888888888888888888888888888888888888888888888888888888888888888"

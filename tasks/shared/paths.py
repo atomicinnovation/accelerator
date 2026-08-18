@@ -37,6 +37,17 @@ DISPATCHED_SUBBINARIES: tuple[str, ...] = (
 )
 # Tokens whose only consumer is a hook or another binary, never a SKILL.md.
 SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
+# The directory-tree artifacts the release assembles and the launcher fetches
+# alongside the single-file sub-binaries. Every publish-path list derives from
+# this one tuple, so adding or retiring a tree artifact is a single edit.
+TREE_ARTIFACTS: tuple[str, ...] = (
+    "driver",
+    "browser",
+)
+# The committed pin data shared across the language boundary: the release
+# pipeline reads ASSEMBLED_SHA256 from it and the launcher's build step embeds
+# the same digests as its compiled-in expected map.
+PINS_TOML = REPO_ROOT / "pins.toml"
 # Sub-binaries shipping a symbolication archive, and the committed tree each is
 # staged into so the provenance glob covers it. Every value must be a `bin/`
 # directory — `.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`.
@@ -88,6 +99,18 @@ def subbinary_asset_path(
     `accelerator-visualiser-<platform>`.
     """
     return staging_dir / f"accelerator-{token}-{platform}"
+
+
+def tree_artifact_asset_path(
+    name: str, platform: str, staging_dir: Path = RELEASE_STAGING
+) -> Path:
+    """Resolve the published archive for a tree artifact.
+
+    Flat in the staging directory and `.tar.gz`, because the provenance attest
+    globs do not cross `/` — for the browser tree on linux-x64,
+    `accelerator-browser-linux-x64.tar.gz`.
+    """
+    return staging_dir / f"accelerator-{name}-{platform}.tar.gz"
 
 
 def vendored_shim_path(
