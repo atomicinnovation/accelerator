@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "http-test-support"
-version = "1.24.0-pre.42"
+version = "1.24.0-pre.43"
 
 [[package]]
 name = "httparse"
@@ -2786,7 +2786,7 @@ dependencies = [
 
 [[package]]
 name = "jira-client"
-version = "1.24.0-pre.42"
+version = "1.24.0-pre.43"
 dependencies = [
  "config",
  "corpus",
@@ -2978,7 +2978,7 @@ dependencies = [
 
 [[package]]
 name = "linear-client"
-version = "1.24.0-pre.42"
+version = "1.24.0-pre.43"
 dependencies = [
  "config",
  "corpus",
@@ -3873,7 +3873,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "remote-projection"
-version = "1.24.0-pre.42"
+version = "1.24.0-pre.43"
 dependencies = [
  "serde_json",
  "sha2 0.10.9",
@@ -4891,7 +4891,7 @@ version = "1.24.0-pre.43"
 
 [[package]]
 name = "tracker-support"
-version = "1.24.0-pre.42"
+version = "1.24.0-pre.43"
 dependencies = [
  "config",
  "tempfile",
