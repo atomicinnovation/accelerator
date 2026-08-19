@@ -18,11 +18,16 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import stat
+import subprocess
 import zipfile
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 _DEFAULT_FILE_MODE = 0o644
+_SMOKE_TIMEOUT = 30
 # The vendored playwright version must be exact, not a caret/tilde range: the
 # fetched package, the API lib/*.js was written against, and the derived
 # Chromium revision are one choice rather than three that can drift.
@@ -128,3 +133,103 @@ def assert_version_pairing(
             f"{fetched_chromium_revision} != pinned "
             f"{expected_chromium_revision}"
         )
+
+
+@dataclass(frozen=True)
+class NoticeSource:
+    """One licensed component's redistribution notices."""
+
+    component: str
+    licence_files: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class TreePlacement:
+    """A source file or directory and where it lands within a tree."""
+
+    source: Path
+    dest_relpath: str
+
+
+@dataclass(frozen=True)
+class TreeSpec:
+    """What one artifact tree is composed from."""
+
+    artifact: str
+    placements: tuple[TreePlacement, ...]
+    notices: tuple[NoticeSource, ...]
+
+
+def write_notices(tree: Path, sources: Iterable[NoticeSource]) -> None:
+    """Populate ``tree/NOTICES/<component>/`` from each source's files.
+
+    A component contributing no licence file fails the release: NOTICES are the
+    plan's substitute for a legal-review gate, so a silently dropped component
+    must not ship.
+    """
+    for source in sources:
+        if not source.licence_files:
+            raise ValueError(
+                f"component {source.component!r} has no licence files"
+            )
+        directory = tree / "NOTICES" / source.component
+        directory.mkdir(parents=True, exist_ok=True)
+        for licence in source.licence_files:
+            shutil.copy2(licence, directory / licence.name)
+
+
+def stage_tree(spec: TreeSpec, dest: Path) -> None:
+    """Compose ``spec`` into ``dest``, preserving modes and symlinks."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for placement in spec.placements:
+        target = dest / placement.dest_relpath
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if placement.source.is_dir():
+            shutil.copytree(placement.source, target, symlinks=True)
+        else:
+            shutil.copy2(placement.source, target)
+    write_notices(dest, spec.notices)
+
+
+def structural_check(
+    tree: Path,
+    *,
+    executables: Iterable[str],
+    notice_components: Iterable[str],
+) -> None:
+    """Fail unless every expected binary is executable and NOTICES populated.
+
+    Cheap enough to run for every platform in the assembling job, so it covers
+    the targets the execution smoke matrix cannot reach.
+    """
+    for name in executables:
+        binary = tree / name
+        if not binary.is_file():
+            raise ValueError(f"expected binary {name} is missing")
+        if not binary.stat().st_mode & 0o111:
+            raise ValueError(f"expected binary {name} is not executable")
+    for component in notice_components:
+        directory = tree / "NOTICES" / component
+        if not directory.is_dir() or not any(directory.iterdir()):
+            raise ValueError(f"NOTICES/{component} is empty or missing")
+
+
+def smoke_check(tree: Path, *, executables: Iterable[str]) -> None:
+    """Fail unless every named binary in ``tree`` runs ``--version``.
+
+    Executing the artifact is a stronger gate than extracting it — a
+    correctly-signed, correctly-hashed but structurally-wrong tree passes every
+    other check and this one refuses it — which is why it runs in a job holding
+    no signing credentials.
+    """
+    for name in executables:
+        binary = tree / name
+        try:
+            subprocess.run(
+                [str(binary), "--version"],
+                check=True,
+                capture_output=True,
+                timeout=_SMOKE_TIMEOUT,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ValueError(f"{name} did not execute: {exc}") from exc
