@@ -242,6 +242,7 @@ struct Harness {
     cache: PathBuf,
     trusted: String,
     archive_sha: String,
+    archive_bytes: Vec<u8>,
     _workdir: TempDir,
     _cache: TempDir,
 }
@@ -308,6 +309,7 @@ fn happy_harness(minisign: &Path) -> Harness {
     let manifest_sig =
         sign(minisign, &secret, workdir.path(), manifest.as_bytes());
 
+    let archive_bytes = archive.clone();
     let server = MockServer::start();
     server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
     server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
@@ -327,6 +329,7 @@ fn happy_harness(minisign: &Path) -> Harness {
         cache: cache.path().to_path_buf(),
         trusted: trusted_pub,
         archive_sha,
+        archive_bytes,
         _workdir: workdir,
         _cache: cache,
     }
@@ -1071,4 +1074,38 @@ const fn describe_kind(
         Discrepancy::Digest => "digest",
         Discrepancy::LinkTarget { .. } => "link-target",
     }
+}
+
+// ---- cross-process Range resume ----
+
+#[test]
+fn an_interrupted_download_resumes_with_a_range_request() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // Simulate an interrupted first run: write the first half of the archive to
+    // the digest-named temp path the resolver resumes from.
+    let archive = harness.archive_bytes.clone();
+    let trees = harness.cache.join("trees");
+    std::fs::create_dir_all(&trees).unwrap();
+    let temp = trees.join(format!(
+        ".tmp-{ARTIFACT}-{HOST_PLATFORM}-{}.archive",
+        harness.archive_sha
+    ));
+    std::fs::write(&temp, &archive[..archive.len() / 2]).unwrap();
+
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("resume completes");
+    assert!(sealed.path.join("lib/data.pak").exists());
+
+    let asset = archive_path();
+    assert_eq!(
+        harness.server.range_hits(&asset),
+        1,
+        "resume must issue exactly one Range request"
+    );
+    // The resumed tree verifies exactly as a fresh one does.
+    harness.resolver().verify(ARTIFACT).expect("verify resumed");
 }

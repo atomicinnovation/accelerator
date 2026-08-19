@@ -16,10 +16,6 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 // bounds one read rather than the attempt, so `StreamLimits` carries the
 // attempt and whole-loop bounds instead.
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
-// The tree resolver is the only consumer of the streaming transport, and it
-// lands separately from the transport so each is verified on its own.
-// The tree resolver is the only consumer of the streaming transport, and it
-// lands separately from the transport so each is verified on its own.
 // The stall bound on the streaming path. A per-request timeout bounds one
 // *read* once a body is streamed rather than the whole attempt, which is
 // exactly the idle bound wanted here: a slow-but-progressing transfer resets it
@@ -100,6 +96,10 @@ pub(super) trait StreamSink {
 pub(super) struct StreamedBody {
     pub bytes: u64,
     pub sha256: [u8; 32],
+    /// Whether the server answered a Range request with 206 (partial). When a
+    /// caller asked for a range and got 200 instead, the sink was opened
+    /// truncating and the body covers the whole file.
+    pub partial: bool,
 }
 
 /// Whether a redirect target host is permitted, matched at a dotted-label
@@ -247,7 +247,10 @@ impl Fetcher {
         &self,
         url: &str,
         limits: &StreamLimits,
-        open_sink: &mut dyn FnMut() -> std::io::Result<
+        range_from: Option<u64>,
+        open_sink: &mut dyn FnMut(
+            bool,
+        ) -> std::io::Result<
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<StreamedBody, FetchError> {
@@ -265,7 +268,9 @@ impl Fetcher {
             if started.elapsed() >= limits.total_deadline {
                 break;
             }
-            match self.try_get_streaming(url, limits, started, open_sink) {
+            match self
+                .try_get_streaming(url, limits, range_from, started, open_sink)
+            {
                 Ok(body) => return Ok(body),
                 Err(Terminal::NotFound) => return Err(FetchError::NotFound),
                 Err(Terminal::TooLarge { limit }) => {
@@ -280,20 +285,23 @@ impl Fetcher {
         )))
     }
 
-    #[allow(dead_code)]
     fn try_get_streaming<'sink>(
         &self,
         url: &str,
         limits: &StreamLimits,
+        range_from: Option<u64>,
         started: Instant,
-        open_sink: &mut dyn FnMut() -> std::io::Result<
+        open_sink: &mut dyn FnMut(
+            bool,
+        ) -> std::io::Result<
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<StreamedBody, Terminal> {
-        let mut response = self
-            .client
-            .get(url)
-            .timeout(limits.idle_timeout)
+        let mut request = self.client.get(url).timeout(limits.idle_timeout);
+        if let Some(offset) = range_from {
+            request = request.header("Range", format!("bytes={offset}-"));
+        }
+        let mut response = request
             .send()
             .map_err(|error| Terminal::Retryable(error.to_string()))?;
         let status = response.status();
@@ -308,8 +316,12 @@ impl Fetcher {
                 "unexpected status {status}"
             )));
         }
+        // A server that honoured the Range answers 206; one that ignored it
+        // sends the whole body as 200, so the sink must truncate rather than
+        // append. The caller decides file positioning from this flag.
+        let partial = range_from.is_some() && status.as_u16() == 206;
 
-        let mut sink = open_sink()
+        let mut sink = open_sink(partial)
             .map_err(|error| Terminal::Retryable(error.to_string()))?;
         let mut hasher = Sha256::new();
         let mut buffer = vec![0_u8; STREAM_CHUNK];
@@ -343,6 +355,7 @@ impl Fetcher {
         Ok(StreamedBody {
             bytes,
             sha256: hasher.finalize().into(),
+            partial,
         })
     }
 }
@@ -483,7 +496,7 @@ mod tests {
         limits: &StreamLimits,
         sink: &Collecting,
     ) -> Result<StreamedBody, FetchError> {
-        fetcher.get_streaming(url, limits, &mut || {
+        fetcher.get_streaming(url, limits, None, &mut |_partial| {
             sink.borrow_mut().clear();
             Ok(Box::new(CollectingSink(Rc::clone(sink))))
         })
