@@ -8,7 +8,7 @@
 use std::io::Write;
 
 use crate::launch::core::tree::{
-    Discrepancy, MaterialiseTree as _, TreeReport, VerifyTree as _,
+    Discrepancy, MaterialiseTree as _, TreeError, TreeReport, VerifyTree as _,
 };
 use crate::launch::inbound::cli::CacheAction;
 use crate::launch::outbound::resolve::tree::{pins, TreeResolver};
@@ -99,18 +99,45 @@ fn ensure(
             )));
         }
     }
-    // The caller holds the lease itself, so `ensure` prints the lease path
-    // alongside the resolved tree path.
+    // Success lines go to `out` (stdout); a materialise failure returns a
+    // structured envelope whose Display the caller renders to stderr, so the
+    // executor maps a cause token rather than parsing prose.
     for name in names {
-        let sealed = resolver.materialise(name)?;
-        let _ = writeln!(
-            out,
-            "{name}\t{}\t{}",
-            sealed.path.display(),
-            sealed.lease_path.display()
-        );
+        match resolver.materialise(name) {
+            Ok(sealed) => {
+                // The caller holds the lease itself, so the lease path is
+                // printed alongside the resolved tree path.
+                let _ = writeln!(
+                    out,
+                    "{name}\t{}\t{}",
+                    sealed.path.display(),
+                    sealed.lease_path.display()
+                );
+            }
+            Err(error) => {
+                return Err(kernel::Error::Failed(ensure_envelope(
+                    name, &error,
+                )));
+            }
+        }
     }
     Ok(())
+}
+
+/// The failure envelope for a single artifact: the machine-readable cause the
+/// executor maps, the artifact, and the human-readable detail.
+fn ensure_envelope(artifact: &str, error: &TreeError) -> String {
+    format!(
+        r#"{{"error":"ensure-failed","cause":"{}","artifact":"{}","message":"{}"}}"#,
+        error.cause().as_str(),
+        escape(artifact),
+        escape(&error.to_string()),
+    )
+}
+
+/// JSON string escaping over the only metacharacters a path or detail carries.
+fn escape(raw: &str) -> String {
+    raw.replace('\\', r"\\").replace('"', "\\\"")
 }
 
 fn prune(
@@ -151,5 +178,48 @@ const fn describe(discrepancy: &Discrepancy) -> &'static str {
         Discrepancy::Mode { .. } => "mode",
         Discrepancy::Digest => "digest",
         Discrepancy::LinkTarget { .. } => "link-target",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_envelope;
+    use crate::launch::core::tree::TreeError;
+
+    #[test]
+    fn a_disk_shortfall_renders_a_cause_keyed_envelope() {
+        assert_eq!(
+            ensure_envelope(
+                "driver",
+                &TreeError::DiskShortfall {
+                    needed: 600,
+                    available: 12,
+                },
+            ),
+            r#"{"error":"ensure-failed","cause":"disk-shortfall","artifact":"driver","message":"materialising needs 600 bytes and 12 are free"}"#
+        );
+    }
+
+    #[test]
+    fn an_unreachable_archive_is_named_as_such() {
+        let envelope = ensure_envelope(
+            "browser",
+            &TreeError::Unreachable {
+                detail: "connection refused".to_owned(),
+            },
+        );
+        assert!(envelope.contains(r#""cause":"unreachable""#), "{envelope}");
+        assert!(envelope.contains(r#""artifact":"browser""#), "{envelope}");
+    }
+
+    #[test]
+    fn a_metacharacter_in_the_detail_is_escaped() {
+        let envelope = ensure_envelope(
+            "driver",
+            &TreeError::Extraction {
+                detail: r#"a "quoted" member"#.to_owned(),
+            },
+        );
+        assert!(envelope.contains(r#"\"quoted\""#), "{envelope}");
     }
 }

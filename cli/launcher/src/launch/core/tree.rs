@@ -69,6 +69,17 @@ pub enum TreeError {
     MaterialisationInProgress {
         waited: Duration,
     },
+    /// The archive or its attestation could not be fetched at all — a transport
+    /// failure, not tampering — so a crawl degrades rather than refuses.
+    Unreachable {
+        detail: String,
+    },
+    /// The cache root could not be written to, established before any write so a
+    /// full or read-only root surfaces as its own downgrade rather than an
+    /// opaque failure part-way through extraction.
+    CacheRootUnwritable {
+        detail: String,
+    },
 }
 
 impl TreeError {
@@ -91,12 +102,75 @@ impl TreeError {
             | Self::Seal { .. }
             | Self::TableMissing => ErrorClass::Refusal,
             // Recoverable or environmental: re-materialisation, a remediation
-            // the user can perform, or another process already succeeding.
+            // the user can perform, another process already succeeding, a
+            // transport failure, or a cache root that cannot be written.
             Self::LayoutUnsupported { .. }
             | Self::Pointer { .. }
             | Self::Lease { .. }
             | Self::DiskShortfall { .. }
-            | Self::MaterialisationInProgress { .. } => ErrorClass::Failed,
+            | Self::MaterialisationInProgress { .. }
+            | Self::Unreachable { .. }
+            | Self::CacheRootUnwritable { .. } => ErrorClass::Failed,
+        }
+    }
+
+    /// The machine-readable cause the `accelerator cache ensure` failure
+    /// envelope reports, so the executor maps a token rather than parsing prose.
+    ///
+    /// Wildcard-free, so a new variant forces a cause decision here rather than
+    /// silently collapsing into the `Unavailable` catch-all.
+    #[must_use]
+    pub const fn cause(&self) -> EnsureCause {
+        match *self {
+            Self::Unreachable { .. } => EnsureCause::Unreachable,
+            Self::Attestation { .. } => EnsureCause::SignatureMismatch,
+            Self::UnexpectedDigest { .. } => EnsureCause::DigestMismatch,
+            Self::DiskShortfall { .. } => EnsureCause::DiskShortfall,
+            Self::CacheRootUnwritable { .. } => EnsureCause::CacheUnwritable,
+            Self::MaterialisationInProgress { .. } => {
+                EnsureCause::MaterialisationInProgress
+            }
+            Self::PathEscape { .. }
+            | Self::Extraction { .. }
+            | Self::Seal { .. }
+            | Self::TableMissing
+            | Self::LayoutUnsupported { .. }
+            | Self::Pointer { .. }
+            | Self::Lease { .. } => EnsureCause::Unavailable,
+        }
+    }
+}
+
+/// The cause token an `ensure` failure envelope carries.
+///
+/// The executor maps each token to a downgrade reason and a stickiness policy;
+/// the finer diagnostic tokens (`unreachable`, `signature-mismatch`,
+/// `digest-mismatch`) all resolve to the same `artifact-unavailable` reason
+/// there, while `disk-shortfall`, `cache-unwritable` and
+/// `materialisation-in-progress` each carry their own — the last of which must
+/// not be treated as sticky.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnsureCause {
+    Unreachable,
+    SignatureMismatch,
+    DigestMismatch,
+    DiskShortfall,
+    CacheUnwritable,
+    MaterialisationInProgress,
+    Unavailable,
+}
+
+impl EnsureCause {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unreachable => "unreachable",
+            Self::SignatureMismatch => "signature-mismatch",
+            Self::DigestMismatch => "digest-mismatch",
+            Self::DiskShortfall => "disk-shortfall",
+            Self::CacheUnwritable => "cache-unwritable",
+            Self::MaterialisationInProgress => "materialisation-in-progress",
+            Self::Unavailable => "artifact-unavailable",
         }
     }
 }
@@ -166,6 +240,12 @@ impl Display for TreeError {
                 "another process is still materialising this artifact after \
                  {waited:?}"
             ),
+            Self::Unreachable { detail } => {
+                write!(formatter, "the artifact could not be fetched: {detail}")
+            }
+            Self::CacheRootUnwritable { detail } => {
+                write!(formatter, "the cache root is not writable: {detail}")
+            }
         }
     }
 }
@@ -295,7 +375,9 @@ mod tests {
 
     use crate::launch::core::{swallow_under_fail_safe, ResolutionError};
 
-    use super::{Discrepancy, ErrorClass, TreeError, TreeReport};
+    use super::{
+        Discrepancy, EnsureCause, ErrorClass, TreeError, TreeReport,
+    };
 
     /// One of every variant. `class()`'s own match is wildcard-free, so a new
     /// variant cannot ship unclassified; this list is what keeps the
@@ -367,6 +449,18 @@ mod tests {
                 },
                 ErrorClass::Failed,
             ),
+            (
+                TreeError::Unreachable {
+                    detail: "connection refused".to_owned(),
+                },
+                ErrorClass::Failed,
+            ),
+            (
+                TreeError::CacheRootUnwritable {
+                    detail: "read-only file system".to_owned(),
+                },
+                ErrorClass::Failed,
+            ),
         ]
     }
 
@@ -375,6 +469,71 @@ mod tests {
         for (error, expected) in one_of_each() {
             assert_eq!(error.class(), expected, "{error} was misclassified");
         }
+    }
+
+    #[test]
+    fn the_distinct_reason_causes_map_to_distinct_tokens() {
+        assert_eq!(
+            TreeError::Unreachable {
+                detail: "x".to_owned()
+            }
+            .cause(),
+            EnsureCause::Unreachable
+        );
+        assert_eq!(
+            TreeError::CacheRootUnwritable {
+                detail: "x".to_owned()
+            }
+            .cause(),
+            EnsureCause::CacheUnwritable
+        );
+        assert_eq!(
+            TreeError::DiskShortfall {
+                needed: 1,
+                available: 0
+            }
+            .cause(),
+            EnsureCause::DiskShortfall
+        );
+        assert_eq!(
+            TreeError::MaterialisationInProgress {
+                waited: Duration::from_secs(1)
+            }
+            .cause(),
+            EnsureCause::MaterialisationInProgress
+        );
+        assert_eq!(
+            TreeError::UnexpectedDigest {
+                artifact: "a".to_owned(),
+                expected: "e".to_owned(),
+                found: "f".to_owned()
+            }
+            .cause(),
+            EnsureCause::DigestMismatch
+        );
+        // The catch-all: local damage the user cannot diagnose finer.
+        assert_eq!(TreeError::TableMissing.cause(), EnsureCause::Unavailable);
+    }
+
+    #[test]
+    fn every_cause_token_is_distinct_and_kebab_cased() {
+        let tokens = [
+            EnsureCause::Unreachable,
+            EnsureCause::SignatureMismatch,
+            EnsureCause::DigestMismatch,
+            EnsureCause::DiskShortfall,
+            EnsureCause::CacheUnwritable,
+            EnsureCause::MaterialisationInProgress,
+            EnsureCause::Unavailable,
+        ]
+        .map(EnsureCause::as_str);
+        let mut sorted = tokens.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), tokens.len(), "cause tokens must be distinct");
+        assert!(tokens.iter().all(|token| token
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c == '-')));
     }
 
     #[test]
