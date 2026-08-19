@@ -911,3 +911,164 @@ fn prune_older_than_overrides_the_window() {
         "--older-than must override the default window"
     );
 }
+
+// ---- ownership, verify shapes, and lease sparing ----
+
+#[test]
+fn a_cache_root_at_0775_still_resolves_since_the_launcher_owns_trees() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // A RHEL/Fedora umask-002 shape: the cache root itself is group-writable.
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o775),
+    )
+    .unwrap();
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a 0775 cache root must still resolve");
+}
+
+#[test]
+fn a_symlinked_trees_directory_is_refused_with_a_remediation() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // Point trees/ at another directory via a symlink — chmod cannot make this
+    // safe, so materialise must refuse.
+    let elsewhere = harness.cache.join("elsewhere");
+    std::fs::create_dir(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, harness.cache.join("trees"))
+        .unwrap();
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+    assert!(
+        matches!(&outcome, Err(kernel_err) if kernel_err.to_string().contains("chmod")),
+        "a symlinked trees/ must be refused with a remediation: {outcome:?}"
+    );
+}
+
+#[test]
+fn verify_detects_deletion_mode_change_and_a_changed_symlink() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Unseal the tree so the test can mutate it, then apply three distinct
+    // corruptions.
+    unseal(&sealed.path);
+    std::fs::remove_file(sealed.path.join("lib/data.pak")).unwrap();
+    std::fs::set_permissions(
+        sealed.path.join("node"),
+        std::fs::Permissions::from_mode(0o444),
+    )
+    .unwrap();
+
+    let report = harness.resolver().verify(ARTIFACT).expect("verify");
+    assert!(!report.is_sound());
+    let kinds: Vec<&str> = report
+        .findings
+        .iter()
+        .map(|(_, d)| describe_kind(d))
+        .collect();
+    assert!(
+        kinds.contains(&"missing"),
+        "deletion not detected: {kinds:?}"
+    );
+    assert!(
+        kinds.contains(&"mode"),
+        "mode change not detected: {kinds:?}"
+    );
+}
+
+#[test]
+fn verify_detects_an_unexpected_extra_entry() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    unseal(&sealed.path);
+    std::fs::write(sealed.path.join("lib/interloper"), b"x").unwrap();
+
+    let report = harness.resolver().verify(ARTIFACT).expect("verify");
+    assert!(report
+        .findings
+        .iter()
+        .any(|(path, _)| path == "lib/interloper"));
+}
+
+#[test]
+fn prune_spares_a_generation_whose_lease_is_still_held() {
+    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Plant a stale-claimed sibling generation, but hold its lease.
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let generation =
+        format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}-1-0011223344556677");
+    let _lease = hold_shared_lease(&paths.lease(&generation)).expect("lease");
+
+    // No claim at all, so the sibling is stale — but the held lease spares it.
+    harness
+        .resolver_with(&StoppedClock, &NoSteps)
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
+        .expect("prune");
+    assert!(
+        paths.generation(&generation).exists(),
+        "a leased generation must be spared by prune"
+    );
+    let _ = sealed;
+}
+
+/// Make a sealed tree writable so a test can corrupt it.
+fn unseal(root: &std::path::Path) {
+    fn walk(dir: &std::path::Path) {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o755))
+            .ok();
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let ft = entry.file_type().unwrap();
+                if ft.is_dir() {
+                    walk(&path);
+                } else if !ft.is_symlink() {
+                    std::fs::set_permissions(
+                        &path,
+                        std::fs::Permissions::from_mode(0o644),
+                    )
+                    .ok();
+                }
+            }
+        }
+    }
+    walk(root);
+}
+
+const fn describe_kind(
+    d: &accelerator::launch::core::tree::Discrepancy,
+) -> &'static str {
+    use accelerator::launch::core::tree::Discrepancy;
+    match d {
+        Discrepancy::Missing => "missing",
+        Discrepancy::Unexpected => "unexpected",
+        Discrepancy::Size { .. } => "size",
+        Discrepancy::Mode { .. } => "mode",
+        Discrepancy::Digest => "digest",
+        Discrepancy::LinkTarget { .. } => "link-target",
+    }
+}
