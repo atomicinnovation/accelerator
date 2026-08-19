@@ -172,6 +172,16 @@ impl Display for TreeError {
 
 impl std::error::Error for TreeError {}
 
+impl From<TreeError> for kernel::Error {
+    fn from(error: TreeError) -> Self {
+        let message = error.to_string();
+        match error.class() {
+            ErrorClass::Refusal => Self::Refusal(message),
+            ErrorClass::Failed => Self::Failed(message),
+        }
+    }
+}
+
 /// A materialised tree, ready to be handed to a consumer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SealedTree {

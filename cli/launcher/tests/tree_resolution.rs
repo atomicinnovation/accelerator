@@ -621,3 +621,173 @@ fn residual_generations(harness: &Harness) -> Vec<String> {
         })
         .collect()
 }
+
+// ---- the `accelerator cache` built-in ----
+
+use accelerator::launch::cache;
+use accelerator::launch::inbound::cli::CacheAction;
+
+fn run_cache(
+    harness: &Harness,
+    action: &CacheAction,
+) -> Result<Vec<u8>, kernel::Error> {
+    let mut out = Vec::new();
+    cache::run(action, &harness.resolver(), &mut out)?;
+    Ok(out)
+}
+
+#[test]
+fn cache_verify_reports_ok_on_a_clean_tree_and_fails_on_a_corrupt_one() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let out = run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    )
+    .expect("verify clean");
+    assert!(String::from_utf8_lossy(&out).contains("ok"));
+
+    // Corrupt a file with a same-size substitution.
+    let victim = sealed.path.join("lib/data.pak");
+    let mut perms = std::fs::metadata(&victim).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&victim, perms).unwrap();
+    std::fs::write(&victim, b"substituted!!!").unwrap();
+
+    let outcome = run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    );
+    assert!(
+        matches!(outcome, Err(kernel::Error::Failed(_))),
+        "a corrupt tree must make verify fail"
+    );
+}
+
+#[test]
+fn cache_repair_restores_a_corrupt_tree() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Truncate a file — a verify failure repair must heal.
+    let victim = sealed.path.join("lib/data.pak");
+    let mut perms = std::fs::metadata(&victim).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&victim, perms).unwrap();
+    std::fs::write(&victim, b"").unwrap();
+
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: false,
+        },
+    )
+    .expect("repair");
+
+    // The tree verifies clean again.
+    run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    )
+    .expect("verify after repair");
+}
+
+#[test]
+fn cache_repair_force_rematerialises_a_clean_tree() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let fetches = harness.hits(&archive_path());
+
+    // A forced repair of a clean tree fetches again rather than no-opping.
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: true,
+        },
+    )
+    .expect("forced repair");
+    assert!(
+        harness.hits(&archive_path()) > fetches,
+        "repair --force must re-materialise even a clean tree"
+    );
+}
+
+#[test]
+fn cache_ensure_prints_the_tree_and_lease_paths() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    let out = run_cache(
+        &harness,
+        &CacheAction::Ensure {
+            names: vec![ARTIFACT.to_owned()],
+        },
+    )
+    .expect("ensure");
+    let text = String::from_utf8_lossy(&out);
+    assert!(text.contains(ARTIFACT), "ensure names the artifact");
+    assert!(text.contains(".lease"), "ensure prints the lease path");
+}
+
+#[test]
+fn every_cache_verb_refuses_an_unknown_name_without_touching_the_filesystem() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    for action in [
+        CacheAction::Verify {
+            name: Some("nonesuch".to_owned()),
+        },
+        CacheAction::Repair {
+            name: Some("nonesuch".to_owned()),
+            force: false,
+        },
+        CacheAction::Ensure {
+            names: vec!["nonesuch".to_owned()],
+        },
+    ] {
+        let outcome = run_cache(&harness, &action);
+        assert!(
+            matches!(outcome, Err(kernel::Error::Refusal(_))),
+            "an unknown name must be refused: {outcome:?}"
+        );
+    }
+    // Nothing was fetched for the unknown name.
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
+#[test]
+fn cache_prune_reclaims_orphan_residue() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
+    // An orphan temp tree the reaper should reclaim.
+    let orphan = harness.cache.join("trees/.tmp-orphan");
+    std::fs::create_dir(&orphan).unwrap();
+
+    let out = run_cache(&harness, &CacheAction::Prune { older_than: None })
+        .expect("prune");
+    assert!(String::from_utf8_lossy(&out).contains("reclaimed"));
+    assert!(!orphan.exists(), "prune left an orphan temp tree");
+}

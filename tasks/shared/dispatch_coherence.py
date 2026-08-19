@@ -38,7 +38,7 @@ from tasks.shared.skill_parsing import (
 
 # Must equal the launcher's built-in set; a test pins it against the clap
 # `Command` enum, which is not compile-enforced from this side.
-BUILTIN_SUBCOMMANDS = frozenset({"version", "config", "help"})
+BUILTIN_SUBCOMMANDS = frozenset({"version", "config", "cache", "help"})
 # Staged-but-never-dispatched binaries whose asset name a token would collide
 # with, plus `launcher`. Derived by test from _CLI_RELEASE_BINARIES minus the
 # dispatched set: a third staged binary cannot silently become registrable, and
