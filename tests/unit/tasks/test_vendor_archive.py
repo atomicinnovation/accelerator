@@ -7,6 +7,8 @@ compare" alone is invariant to the very factors that threaten reproducibility.
 import hashlib
 import tarfile
 
+import pytest
+
 from tasks.vendor.archive import (
     TABLE_NAME,
     write_deterministic_archive,
@@ -137,3 +139,26 @@ def test_the_table_digest_matches_the_embedded_table(tmp_path):
     with tarfile.open(tmp_path / "out.tar.gz", "r:gz") as archive:
         table = archive.extractfile(TABLE_NAME).read()
     assert stats.table_sha256 == hashlib.sha256(table).hexdigest()
+
+
+def test_read_archive_stats_recomputes_the_produced_stats(tmp_path):
+    from tasks.vendor.archive import read_archive_stats
+
+    dest = tmp_path / "out.tar.gz"
+    produced = write_deterministic_archive(_tree(tmp_path / "tree"), dest)
+    read = read_archive_stats(dest)
+    assert read == produced
+
+
+def test_read_archive_stats_refuses_a_tableless_archive(tmp_path):
+    import tarfile as _tarfile
+
+    from tasks.vendor.archive import read_archive_stats
+
+    dest = tmp_path / "no-table.tar.gz"
+    with _tarfile.open(dest, "w:gz") as archive:
+        info = _tarfile.TarInfo("node")
+        info.size = 0
+        archive.addfile(info)
+    with pytest.raises(ValueError, match="table"):
+        read_archive_stats(dest)

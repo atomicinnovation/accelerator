@@ -132,6 +132,35 @@ def write_deterministic_archive(tree: Path, dest: Path) -> ArchiveStats:
     )
 
 
+def read_archive_stats(archive: Path) -> ArchiveStats:
+    """Recompute an existing archive's stats by walking it.
+
+    The publishing job re-derives ``uncompressed_size``, ``entry_count`` and
+    ``table_sha256`` from the pin-verified archive rather than signing the
+    values the ``.sealed`` document carried over the unpinned artifact channel.
+    Refuses an archive whose first member is not the table.
+    """
+    raw = archive.read_bytes()
+    with tarfile.open(archive, "r:gz") as tar:
+        members = tar.getmembers()
+        if not members or members[0].name != TABLE_NAME:
+            raise ValueError("archive's first member is not the .files table")
+        table = tar.extractfile(members[0])
+        table_bytes = table.read() if table is not None else b""
+        entries = members[1:]
+        uncompressed_size = sum(
+            member.size for member in entries if member.isreg()
+        )
+        entry_count = len(entries)
+    return ArchiveStats(
+        archive_sha256=hashlib.sha256(raw).hexdigest(),
+        archive_size=len(raw),
+        uncompressed_size=uncompressed_size,
+        entry_count=entry_count,
+        table_sha256=hashlib.sha256(table_bytes).hexdigest(),
+    )
+
+
 def _scan(tree: Path) -> list[_Entry]:
     entries: list[_Entry] = []
     for path in sorted(tree.rglob("*")):

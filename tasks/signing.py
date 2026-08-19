@@ -1,8 +1,9 @@
+import json
 import os
 import stat
 import subprocess
 import tempfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -13,10 +14,14 @@ from tasks.shared.paths import (
     DISPATCHED_SUBBINARIES,
     RELEASE_PUBLIC_KEY,
     RELEASE_SECRET_KEY,
+    RELEASE_STAGING,
+    TREE_ARTIFACTS,
     cli_binary_path,
     subbinary_asset_path,
+    tree_artifact_asset_path,
 )
 from tasks.shared.targets import TARGETS
+from tasks.vendor.archive import read_archive_stats
 
 SECRET_KEY_ENV = "ACCELERATOR_RELEASE_SECRET_KEY"  # noqa: S105 — env var name, not a secret
 
@@ -77,6 +82,67 @@ def sign_staged_binaries(secret_key: Path) -> None:
         )
     for binary in expected:
         sign_file(secret_key, binary, _signature_path(binary))
+
+
+def _tree_artifact_signing_targets(
+    tokens: Iterable[str] = TREE_ARTIFACTS,
+    staging_dir: Path = RELEASE_STAGING,
+    platforms: Sequence[tuple[str, str]] = TARGETS,
+) -> list[Path]:
+    return [
+        tree_artifact_asset_path(name, platform, staging_dir)
+        for _triple, platform in platforms
+        for name in tokens
+    ]
+
+
+def _reverify_sealed(archive: Path) -> Path:
+    """Re-derive the attestation from the archive, refusing any disagreement.
+
+    Returns the `.sealed` path so the caller signs the document it verified,
+    never one that could have been swapped between the check and the sign.
+    """
+    sealed = archive.with_name(archive.name + ".sealed")
+    if not sealed.exists():
+        raise SigningError(f"{archive.name}: missing .sealed attestation")
+    document = json.loads(sealed.read_text())
+    stats = read_archive_stats(archive)
+    for field, actual in (
+        ("archive_sha256", stats.archive_sha256),
+        ("uncompressed_size", stats.uncompressed_size),
+        ("entry_count", stats.entry_count),
+        ("table_sha256", stats.table_sha256),
+    ):
+        if document.get(field) != actual:
+            raise SigningError(
+                f"{archive.name}: .sealed {field} disagrees with the archive"
+            )
+    return sealed
+
+
+def sign_tree_artifacts(
+    secret_key: Path,
+    *,
+    tokens: Iterable[str] = TREE_ARTIFACTS,
+    staging_dir: Path = RELEASE_STAGING,
+    platforms: Sequence[tuple[str, str]] = TARGETS,
+) -> None:
+    """Sign each tree archive and its re-verified `.sealed` attestation.
+
+    Checks the whole expected set exists first, so a partial assembly fails
+    closed rather than signing a subset, then signs the archive to `.minisig`
+    and the attestation to `.sealed.sig`.
+    """
+    archives = _tree_artifact_signing_targets(tokens, staging_dir, platforms)
+    missing = [archive for archive in archives if not archive.exists()]
+    if missing:
+        raise SigningError(
+            f"expected tree archives not found: {[str(p) for p in missing]}"
+        )
+    for archive in archives:
+        sealed = _reverify_sealed(archive)
+        sign_file(secret_key, archive, _signature_path(archive))
+        sign_file(secret_key, sealed, sealed.with_name(sealed.name + ".sig"))
 
 
 @contextmanager
