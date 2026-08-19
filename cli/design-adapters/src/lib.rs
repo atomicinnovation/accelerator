@@ -23,6 +23,7 @@ pub use filesystem::read_document;
 pub use filesystem::DirectoryCheck;
 pub use lock::FileLock;
 pub use paths::HostPaths;
+pub use process::BootstrapLog;
 pub use process::DaemonSpawner;
 pub use process::ExecClient;
 pub use process::HostControl;

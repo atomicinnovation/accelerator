@@ -229,6 +229,7 @@ pub fn design::executor::handoff::Identity::fmt(&self, f: &mut core::fmt::Format
 impl core::marker::StructuralPartialEq for design::executor::handoff::Identity
 pub mod design::executor::launch
 pub enum design::executor::launch::LaunchFailure
+pub design::executor::launch::LaunchFailure::Downgrade(design::runtime::downgrade::DowngradeReason)
 pub design::executor::launch::LaunchFailure::Envelope(design::executor::envelope::LauncherError)
 pub design::executor::launch::LaunchFailure::Failed(kernel::Error)
 impl core::convert::From<kernel::Error> for design::executor::launch::LaunchFailure
@@ -239,6 +240,7 @@ pub struct design::executor::launch::Launcher<'ports>
 pub design::executor::launch::Launcher::bootstrap_log: alloc::string::String
 pub design::executor::launch::Launcher::clock: &'ports dyn design::executor::ports::Clock
 pub design::executor::launch::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::launch::Launcher::diagnostics: &'ports dyn design::executor::ports::BootstrapDiagnostics
 pub design::executor::launch::Launcher::lock: &'ports dyn design::executor::ports::Lock
 pub design::executor::launch::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
 pub design::executor::launch::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
@@ -259,6 +261,18 @@ impl core::fmt::Debug for design::executor::ports::LockOutcome
 pub fn design::executor::ports::LockOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for design::executor::ports::LockOutcome
 impl core::marker::StructuralPartialEq for design::executor::ports::LockOutcome
+pub enum design::executor::ports::SpawnError
+pub design::executor::ports::SpawnError::Failed(kernel::Error)
+pub design::executor::ports::SpawnError::NotFound
+impl core::convert::From<kernel::Error> for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::from(error: kernel::Error) -> Self
+impl core::error::Error for design::executor::ports::SpawnError
+impl core::fmt::Debug for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait design::executor::ports::BootstrapDiagnostics
+pub fn design::executor::ports::BootstrapDiagnostics::read_log(&self) -> alloc::vec::Vec<alloc::string::String>
 pub trait design::executor::ports::Clock
 pub fn design::executor::ports::Clock::now_seconds(&self) -> u64
 pub fn design::executor::ports::Clock::sleep_poll_interval(&self)
@@ -276,7 +290,7 @@ pub fn design::executor::ports::ProcessProbe::observe(&self, pid: i32) -> design
 pub trait design::executor::ports::RunClient
 pub fn design::executor::ports::RunClient::run(self: alloc::boxed::Box<Self>, arguments: &[alloc::string::String]) -> core::result::Result<core::convert::Infallible, kernel::Error>
 pub trait design::executor::ports::Spawner
-pub fn design::executor::ports::Spawner::spawn(&self) -> core::result::Result<design::executor::handoff::Identity, kernel::Error>
+pub fn design::executor::ports::Spawner::spawn(&self) -> core::result::Result<design::executor::handoff::Identity, design::executor::ports::SpawnError>
 pub trait design::executor::ports::StateStore
 pub fn design::executor::ports::StateStore::clear(&self) -> core::result::Result<(), kernel::Error>
 pub fn design::executor::ports::StateStore::clear_stop_reason(&self) -> core::result::Result<(), kernel::Error>
@@ -400,6 +414,7 @@ pub struct design::executor::Launcher<'ports>
 pub design::executor::Launcher::bootstrap_log: alloc::string::String
 pub design::executor::Launcher::clock: &'ports dyn design::executor::ports::Clock
 pub design::executor::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::Launcher::diagnostics: &'ports dyn design::executor::ports::BootstrapDiagnostics
 pub design::executor::Launcher::lock: &'ports dyn design::executor::ports::Lock
 pub design::executor::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
 pub design::executor::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
