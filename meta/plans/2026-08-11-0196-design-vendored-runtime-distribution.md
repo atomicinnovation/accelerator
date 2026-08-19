@@ -3183,6 +3183,13 @@ floor `_EXPECTED_DESIGN_AUTOMATION_CASES` (**76**, `:66`) moves down by the numb
 cases the retired branches carried, read off the runner's TAP summary rather than guessed.
 An earlier draft moved both, on the assumption the loader was deleted outright.
 
+**Amendment (implementation): the case floor needed no numeric edit.** The pre-change TAP
+total was **78** against a floor of **76** — the floor already carried two cases of slack.
+The narrowing retired exactly the two loader cases (`exports["."].import` selection and the
+non-string-import throw), so the actual total landed at **76**, equal to the existing floor.
+The floor is now tightly calibrated at the live total with no change to `tasks/test/unit.py`,
+and the suite floor stays at 9.
+
 Leaving the case floor unmoved fails `test:unit:design-automation`, which is in the
 default roll-up (`mise.toml:266-268`) and therefore in CI.
 
@@ -3937,7 +3944,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
       (AC12)
 - [ ] `--crawler runtime` hard-fails on an unsupported platform
 - [ ] Each artifact downloads at most once per platform per version (AC9)
-- [ ] `chromium` is a defined export of the module `daemon.js` resolves
+- [x] `chromium` is a defined export of the module `daemon.js` resolves
 - [ ] `daemon.js` launches with an explicit `executablePath`, and the value it receives
       is the one Rust resolved — asserted for both the bundled tree and the
       `design.browser_path` hatch, since AC12 depends on it
@@ -3979,7 +3986,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
       not merely corrected but cannot recur, which is what happened to fifteen of them
       during the preceding plan. Eval 20 passes against `artifact-unavailable`
 - [x] `cli/design/tests/fixtures/public-api.txt` is regenerated and committed
-- [ ] `mise run test:unit:design-automation` passes with the **case** floor moved to the
+- [x] `mise run test:unit:design-automation` passes with the **case** floor moved to the
       new TAP-reported total; the suite floor stays at **9**, since the loader survives in
       narrowed form rather than being deleted
 - [ ] `mise run test:integration:design-automation` still fails rather than skips when no
