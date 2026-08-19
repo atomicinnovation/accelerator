@@ -402,18 +402,15 @@ def _tgz(path, tree):
 
 
 def _zip_dir(path, tree):
-    import stat as _stat
     import zipfile
 
     with zipfile.ZipFile(path, "w") as archive:
         for item in sorted(tree.rglob("*")):
-            rel = item.relative_to(tree).as_posix()
-            info = zipfile.ZipInfo(rel)
-            mode = item.stat().st_mode
-            info.external_attr = (mode & 0o7777) << 16
-            archive.writestr(info, item.read_bytes() if item.is_file() else b"")
-            if item.is_file() and mode & 0o111:
-                info.external_attr = (_stat.S_IFREG | 0o755) << 16
+            if not item.is_file():
+                continue
+            info = zipfile.ZipInfo(item.relative_to(tree).as_posix())
+            info.external_attr = (item.stat().st_mode & 0o7777) << 16
+            archive.writestr(info, item.read_bytes())
     return path
 
 
@@ -509,4 +506,73 @@ def test_assemble_tree_artifacts_runs_the_structural_and_smoke_gates(tmp_path):
             staging_dir=tmp_path / "staging",
             dist_dir=tmp_path / "dist",
             spec_builder=_mini_spec_builder(tmp_path),
+        )
+
+
+def _realistic_inputs(tmp_path):
+    node = tmp_path / "node-src"
+    _executable(
+        node / "node-v20.11.1-linux-x64/bin/node", "#!/bin/sh\necho v20\n"
+    )
+    _licence(node / "node-v20.11.1-linux-x64/LICENSE")
+    pw = tmp_path / "pw-src"
+    _licence(pw / "package/index.js", "module.exports={}")
+    _licence(pw / "package/LICENSE")
+    chromium = tmp_path / "chromium-src"
+    _executable(
+        chromium / "chrome-headless-shell-linux/chrome-headless-shell",
+        "#!/bin/sh\necho v1181\n",
+    )
+    _licence(chromium / "chrome-headless-shell-linux/LICENSE")
+    _licence(chromium / "chrome-headless-shell-linux/resources.pak", "res")
+    return (
+        _tgz(tmp_path / "node.tar.gz", node),
+        _tgz(tmp_path / "pw.tgz", pw),
+        _zip_dir(tmp_path / "chromium.zip", chromium),
+    )
+
+
+def test_default_spec_builder_maps_the_real_layout(tmp_path):
+    import tarfile
+
+    from tasks.vendor.assemble import (
+        assemble_tree_artifacts,
+        default_spec_builder,
+    )
+
+    node_tar, pw_tar, chromium_zip = _realistic_inputs(tmp_path)
+    stats = assemble_tree_artifacts(
+        playwright_tarball=pw_tar,
+        node_tarball=node_tar,
+        chromium_archive=chromium_zip,
+        platform="linux-x64",
+        staging_dir=tmp_path / "staging",
+        dist_dir=tmp_path / "dist",
+        spec_builder=default_spec_builder,
+    )
+    assert set(stats) == {"driver", "browser"}
+
+    driver = tmp_path / "dist" / "accelerator-driver-linux-x64.tar.gz"
+    with tarfile.open(driver) as archive:
+        driver_names = archive.getnames()
+    assert "node" in driver_names
+    assert "node_modules/playwright-core/index.js" in driver_names
+    assert "NOTICES/node/LICENSE" in driver_names
+
+    browser = tmp_path / "dist" / "accelerator-browser-linux-x64.tar.gz"
+    with tarfile.open(browser) as archive:
+        browser_names = archive.getnames()
+    # The whole headless-shell directory lands at the browser tree root.
+    assert "chrome-headless-shell" in browser_names
+    assert "resources.pak" in browser_names
+
+
+def test_default_spec_builder_fails_loudly_on_an_unexpected_layout(tmp_path):
+    from tasks.vendor.assemble import ExtractedInputs, default_spec_builder
+
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(ValueError, match="validate the extracted layout"):
+        default_spec_builder(
+            ExtractedInputs(playwright_core=empty, node=empty, chromium=empty)
         )

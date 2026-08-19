@@ -200,13 +200,20 @@ def write_notices(tree: Path, sources: Iterable[NoticeSource]) -> None:
 
 
 def stage_tree(spec: TreeSpec, dest: Path) -> None:
-    """Compose ``spec`` into ``dest``, preserving modes and symlinks."""
+    """Compose ``spec`` into ``dest``, preserving modes and symlinks.
+
+    A placement with an empty ``dest_relpath`` copies a directory's contents
+    into the tree root, so an artifact that *is* an upstream directory (the
+    browser's headless-shell tree) needs no wrapper subdirectory.
+    """
     dest.mkdir(parents=True, exist_ok=True)
     for placement in spec.placements:
         target = dest / placement.dest_relpath
         target.parent.mkdir(parents=True, exist_ok=True)
         if placement.source.is_dir():
-            shutil.copytree(placement.source, target, symlinks=True)
+            shutil.copytree(
+                placement.source, target, symlinks=True, dirs_exist_ok=True
+            )
         else:
             shutil.copy2(placement.source, target)
     write_notices(dest, spec.notices)
@@ -322,15 +329,17 @@ def assemble_tree_artifacts(
     staging_dir: Path,
     dist_dir: Path = RELEASE_STAGING,
     spec_builder: SpecBuilder,
+    run_smoke: bool = True,
 ) -> dict[str, ArchiveStats]:
     """Extract, compose, pack, attest and gate the tree artifacts.
 
     ``spec_builder`` maps the extracted upstream trees to the composition — the
     version-specific layout, kept out of the orchestration so it is validated
     against the real ``playwright-core`` separately. Every produced tree is
-    walked (structural) and its binaries executed (smoke) before it is trusted,
-    so a signed-but-structurally-wrong artifact is refused here rather than on a
-    user's machine.
+    walked (structural) before it is trusted. ``run_smoke`` executes the
+    binaries too; it is left off when assembling other platforms' archives on a
+    host that cannot run them, and the per-platform matrix runs the smoke check
+    natively instead.
     """
     extracted = ExtractedInputs(
         playwright_core=_extract_into(
@@ -357,7 +366,8 @@ def assemble_tree_artifacts(
             executables=spec.executables,
             notice_components=[source.component for source in spec.notices],
         )
-        smoke_check(tree, executables=spec.executables)
+        if run_smoke:
+            smoke_check(tree, executables=spec.executables)
         archive = tree_artifact_asset_path(spec.artifact, platform, dist_dir)
         archive.with_name(archive.name + ".sealed").write_bytes(
             build_attestation(spec.artifact, platform, stats[spec.artifact])
@@ -370,3 +380,86 @@ def _extract_into(
 ) -> Path:
     extractor(archive, dest)
     return dest
+
+
+# The binary each artifact tree carries at its root, for the smoke check.
+ARTIFACT_EXECUTABLES: dict[str, tuple[str, ...]] = {
+    "driver": ("node",),
+    "browser": ("chrome-headless-shell",),
+}
+
+
+def _sole(paths: Iterable[Path], description: str) -> Path:
+    matches = sorted(paths)
+    if not matches:
+        raise ValueError(
+            f"expected {description} but found none — validate the extracted "
+            "layout against the pinned playwright-core, Node and Chromium"
+        )
+    return matches[0]
+
+
+def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
+    """Map the extracted upstream trees to the shipped driver/browser layout.
+
+    The glob shapes follow upstream packaging (npm's ``package/`` root, Node's
+    ``node-v<version>-<platform>/`` root, Chromium's headless-shell directory)
+    and are validated against the real inputs in the release lane; a layout
+    change fails loudly here rather than shipping a broken tree.
+    """
+    node_binary = _sole(
+        extracted.node.glob("node-v*/bin/node"), "the Node binary"
+    )
+    node_licence = _sole(
+        extracted.node.glob("node-v*/LICENSE"), "the Node licence"
+    )
+    package = extracted.playwright_core / "package"
+    playwright_licence = _sole(
+        [package / "LICENSE"] if (package / "LICENSE").exists() else [],
+        "the playwright-core licence",
+    )
+    shell = _sole(
+        extracted.chromium.glob("**/chrome-headless-shell"),
+        "the chromium-headless-shell binary",
+    )
+    chromium_licence = _sole(
+        extracted.chromium.glob("**/LICENSE*"), "the Chromium licence"
+    )
+    driver = TreeSpec(
+        artifact="driver",
+        placements=(
+            TreePlacement(node_binary, "node"),
+            TreePlacement(package, "node_modules/playwright-core"),
+        ),
+        notices=(
+            NoticeSource("node", (node_licence,)),
+            NoticeSource("playwright-core", (playwright_licence,)),
+        ),
+        executables=("node",),
+    )
+    browser = TreeSpec(
+        artifact="browser",
+        placements=(TreePlacement(shell.parent, ""),),
+        notices=(NoticeSource("chromium", (chromium_licence,)),),
+        executables=("chrome-headless-shell",),
+    )
+    return (driver, browser)
+
+
+def smoke_downloaded_archives(dist_dir: Path, platform: str) -> None:
+    """Extract each downloaded tree archive and execute its binary natively.
+
+    Run per platform on a matching host, since executing the artifact is a
+    stronger gate than extracting it — a signed, correctly-hashed but
+    structurally-wrong tree passes every other check and this one refuses it.
+    """
+    for artifact, executables in ARTIFACT_EXECUTABLES.items():
+        archive = tree_artifact_asset_path(artifact, platform, dist_dir)
+        tree = dist_dir / f".smoke-{artifact}-{platform}"
+        extract_tar(archive, tree)
+        structural_check(
+            tree,
+            executables=executables,
+            notice_components=(),
+        )
+        smoke_check(tree, executables=executables)
