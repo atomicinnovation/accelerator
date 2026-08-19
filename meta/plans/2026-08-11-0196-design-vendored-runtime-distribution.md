@@ -176,29 +176,37 @@ tested units since the artifact contract landed:
   ECDSA-P256 signature verify, the sha512-integrity binding, and SLSA via an
   injected argv-pinned `gh attestation verify` runner (§2 npm bullet).
 
+**The publish path (§5, §6, §7) is now built and green too.** Added since the
+verification core: `manifest.collect_artifact_entries` + additive `artifacts`
+key (§5.2); `signing.sign_tree_artifacts` re-deriving each `.sealed` against the
+archive before signing archive→`.minisig` and attestation→`.sealed.sig` (§5.0/1);
+`archive.read_archive_stats`; `github._tree_artifact_uploads`/`_tree_artifact_reverifies`
+threaded through `_release_uploads`/`_release_reverifies`, tree tokens derived
+from the manifest's own `artifacts` map so the skip escape works (§5.3/4, §6.6);
+`release._sign` signing + collecting trees only when staged, the
+`_assert_assembled_matches_pins` `ASSEMBLED_SHA256` gate wired between
+`cli_cross_compile` and `create_debug_archives` in both prepares (§3), and the
+`_assert_staged_manifest_is_current` full-cross-product arm (§6.1). 🔴 **The
+`except Exception` `--cleanup-tag` delete arm is removed outright** — no path
+deletes a published tag (§7). The attest globs are asserted to cover the flat
+tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
+
 **Phase 2's remaining steps, in dependency order:**
 
 1. **The fetch orchestration** — `requests`-based download of the npm tarball,
-   Chromium zip, and Node `SHASUMS256.txt`/`.asc`, tying the verifiers above and
+   Chromium zip, and Node `SHASUMS256.txt`/`.asc`, tying the verifiers and
    `assemble_specs` into `vendor.verify_upstream_inputs` +
    `build.assemble_tree_artifacts` invoke tasks, wired into `tasks/__init__.py`
-   and `mise.toml`. Plus the real committed trust anchors
-   (`keys/nodejs-release.asc`, `keys/npm-registry.pem`, the `pins.toml` Chromium/
-   Node values, `ASSEMBLED_SHA256`) — a **human-gated trust-anchor operation**,
-   left as placeholders in code.
-2. **The publish path** (§5 arms 1-4) — `signing.py`/`manifest.py`/`github.py`/
-   `paths.py` so the manifest carries `artifacts`, each archive's four sidecars
-   are signed, uploaded and re-verified, and `ASSEMBLED_SHA256` gates before
-   signing. `TREE_ARTIFACTS`, `tree_artifact_asset_path` and `PINS_TOML` already
-   exist in `paths.py`.
-3. **The guards** (§6) — `_assert_staged_manifest_is_current`'s cross-product
-   arm, the attest-glob and upload-count tests, done against the shared corpus.
-4. **The CI workflow** (§3, §7, §8) — the `assemble-runtime` and matrix
-   `smoke-runtime` jobs in `main.yml`, `permissions: {}`, the failure-envelope
-   hardening (the `--cleanup-tag` delete-arm removal), and `timeout-minutes` from
-   a measured double-pass. Testable only in the release lane, so §8's miniature
-   fixture triple carries the determinism/smoke/structural predicates into
-   `test:unit:build-system`.
+   (a `vendor` collection) and `mise.toml`.
+2. **The CI workflow** (§3, §7, §8) — the `assemble-runtime` and matrix
+   `smoke-runtime` jobs in `main.yml`, `permissions: {}`, and `timeout-minutes`
+   from a measured double-pass. Testable only in the release lane, so §8's
+   miniature fixture triple carries the determinism/smoke/structural predicates
+   into `test:unit:tasks`.
+3. **Real trust anchors** — `keys/nodejs-release.asc`, `keys/npm-registry.pem`,
+   the real `pins.toml` Chromium/Node/`ASSEMBLED_SHA256` values, the RELEASING.md
+   refresh procedure and the trust-anchor CI guard job. A **human-gated
+   trust-anchor operation**, left as placeholders in code.
 
 **Phase 3 (executor swap) and the Removal sweep — not started.** Both depend on
 Phases 1 and 2.
