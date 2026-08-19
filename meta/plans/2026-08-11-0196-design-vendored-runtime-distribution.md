@@ -1674,13 +1674,13 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       those are precisely the tests covering the hit path's only cryptographic anchor —
       the ones that must never be able to vanish silently. `minisign` is pinned in
       `mise.toml:35`, so a hard failure costs CI nothing and closes the local false-green
-- [ ] A crash injected at each of steps 4 through 11 is driven by a **named test seam** —
+- [x] A crash injected at each of steps 4 through 11 is driven by a **named test seam** —
       an injectable `after_step` hook on the materialisation adapter, test-only and *not*
       a cargo feature (`tasks/lint/cli.py:7` and `tasks/test/cli.py:13` pass
       `--all-features`, so a feature would be on during every check) — rather than by
       hand-constructing the seven post-crash on-disk states, which would test the reaper
       and not the publish sequencing
-- [ ] The concurrency and lease tests synchronise on a rendezvous file or pipe handshake,
+- [x] The concurrency and lease tests synchronise on a rendezvous file or pipe handshake,
       never a sleep; and the probe assertions account for `PROBE_ATTEMPTS` being a
       `thread_local!` (`cache_root.rs:74-75`), so a `probes_during` expectation is blind
       to any thread the test spawns
@@ -1741,19 +1741,19 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [ ] Release signatures are **prehashed** for both artifact classes, so a future
       minisign defaulting back to the legacy form fails loudly rather than silently
       producing signatures the launcher and the bootstrap shim would both reject
-- [ ] A second resolution of the same tree issues **zero** HTTP requests, asserted
+- [x] A second resolution of the same tree issues **zero** HTTP requests, asserted
       against the `MockServer`'s request count
 - [ ] A resolution with the release host unreachable still succeeds on a populated
       cache
-- [ ] Two concurrent cold resolutions of the same tree issue **exactly one** archive
+- [x] Two concurrent cold resolutions of the same tree issue **exactly one** archive
       fetch, and neither observes a partial tree
-- [ ] A winner that fails mid-materialisation releases the lock, and the loser makes
+- [x] A winner that fails mid-materialisation releases the lock, and the loser makes
       progress rather than waiting on a pointer that will never appear
-- [ ] ⚠️ A loser whose wait bound expires **while the winner goes on to succeed** emits
+- [x] ⚠️ A loser whose wait bound expires **while the winner goes on to succeed** emits
       `materialisation-in-progress`, and that cause does **not** suppress subsequent
       attempts — so a slow-but-healthy first fetch cannot degrade the rest of a crawl to
       code-only
-- [ ] A crash at each of steps 4 through 11 leaves only reclaimable garbage: no pointer
+- [x] A crash at each of steps 4 through 11 leaves only reclaimable garbage: no pointer
       is published, `acquire` reports a miss, and the reaper removes the residue
 - [ ] A `cache prune` racing a `materialise` never removes the generation being
       published, including in the window between the rename and the pointer write, and
@@ -1780,7 +1780,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [ ] `repair --force` re-materialises a tree that passes `verify`
 - [ ] Every `cache` verb refuses an unrecognised `<name>` without touching the
       filesystem
-- [ ] Two release versions naming the same digest share **one** generation directory
+- [x] Two release versions naming the same digest share **one** generation directory
       and two pointers, and the second version issues **zero** archive fetches
 - [ ] Two platforms sharing one cache root each resolve their own tree
 - [ ] A `trees/` directory that is group- or world-writable, or not owned by the
