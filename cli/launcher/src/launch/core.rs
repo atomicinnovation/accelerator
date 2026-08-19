@@ -342,6 +342,46 @@ pub fn derive_override_var(name: &str) -> Result<String, ResolutionError> {
     Ok(var)
 }
 
+/// The environment variable a resolved tree artifact's path is exported under.
+///
+/// A generic `ACCELERATOR_TREE_<NAME>`, not a consumer-prefixed one, so a second
+/// tree consumer inherits the convention. It never ends in `_BIN`, so whatever
+/// the artifact name it cannot land in the `ACCELERATOR_<SUB>_BIN` override
+/// namespace [`derive_override_var`] owns.
+#[must_use]
+pub fn tree_var(artifact: &str) -> String {
+    let mut var =
+        String::with_capacity("ACCELERATOR_TREE_".len() + artifact.len());
+    var.push_str("ACCELERATOR_TREE_");
+    for c in artifact.chars() {
+        var.push(if c == '-' {
+            '_'
+        } else {
+            c.to_ascii_uppercase()
+        });
+    }
+    var
+}
+
+/// The launcher's own resolved path, exported so a tree consumer can locate the
+/// launcher to invoke `cache ensure`.
+///
+/// Deliberately not `ACCELERATOR_LAUNCHER_BIN`: that name means "exec this path
+/// unverified", `launcher` is a reserved token, and one name with two meanings
+/// would be inherited by every descendant of every dispatch.
+pub const LAUNCHER_PATH_VAR: &str = "ACCELERATOR_LAUNCHER_PATH";
+
+/// Whether a dispatched subcommand consumes tree artifacts.
+///
+/// Only a consuming dispatch pays the acquire and receives the exported
+/// variables. A non-consumer — `vcs guard` on every tool call, a
+/// `SessionStart` hook — touches no tree state, so a degraded cache root
+/// cannot surface in unrelated work.
+#[must_use]
+pub fn consumes_trees(subcommand: &str) -> bool {
+    subcommand == "design"
+}
+
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
@@ -350,9 +390,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        derive_override_var, forwarded_fail_safe, run_external,
-        swallow_under_fail_safe, ExecBinary, ExternalCommand, ResolutionError,
-        ResolveBinary,
+        consumes_trees, derive_override_var, forwarded_fail_safe, run_external,
+        swallow_under_fail_safe, tree_var, ExecBinary, ExternalCommand,
+        ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
     };
 
     fn command(name: &str, args: &[&str]) -> ExternalCommand {
@@ -632,5 +672,41 @@ mod tests {
             derive_override_var(""),
             Err(ResolutionError::InvalidOverrideName { .. })
         ));
+    }
+
+    #[test]
+    fn a_tree_variable_is_generic_and_upper_snake() {
+        assert_eq!(tree_var("driver"), "ACCELERATOR_TREE_DRIVER");
+        assert_eq!(tree_var("browser"), "ACCELERATOR_TREE_BROWSER");
+        assert_eq!(
+            tree_var("headless-shell"),
+            "ACCELERATOR_TREE_HEADLESS_SHELL"
+        );
+    }
+
+    #[test]
+    fn only_the_design_dispatch_consumes_trees() {
+        assert!(consumes_trees("design"));
+        assert!(!consumes_trees("vcs"));
+        assert!(!consumes_trees("work"));
+    }
+
+    #[test]
+    fn no_exported_variable_falls_in_the_override_namespace(
+    ) -> Result<(), Box<dyn Error>> {
+        // derive_override_var always ends in `_BIN`; the exported names never
+        // do, so no reserved or dispatched token's override variable can
+        // collide with a variable the launcher exports.
+        for artifact in ["driver", "browser", "headless-shell"] {
+            let exported = tree_var(artifact);
+            assert!(
+                !exported.ends_with("_BIN"),
+                "{exported} is in the override namespace"
+            );
+            assert_ne!(exported, derive_override_var(artifact)?);
+        }
+        assert!(!LAUNCHER_PATH_VAR.ends_with("_BIN"));
+        assert_ne!(LAUNCHER_PATH_VAR, derive_override_var("launcher")?);
+        Ok(())
     }
 }
