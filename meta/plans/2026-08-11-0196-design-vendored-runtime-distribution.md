@@ -1807,7 +1807,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [x] ⚠️ A sibling install's tree **used yesterday** is spared, because its claim file's
       mtime is inside the window — the case where an age test on creation time would
       silently destroy another installed version's ~294MB on a shared cache root
-- [ ] `prune` reads only `trees/claims/`, never another launcher's binary: no sibling
+- [x] `prune` reads only `trees/claims/`, never another launcher's binary: no sibling
       executable is spawned and no binary is scanned for constants
 - [x] A claim file that is a symlink, or not owned by the effective uid, is ignored rather
       than treated as a live claim
@@ -1815,7 +1815,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       a tree on a hit, and the refresh is skipped when the recorded mtime is already fresh
 - [x] `--older-than` overrides the window; there is no flag that drops every pointer but
       the running launcher's
-- [ ] 🔒 A dispatch that resolves a tree via `acquire` leaves `probe_attempts()`
+- [x] 🔒 A dispatch that resolves a tree via `acquire` leaves `probe_attempts()`
       unchanged, and a cold `materialise` adds exactly one — asserted with the
       `probes_during` harness (`resolution.rs:199-213`) so work-item:0189's
       once-per-dispatch guarantee is extended rather than broken. The hit path's exact
@@ -1832,7 +1832,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       *without* `artifacts` still resolves single-file binaries
 - [x] `BUILTIN_SUBCOMMANDS` and the clap `Command` enum agree, with
       `test_dispatch_coherence.py:606-611` and `:628-635` updated in the same change
-- [ ] `mise run cli:check` exits 0
+- [x] `mise run cli:check` exits 0
 - [x] `mise run deny:check` exits 0, and `libz-sys`/`zlib-ng-sys`/`zlib-sys` are absent
       from the launcher feature graph **for every one of the four target triples**, not
       only the host — `_feature_tree()` takes a `--target` and the assertion is

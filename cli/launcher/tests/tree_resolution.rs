@@ -1127,3 +1127,43 @@ fn an_interrupted_download_resumes_with_a_range_request() {
     // The resumed tree verifies exactly as a fresh one does.
     harness.resolver().verify(ARTIFACT).expect("verify resumed");
 }
+
+#[test]
+fn a_hit_still_resolves_on_a_read_only_cache_root() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Make trees/ and its contents read-only, as a warm populated cache may be.
+    // The claim refresh is best-effort, so a hit must still succeed.
+    let claims = harness.cache.join("trees/claims");
+    make_read_only(&claims);
+
+    let hit = harness.resolver().query(ARTIFACT).expect("query");
+    assert!(
+        hit.is_some(),
+        "a read-only cache root must still resolve a hit"
+    );
+
+    // Restore writability so the tempdir cleans up.
+    let _ = std::fs::set_permissions(
+        &claims,
+        std::fs::Permissions::from_mode(0o755),
+    );
+}
+
+/// Recursively make a directory tree read-only.
+fn make_read_only(dir: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                make_read_only(&entry.path());
+            }
+        }
+    }
+    let _ =
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555));
+}
