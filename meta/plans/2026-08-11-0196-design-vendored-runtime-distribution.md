@@ -92,7 +92,7 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-19. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-12/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
+14/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
@@ -331,12 +331,54 @@ landed, both unit-green on darwin:**
   `design::executor::ports` beside the other launch ports (where it is consumed),
   not in a new `runtime/ports.rs` as the plan's file list anticipated.
 
+**Phase 3, 2026-08-19 (continued) — §1/§2 done and three more domain leaves
+landed, all unit-green on darwin:**
+
+- **§1/§2 the automation retarget** — the Playwright loader is narrowed to import
+  the driver tree's `playwright-core` ESM entry (`index.mjs`) by absolute path,
+  dropping the `exports`-map selection, the CJS-shim branch and the
+  `playwright`-vs-`playwright-core` distinction; `daemon.js` launches Chromium
+  with the executor-resolved `ACCELERATOR_DESIGN_BROWSER_EXECUTABLE` and its
+  `ping` probe checks that launch path rather than `executablePath()`, naming
+  `accelerator cache repair` in the diagnostic. The three `fake-playwright*`
+  fixtures collapse to one `playwright-core` tree. `test:unit:design-automation`
+  is green at 76 cases (the floor needed no numeric edit — see the §1 amendment).
+- **§5 the `design.browser_path` hatch policy** — `runtime/browser_path.rs`
+  (new): a pure `vet` applying the two security barriers to an already-chosen
+  value — a team-level value ignored with a warning naming the personal route,
+  and a value resolving inside the inventoried repository refused, including a
+  symlink committed inside the repo that points out (caught on the containing
+  directory). The env-beats-personal precedence stays in the composition root.
+- **§3 the ensure-cause mapping** — `runtime/ensure.rs` (new): `classify_cause`
+  maps the launcher's cache-ensure cause token onto a downgrade reason and its
+  stickiness, `materialisation-in-progress` the one non-sticky cause, every
+  transport/integrity failure and any unrecognised token to
+  `artifact-unavailable`.
+- **§3/§4 the sticky-marker policy** — `runtime/marker.rs` (new): `suppresses`,
+  `cleared_by_successful_ensure` and `is_host_condition`. Fetch/environment
+  markers are session-scoped and TTL-bound; host-condition markers are
+  digest-keyed and survive a successful materialisation. Every marker is
+  session-scoped for suppression (the committed-marker defence). **Deviation:**
+  `loader-unresolvable` is treated as a host condition alongside the plan's named
+  `glibc-too-old`/`runtime-libraries-missing`, since its post-fetch (spawn-errno)
+  arm is the same class of host property and equally expensive to re-attempt.
+
+These are the leaves the executor `run` composes; each is committed and
+`public-api`/`pup`/`clippy`/`rustfmt`-clean. A pre-existing rustfmt drift in
+earlier Phase-3 sources (the platform adapter, the spawner, the tree resolver
+and two tests) was reformatted in the same batch so `format:cli:check` is clean.
+
 Still ahead: the **§3/§4 executor integration** proper — the executor's `run`
-replacing `runtime_is_installed` with the ADR-0062 availability ordering
-(platform probe → `cache ensure` → browser resolve), building a `ResolvedRuntime`
-that retargets `const NODE` at both spawn sites, the sticky-marker policy, and
-removing the lockhash/namespace paths — then `daemon.js` (§1/§2), the §6+§8
-cleanup, the container harness, and the Removal sweep.
+composing the platform probe, `cache ensure` (with launcher discovery and the
+envelope→cause mapping above), the browser resolver (`browser_path::vet`) and the
+sticky-marker store into the ADR-0062 availability ordering, building a
+`ResolvedRuntime` that retargets `const NODE` at both spawn sites, and removing
+the lockhash/namespace paths (incl. `PathResolution::namespace_root`,
+`HostPaths::{namespace_root,lockhash,cache_root}` and `lockhash_golden.rs`) —
+plus the `MarkerStore` adapter with its uid/symlink validation. Then the §6+§8
+cleanup (PROTOCOL.md, evals, the conformance guard, the deletions), the container
+harness, and the Removal sweep. Much of this is exercised only by the container
+harness, which cannot run on the dev host.
 
 **The Removal sweep — not started.** Depends on Phase 3.
 
