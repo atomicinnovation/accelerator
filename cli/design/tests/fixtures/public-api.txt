@@ -485,6 +485,19 @@ pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Fo
 impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
 pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
 pub mod design::runtime
+pub mod design::runtime::bootstrap
+pub struct design::runtime::bootstrap::SpawnDiagnosis
+pub design::runtime::bootstrap::SpawnDiagnosis::detail: core::option::Option<alloc::string::String>
+pub design::runtime::bootstrap::SpawnDiagnosis::reason: design::runtime::downgrade::DowngradeReason
+impl core::clone::Clone for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::clone(&self) -> design::runtime::bootstrap::SpawnDiagnosis
+impl core::cmp::Eq for design::runtime::bootstrap::SpawnDiagnosis
+impl core::cmp::PartialEq for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::eq(&self, other: &design::runtime::bootstrap::SpawnDiagnosis) -> bool
+impl core::fmt::Debug for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::classify_bootstrap_log(lines: &[&str]) -> design::runtime::bootstrap::SpawnDiagnosis
 pub mod design::runtime::downgrade
 pub enum design::runtime::downgrade::DowngradeReason
 pub design::runtime::downgrade::DowngradeReason::ArtifactUnavailable
