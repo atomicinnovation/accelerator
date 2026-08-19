@@ -12,12 +12,13 @@ use clap::error::ErrorKind;
 use clap::{CommandFactory as _, Parser as _};
 
 use accelerator::config_command::core::ConfigStack;
+use accelerator::launch::cache;
 use accelerator::launch::core::{
     swallow_under_fail_safe, ExternalCommand, ResolutionError, ResolveBinary,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::external_subcommands_section;
-use accelerator::launch::inbound::cli::{Cli, Command};
+use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
 use accelerator::launch::outbound::resolve::cache_root::{
@@ -25,8 +26,11 @@ use accelerator::launch::outbound::resolve::cache_root::{
 };
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::tree::{
+    ExpectedDigests, NoSteps, SystemClock, TreeResolver,
+};
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig,
+    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
 use accelerator::version::core::VersionReporter;
@@ -106,7 +110,7 @@ fn is_root_help(error: &clap::Error) -> bool {
             .nth(1)
             .as_deref()
             .and_then(std::ffi::OsStr::to_str),
-        Some("version" | "config" | "help")
+        Some("version" | "config" | "cache" | "help")
     )
 }
 
@@ -141,7 +145,9 @@ fn handle_parse_error(error: &clap::Error) -> ExitCode {
 const fn legacy_policy(command: &Command) -> LegacyPolicy {
     match command {
         Command::Config { action } => action.legacy_policy(),
-        Command::Version | Command::External(_) => LegacyPolicy::Reject,
+        Command::Version | Command::Cache { .. } | Command::External(_) => {
+            LegacyPolicy::Reject
+        }
     }
 }
 
@@ -181,9 +187,65 @@ fn resolution_start(command: &Command) -> Option<PathBuf> {
         Command::Config { action } => {
             action.resolution_root().map(PathBuf::from)
         }
-        Command::Version | Command::External(_) => None,
+        Command::Version | Command::Cache { .. } | Command::External(_) => None,
     }
 }
+
+/// Materialise, verify, repair or prune the tree cache.
+///
+/// The tree resolver — its `Fetcher`, its trust root, its clock — is built here
+/// rather than at `run`'s top, so a `version` or `config` dispatch never
+/// constructs it. The dependencies are locals the resolver borrows, so they
+/// outlive the `cache::run` call inside this function.
+fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
+    let _ = install_crypto_provider();
+    let cache = cache_root::candidate(&CacheRootConfig::from_env(
+        config_adapters::plugin_root_from_env(),
+    ))?;
+    let keys = TrustedKeys::embedded()?;
+    let fetcher = Fetcher::new()
+        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
+    let clock = SystemClock;
+    let steps = NoSteps;
+    let resolver = TreeResolver {
+        cache_root: cache,
+        base_url: release_base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &clock,
+        launcher_id: launcher_id(),
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &steps,
+    };
+    let mut out = std::io::stdout().lock();
+    cache::run(action, &resolver, &mut out)
+}
+
+/// A per-install identity for the retention claim, derived from the launcher's
+/// own content-addressed path so two installs sharing a cache root write
+/// distinct claim files. Falls back to the version when the path is unavailable.
+fn launcher_id() -> String {
+    use std::fmt::Write as _;
+
+    use sha2::{Digest as _, Sha256};
+    let seed = std::env::current_exe().map_or_else(
+        |_| env!("CARGO_PKG_VERSION").to_owned(),
+        |path| path.to_string_lossy().into_owned(),
+    );
+    let digest = Sha256::digest(seed.as_bytes());
+    digest.iter().take(8).fold(String::new(), |mut acc, byte| {
+        let _ = write!(acc, "{byte:02x}");
+        acc
+    })
+}
+
+/// The single-flight waiter's deadline: a loser gives up after this rather than
+/// hanging for the winner's whole download, emitting a non-sticky
+/// materialisation-in-progress the crawl retries on its next invocation.
+const WAITER_BOUND: std::time::Duration = std::time::Duration::from_secs(20);
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
@@ -192,9 +254,14 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
     let start = resolution_start(&cli.command);
-    dispatch(cli, &reporter, &resolver, &executor, move || {
-        compose_stack(policy, start)
-    })
+    dispatch(
+        cli,
+        &reporter,
+        &resolver,
+        &executor,
+        move || compose_stack(policy, start),
+        run_cache,
+    )
 }
 
 fn report(error: &kernel::Error) -> ExitCode {

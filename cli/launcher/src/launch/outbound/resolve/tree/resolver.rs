@@ -197,6 +197,23 @@ impl TreeResolver<'_> {
             return Ok(self.sealed(&paths, artifact, &existing, digest));
         }
 
+        self.materialise_fresh(artifact, digest)
+    }
+
+    /// Fetch, verify, extract, seal and publish a brand-new generation,
+    /// bypassing the reuse scan.
+    ///
+    /// This is what `repair` needs: an existing generation whose *contents* are
+    /// corrupt still passes the reuse scan's attestation check, so reusing it
+    /// would make repair a no-op. Forcing a fresh materialisation builds the
+    /// replacement beside the tree in use and swaps the pointer to it.
+    fn materialise_fresh(
+        &self,
+        artifact: &str,
+        digest: &str,
+    ) -> Result<SealedTree, TreeError> {
+        let paths = self.paths();
+
         // 2. The manifest, whose digest for this artifact must be the one this
         //    launcher expects — a disagreement is a refusal, not an instruction
         //    to fetch something else.
@@ -609,6 +626,86 @@ impl MaterialiseTree for TreeResolver<'_> {
 }
 
 impl TreeResolver<'_> {
+    /// Re-materialise a tree that fails verification, swapping the pointer to a
+    /// fresh generation and reaping the superseded one.
+    ///
+    /// Without `force`, a tree that verifies clean is left untouched. With it, a
+    /// tree is re-materialised unconditionally — the only recovery for one that
+    /// is internally consistent but wrong, which `verify` cannot detect since
+    /// such a tree matches its own table perfectly.
+    ///
+    /// The replacement is built beside the tree in use and the pointer swapped
+    /// only once it exists, so a refetch that fails leaves the working tree
+    /// exactly as it was. The superseded generation is reaped immediately if no
+    /// live process holds its lease, and left for a later `prune` otherwise.
+    ///
+    /// # Errors
+    ///
+    /// A [`TreeError`] if the tree cannot be verified, re-fetched or published.
+    pub fn repair(
+        &self,
+        artifact: &str,
+        force: bool,
+    ) -> Result<SealedTree, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Err(TreeError::Attestation {
+                detail: format!("unknown artifact {artifact}"),
+            });
+        };
+        let digest = digest.as_str();
+
+        if !force {
+            if let Some(located) = self.locate(artifact, digest) {
+                if self.verify(artifact)?.is_sound() {
+                    return Ok(self.sealed(
+                        &self.paths(),
+                        artifact,
+                        &located.generation,
+                        digest,
+                    ));
+                }
+            }
+        }
+
+        cache_root::verify_writable(&self.cache_root).map_err(|error| {
+            TreeError::Lease {
+                detail: format!("the cache root is unusable: {error}"),
+            }
+        })?;
+        let paths = self.paths();
+        ensure_trees_dir(&paths)?;
+        let _lock = take_single_flight(
+            &paths.single_flight_lock(artifact, &self.platform),
+        )?;
+
+        let superseded = self
+            .locate(artifact, digest)
+            .map(|located| located.generation);
+        let sealed = self.materialise_fresh(artifact, digest)?;
+
+        // Reap the superseded generation now if nobody holds it; the age-gated
+        // reaper would otherwise spare it as too young.
+        if let Some(old) = superseded {
+            if paths.generation(&old) != sealed.path {
+                Self::reap_superseded(&paths, &old);
+            }
+        }
+        Ok(sealed)
+    }
+
+    /// Remove a superseded generation and its sidecars, but only if no live
+    /// process holds its lease.
+    fn reap_superseded(paths: &TreePaths, generation: &str) {
+        use super::lease::{probe_liveness, Liveness};
+        if probe_liveness(&paths.lease(generation)) == Liveness::Held {
+            return;
+        }
+        let _ = std::fs::remove_dir_all(paths.generation(generation));
+        for sidecar in reap::sidecars_of(paths, generation) {
+            let _ = std::fs::remove_file(sidecar);
+        }
+    }
+
     /// Reclaim residue for one artifact under its single-flight lock.
     ///
     /// Runs under the lock the reaper requires, so it and a concurrent

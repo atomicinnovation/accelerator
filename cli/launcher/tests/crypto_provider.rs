@@ -89,9 +89,14 @@ fn version_never_consults_the_resolver() -> TestResult {
         called: Cell::new(false),
     };
     let cli = Cli::try_parse_from(["accelerator", "version"])?;
-    dispatch(&cli, &StubReporter, &spy, &PanicExec, || {
-        panic!("version must not compose the config stack")
-    })?;
+    dispatch(
+        &cli,
+        &StubReporter,
+        &spy,
+        &PanicExec,
+        || panic!("version must not compose the config stack"),
+        |_| panic!("version must not run cache"),
+    )?;
     assert!(!spy.called.get(), "version reached the resolver");
     Ok(())
 }
@@ -104,19 +109,27 @@ fn config_path_never_consults_the_resolver() -> TestResult {
         called: Cell::new(false),
     };
     let cli = Cli::try_parse_from(["accelerator", "config", "path", "work"])?;
-    dispatch(&cli, &StubReporter, &spy, &PanicExec, || {
-        let composed = config_adapters::compose(&root, LegacyPolicy::Reject)?;
-        let store = composed.store;
-        Ok(ConfigStack::new(
-            Box::new(composed.service),
-            Box::new(store.clone()),
-            Box::new(store.clone()),
-            Box::new(store.clone()),
-            Box::new(store.clone()),
-            Box::new(store.clone()),
-            Box::new(store),
-        ))
-    })?;
+    dispatch(
+        &cli,
+        &StubReporter,
+        &spy,
+        &PanicExec,
+        || {
+            let composed =
+                config_adapters::compose(&root, LegacyPolicy::Reject)?;
+            let store = composed.store;
+            Ok(ConfigStack::new(
+                Box::new(composed.service),
+                Box::new(store.clone()),
+                Box::new(store.clone()),
+                Box::new(store.clone()),
+                Box::new(store.clone()),
+                Box::new(store.clone()),
+                Box::new(store),
+            ))
+        },
+        |_| panic!("config path must not run cache"),
+    )?;
     assert!(!spy.called.get(), "config path reached the resolver");
     Ok(())
 }
