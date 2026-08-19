@@ -15,6 +15,7 @@ use design::executor::launch::LaunchFailure;
 use design::executor::launch::Launcher;
 use design::executor::ports::PathResolution as _;
 use design_adapters::paths::HostPaths;
+use design_adapters::process::BootstrapLog;
 use design_adapters::process::DaemonSpawner;
 use design_adapters::process::ExecClient;
 use design_adapters::FileLock;
@@ -157,6 +158,9 @@ fn launch(
 
     let clock = MonotonicClock::default();
     let state = StateDirectory::new(resolved.state_dir.clone());
+    let diagnostics = BootstrapLog {
+        path: bootstrap_log.clone(),
+    };
     let lock = FileLock::open(&resolved.state_dir.join("launcher.lock"))
         .map_err(LaunchFailure::Failed)?;
     let spawner = DaemonSpawner {
@@ -183,6 +187,7 @@ fn launch(
         lock: &lock,
         spawner: &spawner,
         control: &HostControl,
+        diagnostics: &diagnostics,
         bootstrap_log: bootstrap_log.display().to_string(),
     };
 
@@ -202,6 +207,14 @@ fn report(failure: LaunchFailure) -> ExitCode {
         LaunchFailure::Envelope(envelope) => {
             eprintln!("{}", envelope.render());
             ExitCode::from(envelope.exit_code())
+        }
+        LaunchFailure::Downgrade(reason) => {
+            // The reason token only; the caller renders the message through
+            // `notify-downgrade` and decides — code-only for the default and
+            // hybrid crawlers, a hard failure for an explicit `--crawler
+            // runtime`.
+            eprintln!(r#"{{"error":"downgrade","reason":"{}"}}"#, reason.key());
+            ExitCode::from(3)
         }
         LaunchFailure::Failed(error) => {
             eprintln!("error: {error}");

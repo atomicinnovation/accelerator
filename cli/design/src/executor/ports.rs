@@ -68,6 +68,42 @@ pub trait Lock {
     fn release(&self);
 }
 
+/// Why a daemon spawn did not produce a running child.
+///
+/// `NotFound` is kept apart from every other failure because it is the
+/// post-fetch signal for `loader-unresolvable`: the program was resolved from
+/// the driver tree and exists, so an `execve` answering `ENOENT` means the
+/// dynamic loader it names is absent, not the program. It is an errno, never a
+/// shell message — the executor spawns with no shell, so `cannot execute:
+/// required file not found` can never appear.
+#[derive(Debug)]
+pub enum SpawnError {
+    /// `execve` answered `ENOENT`: the program's interpreter is missing.
+    NotFound,
+    /// Any other failure — `setsid`, the pipe, the identity handoff, or a
+    /// spawn error that is not `ENOENT`.
+    Failed(kernel::Error),
+}
+
+impl From<kernel::Error> for SpawnError {
+    fn from(error: kernel::Error) -> Self {
+        Self::Failed(error)
+    }
+}
+
+impl std::fmt::Display for SpawnError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound => formatter.write_str(
+                "the daemon's program or its interpreter is absent (ENOENT)",
+            ),
+            Self::Failed(error) => write!(formatter, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for SpawnError {}
+
 /// Starts the daemon and hands it its identity.
 pub trait Spawner {
     /// Spawns, observes the child's start time with the same probe the reuse
@@ -75,9 +111,21 @@ pub trait Spawner {
     ///
     /// # Errors
     ///
-    /// A [`kernel::Error`] when the child could not be spawned, `setsid` failed,
-    /// or the identity could not be written down the pipe.
-    fn spawn(&self) -> Result<Identity, kernel::Error>;
+    /// A [`SpawnError`] — `NotFound` when `execve` answered `ENOENT`, else
+    /// `Failed` carrying the underlying cause.
+    fn spawn(&self) -> Result<Identity, SpawnError>;
+}
+
+/// Reads a failed daemon's bootstrap log so the launch state machine can
+/// classify why it never became ready.
+///
+/// The log is already `0600` and truncated per attempt, so what it returns is
+/// this attempt's output. Reads only on the spawn path, when readiness fails;
+/// the `exec` path replaces the process image and has no Rust left to diagnose.
+pub trait BootstrapDiagnostics {
+    /// The lines of the current attempt's bootstrap log, or empty when it
+    /// cannot be read — an unreadable log is not itself a classification.
+    fn read_log(&self) -> Vec<String>;
 }
 
 /// Signalling, kept apart from creation: only the start-poll timeout signals.
