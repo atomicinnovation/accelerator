@@ -391,3 +391,122 @@ def test_a_mismatched_archive_fails_the_pin_gate(tmp_path):
             platform="linux-x64",
             pins_path=pins,
         )
+
+
+def _tgz(path, tree):
+    import tarfile
+
+    with tarfile.open(path, "w:gz") as archive:
+        archive.add(tree, arcname=".", recursive=True)
+    return path
+
+
+def _zip_dir(path, tree):
+    import stat as _stat
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as archive:
+        for item in sorted(tree.rglob("*")):
+            rel = item.relative_to(tree).as_posix()
+            info = zipfile.ZipInfo(rel)
+            mode = item.stat().st_mode
+            info.external_attr = (mode & 0o7777) << 16
+            archive.writestr(info, item.read_bytes() if item.is_file() else b"")
+            if item.is_file() and mode & 0o111:
+                info.external_attr = (_stat.S_IFREG | 0o755) << 16
+    return path
+
+
+def _miniature_inputs(tmp_path):
+    node_tree = tmp_path / "node-src"
+    _executable(node_tree / "node", "#!/bin/sh\necho v20\n")
+    pw_tree = tmp_path / "pw-src"
+    _licence(pw_tree / "index.js", "module.exports = {}")
+    chromium_tree = tmp_path / "chromium-src"
+    _executable(
+        chromium_tree / "chrome-headless-shell", "#!/bin/sh\necho v1181\n"
+    )
+    return (
+        _tgz(tmp_path / "node.tar.gz", node_tree),
+        _tgz(tmp_path / "pw.tgz", pw_tree),
+        _zip_dir(tmp_path / "chromium.zip", chromium_tree),
+    )
+
+
+def _mini_spec_builder(tmp_path):
+    from tasks.vendor.assemble import NoticeSource, TreePlacement, TreeSpec
+
+    lic = _licence(tmp_path / "LICENSE")
+
+    def build(extracted):
+        driver = TreeSpec(
+            artifact="driver",
+            placements=(
+                TreePlacement(extracted.node / "node", "node"),
+                TreePlacement(
+                    extracted.playwright_core, "node_modules/playwright-core"
+                ),
+            ),
+            notices=(
+                NoticeSource("node", (lic,)),
+                NoticeSource("playwright-core", (lic,)),
+            ),
+            executables=("node",),
+        )
+        browser = TreeSpec(
+            artifact="browser",
+            placements=(
+                TreePlacement(
+                    extracted.chromium / "chrome-headless-shell",
+                    "chrome-headless-shell",
+                ),
+            ),
+            notices=(NoticeSource("chromium", (lic,)),),
+            executables=("chrome-headless-shell",),
+        )
+        return (driver, browser)
+
+    return build
+
+
+def test_assemble_tree_artifacts_produces_archives_and_attestations(tmp_path):
+    from tasks.vendor.assemble import assemble_tree_artifacts
+
+    node_tar, pw_tar, chromium_zip = _miniature_inputs(tmp_path)
+    stats = assemble_tree_artifacts(
+        playwright_tarball=pw_tar,
+        node_tarball=node_tar,
+        chromium_archive=chromium_zip,
+        platform="linux-x64",
+        staging_dir=tmp_path / "staging",
+        dist_dir=tmp_path / "dist",
+        spec_builder=_mini_spec_builder(tmp_path),
+    )
+    assert set(stats) == {"driver", "browser"}
+    for name in ("driver", "browser"):
+        archive = tmp_path / "dist" / f"accelerator-{name}-linux-x64.tar.gz"
+        assert archive.exists()
+        assert archive.with_name(archive.name + ".sealed").exists()
+
+
+def test_assemble_tree_artifacts_runs_the_structural_and_smoke_gates(tmp_path):
+    from tasks.vendor.assemble import assemble_tree_artifacts
+
+    node_tar, pw_tar, _chromium_zip = _miniature_inputs(tmp_path)
+    # A browser whose shell will not execute must fail the assembly.
+    broken = tmp_path / "chromium-broken"
+    (broken).mkdir()
+    (broken / "chrome-headless-shell").write_bytes(b"\x00not a program")
+    (broken / "chrome-headless-shell").chmod(0o755)
+    broken_zip = _zip_dir(tmp_path / "broken.zip", broken)
+
+    with pytest.raises(ValueError, match="did not execute"):
+        assemble_tree_artifacts(
+            playwright_tarball=pw_tar,
+            node_tarball=node_tar,
+            chromium_archive=broken_zip,
+            platform="linux-x64",
+            staging_dir=tmp_path / "staging",
+            dist_dir=tmp_path / "dist",
+            spec_builder=_mini_spec_builder(tmp_path),
+        )

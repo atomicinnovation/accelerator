@@ -22,8 +22,9 @@ import re
 import shutil
 import stat
 import subprocess
+import tarfile
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +35,7 @@ from tasks.shared.paths import (
 )
 from tasks.vendor import pins
 from tasks.vendor.archive import ArchiveStats, write_deterministic_archive
+from tasks.vendor.attestation import build_attestation
 
 _DEFAULT_FILE_MODE = 0o644
 _SMOKE_TIMEOUT = 30
@@ -167,6 +169,16 @@ class TreeSpec:
     artifact: str
     placements: tuple[TreePlacement, ...]
     notices: tuple[NoticeSource, ...]
+    executables: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ExtractedInputs:
+    """The three extracted upstream trees, before composition."""
+
+    playwright_core: Path
+    node: Path
+    chromium: Path
 
 
 def write_notices(tree: Path, sources: Iterable[NoticeSource]) -> None:
@@ -285,3 +297,76 @@ def assert_matches_pin(
         raise ValueError(
             f"{artifact} {platform}: assembled {actual} != pinned {expected}"
         )
+
+
+SpecBuilder = Callable[[ExtractedInputs], "tuple[TreeSpec, ...]"]
+
+
+def extract_tar(archive: Path, dest: Path) -> None:
+    """Extract a ``.tar.gz``/``.tar.xz`` into ``dest`` under the data filter.
+
+    The data filter refuses absolute paths, ``..`` traversals and unsafe member
+    types, so an upstream tarball cannot write outside the destination.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(archive, "r:*") as tar:
+        tar.extractall(dest, filter="data")
+
+
+def assemble_tree_artifacts(
+    *,
+    playwright_tarball: Path,
+    node_tarball: Path,
+    chromium_archive: Path,
+    platform: str,
+    staging_dir: Path,
+    dist_dir: Path = RELEASE_STAGING,
+    spec_builder: SpecBuilder,
+) -> dict[str, ArchiveStats]:
+    """Extract, compose, pack, attest and gate the tree artifacts.
+
+    ``spec_builder`` maps the extracted upstream trees to the composition — the
+    version-specific layout, kept out of the orchestration so it is validated
+    against the real ``playwright-core`` separately. Every produced tree is
+    walked (structural) and its binaries executed (smoke) before it is trusted,
+    so a signed-but-structurally-wrong artifact is refused here rather than on a
+    user's machine.
+    """
+    extracted = ExtractedInputs(
+        playwright_core=_extract_into(
+            extract_tar, playwright_tarball, staging_dir / "extracted/pw"
+        ),
+        node=_extract_into(
+            extract_tar, node_tarball, staging_dir / "extracted/node"
+        ),
+        chromium=_extract_into(
+            extract_zip, chromium_archive, staging_dir / "extracted/chromium"
+        ),
+    )
+    specs = spec_builder(extracted)
+    stats = assemble_specs(
+        specs,
+        platform=platform,
+        staging_dir=staging_dir / "trees",
+        dist_dir=dist_dir,
+    )
+    for spec in specs:
+        tree = staging_dir / "trees" / f"{spec.artifact}-{platform}"
+        structural_check(
+            tree,
+            executables=spec.executables,
+            notice_components=[source.component for source in spec.notices],
+        )
+        smoke_check(tree, executables=spec.executables)
+        archive = tree_artifact_asset_path(spec.artifact, platform, dist_dir)
+        archive.with_name(archive.name + ".sealed").write_bytes(
+            build_attestation(spec.artifact, platform, stats[spec.artifact])
+        )
+    return stats
+
+
+def _extract_into(
+    extractor: Callable[[Path, Path], None], archive: Path, dest: Path
+) -> Path:
+    extractor(archive, dest)
+    return dest
