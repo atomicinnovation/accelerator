@@ -470,6 +470,108 @@ jobs:
       - name: Run documentation site checks
         run: mise run docs:check
 
+  # Assemble the vendored runtime upstream of any signing job, in a job holding
+  # no credentials — it extracts three third-party archives, so it must not be
+  # able to reach the release secret, mint an OIDC token, or write attestations.
+  # GH_TOKEN on the verify step alone is what `gh attestation verify` (SLSA)
+  # needs; nothing here can reference ACCELERATOR_RELEASE_SECRET_KEY.
+  assemble-runtime:
+    name: Assemble vendored runtime
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions: {}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Install dependencies
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Verify upstream inputs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise run vendor:verify-upstream-inputs
+
+      - name: Assemble tree artifacts
+        run: mise run vendor:assemble-tree-artifacts
+
+      # Per-target upload so each smoke leg downloads only its own ~300MB, not
+      # the whole ~1.2GB set. The .sealed attestation ships alongside; the
+      # .sealed.sig does not exist yet (only the publishing job holds the key).
+      # NOTE: the actions/upload-artifact ref must be SHA-pinned before merge.
+      - name: Upload darwin-arm64 runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: accelerator-runtime-darwin-arm64
+          path: dist/release/accelerator-*-darwin-arm64.tar.gz*
+          if-no-files-found: error
+      - name: Upload darwin-x64 runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: accelerator-runtime-darwin-x64
+          path: dist/release/accelerator-*-darwin-x64.tar.gz*
+          if-no-files-found: error
+      - name: Upload linux-x64 runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: accelerator-runtime-linux-x64
+          path: dist/release/accelerator-*-linux-x64.tar.gz*
+          if-no-files-found: error
+      - name: Upload linux-arm64 runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: accelerator-runtime-linux-arm64
+          path: dist/release/accelerator-*-linux-arm64.tar.gz*
+          if-no-files-found: error
+
+  # Execute the vendored Node and headless shell natively per target — a
+  # stronger gate than extraction, catching a structurally-wrong assembly that
+  # is nonetheless correctly signed and hashed. Native on each target: an arm64
+  # binary mis-assembled into the darwin-x64 archive runs under Rosetta on the
+  # arm64 runner but a native Intel host refuses it, so the check is independent
+  # of the structural architecture read. Holds no credentials.
+  # NOTE: the actions/download-artifact ref must be SHA-pinned before merge, and
+  # ubuntu-24.04-arm is free only for public repos — confirm the entitlement.
+  smoke-runtime:
+    name: Smoke vendored runtime
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push'
+    needs: assemble-runtime
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: darwin-arm64, os: macos-latest }
+          - { platform: darwin-x64, os: macos-15-intel }
+          - { platform: linux-x64, os: ubuntu-latest }
+          - { platform: linux-arm64, os: ubuntu-24.04-arm }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Install dependencies
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Download runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: accelerator-runtime-${{ matrix.platform }}
+          path: dist/release
+
+      - name: Smoke the runtime
+        env:
+          SMOKE_PLATFORM: ${{ matrix.platform }}
+        run: mise run vendor:smoke-runtime
+
   prerelease:
     name: Create prerelease
     runs-on: macos-latest
@@ -487,6 +589,8 @@ jobs:
       - check-supply-chain
       - check-architecture
       - check-zero-spawn
+      - assemble-runtime
+      - smoke-runtime
     if: github.event_name == 'push'
     # Serialise all release pipelines onto one queue: prepare (pull + bump) and
     # finalise (commit + tag + push) are steps in this single job, so a queued
@@ -537,6 +641,18 @@ jobs:
         with:
           workspaces: |
             cli
+
+      # The tree archives arrive as opaque workflow artifacts, into dist/release
+      # (gitignored, so invisible to the version-bump commit's leaked-artifact
+      # guard). prerelease:prepare then gates each against pins.ASSEMBLED_SHA256
+      # from this job's own clean checkout.
+      # NOTE: the actions/download-artifact ref must be SHA-pinned before merge.
+      - name: Download assembled runtime
+        uses: actions/download-artifact@v4
+        with:
+          pattern: accelerator-runtime-*
+          merge-multiple: true
+          path: dist/release
 
       - name: Prepare prerelease
         env:
@@ -599,7 +715,10 @@ jobs:
     name: Create release
     runs-on: macos-latest
     if: github.event_name == 'push'
-    needs: approve-release
+    needs:
+      - approve-release
+      - assemble-runtime
+      - smoke-runtime
     # The release lock lives HERE, deliberately WITHOUT `environment`. This
     # group must never enclose the approval gate (see approve-release) — a
     # Waiting, approval-gated job holds its concurrency group for its whole
@@ -647,6 +766,18 @@ jobs:
         with:
           workspaces: |
             cli
+
+      # The assembled tree archives arrive as opaque workflow artifacts, checked
+      # against pins.ASSEMBLED_SHA256 from this job's own clean checkout inside
+      # release:prepare and re-signed here — the release job holds the key, the
+      # upstream job never did.
+      # NOTE: the actions/download-artifact ref must be SHA-pinned before merge.
+      - name: Download assembled runtime
+        uses: actions/download-artifact@v4
+        with:
+          pattern: accelerator-runtime-*
+          merge-multiple: true
+          path: dist/release
 
       # The steps below stay INSIDE this locked, approved job on purpose: the
       # post-stable prerelease re-cut (prepare/attest/finalise, last three

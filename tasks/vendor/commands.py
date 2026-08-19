@@ -10,6 +10,8 @@ host, executing the downloaded binaries.
 
 from __future__ import annotations
 
+import os
+
 from invoke import Context, task
 
 from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
@@ -58,6 +60,15 @@ def assemble_tree_artifacts(context: Context) -> None:
 
 
 @task(name="smoke-runtime")
-def smoke_runtime(context: Context, platform: str) -> None:
-    """Execute the downloaded tree binaries for one platform, natively."""
-    assemble.smoke_downloaded_archives(RELEASE_STAGING, platform)
+def smoke_runtime(context: Context, platform: str = "") -> None:
+    """Execute the downloaded tree binaries for one platform, natively.
+
+    The platform comes from ``--platform`` or, for the CI matrix, the
+    ``SMOKE_PLATFORM`` environment variable.
+    """
+    resolved = platform or os.environ.get("SMOKE_PLATFORM", "")
+    if not resolved:
+        raise ValueError(
+            "no platform given (pass --platform or set SMOKE_PLATFORM)"
+        )
+    assemble.smoke_downloaded_archives(RELEASE_STAGING, resolved)
