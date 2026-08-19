@@ -485,6 +485,53 @@ pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Fo
 impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
 pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
 pub mod design::runtime
+pub mod design::runtime::availability
+pub enum design::runtime::availability::BrowserOutcome
+pub design::runtime::availability::BrowserOutcome::Bundled(std::path::PathBuf)
+pub design::runtime::availability::BrowserOutcome::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::BrowserOutcome::Hatch(std::path::PathBuf)
+impl core::clone::Clone for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::clone(&self) -> design::runtime::availability::BrowserOutcome
+impl core::cmp::Eq for design::runtime::availability::BrowserOutcome
+impl core::cmp::PartialEq for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::eq(&self, other: &design::runtime::availability::BrowserOutcome) -> bool
+impl core::fmt::Debug for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::BrowserOutcome
+pub enum design::runtime::availability::Resolution
+pub design::runtime::availability::Resolution::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::Resolution::Ready(design::runtime::availability::Runtime)
+impl core::clone::Clone for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::clone(&self) -> design::runtime::availability::Resolution
+impl core::cmp::Eq for design::runtime::availability::Resolution
+impl core::cmp::PartialEq for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::eq(&self, other: &design::runtime::availability::Resolution) -> bool
+impl core::fmt::Debug for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::Resolution
+pub enum design::runtime::availability::RuntimeOutcome
+pub design::runtime::availability::RuntimeOutcome::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::RuntimeOutcome::Ready(std::path::PathBuf)
+impl core::clone::Clone for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::clone(&self) -> design::runtime::availability::RuntimeOutcome
+impl core::cmp::Eq for design::runtime::availability::RuntimeOutcome
+impl core::cmp::PartialEq for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::eq(&self, other: &design::runtime::availability::RuntimeOutcome) -> bool
+impl core::fmt::Debug for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::RuntimeOutcome
+pub struct design::runtime::availability::Runtime
+pub design::runtime::availability::Runtime::browser_executable: std::path::PathBuf
+pub design::runtime::availability::Runtime::driver: std::path::PathBuf
+impl core::clone::Clone for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::clone(&self) -> design::runtime::availability::Runtime
+impl core::cmp::Eq for design::runtime::availability::Runtime
+impl core::cmp::PartialEq for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::eq(&self, other: &design::runtime::availability::Runtime) -> bool
+impl core::fmt::Debug for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::Runtime
+pub fn design::runtime::availability::resolve(platform: design::runtime::platform::Support, ensure_runtime: impl core::ops::function::FnOnce() -> design::runtime::availability::RuntimeOutcome, resolve_browser: impl core::ops::function::FnOnce() -> design::runtime::availability::BrowserOutcome) -> design::runtime::availability::Resolution
 pub mod design::runtime::bootstrap
 pub struct design::runtime::bootstrap::SpawnDiagnosis
 pub design::runtime::bootstrap::SpawnDiagnosis::detail: core::option::Option<alloc::string::String>
