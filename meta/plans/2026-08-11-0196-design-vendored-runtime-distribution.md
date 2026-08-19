@@ -1732,7 +1732,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       rather than trickling
 - [x] The retry loop's **total** wall clock is bounded across all three attempts, not
       only per attempt, and the reported failure names that bound
-- [ ] An interrupted download resumes: a second `ensure` for the same digest issues a
+- [x] An interrupted download resumes: a second `ensure` for the same digest issues a
       `Range` request rather than restarting from byte zero, and the resumed archive
       verifies exactly as a fresh one does
 - [ ] ⏱️ Peak RSS during a cold materialisation of the larger tree stays within a stated
@@ -1766,7 +1766,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [x] A sealed tree is removable by `remove_dir_all` without an intervening chmod; an
       archive member marked executable is still executable after sealing; and a
       symlink's target is not re-moded by the seal walk
-- [ ] `cache verify` detects each of a deleted file, a truncated file, a **same-size
+- [x] `cache verify` detects each of a deleted file, a truncated file, a **same-size
       same-mode** content substitution, a mode change, a changed symlink target, and an
       unexpected extra entry
 - [ ] `cache verify` succeeds with the release host unreachable
@@ -1783,12 +1783,12 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [x] Two release versions naming the same digest share **one** generation directory
       and two pointers, and the second version issues **zero** archive fetches
 - [ ] Two platforms sharing one cache root each resolve their own tree
-- [ ] A `trees/` directory that is group- or world-writable, or not owned by the
+- [x] A `trees/` directory that is group- or world-writable, or not owned by the
       effective uid, is refused rather than trusted — and a cache root inherited at
       `0775` under a user-private group (the RHEL/Fedora `umask 002` default) still
       resolves, since the launcher creates and `chmod`s `trees/` itself. Every refusal
       names the exact `chmod`/`chown` remediation
-- [ ] The reaper removes a temp archive, a temp tree, and an unreferenced generation;
+- [x] The reaper removes a temp archive, a temp tree, and an unreferenced generation;
       spares any generation whose `flock` lease is still held — asserted with the lease
       inherited by a detached child while every ancestor has exited — and spares nothing
       indefinitely once the age backstop passes, including for a generation whose lease
@@ -1799,21 +1799,21 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [ ] On a cache root whose filesystem does not support `flock` (`ENOLCK`/`EOPNOTSUPP`),
       liveness is treated as unknown and reclamation falls through to the age backstop
       rather than proceeding on a spuriously successful probe
-- [ ] `cache prune` reclaims an unreferenced generation and leaves the pointed-at one
-- [ ] `cache prune` on a root holding two **installed** launchers' refreshed claim files
+- [x] `cache prune` reclaims an unreferenced generation and leaves the pointed-at one
+- [x] `cache prune` on a root holding two **installed** launchers' refreshed claim files
       spares both, and reclaims a generation whose claims have all gone stale — so a
       simulated pin bump leaves total footprint bounded rather than growing by ~294MB per
       bump indefinitely
-- [ ] ⚠️ A sibling install's tree **used yesterday** is spared, because its claim file's
+- [x] ⚠️ A sibling install's tree **used yesterday** is spared, because its claim file's
       mtime is inside the window — the case where an age test on creation time would
       silently destroy another installed version's ~294MB on a shared cache root
 - [ ] `prune` reads only `trees/claims/`, never another launcher's binary: no sibling
       executable is spawned and no binary is scanned for constants
-- [ ] A claim file that is a symlink, or not owned by the effective uid, is ignored rather
+- [x] A claim file that is a symlink, or not owned by the effective uid, is ignored rather
       than treated as a live claim
 - [ ] The claim refresh is best-effort: a **read-only** populated cache root still resolves
       a tree on a hit, and the refresh is skipped when the recorded mtime is already fresh
-- [ ] `--older-than` overrides the window; there is no flag that drops every pointer but
+- [x] `--older-than` overrides the window; there is no flag that drops every pointer but
       the running launcher's
 - [ ] 🔒 A dispatch that resolves a tree via `acquire` leaves `probe_attempts()`
       unchanged, and a cold `materialise` adds exactly one — asserted with the
