@@ -7,6 +7,7 @@
 
 pub mod clock;
 pub mod cue_phrases;
+pub mod ensure;
 pub mod environment;
 pub mod filesystem;
 pub mod lock;
