@@ -108,13 +108,16 @@ def write_deterministic_archive(tree: Path, dest: Path) -> ArchiveStats:
 
     # gzip without the embedded mtime (mtime=0), so the container is stable.
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with dest.open("wb") as handle, gzip.GzipFile(
-        filename="",
-        fileobj=handle,
-        mode="wb",
-        mtime=0,
-        compresslevel=9,
-    ) as gz:
+    with (
+        dest.open("wb") as handle,
+        gzip.GzipFile(
+            filename="",
+            fileobj=handle,
+            mode="wb",
+            mtime=0,
+            compresslevel=9,
+        ) as gz,
+    ):
         gz.write(raw)
     archive_bytes = dest.read_bytes()
 
@@ -136,9 +139,7 @@ def _scan(tree: Path) -> list[_Entry]:
         info = path.lstat()
         if stat.S_ISLNK(info.st_mode):
             target = _read_link_contained(tree, path)
-            entries.append(
-                _Entry("l", relative, 0o777, 0, None, target)
-            )
+            entries.append(_Entry("l", relative, 0o777, 0, None, target))
         elif path.is_dir():
             entries.append(_Entry("d", relative, _DIR_MODE, 0, None, None))
         elif path.is_file():
@@ -185,9 +186,7 @@ def _append_bytes(
     archive.addfile(info, io.BytesIO(data))
 
 
-def _append_entry(
-    archive: tarfile.TarFile, tree: Path, entry: _Entry
-) -> None:
+def _append_entry(archive: tarfile.TarFile, tree: Path, entry: _Entry) -> None:
     if entry.kind == "d":
         info = _tarinfo(entry.path, tarfile.DIRTYPE, entry.mode, 0)
         archive.addfile(info)

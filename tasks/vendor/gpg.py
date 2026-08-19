@@ -117,9 +117,7 @@ def verify_detached(
     return classify_status_lines(status, allowed_fingerprints)
 
 
-def _run_gpg(
-    signature: Path, target: Path, keyring: Path
-) -> list[str] | None:
+def _run_gpg(signature: Path, target: Path, keyring: Path) -> list[str] | None:
     if shutil.which("gpg") is None:
         return None
     result = subprocess.run(

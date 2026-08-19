@@ -19,9 +19,7 @@ from tasks.shared.targets import ALIASES
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PINS = _REPO_ROOT / "pins.toml"
 _GOLDEN = _REPO_ROOT / "cli/launcher/tests/fixtures/manifest.example.json"
-_PINS_RS = (
-    _REPO_ROOT / "cli/launcher/src/launch/outbound/resolve/tree/pins.rs"
-)
+_PINS_RS = _REPO_ROOT / "cli/launcher/src/launch/outbound/resolve/tree/pins.rs"
 
 
 def _assembled() -> dict:
