@@ -1,13 +1,12 @@
 //! Runs `work::sync::classify_external_id`, the `RenderableState` narrowing
-//! and `work::sync::label` against the shared golden in
-//! `skills/work/scripts/test-fixtures/work-item-sync-label.golden`.
+//! and `work::sync::label` against the committed golden in
+//! `tests/fixtures/work-item-sync-label.golden`.
 //!
 //! `[DEFAULT]` has no typed Rust counterpart, so that section is
 //! count-asserted only.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;
-use std::path::PathBuf;
 
 use work::sync::classify_external_id;
 use work::sync::label;
@@ -21,12 +20,6 @@ const EXPECTED_CLASSIFY_ROWS: usize = 11;
 const EXPECTED_LABEL_ROWS: usize = 8;
 const EXPECTED_DEFAULT_ROWS: usize = 2;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 enum Section {
     Classify,
     Label,
@@ -34,8 +27,8 @@ enum Section {
 }
 
 fn golden_lines() -> Result<Vec<String>, TestError> {
-    let path = repo_root()?
-        .join("skills/work/scripts/test-fixtures/work-item-sync-label.golden");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-sync-label.golden");
     Ok(std::fs::read_to_string(path)?
         .lines()
         .map(str::to_owned)

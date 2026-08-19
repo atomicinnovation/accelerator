@@ -243,7 +243,25 @@ settled and closed.
   inventory, and the per-test assertion-count and fixture-case baseline for the
   eleven converted tests — *pending*.
 - Fixtures deleted for having no consumer, with the reason each has none —
-  *pending*.
+  **decided** (0212 Phase 1). The 68-file corpus under
+  `skills/work/scripts/test-fixtures/` relocated into per-crate `tests/fixtures/`
+  trees (normalise → `cli/work`, project-remote → `cli/remote-projection`,
+  section-diff + sync-baseline → `cli/work-adapters`), except for ten orphan
+  goldens with no runtime Rust reader, deleted here: `work-item-canonicalise-id`,
+  `work-item-file-dirty`, `work-item-next-number`, `work-item-read-field`,
+  `work-item-resolve-id`, `work-item-update-tags`,
+  `work-item-template-field-hints` (bash tested these inline; Rust carries its
+  own inline oracles) and the three loose provenance-header goldens
+  `work-item-normalise.golden`, `work-item-section-diff.golden`,
+  `work-item-project-remote.golden` (superseded by the per-case `expected.*`
+  goldens the converted tests read). `work-item-sync-baseline/regenerate.sh` is
+  also deleted: it regenerated `expected.json` from the bash scripts, and the
+  corpus is now frozen — the converted tests must never regenerate a golden from
+  Rust output. `cli/tracker-support/tests/mapper_differential.rs` is deleted per
+  D10 (it shelled out to `work-item-create-remote.sh`/`-update-remote.sh`, the
+  assets it drove). Relocated (57) plus deleted (11) equals the 68 the 0210
+  baseline records. Byte-identity of every relocated golden is now guarded by a
+  sha256 manifest in `cli/work-adapters/tests/fixtures/bash-parity-baseline.txt`.
 - Per-flow fixture capture source (credentialed target or mock-served) —
   *pending*.
 - Cross-skill `jq`/`curl` `allowed-tools` audit result — *pending*.

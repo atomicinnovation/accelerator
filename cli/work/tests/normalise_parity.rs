@@ -1,5 +1,5 @@
 //! Pins `work::normalise` against
-//! `skills/work/scripts/test-fixtures/work-item-normalise/case-*/`.
+//! `tests/fixtures/work-item-normalise/case-*/`.
 //!
 //! `case-file-mode` exercises `filter_frontmatter_keys` and `trim_lines`
 //! together, with the separator between them emitted unconditionally
@@ -15,16 +15,10 @@ use work::normalise::trim_lines;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn case_dir(name: &str) -> Result<PathBuf, TestError> {
-    Ok(repo_root()?.join(format!(
-        "skills/work/scripts/test-fixtures/work-item-normalise/{name}"
-    )))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/work-item-normalise/{name}"))
+        .canonicalize()?)
 }
 
 fn is_fence(line: &str) -> bool {

@@ -15,7 +15,7 @@ type TestError = Box<dyn std::error::Error>;
 
 fn corpus() -> Result<PathBuf, TestError> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../skills/work/scripts/test-fixtures/work-item-sync-baseline")
+        .join("tests/fixtures/work-item-sync-baseline")
         .canonicalize()?)
 }
 

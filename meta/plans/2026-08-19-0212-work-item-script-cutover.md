@@ -237,19 +237,19 @@ The per-case ids and the byte-identity of every golden are preserved.
 
 #### Automated Verification
 
-- [ ] `skills/work/scripts/test-fixtures/` no longer exists (relocated + deleted
+- [x] `skills/work/scripts/test-fixtures/` no longer exists (relocated + deleted
       accounts for all 68 files).
-- [ ] No Rust test references `skills/work/scripts`: `! grep -rl
+- [x] No Rust test references `skills/work/scripts`: `! grep -rl
       "skills/work/scripts" cli/` returns nothing.
-- [ ] The full Rust workspace passes: `mise run cli:check` and `mise run
+- [x] The full Rust workspace passes: `mise run cli:check` and `mise run
       test:unit:cli` (the underlying nextest run) both exit 0.
-- [ ] `mise run check` exits 0.
+- [x] `mise run check` exits 0.
 
 #### Manual Verification
 
-- [ ] Every relocated golden is byte-identical to its pre-move content
+- [x] Every relocated golden is byte-identical to its pre-move content
       (`jj diff` shows pure renames, no content edits).
-- [ ] Each deleted orphan golden and `mapper_differential.rs` is listed in
+- [x] Each deleted orphan golden and `mapper_differential.rs` is listed in
       0171's `## Decisions` with its reason.
 
 ---

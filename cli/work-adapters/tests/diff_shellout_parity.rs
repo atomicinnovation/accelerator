@@ -12,16 +12,10 @@ use work_adapters::diff_shellout::render;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn fixture(case: &str) -> Result<PathBuf, TestError> {
-    Ok(repo_root()?.join(format!(
-        "skills/work/scripts/test-fixtures/work-item-section-diff/{case}"
-    )))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/work-item-section-diff/{case}"))
+        .canonicalize()?)
 }
 
 #[test]

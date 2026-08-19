@@ -1,36 +1,43 @@
-# What 0212 converts, recorded before the conversion starts.
+# What 0212 converted, and the guard that keeps the relocated corpus honest.
 #
-# Two kinds of row.
+# Before 0212 the corpus lived under the work skill's bash test-fixtures tree
+# and the parity tests shelled out to the scripts. 0212 relocated every fixture
+# into per-crate tests/fixtures/ trees and rewrote the tests to read them
+# directly. This file now guards the relocated layout.
 #
-# `test` rows name the eleven Rust parity tests that drive a committed bash
-# fixture, with the number of `#[test]` functions each carried when this
-# baseline was taken and the fixture corpus it reads. 0212 converts these; the
-# recorded count is what it attributes its own coverage against.
+# Three kinds of row.
 #
-# `case` rows record the SET of case directories per fixture subdirectory. The
-# per-directory counts 0212 needs are DERIVED from these names by
-# bash_parity_baseline.rs and printed in its failure message — storing the
-# numbers too is how the numeric copy goes stale and 0212 reads a wrong figure.
+# `test` rows name the pure-Rust parity tests that read a committed corpus,
+# with the number of `#[test]` functions each carries and the corpus it reads.
 #
-# The guard compares SETS, not a total. A bare count is simultaneously too
-# strict — an unrelated work item adding a fixture reds the build with a
-# misleading message — and too loose, since a delete plus an add nets to the
-# same total and passes while the drift it exists to catch goes through.
+# `case` rows record the SET of case directories per corpus. The per-directory
+# counts are DERIVED from these names by bash_parity_baseline.rs and printed in
+# its failure message — storing the numbers too is how the numeric copy goes
+# stale. The guard compares SETS, not a total: a bare count is both too strict
+# (an unrelated fixture reds the build) and too loose (a delete plus an add nets
+# the same total and passes while the drift goes through). Each corpus resolves
+# to its per-crate home via corpus_home() in the reader.
 #
-# The corpus has two provenances and both must survive until 0212:
+# `hash` rows record the sha256 of every committed golden/expected file,
+# repo-relative. This is the byte-identity guard: the converted parity tests
+# check the Rust recipe against these goldens, and without a hash manifest a
+# future regeneration of code-and-golden together would pass tautologically.
+# The goldens ARE the frozen bash oracle and must never be regenerated from
+# Rust output; a changed byte reds every_committed_golden_matches_its_hash.
+#
+# The corpus has two provenances that both predate 0212:
 # work-item-project-remote/ came from 0170, work-item-sync-baseline/ from 0194.
 
-test  cli/work/tests/normalise_parity.rs                       4   work-item-normalise
-test  cli/work/tests/sync_classify.rs                          1   work-item-sync-classify.json
-test  cli/work/tests/sync_decide.rs                            1   work-item-sync-decide.golden
-test  cli/work/tests/sync_label_parity.rs                      2   work-item-sync-label.golden
-test  cli/work/tests/sync_push_decide.rs                       1   work-item-push-decide.golden
-test  cli/work-adapters/tests/diff_shellout_parity.rs          3   work-item-section-diff
-test  cli/work-adapters/tests/sync_baseline_corpus.rs          1   work-item-sync-baseline
-test  cli/work-adapters/tests/sync_baseline_shellout_parity.rs 1   work-item-sync-baseline
-test  cli/work-adapters/tests/sync_working_copy_status.rs      7   (no committed fixture)
-test  cli/work-cli/tests/cli_diff_parity.rs                    3   work-item-section-diff
-test  cli/remote-projection/tests/parity.rs                    4   work-item-project-remote
+test  cli/work/tests/normalise_parity.rs                  4   work-item-normalise
+test  cli/work/tests/sync_classify.rs                     1   work-item-sync-classify.json
+test  cli/work/tests/sync_decide.rs                       1   work-item-sync-decide.golden
+test  cli/work/tests/sync_label_parity.rs                 2   work-item-sync-label.golden
+test  cli/work/tests/sync_push_decide.rs                  1   work-item-push-decide.golden
+test  cli/work-adapters/tests/diff_shellout_parity.rs     3   work-item-section-diff
+test  cli/work-adapters/tests/sync_baseline_corpus.rs     1   work-item-sync-baseline
+test  cli/work-adapters/tests/sync_working_copy_status.rs 7   (no committed fixture)
+test  cli/work-cli/tests/cli_diff_parity.rs               3   work-item-section-diff
+test  cli/remote-projection/tests/parity.rs               4   work-item-project-remote
 
 case  work-item-normalise        case-file-mode
 case  work-item-normalise        case-nbsp-not-trimmed
@@ -57,15 +64,30 @@ case  work-item-sync-baseline    case-jira-no-description
 case  work-item-sync-baseline    case-linear-empty-description
 case  work-item-sync-baseline    case-linear-markdown
 case  work-item-sync-baseline    case-padded-fence
-case  work-item-sync-baseline    regenerate.sh
 
-# The loose files at the root of skills/work/scripts/test-fixtures/, which are
-# goldens rather than case directories:
-#
-#   work-item-canonicalise-id.golden        work-item-project-remote.golden
-#   work-item-file-dirty.golden             work-item-push-decide.golden
-#   work-item-next-number.golden            work-item-read-field.golden
-#   work-item-normalise.golden              work-item-resolve-id.golden
-#   work-item-section-diff.golden           work-item-sync-classify.json
-#   work-item-sync-decide.golden            work-item-sync-label.golden
-#   work-item-template-field-hints.golden   work-item-update-tags.golden
+hash  cli/work/tests/fixtures/work-item-push-decide.golden  d6ff68ddb8239b665fde76e2c4162ff05e56c25e546e45d78388d29a7f57fd7b
+hash  cli/work/tests/fixtures/work-item-sync-classify.json  52bbddd91778cc268ed72974ddf066f4b205ac43c3449527c9dd330f58c94c7a
+hash  cli/work/tests/fixtures/work-item-sync-decide.golden  a55622e0540ce6563faf58ff37761576568d92e449f7d87f7f82e0d1dbc7aa3f
+hash  cli/work/tests/fixtures/work-item-sync-label.golden  e1ffab46cb6e396dcc5d59db31d9056c44fa7d90d4588d44be96e53698c2f921
+hash  cli/work/tests/fixtures/work-item-normalise/case-file-mode/expected.txt  d1e330612f0fe6ebdda630a4522f0452b68e38e299a5a7031760d85e28b3a0ca
+hash  cli/work/tests/fixtures/work-item-normalise/case-nbsp-not-trimmed/expected.txt  d93e8808e428631cd6e8b378a2a9b89c8307a6642e03860b33c11a20831f1d66
+hash  cli/work/tests/fixtures/work-item-normalise/case-stdin-mode/expected.txt  2d13039e3e3e83f0f798e3742af2a56dd110d4e252dbbc8a0018331e9debb478
+hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-jira/expected.txt  7fb593f43a433c228d8fc40b187190784ccdd3bcaad92c3d2cad795b670053a7
+hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-jira-reordered/expected.txt  6f6315464beaf0824a86a48a9cd9530cd0ddb0c76f111a37a37a96231eaacb06
+hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-linear/expected.txt  65c78e7364a1d6ca6f8f82455ed78fd48e73025904d49dae3ca18b50dbebe936
+hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-frontmatter-only/expected.txt  0c2ea143a10b9814d649ab54d6155a507036fff2e312d26f7686a2ce657009c3
+hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-frontmatter-only-last-updated/expected.txt  7619e0de8579f4b69cc20d7e6e9f86abfd4f04178aa7cc6b125ce241798c2ecd
+hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-named-heading-and-one-sided/expected.txt  f7cbedcbdeb86499fcda21c458566fede9dc7525af56330aa544e8295696a0c5
+hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-no-diff-after-normalisation/expected.txt  45cf13f6917764fe06d68be9331b8a1408cc52735d62f55ddf3507d3d109daec
+hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-preamble/expected.txt  5425fdda1f74d4c8a57624ea12118e26c98cbfb42f71dfc2f5818cc411aa56d5
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-all-blank-body/expected.json  48c342a1c26a34749a2552eeeac938794e603e7dc14ebb9b7a3e403bf2bd863a
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-empty-body/expected.json  48c342a1c26a34749a2552eeeac938794e603e7dc14ebb9b7a3e403bf2bd863a
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-error-empty-file/expected.json  adaa9ee179ce975a03fbe404b561eff1a53daaaaf1bebfe8ac17688703f3831d
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-error-no-fence/expected.json  adaa9ee179ce975a03fbe404b561eff1a53daaaaf1bebfe8ac17688703f3831d
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-error-unclosed-fence/expected.json  adaa9ee179ce975a03fbe404b561eff1a53daaaaf1bebfe8ac17688703f3831d
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-every-ignore-key/expected.json  b6e1c053764f119ef7a9142fecd36157af767860efa0eb2ac44deadbef094222
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-jira-adf/expected.json  d7398c36a8b2913f20633d0b1e1ab446fd381ddadd92b4590825c221faff4e0e
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-jira-no-description/expected.json  eee2e10a9e6bd1aacef32e3ad58b046ebac29bce2066f4ea23e95e00e62090f9
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-linear-empty-description/expected.json  cc6a1d9d1dd9c41acfe85522cf9a27449f3ab417a3233c683e4730c312f89d24
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-linear-markdown/expected.json  dfae6391605a455e8c75f4f715a01dd9babca08bce5b7fce69c31c9496d98bfd
+hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-padded-fence/expected.json  3ac570adc1fe4aa6110028a810a8eb050cefecf8044722f4a2ed98818beaa208

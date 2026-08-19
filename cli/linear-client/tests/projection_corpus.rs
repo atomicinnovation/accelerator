@@ -14,8 +14,13 @@ use tracker::{ExternalId, RemoteTracker as _};
 type TestError = Box<dyn std::error::Error>;
 
 fn corpus(directory: &str) -> Result<PathBuf, TestError> {
+    let home = match directory {
+        "work-item-project-remote" => "../remote-projection/tests/fixtures",
+        "work-item-sync-baseline" => "../work-adapters/tests/fixtures",
+        other => panic!("no relocated home recorded for corpus {other}"),
+    };
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../skills/work/scripts/test-fixtures")
+        .join(home)
         .join(directory)
         .canonicalize()?)
 }

@@ -1,5 +1,5 @@
-//! Runs `work::sync::classify` against the shared table in
-//! `skills/work/scripts/test-fixtures/work-item-sync-classify.json`.
+//! Runs `work::sync::classify` against the committed table in
+//! `tests/fixtures/work-item-sync-classify.json`.
 #![allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -9,7 +9,6 @@
 
 use std::cell::Cell;
 use std::path::Path;
-use std::path::PathBuf;
 
 use serde_json::Value;
 use tracker::ExternalId;
@@ -29,15 +28,9 @@ type TestError = Box<dyn std::error::Error>;
 /// cannot quietly shrink what this suite exercises.
 const EXPECTED_RUST_CASES: usize = 17;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn fixture() -> Result<Value, TestError> {
-    let path = repo_root()?
-        .join("skills/work/scripts/test-fixtures/work-item-sync-classify.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-sync-classify.json");
     Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
 }
 
