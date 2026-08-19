@@ -232,6 +232,18 @@ description = "Create .debug.tar.gz archives for all cross-compiled release bina
 depends = ["build:server:cross-compile"]
 run = "invoke build.create-debug-archives"
 
+[tasks."vendor:verify-upstream-inputs"]
+description = "Fetch and verify the vendored runtime's upstream inputs (npm, Node, Chromium) for every target"
+run = "invoke vendor.verify-upstream-inputs"
+
+[tasks."vendor:assemble-tree-artifacts"]
+description = "Assemble the driver/browser tree archives from the verified upstream inputs"
+run = "invoke vendor.assemble-tree-artifacts"
+
+[tasks."vendor:smoke-runtime"]
+description = "Execute the downloaded tree binaries for one platform natively (release smoke gate)"
+run = "invoke vendor.smoke-runtime"
+
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]
