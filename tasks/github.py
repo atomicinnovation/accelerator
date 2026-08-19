@@ -403,12 +403,13 @@ def upload_and_verify_release(context: Context, version: str) -> None:
     """Upload every release asset, re-verify, then publish once.
 
     Owns the single `--draft=false` transition, flipped only after every asset
-    (launcher shim-minisig, manifest shim-minisig, sub-binary sha256 + inline
-    signature) re-verifies. An AssetVerificationError preserves the draft with a
-    track-labelled forensic alert; any other error deletes the release. Because
-    the delete lives inside this pre-publish envelope, it can never run against
-    an already-published release. Uploads are `--clobber` so a preserved draft
-    can be re-driven to green without manual asset deletion.
+    (launcher shim-minisig, manifest shim-minisig, sub-binary and tree-archive
+    sha256 + inline signature, tree attestation shim-minisig) re-verifies. Any
+    failure — verification or otherwise — preserves the draft with a forensic
+    alert and re-raises; no path deletes the tag, because `_publish` has already
+    pushed the version bump and the marketplace ref, so a delete would break
+    installs for every user. Uploads are `--clobber` so a preserved draft can be
+    re-driven to green without manual asset deletion.
     """
     tag = f"v{version}"
     # Resolved once and threaded: the "every asset uploaded" and "every asset
@@ -441,9 +442,12 @@ def upload_and_verify_release(context: Context, version: str) -> None:
     except AssetVerificationError:
         raise
     except Exception:
-        context.run(
-            f"gh release delete {tag} --cleanup-tag --yes",
-            warn=True,
-            timeout=120,
+        # Never delete a tag here: by the time this runs, `_publish` has pushed
+        # the version bump and the marketplace `source.ref`, so deleting the tag
+        # would break fresh installs and `/plugin update` for every user until a
+        # correction is pushed. A preserved draft is re-drivable with --clobber,
+        # so preserve it and alert for triage rather than tearing it down.
+        _emit_forensic_alert(
+            context, tag, "Launcher/manifest", _PRESERVE_MESSAGE
         )
         raise
