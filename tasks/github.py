@@ -18,9 +18,11 @@ from tasks.shared.paths import (
     RELEASE_MANIFEST,
     RELEASE_MANIFEST_SIG,
     RELEASE_PUBLIC_KEY,
+    TREE_ARTIFACTS,
     cli_binary_path,
     debug_archive_path,
     subbinary_asset_path,
+    tree_artifact_asset_path,
     vendored_shim_path,
 )
 from tasks.shared.targets import TARGETS, host_platform
@@ -228,9 +230,32 @@ def _subbinary_uploads(
     return uploads
 
 
+def _tree_artifact_uploads(
+    tree_tokens: Iterable[str] = TREE_ARTIFACTS,
+) -> list[Path]:
+    """Every tree archive and its three sidecars.
+
+    Four files per artifact per platform: the archive, its `.minisig`, its
+    `.sealed` attestation, and that document's `.sealed.sig`. The `.sealed.sig`
+    is produced by the publishing job (the signing key lives only here), so it
+    is uploaded from `dist/release/` like the others.
+    """
+    uploads: list[Path] = []
+    for token in tree_tokens:
+        for _triple, platform in TARGETS:
+            archive = tree_artifact_asset_path(token, platform)
+            sealed = archive.with_name(archive.name + ".sealed")
+            uploads.append(archive)
+            uploads.append(_sig(archive))
+            uploads.append(sealed)
+            uploads.append(sealed.with_name(sealed.name + ".sig"))
+    return uploads
+
+
 def _release_uploads(
     tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
     debug_dirs: Mapping[str, Path] = DEBUG_ARCHIVE_DIRS,
+    tree_tokens: Iterable[str] = (),
 ) -> list[Path]:
     uploads: list[Path] = []
     for _triple, platform in TARGETS:
@@ -245,6 +270,7 @@ def _release_uploads(
     uploads.append(RELEASE_MANIFEST)
     uploads.append(RELEASE_MANIFEST_SIG)
     uploads.extend(_subbinary_uploads(tokens))
+    uploads.extend(_tree_artifact_uploads(tree_tokens))
     return uploads
 
 
@@ -252,6 +278,7 @@ def _release_reverifies(
     context: Context,
     tag: str,
     tokens: Iterable[str] = DISPATCHED_SUBBINARIES,
+    tree_tokens: Iterable[str] = (),
 ) -> list[_Reverify]:
     items: list[_Reverify] = []
     for _triple, platform in TARGETS:
@@ -281,6 +308,58 @@ def _release_reverifies(
         )
     )
     items.extend(_subbinary_reverifies(context, tag, tokens))
+    items.extend(_tree_artifact_reverifies(context, tag, tree_tokens))
+    return items
+
+
+def _tree_artifact_reverifies(
+    context: Context,
+    tag: str,
+    tree_tokens: Iterable[str] = TREE_ARTIFACTS,
+) -> list[_Reverify]:
+    """Re-verify each tree archive and its `.sealed` attestation.
+
+    The archive carries an inline signature in the manifest, so it re-verifies
+    like a sub-binary; the attestation's signature is detached (`.sealed.sig`),
+    so it re-verifies via the shim. An artifact whose attestation failed to
+    upload would otherwise publish a tree no launcher could resolve.
+    """
+    names = tuple(tree_tokens)
+    if not names:
+        return []
+    manifest = json.loads(RELEASE_MANIFEST.read_text())
+    items: list[_Reverify] = []
+    for name in names:
+        entry = manifest["artifacts"][name]
+        for _triple, platform in TARGETS:
+            archive = tree_artifact_asset_path(name, platform)
+            plat = entry["platforms"][platform]
+            items.append(
+                _Reverify(
+                    "Launcher/manifest",
+                    partial(
+                        _reverify_subbinary,
+                        context,
+                        tag,
+                        archive.name,
+                        plat["sha256"].removeprefix("sha256:"),
+                        plat["signature"],
+                    ),
+                )
+            )
+            sealed = archive.name + ".sealed"
+            items.append(
+                _Reverify(
+                    "Launcher/manifest",
+                    partial(
+                        _reverify_via_shim,
+                        context,
+                        tag,
+                        sealed,
+                        sealed + ".sig",
+                    ),
+                )
+            )
     return items
 
 
@@ -334,14 +413,19 @@ def upload_and_verify_release(context: Context, version: str) -> None:
     tag = f"v{version}"
     # Resolved once and threaded: the "every asset uploaded" and "every asset
     # re-verified before --draft=false" lists cannot derive from two values.
+    # Tree tokens come from the manifest's own artifacts map, so a release that
+    # omitted them (the skip-tree-artifacts escape) uploads/re-verifies none.
     tokens = DISPATCHED_SUBBINARIES
-    uploads = _release_uploads(tokens)
+    tree_tokens = tuple(
+        json.loads(RELEASE_MANIFEST.read_text()).get("artifacts", {})
+    )
+    uploads = _release_uploads(tokens, tree_tokens=tree_tokens)
     missing = [p for p in uploads if not p.exists()]
     if missing:
         raise FileNotFoundError(
             f"Expected release artefacts not found: {[str(p) for p in missing]}"
         )
-    reverifies = _release_reverifies(context, tag, tokens)
+    reverifies = _release_reverifies(context, tag, tokens, tree_tokens)
     try:
         for path in uploads:
             _upload_clobber(context, tag, path)
