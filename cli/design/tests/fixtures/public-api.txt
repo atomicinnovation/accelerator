@@ -526,6 +526,44 @@ pub fn design::runtime::downgrade::UnknownReason::fmt(&self, f: &mut core::fmt::
 impl core::fmt::Display for design::runtime::downgrade::UnknownReason
 pub fn design::runtime::downgrade::UnknownReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::runtime::downgrade::UnknownReason
+pub mod design::runtime::platform
+pub enum design::runtime::platform::ShellLoader
+pub design::runtime::platform::ShellLoader::Musl
+pub design::runtime::platform::ShellLoader::Other(alloc::string::String)
+pub design::runtime::platform::ShellLoader::Unobservable(alloc::string::String)
+impl core::clone::Clone for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::clone(&self) -> design::runtime::platform::ShellLoader
+impl core::cmp::Eq for design::runtime::platform::ShellLoader
+impl core::cmp::PartialEq for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::eq(&self, other: &design::runtime::platform::ShellLoader) -> bool
+impl core::fmt::Debug for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::platform::ShellLoader
+pub enum design::runtime::platform::Support
+pub design::runtime::platform::Support::Supported
+pub design::runtime::platform::Support::Unsupported(design::runtime::downgrade::DowngradeReason)
+impl core::clone::Clone for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::clone(&self) -> design::runtime::platform::Support
+impl core::cmp::Eq for design::runtime::platform::Support
+impl core::cmp::PartialEq for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::eq(&self, other: &design::runtime::platform::Support) -> bool
+impl core::fmt::Debug for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::platform::Support
+impl core::marker::StructuralPartialEq for design::runtime::platform::Support
+pub struct design::runtime::platform::Observations
+pub design::runtime::platform::Observations::is_linux: bool
+pub design::runtime::platform::Observations::psabi_interpreter_present: bool
+pub design::runtime::platform::Observations::shell_loader: design::runtime::platform::ShellLoader
+impl core::clone::Clone for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::clone(&self) -> design::runtime::platform::Observations
+impl core::cmp::Eq for design::runtime::platform::Observations
+impl core::cmp::PartialEq for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::eq(&self, other: &design::runtime::platform::Observations) -> bool
+impl core::fmt::Debug for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::platform::Observations
+pub fn design::runtime::platform::classify(observations: &design::runtime::platform::Observations) -> design::runtime::platform::Support
 pub mod design::source_location
 pub enum design::source_location::LocationError
 pub design::source_location::LocationError::Host
