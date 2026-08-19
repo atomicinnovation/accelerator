@@ -92,12 +92,17 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-19. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-0/50, Removal 0/14. Phase 2's criteria stay unticked because they are framed at
-the release-flow level ("fails the release"), and the fetch orchestration and
-publish-path wiring that reach the verifiers are not yet built — but the
-**verification and assembly logic those criteria rest on is now committed and
-green** (assemble/chromium/nodejs/npm modules; see the Phase 2 progress note
-below). Two amendments were made to the plan during implementation,
+10/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
+verification, assembly, publish-path, fetch-orchestration and CI-workflow code
+is committed and green; its criteria stay unticked only because they assert
+release-lane behaviour that needs the human-gated trust anchors and a live
+release to exercise (see the Phase 2 progress notes below). **Phase 3's
+self-contained domain layer is committed and green** (the downgrade vocabulary,
+platform classification, spawn-failure classification, availability ordering,
+the config precedence helper, `design.browser_path` registration, and `design
+notices` — see the Phase 3 progress note); the remaining Phase 3 work is the
+executor/launcher/`daemon.js` integration wiring and the container harness. Two
+amendments were made to the plan during implementation,
 recorded inline at the sections they touch rather than here: the `-S -H`
 prehash distinction does not exist (pinned `minisign 0.12` prehashes under a
 plain `-S`), and reqwest's async-builder `read_timeout` panics on the blocking
@@ -223,8 +228,56 @@ the trust-anchor CI guard job. Plus the release-lane manual validations the plan
 already lists (real-input layout confirmation, the SHA-pins, `timeout-minutes`).
 Left as placeholders in code.
 
-**Phase 3 (executor swap) and the Removal sweep — not started.** Both depend on
-Phases 1 and 2.
+**Phase 3 (executor swap) — the self-contained domain layer is built and green;
+the integration wiring is not started.** Committed since Phase 2, all tested at
+unit level (`cli/design` lib now 112 tests, `public-api:check` green):
+
+- **§6 the downgrade vocabulary** — `runtime/downgrade.rs` rewritten to the
+  vendored-runtime reasons (dropped `node-missing`/`node-too-old`/
+  `bootstrap-failed`; added `unsupported-platform`, `loader-unresolvable`,
+  `glibc-too-old`, `runtime-libraries-missing`, `artifact-unavailable`,
+  `materialisation-in-progress`; kept the three retained reasons). Goldens
+  regenerated, the `DowngradeReasonArg` clap mirror updated, `public-api.txt`
+  regenerated, and `notify-downgrade-messages.json` plus its `include_str!`
+  drift test deleted as §6 directs.
+- **§4 platform classification** — `runtime/platform.rs` (new): the musl-first
+  `classify(Observations) -> Support` over the two observations, unit-tested for
+  all seven shapes (macOS, Debian ±musl-tools, Alpine ±gcompat, NixOS,
+  distroless). The domain function is not `cfg`-gated so it tests on macOS; only
+  the adapter that gathers observations will be Linux-gated.
+- **§4 spawn-failure classification** — `runtime/bootstrap.rs` (new):
+  `classify_bootstrap_log` hand-parsed (the domain crate's pup rule bans
+  `regex`), extracting the glibc version and the missing soname with validated
+  tokens and whole-line matching so untrusted output cannot force a downgrade.
+- **§4 availability ordering** — `runtime/availability.rs` (new): the ADR-0062
+  platform → runtime → browser order over lazy thunks, proving zero-network on a
+  refusal and that the hatch substitutes the browser while the driver is still
+  ensured.
+- **§5 config precedence** — `config::env_beats_config` (new pure function in
+  `cli/config`); the visualiser's `resolve_optional` retargeted at it so the
+  environment read stays in the composition root and `cli/config` keeps no
+  `std::env` read.
+- **§5 `design.browser_path`** registered in `EXTRA_KEYS` with its
+  `config-defaults.sh` mirror, dump-golden row and a catalogue test. Its
+  personal-level-only enforcement and repo-inside refusal are deferred to the
+  executor's browser-path read (§2/§3), and its docs to the Removal sweep's
+  docs batch.
+- **§7 `design notices`** — `design-cli/src/notices.rs` (new): the seventh
+  subcommand, reading each `ACCELERATOR_TREE_<NAME>` and listing its `NOTICES/`
+  components, with a pure core and CLI success/failure tests.
+
+**Phase 3's remaining work is the integration wiring, much of it exercised only
+by the container harness:** §3 tree resolution (the launcher exporting
+`ACCELERATOR_TREE_<NAME>`, `design-cli/src/executor.rs` calling `cache ensure`
+before `launcher.lock`, retargeting `const NODE` at both spawn sites, launcher
+discovery); §4's remainder (`design-adapters/src/platform.rs`'s Linux-gated
+observations, the sticky-marker policy, and the `BootstrapDiagnostics` port +
+`Spawner` errno wired into `launch.rs`); §2's `design.browser_path` read and
+`daemon.js`'s loader narrowing, explicit `executablePath` and `ping` fix (§1);
+§8's deletions; the container harness; and the `PROTOCOL.md`/`evals.json`/
+`benchmark.json` cleanup plus the standing conformance guard.
+
+**The Removal sweep — not started.** Depends on Phase 3.
 
 ## Current State Analysis
 
@@ -3735,17 +3788,17 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 
 #### Automated Verification
 
-- [ ] Failing test first: *a musl-classified host downgrades to code-only rather than
+- [x] Failing test first: *a musl-classified host downgrades to code-only rather than
       resolving a browser path* — red before `design::runtime::availability` exists, over
       injected platform, runtime and browser resolution, so the ADR-0062 ordering is
       pinned in a fast test rather than only in a container
-- [ ] The platform classification returns the right answer for every injected shape —
+- [x] The platform classification returns the right answer for every injected shape —
       **macOS**, Debian, Debian + `musl-tools`, Alpine, Alpine + `gcompat` (which must
       refuse despite a present glibc loader), a relocated-loader host such as NixOS (which
       must emit `loader-unresolvable`, not the libc reason), and a **distroless image with
       no `/bin/sh` at all** (the `Unobservable` case, which must fail open rather than
       panic or be conflated with either answer)
-- [ ] Spawn-failure classification is a **pure function over recorded bootstrap-log
+- [x] Spawn-failure classification is a **pure function over recorded bootstrap-log
       fixtures**, not a live host: `version \`GLIBC_2.34' not found` → `glibc-too-old` with
       the version extracted; `error while loading shared libraries: <soname>` →
       `runtime-libraries-missing` **naming that soname**; an unrecognised failure →
@@ -3753,7 +3806,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] `loader-unresolvable`'s post-fetch arm is driven by the `Spawner`'s raw `io::ErrorKind`
       — program present but `execve` yielding `ENOENT` — **not** by a shell message the
       executor can never produce, since it spawns with no shell
-- [ ] 🔒 A bootstrap log containing a marker substring embedded in unrelated output does
+- [x] 🔒 A bootstrap log containing a marker substring embedded in unrelated output does
       **not** classify, and an over-long or metacharacter-bearing soname is rejected rather
       than reaching the remediation string — so an untrusted project cannot force a
       code-only downgrade or inject text into an agent-facing envelope
@@ -3764,7 +3817,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] The probe issues no HTTP request and reads no manifest, so an Alpine host refuses at
       zero network cost — and `ArtifactPlatformEntry` carries no shared-library list, since
       the warm path never loads the manifest that would have delivered it
-- [ ] An unsupported platform downgrades without issuing any HTTP request
+- [x] An unsupported platform downgrades without issuing any HTTP request
 - [ ] A non-executor design subcommand performs no tree resolution and no fetch on an
       empty cache
 - [ ] `acquire` runs only on tree-consuming dispatches: `accelerator vcs guard` and a
@@ -3832,17 +3885,17 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
       would silently degrade every crawl to code-only
 - [ ] A launch succeeds against a read-only browsers root, proving an explicit
       `executablePath` bypasses registry validation and writes
-- [ ] The precedence helper is a **pure function** over two `Option<&str>` values in
+- [x] The precedence helper is a **pure function** over two `Option<&str>` values in
       `cli/config`, tested over env set/unset × config set/unset × whitespace-only with no
       environment manipulation, with the visualiser's callers retargeted at it and its
       tests moved with it
-- [ ] `cli/config` contains no production `std::env` read — the environment read stays in
+- [x] `cli/config` contains no production `std::env` read — the environment read stays in
       each composition root, so the domain crate's purity (`cli/pup.ron:40-44`) is not
       eroded by a change the pup rule cannot catch
 - [ ] 🔒 A **team-level** `design.browser_path` is ignored with a warning, and a value
       canonicalising inside the repository being inventoried is refused — so an untrusted
       repository cannot name the binary the inventory skill executes
-- [ ] `design notices` has a success path and a failure path, including `--artifact`,
+- [x] `design notices` has a success path and a failure path, including `--artifact`,
       over a fixture tree
 - [ ] With `design.browser_path` set, **zero** browser archive fetches occur — the hatch
       short-circuits browser materialisation while the driver `ensure` still runs
@@ -3857,14 +3910,14 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] A free-space shortfall emits `disk-floor-not-met` before any fetch starts, and an
       unwritable cache root emits `cache-unwritable`
 - [ ] Tree-failure envelopes name `accelerator cache repair <name>`
-- [ ] The downgrade goldens stay exhaustive by construction across the vocabulary change
+- [x] The downgrade goldens stay exhaustive by construction across the vocabulary change
       — a variant with no golden fails, and an orphan golden fails
 - [ ] A **standing conformance guard** asserts that every script path and downgrade-reason
       token named in `evals.json`, `benchmark.json` and `PROTOCOL.md` resolves to an
       existing file or a live vocabulary entry — so the twenty-one stale references are
       not merely corrected but cannot recur, which is what happened to fifteen of them
       during the preceding plan. Eval 20 passes against `artifact-unavailable`
-- [ ] `cli/design/tests/fixtures/public-api.txt` is regenerated and committed
+- [x] `cli/design/tests/fixtures/public-api.txt` is regenerated and committed
 - [ ] `mise run test:unit:design-automation` passes with the **case** floor moved to the
       new TAP-reported total; the suite floor stays at **9**, since the loader survives in
       narrowed form rather than being deleted
