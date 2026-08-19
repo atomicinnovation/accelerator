@@ -272,10 +272,10 @@ constructor in `work-adapters` (exempt from `public-api:check`).
 
 #### Automated Verification:
 
-- [ ] `cli/work-cli/tests/fixtures/sync-report.golden` exists and is committed.
-- [ ] Rust format and lint pass: `mise run cli:check`.
-- [ ] The characterisation test passes: `mise run test:unit:cli`.
-- [ ] No public-api drift: `mise run public-api:check`.
+- [x] `cli/work-cli/tests/fixtures/sync-report.golden` exists and is committed.
+- [x] Rust format and lint pass: `mise run cli:check`.
+- [x] The characterisation test passes: `mise run test:unit:cli`.
+- [x] No public-api drift: `mise run public-api:check`.
 
 #### Manual Verification:
 

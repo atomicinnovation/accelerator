@@ -380,3 +380,102 @@ pub fn run_sync(
         }
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use tracker::TrackerError;
+    use work::sync::Action;
+    use work::sync::PlannedAction;
+    use work::sync::SyncState;
+    use work_adapters::sync::apply::ApplyError;
+    use work_adapters::sync::baseline::Degradation;
+    use work_adapters::sync::run::ItemOutcome;
+    use work_adapters::sync::run::ReportedItem;
+    use work_adapters::sync::run::RunReport;
+
+    use super::render_report;
+
+    fn reported(id: &str, state: SyncState, action: Action) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state,
+                action,
+            },
+            outcome: ItemOutcome::NotApplied,
+        }
+    }
+
+    fn failed(
+        id: &str,
+        state: SyncState,
+        source: TrackerError,
+    ) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state,
+                action: Action::Noop,
+            },
+            outcome: ItemOutcome::Failed(ApplyError::Tracker {
+                item_id: id.to_owned(),
+                operation: "update",
+                source,
+            }),
+        }
+    }
+
+    #[test]
+    fn render_report_sorts_fixed_width_ids_numerically() {
+        let report = RunReport {
+            reported: vec![
+                reported("0001", SyncState::LocallyModified, Action::Push),
+                reported("0002", SyncState::RemotelyModified, Action::Pull),
+                reported("0003", SyncState::Conflict, Action::Prompt),
+                reported("0004", SyncState::Conflict, Action::SkipConflict),
+                reported("0005", SyncState::LocallyModified, Action::SkipDirty),
+                failed(
+                    "0006",
+                    SyncState::LocallyModified,
+                    TrackerError::Retryable {
+                        detail: "rate limited".to_owned(),
+                    },
+                ),
+                failed(
+                    "0007",
+                    SyncState::LocallyModified,
+                    TrackerError::Terminal {
+                        detail: "unsafe identifier".to_owned(),
+                    },
+                ),
+                reported("0008", SyncState::Synced, Action::Noop),
+                reported("0009", SyncState::RemoteAbsent, Action::Noop),
+                reported("0010", SyncState::Indeterminate, Action::Noop),
+            ],
+            read_failure: None,
+            baseline_degradation: Degradation::None,
+            finalised: true,
+        };
+
+        let golden = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/sync-report.golden"
+        ))
+        .expect("golden readable");
+
+        assert_eq!(render_report(&report), golden);
+    }
+
+    #[test]
+    fn render_report_emits_the_summary_row_for_an_empty_corpus() {
+        let report = RunReport {
+            reported: Vec::new(),
+            read_failure: None,
+            baseline_degradation: Degradation::None,
+            finalised: true,
+        };
+
+        assert_eq!(render_report(&report), "#\tsummary\tsynced\t0");
+    }
+}
