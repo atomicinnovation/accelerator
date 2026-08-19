@@ -27,6 +27,34 @@ use super::lease::{hold_shared_lease, take_single_flight};
 use super::table::{FileTable, TABLE_NAME};
 use super::{download, extract, pins, reap, seal};
 
+/// Where the launcher's expected `(artifact, platform) -> digest` map comes
+/// from.
+///
+/// Production always uses [`ExpectedDigests::Compiled`] — the rollback defence
+/// is that the digest is baked into the binary from the reviewed anchor. The
+/// injected variant is a test seam only, the same shape as `Fetcher`'s
+/// backoff-injecting constructor, so an end-to-end test can pin a digest it
+/// controls without a real release.
+pub enum ExpectedDigests {
+    /// Read the compiled-in map.
+    Compiled,
+    /// A test-supplied `(artifact, platform) -> digest` map.
+    Fixed(std::collections::BTreeMap<(String, String), String>),
+}
+
+impl ExpectedDigests {
+    fn digest_for(&self, artifact: &str, platform: &str) -> Option<String> {
+        match self {
+            Self::Compiled => {
+                pins::expected_digest_on(artifact, platform).map(str::to_owned)
+            }
+            Self::Fixed(map) => map
+                .get(&(artifact.to_owned(), platform.to_owned()))
+                .cloned(),
+        }
+    }
+}
+
 /// Everything the resolver needs to reach the release and the cache root.
 pub struct TreeResolver<'a> {
     pub cache_root: PathBuf,
@@ -39,6 +67,9 @@ pub struct TreeResolver<'a> {
     /// A per-install identity for the retention claim, so two installs sharing
     /// a cache root each write their own claim file.
     pub launcher_id: String,
+    /// Production is always [`ExpectedDigests::Compiled`]; the injected variant
+    /// is a test seam.
+    pub expected_digests: ExpectedDigests,
 }
 
 impl TreeResolver<'_> {
@@ -48,8 +79,8 @@ impl TreeResolver<'_> {
 
     /// The digest this launcher expects for `artifact`, or a miss-shaped `None`
     /// when this platform publishes none.
-    fn expected_digest(&self, artifact: &str) -> Option<&'static str> {
-        pins::expected_digest_on(artifact, &self.platform)
+    fn expected_digest(&self, artifact: &str) -> Option<String> {
+        self.expected_digests.digest_for(artifact, &self.platform)
     }
 
     /// Steps 1-5: the side-effect-free query behind both `query` and `acquire`.
@@ -404,6 +435,7 @@ impl AcquireSealedTree for TreeResolver<'_> {
         let Some(digest) = self.expected_digest(artifact) else {
             return Ok(None);
         };
+        let digest = digest.as_str();
         let paths = self.paths();
         Ok(self.locate(artifact, digest).map(|located| {
             self.sealed(&paths, artifact, &located.generation, digest)
@@ -417,6 +449,7 @@ impl AcquireSealedTree for TreeResolver<'_> {
         let Some(digest) = self.expected_digest(artifact) else {
             return Ok(None);
         };
+        let digest = digest.as_str();
         let paths = self.paths();
 
         // The lease-then-recheck is retried once, so a prune reclaiming between
@@ -463,6 +496,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                 ),
             });
         };
+        let digest = digest.as_str();
 
         // Probe the cache root exactly once, before any cache-root write, so an
         // unwritable or full root surfaces as the intended downgrade rather than
@@ -507,6 +541,7 @@ impl VerifyTree for TreeResolver<'_> {
                 detail: format!("unknown artifact {artifact}"),
             });
         };
+        let digest = digest.as_str();
         let Some(located) = self.locate(artifact, digest) else {
             return Ok(TreeReport {
                 artifact: artifact.to_owned(),
