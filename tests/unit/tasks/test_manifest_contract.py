@@ -85,8 +85,13 @@ def test_schema_artifact_platform_enum_matches_the_alias_set() -> None:
 def test_the_schema_describes_the_three_required_artifact_sizes() -> None:
     schema = json.loads(_SCHEMA.read_text())
     required = set(schema["$defs"]["artifactPlatformEntry"]["required"])
-    assert {"sha256", "signature", "archive_size", "uncompressed_size",
-            "entry_count"} <= required
+    assert {
+        "sha256",
+        "signature",
+        "archive_size",
+        "uncompressed_size",
+        "entry_count",
+    } <= required
 
 
 def test_the_golden_artifacts_validate_against_the_schema_shape() -> None:
