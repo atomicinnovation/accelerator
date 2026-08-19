@@ -191,22 +191,37 @@ from the manifest's own `artifacts` map so the skip escape works (§5.3/4, §6.6
 deletes a published tag (§7). The attest globs are asserted to cover the flat
 tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
 
-**Phase 2's remaining steps, in dependency order:**
+**The fetch orchestration and CI workflow are now built and green too.**
+- `tasks/vendor/fetch.py` — the streamed `download` + `get_json`, injected everywhere.
+- `tasks/vendor/upstream.py` — `verify_upstream_inputs` wiring npm/nodejs/chromium
+  verification over the fetch layer, with the URL builders; the SLSA signer
+  workflow, Chromium CDN base and per-platform names are marked release-lane
+  validated. `npm.packument_dist` parses the registry packument.
+- `tasks/vendor/assemble.py` — `extract_tar` + `assemble_tree_artifacts`
+  (extract → compose → attest → structural/smoke gate, `run_smoke` off for
+  cross-platform assembly) + `default_spec_builder` (the real driver/browser
+  layout, glob-based, fails loudly on an unexpected layout) +
+  `smoke_downloaded_archives`. The miniature-fixture-triple end-to-end tests run
+  in `test:unit:tasks` (§8's predicates).
+- `tasks/vendor/commands.py` + `tasks/__init__.py` + `mise.toml` — the
+  `vendor:verify-upstream-inputs` / `vendor:assemble-tree-artifacts` /
+  `vendor:smoke-runtime` invoke tasks.
+- `.github/workflows/main.yml` — the `assemble-runtime` (`permissions: {}`,
+  GH_TOKEN only on the SLSA verify step) and matrix `smoke-runtime`
+  (`permissions: {}`, native per target) jobs; `prerelease`/`release` gain both
+  in `needs:` and a `download-artifact` step feeding `dist/release/` before the
+  pin gate. Workflow-shape tests pin the new jobs' permissions, secret
+  isolation, `needs:` wiring and matrix coverage. ⚠️ The two artifact actions
+  (`upload-artifact`/`download-artifact`) use `@v4` tags and are flagged
+  **SHA-pin before merge**; `timeout-minutes` from a measured double-pass is
+  still to add (§7).
 
-1. **The fetch orchestration** — `requests`-based download of the npm tarball,
-   Chromium zip, and Node `SHASUMS256.txt`/`.asc`, tying the verifiers and
-   `assemble_specs` into `vendor.verify_upstream_inputs` +
-   `build.assemble_tree_artifacts` invoke tasks, wired into `tasks/__init__.py`
-   (a `vendor` collection) and `mise.toml`.
-2. **The CI workflow** (§3, §7, §8) — the `assemble-runtime` and matrix
-   `smoke-runtime` jobs in `main.yml`, `permissions: {}`, and `timeout-minutes`
-   from a measured double-pass. Testable only in the release lane, so §8's
-   miniature fixture triple carries the determinism/smoke/structural predicates
-   into `test:unit:tasks`.
-3. **Real trust anchors** — `keys/nodejs-release.asc`, `keys/npm-registry.pem`,
-   the real `pins.toml` Chromium/Node/`ASSEMBLED_SHA256` values, the RELEASING.md
-   refresh procedure and the trust-anchor CI guard job. A **human-gated
-   trust-anchor operation**, left as placeholders in code.
+**Phase 2's only remaining work — human-gated trust anchors:**
+`keys/nodejs-release.asc`, `keys/npm-registry.pem`, the real `pins.toml`
+Chromium/Node/`ASSEMBLED_SHA256` values, the RELEASING.md refresh procedure and
+the trust-anchor CI guard job. Plus the release-lane manual validations the plan
+already lists (real-input layout confirmation, the SHA-pins, `timeout-minutes`).
+Left as placeholders in code.
 
 **Phase 3 (executor swap) and the Removal sweep — not started.** Both depend on
 Phases 1 and 2.
