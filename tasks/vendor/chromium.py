@@ -26,6 +26,26 @@ _CHUNK = 64 * 1024
 _HEADLESS_SHELL = "chromium-headless-shell"
 
 
+def assert_chromium_bytes(
+    archive: Path,
+    *,
+    platform: str,
+    pins_path: Path = PINS_TOML,
+) -> None:
+    """Fail unless ``archive``'s sha256 matches the reviewed per-platform pin.
+
+    Used at fetch time, when only the revision (from the pins) is known; the
+    revision cross-check against ``browsers.json`` happens at assembly, once the
+    driver bundle is extracted.
+    """
+    actual = _sha256_file(archive)
+    expected = pins.chromium_sha256(platform, pins_path)
+    if actual != expected:
+        raise ValueError(
+            f"Chromium {platform}: fetched sha256 {actual} != pinned {expected}"
+        )
+
+
 def verify_chromium(
     archive: Path,
     *,
@@ -41,12 +61,7 @@ def verify_chromium(
             f"fetched Chromium revision {fetched_revision} != pinned "
             f"{expected_revision}"
         )
-    actual = _sha256_file(archive)
-    expected = pins.chromium_sha256(platform, pins_path)
-    if actual != expected:
-        raise ValueError(
-            f"Chromium {platform}: fetched sha256 {actual} != pinned {expected}"
-        )
+    assert_chromium_bytes(archive, platform=platform, pins_path=pins_path)
 
 
 def _sha256_file(path: Path) -> str:
