@@ -277,6 +277,36 @@ observations, the sticky-marker policy, and the `BootstrapDiagnostics` port +
 §8's deletions; the container harness; and the `PROTOCOL.md`/`evals.json`/
 `benchmark.json` cleanup plus the standing conformance guard.
 
+**Phase 3 integration wiring, 2026-08-19 — two foundational leaves landed.**
+Both are unit-green (`cli:check`, `pup:check`) on darwin; the criteria they
+serve that assert integrated or container behaviour stay unticked until the
+executor consumes them:
+
+- **The host platform observation adapter** — `design-adapters/src/platform.rs`
+  gathers the two observations the committed `classify` consumes (`/bin/sh`'s
+  `PT_INTERP` basename and the psABI interpreter's presence), Linux-gated with
+  the ELF parser and basename classifier exercised on the build host, and joins
+  the `design_adapters_read_in_process` pup rule.
+- **The launcher tree-variable export** — a tree-consuming dispatch clears every
+  `ACCELERATOR_TREE_<name>` (from the compiled-in set) ahead of the resolve
+  path's override short-circuit, then sets each acquired tree's path plus
+  `ACCELERATOR_LAUNCHER_PATH`, holding the leases until the consumer takes over
+  (`export_consumed_trees`/`acquire_consumed_trees` in `main.rs`, `tree_var` /
+  `consumes_trees` / `LAUNCHER_PATH_VAR` in `launch::core`). The collision
+  criterion is ticked; the clear-on-override and acquire-only-on-consumer
+  criteria wait on the executor/container coverage. **Deviation:** the warm
+  export builds a `TreeResolver` (and so a `Fetcher`) whose network side
+  `acquire` never uses; a `Fetcher`-free acquire type is the follow-up if the
+  0205-gated warm-path measurement demands it.
+
+Two sequencing findings recorded here rather than re-derived later: **§6's
+consumer cleanup is entangled with §3/§8** — the eval prompts describe the
+Step-4 bootstrap the executor swap removes, so §6 lands *with* §8 after the
+executor swap, not before — and the **`cache ensure` structured-envelope
+contract needs a cause taxonomy `TreeError` does not yet carry** (a transport
+failure is wrapped as `Extraction`, an unwritable cache root as `Lease`), so the
+executor-facing envelope is a Phase-1-adjacent enrichment, not a pure add.
+
 **The Removal sweep — not started.** Depends on Phase 3.
 
 ## Current State Analysis
@@ -3829,7 +3859,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] With no tree variables set (the `ACCELERATOR_DESIGN_BIN` override path), the
       executor reaches `cache ensure` rather than failing, discovering the launcher through
       the documented fallback order when `ACCELERATOR_LAUNCHER_PATH` is unset
-- [ ] No exported variable collides with `derive_override_var`'s output for any reserved
+- [x] No exported variable collides with `derive_override_var`'s output for any reserved
       or dispatched token
 - [ ] `ensure` runs **before** the executor takes `launcher.lock`, so a first-run download
       does not block concurrent invocations behind a lock reporting
