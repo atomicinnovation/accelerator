@@ -47,6 +47,15 @@ impl Clock for StoppedClock {
     fn sleep_poll_interval(&self) {}
 }
 
+/// A clock pinned to a chosen second, for exercising the claim window.
+struct FixedClock(u64);
+impl Clock for FixedClock {
+    fn now_seconds(&self) -> u64 {
+        self.0
+    }
+    fn sleep_poll_interval(&self) {}
+}
+
 fn minisign_bin() -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     std::env::split_paths(&path)
@@ -512,7 +521,7 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
             AdvancingClock(std::sync::atomic::AtomicU64::new(1 << 40));
         harness
             .resolver_with(&far_future, &NoSteps)
-            .prune(ARTIFACT)
+            .prune(ARTIFACT, None)
             .expect("prune");
         let residue = residual_generations(&harness);
         assert!(
@@ -790,4 +799,115 @@ fn cache_prune_reclaims_orphan_residue() {
         .expect("prune");
     assert!(String::from_utf8_lossy(&out).contains("reclaimed"));
     assert!(!orphan.exists(), "prune left an orphan temp tree");
+}
+
+// ---- retention claims ----
+
+use accelerator::launch::outbound::resolve::tree::claims;
+
+/// Publish a second pointer for a *different* digest (a sibling install's pin)
+/// by materialising, then relabelling the generation, pointer and attestation
+/// under a fabricated digest. Returns that digest.
+fn plant_sibling_generation(harness: &Harness) -> String {
+    // A distinct digest a sibling install would carry.
+    let sibling_digest = "d".repeat(64);
+    let trees = harness.cache.join("trees");
+    // A minimal generation directory and pointer for the sibling digest; the
+    // reclamation reads pointers and claims, not the tree's contents.
+    let generation = format!(
+        "{ARTIFACT}-{HOST_PLATFORM}-{sibling_digest}-1-0011223344556677"
+    );
+    std::fs::create_dir_all(trees.join(&generation)).unwrap();
+    std::fs::write(
+        trees.join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling_digest}.ref")),
+        &generation,
+    )
+    .unwrap();
+    sibling_digest
+}
+
+#[test]
+fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // The running launcher's own tree, freshly claimed.
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+
+    // A sibling claim refreshed just now — a fortnight-aware clock spares it.
+    let present = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+
+    let sibling_pointer = harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}.ref"));
+
+    // With a present-time clock the sibling's fresh claim spares its generation.
+    harness
+        .resolver_with(&FixedClock(present), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+    assert!(
+        sibling_pointer.exists(),
+        "a sibling used just now must be spared"
+    );
+
+    // A clock a fortnight on sees the same claim as stale, and reclaims it.
+    let later = present + claims::CLAIM_WINDOW.as_secs() + 1;
+    harness
+        .resolver_with(&FixedClock(later), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+    assert!(
+        !sibling_pointer.exists(),
+        "a sibling whose claim went stale must be reclaimed"
+    );
+}
+
+#[test]
+fn prune_older_than_overrides_the_window() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let present = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+
+    let sibling_pointer = harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}.ref"));
+
+    // A one-second retention window makes even a just-now claim stale.
+    harness
+        .resolver_with(&FixedClock(present + 2), &NoSteps)
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(1)))
+        .expect("prune");
+    assert!(
+        !sibling_pointer.exists(),
+        "--older-than must override the default window"
+    );
 }
