@@ -196,9 +196,10 @@ pub struct SyncArgs {
     /// Pull remote changes only; never write to the remote.
     #[arg(long)]
     pub pull_only: bool,
-    /// Report the actions a run would take without performing any of
-    /// them. Remote reads still occur (this is what counts against rate
-    /// limits); no create, update or local write does.
+    /// Report the actions a run would take without touching any work item.
+    /// Remote reads still occur (this is what counts against rate limits)
+    /// and gitignored conflict dossiers are still written, but no create,
+    /// update or work-item write does.
     #[arg(long)]
     pub preview: bool,
     /// An `<id>=<remote|local|skip>` order for a reported conflict;

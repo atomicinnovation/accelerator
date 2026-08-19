@@ -720,28 +720,28 @@ network call.
 
 #### Automated Verification:
 
-- [ ] Format and lint pass: `mise run cli:check`.
-- [ ] Argv-acceptance tests pass offline: `mise run test:unit:cli`.
-- [ ] No live-tracker call enters the default profile:
+- [x] Format and lint pass: `mise run cli:check`.
+- [x] Argv-acceptance tests pass offline: `mise run test:unit:cli`.
+- [x] No live-tracker call enters the default profile:
       `mise run test:unit:cli` stays green with no network, and
       `cli/work-cli/tests/no_network_by_default.rs` still passes.
-- [ ] `.gitignore` covers the dossiers: a `git check-ignore
+- [x] `.gitignore` covers the dossiers: a `git check-ignore
       .accelerator/state/integrations/linear/conflicts/0001.md` matches.
-- [ ] The directory-local `.gitignore` makes the guarantee config-independent: a
+- [x] The directory-local `.gitignore` makes the guarantee config-independent: a
       test that points `paths.integrations` at a non-default directory, runs the
       persist path, and asserts the written dossier is ignored there (via the
       `conflicts/.gitignore` `*`).
-- [ ] The stale-clear removes only canonical-id dossiers: a real `notes.md`
+- [x] The stale-clear removes only canonical-id dossiers: a real `notes.md`
       placed in `conflicts/` **survives** a run (its stem is not a canonical id),
       a stray `.tmp-*` write artefact is swept, and a resolved conflict's
       `<id>.md` is cleared.
-- [ ] `persist_dossiers` unit test against a hand-built `Vec<ConflictDossier>` and
+- [x] `persist_dossiers` unit test against a hand-built `Vec<ConflictDossier>` and
       a `tempfile::TempDir`: a file is written for each valid id, an id failing
       `id_is_token_safe` is skipped (no file, warning emitted), and an
       `Unrenderable` dossier's text is persisted (`status: unrenderable`).
-- [ ] `id_is_token_safe` table test: rejects `../foo`, `a/b`, `0001; rm -rf ~`,
+- [x] `id_is_token_safe` table test: rejects `../foo`, `a/b`, `0001; rm -rf ~`,
       and other non-canonical ids; accepts canonical `NNNN` ids.
-- [ ] Fail-closed, driven offline through `persist_conflict_dossiers` against a
+- [x] Fail-closed, driven offline through `persist_conflict_dossiers` against a
       forced `Err` (read-only dir / unwritable `.gitignore`): no `<id>.md` is
       written, and the prior run's dossiers are not cleared.
 

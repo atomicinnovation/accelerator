@@ -165,6 +165,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "store",
  "tempfile",
  "tracing",
  "tracker",
