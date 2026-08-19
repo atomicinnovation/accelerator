@@ -488,7 +488,9 @@ class TestUploadAndVerifyRelease:
         assert "Launcher/manifest release" in out
         assert "PRESERVED" in out
 
-    def test_generic_error_deletes_release(self, ctx, mocker, tmp_path):
+    def test_generic_error_preserves_the_draft_and_never_deletes(
+        self, ctx, mocker, tmp_path, capsys
+    ):
         _setup_release(mocker, tmp_path)
         mocker.patch.object(gh, "download_and_verify")
         mocker.patch.object(gh, "_reverify_via_shim")
@@ -497,10 +499,23 @@ class TestUploadAndVerifyRelease:
         )
         with pytest.raises(RuntimeError):
             upload_and_verify_release(ctx, "1.20.0")
-        deletes = [
-            c for c in ctx.run.call_args_list if "gh release delete" in str(c)
-        ]
-        assert len(deletes) == 1
+        cmds = "".join(str(c.args[0]) for c in ctx.run.call_args_list)
+        assert "gh release delete" not in cmds
+        assert "--draft=false" not in cmds
+        out = capsys.readouterr().out
+        assert "PRESERVED" in out
+
+    def test_no_path_deletes_a_published_tag(self, ctx, mocker, tmp_path):
+        _setup_release(mocker, tmp_path)
+        mocker.patch.object(gh, "download_and_verify")
+        for side in (AssetVerificationError("bad"), RuntimeError("boom")):
+            ctx.run.reset_mock()
+            mocker.patch.object(gh, "_reverify_via_shim")
+            mocker.patch.object(gh, "_reverify_subbinary", side_effect=side)
+            with pytest.raises((AssetVerificationError, RuntimeError)):
+                upload_and_verify_release(ctx, "1.20.0")
+            cmds = "".join(str(c.args[0]) for c in ctx.run.call_args_list)
+            assert "gh release delete" not in cmds
 
     def test_rerun_after_preserved_draft_succeeds(self, ctx, mocker, tmp_path):
         _setup_release(mocker, tmp_path)
