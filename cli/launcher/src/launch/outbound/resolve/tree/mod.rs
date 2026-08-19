@@ -6,6 +6,7 @@
 //! re-verify is precisely what they are exempt from.
 
 pub mod attestation;
+pub mod claims;
 pub mod download;
 pub mod extract;
 pub mod layout;

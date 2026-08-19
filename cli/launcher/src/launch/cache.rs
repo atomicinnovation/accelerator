@@ -115,12 +115,13 @@ fn ensure(
 
 fn prune(
     resolver: &TreeResolver<'_>,
-    _older_than: Option<u64>,
+    older_than: Option<u64>,
     out: &mut dyn Write,
 ) -> Result<(), kernel::Error> {
+    let older_than = older_than.map(std::time::Duration::from_secs);
     let mut reclaimed = 0;
     for artifact in pins::artifact_names() {
-        reclaimed += resolver.prune(artifact)?.entries;
+        reclaimed += resolver.prune(artifact, older_than)?.entries;
     }
     let _ = writeln!(out, "reclaimed {reclaimed} entries");
     Ok(())
