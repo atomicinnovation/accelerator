@@ -479,16 +479,16 @@ compile until they are updated together.
 
 #### Automated Verification:
 
-- [ ] Format and lint pass: `mise run cli:check`.
-- [ ] Architecture rules pass (the `diff_shellout` subprocess isolation is
+- [x] Format and lint pass: `mise run cli:check`.
+- [x] Architecture rules pass (the `diff_shellout` subprocess isolation is
       unchanged; the dossier does not spawn): `mise run pup:check`.
-- [ ] The new adapter tests pass: `mise run test:unit:cli`.
-- [ ] No public-api drift (`work-adapters` exempt, `work` unchanged):
+- [x] The new adapter tests pass: `mise run test:unit:cli`.
+- [x] No public-api drift (`work-adapters` exempt, `work` unchanged):
       `mise run public-api:check`.
 
 #### Test coverage added (AC1, AC2):
 
-- [ ] `cli/work-adapters/tests/sync_run.rs` — a two-conflict corpus over
+- [x] `cli/work-adapters/tests/sync_run.rs` — a two-conflict corpus over
       `RecordingTracker::holding(...)`, one item differing in several sections,
       asserting two dossiers with distinct ids, each carrying all six fields, and
       the multi-section item carrying several `SectionDiff`s under one id. Assert
@@ -496,16 +496,16 @@ compile until they are updated together.
       equals the seeded local body and its `remote` side equals the seeded remote
       body, so a `build_dossiers` local/remote operand swap — the defect that would
       make a user overwrite the wrong side — reddens the test.
-- [ ] `cli/work-adapters/tests/sync_run_real_client.rs` — the same two-conflict
+- [x] `cli/work-adapters/tests/sync_run_real_client.rs` — the same two-conflict
       assertion over the real `Jira`/`Linear` clients pointed at a `MockServer`,
       exercising the actual projection path the dossier renders from, again pinning
       the local/remote values to the seeded sides.
-- [ ] The local-unreadable extraction path: a `Prompt` item whose local file
+- [x] The local-unreadable extraction path: a `Prompt` item whose local file
       cannot be read yields a `local_unreadable` dossier (empty sections, no
       fabricated local side) and the item stays `Action::Prompt`. Force the read
       failure at the boundary (e.g. a path made unreadable) rather than hand-
       building the struct.
-- [ ] `render_dossier` unit tests (in `run.rs` or a sibling adapter test):
+- [x] `render_dossier` unit tests (in `run.rs` or a sibling adapter test):
       a `NotReported` and a `NotRead` remote stamp both render `(unavailable)`;
       a `None` `local_modified` renders `(unavailable)`; a renderer stub returning
       `Err(DiffUnavailable)` yields `DossierRender::Unrenderable` whose text still

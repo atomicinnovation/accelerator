@@ -441,3 +441,120 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     );
     Ok(())
 }
+
+const MOVED: &str = "2026-07-01T00:00:00.000+0000";
+
+fn conflict_item_file(
+    dir: &Path,
+    id: &str,
+    external: &str,
+    body: &str,
+) -> Result<PathBuf, TestError> {
+    let path = dir.join(format!("{id}.md"));
+    std::fs::write(
+        &path,
+        format!("---\nexternal_id: \"{external}\"\n---\n\n{body}\n"),
+    )?;
+    Ok(path)
+}
+
+fn jira_show_route(key: &str, remote_text: &str) -> String {
+    format!(
+        "{{\"key\":\"{key}\",\"fields\":{{\"updated\":\"{MOVED}\",\
+         \"summary\":\"Title\",\"description\":{{\"type\":\"doc\",\
+         \"content\":[{{\"type\":\"paragraph\",\"content\":\
+         [{{\"type\":\"text\",\"text\":\"{remote_text}\"}}]}}]}}}}}}"
+    )
+}
+
+#[test]
+fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let path_one =
+        conflict_item_file(dir.path(), "0001", "ENG-1", "Local body one")?;
+    let path_two =
+        conflict_item_file(dir.path(), "0002", "ENG-2", "Local body two")?;
+    let items = vec![
+        LocalItem {
+            id: "0001".to_owned(),
+            path: path_one,
+            external_id: Some(ExternalId::new("ENG-1".to_owned())),
+        },
+        LocalItem {
+            id: "0002".to_owned(),
+            path: path_two,
+            external_id: Some(ExternalId::new("ENG-2".to_owned())),
+        },
+    ];
+
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post("/rest/api/3/search/jql"),
+        Route::Json {
+            status: 200,
+            body: format!(
+                "{{\"issues\":[{{\"key\":\"ENG-1\",\
+                 \"fields\":{{\"updated\":\"{MOVED}\"}}}},{{\"key\":\"ENG-2\",\
+                 \"fields\":{{\"updated\":\"{MOVED}\"}}}}]}}"
+            ),
+        },
+    );
+    server.route(
+        RequestKey::get("/rest/api/3/issue/ENG-1"),
+        Route::Json {
+            status: 200,
+            body: jira_show_route("ENG-1", "Remote body one"),
+        },
+    );
+    server.route(
+        RequestKey::get("/rest/api/3/issue/ENG-2"),
+        Route::Json {
+            status: 200,
+            body: jira_show_route("ENG-2", "Remote body two"),
+        },
+    );
+    let client = jira_client(&server.base_url(), TransportConfig::default());
+
+    let spy = Spy::default();
+    spy.seed(
+        BASELINE_PATH,
+        &format!(
+            "{{\"timestamp\":0,\"items\":{{{},{}}}}}\n",
+            entry("0001", STAMP, "stale", "stale"),
+            entry("0002", STAMP, "stale", "stale"),
+        ),
+    );
+
+    let report = execute(&client, &spy, &items, RunMode::Preview);
+
+    assert_eq!(report.dossiers.len(), 2, "one dossier per conflict");
+    let ids: std::collections::BTreeSet<&str> =
+        report.dossiers.iter().map(|d| d.id.as_str()).collect();
+    assert_eq!(ids, ["0001", "0002"].into_iter().collect());
+
+    let first = report
+        .dossiers
+        .iter()
+        .find(|d| d.id == "0001")
+        .expect("a dossier for the first conflict");
+    let section = first
+        .sections
+        .first()
+        .expect("the projected remote body differs from the local body");
+    assert!(
+        section.local.contains("Local body one"),
+        "the local side is bound to the local file, got: {:?}",
+        section.local
+    );
+    assert!(
+        section.remote.contains("Remote body one"),
+        "the remote side is bound to the real client's projection, got: {:?}",
+        section.remote
+    );
+    assert!(
+        !section.remote.contains("Local body one"),
+        "an operand swap would leak the local body into the remote side"
+    );
+    Ok(())
+}

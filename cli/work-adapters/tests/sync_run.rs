@@ -8,6 +8,7 @@
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -506,5 +507,176 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
         baseline.contains("\"timestamp\":1700000000"),
         "the timestamp must still advance alongside the blank"
     );
+    Ok(())
+}
+
+fn conflict_content(index: usize, title: &str, body: &str) -> String {
+    format!(
+        "---\nstatus: ready\ntitle: {title}\nexternal_id: \"ENG-{index}\"\n---\n\n{body}"
+    )
+}
+
+/// A conflicting item: both sides changed against a moved stamp, so it
+/// classifies `conflict`, which bidirectional decides `Prompt`. The local
+/// file carries `local_body`; the remote issue carries `remote_body`.
+fn conflicting(
+    dir: &Path,
+    index: usize,
+    title: &str,
+    local_body: &str,
+    remote_body: &str,
+) -> Result<(LocalItem, (ExternalId, RemoteIssue), String), TestError> {
+    let id = format!("{index:04}");
+    let external = ExternalId::new(format!("ENG-{index}"));
+    let path = dir.join(format!("{id}.md"));
+    std::fs::write(&path, conflict_content(index, title, local_body))?;
+
+    let entry = format!(
+        "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"stale\"}}"
+    );
+    let issue = RemoteIssue {
+        updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
+        body: remote_body.to_owned(),
+    };
+    Ok((
+        LocalItem {
+            id,
+            path,
+            external_id: Some(external.clone()),
+        },
+        (external, issue),
+        entry,
+    ))
+}
+
+#[test]
+fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let (item_a, issue_a, entry_a) = conflicting(
+        dir.path(),
+        1,
+        "Item one",
+        "## Summary\nlocal summary\n## Requirements\nlocal reqs\n",
+        "## Summary\nremote summary\n## Requirements\nremote reqs\n",
+    )?;
+    let (item_b, issue_b, entry_b) = conflicting(
+        dir.path(),
+        2,
+        "Item two",
+        "## Summary\nlocal only\n",
+        "## Summary\nremote only\n",
+    )?;
+
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry_a, entry_b]));
+    let scenario = Scenario {
+        items: vec![item_a, item_b],
+        tracker: RecordingTracker::holding(vec![issue_a, issue_b]),
+        spy,
+        _dir: dir,
+    };
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a conflict is not a write, so bounds cannot refuse it")?;
+
+    assert_eq!(report.dossiers.len(), 2, "one dossier per Prompt item");
+    let ids: BTreeSet<&str> =
+        report.dossiers.iter().map(|d| d.id.as_str()).collect();
+    assert_eq!(ids, ["0001", "0002"].into_iter().collect());
+
+    let multi = report
+        .dossiers
+        .iter()
+        .find(|d| d.id == "0001")
+        .expect("the multi-section conflict has a dossier");
+    assert!(!multi.local_unreadable);
+    assert!(multi.local_modified.is_some(), "a real file has an mtime");
+    assert!(
+        matches!(multi.remote_updated, RemoteTimestamp::Reported(ref s) if s == MOVED_STAMP),
+        "the remote stamp is carried through"
+    );
+    assert!(!multi.title.is_empty(), "the title is carried through");
+
+    let names: Vec<&str> =
+        multi.sections.iter().map(|s| s.name.as_str()).collect();
+    assert!(names.contains(&"Summary"), "sections: {names:?}");
+    assert!(names.contains(&"Requirements"), "sections: {names:?}");
+
+    let summary = multi
+        .sections
+        .iter()
+        .find(|s| s.name == "Summary")
+        .expect("the Summary section differs");
+    assert_eq!(
+        summary.local, "local summary\n",
+        "the local side is bound to the seeded local body"
+    );
+    assert_eq!(
+        summary.remote, "remote summary\n",
+        "the remote side is bound to the seeded remote body"
+    );
+
+    let single = report
+        .dossiers
+        .iter()
+        .find(|d| d.id == "0002")
+        .expect("the single-section conflict has a dossier");
+    assert_eq!(single.sections.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-9".to_owned());
+    // A directory cannot be read as a file, so the dossier read fails at the
+    // boundary. A blank baseline `local_hash` lets `classify` decide
+    // `conflict` without ever reading the local file, so the item still
+    // reaches the `Prompt` arm.
+    let path = dir.path().join("0009.md");
+    std::fs::create_dir(&path)?;
+
+    let entry = "\"0009\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"stale\",\"local_hash\":\"\"}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0009".to_owned(),
+            path,
+            external_id: Some(external.clone()),
+        }],
+        tracker: RecordingTracker::holding(vec![(
+            external,
+            RemoteIssue {
+                updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
+                body: projected_body().to_owned(),
+            },
+        )]),
+        spy,
+        _dir: dir,
+    };
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a blank baseline local_hash needs no local read")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Prompt,
+        "the item still awaits a human"
+    );
+    assert_eq!(report.dossiers.len(), 1);
+    let dossier = &report.dossiers[0];
+    assert!(
+        dossier.local_unreadable,
+        "the unreadable local file is flagged"
+    );
+    assert!(
+        dossier.sections.is_empty(),
+        "no sections are fabricated from an unreadable local side"
+    );
+    assert_eq!(dossier.local_modified, None);
     Ok(())
 }

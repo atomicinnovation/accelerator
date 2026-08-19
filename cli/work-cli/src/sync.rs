@@ -456,6 +456,7 @@ mod tests {
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,
+            dossiers: Vec::new(),
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -474,6 +475,7 @@ mod tests {
             read_failure: None,
             baseline_degradation: Degradation::None,
             finalised: true,
+            dossiers: Vec::new(),
         };
 
         assert_eq!(render_report(&report), "#\tsummary\tsynced\t0");

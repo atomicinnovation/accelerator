@@ -58,7 +58,7 @@ vergen-gitcl = { version = "=1.0.8", features = ["build", "cargo"] }
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-time = { version = "0.3", features = ["parsing"] }
+time = { version = "0.3", features = ["parsing", "formatting"] }
 # default-features = false keeps native-tls/openssl out of the graph; rustls
 # uses ring (not aws-lc-rs) with bundled webpki-roots (no host cert store), and
 # hickory-dns bypasses getaddrinfo so DNS resolves under musl. Exact-pinned so a
