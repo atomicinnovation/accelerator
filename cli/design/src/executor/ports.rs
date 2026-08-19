@@ -151,13 +151,6 @@ pub trait PathResolution {
     /// A [`kernel::Error`] when the root cannot be established.
     fn plugin_root(&self) -> Result<PathBuf, kernel::Error>;
 
-    /// The lockhash namespace the runtime is installed under.
-    ///
-    /// # Errors
-    ///
-    /// A [`kernel::Error`] when the lockfile cannot be read or hashed.
-    fn namespace_root(&self) -> Result<PathBuf, kernel::Error>;
-
     /// The daemon's stdio redirect target.
     ///
     /// # Errors

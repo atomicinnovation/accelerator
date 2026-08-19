@@ -1,6 +1,6 @@
 //! The launcher's own error envelopes, and the exit code each carries.
 //!
-//! Four asymmetries are preserved deliberately, because consumers depend on
+//! Three asymmetries are preserved deliberately, because consumers depend on
 //! them.
 //!
 //! Launcher-level failures go to **stderr** with a non-zero exit, while
@@ -12,12 +12,12 @@
 //! and `retryable` too.
 //!
 //! The `category` does **not** determine the exit code. `another-launcher-running`
-//! and `daemon-start-timeout` are both `usage` yet exit 1, because both are
-//! outcomes the tool evaluated and rejected rather than malformed invocations —
-//! the exit-2-means-usage rule the other subcommands follow does not hold here,
-//! and the table below records that rather than leaving it inferred.
-//!
-//! Exit 3 names a runtime that has to be bootstrapped separately.
+//! and `daemon-start-timeout` are both `usage`/`bootstrap` yet exit 1, because
+//! both are outcomes the tool evaluated and rejected rather than malformed
+//! invocations — the exit-2-means-usage rule the other subcommands follow does
+//! not hold here, and the table below records that rather than leaving it
+//! inferred. A host that cannot run the vendored runtime is not an envelope at
+//! all: it is a downgrade the executor renders separately.
 
 use std::fmt;
 
@@ -26,8 +26,6 @@ use std::fmt;
 pub enum LauncherError {
     /// Invoked outside a repository, so there is no state directory to resolve.
     NoRepo,
-    /// The lockhash namespace holds no installed runtime.
-    PlaywrightNotInstalled { namespace_root: String },
     /// Another launcher holds the lock.
     AnotherLauncherRunning,
     /// The daemon did not publish its record within the poll window.
@@ -40,7 +38,6 @@ impl LauncherError {
     pub const fn code(&self) -> &'static str {
         match self {
             Self::NoRepo => "no-repo",
-            Self::PlaywrightNotInstalled { .. } => "playwright-not-installed",
             Self::AnotherLauncherRunning => "another-launcher-running",
             Self::DaemonStartTimeout { .. } => "daemon-start-timeout",
         }
@@ -51,8 +48,7 @@ impl LauncherError {
     pub const fn category(&self) -> &'static str {
         match self {
             Self::NoRepo | Self::AnotherLauncherRunning => "usage",
-            Self::PlaywrightNotInstalled { .. }
-            | Self::DaemonStartTimeout { .. } => "bootstrap",
+            Self::DaemonStartTimeout { .. } => "bootstrap",
         }
     }
 
@@ -62,7 +58,6 @@ impl LauncherError {
         match self {
             Self::AnotherLauncherRunning | Self::DaemonStartTimeout { .. } => 1,
             Self::NoRepo => 2,
-            Self::PlaywrightNotInstalled { .. } => 3,
         }
     }
 
@@ -73,10 +68,6 @@ impl LauncherError {
             Self::NoRepo => "inventory-design must be run inside a git or jj \
                              repository (no enclosing repo found)"
                 .to_owned(),
-            Self::PlaywrightNotInstalled { namespace_root } => format!(
-                "Playwright not installed at {namespace_root} — run \
-                 ensure-playwright.sh first"
-            ),
             Self::AnotherLauncherRunning => {
                 "Another inventory-design launcher is running. Wait for it to \
                  finish."
@@ -118,12 +109,9 @@ fn escape(raw: &str) -> String {
 mod tests {
     use super::LauncherError;
 
-    fn every_error() -> [LauncherError; 4] {
+    fn every_error() -> [LauncherError; 3] {
         [
             LauncherError::NoRepo,
-            LauncherError::PlaywrightNotInstalled {
-                namespace_root: "/ns/root".to_owned(),
-            },
             LauncherError::AnotherLauncherRunning,
             LauncherError::DaemonStartTimeout {
                 bootstrap_log: "/state/server.bootstrap.log".to_owned(),
@@ -141,13 +129,6 @@ mod tests {
         assert_eq!(
             LauncherError::AnotherLauncherRunning.render(),
             r#"{"error":"another-launcher-running","message":"Another inventory-design launcher is running. Wait for it to finish.","category":"usage"}"#
-        );
-        assert_eq!(
-            LauncherError::PlaywrightNotInstalled {
-                namespace_root: "/ns/root".to_owned()
-            }
-            .render(),
-            r#"{"error":"playwright-not-installed","message":"Playwright not installed at /ns/root — run ensure-playwright.sh first","category":"bootstrap"}"#
         );
         assert_eq!(
             LauncherError::DaemonStartTimeout {
@@ -174,7 +155,7 @@ mod tests {
     }
 
     /// The table the module docs describe, asserted rather than inferred —
-    /// two `usage` envelopes exit 1, not 2.
+    /// two envelopes exit 1, not 2.
     #[test]
     fn the_category_does_not_determine_the_exit_code() {
         assert_eq!(LauncherError::NoRepo.category(), "usage");
@@ -187,21 +168,15 @@ mod tests {
         };
         assert_eq!(timeout.category(), "bootstrap");
         assert_eq!(timeout.exit_code(), 1);
-
-        let missing = LauncherError::PlaywrightNotInstalled {
-            namespace_root: "/ns".to_owned(),
-        };
-        assert_eq!(missing.category(), "bootstrap");
-        assert_eq!(missing.exit_code(), 3);
     }
 
     #[test]
     fn a_path_carrying_json_metacharacters_is_escaped() {
-        let rendered = LauncherError::PlaywrightNotInstalled {
-            namespace_root: r#"/ns/"quoted"\path"#.to_owned(),
+        let rendered = LauncherError::DaemonStartTimeout {
+            bootstrap_log: r#"/log/"quoted"\path"#.to_owned(),
         }
         .render();
-        assert!(rendered.contains(r#"/ns/\"quoted\"\\path"#), "{rendered}");
+        assert!(rendered.contains(r#"/log/\"quoted\"\\path"#), "{rendered}");
     }
 
     #[test]
@@ -210,7 +185,7 @@ mod tests {
             every_error().iter().map(LauncherError::code).collect();
         codes.sort_unstable();
         codes.dedup();
-        assert_eq!(codes.len(), 4);
+        assert_eq!(codes.len(), 3);
         assert!(codes.iter().all(|code| code
             .chars()
             .all(|c| c.is_ascii_lowercase() || c == '-')));
