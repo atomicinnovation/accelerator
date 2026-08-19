@@ -26,8 +26,31 @@ from tasks.shared.paths import (
     BIN_DIR,
     DISPATCHED_SUBBINARIES,
     REPO_ROOT,
+    TREE_ARTIFACTS,
     debug_archive_path,
 )
+from tasks.shared.targets import TARGETS
+
+_ALIASES = tuple(alias for _triple, alias in TARGETS)
+
+
+def _full_artifacts(platforms=_ALIASES):
+    return {
+        name: {
+            "description": name,
+            "platforms": {
+                platform: {
+                    "sha256": "b" * 64,
+                    "signature": "sig",
+                    "archive_size": 1,
+                    "uncompressed_size": 1,
+                    "entry_count": 1,
+                }
+                for platform in platforms
+            },
+        }
+        for name in TREE_ARTIFACTS
+    }
 
 
 @pytest.fixture
@@ -149,6 +172,48 @@ class TestPrereleaseSign:
         assert mock_emit.call_args.args[0] is not None
         assert mock_emit.call_args.args[3] == "/tmp/key.sec"
 
+    def test_signs_and_collects_tree_artifacts_when_staged(self, ctx, mocker):
+        mocker.patch.object(
+            tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
+        )
+        key_cm = MagicMock()
+        key_cm.__enter__.return_value = "/tmp/key.sec"
+        mocker.patch.object(tsign, "resolve_secret_key", return_value=key_cm)
+        mocker.patch.object(tsign, "sign_staged_binaries")
+        mocker.patch.object(tmani, "collect_entries", return_value={})
+        mocker.patch.object(tr, "_tree_artifacts_staged", return_value=True)
+        mock_tree_sign = mocker.patch.object(tsign, "sign_tree_artifacts")
+        mock_collect = mocker.patch.object(
+            tmani, "collect_artifact_entries", return_value={"driver": object()}
+        )
+        mock_emit = mocker.patch.object(tmani, "emit_manifest")
+
+        prerelease_sign(ctx)
+
+        mock_tree_sign.assert_called_once_with("/tmp/key.sec")
+        mock_collect.assert_called_once_with()
+        assert mock_emit.call_args.kwargs["artifacts"] == {
+            "driver": mock_collect.return_value["driver"]
+        }
+
+    def test_skips_tree_artifacts_when_unstaged(self, ctx, mocker):
+        mocker.patch.object(
+            tv, "read", return_value=MagicMock(__str__=lambda _: "1.21.0-pre.1")
+        )
+        key_cm = MagicMock()
+        key_cm.__enter__.return_value = "/tmp/key.sec"
+        mocker.patch.object(tsign, "resolve_secret_key", return_value=key_cm)
+        mocker.patch.object(tsign, "sign_staged_binaries")
+        mocker.patch.object(tmani, "collect_entries", return_value={})
+        mocker.patch.object(tr, "_tree_artifacts_staged", return_value=False)
+        mock_tree_sign = mocker.patch.object(tsign, "sign_tree_artifacts")
+        mock_emit = mocker.patch.object(tmani, "emit_manifest")
+
+        prerelease_sign(ctx)
+
+        mock_tree_sign.assert_not_called()
+        assert mock_emit.call_args.kwargs["artifacts"] is None
+
     def test_fails_closed_when_secret_absent(self, ctx, mocker, monkeypatch):
         monkeypatch.delenv("ACCELERATOR_RELEASE_SECRET_KEY", raising=False)
         mocker.patch.object(
@@ -176,6 +241,7 @@ def _stage_manifest(
     *,
     version: str = "1.21.0-pre.1",
     binaries: tuple[str, ...] = DISPATCHED_SUBBINARIES,
+    artifacts: dict | None = None,
 ):
     """Point `tr.RELEASE_MANIFEST` at an in-test manifest.
 
@@ -183,16 +249,15 @@ def _stage_manifest(
     disable it inside the one test asserting the pre-commit guards run before
     `commit_version`.
     """
+    document: dict = {
+        "schema_version": 1,
+        "version": version,
+        "binaries": {token: {} for token in binaries},
+    }
+    if artifacts is not None:
+        document["artifacts"] = artifacts
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "version": version,
-                "binaries": {token: {} for token in binaries},
-            }
-        )
-    )
+    manifest.write_text(json.dumps(document))
     mocker.patch.object(tr, "RELEASE_MANIFEST", manifest)
     return manifest
 
@@ -319,6 +384,91 @@ class TestStagedManifestGuard:
         mocker.patch.object(tr, "RELEASE_MANIFEST", tmp_path / "absent.json")
         with pytest.raises(RuntimeError, match="is absent"):
             self._publish(ctx, mocker)
+
+    def test_a_complete_artifact_cross_product_passes(
+        self, ctx, mocker, tmp_path
+    ):
+        _stage_manifest(mocker, tmp_path, artifacts=_full_artifacts())
+        self._publish(ctx, mocker)
+
+    def test_a_partial_artifact_set_raises(self, ctx, mocker, tmp_path):
+        partial = _full_artifacts()
+        # Drop one platform from one artifact — the key set still matches, so
+        # only the full cross-product check catches it.
+        partial["browser"]["platforms"].pop(_ALIASES[0])
+        _stage_manifest(mocker, tmp_path, artifacts=partial)
+        with pytest.raises(RuntimeError, match="partially-assembled"):
+            self._publish(ctx, mocker)
+
+
+class TestAssembledPinGate:
+    def _stage_archive(self, tmp_path, name, platform, data):
+        archive = tmp_path / f"accelerator-{name}-{platform}.tar.gz"
+        archive.write_bytes(data)
+        return archive
+
+    def _pins(self, tmp_path, digests):
+        lines = []
+        for artifact, platforms in digests.items():
+            lines.append(f"[assembled_sha256.{artifact}]")
+            for platform, digest in platforms.items():
+                lines.append(f'{platform} = "{digest}"')
+        pins = tmp_path / "pins.toml"
+        pins.write_text("\n".join(lines) + "\n")
+        return pins
+
+    def test_no_staged_archives_is_a_no_op(self, mocker, tmp_path):
+        mocker.patch.object(
+            tr,
+            "tree_artifact_asset_path",
+            side_effect=lambda n, p: tmp_path / f"absent-{n}-{p}.tar.gz",
+        )
+        tr._assert_assembled_matches_pins(self._pins(tmp_path, {}))
+
+    def test_matching_archives_pass(self, mocker, tmp_path):
+        import hashlib
+
+        digests = {}
+        for name in TREE_ARTIFACTS:
+            digests[name] = {}
+            for platform in _ALIASES:
+                data = f"{name}-{platform}".encode()
+                self._stage_archive(tmp_path, name, platform, data)
+                digests[name][platform] = hashlib.sha256(data).hexdigest()
+        mocker.patch.object(
+            tr,
+            "tree_artifact_asset_path",
+            side_effect=lambda n, p: tmp_path / f"accelerator-{n}-{p}.tar.gz",
+        )
+        tr._assert_assembled_matches_pins(self._pins(tmp_path, digests))
+
+    def test_a_mismatched_archive_fails(self, mocker, tmp_path):
+        digests = {
+            name: dict.fromkeys(_ALIASES, "00" * 32) for name in TREE_ARTIFACTS
+        }
+        for name in TREE_ARTIFACTS:
+            for platform in _ALIASES:
+                self._stage_archive(tmp_path, name, platform, b"real bytes")
+        mocker.patch.object(
+            tr,
+            "tree_artifact_asset_path",
+            side_effect=lambda n, p: tmp_path / f"accelerator-{n}-{p}.tar.gz",
+        )
+        with pytest.raises(ValueError, match="!= pinned"):
+            tr._assert_assembled_matches_pins(self._pins(tmp_path, digests))
+
+    def test_a_partial_assembly_fails_closed(self, mocker, tmp_path):
+        # Stage only a late-iterated archive so _tree_artifacts_staged() is
+        # true, then the first missing one trips the fail-closed branch before
+        # any digest is even looked up.
+        self._stage_archive(tmp_path, TREE_ARTIFACTS[-1], _ALIASES[-1], b"x")
+        mocker.patch.object(
+            tr,
+            "tree_artifact_asset_path",
+            side_effect=lambda n, p: tmp_path / f"accelerator-{n}-{p}.tar.gz",
+        )
+        with pytest.raises(RuntimeError, match="partial"):
+            tr._assert_assembled_matches_pins(self._pins(tmp_path, {}))
 
 
 def test_the_archive_ignore_rule_matches_a_nested_bin_tree() -> None:

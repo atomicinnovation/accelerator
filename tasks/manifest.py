@@ -223,6 +223,8 @@ def emit_manifest(
     version: str,
     entries: Mapping[str, BinaryEntry],
     secret_key: Path,
+    *,
+    artifacts: Mapping[str, ArtifactEntry] | None = None,
 ) -> Path:
     """Serialise, version-check, and sign the manifest as a single artifact.
 
@@ -237,7 +239,7 @@ def emit_manifest(
     upload, so the signature always covers the shipped bytes.
     """
     validate_dispatch_coherence()
-    manifest = build_manifest(version, entries)
+    manifest = build_manifest(version, entries, artifacts=artifacts)
     atomic_write_text(path, json.dumps(manifest, indent=2) + "\n")
     validate_version_coherence(version, manifest_path=path)
     signature = path.with_name("manifest.minisig")
