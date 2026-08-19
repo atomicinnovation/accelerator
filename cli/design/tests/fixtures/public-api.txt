@@ -487,14 +487,17 @@ pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_cr
 pub mod design::runtime
 pub mod design::runtime::downgrade
 pub enum design::runtime::downgrade::DowngradeReason
-pub design::runtime::downgrade::DowngradeReason::BootstrapFailed
+pub design::runtime::downgrade::DowngradeReason::ArtifactUnavailable
 pub design::runtime::downgrade::DowngradeReason::CacheUnwritable
 pub design::runtime::downgrade::DowngradeReason::DiskFloorNotMet
 pub design::runtime::downgrade::DowngradeReason::ExecutorPingFailed
-pub design::runtime::downgrade::DowngradeReason::NodeMissing
-pub design::runtime::downgrade::DowngradeReason::NodeTooOld
+pub design::runtime::downgrade::DowngradeReason::GlibcTooOld
+pub design::runtime::downgrade::DowngradeReason::LoaderUnresolvable
+pub design::runtime::downgrade::DowngradeReason::MaterialisationInProgress
+pub design::runtime::downgrade::DowngradeReason::RuntimeLibrariesMissing
+pub design::runtime::downgrade::DowngradeReason::UnsupportedPlatform
 impl design::runtime::downgrade::DowngradeReason
-pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 9]
 pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
 pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
 impl core::clone::Clone for design::runtime::downgrade::DowngradeReason
@@ -599,14 +602,17 @@ pub fn design::credentials::AuthMode::fmt(&self, formatter: &mut core::fmt::Form
 impl core::marker::Copy for design::credentials::AuthMode
 impl core::marker::StructuralPartialEq for design::credentials::AuthMode
 pub enum design::DowngradeReason
-pub design::DowngradeReason::BootstrapFailed
+pub design::DowngradeReason::ArtifactUnavailable
 pub design::DowngradeReason::CacheUnwritable
 pub design::DowngradeReason::DiskFloorNotMet
 pub design::DowngradeReason::ExecutorPingFailed
-pub design::DowngradeReason::NodeMissing
-pub design::DowngradeReason::NodeTooOld
+pub design::DowngradeReason::GlibcTooOld
+pub design::DowngradeReason::LoaderUnresolvable
+pub design::DowngradeReason::MaterialisationInProgress
+pub design::DowngradeReason::RuntimeLibrariesMissing
+pub design::DowngradeReason::UnsupportedPlatform
 impl design::runtime::downgrade::DowngradeReason
-pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 9]
 pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
 pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
 impl core::clone::Clone for design::runtime::downgrade::DowngradeReason

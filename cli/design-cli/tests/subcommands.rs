@@ -412,7 +412,7 @@ fn the_forward_compatible_flags_are_accepted() {
             "--to",
             "code",
             "--reason",
-            "bootstrap-failed",
+            "artifact-unavailable",
         ]),
         0
     );
