@@ -11,6 +11,7 @@ pub mod ensure;
 pub mod environment;
 pub mod filesystem;
 pub mod lock;
+pub mod marker;
 pub mod paths;
 pub mod platform;
 pub mod process;
