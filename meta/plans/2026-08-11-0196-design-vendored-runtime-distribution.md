@@ -1770,15 +1770,15 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       same-mode** content substitution, a mode change, a changed symlink target, and an
       unexpected extra entry
 - [ ] `cache verify` succeeds with the release host unreachable
-- [ ] A truncated tree and a corrupted tree are each returned to a working state by
+- [x] A truncated tree and a corrupted tree are each returned to a working state by
       `accelerator cache repair`, which materialises a **new generation** and swaps the
       pointer rather than removing the old tree first
 - [ ] A repair whose refetch fails leaves the previous tree in place and still
       resolvable
 - [ ] A repair run while a process holds files open in the old generation does not
       unlink them, and that process can still open further files from it
-- [ ] `repair --force` re-materialises a tree that passes `verify`
-- [ ] Every `cache` verb refuses an unrecognised `<name>` without touching the
+- [x] `repair --force` re-materialises a tree that passes `verify`
+- [x] Every `cache` verb refuses an unrecognised `<name>` without touching the
       filesystem
 - [x] Two release versions naming the same digest share **one** generation directory
       and two pointers, and the second version issues **zero** archive fetches
@@ -1830,7 +1830,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       while pointer damage degrades and re-materialises
 - [x] `manifest.example.json` with an added `artifacts` key still parses, and a manifest
       *without* `artifacts` still resolves single-file binaries
-- [ ] `BUILTIN_SUBCOMMANDS` and the clap `Command` enum agree, with
+- [x] `BUILTIN_SUBCOMMANDS` and the clap `Command` enum agree, with
       `test_dispatch_coherence.py:606-611` and `:628-635` updated in the same change
 - [ ] `mise run cli:check` exits 0
 - [x] `mise run deny:check` exits 0, and `libz-sys`/`zlib-ng-sys`/`zlib-sys` are absent
