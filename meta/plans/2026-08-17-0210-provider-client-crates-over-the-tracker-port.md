@@ -5,7 +5,7 @@ title: "Provider Client Crates over the RemoteTracker Port Implementation Plan"
 date: "2026-08-17T14:32:39+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: done
 work_item_id: "work-item:0210"
 parent: "work-item:0210"
 derived_from: ["codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"]
