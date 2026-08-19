@@ -137,7 +137,7 @@ naming 0212 as the item that reopens the port.
 
 ---
 
-## Phase 1: Relocate fixtures and convert the parity tests to pure Rust
+## Phase 1: Relocate fixtures and convert the parity tests to pure Rust ✅ done
 
 ### Overview
 
@@ -1123,6 +1123,44 @@ credentials, so a refactor cannot silently disable the production-write guard.
       cap is recorded as such, not as a defect in this change.
 
 ---
+
+## Implementation Progress
+
+Where the running build corrected the plan as written. One entry per phase as it
+lands.
+
+### Phase 1 — done (committed `961d560b`)
+
+Green end to end: `mise run test:unit:cli` (2246 passed, 1 skipped, `--all-features`
+so the bash-parity suites ran), `mise run check`, and the two grep gates all pass.
+
+Deviations from the plan text, each deliberate:
+
+- **Eleven deletions, not ten.** `work-item-sync-baseline/regenerate.sh` was also
+  deleted: it regenerated `expected.json` from the bash scripts, and the corpus is
+  now frozen (a converted test must never regenerate a golden from Rust). Relocated
+  (57) plus deleted (11) equals the 68 the baseline records. Recorded in 0171.
+- **`exit_codes_parity.rs` fully repointed here**, not split across Phases 1 and 6.
+  It now guards the `exit_codes.rs` constants against a committed frozen literal
+  table (the independent oracle the deleted `work-item-bridge-codes.sh` used to be).
+  Phase 6 §2 therefore only deletes `dispatch-codes.txt` and scrubs the `errors.rs`
+  / `bridge-exit-code-tables.txt` references — it does not re-touch this test.
+- **The content-hash guard is broader than §2/§4 named.** Rather than hashing only
+  the section-diff and normalise goldens, `bash_parity_baseline.rs` carries a
+  sha256 manifest over *every* relocated golden plus a coverage check that no golden
+  is left unguarded — a uniform byte-identity tripwire. It also resolves each corpus
+  to its per-crate home and drops the deleted `sync_baseline_shellout_parity` row,
+  so the test-row count assertion is now 10, not 11.
+- **Cross-crate fixture reads are load-bearing.** project-remote lives in
+  `remote-projection` and is read by `jira-client`/`linear-client` via
+  `../remote-projection/tests/fixtures`; section-diff and sync-baseline live in
+  `work-adapters` and are read by `work-cli`'s `cli_diff_parity` and
+  `linear-client`'s `projection_corpus` via `../work-adapters/tests/fixtures`.
+  Single copy, no duplication — the placement the plan's §1 table forces.
+- **A real `clippy::unnecessary_wraps` bug surfaced during conversion.** Dropping
+  `repo_root()?` made several path helpers infallible while still returning
+  `Result`; each was restored to a fallible `.canonicalize()?` rather than
+  unwrapping the `Result`, which also validates the fixture path exists.
 
 ## Testing Strategy
 
