@@ -76,6 +76,29 @@ pub enum Command {
         /// The design-gap document to audit.
         file: PathBuf,
     },
+    /// Print the vendored runtime trees' redistribution notices.
+    Notices {
+        /// Limit to one artifact; the default lists every materialised tree.
+        #[arg(long, value_enum)]
+        artifact: Option<ArtifactArg>,
+    },
+}
+
+/// Which vendored tree artifact `notices` should surface.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArtifactArg {
+    Driver,
+    Browser,
+}
+
+impl ArtifactArg {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Driver => "driver",
+            Self::Browser => "browser",
+        }
+    }
 }
 
 /// The CLI-local mirror of `design::DowngradeReason`. The domain crate cannot

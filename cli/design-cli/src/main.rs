@@ -6,6 +6,7 @@ mod cli;
 mod commands;
 mod config;
 mod executor;
+mod notices;
 mod report;
 
 use std::process::ExitCode;
@@ -46,6 +47,9 @@ fn run(command: Command) -> Result<Report, kernel::Error> {
         }
         Command::AuditCuePhrases { file } => {
             commands::audit_cue_phrases(&file, &CompiledCuePhrases::new()?)
+        }
+        Command::Notices { artifact } => {
+            Ok(notices::run(artifact.map(cli::ArtifactArg::as_str)))
         }
         // Handled before dispatch: it never returns a Report.
         Command::Executor { .. } => unreachable!("dispatched in main"),
