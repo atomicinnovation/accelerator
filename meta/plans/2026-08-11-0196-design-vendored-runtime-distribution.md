@@ -1663,11 +1663,11 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 
 #### Automated Verification
 
-- [ ] Failing test first: *a tarball entry named `../escape` is rejected and nothing is
+- [x] Failing test first: *a tarball entry named `../escape` is rejected and nothing is
       written* — red before `resolve/tree/extract.rs` exists, and it is the entry
       classification pure function in `launch::core`, so it needs no archive plumbing to
       go green
-- [ ] `skip_if_no_minisign!` (`resolution.rs:255-265`) **fails closed under `CI`** rather
+- [x] `skip_if_no_minisign!` (`resolution.rs:255-265`) **fails closed under `CI`** rather
       than returning `Ok(())` with an `eprintln!`. The extraction, sealing, pointer and
       reaper tests exercise the tree modules directly with no signing step and do not
       take the guard at all; but the signature, attestation and end-to-end cases do, and
@@ -1686,13 +1686,13 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       to any thread the test spawns
 - [ ] A corrupt archive is rejected **before** anything is extracted — the test asserts
       the trees directory is empty after the failure
-- [ ] 🔒 An attestation whose signature does not verify under the embedded key is a
+- [x] 🔒 An attestation whose signature does not verify under the embedded key is a
       **miss**, not a hit; and one signed by a *different, untrusted* keypair is also a
       miss — the `MockServer` harness already generates two keypairs for exactly this
       shape. Deleting the verification call from `acquire` must turn at least one test red
-- [ ] 🔒 An attestation whose `artifact`, `platform`, `attestation_format_version` or
+- [x] 🔒 An attestation whose `artifact`, `platform`, `attestation_format_version` or
       `archive_sha256` differs from what is being resolved is a miss, asserted per field
-- [ ] 🔒 A generation whose attestation is entirely valid but whose digest is **not** the
+- [x] 🔒 A generation whose attestation is entirely valid but whose digest is **not** the
       launcher's compiled-in expected digest is refused — the rollback defence, asserted
       by pointing a `.ref` at a superseded artifact version's intact generation
 - [ ] Two launchers whose compiled-in expected digest is the **same** share one generation
@@ -1701,7 +1701,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       digest-keyed pointer exists for
 - [ ] A manifest naming a different `sha256` for an artifact than the launcher's
       compiled-in digest is a refusal, not an instruction to fetch it
-- [ ] The compiled-in digest map, `TREE_ARTIFACTS` and the shared `pins` data file agree,
+- [x] The compiled-in digest map, `TREE_ARTIFACTS` and the shared `pins` data file agree,
       pinned by one drift test
 - [ ] 🔒 A `.files` table rewritten to match a substituted file is still detected, because
       its digest no longer matches the attestation's signed `table_sha256` — the case that
@@ -1709,21 +1709,21 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       archive has been discarded, since that is when the table has no other anchor
 - [ ] An archive whose `.files` table disagrees with a member's actual content is rejected
       **during extraction**, before the tree is sealed or the pointer published
-- [ ] An archive whose first member is not the `.files` table is refused (`TableMissing`),
+- [x] An archive whose first member is not the `.files` table is refused (`TableMissing`),
       so single-pass verification cannot silently degrade to a second inflate
-- [ ] `cache verify` does not report the `.files` table itself as an unexpected entry
+- [x] `cache verify` does not report the `.files` table itself as an unexpected entry
 - [ ] A generation directory replaced by a **symlink** pointing at an otherwise-compliant
       user-owned directory is refused rather than resolved, and the pointer file's own
       ownership and mode are checked before its contents are used as a path
-- [ ] A generation at an unrecognised **higher** layout version is refused rather than
+- [x] A generation at an unrecognised **higher** layout version is refused rather than
       parsed; one at a **lower** layout version is re-materialised rather than adopted by
       the reuse scan; and an attestation carrying an unknown additive field still parses,
       mirroring `manifest.rs:223-231`
-- [ ] A tarball is rejected for each of: a `../` entry, an escaping symlink, a hardlink
+- [x] A tarball is rejected for each of: a `../` entry, an escaping symlink, a hardlink
       whose target escapes, an absolute path, a symlink-then-traverse chain, a FIFO or
       device entry, a tree exceeding `uncompressed_size`, and an entry count over
       `entry_count`
-- [ ] A setuid archive member is materialised without its setuid bit, and an archive
+- [x] A setuid archive member is materialised without its setuid bit, and an archive
       member marked executable keeps only its executable bit
 - [x] A streaming fetch whose first attempt fails after N bytes succeeds on retry,
       rather than producing a concatenated archive that can never verify
@@ -1758,12 +1758,12 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [ ] A `cache prune` racing a `materialise` never removes the generation being
       published, including in the window between the rename and the pointer write, and
       never removes the generation an in-flight reuse scan is about to point at
-- [ ] A pointer naming a directory that does not exist, is not a direct child of
+- [x] A pointer naming a directory that does not exist, is not a direct child of
       `trees/`, does not match the full
       `<name>-<platform>-<64 hex>-<layout>-<gen>` grammar, names a different artifact or
       platform, or is not owned by the effective uid is treated as a miss rather than
       exported
-- [ ] A sealed tree is removable by `remove_dir_all` without an intervening chmod; an
+- [x] A sealed tree is removable by `remove_dir_all` without an intervening chmod; an
       archive member marked executable is still executable after sealing; and a
       symlink's target is not re-moded by the seal walk
 - [ ] `cache verify` detects each of a deleted file, a truncated file, a **same-size
@@ -1821,19 +1821,19 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       once-per-dispatch guarantee is extended rather than broken. The hit path's exact
       read, `lstat`, verify and `flock` counts are asserted as stated numbers, so the
       added ownership and symlink checks are accounted for rather than discovered
-- [ ] The dispatch composition root accepts only `AcquireSealedTree`, so wiring
+- [x] The dispatch composition root accepts only `AcquireSealedTree`, so wiring
       `MaterialiseTree` into it is a compile error rather than a test failure
-- [ ] `TreeError::class()` is exhaustive by construction, and the `Refusal`/`Failed`
+- [x] `TreeError::class()` is exhaustive by construction, and the `Refusal`/`Failed`
       tests derive from it rather than from hand-maintained lists — a new variant added
       without a classification must not compile
-- [ ] Under `--fail-safe`, a hostile archive (path escape, failed attestation) hard-fails
+- [x] Under `--fail-safe`, a hostile archive (path escape, failed attestation) hard-fails
       while pointer damage degrades and re-materialises
 - [x] `manifest.example.json` with an added `artifacts` key still parses, and a manifest
       *without* `artifacts` still resolves single-file binaries
 - [ ] `BUILTIN_SUBCOMMANDS` and the clap `Command` enum agree, with
       `test_dispatch_coherence.py:606-611` and `:628-635` updated in the same change
 - [ ] `mise run cli:check` exits 0
-- [ ] `mise run deny:check` exits 0, and `libz-sys`/`zlib-ng-sys`/`zlib-sys` are absent
+- [x] `mise run deny:check` exits 0, and `libz-sys`/`zlib-ng-sys`/`zlib-sys` are absent
       from the launcher feature graph **for every one of the four target triples**, not
       only the host — `_feature_tree()` takes a `--target` and the assertion is
       parametrised over `TARGETS`
