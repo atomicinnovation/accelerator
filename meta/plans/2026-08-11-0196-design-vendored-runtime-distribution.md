@@ -91,8 +91,8 @@ Phase 7 §6" means Phase 3 §6 here.
 
 ## Implementation Progress
 
-Updated 2026-08-19. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-14/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
+Updated 2026-08-20. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
+16/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
@@ -368,17 +368,51 @@ These are the leaves the executor `run` composes; each is committed and
 earlier Phase-3 sources (the platform adapter, the spawner, the tree resolver
 and two tests) was reformatted in the same batch so `format:cli:check` is clean.
 
-Still ahead: the **§3/§4 executor integration** proper — the executor's `run`
-composing the platform probe, `cache ensure` (with launcher discovery and the
-envelope→cause mapping above), the browser resolver (`browser_path::vet`) and the
-sticky-marker store into the ADR-0062 availability ordering, building a
-`ResolvedRuntime` that retargets `const NODE` at both spawn sites, and removing
-the lockhash/namespace paths (incl. `PathResolution::namespace_root`,
-`HostPaths::{namespace_root,lockhash,cache_root}` and `lockhash_golden.rs`) —
-plus the `MarkerStore` adapter with its uid/symlink validation. Then the §6+§8
-cleanup (PROTOCOL.md, evals, the conformance guard, the deletions), the container
-harness, and the Removal sweep. Much of this is exercised only by the container
-harness, which cannot run on the dev host.
+**Phase 3, 2026-08-19 (continued) — the §3/§4 executor integration and its
+adapters landed, `cli:check` green.** The remaining wiring the earlier note
+listed is done:
+
+- **The `cache ensure` adapter** — `design-adapters/src/ensure.rs`: launcher
+  discovery (exported path → plugin-root `bin` → `PATH`, pure candidate order),
+  the `cache ensure` subprocess, the tab-separated success parse and the JSON
+  envelope's cause extraction, tested against a fake launcher.
+- **The `MarkerStore`** — `design-adapters/src/marker.rs`: the session key
+  (`getsid` + its start time, since the plan left the source unspecified and
+  Claude Code exposes none), the symlink/uid path check, and the JSON round-trip
+  of the domain marker; joins the `design_adapters` no-spawn pup rule.
+- **The executor `run`** — `design-cli/src/executor.rs` rewritten to the
+  ADR-0062 ordering over lazy thunks: the platform probe, then the runtime thunk
+  (warm exported-variable path, else the cold `cache ensure` guarded by the
+  sticky marker — fetch failures TTL-keyed before the fetch, host conditions
+  digest-keyed before the spawn), then the browser thunk (hatch, else the bundled
+  shell). A `ResolvedRuntime` retargets both spawn sites at the driver tree's own
+  `node` and threads `ACCELERATOR_DESIGN_BROWSER_EXECUTABLE`. `design.browser_path`
+  is read in `config.rs` through the shared precedence helper and vetted; warnings
+  reach stderr.
+- **The lockhash namespace is gone** — `HostPaths` no longer computes one,
+  `PathResolution` drops `namespace_root`, `lockhash_golden.rs` is deleted, and
+  the `playwright-not-installed` envelope is removed (the layout precondition is
+  now an `artifact-unavailable` downgrade). The `executor_preflight` tests were
+  repointed at the new downgrade behaviour.
+
+**Two Phase-3 deviations recorded here:**
+
+1. **The `flock` lease-hold is deferred to a follow-up.** The executor does not
+   yet re-open and `LOCK_SH` the tree's `<generation>.lease` sidecar before the
+   spawn. Doing it correctly needs the lease fd inherited by the long-lived
+   *daemon* (`FD_CLOEXEC` cleared), and it is only end-to-end verifiable with a
+   real daemon and a concurrent `cache prune` — both gated on Phase 2's pins. It
+   is a Phase-1-adjacent enrichment, not on the common path, and its absence only
+   loses reap/prune protection under concurrency.
+2. **`loader-unresolvable` is a sticky host condition**, beyond the plan's named
+   two (recorded at the marker note above).
+
+Still ahead: the §6+§8 cleanup (`PROTOCOL.md`, `evals.json`, `benchmark.json`,
+the standing conformance guard, and the deletions of `ensure-playwright.sh`,
+`test-ensure-playwright.sh`, `test-design.sh`, `package-lock.json` with the
+`integration.py` preflight repoint), the deferred lease-hold, the container
+harness (miniature lane + AC11 run locally on the arm64 Docker engine; AC6/AC12's
+real-tree fixtures wait on Phase 2's pins), and the Removal sweep.
 
 **The Removal sweep — not started.** Depends on Phase 3.
 
@@ -3936,7 +3970,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
       `ACCELERATOR_TREE_<NAME>` for an unmaterialised tree is **cleared** — including on
       the `ACCELERATOR_DESIGN_BIN` override path, where the resolve path short-circuits
       before any clearing code on it could run
-- [ ] With no tree variables set (the `ACCELERATOR_DESIGN_BIN` override path), the
+- [x] With no tree variables set (the `ACCELERATOR_DESIGN_BIN` override path), the
       executor reaches `cache ensure` rather than failing, discovering the launcher through
       the documented fallback order when `ACCELERATOR_LAUNCHER_PATH` is unset
 - [x] No exported variable collides with `derive_override_var`'s output for any reserved
@@ -3944,7 +3978,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] `ensure` runs **before** the executor takes `launcher.lock`, so a first-run download
       does not block concurrent invocations behind a lock reporting
       `another-launcher-running`
-- [ ] `ensure`'s distinct failure causes map to distinct downgrade reasons, and
+- [x] `ensure`'s distinct failure causes map to distinct downgrade reasons, and
       `materialisation-in-progress` is **not** among the sticky ones
 - [ ] The container harness is a named deliverable with its own Changes Required section —
       image definitions, an invoke task, a `main.yml` job and a workflow-shape test pinning
