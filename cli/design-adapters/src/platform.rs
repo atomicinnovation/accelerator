@@ -76,8 +76,11 @@ fn elf_interp(bytes: &[u8]) -> Option<String> {
         })
     };
 
-    let (phoff, phentsize_off, phnum_off) =
-        if is_64 { (0x20, 0x36, 0x38) } else { (0x1c, 0x2a, 0x2c) };
+    let (phoff, phentsize_off, phnum_off) = if is_64 {
+        (0x20, 0x36, 0x38)
+    } else {
+        (0x1c, 0x2a, 0x2c)
+    };
     let phoff = usize::try_from(if is_64 {
         read_u64(phoff)?
     } else {
@@ -179,10 +182,8 @@ mod tests {
         bytes[4] = 2; // 64-bit
         bytes[5] = 1; // little-endian
         bytes[6] = 1; // version
-        bytes[0x20..0x28]
-            .copy_from_slice(&u64::try_from(EHDR)?.to_le_bytes()); // e_phoff
-        bytes[0x36..0x38]
-            .copy_from_slice(&u16::try_from(PHENT)?.to_le_bytes()); // e_phentsize
+        bytes[0x20..0x28].copy_from_slice(&u64::try_from(EHDR)?.to_le_bytes()); // e_phoff
+        bytes[0x36..0x38].copy_from_slice(&u16::try_from(PHENT)?.to_le_bytes()); // e_phentsize
         bytes[0x38..0x3a].copy_from_slice(&1u16.to_le_bytes()); // e_phnum
 
         let header = EHDR;
@@ -231,8 +232,8 @@ mod tests {
     }
 
     #[test]
-    fn a_static_elf_with_no_interp_segment_yields_none(
-    ) -> Result<(), TestError> {
+    fn a_static_elf_with_no_interp_segment_yields_none() -> Result<(), TestError>
+    {
         let mut elf = elf64_le_with_interp("/unused")?;
         // Zero the single program header's type so no PT_INTERP remains.
         elf[64..68].copy_from_slice(&0u32.to_le_bytes());

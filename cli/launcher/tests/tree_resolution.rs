@@ -789,7 +789,10 @@ fn cache_ensure_emits_a_cause_envelope_when_the_archive_is_unreachable() {
         matches!(&outcome, Err(kernel::Error::Failed(_))),
         "expected a structured ensure failure, got {outcome:?}"
     );
-    let envelope = outcome.err().map(|error| error.to_string()).unwrap_or_default();
+    let envelope = outcome
+        .err()
+        .map(|error| error.to_string())
+        .unwrap_or_default();
     assert!(
         envelope.contains(r#""error":"ensure-failed""#),
         "{envelope}"
