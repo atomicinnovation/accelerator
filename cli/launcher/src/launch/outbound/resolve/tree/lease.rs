@@ -11,8 +11,8 @@
 
 #[cfg(unix)]
 pub use unix::{
-    hold_shared_lease, probe_liveness, take_single_flight, Liveness,
-    SharedLease, SingleFlight,
+    hold_shared_lease, probe_liveness, take_single_flight, try_single_flight,
+    Liveness, SharedLease, SingleFlight,
 };
 
 #[cfg(unix)]
@@ -123,7 +123,41 @@ mod unix {
     ///
     /// [`TreeError::Lease`] if the lock file cannot be created or locked.
     pub fn take_single_flight(path: &Path) -> Result<SingleFlight, TreeError> {
-        let file = OpenOptions::new()
+        let file = open_lock_file(path)?;
+        flock(file.as_fd(), FlockOperation::LockExclusive).map_err(
+            |error| {
+                lease(&format!("cannot take the single-flight lock: {error}"))
+            },
+        )?;
+        Ok(SingleFlight { _file: file })
+    }
+
+    /// Try to take `LOCK_EX` without blocking.
+    ///
+    /// `Ok(None)` means another process holds it — the loser's cue to wait and
+    /// re-check rather than to hang for the winner's whole download. This is the
+    /// basis of the bounded waiter, which is what keeps a slow-but-healthy first
+    /// fetch from stranding the rest of a crawl behind a lock.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lock file cannot be opened, or locking fails
+    /// for a reason other than contention.
+    pub fn try_single_flight(
+        path: &Path,
+    ) -> Result<Option<SingleFlight>, TreeError> {
+        let file = open_lock_file(path)?;
+        match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive) {
+            Ok(()) => Ok(Some(SingleFlight { _file: file })),
+            Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
+            Err(error) => Err(lease(&format!(
+                "cannot take the single-flight lock: {error}"
+            ))),
+        }
+    }
+
+    fn open_lock_file(path: &Path) -> Result<File, TreeError> {
+        OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
@@ -132,13 +166,7 @@ mod unix {
             .open(path)
             .map_err(|error| {
                 lease(&format!("cannot open the single-flight lock: {error}"))
-            })?;
-        flock(file.as_fd(), FlockOperation::LockExclusive).map_err(
-            |error| {
-                lease(&format!("cannot take the single-flight lock: {error}"))
-            },
-        )?;
-        Ok(SingleFlight { _file: file })
+            })
     }
 
     fn clear_cloexec(file: &File) -> Result<(), TreeError> {
@@ -259,10 +287,16 @@ mod stubs {
     pub fn take_single_flight(_path: &Path) -> Result<SingleFlight, TreeError> {
         unimplemented!("the single-flight lock is a Unix-only path")
     }
+
+    pub fn try_single_flight(
+        _path: &Path,
+    ) -> Result<Option<SingleFlight>, TreeError> {
+        unimplemented!("the single-flight lock is a Unix-only path")
+    }
 }
 
 #[cfg(not(unix))]
 pub use stubs::{
-    hold_shared_lease, probe_liveness, take_single_flight, Liveness,
-    SharedLease, SingleFlight,
+    hold_shared_lease, probe_liveness, take_single_flight, try_single_flight,
+    Liveness, SharedLease, SingleFlight,
 };

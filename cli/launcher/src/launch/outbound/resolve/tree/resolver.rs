@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use std::io::Read as _;
 use std::os::unix::fs::MetadataExt as _;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use sha2::{Digest as _, Sha256};
 
@@ -23,9 +24,49 @@ use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
     validated_generation, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{hold_shared_lease, take_single_flight};
+use super::lease::{hold_shared_lease, take_single_flight, try_single_flight};
 use super::table::{FileTable, TABLE_NAME};
 use super::{download, extract, pins, reap, seal};
+
+/// The publish-sequence steps a crash can be injected after.
+///
+/// Numbered as in the plan's materialise sequence. A test seam, not a cargo
+/// feature: `mise run cli:check` and `test:unit:cli` both pass `--all-features`,
+/// so a feature would be on during every check, whereas an injected observer is
+/// a no-op unless a test supplies one. Injecting here tests the *publish
+/// sequencing* — that a crash at any step leaves only reclaimable garbage —
+/// rather than the reaper against seven hand-built on-disk states.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaterialiseStep {
+    ArchiveStreamed,
+    ArchiveVerified,
+    Extracted,
+    Sealed,
+    SidecarsWritten,
+    LeaseHeld,
+    Renamed,
+}
+
+/// Observes each completed publish step. Production uses the no-op; a test can
+/// return an error after a chosen step to simulate a crash there.
+pub trait StepObserver {
+    /// # Errors
+    ///
+    /// Whatever the observer decides — the materialiser propagates it, aborting
+    /// the publish before the pointer is written.
+    fn after(&self, step: MaterialiseStep) -> Result<(), TreeError>;
+}
+
+/// The production observer: every step is fine. Constructed at the composition
+/// root, which lands with Step 1c's `cache` built-in.
+#[allow(dead_code)]
+pub struct NoSteps;
+
+impl StepObserver for NoSteps {
+    fn after(&self, _step: MaterialiseStep) -> Result<(), TreeError> {
+        Ok(())
+    }
+}
 
 /// Where the launcher's expected `(artifact, platform) -> digest` map comes
 /// from.
@@ -70,6 +111,12 @@ pub struct TreeResolver<'a> {
     /// Production is always [`ExpectedDigests::Compiled`]; the injected variant
     /// is a test seam.
     pub expected_digests: ExpectedDigests,
+    /// The bounded waiter's deadline: a loser waiting on the single-flight lock
+    /// gives up after this and emits `materialisation-in-progress`, so a
+    /// slow-but-healthy first fetch cannot strand the rest of a crawl.
+    pub waiter_bound: Duration,
+    /// The crash-injection seam; production is [`NoSteps`].
+    pub steps: &'a dyn StepObserver,
 }
 
 impl TreeResolver<'_> {
@@ -189,6 +236,7 @@ impl TreeResolver<'_> {
             &temp_archive,
             entry.archive_size,
         )?;
+        self.steps.after(MaterialiseStep::ArchiveStreamed)?;
 
         // 5. The attestation and the archive verification.
         let attestation =
@@ -200,6 +248,7 @@ impl TreeResolver<'_> {
             &entry.signature,
             self.keys,
         )?;
+        self.steps.after(MaterialiseStep::ArchiveVerified)?;
 
         // 6. Extract into a fresh temp generation, verifying each member as it
         //    is written.
@@ -232,9 +281,11 @@ impl TreeResolver<'_> {
                 entry_count: attestation.entry_count,
             },
         )?;
+        self.steps.after(MaterialiseStep::Extracted)?;
 
         // 7. Seal, then 8. write the sidecars from the release's own bytes.
         seal::seal_tree(&temp_generation)?;
+        self.steps.after(MaterialiseStep::Sealed)?;
         write_private(
             &paths.attestation(&generation),
             &self.reread(&paths, artifact, digest)?,
@@ -243,10 +294,12 @@ impl TreeResolver<'_> {
         // The attestation document and signature are the release's bytes, not
         // locally synthesised.
         self.write_sidecars(&paths, &generation, artifact, digest)?;
+        self.steps.after(MaterialiseStep::SidecarsWritten)?;
 
         // 9. Hold the lease before the rename, so the 9->10 window cannot look
         //    like crash residue to a concurrent prune.
         let _lease = hold_shared_lease(&paths.lease(&generation))?;
+        self.steps.after(MaterialiseStep::LeaseHeld)?;
 
         // 10. Rename into place — fresh by construction, so a collision is an
         //     internal error rather than a merge.
@@ -257,6 +310,7 @@ impl TreeResolver<'_> {
             },
         )?;
         let _ = std::fs::remove_file(&temp_archive);
+        self.steps.after(MaterialiseStep::Renamed)?;
 
         // 11. Publish the pointer, last, so a crash before here leaves only
         //     reclaimable garbage.
@@ -508,29 +562,74 @@ impl MaterialiseTree for TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
+        let lock_path = paths.single_flight_lock(artifact, &self.platform);
 
+        // The bounded waiter: try the lock without blocking, and between tries
+        // re-check whether the winner has published. A loser never hangs for the
+        // winner's whole download — it gives up after `waiter_bound` with a
+        // non-sticky `materialisation-in-progress`, so a slow-but-healthy first
+        // fetch cannot degrade the rest of a crawl to code-only.
+        let started = self.clock.now_seconds();
+        loop {
+            if let Some(located) = self.locate(artifact, digest) {
+                return Ok(self.sealed(
+                    &paths,
+                    artifact,
+                    &located.generation,
+                    digest,
+                ));
+            }
+            if let Some(_lock) = try_single_flight(&lock_path)? {
+                // Won the lock; re-check, then materialise.
+                if let Some(located) = self.locate(artifact, digest) {
+                    return Ok(self.sealed(
+                        &paths,
+                        artifact,
+                        &located.generation,
+                        digest,
+                    ));
+                }
+                let sealed = self.materialise_locked(artifact, digest)?;
+                let mut keep = BTreeSet::new();
+                keep.insert(digest.to_owned());
+                let _ = reap::reap_orphans(&paths, self.clock, &keep);
+                return Ok(sealed);
+            }
+
+            // Another process holds the lock; wait, bounded.
+            let waited = self.clock.now_seconds().saturating_sub(started);
+            if waited >= self.waiter_bound.as_secs() {
+                return Err(TreeError::MaterialisationInProgress {
+                    waited: Duration::from_secs(waited),
+                });
+            }
+            self.clock.sleep_poll_interval();
+        }
+    }
+}
+
+impl TreeResolver<'_> {
+    /// Reclaim residue for one artifact under its single-flight lock.
+    ///
+    /// Runs under the lock the reaper requires, so it and a concurrent
+    /// materialisation of a different artifact cannot disagree about `trees/`.
+    /// The artifact's current expected digest is spared, so a resumable partial
+    /// download survives.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError`] if the lock cannot be taken or the directory cannot be
+    /// read.
+    pub fn prune(&self, artifact: &str) -> Result<reap::Reclaimed, TreeError> {
+        let paths = self.paths();
         let _lock = take_single_flight(
             &paths.single_flight_lock(artifact, &self.platform),
         )?;
-
-        // The loser re-runs the query and materialises only if still needed.
-        if let Some(located) = self.locate(artifact, digest) {
-            return Ok(self.sealed(
-                &paths,
-                artifact,
-                &located.generation,
-                digest,
-            ));
-        }
-
-        let sealed = self.materialise_locked(artifact, digest)?;
-
-        // Reap residue while holding the lock the reaper requires.
         let mut keep = BTreeSet::new();
-        keep.insert(digest.to_owned());
-        let _ = reap::reap_orphans(&paths, self.clock, &keep);
-
-        Ok(sealed)
+        if let Some(digest) = self.expected_digest(artifact) {
+            keep.insert(digest);
+        }
+        reap::reap_orphans(&paths, self.clock, &keep)
     }
 }
 

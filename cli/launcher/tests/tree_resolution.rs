@@ -20,7 +20,7 @@ use sha2::{Digest as _, Sha256};
 use tempfile::TempDir;
 
 use accelerator::launch::core::tree::{
-    AcquireSealedTree, Clock, MaterialiseTree, VerifyTree,
+    AcquireSealedTree, Clock, MaterialiseTree, TreeError, VerifyTree,
 };
 use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
@@ -29,7 +29,7 @@ use accelerator::launch::outbound::resolve::tree::lease::{
     probe_liveness, Liveness,
 };
 use accelerator::launch::outbound::resolve::tree::{
-    ExpectedDigests, TreeResolver,
+    ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 use std::fmt::Write as _;
@@ -239,6 +239,14 @@ struct Harness {
 
 impl Harness {
     fn resolver(&self) -> TreeResolver<'_> {
+        self.resolver_with(&StoppedClock, &NoSteps)
+    }
+
+    fn resolver_with<'a>(
+        &'a self,
+        clock: &'a dyn Clock,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
         let mut digests = BTreeMap::new();
         digests.insert(
             (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
@@ -254,9 +262,11 @@ impl Harness {
                 Fetcher::with_backoff(std::time::Duration::from_millis(1))
                     .expect("fetcher"),
             )),
-            clock: &StoppedClock,
+            clock,
             launcher_id: "test-install".to_owned(),
             expected_digests: ExpectedDigests::Fixed(digests),
+            waiter_bound: std::time::Duration::from_secs(5),
+            steps,
         }
     }
 
@@ -436,4 +446,178 @@ fn verify_reports_a_sound_tree_and_detects_a_substitution() {
         !report.is_sound(),
         "a same-size substitution must be detected"
     );
+}
+
+/// A crash observer that errors after a chosen publish step.
+struct CrashAfter(MaterialiseStep);
+impl StepObserver for CrashAfter {
+    fn after(&self, step: MaterialiseStep) -> Result<(), TreeError> {
+        if step == self.0 {
+            Err(TreeError::Extraction {
+                detail: format!("injected crash after {step:?}"),
+            })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// A clock the test advances by hand, so the bounded waiter times out because
+/// time moved rather than because the test slept.
+struct AdvancingClock(std::sync::atomic::AtomicU64);
+impl Clock for AdvancingClock {
+    fn now_seconds(&self) -> u64 {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    fn sleep_poll_interval(&self) {
+        // Each poll advances a virtual second rather than sleeping.
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
+    let minisign = minisign_or_skip!();
+    let steps = [
+        MaterialiseStep::ArchiveStreamed,
+        MaterialiseStep::ArchiveVerified,
+        MaterialiseStep::Extracted,
+        MaterialiseStep::Sealed,
+        MaterialiseStep::SidecarsWritten,
+        MaterialiseStep::LeaseHeld,
+        MaterialiseStep::Renamed,
+    ];
+    for step in steps {
+        // A fresh cache per step so residues do not accumulate across cases.
+        let harness = happy_harness(&minisign);
+
+        let crash = CrashAfter(step);
+        let outcome = harness
+            .resolver_with(&StoppedClock, &crash)
+            .materialise(ARTIFACT);
+        assert!(
+            outcome.is_err(),
+            "the injected crash after {step:?} must abort materialise"
+        );
+
+        // No pointer was published, so a query is a miss.
+        assert!(
+            harness.resolver().query(ARTIFACT).expect("query").is_none(),
+            "a crash after {step:?} left a resolvable pointer"
+        );
+
+        // The reaper, run with a clock well past the age backstop, removes the
+        // residue and leaves the trees directory holding no generation.
+        let far_future =
+            AdvancingClock(std::sync::atomic::AtomicU64::new(1 << 40));
+        harness
+            .resolver_with(&far_future, &NoSteps)
+            .prune(ARTIFACT)
+            .expect("prune");
+        let residue = residual_generations(&harness);
+        assert!(
+            residue.is_empty(),
+            "a crash after {step:?} left unreclaimed residue: {residue:?}"
+        );
+    }
+}
+
+#[test]
+fn a_failed_winner_releases_the_lock_and_the_next_makes_progress() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // The winner crashes mid-materialisation.
+    let crash = CrashAfter(MaterialiseStep::Extracted);
+    assert!(harness
+        .resolver_with(&StoppedClock, &crash)
+        .materialise(ARTIFACT)
+        .is_err());
+
+    // The next materialise takes the same lock — proving it was released — and
+    // succeeds.
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next materialise makes progress");
+    assert!(sealed.path.join("lib/data.pak").exists());
+}
+
+#[test]
+fn the_bounded_waiter_expires_with_materialisation_in_progress() {
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // Hold the single-flight lock so every try fails, standing in for a winner
+    // still downloading.
+    let lock_path = harness
+        .cache
+        .join("trees")
+        .join(format!(".tmp-{ARTIFACT}-{HOST_PLATFORM}.lock"));
+    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
+    let _held = take_single_flight(&lock_path).expect("hold the lock");
+
+    // The waiter advances its own clock each poll, so it crosses the bound
+    // without any real sleep, and yields the non-sticky in-progress cause.
+    let clock = AdvancingClock(std::sync::atomic::AtomicU64::new(0));
+    let outcome = harness
+        .resolver_with(&clock, &NoSteps)
+        .materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::MaterialisationInProgress { .. })),
+        "a held lock past the bound must yield materialisation-in-progress, \
+         got {outcome:?}"
+    );
+}
+
+#[test]
+fn two_concurrent_cold_resolutions_issue_exactly_one_archive_fetch() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    let barrier = std::sync::Barrier::new(2);
+    let results = std::thread::scope(|scope| {
+        let a = scope.spawn(|| {
+            barrier.wait();
+            harness.resolver().materialise(ARTIFACT)
+        });
+        let b = scope.spawn(|| {
+            barrier.wait();
+            harness.resolver().materialise(ARTIFACT)
+        });
+        (a.join().unwrap(), b.join().unwrap())
+    });
+
+    let first = results.0.expect("first materialise");
+    let second = results.1.expect("second materialise");
+    assert_eq!(
+        first.path, second.path,
+        "both resolutions must land on one generation"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        1,
+        "two concurrent cold resolutions must fetch the archive exactly once"
+    );
+}
+
+/// A generation directory currently under trees/ (ignoring sidecars, temps and
+/// the claims dir).
+fn residual_generations(harness: &Harness) -> Vec<String> {
+    let trees = harness.cache.join("trees");
+    let Ok(entries) = std::fs::read_dir(&trees) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_generation = entry.path().is_dir()
+                && !name.starts_with(".tmp-")
+                && name != "claims";
+            is_generation.then_some(name)
+        })
+        .collect()
 }
