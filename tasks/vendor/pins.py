@@ -10,6 +10,7 @@ launcher's compiled-in map by a drift test.
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from tasks.shared.paths import PINS_TOML
 
@@ -34,3 +35,23 @@ def expected_digest(
     the point the release would otherwise sign unpinned bytes.
     """
     return _load(path)[artifact][platform]
+
+
+def _document(path: Path = PINS_TOML) -> dict[str, Any]:
+    with path.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def chromium_revision(path: Path = PINS_TOML) -> str:
+    """Return the pinned Chromium revision (cross-checked at assembly)."""
+    return str(_document(path)["chromium"]["revision"])
+
+
+def chromium_sha256(platform: str, path: Path = PINS_TOML) -> str:
+    """Return the reviewed Chromium byte digest for one platform."""
+    return str(_document(path)["chromium"]["sha256"][platform])
+
+
+def node_version(path: Path = PINS_TOML) -> str:
+    """Return the pinned Node version (mirrors the driver's pairing)."""
+    return str(_document(path)["node"]["version"])
