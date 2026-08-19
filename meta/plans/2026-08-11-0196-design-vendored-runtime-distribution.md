@@ -92,7 +92,7 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-19. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-10/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
+12/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
