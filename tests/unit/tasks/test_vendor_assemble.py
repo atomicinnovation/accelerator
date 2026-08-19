@@ -73,3 +73,82 @@ def test_an_escaping_symlink_target_is_refused(tmp_path):
         _add_symlink(archive, "link", "../../etc/passwd")
     with pytest.raises(ValueError, match="escapes"):
         extract_zip(tmp_path / "evil.zip", tmp_path / "out")
+
+
+def _package_json(path, version="1.55.1"):
+    path.write_text('{"dependencies": {"playwright": "' + version + '"}}\n')
+    return path
+
+
+def _browsers_json(path, revision="1181"):
+    path.write_text(
+        '{"browsers": ['
+        '{"name": "chromium", "revision": "' + revision + '"},'
+        '{"name": "chromium-headless-shell", "revision": "' + revision + '"},'
+        '{"name": "ffmpeg", "revision": "1011"}'
+        "]}\n"
+    )
+    return path
+
+
+def test_the_pinned_playwright_version_is_read_from_dependencies(tmp_path):
+    from tasks.vendor.assemble import read_pinned_playwright_version
+
+    version = read_pinned_playwright_version(
+        _package_json(tmp_path / "package.json")
+    )
+    assert version == "1.55.1"
+
+
+def test_a_caret_ranged_playwright_pin_is_refused(tmp_path):
+    from tasks.vendor.assemble import read_pinned_playwright_version
+
+    with pytest.raises(ValueError, match="exact"):
+        read_pinned_playwright_version(
+            _package_json(tmp_path / "package.json", "^1.55.1")
+        )
+
+
+def test_the_headless_shell_revision_is_read_from_browsers_json(tmp_path):
+    from tasks.vendor.assemble import browser_revision
+
+    revision = browser_revision(
+        _browsers_json(tmp_path / "browsers.json"),
+        "chromium-headless-shell",
+    )
+    assert revision == "1181"
+
+
+def test_a_matching_pairing_passes_the_guard(tmp_path):
+    from tasks.vendor.assemble import assert_version_pairing
+
+    assert_version_pairing(
+        fetched_playwright_version="1.55.1",
+        expected_playwright_version="1.55.1",
+        fetched_chromium_revision="1181",
+        expected_chromium_revision="1181",
+    )
+
+
+def test_a_playwright_version_mismatch_fails_the_release(tmp_path):
+    from tasks.vendor.assemble import assert_version_pairing
+
+    with pytest.raises(ValueError, match="playwright"):
+        assert_version_pairing(
+            fetched_playwright_version="1.55.2",
+            expected_playwright_version="1.55.1",
+            fetched_chromium_revision="1181",
+            expected_chromium_revision="1181",
+        )
+
+
+def test_a_chromium_revision_mismatch_fails_the_release(tmp_path):
+    from tasks.vendor.assemble import assert_version_pairing
+
+    with pytest.raises(ValueError, match="Chromium"):
+        assert_version_pairing(
+            fetched_playwright_version="1.55.1",
+            expected_playwright_version="1.55.1",
+            fetched_chromium_revision="1180",
+            expected_chromium_revision="1181",
+        )
