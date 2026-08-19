@@ -628,6 +628,23 @@ pub fn design::runtime::ensure::EnsureVerdict::fmt(&self, f: &mut core::fmt::For
 impl core::marker::Copy for design::runtime::ensure::EnsureVerdict
 impl core::marker::StructuralPartialEq for design::runtime::ensure::EnsureVerdict
 pub fn design::runtime::ensure::classify_cause(cause: &str) -> design::runtime::ensure::EnsureVerdict
+pub mod design::runtime::marker
+pub struct design::runtime::marker::Marker
+pub design::runtime::marker::Marker::digest: core::option::Option<alloc::string::String>
+pub design::runtime::marker::Marker::reason: design::runtime::downgrade::DowngradeReason
+pub design::runtime::marker::Marker::recorded_at: u64
+pub design::runtime::marker::Marker::session: alloc::string::String
+impl core::clone::Clone for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::clone(&self) -> design::runtime::marker::Marker
+impl core::cmp::Eq for design::runtime::marker::Marker
+impl core::cmp::PartialEq for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::eq(&self, other: &design::runtime::marker::Marker) -> bool
+impl core::fmt::Debug for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::marker::Marker
+pub fn design::runtime::marker::cleared_by_successful_ensure(marker: &design::runtime::marker::Marker) -> bool
+pub fn design::runtime::marker::is_host_condition(reason: design::runtime::downgrade::DowngradeReason) -> bool
+pub fn design::runtime::marker::suppresses(marker: &design::runtime::marker::Marker, session: &str, now: u64, ttl_seconds: u64, current_digest: core::option::Option<&str>) -> core::option::Option<design::runtime::downgrade::DowngradeReason>
 pub mod design::runtime::platform
 pub enum design::runtime::platform::ShellLoader
 pub design::runtime::platform::ShellLoader::Musl
