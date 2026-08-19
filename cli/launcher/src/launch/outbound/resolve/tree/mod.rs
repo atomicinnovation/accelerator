@@ -18,4 +18,6 @@ pub mod table;
 #[cfg(unix)]
 mod resolver;
 #[cfg(unix)]
-pub use resolver::{ExpectedDigests, TreeResolver};
+pub use resolver::{
+    ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
+};
