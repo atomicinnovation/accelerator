@@ -66,7 +66,11 @@ mod unix {
             extraction(&format!("unreadable archive: {error}"))
         })?;
 
-        let table = read_table_member(&mut entries)?;
+        let (table, table_bytes) = read_table_member(&mut entries)?;
+        // The table is itself a member of the sealed tree — verify reads it as
+        // the oracle after the archive is discarded — so it is written to the
+        // root rather than only parsed. It carries no row describing itself.
+        write_table_file(&root, &table_bytes)?;
         let mut progress = ExtractionProgress::default();
         let mut written = std::collections::BTreeSet::new();
 
@@ -137,10 +141,12 @@ mod unix {
     }
 
     /// The first member must be the table, so single-pass verification cannot
-    /// silently degrade into a second inflate to find it.
+    /// silently degrade into a second inflate to find it. The raw bytes are
+    /// returned alongside the parsed table so the caller can write them into the
+    /// tree unchanged.
     fn read_table_member<R: Read>(
         entries: &mut tar::Entries<'_, R>,
-    ) -> Result<FileTable, TreeError> {
+    ) -> Result<(FileTable, Vec<u8>), TreeError> {
         let mut first =
             entries.next().ok_or(TreeError::TableMissing)?.map_err(
                 |error| extraction(&format!("unreadable first entry: {error}")),
@@ -157,7 +163,30 @@ mod unix {
         first.read_to_end(&mut bytes).map_err(|error| {
             extraction(&format!("unreadable table: {error}"))
         })?;
-        FileTable::parse(&bytes)
+        let table = FileTable::parse(&bytes)?;
+        Ok((table, bytes))
+    }
+
+    /// Write the `.files` table to the tree root as an ordinary file, so it is
+    /// sealed and available to `verify` after the archive is discarded.
+    fn write_table_file(root: &OwnedFd, bytes: &[u8]) -> Result<(), TreeError> {
+        let file = rustix::fs::openat(
+            root.as_fd(),
+            TABLE_NAME,
+            OFlags::WRONLY
+                | OFlags::CREATE
+                | OFlags::EXCL
+                | OFlags::NOFOLLOW
+                | OFlags::CLOEXEC,
+            mode_bits(0o644),
+        )
+        .map_err(|error| {
+            extraction(&format!("cannot write the file table: {error}"))
+        })?;
+        std::io::Write::write_all(&mut std::fs::File::from(file), bytes)
+            .map_err(|error| {
+                extraction(&format!("cannot write the file table: {error}"))
+            })
     }
 
     const fn classify_kind(entry_type: tar::EntryType) -> EntryKind {

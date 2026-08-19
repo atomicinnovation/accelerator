@@ -18,4 +18,4 @@ pub mod table;
 #[cfg(unix)]
 mod resolver;
 #[cfg(unix)]
-pub use resolver::TreeResolver;
+pub use resolver::{ExpectedDigests, TreeResolver};

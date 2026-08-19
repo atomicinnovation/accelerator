@@ -272,6 +272,13 @@ macro_rules! skip_if_no_minisign {
     ($harness:expr) => {
         match $harness {
             Some(harness) => harness,
+            // Fail closed under CI rather than returning a false green: these
+            // cases cover the signature path, and `minisign` is pinned in
+            // `mise.toml`, so an absent binary in CI is a misconfiguration, not
+            // a reason to skip. Locally it still skips cleanly.
+            None if std::env::var_os("CI").is_some() => {
+                panic!("minisign is required under CI and was not on PATH")
+            }
             None => {
                 eprintln!("skipping: minisign not on PATH");
                 return Ok(());
