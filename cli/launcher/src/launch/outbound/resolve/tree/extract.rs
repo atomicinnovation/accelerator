@@ -102,6 +102,11 @@ mod unix {
             let path = path_os
                 .into_string()
                 .map_err(|_| extraction("a UTF-8 path became non-UTF-8"))?;
+            // POSIX tar names a directory member with a trailing slash, which
+            // the `.files` table keys carry no. Strip one so both tar writers
+            // (the Rust test builder and Python's tarfile) resolve identically.
+            let path =
+                path.strip_suffix('/').map(str::to_owned).unwrap_or(path);
             let row = table.row(&path).ok_or_else(|| {
                 extraction(&format!("'{path}' is absent from the file table"))
             })?;
