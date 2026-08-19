@@ -11,6 +11,7 @@ pub mod environment;
 pub mod filesystem;
 pub mod lock;
 pub mod paths;
+pub mod platform;
 pub mod process;
 pub mod state;
 
