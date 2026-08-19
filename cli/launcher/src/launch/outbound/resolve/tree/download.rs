@@ -10,6 +10,8 @@
 use std::fs::File;
 use std::path::Path;
 
+use sha2::{Digest as _, Sha256};
+
 use crate::launch::core::tree::TreeError;
 
 use super::super::fetcher::{Fetcher, StreamLimits, StreamSink};
@@ -21,10 +23,15 @@ pub struct AttestationBytes {
     pub signature: String,
 }
 
-/// Stream the archive at `url` into `dest`, returning its sha256.
+/// Stream the archive at `url` into `dest`, resuming from any bytes already on
+/// disk and returning the sha256 of the whole file.
 ///
 /// `max_bytes` is the artifact's `archive_size`, so a body larger than the
-/// manifest promised is refused rather than filling the disk.
+/// manifest promised is refused rather than filling the disk. A partial `dest`
+/// from an interrupted run makes this issue a `Range` request from the bytes
+/// already present, so a link too slow to finish one crawl still converges
+/// rather than restarting from zero each time. The digest is recomputed over the
+/// whole file, so a resumed transfer is verified exactly as a fresh one is.
 ///
 /// # Errors
 ///
@@ -36,19 +43,59 @@ pub fn stream_archive(
     dest: &Path,
     max_bytes: u64,
 ) -> Result<[u8; 32], TreeError> {
+    let existing = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0);
+    let range_from = (existing > 0).then_some(existing);
     let limits = StreamLimits::for_archive(max_bytes);
-    let mut open_dest = || -> std::io::Result<Box<dyn StreamSink>> {
-        let file = File::create(dest)?;
-        Ok(Box::new(FileSink { file }))
-    };
+    let mut open_dest =
+        |partial: bool| -> std::io::Result<Box<dyn StreamSink>> {
+            // A 206 appends after the prefix; a 200 (server ignored the range)
+            // truncates and takes the whole body.
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(partial)
+                .truncate(!partial)
+                .open(dest)?;
+            Ok(Box::new(FileSink { file }))
+        };
     let body = fetcher
-        .get_streaming(url, &limits, &mut open_dest)
+        .get_streaming(url, &limits, range_from, &mut open_dest)
         .map_err(|error| TreeError::Extraction {
             detail: format!(
                 "could not fetch the archive from {url}: {error:?}"
             ),
         })?;
-    Ok(body.sha256)
+    if body.partial {
+        // The streamed digest covered only the appended suffix, so re-hash the
+        // whole file — a local re-read of at most ~120MB, not a second network
+        // pass.
+        digest_file(dest)
+    } else {
+        Ok(body.sha256)
+    }
+}
+
+fn digest_file(path: &Path) -> Result<[u8; 32], TreeError> {
+    use std::io::Read as _;
+    let mut file = File::open(path).map_err(|error| TreeError::Extraction {
+        detail: format!("cannot re-read the resumed archive: {error}"),
+    })?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let read =
+            file.read(&mut buffer)
+                .map_err(|error| TreeError::Extraction {
+                    detail: format!(
+                        "cannot re-read the resumed archive: {error}"
+                    ),
+                })?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(hasher.finalize().into())
 }
 
 struct FileSink {

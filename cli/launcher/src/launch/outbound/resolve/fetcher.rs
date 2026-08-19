@@ -16,8 +16,6 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 // bounds one read rather than the attempt, so `StreamLimits` carries the
 // attempt and whole-loop bounds instead.
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
-// The tree resolver is the only consumer of the streaming transport, and it
-// lands separately from the transport so each is verified on its own.
 // The stall bound on the streaming path. A per-request timeout bounds one
 // *read* once a body is streamed rather than the whole attempt, which is
 // exactly the idle bound wanted here: a slow-but-progressing transfer resets it
@@ -98,6 +96,10 @@ pub(super) trait StreamSink {
 pub(super) struct StreamedBody {
     pub bytes: u64,
     pub sha256: [u8; 32],
+    /// Whether the server answered a Range request with 206 (partial). When a
+    /// caller asked for a range and got 200 instead, the sink was opened
+    /// truncating and the body covers the whole file.
+    pub partial: bool,
 }
 
 /// Whether a redirect target host is permitted, matched at a dotted-label
@@ -245,7 +247,10 @@ impl Fetcher {
         &self,
         url: &str,
         limits: &StreamLimits,
-        open_sink: &mut dyn FnMut() -> std::io::Result<
+        range_from: Option<u64>,
+        open_sink: &mut dyn FnMut(
+            bool,
+        ) -> std::io::Result<
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<StreamedBody, FetchError> {
@@ -263,7 +268,9 @@ impl Fetcher {
             if started.elapsed() >= limits.total_deadline {
                 break;
             }
-            match self.try_get_streaming(url, limits, started, open_sink) {
+            match self
+                .try_get_streaming(url, limits, range_from, started, open_sink)
+            {
                 Ok(body) => return Ok(body),
                 Err(Terminal::NotFound) => return Err(FetchError::NotFound),
                 Err(Terminal::TooLarge { limit }) => {
@@ -278,20 +285,23 @@ impl Fetcher {
         )))
     }
 
-    #[allow(dead_code)]
     fn try_get_streaming<'sink>(
         &self,
         url: &str,
         limits: &StreamLimits,
+        range_from: Option<u64>,
         started: Instant,
-        open_sink: &mut dyn FnMut() -> std::io::Result<
+        open_sink: &mut dyn FnMut(
+            bool,
+        ) -> std::io::Result<
             Box<dyn StreamSink + 'sink>,
         >,
     ) -> Result<StreamedBody, Terminal> {
-        let mut response = self
-            .client
-            .get(url)
-            .timeout(limits.idle_timeout)
+        let mut request = self.client.get(url).timeout(limits.idle_timeout);
+        if let Some(offset) = range_from {
+            request = request.header("Range", format!("bytes={offset}-"));
+        }
+        let mut response = request
             .send()
             .map_err(|error| Terminal::Retryable(error.to_string()))?;
         let status = response.status();
@@ -306,8 +316,12 @@ impl Fetcher {
                 "unexpected status {status}"
             )));
         }
+        // A server that honoured the Range answers 206; one that ignored it
+        // sends the whole body as 200, so the sink must truncate rather than
+        // append. The caller decides file positioning from this flag.
+        let partial = range_from.is_some() && status.as_u16() == 206;
 
-        let mut sink = open_sink()
+        let mut sink = open_sink(partial)
             .map_err(|error| Terminal::Retryable(error.to_string()))?;
         let mut hasher = Sha256::new();
         let mut buffer = vec![0_u8; STREAM_CHUNK];
@@ -341,6 +355,7 @@ impl Fetcher {
         Ok(StreamedBody {
             bytes,
             sha256: hasher.finalize().into(),
+            partial,
         })
     }
 }
@@ -358,99 +373,15 @@ enum Terminal {
 #[allow(clippy::expect_used)]
 mod tests {
     use std::cell::RefCell;
-    use std::io::{BufRead as _, BufReader, Read as _, Write as _};
-    use std::net::TcpListener;
     use std::rc::Rc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
     use std::time::Duration;
+
+    use http_test_support::{MockServer, RequestKey, Route};
 
     use super::{
         is_allowed_redirect_host, is_https, FetchError, Fetcher, StreamLimits,
         StreamSink, StreamedBody,
     };
-
-    /// What the scripted listener does with a connection, chosen per attempt.
-    #[derive(Clone, Copy)]
-    enum Reply {
-        /// Send the whole body.
-        Whole,
-        /// Promise the whole body but send only this many bytes, then close.
-        Truncated(usize),
-        /// Send headers, then go idle without sending a body.
-        Stall,
-    }
-
-    struct Scripted {
-        base_url: String,
-        attempts: Arc<AtomicUsize>,
-    }
-
-    /// Serve `replies[n]` to the nth connection, then `replies`' last entry for
-    /// every connection after that.
-    fn scripted(body: Vec<u8>, replies: Vec<Reply>) -> Scripted {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        let port = listener.local_addr().expect("addr").port();
-        let attempts = Arc::new(AtomicUsize::new(0));
-        let counter = Arc::clone(&attempts);
-        std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { break };
-                let index = counter.fetch_add(1, Ordering::SeqCst);
-                let reply = replies
-                    .get(index)
-                    .or_else(|| replies.last())
-                    .copied()
-                    .unwrap_or(Reply::Whole);
-                let body = body.clone();
-                // One thread per connection: a client that keeps a poisoned
-                // connection pooled after a broken reply must not stop the
-                // retry's connection from being served.
-                std::thread::spawn(move || {
-                    let mut reader =
-                        BufReader::new(stream.try_clone().expect("clone"));
-                    let mut line = String::new();
-                    loop {
-                        line.clear();
-                        let Ok(read) = reader.read_line(&mut line) else {
-                            break;
-                        };
-                        if read == 0 || line == "\r\n" || line == "\n" {
-                            break;
-                        }
-                    }
-                    let headers = format!(
-                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\
-                         Connection: close\r\n\r\n",
-                        body.len()
-                    );
-                    if stream.write_all(headers.as_bytes()).is_err() {
-                        return;
-                    }
-                    let _ = stream.flush();
-                    match reply {
-                        Reply::Whole => {
-                            let _ = stream.write_all(&body);
-                            let _ = stream.flush();
-                            let mut drain = Vec::new();
-                            let _ = reader.get_mut().read_to_end(&mut drain);
-                        }
-                        Reply::Truncated(prefix) => {
-                            let _ = stream.write_all(&body[..prefix]);
-                            let _ = stream.flush();
-                        }
-                        Reply::Stall => {
-                            std::thread::sleep(Duration::from_secs(5));
-                        }
-                    }
-                });
-            }
-        });
-        Scripted {
-            base_url: format!("http://127.0.0.1:{port}"),
-            attempts,
-        }
-    }
 
     /// Collects what it is handed, so a test can assert a retry started from an
     /// empty sink rather than appending to the failed attempt's bytes. Opening
@@ -481,7 +412,7 @@ mod tests {
         limits: &StreamLimits,
         sink: &Collecting,
     ) -> Result<StreamedBody, FetchError> {
-        fetcher.get_streaming(url, limits, &mut || {
+        fetcher.get_streaming(url, limits, None, &mut |_partial| {
             sink.borrow_mut().clear();
             Ok(Box::new(CollectingSink(Rc::clone(sink))))
         })
@@ -513,11 +444,18 @@ mod tests {
     #[test]
     fn streams_a_body_reporting_its_length_and_digest() {
         let payload = vec![7_u8; 4096];
-        let server = scripted(payload.clone(), vec![Reply::Whole]);
+        let server = MockServer::start();
+        server.route(
+            RequestKey::get("/asset"),
+            Route::Bytes {
+                status: 200,
+                body: payload.clone(),
+            },
+        );
         let sink = Collecting::default();
         let body = stream(
             &test_fetcher(),
-            &format!("{}/asset", server.base_url),
+            &format!("{}/asset", server.base_url()),
             &limits(1 << 20),
             &sink,
         )
@@ -535,14 +473,25 @@ mod tests {
     fn a_retry_starts_from_a_fresh_sink_rather_than_appending() {
         let payload: Vec<u8> =
             (0..8192_u32).map(|byte| byte.to_le_bytes()[0]).collect();
-        let server = scripted(
-            payload.clone(),
-            vec![Reply::Truncated(1024), Reply::Whole],
+        let server = MockServer::start();
+        let key = RequestKey::get("/asset");
+        server.route(
+            key.clone(),
+            Route::Sequence(vec![
+                Route::Truncated {
+                    body: payload.clone(),
+                    sent: 1024,
+                },
+                Route::Bytes {
+                    status: 200,
+                    body: payload.clone(),
+                },
+            ]),
         );
         let sink = Collecting::default();
         let body = stream(
             &test_fetcher(),
-            &format!("{}/asset", server.base_url),
+            &format!("{}/asset", server.base_url()),
             &limits(1 << 20),
             &sink,
         )
@@ -551,18 +500,26 @@ mod tests {
         assert_eq!(
             *sink.borrow(),
             payload,
-            "the retry appended to the partial"
+            "the retry restarts from a cleared sink"
         );
-        assert_eq!(server.attempts.load(Ordering::SeqCst), 2);
+        assert_eq!(server.hits(&key), 2);
     }
 
     #[test]
     fn a_body_larger_than_the_cap_is_refused_without_retrying() {
-        let server = scripted(vec![0_u8; 8192], vec![Reply::Whole]);
+        let server = MockServer::start();
+        let key = RequestKey::get("/asset");
+        server.route(
+            key.clone(),
+            Route::Bytes {
+                status: 200,
+                body: vec![0_u8; 8192],
+            },
+        );
         let sink = Collecting::default();
         let result = stream(
             &test_fetcher(),
-            &format!("{}/asset", server.base_url),
+            &format!("{}/asset", server.base_url()),
             &limits(4096),
             &sink,
         );
@@ -571,7 +528,7 @@ mod tests {
             "expected a size refusal, got {result:?}"
         );
         assert_eq!(
-            server.attempts.load(Ordering::SeqCst),
+            server.hits(&key),
             1,
             "an oversize body is a defect, not a transient failure"
         );
@@ -579,12 +536,16 @@ mod tests {
 
     #[test]
     fn a_stalled_transfer_fails_within_the_total_deadline() {
-        let server = scripted(vec![0_u8; 4096], vec![Reply::Stall]);
+        let server = MockServer::start();
+        server.route(
+            RequestKey::get("/asset"),
+            Route::Stall(Duration::from_secs(5)),
+        );
         let sink = Collecting::default();
         let started = std::time::Instant::now();
         let result = stream(
             &test_fetcher(),
-            &format!("{}/asset", server.base_url),
+            &format!("{}/asset", server.base_url()),
             &StreamLimits {
                 attempt_timeout: Duration::from_secs(600),
                 total_deadline: Duration::from_secs(900),

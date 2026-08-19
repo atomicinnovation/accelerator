@@ -263,6 +263,34 @@ fn a_stalled_route_sends_its_headers_then_withholds_the_body() {
 }
 
 #[test]
+fn a_truncated_route_promises_the_whole_body_then_sends_only_a_prefix() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::get("/asset"),
+        Route::Truncated {
+            body: vec![7_u8; 4096],
+            sent: 1024,
+        },
+    );
+
+    let mut stream = connect(&server);
+    send(&mut stream, "GET", "/asset", &[], &[]);
+    let mut reader = BufReader::new(stream);
+    let (status, content_length) = read_head(&mut reader);
+
+    assert_eq!(status, 200);
+    assert_eq!(content_length, 4096, "the header promises the whole body");
+
+    let mut received = Vec::new();
+    reader.read_to_end(&mut received).expect("read to close");
+    assert_eq!(
+        received,
+        vec![7_u8; 1024],
+        "only the prefix arrives before the connection closes"
+    );
+}
+
+#[test]
 fn a_sequenced_route_answers_each_hit_in_turn() {
     let server = MockServer::start();
     let key = RequestKey::post("/graphql");
