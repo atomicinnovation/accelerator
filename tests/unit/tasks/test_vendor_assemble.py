@@ -271,3 +271,123 @@ def test_the_smoke_check_fails_an_unrunnable_binary(tmp_path):
     (tree / "node").chmod(0o755)
     with pytest.raises(ValueError, match="did not execute"):
         smoke_check(tree, executables=("node",))
+
+
+def _miniature_specs(tmp_path):
+    from tasks.vendor.assemble import NoticeSource, TreePlacement, TreeSpec
+
+    node = _executable(tmp_path / "in" / "node", "#!/bin/sh\necho v20\n")
+    core = tmp_path / "in" / "playwright-core"
+    _licence(core / "index.js", "module.exports = {}")
+    shell = _executable(
+        tmp_path / "in" / "chrome-headless-shell", "#!/bin/sh\necho v1181\n"
+    )
+    lic = _licence(tmp_path / "in" / "LICENSE")
+    driver = TreeSpec(
+        artifact="driver",
+        placements=(
+            TreePlacement(node, "node"),
+            TreePlacement(core, "node_modules/playwright-core"),
+        ),
+        notices=(
+            NoticeSource("node", (lic,)),
+            NoticeSource("playwright-core", (lic,)),
+        ),
+    )
+    browser = TreeSpec(
+        artifact="browser",
+        placements=(TreePlacement(shell, "chrome-headless-shell"),),
+        notices=(NoticeSource("chromium", (lic,)),),
+    )
+    return (driver, browser)
+
+
+def test_assembly_produces_flat_named_archives(tmp_path):
+    from tasks.vendor.assemble import assemble_specs
+
+    stats = assemble_specs(
+        _miniature_specs(tmp_path),
+        platform="linux-x64",
+        staging_dir=tmp_path / "staging",
+        dist_dir=tmp_path / "dist",
+    )
+    assert (tmp_path / "dist" / "accelerator-driver-linux-x64.tar.gz").exists()
+    assert (tmp_path / "dist" / "accelerator-browser-linux-x64.tar.gz").exists()
+    assert set(stats) == {"driver", "browser"}
+
+
+def test_assembling_the_same_specs_twice_is_byte_identical(tmp_path):
+    from tasks.vendor.assemble import assemble_specs
+
+    assemble_specs(
+        _miniature_specs(tmp_path),
+        platform="linux-x64",
+        staging_dir=tmp_path / "s1",
+        dist_dir=tmp_path / "d1",
+    )
+    assemble_specs(
+        _miniature_specs(tmp_path),
+        platform="linux-x64",
+        staging_dir=tmp_path / "s2",
+        dist_dir=tmp_path / "d2",
+    )
+    for name in ("driver", "browser"):
+        asset = f"accelerator-{name}-linux-x64.tar.gz"
+        assert (tmp_path / "d1" / asset).read_bytes() == (
+            tmp_path / "d2" / asset
+        ).read_bytes()
+
+
+def _pins_toml(path, digests):
+    lines = []
+    for artifact, platforms in digests.items():
+        lines.append(f"[assembled_sha256.{artifact}]")
+        for platform, digest in platforms.items():
+            lines.append(f'{platform} = "{digest}"')
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
+def test_a_matching_archive_passes_the_pin_gate(tmp_path):
+    from tasks.vendor.assemble import assemble_specs, assert_matches_pin
+
+    stats = assemble_specs(
+        _miniature_specs(tmp_path),
+        platform="linux-x64",
+        staging_dir=tmp_path / "staging",
+        dist_dir=tmp_path / "dist",
+    )
+    pins = _pins_toml(
+        tmp_path / "pins.toml",
+        {
+            "driver": {"linux-x64": stats["driver"].archive_sha256},
+            "browser": {"linux-x64": stats["browser"].archive_sha256},
+        },
+    )
+    assert_matches_pin(
+        tmp_path / "dist" / "accelerator-driver-linux-x64.tar.gz",
+        artifact="driver",
+        platform="linux-x64",
+        pins_path=pins,
+    )
+
+
+def test_a_mismatched_archive_fails_the_pin_gate(tmp_path):
+    from tasks.vendor.assemble import assemble_specs, assert_matches_pin
+
+    assemble_specs(
+        _miniature_specs(tmp_path),
+        platform="linux-x64",
+        staging_dir=tmp_path / "staging",
+        dist_dir=tmp_path / "dist",
+    )
+    pins = _pins_toml(
+        tmp_path / "pins.toml", {"driver": {"linux-x64": "00" * 32}}
+    )
+    with pytest.raises(ValueError, match="!= pinned"):
+        assert_matches_pin(
+            tmp_path / "dist" / "accelerator-driver-linux-x64.tar.gz",
+            artifact="driver",
+            platform="linux-x64",
+            pins_path=pins,
+        )

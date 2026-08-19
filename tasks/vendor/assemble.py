@@ -16,6 +16,7 @@ it, so a hostile input fails at assembly rather than on a user's machine.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -25,6 +26,14 @@ import zipfile
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+
+from tasks.shared.paths import (
+    PINS_TOML,
+    RELEASE_STAGING,
+    tree_artifact_asset_path,
+)
+from tasks.vendor import pins
+from tasks.vendor.archive import ArchiveStats, write_deterministic_archive
 
 _DEFAULT_FILE_MODE = 0o644
 _SMOKE_TIMEOUT = 30
@@ -233,3 +242,46 @@ def smoke_check(tree: Path, *, executables: Iterable[str]) -> None:
             )
         except (OSError, subprocess.SubprocessError) as exc:
             raise ValueError(f"{name} did not execute: {exc}") from exc
+
+
+def assemble_specs(
+    specs: Iterable[TreeSpec],
+    *,
+    platform: str,
+    staging_dir: Path,
+    dist_dir: Path = RELEASE_STAGING,
+) -> dict[str, ArchiveStats]:
+    """Stage and pack each spec into a flat, deterministically-named archive.
+
+    Staging happens under ``staging_dir`` (kept outside the checkout in CI) and
+    the finished ``.tar.gz`` lands flat in ``dist_dir`` under the same asset
+    name the launcher fetches, so the provenance attest globs cover it.
+    """
+    results: dict[str, ArchiveStats] = {}
+    for spec in specs:
+        tree = staging_dir / f"{spec.artifact}-{platform}"
+        stage_tree(spec, tree)
+        archive = tree_artifact_asset_path(spec.artifact, platform, dist_dir)
+        results[spec.artifact] = write_deterministic_archive(tree, archive)
+    return results
+
+
+def assert_matches_pin(
+    archive_path: Path,
+    *,
+    artifact: str,
+    platform: str,
+    pins_path: Path = PINS_TOML,
+) -> None:
+    """Fail unless ``archive_path`` hashes to its reviewed pin.
+
+    Run from the release job's own clean checkout against bytes that arrived as
+    an opaque artifact, so the check is a real boundary rather than a
+    self-referential one.
+    """
+    actual = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    expected = pins.expected_digest(artifact, platform, pins_path)
+    if actual != expected:
+        raise ValueError(
+            f"{artifact} {platform}: assembled {actual} != pinned {expected}"
+        )
