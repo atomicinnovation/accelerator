@@ -1,0 +1,22 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "codeBlock",
+      "attrs": {
+        "language": "sh"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "kept"
+        },
+        {
+          "type": "text",
+          "text": "dropped"
+        }
+      ]
+    }
+  ]
+}

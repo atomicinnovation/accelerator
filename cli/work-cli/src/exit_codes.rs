@@ -13,9 +13,9 @@ pub const RETRYABLE: u8 = 70;
 pub const TERMINAL: u8 = 71;
 pub const NOT_AVAILABLE: u8 = 72;
 pub const UNRECOGNISED: u8 = 73;
+pub const UNCONFIGURED: u8 = 74;
 
 #[must_use]
-#[allow(dead_code)]
 pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     match error {
         TrackerError::Retryable { .. } => RETRYABLE,

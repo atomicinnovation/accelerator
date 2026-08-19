@@ -1,0 +1,111 @@
+# The ADF node and mark inventory, derived from jira-adf-render.jq,
+# jira-md-assemble.jq and jira-md-tokenise.awk rather than authored free-hand.
+#
+# Columns: kind  type  render  assemble  [note]
+#
+# render values:
+#   handled            a render_block / render_inline arm exists
+#   block-placeholder  emitted as [unsupported ADF node: <type>]
+#   inline-placeholder emitted as [unsupported ADF inline: <type>]
+#   ignored            silently dropped, with no placeholder and no warning
+#   unreachable        the renderer never descends into this node's parent
+#
+# assemble values:
+#   handled       an assembler arm emits this node or mark
+#   hard-reject   the tokeniser refuses the construct (exit 41)
+#   absent        no markdown spelling produces it
+#
+# The round trip is deliberately asymmetric: render accepts a strictly larger
+# language and degrades, assemble refuses three constructs outright.
+
+node  doc          handled  handled       assemble always emits {"version":1,"type":"doc",...}
+node  paragraph    handled  handled
+node  heading      handled  handled       render reads attrs.level with NO default; assemble accepts H1-H6 only
+node  bulletList   handled  handled       assemble emits no attrs
+node  orderedList  handled  handled       render honours attrs.order // 1; assemble ALWAYS emits order 1
+node  listItem     handled  handled       render uses .content[0].content only — 2nd+ children dropped
+node  taskList     handled  handled       assemble adds attrs.localId
+node  taskItem     handled  handled       content is a bare inline array, not paragraph-wrapped
+node  codeBlock    handled  handled       render uses .content[0].text only
+node  text         handled  handled
+node  hardBreak    handled  handled       assemble drops it when no paragraph is open
+
+node  blockquote        block-placeholder  hard-reject
+node  table             block-placeholder  hard-reject
+node  rule              block-placeholder  absent  `---` becomes paragraph text
+node  panel             block-placeholder  absent
+node  expand            block-placeholder  absent
+node  decisionList      block-placeholder  absent
+node  layoutSection     block-placeholder  absent
+node  blockCard         block-placeholder  absent
+node  embedCard         block-placeholder  absent
+node  extension         block-placeholder  absent
+node  bodiedExtension   block-placeholder  absent
+node  mediaSingle       block-placeholder  absent
+node  mediaGroup        block-placeholder  absent
+
+node  emoji             inline-placeholder  absent
+node  mention           inline-placeholder  absent
+node  date              inline-placeholder  absent
+node  status            inline-placeholder  absent
+node  inlineCard        inline-placeholder  absent
+node  inlineExtension   inline-placeholder  absent
+node  placeholder       inline-placeholder  absent
+
+node  nestedList        ignored  hard-reject  a list nested as a listItem's SECOND child is dropped; as its FIRST child it renders one inline placeholder per listItem
+
+node  tableRow      unreachable  absent
+node  tableCell     unreachable  absent
+node  tableHeader   unreachable  absent
+node  media         unreachable  absent
+node  caption       unreachable  absent
+node  layoutColumn  unreachable  absent
+node  decisionItem  unreachable  absent
+node  nestedExpand  unreachable  absent
+
+mark  code    handled  handled  innermost; the assemble token is `[^`]+` so the span cannot be empty
+mark  em      handled  handled  _x_ is NOT em in this subset
+mark  strong  handled  handled
+mark  link    handled  handled  render applies an href allowlist; assemble appends the mark LAST
+
+mark  strike            ignored  absent
+mark  underline         ignored  absent
+mark  subsup            ignored  absent
+mark  textColor         ignored  absent
+mark  backgroundColor   ignored  absent
+mark  annotation        ignored  absent
+mark  alignment         ignored  absent
+mark  indentation       ignored  absent
+mark  breakout          ignored  absent
+mark  border            ignored  absent
+mark  dataConsumer      ignored  absent
+mark  fragment          ignored  absent
+
+# Both placeholder strings, verbatim. Which one fires depends on POSITION, not
+# on the node type.
+placeholder  block   [unsupported ADF node: <type>]      jira-adf-render.jq:77
+placeholder  inline  [unsupported ADF inline: <type>]    jira-adf-render.jq:42
+
+# The assemble direction's four refusals, verbatim from jira-md-tokenise.awk.
+reject  41  E_ADF_UNSUPPORTED_BLOCKQUOTE   blockquote is not supported                       T:71-72
+reject  41  E_ADF_UNSUPPORTED_TABLE        pipe tables are not supported                     T:78-79
+reject  41  E_ADF_UNSUPPORTED_NESTED_LIST  nested lists are not supported                    T:85-86
+reject  42  E_ADF_BAD_INPUT                input contains control byte \x1e or \x1f          T:45-47
+#
+# The render direction's aborts: inputs on which the jq raises and the whole
+# document fails, rather than degrading to a placeholder. These are shapes a
+# real tenant can return, so leaving them unspecified would make the Rust
+# invent a default exactly where the oracle is about to be deleted.
+#
+# 0210's plan named two. There are THREE: a list node whose content is absent
+# aborts as well, because bulletList, orderedList and taskList read `.content`
+# with no `// []` fallback.
+abort  heading-without-level  [range(null)] raises                jira-adf-render.jq:58
+abort  root-not-doc           error("E_BAD_JSON")                 jira-adf-render.jq:81
+abort  list-without-content   `null | map` / `to_entries` raises  jira-adf-render.jq:60-71
+#
+# NOT an abort, verified by running the pinned jq: a text node with no .text.
+# jq defines null + x == x, so a marked node yields the delimiters around an
+# empty string (`` for code, [](href) for a link) and an unmarked one
+# contributes nothing to join(""). Making either an error would reject a
+# document the oracle renders.

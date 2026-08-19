@@ -6,14 +6,24 @@ revision detection paths need neither: ``DefaultWorkspaceLoaderFactory`` is
 public, and the checkout state and operation store are both reachable without
 settings.
 
-One narrow, deliberate exception: ``library/dirty_paths.rs``'s jj snapshot
-genuinely cannot avoid ``UserSettings`` — snapshotting is not a read of
-already-recorded state (what the settings-free routes above cover), it is
-jj-lib re-deriving on-disk changes since the last operation, and that requires
-a real ``TreeStateSettings`` (conflict-marker style, eol/exec-bit handling,
-fsmonitor backend) that only ``UserSettings`` supplies. Confirmed against
-jj-lib 0.43.0 and the real `jj` CLI's own snapshot path — there is no
-lower-ceremony construction that reaches ``LockedWorkingCopy::snapshot``.
+Two narrow, deliberate exceptions, both using jj-lib's own bundled defaults
+(``StackedConfig::with_defaults``) rather than a hand-populated settings value,
+so neither reaches the private-defaults fragility this guard was written for:
+
+- ``library/dirty_paths.rs``'s jj snapshot genuinely cannot avoid
+  ``UserSettings`` — snapshotting is not a read of already-recorded state (what
+  the settings-free routes above cover), it is jj-lib re-deriving on-disk
+  changes since the last operation, and that requires a real
+  ``TreeStateSettings`` (conflict-marker style, eol/exec-bit handling,
+  fsmonitor backend) that only ``UserSettings`` supplies. Confirmed against
+  jj-lib 0.43.0 and the real `jj` CLI's own snapshot path — there is no
+  lower-ceremony construction that reaches ``LockedWorkingCopy::snapshot``.
+- ``library/tracked.rs``'s is-path-tracked read needs the working-copy
+  commit's *tree*, not merely its id. The settings-free op-store route yields
+  the commit id alone; reading the tree behind it requires a loaded repo
+  (``RepoLoader::load_at_head``, reachable only from a settings-loaded
+  workspace), so this read cannot be settings-free the way the revision read
+  is.
 
 Not a cargo-pup ``denied`` clause because ``RestrictImports`` resolves ``use``
 paths, so it cannot see a fully-qualified
@@ -33,7 +43,12 @@ from tasks.shared.sources import repo_root
 
 CRATE = "cli/vcs-adapters"
 
-_EXEMPT = frozenset({f"{CRATE}/src/library/dirty_paths.rs"})
+_EXEMPT = frozenset(
+    {
+        f"{CRATE}/src/library/dirty_paths.rs",
+        f"{CRATE}/src/library/tracked.rs",
+    }
+)
 
 _FORBIDDEN = re.compile(r"\bUserSettings\b|\bWorkspace::load\b")
 

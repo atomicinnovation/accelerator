@@ -11,6 +11,8 @@ use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
+mod common;
+
 type TestError = Box<dyn std::error::Error>;
 
 fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
@@ -45,13 +47,15 @@ fn write_item(dir: &Path, name: &str, content: &str) -> std::path::PathBuf {
 }
 
 fn run(dir: &Path, args: &[&str]) -> Result<std::process::Output, TestError> {
-    Ok(Command::new(env!("CARGO_BIN_EXE_accelerator-work"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
         .arg("update")
         .args(args)
         .current_dir(dir)
         .env("ACCELERATOR_PLUGIN_ROOT", dir)
-        .stdin(Stdio::null())
-        .output()?)
+        .stdin(Stdio::null());
+    common::scrub_provider_env(&mut command);
+    Ok(command.output()?)
 }
 
 const SYNCED_ITEM: &str =
@@ -111,13 +115,15 @@ fn an_unrecognised_tracker_exits_73() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_recognised_but_unbuilt_tracker_exits_72() -> Result<(), TestError> {
+fn a_wired_tracker_without_credentials_exits_74() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     configure_integration(repo.path(), "jira")?;
     let path = write_item(repo.path(), "0001-synced.md", SYNCED_ITEM);
     let output =
         run(repo.path(), &[path.to_str().expect("utf8 path"), "--push"])?;
-    assert_eq!(output.status.code(), Some(72));
+    assert_eq!(output.status.code(), Some(74));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("not usable"), "{stderr}");
     let content = fs::read_to_string(&path)?;
     assert_eq!(content, SYNCED_ITEM, "the local file must be untouched");
     Ok(())

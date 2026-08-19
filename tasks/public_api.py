@@ -20,8 +20,10 @@ _PINNED_CRATES = (
     "document",
     "kernel",
     "migrate",
+    "remote-projection",
     "store",
     "tracker",
+    "tracker-support",
     "vcs",
     "work",
 )
@@ -47,6 +49,14 @@ _EXEMPT_MEMBERS = {
     "migrate-adapters": _ADAPTER,
     "vcs-adapters": _ADAPTER,
     "work-adapters": _ADAPTER,
+    "linear-client": (
+        f"{_ADAPTER}. The mirror of jira-client: a provider surface one"
+        " composition root wires, tracking Linear's API rather than the domain"
+    ),
+    "jira-client": (
+        f"{_ADAPTER}. The provider surface it exposes is what one composition"
+        " root wires, and it tracks Jira's API rather than the domain"
+    ),
     "github": (
         f"{_ADAPTER}. Named for the forge rather than as"
         " collaboration-adapters, but that is what it is"
@@ -71,6 +81,7 @@ _EXEMPT_MEMBERS = {
         " is the epoch value itself, held by the fixture-replayed arithmetic"
         " tests and by the identity semantics each caller builds on top"
     ),
+    "http-test-support": _TEST_SUPPORT,
     "tracker-test-support": _TEST_SUPPORT,
     "vcs-test-support": _TEST_SUPPORT,
 }

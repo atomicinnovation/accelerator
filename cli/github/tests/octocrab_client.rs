@@ -5,11 +5,13 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
-mod common;
-
 use collaboration::ForgeApiError;
-use common::{MockServer, Route};
 use github::OctocrabClient;
+use http_test_support::{MockServer, RequestKey, Route};
+
+fn base_uri(server: &MockServer) -> http::Uri {
+    server.base_url().parse().expect("base uri")
+}
 
 fn author_json(login: &str) -> String {
     format!(
@@ -65,15 +67,14 @@ fn pull_request_json(number: u64) -> String {
 async fn repository_reports_no_parent_for_a_non_fork() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo",
+        RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {
             status: 200,
             body: repository_json("owner", "repo", None),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let details = client.repository("owner", "repo").await.unwrap();
     assert_eq!(details.parent_owner, None);
@@ -85,15 +86,14 @@ async fn repository_reports_the_parent_of_a_fork() {
     let server = MockServer::start();
     let parent = parent_repository_json("upstream-owner", "upstream-repo");
     server.route(
-        "GET",
-        "/repos/fork-owner/fork-repo",
+        RequestKey::new("GET", "/repos/fork-owner/fork-repo"),
         Route::Json {
             status: 200,
             body: repository_json("fork-owner", "fork-repo", Some(&parent)),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let details = client.repository("fork-owner", "fork-repo").await.unwrap();
     assert_eq!(details.parent_owner, Some("upstream-owner".to_owned()));
@@ -104,15 +104,14 @@ async fn repository_reports_the_parent_of_a_fork() {
 async fn repository_lookup_failure_surfaces_status_and_message() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo",
+        RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {
             status: 404,
             body: "{\"message\":\"Not Found\"}".to_owned(),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let error = client.repository("owner", "repo").await.unwrap_err();
     assert_eq!(
@@ -141,15 +140,14 @@ async fn repository_lookup_transport_failure_is_reported() {
 async fn confirm_pull_request_exists_succeeds_for_a_present_pr() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo/pulls/42",
+        RequestKey::new("GET", "/repos/owner/repo/pulls/42"),
         Route::Json {
             status: 200,
             body: pull_request_json(42),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     client
         .confirm_pull_request_exists("owner", "repo", 42)
@@ -161,15 +159,14 @@ async fn confirm_pull_request_exists_succeeds_for_a_present_pr() {
 async fn confirm_pull_request_exists_reports_a_404_as_failed() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo/pulls/42",
+        RequestKey::new("GET", "/repos/owner/repo/pulls/42"),
         Route::Json {
             status: 404,
             body: "{\"message\":\"Not Found\"}".to_owned(),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let error = client
         .confirm_pull_request_exists("owner", "repo", 42)
@@ -188,15 +185,14 @@ async fn confirm_pull_request_exists_reports_a_404_as_failed() {
 async fn update_body_succeeds() {
     let server = MockServer::start();
     server.route(
-        "PATCH",
-        "/repos/owner/repo/pulls/42",
+        RequestKey::new("PATCH", "/repos/owner/repo/pulls/42"),
         Route::Json {
             status: 200,
             body: pull_request_json(42),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     client
         .update_body("owner", "repo", 42, "new body")
@@ -208,15 +204,14 @@ async fn update_body_succeeds() {
 async fn update_body_reports_a_patch_failure() {
     let server = MockServer::start();
     server.route(
-        "PATCH",
-        "/repos/owner/repo/pulls/42",
+        RequestKey::new("PATCH", "/repos/owner/repo/pulls/42"),
         Route::Json {
             status: 422,
             body: "{\"message\":\"Validation Failed\"}".to_owned(),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let error = client
         .update_body("owner", "repo", 42, "new body")
@@ -235,15 +230,14 @@ async fn update_body_reports_a_patch_failure() {
 async fn a_redirect_response_is_not_followed() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo",
+        RequestKey::new("GET", "/repos/owner/repo"),
         Route::Redirect {
             status: 301,
             location: "https://attacker.example/repos/owner/repo".to_owned(),
         },
     );
     let client =
-        OctocrabClient::with_base_uri(server.base_uri(), None).unwrap();
+        OctocrabClient::with_base_uri(base_uri(&server), None).unwrap();
 
     let error = client.repository("owner", "repo").await.unwrap_err();
     assert!(
@@ -256,15 +250,14 @@ async fn a_redirect_response_is_not_followed() {
 async fn the_configured_token_reaches_the_outbound_request() {
     let server = MockServer::start();
     server.route(
-        "GET",
-        "/repos/owner/repo",
+        RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {
             status: 200,
             body: repository_json("owner", "repo", None),
         },
     );
     let client = OctocrabClient::with_base_uri(
-        server.base_uri(),
+        base_uri(&server),
         Some("secret-token".to_owned()),
     )
     .unwrap();
@@ -272,7 +265,10 @@ async fn the_configured_token_reaches_the_outbound_request() {
     client.repository("owner", "repo").await.unwrap();
 
     assert_eq!(
-        server.last_authorization(),
+        server.last_header(
+            &RequestKey::get("/repos/owner/repo"),
+            "authorization"
+        ),
         Some("Bearer secret-token".to_owned())
     );
 }

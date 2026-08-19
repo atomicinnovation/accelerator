@@ -40,6 +40,7 @@ pub enum RunOutcome {
     Failed(String),
     PushNotAvailable(String),
     PushUnrecognised(String),
+    PushUnconfigured(String),
     PushRetryable(String),
     PushTerminal(String),
 }
@@ -132,6 +133,7 @@ enum TryRunError {
     Generic(String),
     NotAvailable(String),
     Unrecognised(String),
+    Unconfigured(String),
     Retryable(String),
     Terminal(String),
 }
@@ -202,6 +204,9 @@ fn push_update(
             .map_err(|error| match error {
                 SelectionError::NotAvailable { .. } => {
                     TryRunError::NotAvailable(error.message())
+                }
+                SelectionError::Unconfigured { .. } => {
+                    TryRunError::Unconfigured(error.message())
                 }
                 SelectionError::Unset | SelectionError::Unrecognised { .. } => {
                     TryRunError::Unrecognised(error.message())
@@ -367,6 +372,9 @@ pub fn run(
         }
         Err(TryRunError::Unrecognised(message)) => {
             RunOutcome::PushUnrecognised(message)
+        }
+        Err(TryRunError::Unconfigured(message)) => {
+            RunOutcome::PushUnconfigured(message)
         }
         Err(TryRunError::Retryable(message)) => {
             RunOutcome::PushRetryable(message)

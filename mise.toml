@@ -342,7 +342,7 @@ depends = ["deps:install:python", "deps:install:pup", "build:frontend:stub"]
 run = "invoke test.integration.pup"
 
 [tasks."test:integration:tracker-contract"]
-description = "Run the RemoteTracker contract harness against a fake (filtered out of test:unit:cli by cli/.config/nextest.toml)"
+description = "Run the RemoteTracker contract harness against a live tracker (opt-in: needs credentials, so it is out of the test:integration roll-up and out of default; filtered out of test:unit:cli by cli/.config/nextest.toml)"
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
 run = "invoke test.integration.tracker-contract"
 
@@ -386,7 +386,6 @@ depends = [
     "test:integration:github",
     "test:integration:work",
     "test:integration:integrations",
-    "test:integration:tracker-contract",
 ]
 
 [tasks."test:e2e:visualiser"]

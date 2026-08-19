@@ -1,0 +1,2 @@
+exit=41
+E_ADF_UNSUPPORTED_BLOCKQUOTE: blockquote is not supported

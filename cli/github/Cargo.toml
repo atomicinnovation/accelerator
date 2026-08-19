@@ -18,3 +18,4 @@ http = "1"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+http-test-support = { path = "../http-test-support" }

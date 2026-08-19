@@ -57,7 +57,7 @@ fn every_bash_dispatch_code_matches_its_rust_constant() -> Result<(), TestError>
 
     assert_eq!(
         bash.len(),
-        4,
+        5,
         "a dispatch code was added or removed in bash without a matching \
          update here"
     );

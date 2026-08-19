@@ -1,0 +1,369 @@
+pub mod tracker_support
+pub mod tracker_support::credentials
+pub enum tracker_support::credentials::CredentialError
+pub tracker_support::credentials::CredentialError::ConfigUnreadable
+pub tracker_support::credentials::CredentialError::ConfigUnreadable::detail: alloc::string::String
+pub tracker_support::credentials::CredentialError::ConfigUnreadable::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::LocalPermsInsecure
+pub tracker_support::credentials::CredentialError::LocalPermsInsecure::mode: u32
+pub tracker_support::credentials::CredentialError::LocalPermsInsecure::path: std::path::PathBuf
+pub tracker_support::credentials::CredentialError::MalformedToken
+pub tracker_support::credentials::CredentialError::MalformedToken::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::NoToken
+pub tracker_support::credentials::CredentialError::NoToken::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::TokenCmdFailed
+pub tracker_support::credentials::CredentialError::TokenCmdFailed::detail: alloc::string::String
+pub tracker_support::credentials::CredentialError::TokenCmdFailed::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::TokenCmdFromSharedConfig
+pub tracker_support::credentials::CredentialError::TokenCmdFromSharedConfig::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::TokenCmdFromTrackedFile
+pub tracker_support::credentials::CredentialError::TokenCmdFromTrackedFile::key: alloc::string::String
+pub tracker_support::credentials::CredentialError::TokenCmdFromTrackedFile::path: std::path::PathBuf
+pub tracker_support::credentials::CredentialError::TokenCmdTimedOut
+pub tracker_support::credentials::CredentialError::TokenCmdTimedOut::after: core::time::Duration
+pub tracker_support::credentials::CredentialError::TokenCmdTimedOut::key: alloc::string::String
+impl core::clone::Clone for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::clone(&self) -> tracker_support::credentials::CredentialError
+impl core::cmp::Eq for tracker_support::credentials::CredentialError
+impl core::cmp::PartialEq for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::eq(&self, other: &tracker_support::credentials::CredentialError) -> bool
+impl core::error::Error for tracker_support::credentials::CredentialError
+impl core::fmt::Debug for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::CredentialError
+pub enum tracker_support::credentials::TokenSource
+pub tracker_support::credentials::TokenSource::Env
+pub tracker_support::credentials::TokenSource::EnvCommand
+pub tracker_support::credentials::TokenSource::Personal
+pub tracker_support::credentials::TokenSource::PersonalCommand
+pub tracker_support::credentials::TokenSource::Shared
+impl core::clone::Clone for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::clone(&self) -> tracker_support::credentials::TokenSource
+impl core::cmp::Eq for tracker_support::credentials::TokenSource
+impl core::cmp::PartialEq for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::eq(&self, other: &tracker_support::credentials::TokenSource) -> bool
+impl core::fmt::Debug for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::credentials::TokenSource
+impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenSource
+pub struct tracker_support::credentials::CommandPolicy
+pub tracker_support::credentials::CommandPolicy::max_output_bytes: usize
+pub tracker_support::credentials::CommandPolicy::timeout: core::time::Duration
+pub tracker_support::credentials::CommandPolicy::working_directory: std::path::PathBuf
+impl tracker_support::credentials::CommandPolicy
+pub const fn tracker_support::credentials::CommandPolicy::rooted_at(working_directory: std::path::PathBuf) -> Self
+impl core::clone::Clone for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::clone(&self) -> tracker_support::credentials::CommandPolicy
+impl core::cmp::Eq for tracker_support::credentials::CommandPolicy
+impl core::cmp::PartialEq for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::eq(&self, other: &tracker_support::credentials::CommandPolicy) -> bool
+impl core::fmt::Debug for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::CommandPolicy
+pub struct tracker_support::credentials::CredentialContext<'a>
+pub tracker_support::credentials::CredentialContext::command: tracker_support::credentials::CommandPolicy
+pub tracker_support::credentials::CredentialContext::config: &'a dyn config::service::ConfigAccess
+pub tracker_support::credentials::CredentialContext::environment: &'a dyn tracker_support::credentials::Environment
+pub tracker_support::credentials::CredentialContext::insecure_marker: std::path::PathBuf
+pub tracker_support::credentials::CredentialContext::personal_config: std::path::PathBuf
+pub tracker_support::credentials::CredentialContext::provenance: &'a dyn tracker_support::credentials::Provenance
+pub struct tracker_support::credentials::ResolvedToken
+pub tracker_support::credentials::ResolvedToken::source: tracker_support::credentials::TokenSource
+pub tracker_support::credentials::ResolvedToken::value: tracker_support::credentials::Secret
+impl core::clone::Clone for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::clone(&self) -> tracker_support::credentials::ResolvedToken
+impl core::cmp::Eq for tracker_support::credentials::ResolvedToken
+impl core::cmp::PartialEq for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::eq(&self, other: &tracker_support::credentials::ResolvedToken) -> bool
+impl core::fmt::Debug for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::ResolvedToken
+pub struct tracker_support::credentials::Secret(_)
+impl tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::expose(&self) -> &str
+pub const fn tracker_support::credentials::Secret::new(value: alloc::string::String) -> Self
+impl core::clone::Clone for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::clone(&self) -> tracker_support::credentials::Secret
+impl core::cmp::Eq for tracker_support::credentials::Secret
+impl core::cmp::PartialEq for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::eq(&self, other: &tracker_support::credentials::Secret) -> bool
+impl core::fmt::Debug for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::Secret
+pub struct tracker_support::credentials::SystemEnvironment
+impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
+pub fn tracker_support::credentials::SystemEnvironment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub struct tracker_support::credentials::TokenKeys
+pub tracker_support::credentials::TokenKeys::command: config::key::Key
+pub tracker_support::credentials::TokenKeys::env: &'static str
+pub tracker_support::credentials::TokenKeys::env_command: &'static str
+pub tracker_support::credentials::TokenKeys::value: config::key::Key
+impl core::clone::Clone for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::clone(&self) -> tracker_support::credentials::TokenKeys
+impl core::cmp::Eq for tracker_support::credentials::TokenKeys
+impl core::cmp::PartialEq for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::eq(&self, other: &tracker_support::credentials::TokenKeys) -> bool
+impl core::fmt::Debug for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenKeys
+pub trait tracker_support::credentials::Environment
+pub fn tracker_support::credentials::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
+pub fn tracker_support::credentials::SystemEnvironment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub trait tracker_support::credentials::Provenance
+pub fn tracker_support::credentials::Provenance::is_tracked(&self, path: &std::path::Path) -> bool
+pub fn tracker_support::credentials::refuse_tracked_source(provenance: &dyn tracker_support::credentials::Provenance, path: &std::path::Path, key: &str) -> core::result::Result<(), tracker_support::credentials::CredentialError>
+pub fn tracker_support::credentials::resolve_token(context: &tracker_support::credentials::CredentialContext<'_>, keys: &tracker_support::credentials::TokenKeys) -> core::result::Result<tracker_support::credentials::ResolvedToken, tracker_support::credentials::CredentialError>
+pub mod tracker_support::identifier
+pub enum tracker_support::identifier::IdentifierRefusal
+pub tracker_support::identifier::IdentifierRefusal::CommentTrigger
+pub tracker_support::identifier::IdentifierRefusal::ControlCharacter
+pub tracker_support::identifier::IdentifierRefusal::DocumentSeparator
+pub tracker_support::identifier::IdentifierRefusal::Empty
+impl core::clone::Clone for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::clone(&self) -> tracker_support::identifier::IdentifierRefusal
+impl core::cmp::Eq for tracker_support::identifier::IdentifierRefusal
+impl core::cmp::PartialEq for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::eq(&self, other: &tracker_support::identifier::IdentifierRefusal) -> bool
+impl core::error::Error for tracker_support::identifier::IdentifierRefusal
+impl core::fmt::Debug for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::identifier::IdentifierRefusal
+impl core::marker::StructuralPartialEq for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::identifier_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
+pub mod tracker_support::mime
+pub const tracker_support::mime::OCTET_STREAM: &str
+pub fn tracker_support::mime::sniff(sample: &[u8]) -> &'static str
+pub mod tracker_support::retry
+pub struct tracker_support::retry::ClockJitter
+impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
+pub fn tracker_support::retry::ClockJitter::offset(&mut self, spread: u64) -> i64
+pub struct tracker_support::retry::RetryPolicy
+pub tracker_support::retry::RetryPolicy::max_attempts: usize
+impl tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::delay_for(&self, attempt: usize, retry_after: core::option::Option<core::time::Duration>, jitter: &mut dyn tracker_support::retry::Jitter) -> core::option::Option<core::time::Duration>
+impl core::clone::Clone for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::clone(&self) -> tracker_support::retry::RetryPolicy
+impl core::cmp::Eq for tracker_support::retry::RetryPolicy
+impl core::cmp::PartialEq for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::eq(&self, other: &tracker_support::retry::RetryPolicy) -> bool
+impl core::default::Default for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::default() -> Self
+impl core::fmt::Debug for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::retry::RetryPolicy
+impl core::marker::StructuralPartialEq for tracker_support::retry::RetryPolicy
+pub struct tracker_support::retry::SystemSleeper
+impl tracker_support::retry::Sleeper for tracker_support::retry::SystemSleeper
+pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::time::Duration)
+pub trait tracker_support::retry::Jitter
+pub fn tracker_support::retry::Jitter::offset(&mut self, spread: u64) -> i64
+impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
+pub fn tracker_support::retry::ClockJitter::offset(&mut self, spread: u64) -> i64
+pub trait tracker_support::retry::Sleeper
+pub fn tracker_support::retry::Sleeper::sleep(&mut self, duration: core::time::Duration)
+impl tracker_support::retry::Sleeper for tracker_support::retry::SystemSleeper
+pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::time::Duration)
+pub mod tracker_support::transport
+pub struct tracker_support::transport::TransportConfig
+pub tracker_support::transport::TransportConfig::deadline: core::time::Duration
+pub tracker_support::transport::TransportConfig::max_pages: usize
+pub tracker_support::transport::TransportConfig::max_response_bytes: usize
+pub tracker_support::transport::TransportConfig::timeout: core::time::Duration
+impl core::clone::Clone for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::clone(&self) -> tracker_support::transport::TransportConfig
+impl core::cmp::Eq for tracker_support::transport::TransportConfig
+impl core::cmp::PartialEq for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::eq(&self, other: &tracker_support::transport::TransportConfig) -> bool
+impl core::default::Default for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::default() -> Self
+impl core::fmt::Debug for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::transport::TransportConfig
+impl core::marker::StructuralPartialEq for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::port_body(projection: &str) -> alloc::string::String
+pub enum tracker_support::CredentialError
+pub tracker_support::CredentialError::ConfigUnreadable
+pub tracker_support::CredentialError::ConfigUnreadable::detail: alloc::string::String
+pub tracker_support::CredentialError::ConfigUnreadable::key: alloc::string::String
+pub tracker_support::CredentialError::LocalPermsInsecure
+pub tracker_support::CredentialError::LocalPermsInsecure::mode: u32
+pub tracker_support::CredentialError::LocalPermsInsecure::path: std::path::PathBuf
+pub tracker_support::CredentialError::MalformedToken
+pub tracker_support::CredentialError::MalformedToken::key: alloc::string::String
+pub tracker_support::CredentialError::NoToken
+pub tracker_support::CredentialError::NoToken::key: alloc::string::String
+pub tracker_support::CredentialError::TokenCmdFailed
+pub tracker_support::CredentialError::TokenCmdFailed::detail: alloc::string::String
+pub tracker_support::CredentialError::TokenCmdFailed::key: alloc::string::String
+pub tracker_support::CredentialError::TokenCmdFromSharedConfig
+pub tracker_support::CredentialError::TokenCmdFromSharedConfig::key: alloc::string::String
+pub tracker_support::CredentialError::TokenCmdFromTrackedFile
+pub tracker_support::CredentialError::TokenCmdFromTrackedFile::key: alloc::string::String
+pub tracker_support::CredentialError::TokenCmdFromTrackedFile::path: std::path::PathBuf
+pub tracker_support::CredentialError::TokenCmdTimedOut
+pub tracker_support::CredentialError::TokenCmdTimedOut::after: core::time::Duration
+pub tracker_support::CredentialError::TokenCmdTimedOut::key: alloc::string::String
+impl core::clone::Clone for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::clone(&self) -> tracker_support::credentials::CredentialError
+impl core::cmp::Eq for tracker_support::credentials::CredentialError
+impl core::cmp::PartialEq for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::eq(&self, other: &tracker_support::credentials::CredentialError) -> bool
+impl core::error::Error for tracker_support::credentials::CredentialError
+impl core::fmt::Debug for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker_support::credentials::CredentialError
+pub fn tracker_support::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::CredentialError
+pub enum tracker_support::IdentifierRefusal
+pub tracker_support::IdentifierRefusal::CommentTrigger
+pub tracker_support::IdentifierRefusal::ControlCharacter
+pub tracker_support::IdentifierRefusal::DocumentSeparator
+pub tracker_support::IdentifierRefusal::Empty
+impl core::clone::Clone for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::clone(&self) -> tracker_support::identifier::IdentifierRefusal
+impl core::cmp::Eq for tracker_support::identifier::IdentifierRefusal
+impl core::cmp::PartialEq for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::eq(&self, other: &tracker_support::identifier::IdentifierRefusal) -> bool
+impl core::error::Error for tracker_support::identifier::IdentifierRefusal
+impl core::fmt::Debug for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker_support::identifier::IdentifierRefusal
+pub fn tracker_support::identifier::IdentifierRefusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::identifier::IdentifierRefusal
+impl core::marker::StructuralPartialEq for tracker_support::identifier::IdentifierRefusal
+pub enum tracker_support::TokenSource
+pub tracker_support::TokenSource::Env
+pub tracker_support::TokenSource::EnvCommand
+pub tracker_support::TokenSource::Personal
+pub tracker_support::TokenSource::PersonalCommand
+pub tracker_support::TokenSource::Shared
+impl core::clone::Clone for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::clone(&self) -> tracker_support::credentials::TokenSource
+impl core::cmp::Eq for tracker_support::credentials::TokenSource
+impl core::cmp::PartialEq for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::eq(&self, other: &tracker_support::credentials::TokenSource) -> bool
+impl core::fmt::Debug for tracker_support::credentials::TokenSource
+pub fn tracker_support::credentials::TokenSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::credentials::TokenSource
+impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenSource
+pub struct tracker_support::ClockJitter
+impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
+pub fn tracker_support::retry::ClockJitter::offset(&mut self, spread: u64) -> i64
+pub struct tracker_support::CommandPolicy
+pub tracker_support::CommandPolicy::max_output_bytes: usize
+pub tracker_support::CommandPolicy::timeout: core::time::Duration
+pub tracker_support::CommandPolicy::working_directory: std::path::PathBuf
+impl tracker_support::credentials::CommandPolicy
+pub const fn tracker_support::credentials::CommandPolicy::rooted_at(working_directory: std::path::PathBuf) -> Self
+impl core::clone::Clone for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::clone(&self) -> tracker_support::credentials::CommandPolicy
+impl core::cmp::Eq for tracker_support::credentials::CommandPolicy
+impl core::cmp::PartialEq for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::eq(&self, other: &tracker_support::credentials::CommandPolicy) -> bool
+impl core::fmt::Debug for tracker_support::credentials::CommandPolicy
+pub fn tracker_support::credentials::CommandPolicy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::CommandPolicy
+pub struct tracker_support::CredentialContext<'a>
+pub tracker_support::CredentialContext::command: tracker_support::credentials::CommandPolicy
+pub tracker_support::CredentialContext::config: &'a dyn config::service::ConfigAccess
+pub tracker_support::CredentialContext::environment: &'a dyn tracker_support::credentials::Environment
+pub tracker_support::CredentialContext::insecure_marker: std::path::PathBuf
+pub tracker_support::CredentialContext::personal_config: std::path::PathBuf
+pub tracker_support::CredentialContext::provenance: &'a dyn tracker_support::credentials::Provenance
+pub struct tracker_support::ResolvedToken
+pub tracker_support::ResolvedToken::source: tracker_support::credentials::TokenSource
+pub tracker_support::ResolvedToken::value: tracker_support::credentials::Secret
+impl core::clone::Clone for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::clone(&self) -> tracker_support::credentials::ResolvedToken
+impl core::cmp::Eq for tracker_support::credentials::ResolvedToken
+impl core::cmp::PartialEq for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::eq(&self, other: &tracker_support::credentials::ResolvedToken) -> bool
+impl core::fmt::Debug for tracker_support::credentials::ResolvedToken
+pub fn tracker_support::credentials::ResolvedToken::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::ResolvedToken
+pub struct tracker_support::RetryPolicy
+pub tracker_support::RetryPolicy::max_attempts: usize
+impl tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::delay_for(&self, attempt: usize, retry_after: core::option::Option<core::time::Duration>, jitter: &mut dyn tracker_support::retry::Jitter) -> core::option::Option<core::time::Duration>
+impl core::clone::Clone for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::clone(&self) -> tracker_support::retry::RetryPolicy
+impl core::cmp::Eq for tracker_support::retry::RetryPolicy
+impl core::cmp::PartialEq for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::eq(&self, other: &tracker_support::retry::RetryPolicy) -> bool
+impl core::default::Default for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::default() -> Self
+impl core::fmt::Debug for tracker_support::retry::RetryPolicy
+pub fn tracker_support::retry::RetryPolicy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::retry::RetryPolicy
+impl core::marker::StructuralPartialEq for tracker_support::retry::RetryPolicy
+pub struct tracker_support::Secret(_)
+impl tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::expose(&self) -> &str
+pub const fn tracker_support::credentials::Secret::new(value: alloc::string::String) -> Self
+impl core::clone::Clone for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::clone(&self) -> tracker_support::credentials::Secret
+impl core::cmp::Eq for tracker_support::credentials::Secret
+impl core::cmp::PartialEq for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::eq(&self, other: &tracker_support::credentials::Secret) -> bool
+impl core::fmt::Debug for tracker_support::credentials::Secret
+pub fn tracker_support::credentials::Secret::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::Secret
+pub struct tracker_support::SystemEnvironment
+impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
+pub fn tracker_support::credentials::SystemEnvironment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub struct tracker_support::SystemSleeper
+impl tracker_support::retry::Sleeper for tracker_support::retry::SystemSleeper
+pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::time::Duration)
+pub struct tracker_support::TokenKeys
+pub tracker_support::TokenKeys::command: config::key::Key
+pub tracker_support::TokenKeys::env: &'static str
+pub tracker_support::TokenKeys::env_command: &'static str
+pub tracker_support::TokenKeys::value: config::key::Key
+impl core::clone::Clone for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::clone(&self) -> tracker_support::credentials::TokenKeys
+impl core::cmp::Eq for tracker_support::credentials::TokenKeys
+impl core::cmp::PartialEq for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::eq(&self, other: &tracker_support::credentials::TokenKeys) -> bool
+impl core::fmt::Debug for tracker_support::credentials::TokenKeys
+pub fn tracker_support::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenKeys
+pub struct tracker_support::TransportConfig
+pub tracker_support::TransportConfig::deadline: core::time::Duration
+pub tracker_support::TransportConfig::max_pages: usize
+pub tracker_support::TransportConfig::max_response_bytes: usize
+pub tracker_support::TransportConfig::timeout: core::time::Duration
+impl core::clone::Clone for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::clone(&self) -> tracker_support::transport::TransportConfig
+impl core::cmp::Eq for tracker_support::transport::TransportConfig
+impl core::cmp::PartialEq for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::eq(&self, other: &tracker_support::transport::TransportConfig) -> bool
+impl core::default::Default for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::default() -> Self
+impl core::fmt::Debug for tracker_support::transport::TransportConfig
+pub fn tracker_support::transport::TransportConfig::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::transport::TransportConfig
+impl core::marker::StructuralPartialEq for tracker_support::transport::TransportConfig
+pub trait tracker_support::Environment
+pub fn tracker_support::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
+pub fn tracker_support::credentials::SystemEnvironment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub trait tracker_support::Jitter
+pub fn tracker_support::Jitter::offset(&mut self, spread: u64) -> i64
+impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
+pub fn tracker_support::retry::ClockJitter::offset(&mut self, spread: u64) -> i64
+pub trait tracker_support::Provenance
+pub fn tracker_support::Provenance::is_tracked(&self, path: &std::path::Path) -> bool
+pub trait tracker_support::Sleeper
+pub fn tracker_support::Sleeper::sleep(&mut self, duration: core::time::Duration)
+impl tracker_support::retry::Sleeper for tracker_support::retry::SystemSleeper
+pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::time::Duration)
+pub fn tracker_support::identifier_is_safe(candidate: &str) -> core::result::Result<(), tracker_support::identifier::IdentifierRefusal>
+pub fn tracker_support::port_body(projection: &str) -> alloc::string::String
+pub fn tracker_support::refuse_tracked_source(provenance: &dyn tracker_support::credentials::Provenance, path: &std::path::Path, key: &str) -> core::result::Result<(), tracker_support::credentials::CredentialError>
+pub fn tracker_support::resolve_token(context: &tracker_support::credentials::CredentialContext<'_>, keys: &tracker_support::credentials::TokenKeys) -> core::result::Result<tracker_support::credentials::ResolvedToken, tracker_support::credentials::CredentialError>
+pub fn tracker_support::sniff(sample: &[u8]) -> &'static str

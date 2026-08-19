@@ -31,6 +31,23 @@ pub trait ContractSubject {
 
     /// An id whose `show` this implementation will fail.
     fn unreadable_id(&self) -> ExternalId;
+
+    /// Whether [`unaccountable_id`] is actually reported `indeterminate` by
+    /// this subject.
+    ///
+    /// An implementation whose only indeterminate path is a failed retrieval —
+    /// a transport or server failure a live tenant will not produce for a
+    /// benign id, reproducible only by a mock — declares `false`. The
+    /// nominate-an-indeterminate-id conformance is then skipped for it, because
+    /// no id it can name would satisfy the property; the property stays
+    /// enforced against such an implementation offline, where a mock forces the
+    /// failure. A subject with a structural indeterminate path (an id outside a
+    /// scope it cannot see past) keeps the default.
+    ///
+    /// [`unaccountable_id`]: ContractSubject::unaccountable_id
+    fn can_nominate_indeterminate(&self) -> bool {
+        true
+    }
 }
 
 /// Every distinct id in `requested` appears in exactly one of `outcome`'s
@@ -68,9 +85,24 @@ pub fn create_then_show_round_trips(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    create_then_show_round_trips_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+///
+/// The empty `kind` is the port's "tracker's configured default": a live tenant
+/// has no issue type named after a fixed literal, and a hardcoded one is
+/// case-sensitively rejected by real Jira. Empty resolves to each provider's
+/// own default (Jira's `Task`; Linear ignores kind).
+pub fn create_then_show_round_trips_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let created = tracker
-        .create("Contract title", "Contract body\n", "story")
+        .create("Contract title", "Contract body\n", "")
         .expect("create must succeed for a conformant implementation");
     let issue = tracker
         .show(&created)
@@ -79,7 +111,6 @@ pub fn create_then_show_round_trips(
         !issue.body.is_empty(),
         "a freshly created issue must project a non-empty body"
     );
-    Ok(())
 }
 
 /// # Errors
@@ -89,9 +120,19 @@ pub fn update_replaces_whole_content(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    update_replaces_whole_content_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn update_replaces_whole_content_property(subject: &dyn ContractSubject) {
     let tracker = subject.tracker();
     let id = tracker
-        .create("Original title", "Original body\n", "story")
+        .create("Original title", "Original body\n", "")
         .expect("create must succeed for a conformant implementation");
     let before = tracker
         .show(&id)
@@ -107,7 +148,6 @@ pub fn update_replaces_whole_content(
         .body;
 
     assert_ne!(before, after, "update must replace the issue's content");
-    Ok(())
 }
 
 /// # Errors
@@ -118,12 +158,22 @@ pub fn fetch_all_partitions_totally(
     ids: &[ExternalId],
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    fetch_all_partitions_totally_property(subject, ids);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// See [`create_then_show_round_trips_property`].
+pub fn fetch_all_partitions_totally_property(
+    subject: &dyn ContractSubject,
+    ids: &[ExternalId],
+) {
     let outcome = subject
         .tracker()
         .fetch_all(ids)
         .expect("fetch_all must succeed for a conformant implementation");
     partitions_totally(&outcome, ids);
-    Ok(())
 }
 
 /// Inferring absence from an incomplete retrieval is what makes a sync
@@ -136,6 +186,18 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    unaccounted_id_is_indeterminate_not_absent_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn unaccounted_id_is_indeterminate_not_absent_property(
+    subject: &dyn ContractSubject,
+) {
     let unseen = subject.unaccountable_id();
     let outcome = subject
         .tracker()
@@ -149,7 +211,6 @@ pub fn unaccounted_id_is_indeterminate_not_absent(
         outcome.indeterminate.contains(&unseen),
         "an id the retrieval could not account for must be reported indeterminate"
     );
-    Ok(())
 }
 
 /// A read mutates nothing, so the terminal class — "a mutation may have
@@ -162,6 +223,16 @@ pub fn a_failing_read_is_retryable(
     subject: &dyn ContractSubject,
 ) -> Result<(), ContractGateError> {
     ensure_opted_in()?;
+    a_failing_read_is_retryable_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
     let id = subject.unreadable_id();
     let error = subject
         .tracker()
@@ -171,7 +242,6 @@ pub fn a_failing_read_is_retryable(
         !matches!(error, TrackerError::Terminal { .. }),
         "a read must never be classified terminal"
     );
-    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -236,6 +306,66 @@ pub fn run_all(
     Ok(3)
 }
 
+/// Run the full conformance set against a live subject, timing each property,
+/// and return the reduced records a contract run commits as evidence.
+///
+/// A property that fails panics through this rather than returning `FAIL`, so
+/// evidence is only ever produced for a passing run — you do not commit a
+/// record of a run that did not conform. The gate is checked once up front.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn timed_conformance(
+    subject: &dyn ContractSubject,
+    ids: &[ExternalId],
+) -> Result<Vec<crate::evidence::EvidenceRecord>, ContractGateError> {
+    ensure_opted_in()?;
+
+    let mut records = Vec::new();
+    let run = |name: &str,
+               count: usize,
+               property: &dyn Fn()|
+     -> crate::evidence::EvidenceRecord {
+        let started = std::time::Instant::now();
+        property();
+        crate::evidence::EvidenceRecord {
+            name: name.to_owned(),
+            passed: true,
+            count,
+            duration: started.elapsed(),
+        }
+    };
+
+    records.push(run("create_then_show_round_trips", 1, &|| {
+        create_then_show_round_trips_property(subject);
+    }));
+    records.push(run("update_replaces_whole_content", 1, &|| {
+        update_replaces_whole_content_property(subject);
+    }));
+    records.push(run(
+        "fetch_all_partitions_totally",
+        ids.len().max(1),
+        &|| {
+            fetch_all_partitions_totally_property(subject, ids);
+        },
+    ));
+    if subject.can_nominate_indeterminate() {
+        records.push(run(
+            "unaccounted_id_is_indeterminate_not_absent",
+            1,
+            &|| {
+                unaccounted_id_is_indeterminate_not_absent_property(subject);
+            },
+        ));
+    }
+    records.push(run("a_failing_read_is_retryable", 1, &|| {
+        a_failing_read_is_retryable_property(subject);
+    }));
+
+    Ok(records)
+}
+
 #[cfg(test)]
 mod tests {
     use super::opted_in;
@@ -262,6 +392,9 @@ mod tests {
             }),
             ("a_failing_read_is_retryable", |subject| {
                 super::a_failing_read_is_retryable(subject)
+            }),
+            ("timed_conformance", |subject| {
+                super::timed_conformance(subject, &[]).map(|_| ())
             }),
         ]
     }

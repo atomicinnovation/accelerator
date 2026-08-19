@@ -12,7 +12,7 @@ set -euo pipefail
 #
 #   --code N         the exit code returned by work-item-create-remote.sh
 #                    (0 success; 70 retryable; 71 terminal; 72 not-available;
-#                    73 unrecognised).
+#                    73 unrecognised; 74 unconfigured).
 #   --attempt N      which push attempt produced --code (1 = first, 2 = the one
 #                    retry). Retry is offered ONLY after the first attempt.
 #   --write-failed   set when the dispatcher returned 0 but the single local
@@ -24,7 +24,8 @@ set -euo pipefail
 #   write-once     substitute the returned identifier into external_id and Write once
 #   retry          offer one retry (re-enters this decision with --attempt 2)
 #   local-save     save locally without external_id (retry exhausted / not-available
-#                  / unrecognised) — informational message rendered by the caller
+#                  / unrecognised / unconfigured) — informational message rendered
+#                  by the caller
 #   loud-terminal  save locally without external_id AND print loud non-idempotent
 #                  guidance — a remote issue may already exist; do NOT re-run blindly
 #
@@ -98,7 +99,7 @@ _wpd_main() {
     "$E_DISPATCH_TERMINAL")
       printf 'loud-terminal\n'
       ;;
-    "$E_DISPATCH_NOT_AVAILABLE" | "$E_DISPATCH_UNRECOGNISED")
+    "$E_DISPATCH_NOT_AVAILABLE" | "$E_DISPATCH_UNRECOGNISED" | "$E_DISPATCH_UNCONFIGURED")
       printf 'local-save\n'
       ;;
     *)

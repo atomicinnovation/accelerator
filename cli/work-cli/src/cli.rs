@@ -82,9 +82,10 @@ pub enum Command {
     /// error; 5 refused (would exceed --max-pulls/--max-pushes, zero
     /// writes); 72 the configured tracker is recognised but has no client
     /// built yet; 73 work.integration is unset or names an unrecognised
-    /// tracker. The report on stdout is authoritative: check it for
-    /// `unresolved` lines regardless of exit code, since a 71 run may
-    /// also carry conflicts.
+    /// tracker; 74 the configured tracker is wired but its configuration or
+    /// credentials are missing (nothing was sent). The report on stdout is
+    /// authoritative: check it for `unresolved` lines regardless of exit
+    /// code, since a 71 run may also carry conflicts.
     Sync(Box<SyncArgs>),
 }
 

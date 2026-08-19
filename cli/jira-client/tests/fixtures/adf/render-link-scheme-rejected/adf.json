@@ -1,0 +1,83 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "js",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "javascript:alert(1)"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "data",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "data:text/html,x"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "relative",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "/rest/api/3/x"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "fragment",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "#anchor"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "protocol-relative",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "//example.com"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "mailto",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "MAILTO:a@b.c"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

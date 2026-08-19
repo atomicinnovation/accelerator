@@ -144,6 +144,142 @@
                 ),
             ],
         )),
+        // remote-projection is pure JSON field extraction shared by the sync
+        // engine and both provider clients: no process spawning, no
+        // transport. Expressed as `denied` for the grouped-import reason
+        // recorded on the config-command rule below.
+        Module((
+            name: "remote_projection_extracts_json_only",
+            matches: Module("^remote_projection($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // tracker-support carries the policy both provider clients share —
+        // credentials, retry schedule, identifier safety, transport bounds.
+        // It runs the credential helper, so std::process is deliberately
+        // permitted; what it must never grow is a transport of its own,
+        // which is what would let provider specifics follow.
+        Module((
+            name: "tracker_support_carries_policy_not_transport",
+            matches: Module("^tracker_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                        "^jira_client(::|$)",
+                        "^linear_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // jira-client is the only place Jira request construction lives, and
+        // it must not reach up into the work domain or across to the other
+        // provider. `denied` rather than `allowed_only` because cargo-pup
+        // resolves a grouped `use a::{b, c}` to an empty module name, which a
+        // permit list would reject — forcing one single-item `use` per line
+        // through the whole crate.
+        Module((
+            name: "jira_client_is_the_only_jira_transport",
+            matches: Module("^jira_client($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^work(::|$)",
+                        "^work_adapters(::|$)",
+                        "^linear_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // jira-client's transport and discovery modules must stay off the
+        // filesystem: the atomic writes and the advisory lock are composition
+        // concerns confined to the cache module, so a std::fs import in either
+        // would be a second, unlocked write path beside the one that holds the
+        // shared .lock the bash init also mkdir's.
+        Module((
+            name: "jira_client_io_lives_in_cache",
+            matches: Module("^jira_client::(transport|discovery)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::fs(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // linear-client is the mirror of the jira-client rule: the only place
+        // Linear request construction lives, and it may reach neither the work
+        // domain nor the sibling provider.
+        Module((
+            name: "linear_client_is_the_only_linear_transport",
+            matches: Module("^linear_client($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^work(::|$)",
+                        "^work_adapters(::|$)",
+                        "^jira_client(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // The Linear mirror of jira_client_io_lives_in_cache: the transport,
+        // upload and discovery modules must stay off the filesystem, so the
+        // atomic writes and the advisory lock live only in the cache module and
+        // there is no second, unlocked write path beside the one holding the
+        // shared .lock the bash init also mkdir's.
+        Module((
+            name: "linear_client_io_lives_in_cache",
+            matches: Module("^linear_client::(transport|upload|discovery)($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::fs(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // http-test-support's whole value is being std-only: it must stall a
+        // connection and drop one mid-body, which no HTTP client library
+        // exposes. Expressed as a `denied` list rather than `allowed_only`
+        // because cargo-pup resolves a grouped `use std::io::{a, b}` to an
+        // empty module name, which an `allowed_only` rule would reject.
+        Module((
+            name: "http_test_support_is_std_only",
+            matches: Module("^http_test_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // Isolates work-adapters' pure-read filesystem module from the
         // subprocess-spawning modules a later phase adds (diff_shellout,
         // author) — same shape as vcs_adapters_library_reads_in_process

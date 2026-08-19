@@ -28,3 +28,4 @@ http = "1"
 
 [dev-dependencies]
 tempfile = { workspace = true }
+http-test-support = { path = "../http-test-support" }

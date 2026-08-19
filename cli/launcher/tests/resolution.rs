@@ -4,14 +4,12 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-mod common;
-
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use common::{MockServer, Route};
+use http_test_support::{MockServer, RequestKey, Route};
 use tempfile::TempDir;
 
 use accelerator::launch::core::{
@@ -233,9 +231,27 @@ fn happy_harness() -> Option<Harness> {
         sign(&minisign, &trusted_secret, &workdir, manifest.as_bytes());
 
     let server = MockServer::start();
-    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
-    server.route(&asset_path(), Route::Ok(fixture_bytes.clone()));
+    server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: manifest.into_bytes(),
+        },
+    );
+    server.route(
+        RequestKey::get("/manifest.minisig"),
+        Route::Bytes {
+            status: 200,
+            body: manifest_sig.into_bytes(),
+        },
+    );
+    server.route(
+        RequestKey::get(&asset_path()),
+        Route::Bytes {
+            status: 200,
+            body: fixture_bytes.clone(),
+        },
+    );
 
     Some(Harness {
         server,
@@ -282,7 +298,7 @@ fn cache_reuse_does_not_refetch() -> Result<(), Box<dyn Error>> {
     harness.resolve()?;
     harness.resolve()?;
     assert_eq!(
-        harness.server.hits(&asset_path()),
+        harness.server.hits(&RequestKey::get(&asset_path())),
         1,
         "second resolve must reuse the cache, not refetch"
     );
@@ -307,12 +323,20 @@ fn a_checksum_mismatch_is_refused() -> Result<(), Box<dyn Error>> {
         &harness.workdir,
         manifest.as_bytes(),
     );
-    harness
-        .server
-        .route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    harness
-        .server
-        .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    harness.server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: manifest.into_bytes(),
+        },
+    );
+    harness.server.route(
+        RequestKey::get("/manifest.minisig"),
+        Route::Bytes {
+            status: 200,
+            body: manifest_sig.into_bytes(),
+        },
+    );
 
     let error = harness
         .resolve()
@@ -349,12 +373,20 @@ fn a_non_release_key_signature_is_refused() -> Result<(), Box<dyn Error>> {
         &harness.workdir,
         manifest.as_bytes(),
     );
-    harness
-        .server
-        .route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    harness
-        .server
-        .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    harness.server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: manifest.into_bytes(),
+        },
+    );
+    harness.server.route(
+        RequestKey::get("/manifest.minisig"),
+        Route::Bytes {
+            status: 200,
+            body: manifest_sig.into_bytes(),
+        },
+    );
 
     let error = harness
         .resolve()
@@ -371,9 +403,13 @@ fn a_tampered_manifest_signature_is_refused() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
     // Manifest bytes differ from what manifest.minisig signs.
     let tampered = manifest_json(VERSION, &"a".repeat(64), "junk");
-    harness
-        .server
-        .route("/manifest.json", Route::Ok(tampered.into_bytes()));
+    harness.server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: tampered.into_bytes(),
+        },
+    );
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::ManifestSignature)
@@ -398,12 +434,20 @@ fn a_wrong_version_manifest_is_refused() -> Result<(), Box<dyn Error>> {
         &harness.workdir,
         manifest.as_bytes(),
     );
-    harness
-        .server
-        .route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    harness
-        .server
-        .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    harness.server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: manifest.into_bytes(),
+        },
+    );
+    harness.server.route(
+        RequestKey::get("/manifest.minisig"),
+        Route::Bytes {
+            status: 200,
+            body: manifest_sig.into_bytes(),
+        },
+    );
 
     assert!(matches!(
         harness.resolve(),
@@ -438,12 +482,20 @@ fn an_unsupported_higher_schema_is_refused_with_the_schema_error(
         &harness.workdir,
         manifest.as_bytes(),
     );
-    harness
-        .server
-        .route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    harness
-        .server
-        .route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    harness.server.route(
+        RequestKey::get("/manifest.json"),
+        Route::Bytes {
+            status: 200,
+            body: manifest.into_bytes(),
+        },
+    );
+    harness.server.route(
+        RequestKey::get("/manifest.minisig"),
+        Route::Bytes {
+            status: 200,
+            body: manifest_sig.into_bytes(),
+        },
+    );
 
     assert!(matches!(
         harness.resolve(),
@@ -456,7 +508,9 @@ fn an_unsupported_higher_schema_is_refused_with_the_schema_error(
 fn a_missing_release_is_named_and_execs_nothing() -> Result<(), Box<dyn Error>>
 {
     let harness = skip_if_no_minisign!(happy_harness());
-    harness.server.route("/manifest.json", Route::Status(404));
+    harness
+        .server
+        .route(RequestKey::get("/manifest.json"), Route::Status(404));
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::ReleaseUnavailable { .. })
@@ -467,7 +521,9 @@ fn a_missing_release_is_named_and_execs_nothing() -> Result<(), Box<dyn Error>>
 #[test]
 fn a_missing_asset_is_named() -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    harness.server.route(&asset_path(), Route::Status(404));
+    harness
+        .server
+        .route(RequestKey::get(&asset_path()), Route::Status(404));
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::AssetNotFound { .. })
@@ -479,13 +535,19 @@ fn a_missing_asset_is_named() -> Result<(), Box<dyn Error>> {
 fn a_persistent_server_error_gives_up_after_bounded_retries(
 ) -> Result<(), Box<dyn Error>> {
     let harness = skip_if_no_minisign!(happy_harness());
-    harness.server.route("/manifest.json", Route::Status(500));
+    harness
+        .server
+        .route(RequestKey::get("/manifest.json"), Route::Status(500));
     // Exhausted 5xx retries map to Fetch (a 404 would be ReleaseUnavailable).
     assert!(matches!(
         harness.resolve(),
         Err(ResolutionError::Fetch { .. })
     ));
-    assert_eq!(harness.server.hits("/manifest.json"), 3, "bounded retries");
+    assert_eq!(
+        harness.server.hits(&RequestKey::get("/manifest.json")),
+        3,
+        "bounded retries"
+    );
     Ok(())
 }
 
@@ -495,7 +557,7 @@ fn a_transient_5xx_recovers_within_the_retry_budget(
     let harness = skip_if_no_minisign!(happy_harness());
     // Fail the asset fetch twice then succeed; its signature is already inline.
     harness.server.route(
-        &asset_path(),
+        RequestKey::get(&asset_path()),
         Route::FlakyThenOk {
             fail_times: 2,
             body: harness.fixture_bytes.clone(),
@@ -503,7 +565,7 @@ fn a_transient_5xx_recovers_within_the_retry_budget(
     );
     let path = harness.resolve()?;
     assert!(path.exists());
-    assert_eq!(harness.server.hits(&asset_path()), 3);
+    assert_eq!(harness.server.hits(&RequestKey::get(&asset_path())), 3);
     Ok(())
 }
 
@@ -513,8 +575,11 @@ fn a_redirect_to_a_disallowed_host_is_refused() -> Result<(), Box<dyn Error>> {
     // 127.0.0.1 is off the redirect allowlist; the unfollowed 302 is a transport
     // failure (Fetch), not a 404 (ReleaseUnavailable).
     harness.server.route(
-        "/manifest.json",
-        Route::Redirect(format!("{}/elsewhere", harness.server.base_url())),
+        RequestKey::get("/manifest.json"),
+        Route::Redirect {
+            status: 302,
+            location: format!("{}/elsewhere", harness.server.base_url()),
+        },
     );
     assert!(matches!(
         harness.resolve(),
@@ -543,7 +608,7 @@ fn a_poisoned_cache_entry_is_replaced_in_place_and_reexecs(
     assert_eq!(healed, path, "the same cache path is replaced in place");
     assert_eq!(std::fs::read(&healed)?, harness.fixture_bytes, "refetched");
     assert!(
-        harness.server.hits(&asset_path()) >= 2,
+        harness.server.hits(&RequestKey::get(&asset_path())) >= 2,
         "a refetch must have occurred"
     );
     Ok(())
@@ -700,7 +765,7 @@ fn an_unwritable_cache_root_fails_fast_and_correctly_on_a_miss(
         "a failing probe must not be retried inside the resolver"
     );
     assert_eq!(
-        harness.server.hits("/manifest.json"),
+        harness.server.hits(&RequestKey::get("/manifest.json")),
         0,
         "verify_writable must run before any network round trip"
     );

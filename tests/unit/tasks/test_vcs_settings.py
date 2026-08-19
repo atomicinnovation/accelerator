@@ -85,6 +85,17 @@ def test_the_dirty_paths_snapshot_module_is_individually_exempt(
     assert vcs_settings.violations(tmp_path) == []
 
 
+def test_the_tracked_module_is_individually_exempt(tmp_path: Path) -> None:
+    # Reading the working-copy commit's tree needs a loaded repo, which needs
+    # UserSettings — the settings-free op-store route yields only the id.
+    _write(
+        tmp_path,
+        "cli/vcs-adapters/src/library/tracked.rs",
+        "let settings = UserSettings::from_config(config)?;\n",
+    )
+    assert vcs_settings.violations(tmp_path) == []
+
+
 def test_the_exemption_does_not_widen_to_a_sibling_file(tmp_path: Path) -> None:
     _write(
         tmp_path,

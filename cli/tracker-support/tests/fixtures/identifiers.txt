@@ -1,0 +1,33 @@
+# The identifiers both providers accept and refuse, transcribed from
+# _wicr_identifier_safe (work-item-create-remote.sh:62-87).
+#
+# `/`, `#` and `@` are permitted MID-token: GitHub (owner/repo#42) and Trello
+# identifiers legitimately carry them. The refusals are scoped to what breaks
+# an unquoted YAML scalar written back into a work item's frontmatter.
+#
+# Format: <verdict> <TAB> <identifier, with \n \r \t \0 escaped>
+# Verdicts: accept, empty, control, separator, comment
+
+accept	PROJ-123
+accept	ENG-4
+accept	owner/repo#42
+accept	a/b/c
+accept	user@example.com
+accept	5c9f2a1b-0000-4000-8000-000000000001
+accept	ABC-1 with spaces
+accept	trailing-dash-
+accept	--not-a-separator
+accept	ends-with-#
+accept	 leading-space-then-text
+empty
+control	ABC-1\nDEF-2
+control	ABC-1\rDEF-2
+control	ABC-1\tDEF-2
+control	ABC-\0-1
+control	\nleading-newline
+separator	---
+separator	---ABC-1
+separator	--- ABC-1
+comment	#ABC-1
+comment	 #ABC-1
+control	\t#ABC-1

@@ -1,0 +1,23 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "padded",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "   https://example.com/a"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

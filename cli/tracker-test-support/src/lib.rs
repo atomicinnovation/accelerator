@@ -8,6 +8,7 @@
 #![allow(clippy::expect_used, clippy::missing_panics_doc)]
 
 pub mod contract;
+pub mod evidence;
 
 use std::cell::RefCell;
 

@@ -1,0 +1,2 @@
+exit=42
+E_ADF_BAD_INPUT: input contains control byte \x1e or \x1f

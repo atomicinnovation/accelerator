@@ -1,0 +1,36 @@
+[package]
+name = "linear-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Reused verbatim, as jira-client does: the workspace entry installs no crypto
+# provider, so the constructor installs ring itself.
+reqwest = { workspace = true }
+rustls = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+config = { path = "../config" }
+# The discovery cache reuses the workspace's one atomic-write and mkdir-lock
+# primitives rather than a second implementation — the store-duplication guard
+# enforces this, and the mkdir-lock's owner.<nonce> sentinel never reclaims the
+# bash init's holder.pid lock, so the two exclude safely on the shared path.
+corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
+store = { path = "../store" }
+remote-projection = { path = "../remote-projection" }
+tracker = { path = "../tracker" }
+tracker-support = { path = "../tracker-support" }
+
+[dev-dependencies]
+http-test-support = { path = "../http-test-support" }
+tracker-test-support = { path = "../tracker-test-support" }
+remote-projection = { path = "../remote-projection" }
+tempfile = { workspace = true }

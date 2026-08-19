@@ -1,0 +1,23 @@
+# The IssueFilter composition, one row per family, transcribed from
+# `linear-search-flow.sh:128-155`.
+#
+# A silently dropped family yields a valid filter over the WRONG issue set — a
+# silent-wrong-answer failure rather than a crash — so the test that reads this
+# file carries a row-coverage guard.
+#
+# The expected column is canonical JSON: serde_json emits object keys sorted,
+# which is why `team` appears after `state` in the composed rows even though the
+# oracle merges it first. Order is not part of the contract; the fields are.
+#
+# Spec grammar, semicolon separated: team=, state=, assignee=, label=, text=.
+# The injected resolver maps `In Progress` -> state-uuid and nothing else.
+#
+# Columns: case <TAB> spec <TAB> expected filter
+empty		{}
+team	team=T1	{"team":{"id":{"eq":"T1"}}}
+state	state=In Progress	{"state":{"id":{"eq":"state-uuid"}}}
+assignee	assignee=alice	{"assignee":{"name":{"eqIgnoreCase":"alice"}}}
+label	label=infra	{"labels":{"name":{"eq":"infra"}}}
+text	text=needle	{"title":{"containsIgnoreCase":"needle"}}
+team-and-state	team=T1;state=In Progress	{"state":{"id":{"eq":"state-uuid"}},"team":{"id":{"eq":"T1"}}}
+every-family	team=T1;state=In Progress;assignee=alice;label=infra;text=needle	{"assignee":{"name":{"eqIgnoreCase":"alice"}},"labels":{"name":{"eq":"infra"}},"state":{"id":{"eq":"state-uuid"}},"team":{"id":{"eq":"T1"}},"title":{"containsIgnoreCase":"needle"}}

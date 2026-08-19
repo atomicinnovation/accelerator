@@ -1,0 +1,118 @@
+# The five bash exit-code mappers, transcribed.
+#
+# | Mapper                      | Source                                |
+# |-----------------------------|---------------------------------------|
+# | _wicr_map_jira              | work-item-create-remote.sh:105-111     |
+# | _wicr_map_linear            | work-item-create-remote.sh:92-97       |
+# | _wiur_map_jira              | work-item-update-remote.sh:51-57       |
+# | _wiur_map_linear            | work-item-update-remote.sh:66-72       |
+# | _linear_map_no_file_failure | linear-create-flow.sh:177-182          |
+#
+# The keys are each integration's OWN namespaced codes — NOT curl exit values.
+# `jira-request.sh:340-348` and `linear-graphql.sh:232-241` collapse curl's
+# status into a boolean, so every transport failure arrives as script code 21.
+#
+# `retryable` is E_DISPATCH_RETRYABLE (70) and `terminal` is
+# E_DISPATCH_TERMINAL (71); both are defined in work-item-bridge-codes.sh:30-33.
+#
+# Every mapper's default arm is `terminal`, so a code absent from this file
+# classifies terminal. mapper_differential.rs drives that rule against the
+# running bash for every code 0-130, so an unlisted code is checked too.
+#
+# `linear create` is two layers: _linear_map_no_file_failure maps its
+# pre-send set to E_CREATE_PRE_SEND (108) and everything else to
+# E_CREATE_POST_SEND (109), and _wicr_map_linear then maps 108 to retryable
+# and everything else to terminal. The class recorded here is the composition
+# of the two, which is what a caller of the bridge observes.
+#
+# Three facts about the divergence, each verified against the source:
+#
+# - The Jira pair does not diverge. work-item-create-remote.sh:108 and
+#   work-item-update-remote.sh:54 are byte-identical including indentation:
+#   `11 | 12 | 13 | 14 | 15 | 17 | 19 | 22 | 34) return "$E_DISPATCH_RETRYABLE" ;;`
+# - Linear diverges in both directions. 34 is retryable on create and terminal
+#   on update — documented, because a 200-body error may mean the mutation
+#   applied (work-item-update-remote.sh:62-65). 18, 23, 25, 27 and 29 run the
+#   other way with no rationale anywhere, despite all five being raised before
+#   a byte leaves the process.
+# - 35 and 36 are retryable on BOTH Linear operations, as are 11 and 22.
+#
+# code  provider  operation  class      source
+
+11    jira      create     retryable  _wicr_map_jira
+12    jira      create     retryable  _wicr_map_jira
+13    jira      create     retryable  _wicr_map_jira
+14    jira      create     retryable  _wicr_map_jira
+15    jira      create     retryable  _wicr_map_jira
+16    jira      create     terminal   _wicr_map_jira (falls to *)
+17    jira      create     retryable  _wicr_map_jira
+19    jira      create     retryable  _wicr_map_jira
+20    jira      create     terminal   _wicr_map_jira (falls to *)
+21    jira      create     terminal   _wicr_map_jira (falls to *)
+22    jira      create     retryable  _wicr_map_jira
+34    jira      create     retryable  _wicr_map_jira
+100   jira      create     retryable  _wicr_map_jira
+101   jira      create     retryable  _wicr_map_jira
+102   jira      create     retryable  _wicr_map_jira
+103   jira      create     retryable  _wicr_map_jira
+104   jira      create     retryable  _wicr_map_jira
+105   jira      create     retryable  _wicr_map_jira
+106   jira      create     retryable  _wicr_map_jira
+107   jira      create     retryable  _wicr_map_jira
+108   jira      create     retryable  _wicr_map_jira
+109   jira      create     terminal   _wicr_map_jira (falls to *)
+
+11    jira      update     retryable  _wiur_map_jira
+12    jira      update     retryable  _wiur_map_jira
+13    jira      update     retryable  _wiur_map_jira
+14    jira      update     retryable  _wiur_map_jira
+15    jira      update     retryable  _wiur_map_jira
+16    jira      update     terminal   _wiur_map_jira (falls to *)
+17    jira      update     retryable  _wiur_map_jira
+19    jira      update     retryable  _wiur_map_jira
+20    jira      update     terminal   _wiur_map_jira (falls to *)
+21    jira      update     terminal   _wiur_map_jira (falls to *)
+22    jira      update     retryable  _wiur_map_jira
+34    jira      update     retryable  _wiur_map_jira
+109   jira      update     terminal   _wiur_map_jira (falls to *)
+110   jira      update     retryable  _wiur_map_jira
+111   jira      update     retryable  _wiur_map_jira
+112   jira      update     retryable  _wiur_map_jira
+113   jira      update     retryable  _wiur_map_jira
+114   jira      update     retryable  _wiur_map_jira
+115   jira      update     retryable  _wiur_map_jira
+116   jira      update     retryable  _wiur_map_jira
+117   jira      update     retryable  _wiur_map_jira
+
+11    linear    create     retryable  _linear_map_no_file_failure -> 108
+16    linear    create     terminal   _linear_map_no_file_failure -> 109
+18    linear    create     terminal   _linear_map_no_file_failure -> 109
+20    linear    create     terminal   _linear_map_no_file_failure -> 109
+21    linear    create     terminal   _linear_map_no_file_failure -> 109
+22    linear    create     retryable  _linear_map_no_file_failure -> 108
+23    linear    create     terminal   _linear_map_no_file_failure -> 109
+25    linear    create     terminal   _linear_map_no_file_failure -> 109
+27    linear    create     terminal   _linear_map_no_file_failure -> 109
+29    linear    create     terminal   _linear_map_no_file_failure -> 109
+34    linear    create     retryable  _linear_map_no_file_failure -> 108
+35    linear    create     retryable  _linear_map_no_file_failure -> 108
+36    linear    create     retryable  _linear_map_no_file_failure -> 108
+
+11    linear    update     retryable  _wiur_map_linear
+16    linear    update     terminal   _wiur_map_linear (falls to *)
+18    linear    update     retryable  _wiur_map_linear
+20    linear    update     terminal   _wiur_map_linear (falls to *)
+21    linear    update     terminal   _wiur_map_linear (falls to *)
+22    linear    update     retryable  _wiur_map_linear
+23    linear    update     retryable  _wiur_map_linear
+25    linear    update     retryable  _wiur_map_linear
+27    linear    update     retryable  _wiur_map_linear
+29    linear    update     retryable  _wiur_map_linear
+34    linear    update     terminal   _wiur_map_linear (falls to *)
+35    linear    update     retryable  _wiur_map_linear
+36    linear    update     retryable  _wiur_map_linear
+110   linear    update     retryable  _wiur_map_linear
+111   linear    update     retryable  _wiur_map_linear
+112   linear    update     retryable  _wiur_map_linear
+113   linear    update     retryable  _wiur_map_linear
+114   linear    update     retryable  _wiur_map_linear

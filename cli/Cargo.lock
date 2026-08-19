@@ -9,6 +9,7 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "http-test-support",
  "kernel",
  "minisign-verify",
  "reqwest",
@@ -34,6 +35,7 @@ dependencies = [
  "config-adapters",
  "github",
  "http",
+ "http-test-support",
  "kernel",
  "tempfile",
  "tokio",
@@ -159,9 +161,16 @@ dependencies = [
  "corpus",
  "corpus-adapters",
  "document",
+ "http-test-support",
+ "jira-client",
  "kernel",
+ "linear-client",
  "tempfile",
+ "tracing",
  "tracker",
+ "tracker-support",
+ "vcs",
+ "vcs-adapters",
  "work",
  "work-adapters",
 ]
@@ -1406,6 +1415,7 @@ version = "1.24.0-pre.43"
 dependencies = [
  "collaboration",
  "http",
+ "http-test-support",
  "octocrab",
  "tokio",
  "tracing",
@@ -2359,6 +2369,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-test-support"
+version = "1.24.0-pre.43"
+
+[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2771,6 +2785,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "jira-client"
+version = "1.24.0-pre.43"
+dependencies = [
+ "config",
+ "corpus",
+ "corpus-adapters",
+ "http-test-support",
+ "rand 0.9.5",
+ "remote-projection",
+ "reqwest",
+ "rustls",
+ "serde_json",
+ "store",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracker",
+ "tracker-support",
+ "tracker-test-support",
+]
+
+[[package]]
 name = "jj-lib"
 version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2938,6 +2974,27 @@ dependencies = [
  "hashbrown 0.16.1",
  "no_std_io2",
  "rle-decode-fast",
+]
+
+[[package]]
+name = "linear-client"
+version = "1.24.0-pre.43"
+dependencies = [
+ "config",
+ "corpus",
+ "corpus-adapters",
+ "http-test-support",
+ "remote-projection",
+ "reqwest",
+ "rustls",
+ "serde_json",
+ "store",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracker",
+ "tracker-support",
+ "tracker-test-support",
 ]
 
 [[package]]
@@ -3813,6 +3870,15 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "remote-projection"
+version = "1.24.0-pre.43"
+dependencies = [
+ "serde_json",
+ "sha2 0.10.9",
+ "work",
+]
 
 [[package]]
 name = "reqwest"
@@ -4824,6 +4890,14 @@ name = "tracker"
 version = "1.24.0-pre.43"
 
 [[package]]
+name = "tracker-support"
+version = "1.24.0-pre.43"
+dependencies = [
+ "config",
+ "tempfile",
+]
+
+[[package]]
 name = "tracker-test-support"
 version = "1.24.0-pre.43"
 dependencies = [
@@ -5434,12 +5508,18 @@ name = "work-adapters"
 version = "1.24.0-pre.43"
 dependencies = [
  "corpus",
+ "http-test-support",
+ "jira-client",
  "kernel",
+ "linear-client",
+ "remote-projection",
+ "reqwest",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
  "tracing",
  "tracker",
+ "tracker-support",
  "tracker-test-support",
  "vcs",
  "vcs-adapters",

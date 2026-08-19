@@ -1,0 +1,89 @@
+# Behaviours reproduced knowing they are wrong, because the committed corpus
+# already round-tripped through them. A test that pins one of these names this
+# file rather than restating the rationale, so a future contributor reads the
+# reason before "fixing" the behaviour and silently reclassifying every synced
+# item.
+#
+# quirk <name>
+#   source: <bash location>
+#   what:   <the behaviour>
+#   why:    <why it is preserved>
+
+quirk narrow-table-guard
+  source: jira-md-tokenise.awk:78-79
+  what:   a line is only rejected as a table when it BOTH starts with `|` and
+          ends with `|` (optional trailing space). `| a | b` is not rejected and
+          becomes paragraph text.
+  why:    widening the guard would start refusing bodies that convert today.
+
+quirk nested-list-guard-has-no-space-requirement
+  source: jira-md-tokenise.awk:85-86
+  what:   any indented line whose first non-space character is -, * or +, or is
+          a digit run followed by `.`, is rejected as a nested list. An indented
+          continuation line such as `  -word` therefore falsely rejects.
+  why:    narrowing it would accept bodies the bash rejects, so a create that
+          fails today would start succeeding with a different shape.
+
+quirk listitem-second-child-dropped
+  source: jira-adf-render.jq:50-51
+  what:   a listItem renders `.content[0].content` only. A second paragraph, or
+          a nested list under the same item, is dropped with no placeholder.
+  why:    the rendered form feeds remote_hash; emitting the dropped content
+          would reclassify every item carrying it.
+
+quirk nested-list-as-first-child-renders-inline-placeholders
+  source: jira-adf-render.jq:50-51
+  what:   when a listItem's FIRST child is a list, its list items are fed to
+          render_inline, so each yields `[unsupported ADF inline: listItem]`.
+  why:    a consequence of the same expression as the quirk above; the two
+          shapes genuinely differ and both are reproduced.
+
+quirk codeblock-first-child-only
+  source: jira-adf-render.jq:72-75
+  what:   a codeBlock renders `.content[0].text` only; later text children are
+          dropped.
+  why:    same reason as listitem-second-child-dropped.
+
+quirk ordered-list-order-always-one
+  source: jira-md-assemble.jq:79
+  what:   assemble always emits `attrs.order: 1`, whatever number the markdown
+          used, while render honours `attrs.order // 1`. `3. three` becomes
+          order 1 and renders back as `1. three`.
+  why:    the round trip is not injective by design; changing it would rewrite
+          every ordered list on the next sync.
+
+quirk marks-ignored-without-a-placeholder
+  source: jira-adf-render.jq:27-40
+  what:   strike, underline, subsup, textColor and every other mark outside the
+          code/em/strong/link pipeline are dropped silently — the text renders
+          bare, with no placeholder and no warning.
+  why:    a placeholder would change the rendered bytes for every item using
+          them.
+
+quirk unbalanced-emphasis-becomes-an-empty-marked-node
+  source: jira-md-assemble.jq:26,44
+  what:   `a*b` yields THREE text nodes, and the middle one is an em-marked
+          EMPTY string rather than a literal `*`: the catch-all matches the
+          single `*`, the classifier sees a leading `*`, and stripping one
+          delimiter from each end of a one-character token leaves nothing.
+  why:    discovered by running the oracle, not by reading it; a hand-written
+          fixture would have asserted a literal asterisk.
+
+quirk empty-link-text-is-dropped
+  source: jira-md-assemble.jq:44-48
+  what:   `[](https://x)` matches the link token but the assembler's capture
+          requires a non-empty label, so the token contributes NOTHING to the
+          document — neither a link nor text.
+  why:    same as above: observed, not read.
+
+quirk no-text-escaping
+  source: jira-adf-render.jq:27-40
+  what:   a literal *, _, `, [, # or | in ADF text is emitted bare, so the
+          markdown it produces does not re-parse to the same ADF.
+  why:    escaping would change the rendered bytes of every item.
+
+quirk hard-break-only-in-a-paragraph
+  source: jira-md-tokenise.awk:142
+  what:   two or more trailing spaces are a hard break in a paragraph only. On
+          a heading or a list item they are retained inside the text.
+  why:    faithful to where the awk applies the rule.

@@ -10,7 +10,7 @@ use work::sync::PushOutcome;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_ROWS: usize = 12;
+const EXPECTED_ROWS: usize = 13;
 
 fn repo_root() -> Result<PathBuf, TestError> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))

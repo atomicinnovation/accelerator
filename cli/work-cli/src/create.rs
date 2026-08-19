@@ -1,7 +1,6 @@
 //! Adapter/binary wiring for `work create`: allocates the next ID under a
 //! per-directory lock, derives metadata, composes the frontmatter via
 //! `work::create::compose_frontmatter`, and performs one atomic write.
-//! `work create` has no bash original to inherit exit codes from.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -337,16 +336,10 @@ fn refusal_message(
 const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     match error {
         SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
+        SelectionError::Unconfigured { .. } => exit_codes::UNCONFIGURED,
         SelectionError::Unset | SelectionError::Unrecognised { .. } => {
             exit_codes::UNRECOGNISED
         }
-    }
-}
-
-const fn dispatch_code_for_tracker_error(error: &TrackerError) -> u8 {
-    match error {
-        TrackerError::Retryable { .. } => exit_codes::RETRYABLE,
-        TrackerError::Terminal { .. } => exit_codes::TERMINAL,
     }
 }
 
@@ -466,7 +459,7 @@ fn execute_push(
                 Err(error @ TrackerError::Retryable { .. }) => {
                     std::fs::remove_file(&marker_path).ok();
                     let outcome = work::sync::push_decide(
-                        dispatch_code_for_tracker_error(&error),
+                        exit_codes::for_tracker_error(&error),
                         1,
                         false,
                     );

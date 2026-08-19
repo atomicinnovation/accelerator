@@ -805,6 +805,483 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The remote-projection and tracker-support rules ---
+#
+# Both are `denied`-only rules over a whole crate, driven against a workspace
+# whose crate is literally named for it. remote-projection must not spawn;
+# tracker-support may (it runs the credential helper) but must not grow a
+# transport. Each compliant control imports something real, so a matcher that
+# resolved nothing could not pass it silently.
+
+_SHARED_CRATE_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["{crate}", "reqwest"]
+"""
+
+_SHARED_CRATE_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = {{ path = "../reqwest" }}
+"""
+
+_SPAWN_VIOLATION = (
+    "use std::process::Command;\n\n"
+    'pub fn make() -> Command {\n    Command::new("jq")\n}\n'
+)
+_TRANSPORT_VIOLATION = (
+    "use reqwest::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
+)
+_PROJECTION_COMPLIANT = (
+    "use std::collections::BTreeMap;\n\n"
+    "pub fn make() -> BTreeMap<String, String> {\n"
+    "    BTreeMap::new()\n"
+    "}\n"
+)
+_POLICY_COMPLIANT = (
+    "use std::process::Command;\n\n"
+    'pub fn helper() -> Command {\n    Command::new("bash")\n}\n'
+)
+
+
+def _write_shared_crate_probe(root: Path, crate: str, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(
+        _SHARED_CRATE_WORKSPACE.format(crate=crate)
+    )
+
+    crate_src = root / crate / "src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / crate / "Cargo.toml").write_text(
+        _SHARED_CRATE_MANIFEST.format(crate=crate)
+    )
+    (crate_src / "lib.rs").write_text(lib_body)
+
+    stub_src = root / "reqwest/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "reqwest/Cargo.toml").write_text(_REQWEST_STUB_MANIFEST)
+    (stub_src / "lib.rs").write_text(_REQWEST_STUB_LIB)
+
+
+def test_remote_projection_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "remote-projection", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "remote_projection_extracts_json_only" in output, output
+
+
+def test_remote_projection_rule_permits_json_extraction(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shared_crate_probe(
+        tmp_path, "remote-projection", _PROJECTION_COMPLIANT
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tracker-support", _TRANSPORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "tracker_support_carries_policy_not_transport" in output, output
+
+
+def test_tracker_support_rule_permits_running_the_credential_helper(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tracker-support", _POLICY_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The http-test-support std-only rule ---
+#
+# Driven against a workspace whose crates are literally named
+# `http-test-support` and `reqwest`, so the denied pattern is exercised
+# against a real resolved import. The stand-in `reqwest` crate is a local
+# stub: the rule matches on the import path, and building the real client
+# here would cost a full TLS-stack compile for no extra signal. The
+# compliant control must actually import something, so a matcher that
+# resolved nothing could not pass it silently.
+
+_HTTP_TEST_SUPPORT_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["http-test-support", "reqwest"]
+"""
+
+_HTTP_TEST_SUPPORT_MANIFEST = """\
+[package]
+name = "http-test-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+reqwest = { path = "../reqwest" }
+"""
+
+_REQWEST_STUB_MANIFEST = """\
+[package]
+name = "reqwest"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_REQWEST_STUB_LIB = "pub struct Client;\n"
+
+_HTTP_TEST_SUPPORT_LIB_VIOLATION = (
+    "use reqwest::Client;\n\npub fn make() -> Client {\n    Client\n}\n"
+)
+_HTTP_TEST_SUPPORT_LIB_COMPLIANT = (
+    "use std::net::TcpListener;\n\n"
+    "pub fn bind() -> std::io::Result<TcpListener> {\n"
+    '    TcpListener::bind("127.0.0.1:0")\n'
+    "}\n"
+)
+
+
+def _write_http_test_support_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_HTTP_TEST_SUPPORT_WORKSPACE)
+
+    support_src = root / "http-test-support/src"
+    support_src.mkdir(parents=True, exist_ok=True)
+    (root / "http-test-support/Cargo.toml").write_text(
+        _HTTP_TEST_SUPPORT_MANIFEST
+    )
+    (support_src / "lib.rs").write_text(lib_body)
+
+    stub_src = root / "reqwest/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "reqwest/Cargo.toml").write_text(_REQWEST_STUB_MANIFEST)
+    (stub_src / "lib.rs").write_text(_REQWEST_STUB_LIB)
+
+
+def test_http_test_support_rule_rejects_importing_an_http_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_http_test_support_probe(tmp_path, _HTTP_TEST_SUPPORT_LIB_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "http_test_support_is_std_only" in output, output
+
+
+def test_http_test_support_rule_permits_std_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_http_test_support_probe(tmp_path, _HTTP_TEST_SUPPORT_LIB_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The provider-client isolation rule ---
+#
+# jira-client must not reach up into the work domain nor across to the other
+# provider client. Driven against a workspace whose crates are literally named
+# for them, under the shipped cli/pup.ron. The compliant control imports the
+# port crate, which the rule must admit — a client that could not name
+# `tracker` could not implement it.
+
+_PROVIDER_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["jira-client", "linear-client", "work", "tracker"]
+"""
+
+_JIRA_CLIENT_MANIFEST = """\
+[package]
+name = "jira-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+linear-client = { path = "../linear-client" }
+work = { path = "../work" }
+tracker = { path = "../tracker" }
+"""
+
+_LINEAR_CLIENT_STUB_MANIFEST = """\
+[package]
+name = "linear-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_LINEAR_CLIENT_STUB_LIB = "pub struct LinearClient;\n"
+
+_JIRA_CLIENT_WORK_VIOLATION = (
+    "use work::WorkItem;\n\npub fn make() -> WorkItem {\n    WorkItem\n}\n"
+)
+_JIRA_CLIENT_SIBLING_VIOLATION = (
+    "use linear_client::LinearClient;\n\n"
+    "pub fn make() -> LinearClient {\n    LinearClient\n}\n"
+)
+_JIRA_CLIENT_COMPLIANT = (
+    "use tracker::ExternalId;\n\n"
+    "pub fn make() -> ExternalId {\n    ExternalId::new(String::new())\n}\n"
+)
+
+
+def _write_provider_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_PROVIDER_WORKSPACE)
+
+    client_src = root / "jira-client/src"
+    client_src.mkdir(parents=True, exist_ok=True)
+    (root / "jira-client/Cargo.toml").write_text(_JIRA_CLIENT_MANIFEST)
+    (client_src / "lib.rs").write_text(lib_body)
+
+    sibling_src = root / "linear-client/src"
+    sibling_src.mkdir(parents=True, exist_ok=True)
+    (root / "linear-client/Cargo.toml").write_text(_LINEAR_CLIENT_STUB_MANIFEST)
+    (sibling_src / "lib.rs").write_text(_LINEAR_CLIENT_STUB_LIB)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST_MIN)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB_MIN)
+
+
+_LINEAR_CLIENT_MANIFEST = """\
+[package]
+name = "linear-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+jira-client = { path = "../jira-client" }
+work = { path = "../work" }
+tracker = { path = "../tracker" }
+"""
+
+_JIRA_CLIENT_STUB_MANIFEST = """\
+[package]
+name = "jira-client"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_JIRA_CLIENT_STUB_LIB = "pub struct JiraClient;\n"
+
+_LINEAR_CLIENT_SIBLING_VIOLATION = (
+    "use jira_client::JiraClient;\n\n"
+    "pub fn make() -> JiraClient {\n    JiraClient\n}\n"
+)
+
+
+def _write_linear_probe(root: Path, lib_body: str) -> None:
+    """The mirror workspace: linear-client depending on jira-client."""
+    (root / "Cargo.toml").write_text(
+        """\
+[workspace]
+resolver = "2"
+members = ["linear-client", "jira-client", "work", "tracker"]
+"""
+    )
+
+    client_src = root / "linear-client/src"
+    client_src.mkdir(parents=True, exist_ok=True)
+    (root / "linear-client/Cargo.toml").write_text(_LINEAR_CLIENT_MANIFEST)
+    (client_src / "lib.rs").write_text(lib_body)
+
+    sibling_src = root / "jira-client/src"
+    sibling_src.mkdir(parents=True, exist_ok=True)
+    (root / "jira-client/Cargo.toml").write_text(_JIRA_CLIENT_STUB_MANIFEST)
+    (sibling_src / "lib.rs").write_text(_JIRA_CLIENT_STUB_LIB)
+
+    work_src = root / "work/src"
+    work_src.mkdir(parents=True, exist_ok=True)
+    (root / "work/Cargo.toml").write_text(_WORK_MANIFEST)
+    (work_src / "lib.rs").write_text(_WORK_LIB)
+
+    tracker_src = root / "tracker/src"
+    tracker_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker/Cargo.toml").write_text(_TRACKER_MANIFEST_MIN)
+    (tracker_src / "lib.rs").write_text(_TRACKER_LIB_MIN)
+
+
+def test_linear_client_rule_rejects_importing_the_sibling_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_linear_probe(tmp_path, _LINEAR_CLIENT_SIBLING_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "linear_client_is_the_only_linear_transport" in output, output
+
+
+def test_linear_client_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_linear_probe(tmp_path, _JIRA_CLIENT_WORK_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "linear_client_is_the_only_linear_transport" in output, output
+
+
+def test_linear_client_rule_permits_importing_the_port(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_linear_probe(tmp_path, _JIRA_CLIENT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_jira_client_rule_rejects_importing_the_work_domain(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_WORK_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_is_the_only_jira_transport" in output, output
+
+
+def test_jira_client_rule_rejects_importing_the_sibling_client(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_SIBLING_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_is_the_only_jira_transport" in output, output
+
+
+def test_jira_client_rule_permits_importing_the_port(tmp_path: Path) -> None:
+    _require_tools()
+    _write_provider_probe(tmp_path, _JIRA_CLIENT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- jira-client's filesystem-confinement rule ---
+#
+# transport and discovery must stay off the filesystem; the atomic writes and
+# the advisory lock live only in the cache module. Driven against a crate named
+# `jira-client` with a `transport` module under the shipped cli/pup.ron.
+
+_JIRA_TRANSPORT_FS_VIOLATION = (
+    "use std::fs::File;\n\n"
+    "pub fn open() -> std::io::Result<File> {\n"
+    '    File::open("x")\n}\n'
+)
+_JIRA_TRANSPORT_COMPLIANT = "pub fn noop() {}\n"
+
+
+def _write_provider_io_probe(root: Path, transport_body: str) -> None:
+    _write_provider_probe(root, "pub mod transport;\n")
+    (root / "jira-client/src/transport.rs").write_text(transport_body)
+
+
+def test_jira_client_io_rule_rejects_std_fs_in_transport(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_io_probe(tmp_path, _JIRA_TRANSPORT_FS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "jira_client_io_lives_in_cache" in output, output
+
+
+def test_jira_client_io_rule_permits_a_filesystem_free_transport(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_provider_io_probe(tmp_path, _JIRA_TRANSPORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- linear-client's filesystem-confinement rule ---
+#
+# The Linear mirror: transport, upload and discovery must stay off the
+# filesystem, with the atomic writes and the advisory lock confined to the cache
+# module. Driven against a crate named `linear-client` with an `upload` module.
+
+
+def _write_linear_io_probe(root: Path, upload_body: str) -> None:
+    _write_linear_probe(root, "pub mod upload;\n")
+    (root / "linear-client/src/upload.rs").write_text(upload_body)
+
+
+def test_linear_client_io_rule_rejects_std_fs_in_upload(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_linear_io_probe(tmp_path, _JIRA_TRANSPORT_FS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "linear_client_io_lives_in_cache" in output, output
+
+
+def test_linear_client_io_rule_permits_a_filesystem_free_upload(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_linear_io_probe(tmp_path, _JIRA_TRANSPORT_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The remaining whole-crate domain rules ---
 #
 # Each is driven against a workspace whose crate is literally named for it,

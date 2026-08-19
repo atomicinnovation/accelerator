@@ -1,0 +1,53 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "struck",
+          "marks": [
+            {
+              "type": "strike"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "under",
+          "marks": [
+            {
+              "type": "underline"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "coloured",
+          "marks": [
+            {
+              "type": "textColor",
+              "attrs": {
+                "color": "#ff0000"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "subsup",
+          "marks": [
+            {
+              "type": "subsup",
+              "attrs": {
+                "type": "sub"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

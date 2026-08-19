@@ -1,0 +1,12 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "orderedList",
+      "attrs": {
+        "order": 1
+      }
+    }
+  ]
+}

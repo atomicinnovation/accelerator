@@ -65,6 +65,7 @@ use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
 mod dirty_paths;
+mod tracked;
 
 /// A repository is here and the pinned library could not answer.
 #[derive(Debug)]
@@ -396,6 +397,31 @@ impl InProcessProbe {
             VcsKind::Git => dirty_paths::git_dirty_paths(root),
             VcsKind::Jj => dirty_paths::jj_dirty_paths(root),
             VcsKind::None => Ok(Vec::new()),
+        }
+    }
+
+    /// Whether `relpath` (repo-relative) is tracked in the repository at
+    /// `root` — git via the index, jj via the working-copy commit's tree.
+    ///
+    /// The library-first counterpart of `git ls-files --error-unmatch` /
+    /// `jj file list`: it decides whether a command-valued or allowlist-valued
+    /// config key may be honoured, since a tracked `config.local.md` is one a
+    /// fresh clone would carry and run. `VcsKind::None` tracks nothing.
+    ///
+    /// # Errors
+    ///
+    /// When `root` carries the named idiom but its index or working-copy tree
+    /// cannot be read.
+    pub fn is_tracked(
+        &self,
+        root: &Path,
+        relpath: &str,
+        kind: VcsKind,
+    ) -> Result<bool, Error> {
+        match kind {
+            VcsKind::Git => tracked::git_is_tracked(root, relpath),
+            VcsKind::Jj => tracked::jj_is_tracked(root, relpath),
+            VcsKind::None => Ok(false),
         }
     }
 }

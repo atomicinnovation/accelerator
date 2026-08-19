@@ -57,10 +57,12 @@
 | `work.default_project_code` | *(not set)* | default |
 | `visualiser.kanban_columns` | `[draft, ready, in-progress, review, done, blocked, abandoned]` | default |
 | `visualiser.idle_timeout` | `8h` | default |
+| `jira.allowed_sites` | *(not set)* | default |
 | `jira.site` | `example.atlassian.net` | team (.accelerator/config.md) |
 | `jira.email` | *(not set)* | default |
 | `jira.token` | *(set — hidden)* | team (.accelerator/config.md) |
 | `jira.token_cmd` | *(not set)* | default |
+| `linear.team_id` | *(not set)* | default |
 | `linear.token` | *(not set)* | default |
 | `linear.token_cmd` | *(not set)* | default |
 | `github.token` | *(not set)* | default |

@@ -116,13 +116,14 @@ pub fn is_valid_work_integration(value: &str) -> bool {
 /// Integration and tool keys read ad-hoc by their own consumers.
 ///
 /// They carry no catalogue default — an unset key means the consumer's own
-/// default applies — so `dump` surfaces them by presence only. The bash mirror
-/// is `EXTRA_KEYS` in `config-defaults.sh`.
+/// default applies — so `dump` surfaces them by presence only.
 pub const EXTRA_KEYS: &[&str] = &[
+    "jira.allowed_sites",
     "jira.site",
     "jira.email",
     "jira.token",
     "jira.token_cmd",
+    "linear.team_id",
     "linear.token",
     "linear.token_cmd",
     "github.token",
@@ -201,11 +202,10 @@ pub const AGENT_KEYS: &[&str] = &[
 /// Visualiser keys that carry a catalogue default.
 ///
 /// The remaining visualiser keys (`editor`, `editor_project`, `binary`) are
-/// absent-means-disabled and stay in the bash `EXTRA_KEYS` registry with no
-/// default. The visualiser server keeps a matching runtime fallback in its own
-/// crate (`server/src/config.rs`) because it cannot depend on this one; this
-/// catalogue is the authoritative declaration and the bash mirror is
-/// drift-tested against it.
+/// absent-means-disabled and carry no default. The visualiser server keeps a
+/// matching runtime fallback in its own crate (`server/src/config.rs`) because
+/// it cannot depend on this one; this catalogue is the authoritative
+/// declaration.
 pub const VISUALISER_KEYS: &[(&str, Default)] = &[
     (
         "visualiser.kanban_columns",

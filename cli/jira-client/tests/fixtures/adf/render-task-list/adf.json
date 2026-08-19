@@ -1,0 +1,40 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "taskList",
+      "attrs": {
+        "localId": "abc"
+      },
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": {
+            "state": "DONE",
+            "localId": "1"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "done"
+            }
+          ]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {
+            "state": "TODO",
+            "localId": "2"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "todo"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

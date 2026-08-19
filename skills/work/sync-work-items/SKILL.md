@@ -50,7 +50,10 @@ configured.
 
 `<sys>` for every script below is this configured value — never re-derived.
 `trello` and `github-issues` are not built yet; the bridges report
-"not available" (exit 72) for them, which you surface as a clear message.
+"not available" (exit 72) for them, which you surface as a clear message. A
+wired tracker (`jira`, `linear`) whose configuration or credentials are missing
+or refused reports "unconfigured" (exit 74) — surface it as a "fix your config"
+message (nothing was sent), never as a reconciliation prompt.
 
 **Prerequisites.** Before any remote call, confirm `jq` (with `-S` support),
 `sha256sum` or `shasum`, and the repo's VCS binary (`git` or `jj`) are present.

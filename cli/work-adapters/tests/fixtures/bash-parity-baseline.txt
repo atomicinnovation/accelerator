@@ -1,0 +1,71 @@
+# What 0212 converts, recorded before the conversion starts.
+#
+# Two kinds of row.
+#
+# `test` rows name the eleven Rust parity tests that drive a committed bash
+# fixture, with the number of `#[test]` functions each carried when this
+# baseline was taken and the fixture corpus it reads. 0212 converts these; the
+# recorded count is what it attributes its own coverage against.
+#
+# `case` rows record the SET of case directories per fixture subdirectory. The
+# per-directory counts 0212 needs are DERIVED from these names by
+# bash_parity_baseline.rs and printed in its failure message — storing the
+# numbers too is how the numeric copy goes stale and 0212 reads a wrong figure.
+#
+# The guard compares SETS, not a total. A bare count is simultaneously too
+# strict — an unrelated work item adding a fixture reds the build with a
+# misleading message — and too loose, since a delete plus an add nets to the
+# same total and passes while the drift it exists to catch goes through.
+#
+# The corpus has two provenances and both must survive until 0212:
+# work-item-project-remote/ came from 0170, work-item-sync-baseline/ from 0194.
+
+test  cli/work/tests/normalise_parity.rs                       4   work-item-normalise
+test  cli/work/tests/sync_classify.rs                          1   work-item-sync-classify.json
+test  cli/work/tests/sync_decide.rs                            1   work-item-sync-decide.golden
+test  cli/work/tests/sync_label_parity.rs                      2   work-item-sync-label.golden
+test  cli/work/tests/sync_push_decide.rs                       1   work-item-push-decide.golden
+test  cli/work-adapters/tests/diff_shellout_parity.rs          3   work-item-section-diff
+test  cli/work-adapters/tests/sync_baseline_corpus.rs          1   work-item-sync-baseline
+test  cli/work-adapters/tests/sync_baseline_shellout_parity.rs 1   work-item-sync-baseline
+test  cli/work-adapters/tests/sync_working_copy_status.rs      7   (no committed fixture)
+test  cli/work-cli/tests/cli_diff_parity.rs                    3   work-item-section-diff
+test  cli/remote-projection/tests/parity.rs                    4   work-item-project-remote
+
+case  work-item-normalise        case-file-mode
+case  work-item-normalise        case-nbsp-not-trimmed
+case  work-item-normalise        case-stdin-mode
+
+case  work-item-project-remote   case-jira
+case  work-item-project-remote   case-jira-reordered
+case  work-item-project-remote   case-linear
+
+case  work-item-section-diff     case-frontmatter-only
+case  work-item-section-diff     case-frontmatter-only-last-updated
+case  work-item-section-diff     case-named-heading-and-one-sided
+case  work-item-section-diff     case-no-diff-after-normalisation
+case  work-item-section-diff     case-preamble
+
+case  work-item-sync-baseline    case-all-blank-body
+case  work-item-sync-baseline    case-empty-body
+case  work-item-sync-baseline    case-error-empty-file
+case  work-item-sync-baseline    case-error-no-fence
+case  work-item-sync-baseline    case-error-unclosed-fence
+case  work-item-sync-baseline    case-every-ignore-key
+case  work-item-sync-baseline    case-jira-adf
+case  work-item-sync-baseline    case-jira-no-description
+case  work-item-sync-baseline    case-linear-empty-description
+case  work-item-sync-baseline    case-linear-markdown
+case  work-item-sync-baseline    case-padded-fence
+case  work-item-sync-baseline    regenerate.sh
+
+# The loose files at the root of skills/work/scripts/test-fixtures/, which are
+# goldens rather than case directories:
+#
+#   work-item-canonicalise-id.golden        work-item-project-remote.golden
+#   work-item-file-dirty.golden             work-item-push-decide.golden
+#   work-item-next-number.golden            work-item-read-field.golden
+#   work-item-normalise.golden              work-item-resolve-id.golden
+#   work-item-section-diff.golden           work-item-sync-classify.json
+#   work-item-sync-decide.golden            work-item-sync-label.golden
+#   work-item-template-field-hints.golden   work-item-update-tags.golden

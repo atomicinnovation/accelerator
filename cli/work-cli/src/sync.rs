@@ -272,6 +272,10 @@ pub fn run_sync(
             eprintln!("{}", error.message());
             return ExitCode::from(exit_codes::NOT_AVAILABLE);
         }
+        Err(error @ SelectionError::Unconfigured { .. }) => {
+            eprintln!("{}", error.message());
+            return ExitCode::from(exit_codes::UNCONFIGURED);
+        }
     };
 
     let root = config_adapters::FileConfigStore::discover_root(start);
