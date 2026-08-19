@@ -1,13 +1,11 @@
 //! Why a Playwright-driven inventory fell back to the code-only crawler.
 //!
-//! `ensure-playwright.sh` emits five of these six keys and passes them
-//! verbatim to `--reason`, so a change to the vocabulary makes every real
-//! downgrade a usage error — failing the graceful-degradation path on exactly
-//! the machines that need it.
-//!
-//! The message table lives here as a `match` rather than being loaded from
-//! disk, so exhaustiveness is a compile error rather than a runtime lookup
-//! miss. A drift test pins it against the recorded messages.
+//! The reasons are emitted by the executor's availability check — the platform
+//! probe, the runtime materialisation, and the bootstrap-log classification —
+//! and rendered to the user unfiltered. The message table lives here as a
+//! `match` rather than being loaded from disk, so exhaustiveness is a compile
+//! error rather than a runtime lookup miss, and a golden per reason pins the
+//! exact text.
 
 use std::fmt;
 use std::str::FromStr;
@@ -15,9 +13,12 @@ use std::str::FromStr;
 /// The reasons a downgrade notice can name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DowngradeReason {
-    NodeMissing,
-    NodeTooOld,
-    BootstrapFailed,
+    UnsupportedPlatform,
+    LoaderUnresolvable,
+    GlibcTooOld,
+    RuntimeLibrariesMissing,
+    ArtifactUnavailable,
+    MaterialisationInProgress,
     ExecutorPingFailed,
     CacheUnwritable,
     DiskFloorNotMet,
@@ -26,10 +27,13 @@ pub enum DowngradeReason {
 impl DowngradeReason {
     /// Every reason, so a caller can enumerate the vocabulary without
     /// restating it.
-    pub const ALL: [Self; 6] = [
-        Self::NodeMissing,
-        Self::NodeTooOld,
-        Self::BootstrapFailed,
+    pub const ALL: [Self; 9] = [
+        Self::UnsupportedPlatform,
+        Self::LoaderUnresolvable,
+        Self::GlibcTooOld,
+        Self::RuntimeLibrariesMissing,
+        Self::ArtifactUnavailable,
+        Self::MaterialisationInProgress,
         Self::ExecutorPingFailed,
         Self::CacheUnwritable,
         Self::DiskFloorNotMet,
@@ -39,9 +43,12 @@ impl DowngradeReason {
     #[must_use]
     pub const fn key(self) -> &'static str {
         match self {
-            Self::NodeMissing => "node-missing",
-            Self::NodeTooOld => "node-too-old",
-            Self::BootstrapFailed => "bootstrap-failed",
+            Self::UnsupportedPlatform => "unsupported-platform",
+            Self::LoaderUnresolvable => "loader-unresolvable",
+            Self::GlibcTooOld => "glibc-too-old",
+            Self::RuntimeLibrariesMissing => "runtime-libraries-missing",
+            Self::ArtifactUnavailable => "artifact-unavailable",
+            Self::MaterialisationInProgress => "materialisation-in-progress",
             Self::ExecutorPingFailed => "executor-ping-failed",
             Self::CacheUnwritable => "cache-unwritable",
             Self::DiskFloorNotMet => "disk-floor-not-met",
@@ -52,12 +59,15 @@ impl DowngradeReason {
     #[must_use]
     pub const fn message(self) -> &'static str {
         match self {
-            Self::NodeMissing => "inventory-design: Playwright runtime is unavailable (Node >= 20 not found). Falling back to code-only crawler. Run `ensure-playwright.sh` manually to install, or pass --crawler code to suppress this notice.",
-            Self::NodeTooOld => "inventory-design: Playwright runtime is unavailable (Node version is too old; >= 20 required). Falling back to code-only crawler. Run `ensure-playwright.sh` manually after upgrading Node, or pass --crawler code to suppress this notice.",
-            Self::BootstrapFailed => "inventory-design: Playwright bootstrap failed. Falling back to code-only crawler. Run `ensure-playwright.sh` manually to see the full error, or pass --crawler code to suppress this notice.",
+            Self::UnsupportedPlatform => "inventory-design: Playwright runtime is unavailable (this platform's libc is not supported). Falling back to code-only crawler. Pass --crawler code to suppress this notice.",
+            Self::LoaderUnresolvable => "inventory-design: Playwright runtime is unavailable (the dynamic loader it needs is missing or relocated). Falling back to code-only crawler. Install nix-ld or set design.browser_path to a working browser, or pass --crawler code to suppress this notice.",
+            Self::GlibcTooOld => "inventory-design: Playwright runtime is unavailable (the system glibc is too old for the bundled browser). Falling back to code-only crawler. Upgrade the distribution, or pass --crawler code to suppress this notice.",
+            Self::RuntimeLibrariesMissing => "inventory-design: Playwright runtime is unavailable (a shared library the browser needs is missing). Falling back to code-only crawler. Install the package providing the named library, or pass --crawler code to suppress this notice.",
+            Self::ArtifactUnavailable => "inventory-design: Playwright runtime is unavailable (the runtime artifacts could not be materialised). Falling back to code-only crawler. Run `accelerator cache repair` to re-materialise, or pass --crawler code to suppress this notice.",
+            Self::MaterialisationInProgress => "inventory-design: Playwright runtime is being materialised by another process. Falling back to code-only crawler for this invocation; it retries on the next. Pass --crawler code to suppress this notice.",
             Self::ExecutorPingFailed => "inventory-design: Playwright executor is unhealthy. Falling back to code-only crawler. Run `accelerator design executor ping` manually to diagnose, or pass --crawler code to suppress this notice.",
-            Self::CacheUnwritable => "inventory-design: Playwright cache directory is not writable. Falling back to code-only crawler. Check permissions on $ACCELERATOR_PLAYWRIGHT_CACHE (or ~/.cache/accelerator/playwright) and retry, or pass --crawler code to suppress this notice.",
-            Self::DiskFloorNotMet => "inventory-design: Playwright cache filesystem has less than 500 MB free. Falling back to code-only crawler. Free space at $ACCELERATOR_PLAYWRIGHT_CACHE and retry, or pass --crawler code to suppress this notice.",
+            Self::CacheUnwritable => "inventory-design: Playwright cache directory is not writable. Falling back to code-only crawler. Check permissions on the cache directory (ACCELERATOR_CACHE_DIR, or the default under the plugin) and retry, or pass --crawler code to suppress this notice.",
+            Self::DiskFloorNotMet => "inventory-design: Playwright cache filesystem has insufficient free space for the runtime artifacts. Falling back to code-only crawler. Free space and retry, or pass --crawler code to suppress this notice.",
         }
     }
 }

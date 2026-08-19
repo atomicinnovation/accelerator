@@ -83,9 +83,12 @@ pub enum Command {
 /// `crate`.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DowngradeReasonArg {
-    NodeMissing,
-    NodeTooOld,
-    BootstrapFailed,
+    UnsupportedPlatform,
+    LoaderUnresolvable,
+    GlibcTooOld,
+    RuntimeLibrariesMissing,
+    ArtifactUnavailable,
+    MaterialisationInProgress,
     ExecutorPingFailed,
     CacheUnwritable,
     DiskFloorNotMet,
@@ -94,9 +97,20 @@ pub enum DowngradeReasonArg {
 impl From<DowngradeReasonArg> for DowngradeReason {
     fn from(arg: DowngradeReasonArg) -> Self {
         match arg {
-            DowngradeReasonArg::NodeMissing => Self::NodeMissing,
-            DowngradeReasonArg::NodeTooOld => Self::NodeTooOld,
-            DowngradeReasonArg::BootstrapFailed => Self::BootstrapFailed,
+            DowngradeReasonArg::UnsupportedPlatform => {
+                Self::UnsupportedPlatform
+            }
+            DowngradeReasonArg::LoaderUnresolvable => Self::LoaderUnresolvable,
+            DowngradeReasonArg::GlibcTooOld => Self::GlibcTooOld,
+            DowngradeReasonArg::RuntimeLibrariesMissing => {
+                Self::RuntimeLibrariesMissing
+            }
+            DowngradeReasonArg::ArtifactUnavailable => {
+                Self::ArtifactUnavailable
+            }
+            DowngradeReasonArg::MaterialisationInProgress => {
+                Self::MaterialisationInProgress
+            }
             DowngradeReasonArg::ExecutorPingFailed => Self::ExecutorPingFailed,
             DowngradeReasonArg::CacheUnwritable => Self::CacheUnwritable,
             DowngradeReasonArg::DiskFloorNotMet => Self::DiskFloorNotMet,
@@ -117,13 +131,28 @@ mod tests {
     fn each_argument_selects_its_own_reason() {
         for (arg, reason) in [
             (
-                DowngradeReasonArg::NodeMissing,
-                DowngradeReason::NodeMissing,
+                DowngradeReasonArg::UnsupportedPlatform,
+                DowngradeReason::UnsupportedPlatform,
             ),
-            (DowngradeReasonArg::NodeTooOld, DowngradeReason::NodeTooOld),
             (
-                DowngradeReasonArg::BootstrapFailed,
-                DowngradeReason::BootstrapFailed,
+                DowngradeReasonArg::LoaderUnresolvable,
+                DowngradeReason::LoaderUnresolvable,
+            ),
+            (
+                DowngradeReasonArg::GlibcTooOld,
+                DowngradeReason::GlibcTooOld,
+            ),
+            (
+                DowngradeReasonArg::RuntimeLibrariesMissing,
+                DowngradeReason::RuntimeLibrariesMissing,
+            ),
+            (
+                DowngradeReasonArg::ArtifactUnavailable,
+                DowngradeReason::ArtifactUnavailable,
+            ),
+            (
+                DowngradeReasonArg::MaterialisationInProgress,
+                DowngradeReason::MaterialisationInProgress,
             ),
             (
                 DowngradeReasonArg::ExecutorPingFailed,
@@ -142,8 +171,8 @@ mod tests {
         }
     }
 
-    /// `ensure-playwright.sh` emits these keys verbatim, so each must remain
-    /// the accepted spelling.
+    /// The executor emits these keys verbatim, so each must remain the accepted
+    /// spelling.
     #[test]
     fn every_reason_key_parses() -> Result<(), Box<dyn std::error::Error>> {
         for reason in DowngradeReason::ALL {
@@ -180,7 +209,7 @@ mod tests {
             "accelerator-design",
             "notify-downgrade",
             "--reason",
-            "node-missing",
+            "unsupported-platform",
             "--from",
             "playwright",
             "--to",
