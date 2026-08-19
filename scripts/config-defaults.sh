@@ -222,4 +222,5 @@ EXTRA_KEYS=(
   "visualiser.editor"
   "visualiser.editor_project"
   "visualiser.binary"
+  "design.browser_path"
 )
