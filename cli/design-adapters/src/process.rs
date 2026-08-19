@@ -150,15 +150,13 @@ impl Spawner for DaemonSpawner {
         // machine maps to `loader-unresolvable`.
         let child = match command.spawn() {
             Ok(child) => child,
-            Err(error)
-                if error.kind() == std::io::ErrorKind::NotFound =>
-            {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Err(SpawnError::NotFound);
             }
             Err(error) => {
-                return Err(SpawnError::Failed(kernel::Error::Failed(format!(
-                    "could not spawn the daemon: {error}"
-                ))));
+                return Err(SpawnError::Failed(kernel::Error::Failed(
+                    format!("could not spawn the daemon: {error}"),
+                )));
             }
         };
         let pid = i32::try_from(child.id()).map_err(|_| {

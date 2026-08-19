@@ -375,9 +375,7 @@ mod tests {
 
     use crate::launch::core::{swallow_under_fail_safe, ResolutionError};
 
-    use super::{
-        Discrepancy, EnsureCause, ErrorClass, TreeError, TreeReport,
-    };
+    use super::{Discrepancy, EnsureCause, ErrorClass, TreeError, TreeReport};
 
     /// One of every variant. `class()`'s own match is wildcard-free, so a new
     /// variant cannot ship unclassified; this list is what keeps the

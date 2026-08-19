@@ -685,7 +685,9 @@ mod tests {
             ..
         })) = outcome
         else {
-            return Err(format!("expected a timeout envelope, got {outcome:?}"));
+            return Err(format!(
+                "expected a timeout envelope, got {outcome:?}"
+            ));
         };
         Ok(())
     }
