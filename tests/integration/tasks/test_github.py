@@ -21,7 +21,11 @@ from tasks.github import (
     verify_release_asset,
 )
 from tasks.shared.errors import InvalidVersionError
-from tasks.shared.paths import DEBUG_ARCHIVE_DIRS, DISPATCHED_SUBBINARIES
+from tasks.shared.paths import (
+    DEBUG_ARCHIVE_DIRS,
+    DISPATCHED_SUBBINARIES,
+    TREE_ARTIFACTS,
+)
 from tasks.shared.targets import TARGETS
 from tests.support.artefacts import build_shim
 from tests.support.tools import require
@@ -279,12 +283,25 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
         "subbinary_asset_path",
         side_effect=lambda token, p: tmp_path / f"accelerator-{token}-{p}",
     )
+    mocker.patch.object(
+        gh,
+        "tree_artifact_asset_path",
+        side_effect=lambda name, p: tmp_path / f"accelerator-{name}-{p}.tar.gz",
+    )
     manifest = tmp_path / "manifest.json"
     manifest_sig = tmp_path / "manifest.minisig"
     mocker.patch.object(gh, "RELEASE_MANIFEST", manifest)
     mocker.patch.object(gh, "RELEASE_MANIFEST_SIG", manifest_sig)
     if create:
         for platform in _PLATFORMS:
+            for name in TREE_ARTIFACTS:
+                archive = tmp_path / f"accelerator-{name}-{platform}.tar.gz"
+                archive.write_bytes(b"\x00" * 8)
+                archive.with_name(archive.name + ".minisig").write_text("sig")
+                archive.with_name(archive.name + ".sealed").write_bytes(b"{}")
+                archive.with_name(archive.name + ".sealed.sig").write_text(
+                    "sig"
+                )
             for token in DISPATCHED_SUBBINARIES:
                 (tmp_path / f"accelerator-{token}-{platform}").write_bytes(
                     b"\x00" * 4
@@ -330,6 +347,22 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                         }
                         for token in DISPATCHED_SUBBINARIES
                     },
+                    "artifacts": {
+                        name: {
+                            "description": name,
+                            "platforms": {
+                                p: {
+                                    "sha256": "b" * 64,
+                                    "signature": "sig",
+                                    "archive_size": 8,
+                                    "uncompressed_size": 8,
+                                    "entry_count": 1,
+                                }
+                                for p in _PLATFORMS
+                            },
+                        }
+                        for name in TREE_ARTIFACTS
+                    },
                 }
             )
         )
@@ -354,10 +387,12 @@ class TestUploadAndVerifyRelease:
         dispatched_subbinary_uploads = (
             len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
         )
+        tree_artifact_uploads = len(TREE_ARTIFACTS) * len(_PLATFORMS) * 4
         assert len(uploads) == (
             debug_and_launcher_uploads
             + manifest_and_signature_uploads
             + dispatched_subbinary_uploads
+            + tree_artifact_uploads
         )
         assert all("--clobber" in str(c) for c in uploads)
 
@@ -367,6 +402,46 @@ class TestUploadAndVerifyRelease:
         upload_and_verify_release(ctx, "1.20.0")
         flips = [c for c in ctx.run.call_args_list if "--draft=false" in str(c)]
         assert len(flips) == 1
+
+    def test_reverifies_every_tree_archive_and_attestation(
+        self, ctx, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path)
+        mocker.patch.object(gh, "download_and_verify")
+        inline = mocker.patch.object(gh, "_reverify_subbinary")
+        detached = mocker.patch.object(gh, "_reverify_via_shim")
+        upload_and_verify_release(ctx, "1.20.0")
+        tree = len(TREE_ARTIFACTS) * len(_PLATFORMS)
+        # Each tree archive re-verifies by inline sig, like a sub-binary; each
+        # .sealed re-verifies by detached sig, via the shim.
+        assert inline.call_count == (
+            len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) + tree
+        )
+        assert detached.call_count == len(_PLATFORMS) + 1 + tree
+
+    def test_skipped_tree_artifacts_upload_and_reverify_none(
+        self, ctx, mocker, tmp_path
+    ):
+        _setup_release(mocker, tmp_path)
+        # Drop the artifacts map, mirroring the skip-tree-artifacts escape, and
+        # remove the staged archives so a stray upload would fail the run.
+        manifest = tmp_path / "manifest.json"
+        document = json.loads(manifest.read_text())
+        del document["artifacts"]
+        manifest.write_text(json.dumps(document))
+        for name in TREE_ARTIFACTS:
+            for staged in tmp_path.glob(f"accelerator-{name}-*"):
+                staged.unlink()
+        self._pass_reverify(mocker)
+        upload_and_verify_release(ctx, "1.20.0")
+        uploads = [
+            c for c in ctx.run.call_args_list if "gh release upload" in str(c)
+        ]
+        assert not any(
+            f"accelerator-{name}-" in str(c)
+            for name in TREE_ARTIFACTS
+            for c in uploads
+        )
 
     def test_missing_asset_raises_before_upload(self, ctx, mocker, tmp_path):
         _setup_release(mocker, tmp_path, create=False)
