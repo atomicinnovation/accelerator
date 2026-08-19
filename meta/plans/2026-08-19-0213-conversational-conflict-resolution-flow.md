@@ -957,6 +957,12 @@ wire it into `lint:check`'s `depends`. Update the placement assertion in
 
 ## Phase 5: Eval suite and committed evidence
 
+> **Deferred (2026-08-19).** Phase 5 is skipped for this implementation pass —
+> the eval suite, its committed evidence, the hygiene/existence guards, and the
+> 0171 Decisions reconcile are all held for a follow-up focused on eval
+> improvements. Phases 1–4 land the CLI dossier surface, its persistence, and
+> the skill flow with its static lint, which stand on their own.
+
 ### Overview
 
 Add the eval suite the eighteen-skill convention expects, driving one
