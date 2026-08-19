@@ -16,11 +16,17 @@ it, so a hostile input fails at assembly rather than on a user's machine.
 
 from __future__ import annotations
 
+import json
+import re
 import stat
 import zipfile
 from pathlib import Path
 
 _DEFAULT_FILE_MODE = 0o644
+# The vendored playwright version must be exact, not a caret/tilde range: the
+# fetched package, the API lib/*.js was written against, and the derived
+# Chromium revision are one choice rather than three that can drift.
+_EXACT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
 
 def extract_zip(archive_path: Path, dest: Path) -> None:
@@ -66,3 +72,59 @@ def _write_symlink(root: Path, target: Path, link_target: str) -> None:
         raise ValueError(f"symlink target escapes the root: {link_target}")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.symlink_to(link_target)
+
+
+def read_pinned_playwright_version(package_json: Path) -> str:
+    """Return the exact ``playwright`` version declared in ``package_json``.
+
+    Raises if the pin is a range rather than an exact version, so a Playwright
+    upgrade cannot leave the driver, its API and the Chromium revision able to
+    drift apart.
+    """
+    dependencies = json.loads(package_json.read_text()).get("dependencies", {})
+    version = dependencies.get("playwright", "")
+    if not _EXACT_VERSION.match(version):
+        raise ValueError(
+            f"playwright must be pinned to an exact version, got {version!r}"
+        )
+    return version
+
+
+def browser_revision(browsers_json: Path, name: str) -> str:
+    """Return the revision the vendored ``browsers.json`` records for ``name``.
+
+    ``name`` is the upstream browser id (``chromium-headless-shell``), matched
+    exactly against the ``browsers`` array rather than searched for, so a
+    neighbouring entry sharing a revision is never mistaken for it.
+    """
+    document = json.loads(browsers_json.read_text())
+    for entry in document.get("browsers", []):
+        if entry.get("name") == name:
+            return str(entry["revision"])
+    raise ValueError(f"{name} is absent from {browsers_json}")
+
+
+def assert_version_pairing(
+    *,
+    fetched_playwright_version: str,
+    expected_playwright_version: str,
+    fetched_chromium_revision: str,
+    expected_chromium_revision: str,
+) -> None:
+    """Fail the release unless the fetched inputs match their pins.
+
+    Per ADR-0059 the Node/Chromium pairing is structural, so this guards the
+    construction rather than testing compatibility after the fact.
+    """
+    if fetched_playwright_version != expected_playwright_version:
+        raise ValueError(
+            "fetched playwright "
+            f"{fetched_playwright_version} != pinned "
+            f"{expected_playwright_version}"
+        )
+    if fetched_chromium_revision != expected_chromium_revision:
+        raise ValueError(
+            "fetched Chromium revision "
+            f"{fetched_chromium_revision} != pinned "
+            f"{expected_chromium_revision}"
+        )
