@@ -22,7 +22,9 @@ import base64
 import hashlib
 import subprocess
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
@@ -33,6 +35,35 @@ from cryptography.hazmat.primitives.asymmetric import ec
 SlsaRunner = Callable[[list[str]], int]
 
 _CHUNK = 64 * 1024
+
+
+@dataclass(frozen=True)
+class DistInfo:
+    """The fields of a packument version's ``dist`` the checks consume."""
+
+    tarball: str
+    integrity: str
+    signature_b64: str
+
+
+def packument_dist(packument: dict[str, Any], version: str) -> DistInfo:
+    """Extract one version's tarball URL, integrity and registry signature.
+
+    Refuses a version carrying no registry signature rather than silently
+    falling through to SLSA alone.
+    """
+    versions = packument.get("versions", {})
+    if version not in versions:
+        raise ValueError(f"{version} is absent from the packument")
+    dist = versions[version]["dist"]
+    signatures = dist.get("signatures", [])
+    if not signatures:
+        raise ValueError(f"{version} carries no registry signature")
+    return DistInfo(
+        tarball=dist["tarball"],
+        integrity=dist["integrity"],
+        signature_b64=signatures[0]["sig"],
+    )
 
 
 def signed_message(name: str, version: str, integrity: str) -> str:
