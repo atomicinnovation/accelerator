@@ -307,6 +307,37 @@ contract needs a cause taxonomy `TreeError` does not yet carry** (a transport
 failure is wrapped as `Extraction`, an unwritable cache root as `Lease`), so the
 executor-facing envelope is a Phase-1-adjacent enrichment, not a pure add.
 
+**Phase 3 integration wiring, 2026-08-19 (continued) — two more sections
+landed, both unit-green on darwin:**
+
+- **The `cache ensure` structured envelope + `TreeError` cause taxonomy** —
+  `TreeError` gained `Unreachable` (transport failures, previously a tampering
+  `Extraction`) and `CacheRootUnwritable` (previously a `Lease`), each degradable
+  rather than a refusal; a new `EnsureCause` enum + `TreeError::cause()` maps
+  every variant to a token; `cache ensure` returns a JSON envelope
+  (`{"error":"ensure-failed","cause":…,"artifact":…,"message":…}`) on failure,
+  rendered to stderr, with `disk-shortfall`/`cache-unwritable`/
+  `materialisation-in-progress` distinct and the finer fetch/verification causes
+  named for diagnostics. Golden + a 404-driven integration test.
+- **The `Spawner` errno + `BootstrapDiagnostics` port + launch classification** —
+  `Spawner::spawn` now returns a `SpawnError` distinguishing `NotFound` (an
+  `execve` `ENOENT` on a program that exists → `loader-unresolvable`); the launch
+  state machine reads the bootstrap log through a `BootstrapDiagnostics` port on a
+  readiness failure and classifies it into `glibc-too-old` /
+  `runtime-libraries-missing` (else it keeps the timeout envelope, never
+  guessing); `LaunchFailure::Downgrade(reason)` carries the verdict and the
+  executor renders the reason token for the caller to decide on. `design`'s
+  public-API snapshot regenerated. **Deviation:** `BootstrapDiagnostics` lives in
+  `design::executor::ports` beside the other launch ports (where it is consumed),
+  not in a new `runtime/ports.rs` as the plan's file list anticipated.
+
+Still ahead: the **§3/§4 executor integration** proper — the executor's `run`
+replacing `runtime_is_installed` with the ADR-0062 availability ordering
+(platform probe → `cache ensure` → browser resolve), building a `ResolvedRuntime`
+that retargets `const NODE` at both spawn sites, the sticky-marker policy, and
+removing the lockhash/namespace paths — then `daemon.js` (§1/§2), the §6+§8
+cleanup, the container harness, and the Removal sweep.
+
 **The Removal sweep — not started.** Depends on Phase 3.
 
 ## Current State Analysis
@@ -3833,7 +3864,7 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
       the version extracted; `error while loading shared libraries: <soname>` →
       `runtime-libraries-missing` **naming that soname**; an unrecognised failure →
       `executor-ping-failed` rather than a guess
-- [ ] `loader-unresolvable`'s post-fetch arm is driven by the `Spawner`'s raw `io::ErrorKind`
+- [x] `loader-unresolvable`'s post-fetch arm is driven by the `Spawner`'s raw `io::ErrorKind`
       — program present but `execve` yielding `ENOENT` — **not** by a shell message the
       executor can never produce, since it spawns with no shell
 - [x] 🔒 A bootstrap log containing a marker substring embedded in unrelated output does
