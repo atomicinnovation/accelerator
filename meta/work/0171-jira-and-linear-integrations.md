@@ -205,9 +205,49 @@ an Open Question and must be answered **before pickup**; *pending* means the
 answer is produced by doing the work and is recorded as it lands; *decided* means
 settled and closed.
 
-- Unkeyed discovery `search` — *open*.
-- Create `--dry-run` field-resolution preview — *open*.
-- Update `--dry-run` payload validation — *open*.
+- Frozen-port override (0204) — **decided** (0212 Phase 2). The `RemoteTracker`
+  port frozen by 0204 is reopened by 0212 to add `search`, `preview_create` and
+  `validate_update`. Three ACs (untracked discovery, create-preview, update-
+  preview) cannot pass without a CLI seam these operations provide, so the port
+  additions are absorbed into 0212 rather than parented separately. The
+  seven-method port (the original four plus these three) is a deliberate
+  single-seam choice: splitting the two preview/discovery reads onto a separate
+  `dyn`-compatible sub-trait was considered and rejected — the sync engine and
+  the skills consume the port as one seam, and a second trait would fragment the
+  fake-implementation surface (six impl sites) for no gain.
+- Unkeyed discovery `search` — **decided** (0212 Phase 2): re-sited above the
+  port as new operation `search(&SearchScope) -> Discovery`. `Discovery` carries
+  a `complete` truncation flag rather than partitioning over a requested id set
+  (a discovery query has none). It is `Retryable`-only; a cap-hit or cut-off page
+  returns `complete == false`, never an error.
+- Create `--dry-run` field-resolution preview — **decided** (0212 Phase 2):
+  re-sited above the port as new operation `preview_create(kind) ->
+  CreatePreview`. The Jira implementation performs a **live** `discover_projects`
+  existence check (meeting the AC's "unresolvable project key" literally, beyond
+  the bash config-unset-only behaviour); Linear is trivial (single-team,
+  catalogue-fixed). Both the project and the issue-type field are three-state
+  `FieldResolution` (`Resolved`/`Unset`/`Unresolvable`) so each value and its
+  source is recoverable. A `SurfaceError` from the discovery read maps to
+  `TrackerError::Retryable` (a read applied no mutation), pinned by an offline
+  unit test. Deviation: Jira issue-type resolution is local (empty kind →
+  `Unset`, otherwise `Resolved(kind)`); it never yields `Unresolvable` because no
+  issue-type catalogue endpoint is wired — the create-preview AC is about the
+  project key, which is fully three-state.
+- Update `--dry-run` payload validation — **decided** (0212 Phase 2): re-sited
+  above the port as new operation `validate_update(id, title, body) ->
+  ValidationOutcome`. It is a **local** payload-composition check for **both**
+  providers — Linear has no non-mutating validation endpoint, so a remote pre-
+  flight would not be uniform — reusing each client's own payload-compose helper
+  and reporting a locally-detectable omission (an empty required field) as
+  `Rejected { reasons }`. Live-tracker field validation, which the bash
+  `--dry-run` performed, is intentionally dropped: a clean preview no longer
+  guarantees a successful push. `validate_update` stays on the `RemoteTracker`
+  port despite making no remote call: the check reuses each client's provider-
+  specific compose helper, which the trait's dynamic dispatch already selects, so
+  hosting it as a free core function would re-derive that dispatch for no gain;
+  the accepted cost is one non-`Result`, non-remote method on an otherwise
+  remote-contact port, and reintroducing remote validation later is a signature-
+  breaking change across all six impl sites — a conscious, revisitable boundary.
 - Contract-run execution route (CI job and secrets, or manual step and evidence
   location) — *open*. Durable beyond this story: site the answer in
   `tasks/README.md` and point here.

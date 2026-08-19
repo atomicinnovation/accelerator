@@ -79,6 +79,14 @@ impl ContractSubject for LiveClient {
     fn can_nominate_indeterminate(&self) -> bool {
         false
     }
+
+    /// A live tenant returns a clean, complete result for any benign scope, so
+    /// no scope this subject could name yields `complete == false`. The
+    /// truncation property is enforced offline, where the mock fails the search
+    /// (`contract_offline.rs`).
+    fn can_induce_truncation(&self) -> bool {
+        false
+    }
 }
 
 fn live_client() -> LiveClient {

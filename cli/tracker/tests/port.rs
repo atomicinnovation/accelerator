@@ -3,12 +3,17 @@
 //! because the sync engine's composition root holds one.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use tracker::CreatePreview;
+use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::FieldResolution;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::ValidationOutcome;
 
 struct FixedTracker {
     known: Vec<(ExternalId, RemoteIssue)>,
@@ -122,6 +127,42 @@ impl RemoteTracker for FixedTracker {
             }
         }
         Ok(outcome)
+    }
+
+    fn search(&self, _scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        Ok(Discovery {
+            found: self
+                .known
+                .iter()
+                .map(|(id, issue)| (id.clone(), issue.updated.clone()))
+                .collect(),
+            complete: self.unprovable.is_empty(),
+        })
+    }
+
+    fn preview_create(
+        &self,
+        _kind: &str,
+    ) -> Result<CreatePreview, TrackerError> {
+        Ok(CreatePreview {
+            project: FieldResolution::Unset,
+            issue_type: FieldResolution::Unset,
+        })
+    }
+
+    fn validate_update(
+        &self,
+        _id: &ExternalId,
+        title: &str,
+        _body: &str,
+    ) -> ValidationOutcome {
+        if title.trim().is_empty() {
+            ValidationOutcome::Rejected {
+                reasons: vec!["summary is required".to_owned()],
+            }
+        } else {
+            ValidationOutcome::Valid
+        }
     }
 }
 

@@ -12,13 +12,20 @@ mod support;
 use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::LinearClient;
 use support::client::{brief, client_with, TEAM_KEY};
+use tracker::CreatePreview;
 use tracker::ExternalId;
+use tracker::FieldResolution;
 use tracker::RemoteTracker;
+use tracker::ValidationOutcome;
 use tracker_test_support::contract::{
     a_failing_read_is_retryable_property,
     create_then_show_round_trips_property,
     fetch_all_partitions_totally_property, partitions_totally,
-    unaccounted_id_is_indeterminate_not_absent_property, ContractSubject,
+    preview_create_makes_no_mutation_property,
+    preview_create_resolves_fields_property,
+    search_reports_truncation_property,
+    unaccounted_id_is_indeterminate_not_absent_property,
+    validate_update_reports_outcome_property, ContractSubject,
 };
 
 const GRAPHQL: &str = "/graphql";
@@ -116,6 +123,49 @@ fn the_conformance_properties_hold_offline() {
         "a regression that made every property a no-op must be \
          distinguishable from a real run"
     );
+}
+
+#[test]
+fn the_new_conformance_properties_hold_offline() {
+    // A failed search page reports the discovery incomplete.
+    let (_server, subject) = scripted(vec![Route::Status(500)]);
+    search_reports_truncation_property(&subject);
+
+    // Linear's preview is trivial and makes no remote call.
+    let (_server, subject) = scripted(vec![]);
+    preview_create_makes_no_mutation_property(&subject);
+
+    let (_server, subject) = scripted(vec![]);
+    validate_update_reports_outcome_property(&subject);
+}
+
+#[test]
+fn preview_create_resolves_to_unset_offline() {
+    let (server, subject) = scripted(vec![]);
+    preview_create_resolves_fields_property(
+        &subject,
+        &CreatePreview {
+            project: FieldResolution::Unset,
+            issue_type: FieldResolution::Unset,
+        },
+    );
+    assert_eq!(
+        server.hits(&RequestKey::post(GRAPHQL)),
+        0,
+        "Linear's preview must make no remote call"
+    );
+}
+
+#[test]
+fn validate_update_rejects_a_missing_title_offline() {
+    let (_server, subject) = scripted(vec![]);
+    let id = ExternalId::new(CREATED.to_owned());
+    match subject.tracker().validate_update(&id, "", "Body\n") {
+        ValidationOutcome::Rejected { reasons } => {
+            assert!(!reasons.is_empty());
+        }
+        ValidationOutcome::Valid => panic!("an empty title must be rejected"),
+    }
 }
 
 #[test]

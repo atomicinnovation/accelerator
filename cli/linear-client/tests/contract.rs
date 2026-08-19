@@ -92,6 +92,13 @@ impl ContractSubject for LiveClient {
     fn unreadable_id(&self) -> ExternalId {
         self.unreadable.clone()
     }
+
+    /// A live tenant returns a complete result well within the 250-item page,
+    /// so no benign scope this subject could name reports `complete == false`.
+    /// The truncation property is enforced offline against a failed page.
+    fn can_induce_truncation(&self) -> bool {
+        false
+    }
 }
 
 fn live_client() -> LiveClient {

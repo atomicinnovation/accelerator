@@ -8,12 +8,17 @@ use remote_projection::Op;
 use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
+use tracker::CreatePreview;
+use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::FieldResolution;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::ValidationOutcome;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -26,11 +31,15 @@ use crate::classify::classify;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::error::ClientError;
+use crate::jql::compose;
 use crate::jql::key_clause;
 use crate::jql::AccountResolver;
+use crate::jql::Family;
 use crate::jql::FieldResolver;
 use crate::jql::FixedResolver;
+use crate::jql::Search;
 use crate::path;
+use crate::surface::SurfaceError;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
@@ -46,6 +55,10 @@ const DEFAULT_ISSUE_TYPE: &str = "Task";
 
 const SEARCH_PATH: &str = "/rest/api/3/search/jql";
 const ISSUE_PATH: &str = "/rest/api/3/issue";
+
+/// One discovery page: the issues it accounted for, and the cursor to the next
+/// page when there is one.
+type DiscoveryPage = (Vec<(ExternalId, RemoteTimestamp)>, Option<String>);
 
 pub struct JiraClient {
     transport: Transport,
@@ -242,6 +255,143 @@ impl JiraClient {
         }
         Ok(found)
     }
+
+    /// Pages an unkeyed discovery, following the `nextPageToken` cursor.
+    ///
+    /// A read: every mid-flight failure — a cap-hit, a deadline, a non-2xx, a
+    /// non-JSON body, a transport failure — degrades to `complete == false` over
+    /// what was seen so far, never an error. Only an uncomposable scope
+    /// (no project and not `all_projects`, or an unquotable filter) is a
+    /// pre-flight `Err`.
+    fn discover(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        let search = Search {
+            project: scope.project.clone(),
+            all_projects: scope.all_projects,
+            families: scope
+                .filters
+                .iter()
+                .map(|(field, value)| Family {
+                    field: field.clone(),
+                    values: vec![value.clone()],
+                })
+                .collect(),
+            ..Search::default()
+        };
+        let clause =
+            compose(&search, self.accounts.as_ref(), self.fields.as_ref())
+                .map_err(|error| TrackerError::Retryable {
+                    detail: error.to_string(),
+                })?;
+
+        let mut found = Vec::new();
+        let mut cursor: Option<String> = None;
+        let cap = self.transport.config().max_pages;
+        let deadline = self.transport.deadline();
+        for page in 1..=cap {
+            if deadline.expired() {
+                return Ok(Discovery {
+                    found,
+                    complete: false,
+                });
+            }
+            let Some((mut issues, next)) =
+                self.discover_page(&clause, cursor.as_deref())
+            else {
+                return Ok(Discovery {
+                    found,
+                    complete: false,
+                });
+            };
+            found.append(&mut issues);
+            cursor = next;
+            if cursor.is_none() {
+                return Ok(Discovery {
+                    found,
+                    complete: true,
+                });
+            }
+            if page == cap {
+                return Ok(Discovery {
+                    found,
+                    complete: false,
+                });
+            }
+        }
+        Ok(Discovery {
+            found,
+            complete: true,
+        })
+    }
+
+    /// One discovery page: the issues it saw and the next cursor, or `None` on
+    /// any failure — which the caller reads as an incomplete retrieval.
+    fn discover_page(
+        &self,
+        clause: &str,
+        cursor: Option<&str>,
+    ) -> Option<DiscoveryPage> {
+        let mut body = json!({
+            "jql": clause,
+            "fields": ["updated"],
+            "fieldsByKeys": false,
+            "maxResults": PAGE_SIZE
+        });
+        if let Some(token) = cursor {
+            body["nextPageToken"] = json!(token);
+        }
+        let payload = serde_json::to_string(&body).ok()?;
+        let received = self
+            .transport
+            .send(&Method::POST, SEARCH_PATH, &[], Some(&payload))
+            .ok()?;
+        if !(200..300).contains(&received.status) {
+            return None;
+        }
+        let page_body: Value = serde_json::from_str(&received.body).ok()?;
+        let mut issues = Vec::new();
+        if let Some(array) = page_body.get("issues").and_then(Value::as_array) {
+            for issue in array {
+                if let Some(key) = issue.get("key").and_then(Value::as_str) {
+                    issues.push((
+                        ExternalId::new(key.to_owned()),
+                        timestamp(issue),
+                    ));
+                }
+            }
+        }
+        let next = page_body
+            .get("nextPageToken")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        Some((issues, next))
+    }
+
+    /// Resolves the configured project key against the live catalogue: absent
+    /// configuration is `Unset`, a key `discover_projects` confirms is
+    /// `Resolved`, and a configured key the tracker does not hold is
+    /// `Unresolvable` — the state the create preview exists to flag.
+    fn resolve_project(&self) -> Result<FieldResolution, TrackerError> {
+        if self.project.is_empty() {
+            return Ok(FieldResolution::Unset);
+        }
+        let discovered = self
+            .discover_projects()
+            .map_err(|error| surface_read_failure(&error))?;
+        let exists = discovered
+            .get("projects")
+            .and_then(Value::as_array)
+            .is_some_and(|projects| {
+                projects.iter().any(|project| {
+                    project.get("key").and_then(Value::as_str)
+                        == Some(self.project.as_str())
+                })
+            });
+        if exists {
+            Ok(FieldResolution::Resolved(self.project.clone()))
+        } else {
+            Ok(FieldResolution::Unresolvable(self.project.clone()))
+        }
+    }
 }
 
 /// A read never produces `Terminal`, so every read failure routes through the
@@ -284,6 +434,25 @@ fn body_conversion_failure(
     operation: Operation,
 ) -> TrackerError {
     classify(Outcome::Transport, operation, &error.to_string())
+}
+
+/// The `{fields: {summary, description}}` an update sends, shared by `update`
+/// and `validate_update` so the previewed payload is the one that would be
+/// pushed.
+fn update_fields(
+    title: &str,
+    body: &str,
+) -> Result<Value, crate::adf::AdfError> {
+    let description = markdown_to_document(body, None)?;
+    Ok(json!({"fields": {"summary": title, "description": description}}))
+}
+
+/// A discovery read applied no mutation, so a `SurfaceError` from it can only
+/// ever be [`TrackerError::Retryable`].
+fn surface_read_failure(error: &SurfaceError) -> TrackerError {
+    TrackerError::Retryable {
+        detail: error.to_string(),
+    }
 }
 
 impl RemoteTracker for JiraClient {
@@ -351,18 +520,14 @@ impl RemoteTracker for JiraClient {
         title: &str,
         body: &str,
     ) -> Result<(), TrackerError> {
-        let description =
-            markdown_to_document(body, None).map_err(|error| {
-                body_conversion_failure(&error, Operation::Update)
-            })?;
+        let fields = update_fields(title, body).map_err(|error| {
+            body_conversion_failure(&error, Operation::Update)
+        })?;
         let path = Self::issue_path(id.as_str(), "").map_err(|error| {
             classify(Outcome::Transport, Operation::Update, &error.to_string())
         })?;
-        let payload = json!({
-            "fields": {"summary": title, "description": description}
-        });
         let payload =
-            serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_owned());
+            serde_json::to_string(&fields).unwrap_or_else(|_| "{}".to_owned());
         let received = self
             .transport
             .send(&Method::PUT, &path, &[], Some(&payload))
@@ -458,5 +623,48 @@ impl RemoteTracker for JiraClient {
             }
         }
         Ok(outcome)
+    }
+
+    fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        self.discover(scope)
+    }
+
+    fn preview_create(
+        &self,
+        kind: &str,
+    ) -> Result<CreatePreview, TrackerError> {
+        let project = self.resolve_project()?;
+        let issue_type = if kind.is_empty() {
+            FieldResolution::Unset
+        } else {
+            FieldResolution::Resolved(kind.to_owned())
+        };
+        Ok(CreatePreview {
+            project,
+            issue_type,
+        })
+    }
+
+    fn validate_update(
+        &self,
+        _id: &ExternalId,
+        title: &str,
+        body: &str,
+    ) -> ValidationOutcome {
+        let mut reasons = Vec::new();
+        if title.trim().is_empty() {
+            reasons.push(
+                "summary is required but the payload leaves it empty"
+                    .to_owned(),
+            );
+        }
+        if let Err(error) = update_fields(title, body) {
+            reasons.push(format!("description could not be composed: {error}"));
+        }
+        if reasons.is_empty() {
+            ValidationOutcome::Valid
+        } else {
+            ValidationOutcome::Rejected { reasons }
+        }
     }
 }

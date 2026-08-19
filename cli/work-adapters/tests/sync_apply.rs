@@ -139,6 +139,29 @@ impl RemoteTracker for Fake {
     ) -> Result<FetchOutcome, TrackerError> {
         unimplemented!("not exercised by the apply suite")
     }
+
+    fn search(
+        &self,
+        _scope: &tracker::SearchScope,
+    ) -> Result<tracker::Discovery, TrackerError> {
+        unimplemented!("not exercised by the apply suite")
+    }
+
+    fn preview_create(
+        &self,
+        _kind: &str,
+    ) -> Result<tracker::CreatePreview, TrackerError> {
+        unimplemented!("not exercised by the apply suite")
+    }
+
+    fn validate_update(
+        &self,
+        _id: &ExternalId,
+        _title: &str,
+        _body: &str,
+    ) -> tracker::ValidationOutcome {
+        unimplemented!("not exercised by the apply suite")
+    }
 }
 
 const BASELINE_PATH: &str = "/baseline/last-sync.json";

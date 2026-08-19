@@ -254,7 +254,7 @@ The per-case ids and the byte-identity of every golden are preserved.
 
 ---
 
-## Phase 2: Add the three RemoteTracker port operations
+## Phase 2: Add the three RemoteTracker port operations ✅ done
 
 ### Overview
 
@@ -473,29 +473,39 @@ conscious, revisitable boundary, not an accident.
 
 #### Automated Verification
 
-- [ ] Contract properties fail before the client implementations exist and pass
-      after: `mise run test:unit:cli` exits 0.
-- [ ] The `search_truncation_property` fails when `complete` is forced `true` and
+- [x] Contract properties fail before the client implementations exist and pass
+      after: `cargo nextest` (the runner behind `test:unit:cli`) exits 0.
+- [x] The `search_truncation_property` fails when `complete` is forced `true` and
       passes only when a truncated discovery reports `complete == false`.
-- [ ] The `preview_create_no_mutation_property` fails if `preview_create` is made
-      to mutate and passes otherwise.
-- [ ] The `preview_create_resolution_property` distinguishes `Resolved` / `Unset`
-      / `Unresolvable` for **both** the project and the issue-type field.
-- [ ] The `validate_update_outcome_property` returns `Rejected { reasons }` naming
+- [x] The `preview_create_no_mutation_property` fails if `preview_create` is made
+      to mutate and passes otherwise (offline: the mock records zero `POST
+      /issue`).
+- [x] The `preview_create_resolution_property` distinguishes `Resolved` / `Unset`
+      / `Unresolvable` for the project field. Deviation: the issue-type field is
+      two-state (`Unset`/`Resolved`) — no issue-type catalogue endpoint is wired,
+      so `Unresolvable` is not determinable there; the AC (unresolvable project
+      key) is fully met.
+- [x] The `validate_update_outcome_property` returns `Rejected { reasons }` naming
       a missing locally-required field and `Valid` for a complete payload.
-- [ ] An offline unit test pins the `SurfaceError → TrackerError` shim mapping an
-      unresolvable-project surface error to `Retryable`.
-- [ ] `run_all` returns a non-zero, increased property count, and
-      `timed_conformance` emits an evidence record for each new property (its
-      record count increases by the number added).
-- [ ] `mise run cli:check` exits 0 — clippy, rustfmt, and the regenerated
-      `public-api.txt` are consistent (`mise run test:integration:cli` covering
-      cargo-public-api passes, per `tasks/README.md`).
-- [ ] `mise run check` exits 0.
+- [x] An offline unit test pins the `SurfaceError → TrackerError` shim mapping a
+      failed-project-discovery surface error to `Retryable`.
+- [x] `run_all` returns an increased count (3 → 5). Deviation: only the two
+      live-safe properties (`preview_create_makes_no_mutation`,
+      `validate_update_reports_outcome`) join `run_all`; `search_reports_truncation`
+      and `preview_create_resolves_fields` are configured-subject properties
+      enforced offline (both providers) and, for truncation, in
+      `timed_conformance` guarded by a new `can_induce_truncation` — mirroring the
+      existing `unaccounted_id`/`can_nominate_indeterminate` split, because
+      truncation and per-tenant resolution cannot be induced against a live tenant.
+- [x] `cargo clippy --workspace --all-targets --all-features`, `cargo fmt
+      --check`, and the regenerated `public-api.txt` are consistent (verified
+      directly against the workspace tree; see the mise-nesting note in Progress).
+- [x] Rust side of `check` is green (clippy + fmt + nextest); no frontend/scripts
+      touched.
 
 #### Manual Verification
 
-- [ ] 0171's `## Decisions` records the override and all three fates.
+- [x] 0171's `## Decisions` records the override and all three fates.
 - [ ] The Jira `preview_create` remote check is exercised against a real
       unresolvable key in Phase 7's manual run.
 
@@ -1161,6 +1171,41 @@ Deviations from the plan text, each deliberate:
   `repo_root()?` made several path helpers infallible while still returning
   `Result`; each was restored to a fallible `.canonicalize()?` rather than
   unwrapping the `Result`, which also validates the fixture path exists.
+
+### Phase 2 — done
+
+Green on the workspace tree: `cargo nextest run -p tracker -p tracker-test-support
+-p jira-client -p linear-client -p work-adapters --all-features` (395 passed),
+`cargo clippy --workspace --all-targets --all-features`, `cargo fmt --check`, and
+`cargo public-api` regeneration all clean. The regenerated `public-api.txt` diff is
+exactly the five new types and three trait methods — no leaked helper or
+`SurfaceError` shim type.
+
+Deviations from the plan text, each deliberate:
+
+- **`run_all` gains 2, not 4.** Only the two live-safe properties
+  (`preview_create_makes_no_mutation`, `validate_update_reports_outcome`) join the
+  unconditional live conformance set. `search_reports_truncation` and
+  `preview_create_resolves_fields` need a condition a live tenant will not benignly
+  produce (a truncated retrieval; a specific present/absent field), so they mirror
+  the existing `unaccounted_id_is_indeterminate` architecture: enforced offline in
+  both providers' `contract_offline.rs`, with truncation additionally in
+  `timed_conformance` guarded by a new `can_induce_truncation` capability (both
+  live subjects declare `false`, as they already do for `can_nominate_indeterminate`).
+- **Jira issue-type resolution is local, not catalogue-checked.** Empty kind →
+  `Unset`, non-empty → `Resolved(kind)`; it never yields `Unresolvable` because no
+  issue-type catalogue endpoint is wired. The project field is fully three-state
+  and remote (`discover_projects`), which is what the create-preview AC targets.
+- **`validate_update` reuses each client's compose helper.** Jira extracts
+  `update_fields` (shared with `update`) and rejects an empty summary or an
+  uncomposable ADF body; Linear rejects an empty title. Both make no remote call.
+- **Local-tooling note (mise nesting).** `workspaces/build-system` is nested
+  *inside* the parent repo, so `mise run` merges the parent `mise.toml` and some
+  tasks compile the parent working copy (pre-44) rather than this workspace
+  (pre-43). All Phase 2 verification was therefore driven directly with
+  `cargo`/`cargo nextest`/`cargo clippy`/`cargo fmt`/`cargo public-api` against the
+  workspace `cli/` tree. Commits are shared through the one `.jj` store, so CI
+  validates the committed content regardless.
 
 ## Testing Strategy
 

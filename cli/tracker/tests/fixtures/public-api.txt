@@ -1,4 +1,16 @@
 pub mod tracker
+pub enum tracker::FieldResolution
+pub tracker::FieldResolution::Resolved(alloc::string::String)
+pub tracker::FieldResolution::Unresolvable(alloc::string::String)
+pub tracker::FieldResolution::Unset
+impl core::clone::Clone for tracker::FieldResolution
+pub fn tracker::FieldResolution::clone(&self) -> tracker::FieldResolution
+impl core::cmp::Eq for tracker::FieldResolution
+impl core::cmp::PartialEq for tracker::FieldResolution
+pub fn tracker::FieldResolution::eq(&self, other: &tracker::FieldResolution) -> bool
+impl core::fmt::Debug for tracker::FieldResolution
+pub fn tracker::FieldResolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::FieldResolution
 pub enum tracker::RemoteTimestamp
 pub tracker::RemoteTimestamp::NotRead
 pub tracker::RemoteTimestamp::NotReported
@@ -30,6 +42,40 @@ pub fn tracker::TrackerError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> co
 impl core::fmt::Display for tracker::TrackerError
 pub fn tracker::TrackerError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::TrackerError
+pub enum tracker::ValidationOutcome
+pub tracker::ValidationOutcome::Rejected
+pub tracker::ValidationOutcome::Rejected::reasons: alloc::vec::Vec<alloc::string::String>
+pub tracker::ValidationOutcome::Valid
+impl core::clone::Clone for tracker::ValidationOutcome
+pub fn tracker::ValidationOutcome::clone(&self) -> tracker::ValidationOutcome
+impl core::cmp::Eq for tracker::ValidationOutcome
+impl core::cmp::PartialEq for tracker::ValidationOutcome
+pub fn tracker::ValidationOutcome::eq(&self, other: &tracker::ValidationOutcome) -> bool
+impl core::fmt::Debug for tracker::ValidationOutcome
+pub fn tracker::ValidationOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::ValidationOutcome
+pub struct tracker::CreatePreview
+pub tracker::CreatePreview::issue_type: tracker::FieldResolution
+pub tracker::CreatePreview::project: tracker::FieldResolution
+impl core::clone::Clone for tracker::CreatePreview
+pub fn tracker::CreatePreview::clone(&self) -> tracker::CreatePreview
+impl core::cmp::Eq for tracker::CreatePreview
+impl core::cmp::PartialEq for tracker::CreatePreview
+pub fn tracker::CreatePreview::eq(&self, other: &tracker::CreatePreview) -> bool
+impl core::fmt::Debug for tracker::CreatePreview
+pub fn tracker::CreatePreview::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::CreatePreview
+pub struct tracker::Discovery
+pub tracker::Discovery::complete: bool
+pub tracker::Discovery::found: alloc::vec::Vec<(tracker::ExternalId, tracker::RemoteTimestamp)>
+impl core::clone::Clone for tracker::Discovery
+pub fn tracker::Discovery::clone(&self) -> tracker::Discovery
+impl core::cmp::Eq for tracker::Discovery
+impl core::cmp::PartialEq for tracker::Discovery
+pub fn tracker::Discovery::eq(&self, other: &tracker::Discovery) -> bool
+impl core::fmt::Debug for tracker::Discovery
+pub fn tracker::Discovery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::Discovery
 pub struct tracker::ExternalId(_)
 impl tracker::ExternalId
 pub fn tracker::ExternalId::as_str(&self) -> &str
@@ -69,8 +115,25 @@ pub fn tracker::RemoteIssue::eq(&self, other: &tracker::RemoteIssue) -> bool
 impl core::fmt::Debug for tracker::RemoteIssue
 pub fn tracker::RemoteIssue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteIssue
+pub struct tracker::SearchScope
+pub tracker::SearchScope::all_projects: bool
+pub tracker::SearchScope::filters: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub tracker::SearchScope::project: core::option::Option<alloc::string::String>
+impl core::clone::Clone for tracker::SearchScope
+pub fn tracker::SearchScope::clone(&self) -> tracker::SearchScope
+impl core::cmp::Eq for tracker::SearchScope
+impl core::cmp::PartialEq for tracker::SearchScope
+pub fn tracker::SearchScope::eq(&self, other: &tracker::SearchScope) -> bool
+impl core::default::Default for tracker::SearchScope
+pub fn tracker::SearchScope::default() -> tracker::SearchScope
+impl core::fmt::Debug for tracker::SearchScope
+pub fn tracker::SearchScope::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::SearchScope
 pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>
+pub fn tracker::RemoteTracker::preview_create(&self, kind: &str) -> core::result::Result<tracker::CreatePreview, tracker::TrackerError>
+pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::Discovery, tracker::TrackerError>
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
 pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>
+pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> tracker::ValidationOutcome
