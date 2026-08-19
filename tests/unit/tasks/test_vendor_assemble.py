@@ -152,3 +152,122 @@ def test_a_chromium_revision_mismatch_fails_the_release(tmp_path):
             fetched_chromium_revision="1180",
             expected_chromium_revision="1181",
         )
+
+
+def _executable(path, body="#!/bin/sh\necho v1.0\n"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body)
+    path.chmod(0o755)
+    return path
+
+
+def _licence(path, text="MIT licence text"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def test_notices_get_one_directory_per_component(tmp_path):
+    from tasks.vendor.assemble import NoticeSource, write_notices
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    write_notices(
+        tree,
+        [
+            NoticeSource("node", (_licence(tmp_path / "node.LICENSE"),)),
+            NoticeSource(
+                "playwright-core", (_licence(tmp_path / "pw.LICENSE"),)
+            ),
+        ],
+    )
+    assert (tree / "NOTICES" / "node" / "node.LICENSE").read_text()
+    assert (tree / "NOTICES" / "playwright-core" / "pw.LICENSE").read_text()
+
+
+def test_a_component_with_no_licence_files_fails(tmp_path):
+    from tasks.vendor.assemble import NoticeSource, write_notices
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    with pytest.raises(ValueError, match="no licence"):
+        write_notices(tree, [NoticeSource("node", ())])
+
+
+def test_staging_a_tree_places_files_and_keeps_the_exec_bit(tmp_path):
+    from tasks.vendor.assemble import (
+        NoticeSource,
+        TreePlacement,
+        TreeSpec,
+        stage_tree,
+    )
+
+    node = _executable(tmp_path / "in" / "node")
+    core = tmp_path / "in" / "playwright-core"
+    _licence(core / "index.js", "module.exports = {}")
+    spec = TreeSpec(
+        artifact="driver",
+        placements=(
+            TreePlacement(node, "node"),
+            TreePlacement(core, "node_modules/playwright-core"),
+        ),
+        notices=(NoticeSource("node", (_licence(tmp_path / "L"),)),),
+    )
+    dest = tmp_path / "driver"
+    stage_tree(spec, dest)
+    assert (dest / "node").stat().st_mode & 0o111
+    assert (dest / "node_modules" / "playwright-core" / "index.js").exists()
+    assert (dest / "NOTICES" / "node" / "L").exists()
+
+
+def test_the_structural_check_passes_a_well_formed_tree(tmp_path):
+    from tasks.vendor.assemble import structural_check
+
+    tree = tmp_path / "tree"
+    _executable(tree / "node")
+    _licence(tree / "NOTICES" / "node" / "L")
+    structural_check(tree, executables=("node",), notice_components=("node",))
+
+
+def test_the_structural_check_fails_a_non_executable_binary(tmp_path):
+    from tasks.vendor.assemble import structural_check
+
+    tree = tmp_path / "tree"
+    (tree).mkdir()
+    (tree / "node").write_text("plain")
+    _licence(tree / "NOTICES" / "node" / "L")
+    with pytest.raises(ValueError, match="executable"):
+        structural_check(
+            tree, executables=("node",), notice_components=("node",)
+        )
+
+
+def test_the_structural_check_fails_an_empty_notices_component(tmp_path):
+    from tasks.vendor.assemble import structural_check
+
+    tree = tmp_path / "tree"
+    _executable(tree / "node")
+    (tree / "NOTICES" / "node").mkdir(parents=True)
+    with pytest.raises(ValueError, match="NOTICES"):
+        structural_check(
+            tree, executables=("node",), notice_components=("node",)
+        )
+
+
+def test_the_smoke_check_runs_each_executable(tmp_path):
+    from tasks.vendor.assemble import smoke_check
+
+    tree = tmp_path / "tree"
+    _executable(tree / "node", "#!/bin/sh\necho v20\n")
+    smoke_check(tree, executables=("node",))
+
+
+def test_the_smoke_check_fails_an_unrunnable_binary(tmp_path):
+    from tasks.vendor.assemble import smoke_check
+
+    tree = tmp_path / "tree"
+    (tree).mkdir()
+    (tree / "node").write_bytes(b"\x00not a program")
+    (tree / "node").chmod(0o755)
+    with pytest.raises(ValueError, match="did not execute"):
+        smoke_check(tree, executables=("node",))
