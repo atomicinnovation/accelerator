@@ -168,6 +168,10 @@ fn build_archive() -> (Vec<u8>, String, u64, u64) {
         }
         count += 1;
     }
+    // A symlink, so the round trip and verify's link-target detection are
+    // exercised.
+    table.push_str("l\t777\t0\t-\tlib/current\tdata.pak\n");
+    count += 1;
     let table_sha = hex(&Sha256::digest(table.as_bytes()));
 
     let mut builder = tar::Builder::new(Vec::new());
@@ -185,6 +189,13 @@ fn build_archive() -> (Vec<u8>, String, u64, u64) {
             append(&mut builder, member.path, member.mode, member.body);
         }
     }
+    let mut link_header = tar::Header::new_gnu();
+    link_header.set_entry_type(tar::EntryType::Symlink);
+    link_header.set_mode(0o777);
+    link_header.set_size(0);
+    builder
+        .append_link(&mut link_header, "lib/current", "data.pak")
+        .expect("append symlink");
     let tar = builder.into_inner().expect("finish tar");
     let mut encoder =
         flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
@@ -969,6 +980,9 @@ fn verify_detects_deletion_mode_change_and_a_changed_symlink() {
         std::fs::Permissions::from_mode(0o444),
     )
     .unwrap();
+    std::fs::remove_file(sealed.path.join("lib/current")).unwrap();
+    std::os::unix::fs::symlink("node", sealed.path.join("lib/current"))
+        .unwrap();
 
     let report = harness.resolver().verify(ARTIFACT).expect("verify");
     assert!(!report.is_sound());
@@ -984,6 +998,10 @@ fn verify_detects_deletion_mode_change_and_a_changed_symlink() {
     assert!(
         kinds.contains(&"mode"),
         "mode change not detected: {kinds:?}"
+    );
+    assert!(
+        kinds.contains(&"link-target"),
+        "changed symlink target not detected: {kinds:?}"
     );
 }
 
