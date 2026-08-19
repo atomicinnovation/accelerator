@@ -21,6 +21,7 @@ from . import (
     version,
 )
 from . import format as format_  # `format` shadows a builtin; alias the import
+from .vendor import commands as vendor_commands
 
 ns = Collection()
 
@@ -67,6 +68,12 @@ ns.add_collection(Collection.from_module(public_api))
 ns.add_collection(Collection.from_module(pup))
 ns.add_collection(Collection.from_module(test))
 ns.add_collection(Collection.from_module(version))
+
+ns_vendor = Collection("vendor")
+ns_vendor.add_task(vendor_commands.verify_upstream_inputs)
+ns_vendor.add_task(vendor_commands.assemble_tree_artifacts)
+ns_vendor.add_task(vendor_commands.smoke_runtime)
+ns.add_collection(ns_vendor)
 
 ns_format = Collection("format")
 ns_format.add_collection(
