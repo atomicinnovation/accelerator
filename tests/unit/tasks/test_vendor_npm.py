@@ -131,3 +131,39 @@ def test_a_failing_slsa_check_fails_the_release(tmp_path):
             signer_workflow="microsoft/playwright/.github/workflows/publish.yml",
             runner=lambda _argv: 1,
         )
+
+
+def _packument(version="1.55.1", *, signatures=True):
+    dist = {
+        "tarball": (
+            "https://registry.npmjs.org/playwright-core/-/"
+            f"playwright-core-{version}.tgz"
+        ),
+        "integrity": "sha512-abc",
+    }
+    if signatures:
+        dist["signatures"] = [{"keyid": "SHA256:key", "sig": "MEUCIQ=="}]
+    return {"name": "playwright-core", "versions": {version: {"dist": dist}}}
+
+
+def test_packument_dist_extracts_the_signed_fields():
+    from tasks.vendor.npm import packument_dist
+
+    dist = packument_dist(_packument(), "1.55.1")
+    assert dist.tarball.endswith("playwright-core-1.55.1.tgz")
+    assert dist.integrity == "sha512-abc"
+    assert dist.signature_b64 == "MEUCIQ=="
+
+
+def test_a_version_absent_from_the_packument_raises():
+    from tasks.vendor.npm import packument_dist
+
+    with pytest.raises(ValueError, match="absent"):
+        packument_dist(_packument(), "1.99.0")
+
+
+def test_an_unsigned_version_is_refused():
+    from tasks.vendor.npm import packument_dist
+
+    with pytest.raises(ValueError, match="signature"):
+        packument_dist(_packument(signatures=False), "1.55.1")
