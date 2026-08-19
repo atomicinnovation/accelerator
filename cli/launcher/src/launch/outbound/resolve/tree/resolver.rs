@@ -566,7 +566,7 @@ impl MaterialiseTree for TreeResolver<'_> {
         // unwritable or full root surfaces as the intended downgrade rather than
         // an opaque lock-file error.
         cache_root::verify_writable(&self.cache_root).map_err(|error| {
-            TreeError::Lease {
+            TreeError::CacheRootUnwritable {
                 detail: format!("the cache root is unusable: {error}"),
             }
         })?;
@@ -661,7 +661,7 @@ impl TreeResolver<'_> {
         }
 
         cache_root::verify_writable(&self.cache_root).map_err(|error| {
-            TreeError::Lease {
+            TreeError::CacheRootUnwritable {
                 detail: format!("the cache root is unusable: {error}"),
             }
         })?;

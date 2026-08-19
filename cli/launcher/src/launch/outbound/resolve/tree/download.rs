@@ -35,8 +35,8 @@ pub struct AttestationBytes {
 ///
 /// # Errors
 ///
-/// [`TreeError::Extraction`] wrapping the transport cause — the caller maps a
-/// bare fetch failure to its own downgrade class.
+/// [`TreeError::Unreachable`] wrapping the transport cause — a bare fetch
+/// failure is an availability failure, not tampering, so a crawl degrades.
 pub fn stream_archive(
     fetcher: &Fetcher,
     url: &str,
@@ -60,7 +60,7 @@ pub fn stream_archive(
         };
     let body = fetcher
         .get_streaming(url, &limits, range_from, &mut open_dest)
-        .map_err(|error| TreeError::Extraction {
+        .map_err(|error| TreeError::Unreachable {
             detail: format!(
                 "could not fetch the archive from {url}: {error:?}"
             ),
@@ -112,7 +112,8 @@ impl StreamSink for FileSink {
 ///
 /// # Errors
 ///
-/// [`TreeError::Attestation`] if either small asset cannot be fetched.
+/// [`TreeError::Unreachable`] if either small asset cannot be fetched — a
+/// transport failure, distinct from the signature failing to verify.
 pub fn fetch_attestation(
     fetcher: &Fetcher,
     document_url: &str,
@@ -121,7 +122,7 @@ pub fn fetch_attestation(
     let document =
         fetcher
             .get(document_url)
-            .map_err(|error| TreeError::Attestation {
+            .map_err(|error| TreeError::Unreachable {
                 detail: format!(
                 "could not fetch the attestation from {document_url}: {error:?}"
             ),
@@ -129,7 +130,7 @@ pub fn fetch_attestation(
     let signature =
         fetcher
             .get(signature_url)
-            .map_err(|error| TreeError::Attestation {
+            .map_err(|error| TreeError::Unreachable {
                 detail: format!(
                     "could not fetch the attestation signature from \
                  {signature_url}: {error:?}"

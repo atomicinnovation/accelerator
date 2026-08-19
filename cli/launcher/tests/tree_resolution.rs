@@ -774,6 +774,31 @@ fn cache_ensure_prints_the_tree_and_lease_paths() {
 }
 
 #[test]
+fn cache_ensure_emits_a_cause_envelope_when_the_archive_is_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness.server.route(&archive_path(), Route::Status(404));
+
+    let outcome = run_cache(
+        &harness,
+        &CacheAction::Ensure {
+            names: vec![ARTIFACT.to_owned()],
+        },
+    );
+    assert!(
+        matches!(&outcome, Err(kernel::Error::Failed(_))),
+        "expected a structured ensure failure, got {outcome:?}"
+    );
+    let envelope = outcome.err().map(|error| error.to_string()).unwrap_or_default();
+    assert!(
+        envelope.contains(r#""error":"ensure-failed""#),
+        "{envelope}"
+    );
+    assert!(envelope.contains(r#""cause":"unreachable""#), "{envelope}");
+    assert!(envelope.contains(ARTIFACT), "{envelope}");
+}
+
+#[test]
 fn every_cache_verb_refuses_an_unknown_name_without_touching_the_filesystem() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
