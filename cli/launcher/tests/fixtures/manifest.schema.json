@@ -4,7 +4,11 @@
   "title": "Accelerator release manifest",
   "description": "The signed distribution contract between the release signer (emitting manifest.json + manifest.minisig) and the launcher/bootstrap readers. schema_version gates breaking shape changes; version is checked for exact equality against the launcher's own CARGO_PKG_VERSION (anti-rollback). Additive unknown fields are tolerated by the reader.",
   "type": "object",
-  "required": ["schema_version", "version", "binaries"],
+  "required": [
+    "schema_version",
+    "version",
+    "binaries"
+  ],
   "properties": {
     "schema_version": {
       "type": "integer",
@@ -18,13 +22,24 @@
     "binaries": {
       "type": "object",
       "description": "Sub-binary name -> entry. Empty is valid (no external subcommands yet).",
-      "additionalProperties": { "$ref": "#/$defs/binaryEntry" }
+      "additionalProperties": {
+        "$ref": "#/$defs/binaryEntry"
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Tree-artifact name -> entry. Additive: an older reader ignores it, a newer reader of a manifest without it gets an empty map.",
+      "additionalProperties": {
+        "$ref": "#/$defs/artifactEntry"
+      }
     }
   },
   "$defs": {
     "binaryEntry": {
       "type": "object",
-      "required": ["platforms"],
+      "required": [
+        "platforms"
+      ],
       "properties": {
         "description": {
           "type": "string",
@@ -34,15 +49,25 @@
           "type": "object",
           "description": "Platform alias -> per-platform asset. Aliases are single-sourced from tasks/shared/targets.py.",
           "propertyNames": {
-            "enum": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"]
+            "enum": [
+              "darwin-arm64",
+              "darwin-x64",
+              "linux-arm64",
+              "linux-x64"
+            ]
           },
-          "additionalProperties": { "$ref": "#/$defs/platformEntry" }
+          "additionalProperties": {
+            "$ref": "#/$defs/platformEntry"
+          }
         }
       }
     },
     "platformEntry": {
       "type": "object",
-      "required": ["sha256", "signature"],
+      "required": [
+        "sha256",
+        "signature"
+      ],
       "properties": {
         "sha256": {
           "type": "string",
@@ -52,6 +77,69 @@
         "signature": {
           "type": "string",
           "description": "The inline .minisig contents (untrusted comment / base64 / trusted comment / base64), newline-joined."
+        }
+      }
+    },
+    "artifactEntry": {
+      "type": "object",
+      "required": [
+        "platforms"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "One-line help text for the tree artifact."
+        },
+        "platforms": {
+          "type": "object",
+          "description": "Platform alias -> per-platform archive. Aliases single-sourced from tasks/shared/targets.py.",
+          "propertyNames": {
+            "enum": [
+              "darwin-arm64",
+              "darwin-x64",
+              "linux-arm64",
+              "linux-x64"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/artifactPlatformEntry"
+          }
+        }
+      }
+    },
+    "artifactPlatformEntry": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "signature",
+        "archive_size",
+        "uncompressed_size",
+        "entry_count"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "description": "Lowercase hex sha256 of the .tar.gz archive.",
+          "pattern": "^(sha256:)?[0-9a-f]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "description": "The inline .minisig contents of the archive, newline-joined."
+        },
+        "archive_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Bytes of the compressed archive; bounds the download."
+        },
+        "uncompressed_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Bytes of the extracted tree; bounds extraction and the free-space precheck."
+        },
+        "entry_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of entries in the tree; bounds extraction."
         }
       }
     }

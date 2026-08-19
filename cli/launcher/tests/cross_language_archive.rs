@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use accelerator::launch::core::tree_entry::ExtractionLimits;
+use accelerator::launch::outbound::resolve::tree::attestation::Attestation;
 use accelerator::launch::outbound::resolve::tree::extract::extract_archive;
+use accelerator::launch::outbound::resolve::HOST_PLATFORM;
 
 fn repo_root() -> PathBuf {
     // CARGO_MANIFEST_DIR is cli/launcher; the repo root is two levels up.
@@ -31,16 +33,21 @@ fn python() -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// Build an archive from `tree` into `dest` via the real Python assembly path.
+/// Build an archive from `tree` into `dest` and its attestation into
+/// `<dest>.sealed`, via the real Python assembly path.
 fn python_build_archive(python: &Path, tree: &Path, dest: &Path) -> bool {
     let script = "from pathlib import Path; import sys; \
-                  from tasks.vendor.archive import write_deterministic_archive; \
-                  write_deterministic_archive(Path(sys.argv[1]), Path(sys.argv[2]))";
+         from tasks.vendor.archive import write_deterministic_archive; \
+         from tasks.vendor.attestation import build_attestation; \
+         stats = write_deterministic_archive(Path(sys.argv[1]), Path(sys.argv[2])); \
+         Path(sys.argv[2] + '.sealed').write_bytes(\
+             build_attestation('driver', sys.argv[3], stats))";
     let status = Command::new(python)
         .arg("-c")
         .arg(script)
         .arg(tree)
         .arg(dest)
+        .arg(HOST_PLATFORM)
         .current_dir(repo_root())
         .status()
         .expect("run python archive builder");
@@ -108,4 +115,17 @@ fn a_python_built_archive_extracts_under_the_rust_contract() {
         std::fs::read_link(dest.join("lib/current")).unwrap(),
         Path::new("data.pak")
     );
+
+    // The Python-emitted attestation deserialises into the Rust reader with the
+    // fields the hit path checks, and its sizes match the extracted tree.
+    let sealed_path = PathBuf::from(format!("{}.sealed", archive.display()));
+    let sealed = std::fs::read(&sealed_path).expect("read the attestation");
+    let attestation: Attestation = serde_json::from_slice(&sealed)
+        .expect("Rust reads the Python document");
+    assert_eq!(attestation.artifact, "driver");
+    assert_eq!(attestation.platform, HOST_PLATFORM);
+    assert_eq!(attestation.attestation_format_version, 1);
+    assert_eq!(attestation.entry_count, extracted.entry_count);
+    assert_eq!(attestation.archive_sha256.len(), 64);
+    assert_eq!(attestation.table_sha256.len(), 64);
 }
