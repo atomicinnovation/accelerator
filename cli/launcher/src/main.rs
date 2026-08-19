@@ -13,8 +13,10 @@ use clap::{CommandFactory as _, Parser as _};
 
 use accelerator::config_command::core::ConfigStack;
 use accelerator::launch::cache;
+use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
-    swallow_under_fail_safe, ExternalCommand, ResolutionError, ResolveBinary,
+    acquire_trees, consumes_trees, swallow_under_fail_safe, tree_var,
+    ExternalCommand, ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::external_subcommands_section;
@@ -27,7 +29,7 @@ use accelerator::launch::outbound::resolve::cache_root::{
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::tree::{
-    ExpectedDigests, NoSteps, SystemClock, TreeResolver,
+    pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::{
     FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
@@ -247,8 +249,81 @@ fn launcher_id() -> String {
 /// materialisation-in-progress the crawl retries on its next invocation.
 const WAITER_BOUND: std::time::Duration = std::time::Duration::from_secs(20);
 
+/// Export the tree variables a tree-consuming dispatch's consumer reads, and
+/// return the leases pinning each resolved tree against reclamation until the
+/// consumer takes over.
+///
+/// Runs ahead of `dispatch`, so the clearing lands before the resolve path's
+/// `ACCELERATOR_<SUB>_BIN` short-circuit could return early: an injected
+/// `ACCELERATOR_TREE_<NAME>` is cleared even when the dev-override is in use,
+/// after which the consumer reaches `cache ensure` exactly as on a cold cache.
+/// Best-effort: a tree that is absent, unpointed or failing its checks simply
+/// yields no variable, because "not materialised yet" is the normal state.
+fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
+    let Command::External(raw) = command else {
+        return Vec::new();
+    };
+    let Some(subcommand) = raw.first().and_then(|arg| arg.to_str()) else {
+        return Vec::new();
+    };
+    if !consumes_trees(subcommand) {
+        return Vec::new();
+    }
+
+    for artifact in pins::artifact_names() {
+        std::env::remove_var(tree_var(artifact));
+    }
+    std::env::remove_var(LAUNCHER_PATH_VAR);
+    if let Ok(exe) = std::env::current_exe() {
+        std::env::set_var(LAUNCHER_PATH_VAR, exe);
+    }
+
+    let acquired = acquire_consumed_trees().unwrap_or_default();
+    for tree in &acquired {
+        std::env::set_var(tree_var(&tree.tree.artifact), &tree.tree.path);
+    }
+    acquired
+}
+
+/// Acquire every compiled-in tree that is already materialised, holding a lease
+/// on each. `None` on any construction failure — a warm export never errors.
+///
+/// The `Fetcher` is unused on the `acquire` path (local reads and `lstat`s
+/// only, no network, no cache-root write probe) and is dropped before the
+/// caller mutates the environment, so the mutation is single-threaded.
+fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
+    let _ = install_crypto_provider();
+    let cache = cache_root::candidate(&CacheRootConfig::from_env(
+        config_adapters::plugin_root_from_env(),
+    ))
+    .ok()?;
+    let keys = TrustedKeys::embedded().ok()?;
+    let fetcher = Fetcher::new().ok()?;
+    let clock = SystemClock;
+    let steps = NoSteps;
+    let resolver = TreeResolver {
+        cache_root: cache,
+        base_url: release_base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &clock,
+        launcher_id: launcher_id(),
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &steps,
+    };
+    let names: Vec<&str> = pins::artifact_names();
+    acquire_trees(&resolver, &names).ok()
+}
+
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
+    // Held until `dispatch` execs the consumer: on success the process image is
+    // replaced and no destructor runs, so the leases pin their trees against
+    // reclamation right up to the handover.
+    let _tree_leases = export_consumed_trees(&cli.command);
     let reporter = VersionReporter::new(VergenBuildMetadata);
     let resolver = LazyProductionResolver;
     let executor = UnixExec;
