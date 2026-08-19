@@ -92,7 +92,12 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-19. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-0/50, Removal 0/14. Two amendments were made to the plan during implementation,
+0/50, Removal 0/14. Phase 2's criteria stay unticked because they are framed at
+the release-flow level ("fails the release"), and the fetch orchestration and
+publish-path wiring that reach the verifiers are not yet built — but the
+**verification and assembly logic those criteria rest on is now committed and
+green** (assemble/chromium/nodejs/npm modules; see the Phase 2 progress note
+below). Two amendments were made to the plan during implementation,
 recorded inline at the sections they touch rather than here: the `-S -H`
 prehash distinction does not exist (pinned `minisign 0.12` prehashes under a
 plain `-S`), and reqwest's async-builder `read_timeout` panics on the blocking
@@ -151,29 +156,44 @@ attestation, so a table-format or attestation-shape disagreement fails at
 fixed a trailing-slash mismatch (Python `tarfile` names directories `lib/`, the
 table keys them `lib`).
 
-**Phase 2's next steps, in dependency order:**
+**Phase 2 progress, 2026-08-19.** The **assembly core and all upstream
+verification logic are now built and green** in `test:unit:tasks`, added as
+tested units since the artifact contract landed:
 
-1. **`tasks/vendor/assemble.py`** — fetch and extract the upstream npm tarball
-   and Chromium *zip* (the `external_attr` mode + `S_IFLNK` symlink
-   reconstruction §3 warns about), compose the driver and browser trees, emit
-   `NOTICES/` (§9), and the version guards (§4). This is the orchestration the
-   archive/attestation producers already built plug into.
-2. **Upstream input verification** — `npm.py` (registry signature + SLSA via an
-   injected `gh attestation verify` runner, argv pinned) and `chromium.py`
-   (pinned-hash check), plus `nodejs.py` wiring the committed keyring into the
-   `gpg.py` check. ❓ **Open decision:** the npm registry signature is ECDSA
-   P-256 over `<name>@<version>:<integrity>`, which needs a crypto primitive
-   `tasks/` lacks — either add `cryptography` to the build group (beyond the
-   `requests` the plan sanctions) or lean on SLSA plus the sha512-in-signed-message
-   check and scope the registry ECDSA out. Decide before implementing §2's npm arm.
-3. **The publish path** (§5 arms 1-4) — `signing.py`/`manifest.py`/`github.py`/
+- `tasks/vendor/assemble.py` — `extract_zip` (the `external_attr` mode +
+  `S_IFLNK` symlink reconstruction, with in-root containment §3 warns about),
+  the version guards (§4), `NoticeSource`/`TreeSpec`/`stage_tree` composition and
+  `write_notices` (§9), `structural_check`/`smoke_check` predicates, and
+  `assemble_specs` + `assert_matches_pin` producing flat, deterministically-named
+  archives gated against `ASSEMBLED_SHA256` (§3, §8).
+- `tasks/vendor/chromium.py` — the pinned-revision cross-check and per-platform
+  byte-hash (§2), with `pins.toml` gaining `[chromium]`/`[node]` sections and
+  `pins.py` the accessors.
+- `tasks/vendor/nodejs.py` — the exact-filename digest match wired onto
+  `gpg.verify_detached` with an injected runner (§2 Node bullet).
+- `tasks/vendor/npm.py` — **the npm ECDSA decision is settled: `cryptography`
+  was added** (exact-pinned, with `requests`, to the build group). Registry
+  ECDSA-P256 signature verify, the sha512-integrity binding, and SLSA via an
+  injected argv-pinned `gh attestation verify` runner (§2 npm bullet).
+
+**Phase 2's remaining steps, in dependency order:**
+
+1. **The fetch orchestration** — `requests`-based download of the npm tarball,
+   Chromium zip, and Node `SHASUMS256.txt`/`.asc`, tying the verifiers above and
+   `assemble_specs` into `vendor.verify_upstream_inputs` +
+   `build.assemble_tree_artifacts` invoke tasks, wired into `tasks/__init__.py`
+   and `mise.toml`. Plus the real committed trust anchors
+   (`keys/nodejs-release.asc`, `keys/npm-registry.pem`, the `pins.toml` Chromium/
+   Node values, `ASSEMBLED_SHA256`) — a **human-gated trust-anchor operation**,
+   left as placeholders in code.
+2. **The publish path** (§5 arms 1-4) — `signing.py`/`manifest.py`/`github.py`/
    `paths.py` so the manifest carries `artifacts`, each archive's four sidecars
    are signed, uploaded and re-verified, and `ASSEMBLED_SHA256` gates before
-   signing. `TREE_ARTIFACTS` and `tree_artifact_asset_path` already exist in
-   `paths.py` from Phase 1's drift-test work.
-4. **The guards** (§6) — `_assert_staged_manifest_is_current`'s cross-product
+   signing. `TREE_ARTIFACTS`, `tree_artifact_asset_path` and `PINS_TOML` already
+   exist in `paths.py`.
+3. **The guards** (§6) — `_assert_staged_manifest_is_current`'s cross-product
    arm, the attest-glob and upload-count tests, done against the shared corpus.
-5. **The CI workflow** (§3, §7, §8) — the `assemble-runtime` and matrix
+4. **The CI workflow** (§3, §7, §8) — the `assemble-runtime` and matrix
    `smoke-runtime` jobs in `main.yml`, `permissions: {}`, the failure-envelope
    hardening (the `--cleanup-tag` delete-arm removal), and `timeout-minutes` from
    a measured double-pass. Testable only in the release lane, so §8's miniature
