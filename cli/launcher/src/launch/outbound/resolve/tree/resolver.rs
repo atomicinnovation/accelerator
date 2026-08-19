@@ -902,18 +902,29 @@ fn generation_suffix() -> String {
 
 fn ensure_trees_dir(paths: &TreePaths) -> Result<(), TreeError> {
     use std::os::unix::fs::PermissionsExt as _;
-    std::fs::create_dir_all(paths.root()).map_err(|error| {
-        TreeError::Lease {
-            detail: format!("cannot create the trees directory: {error}"),
-        }
+    let root = paths.root();
+    std::fs::create_dir_all(root).map_err(|error| TreeError::Lease {
+        detail: format!("cannot create the trees directory: {error}"),
     })?;
-    // The launcher owns trees/ and chmods it into compliance, so the strict
-    // ownership check is one it can always satisfy even under a umask-relaxed
-    // cache root.
-    let _ = std::fs::set_permissions(
-        paths.root(),
-        std::fs::Permissions::from_mode(0o700),
-    );
+    // The launcher owns trees/ and chmods it into compliance, so a cache root
+    // inherited at 0775 under a user-private group still resolves: only trees/
+    // is held to the strict mode, not the umask-dependent cache root above it.
+    let _ =
+        std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700));
+
+    // What chmod cannot fix is refused, with the exact remediation named: a
+    // trees/ that is a symlink, owned by another uid, or still writable by
+    // group or other after the chmod.
+    if !is_privately_owned(root) {
+        return Err(TreeError::Lease {
+            detail: format!(
+                "the trees directory {} is not exclusively owned by you; \
+                 run `chown $(id -u) {0} && chmod 700 {0}`, or point \
+                 ACCELERATOR_CACHE_DIR at a private, user-owned path",
+                root.display()
+            ),
+        });
+    }
     Ok(())
 }
 
