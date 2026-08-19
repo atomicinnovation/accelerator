@@ -614,6 +614,20 @@ pub fn design::runtime::downgrade::UnknownReason::fmt(&self, f: &mut core::fmt::
 impl core::fmt::Display for design::runtime::downgrade::UnknownReason
 pub fn design::runtime::downgrade::UnknownReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::runtime::downgrade::UnknownReason
+pub mod design::runtime::ensure
+pub struct design::runtime::ensure::EnsureVerdict
+pub design::runtime::ensure::EnsureVerdict::reason: design::runtime::downgrade::DowngradeReason
+pub design::runtime::ensure::EnsureVerdict::sticky: bool
+impl core::clone::Clone for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::clone(&self) -> design::runtime::ensure::EnsureVerdict
+impl core::cmp::Eq for design::runtime::ensure::EnsureVerdict
+impl core::cmp::PartialEq for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::eq(&self, other: &design::runtime::ensure::EnsureVerdict) -> bool
+impl core::fmt::Debug for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::ensure::EnsureVerdict
+impl core::marker::StructuralPartialEq for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::classify_cause(cause: &str) -> design::runtime::ensure::EnsureVerdict
 pub mod design::runtime::platform
 pub enum design::runtime::platform::ShellLoader
 pub design::runtime::platform::ShellLoader::Musl

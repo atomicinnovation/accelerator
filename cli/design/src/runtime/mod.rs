@@ -5,4 +5,5 @@ pub mod availability;
 pub mod bootstrap;
 pub mod browser_path;
 pub mod downgrade;
+pub mod ensure;
 pub mod platform;
