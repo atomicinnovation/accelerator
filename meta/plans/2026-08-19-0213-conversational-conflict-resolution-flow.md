@@ -937,12 +937,12 @@ wire it into `lint:check`'s `depends`. Update the placement assertion in
 
 #### Automated Verification:
 
-- [ ] The lint passes on the rewritten skill:
+- [x] The lint passes on the rewritten skill:
       `mise run lint:sync-conflict-flow:check`.
-- [ ] The lint is wired into the aggregate: `mise run lint:check` runs it.
-- [ ] The lint's unit tests pass: `mise run test:unit:tasks`.
-- [ ] Build-system format and lint pass: `mise run build-system:check`.
-- [ ] The skill still parses as a valid SKILL.md (existing skill checks):
+- [x] The lint is wired into the aggregate: `mise run lint:check` runs it.
+- [x] The lint's unit tests pass: `mise run test:unit:tasks`.
+- [x] Build-system format and lint pass: `mise run build-system:check`.
+- [x] The skill still parses as a valid SKILL.md (existing skill checks):
       `mise run test:unit:templates` and `mise run lint:skill-permissions:check`.
 
 #### Manual Verification:
