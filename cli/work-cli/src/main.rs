@@ -192,6 +192,7 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
         producer: cli_args.producer,
         body_file: cli_args.body_file,
         push: cli_args.push,
+        dry_run: cli_args.dry_run,
     }
 }
 
@@ -242,6 +243,14 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
                 );
             }
             ExitCode::from(exit_code)
+        }
+        create::RunOutcome::Previewed(line) => {
+            println!("{line}");
+            ExitCode::SUCCESS
+        }
+        create::RunOutcome::PreviewFailed { message, code } => {
+            eprintln!("Error: {message}");
+            ExitCode::from(code)
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");

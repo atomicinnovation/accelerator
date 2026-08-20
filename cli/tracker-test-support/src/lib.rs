@@ -64,6 +64,7 @@ pub struct RecordingTracker {
     show_failures: Vec<(ExternalId, TrackerError)>,
     update_failures: Vec<(ExternalId, TrackerError)>,
     create_failure: Option<(TrackerError, bool)>,
+    preview_failure: Option<TrackerError>,
     search_result: RefCell<Option<Discovery>>,
     preview: RefCell<Option<CreatePreview>>,
     next_id: RefCell<u32>,
@@ -79,6 +80,7 @@ impl RecordingTracker {
             show_failures: Vec::new(),
             update_failures: Vec::new(),
             create_failure: None,
+            preview_failure: None,
             search_result: RefCell::new(None),
             preview: RefCell::new(None),
             next_id: RefCell::new(1),
@@ -139,6 +141,16 @@ impl RecordingTracker {
     #[must_use]
     pub fn creating_then_failing(mut self, error: TrackerError) -> Self {
         self.create_failure = Some((error, true));
+        self
+    }
+
+    /// A tracker whose `preview_create` cannot reach the remote and so
+    /// reports the failure rather than a resolution — the transport-failure
+    /// path the create-preview gate must degrade around, distinct from an
+    /// `Unresolvable` field.
+    #[must_use]
+    pub fn failing_preview(mut self, error: TrackerError) -> Self {
+        self.preview_failure = Some(error);
         self
     }
 
@@ -316,6 +328,9 @@ impl RemoteTracker for RecordingTracker {
         self.calls.borrow_mut().push(Call::PreviewCreate {
             kind: kind.to_owned(),
         });
+        if let Some(error) = &self.preview_failure {
+            return Err(error.clone());
+        }
         Ok(self.preview.borrow().clone().unwrap_or(CreatePreview {
             project: tracker::FieldResolution::Unset,
             issue_type: tracker::FieldResolution::Unset,

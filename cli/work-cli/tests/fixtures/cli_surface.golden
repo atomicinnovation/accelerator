@@ -88,7 +88,8 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
-      --push                         Push the new item to the configured remote tracker before writing it locally. A failure is reported, not prompted; the file is still written either way (see `--help`'s exit-code notes)
+      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist — see `exit_codes` for the 70/71 contract). The file is written either way
+      --dry-run                      Preview the fields a `--push` create would resolve against the configured tracker, then exit without writing a file or creating a remote issue. Prints one tab-separated line the create skill parses; exits 70 when the tracker is unreachable (the preview could not be resolved), so the caller can distinguish an unreachable tracker from an unresolvable configured value (reported as an `unresolvable` source on the line, exit 0)
   -h, --help                         Print help
 
 === accelerator-work update --help ===

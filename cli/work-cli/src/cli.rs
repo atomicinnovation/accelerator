@@ -216,10 +216,21 @@ pub struct CreateArgs {
     #[arg(long = "body-file")]
     pub body_file: Option<PathBuf>,
     /// Push the new item to the configured remote tracker before writing
-    /// it locally. A failure is reported, not prompted; the file is still
-    /// written either way (see `--help`'s exit-code notes).
+    /// it locally. On a retryable failure the create is retried once, then
+    /// the item is saved unsynced; a terminal failure is reported and the
+    /// item saved unsynced (a remote issue may already exist — see
+    /// `exit_codes` for the 70/71 contract). The file is written either way.
     #[arg(long)]
     pub push: bool,
+    /// Preview the fields a `--push` create would resolve against the
+    /// configured tracker, then exit without writing a file or creating a
+    /// remote issue. Prints one tab-separated line the create skill parses;
+    /// exits 70 when the tracker is unreachable (the preview could not be
+    /// resolved), so the caller can distinguish an unreachable tracker from
+    /// an unresolvable configured value (reported as an `unresolvable`
+    /// source on the line, exit 0).
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// `work sync`'s flags, boxed for the same reason as [`CreateArgs`].

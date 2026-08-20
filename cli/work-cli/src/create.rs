@@ -19,7 +19,9 @@ use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
+use tracker::CreatePreview;
 use tracker::ExternalId;
+use tracker::FieldResolution;
 use tracker::TrackerError;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
@@ -69,6 +71,7 @@ pub struct CreateArgs {
     pub producer: String,
     pub body_file: Option<PathBuf>,
     pub push: bool,
+    pub dry_run: bool,
 }
 
 pub struct PushReport {
@@ -80,6 +83,11 @@ pub enum RunOutcome {
     Created {
         path: PathBuf,
         push: Option<PushReport>,
+    },
+    Previewed(String),
+    PreviewFailed {
+        message: String,
+        code: u8,
     },
     Failed(String),
 }
@@ -343,6 +351,115 @@ const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     }
 }
 
+const LINEAR_INTEGRATION: &str = "linear";
+
+fn field_value_and_source(
+    resolution: &FieldResolution,
+) -> (&str, &'static str) {
+    match resolution {
+        FieldResolution::Resolved(value) => (value, "configured"),
+        FieldResolution::Unset => ("", "default"),
+        FieldResolution::Unresolvable(value) => (value, "unresolvable"),
+    }
+}
+
+/// Renders a create preview as the single tab-separated line the create skill
+/// parses. Linear has no user-resolvable type or project fields (its team and
+/// issue-type catalogue are fixed), so its line is a fixed sentinel the skill
+/// reads as "nothing to resolve"; every other provider renders its issue-type
+/// and project as `<value>\t<source>` pairs, where an `unresolvable` project
+/// source is the state the create-preview exists to surface.
+fn render_create_preview(integration: &str, preview: &CreatePreview) -> String {
+    if integration == LINEAR_INTEGRATION {
+        return format!(
+            "{integration}\t(no user-resolvable type/project fields)"
+        );
+    }
+    let (type_value, type_source) = field_value_and_source(&preview.issue_type);
+    let (project_value, project_source) =
+        field_value_and_source(&preview.project);
+    format!(
+        "{integration}\t{type_value}\t{type_source}\t{project_value}\t\
+         {project_source}"
+    )
+}
+
+fn preview_push(
+    integration: &str,
+    kind: &str,
+    registry: &dyn TrackerRegistry,
+) -> RunOutcome {
+    let tracker = match registry.resolve(integration) {
+        Ok(tracker) => tracker,
+        Err(error) => {
+            return RunOutcome::PreviewFailed {
+                message: error.message(),
+                code: dispatch_code_for_selection_error(&error),
+            };
+        }
+    };
+    match tracker.preview_create(kind) {
+        Ok(preview) => {
+            RunOutcome::Previewed(render_create_preview(integration, &preview))
+        }
+        Err(error) => RunOutcome::PreviewFailed {
+            message: format!(
+                "could not resolve the create preview against '{integration}': \
+                 {}",
+                tracker_error_detail(&error)
+            ),
+            code: exit_codes::for_tracker_error(&error),
+        },
+    }
+}
+
+fn tracker_error_detail(error: &TrackerError) -> &str {
+    match error {
+        TrackerError::Retryable { detail }
+        | TrackerError::Terminal { detail } => detail,
+    }
+}
+
+enum CreateRetryOutcome {
+    Created(ExternalId),
+    Exhausted,
+    Terminal(String),
+}
+
+/// Drives the create call with the retryable/terminal policy `push_decide`
+/// owns: a `70` (retryable) failure is retried once, then the item is saved
+/// unsynced; a `71` (terminal) failure is never retried — a remote issue may
+/// already exist. The retry count is bounded by `push_decide` returning
+/// `Retry` only on the first attempt.
+fn drive_create_retry<F>(mut attempt_create: F) -> CreateRetryOutcome
+where
+    F: FnMut() -> Result<ExternalId, TrackerError>,
+{
+    let mut attempt: u8 = 1;
+    loop {
+        match attempt_create() {
+            Ok(external_id) => return CreateRetryOutcome::Created(external_id),
+            Err(error) => {
+                let code = exit_codes::for_tracker_error(&error);
+                match work::sync::push_decide(code, attempt, false) {
+                    PushOutcome::Retry => attempt += 1,
+                    PushOutcome::LocalSave => {
+                        return CreateRetryOutcome::Exhausted
+                    }
+                    PushOutcome::LoudTerminal => {
+                        return CreateRetryOutcome::Terminal(
+                            tracker_error_detail(&error).to_owned(),
+                        )
+                    }
+                    PushOutcome::WriteOnce => {
+                        unreachable!("a non-zero code never yields WriteOnce")
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn attempted_at_epoch() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -442,8 +559,10 @@ fn execute_push(
             )
             .map_err(|error| error.to_string())?;
 
-            match tracker.create(&args.title, body, &args.kind) {
-                Ok(external_id) => {
+            match drive_create_retry(|| {
+                tracker.create(&args.title, body, &args.kind)
+            }) {
+                CreateRetryOutcome::Created(external_id) => {
                     let created = PendingPush::Created {
                         request: fingerprint,
                         external_id: external_id.clone(),
@@ -461,20 +580,15 @@ fn execute_push(
                         marker_to_delete_after_write: Some(marker_path),
                     })
                 }
-                Err(error @ TrackerError::Retryable { .. }) => {
+                CreateRetryOutcome::Exhausted => {
                     std::fs::remove_file(&marker_path).ok();
-                    let outcome = work::sync::push_decide(
-                        exit_codes::for_tracker_error(&error),
-                        1,
-                        false,
-                    );
                     Ok(PushExecution {
-                        outcome,
+                        outcome: PushOutcome::LocalSave,
                         external_id: None,
                         marker_to_delete_after_write: None,
                     })
                 }
-                Err(TrackerError::Terminal { detail }) => {
+                CreateRetryOutcome::Terminal(detail) => {
                     let failed = PendingPush::Attempted {
                         request: RequestFingerprint {
                             failure: Some(detail),
@@ -488,10 +602,8 @@ fn execute_push(
                             .as_bytes(),
                     )
                     .map_err(|error| error.to_string())?;
-                    let outcome =
-                        work::sync::push_decide(exit_codes::TERMINAL, 1, false);
                     Ok(PushExecution {
-                        outcome,
+                        outcome: PushOutcome::LoudTerminal,
                         external_id: None,
                         marker_to_delete_after_write: None,
                     })
@@ -620,8 +732,177 @@ pub fn run(
     args: &CreateArgs,
     registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
+    if args.dry_run {
+        let integration = match effective_nonempty(config, "work.integration") {
+            Ok(value) => value,
+            Err(error) => return RunOutcome::Failed(error.to_string()),
+        };
+        return preview_push(&integration, &args.kind, registry);
+    }
     match try_run(start, config, templates, args, registry) {
         Ok((path, push)) => RunOutcome::Created { path, push },
         Err(message) => RunOutcome::Failed(message),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+mod tests {
+    use std::cell::Cell;
+    use std::cell::RefCell;
+
+    use tracker::CreatePreview;
+    use tracker::FieldResolution;
+    use tracker::RemoteTracker;
+    use tracker_test_support::RecordingTracker;
+
+    use super::*;
+
+    fn retryable() -> TrackerError {
+        TrackerError::Retryable {
+            detail: "connection refused".to_owned(),
+        }
+    }
+
+    fn terminal() -> TrackerError {
+        TrackerError::Terminal {
+            detail: "response lost after send".to_owned(),
+        }
+    }
+
+    #[test]
+    fn a_retryable_create_is_retried_once_then_succeeds() {
+        let calls = Cell::new(0u8);
+        let outcome = drive_create_retry(|| {
+            let seen = calls.get();
+            calls.set(seen + 1);
+            if seen == 0 {
+                Err(retryable())
+            } else {
+                Ok(ExternalId::new("ENG-1".to_owned()))
+            }
+        });
+        assert_eq!(calls.get(), 2);
+        assert!(matches!(
+            outcome,
+            CreateRetryOutcome::Created(id) if id.as_str() == "ENG-1"
+        ));
+    }
+
+    #[test]
+    fn two_retryable_creates_exhaust_and_save_locally() {
+        let calls = Cell::new(0u8);
+        let outcome = drive_create_retry(|| {
+            calls.set(calls.get() + 1);
+            Err::<ExternalId, _>(retryable())
+        });
+        assert_eq!(calls.get(), 2, "the retry is bounded to one re-attempt");
+        assert!(matches!(outcome, CreateRetryOutcome::Exhausted));
+    }
+
+    #[test]
+    fn a_terminal_create_is_never_retried() {
+        let calls = Cell::new(0u8);
+        let outcome = drive_create_retry(|| {
+            calls.set(calls.get() + 1);
+            Err::<ExternalId, _>(terminal())
+        });
+        assert_eq!(calls.get(), 1, "a terminal failure is never retried");
+        assert!(matches!(outcome, CreateRetryOutcome::Terminal(_)));
+    }
+
+    #[test]
+    fn a_first_attempt_success_is_not_retried() {
+        let calls = Cell::new(0u8);
+        let outcome = drive_create_retry(|| {
+            calls.set(calls.get() + 1);
+            Ok(ExternalId::new("ENG-2".to_owned()))
+        });
+        assert_eq!(calls.get(), 1);
+        assert!(matches!(outcome, CreateRetryOutcome::Created(_)));
+    }
+
+    #[test]
+    fn jira_preview_renders_five_tab_fields_with_their_sources() {
+        let preview = CreatePreview {
+            project: FieldResolution::Resolved("PROJ".to_owned()),
+            issue_type: FieldResolution::Resolved("bug".to_owned()),
+        };
+        assert_eq!(
+            render_create_preview("jira", &preview),
+            "jira\tbug\tconfigured\tPROJ\tconfigured"
+        );
+    }
+
+    #[test]
+    fn jira_preview_marks_an_unresolvable_project() {
+        let preview = CreatePreview {
+            project: FieldResolution::Unresolvable("GONE".to_owned()),
+            issue_type: FieldResolution::Unset,
+        };
+        assert_eq!(
+            render_create_preview("jira", &preview),
+            "jira\t\tdefault\tGONE\tunresolvable"
+        );
+    }
+
+    #[test]
+    fn linear_preview_has_no_user_resolvable_fields() {
+        let preview = CreatePreview {
+            project: FieldResolution::Unset,
+            issue_type: FieldResolution::Unset,
+        };
+        assert_eq!(
+            render_create_preview("linear", &preview),
+            "linear\t(no user-resolvable type/project fields)"
+        );
+    }
+
+    struct FixedRegistry(RefCell<Option<Box<dyn RemoteTracker>>>);
+
+    impl FixedRegistry {
+        fn holding(tracker: impl RemoteTracker + 'static) -> Self {
+            Self(RefCell::new(Some(Box::new(tracker))))
+        }
+    }
+
+    impl TrackerRegistry for FixedRegistry {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
+            Ok(self.0.borrow_mut().take().expect("resolved more than once"))
+        }
+    }
+
+    #[test]
+    fn a_transport_failure_previews_as_retryable_not_a_block() {
+        let registry = FixedRegistry::holding(
+            RecordingTracker::holding(Vec::new()).failing_preview(retryable()),
+        );
+        match preview_push("jira", "bug", &registry) {
+            RunOutcome::PreviewFailed { code, .. } => {
+                assert_eq!(code, exit_codes::RETRYABLE);
+            }
+            _ => {
+                panic!("a transport failure must preview as PreviewFailed(70)")
+            }
+        }
+    }
+
+    #[test]
+    fn an_unresolvable_project_previews_at_exit_zero_with_the_marker() {
+        let registry = FixedRegistry::holding(
+            RecordingTracker::holding(Vec::new()).previewing(CreatePreview {
+                project: FieldResolution::Unresolvable("GONE".to_owned()),
+                issue_type: FieldResolution::Resolved("bug".to_owned()),
+            }),
+        );
+        match preview_push("jira", "bug", &registry) {
+            RunOutcome::Previewed(line) => {
+                assert!(line.ends_with("GONE\tunresolvable"), "{line}");
+            }
+            _ => panic!("an unresolvable project must still preview at exit 0"),
+        }
     }
 }
