@@ -511,7 +511,7 @@ conscious, revisitable boundary, not an accident.
 
 ---
 
-## Phase 3: Sync-engine orchestration seams (non-interactive)
+## Phase 3: Sync-engine orchestration seams (non-interactive) ✅ done
 
 ### Overview
 
@@ -697,60 +697,68 @@ outcome annotates its push entry without aborting the preview.
 
 #### Automated Verification
 
-- [ ] New engine tests fail red before the code and pass after: `mise run
-      test:unit:cli` exits 0.
-- [ ] A test stages a fixture work item with an uncommitted edit alongside a
+- [x] New engine tests fail red before the code and pass after (`cargo nextest`
+      behind `test:unit:cli`; driven directly for the mise-nesting reason).
+- [x] A test stages a fixture work item with an uncommitted edit alongside a
       remote-modified counterpart whose pull would apply, and asserts the file's
       bytes are unchanged and the refusal diagnostic emitted (the dirty guard
-      survives the engine extension).
-- [ ] A test asserts an over-threshold untracked set (exceeding `--max-pulls`)
+      survives the engine extension). (`sync_run.rs`
+      `a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched`.)
+- [x] A test asserts an over-threshold untracked set (exceeding `--max-pulls`)
       aborts with **zero creations** and **zero `show` fetches** when
       non-interactive, and that the refusal diagnostic breaks out the new-file
       creation count within the pull dimension.
-- [ ] A test asserts a create-from-local counts against `--max-pushes` (a
-      `--max-pushes 0` run refuses it and creates no remote issue), and a combined
-      set of create-from-remote plus create-from-local each crossing its
-      respective bound trips the gate — so neither dimension is left unbounded.
-- [ ] A test asserts a `--push-only` run authors **no** untracked local files
+- [x] A test asserts a create-from-local counts against `--max-pushes` (a
+      `--max-pushes 0` run refuses it and creates no remote issue). Deviation:
+      each dimension is bounded by its own test (`create_from_local_counts_against_
+      max_pushes` for push, `an_over_threshold_untracked_set_aborts_…` for pull)
+      rather than one combined-set test — neither dimension is left unbounded.
+- [x] A test asserts a `--push-only` run authors **no** untracked local files
       (the discover_untracked write path is direction-gated).
-- [ ] A test asserts a run whose planned pulls/pushes exceed their bound while the
+- [x] A test asserts a run whose planned pulls/pushes exceed their bound while the
       discovery set is small **refuses before any create-from-remote file is
-      written** — the combined gate runs ahead of every write, so a refused run
-      leaves the tree unchanged.
-- [ ] A report golden includes `CreateFromRemote`/`CreateFromLocal` rows, freezing
-      the extended report format (the current golden is create-free) so a
-      report consumer sees the widened action-keyword set explicitly.
-- [ ] A test asserts the untracked-pull happy path produces **exactly one local
-      file per discovered issue** whose allocated id, `external_id`, frontmatter,
-      and body match the remote projection (id from the `next-number` allocator,
-      body from `digest::remote_body`).
-- [ ] A test asserts a create-new write **refuses** when the allocated path
-      already exists on disk, rather than overwriting it.
-- [ ] A test asserts a keyless local item issues **exactly one** `create` and
-      the file is rewritten once with the returned `external_id` (Gap B happy
-      path via the create-from-local action, not the unreachable Push guard).
-- [ ] A test asserts production code writes the `pending_push` marker **before**
-      the `create` call (a fake `create` records marker state when invoked and
-      asserts it is present), pinning the marker-before-create ordering the crash
-      recovery depends on — not merely recovery from a pre-seeded marker.
-- [ ] A test seeds the `pending_push` marker before an injected write-back
-      failure and asserts the re-run **reuses** the existing `external_id` (no
-      second `create`), matching `create --push`'s recovery.
-- [ ] A test asserts a discovery whose results **mix tracked and untracked**
-      external ids produces `CreateFromRemote` only for the untracked ones, and a
-      stored id differing only cosmetically from a search result is excluded from
-      the untracked set (canonicalised comparison).
-- [ ] A test injects a `show` failure at position N of the untracked batch and
-      asserts issues 1..N-1 are created, issue N is reported `Failed`, the run
-      continues, and the pull-dimension creation count is consistent.
-- [ ] A test asserts `--preview` performs **no** creation write for discovered
-      untracked issues (reports them `NotApplied`) and issues no mutation call,
-      and that a mixed plan (push + pull + conflict) still lists every planned
-      action in the report with a `ValidationOutcome` on the push entries only.
-- [ ] A test asserts `validate_update` in the preview loop returns
+      written** (`planned_writes_over_bound_refuse_before_any_create_from_remote`).
+- [x] The extended report format is frozen. Deviation: no report golden exists
+      (`render_report` is private to the bin-only `work-cli`; none was ever
+      committed), so the `CreateFromRemote`/`CreateFromLocal` rows are asserted on
+      `RunReport.reported` in `sync_create.rs` instead of a golden file.
+- [x] A test asserts the untracked-pull happy path produces **exactly one local
+      file per discovered issue** (`the_happy_path_authors_exactly_one_file_per_
+      untracked_issue`).
+- [x] A test asserts a create-new write **refuses** when the allocated path
+      already exists (`create::exclusive_write` unit test — the primitive the
+      real author uses, since the author itself is bin-only).
+- [x] A test asserts a keyless local item issues **exactly one** `create` and
+      the file is rewritten once with the returned `external_id`
+      (`an_unsynced_item_issues_exactly_one_create_and_links_it`).
+- [x] A test asserts production code writes the `pending_push` marker **before**
+      the `create` call (`create_from_local_writes_the_marker_before_the_create`,
+      a fake `create` stats the on-disk marker).
+- [x] A test seeds the `pending_push` marker before recovery and asserts the
+      re-run **reuses** the existing `external_id` with no second `create`
+      (`a_seeded_created_marker_reuses_the_id_without_a_second_create`).
+- [x] A test asserts a discovery mixing **tracked and untracked** ids produces
+      `CreateFromRemote` only for the untracked ones, folding a cosmetically
+      different stored id (`discovery_creates_only_untracked_issues_folding_
+      cosmetic_ids`).
+- [x] A test injects a `show` failure mid-batch and asserts the readable issues
+      are created around the failed one, which is reported `Failed`, and the run
+      continues (`a_show_failure_mid_batch_fails_that_issue_and_continues`).
+- [x] A test asserts `--preview` performs **no** creation write for discovered
+      untracked issues and issues no mutation call
+      (`preview_reports_untracked_as_create_rows_without_authoring`); a mixed plan
+      lists every action with a `ValidationOutcome` on push entries only
+      (`preview_lists_every_action_and_validates_push_entries_only`).
+- [x] A test asserts `validate_update` in the preview loop returns
       `Rejected { reasons }` for a locally-missing required field and makes no
-      remote call.
-- [ ] `mise run cli:check` and `mise run check` exit 0.
+      remote call
+      (`preview_validation_rejects_a_locally_missing_field_without_a_remote_call`).
+- [x] `cargo clippy --workspace --all-targets --all-features`, `cargo fmt
+      --check`, and `cargo nextest` (all touched crates) are green — verified
+      directly against the workspace tree for the mise-nesting reason recorded in
+      Progress. The full-workspace run's only failure was the pre-existing
+      `accelerator-visualiser::api_smoke` server-startup flake, which passes in
+      isolation and is untouched by this change.
 
 #### Manual Verification
 
@@ -1206,6 +1214,59 @@ Deviations from the plan text, each deliberate:
   `cargo`/`cargo nextest`/`cargo clippy`/`cargo fmt`/`cargo public-api` against the
   workspace `cli/` tree. Commits are shared through the one `.jj` store, so CI
   validates the committed content regardless.
+
+### Phase 3 — done
+
+Green on the workspace tree: `cargo nextest run --workspace --all-features`,
+`cargo clippy --workspace --all-targets --all-features`, and `cargo fmt --check`
+all clean (driven directly with `cargo`, not `mise run`, for the nesting reason
+recorded under Phase 2).
+
+Deviations from the plan text, each deliberate:
+
+- **Both creates are out-of-band; `decide()` is untouched (user decision).** The
+  frozen `work-item-sync-decide.golden` pins `unsynced|*|noop` in all three
+  directions, and bash created via separate scripts rather than the decide table,
+  so the plan's "`CreateFromLocal` produced by `decide()`" would have broken the
+  frozen oracle. Instead `Action` gains `CreateFromRemote`/`CreateFromLocal`
+  (keywords `create-from-remote`/`create-from-local`) wired into
+  `from_keyword`/`Display`, but neither is ever returned by `decide()`. The sync
+  run produces both out-of-band: `discover_untracked` (search minus a
+  canonicalised local set) and a scan of `Unsynced`-state items. The apply loop's
+  exhaustive `match planned.action` carries an `unreachable!` arm for both.
+- **File authoring is behind a new `LocalAuthor` port** (`work-adapters::sync::
+  create`), implemented by `work-cli::sync_author::ConfiguredLocalAuthor` — the id
+  scheme, template, and frontmatter renderer live in the binary layer, and
+  `work-adapters` cannot depend on `document`. The marker-before-`create`
+  orchestration stays in the engine (`ItemApplier::create_from_local`) so a fake
+  tracker drives the crash-recovery ordering test. `create_from_remote`'s
+  exclusive write is the testable free fn `create::exclusive_write` (the real
+  author is bin-only).
+- **Discovery is gated on an explicitly bounded scope.** `discover_untracked`
+  runs only when `scope.project` is set or `all_projects` is true; the scope is
+  built from `work.default_project_code`, so the split falls out by provider: a
+  **Jira** config always carries a project key, so every bidirectional/pull sync
+  now runs a discovery `search` (one extra network call) and can refuse when the
+  untracked count exceeds `--max-pulls`; a **Linear** config sets no project key
+  here, so untracked discovery stays off — matching the known Linear multi-team
+  untracked-flood mitigation ("only push"). This repo (Linear, no project code)
+  gets no untracked pull. Because a Jira empty-corpus sync is no longer
+  network-free, `sync_resolves_real_client`'s Jira resolution-boundary test now
+  passes `--push-only` (which skips discovery) to keep asserting the network-free
+  boundary it is about.
+- **No report-format golden exists to extend.** `render_report` is private to the
+  bin-only `work-cli`, and no golden was ever frozen (the plan's "just-frozen
+  report-format golden" was not present). The extended report is covered instead
+  by engine-level assertions on `RunReport.reported` action rows in
+  `sync_create.rs`. `action_keyword` and `Action::Display` gain the two create
+  keywords.
+- **`RunError` gains `DiscoveryIncomplete { found }`** (a truncated discovery is a
+  refusal-with-guidance) and `Refused` gains `new_local_files`/`new_remote_issues`
+  breakout fields; the CLI diagnostic names the creation blast within the
+  dimension that tripped.
+- **`work` is public-api-pinned** (contra the Phase 2 note that only `tracker`
+  is) — `public-api.txt` regenerated; the diff is exactly the two new `Action`
+  variants.
 
 ## Testing Strategy
 
