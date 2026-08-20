@@ -150,6 +150,8 @@ Options:
 === accelerator-work sync --help ===
 Reconcile local work items with the configured remote tracker (`work.integration`).
 
+A run may author **new** artefacts on both sides beyond updating existing ones: it creates remote issues from unsynced local drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote issues into new local files (bounded by `--max-pulls`, counted as pulls). Untracked discovery is scoped to the configured project, and a run that would exceed either bound refuses with zero writes (exit 5).
+
 Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 1 an internal error; 2 a usage error; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
 
 Usage: accelerator-work sync [OPTIONS]

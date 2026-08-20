@@ -81,6 +81,13 @@ pub enum Command {
     /// Reconcile local work items with the configured remote tracker
     /// (`work.integration`).
     ///
+    /// A run may author **new** artefacts on both sides beyond updating
+    /// existing ones: it creates remote issues from unsynced local drafts
+    /// (bounded by `--max-pushes`, counted as pushes) and pulls untracked
+    /// remote issues into new local files (bounded by `--max-pulls`, counted
+    /// as pulls). Untracked discovery is scoped to the configured project, and
+    /// a run that would exceed either bound refuses with zero writes (exit 5).
+    ///
     /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
     /// read failed or every per-item failure was retryable; 71 any
