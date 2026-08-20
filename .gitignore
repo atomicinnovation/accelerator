@@ -85,8 +85,3 @@ bin/.tmp-*
 *.key
 /keys/*.sec
 
-# `create --push`/`update --push`'s pending-push markers: per-checkout,
-# transient local state. Without this, jj's auto-snapshot commits a marker
-# the moment it is written, wedging every collaborator's checkout on a
-# title only one of them was pushing.
-.accelerator/state/integrations/*/pending-push/

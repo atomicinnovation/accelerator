@@ -183,6 +183,35 @@ fn a_wired_tracker_without_credentials_also_local_saves(
 }
 
 #[test]
+fn a_push_ignores_its_marker_directory_config_independently(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    configure_integration(repo.path(), "jira")?;
+    let body_file = repo.path().join("body.txt");
+    fs::write(&body_file, BODY)?;
+    let output = run(
+        repo.path(),
+        &[
+            "create",
+            "Push me",
+            "task",
+            "medium",
+            "--push",
+            "--body-file",
+            body_file.to_str().expect("utf8 path"),
+        ],
+    )?;
+    assert!(output.status.success(), "{output:?}");
+    let ignore = marker_path(repo.path(), "jira", "unused")
+        .parent()
+        .expect("marker path has a parent")
+        .join(".gitignore");
+    let contents = fs::read_to_string(&ignore)?;
+    assert!(contents.contains('*'), "{contents}");
+    Ok(())
+}
+
+#[test]
 fn a_matching_created_marker_with_the_id_absent_from_the_corpus_is_reused(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
