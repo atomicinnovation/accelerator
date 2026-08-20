@@ -473,8 +473,9 @@ jobs:
   # Assemble the vendored runtime upstream of any signing job, in a job holding
   # no credentials — it extracts three third-party archives, so it must not be
   # able to reach the release secret, mint an OIDC token, or write attestations.
-  # GH_TOKEN on the verify step alone is what `gh attestation verify` (SLSA)
-  # needs; nothing here can reference ACCELERATOR_RELEASE_SECRET_KEY.
+  # It needs no GitHub token: the SLSA provenance is verified with `cosign`
+  # against the public Sigstore log, not GitHub's attestation API; nothing here
+  # can reference ACCELERATOR_RELEASE_SECRET_KEY.
   assemble-runtime:
     name: Assemble vendored runtime
     runs-on: ubuntu-latest
@@ -498,8 +499,6 @@ jobs:
         run: mise run vendor:check-trust-anchors
 
       - name: Verify upstream inputs
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run vendor:verify-upstream-inputs
 
       - name: Assemble tree artifacts

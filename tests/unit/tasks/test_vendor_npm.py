@@ -99,6 +99,8 @@ def test_a_non_sha512_integrity_is_refused(tmp_path):
 def test_the_slsa_argv_is_pinned(tmp_path):
     tarball = tmp_path / "pw.tgz"
     tarball.write_bytes(b"x")
+    bundle = tmp_path / "b.json"
+    bundle.write_text("{}")
     captured = {}
 
     def runner(argv):
@@ -107,33 +109,39 @@ def test_the_slsa_argv_is_pinned(tmp_path):
 
     verify_slsa(
         tarball=tarball,
-        owner="microsoft",
-        repo="playwright",
-        signer_workflow="microsoft/playwright/.github/workflows/publish.yml",
+        bundle=bundle,
+        identity_regexp="^https://github.com/microsoft/playwright/",
+        oidc_issuer="https://token.actions.githubusercontent.com",
         runner=runner,
     )
     argv = captured["argv"]
-    assert argv[:3] == ["gh", "attestation", "verify"]
-    assert "--owner" in argv and "microsoft" in argv
-    assert "--repo" in argv and "playwright" in argv
-    assert "--signer-workflow" in argv
+    assert argv[:2] == ["cosign", "verify-blob-attestation"]
+    assert "--bundle" in argv and str(bundle) in argv
+    assert "--new-bundle-format" in argv
+    assert "--certificate-identity-regexp" in argv
+    assert "^https://github.com/microsoft/playwright/" in argv
+    assert "--certificate-oidc-issuer" in argv
+    assert "https://token.actions.githubusercontent.com" in argv
+    assert argv[argv.index("--type") + 1] == "https://slsa.dev/provenance/v1"
     assert str(tarball) in argv
 
 
 def test_a_failing_slsa_check_fails_the_release(tmp_path):
     tarball = tmp_path / "pw.tgz"
     tarball.write_bytes(b"x")
+    bundle = tmp_path / "b.json"
+    bundle.write_text("{}")
     with pytest.raises(ValueError, match="SLSA"):
         verify_slsa(
             tarball=tarball,
-            owner="microsoft",
-            repo="playwright",
-            signer_workflow="microsoft/playwright/.github/workflows/publish.yml",
+            bundle=bundle,
+            identity_regexp="^https://github.com/microsoft/playwright/",
+            oidc_issuer="https://token.actions.githubusercontent.com",
             runner=lambda _argv: 1,
         )
 
 
-def _packument(version="1.55.1", *, signatures=True):
+def _packument(version="1.55.1", *, signatures=True, attestations=True):
     dist = {
         "tarball": (
             "https://registry.npmjs.org/playwright-core/-/"
@@ -143,6 +151,11 @@ def _packument(version="1.55.1", *, signatures=True):
     }
     if signatures:
         dist["signatures"] = [{"keyid": "SHA256:key", "sig": "MEUCIQ=="}]
+    if attestations:
+        dist["attestations"] = {
+            "url": f"https://registry.npmjs.org/-/npm/v1/attestations/"
+            f"playwright-core@{version}"
+        }
     return {"name": "playwright-core", "versions": {version: {"dist": dist}}}
 
 
@@ -153,6 +166,7 @@ def test_packument_dist_extracts_the_signed_fields():
     assert dist.tarball.endswith("playwright-core-1.55.1.tgz")
     assert dist.integrity == "sha512-abc"
     assert dist.signature_b64 == "MEUCIQ=="
+    assert dist.attestations_url.endswith("playwright-core@1.55.1")
 
 
 def test_a_version_absent_from_the_packument_raises():
@@ -167,3 +181,33 @@ def test_an_unsigned_version_is_refused():
 
     with pytest.raises(ValueError, match="signature"):
         packument_dist(_packument(signatures=False), "1.55.1")
+
+
+def test_a_version_without_attestations_is_refused():
+    from tasks.vendor.npm import packument_dist
+
+    with pytest.raises(ValueError, match="attestations"):
+        packument_dist(_packument(attestations=False), "1.55.1")
+
+
+def test_provenance_bundle_selects_the_slsa_attestation():
+    from tasks.vendor.npm import provenance_bundle
+
+    doc = {
+        "attestations": [
+            {"predicateType": "https://github.com/npm/...", "bundle": {"n": 1}},
+            {
+                "predicateType": "https://slsa.dev/provenance/v1",
+                "bundle": {"slsa": True},
+            },
+        ]
+    }
+    assert provenance_bundle(doc) == {"slsa": True}
+
+
+def test_a_document_without_slsa_provenance_is_refused():
+    from tasks.vendor.npm import provenance_bundle
+
+    doc = {"attestations": [{"predicateType": "https://github.com/npm/..."}]}
+    with pytest.raises(ValueError, match="SLSA"):
+        provenance_bundle(doc)

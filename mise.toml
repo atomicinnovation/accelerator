@@ -33,6 +33,10 @@ jq = "1.7.1"
 # resolution tests sign fixtures with it, and the release keypair is generated
 # with it. Exact pin, matching the tool-pin discipline above.
 "ubi:jedisct1/minisign[exe=minisign]" = "0.12"
+# cosign via ubi: the release lane verifies playwright-core's npm/Sigstore SLSA
+# provenance bundle with `cosign verify-blob-attestation`. Exact pin — cosign's
+# verification flags and bundle-format handling are version-sensitive.
+"ubi:sigstore/cosign[exe=cosign]" = "3.1.3"
 
 [settings]
 experimental = true
