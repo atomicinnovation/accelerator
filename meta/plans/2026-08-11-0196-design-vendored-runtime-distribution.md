@@ -251,17 +251,38 @@ tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
   (`permissions: {}`, native per target) jobs; `prerelease`/`release` gain both
   in `needs:` and a `download-artifact` step feeding `dist/release/` before the
   pin gate. Workflow-shape tests pin the new jobs' permissions, secret
-  isolation, `needs:` wiring and matrix coverage. ⚠️ The two artifact actions
-  (`upload-artifact`/`download-artifact`) use `@v4` tags and are flagged
-  **SHA-pin before merge**; `timeout-minutes` from a measured double-pass is
-  still to add (§7).
+  isolation, `needs:` wiring and matrix coverage. ✅ The two artifact actions
+  (`upload-artifact`/`download-artifact`) are now **SHA-pinned** —
+  `upload-artifact@ea165f8…` (v4.6.2) and `download-artifact@d3f86a1…` (v4.3.0),
+  resolved from each `v4` tag's current commit — matching the file's pin
+  discipline; `timeout-minutes` from a measured double-pass is still to add (§7).
 
-**Phase 2's only remaining work — human-gated trust anchors:**
+**Phase 2 hardening, 2026-08-20.** Two of the remaining items are now delivered:
+
+- **The two artifact actions are SHA-pinned** (`upload-artifact@ea165f8…` v4.6.2,
+  `download-artifact@d3f86a1…` v4.3.0), and the two "SHA-pin before merge" NOTE
+  comments are dropped. All 2632 tasks tests stay green.
+- **A placeholder-detection trust-anchor guard is wired.**
+  `tasks/vendor/trust_anchors.py` (`placeholder_reasons`/`assert_ready`) plus the
+  `vendor:check-trust-anchors` task run first in `assemble-runtime`, so a release
+  cut before the anchors are real fails immediately with every offending anchor
+  named and a pointer to RELEASING.md, rather than a cryptic missing-key traceback
+  deep in verification. The **"Refreshing the vendored-runtime trust anchors"**
+  procedure is added to RELEASING.md (the anchor table, the guard command, and the
+  four-step refresh: provision keys out-of-band, set the Chromium/Node pins,
+  assemble-once to read the archive digests, confirm and commit). Five unit tests
+  in `test_vendor_trust_anchors.py` prove the discrimination against fixtures.
+
+**Phase 2's genuinely human/org-gated remainder:**
 `keys/nodejs-release.asc`, `keys/npm-registry.pem`, the real `pins.toml`
-Chromium/Node/`ASSEMBLED_SHA256` values, the RELEASING.md refresh procedure and
-the trust-anchor CI guard job. Plus the release-lane manual validations the plan
-already lists (real-input layout confirmation, the SHA-pins, `timeout-minutes`).
-Left as placeholders in code.
+Chromium/Node/`ASSEMBLED_SHA256` values; the **criterion-3138 review-gate** (a
+distinct control from the placeholder guard above — a PR-triggered CI job that
+queries the PR's reviews and fails a diff to `keys/**`/`pins.toml`/the fingerprint
+module unless a *named reviewer team* member other than the author approved it),
+which cannot be built correctly without the named team handle, branch protection,
+and an org-read token — three settings this session can neither create nor verify;
+`timeout-minutes` from a measured double-pass; and the release-lane manual
+validations (real-input layout confirmation).
 
 **Phase 3 (executor swap) — the self-contained domain layer is built and green;
 the integration wiring is not started.** Committed since Phase 2, all tested at

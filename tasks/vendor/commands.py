@@ -16,12 +16,22 @@ from invoke import Context, task
 
 from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
 from tasks.shared.targets import TARGETS
-from tasks.vendor import assemble, upstream
+from tasks.vendor import assemble, trust_anchors, upstream
 
 VENDOR_INPUTS = REPO_ROOT / "dist" / "vendor-inputs"
 PLAYWRIGHT_PACKAGE_JSON = (
     REPO_ROOT / "skills/design/inventory-design/scripts/playwright/package.json"
 )
+
+
+@task(name="check-trust-anchors")
+def check_trust_anchors(context: Context) -> None:
+    """Fail if the vendored-runtime trust anchors are still placeholders.
+
+    Runs first in the assembly job so a release cut before the refresh procedure
+    stops with a named remediation rather than a missing-key traceback.
+    """
+    trust_anchors.assert_ready()
 
 
 @task(name="verify-upstream-inputs")

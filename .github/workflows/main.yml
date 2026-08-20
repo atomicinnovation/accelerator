@@ -491,6 +491,12 @@ jobs:
           cache: true
           experimental: true
 
+      # Fail fast and legibly if the trust anchors are still placeholders, before
+      # the upstream verification hits a missing publisher key or the pin gate
+      # rejects a real digest against a placeholder.
+      - name: Check trust anchors
+        run: mise run vendor:check-trust-anchors
+
       - name: Verify upstream inputs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -502,27 +508,26 @@ jobs:
       # Per-target upload so each smoke leg downloads only its own ~300MB, not
       # the whole ~1.2GB set. The .sealed attestation ships alongside; the
       # .sealed.sig does not exist yet (only the publishing job holds the key).
-      # NOTE: the actions/upload-artifact ref must be SHA-pinned before merge.
       - name: Upload darwin-arm64 runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: accelerator-runtime-darwin-arm64
           path: dist/release/accelerator-*-darwin-arm64.tar.gz*
           if-no-files-found: error
       - name: Upload darwin-x64 runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: accelerator-runtime-darwin-x64
           path: dist/release/accelerator-*-darwin-x64.tar.gz*
           if-no-files-found: error
       - name: Upload linux-x64 runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: accelerator-runtime-linux-x64
           path: dist/release/accelerator-*-linux-x64.tar.gz*
           if-no-files-found: error
       - name: Upload linux-arm64 runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: accelerator-runtime-linux-arm64
           path: dist/release/accelerator-*-linux-arm64.tar.gz*
@@ -534,8 +539,7 @@ jobs:
   # binary mis-assembled into the darwin-x64 archive runs under Rosetta on the
   # arm64 runner but a native Intel host refuses it, so the check is independent
   # of the structural architecture read. Holds no credentials.
-  # NOTE: the actions/download-artifact ref must be SHA-pinned before merge, and
-  # ubuntu-24.04-arm is free only for public repos — confirm the entitlement.
+  # NOTE: ubuntu-24.04-arm is free only for public repos — confirm the entitlement.
   smoke-runtime:
     name: Smoke vendored runtime
     runs-on: ${{ matrix.os }}
@@ -562,7 +566,7 @@ jobs:
           experimental: true
 
       - name: Download runtime
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: accelerator-runtime-${{ matrix.platform }}
           path: dist/release
@@ -648,7 +652,7 @@ jobs:
       # from this job's own clean checkout.
       # NOTE: the actions/download-artifact ref must be SHA-pinned before merge.
       - name: Download assembled runtime
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: accelerator-runtime-*
           merge-multiple: true
@@ -773,7 +777,7 @@ jobs:
       # upstream job never did.
       # NOTE: the actions/download-artifact ref must be SHA-pinned before merge.
       - name: Download assembled runtime
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: accelerator-runtime-*
           merge-multiple: true
