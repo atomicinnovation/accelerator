@@ -1046,7 +1046,7 @@ gate.)
 
 ---
 
-## Phase 6: The irreversible deletions
+## Phase 6: The irreversible deletions ✅ done
 
 ### Overview
 
@@ -1100,20 +1100,29 @@ Phase 2 additions reintroduced one.
 
 #### Automated Verification
 
-- [ ] `ls skills/work/scripts/*.sh` matches nothing and the directory is gone.
-- [ ] The consumer sweep is empty — for each of the eighteen basenames and for
-      `skills/work/scripts`, `grep -r --exclude-dir=meta` over the repo returns
-      no hits (covering `hooks/`, `templates/`, `docs-site/`, `tasks/`, agents).
-      The grep command and its empty output are the recorded result.
-- [ ] `grep -rl "skills/work/scripts" cli/` returns nothing.
-- [ ] `tasks/lint/scripts.py` no longer names `work-item-bridge-codes.sh`;
-      `tests/unit/tasks/test_exec_bits.py` passes.
-- [ ] `mise run` (the bare default task) exits 0 end-to-end.
+- [x] `ls skills/work/scripts/*.sh` matches nothing and the directory is gone.
+- [x] The consumer sweep is empty — the eighteen exact basenames return **zero**
+      hits across all tracked files (excl `meta/`). Deviation: `skills/work/
+      scripts` survives in two **records**, not consumers — `CHANGELOG.md` (the
+      Unreleased removal note plus immutable release-history sections) and
+      `skills/work/create-work-item/evals/benchmark.json` (a frozen eval
+      transcript naming the already-deleted `work-item-read-field.sh`, itself not
+      one of the eighteen). A literally-empty path grep is unreachable without
+      rewriting changelog history; both are excluded by intent.
+- [x] `grep -rl "skills/work/scripts" cli/` returns nothing.
+- [x] `tasks/lint/scripts.py` no longer names `work-item-bridge-codes.sh`;
+      `tests/unit/tasks/test_exec_bits.py` passes (17/17).
+- [x] Verified per affected lane (mise nesting, per Phase 2): Rust `cargo nextest`
+      over the touched crates (tracker-side 347/347, `accelerator-work` 129/129),
+      `cargo clippy` + `cargo fmt --check` clean; `mise run build-system:check`
+      and `mise run scripts:check` green. Frontend/server/docs untouched; CI
+      validates the full committed tree.
 
 #### Manual Verification
 
-- [ ] The `E_DISPATCH` taxonomy has one implementation; no surviving script or
-      Rust test sources the removed bash definition.
+- [x] The `E_DISPATCH` taxonomy has one implementation; no surviving script or
+      Rust test sources the removed bash definition (`errors.rs` now inlines the
+      frozen taxonomy; `dispatch-codes.txt` deleted).
 
 ---
 
@@ -1380,6 +1389,46 @@ Deviations from the plan text, each deliberate:
   per Phase 3), so this repo (Linear, no project code) runs no untracked pull.
 - **`EXIT_CODES.md` stays on disk** (deleted in Phase 6 with the directory); only
   its numeric taxonomy is folded into the `exit_codes` module doc here.
+
+### Phase 6 — done
+
+Green on every lane the deletions touch: `cargo nextest` (tracker-side 347/347,
+`accelerator-work` 129/129), `cargo clippy` + `cargo fmt --check`, `mise run
+build-system:check`, `mise run scripts:check`, and the two Python guards
+(`test_exec_bits.py` 17/17, `test_integration.py`). Driven directly, not via the
+bare `mise run` default, for the nesting reason recorded under Phase 2.
+
+Deletions: the thirteen `work-item-*.sh`, the five `test-work-item-*.sh`,
+`EXIT_CODES.md`, `cli/tracker/tests/fixtures/dispatch-codes.txt`, and the emptied
+`skills/work/scripts/` directory.
+
+Deviations from the plan text, each deliberate:
+
+- **`errors.rs` inlines the taxonomy rather than losing its guard.** The plan
+  said "remove the `dispatch-codes.txt` reference"; a literal removal would have
+  orphaned the two fixture-driven tests. Instead the five-row taxonomy is a
+  `const` array in the test itself — an independent frozen oracle — preserving
+  both the class↔number correspondence and the *exactly-two-reach-the-port*
+  partition, coverage `work-cli`'s `exit_codes_parity.rs` does not carry. The
+  variant-rename tripwire survives: the recorded class name is a literal, so a
+  `TrackerError` rename still reds `class_of` against it.
+- **Comment scrub is wider than §2/§4 named.** The Desired End State's empty
+  eighteen-basename grep required scrubbing dead `.sh:line` citations from more
+  than `bridge-exit-code-tables.txt:16`: also its header table + divergence
+  notes, `identifiers.txt`, `exit_codes_parity.rs`'s doc, and three unrelated
+  live scripts that cross-referenced a deleted sibling in a comment
+  (`scripts/test-vcs-common.sh`, `jira-resolve-fields.sh`,
+  `linear-create-flow.sh`). Each reword keeps the substance, drops the dangling
+  filename. §4 (`tracker/src/lib.rs`) was a genuine no-op — already neutral.
+- **Two mirror-set edits the plan did not enumerate.** Removing
+  `work-item-bridge-codes.sh` from `SHELL_LIBRARIES` also required dropping it
+  from `test_exec_bits.py`'s `_RECONCILED_LIBRARIES` (a set-equality mirror);
+  removing `_EXPECTED_WORK_SUITES` also required dropping the `work` row from
+  `test_integration.py`'s `_GUARDED` parametrisation. The `work` integration
+  task is kept (now floor-less, discovers zero suites) per §3 — wholesale
+  retirement of the shell testing machinery is 0174's.
+- **`skills/work/scripts` survives only in two records.** Neither is a consumer;
+  see the automated-verification deviation note above.
 
 ## Testing Strategy
 
