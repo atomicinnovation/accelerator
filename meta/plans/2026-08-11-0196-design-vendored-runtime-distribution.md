@@ -92,7 +92,7 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-20. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-16/50, Removal 0/14. **Phase 2 is now structurally complete** — the whole
+18/50, Removal 6/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
@@ -407,14 +407,33 @@ listed is done:
 2. **`loader-unresolvable` is a sticky host condition**, beyond the plan's named
    two (recorded at the marker note above).
 
-Still ahead: the §6+§8 cleanup (`PROTOCOL.md`, `evals.json`, `benchmark.json`,
-the standing conformance guard, and the deletions of `ensure-playwright.sh`,
-`test-ensure-playwright.sh`, `test-design.sh`, `package-lock.json` with the
-`integration.py` preflight repoint), the deferred lease-hold, the container
-harness (miniature lane + AC11 run locally on the arm64 Docker engine; AC6/AC12's
-real-tree fixtures wait on Phase 2's pins), and the Removal sweep.
+**Phase 3, 2026-08-20 — the §6/§8 cleanup landed, unit-green on darwin.** Two
+commits: the design skill's downgrade contract retargeted at the vendored
+runtime (PROTOCOL.md's condition→reason mapping and env-var table rewritten to
+the nine live reasons, dropping `node-missing`/`node-too-old`/`bootstrap-failed`
+and the lockhash env vars; SKILL.md Step 4/5 rewritten so the reason is read
+from `executor ping`'s `{"error":"downgrade","reason":…}` envelope rather than
+from `ensure-playwright.sh`; the `scripts/*` `allowed-tools` grant and its
+conformance assertion dropped; evals 20/21 retargeted off the retired reasons
+and deleted scripts; the twenty-one benchmark strings corrected; and a **standing
+conformance guard** that fails on a stale script or retired-reason reference in
+`evals.json`/`benchmark.json`/`PROTOCOL.md`). Then the §8 deletions
+(`ensure-playwright.sh`, `test-ensure-playwright.sh`, `package-lock.json`,
+`test-design.sh`) with the `integration.py` preflight repointed at the driver
+tree (`ACCELERATOR_TREE_DRIVER` or `cache ensure driver`), still refusing rather
+than skipping. Removal §1 (config floor → 14) and §4 (the no-`.sh`-under-
+`skills/design/` final-state assertion) landed in the same change, since deleting
+`test-design.sh` forces the floor move.
 
-**The Removal sweep — not started.** Depends on Phase 3.
+Still ahead in Phase 3: the deferred lease-hold and the container harness
+(miniature lane + AC11 run locally on the arm64 Docker engine; AC6/AC12's
+real-tree fixtures wait on Phase 2's pins).
+
+**The Removal sweep — §1 and §4 done; §2/§3/§5/§6 remain.** §2 (documentation:
+the docs-site pages still naming the retired reasons, `plugin.json`'s `Node >= 20`,
+README/CHANGELOG), §3 (the superseding attestation ADR + work-item:0196 text),
+§5 (three follow-up work items) and §6 (the work-item:0208 CI-lane direction and
+its two stale citations) are all non-blocked meta edits, not yet done.
 
 ## Current State Analysis
 
@@ -4056,16 +4075,20 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] Tree-failure envelopes name `accelerator cache repair <name>`
 - [x] The downgrade goldens stay exhaustive by construction across the vocabulary change
       — a variant with no golden fails, and an orphan golden fails
-- [ ] A **standing conformance guard** asserts that every script path and downgrade-reason
+- [x] A **standing conformance guard** asserts that every script path and downgrade-reason
       token named in `evals.json`, `benchmark.json` and `PROTOCOL.md` resolves to an
       existing file or a live vocabulary entry — so the twenty-one stale references are
       not merely corrected but cannot recur, which is what happened to fifteen of them
       during the preceding plan. Eval 20 passes against `artifact-unavailable`
+      (**amendment**: the reason half is a retired-reason denylist derived against the
+      live `key()` arms, since a prose reference — "the literal `<reason>` message" —
+      cannot be anchored positively; `REASONS_EVER` is append-only so a future retirement
+      is caught without editing the guard)
 - [x] `cli/design/tests/fixtures/public-api.txt` is regenerated and committed
 - [x] `mise run test:unit:design-automation` passes with the **case** floor moved to the
       new TAP-reported total; the suite floor stays at **9**, since the loader survives in
       narrowed form rather than being deleted
-- [ ] `mise run test:integration:design-automation` still fails rather than skips when no
+- [x] `mise run test:integration:design-automation` still fails rather than skips when no
       runtime is available, with its preflight resolving the driver tree rather than the
       deleted namespace
 - [ ] Step 1a's fetch deadline has been **re-derived** from Phase 2's measured archive
@@ -4283,15 +4306,16 @@ which now sits at `:270-273`.
 
 #### Automated Verification
 
-- [ ] Failing test first for the final-state assertion
-- [ ] `mise run test:integration:config` passes with `_EXPECTED_CONFIG_SUITES` moved to
+- [x] Failing test first for the final-state assertion
+- [x] `mise run test:integration:config` passes with `_EXPECTED_CONFIG_SUITES` moved to
       **14** and `test-design.sh` absent from the discovered suites
-- [ ] Both design-script conformance guards still pass with both design skills carrying
+- [x] Both design-script conformance guards still pass with both design skills carrying
       no `scripts/*` grant and no script-shaped call site
-- [ ] `mise run test:unit:build-system` passes
-- [ ] `mise run lint:scripts:exec-bits:check` exits 0
+- [x] `mise run test:unit:build-system` passes (the task is `test:unit:tasks`; the plan's
+      name does not exist)
+- [x] `mise run lint:scripts:exec-bits:check` exits 0
 - [ ] `mise run docs:check` exits 0
-- [ ] **No `.sh` file remains under `skills/design/`**
+- [x] **No `.sh` file remains under `skills/design/`**
 - [ ] `git status --porcelain -uall` is clean after a tree materialisation in a dev
       checkout, so the trees directory under the cache root is genuinely ignored
 - [ ] `mise run` exits 0
