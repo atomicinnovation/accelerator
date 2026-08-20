@@ -70,6 +70,7 @@ ns.add_collection(Collection.from_module(test))
 ns.add_collection(Collection.from_module(version))
 
 ns_vendor = Collection("vendor")
+ns_vendor.add_task(vendor_commands.check_trust_anchors)
 ns_vendor.add_task(vendor_commands.verify_upstream_inputs)
 ns_vendor.add_task(vendor_commands.assemble_tree_artifacts)
 ns_vendor.add_task(vendor_commands.smoke_runtime)

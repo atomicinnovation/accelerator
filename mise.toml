@@ -232,6 +232,10 @@ description = "Create .debug.tar.gz archives for all cross-compiled release bina
 depends = ["build:server:cross-compile"]
 run = "invoke build.create-debug-archives"
 
+[tasks."vendor:check-trust-anchors"]
+description = "Fail if the vendored runtime's trust anchors (pins, publisher keys) are still placeholders"
+run = "invoke vendor.check-trust-anchors"
+
 [tasks."vendor:verify-upstream-inputs"]
 description = "Fetch and verify the vendored runtime's upstream inputs (npm, Node, Chromium) for every target"
 run = "invoke vendor.verify-upstream-inputs"
