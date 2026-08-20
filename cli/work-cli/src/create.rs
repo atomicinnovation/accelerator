@@ -50,7 +50,7 @@ use crate::tracker_registry::TrackerRegistry;
 
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
-const LOCK_FILE_NAME: &str = ".accelerator-work-create.lockdir";
+pub const LOCK_FILE_NAME: &str = ".accelerator-work-create.lockdir";
 
 pub struct CreateArgs {
     pub title: String,
@@ -86,7 +86,7 @@ pub enum RunOutcome {
 
 const SLUG_MAX_LEN: usize = 60;
 
-fn slugify(title: &str) -> String {
+pub fn slugify(title: &str) -> String {
     let mut slug = String::new();
     let mut last_was_hyphen = true;
     for ch in title.chars() {
@@ -172,7 +172,7 @@ fn template_frontmatter_keys(content: &str) -> Result<Vec<String>, String> {
     }
 }
 
-fn allocate_id(
+pub fn allocate_id(
     scheme: &corpus::WorkItemIdScheme,
     work_dir: &Path,
     project: Option<&str>,
@@ -220,7 +220,9 @@ fn resolve_and_check_template(
     Ok(resolved_template)
 }
 
-fn render_frontmatter(inputs: &CreateInputs<'_>) -> Result<String, String> {
+pub fn render_frontmatter(
+    inputs: &CreateInputs<'_>,
+) -> Result<String, String> {
     let fields = compose_frontmatter(inputs);
     let mut mapping = Mapping::new();
     for (key, value) in fields {

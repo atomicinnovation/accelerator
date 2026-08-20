@@ -42,9 +42,19 @@ fn run(
     dir: &Path,
     extra: &[(&str, &str)],
 ) -> Result<std::process::Output, TestError> {
+    run_with_args(dir, &[], extra)
+}
+
+/// As [`run`], with additional `sync` flags.
+fn run_with_args(
+    dir: &Path,
+    args: &[&str],
+    extra: &[(&str, &str)],
+) -> Result<std::process::Output, TestError> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
     command
         .arg("sync")
+        .args(args)
         .current_dir(dir)
         .env("ACCELERATOR_PLUGIN_ROOT", dir)
         .stdin(Stdio::null());
@@ -65,12 +75,20 @@ const LINEAR_CONFIG: &str = "---\nwork:\n  integration: linear\nlinear:\n  \
 #[test]
 fn jira_resolves_with_credentials_and_an_empty_corpus_exits_0(
 ) -> Result<(), TestError> {
+    // `--push-only` disables untracked-remote discovery, which a Jira config
+    // (always scoped to a project) would otherwise perform even on an empty
+    // corpus. Without it the resolution boundary is what this asserts: an
+    // empty push makes no network call, so the run exits 0.
     let repo = scratch_repo(JIRA_CONFIG)?;
-    let output = run(repo.path(), &[("ACCELERATOR_JIRA_TOKEN", "dummy")])?;
+    let output = run_with_args(
+        repo.path(),
+        &["--push-only"],
+        &[("ACCELERATOR_JIRA_TOKEN", "dummy")],
+    )?;
     assert_eq!(
         output.status.code(),
         Some(0),
-        "resolution succeeded and the empty fetch made no network call: {}",
+        "resolution succeeded and the empty push made no network call: {}",
         String::from_utf8_lossy(&output.stderr)
     );
     Ok(())

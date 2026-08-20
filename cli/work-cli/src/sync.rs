@@ -164,6 +164,8 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
         work::sync::Action::SkipDirty => "skip-dirty",
         work::sync::Action::Prompt => "unresolved",
         work::sync::Action::Noop => "noop",
+        work::sync::Action::CreateFromRemote => "create-from-remote",
+        work::sync::Action::CreateFromLocal => "create-from-local",
     }
 }
 
@@ -406,12 +408,15 @@ pub fn run_sync(
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
     let status = VcsWorkingCopyStatus::probed_from(&root);
     let clock = SystemClock;
+    let author =
+        crate::sync_author::ConfiguredLocalAuthor::new(config, root, work_dir);
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
         status: &status,
         writer: &corpus_store,
         clock: &clock,
+        author: &author,
     };
     let mode = if args.preview {
         RunMode::Preview
@@ -423,6 +428,14 @@ pub fn run_sync(
     } else {
         RetrievalStrategy::Bulk
     };
+    let default_project =
+        crate::config::effective_nonempty(config, "work.default_project_code")
+            .unwrap_or_default();
+    let scope = tracker::SearchScope {
+        project: (!default_project.is_empty()).then_some(default_project),
+        all_projects: false,
+        filters: Vec::new(),
+    };
     let request = SyncRequest {
         items: &items,
         direction,
@@ -431,6 +444,9 @@ pub fn run_sync(
         max_pulls: args.max_pulls,
         max_pushes: args.max_pushes,
         mode,
+        integrations_root: &integrations_root,
+        integration: &integration,
+        scope,
     };
 
     match work_adapters::sync::run::run(&ports, &mut baseline_store, &request) {
@@ -477,12 +493,25 @@ pub fn run_sync(
             pushes,
             max_pulls,
             max_pushes,
+            new_local_files,
+            new_remote_issues,
         }) => {
             eprintln!(
-                "refused: this run would pull {pulls} item(s) (limit \
-                 {max_pulls}) and push {pushes} item(s) (limit \
-                 {max_pushes}). Raise the limit with --max-pulls/\
-                 --max-pushes, or inspect the plan first with --preview."
+                "refused: this run would pull {pulls} item(s) ({new_local_files} \
+                 of them new local files, limit {max_pulls}) and push {pushes} \
+                 item(s) ({new_remote_issues} of them new remote issues, limit \
+                 {max_pushes}). Scope the search or raise the limit with \
+                 --max-pulls/--max-pushes, or inspect the plan first with \
+                 --preview."
+            );
+            ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
+        }
+        Err(RunError::DiscoveryIncomplete { found }) => {
+            eprintln!(
+                "refused: untracked-remote discovery was cut short after \
+                 seeing {found} issue(s) and cannot be trusted as complete. \
+                 Scope the search to a single project or team before pulling \
+                 untracked issues."
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
@@ -553,6 +582,7 @@ mod tests {
                 action,
             },
             outcome: ItemOutcome::NotApplied,
+            validation: None,
         }
     }
 
@@ -572,6 +602,7 @@ mod tests {
                 operation: "update",
                 source,
             }),
+            validation: None,
         }
     }
 

@@ -191,6 +191,8 @@ pub trait work::sync::clock::RunClock
 pub fn work::sync::clock::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
 pub mod work::sync::decide
 pub enum work::sync::decide::Action
+pub work::sync::decide::Action::CreateFromLocal
+pub work::sync::decide::Action::CreateFromRemote
 pub work::sync::decide::Action::Noop
 pub work::sync::decide::Action::Prompt
 pub work::sync::decide::Action::Pull
@@ -418,6 +420,8 @@ pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Forma
 impl core::marker::Copy for work::sync::state::SyncState
 impl core::marker::StructuralPartialEq for work::sync::state::SyncState
 pub enum work::sync::Action
+pub work::sync::Action::CreateFromLocal
+pub work::sync::Action::CreateFromRemote
 pub work::sync::Action::Noop
 pub work::sync::Action::Prompt
 pub work::sync::Action::Pull

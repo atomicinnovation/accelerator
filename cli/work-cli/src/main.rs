@@ -11,6 +11,7 @@ mod next_number;
 mod resolve;
 mod show;
 mod sync;
+mod sync_author;
 mod template_hints;
 mod tracker_registry;
 mod update;
