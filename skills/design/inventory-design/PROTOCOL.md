@@ -643,6 +643,7 @@ the daemon.
 | `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. The budget starts once the browser is ready, so acquiring Chromium is not charged to the first operation. A command that honours the budget answers with its own typed envelope (`wait-for-timeout`, and `timeout_ms` capping below); `wall-clock-exceeded` is a backstop for a command that ignores its timeout entirely, and so fires 2000 ms past the budget, outside the cap. |
 | `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | launcher  | Per-project state directory. Set by `accelerator design executor`; callers should not set it directly. |
 | `ACCELERATOR_PLAYWRIGHT_IDENTITY_FD`    | derived       | launcher  | Descriptor the daemon reads its identity record from at startup. Set by `accelerator design executor` on the daemon spawn only; a daemon started without it exits. |
+| `ACCELERATOR_PLAYWRIGHT_NS_ROOT`        | derived       | launcher  | Root of the vendored driver tree. Set by `accelerator design executor` from the resolved runtime; the daemon imports `playwright-core` from it by absolute path, so callers must not set it directly. |
 
 **Removed in this release**: `ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS` is
 no longer read — the owner-PID watcher was removed (see the Breaking
