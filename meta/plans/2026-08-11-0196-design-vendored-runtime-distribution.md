@@ -91,8 +91,16 @@ Phase 7 §6" means Phase 3 §6 here.
 
 ## Implementation Progress
 
-Updated 2026-08-20. Criteria ticked: **Phase 1 60/68**, Phase 2 0/67, Phase 3
-18/50, Removal 9/14. **Phase 2 is now structurally complete** — the whole
+Updated 2026-08-20. Criteria ticked: **Phase 1 61/68**, Phase 2 1/67, Phase 3
+20/50, Removal 11/14. A full local `mise run` (the whole CI mirror — frontend +
+server build, format, every lint and type-check, the entire test suite, and
+`docs:check`) exits 0 on the committed tree, so every "`mise run` exits 0",
+"`mise run cli:check` exits 0" and "`mise run docs:check` exits 0" criterion is
+ticked. That run surfaced one pre-existing failure unrelated to this plan's Phase
+1/2 work — the `test:unit:design-automation` conformance check on
+`ACCELERATOR_PLAYWRIGHT_NS_ROOT` being undocumented, a §6 PROTOCOL.md rewrite that
+dropped a live env var the executor still sets and `daemon.js` still reads — now
+fixed (the doc row restored; the suite is 76/76). **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
@@ -2275,7 +2283,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       and **a regression blocks Phase 1 and reopens the budget in ADR-0061 rather than
       being recorded and waved through**. Step 1b §1's size ceiling derives from the same
       budget, so both gates must be instantiated together once 0205 lands
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -3276,7 +3284,7 @@ rather than ship.
       path, a manifest emitted through the real `build_manifest`, signed with a test key,
       resolved by the launcher's tree resolver
 - [ ] `mise run test:unit:build-system` and `mise run build-system:check` exit 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -4158,8 +4166,8 @@ a visible refusal rather than a silent pass. `_DESIGN_AUTOMATION_RUNTIME_SUITES`
 - [ ] Step 1a's fetch deadline has been **re-derived** from Phase 2's measured archive
       sizes and no longer carries Phase 1's interim value — the cross-phase handoff is
       asserted rather than assumed
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
@@ -4380,11 +4388,11 @@ which now sits at `:270-273`.
 - [x] `mise run test:unit:build-system` passes (the task is `test:unit:tasks`; the plan's
       name does not exist)
 - [x] `mise run lint:scripts:exec-bits:check` exits 0
-- [ ] `mise run docs:check` exits 0
+- [x] `mise run docs:check` exits 0
 - [x] **No `.sh` file remains under `skills/design/`**
 - [ ] `git status --porcelain -uall` is clean after a tree materialisation in a dev
       checkout, so the trees directory under the cache root is genuinely ignored
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
