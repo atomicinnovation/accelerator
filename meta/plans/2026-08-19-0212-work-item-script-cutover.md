@@ -1036,8 +1036,18 @@ gate.)
 
 #### Manual Verification
 
-- [ ] `/sync-work-items --preview`, `/create-work-item`, and `/list-work-items`
+- [x] `/sync-work-items --preview`, `/create-work-item`, and `/list-work-items`
       each run end-to-end against a local corpus with the repointed invocations.
+      Driven directly against the built `accelerator-work` binary on this repo's
+      218-item `meta/work/`: `work list` renders the Sync column across `synced`/
+      `unsynced`/`locally modified` and honours `--status`/`--kind`/`--parent`/
+      title-substring filters, `--hierarchy` (per-line labels + out-of-set-parent
+      marker), and the empty-match message; `work sync --preview` computes the
+      plan from local state + baseline (no token needed), reporting the
+      blast-radius refusal with the new-creation breakout when over-threshold and
+      the full `push`/`create-from-local`/`noop`/`summary` report when limits are
+      raised; `work create … --dry-run` renders the Linear preview branch and
+      writes nothing. All exit 0.
 - [x] `exit_codes.rs`'s module doc carries the numeric taxonomy the `.md` held
       (0–5 process/selection, 70/71 tracker-error split, 72–74 selection/config),
       nominated the single authoritative source; `work create`/`work sync`
