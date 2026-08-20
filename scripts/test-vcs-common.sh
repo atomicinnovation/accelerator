@@ -346,7 +346,7 @@ RC=0
 assert_eq "git linked worktree exit code" "0" "$RC"
 
 # vcs_mode carries the identical -d defect: in a worktree it returns 'none',
-# routing work-item-file-dirty.sh into fail-safe-to-dirty. Reuse the
+# routing the dirty check into fail-safe-to-dirty. Reuse the
 # $FIXTURE_WORKTREE built above rather than rebuilding it.
 echo "Test [0124]: vcs_mode returns git for a git linked worktree root"
 # pre-fix: .git is a file, the -d test fails → vcs_mode returns 'none'.

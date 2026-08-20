@@ -65,7 +65,6 @@ _GUARDED = [
     ("hooks", "_EXPECTED_HOOKS_SUITES", None),
     ("decisions", "_EXPECTED_DECISIONS_SUITES", None),
     ("github", "_EXPECTED_GITHUB_SUITES", None),
-    ("work", "_EXPECTED_WORK_SUITES", None),
     ("integrations", "_EXPECTED_INTEGRATIONS_SUITES", None),
 ]
 

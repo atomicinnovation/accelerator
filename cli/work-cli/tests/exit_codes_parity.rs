@@ -1,10 +1,10 @@
 //! Pins `exit_codes.rs`'s dispatch constants against a frozen expectation.
 //!
 //! The integers are a live contract the work skills branch on, so the guard
-//! holds them against literals committed here — the independent oracle the
-//! deleted `work-item-bridge-codes.sh` used to be — rather than re-deriving
-//! them from the `exit_codes.rs` constants it guards, which would be a
-//! tautology no accidental renumbering could red.
+//! holds them against literals committed here — an independent frozen oracle,
+//! not the deleted bash bridge it replaced — rather than re-deriving them from
+//! the `exit_codes.rs` constants it guards, which would be a tautology no
+//! accidental renumbering could red.
 //!
 //! `accelerator-work` is bin-only, so the constants are parsed textually
 //! rather than imported.

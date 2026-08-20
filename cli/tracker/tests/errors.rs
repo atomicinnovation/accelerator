@@ -1,63 +1,59 @@
 //! The error taxonomy: two classes, closed, held against the dispatch codes
 //! the remote-tracker protocol defines.
+//!
+//! The taxonomy is an independent frozen oracle inlined here: 70 and 71 are
+//! the two classes the port expresses, and 72/73/74 resolve above it at the
+//! composition root selecting the client from `work.integration`. Which class
+//! a given wire condition maps to is operation-scoped — see `TrackerError`'s
+//! doc comment.
 
-use std::collections::BTreeMap;
 use std::error::Error;
-use std::path::PathBuf;
 
 use tracker::TrackerError;
 
 type TestError = Box<dyn Error>;
 
-const ABOVE_THE_PORT: &str = "above-the-port";
-
-fn read(relative: &str) -> Result<String, TestError> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative);
-    std::fs::read_to_string(&path)
-        .map_err(|error| format!("reading {}: {error}", path.display()).into())
-}
-
-/// The class a dispatch code maps onto, as the fixture records it.
+/// The class a dispatch code maps onto, as the frozen taxonomy records it.
 #[derive(Debug, PartialEq, Eq)]
 enum Resolution {
-    Class(String),
+    Class(&'static str),
     AboveThePort,
 }
 
-#[derive(Debug)]
 struct DispatchCode {
-    number: String,
+    name: &'static str,
+    number: &'static str,
     resolution: Resolution,
 }
 
-fn codes_recorded_by_the_fixture(
-) -> Result<BTreeMap<String, DispatchCode>, TestError> {
-    let fixture = read("tests/fixtures/dispatch-codes.txt")?;
-    fixture
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .map(|line| {
-            let (declaration, resolution) = line
-                .split_once(' ')
-                .ok_or_else(|| format!("malformed fixture row: {line}"))?;
-            let (name, number) = declaration
-                .split_once('=')
-                .ok_or_else(|| format!("malformed fixture row: {line}"))?;
-            let resolution = if resolution == ABOVE_THE_PORT {
-                Resolution::AboveThePort
-            } else {
-                Resolution::Class(resolution.to_owned())
-            };
-            Ok((
-                name.to_owned(),
-                DispatchCode {
-                    number: number.to_owned(),
-                    resolution,
-                },
-            ))
-        })
-        .collect()
+const fn recorded_codes() -> [DispatchCode; 5] {
+    [
+        DispatchCode {
+            name: "E_DISPATCH_RETRYABLE",
+            number: "70",
+            resolution: Resolution::Class("Retryable"),
+        },
+        DispatchCode {
+            name: "E_DISPATCH_TERMINAL",
+            number: "71",
+            resolution: Resolution::Class("Terminal"),
+        },
+        DispatchCode {
+            name: "E_DISPATCH_NOT_AVAILABLE",
+            number: "72",
+            resolution: Resolution::AboveThePort,
+        },
+        DispatchCode {
+            name: "E_DISPATCH_UNRECOGNISED",
+            number: "73",
+            resolution: Resolution::AboveThePort,
+        },
+        DispatchCode {
+            name: "E_DISPATCH_UNCONFIGURED",
+            number: "74",
+            resolution: Resolution::AboveThePort,
+        },
+    ]
 }
 
 /// The variant name `Debug` prints, which is the identifier itself — so a
@@ -85,21 +81,27 @@ const fn terminal() -> TrackerError {
 
 #[test]
 fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
-    let recorded = codes_recorded_by_the_fixture()?;
+    let recorded = recorded_codes();
     for (name, number, expected) in [
         ("E_DISPATCH_RETRYABLE", "70", retryable()),
         ("E_DISPATCH_TERMINAL", "71", terminal()),
     ] {
         let code = recorded
-            .get(name)
-            .ok_or_else(|| format!("the fixture does not record {name}"))?;
+            .iter()
+            .find(|code| code.name == name)
+            .ok_or_else(|| format!("the taxonomy does not record {name}"))?;
         assert_eq!(
             code.number, number,
             "{name} is the exit code a client reports the class as"
         );
+        let Resolution::Class(class) = &code.resolution else {
+            return Err(
+                format!("{name} does not resolve to a port class").into()
+            );
+        };
         assert_eq!(
-            code.resolution,
-            Resolution::Class(class_of(&expected)),
+            class_of(&expected).as_str(),
+            *class,
             "{name} maps onto the wrong TrackerError class"
         );
     }
@@ -107,10 +109,9 @@ fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
 }
 
 #[test]
-fn exactly_two_dispatch_codes_reach_the_port() -> Result<(), TestError> {
-    let recorded = codes_recorded_by_the_fixture()?;
-    let mapped = recorded
-        .values()
+fn exactly_two_dispatch_codes_reach_the_port() {
+    let mapped = recorded_codes()
+        .iter()
         .filter(|code| matches!(code.resolution, Resolution::Class(_)))
         .count();
     assert_eq!(
@@ -118,7 +119,6 @@ fn exactly_two_dispatch_codes_reach_the_port() -> Result<(), TestError> {
         "the port expresses two classes; every other code must be recorded as \
          resolving above it"
     );
-    Ok(())
 }
 
 #[test]

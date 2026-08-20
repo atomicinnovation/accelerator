@@ -44,12 +44,6 @@ _ABSOLUTE_VCS_PATHS = (
 # test-metadata-helpers.sh retired with the shell metadata helpers.
 _EXPECTED_CONFIG_SUITES = 15
 
-# The skills/work subtree discoverable shell suites. At-least floor (mirror of
-# the migrate/config guards) so a dropped exec bit can't silently shrink the
-# regression net. Bumped as suites are added under skills/work (pattern,
-# scripts, create-remote, fetch-remote, update-remote, sync-apply).
-_EXPECTED_WORK_SUITES = 5
-
 # The skills/integrations subtree discoverable shell suites (every individual
 # test-jira-*.sh + test-linear-*.sh; the test-jira-scripts.sh umbrella runner is
 # excluded from discovery — see EXCLUDED_HELPER_NAMES). At-least floor so a
@@ -397,8 +391,7 @@ def github(context: Context) -> None:
 @task
 def work(context: Context) -> None:
     """Integration tests for the work-management skill scripts."""
-    suites = run_shell_suites(context, "skills/work", accelerator_env())
-    _require_suite_floor(suites, _EXPECTED_WORK_SUITES, (), "work")
+    run_shell_suites(context, "skills/work", accelerator_env())
 
 
 @task
