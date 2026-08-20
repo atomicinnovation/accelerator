@@ -5,13 +5,14 @@ title: "Signed Content-Addressed Tree Generations"
 date: "2026-08-17T10:53:53+00:00"
 author: Toby Clemson
 producer: create-adr
-status: accepted
+status: superseded
+superseded_by: ADR-0064
 supersedes: ["adr:ADR-0060"]
 relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059",
   "work-item:0164", "work-item:0186", "work-item:0196", "work-item:0214"]
 tags: [architecture, distribution, integrity, manifest, launcher, cache,
   design]
-last_updated: "2026-08-17T12:21:50+00:00"
+last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -19,7 +20,7 @@ schema_version: 1
 # ADR-0061: Signed Content-Addressed Tree Generations
 
 **Date**: 2026-08-17
-**Status**: Accepted
+**Status**: Superseded (by ADR-0064, on the attestation shape and the pointer key)
 **Author**: Toby Clemson
 
 ## Context
