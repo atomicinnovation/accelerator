@@ -12,7 +12,6 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)
 ---
 
 # Inventory Design
@@ -123,37 +122,41 @@ Determine the provisional crawler mode from the CLI flag and defaults:
 - No flag, location is a code-repo path → `hybrid` (proceed to Step 4)
 - No flag, location is an `https://` URL → `runtime` (proceed to Step 4)
 
-### 4. Bootstrap Playwright
+### 4. Resolve the Playwright Runtime
+
+Only if provisional mode is `runtime` or `hybrid`.
+
+The vendored Playwright runtime — the driver bundle and the browser — is
+materialised on demand by the executor; there is no bootstrap script to run. On
+a warm cache this is instant; on a cold cache the first runtime command fetches
+the artifacts (a few hundred MB), which can take time on a slow connection.
+Resolution, liveness and any host-level downgrade are all confirmed by the
+single `executor ping` in Step 5.
+
+### 5. Confirm the Runtime and Executor
 
 Only if provisional mode is `runtime` or `hybrid`, run:
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/ensure-playwright.sh
-```
-
-Capture its stdout, stderr, and exit code.
-
-- **Exit 0** → bootstrap ready; proceed to Step 5.
-- **Non-zero exit** → extract the `ACCELERATOR_DOWNGRADE_REASON=<enum>` line from stderr.
-  - If provisional mode was `hybrid`: downgrade to `code`. Print the downgrade notice (see below)
-    and record it in `Crawl Notes`. Then skip to Step 7 (no ping needed).
-  - If provisional mode was `runtime`: hard-fail with the bootstrap stderr and stop.
-
-**Downgrade notice**: run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design notify-downgrade --from <mode>
---to code --reason <enum>` and
-print its stdout **before the crawl starts** (not only in Crawl Notes).
-
-### 5. Confirm Executor Liveness
-
-Only if Step 4 succeeded (bootstrap ready), run:
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor ping
 ```
 
-- **Returns `{"ok":true,...}`** → executor is healthy; proceed to Step 6.
-- **Returns error JSON or fails** → treat as `executor-ping-failed`.
-  - If provisional mode was `hybrid`: downgrade to `code`. Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design
-    notify-downgrade --from hybrid --to code --reason executor-ping-failed` and print the result. Record in `Crawl Notes`.
-  - If provisional mode was `runtime`: hard-fail with the ping error and stop.
+This drives the executor's availability check in ADR-0062 order — platform
+probe, runtime materialisation, browser resolution — then launches the daemon
+and probes it. Interpret the outcome:
+
+- **`{"ok":true,...}` on stdout (exit 0)** → the runtime and executor are
+  healthy; proceed to Step 6.
+- **`{"error":"downgrade","reason":"<enum>"}` on stderr (exit 3)** → the runtime
+  is unavailable on this host. Extract `<enum>`.
+  - If provisional mode was `hybrid`: downgrade to `code`. Print the downgrade
+    notice (see below) and record it in `Crawl Notes`. Then skip to Step 7.
+  - If provisional mode was `runtime`: hard-fail with the reason and stop.
+- **Any other error or non-zero exit** → treat as `executor-ping-failed` and
+  apply the same hybrid/runtime handling.
+
+**Downgrade notice**: run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design
+notify-downgrade --from <mode> --to code --reason <enum>` and print its stdout
+**before the crawl starts** (not only in Crawl Notes).
 
 ### 6. Finalize Crawler Mode
 

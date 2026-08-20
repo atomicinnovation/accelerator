@@ -1735,12 +1735,12 @@
       },
       "expectations": [
         {
-          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-internal to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-insecure-scheme to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
@@ -1778,12 +1778,12 @@
       },
       "expectations": [
         {
-          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-internal to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-insecure-scheme to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
@@ -1821,12 +1821,12 @@
       },
       "expectations": [
         {
-          "text": "Skill passes --allow-internal to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-internal to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Skill passes --allow-insecure-scheme to validate-source.sh when user supplies it",
+          "text": "Skill passes --allow-insecure-scheme to accelerator design validate-source when user supplies it",
           "passed": true,
           "evidence": "ok"
         },
@@ -1864,7 +1864,7 @@
       },
       "expectations": [
         {
-          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "text": "Response printed before crawl starts names the artifact-unavailable downgrade and points the user at accelerator cache repair",
           "passed": true,
           "evidence": "ok"
         },
@@ -1874,7 +1874,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "text": "Skill uses code crawler (no executor navigate calls beyond the ping probe)",
           "passed": true,
           "evidence": "ok"
         },
@@ -1884,7 +1884,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "text": "Skill does not abort -- it continues with code crawler after the materialisation failure",
           "passed": true,
           "evidence": "ok"
         }
@@ -1902,7 +1902,7 @@
       },
       "expectations": [
         {
-          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "text": "Response printed before crawl starts names the artifact-unavailable downgrade and points the user at accelerator cache repair",
           "passed": true,
           "evidence": "ok"
         },
@@ -1912,7 +1912,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "text": "Skill uses code crawler (no executor navigate calls beyond the ping probe)",
           "passed": true,
           "evidence": "ok"
         },
@@ -1922,7 +1922,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "text": "Skill does not abort -- it continues with code crawler after the materialisation failure",
           "passed": true,
           "evidence": "ok"
         }
@@ -1940,7 +1940,7 @@
       },
       "expectations": [
         {
-          "text": "Response printed before crawl starts contains the literal bootstrap-failed downgrade message",
+          "text": "Response printed before crawl starts names the artifact-unavailable downgrade and points the user at accelerator cache repair",
           "passed": true,
           "evidence": "ok"
         },
@@ -1950,7 +1950,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill uses code crawler (no run.sh navigate calls beyond the ping probe)",
+          "text": "Skill uses code crawler (no executor navigate calls beyond the ping probe)",
           "passed": true,
           "evidence": "ok"
         },
@@ -1960,7 +1960,7 @@
           "evidence": "ok"
         },
         {
-          "text": "Skill does not abort -- it continues with code crawler after bootstrap failure",
+          "text": "Skill does not abort -- it continues with code crawler after the materialisation failure",
           "passed": true,
           "evidence": "ok"
         }
@@ -1978,17 +1978,17 @@
       },
       "expectations": [
         {
-          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "text": "Step 4 (runtime resolution) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "text": "Step 5 (executor ping) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "No run.sh commands are invoked during a code-only crawl",
+          "text": "No executor commands are invoked during a code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
@@ -2016,17 +2016,17 @@
       },
       "expectations": [
         {
-          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "text": "Step 4 (runtime resolution) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "text": "Step 5 (executor ping) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "No run.sh commands are invoked during a code-only crawl",
+          "text": "No executor commands are invoked during a code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
@@ -2054,17 +2054,17 @@
       },
       "expectations": [
         {
-          "text": "Step 4 (ensure-playwright.sh) is skipped for code-only crawl",
+          "text": "Step 4 (runtime resolution) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "Step 5 (run.sh ping) is skipped for code-only crawl",
+          "text": "Step 5 (executor ping) is skipped for code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
         {
-          "text": "No run.sh commands are invoked during a code-only crawl",
+          "text": "No executor commands are invoked during a code-only crawl",
           "passed": true,
           "evidence": "ok"
         },
