@@ -1163,9 +1163,18 @@ credentials, so a refactor cannot silently disable the production-write guard.
 
 #### Automated Verification
 
+- [x] The offline seed guards are built and unit-tested without credentials:
+      `tracker_test_support::seed` — `ScratchAllowlist`/`guard_target` (exact
+      allowlist membership; a mistyped production key is rejected) and
+      `seed_marker`/`needs_seeding` (a re-seed reuses rather than duplicates).
+      Eight offline tests pass in the default profile (`cargo nextest run -p
+      tracker-test-support`, 24/24), so a refactor cannot silently disable the
+      production-write guard.
 - [ ] `mise run test:integration:tracker-contract` exits 0 with the contract
       profile, `ACCELERATOR_TRACKER_CONTRACT=1`, and resolved credentials (all
-      three gates required; none skips).
+      three gates required; none skips). Blocked on live scratch tenants +
+      credentials; the live create loop that consumes the offline guards above
+      is the remaining developer-run step.
 
 #### Manual Verification
 
@@ -1429,6 +1438,27 @@ Deviations from the plan text, each deliberate:
   retirement of the shell testing machinery is 0174's.
 - **`skills/work/scripts` survives only in two records.** Neither is a consumer;
   see the automated-verification deviation note above.
+
+### Phase 7 — offline harness done; live run deferred
+
+The offline-testable seed guards are built and unit-tested; the live create
+loop and credentialed run remain a developer step (no scratch tenants here).
+
+- **`tracker_test_support::seed`** carries the two pure decisions the seed must
+  make before any network write: `ScratchAllowlist::from_list` +
+  `guard_target` fence writes on exact allowlist membership (a supplied-but-
+  unlisted, mistyped, or case-variant production key is rejected — supplying an
+  id is not proving it non-production), and `seed_marker`/`needs_seeding` give
+  idempotency (a record already carrying its marker is reused, not re-created).
+  Eight offline unit tests in the default nextest profile cover reject/accept
+  and reuse-not-duplicate, so the production-write guard cannot be silently
+  refactored away. `cargo nextest -p tracker-test-support` 24/24, clippy + fmt
+  clean.
+- **Deferred (credentialed):** the live create loop that enumerates the corpus,
+  calls `guard_target` against the scratch project/team, and issues one
+  `create` per un-seeded record belongs in a `binary(=contract)` harness (the
+  only binaries the contract profile runs). It plus the manual live-tenant
+  checks need scratch Jira/Linear tenants and tokens, which 0171 owns.
 
 ## Testing Strategy
 
