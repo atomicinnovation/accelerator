@@ -9,16 +9,19 @@ well-formed signature from a key merely present in the keyring, and GnuPG emits
 ``VALIDSIG`` for signatures made by expired and revoked keys too — those replace
 ``GOODSIG`` with ``EXPKEYSIG``/``REVKEYSIG`` rather than suppressing
 ``VALIDSIG``. So a ``VALIDSIG``-plus-fingerprint check alone would accept a
-manifest signed by a since-revoked Node release key, the single case where
-rotation matters most. The predicate therefore requires ``GOODSIG``, rejects the
-degraded variants explicitly, and matches the allowlist against ``VALIDSIG``'s
-*primary-key* fingerprint rather than the signing subkey's.
+manifest signed by a since-revoked Node release key, the case where rotation
+matters most. The predicate therefore refuses ``REVKEYSIG`` explicitly and
+matches the allowlist against ``VALIDSIG``'s *primary-key* fingerprint rather
+than the signing subkey's. It accepts ``EXPKEYSIG`` — an expired key made no new
+signature, but the ones it made while valid stand, and Node's release keys
+expire faster than the upstream repo extends them.
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,9 +50,9 @@ def classify_status_lines(
 ) -> Verdict:
     """Classify GnuPG ``--status-fd`` output against a fingerprint allowlist.
 
-    Trusted iff a ``GOODSIG`` is present, no degraded or missing-key status
-    appears, and a ``VALIDSIG`` names a primary-key fingerprint in the
-    allowlist. Every other shape is a named rejection.
+    Trusted iff a ``GOODSIG`` or ``EXPKEYSIG`` is present, no revoked/expired-
+    signature or missing-key status appears, and a ``VALIDSIG`` names a primary-
+    key fingerprint in the allowlist. Every other shape is a named rejection.
     """
     allowed = {fingerprint.upper() for fingerprint in allowed_fingerprints}
     statuses: list[tuple[str, list[str]]] = []
@@ -62,11 +65,14 @@ def classify_status_lines(
 
     keywords = {keyword for keyword, _ in statuses}
 
-    # The degraded good-signature variants and hard failures, each named so a
-    # reviewer of a failed release sees which one fired.
+    # The hard failures and actively-distrusted variants, each named so a
+    # reviewer of a failed release sees which one fired. EXPKEYSIG is not here:
+    # an expired key signs nothing new, but the signatures it made while valid
+    # stand — Node's release keys expire and the upstream repo lags in extending
+    # them, so rejecting EXPKEYSIG would refuse legitimately-signed releases.
+    # REVKEYSIG (a revoked, actively-distrusted key) is refused.
     for keyword, reason in (
         ("REVKEYSIG", "the signing key has been revoked"),
-        ("EXPKEYSIG", "the signing key has expired"),
         ("EXPSIG", "the signature has expired"),
         ("BADSIG", "the signature does not verify"),
         ("ERRSIG", "the signature could not be checked"),
@@ -75,7 +81,10 @@ def classify_status_lines(
         if keyword in keywords:
             return Verdict.rejected(reason)
 
-    if "GOODSIG" not in keywords:
+    # GnuPG emits GOODSIG for a signature from a currently-valid key, EXPKEYSIG
+    # (in its place) when that key has since expired; either is a signature made
+    # by a key valid at signing time.
+    if keywords.isdisjoint({"GOODSIG", "EXPKEYSIG"}):
         return Verdict.rejected("no good signature was produced")
 
     primaries = [
@@ -120,23 +129,43 @@ def verify_detached(
 def _run_gpg(signature: Path, target: Path, keyring: Path) -> list[str] | None:
     if shutil.which("gpg") is None:
         return None
-    result = subprocess.run(
-        [
-            "gpg",
-            "--no-default-keyring",
-            "--keyring",
-            str(keyring),
-            "--status-fd",
-            "1",
-            "--verify",
-            str(signature),
-            str(target),
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+    # `--keyring` reads a binary keyring, not the committed armored `.asc`, and
+    # the host's default keyring must never be consulted. So import the anchor
+    # into an ephemeral home directory and verify there — isolated from the host
+    # keys, and reading the armored file through the only path that parses it.
+    with tempfile.TemporaryDirectory() as home:
+        subprocess.run(
+            [
+                "gpg",
+                "--homedir",
+                home,
+                "--batch",
+                "--quiet",
+                "--import",
+                str(keyring),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        result = subprocess.run(
+            [
+                "gpg",
+                "--homedir",
+                home,
+                "--batch",
+                "--status-fd",
+                "1",
+                "--verify",
+                str(signature),
+                str(target),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
     return result.stdout.splitlines()
 
 

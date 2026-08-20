@@ -47,12 +47,20 @@ def test_a_revoked_key_is_rejected_even_with_validsig() -> None:
     assert "revoked" in verdict.reason
 
 
-def test_an_expired_key_is_rejected() -> None:
+def test_an_expired_key_is_accepted() -> None:
+    # An expired key signs nothing new, but the signatures it made while valid
+    # stand; GnuPG emits EXPKEYSIG in place of GOODSIG and still emits VALIDSIG.
     lines = _good()
     lines[1] = f"[GNUPG:] EXPKEYSIG {SUBKEY[-16:]} Node.js"
     verdict = classify_status_lines(lines, ALLOWED)
-    assert not verdict.trusted
-    assert "expired" in verdict.reason
+    assert verdict.trusted, verdict.reason
+
+
+def test_an_expired_key_off_the_allowlist_is_still_rejected() -> None:
+    # Accepting EXPKEYSIG must not bypass the fingerprint allowlist.
+    lines = _good(primary=STRANGER, signing=STRANGER)
+    lines[1] = f"[GNUPG:] EXPKEYSIG {STRANGER[-16:]} Node.js"
+    assert not classify_status_lines(lines, ALLOWED).trusted
 
 
 def test_an_expired_signature_is_rejected() -> None:

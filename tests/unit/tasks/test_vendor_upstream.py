@@ -86,13 +86,13 @@ def test_verify_upstream_inputs_wires_the_three_checks(tmp_path, mocker):
     def fetch(url, dest):
         if "pw.tgz" in url:
             dest.write_bytes(tarball_bytes)
-        elif "SHASUMS256.txt" in url and not url.endswith(".asc"):
+        elif url.endswith((".sig", ".asc")):
+            dest.write_text("signature")
+        elif "SHASUMS256.txt" in url:
             digest = hashlib.sha256(node_bytes).hexdigest()
             dest.write_text(
                 f"{digest}  node-v{node_version}-linux-x64.tar.gz\n"
             )
-        elif url.endswith(".asc"):
-            dest.write_text("signature")
         elif "node-v" in url:
             dest.write_bytes(node_bytes)
         else:

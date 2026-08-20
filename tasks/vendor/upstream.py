@@ -126,8 +126,11 @@ def verify_upstream_inputs(
     node_version = pins.node_version(pins_path)
     shasums = staging_dir / "SHASUMS256.txt"
     fetch(node_shasums_url(node_version), shasums)
-    signature = staging_dir / "SHASUMS256.txt.asc"
-    fetch(node_shasums_url(node_version) + ".asc", signature)
+    # The detached `.sig`, not the clearsigned `.asc`: the verifier checks a
+    # detached signature over SHASUMS256.txt, and Node's `.asc` embeds the
+    # checksums inline (a clearsigned document), which is not a detached sig.
+    signature = staging_dir / "SHASUMS256.txt.sig"
+    fetch(node_shasums_url(node_version) + ".sig", signature)
     node_name = node_tarball_name(node_version, platform)
     node_tarball = staging_dir / node_name
     fetch(node_tarball_url(node_version, platform), node_tarball)
