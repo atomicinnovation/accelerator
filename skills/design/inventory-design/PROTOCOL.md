@@ -583,21 +583,31 @@ These codes can be returned by any command regardless of op:
 
 ## Detected-Condition → `notify-downgrade` Enum Mapping
 
-`ensure-playwright.sh` and `executor ping` emit structured downgrade signals so
-SKILL.md Step 4 can select the right user-facing message.
+The executor's availability check emits a structured downgrade reason when the
+bundled Playwright runtime cannot start, so SKILL.md can select the right
+user-facing message. Each reason is decided at a distinct point: a pre-fetch
+platform probe, the artifact materialisation, the loader's own bootstrap-log
+output, the single-flight materialisation waiter, or the spawn errno.
 
-| Condition                               | Exit | `ACCELERATOR_DOWNGRADE_REASON`       | `notify-downgrade --reason` |
-|-----------------------------------------|------|--------------------------------------|--------------------------------|
-| `node` not found on `$PATH`             | 10   | `node-missing`                       | `node-missing`                 |
-| Node < 20 detected                      | 11   | `node-too-old`                       | `node-too-old`                 |
-| Cache filesystem < 500 MB free          | 12   | `disk-floor-not-met`                 | `disk-floor-not-met`           |
-| Cache directory not writable            | 13   | `cache-unwritable`                   | `cache-unwritable`             |
-| `npm ci` failed                         | 14   | `bootstrap-failed`                   | `bootstrap-failed`             |
-| `playwright install chromium` failed    | 15   | `bootstrap-failed`                   | `bootstrap-failed`             |
-| `executor ping` returns error or non-zero | —  | (caller uses `executor-ping-failed`) | `executor-ping-failed`         |
+| Reason                        | Decided by                 | Arises when                                                         | Remediation                                    |
+|-------------------------------|----------------------------|--------------------------------------------------------------------|------------------------------------------------|
+| `unsupported-platform`        | pre-fetch platform probe   | the host libc is musl, which the bundled browser cannot run        | none — code-only is the answer                 |
+| `loader-unresolvable`         | probe or spawn errno       | the psABI dynamic loader is absent or relocated (e.g. NixOS)       | install `nix-ld`, or set `design.browser_path` |
+| `glibc-too-old`               | bootstrap log              | the loader reports ``version `GLIBC_2.NN' not found``              | upgrade the distribution                       |
+| `runtime-libraries-missing`   | bootstrap log              | the loader reports `error while loading shared libraries: <soname>`| install the package providing that soname      |
+| `artifact-unavailable`        | materialisation            | materialisation failed with an unmapped or persistent cause        | `accelerator cache repair`                     |
+| `materialisation-in-progress` | single-flight waiter       | another process holds the materialisation lease                    | none — retries on the next invocation          |
+| `disk-floor-not-met`          | pre-fetch free-space check | the cache filesystem lacks room for the artifacts and their copies | free space and retry                           |
+| `cache-unwritable`            | pre-fetch cache-root check | the cache root cannot be written                                   | fix permissions on the cache root and retry    |
+| `executor-ping-failed`        | executor liveness probe    | the daemon started but the liveness probe failed                   | run `accelerator design executor ping` to diagnose |
 
-SKILL.md Steps 4–5 read `ACCELERATOR_DOWNGRADE_REASON` from stderr, then pass it
-verbatim to `accelerator design notify-downgrade --reason <enum>`.
+`glibc-too-old` and `runtime-libraries-missing` are host properties keyed to the
+resolved tree's digest: a successful materialisation does not clear them, only
+`accelerator cache repair` or a digest change does. `materialisation-in-progress`
+is deliberately not sticky — it retries on the next invocation.
+
+SKILL.md reads the reason from the executor's own output and passes it verbatim
+to `accelerator design notify-downgrade --reason <enum>`.
 
 ---
 
@@ -631,8 +641,6 @@ the daemon.
 |-----------------------------------------|---------------|-----------|---------|
 | `ACCELERATOR_PLAYWRIGHT_IDLE_MS`        | `600000`      | caller    | Idle shutdown timeout (ms). Bounds the in-memory lifetime of an auth-bearing browser context; do not raise without considering auth-context exposure. Lowered from `1800000` in this release. |
 | `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. The budget starts once the browser is ready, so acquiring Chromium is not charged to the first operation. A command that honours the budget answers with its own typed envelope (`wait-for-timeout`, and `timeout_ms` capping below); `wall-clock-exceeded` is a backstop for a command that ignores its timeout entirely, and so fires 2000 ms past the budget, outside the cap. |
-| `ACCELERATOR_PLAYWRIGHT_CACHE`          | `${HOME}/.cache/accelerator/playwright` | environment | Root directory for the Playwright browser cache (versioned by package-lock hash). |
-| `ACCELERATOR_PLAYWRIGHT_NS_ROOT`        | derived       | launcher  | Namespace root for the active Playwright install (cache root + lockhash). Set by `accelerator design executor` when invoking the daemon or client; callers should not set it directly. |
 | `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | launcher  | Per-project state directory. Set by `accelerator design executor`; callers should not set it directly. |
 | `ACCELERATOR_PLAYWRIGHT_IDENTITY_FD`    | derived       | launcher  | Descriptor the daemon reads its identity record from at startup. Set by `accelerator design executor` on the daemon spawn only; a daemon started without it exits. |
 

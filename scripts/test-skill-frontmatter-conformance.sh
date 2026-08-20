@@ -548,9 +548,8 @@ assert_contains "argument-hint includes --allow-insecure-scheme flag" \
   "$(cat "$SKILL")" "--allow-insecure-scheme"
 assert_not_contains "allowed-tools contains no mcp__playwright__ entries" \
   "$(cat "$SKILL")" "mcp__playwright__"
-# shellcheck disable=SC2016 # single-quoted assert pattern; ${CLAUDE_PLUGIN_ROOT} is a literal allowed-tools entry matched verbatim, intentionally not shell-expanded
-assert_contains "allowed-tools enumerates inventory-design scripts glob" \
-  "$(cat "$SKILL")" 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/design/inventory-design/scripts/*)'
+assert_not_contains "allowed-tools grants no inventory-design scripts glob" \
+  "$(cat "$SKILL")" "/skills/design/inventory-design/scripts/"
 assert_contains "loads config context" \
   "$(cat "$SKILL")" "accelerator config context"
 assert_contains "loads agent names" \
@@ -695,6 +694,74 @@ for skill in "$PLUGIN_ROOT/skills/design/inventory-design/SKILL.md" \
       "$(skill_body "$skill")" "$prefix"
   done
 done
+
+echo ""
+
+# =============================================================================
+# Design eval and protocol references resolve
+# =============================================================================
+# Fifteen references to deleted scripts and retired downgrade reasons rotted
+# through the immediately preceding plan because nothing asserted the content of
+# these files named a live command or reason — only that the JSON parsed. This
+# guard closes that gap: every *.sh a design eval or the protocol names must
+# resolve to a script still on disk, and no reason it names may have been
+# retired from the executor's vocabulary.
+
+echo "=== Design eval and protocol references resolve ==="
+
+DESIGN_REFERENCE_FILES="$PLUGIN_ROOT/skills/design/inventory-design/evals/evals.json
+$PLUGIN_ROOT/skills/design/inventory-design/evals/benchmark.json
+$PLUGIN_ROOT/skills/design/inventory-design/PROTOCOL.md"
+
+# The live downgrade vocabulary, read from its single source of truth (the
+# key() match arms), so a reason dropped from the enum can no longer be named by
+# a doc or eval that CI still passes.
+DOWNGRADE_ENUM="$PLUGIN_ROOT/cli/design/src/runtime/downgrade.rs"
+live_downgrade_reasons() {
+  grep -oE '=> "[a-z][a-z-]*",' "$DOWNGRADE_ENUM" |
+    sed -e 's|^=> "||' -e 's|",$||' |
+    sort -u
+}
+
+# Append-only: every reason that has ever been in the vocabulary. The retired
+# set is derived below as those no longer live, so a reason dropped from the
+# enum in a future change is caught without touching this guard's logic.
+REASONS_EVER="unsupported-platform loader-unresolvable glibc-too-old
+runtime-libraries-missing artifact-unavailable materialisation-in-progress
+executor-ping-failed cache-unwritable disk-floor-not-met
+node-missing node-too-old bootstrap-failed"
+
+LIVE_REASONS="$(live_downgrade_reasons)"
+
+for reason in $LIVE_REASONS; do
+  assert_contains "REASONS_EVER covers live reason $reason (append it)" \
+    "$REASONS_EVER" "$reason"
+done
+
+while IFS= read -r reference_file; do
+  [ -f "$reference_file" ] || continue
+  reference_body="$(cat "$reference_file")"
+  # Every *.sh a design eval or the protocol names must resolve to a script
+  # still on disk; once the runtime is vendored none survives under
+  # skills/design/, so a stale reference is caught here rather than at run time.
+  for script in $(printf '%s\n' "$reference_body" |
+    grep -oE '[A-Za-z0-9_-]+\.sh' | sort -u); do
+    found="$(find "$PLUGIN_ROOT/skills/design" -name "$script" -type f 2>/dev/null |
+      head -n 1)"
+    assert_true \
+      "$(basename "$reference_file") reference to $script resolves under skills/design" \
+      test -n "$found"
+  done
+  # No reason it names may have been retired from the executor's vocabulary.
+  for reason in $REASONS_EVER; do
+    printf '%s\n' "$LIVE_REASONS" | grep -qx "$reason" && continue
+    assert_not_contains \
+      "$(basename "$reference_file") names no retired downgrade reason ($reason)" \
+      "$reference_body" "$reason"
+  done
+done <<EOF
+$DESIGN_REFERENCE_FILES
+EOF
 
 echo ""
 
