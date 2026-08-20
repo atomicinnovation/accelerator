@@ -9,6 +9,7 @@
 
 pub mod contract;
 pub mod evidence;
+pub mod seed;
 
 use std::cell::RefCell;
 
