@@ -10,7 +10,7 @@ kind: task
 priority: medium
 relates_to: ["work-item:0196"]
 tags: [ci, testing, design, playwright]
-last_updated: "2026-08-13T13:33:39+00:00"
+last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -32,7 +32,7 @@ by hand. Six defects accumulated behind it undetected.
 ## Context
 
 The lane is deliberately absent from the `test:integration` aggregate and the
-default task, commented at `mise.toml:258-261`: the suites need a bootstrapped
+default task, commented at `mise.toml:284-287`: the suites need a bootstrapped
 Playwright runtime, which no CI lane provisions, and they fail rather than skip
 without one — so wiring them into an aggregate as-is would redden every build.
 
@@ -61,19 +61,30 @@ The plan that introduced the lane also converted 14 self-skipping tests into har
 failures precisely so an absent runtime would be a visible refusal rather than a
 silent pass. That worked. It just has no observer.
 
+## Decision (2026-08-20)
+
+The vendored-runtime plan has landed the deletions that foreclose the
+bootstrap-now approach: `ensure-playwright.sh` and the lockhash namespace are
+gone, so there is no script for a CI job to run. **The container lane from
+`plan:2026-08-11-0196-design-vendored-runtime-distribution` owns the CI job** —
+it provisions the runtime once and asserts zero skips across the whole set, so
+this item's acceptance is satisfied by pointing at that lane rather than adding a
+second job. The lane is not built yet — it is gated on that plan's container
+harness — so this item stays open until the harness lands.
+
 ## Requirements
 
 - The design-automation runtime suites must be exercised by a scheduled build
   rather than a manual invocation.
-- Two candidate approaches, to be chosen during planning:
-  - **Dedicated CI job that bootstraps** — runs `ensure-playwright.sh` then the
-    lane, caching the lockhash namespace between runs. Independent of other work;
-    adds a bootstrap step that
-    `plan:2026-08-11-0196-design-vendored-runtime-distribution` later deletes.
-  - **Container lane from the vendored-runtime plan** — that plan moves these
-    suites into a lane which already provisions a runtime and can then assert
-    zero skips across the whole set. No throwaway work; delivers nothing until it
-    lands.
+- Two candidate approaches were weighed; see the Decision above. Only the second
+  survives:
+  - **Dedicated CI job that bootstraps** — ran `ensure-playwright.sh` then the
+    lane. **Foreclosed**: the vendored-runtime plan deleted that script and the
+    lockhash namespace, so there is nothing to bootstrap.
+  - **Container lane from the vendored-runtime plan** (chosen) — that plan moves
+    these suites into a lane which already provisions a runtime and can then
+    assert zero skips across the whole set. No throwaway work; delivers nothing
+    until it lands.
 - Whichever is chosen, an absent or broken runtime must fail the job visibly. Do
   not restore conditional execution at the task layer — that relocates the
   silent-pass shape rather than removing it.
@@ -98,21 +109,21 @@ silent pass. That worked. It just has no observer.
 - [ ] Given the lane executes, when it reports, then the count of executed tests
       is asserted against a floor, so a suite that silently stops being
       discovered fails the build.
-- [ ] `mise.toml:258-261`'s comment no longer says no CI lane provisions a
+- [ ] `mise.toml:284-287`'s comment no longer says no CI lane provisions a
       runtime, or is replaced by one naming where the lane does run.
 - [ ] The repo's own CI documentation lists the new job alongside
       `test-visual-regression` and `check-zero-spawn`.
 
 ## Open Questions
 
-- Which approach — bootstrap-now or wait for the container lane? The trade-off is
-  throwaway CI work against an unguarded daemon until the sibling plan lands.
+- ~~Which approach — bootstrap-now or wait for the container lane?~~ Resolved:
+  the container lane, since the bootstrap script no longer exists (see Decision).
 - Does the lane need the OS matrix the other test jobs use, or is one runner
   enough? The executor's adapter layer is platform-specific (`/proc` on Linux,
   `sysctl` on Darwin), but that half is already covered by `test:unit:cli` on
   both runners.
-- Is a cached Playwright namespace acceptable in CI, given the cache key would be
-  the lockhash the executor already derives?
+- Is a cached runtime tree acceptable in CI, keyed on the vendored artifact's
+  digest? (The lockhash namespace this once referenced no longer exists.)
 
 ## Dependencies
 
@@ -129,8 +140,11 @@ silent pass. That worked. It just has no observer.
 
 ## Technical Notes
 
-- Task definition: `mise.toml:274-276`; preflight and named-suite discovery at
-  `tasks/test/integration.py:404-407,434-452`.
+- Task definition: the `test:integration:design-automation` block in
+  `mise.toml`; preflight and named-suite discovery in
+  `tasks/test/integration.py` (`_resolve_driver_tree` +
+  `_DESIGN_AUTOMATION_RUNTIME_SUITES`). The preflight now resolves the vendored
+  driver tree, not a lockhash namespace.
 - Precedents to copy: `.github/workflows/main.yml:122-145`
   (`test-visual-regression`) and `:332-345` (`check-zero-spawn`) — the latter's
   comment explains why a lane with an environmental prerequisite gets its own job
