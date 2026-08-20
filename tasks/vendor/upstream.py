@@ -14,6 +14,7 @@ never silently accepts an unverified input.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,9 +25,15 @@ from tasks.vendor.fetch import Fetcher, JsonFetcher, download, get_json
 NPM_REGISTRY = "https://registry.npmjs.org"
 NODE_DIST = "https://nodejs.org/dist"
 PLAYWRIGHT_PACKAGE = "playwright-core"
-PLAYWRIGHT_OWNER = "microsoft"
-PLAYWRIGHT_REPO = "playwright"
-PLAYWRIGHT_SIGNER_WORKFLOW = ".github/workflows/publish_release.yml"
+
+# The signing-certificate identity the SLSA provenance must carry: the GitHub
+# Actions OIDC issuer, and a SAN anchored to microsoft/playwright's npm publish
+# publish workflow (the tag ref varies per release, so it is matched by prefix).
+GITHUB_ACTIONS_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+PLAYWRIGHT_PROVENANCE_IDENTITY = (
+    r"^https://github\.com/microsoft/playwright/\.github/workflows/"
+    r"publish_release_npm\.yml@"
+)
 
 CHROMIUM_CDN = (
     "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium"
@@ -105,11 +112,14 @@ def verify_upstream_inputs(
     npm.assert_integrity_binds_tarball(
         integrity=dist.integrity, tarball=playwright_tarball
     )
+    bundle = npm.provenance_bundle(fetch_json(dist.attestations_url))
+    bundle_path = staging_dir / f"{PLAYWRIGHT_PACKAGE}.slsa-bundle.json"
+    bundle_path.write_text(json.dumps(bundle))
     npm.verify_slsa(
         tarball=playwright_tarball,
-        owner=PLAYWRIGHT_OWNER,
-        repo=PLAYWRIGHT_REPO,
-        signer_workflow=PLAYWRIGHT_SIGNER_WORKFLOW,
+        bundle=bundle_path,
+        identity_regexp=PLAYWRIGHT_PROVENANCE_IDENTITY,
+        oidc_issuer=GITHUB_ACTIONS_OIDC_ISSUER,
         runner=slsa_runner,
     )
 

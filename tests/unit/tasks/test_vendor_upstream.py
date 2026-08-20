@@ -66,13 +66,22 @@ def test_verify_upstream_inputs_wires_the_three_checks(tmp_path, mocker):
                     "tarball": "https://registry/pw.tgz",
                     "integrity": integrity,
                     "signatures": [{"keyid": "k", "sig": "sig"}],
+                    "attestations": {"url": "https://registry/attestations"},
                 }
             }
         },
     }
+    attestations = {
+        "attestations": [
+            {
+                "predicateType": "https://slsa.dev/provenance/v1",
+                "bundle": {"dsseEnvelope": {}},
+            }
+        ]
+    }
 
-    def fetch_json(_url):
-        return packument
+    def fetch_json(url):
+        return attestations if "attestations" in url else packument
 
     def fetch(url, dest):
         if "pw.tgz" in url:
