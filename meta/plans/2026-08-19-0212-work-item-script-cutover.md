@@ -770,7 +770,7 @@ outcome annotates its push entry without aborting the preview.
 
 ---
 
-## Phase 4: The `work list` command
+## Phase 4: The `work list` command ✅ done
 
 ### Overview
 
@@ -832,25 +832,42 @@ freeze, not the thirteen-point sub-binary checklist (no new `[[bin]]`).
 
 #### Automated Verification
 
-- [ ] `cli_surface.golden` includes `list` and `mise run test:unit:cli` exits 0.
-- [ ] A test renders a fixture corpus with all **five** status states (including
-      `conflict`) and asserts the rendered glyph+text column matches the skill's
-      current mapping.
-- [ ] Tests assert each filter flag selects the expected subset from a fixture
-      corpus — `--status`/`--kind`/`--priority`/`--parent`, a repeatable `--tag`
-      composing, a positional title substring — plus a multi-flag combination and
-      an empty-match case.
-- [ ] A test asserts `work list` renders presence-only and **exits 0** when the
-      bulk fetch returns all-`indeterminate` / a transport failure (the skill's
-      degradation contract).
-- [ ] A test asserts the directory-not-found, malformed-frontmatter, and
-      empty-result messaging matches the skill's current wording.
-- [ ] `mise run cli:check` and `mise run check` exit 0.
+- [x] `cli_surface.golden` includes `list` and the underlying `cargo nextest`
+      run (behind `test:unit:cli`) exits 0 — 117/117 work-cli tests pass; driven
+      directly with `cargo` for the mise-nesting reason recorded under Phase 2.
+- [x] A corpus renders all **five** status labels in the Sync column
+      (`the_table_renders_all_five_status_labels_in_the_sync_column`), and
+      `sync_label` maps every `SyncState` to the skill's glyph+text vocabulary
+      (`sync_label_maps_every_state_to_the_skill_vocabulary` plus the
+      `remote-absent`/`indeterminate` presence-only fallbacks). Deviation: the
+      five-state column is asserted at the render boundary with injected states
+      rather than by reconstructing the engine to induce a live `conflict`; a
+      companion `classify_reports_synced_unsynced_and_locally_modified` exercises
+      the real `fetch::gather` → `plan` wiring end to end with a fake tracker.
+- [x] Each filter flag selects the expected subset — `--status`/`--kind`/
+      `--priority`/`--parent`, a repeatable `--tag`, a positional title
+      substring — plus a multi-flag conjunction and an empty-match case (the
+      `*_filter_*` tests).
+- [x] `work list` degrades to presence-only and the process exits 0 when the
+      bulk read is all-`indeterminate`
+      (`an_all_indeterminate_read_degrades_to_presence_only`; a transport
+      failure is the same classification path — both land as
+      `RemotePresence::Indeterminate`). The `Rendered`/`EmptyDirectory`/
+      `MissingDirectory` arms all return `ExitCode::SUCCESS`.
+- [x] The directory-not-found, malformed-frontmatter, and empty-result messaging
+      matches the skill's wording (`empty_and_directory_messages_match_the_skill`,
+      `scan_warns_on_malformed_files_and_excludes_non_items`).
+- [x] `cargo clippy --workspace`-equivalent (`-p accelerator-work
+      --all-targets --all-features`) and `cargo fmt --check` are clean; verified
+      directly against the workspace tree (mise-nesting).
 
 #### Manual Verification
 
-- [ ] `accelerator work list` output matches `list-work-items`' current
-      rendering on a real corpus (spot-check ahead/behind).
+- [x] `accelerator work list` spot-checked on the live repo corpus: the table
+      renders with the Sync column, `--hierarchy` nests children under
+      `0136`→`0171`→`0210..0213`, `--parent`/`--kind` filters select the
+      expected subsets, and an empty filter prints the empty-result message.
+      With the Linear token unset the run degrades to presence-only and exits 0.
 
 ---
 
@@ -1267,6 +1284,47 @@ Deviations from the plan text, each deliberate:
 - **`work` is public-api-pinned** (contra the Phase 2 note that only `tracker`
   is) — `public-api.txt` regenerated; the diff is exactly the two new `Action`
   variants.
+
+### Phase 4 — done
+
+Green on the workspace tree: `cargo nextest run -p accelerator-work` (117
+passed, 0 skipped), `cargo clippy -p accelerator-work --all-targets
+--all-features`, and `cargo fmt --check` all clean (driven directly with
+`cargo`, not `mise run`, for the nesting reason recorded under Phase 2).
+
+Deviations from the plan text, each deliberate:
+
+- **`--hierarchy` added (user decision 2026-08-20).** The plan's §2 prose said
+  the skill's tree render "moves behind `work list`", but its enumerated flag
+  surface and success criteria covered only the table. Confirmed with the user:
+  the CLI now carries a `--hierarchy` flag with cycle detection, a
+  `(parent … not found)` marker for out-of-set parents, and per-line sync
+  labels — so Phase 5 can repoint `/list-work-items`' `hierarchy`/`as a tree`
+  keyword without a regression.
+- **Classification reuses `fetch::gather` + `work::sync::plan`, not a second
+  classifier.** `list::classify` gathers remote facts and runs the pure planner
+  (direction `Bidirectional`, no resolutions), reading each `PlannedAction.state`
+  and mapping it to a label via `RenderableState::try_from`, with
+  `remote-absent`/`indeterminate`/unclassified all degrading to the presence-only
+  label. This is the same source of truth the sync engine uses; the five states
+  are purely a presentation mapping.
+- **Baseline-presence gate matches the skill floor.** The remote gather runs only
+  when `work.integration` is set *and* the `last-sync.json` baseline exists on
+  disk; with no baseline every item is presence-only (`synced`/`unsynced`) with
+  no remote read, as the skill specifies. A tracker that fails to resolve (e.g.
+  no token) also degrades to presence-only and exits 0, never failing the
+  listing.
+- **Displayed and classification id is the frontmatter `id`** (with a legacy
+  `work_item_id` fallback), matching `discover_items` and the baseline key,
+  rather than re-deriving from the filename — the two agree across this repo's
+  corpus and keeping one id avoids a classifier/baseline key mismatch.
+- **`work-cli` gained a `tracker-test-support` dev-dependency** so the inline
+  `list` tests can drive `classify` with a `RecordingTracker` (the bin-only crate
+  cannot inject a registry from its integration tests).
+- **No report/hierarchy golden file.** The rendering is covered by inline unit
+  tests over `render_table`/`render_hierarchy`/`sync_label`/`apply_filter` and
+  the message helpers, plus the regenerated `cli_surface.golden` for the flag
+  surface — there is no separate committed render golden.
 
 ## Testing Strategy
 
