@@ -59,3 +59,9 @@ def test_stray_legacy_flag_is_flagged(tmp_path: Path) -> None:
 
 def test_the_real_tree_has_no_gated_violation() -> None:
     assert gate.violations(REPO_ROOT) == []
+
+
+def test_design_skill_tree_carries_no_shell_scripts() -> None:
+    design = REPO_ROOT / "skills/design"
+    stray = sorted(str(p.relative_to(REPO_ROOT)) for p in design.rglob("*.sh"))
+    assert stray == []
