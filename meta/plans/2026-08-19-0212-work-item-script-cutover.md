@@ -13,7 +13,7 @@ relates_to: ["work-item:0213", "work-item:0211", "work-item:0171"]
 tags: [rust, cutover, work-items, fixtures, cli, tracker]
 revision: "792cb868f0b365c43d7f91680a221920c02e92d4"
 repository: "accelerator"
-last_updated: "2026-08-19T12:12:17+00:00"
+last_updated: "2026-08-20T22:13:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -871,7 +871,7 @@ freeze, not the thirteen-point sub-binary checklist (no new `[[bin]]`).
 
 ---
 
-## Phase 5: Repoint the skills and fold EXIT_CODES.md
+## Phase 5: Repoint the skills and fold EXIT_CODES.md ✅ done
 
 ### Overview
 
@@ -1009,27 +1009,40 @@ gate.)
 
 #### Automated Verification
 
-- [ ] No SKILL references a work-item script: `! grep -rl
-      "skills/work/scripts" skills/work/` returns nothing — including
-      `review-work-item` and `extract-work-items`, whose stale `allowed-tools`
-      glob is removed here.
-- [ ] No work `SKILL.md` declares `jq` or `curl` in `allowed-tools`.
-- [ ] A test asserts a **transport-failure** `preview_create` result does not
-      block local creation (the pre-create gate degrades to allow the create),
-      while an `Unresolvable` key does block — so the now-credentialed pre-flight
-      does not regress the offline `/create-work-item` path.
-- [ ] `mise run check` exits 0.
-- [ ] The mirror is regenerated via `mise run docs:generate`, then `mise run
-      docs:check` exits 0, and a direct grep over
+- [x] No SKILL references a work-item script: no `SKILL.md` under
+      `skills/work/` names `skills/work/scripts` or a `work-item-*.sh` basename
+      — including `review-work-item` and `extract-work-items`, whose stale
+      `allowed-tools` glob is removed here. (The scripts' own self-references
+      and the historical `evals/benchmark.json` transcripts are not skill
+      definitions and go in Phase 6.)
+- [x] No work `SKILL.md` declares `jq` or `curl` in `allowed-tools`.
+- [x] A test asserts a **transport-failure** `preview_create` result does not
+      block local creation (`create::tests::a_transport_failure_previews_as_
+      retryable_not_a_block` — exit 70), while an `Unresolvable` key does not
+      (`…an_unresolvable_project_previews_at_exit_zero_with_the_marker` — exit 0
+      with an `unresolvable` source the skill blocks on).
+- [x] `mise run check` — Rust side verified directly (`cargo clippy --workspace
+      --all-targets --all-features`, `cargo fmt --check`, `cargo nextest`) plus
+      `lint:dispatch-coherence` and `docs:generate:check` run against the
+      workspace tree, all green; driven directly for the mise-nesting reason
+      recorded under Phase 2. No frontend/server/scripts/build-system source was
+      touched, so those lanes stand as Phase 4 left them.
+- [x] The mirror is regenerated via `generate_pages` against the workspace root
+      (the generated `docs-site/.../reference/skills/` pages are **gitignored**
+      build artefacts, so nothing is committed); a direct grep over
       `docs-site/src/content/docs/reference/skills/work/` for `skills/work/
-      scripts` and the eighteen basenames returns nothing.
+      scripts` and the `work-item-*.sh` basenames returns nothing, and
+      `docs:generate:check` reports no missing or orphan page.
 
 #### Manual Verification
 
 - [ ] `/sync-work-items --preview`, `/create-work-item`, and `/list-work-items`
       each run end-to-end against a local corpus with the repointed invocations.
-- [ ] `exit_codes.rs`'s module doc carries the table the `.md` held, with each
-      documented integer matching the value the CLI emits.
+- [x] `exit_codes.rs`'s module doc carries the numeric taxonomy the `.md` held
+      (0–5 process/selection, 70/71 tracker-error split, 72–74 selection/config),
+      nominated the single authoritative source; `work create`/`work sync`
+      `--help` cross-reference it. Each documented integer matches the constant
+      it describes.
 
 ---
 
@@ -1325,6 +1338,48 @@ Deviations from the plan text, each deliberate:
   tests over `render_table`/`render_hierarchy`/`sync_label`/`apply_filter` and
   the message helpers, plus the regenerated `cli_surface.golden` for the flag
   surface — there is no separate committed render golden.
+
+### Phase 5 — done
+
+Green on the workspace tree: `cargo clippy --workspace --all-targets
+--all-features`, `cargo fmt --check`, and `cargo nextest run -p accelerator-work`
+(126 passed, +9 over Phase 4) all clean; `lint:dispatch-coherence` and
+`docs:generate:check` clean against the workspace root (driven directly, not
+`mise run`, for the nesting reason recorded under Phase 2).
+
+Deviations from the plan text, each deliberate:
+
+- **The create-preview surface is a `--dry-run` flag on `work create`** (user
+  decision 2026-08-20), not a separate command. `work create <title> <kind>
+  <priority> --push --dry-run` calls `preview_create`, renders one tab-separated
+  line — `jira\t<type>\t<type source>\t<project>\t<project source>` (sources
+  `configured`/`default`/`unresolvable`) or `linear\t(no user-resolvable
+  type/project fields)` — and writes nothing. It **splits the bash `--dry-run`'s
+  conflated exit 70**: a transport failure (tracker unreachable) exits 70, while
+  an unresolvable configured project is exit 0 with an `unresolvable` source, so
+  the skill's pre-create gate degrades on the former and blocks on the latter.
+- **The 70-retry / 71-terminal decision moved into `work create --push`.** A new
+  `drive_create_retry` in `create.rs` re-uses `push_decide` to retry a retryable
+  create exactly once, then `LocalSave`; a terminal is never retried. The bash
+  push-decide retry loop the create skill used to drive is gone — the skill runs
+  one `work create --push` and reads the final `write-once`/`local-save`/
+  `loud-terminal` keyword. `RecordingTracker` gained a `failing_preview` seam.
+- **The create-preview surface is frozen by inline unit tests, not a golden
+  file** — matching the Phase 3/4 precedent (`render_create_preview` and the
+  retry driver are pure and asserted directly); only `cli_surface.golden` moved,
+  for the new `--dry-run` flag and the widened `sync --help`.
+- **The docs-site mirror is a gitignored build artefact**, so §4's "regenerate
+  the mirror" commits nothing: regeneration is verified by the grep gate over
+  the freshly-generated pages plus `docs:generate:check`, not a committed diff.
+- **`sync-work-items` collapsed to driving `work sync` end to end.** The bash
+  per-item fetch/classify/decide/apply/baseline orchestration is subsumed by the
+  one fused command; the skill parses flags, runs it, renders the report, and
+  keeps the conflict-resolution token grammar and summary format verbatim for
+  0213. The bash `--all`/filter-forwarding untracked-pull knobs are dropped —
+  `work sync` has no such flags (discovery is `work.default_project_code`-scoped
+  per Phase 3), so this repo (Linear, no project code) runs no untracked pull.
+- **`EXIT_CODES.md` stays on disk** (deleted in Phase 6 with the directory); only
+  its numeric taxonomy is folded into the `exit_codes` module doc here.
 
 ## Testing Strategy
 
