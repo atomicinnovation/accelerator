@@ -1,4 +1,3 @@
-import hashlib
 import os
 import shlex
 import tempfile
@@ -41,8 +40,10 @@ _ABSOLUTE_VCS_PATHS = (
 # as the meta-directory migration engine's interactive wire-protocol harness
 # retired in favour of the native accelerator-migrate port. Raised to 16 to
 # correct a floor left one behind the real discovered count. Dropped to 15 as
-# test-metadata-helpers.sh retired with the shell metadata helpers.
-_EXPECTED_CONFIG_SUITES = 15
+# test-metadata-helpers.sh retired with the shell metadata helpers. Dropped to
+# 14 as test-design.sh retired with the vendored-runtime bootstrap it delegated
+# to.
+_EXPECTED_CONFIG_SUITES = 14
 
 # The skills/integrations subtree discoverable shell suites (every individual
 # test-jira-*.sh + test-linear-*.sh; the test-jira-scripts.sh umbrella runner is
@@ -414,15 +415,45 @@ _DESIGN_AUTOMATION_RUNTIME_SUITES = (
 
 _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 
+# The launcher exports this on a tree-consuming dispatch; the lane reuses it
+# when present rather than paying a second materialisation.
+_DRIVER_TREE_ENV = "ACCELERATOR_TREE_DRIVER"
 
-def _playwright_namespace_root(root: Path) -> Path:
-    """Resolve the namespace `ensure-playwright.sh` populates, its way."""
-    cache_root = os.environ.get("ACCELERATOR_PLAYWRIGHT_CACHE") or str(
-        Path.home() / ".cache/accelerator/playwright"
+
+def _resolve_driver_tree(context: Context) -> Path:
+    """Resolve the materialised driver tree, or refuse the lane.
+
+    Prefers the launcher-exported driver-tree path; failing that, materialises
+    it through `accelerator cache ensure driver` and reads the tree path from
+    the tab-separated success line. An unresolvable runtime is a visible refusal
+    rather than a silent pass.
+    """
+    exported = os.environ.get(_DRIVER_TREE_ENV)
+    if exported and Path(exported).is_dir():
+        return Path(exported)
+
+    accelerator = repo_root() / "bin/accelerator"
+    ensured = context.run(
+        f"{shlex.quote(str(accelerator))} cache ensure driver",
+        warn=True,
+        hide=True,
     )
-    lockfile = root / _PLAYWRIGHT_DIR / "package-lock.json"
-    lockhash = hashlib.sha256(lockfile.read_bytes()).hexdigest()[:8]
-    return Path(cache_root) / lockhash
+    tree: Path | None = None
+    if ensured is not None and ensured.exited == 0:
+        for line in ensured.stdout.splitlines():
+            fields = line.split("\t")
+            if len(fields) >= 2 and fields[0] == "driver":
+                tree = Path(fields[1])
+                break
+    if tree is None or not tree.is_dir():
+        raise Exit(
+            "the vendored Playwright driver tree is not available. Run "
+            "`accelerator cache ensure driver`, then retry. This lane fails "
+            "rather than skipping: a skipped runtime suite is "
+            "indistinguishable from a passing one.",
+            code=1,
+        )
+    return tree
 
 
 @task
@@ -435,17 +466,7 @@ def design_automation(context: Context) -> None:
     `docker info` preflight precedent in `tasks/test/e2e.py`.
     """
     root = repo_root()
-    namespace = _playwright_namespace_root(root)
-    entry = namespace / "node_modules/playwright/index.js"
-    if not entry.exists():
-        raise Exit(
-            f"Playwright is not installed for this lockhash namespace "
-            f"({namespace}). Run "
-            f"{_PLAYWRIGHT_DIR}/ensure-playwright.sh, then retry. This lane "
-            "fails rather than skipping: a skipped runtime suite is "
-            "indistinguishable from a passing one.",
-            code=1,
-        )
+    driver_tree = _resolve_driver_tree(context)
 
     suites = [
         root / _PLAYWRIGHT_DIR / name
@@ -462,7 +483,7 @@ def design_automation(context: Context) -> None:
         f"node --test {discovered}",
         warn=True,
         pty=False,
-        env={"ACCELERATOR_PLAYWRIGHT_NS_ROOT": str(namespace)},
+        env={_DRIVER_TREE_ENV: str(driver_tree)},
     )
     if result.exited != 0:
         raise Exit("design-automation runtime tests failed", code=1)
