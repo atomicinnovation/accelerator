@@ -72,6 +72,12 @@ pub enum Command {
         #[arg(long, default_value_t = 1)]
         count: u32,
     },
+    /// List work items from the configured directory, filtered and
+    /// rendered as a table — or as a parent/child tree with `--hierarchy`.
+    /// Carries a sync-status column when `work.integration` names a
+    /// tracker. Read-only: never writes a file and never contacts the
+    /// remote to mutate it.
+    List(Box<ListArgs>),
     /// Reconcile local work items with the configured remote tracker
     /// (`work.integration`).
     ///
@@ -94,6 +100,36 @@ fn parse_key_value(raw: &str) -> Result<(String, String), String> {
         || Err(format!("expected KEY=VALUE, got '{raw}'")),
         |(key, value)| Ok((key.to_owned(), value.to_owned())),
     )
+}
+
+/// `work list`'s flags, boxed for the same reason as [`CreateArgs`]. Every
+/// filter is a conjunct: an item is listed only when it satisfies all of
+/// the ones supplied.
+#[derive(Args)]
+pub struct ListArgs {
+    /// Keep only items whose `status` equals this value exactly.
+    #[arg(long)]
+    pub status: Option<String>,
+    /// Keep only items whose `kind` equals this value exactly.
+    #[arg(long)]
+    pub kind: Option<String>,
+    /// Keep only items whose `priority` equals this value exactly.
+    #[arg(long)]
+    pub priority: Option<String>,
+    /// Keep only items whose `parent` canonicalises to this value (short
+    /// and long ID forms compare equal).
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// Keep only items carrying this tag; repeatable, and every one
+    /// supplied must be present.
+    #[arg(long = "tag")]
+    pub tags: Vec<String>,
+    /// Render the parent/child hierarchy as a tree instead of a table.
+    #[arg(long)]
+    pub hierarchy: bool,
+    /// Keep only items whose title contains this substring
+    /// (case-insensitive).
+    pub term: Option<String>,
 }
 
 /// `work update`'s flags — boxed for the same reason as [`CreateArgs`].

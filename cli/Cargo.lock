@@ -170,6 +170,7 @@ dependencies = [
  "tracing",
  "tracker",
  "tracker-support",
+ "tracker-test-support",
  "vcs",
  "vcs-adapters",
  "work",

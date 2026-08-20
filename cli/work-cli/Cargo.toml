@@ -42,3 +42,4 @@ tracing = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 http-test-support = { path = "../http-test-support" }
+tracker-test-support = { path = "../tracker-test-support" }

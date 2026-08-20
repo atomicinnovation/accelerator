@@ -220,9 +220,7 @@ fn resolve_and_check_template(
     Ok(resolved_template)
 }
 
-pub fn render_frontmatter(
-    inputs: &CreateInputs<'_>,
-) -> Result<String, String> {
+pub fn render_frontmatter(inputs: &CreateInputs<'_>) -> Result<String, String> {
     let fields = compose_frontmatter(inputs);
     let mut mapping = Mapping::new();
     for (key, value) in fields {
