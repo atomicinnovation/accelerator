@@ -29,6 +29,7 @@ jira-client = { path = "../jira-client" }
 linear-client = { path = "../linear-client" }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
+store = { path = "../store" }
 document = { path = "../document" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }

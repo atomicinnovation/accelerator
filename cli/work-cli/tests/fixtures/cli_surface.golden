@@ -143,7 +143,7 @@ Options:
           Pull remote changes only; never write to the remote
 
       --preview
-          Report the actions a run would take without performing any of them. Remote reads still occur (this is what counts against rate limits); no create, update or local write does
+          Report the actions a run would take without touching any work item. Remote reads still occur (this is what counts against rate limits) and gitignored conflict dossiers are still written, but no create, update or work-item write does
 
       --resolve <RESOLUTIONS>
           An `<id>=<remote|local|skip>` order for a reported conflict; repeatable. An unrecognised token is treated as `skip`, with a warning naming the token and the accepted set

@@ -404,6 +404,11 @@ fn execute_push(
             marker_to_delete_after_write: Some(marker_path),
         }),
         PushPrecondition::Proceed => {
+            work_adapters::sync::pending_push::prepare_dir(
+                integrations_root,
+                integration,
+            )
+            .map_err(|error| error.to_string())?;
             let tracker = match registry.resolve(integration) {
                 Ok(tracker) => tracker,
                 Err(error) => {

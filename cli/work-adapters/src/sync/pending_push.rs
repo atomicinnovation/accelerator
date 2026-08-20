@@ -38,6 +38,32 @@ pub fn path(integrations_dir: &Path, integration: &str, slug: &str) -> PathBuf {
         .join(format!("{slug}.json"))
 }
 
+/// Prepares the pending-push directory, fail-closed.
+///
+/// Creates the directory and writes a directory-local `.gitignore` of `*`,
+/// verifying it before any marker is written, so a run that cannot prove its
+/// markers ignored writes none. Returns the prepared directory.
+///
+/// # Errors
+///
+/// The underlying I/O error when the directory or its `.gitignore` cannot be
+/// created, or when the written ignore cannot be read back and verified.
+pub fn prepare_dir(
+    integrations_dir: &Path,
+    integration: &str,
+) -> std::io::Result<PathBuf> {
+    let dir = integrations_dir.join(integration).join("pending-push");
+    std::fs::create_dir_all(&dir)?;
+    let gitignore = dir.join(".gitignore");
+    std::fs::write(&gitignore, "*\n")?;
+    if !std::fs::read_to_string(&gitignore)?.contains('*') {
+        return Err(std::io::Error::other(
+            "the pending-push .gitignore could not be verified",
+        ));
+    }
+    Ok(dir)
+}
+
 /// The request fingerprint's digest.
 ///
 /// Length-prefixed rather than concatenated: undelimited `title + body +
@@ -199,6 +225,7 @@ pub fn outstanding(
 mod tests {
     use super::outstanding;
     use super::path;
+    use super::prepare_dir;
     use super::read;
     use super::render;
     use super::request_digest;
@@ -270,6 +297,40 @@ mod tests {
                 "/repo/.accelerator/state/integrations/jira/pending-push/fix-flaky-test.json"
             )
         );
+    }
+
+    #[test]
+    fn prepare_dir_writes_a_config_independent_ignore() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let dir = prepare_dir(root.path(), "jira").expect("prepared");
+
+        let ignore = std::fs::read_to_string(dir.join(".gitignore"))
+            .expect("the directory-local .gitignore is written");
+        assert!(ignore.contains('*'), "{ignore}");
+        assert_eq!(dir, root.path().join("jira").join("pending-push"));
+    }
+
+    #[test]
+    fn prepare_dir_fails_closed_when_the_ignore_cannot_be_written() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let root = tempfile::tempdir().expect("tempdir");
+        let pending = root.path().join("jira").join("pending-push");
+        std::fs::create_dir_all(&pending).expect("mkdir");
+        std::fs::set_permissions(
+            &pending,
+            std::fs::Permissions::from_mode(0o555),
+        )
+        .expect("chmod");
+
+        let result = prepare_dir(root.path(), "jira");
+
+        let restore = std::fs::set_permissions(
+            &pending,
+            std::fs::Permissions::from_mode(0o755),
+        );
+        restore.expect("restore perms");
+        assert!(result.is_err(), "a read-only directory must fail closed");
     }
 
     #[test]
