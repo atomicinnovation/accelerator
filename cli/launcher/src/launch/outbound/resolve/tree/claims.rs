@@ -205,6 +205,37 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn a_fresh_claim_is_not_rewritten_but_a_stale_one_is() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let present = AtClock(now());
+        refresh(&paths, DIGEST, "install-a", &present);
+
+        // A sentinel survives only if the second refresh skips the rewrite;
+        // `write_private` truncates, so a rewrite would empty it.
+        let claim = paths.claims().join(format!("{DIGEST}.install-a"));
+        std::fs::write(&claim, b"sentinel").expect("sentinel");
+
+        refresh(&paths, DIGEST, "install-a", &present);
+        assert_eq!(
+            std::fs::read(&claim).expect("read"),
+            b"sentinel",
+            "a fresh claim must not be rewritten"
+        );
+
+        // A clock past the refresh fraction sees the claim as due, and rewrites.
+        let stale = AtClock(
+            now() + CLAIM_WINDOW.as_secs() / super::REFRESH_FRACTION + 1,
+        );
+        refresh(&paths, DIGEST, "install-a", &stale);
+        assert!(
+            std::fs::read(&claim).expect("read").is_empty(),
+            "a claim past the refresh fraction must be rewritten"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn a_symlink_claim_is_ignored() {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = trees(dir.path());

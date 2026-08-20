@@ -91,7 +91,7 @@ Phase 7 §6" means Phase 3 §6 here.
 
 ## Implementation Progress
 
-Updated 2026-08-20. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
+Updated 2026-08-20. Criteria ticked: **Phase 1 60/68**, Phase 2 0/67, Phase 3
 18/50, Removal 9/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
@@ -135,16 +135,51 @@ composition-root type (`acquire_trees` accepts only `AcquireSealedTree`, making
 the primary enforcement. A `ExpectedDigests::{Compiled,Fixed}` test seam lets the
 end-to-end suite pin a digest; production is always `Compiled`.
 
-**Phase 1's 24 unticked criteria are not missing code.** The **two measurement
-gates** — the warm-path bound (the plan marks it BLOCKED, pending 0205's SQ-4
-being instantiated) and the binary-size delta ceiling (needs a measured per-MB
-verify slope) — require a controlled reference-host benchmark run and were
-deliberately **not** fabricated. The **manual/special-environment** checks (RSS
-ceiling under a container memory limit, the `flock`-unavailable fallback needing
-an NFS/FUSE mount, end-to-end materialisation timing) exercise mechanisms that
-exist but assert wall-clock or environment behaviour. A few remaining items are
-Phase-3-adjacent (e.g. an `ensure`-resolved tree spared while its *consumer* is
-alive depends on the design binary holding the lease).
+**Phase 1 functional test gaps closed, 2026-08-20.** Sixteen criteria the earlier
+narrative had lumped under "measurement/manual/Phase-3-adjacent" were in fact plain
+functional assertions with no test, or tests already written but never ticked. They
+are now green (`cli:check` clean). Eleven new integration tests landed in
+`cli/launcher/tests/tree_resolution.rs` — a corrupt archive refused before any
+extraction (trees left empty), two builds sharing one generation offline across a
+version bump, a manifest-vs-compiled-in digest disagreement refused without a fetch,
+a `.files` table rewritten to match a substituted member still caught by its signed
+`table_sha256`, a symlinked generation and a group-writable pointer each a miss, a
+populated cache resolving with the host unreachable (both `acquire` and `verify`), a
+failed repair-refetch leaving the previous tree resolvable, a repair sparing a
+superseded generation whose lease a live consumer holds, `prune` never reclaiming the
+current generation at a zero window, and two platforms each resolving their own tree
+under one cache root. One unit test landed in `claims.rs` (a fresh claim is not
+rewritten; a stale one is). Two already-covered criteria were ticked against existing
+tests: the table-vs-member extraction refusal (`extract.rs`) and the sealed-tree
+read-only-yet-removable manual check (`seal.rs` + the materialise mode assertion).
+
+The **stalled-transfer criterion** is ticked against the fetcher's own unit test
+(`fetcher.rs`, `a_stalled_transfer_fails_within_the_total_deadline`), which drives a
+`Reply::Stall` — headers then idle, the same "stop sending, do not trickle" shape as
+`Route::Stall` — under injected short limits and asserts a fail inside the idle bound
+rather than three full attempts. **Deviation:** the plan named `Route::Stall` through
+the resolver, but the production `stream_archive` hardcodes `StreamLimits::for_archive`
+(a 30s idle bound), so an integration stall test would take 30s+ per attempt; relocating
+the coverage to the fetcher unit test with injected limits proves the same property
+without a production seam added solely to speed a test.
+
+**Eight Phase 1 criteria remain unticked, all genuinely gated — none is missing
+launcher code:**
+
+- **`release signatures are prehashed for both classes` (§1a).** The launcher already
+  refuses a legacy signature (`keys.rs` passes `allow_legacy = false` everywhere, and
+  `verifies_stream` accepts only prehashed input), but no test feeds a *legacy*-form
+  signature to assert the rejection, because the pinned `minisign 0.12` cannot emit one
+  to test against. A hand-crafted legacy fixture is the outstanding work.
+- **Peak RSS under a container memory limit** — needs a container with a memory cap.
+- **An `ensure`-resolved tree spared while its consumer is alive** — the deferred
+  `flock` lease-hold on the daemon (Phase 3 §3), verifiable only with a real daemon.
+- **The `flock`-unavailable fallback** — needs an `ENOLCK`/`EOPNOTSUPP` filesystem
+  (NFS/FUSE).
+- **The binary-size delta ceiling** and the **BLOCKED warm-path gate** — both need the
+  measured per-MB verify slope from a controlled reference-host run (0205's SQ-4).
+- **End-to-end materialisation within 20s** — a reference-host wall-clock threshold.
+- **`mise run` exits 0** — the full local CI mirror, run at session end.
 
 **Phase 2 (release pipeline) — the artifact contract and GPG check are in; the
 rest is not started.** Done and green: the exact playwright version pin (§1);
@@ -2038,7 +2073,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       never a sleep; and the probe assertions account for `PROBE_ATTEMPTS` being a
       `thread_local!` (`cache_root.rs:74-75`), so a `probes_during` expectation is blind
       to any thread the test spawns
-- [ ] A corrupt archive is rejected **before** anything is extracted — the test asserts
+- [x] A corrupt archive is rejected **before** anything is extracted — the test asserts
       the trees directory is empty after the failure
 - [x] 🔒 An attestation whose signature does not verify under the embedded key is a
       **miss**, not a hit; and one signed by a *different, untrusted* keypair is also a
@@ -2049,24 +2084,24 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [x] 🔒 A generation whose attestation is entirely valid but whose digest is **not** the
       launcher's compiled-in expected digest is refused — the rollback defence, asserted
       by pointing a `.ref` at a superseded artifact version's intact generation
-- [ ] Two launchers whose compiled-in expected digest is the **same** share one generation
+- [x] Two launchers whose compiled-in expected digest is the **same** share one generation
       directory: the second resolves it with **zero** HTTP requests **and no manifest
       load**, including with the release host unreachable — the cross-version adoption the
       digest-keyed pointer exists for
-- [ ] A manifest naming a different `sha256` for an artifact than the launcher's
+- [x] A manifest naming a different `sha256` for an artifact than the launcher's
       compiled-in digest is a refusal, not an instruction to fetch it
 - [x] The compiled-in digest map, `TREE_ARTIFACTS` and the shared `pins` data file agree,
       pinned by one drift test
-- [ ] 🔒 A `.files` table rewritten to match a substituted file is still detected, because
+- [x] 🔒 A `.files` table rewritten to match a substituted file is still detected, because
       its digest no longer matches the attestation's signed `table_sha256` — the case that
       makes every other `cache verify` assertion non-vacuous. Asserted **after** the
       archive has been discarded, since that is when the table has no other anchor
-- [ ] An archive whose `.files` table disagrees with a member's actual content is rejected
+- [x] An archive whose `.files` table disagrees with a member's actual content is rejected
       **during extraction**, before the tree is sealed or the pointer published
 - [x] An archive whose first member is not the `.files` table is refused (`TableMissing`),
       so single-pass verification cannot silently degrade to a second inflate
 - [x] `cache verify` does not report the `.files` table itself as an unexpected entry
-- [ ] A generation directory replaced by a **symlink** pointing at an otherwise-compliant
+- [x] A generation directory replaced by a **symlink** pointing at an otherwise-compliant
       user-owned directory is refused rather than resolved, and the pointer file's own
       ownership and mode are checked before its contents are used as a path
 - [x] A generation at an unrecognised **higher** layout version is refused rather than
@@ -2081,7 +2116,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       member marked executable keeps only its executable bit
 - [x] A streaming fetch whose first attempt fails after N bytes succeeds on retry,
       rather than producing a concatenated archive that can never verify
-- [ ] A stalled transfer fails fast rather than waiting out the full deadline three
+- [x] A stalled transfer fails fast rather than waiting out the full deadline three
       times, driven by `Route::Stall` (`tests/common/mod.rs:30-32`) which stops sending
       rather than trickling
 - [x] The retry loop's **total** wall clock is bounded across all three attempts, not
@@ -2097,7 +2132,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       producing signatures the launcher and the bootstrap shim would both reject
 - [x] A second resolution of the same tree issues **zero** HTTP requests, asserted
       against the `MockServer`'s request count
-- [ ] A resolution with the release host unreachable still succeeds on a populated
+- [x] A resolution with the release host unreachable still succeeds on a populated
       cache
 - [x] Two concurrent cold resolutions of the same tree issue **exactly one** archive
       fetch, and neither observes a partial tree
@@ -2109,7 +2144,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       code-only
 - [x] A crash at each of steps 4 through 11 leaves only reclaimable garbage: no pointer
       is published, `acquire` reports a miss, and the reaper removes the residue
-- [ ] A `cache prune` racing a `materialise` never removes the generation being
+- [x] A `cache prune` racing a `materialise` never removes the generation being
       published, including in the window between the rename and the pointer write, and
       never removes the generation an in-flight reuse scan is about to point at
 - [x] A pointer naming a directory that does not exist, is not a direct child of
@@ -2123,20 +2158,20 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
 - [x] `cache verify` detects each of a deleted file, a truncated file, a **same-size
       same-mode** content substitution, a mode change, a changed symlink target, and an
       unexpected extra entry
-- [ ] `cache verify` succeeds with the release host unreachable
+- [x] `cache verify` succeeds with the release host unreachable
 - [x] A truncated tree and a corrupted tree are each returned to a working state by
       `accelerator cache repair`, which materialises a **new generation** and swaps the
       pointer rather than removing the old tree first
-- [ ] A repair whose refetch fails leaves the previous tree in place and still
+- [x] A repair whose refetch fails leaves the previous tree in place and still
       resolvable
-- [ ] A repair run while a process holds files open in the old generation does not
+- [x] A repair run while a process holds files open in the old generation does not
       unlink them, and that process can still open further files from it
 - [x] `repair --force` re-materialises a tree that passes `verify`
 - [x] Every `cache` verb refuses an unrecognised `<name>` without touching the
       filesystem
 - [x] Two release versions naming the same digest share **one** generation directory
       and two pointers, and the second version issues **zero** archive fetches
-- [ ] Two platforms sharing one cache root each resolve their own tree
+- [x] Two platforms sharing one cache root each resolve their own tree
 - [x] A `trees/` directory that is group- or world-writable, or not owned by the
       effective uid, is refused rather than trusted — and a cache root inherited at
       `0775` under a user-private group (the RHEL/Fedora `umask 002` default) still
@@ -2165,7 +2200,7 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       executable is spawned and no binary is scanned for constants
 - [x] A claim file that is a symlink, or not owned by the effective uid, is ignored rather
       than treated as a live claim
-- [ ] The claim refresh is best-effort: a **read-only** populated cache root still resolves
+- [x] The claim refresh is best-effort: a **read-only** populated cache root still resolves
       a tree on a hit, and the refresh is skipped when the recorded mtime is already fresh
 - [x] `--older-than` overrides the window; there is no flag that drops every pointer but
       the running launcher's
@@ -2230,9 +2265,9 @@ secondary check at `:628-635` (`is_root_help` agreement, `main.rs:104-110`) move
       escalation is dropped; if the total is missed and inflate dominates it, the
       escalation is a faster **pure-Rust** backend (`zlib-rs`, if it can be shown to need
       no C toolchain), never a `*-sys` crate
-- [ ] Files in a materialised tree are not writable by the owning user without an
+- [x] Files in a materialised tree are not writable by the owning user without an
       explicit chmod, and the tree as a whole is still removable
-- [ ] `accelerator cache verify` on a clean cache reports every tree as sealed and
+- [x] `accelerator cache verify` on a clean cache reports every tree as sealed and
       matching
 
 ---

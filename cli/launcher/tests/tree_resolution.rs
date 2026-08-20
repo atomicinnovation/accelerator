@@ -1195,3 +1195,446 @@ fn make_read_only(dir: &std::path::Path) {
     let _ =
         std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555));
 }
+
+// ---- corrupt archive, offline resolution, and digest sharing ----
+
+#[test]
+fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    // Serve bytes whose digest cannot match the signed one, so verification
+    // (step 5) rejects before extraction (step 6) creates a temp generation.
+    let mut corrupt = harness.archive_bytes.clone();
+    let midpoint = corrupt.len() / 2;
+    corrupt[midpoint] ^= 0xff;
+    harness.server.route(&archive_path(), Route::Ok(corrupt));
+
+    let outcome = resolver.materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "a corrupt archive must be a digest refusal, got {outcome:?}"
+    );
+
+    // Nothing was extracted: no generation directory and no temp generation
+    // directory (both are the only directories materialise creates) exist.
+    let trees = harness.cache.join("trees");
+    let created_a_directory = std::fs::read_dir(&trees)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            entry.path().is_dir() && name != "claims"
+        });
+    assert!(
+        !created_a_directory,
+        "a corrupt archive was extracted before it was verified"
+    );
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a rejected archive must leave no resolvable pointer"
+    );
+}
+
+#[test]
+fn two_launchers_with_the_same_digest_share_one_generation_offline() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let manifest_loads = harness.hits("/manifest.json");
+    let archive_fetches = harness.hits(&archive_path());
+
+    // A different build — a different expected version, pointed at an
+    // unreachable host — whose compiled-in digest is the same shares the tree.
+    let mut digests = BTreeMap::new();
+    digests.insert(
+        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
+        harness.archive_sha.clone(),
+    );
+    let keys = harness.keys();
+    let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
+        .expect("fetcher");
+    let launcher_b = TreeResolver {
+        cache_root: harness.cache.clone(),
+        base_url: "http://127.0.0.1:1".to_owned(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: "99.99.99".to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &StoppedClock,
+        launcher_id: "launcher-b".to_owned(),
+        expected_digests: ExpectedDigests::Fixed(digests),
+        waiter_bound: std::time::Duration::from_secs(5),
+        steps: &NoSteps,
+    };
+
+    let hit = launcher_b.query(ARTIFACT).expect("query").expect("a hit");
+    assert_eq!(hit.digest, harness.archive_sha);
+    assert_eq!(
+        harness.hits("/manifest.json"),
+        manifest_loads,
+        "a cross-version hit must not reload the manifest"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        archive_fetches,
+        "a cross-version hit must issue no archive fetch"
+    );
+}
+
+#[test]
+fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // This launcher expects a digest the correctly-signed manifest does not
+    // name, so materialise must refuse rather than fetch what the manifest lists.
+    let mut digests = BTreeMap::new();
+    digests.insert(
+        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
+        "0".repeat(64),
+    );
+    let keys = harness.keys();
+    let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
+        .expect("fetcher");
+    let resolver = TreeResolver {
+        cache_root: harness.cache.clone(),
+        base_url: harness.server.base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: VERSION.to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &StoppedClock,
+        launcher_id: "test-install".to_owned(),
+        expected_digests: ExpectedDigests::Fixed(digests),
+        waiter_bound: std::time::Duration::from_secs(5),
+        steps: &NoSteps,
+    };
+
+    let outcome = resolver.materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "a manifest digest disagreement must be a refusal, got {outcome:?}"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        0,
+        "a digest disagreement must not fetch the archive"
+    );
+}
+
+#[test]
+fn an_acquire_succeeds_on_a_populated_cache_with_the_host_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    resolver.materialise(ARTIFACT).expect("materialise");
+
+    // Every release request now fails; the hit path touches no network, so a
+    // populated cache still resolves.
+    harness.server.route("/manifest.json", Route::Status(503));
+    harness
+        .server
+        .route("/manifest.minisig", Route::Status(503));
+    harness.server.route(&archive_path(), Route::Status(503));
+
+    assert!(
+        resolver.acquire(ARTIFACT).expect("acquire").is_some(),
+        "an unreachable host must not defeat a populated cache"
+    );
+}
+
+#[test]
+fn verify_succeeds_with_the_host_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    resolver.materialise(ARTIFACT).expect("materialise");
+
+    harness.server.route("/manifest.json", Route::Status(503));
+    harness.server.route(&archive_path(), Route::Status(503));
+
+    let report = resolver.verify(ARTIFACT).expect("verify");
+    assert!(
+        report.is_sound(),
+        "verify is local and must not need the release host: {report:?}"
+    );
+}
+
+// ---- the signed table anchor, and generation/pointer identity ----
+
+#[test]
+fn a_table_rewritten_to_match_a_substitution_is_caught_by_its_signed_digest() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // The archive is discarded after materialisation, so the `.files` table's
+    // only remaining anchor is the signed `table_sha256`. Substitute a file and
+    // rewrite the table row to match it: the per-row walk would pass, but the
+    // table's own digest no longer matches the attestation.
+    unseal(&sealed.path);
+    let substitute = b"substituted!!!";
+    assert_eq!(substitute.len(), b"resource bytes".len());
+    std::fs::write(sealed.path.join("lib/data.pak"), substitute).unwrap();
+
+    let table_path = sealed.path.join(".files");
+    let table = std::fs::read_to_string(&table_path).unwrap();
+    let new_digest = hex(&Sha256::digest(substitute));
+    let rewritten = table
+        .lines()
+        .map(|line| {
+            if line.ends_with("\tlib/data.pak") {
+                let mut fields: Vec<&str> = line.split('\t').collect();
+                fields[3] = new_digest.as_str();
+                fields.join("\t")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&table_path, format!("{rewritten}\n")).unwrap();
+
+    let outcome = resolver.verify(ARTIFACT);
+    assert!(
+        matches!(&outcome, Err(TreeError::Extraction { detail })
+            if detail.contains("signed digest")),
+        "a table rewritten to match a substitution must be caught by its \
+         signed digest, got {outcome:?}"
+    );
+}
+
+#[test]
+fn a_symlinked_generation_or_group_writable_pointer_is_a_miss() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+    assert!(resolver.query(ARTIFACT).expect("query").is_some());
+
+    // A generation directory replaced by a symlink — even one pointing at an
+    // otherwise-compliant user-owned directory — is refused, not resolved.
+    let aside = sealed.path.with_file_name("aside-generation");
+    std::fs::rename(&sealed.path, &aside).unwrap();
+    std::os::unix::fs::symlink(&aside, &sealed.path).unwrap();
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a symlinked generation must be a miss"
+    );
+
+    // Restore the real directory; the hit returns.
+    std::fs::remove_file(&sealed.path).unwrap();
+    std::fs::rename(&aside, &sealed.path).unwrap();
+    assert!(resolver.query(ARTIFACT).expect("query").is_some());
+
+    // A group-writable pointer is refused before its contents become a path.
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let pointer = paths.pointer(ARTIFACT, HOST_PLATFORM, &harness.archive_sha);
+    std::fs::set_permissions(&pointer, std::fs::Permissions::from_mode(0o660))
+        .unwrap();
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a group-writable pointer must be a miss"
+    );
+}
+
+// ---- repair under failure and live consumers ----
+
+#[test]
+fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // Corrupt the tree so repair must refetch, then make the refetch fail.
+    unseal(&sealed.path);
+    std::fs::write(sealed.path.join("lib/data.pak"), b"").unwrap();
+    harness.server.route(&archive_path(), Route::Status(404));
+
+    let outcome = resolver.repair(ARTIFACT, false);
+    assert!(
+        outcome.is_err(),
+        "a failed refetch must surface as an error"
+    );
+
+    let hit = resolver
+        .query(ARTIFACT)
+        .expect("query")
+        .expect("still a hit");
+    assert_eq!(
+        hit.path, sealed.path,
+        "a failed repair must not disturb the old tree"
+    );
+}
+
+#[test]
+fn a_repair_spares_a_superseded_generation_whose_lease_is_held() {
+    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let old = resolver.materialise(ARTIFACT).expect("materialise");
+    let old_generation =
+        old.path.file_name().unwrap().to_str().unwrap().to_owned();
+
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    // A live consumer holds the old generation's lease across the repair.
+    let _held =
+        hold_shared_lease(&paths.lease(&old_generation)).expect("lease");
+
+    let fresh = resolver.repair(ARTIFACT, true).expect("forced repair");
+    assert_ne!(fresh.path, old.path, "repair must build a new generation");
+    assert!(
+        old.path.exists(),
+        "a leased superseded generation must not be unlinked"
+    );
+    assert_eq!(
+        std::fs::read(old.path.join("lib/data.pak")).unwrap(),
+        b"resource bytes",
+        "the old generation's files must stay readable to the live consumer"
+    );
+}
+
+#[test]
+fn prune_never_reclaims_the_current_generation_even_at_a_zero_window() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // A zero retention window would reclaim any generation not otherwise spared;
+    // the one the running launcher is publishing — carrying its own expected
+    // digest — must survive, which is what protects the rename/pointer window.
+    resolver
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
+        .expect("prune");
+
+    let hit = resolver
+        .query(ARTIFACT)
+        .expect("query")
+        .expect("still a hit");
+    assert_eq!(hit.path, sealed.path);
+    assert!(sealed.path.exists(), "the current generation was reclaimed");
+}
+
+#[test]
+fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
+    let minisign = minisign_or_skip!();
+    let workdir = tempfile::tempdir().expect("workdir");
+    let cache = tempfile::tempdir().expect("cache");
+    let (trusted_pub, secret) = generate_keypair(&minisign, workdir.path());
+
+    let (archive, table_sha, uncompressed, count) = build_archive();
+    let archive_sha = hex(&Sha256::digest(&archive));
+    let archive_sig = sign(&minisign, &secret, workdir.path(), &archive);
+
+    let other_platform = "linux-fake-x64";
+    let platforms = [HOST_PLATFORM, other_platform];
+
+    // One signed manifest naming the driver on both platforms.
+    let escaped = archive_sig.replace('\n', "\\n").replace('\t', "\\t");
+    let entries: Vec<String> = platforms
+        .iter()
+        .map(|platform| {
+            format!(
+                "\"{platform}\":{{\"sha256\":\"{archive_sha}\",\
+                 \"signature\":\"{escaped}\",\"archive_size\":{},\
+                 \"uncompressed_size\":999999,\"entry_count\":9}}",
+                archive.len()
+            )
+        })
+        .collect();
+    let manifest = format!(
+        "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":{{}},\
+         \"artifacts\":{{\"{ARTIFACT}\":{{\"description\":\"driver\",\
+         \"platforms\":{{{}}}}}}}}}",
+        entries.join(",")
+    );
+    let manifest_sig =
+        sign(&minisign, &secret, workdir.path(), manifest.as_bytes());
+
+    let server = MockServer::start();
+    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
+    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    for platform in platforms {
+        let asset = format!("/accelerator-{ARTIFACT}-{platform}.tar.gz");
+        server.route(&asset, Route::Ok(archive.clone()));
+        let attestation = format!(
+            "{{\"attestation_format_version\":1,\"artifact\":\"{ARTIFACT}\",\
+             \"platform\":\"{platform}\",\"archive_sha256\":\"{archive_sha}\",\
+             \"uncompressed_size\":{uncompressed},\"entry_count\":{count},\
+             \"table_sha256\":\"{table_sha}\"}}"
+        );
+        let attestation_sig =
+            sign(&minisign, &secret, workdir.path(), attestation.as_bytes());
+        server.route(
+            &format!("{asset}.sealed"),
+            Route::Ok(attestation.into_bytes()),
+        );
+        server.route(
+            &format!("{asset}.sealed.sig"),
+            Route::Ok(attestation_sig.into_bytes()),
+        );
+    }
+
+    let keys = TrustedKeys::from_public_key_files(&[trusted_pub.as_str()])
+        .expect("keys");
+    let resolve = |platform: &str| {
+        let mut digests = BTreeMap::new();
+        digests.insert(
+            (ARTIFACT.to_owned(), platform.to_owned()),
+            archive_sha.clone(),
+        );
+        let fetcher =
+            Fetcher::with_backoff(std::time::Duration::from_millis(1))
+                .expect("fetcher");
+        let resolver = TreeResolver {
+            cache_root: cache.path().to_path_buf(),
+            base_url: server.base_url(),
+            platform: platform.to_owned(),
+            expected_version: VERSION.to_owned(),
+            keys: &keys,
+            fetcher: &fetcher,
+            clock: &StoppedClock,
+            launcher_id: format!("install-{platform}"),
+            expected_digests: ExpectedDigests::Fixed(digests),
+            waiter_bound: std::time::Duration::from_secs(5),
+            steps: &NoSteps,
+        };
+        resolver.materialise(ARTIFACT).expect("materialise").path
+    };
+
+    let host_tree = resolve(HOST_PLATFORM);
+    let other_tree = resolve(other_platform);
+    assert_ne!(
+        host_tree, other_tree,
+        "each platform gets its own generation"
+    );
+    assert!(host_tree.exists() && other_tree.exists());
+    assert!(host_tree
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .contains(HOST_PLATFORM));
+    assert!(other_tree
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .contains(other_platform));
+}
