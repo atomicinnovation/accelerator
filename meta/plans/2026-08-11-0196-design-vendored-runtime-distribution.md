@@ -92,7 +92,7 @@ Phase 7 §6" means Phase 3 §6 here.
 ## Implementation Progress
 
 Updated 2026-08-20. Criteria ticked: **Phase 1 44/68**, Phase 2 0/67, Phase 3
-18/50, Removal 6/14. **Phase 2 is now structurally complete** — the whole
+18/50, Removal 9/14. **Phase 2 is now structurally complete** — the whole
 verification, assembly, publish-path, fetch-orchestration and CI-workflow code
 is committed and green; its criteria stay unticked only because they assert
 release-lane behaviour that needs the human-gated trust anchors and a live
@@ -429,11 +429,19 @@ Still ahead in Phase 3: the deferred lease-hold and the container harness
 (miniature lane + AC11 run locally on the arm64 Docker engine; AC6/AC12's
 real-tree fixtures wait on Phase 2's pins).
 
-**The Removal sweep — §1 and §4 done; §2/§3/§5/§6 remain.** §2 (documentation:
-the docs-site pages still naming the retired reasons, `plugin.json`'s `Node >= 20`,
-README/CHANGELOG), §3 (the superseding attestation ADR + work-item:0196 text),
-§5 (three follow-up work items) and §6 (the work-item:0208 CI-lane direction and
-its two stale citations) are all non-blocked meta edits, not yet done.
+**The Removal sweep — the non-blocked work (§1–§6) is done.** §1 (config floor →
+14) and §4 (the no-`.sh`-under-`skills/design/` assertion) landed with the §8
+cutover. §2 (documentation: the design CLI docs page's runtime-and-cache section,
+the nine live `notify-downgrade` reasons, `plugin.json` dropping `Node >= 20`,
+the changelog entry — the skill reference pages regenerate from SKILL.md and the
+lockhash env vars are gone). §3 (ADR-0064 supersedes ADR-0061's attestation and
+pointer; ADR-0061 → `superseded`; work-item:0196's addressing/prerequisite text
+corrected). §5 (four follow-up work items raised: 0220 advisory-feed monitoring,
+0221 config-key executable-path audit, 0222 offline `cache ensure --from`, 0223
+default-cache-root bounding). §6 (work-item:0208 records the container lane as the
+CI-job owner, with its stale `mise.toml` citations fixed). What remains in Removal
+is gated: `docs:check` (network + Chromium), the clean-`git-status`-after-
+materialisation check, a full `mise run`, and the fresh-install manual run.
 
 ## Current State Analysis
 
@@ -4187,9 +4195,11 @@ Three further documentation items this plan's mechanisms create:
 #### 3. ADR and work-item amendments
 
 **Files**: `meta/work/0196-accelerator-design-inventory-gap-tooling-cli.md`
-**Changes**: The ADR work this plan owed is **largely done** — two supersessions and one
-new decision, all three accepted — so what remains is the work-item text plus **one
-superseding ADR** for the attestation shape, detailed under ADR-0061 below.
+**Changes**: The ADR work this plan owed is **done** — two supersessions, one new
+decision (all three accepted), and now the superseding attestation ADR: **ADR-0064**
+(producer-signed tree attestation over a compiled-in digest) supersedes ADR-0061 on the
+attestation shape and the pointer key, ADR-0061 has transitioned to `superseded`, and
+work-item:0196's addressing/prerequisite text is corrected.
 
 - **ADR-0061** (signed content-addressed tree generations) supersedes ADR-0060. It
   records content-based addressing with a per-release pointer (which this plan supersedes
@@ -4324,11 +4334,14 @@ which now sits at `:270-273`.
 
 - [ ] The docs site builds and every design page's links resolve
 - [ ] A fresh plugin install with no system Node completes an inventory run
-- [ ] work-item:0196 no longer describes a scheme the code does not implement (ADR-0061,
-      ADR-0062 and ADR-0063 are already accepted)
-- [ ] A superseding ADR records the attestation document's shape and the tuple it binds,
-      replacing ADR-0061's "manifest signature over the archive digest"
-- [ ] Work-item:0208 records which of the two lanes owns the CI job
+- [x] work-item:0196 no longer describes a scheme the code does not implement (ADR-0061,
+      ADR-0062 and ADR-0063 are already accepted; the attestation/pointer correction is
+      ADR-0064)
+- [x] A superseding ADR records the attestation document's shape and the tuple it binds,
+      replacing ADR-0061's "manifest signature over the archive digest" — **ADR-0064**,
+      binding `{artifact, platform, archive_sha256, uncompressed_size, entry_count,
+      table_sha256}`, digest-keyed pointer, compiled-in expected digest
+- [x] Work-item:0208 records which of the two lanes owns the CI job
 
 ---
 
