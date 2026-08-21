@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.shared.paths import (
+    CHROMIUM_LICENSE,
     PINS_TOML,
     RELEASE_STAGING,
     tree_artifact_asset_path,
@@ -433,9 +434,13 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         extracted.chromium.glob("**/headless_shell"),
         "the chromium headless-shell binary",
     )
-    chromium_licence = _sole(
-        extracted.chromium.glob("**/LICENSE*"), "the Chromium licence"
-    )
+    # Playwright's headless-shell archive ships no licence, so the Chromium
+    # licence is committed and sourced from the repo rather than the archive.
+    if not CHROMIUM_LICENSE.is_file():
+        raise ValueError(
+            f"the committed Chromium licence is missing at {CHROMIUM_LICENSE}"
+        )
+    chromium_licence = CHROMIUM_LICENSE
     driver = TreeSpec(
         artifact="driver",
         placements=(

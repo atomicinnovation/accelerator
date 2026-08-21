@@ -525,7 +525,8 @@ def _realistic_inputs(tmp_path):
         chromium / "chrome-linux/headless_shell",
         "#!/bin/sh\necho v1181\n",
     )
-    _licence(chromium / "chrome-linux/LICENSE")
+    # No licence in the archive — the Chromium licence is sourced from the
+    # committed licences/chromium.LICENSE, matching the real headless-shell zip.
     _licence(chromium / "chrome-linux/resources.pak", "res")
     return (
         _tgz(tmp_path / "node.tar.gz", node),
