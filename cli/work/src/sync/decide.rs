@@ -24,11 +24,10 @@ pub enum Dirtiness {
 ///
 /// The `CreateFromRemote` and `CreateFromLocal` variants are never returned by
 /// [`decide`]: the decision table maps `Unsynced` to `Noop` in every direction,
-/// as its frozen bash oracle records, because remote-issue creation was always
-/// separate orchestration rather than a table entry. The sync engine produces
-/// the two create actions out-of-band and reports them under these keywords;
-/// they exist here so a report round-trips and the engine's exhaustive action
-/// match names them.
+/// because remote-issue creation was always separate orchestration rather than a
+/// table entry. The sync engine produces the two create actions out-of-band and
+/// reports them under these keywords; they exist here so a report round-trips and
+/// the engine's exhaustive action match names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Push,

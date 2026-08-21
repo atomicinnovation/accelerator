@@ -27,7 +27,7 @@ fn baseline() -> Result<String, TestError> {
     )?)
 }
 
-/// Where each corpus was relocated to, repo-relative. 0212 split the corpus by
+/// Where each corpus was relocated to, repo-relative. The corpus is split by
 /// its actual consumer rather than a single shared tree.
 fn corpus_home(directory: &str) -> Result<&'static str, TestError> {
     Ok(match directory {

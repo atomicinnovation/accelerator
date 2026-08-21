@@ -6,11 +6,11 @@
 # | _wicr_map_linear            | bash create-remote mapper (linear)     |
 # | _wiur_map_jira              | bash update-remote mapper (jira)       |
 # | _wiur_map_linear            | bash update-remote mapper (linear)     |
-# | _linear_map_no_file_failure | linear-create-flow.sh:177-182          |
+# | _linear_map_no_file_failure | bash linear create-flow mapper         |
 #
 # The keys are each integration's OWN namespaced codes — NOT curl exit values.
-# `jira-request.sh:340-348` and `linear-graphql.sh:232-241` collapse curl's
-# status into a boolean, so every transport failure arrives as script code 21.
+# The Jira and Linear transport layers collapse curl's status into a boolean,
+# so every transport failure arrives as script code 21.
 #
 # `retryable` is E_DISPATCH_RETRYABLE (70) and `terminal` is
 # E_DISPATCH_TERMINAL (71).
