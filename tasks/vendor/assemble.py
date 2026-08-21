@@ -170,6 +170,11 @@ class TreeSpec:
     placements: tuple[TreePlacement, ...]
     notices: tuple[NoticeSource, ...]
     executables: tuple[str, ...] = ()
+    # (source_name, dest_name) renames applied at the tree root after placement,
+    # so a placed upstream directory's binary can carry the name the runtime
+    # expects (Chromium ships `headless_shell`; the runtime resolves
+    # `chrome-headless-shell`).
+    renames: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -216,6 +221,8 @@ def stage_tree(spec: TreeSpec, dest: Path) -> None:
             )
         else:
             shutil.copy2(placement.source, target)
+    for source_name, dest_name in spec.renames:
+        (dest / source_name).rename(dest / dest_name)
     write_notices(dest, spec.notices)
 
 
@@ -418,9 +425,13 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         [package / "LICENSE"] if (package / "LICENSE").exists() else [],
         "the playwright-core licence",
     )
+    # Playwright's Chromium archive ships `chrome-<platform>/headless_shell`
+    # (with support files beside it); the runtime resolves
+    # `chrome-headless-shell` at the tree root, so the whole directory is placed
+    # and the binary renamed.
     shell = _sole(
-        extracted.chromium.glob("**/chrome-headless-shell"),
-        "the chromium-headless-shell binary",
+        extracted.chromium.glob("**/headless_shell"),
+        "the chromium headless-shell binary",
     )
     chromium_licence = _sole(
         extracted.chromium.glob("**/LICENSE*"), "the Chromium licence"
@@ -442,6 +453,7 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         placements=(TreePlacement(shell.parent, ""),),
         notices=(NoticeSource("chromium", (chromium_licence,)),),
         executables=("chrome-headless-shell",),
+        renames=(("headless_shell", "chrome-headless-shell"),),
     )
     return (driver, browser)
 
