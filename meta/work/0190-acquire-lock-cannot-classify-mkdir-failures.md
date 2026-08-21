@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 relates_to: ["work-item:0186", "work-item:0164", "work-item:0191"]
 tags: [bug, shell, bootstrap, bash-3.2]
-last_updated: "2026-08-21T00:00:06+00:00"
+last_updated: "2026-08-21T15:21:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -53,9 +53,10 @@ happens to be foreign.
 ## Requirements
 
 - Classify the `mkdir` failure instead of assuming contention: after a failed
-  `mkdir`, `[[ -d "${lock_dir}" ]]` distinguishes `EEXIST` (a genuine
-  competitor) from a permission or I/O failure (unrecoverable — fail
-  immediately, naming the lock path and a permission-or-I/O cause).
+  `mkdir`, `[[ -d "${lock_dir}" ]]` distinguishes `EEXIST` on a real directory
+  (a genuine competitor) from a path that is not a usable directory — a
+  non-directory occupying it, or an unwritable parent — which `mkdir` can never
+  resolve. Fail immediately, naming the lock path with a cause-neutral message.
 - Give the dead-owner reclaim arm a bound: a failed `rmdir` must not loop
   without advancing the budget. This arm is the more severe of the two defects
   — an unbounded hang, not a wrong diagnostic after a bounded budget — even
@@ -72,32 +73,44 @@ message, and not redesigning the locking scheme.
 
 ## Acceptance Criteria
 
-The first two criteria manufacture their preconditions by `chmod`, so 0186's
-permission-test rule governs them: each asserts `id -u` ≠ 0 and **hard-fails
-rather than skips** when run as root, since root bypasses the write and removal
-restrictions these cases rely on and would satisfy the assertions regardless of
-the fix. A lane structurally unable to comply is **excluded explicitly** by the
-implementer, justified by a recorded privilege check (`id -u` returning 0, or a
-temp-dir check that file creation inside a `chmod`-restricted directory fails),
-never skipped silently. See the Acceptance Criteria preamble of
+The second criterion (the unremovable dead-owner arm) manufactures its
+precondition by `chmod` — a lock directory at `0o555`, so `rm -f` of its pid
+file fails and the pid persists across iterations — so 0186's permission-test
+rule governs it: it asserts `id -u` ≠ 0 and **hard-fails rather than skips**
+when run as root, since root bypasses the removal restriction the case relies on
+and would satisfy the assertion regardless of the fix. A lane structurally
+unable to comply is **excluded explicitly** by the implementer, justified by a
+recorded privilege check (`id -u` returning 0, or a temp-dir check that file
+removal inside a `chmod`-restricted directory fails), never skipped silently.
+See the Acceptance Criteria preamble of
 `meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` for the full
 rule.
 
-- [ ] A cold run against a cache directory whose lock directory cannot be
-      created fails fast, its combined output containing the lock directory path
-      and a fixed cause substring the fail-fast branch emits (asserted verbatim)
-      — not after the budget with a lock-timeout message. Run under the injected
-      low ceiling so a regression that falls through to the `else` arm still
-      completes in well under a second, making the diagnostic the discriminator
-      rather than wall-clock.
+The first criterion (the fail-fast arm) does **not** use `chmod` and needs no
+root guard. The 0186 probe gate checks `cache_dir` writability, not the lock
+*subdirectory*, so a `chmod`-unwritable cache directory is caught before
+`acquire_lock` is ever reached — the fail-fast branch is deterministically
+reachable only by planting a **non-directory file at the lock path**, which
+makes `mkdir` fail while `[[ -d ]]` is false without any permission
+manipulation.
+
+- [ ] A cold run whose lock path is occupied by a non-directory file (so
+      `mkdir` fails and `[[ -d "${lock_dir}" ]]` is false) fails fast, its
+      combined output containing the lock directory path and the fixed cause
+      substring `cannot create the launcher cache lock` (asserted verbatim) —
+      not after the budget with a lock-timeout message. Needs no `chmod` and no
+      root guard. Run under the injected low ceiling so a regression that falls
+      through to the `else` arm still completes in well under a second, making
+      the diagnostic the discriminator rather than wall-clock.
 - [ ] A lock directory holding a dead owner's pid file that cannot be removed
-      terminates within the loop's budget rather than spinning unbounded, and
-      its terminating exit is non-zero carrying the existing lock-timeout
-      message. Run under a small env-injected ceiling so the case completes in
-      well under a second, pinned by a harness subprocess `timeout=` set above
-      that injected budget (distinct from, and far below, the default
-      `300`-iteration budget) — so an unbounded regression trips the harness
-      timeout and shows as a failure rather than a hung suite.
+      — its directory `chmod`ed to `0o555`, so `rm -f` of the pid fails and the
+      pid persists — terminates within the loop's budget rather than spinning
+      unbounded, and its terminating exit is non-zero carrying the existing
+      lock-timeout message. Run under a small env-injected ceiling so the case
+      completes in well under a second, pinned by a harness subprocess
+      `timeout=` set above that injected budget (distinct from, and far below,
+      the default `300`-iteration budget) — so an unbounded regression trips the
+      harness timeout and shows as a failure rather than a hung suite.
 - [ ] `test_stale_lock_is_reclaimed` (a dead owner is still reclaimed) and
       `test_concurrent_cold_cache_slow_downloader_all_succeed` (a live owner
       still extends the budget) stay green.
@@ -129,12 +142,15 @@ unchanged.
 
 **Classification branch (mkdir arm).** After a failed `mkdir "${lock_dir}"`,
 test `[[ -d "${lock_dir}" ]]` before reading the pid file. A failed `mkdir`
-whose directory is *absent* is not `EEXIST` — the parent cache directory is
-unwritable and the `mkdir` can never succeed. Fail immediately, naming the lock
-path and the likely cause (permission or I/O), instead of entering the wait
-loop. `mkdir` exposes no shell-portable errno, so directory-presence is the only
-portable `EEXIST` discriminator — which is why the Requirements pick that
-predicate.
+whose path is *not a directory* is not a live-competitor `EEXIST` — either a
+non-directory file occupies the path or the parent is unwritable, and the
+`mkdir` can never succeed. Fail immediately, naming the lock path with a
+cause-neutral message, instead of entering the wait loop. `mkdir` exposes no
+shell-portable errno, so directory-presence is the only portable discriminator —
+which is why the Requirements pick that predicate. The 0186 probe gate guards
+`cache_dir`, not the lock subdirectory, so the reachable-in-test trigger for
+this branch is a non-directory at the lock path, not an unwritable parent (which
+the gate catches first).
 
 **Bounding the dead-owner arm.** The reclaim arm (`rm -f pid` → `rmdir` →
 `continue`) advances neither `waited` nor `sleep`, so a `rmdir` that fails on a
@@ -145,8 +161,8 @@ acceptance criterion specifies "terminates within the timeout budget" for this
 arm rather than fail-fast, so a foreign lock directory is caught by the existing
 bound, not a new immediate-fail path.
 
-**Post-fix arm order.** mkdir succeeds → hold; mkdir fails + directory absent →
-fail fast (new); directory + live owner → reset budget; directory + dead owner +
+**Post-fix arm order.** mkdir succeeds → hold; mkdir fails + path is not a
+directory → fail fast (new); directory + live owner → reset budget; directory + dead owner +
 `rmdir` ok → reclaim and retry; directory + dead owner + `rmdir` fails → advance
 budget; directory + empty/unreadable pid (the `else` arm) → advance budget. That
 `else` arm still covers the genuine race window — a competitor that created the

@@ -14,7 +14,7 @@ lenses: [clarity, completeness, dependency, scope, testability]
 review_number: 1
 review_pass: 2
 tags: []
-last_updated: "2026-08-21T00:00:06+00:00"
+last_updated: "2026-08-21T14:47:24+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -265,3 +265,9 @@ implementation.
 ### Assessment
 
 The work item is ready for implementation. The three review-1 majors and the one major introduced during revision are all resolved; what remains is optional, low-severity polish (a slightly more descriptive title, a couple of term glosses, minor dependency-label precision) that does not block planning.
+
+## Author Acceptance — 2026-08-21
+
+**Accepted by:** Toby Clemson (author)
+
+Accepted as-is. Both review passes are closed: the three round-1 testability majors and the one major introduced during revision are resolved, and the residual items are optional low-severity polish. No further revisions requested — the work item is cleared for planning.
