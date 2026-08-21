@@ -506,8 +506,11 @@ conscious, revisitable boundary, not an accident.
 #### Manual Verification
 
 - [x] 0171's `## Decisions` records the override and all three fates.
-- [ ] The Jira `preview_create` remote check is exercised against a real
-      unresolvable key in Phase 7's manual run.
+- [x] The Jira `preview_create` remote check is exercised against a real
+      scratch tenant: `work create --dry-run` returns exit 0 with project source
+      `unresolvable` for an absent `default_project_code`, and `configured` for a
+      real key — the three-state distinction proven live, not just against the
+      mock. Driven by `verify-jira-preview.sh`.
 
 ---
 
@@ -1467,8 +1470,16 @@ loop and credentialed run remain a developer step (no scratch tenants here).
 - **Deferred (credentialed):** the live create loop that enumerates the corpus,
   calls `guard_target` against the scratch project/team, and issues one
   `create` per un-seeded record belongs in a `binary(=contract)` harness (the
-  only binaries the contract profile runs). It plus the manual live-tenant
+  only binaries the contract profile runs). It plus the remaining live-tenant
   checks need scratch Jira/Linear tenants and tokens, which 0171 owns.
+- **Jira create-preview verified live.** Against a real scratch Jira tenant,
+  `work create --dry-run` returned exit 0 with project source `unresolvable` for
+  an absent `default_project_code` and `configured` for a real key — the
+  three-state distinction proven end-to-end, closing Phase 2's carried-over
+  manual item. Driven by a developer-run helper (`verify-jira-preview.sh`) that
+  builds a correct throwaway config (shared `config.md`; `0600 config.local.md`
+  holding `allowed_sites`; bare-subdomain/https `jira.site`) and asserts both
+  cases; it writes nothing to the tracker.
 
 ## Testing Strategy
 
