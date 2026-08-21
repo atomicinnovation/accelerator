@@ -137,12 +137,10 @@ fn shell_loader() -> ShellLoader {
         Err(error) => {
             ShellLoader::Unobservable(format!("cannot read /bin/sh: {error}"))
         }
-        Ok(bytes) => match elf_interp(&bytes) {
-            Some(interp) => classify_interp(&interp),
-            None => {
-                ShellLoader::Unobservable("/bin/sh has no PT_INTERP".to_owned())
-            }
-        },
+        Ok(bytes) => elf_interp(&bytes).map_or_else(
+            || ShellLoader::Unobservable("/bin/sh has no PT_INTERP".to_owned()),
+            |interp| classify_interp(&interp),
+        ),
     }
 }
 
