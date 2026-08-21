@@ -261,6 +261,9 @@ fn seeds_the_scratch_corpus_when_requested() {
         summary.created.len(),
         summary.reused.len()
     );
+    for (record, id) in summary.created.iter().chain(&summary.reused) {
+        println!("  {record} -> {}", id.as_str());
+    }
     assert_eq!(
         summary.created.len() + summary.reused.len(),
         records.len(),

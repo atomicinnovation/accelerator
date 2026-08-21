@@ -6,8 +6,10 @@
 //! duplicated. Both are pure functions here, unit-tested without credentials,
 //! so a refactor cannot silently disable the production-write guard.
 
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+use tracker::ExternalId;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
@@ -115,13 +117,14 @@ pub struct SeedRecord {
     pub kind: String,
 }
 
-/// What a seed run did.
+/// What a seed run did, each record paired with the remote issue it maps to —
+/// so a follow-up classification check can reference the seeded ids.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct SeedSummary {
-    /// Record ids for which a new remote issue was created.
-    pub created: Vec<String>,
-    /// Record ids already present on the tenant, left untouched.
-    pub reused: Vec<String>,
+    /// Records for which a new remote issue was created, with its allocated id.
+    pub created: Vec<(String, ExternalId)>,
+    /// Records already present on the tenant, with the existing issue's id.
+    pub reused: Vec<(String, ExternalId)>,
 }
 
 /// A small representative corpus for the live seed. Includes one record with
@@ -187,25 +190,27 @@ pub fn run_seed(
         return Err(SeedError::Incomplete);
     }
 
-    let mut existing: BTreeSet<String> = BTreeSet::new();
+    let mut existing: BTreeMap<String, ExternalId> = BTreeMap::new();
     for (id, _stamp) in &discovery.found {
         let issue = tracker.show(id).map_err(SeedError::Show)?;
         for marker in markers_in(&issue.body) {
-            existing.insert(marker.to_owned());
+            existing.insert(marker.to_owned(), id.clone());
         }
     }
 
     let mut summary = SeedSummary::default();
     for record in records {
-        if needs_seeding(&record.id, &existing) {
-            let body =
-                format!("{}\n\n{}", record.body, seed_marker(&record.id));
-            tracker
+        let marker = seed_marker(&record.id);
+        if let Some(existing_id) = existing.get(&marker) {
+            summary
+                .reused
+                .push((record.id.clone(), existing_id.clone()));
+        } else {
+            let body = format!("{}\n\n{marker}", record.body);
+            let created = tracker
                 .create(&record.title, &body, &record.kind)
                 .map_err(SeedError::Create)?;
-            summary.created.push(record.id.clone());
-        } else {
-            summary.reused.push(record.id.clone());
+            summary.created.push((record.id.clone(), created));
         }
     }
     Ok(summary)
@@ -262,7 +267,9 @@ mod tests {
         let summary =
             run_seed(&tracker, &scope(), &records).expect("seed runs");
 
-        assert_eq!(summary.created, vec!["0195", "0196"]);
+        let created_ids: Vec<&str> =
+            summary.created.iter().map(|(id, _)| id.as_str()).collect();
+        assert_eq!(created_ids, vec!["0195", "0196"]);
         assert!(summary.reused.is_empty());
         assert_eq!(create_count(&tracker), 2);
         for call in tracker.calls() {
@@ -283,14 +290,19 @@ mod tests {
             body: format!("issue 0195\nbody\n\n{}", seed_marker("0195")),
         };
         let tracker = RecordingTracker::holding(vec![(seeded.clone(), issue)])
-            .discovering(vec![(seeded, RemoteTimestamp::NotReported)], true);
+            .discovering(
+                vec![(seeded.clone(), RemoteTimestamp::NotReported)],
+                true,
+            );
         let records = [record("0195", "task"), record("0196", "bug")];
 
         let summary =
             run_seed(&tracker, &scope(), &records).expect("seed runs");
 
-        assert_eq!(summary.reused, vec!["0195"]);
-        assert_eq!(summary.created, vec!["0196"]);
+        assert_eq!(summary.reused, vec![("0195".to_owned(), seeded)]);
+        let created_ids: Vec<&str> =
+            summary.created.iter().map(|(id, _)| id.as_str()).collect();
+        assert_eq!(created_ids, vec!["0196"]);
         assert_eq!(create_count(&tracker), 1);
     }
 
