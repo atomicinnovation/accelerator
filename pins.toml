@@ -9,16 +9,16 @@
 # the digests of the deterministically assembled archives.
 
 [assembled_sha256.browser]
-darwin-arm64 = "9999999999999999999999999999999999999999999999999999999999999999"
-darwin-x64 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-linux-arm64 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-linux-x64 = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+darwin-arm64 = "bffff4f146c7b164256cf632bc20002a2fca9c79d8e7d319dbf1e4cb9e2a0f31"
+darwin-x64 = "1ff236eb6a38ca1378806d50e74aa6cba723f21fe570a1a1cf6982437bb4a435"
+linux-arm64 = "9a168abd0c9545773100661256f6d8100e896f993fb96afdbac017c3b9db606f"
+linux-x64 = "b50ef6e9a3500e48275ccb8df41323fe8a904d0737c9d2159d6c06559af99262"
 
 [assembled_sha256.driver]
-darwin-arm64 = "5555555555555555555555555555555555555555555555555555555555555555"
-darwin-x64 = "6666666666666666666666666666666666666666666666666666666666666666"
-linux-arm64 = "7777777777777777777777777777777777777777777777777777777777777777"
-linux-x64 = "8888888888888888888888888888888888888888888888888888888888888888"
+darwin-arm64 = "553e194bf1155319f4db270a0001d320a5e5261f361d99e1540f19bf9306aa1a"
+darwin-x64 = "4a91a7f65a432a9418cb5a7b4961c8dd2b78dde6542d84ef7d91791aaad8a4ae"
+linux-arm64 = "654d82a39be7ffa5741222750d940895d42f995731921e1c2cfb8e473ce17cab"
+linux-x64 = "aa6061e8c3460e75abea72ba82a3c614d3b16400a6653ed6dc5a4c6719d6962d"
 
 # The vendored Chromium and Node pins. CHROMIUM_REVISION mirrors the pinned
 # playwright-core's browsers.json and is cross-checked against it at assembly;
