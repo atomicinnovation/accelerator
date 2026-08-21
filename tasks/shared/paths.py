@@ -48,6 +48,9 @@ TREE_ARTIFACTS: tuple[str, ...] = (
 # pipeline reads ASSEMBLED_SHA256 from it and the launcher's build step embeds
 # the same digests as its compiled-in expected map.
 PINS_TOML = REPO_ROOT / "pins.toml"
+# Chromium's licence, committed because Playwright's headless-shell archive
+# omits it; the vendored browser tree's NOTICES source it from here.
+CHROMIUM_LICENSE = REPO_ROOT / "licenses" / "chromium.LICENSE"
 # Sub-binaries shipping a symbolication archive, and the committed tree each is
 # staged into so the provenance glob covers it. Every value must be a `bin/`
 # directory — `.gitignore`'s archive rule is `**/bin/*.debug.tar.gz`.
