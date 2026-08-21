@@ -1467,11 +1467,23 @@ loop and credentialed run remain a developer step (no scratch tenants here).
   and reuse-not-duplicate, so the production-write guard cannot be silently
   refactored away. `cargo nextest -p tracker-test-support` 24/24, clippy + fmt
   clean.
-- **Deferred (credentialed):** the live create loop that enumerates the corpus,
-  calls `guard_target` against the scratch project/team, and issues one
-  `create` per un-seeded record belongs in a `binary(=contract)` harness (the
-  only binaries the contract profile runs). It plus the remaining live-tenant
-  checks need scratch Jira/Linear tenants and tokens, which 0171 owns.
+- **The live seed harness is now built.** `seed::run_seed` orchestrates the
+  create loop over the port — one `search`, a `show` per discovered issue to
+  collect existing markers, then a `create` only for records whose marker is
+  absent; a truncated discovery refuses (`SeedError::Incomplete`) rather than
+  risk a duplicate. It is driven against `RecordingTracker` by four offline
+  tests (seed-all, reuse, truncation-refusal, marker extraction). Each
+  provider's `contract.rs` gained a `seeds_the_scratch_corpus_when_requested`
+  test that gates on `ACCELERATOR_TRACKER_SEED=1` (a no-op otherwise, verified
+  against both binaries with no credentials), asserts the contract gate is open,
+  builds the live client, calls `guard_target` against the scratch project/team,
+  and runs `run_seed` over `representative_records` (three items, one with an
+  absent description). `tracker-test-support` 28/28; jira+linear+support default
+  295/295; clippy + fmt clean.
+- **Deferred (credentialed):** only the live *run* remains — the seed against a
+  real scratch tenant and the `work sync` classification that follows. The
+  machinery is in place; it needs scratch Jira/Linear tenants and tokens, which
+  0171 owns.
 - **Jira create-preview verified live.** Against a real scratch Jira tenant,
   `work create --dry-run` returned exit 0 with project source `unresolvable` for
   an absent `default_project_code` and `configured` for a real key — the
