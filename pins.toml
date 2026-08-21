@@ -5,8 +5,8 @@
 # these values, the launcher's compiled-in map, TREE_ARTIFACTS and the
 # manifest.example.json artifact keys in agreement.
 #
-# Phase 1 ships placeholder digests; the release pipeline overwrites them with
-# the digests of the deterministically assembled archives.
+# These are the reviewed digests of the deterministically assembled archives,
+# refreshed under the trust-anchor procedure when the Playwright pin bumps.
 
 [assembled_sha256.browser]
 darwin-arm64 = "bffff4f146c7b164256cf632bc20002a2fca9c79d8e7d319dbf1e4cb9e2a0f31"
@@ -22,9 +22,9 @@ linux-x64 = "aa6061e8c3460e75abea72ba82a3c614d3b16400a6653ed6dc5a4c6719d6962d"
 
 # The vendored Chromium and Node pins. CHROMIUM_REVISION mirrors the pinned
 # playwright-core's browsers.json and is cross-checked against it at assembly;
-# the per-platform sha256 makes the CDN-served bytes reviewable (ADR-0059).
-# NODE version mirrors the pairing upstream ships. Placeholders here; a
-# Playwright pin bump refreshes all of them under the trust-anchor procedure.
+# the per-platform sha256 makes the CDN-served bytes reviewable.
+# NODE version mirrors the pairing upstream ships. A Playwright pin bump
+# refreshes all of them under the trust-anchor procedure.
 [chromium]
 revision = "1193"
 

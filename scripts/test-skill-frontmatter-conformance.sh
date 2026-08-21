@@ -700,12 +700,11 @@ echo ""
 # =============================================================================
 # Design eval and protocol references resolve
 # =============================================================================
-# Fifteen references to deleted scripts and retired downgrade reasons rotted
-# through the immediately preceding plan because nothing asserted the content of
-# these files named a live command or reason — only that the JSON parsed. This
-# guard closes that gap: every *.sh a design eval or the protocol names must
-# resolve to a script still on disk, and no reason it names may have been
-# retired from the executor's vocabulary.
+# The JSON parsing alone never checked that a script or reason a design eval or
+# the protocol names still exists, so references to deleted scripts and retired
+# downgrade reasons could rot undetected. This guard closes that gap: every *.sh
+# a design eval or the protocol names must resolve to a script still on disk,
+# and no reason it names may have been retired from the executor's vocabulary.
 
 echo "=== Design eval and protocol references resolve ==="
 

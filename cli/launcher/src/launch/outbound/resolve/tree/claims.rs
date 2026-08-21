@@ -16,7 +16,7 @@ use crate::launch::core::tree::Clock;
 use super::layout::TreePaths;
 
 /// A digest with no claim refreshed inside this window is reclaimable. Sized to
-/// ADR-0063's ~14-day orphan sweep, so a merely-idle install is not evicted.
+/// a ~14-day orphan sweep, so a merely-idle install is not evicted.
 pub const CLAIM_WINDOW: Duration = Duration::from_secs(14 * 24 * 60 * 60);
 
 /// Below this fraction of the window, a fresh claim is not rewritten, so a crawl

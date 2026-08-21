@@ -1,7 +1,8 @@
 """The release-lane guard on the vendored runtime's trust anchors.
 
-Phase 1 ships ``pins.toml`` with placeholder digests and no publisher keys, so
-a release cut before a human runs the refresh procedure would sign a manifest
+A fresh checkout ships ``pins.toml`` with placeholder digests and no publisher
+keys, so a release cut before a human runs the refresh procedure would sign a
+manifest
 whose tree digests are placeholders and verify its upstream inputs against keys
 that do not exist. Both failures otherwise surface deep in assembly as a digest
 mismatch or a missing-file traceback; this predicate names them up front, so the

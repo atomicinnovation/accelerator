@@ -32,17 +32,8 @@ _ABSOLUTE_VCS_PATHS = (
 # The config subtree (scripts/) discoverable shell suites. This is an
 # at-least floor so a dropped exec bit on a fail-closed gate (e.g.
 # test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
-# Bumped as suites are added under scripts/. Dropped from 21 to 18 as
-# test-skills-index.sh (superseded by docs:generate) and
-# test-config.sh/test-config-read-doc-type-paths.sh (retired alongside the
-# removal set) went away. Dropped to 16 as the shell-based frontmatter and
-# linkage validators retired in favour of `accelerator corpus`. Dropped to 15
-# as the meta-directory migration engine's interactive wire-protocol harness
-# retired in favour of the native accelerator-migrate port. Raised to 16 to
-# correct a floor left one behind the real discovered count. Dropped to 15 as
-# test-metadata-helpers.sh retired with the shell metadata helpers. Dropped to
-# 14 as test-design.sh retired with the vendored-runtime bootstrap it delegated
-# to.
+# Raised as suites are added under scripts/, lowered as they are retired; it
+# must equal the count the discovery below finds.
 _EXPECTED_CONFIG_SUITES = 14
 
 # The skills/integrations subtree discoverable shell suites (every individual
