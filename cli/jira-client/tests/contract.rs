@@ -30,11 +30,15 @@ use jira_client::transport::Transport;
 use jira_client::JiraClient;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker_support::{
     ClockJitter, CommandPolicy, CredentialContext, SystemEnvironment,
     SystemSleeper, TransportConfig,
 };
 use tracker_test_support::contract::{run_all, ContractSubject};
+use tracker_test_support::seed::{
+    guard_target, representative_records, run_seed, ScratchAllowlist,
+};
 
 /// Provenance from the repository's own VCS is a Phase-7 wiring concern; a
 /// live contract run resolves credentials from the environment, where no
@@ -230,4 +234,59 @@ fn writes_reduced_evidence_when_a_path_is_configured() {
     );
     std::fs::write(&path, rendered)
         .unwrap_or_else(|error| panic!("write evidence to {path:?}: {error}"));
+}
+
+/// Seeds the scratch Jira project with the representative corpus, idempotently.
+///
+/// A no-op unless `ACCELERATOR_TRACKER_SEED=1`, so an ordinary contract run
+/// never writes issues. When seeding, the contract gate must be open and the
+/// target project must be on `ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST` — a
+/// non-scratch project is refused before any create. Re-running reuses the
+/// already-seeded issues rather than duplicating them.
+#[test]
+fn seeds_the_scratch_corpus_when_requested() {
+    if std::env::var_os("ACCELERATOR_TRACKER_SEED").is_none() {
+        return;
+    }
+    assert_eq!(
+        std::env::var("ACCELERATOR_TRACKER_CONTRACT")
+            .ok()
+            .as_deref(),
+        Some("1"),
+        "seeding needs the contract gate open: set \
+         ACCELERATOR_TRACKER_CONTRACT=1",
+    );
+
+    let project = std::env::var("ACCELERATOR_JIRA_CONTRACT_PROJECT")
+        .expect("ACCELERATOR_JIRA_CONTRACT_PROJECT names the scratch project");
+    let allowlist = ScratchAllowlist::from_list(
+        &std::env::var("ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST").expect(
+            "ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST lists the scratch \
+             projects/teams the seed may write to",
+        ),
+    );
+    guard_target(&allowlist, &project).unwrap_or_else(|refusal| {
+        panic!("refusing to seed a non-scratch target: {refusal:?}")
+    });
+
+    let subject = live_client();
+    let scope = SearchScope {
+        project: Some(project),
+        all_projects: false,
+        filters: Vec::new(),
+    };
+    let records = representative_records();
+    let summary = run_seed(subject.tracker(), &scope, &records)
+        .unwrap_or_else(|error| panic!("seed failed: {error:?}"));
+
+    println!(
+        "jira seed: {} created, {} reused",
+        summary.created.len(),
+        summary.reused.len()
+    );
+    assert_eq!(
+        summary.created.len() + summary.reused.len(),
+        records.len(),
+        "every record is either created or reused",
+    );
 }

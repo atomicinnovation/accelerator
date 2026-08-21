@@ -8,6 +8,14 @@
 
 use std::collections::BTreeSet;
 
+use tracker::RemoteTracker;
+use tracker::SearchScope;
+use tracker::TrackerError;
+
+/// The prefix every seed marker carries, so a marker is recognisable in an
+/// issue body a `show` returns.
+const MARKER_PREFIX: &str = "accelerator-seed:";
+
 /// The scratch project keys and team ids the seed is permitted to write to.
 ///
 /// Membership is exact after trimming: a target absent from the list is
@@ -76,7 +84,15 @@ pub fn guard_target(
 /// issue by string match and reuses it.
 #[must_use]
 pub fn seed_marker(record_id: &str) -> String {
-    format!("accelerator-seed:{}", record_id.trim())
+    format!("{MARKER_PREFIX}{}", record_id.trim())
+}
+
+/// The seed markers present in an issue body — the whitespace-delimited tokens
+/// carrying the marker prefix. A seeded body carries its marker on its own
+/// line, so a token match recovers it.
+pub fn markers_in(body: &str) -> impl Iterator<Item = &str> {
+    body.split_whitespace()
+        .filter(|token| token.starts_with(MARKER_PREFIX))
 }
 
 /// Whether a record still needs seeding, given the markers already present on
@@ -90,9 +106,205 @@ pub fn needs_seeding(
     !existing_markers.contains(&seed_marker(record_id))
 }
 
+/// One record to seed onto the scratch tenant. `body` is the content before the
+/// marker; `run_seed` appends the marker so a re-run can recognise the issue.
+pub struct SeedRecord {
+    pub id: String,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+}
+
+/// What a seed run did.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct SeedSummary {
+    /// Record ids for which a new remote issue was created.
+    pub created: Vec<String>,
+    /// Record ids already present on the tenant, left untouched.
+    pub reused: Vec<String>,
+}
+
+/// A small representative corpus for the live seed. Includes one record with
+/// an empty description so the classification exercise covers the
+/// absent-description projection path per provider.
+#[must_use]
+pub fn representative_records() -> Vec<SeedRecord> {
+    vec![
+        SeedRecord {
+            id: "seed-a".to_owned(),
+            title: "Seed A: a described task".to_owned(),
+            body: "A seeded item carrying a description.".to_owned(),
+            kind: "task".to_owned(),
+        },
+        SeedRecord {
+            id: "seed-b".to_owned(),
+            title: "Seed B: another described task".to_owned(),
+            body: "A second seeded item with a description.".to_owned(),
+            kind: "task".to_owned(),
+        },
+        SeedRecord {
+            id: "seed-c".to_owned(),
+            title: "Seed C: no description".to_owned(),
+            body: String::new(),
+            kind: "task".to_owned(),
+        },
+    ]
+}
+
+/// Why a seed run stopped.
+#[derive(Debug)]
+pub enum SeedError {
+    /// The discovery `search` failed.
+    Discovery(TrackerError),
+    /// The discovery was truncated. Seeding on a lower-bound view could
+    /// re-create an already-seeded issue the query did not see, so the run
+    /// refuses rather than risk a duplicate — narrow the scope and retry.
+    Incomplete,
+    /// A `show` of a discovered issue failed.
+    Show(TrackerError),
+    /// A `create` of a missing record failed.
+    Create(TrackerError),
+}
+
+/// Seed the scratch tenant with one issue per record, idempotently.
+///
+/// Discovers the markers already present (one `search`, then a `show` per
+/// discovered issue), then `create`s only the records whose marker is absent.
+/// A repeated run reuses rather than duplicates.
+///
+/// # Errors
+///
+/// [`SeedError::Incomplete`] when the discovery is truncated (refusing to risk
+/// a duplicate); [`SeedError::Discovery`]/[`SeedError::Show`]/
+/// [`SeedError::Create`] when the corresponding port call fails.
+pub fn run_seed(
+    tracker: &dyn RemoteTracker,
+    scope: &SearchScope,
+    records: &[SeedRecord],
+) -> Result<SeedSummary, SeedError> {
+    let discovery = tracker.search(scope).map_err(SeedError::Discovery)?;
+    if !discovery.complete {
+        return Err(SeedError::Incomplete);
+    }
+
+    let mut existing: BTreeSet<String> = BTreeSet::new();
+    for (id, _stamp) in &discovery.found {
+        let issue = tracker.show(id).map_err(SeedError::Show)?;
+        for marker in markers_in(&issue.body) {
+            existing.insert(marker.to_owned());
+        }
+    }
+
+    let mut summary = SeedSummary::default();
+    for record in records {
+        if needs_seeding(&record.id, &existing) {
+            let body =
+                format!("{}\n\n{}", record.body, seed_marker(&record.id));
+            tracker
+                .create(&record.title, &body, &record.kind)
+                .map_err(SeedError::Create)?;
+            summary.created.push(record.id.clone());
+        } else {
+            summary.reused.push(record.id.clone());
+        }
+    }
+    Ok(summary)
+}
+
 #[cfg(test)]
 mod tests {
+    use tracker::ExternalId;
+    use tracker::RemoteIssue;
+    use tracker::RemoteTimestamp;
+
     use super::*;
+    use crate::Call;
+    use crate::RecordingTracker;
+
+    fn scope() -> SearchScope {
+        SearchScope {
+            project: Some("SCR".to_owned()),
+            all_projects: false,
+            filters: Vec::new(),
+        }
+    }
+
+    fn record(id: &str, kind: &str) -> SeedRecord {
+        SeedRecord {
+            id: id.to_owned(),
+            title: format!("issue {id}"),
+            body: format!("body {id}"),
+            kind: kind.to_owned(),
+        }
+    }
+
+    fn create_count(tracker: &RecordingTracker) -> usize {
+        tracker
+            .calls()
+            .into_iter()
+            .filter(|call| matches!(call, Call::Create { .. }))
+            .count()
+    }
+
+    #[test]
+    fn markers_in_extracts_seed_tokens() {
+        let body = "Title\nsome prose\n\naccelerator-seed:0195\n";
+        let found: Vec<_> = markers_in(body).collect();
+        assert_eq!(found, vec!["accelerator-seed:0195"]);
+    }
+
+    #[test]
+    fn seeds_every_record_when_none_exist() {
+        let tracker =
+            RecordingTracker::holding(Vec::new()).discovering(Vec::new(), true);
+        let records = [record("0195", "task"), record("0196", "bug")];
+
+        let summary =
+            run_seed(&tracker, &scope(), &records).expect("seed runs");
+
+        assert_eq!(summary.created, vec!["0195", "0196"]);
+        assert!(summary.reused.is_empty());
+        assert_eq!(create_count(&tracker), 2);
+        for call in tracker.calls() {
+            if let Call::Create { body, .. } = call {
+                assert!(
+                    markers_in(&body).next().is_some(),
+                    "a created body must carry its marker so a re-run reuses it"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reuses_records_already_seeded() {
+        let seeded = ExternalId::new("SCR-1".to_owned());
+        let issue = RemoteIssue {
+            updated: RemoteTimestamp::NotReported,
+            body: format!("issue 0195\nbody\n\n{}", seed_marker("0195")),
+        };
+        let tracker = RecordingTracker::holding(vec![(seeded.clone(), issue)])
+            .discovering(vec![(seeded, RemoteTimestamp::NotReported)], true);
+        let records = [record("0195", "task"), record("0196", "bug")];
+
+        let summary =
+            run_seed(&tracker, &scope(), &records).expect("seed runs");
+
+        assert_eq!(summary.reused, vec!["0195"]);
+        assert_eq!(summary.created, vec!["0196"]);
+        assert_eq!(create_count(&tracker), 1);
+    }
+
+    #[test]
+    fn a_truncated_discovery_refuses_to_avoid_duplicates() {
+        let tracker = RecordingTracker::holding(Vec::new())
+            .discovering(Vec::new(), false);
+        let records = [record("0195", "task")];
+
+        let result = run_seed(&tracker, &scope(), &records);
+
+        assert!(matches!(result, Err(SeedError::Incomplete)));
+        assert_eq!(create_count(&tracker), 0);
+    }
 
     #[test]
     fn a_scratch_key_is_accepted() {
