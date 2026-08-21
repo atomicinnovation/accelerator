@@ -519,12 +519,14 @@ def _realistic_inputs(tmp_path):
     _licence(pw / "package/index.js", "module.exports={}")
     _licence(pw / "package/LICENSE")
     chromium = tmp_path / "chromium-src"
+    # Upstream ships `chrome-<platform>/headless_shell`; the spec builder
+    # renames it to `chrome-headless-shell` at the tree root.
     _executable(
-        chromium / "chrome-headless-shell-linux/chrome-headless-shell",
+        chromium / "chrome-linux/headless_shell",
         "#!/bin/sh\necho v1181\n",
     )
-    _licence(chromium / "chrome-headless-shell-linux/LICENSE")
-    _licence(chromium / "chrome-headless-shell-linux/resources.pak", "res")
+    _licence(chromium / "chrome-linux/LICENSE")
+    _licence(chromium / "chrome-linux/resources.pak", "res")
     return (
         _tgz(tmp_path / "node.tar.gz", node),
         _tgz(tmp_path / "pw.tgz", pw),
