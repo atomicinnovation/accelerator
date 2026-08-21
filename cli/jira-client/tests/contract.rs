@@ -40,8 +40,7 @@ use tracker_test_support::seed::{
     guard_target, representative_records, run_seed, ScratchAllowlist,
 };
 
-/// Provenance from the repository's own VCS is a Phase-7 wiring concern; a
-/// live contract run resolves credentials from the environment, where no
+/// A live contract run resolves credentials from the environment, where no
 /// provenance question arises.
 struct NothingTracked;
 
