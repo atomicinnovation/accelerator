@@ -130,7 +130,7 @@ def assert_version_pairing(
 ) -> None:
     """Fail the release unless the fetched inputs match their pins.
 
-    Per ADR-0059 the Node/Chromium pairing is structural, so this guards the
+    The Node/Chromium pairing is structural, so this guards the
     construction rather than testing compatibility after the fact.
     """
     if fetched_playwright_version != expected_playwright_version:

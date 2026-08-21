@@ -140,7 +140,7 @@ Only if provisional mode is `runtime` or `hybrid`, run:
 ${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor ping
 ```
 
-This drives the executor's availability check in ADR-0062 order — platform
+This drives the executor's availability check in order — platform
 probe, runtime materialisation, browser resolution — then launches the daemon
 and probes it. Interpret the outcome:
 

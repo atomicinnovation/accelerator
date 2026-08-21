@@ -1,4 +1,4 @@
-//! The ADR-0062 order in which the runtime crawler's preconditions are checked.
+//! The order in which the runtime crawler's preconditions are checked.
 //!
 //! Platform support first — decided at zero network cost, so an unsupported
 //! host refuses before any fetch — then the runtime (the driver bundle), then
@@ -49,7 +49,8 @@ pub enum Resolution {
     Downgrade(DowngradeReason),
 }
 
-/// Resolve the runtime crawler's preconditions in ADR-0062 order.
+/// Resolve the runtime crawler's preconditions in order: the platform, then
+/// the runtime, then the browser.
 pub fn resolve(
     platform: Support,
     ensure_runtime: impl FnOnce() -> RuntimeOutcome,

@@ -30,7 +30,7 @@ use super::{claims, download, extract, pins, reap, seal};
 
 /// The publish-sequence steps a crash can be injected after.
 ///
-/// Numbered as in the plan's materialise sequence. A test seam, not a cargo
+/// Numbered to match the materialise sequence below. A test seam, not a cargo
 /// feature: `mise run cli:check` and `test:unit:cli` both pass `--all-features`,
 /// so a feature would be on during every check, whereas an injected observer is
 /// a no-op unless a test supplies one. Injecting here tests the *publish
@@ -58,7 +58,7 @@ pub trait StepObserver {
 }
 
 /// The production observer: every step is fine. Constructed at the composition
-/// root, which lands with Step 1c's `cache` built-in.
+/// root, alongside the `cache` built-in.
 #[allow(dead_code)]
 pub struct NoSteps;
 

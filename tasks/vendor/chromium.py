@@ -1,4 +1,4 @@
-"""Chromium is pinned, not verified (ADR-0059).
+"""Chromium is pinned, not verified.
 
 Playwright's Chromium build is fetched from the CDN over TLS with no publisher
 signature, so provenance rests on a committed per-platform sha256 that makes the

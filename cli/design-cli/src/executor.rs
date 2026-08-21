@@ -150,7 +150,7 @@ pub fn run(command: &str, arguments: &[String]) -> ExitCode {
     }
 }
 
-/// Resolve the runtime crawler's preconditions in ADR-0062 order — platform,
+/// Resolve the runtime crawler's preconditions in order — platform,
 /// then the runtime, then the browser — over lazily-evaluated thunks, so an
 /// unsupported host reaches neither the fetch nor the browser resolution.
 fn resolve_runtime(
