@@ -281,16 +281,46 @@ tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
   assemble-once to read the archive digests, confirm and commit). Five unit tests
   in `test_vendor_trust_anchors.py` prove the discrimination against fixtures.
 
-**Phase 2's genuinely human/org-gated remainder:**
-`keys/nodejs-release.asc`, `keys/npm-registry.pem`, the real `pins.toml`
-Chromium/Node/`ASSEMBLED_SHA256` values; the **criterion-3138 review-gate** (a
-distinct control from the placeholder guard above — a PR-triggered CI job that
+**Trust anchors provisioned and the assembly proven, 2026-08-21.** The whole
+upstream-verification and assembly pipeline had never run against real inputs;
+provisioning the anchors and driving it to green surfaced and fixed **five latent
+defects** the fabricated test fixtures had hidden, each committed:
+
+- **SLSA** — `verify_slsa` used `gh attestation verify`, which cannot check
+  playwright-core's npm/Sigstore provenance (subject keyed by the tarball sha512
+  and a `pkg:npm` PURL, not the file sha256 GitHub's store matches). Replaced with
+  `cosign verify-blob-attestation` over the registry bundle, pinning the GitHub
+  Actions cert identity/issuer; `cosign` pinned in `mise`.
+- **Node** — three at once: the code fetched the clearsigned `.asc` and verified it
+  as detached (Node ships a detached `.sig`); it rejected `EXPKEYSIG` (the classifier
+  now accepts a signature made by a key valid at signing time — Node's keys expire
+  faster than upstream extends them — while still rejecting `REVKEYSIG`); and it
+  passed the armored keyring to `gpg --keyring`, which needs a binary keyring (now
+  imported into an ephemeral homedir).
+- **Chromium** — the assembly globbed `chrome-headless-shell`, but Playwright ships
+  `chrome-<platform>/headless_shell`; the tree is placed and the binary renamed to
+  the runtime's `chrome-headless-shell`. And Playwright's archive ships **no
+  licence**, so Chromium's BSD-3-Clause `LICENSE` is committed at
+  `licenses/chromium.LICENSE` and sourced for NOTICES (the full about:credits
+  remain a legal-review gap).
+
+The anchors are now **real and verified**: `keys/nodejs-release.asc` (the nine
+active Node signers, verified out-of-band), `keys/npm-registry.pem` (the current
+registry key), `pins.toml` Chromium revision 1193 + per-platform digests, Node
+22.22.2, and all eight `assembled_sha256` values from a **byte-deterministic**
+assembly (identical across TZ/LANG/umask). `vendor:check-trust-anchors` passes, the
+launcher's compiled-in map agrees, and the darwin-arm64 archives pass the native
+smoke check (`node`/`chrome-headless-shell` execute). ✅ `verify-upstream-inputs`
+and `assemble-tree-artifacts` both exit 0 end-to-end against real upstream.
+
+**Phase 2's genuinely human/org-gated remainder:** the **criterion-3138 review-gate**
+(a distinct control from the placeholder guard above — a PR-triggered CI job that
 queries the PR's reviews and fails a diff to `keys/**`/`pins.toml`/the fingerprint
 module unless a *named reviewer team* member other than the author approved it),
 which cannot be built correctly without the named team handle, branch protection,
-and an org-read token — three settings this session can neither create nor verify;
-`timeout-minutes` from a measured double-pass; and the release-lane manual
-validations (real-input layout confirmation).
+and an org-read token; a real release cut (upload/sign/reverify — never yet
+exercised, so it may carry its own defects); `timeout-minutes` from a measured
+double-pass; the CI smoke matrix; and the full third-party-credits legal review.
 
 **Phase 3 (executor swap) — the self-contained domain layer is built and green;
 the integration wiring is not started.** Committed since Phase 2, all tested at
