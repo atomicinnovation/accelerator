@@ -34,8 +34,10 @@ use design::executor::daemon_identity::ObservedDaemon;
 use design::executor::daemon_identity::ObservedStartTime;
 use design::executor::daemon_identity::RecordedStartTime;
 use design::executor::handoff::Identity;
+use design::executor::ports::BootstrapDiagnostics;
 use design::executor::ports::ProcessControl;
 use design::executor::ports::ProcessProbe;
+use design::executor::ports::SpawnError;
 use design::executor::ports::Spawner;
 
 /// The mode every file the launcher and the daemon create inherits.
@@ -106,7 +108,7 @@ pub struct DaemonSpawner {
 }
 
 impl Spawner for DaemonSpawner {
-    fn spawn(&self) -> Result<Identity, kernel::Error> {
+    fn spawn(&self) -> Result<Identity, SpawnError> {
         let log = self.prepare_bootstrap_log()?;
         let (read_end, mut write_end) = identity_pipe()?;
 
@@ -142,7 +144,21 @@ impl Spawner for DaemonSpawner {
             });
         }
 
-        let child = command.spawn().map_err(failed("spawn the daemon"))?;
+        // The program is resolved from the driver tree and exists, so an
+        // `execve` answering `ENOENT` names an absent dynamic loader rather
+        // than a missing program — the distinguishable signal the launch state
+        // machine maps to `loader-unresolvable`.
+        let child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(SpawnError::NotFound);
+            }
+            Err(error) => {
+                return Err(SpawnError::Failed(kernel::Error::Failed(
+                    format!("could not spawn the daemon: {error}"),
+                )));
+            }
+        };
         let pid = i32::try_from(child.id()).map_err(|_| {
             kernel::Error::Failed("daemon pid overflowed".into())
         })?;
@@ -282,6 +298,22 @@ impl design::executor::ports::RunClient for ExecClient {
 #[must_use]
 pub fn is_directory(path: &Path) -> bool {
     path.is_dir()
+}
+
+/// Reads the daemon's bootstrap log so a failed start can be classified.
+///
+/// The `DaemonSpawner` writes the same path `0600` and truncates it per
+/// attempt, so what this returns is the current attempt's output.
+pub struct BootstrapLog {
+    pub path: PathBuf,
+}
+
+impl BootstrapDiagnostics for BootstrapLog {
+    fn read_log(&self) -> Vec<String> {
+        std::fs::read_to_string(&self.path)
+            .map(|text| text.lines().map(str::to_owned).collect())
+            .unwrap_or_default()
+    }
 }
 
 #[cfg(test)]

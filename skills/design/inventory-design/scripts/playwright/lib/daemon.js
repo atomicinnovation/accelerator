@@ -134,7 +134,11 @@ export async function startDaemon({ stateDir }) {
     const { chromium } = await importPlaywright({
       nsRoot: process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT,
     });
-    browser = await chromium.launch({ headless: true });
+    // The path the executor resolved — the bundled headless shell, or the
+    // design.browser_path hatch. Passing it is what makes playwright-core skip
+    // its own browser registry, so a sealed read-only tree is never consulted.
+    const executablePath = process.env.ACCELERATOR_DESIGN_BROWSER_EXECUTABLE;
+    browser = await chromium.launch({ headless: true, executablePath });
     const ctx = await browser.newContext();
     page = await ctx.newPage();
   }
@@ -148,19 +152,21 @@ export async function startDaemon({ stateDir }) {
 
     if (cmd === 'ping') {
       const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
-      const { chromium: cr } = await importPlaywright({ nsRoot });
-      const execPath = cr.executablePath();
+      // The launch path, not executablePath(): the latter reports playwright's
+      // own browser registry, which the bundled tree and the design.browser_path
+      // hatch both bypass, so it decides nothing here.
+      const execPath = process.env.ACCELERATOR_DESIGN_BROWSER_EXECUTABLE;
       try {
         await import('node:fs').then(({ promises }) => promises.access(execPath));
       } catch {
-        return makeError({ error: 'chromium-not-found', message: `Chromium binary not found at ${execPath}. Run ensure-playwright.sh to reinstall.`, category: 'bootstrap', retryable: false, details: { execPath } });
+        return makeError({ error: 'chromium-not-found', message: `Chromium binary not found at ${execPath}. Run \`accelerator cache repair\` to restore it.`, category: 'bootstrap', retryable: false, details: { execPath } });
       }
       let pv = 'unknown';
       try {
         const { readFile } = await import('node:fs/promises');
         const pkgFile = nsRoot
           ? resolvePlaywrightPkgPath(nsRoot)
-          : new URL('../node_modules/playwright/package.json', import.meta.url).pathname;
+          : new URL('../node_modules/playwright-core/package.json', import.meta.url).pathname;
         const raw = JSON.parse(await readFile(pkgFile, 'utf8'));
         pv = raw.version;
       } catch {}

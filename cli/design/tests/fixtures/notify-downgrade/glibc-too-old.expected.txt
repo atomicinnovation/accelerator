@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (the system glibc is too old for the bundled browser). Falling back to code-only crawler. Upgrade the distribution, or pass --crawler code to suppress this notice.

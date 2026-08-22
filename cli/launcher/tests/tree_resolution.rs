@@ -1,0 +1,1640 @@
+//! End-to-end tree resolution against the mock server and a real minisign
+//! keypair. Builds a signed archive, attestation and manifest, then drives the
+//! `TreeResolver` through materialise, a warm hit, and an acquire.
+//!
+//! Requires the `minisign` CLI. Under `CI` its absence is a hard failure rather
+//! than a skip, so the hit path's only cryptographic anchor can never silently
+//! go unexercised.
+
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
+mod common;
+
+use std::collections::BTreeMap;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use common::{MockServer, Route};
+use sha2::{Digest as _, Sha256};
+use tempfile::TempDir;
+
+use accelerator::launch::core::tree::{
+    AcquireSealedTree, Clock, MaterialiseTree, TreeError, VerifyTree,
+};
+use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
+use accelerator::launch::outbound::resolve::fetcher::Fetcher;
+use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::tree::lease::{
+    probe_liveness, Liveness,
+};
+use accelerator::launch::outbound::resolve::tree::{
+    ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
+};
+use accelerator::launch::outbound::resolve::HOST_PLATFORM;
+use std::fmt::Write as _;
+use std::os::unix::fs::PermissionsExt as _;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const ARTIFACT: &str = "driver";
+
+/// A clock the tests do not need to advance.
+struct StoppedClock;
+impl Clock for StoppedClock {
+    fn now_seconds(&self) -> u64 {
+        0
+    }
+    fn sleep_poll_interval(&self) {}
+}
+
+/// A clock pinned to a chosen second, for exercising the claim window.
+struct FixedClock(u64);
+impl Clock for FixedClock {
+    fn now_seconds(&self) -> u64 {
+        self.0
+    }
+    fn sleep_poll_interval(&self) {}
+}
+
+fn minisign_bin() -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join("minisign"))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Resolve minisign, failing hard under CI so the anchor is never skipped.
+macro_rules! minisign_or_skip {
+    () => {
+        match minisign_bin() {
+            Some(path) => path,
+            None if std::env::var_os("CI").is_some() => {
+                panic!("minisign is required under CI and was not on PATH")
+            }
+            None => {
+                eprintln!("skipping: minisign not on PATH");
+                return;
+            }
+        }
+    };
+}
+
+fn generate_keypair(minisign: &Path, dir: &Path) -> (String, PathBuf) {
+    let public = dir.join("release.pub");
+    let secret = dir.join("release.key");
+    let status = Command::new(minisign)
+        .args(["-G", "-W", "-f", "-p"])
+        .arg(&public)
+        .arg("-s")
+        .arg(&secret)
+        .output()
+        .expect("run minisign -G");
+    assert!(status.status.success(), "keygen failed");
+    (std::fs::read_to_string(&public).expect("read pub"), secret)
+}
+
+fn sign(minisign: &Path, secret: &Path, dir: &Path, bytes: &[u8]) -> String {
+    let payload = tempfile::Builder::new()
+        .prefix("payload-")
+        .tempfile_in(dir)
+        .expect("payload tempfile");
+    std::fs::write(payload.path(), bytes).expect("write payload");
+    let signature = payload.path().with_extension("minisig");
+    let status = Command::new(minisign)
+        .arg("-S")
+        .arg("-s")
+        .arg(secret)
+        .arg("-x")
+        .arg(&signature)
+        .arg("-m")
+        .arg(payload.path())
+        .output()
+        .expect("run minisign -S");
+    assert!(status.status.success(), "signing failed");
+    std::fs::read_to_string(&signature).expect("read sig")
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().fold(String::new(), |mut acc, byte| {
+        let _ = write!(acc, "{byte:02x}");
+        acc
+    })
+}
+
+/// One file the synthetic tree contains.
+struct Member {
+    path: &'static str,
+    mode: u32,
+    body: &'static [u8],
+}
+
+const MEMBERS: &[Member] = &[
+    Member {
+        path: "lib",
+        mode: 0o755,
+        body: b"",
+    },
+    Member {
+        path: "lib/data.pak",
+        mode: 0o644,
+        body: b"resource bytes",
+    },
+    Member {
+        path: "node",
+        mode: 0o755,
+        body: b"#!/bin/sh\necho v20\n",
+    },
+];
+
+/// Build the gzipped tar with the `.files` table first, returning the archive
+/// bytes and the table's own sha256.
+fn build_archive() -> (Vec<u8>, String, u64, u64) {
+    let mut table = String::from("version 1\n");
+    let mut uncompressed = 0_u64;
+    let mut count = 0_u64;
+    for member in MEMBERS {
+        if member.path == "lib" {
+            table.push_str("d\t755\t0\t-\tlib\n");
+        } else {
+            let digest = hex(&Sha256::digest(member.body));
+            let _ = writeln!(
+                table,
+                "f\t{:o}\t{}\t{digest}\t{}",
+                member.mode,
+                member.body.len(),
+                member.path
+            );
+            uncompressed += member.body.len() as u64;
+        }
+        count += 1;
+    }
+    // A symlink, so the round trip and verify's link-target detection are
+    // exercised.
+    table.push_str("l\t777\t0\t-\tlib/current\tdata.pak\n");
+    count += 1;
+    let table_sha = hex(&Sha256::digest(table.as_bytes()));
+
+    let mut builder = tar::Builder::new(Vec::new());
+    append(&mut builder, ".files", 0o644, table.as_bytes());
+    for member in MEMBERS {
+        if member.path == "lib" {
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Directory);
+            header.set_mode(0o755);
+            header.set_size(0);
+            builder
+                .append_data(&mut header, "lib", std::io::empty())
+                .expect("append dir");
+        } else {
+            append(&mut builder, member.path, member.mode, member.body);
+        }
+    }
+    let mut link_header = tar::Header::new_gnu();
+    link_header.set_entry_type(tar::EntryType::Symlink);
+    link_header.set_mode(0o777);
+    link_header.set_size(0);
+    builder
+        .append_link(&mut link_header, "lib/current", "data.pak")
+        .expect("append symlink");
+    let tar = builder.into_inner().expect("finish tar");
+    let mut encoder =
+        flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    encoder.write_all(&tar).expect("gzip");
+    let archive = encoder.finish().expect("finish gzip");
+    (archive, table_sha, uncompressed, count)
+}
+
+fn append(
+    builder: &mut tar::Builder<Vec<u8>>,
+    path: &str,
+    mode: u32,
+    body: &[u8],
+) {
+    let mut header = tar::Header::new_gnu();
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_mode(mode);
+    header.set_size(body.len() as u64);
+    builder
+        .append_data(&mut header, path, body)
+        .expect("append");
+}
+
+fn attestation_json(
+    archive_sha: &str,
+    uncompressed: u64,
+    count: u64,
+    table_sha: &str,
+) -> String {
+    format!(
+        "{{\"attestation_format_version\":1,\"artifact\":\"{ARTIFACT}\",\
+         \"platform\":\"{HOST_PLATFORM}\",\"archive_sha256\":\"{archive_sha}\",\
+         \"uncompressed_size\":{uncompressed},\"entry_count\":{count},\
+         \"table_sha256\":\"{table_sha}\"}}"
+    )
+}
+
+fn manifest_json(
+    archive_sha: &str,
+    signature: &str,
+    archive_len: u64,
+) -> String {
+    let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
+    format!(
+        "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":{{}},\
+         \"artifacts\":{{\"{ARTIFACT}\":{{\"description\":\"driver\",\
+         \"platforms\":{{\"{HOST_PLATFORM}\":{{\"sha256\":\"{archive_sha}\",\
+         \"signature\":\"{escaped}\",\"archive_size\":{archive_len},\
+         \"uncompressed_size\":999999,\"entry_count\":9}}}}}}}}}}"
+    )
+}
+
+struct Harness {
+    server: MockServer,
+    cache: PathBuf,
+    trusted: String,
+    archive_sha: String,
+    archive_bytes: Vec<u8>,
+    _workdir: TempDir,
+    _cache: TempDir,
+}
+
+impl Harness {
+    fn resolver(&self) -> TreeResolver<'_> {
+        self.resolver_with(&StoppedClock, &NoSteps)
+    }
+
+    fn resolver_with<'a>(
+        &'a self,
+        clock: &'a dyn Clock,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
+        let mut digests = BTreeMap::new();
+        digests.insert(
+            (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
+            self.archive_sha.clone(),
+        );
+        TreeResolver {
+            cache_root: self.cache.clone(),
+            base_url: self.server.base_url(),
+            platform: HOST_PLATFORM.to_owned(),
+            expected_version: VERSION.to_owned(),
+            keys: Box::leak(Box::new(self.keys())),
+            fetcher: Box::leak(Box::new(
+                Fetcher::with_backoff(std::time::Duration::from_millis(1))
+                    .expect("fetcher"),
+            )),
+            clock,
+            launcher_id: "test-install".to_owned(),
+            expected_digests: ExpectedDigests::Fixed(digests),
+            waiter_bound: std::time::Duration::from_secs(5),
+            steps,
+        }
+    }
+
+    fn keys(&self) -> TrustedKeys {
+        TrustedKeys::from_public_key_files(&[self.trusted.as_str()])
+            .expect("trusted keys")
+    }
+
+    fn hits(&self, path: &str) -> usize {
+        self.server.hits(path)
+    }
+}
+
+fn happy_harness(minisign: &Path) -> Harness {
+    let workdir = tempfile::tempdir().expect("workdir");
+    let cache = tempfile::tempdir().expect("cache");
+    let (trusted_pub, secret) = generate_keypair(minisign, workdir.path());
+
+    let (archive, table_sha, uncompressed, count) = build_archive();
+    let archive_sha = hex(&Sha256::digest(&archive));
+    let archive_sig = sign(minisign, &secret, workdir.path(), &archive);
+
+    let attestation =
+        attestation_json(&archive_sha, uncompressed, count, &table_sha);
+    let attestation_sig =
+        sign(minisign, &secret, workdir.path(), attestation.as_bytes());
+
+    let manifest =
+        manifest_json(&archive_sha, &archive_sig, archive.len() as u64);
+    let manifest_sig =
+        sign(minisign, &secret, workdir.path(), manifest.as_bytes());
+
+    let archive_bytes = archive.clone();
+    let server = MockServer::start();
+    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
+    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    let asset = format!("/accelerator-{ARTIFACT}-{HOST_PLATFORM}.tar.gz");
+    server.route(&asset, Route::Ok(archive));
+    server.route(
+        &format!("{asset}.sealed"),
+        Route::Ok(attestation.into_bytes()),
+    );
+    server.route(
+        &format!("{asset}.sealed.sig"),
+        Route::Ok(attestation_sig.into_bytes()),
+    );
+
+    Harness {
+        server,
+        cache: cache.path().to_path_buf(),
+        trusted: trusted_pub,
+        archive_sha,
+        archive_bytes,
+        _workdir: workdir,
+        _cache: cache,
+    }
+}
+
+fn archive_path() -> String {
+    format!("/accelerator-{ARTIFACT}-{HOST_PLATFORM}.tar.gz")
+}
+
+#[test]
+fn materialise_fetches_verifies_seals_and_a_warm_hit_touches_no_network() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    // A cold materialise fetches, verifies and seals.
+    let sealed = resolver
+        .materialise(ARTIFACT)
+        .expect("cold materialise succeeds");
+    assert_eq!(sealed.artifact, ARTIFACT);
+    assert!(sealed.path.join("lib/data.pak").exists());
+    assert_eq!(
+        std::fs::read(sealed.path.join("lib/data.pak")).unwrap(),
+        b"resource bytes"
+    );
+    // The node binary kept its executable bit through the seal.
+    let node_mode = std::fs::metadata(sealed.path.join("node"))
+        .unwrap()
+        .permissions()
+        .mode()
+        & 0o777;
+    assert_eq!(node_mode, 0o555);
+
+    let fetched_once = harness.hits(&archive_path());
+    assert_eq!(
+        fetched_once, 1,
+        "the archive should be fetched exactly once"
+    );
+
+    // A warm query is a hit with zero further HTTP.
+    let hit = resolver.query(ARTIFACT).expect("query").expect("a hit");
+    assert_eq!(hit.digest, harness.archive_sha);
+    assert_eq!(
+        harness.hits(&archive_path()),
+        fetched_once,
+        "a warm hit must issue no archive fetch"
+    );
+    assert_eq!(
+        harness.hits("/manifest.json"),
+        1,
+        "a warm hit must not reload the manifest"
+    );
+}
+
+#[test]
+fn acquire_holds_a_lease_and_a_cold_materialise_probes_the_root_once() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    // A cold materialise probes the cache root exactly once; acquire never does.
+    let before = probe_attempts();
+    resolver.materialise(ARTIFACT).expect("materialise");
+    assert_eq!(
+        probe_attempts() - before,
+        1,
+        "materialise probes the cache root exactly once"
+    );
+
+    let before = probe_attempts();
+    let acquired = resolver.acquire(ARTIFACT).expect("acquire").expect("a hit");
+    assert_eq!(
+        probe_attempts() - before,
+        0,
+        "acquire must not probe the cache root"
+    );
+    // The lease is held: a prune-style exclusive probe would see it as live.
+    assert_eq!(
+        probe_liveness(&acquired.tree.lease_path),
+        Liveness::Held,
+        "acquire must hold the tree's lease"
+    );
+    drop(acquired);
+}
+
+#[test]
+fn a_second_resolution_of_the_same_digest_reuses_the_generation() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    let first = resolver.materialise(ARTIFACT).expect("first");
+    let fetches = harness.hits(&archive_path());
+
+    // A second materialise finds the existing generation via the reuse scan and
+    // fetches nothing more.
+    let second = resolver.materialise(ARTIFACT).expect("second");
+    assert_eq!(first.path, second.path, "the generation should be reused");
+    assert_eq!(
+        harness.hits(&archive_path()),
+        fetches,
+        "a reuse must issue no further archive fetch"
+    );
+}
+
+#[test]
+fn verify_reports_a_sound_tree_and_detects_a_substitution() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+    let report = resolver.verify(ARTIFACT).expect("verify");
+    assert!(report.is_sound(), "a fresh tree verifies clean: {report:?}");
+
+    // Substitute a same-size, same-mode file — exactly what a stat-only check
+    // would miss and the table digest exists to catch.
+    let victim = sealed.path.join("lib/data.pak");
+    let mut perms = std::fs::metadata(&victim).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&victim, perms).unwrap();
+    std::fs::write(&victim, b"substituted!!!").unwrap();
+
+    let report = resolver.verify(ARTIFACT).expect("verify");
+    assert!(
+        !report.is_sound(),
+        "a same-size substitution must be detected"
+    );
+}
+
+/// A crash observer that errors after a chosen publish step.
+struct CrashAfter(MaterialiseStep);
+impl StepObserver for CrashAfter {
+    fn after(&self, step: MaterialiseStep) -> Result<(), TreeError> {
+        if step == self.0 {
+            Err(TreeError::Extraction {
+                detail: format!("injected crash after {step:?}"),
+            })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// A clock the test advances by hand, so the bounded waiter times out because
+/// time moved rather than because the test slept.
+struct AdvancingClock(std::sync::atomic::AtomicU64);
+impl Clock for AdvancingClock {
+    fn now_seconds(&self) -> u64 {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    fn sleep_poll_interval(&self) {
+        // Each poll advances a virtual second rather than sleeping.
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
+    let minisign = minisign_or_skip!();
+    let steps = [
+        MaterialiseStep::ArchiveStreamed,
+        MaterialiseStep::ArchiveVerified,
+        MaterialiseStep::Extracted,
+        MaterialiseStep::Sealed,
+        MaterialiseStep::SidecarsWritten,
+        MaterialiseStep::LeaseHeld,
+        MaterialiseStep::Renamed,
+    ];
+    for step in steps {
+        // A fresh cache per step so residues do not accumulate across cases.
+        let harness = happy_harness(&minisign);
+
+        let crash = CrashAfter(step);
+        let outcome = harness
+            .resolver_with(&StoppedClock, &crash)
+            .materialise(ARTIFACT);
+        assert!(
+            outcome.is_err(),
+            "the injected crash after {step:?} must abort materialise"
+        );
+
+        // No pointer was published, so a query is a miss.
+        assert!(
+            harness.resolver().query(ARTIFACT).expect("query").is_none(),
+            "a crash after {step:?} left a resolvable pointer"
+        );
+
+        // The reaper, run with a clock well past the age backstop, removes the
+        // residue and leaves the trees directory holding no generation.
+        let far_future =
+            AdvancingClock(std::sync::atomic::AtomicU64::new(1 << 40));
+        harness
+            .resolver_with(&far_future, &NoSteps)
+            .prune(ARTIFACT, None)
+            .expect("prune");
+        let residue = residual_generations(&harness);
+        assert!(
+            residue.is_empty(),
+            "a crash after {step:?} left unreclaimed residue: {residue:?}"
+        );
+    }
+}
+
+#[test]
+fn a_failed_winner_releases_the_lock_and_the_next_makes_progress() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // The winner crashes mid-materialisation.
+    let crash = CrashAfter(MaterialiseStep::Extracted);
+    assert!(harness
+        .resolver_with(&StoppedClock, &crash)
+        .materialise(ARTIFACT)
+        .is_err());
+
+    // The next materialise takes the same lock — proving it was released — and
+    // succeeds.
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next materialise makes progress");
+    assert!(sealed.path.join("lib/data.pak").exists());
+}
+
+#[test]
+fn the_bounded_waiter_expires_with_materialisation_in_progress() {
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // Hold the single-flight lock so every try fails, standing in for a winner
+    // still downloading.
+    let lock_path = harness
+        .cache
+        .join("trees")
+        .join(format!(".tmp-{ARTIFACT}-{HOST_PLATFORM}.lock"));
+    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
+    let _held = take_single_flight(&lock_path).expect("hold the lock");
+
+    // The waiter advances its own clock each poll, so it crosses the bound
+    // without any real sleep, and yields the non-sticky in-progress cause.
+    let clock = AdvancingClock(std::sync::atomic::AtomicU64::new(0));
+    let outcome = harness
+        .resolver_with(&clock, &NoSteps)
+        .materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::MaterialisationInProgress { .. })),
+        "a held lock past the bound must yield materialisation-in-progress, \
+         got {outcome:?}"
+    );
+}
+
+#[test]
+fn two_concurrent_cold_resolutions_issue_exactly_one_archive_fetch() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    let barrier = std::sync::Barrier::new(2);
+    let results = std::thread::scope(|scope| {
+        let a = scope.spawn(|| {
+            barrier.wait();
+            harness.resolver().materialise(ARTIFACT)
+        });
+        let b = scope.spawn(|| {
+            barrier.wait();
+            harness.resolver().materialise(ARTIFACT)
+        });
+        (a.join().unwrap(), b.join().unwrap())
+    });
+
+    let first = results.0.expect("first materialise");
+    let second = results.1.expect("second materialise");
+    assert_eq!(
+        first.path, second.path,
+        "both resolutions must land on one generation"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        1,
+        "two concurrent cold resolutions must fetch the archive exactly once"
+    );
+}
+
+/// A generation directory currently under trees/ (ignoring sidecars, temps and
+/// the claims dir).
+fn residual_generations(harness: &Harness) -> Vec<String> {
+    let trees = harness.cache.join("trees");
+    let Ok(entries) = std::fs::read_dir(&trees) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let is_generation = entry.path().is_dir()
+                && !name.starts_with(".tmp-")
+                && name != "claims";
+            is_generation.then_some(name)
+        })
+        .collect()
+}
+
+// ---- the `accelerator cache` built-in ----
+
+use accelerator::launch::cache;
+use accelerator::launch::inbound::cli::CacheAction;
+
+fn run_cache(
+    harness: &Harness,
+    action: &CacheAction,
+) -> Result<Vec<u8>, kernel::Error> {
+    let mut out = Vec::new();
+    cache::run(action, &harness.resolver(), &mut out)?;
+    Ok(out)
+}
+
+#[test]
+fn cache_verify_reports_ok_on_a_clean_tree_and_fails_on_a_corrupt_one() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let out = run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    )
+    .expect("verify clean");
+    assert!(String::from_utf8_lossy(&out).contains("ok"));
+
+    // Corrupt a file with a same-size substitution.
+    let victim = sealed.path.join("lib/data.pak");
+    let mut perms = std::fs::metadata(&victim).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&victim, perms).unwrap();
+    std::fs::write(&victim, b"substituted!!!").unwrap();
+
+    let outcome = run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    );
+    assert!(
+        matches!(outcome, Err(kernel::Error::Failed(_))),
+        "a corrupt tree must make verify fail"
+    );
+}
+
+#[test]
+fn cache_repair_restores_a_corrupt_tree() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Truncate a file — a verify failure repair must heal.
+    let victim = sealed.path.join("lib/data.pak");
+    let mut perms = std::fs::metadata(&victim).unwrap().permissions();
+    perms.set_mode(0o644);
+    std::fs::set_permissions(&victim, perms).unwrap();
+    std::fs::write(&victim, b"").unwrap();
+
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: false,
+        },
+    )
+    .expect("repair");
+
+    // The tree verifies clean again.
+    run_cache(
+        &harness,
+        &CacheAction::Verify {
+            name: Some(ARTIFACT.to_owned()),
+        },
+    )
+    .expect("verify after repair");
+}
+
+#[test]
+fn cache_repair_force_rematerialises_a_clean_tree() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let fetches = harness.hits(&archive_path());
+
+    // A forced repair of a clean tree fetches again rather than no-opping.
+    run_cache(
+        &harness,
+        &CacheAction::Repair {
+            name: Some(ARTIFACT.to_owned()),
+            force: true,
+        },
+    )
+    .expect("forced repair");
+    assert!(
+        harness.hits(&archive_path()) > fetches,
+        "repair --force must re-materialise even a clean tree"
+    );
+}
+
+#[test]
+fn cache_ensure_prints_the_tree_and_lease_paths() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    let out = run_cache(
+        &harness,
+        &CacheAction::Ensure {
+            names: vec![ARTIFACT.to_owned()],
+        },
+    )
+    .expect("ensure");
+    let text = String::from_utf8_lossy(&out);
+    assert!(text.contains(ARTIFACT), "ensure names the artifact");
+    assert!(text.contains(".lease"), "ensure prints the lease path");
+}
+
+#[test]
+fn cache_ensure_emits_a_cause_envelope_when_the_archive_is_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness.server.route(&archive_path(), Route::Status(404));
+
+    let outcome = run_cache(
+        &harness,
+        &CacheAction::Ensure {
+            names: vec![ARTIFACT.to_owned()],
+        },
+    );
+    assert!(
+        matches!(&outcome, Err(kernel::Error::Failed(_))),
+        "expected a structured ensure failure, got {outcome:?}"
+    );
+    let envelope = outcome
+        .err()
+        .map(|error| error.to_string())
+        .unwrap_or_default();
+    assert!(
+        envelope.contains(r#""error":"ensure-failed""#),
+        "{envelope}"
+    );
+    assert!(envelope.contains(r#""cause":"unreachable""#), "{envelope}");
+    assert!(envelope.contains(ARTIFACT), "{envelope}");
+}
+
+#[test]
+fn every_cache_verb_refuses_an_unknown_name_without_touching_the_filesystem() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    for action in [
+        CacheAction::Verify {
+            name: Some("nonesuch".to_owned()),
+        },
+        CacheAction::Repair {
+            name: Some("nonesuch".to_owned()),
+            force: false,
+        },
+        CacheAction::Ensure {
+            names: vec!["nonesuch".to_owned()],
+        },
+    ] {
+        let outcome = run_cache(&harness, &action);
+        assert!(
+            matches!(outcome, Err(kernel::Error::Refusal(_))),
+            "an unknown name must be refused: {outcome:?}"
+        );
+    }
+    // Nothing was fetched for the unknown name.
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
+#[test]
+fn cache_prune_reclaims_orphan_residue() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
+    // An orphan temp tree the reaper should reclaim.
+    let orphan = harness.cache.join("trees/.tmp-orphan");
+    std::fs::create_dir(&orphan).unwrap();
+
+    let out = run_cache(&harness, &CacheAction::Prune { older_than: None })
+        .expect("prune");
+    assert!(String::from_utf8_lossy(&out).contains("reclaimed"));
+    assert!(!orphan.exists(), "prune left an orphan temp tree");
+}
+
+// ---- retention claims ----
+
+use accelerator::launch::outbound::resolve::tree::claims;
+
+/// Publish a second pointer for a *different* digest (a sibling install's pin)
+/// by materialising, then relabelling the generation, pointer and attestation
+/// under a fabricated digest. Returns that digest.
+fn plant_sibling_generation(harness: &Harness) -> String {
+    // A distinct digest a sibling install would carry.
+    let sibling_digest = "d".repeat(64);
+    let trees = harness.cache.join("trees");
+    // A minimal generation directory and pointer for the sibling digest; the
+    // reclamation reads pointers and claims, not the tree's contents.
+    let generation = format!(
+        "{ARTIFACT}-{HOST_PLATFORM}-{sibling_digest}-1-0011223344556677"
+    );
+    std::fs::create_dir_all(trees.join(&generation)).unwrap();
+    std::fs::write(
+        trees.join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling_digest}.ref")),
+        &generation,
+    )
+    .unwrap();
+    sibling_digest
+}
+
+#[test]
+fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // The running launcher's own tree, freshly claimed.
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+
+    // A sibling claim refreshed just now — a fortnight-aware clock spares it.
+    let present = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+
+    let sibling_pointer = harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}.ref"));
+
+    // With a present-time clock the sibling's fresh claim spares its generation.
+    harness
+        .resolver_with(&FixedClock(present), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+    assert!(
+        sibling_pointer.exists(),
+        "a sibling used just now must be spared"
+    );
+
+    // A clock a fortnight on sees the same claim as stale, and reclaims it.
+    let later = present + claims::CLAIM_WINDOW.as_secs() + 1;
+    harness
+        .resolver_with(&FixedClock(later), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+    assert!(
+        !sibling_pointer.exists(),
+        "a sibling whose claim went stale must be reclaimed"
+    );
+}
+
+#[test]
+fn prune_older_than_overrides_the_window() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let present = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    claims::refresh(&paths, &sibling, "sibling-install", &FixedClock(present));
+
+    let sibling_pointer = harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}.ref"));
+
+    // A one-second retention window makes even a just-now claim stale.
+    harness
+        .resolver_with(&FixedClock(present + 2), &NoSteps)
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(1)))
+        .expect("prune");
+    assert!(
+        !sibling_pointer.exists(),
+        "--older-than must override the default window"
+    );
+}
+
+// ---- ownership, verify shapes, and lease sparing ----
+
+#[test]
+fn a_cache_root_at_0775_still_resolves_since_the_launcher_owns_trees() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // A RHEL/Fedora umask-002 shape: the cache root itself is group-writable.
+    std::fs::set_permissions(
+        &harness.cache,
+        std::fs::Permissions::from_mode(0o775),
+    )
+    .unwrap();
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a 0775 cache root must still resolve");
+}
+
+#[test]
+fn a_symlinked_trees_directory_is_refused_with_a_remediation() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    // Point trees/ at another directory via a symlink — chmod cannot make this
+    // safe, so materialise must refuse.
+    let elsewhere = harness.cache.join("elsewhere");
+    std::fs::create_dir(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, harness.cache.join("trees"))
+        .unwrap();
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+    assert!(
+        matches!(&outcome, Err(kernel_err) if kernel_err.to_string().contains("chmod")),
+        "a symlinked trees/ must be refused with a remediation: {outcome:?}"
+    );
+}
+
+#[test]
+fn verify_detects_deletion_mode_change_and_a_changed_symlink() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Unseal the tree so the test can mutate it, then apply three distinct
+    // corruptions.
+    unseal(&sealed.path);
+    std::fs::remove_file(sealed.path.join("lib/data.pak")).unwrap();
+    std::fs::set_permissions(
+        sealed.path.join("node"),
+        std::fs::Permissions::from_mode(0o444),
+    )
+    .unwrap();
+    std::fs::remove_file(sealed.path.join("lib/current")).unwrap();
+    std::os::unix::fs::symlink("node", sealed.path.join("lib/current"))
+        .unwrap();
+
+    let report = harness.resolver().verify(ARTIFACT).expect("verify");
+    assert!(!report.is_sound());
+    let kinds: Vec<&str> = report
+        .findings
+        .iter()
+        .map(|(_, d)| describe_kind(d))
+        .collect();
+    assert!(
+        kinds.contains(&"missing"),
+        "deletion not detected: {kinds:?}"
+    );
+    assert!(
+        kinds.contains(&"mode"),
+        "mode change not detected: {kinds:?}"
+    );
+    assert!(
+        kinds.contains(&"link-target"),
+        "changed symlink target not detected: {kinds:?}"
+    );
+}
+
+#[test]
+fn verify_detects_an_unexpected_extra_entry() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    unseal(&sealed.path);
+    std::fs::write(sealed.path.join("lib/interloper"), b"x").unwrap();
+
+    let report = harness.resolver().verify(ARTIFACT).expect("verify");
+    assert!(report
+        .findings
+        .iter()
+        .any(|(path, _)| path == "lib/interloper"));
+}
+
+#[test]
+fn prune_spares_a_generation_whose_lease_is_still_held() {
+    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Plant a stale-claimed sibling generation, but hold its lease.
+    let sibling = plant_sibling_generation(&harness);
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let generation =
+        format!("{ARTIFACT}-{HOST_PLATFORM}-{sibling}-1-0011223344556677");
+    let _lease = hold_shared_lease(&paths.lease(&generation)).expect("lease");
+
+    // No claim at all, so the sibling is stale — but the held lease spares it.
+    harness
+        .resolver_with(&StoppedClock, &NoSteps)
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
+        .expect("prune");
+    assert!(
+        paths.generation(&generation).exists(),
+        "a leased generation must be spared by prune"
+    );
+    let _ = sealed;
+}
+
+/// Make a sealed tree writable so a test can corrupt it.
+fn unseal(root: &std::path::Path) {
+    fn walk(dir: &std::path::Path) {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o755))
+            .ok();
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let ft = entry.file_type().unwrap();
+                if ft.is_dir() {
+                    walk(&path);
+                } else if !ft.is_symlink() {
+                    std::fs::set_permissions(
+                        &path,
+                        std::fs::Permissions::from_mode(0o644),
+                    )
+                    .ok();
+                }
+            }
+        }
+    }
+    walk(root);
+}
+
+const fn describe_kind(
+    d: &accelerator::launch::core::tree::Discrepancy,
+) -> &'static str {
+    use accelerator::launch::core::tree::Discrepancy;
+    match d {
+        Discrepancy::Missing => "missing",
+        Discrepancy::Unexpected => "unexpected",
+        Discrepancy::Size { .. } => "size",
+        Discrepancy::Mode { .. } => "mode",
+        Discrepancy::Digest => "digest",
+        Discrepancy::LinkTarget { .. } => "link-target",
+    }
+}
+
+// ---- cross-process Range resume ----
+
+#[test]
+fn an_interrupted_download_resumes_with_a_range_request() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // Simulate an interrupted first run: write the first half of the archive to
+    // the digest-named temp path the resolver resumes from.
+    let archive = harness.archive_bytes.clone();
+    let trees = harness.cache.join("trees");
+    std::fs::create_dir_all(&trees).unwrap();
+    let temp = trees.join(format!(
+        ".tmp-{ARTIFACT}-{HOST_PLATFORM}-{}.archive",
+        harness.archive_sha
+    ));
+    std::fs::write(&temp, &archive[..archive.len() / 2]).unwrap();
+
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("resume completes");
+    assert!(sealed.path.join("lib/data.pak").exists());
+
+    let asset = archive_path();
+    assert_eq!(
+        harness.server.range_hits(&asset),
+        1,
+        "resume must issue exactly one Range request"
+    );
+    // The resumed tree verifies exactly as a fresh one does.
+    harness.resolver().verify(ARTIFACT).expect("verify resumed");
+}
+
+#[test]
+fn a_hit_still_resolves_on_a_read_only_cache_root() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    // Make trees/ and its contents read-only, as a warm populated cache may be.
+    // The claim refresh is best-effort, so a hit must still succeed.
+    let claims = harness.cache.join("trees/claims");
+    make_read_only(&claims);
+
+    let hit = harness.resolver().query(ARTIFACT).expect("query");
+    assert!(
+        hit.is_some(),
+        "a read-only cache root must still resolve a hit"
+    );
+
+    // Restore writability so the tempdir cleans up.
+    let _ = std::fs::set_permissions(
+        &claims,
+        std::fs::Permissions::from_mode(0o755),
+    );
+}
+
+/// Recursively make a directory tree read-only.
+fn make_read_only(dir: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                make_read_only(&entry.path());
+            }
+        }
+    }
+    let _ =
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555));
+}
+
+// ---- corrupt archive, offline resolution, and digest sharing ----
+
+#[test]
+fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    // Serve bytes whose digest cannot match the signed one, so verification
+    // (step 5) rejects before extraction (step 6) creates a temp generation.
+    let mut corrupt = harness.archive_bytes.clone();
+    let midpoint = corrupt.len() / 2;
+    corrupt[midpoint] ^= 0xff;
+    harness.server.route(&archive_path(), Route::Ok(corrupt));
+
+    let outcome = resolver.materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "a corrupt archive must be a digest refusal, got {outcome:?}"
+    );
+
+    // Nothing was extracted: no generation directory and no temp generation
+    // directory (both are the only directories materialise creates) exist.
+    let trees = harness.cache.join("trees");
+    let created_a_directory = std::fs::read_dir(&trees)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            entry.path().is_dir() && name != "claims"
+        });
+    assert!(
+        !created_a_directory,
+        "a corrupt archive was extracted before it was verified"
+    );
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a rejected archive must leave no resolvable pointer"
+    );
+}
+
+#[test]
+fn two_launchers_with_the_same_digest_share_one_generation_offline() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let manifest_loads = harness.hits("/manifest.json");
+    let archive_fetches = harness.hits(&archive_path());
+
+    // A different build — a different expected version, pointed at an
+    // unreachable host — whose compiled-in digest is the same shares the tree.
+    let mut digests = BTreeMap::new();
+    digests.insert(
+        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
+        harness.archive_sha.clone(),
+    );
+    let keys = harness.keys();
+    let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
+        .expect("fetcher");
+    let launcher_b = TreeResolver {
+        cache_root: harness.cache.clone(),
+        base_url: "http://127.0.0.1:1".to_owned(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: "99.99.99".to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &StoppedClock,
+        launcher_id: "launcher-b".to_owned(),
+        expected_digests: ExpectedDigests::Fixed(digests),
+        waiter_bound: std::time::Duration::from_secs(5),
+        steps: &NoSteps,
+    };
+
+    let hit = launcher_b.query(ARTIFACT).expect("query").expect("a hit");
+    assert_eq!(hit.digest, harness.archive_sha);
+    assert_eq!(
+        harness.hits("/manifest.json"),
+        manifest_loads,
+        "a cross-version hit must not reload the manifest"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        archive_fetches,
+        "a cross-version hit must issue no archive fetch"
+    );
+}
+
+#[test]
+fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+
+    // This launcher expects a digest the correctly-signed manifest does not
+    // name, so materialise must refuse rather than fetch what the manifest lists.
+    let mut digests = BTreeMap::new();
+    digests.insert(
+        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
+        "0".repeat(64),
+    );
+    let keys = harness.keys();
+    let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
+        .expect("fetcher");
+    let resolver = TreeResolver {
+        cache_root: harness.cache.clone(),
+        base_url: harness.server.base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: VERSION.to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &StoppedClock,
+        launcher_id: "test-install".to_owned(),
+        expected_digests: ExpectedDigests::Fixed(digests),
+        waiter_bound: std::time::Duration::from_secs(5),
+        steps: &NoSteps,
+    };
+
+    let outcome = resolver.materialise(ARTIFACT);
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "a manifest digest disagreement must be a refusal, got {outcome:?}"
+    );
+    assert_eq!(
+        harness.hits(&archive_path()),
+        0,
+        "a digest disagreement must not fetch the archive"
+    );
+}
+
+#[test]
+fn an_acquire_succeeds_on_a_populated_cache_with_the_host_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    resolver.materialise(ARTIFACT).expect("materialise");
+
+    // Every release request now fails; the hit path touches no network, so a
+    // populated cache still resolves.
+    harness.server.route("/manifest.json", Route::Status(503));
+    harness
+        .server
+        .route("/manifest.minisig", Route::Status(503));
+    harness.server.route(&archive_path(), Route::Status(503));
+
+    assert!(
+        resolver.acquire(ARTIFACT).expect("acquire").is_some(),
+        "an unreachable host must not defeat a populated cache"
+    );
+}
+
+#[test]
+fn verify_succeeds_with_the_host_unreachable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    resolver.materialise(ARTIFACT).expect("materialise");
+
+    harness.server.route("/manifest.json", Route::Status(503));
+    harness.server.route(&archive_path(), Route::Status(503));
+
+    let report = resolver.verify(ARTIFACT).expect("verify");
+    assert!(
+        report.is_sound(),
+        "verify is local and must not need the release host: {report:?}"
+    );
+}
+
+// ---- the signed table anchor, and generation/pointer identity ----
+
+#[test]
+fn a_table_rewritten_to_match_a_substitution_is_caught_by_its_signed_digest() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // The archive is discarded after materialisation, so the `.files` table's
+    // only remaining anchor is the signed `table_sha256`. Substitute a file and
+    // rewrite the table row to match it: the per-row walk would pass, but the
+    // table's own digest no longer matches the attestation.
+    unseal(&sealed.path);
+    let substitute = b"substituted!!!";
+    assert_eq!(substitute.len(), b"resource bytes".len());
+    std::fs::write(sealed.path.join("lib/data.pak"), substitute).unwrap();
+
+    let table_path = sealed.path.join(".files");
+    let table = std::fs::read_to_string(&table_path).unwrap();
+    let new_digest = hex(&Sha256::digest(substitute));
+    let rewritten = table
+        .lines()
+        .map(|line| {
+            if line.ends_with("\tlib/data.pak") {
+                let mut fields: Vec<&str> = line.split('\t').collect();
+                fields[3] = new_digest.as_str();
+                fields.join("\t")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&table_path, format!("{rewritten}\n")).unwrap();
+
+    let outcome = resolver.verify(ARTIFACT);
+    assert!(
+        matches!(&outcome, Err(TreeError::Extraction { detail })
+            if detail.contains("signed digest")),
+        "a table rewritten to match a substitution must be caught by its \
+         signed digest, got {outcome:?}"
+    );
+}
+
+#[test]
+fn a_symlinked_generation_or_group_writable_pointer_is_a_miss() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+    assert!(resolver.query(ARTIFACT).expect("query").is_some());
+
+    // A generation directory replaced by a symlink — even one pointing at an
+    // otherwise-compliant user-owned directory — is refused, not resolved.
+    let aside = sealed.path.with_file_name("aside-generation");
+    std::fs::rename(&sealed.path, &aside).unwrap();
+    std::os::unix::fs::symlink(&aside, &sealed.path).unwrap();
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a symlinked generation must be a miss"
+    );
+
+    // Restore the real directory; the hit returns.
+    std::fs::remove_file(&sealed.path).unwrap();
+    std::fs::rename(&aside, &sealed.path).unwrap();
+    assert!(resolver.query(ARTIFACT).expect("query").is_some());
+
+    // A group-writable pointer is refused before its contents become a path.
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    let pointer = paths.pointer(ARTIFACT, HOST_PLATFORM, &harness.archive_sha);
+    std::fs::set_permissions(&pointer, std::fs::Permissions::from_mode(0o660))
+        .unwrap();
+    assert!(
+        resolver.query(ARTIFACT).expect("query").is_none(),
+        "a group-writable pointer must be a miss"
+    );
+}
+
+// ---- repair under failure and live consumers ----
+
+#[test]
+fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // Corrupt the tree so repair must refetch, then make the refetch fail.
+    unseal(&sealed.path);
+    std::fs::write(sealed.path.join("lib/data.pak"), b"").unwrap();
+    harness.server.route(&archive_path(), Route::Status(404));
+
+    let outcome = resolver.repair(ARTIFACT, false);
+    assert!(
+        outcome.is_err(),
+        "a failed refetch must surface as an error"
+    );
+
+    let hit = resolver
+        .query(ARTIFACT)
+        .expect("query")
+        .expect("still a hit");
+    assert_eq!(
+        hit.path, sealed.path,
+        "a failed repair must not disturb the old tree"
+    );
+}
+
+#[test]
+fn a_repair_spares_a_superseded_generation_whose_lease_is_held() {
+    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let old = resolver.materialise(ARTIFACT).expect("materialise");
+    let old_generation =
+        old.path.file_name().unwrap().to_str().unwrap().to_owned();
+
+    let paths =
+        accelerator::launch::outbound::resolve::tree::layout::TreePaths::under(
+            &harness.cache,
+        );
+    // A live consumer holds the old generation's lease across the repair.
+    let _held =
+        hold_shared_lease(&paths.lease(&old_generation)).expect("lease");
+
+    let fresh = resolver.repair(ARTIFACT, true).expect("forced repair");
+    assert_ne!(fresh.path, old.path, "repair must build a new generation");
+    assert!(
+        old.path.exists(),
+        "a leased superseded generation must not be unlinked"
+    );
+    assert_eq!(
+        std::fs::read(old.path.join("lib/data.pak")).unwrap(),
+        b"resource bytes",
+        "the old generation's files must stay readable to the live consumer"
+    );
+}
+
+#[test]
+fn prune_never_reclaims_the_current_generation_even_at_a_zero_window() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+    let sealed = resolver.materialise(ARTIFACT).expect("materialise");
+
+    // A zero retention window would reclaim any generation not otherwise spared;
+    // the one the running launcher is publishing — carrying its own expected
+    // digest — must survive, which is what protects the rename/pointer window.
+    resolver
+        .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
+        .expect("prune");
+
+    let hit = resolver
+        .query(ARTIFACT)
+        .expect("query")
+        .expect("still a hit");
+    assert_eq!(hit.path, sealed.path);
+    assert!(sealed.path.exists(), "the current generation was reclaimed");
+}
+
+#[test]
+fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
+    let minisign = minisign_or_skip!();
+    let workdir = tempfile::tempdir().expect("workdir");
+    let cache = tempfile::tempdir().expect("cache");
+    let (trusted_pub, secret) = generate_keypair(&minisign, workdir.path());
+
+    let (archive, table_sha, uncompressed, count) = build_archive();
+    let archive_sha = hex(&Sha256::digest(&archive));
+    let archive_sig = sign(&minisign, &secret, workdir.path(), &archive);
+
+    let other_platform = "linux-fake-x64";
+    let platforms = [HOST_PLATFORM, other_platform];
+
+    // One signed manifest naming the driver on both platforms.
+    let escaped = archive_sig.replace('\n', "\\n").replace('\t', "\\t");
+    let entries: Vec<String> = platforms
+        .iter()
+        .map(|platform| {
+            format!(
+                "\"{platform}\":{{\"sha256\":\"{archive_sha}\",\
+                 \"signature\":\"{escaped}\",\"archive_size\":{},\
+                 \"uncompressed_size\":999999,\"entry_count\":9}}",
+                archive.len()
+            )
+        })
+        .collect();
+    let manifest = format!(
+        "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":{{}},\
+         \"artifacts\":{{\"{ARTIFACT}\":{{\"description\":\"driver\",\
+         \"platforms\":{{{}}}}}}}}}",
+        entries.join(",")
+    );
+    let manifest_sig =
+        sign(&minisign, &secret, workdir.path(), manifest.as_bytes());
+
+    let server = MockServer::start();
+    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
+    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
+    for platform in platforms {
+        let asset = format!("/accelerator-{ARTIFACT}-{platform}.tar.gz");
+        server.route(&asset, Route::Ok(archive.clone()));
+        let attestation = format!(
+            "{{\"attestation_format_version\":1,\"artifact\":\"{ARTIFACT}\",\
+             \"platform\":\"{platform}\",\"archive_sha256\":\"{archive_sha}\",\
+             \"uncompressed_size\":{uncompressed},\"entry_count\":{count},\
+             \"table_sha256\":\"{table_sha}\"}}"
+        );
+        let attestation_sig =
+            sign(&minisign, &secret, workdir.path(), attestation.as_bytes());
+        server.route(
+            &format!("{asset}.sealed"),
+            Route::Ok(attestation.into_bytes()),
+        );
+        server.route(
+            &format!("{asset}.sealed.sig"),
+            Route::Ok(attestation_sig.into_bytes()),
+        );
+    }
+
+    let keys = TrustedKeys::from_public_key_files(&[trusted_pub.as_str()])
+        .expect("keys");
+    let resolve = |platform: &str| {
+        let mut digests = BTreeMap::new();
+        digests.insert(
+            (ARTIFACT.to_owned(), platform.to_owned()),
+            archive_sha.clone(),
+        );
+        let fetcher =
+            Fetcher::with_backoff(std::time::Duration::from_millis(1))
+                .expect("fetcher");
+        let resolver = TreeResolver {
+            cache_root: cache.path().to_path_buf(),
+            base_url: server.base_url(),
+            platform: platform.to_owned(),
+            expected_version: VERSION.to_owned(),
+            keys: &keys,
+            fetcher: &fetcher,
+            clock: &StoppedClock,
+            launcher_id: format!("install-{platform}"),
+            expected_digests: ExpectedDigests::Fixed(digests),
+            waiter_bound: std::time::Duration::from_secs(5),
+            steps: &NoSteps,
+        };
+        resolver.materialise(ARTIFACT).expect("materialise").path
+    };
+
+    let host_tree = resolve(HOST_PLATFORM);
+    let other_tree = resolve(other_platform);
+    assert_ne!(
+        host_tree, other_tree,
+        "each platform gets its own generation"
+    );
+    assert!(host_tree.exists() && other_tree.exists());
+    assert!(host_tree
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .contains(HOST_PLATFORM));
+    assert!(other_tree
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .contains(other_platform));
+}

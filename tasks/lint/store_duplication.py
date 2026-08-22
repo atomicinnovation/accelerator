@@ -19,6 +19,10 @@ ALLOWLIST: frozenset[str] = frozenset(
     {
         # 0600 publish + a paired signature, not a whole-file replacement.
         "cli/launcher/src/launch/outbound/resolve/cache.rs",
+        # Publishes a materialised tree: one rename relocates a fresh
+        # generation *directory* into place, the other is a 0600 pointer
+        # publish paired with it — cache.rs's shape, not a whole-file write.
+        "cli/launcher/src/launch/outbound/resolve/tree/resolver.rs",
         # Renames a directory as a stale-lock claim, not a write at all.
         "cli/corpus-adapters/src/lock.rs",
         # A test-only rename simulating a watcher file-move event; the indexer

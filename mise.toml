@@ -33,6 +33,10 @@ jq = "1.7.1"
 # resolution tests sign fixtures with it, and the release keypair is generated
 # with it. Exact pin, matching the tool-pin discipline above.
 "ubi:jedisct1/minisign[exe=minisign]" = "0.12"
+# cosign via ubi: the release lane verifies playwright-core's npm/Sigstore SLSA
+# provenance bundle with `cosign verify-blob-attestation`. Exact pin — cosign's
+# verification flags and bundle-format handling are version-sensitive.
+"ubi:sigstore/cosign[exe=cosign]" = "3.1.3"
 
 [settings]
 experimental = true
@@ -231,6 +235,22 @@ run = "invoke build.vendor-verify-shims"
 description = "Create .debug.tar.gz archives for all cross-compiled release binaries"
 depends = ["build:server:cross-compile"]
 run = "invoke build.create-debug-archives"
+
+[tasks."vendor:check-trust-anchors"]
+description = "Fail if the vendored runtime's trust anchors (pins, publisher keys) are still placeholders"
+run = "invoke vendor.check-trust-anchors"
+
+[tasks."vendor:verify-upstream-inputs"]
+description = "Fetch and verify the vendored runtime's upstream inputs (npm, Node, Chromium) for every target"
+run = "invoke vendor.verify-upstream-inputs"
+
+[tasks."vendor:assemble-tree-artifacts"]
+description = "Assemble the driver/browser tree archives from the verified upstream inputs"
+run = "invoke vendor.assemble-tree-artifacts"
+
+[tasks."vendor:smoke-runtime"]
+description = "Execute the downloaded tree binaries for one platform natively (release smoke gate)"
+run = "invoke vendor.smoke-runtime"
 
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"

@@ -18,16 +18,20 @@
 use std::convert::Infallible;
 
 use crate::executor::envelope::LauncherError;
+use crate::executor::ports::BootstrapDiagnostics;
 use crate::executor::ports::Clock;
 use crate::executor::ports::Lock;
 use crate::executor::ports::LockOutcome;
 use crate::executor::ports::ProcessControl;
 use crate::executor::ports::ProcessProbe;
 use crate::executor::ports::RunClient;
+use crate::executor::ports::SpawnError;
 use crate::executor::ports::Spawner;
 use crate::executor::ports::StateStore;
 use crate::executor::reuse;
 use crate::executor::reuse::Reuse;
+use crate::runtime::bootstrap::classify_bootstrap_log;
+use crate::runtime::downgrade::DowngradeReason;
 
 /// How long the launcher waits for the daemon to publish its record.
 pub const START_TIMEOUT_SECONDS: u64 = 30;
@@ -40,6 +44,9 @@ pub struct Launcher<'ports> {
     pub lock: &'ports dyn Lock,
     pub spawner: &'ports dyn Spawner,
     pub control: &'ports dyn ProcessControl,
+    /// Reads the failed daemon's bootstrap log so a spawn that never became
+    /// ready can be classified into a host-condition downgrade.
+    pub diagnostics: &'ports dyn BootstrapDiagnostics,
     /// The path named by the timeout envelope, resolved through the path port
     /// rather than recomputed, so the envelope is byte-identical from any
     /// working directory.
@@ -51,6 +58,10 @@ pub struct Launcher<'ports> {
 pub enum LaunchFailure {
     /// A launcher-level envelope: stderr, non-zero exit, three keys.
     Envelope(LauncherError),
+    /// A host condition the caller renders as a downgrade and decides on: a
+    /// code-only fallback for the default and hybrid crawlers, a hard failure
+    /// for an explicit `--crawler runtime`.
+    Downgrade(DowngradeReason),
     /// An internal failure with no envelope of its own.
     Failed(kernel::Error),
 }
@@ -97,15 +108,48 @@ impl<'ports> Launcher<'ports> {
         self.state.clear()?;
         self.state.clear_stop_reason()?;
 
-        let identity = self.spawner.spawn()?;
+        let identity = match self.spawner.spawn() {
+            Ok(identity) => identity,
+            // The program was resolved from the driver tree and exists, so an
+            // `execve` answering `ENOENT` names an absent dynamic loader — the
+            // relocated-loader case the pre-fetch probe's fail-open policy lets
+            // through.
+            Err(SpawnError::NotFound) => {
+                self.lock.release();
+                return Err(LaunchFailure::Downgrade(
+                    DowngradeReason::LoaderUnresolvable,
+                ));
+            }
+            Err(SpawnError::Failed(error)) => {
+                self.lock.release();
+                return Err(LaunchFailure::Failed(error));
+            }
+        };
         if let Err(timeout) = self.await_readiness() {
             self.control.terminate(identity.pid);
             self.lock.release();
-            return Err(LaunchFailure::Envelope(timeout));
+            return Err(self.classify_start_failure(timeout));
         }
 
         self.lock.release();
         Self::hand_over(arguments, client)
+    }
+
+    /// A daemon that never became ready is either a host the loader diagnosed —
+    /// too-old glibc or a missing shared library, read from the bootstrap log —
+    /// or a generic timeout the caller already handles. Only the two the loader
+    /// names become downgrades; anything else keeps the timeout envelope, so an
+    /// unrecognised failure is not guessed into a host condition.
+    fn classify_start_failure(&self, timeout: LauncherError) -> LaunchFailure {
+        let lines = self.diagnostics.read_log();
+        let borrowed: Vec<&str> = lines.iter().map(String::as_str).collect();
+        match classify_bootstrap_log(&borrowed).reason {
+            reason @ (DowngradeReason::GlibcTooOld
+            | DowngradeReason::RuntimeLibrariesMissing) => {
+                LaunchFailure::Downgrade(reason)
+            }
+            _ => LaunchFailure::Envelope(timeout),
+        }
     }
 
     fn verdict(&self) -> Reuse {
@@ -169,14 +213,17 @@ mod tests {
     use crate::executor::daemon_identity::RecordedState;
     use crate::executor::envelope::LauncherError;
     use crate::executor::handoff::Identity;
+    use crate::executor::ports::BootstrapDiagnostics;
     use crate::executor::ports::Clock;
     use crate::executor::ports::Lock;
     use crate::executor::ports::LockOutcome;
     use crate::executor::ports::ProcessControl;
     use crate::executor::ports::ProcessProbe;
     use crate::executor::ports::RunClient;
+    use crate::executor::ports::SpawnError;
     use crate::executor::ports::Spawner;
     use crate::executor::ports::StateStore;
+    use crate::runtime::downgrade::DowngradeReason;
 
     const LIVE_PID: i32 = 4242;
 
@@ -276,16 +323,32 @@ mod tests {
 
     struct RecordingSpawner {
         spawns: Cell<usize>,
+        not_found: bool,
     }
 
     impl Spawner for RecordingSpawner {
-        fn spawn(&self) -> Result<Identity, kernel::Error> {
+        fn spawn(&self) -> Result<Identity, SpawnError> {
             self.spawns.set(self.spawns.get() + 1);
+            if self.not_found {
+                return Err(SpawnError::NotFound);
+            }
             Ok(Identity {
                 pid: 9999,
                 start_time: RecordedStartTime::Probe(1000),
                 token: "t".to_owned(),
             })
+        }
+    }
+
+    /// Returns whatever bootstrap-log lines a start-failure test scripts, so
+    /// the classification runs over injected fixtures rather than a real log.
+    struct FakeDiagnostics {
+        lines: Vec<String>,
+    }
+
+    impl BootstrapDiagnostics for FakeDiagnostics {
+        fn read_log(&self) -> Vec<String> {
+            self.lines.clone()
         }
     }
 
@@ -320,6 +383,7 @@ mod tests {
         lock: RecordingLock,
         spawner: RecordingSpawner,
         control: RecordingControl,
+        diagnostics: FakeDiagnostics,
     }
 
     impl Harness {
@@ -335,11 +399,24 @@ mod tests {
                 lock,
                 spawner: RecordingSpawner {
                     spawns: Cell::new(0),
+                    not_found: false,
                 },
                 control: RecordingControl {
                     signalled: RefCell::new(Vec::new()),
                 },
+                diagnostics: FakeDiagnostics { lines: Vec::new() },
             }
+        }
+
+        fn spawn_not_found(mut self) -> Self {
+            self.spawner.not_found = true;
+            self
+        }
+
+        fn with_bootstrap_lines(mut self, lines: &[&str]) -> Self {
+            self.diagnostics.lines =
+                lines.iter().map(|line| (*line).to_owned()).collect();
+            self
         }
 
         fn launcher(&self) -> Launcher<'_> {
@@ -350,6 +427,7 @@ mod tests {
                 lock: &self.lock,
                 spawner: &self.spawner,
                 control: &self.control,
+                diagnostics: &self.diagnostics,
                 bootstrap_log: "/state/server.bootstrap.log".to_owned(),
             }
         }
@@ -519,6 +597,98 @@ mod tests {
             harness.clock.now_seconds() >= START_TIMEOUT_SECONDS,
             "the deadline must be reached by clock arithmetic, not sleeping"
         );
+        Ok(())
+    }
+
+    /// A program that exists but whose `execve` answers `ENOENT` — an absent
+    /// dynamic loader — downgrades to `loader-unresolvable` rather than being
+    /// reported as an internal failure.
+    #[test]
+    fn a_not_found_spawn_downgrades_to_loader_unresolvable(
+    ) -> Result<(), String> {
+        let harness = Harness::new(
+            vec![RecordedState::None, RecordedState::None],
+            ObservedDaemon::Absent,
+            RecordingLock::free(),
+        )
+        .spawn_not_found();
+
+        let (outcome, ran) = run(&harness);
+        let Err(LaunchFailure::Downgrade(reason)) = outcome else {
+            return Err(format!("expected a downgrade, got {outcome:?}"));
+        };
+        assert_eq!(reason, DowngradeReason::LoaderUnresolvable);
+        assert!(!ran, "the client must not be reached");
+        assert_eq!(harness.lock.released.get(), 1);
+        Ok(())
+    }
+
+    /// A daemon that dies with a glibc-version error in its bootstrap log
+    /// downgrades to `glibc-too-old` rather than the generic timeout.
+    #[test]
+    fn a_glibc_error_in_the_log_downgrades_to_glibc_too_old(
+    ) -> Result<(), String> {
+        let harness = Harness::new(
+            vec![RecordedState::None],
+            ObservedDaemon::Absent,
+            RecordingLock::free(),
+        )
+        .with_bootstrap_lines(&[
+            "/cache/node: /lib/x86_64-linux-gnu/libm.so.6: version \
+             `GLIBC_2.34' not found (required by /cache/node)",
+        ]);
+
+        let (outcome, _) = run(&harness);
+        let Err(LaunchFailure::Downgrade(reason)) = outcome else {
+            return Err(format!("expected a downgrade, got {outcome:?}"));
+        };
+        assert_eq!(reason, DowngradeReason::GlibcTooOld);
+        Ok(())
+    }
+
+    /// A missing shared library in the log downgrades to
+    /// `runtime-libraries-missing`.
+    #[test]
+    fn a_missing_library_in_the_log_downgrades() -> Result<(), String> {
+        let harness = Harness::new(
+            vec![RecordedState::None],
+            ObservedDaemon::Absent,
+            RecordingLock::free(),
+        )
+        .with_bootstrap_lines(&[
+            "chrome-headless-shell: error while loading shared libraries: \
+             libnss3.so: cannot open shared object file: No such file",
+        ]);
+
+        let (outcome, _) = run(&harness);
+        let Err(LaunchFailure::Downgrade(reason)) = outcome else {
+            return Err(format!("expected a downgrade, got {outcome:?}"));
+        };
+        assert_eq!(reason, DowngradeReason::RuntimeLibrariesMissing);
+        Ok(())
+    }
+
+    /// An unrecognised failure keeps the timeout envelope — the classifier does
+    /// not guess a host condition from output it cannot read.
+    #[test]
+    fn an_unrecognised_start_failure_keeps_the_timeout_envelope(
+    ) -> Result<(), String> {
+        let harness = Harness::new(
+            vec![RecordedState::None],
+            ObservedDaemon::Absent,
+            RecordingLock::free(),
+        )
+        .with_bootstrap_lines(&["daemon exited with code 1", "no idea why"]);
+
+        let (outcome, _) = run(&harness);
+        let Err(LaunchFailure::Envelope(LauncherError::DaemonStartTimeout {
+            ..
+        })) = outcome
+        else {
+            return Err(format!(
+                "expected a timeout envelope, got {outcome:?}"
+            ));
+        };
         Ok(())
     }
 }

@@ -158,8 +158,6 @@ pub design::executor::envelope::LauncherError::AnotherLauncherRunning
 pub design::executor::envelope::LauncherError::DaemonStartTimeout
 pub design::executor::envelope::LauncherError::DaemonStartTimeout::bootstrap_log: alloc::string::String
 pub design::executor::envelope::LauncherError::NoRepo
-pub design::executor::envelope::LauncherError::PlaywrightNotInstalled
-pub design::executor::envelope::LauncherError::PlaywrightNotInstalled::namespace_root: alloc::string::String
 impl design::executor::envelope::LauncherError
 pub const fn design::executor::envelope::LauncherError::category(&self) -> &'static str
 pub const fn design::executor::envelope::LauncherError::code(&self) -> &'static str
@@ -229,6 +227,7 @@ pub fn design::executor::handoff::Identity::fmt(&self, f: &mut core::fmt::Format
 impl core::marker::StructuralPartialEq for design::executor::handoff::Identity
 pub mod design::executor::launch
 pub enum design::executor::launch::LaunchFailure
+pub design::executor::launch::LaunchFailure::Downgrade(design::runtime::downgrade::DowngradeReason)
 pub design::executor::launch::LaunchFailure::Envelope(design::executor::envelope::LauncherError)
 pub design::executor::launch::LaunchFailure::Failed(kernel::Error)
 impl core::convert::From<kernel::Error> for design::executor::launch::LaunchFailure
@@ -239,6 +238,7 @@ pub struct design::executor::launch::Launcher<'ports>
 pub design::executor::launch::Launcher::bootstrap_log: alloc::string::String
 pub design::executor::launch::Launcher::clock: &'ports dyn design::executor::ports::Clock
 pub design::executor::launch::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::launch::Launcher::diagnostics: &'ports dyn design::executor::ports::BootstrapDiagnostics
 pub design::executor::launch::Launcher::lock: &'ports dyn design::executor::ports::Lock
 pub design::executor::launch::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
 pub design::executor::launch::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
@@ -259,6 +259,18 @@ impl core::fmt::Debug for design::executor::ports::LockOutcome
 pub fn design::executor::ports::LockOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for design::executor::ports::LockOutcome
 impl core::marker::StructuralPartialEq for design::executor::ports::LockOutcome
+pub enum design::executor::ports::SpawnError
+pub design::executor::ports::SpawnError::Failed(kernel::Error)
+pub design::executor::ports::SpawnError::NotFound
+impl core::convert::From<kernel::Error> for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::from(error: kernel::Error) -> Self
+impl core::error::Error for design::executor::ports::SpawnError
+impl core::fmt::Debug for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::executor::ports::SpawnError
+pub fn design::executor::ports::SpawnError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait design::executor::ports::BootstrapDiagnostics
+pub fn design::executor::ports::BootstrapDiagnostics::read_log(&self) -> alloc::vec::Vec<alloc::string::String>
 pub trait design::executor::ports::Clock
 pub fn design::executor::ports::Clock::now_seconds(&self) -> u64
 pub fn design::executor::ports::Clock::sleep_poll_interval(&self)
@@ -267,7 +279,6 @@ pub fn design::executor::ports::Lock::acquire(&self) -> core::result::Result<des
 pub fn design::executor::ports::Lock::release(&self)
 pub trait design::executor::ports::PathResolution
 pub fn design::executor::ports::PathResolution::bootstrap_log(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
-pub fn design::executor::ports::PathResolution::namespace_root(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
 pub fn design::executor::ports::PathResolution::plugin_root(&self) -> core::result::Result<std::path::PathBuf, kernel::Error>
 pub trait design::executor::ports::ProcessControl
 pub fn design::executor::ports::ProcessControl::terminate(&self, pid: i32)
@@ -276,7 +287,7 @@ pub fn design::executor::ports::ProcessProbe::observe(&self, pid: i32) -> design
 pub trait design::executor::ports::RunClient
 pub fn design::executor::ports::RunClient::run(self: alloc::boxed::Box<Self>, arguments: &[alloc::string::String]) -> core::result::Result<core::convert::Infallible, kernel::Error>
 pub trait design::executor::ports::Spawner
-pub fn design::executor::ports::Spawner::spawn(&self) -> core::result::Result<design::executor::handoff::Identity, kernel::Error>
+pub fn design::executor::ports::Spawner::spawn(&self) -> core::result::Result<design::executor::handoff::Identity, design::executor::ports::SpawnError>
 pub trait design::executor::ports::StateStore
 pub fn design::executor::ports::StateStore::clear(&self) -> core::result::Result<(), kernel::Error>
 pub fn design::executor::ports::StateStore::clear_stop_reason(&self) -> core::result::Result<(), kernel::Error>
@@ -300,8 +311,6 @@ pub design::executor::LauncherError::AnotherLauncherRunning
 pub design::executor::LauncherError::DaemonStartTimeout
 pub design::executor::LauncherError::DaemonStartTimeout::bootstrap_log: alloc::string::String
 pub design::executor::LauncherError::NoRepo
-pub design::executor::LauncherError::PlaywrightNotInstalled
-pub design::executor::LauncherError::PlaywrightNotInstalled::namespace_root: alloc::string::String
 impl design::executor::envelope::LauncherError
 pub const fn design::executor::envelope::LauncherError::category(&self) -> &'static str
 pub const fn design::executor::envelope::LauncherError::code(&self) -> &'static str
@@ -400,6 +409,7 @@ pub struct design::executor::Launcher<'ports>
 pub design::executor::Launcher::bootstrap_log: alloc::string::String
 pub design::executor::Launcher::clock: &'ports dyn design::executor::ports::Clock
 pub design::executor::Launcher::control: &'ports dyn design::executor::ports::ProcessControl
+pub design::executor::Launcher::diagnostics: &'ports dyn design::executor::ports::BootstrapDiagnostics
 pub design::executor::Launcher::lock: &'ports dyn design::executor::ports::Lock
 pub design::executor::Launcher::probe: &'ports dyn design::executor::ports::ProcessProbe
 pub design::executor::Launcher::spawner: &'ports dyn design::executor::ports::Spawner
@@ -485,16 +495,92 @@ pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Fo
 impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
 pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
 pub mod design::runtime
+pub mod design::runtime::availability
+pub enum design::runtime::availability::BrowserOutcome
+pub design::runtime::availability::BrowserOutcome::Bundled(std::path::PathBuf)
+pub design::runtime::availability::BrowserOutcome::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::BrowserOutcome::Hatch(std::path::PathBuf)
+impl core::clone::Clone for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::clone(&self) -> design::runtime::availability::BrowserOutcome
+impl core::cmp::Eq for design::runtime::availability::BrowserOutcome
+impl core::cmp::PartialEq for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::eq(&self, other: &design::runtime::availability::BrowserOutcome) -> bool
+impl core::fmt::Debug for design::runtime::availability::BrowserOutcome
+pub fn design::runtime::availability::BrowserOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::BrowserOutcome
+pub enum design::runtime::availability::Resolution
+pub design::runtime::availability::Resolution::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::Resolution::Ready(design::runtime::availability::Runtime)
+impl core::clone::Clone for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::clone(&self) -> design::runtime::availability::Resolution
+impl core::cmp::Eq for design::runtime::availability::Resolution
+impl core::cmp::PartialEq for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::eq(&self, other: &design::runtime::availability::Resolution) -> bool
+impl core::fmt::Debug for design::runtime::availability::Resolution
+pub fn design::runtime::availability::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::Resolution
+pub enum design::runtime::availability::RuntimeOutcome
+pub design::runtime::availability::RuntimeOutcome::Downgrade(design::runtime::downgrade::DowngradeReason)
+pub design::runtime::availability::RuntimeOutcome::Ready(std::path::PathBuf)
+impl core::clone::Clone for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::clone(&self) -> design::runtime::availability::RuntimeOutcome
+impl core::cmp::Eq for design::runtime::availability::RuntimeOutcome
+impl core::cmp::PartialEq for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::eq(&self, other: &design::runtime::availability::RuntimeOutcome) -> bool
+impl core::fmt::Debug for design::runtime::availability::RuntimeOutcome
+pub fn design::runtime::availability::RuntimeOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::RuntimeOutcome
+pub struct design::runtime::availability::Runtime
+pub design::runtime::availability::Runtime::browser_executable: std::path::PathBuf
+pub design::runtime::availability::Runtime::driver: std::path::PathBuf
+impl core::clone::Clone for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::clone(&self) -> design::runtime::availability::Runtime
+impl core::cmp::Eq for design::runtime::availability::Runtime
+impl core::cmp::PartialEq for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::eq(&self, other: &design::runtime::availability::Runtime) -> bool
+impl core::fmt::Debug for design::runtime::availability::Runtime
+pub fn design::runtime::availability::Runtime::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::availability::Runtime
+pub fn design::runtime::availability::resolve(platform: design::runtime::platform::Support, ensure_runtime: impl core::ops::function::FnOnce() -> design::runtime::availability::RuntimeOutcome, resolve_browser: impl core::ops::function::FnOnce() -> design::runtime::availability::BrowserOutcome) -> design::runtime::availability::Resolution
+pub mod design::runtime::bootstrap
+pub struct design::runtime::bootstrap::SpawnDiagnosis
+pub design::runtime::bootstrap::SpawnDiagnosis::detail: core::option::Option<alloc::string::String>
+pub design::runtime::bootstrap::SpawnDiagnosis::reason: design::runtime::downgrade::DowngradeReason
+impl core::clone::Clone for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::clone(&self) -> design::runtime::bootstrap::SpawnDiagnosis
+impl core::cmp::Eq for design::runtime::bootstrap::SpawnDiagnosis
+impl core::cmp::PartialEq for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::eq(&self, other: &design::runtime::bootstrap::SpawnDiagnosis) -> bool
+impl core::fmt::Debug for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::SpawnDiagnosis::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::bootstrap::SpawnDiagnosis
+pub fn design::runtime::bootstrap::classify_bootstrap_log(lines: &[&str]) -> design::runtime::bootstrap::SpawnDiagnosis
+pub mod design::runtime::browser_path
+pub struct design::runtime::browser_path::HatchDecision
+pub design::runtime::browser_path::HatchDecision::browser: core::option::Option<std::path::PathBuf>
+pub design::runtime::browser_path::HatchDecision::warnings: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for design::runtime::browser_path::HatchDecision
+pub fn design::runtime::browser_path::HatchDecision::clone(&self) -> design::runtime::browser_path::HatchDecision
+impl core::cmp::Eq for design::runtime::browser_path::HatchDecision
+impl core::cmp::PartialEq for design::runtime::browser_path::HatchDecision
+pub fn design::runtime::browser_path::HatchDecision::eq(&self, other: &design::runtime::browser_path::HatchDecision) -> bool
+impl core::fmt::Debug for design::runtime::browser_path::HatchDecision
+pub fn design::runtime::browser_path::HatchDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::browser_path::HatchDecision
+pub fn design::runtime::browser_path::vet(chosen: core::option::Option<&str>, team_level_present: bool, repo_root: &std::path::Path, canonicalise: &dyn core::ops::function::Fn(&std::path::Path) -> core::option::Option<std::path::PathBuf>) -> design::runtime::browser_path::HatchDecision
 pub mod design::runtime::downgrade
 pub enum design::runtime::downgrade::DowngradeReason
-pub design::runtime::downgrade::DowngradeReason::BootstrapFailed
+pub design::runtime::downgrade::DowngradeReason::ArtifactUnavailable
 pub design::runtime::downgrade::DowngradeReason::CacheUnwritable
 pub design::runtime::downgrade::DowngradeReason::DiskFloorNotMet
 pub design::runtime::downgrade::DowngradeReason::ExecutorPingFailed
-pub design::runtime::downgrade::DowngradeReason::NodeMissing
-pub design::runtime::downgrade::DowngradeReason::NodeTooOld
+pub design::runtime::downgrade::DowngradeReason::GlibcTooOld
+pub design::runtime::downgrade::DowngradeReason::LoaderUnresolvable
+pub design::runtime::downgrade::DowngradeReason::MaterialisationInProgress
+pub design::runtime::downgrade::DowngradeReason::RuntimeLibrariesMissing
+pub design::runtime::downgrade::DowngradeReason::UnsupportedPlatform
 impl design::runtime::downgrade::DowngradeReason
-pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 9]
 pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
 pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
 impl core::clone::Clone for design::runtime::downgrade::DowngradeReason
@@ -523,6 +609,75 @@ pub fn design::runtime::downgrade::UnknownReason::fmt(&self, f: &mut core::fmt::
 impl core::fmt::Display for design::runtime::downgrade::UnknownReason
 pub fn design::runtime::downgrade::UnknownReason::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::runtime::downgrade::UnknownReason
+pub mod design::runtime::ensure
+pub struct design::runtime::ensure::EnsureVerdict
+pub design::runtime::ensure::EnsureVerdict::reason: design::runtime::downgrade::DowngradeReason
+pub design::runtime::ensure::EnsureVerdict::sticky: bool
+impl core::clone::Clone for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::clone(&self) -> design::runtime::ensure::EnsureVerdict
+impl core::cmp::Eq for design::runtime::ensure::EnsureVerdict
+impl core::cmp::PartialEq for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::eq(&self, other: &design::runtime::ensure::EnsureVerdict) -> bool
+impl core::fmt::Debug for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::EnsureVerdict::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::ensure::EnsureVerdict
+impl core::marker::StructuralPartialEq for design::runtime::ensure::EnsureVerdict
+pub fn design::runtime::ensure::classify_cause(cause: &str) -> design::runtime::ensure::EnsureVerdict
+pub mod design::runtime::marker
+pub struct design::runtime::marker::Marker
+pub design::runtime::marker::Marker::digest: core::option::Option<alloc::string::String>
+pub design::runtime::marker::Marker::reason: design::runtime::downgrade::DowngradeReason
+pub design::runtime::marker::Marker::recorded_at: u64
+pub design::runtime::marker::Marker::session: alloc::string::String
+impl core::clone::Clone for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::clone(&self) -> design::runtime::marker::Marker
+impl core::cmp::Eq for design::runtime::marker::Marker
+impl core::cmp::PartialEq for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::eq(&self, other: &design::runtime::marker::Marker) -> bool
+impl core::fmt::Debug for design::runtime::marker::Marker
+pub fn design::runtime::marker::Marker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::marker::Marker
+pub const fn design::runtime::marker::cleared_by_successful_ensure(marker: &design::runtime::marker::Marker) -> bool
+pub const fn design::runtime::marker::is_host_condition(reason: design::runtime::downgrade::DowngradeReason) -> bool
+pub fn design::runtime::marker::suppresses(marker: &design::runtime::marker::Marker, session: &str, now: u64, ttl_seconds: u64, current_digest: core::option::Option<&str>) -> core::option::Option<design::runtime::downgrade::DowngradeReason>
+pub mod design::runtime::platform
+pub enum design::runtime::platform::ShellLoader
+pub design::runtime::platform::ShellLoader::Musl
+pub design::runtime::platform::ShellLoader::Other(alloc::string::String)
+pub design::runtime::platform::ShellLoader::Unobservable(alloc::string::String)
+impl core::clone::Clone for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::clone(&self) -> design::runtime::platform::ShellLoader
+impl core::cmp::Eq for design::runtime::platform::ShellLoader
+impl core::cmp::PartialEq for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::eq(&self, other: &design::runtime::platform::ShellLoader) -> bool
+impl core::fmt::Debug for design::runtime::platform::ShellLoader
+pub fn design::runtime::platform::ShellLoader::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::platform::ShellLoader
+pub enum design::runtime::platform::Support
+pub design::runtime::platform::Support::Supported
+pub design::runtime::platform::Support::Unsupported(design::runtime::downgrade::DowngradeReason)
+impl core::clone::Clone for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::clone(&self) -> design::runtime::platform::Support
+impl core::cmp::Eq for design::runtime::platform::Support
+impl core::cmp::PartialEq for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::eq(&self, other: &design::runtime::platform::Support) -> bool
+impl core::fmt::Debug for design::runtime::platform::Support
+pub fn design::runtime::platform::Support::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for design::runtime::platform::Support
+impl core::marker::StructuralPartialEq for design::runtime::platform::Support
+pub struct design::runtime::platform::Observations
+pub design::runtime::platform::Observations::is_linux: bool
+pub design::runtime::platform::Observations::psabi_interpreter_present: bool
+pub design::runtime::platform::Observations::shell_loader: design::runtime::platform::ShellLoader
+impl core::clone::Clone for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::clone(&self) -> design::runtime::platform::Observations
+impl core::cmp::Eq for design::runtime::platform::Observations
+impl core::cmp::PartialEq for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::eq(&self, other: &design::runtime::platform::Observations) -> bool
+impl core::fmt::Debug for design::runtime::platform::Observations
+pub fn design::runtime::platform::Observations::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::runtime::platform::Observations
+pub fn design::runtime::platform::classify(observations: &design::runtime::platform::Observations) -> design::runtime::platform::Support
 pub mod design::source_location
 pub enum design::source_location::LocationError
 pub design::source_location::LocationError::Host
@@ -599,14 +754,17 @@ pub fn design::credentials::AuthMode::fmt(&self, formatter: &mut core::fmt::Form
 impl core::marker::Copy for design::credentials::AuthMode
 impl core::marker::StructuralPartialEq for design::credentials::AuthMode
 pub enum design::DowngradeReason
-pub design::DowngradeReason::BootstrapFailed
+pub design::DowngradeReason::ArtifactUnavailable
 pub design::DowngradeReason::CacheUnwritable
 pub design::DowngradeReason::DiskFloorNotMet
 pub design::DowngradeReason::ExecutorPingFailed
-pub design::DowngradeReason::NodeMissing
-pub design::DowngradeReason::NodeTooOld
+pub design::DowngradeReason::GlibcTooOld
+pub design::DowngradeReason::LoaderUnresolvable
+pub design::DowngradeReason::MaterialisationInProgress
+pub design::DowngradeReason::RuntimeLibrariesMissing
+pub design::DowngradeReason::UnsupportedPlatform
 impl design::runtime::downgrade::DowngradeReason
-pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 6]
+pub const design::runtime::downgrade::DowngradeReason::ALL: [Self; 9]
 pub const fn design::runtime::downgrade::DowngradeReason::key(self) -> &'static str
 pub const fn design::runtime::downgrade::DowngradeReason::message(self) -> &'static str
 impl core::clone::Clone for design::runtime::downgrade::DowngradeReason

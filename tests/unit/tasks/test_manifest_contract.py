@@ -72,3 +72,35 @@ def test_launcher_host_platform_literals_match_the_alias_set() -> None:
         )
     )
     assert literals == set(ALIASES), literals
+
+
+def test_schema_artifact_platform_enum_matches_the_alias_set() -> None:
+    schema = json.loads(_SCHEMA.read_text())
+    enum = schema["$defs"]["artifactEntry"]["properties"]["platforms"][
+        "propertyNames"
+    ]["enum"]
+    assert set(enum) == set(ALIASES)
+
+
+def test_the_schema_describes_the_three_required_artifact_sizes() -> None:
+    schema = json.loads(_SCHEMA.read_text())
+    required = set(schema["$defs"]["artifactPlatformEntry"]["required"])
+    assert {
+        "sha256",
+        "signature",
+        "archive_size",
+        "uncompressed_size",
+        "entry_count",
+    } <= required
+
+
+def test_the_golden_artifacts_validate_against_the_schema_shape() -> None:
+    schema = json.loads(_SCHEMA.read_text())
+    entry_props = schema["$defs"]["artifactPlatformEntry"]["properties"]
+    for artifact in _golden()["artifacts"].values():
+        for platform, row in artifact["platforms"].items():
+            assert platform in set(ALIASES)
+            for key in schema["$defs"]["artifactPlatformEntry"]["required"]:
+                assert key in row, f"{key} missing from an artifact entry"
+            assert isinstance(row["archive_size"], int)
+            assert re.match(entry_props["sha256"]["pattern"], row["sha256"])

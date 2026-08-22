@@ -23,6 +23,14 @@ build = [
     # skill_pages.py). Exact pin: the generator's output feeds the strict docs
     # build, so a relock must not silently move the parser under it.
     "pyyaml==6.0.3",
+    # The only HTTP client in tasks/: the vendored-runtime assembly fetches npm,
+    # nodejs.org and the Chromium CDN over it. Exact pin (matching pyyaml/ruff):
+    # a relock must not silently move the fetcher a trust check depends on.
+    "requests==2.34.2",
+    # ECDSA P-256 verification of the npm registry signature over
+    # <name>@<version>:<integrity> (tasks/vendor/npm.py) — a primitive the
+    # stdlib lacks. Exact pin for the same trust-anchor reason.
+    "cryptography==50.0.0",
 ]
 dev = [
     "pytest>=8",

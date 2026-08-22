@@ -12,12 +12,15 @@ use clap::error::ErrorKind;
 use clap::{CommandFactory as _, Parser as _};
 
 use accelerator::config_command::core::ConfigStack;
+use accelerator::launch::cache;
+use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
-    swallow_under_fail_safe, ExternalCommand, ResolutionError, ResolveBinary,
+    acquire_trees, consumes_trees, swallow_under_fail_safe, tree_var,
+    ExternalCommand, ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::external_subcommands_section;
-use accelerator::launch::inbound::cli::{Cli, Command};
+use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
 use accelerator::launch::outbound::resolve::cache_root::{
@@ -25,8 +28,11 @@ use accelerator::launch::outbound::resolve::cache_root::{
 };
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::tree::{
+    pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
+};
 use accelerator::launch::outbound::resolve::{
-    FetchVerifyCacheResolver, ResolverConfig,
+    FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
 use accelerator::version::core::VersionReporter;
@@ -106,7 +112,7 @@ fn is_root_help(error: &clap::Error) -> bool {
             .nth(1)
             .as_deref()
             .and_then(std::ffi::OsStr::to_str),
-        Some("version" | "config" | "help")
+        Some("version" | "config" | "cache" | "help")
     )
 }
 
@@ -141,7 +147,9 @@ fn handle_parse_error(error: &clap::Error) -> ExitCode {
 const fn legacy_policy(command: &Command) -> LegacyPolicy {
     match command {
         Command::Config { action } => action.legacy_policy(),
-        Command::Version | Command::External(_) => LegacyPolicy::Reject,
+        Command::Version | Command::Cache { .. } | Command::External(_) => {
+            LegacyPolicy::Reject
+        }
     }
 }
 
@@ -181,20 +189,154 @@ fn resolution_start(command: &Command) -> Option<PathBuf> {
         Command::Config { action } => {
             action.resolution_root().map(PathBuf::from)
         }
-        Command::Version | Command::External(_) => None,
+        Command::Version | Command::Cache { .. } | Command::External(_) => None,
     }
+}
+
+/// Materialise, verify, repair or prune the tree cache.
+///
+/// The tree resolver — its `Fetcher`, its trust root, its clock — is built here
+/// rather than at `run`'s top, so a `version` or `config` dispatch never
+/// constructs it. The dependencies are locals the resolver borrows, so they
+/// outlive the `cache::run` call inside this function.
+fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
+    let _ = install_crypto_provider();
+    let cache = cache_root::candidate(&CacheRootConfig::from_env(
+        config_adapters::plugin_root_from_env(),
+    ))?;
+    let keys = TrustedKeys::embedded()?;
+    let fetcher = Fetcher::new()
+        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
+    let clock = SystemClock;
+    let steps = NoSteps;
+    let resolver = TreeResolver {
+        cache_root: cache,
+        base_url: release_base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &clock,
+        launcher_id: launcher_id(),
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &steps,
+    };
+    let mut out = std::io::stdout().lock();
+    cache::run(action, &resolver, &mut out)
+}
+
+/// A per-install identity for the retention claim, derived from the launcher's
+/// own content-addressed path so two installs sharing a cache root write
+/// distinct claim files. Falls back to the version when the path is unavailable.
+fn launcher_id() -> String {
+    use std::fmt::Write as _;
+
+    use sha2::{Digest as _, Sha256};
+    let seed = std::env::current_exe().map_or_else(
+        |_| env!("CARGO_PKG_VERSION").to_owned(),
+        |path| path.to_string_lossy().into_owned(),
+    );
+    let digest = Sha256::digest(seed.as_bytes());
+    digest.iter().take(8).fold(String::new(), |mut acc, byte| {
+        let _ = write!(acc, "{byte:02x}");
+        acc
+    })
+}
+
+/// The single-flight waiter's deadline: a loser gives up after this rather than
+/// hanging for the winner's whole download, emitting a non-sticky
+/// materialisation-in-progress the crawl retries on its next invocation.
+const WAITER_BOUND: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// Export the tree variables a tree-consuming dispatch's consumer reads, and
+/// return the leases pinning each resolved tree against reclamation until the
+/// consumer takes over.
+///
+/// Runs ahead of `dispatch`, so the clearing lands before the resolve path's
+/// `ACCELERATOR_<SUB>_BIN` short-circuit could return early: an injected
+/// `ACCELERATOR_TREE_<NAME>` is cleared even when the dev-override is in use,
+/// after which the consumer reaches `cache ensure` exactly as on a cold cache.
+/// Best-effort: a tree that is absent, unpointed or failing its checks simply
+/// yields no variable, because "not materialised yet" is the normal state.
+fn export_consumed_trees(command: &Command) -> Vec<AcquiredTree> {
+    let Command::External(raw) = command else {
+        return Vec::new();
+    };
+    let Some(subcommand) = raw.first().and_then(|arg| arg.to_str()) else {
+        return Vec::new();
+    };
+    if !consumes_trees(subcommand) {
+        return Vec::new();
+    }
+
+    for artifact in pins::artifact_names() {
+        std::env::remove_var(tree_var(artifact));
+    }
+    std::env::remove_var(LAUNCHER_PATH_VAR);
+    if let Ok(exe) = std::env::current_exe() {
+        std::env::set_var(LAUNCHER_PATH_VAR, exe);
+    }
+
+    let acquired = acquire_consumed_trees().unwrap_or_default();
+    for tree in &acquired {
+        std::env::set_var(tree_var(&tree.tree.artifact), &tree.tree.path);
+    }
+    acquired
+}
+
+/// Acquire every compiled-in tree that is already materialised, holding a lease
+/// on each. `None` on any construction failure — a warm export never errors.
+///
+/// The `Fetcher` is unused on the `acquire` path (local reads and `lstat`s
+/// only, no network, no cache-root write probe) and is dropped before the
+/// caller mutates the environment, so the mutation is single-threaded.
+fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
+    let _ = install_crypto_provider();
+    let cache = cache_root::candidate(&CacheRootConfig::from_env(
+        config_adapters::plugin_root_from_env(),
+    ))
+    .ok()?;
+    let keys = TrustedKeys::embedded().ok()?;
+    let fetcher = Fetcher::new().ok()?;
+    let clock = SystemClock;
+    let steps = NoSteps;
+    let resolver = TreeResolver {
+        cache_root: cache,
+        base_url: release_base_url(),
+        platform: HOST_PLATFORM.to_owned(),
+        expected_version: env!("CARGO_PKG_VERSION").to_owned(),
+        keys: &keys,
+        fetcher: &fetcher,
+        clock: &clock,
+        launcher_id: launcher_id(),
+        expected_digests: ExpectedDigests::Compiled,
+        waiter_bound: WAITER_BOUND,
+        steps: &steps,
+    };
+    let names: Vec<&str> = pins::artifact_names();
+    acquire_trees(&resolver, &names).ok()
 }
 
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
+    // Held until `dispatch` execs the consumer: on success the process image is
+    // replaced and no destructor runs, so the leases pin their trees against
+    // reclamation right up to the handover.
+    let _tree_leases = export_consumed_trees(&cli.command);
     let reporter = VersionReporter::new(VergenBuildMetadata);
     let resolver = LazyProductionResolver;
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
     let start = resolution_start(&cli.command);
-    dispatch(cli, &reporter, &resolver, &executor, move || {
-        compose_stack(policy, start)
-    })
+    dispatch(
+        cli,
+        &reporter,
+        &resolver,
+        &executor,
+        move || compose_stack(policy, start),
+        run_cache,
+    )
 }
 
 fn report(error: &kernel::Error) -> ExitCode {

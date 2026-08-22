@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (the dynamic loader it needs is missing or relocated). Falling back to code-only crawler. Install nix-ld or set design.browser_path to a working browser, or pass --crawler code to suppress this notice.

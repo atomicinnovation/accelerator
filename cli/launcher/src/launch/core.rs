@@ -1,5 +1,8 @@
 //! The launcher's dispatch/resolution core and the ports it speaks through.
 
+pub mod tree;
+pub mod tree_entry;
+
 use std::ffi::OsString;
 use std::fmt;
 use std::fmt::Display;
@@ -88,6 +91,7 @@ pub enum ResolutionError {
         program: PathBuf,
         source: std::io::Error,
     },
+    Tree(tree::TreeError),
 }
 
 impl Display for ResolutionError {
@@ -158,6 +162,7 @@ impl Display for ResolutionError {
                 "failed to exec {}: {source}",
                 program.display()
             ),
+            Self::Tree(error) => write!(formatter, "{error}"),
         }
     }
 }
@@ -166,6 +171,16 @@ impl std::error::Error for ResolutionError {}
 
 impl From<ResolutionError> for kernel::Error {
     fn from(error: ResolutionError) -> Self {
+        // The tree taxonomy classifies itself, so a variant added there without
+        // a class does not compile — which the two lists below cannot offer,
+        // since nothing links them to the enum they enumerate.
+        if let ResolutionError::Tree(ref tree_error) = error {
+            let message = error.to_string();
+            return match tree_error.class() {
+                tree::ErrorClass::Refusal => Self::Refusal(message),
+                tree::ErrorClass::Failed => Self::Failed(message),
+            };
+        }
         match error {
             ResolutionError::ChecksumMismatch { .. }
             | ResolutionError::SignatureMismatch { .. }
@@ -188,6 +203,8 @@ impl From<ResolutionError> for kernel::Error {
                 let message = error.to_string();
                 Self::Failed(message)
             }
+            // Classified above, before this match is reached.
+            ResolutionError::Tree(_) => Self::Failed(error.to_string()),
         }
     }
 }
@@ -254,6 +271,39 @@ pub fn run_external(
     }
 }
 
+/// Export the tree variables a dispatch's consumer needs, resolving each named
+/// tree through `AcquireSealedTree` only.
+///
+/// This is the sole tree entry point the dispatch path may take, and its
+/// signature is the enforcement: it accepts `&impl AcquireSealedTree`, so
+/// threading a `MaterialiseTree` — the network-reaching port — into the dispatch
+/// path is a compile error rather than a test failure. The whole design rests on
+/// a dispatch never fetching, and no probe-count test could catch a
+/// materialisation that happened to hit a warm cache.
+///
+/// Returns the resolved `(artifact, path, lease)` triples. A tree that is
+/// absent, unpointed or failing its checks simply yields nothing for that name —
+/// "not materialised yet" is the normal state, and the caller decides whether to
+/// `ensure`, downgrade, or proceed. The held leases must outlive the `exec`, so
+/// the caller keeps them until it has spawned the consumer.
+///
+/// # Errors
+///
+/// A [`tree::TreeError`] only where a tree's state is actively wrong; an absent
+/// or unusable tree is simply omitted from the result rather than erroring.
+pub fn acquire_trees(
+    resolver: &impl tree::AcquireSealedTree,
+    artifacts: &[&str],
+) -> Result<Vec<tree::AcquiredTree>, tree::TreeError> {
+    let mut acquired = Vec::new();
+    for artifact in artifacts {
+        if let Some(tree) = resolver.acquire(artifact)? {
+            acquired.push(tree);
+        }
+    }
+    Ok(acquired)
+}
+
 /// Derive the `ACCELERATOR_<SUB>_BIN` override variable: uppercase, mapping `-`
 /// to `_`.
 ///
@@ -292,6 +342,46 @@ pub fn derive_override_var(name: &str) -> Result<String, ResolutionError> {
     Ok(var)
 }
 
+/// The environment variable a resolved tree artifact's path is exported under.
+///
+/// A generic `ACCELERATOR_TREE_<NAME>`, not a consumer-prefixed one, so a second
+/// tree consumer inherits the convention. It never ends in `_BIN`, so whatever
+/// the artifact name it cannot land in the `ACCELERATOR_<SUB>_BIN` override
+/// namespace [`derive_override_var`] owns.
+#[must_use]
+pub fn tree_var(artifact: &str) -> String {
+    let mut var =
+        String::with_capacity("ACCELERATOR_TREE_".len() + artifact.len());
+    var.push_str("ACCELERATOR_TREE_");
+    for c in artifact.chars() {
+        var.push(if c == '-' {
+            '_'
+        } else {
+            c.to_ascii_uppercase()
+        });
+    }
+    var
+}
+
+/// The launcher's own resolved path, exported so a tree consumer can locate the
+/// launcher to invoke `cache ensure`.
+///
+/// Deliberately not `ACCELERATOR_LAUNCHER_BIN`: that name means "exec this path
+/// unverified", `launcher` is a reserved token, and one name with two meanings
+/// would be inherited by every descendant of every dispatch.
+pub const LAUNCHER_PATH_VAR: &str = "ACCELERATOR_LAUNCHER_PATH";
+
+/// Whether a dispatched subcommand consumes tree artifacts.
+///
+/// Only a consuming dispatch pays the acquire and receives the exported
+/// variables. A non-consumer — `vcs guard` on every tool call, a
+/// `SessionStart` hook — touches no tree state, so a degraded cache root
+/// cannot surface in unrelated work.
+#[must_use]
+pub fn consumes_trees(subcommand: &str) -> bool {
+    subcommand == "design"
+}
+
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
@@ -300,9 +390,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        derive_override_var, forwarded_fail_safe, run_external,
-        swallow_under_fail_safe, ExecBinary, ExternalCommand, ResolutionError,
-        ResolveBinary,
+        consumes_trees, derive_override_var, forwarded_fail_safe, run_external,
+        swallow_under_fail_safe, tree_var, ExecBinary, ExternalCommand,
+        ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
     };
 
     fn command(name: &str, args: &[&str]) -> ExternalCommand {
@@ -582,5 +672,41 @@ mod tests {
             derive_override_var(""),
             Err(ResolutionError::InvalidOverrideName { .. })
         ));
+    }
+
+    #[test]
+    fn a_tree_variable_is_generic_and_upper_snake() {
+        assert_eq!(tree_var("driver"), "ACCELERATOR_TREE_DRIVER");
+        assert_eq!(tree_var("browser"), "ACCELERATOR_TREE_BROWSER");
+        assert_eq!(
+            tree_var("headless-shell"),
+            "ACCELERATOR_TREE_HEADLESS_SHELL"
+        );
+    }
+
+    #[test]
+    fn only_the_design_dispatch_consumes_trees() {
+        assert!(consumes_trees("design"));
+        assert!(!consumes_trees("vcs"));
+        assert!(!consumes_trees("work"));
+    }
+
+    #[test]
+    fn no_exported_variable_falls_in_the_override_namespace(
+    ) -> Result<(), Box<dyn Error>> {
+        // derive_override_var always ends in `_BIN`; the exported names never
+        // do, so no reserved or dispatched token's override variable can
+        // collide with a variable the launcher exports.
+        for artifact in ["driver", "browser", "headless-shell"] {
+            let exported = tree_var(artifact);
+            assert!(
+                !exported.ends_with("_BIN"),
+                "{exported} is in the override namespace"
+            );
+            assert_ne!(exported, derive_override_var(artifact)?);
+        }
+        assert!(!LAUNCHER_PATH_VAR.ends_with("_BIN"));
+        assert_ne!(LAUNCHER_PATH_VAR, derive_override_var("launcher")?);
+        Ok(())
     }
 }

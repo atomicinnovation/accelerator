@@ -23,9 +23,57 @@ pub enum Command {
         #[command(subcommand)]
         action: ConfigAction,
     },
+    /// Inspect and repair the cached directory-tree artifacts.
+    #[command(arg_required_else_help = true)]
+    Cache {
+        #[command(subcommand)]
+        action: CacheAction,
+    },
     /// Any unknown subcommand and its args, forwarded to the resolved binary.
     #[command(external_subcommand)]
     External(Vec<OsString>),
+}
+
+/// Operate on the sealed tree artifacts under the cache root.
+///
+/// `verify` and `prune` are offline by construction — they validate `<name>`
+/// against the launcher's own compiled-in artifact set, never the manifest, so
+/// they work air-gapped or with the release host down. `ensure` and `repair`
+/// reach the network only when a tree is actually absent or damaged.
+#[derive(Subcommand)]
+pub enum CacheAction {
+    /// Walk each sealed tree against its file table, reporting per-entry
+    /// discrepancies. Hashes every regular file, since a same-size, same-mode
+    /// substitution is exactly what the table exists to catch.
+    Verify {
+        /// The artifact to verify; omit to verify every known artifact.
+        name: Option<String>,
+    },
+    /// Re-materialise any tree that fails verification, building the replacement
+    /// beside the tree in use and swapping the pointer only once it is verified.
+    Repair {
+        /// The artifact to repair; omit to repair every known artifact.
+        name: Option<String>,
+        /// Re-materialise unconditionally, even for a tree that passes
+        /// verification — the only recovery for a tree that is internally
+        /// consistent but wrong (assembled for the wrong architecture, say).
+        #[arg(long)]
+        force: bool,
+    },
+    /// Materialise the named trees if they are not already present, printing the
+    /// resolved tree path and lease path for each.
+    Ensure {
+        /// One or more artifacts to materialise.
+        #[arg(required = true)]
+        names: Vec<String>,
+    },
+    /// Reclaim unreferenced generations and orphaned temp residue.
+    Prune {
+        /// Reclaim generations older than this many seconds, overriding the
+        /// default retention window.
+        #[arg(long)]
+        older_than: Option<u64>,
+    },
 }
 
 /// Read or write a configuration value.
@@ -484,7 +532,9 @@ mod tests {
                 raw,
                 vec![OsString::from("frobnicate"), OsString::from("--flag")]
             ),
-            Command::Version | Command::Config { .. } => {
+            Command::Version
+            | Command::Config { .. }
+            | Command::Cache { .. } => {
                 return Err("routed away from External".into())
             }
         }

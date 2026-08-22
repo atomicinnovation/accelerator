@@ -156,6 +156,65 @@ keeps its separate `approve-release` human gate.
   (`keys.rs`) leaves headroom to embed both the old and new keys for an overlap
   window if a staged rotation is ever needed.
 
+## Vendored-runtime trust anchors
+
+The design tooling vendors its Playwright driver and a headless Chromium. The
+release pipeline assembles both in CI from upstream inputs it verifies against
+their publishers' own signatures, then publishes the archives under the project's
+release key. Two committed anchors make that verification meaningful, and both are
+placeholders in a fresh checkout:
+
+| Anchor | File | What it pins |
+|--------|------|--------------|
+| Assembled digests | `pins.toml` `[assembled_sha256.*]` | The reviewed sha256 of each artifact's archive per platform — the release gate signs only bytes matching these, and the launcher embeds them as its expected `(artifact, platform) → digest` map |
+| Chromium pin | `pins.toml` `[chromium]` | The revision (cross-checked against the pinned `playwright-core`'s `browsers.json`) and the reviewed byte sha256 per platform of the CDN-served archive |
+| Node pin | `pins.toml` `[node]` | The Node version the driver pairs with |
+| Node keyring | `keys/nodejs-release.asc` | The Node release team's GPG keys, used to verify Node's `SHASUMS256.txt` |
+| npm signing key | `keys/npm-registry.pem` | The npm registry's ECDSA-P256 public key, used to verify the `playwright-core` packument signature |
+
+A guard fails the assembly job — and so any release — while any anchor is still a
+placeholder, listing every one:
+
+```bash
+mise run vendor:check-trust-anchors
+```
+
+### Refreshing the anchors
+
+Do this on initial setup and whenever the pinned Playwright version bumps (which
+can change the Chromium revision and the paired Node version). The publisher keys
+change only when their publishers rotate them.
+
+1. **Provision the publisher keys**, verifying each is genuine out-of-band before
+   committing it — a key fetched over the same channel it is meant to authenticate
+   proves nothing.
+   - `keys/nodejs-release.asc`: the Node release signing keys, cross-checked
+     against the fingerprints Node publishes in its release documentation.
+   - `keys/npm-registry.pem`: the registry's current signing key from
+     `https://registry.npmjs.org/-/npm/v1/keys`, in PEM form.
+2. **Set the Chromium and Node pins** to match the pinned `playwright-core`. The
+   revision comes from that package's `browsers.json`; the assembly cross-checks
+   `pins.toml`'s value against it, so a mismatch fails loudly. The per-platform
+   Chromium sha256 and the Node version are the byte digest and pairing the
+   verification steps in `tasks/vendor/{chromium,nodejs}.py` expect.
+3. **Assemble once locally to obtain the digests.** With the keys and Chromium/Node
+   pins in place, run the assembly and read the sha256 of each produced archive
+   under `dist/release/`:
+
+   ```bash
+   mise run vendor:verify-upstream-inputs
+   mise run vendor:assemble-tree-artifacts
+   shasum -a 256 dist/release/accelerator-*-*.tar.gz
+   ```
+
+   Copy each digest into the matching `pins.toml` `[assembled_sha256.<artifact>]`
+   entry. The assembly is deterministic, so a re-run reproduces the same bytes and
+   the release gate confirms it before signing.
+4. **Confirm and commit.** `mise run vendor:check-trust-anchors` must now pass.
+   Commit `pins.toml` and both key files together; the drift test holds the
+   assembled digests, the launcher's compiled-in map and `manifest.example.json`
+   in agreement.
+
 ## Vendored verify shims
 
 `bin/accelerator-verify-{platform}` are committed, cross-compiled copies of the

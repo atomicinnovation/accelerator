@@ -6,6 +6,7 @@ pub mod cache_root;
 pub mod fetcher;
 pub mod keys;
 pub mod manifest;
+pub mod tree;
 pub mod verifier;
 
 use std::path::PathBuf;
@@ -255,9 +256,11 @@ fn fetch_error(
             target: target.to_owned(),
             url: url.to_owned(),
         },
-        FetchError::Unreachable(_) => ResolutionError::Fetch {
-            target: target.to_owned(),
-            url: url.to_owned(),
-        },
+        FetchError::Unreachable(_) | FetchError::TooLarge { .. } => {
+            ResolutionError::Fetch {
+                target: target.to_owned(),
+                url: url.to_owned(),
+            }
+        }
     }
 }

@@ -233,20 +233,20 @@ fn resolve_idle(
 }
 
 /// Editor / editor-project precedence: env var > config key > `None` (button
-/// disabled). Whitespace-only values collapse to `None`; a set-but-empty env
-/// var falls through to the config key.
+/// disabled). The precedence itself is the shared `config::env_beats_config`
+/// pure function; only the environment read stays here, in the composition
+/// root. Whitespace-only values collapse to `None` and a blank env override
+/// falls through to the config key.
 fn resolve_optional(
     service: &impl ConfigAccess,
     key: &str,
     env_var: &str,
 ) -> Result<Option<String>, ComposeError> {
-    if let Some(value) = env_nonempty(env_var) {
-        let trimmed = value.trim().to_string();
-        return Ok((!trimmed.is_empty()).then_some(trimmed));
-    }
+    let from_env = env_nonempty(env_var);
     let res = service.effective(&Key::parse(key)?, None)?;
-    Ok(res
-        .configured_value()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty()))
+    let from_config = res.configured_value();
+    Ok(config::env_beats_config(
+        from_env.as_deref(),
+        from_config.as_deref(),
+    ))
 }

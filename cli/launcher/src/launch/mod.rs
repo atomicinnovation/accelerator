@@ -1,6 +1,7 @@
 //! The dispatch boundary: routes the parsed command tree to a built-in handler
 //! or to external resolution + exec.
 
+pub mod cache;
 pub mod core;
 pub mod help;
 pub mod inbound;
@@ -14,7 +15,7 @@ use crate::launch::core::{
     run_external, ExecBinary, ExternalCommand, ResolveBinary,
 };
 use crate::launch::inbound::cli::{
-    Cli, Command, ConfigAction, SummaryFormat, TemplatesAction,
+    CacheAction, Cli, Command, ConfigAction, SummaryFormat, TemplatesAction,
 };
 use crate::version::core::ReportVersion;
 use crate::version::inbound::cli as version_cli;
@@ -179,6 +180,7 @@ pub fn dispatch(
     resolver: &impl ResolveBinary,
     executor: &impl ExecBinary,
     compose_config: impl FnOnce() -> Result<ConfigStack, ConfigError>,
+    run_cache: impl FnOnce(&CacheAction) -> Result<(), kernel::Error>,
 ) -> Result<(), kernel::Error> {
     match &cli.command {
         Command::Version => {
@@ -189,6 +191,10 @@ pub fn dispatch(
             let stack = compose_config()?;
             config_cli::run(&stack, &to_action(action))
         }
+        // The tree resolver is built lazily inside `run_cache`, so `version`,
+        // `config` and external subcommands never construct a `Fetcher` or a
+        // clock for capability they do not use.
+        Command::Cache { action } => run_cache(action),
         Command::External(raw) => {
             let command = ExternalCommand::from_raw(raw.clone())?;
             // A successful exec never returns, so reaching here is always error.
