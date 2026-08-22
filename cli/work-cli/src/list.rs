@@ -10,9 +10,13 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus_adapters::canonicalise_id;
+use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
+use work::filter::canonical_reference;
+use work::filter::strip_reference_prefix;
+use work::filter::Filter;
+use work::filter::WorkItemView;
 use work::show::read_field_raw;
 use work::sync::label;
 use work::sync::plan;
@@ -47,48 +51,6 @@ pub struct ScannedItem {
 pub struct Scan {
     pub items: Vec<ScannedItem>,
     pub warnings: Vec<String>,
-}
-
-/// The conjunctive filter parsed from the command flags. Every populated
-/// field must hold for an item to be listed.
-#[derive(Debug, Default, Clone)]
-pub struct Filter {
-    pub status: Option<String>,
-    pub kind: Option<String>,
-    pub priority: Option<String>,
-    pub parent: Option<String>,
-    pub tags: Vec<String>,
-    pub term: Option<String>,
-}
-
-impl Filter {
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.status.is_none()
-            && self.kind.is_none()
-            && self.priority.is_none()
-            && self.parent.is_none()
-            && self.tags.is_empty()
-            && self.term.is_none()
-    }
-
-    const fn is_title_only(&self) -> bool {
-        self.term.is_some()
-            && self.status.is_none()
-            && self.kind.is_none()
-            && self.priority.is_none()
-            && self.parent.is_none()
-            && self.tags.is_empty()
-    }
-}
-
-fn strip_frontmatter_ref(raw: &str) -> &str {
-    raw.split_once(':').map_or(raw, |(_, rest)| rest).trim()
-}
-
-fn canonical_ref(raw: &str, pattern: &str, project: &str) -> String {
-    let bare = strip_frontmatter_ref(raw);
-    canonicalise_id(bare, pattern, project).unwrap_or_else(|_| bare.to_owned())
 }
 
 enum Frontmatter {
@@ -184,60 +146,28 @@ pub fn scan(work_dir: &Path) -> Scan {
     Scan { items, warnings }
 }
 
+fn item_view(item: &ScannedItem) -> WorkItemView<'_> {
+    WorkItemView {
+        title: item.title.as_deref(),
+        kind: item.kind.as_deref(),
+        status: item.status.as_deref(),
+        priority: item.priority.as_deref(),
+        tags: &item.tags,
+        parent: item.parent.as_deref(),
+    }
+}
+
 /// Keeps the items satisfying every populated filter conjunct.
 #[must_use]
 pub fn apply_filter<'a>(
     items: &'a [ScannedItem],
     filter: &Filter,
-    pattern: &str,
-    project: &str,
+    scheme: &WorkItemIdScheme,
 ) -> Vec<&'a ScannedItem> {
-    let wanted_parent = filter
-        .parent
-        .as_deref()
-        .map(|raw| canonical_ref(raw, pattern, project));
     items
         .iter()
-        .filter(|item| {
-            matches_scalar(filter.status.as_deref(), item.status.as_deref())
-                && matches_scalar(filter.kind.as_deref(), item.kind.as_deref())
-                && matches_scalar(
-                    filter.priority.as_deref(),
-                    item.priority.as_deref(),
-                )
-                && matches_parent(
-                    wanted_parent.as_deref(),
-                    item.parent.as_deref(),
-                    pattern,
-                    project,
-                )
-                && filter.tags.iter().all(|tag| item.tags.contains(tag))
-                && matches_title(filter.term.as_deref(), item.title.as_deref())
-        })
+        .filter(|item| filter.matches(&item_view(item), scheme))
         .collect()
-}
-
-fn matches_scalar(wanted: Option<&str>, actual: Option<&str>) -> bool {
-    wanted.is_none_or(|value| actual == Some(value))
-}
-
-fn matches_parent(
-    wanted: Option<&str>,
-    actual: Option<&str>,
-    pattern: &str,
-    project: &str,
-) -> bool {
-    wanted.is_none_or(|value| {
-        actual.is_some_and(|raw| canonical_ref(raw, pattern, project) == value)
-    })
-}
-
-fn matches_title(wanted: Option<&str>, actual: Option<&str>) -> bool {
-    wanted.is_none_or(|term| {
-        actual.is_some_and(|title| {
-            title.to_lowercase().contains(&term.to_lowercase())
-        })
-    })
 }
 
 /// Classifies every item's sync state through the sync engine, keyed by id.
@@ -387,27 +317,26 @@ fn tree_line(item: &ScannedItem, label: Option<&&'static str>) -> String {
 pub fn render_hierarchy(
     items: &[&ScannedItem],
     labels: Option<&BTreeMap<String, &'static str>>,
-    pattern: &str,
-    project: &str,
+    scheme: &WorkItemIdScheme,
 ) -> String {
     let canonical_id: BTreeMap<String, &ScannedItem> = items
         .iter()
-        .map(|item| (canonical_ref(&item.id, pattern, project), *item))
+        .map(|item| (canonical_reference(&item.id, scheme), *item))
         .collect();
     let parent_of = |item: &ScannedItem| -> Option<String> {
         item.parent
             .as_deref()
-            .map(|raw| canonical_ref(raw, pattern, project))
+            .map(|raw| canonical_reference(raw, scheme))
             .filter(|key| canonical_id.contains_key(key))
     };
 
-    let in_cycle = cyclic_members(items, pattern, project, &canonical_id);
+    let in_cycle = cyclic_members(items, scheme, &canonical_id);
     let children: BTreeMap<String, Vec<&ScannedItem>> =
-        child_index(items, pattern, project, &canonical_id, &in_cycle);
+        child_index(items, scheme, &canonical_id, &in_cycle);
 
     let mut lines = Vec::new();
     for item in items {
-        let key = canonical_ref(&item.id, pattern, project);
+        let key = canonical_reference(&item.id, scheme);
         if in_cycle.contains(&key) {
             lines.push(format!(
                 "{} (cycle)",
@@ -425,11 +354,10 @@ pub fn render_hierarchy(
                             item,
                             labels.and_then(|map| map.get(&item.id))
                         ),
-                        strip_frontmatter_ref(raw)
+                        strip_reference_prefix(raw)
                     ));
                     render_children(
-                        &key, &children, labels, &mut lines, 1, pattern,
-                        project,
+                        &key, &children, labels, &mut lines, 1, scheme,
                     );
                     continue;
                 }
@@ -438,9 +366,7 @@ pub fn render_hierarchy(
                 item,
                 labels.and_then(|map| map.get(&item.id)),
             ));
-            render_children(
-                &key, &children, labels, &mut lines, 1, pattern, project,
-            );
+            render_children(&key, &children, labels, &mut lines, 1, scheme);
         }
     }
     lines.join("\n")
@@ -448,17 +374,16 @@ pub fn render_hierarchy(
 
 fn cyclic_members(
     items: &[&ScannedItem],
-    pattern: &str,
-    project: &str,
+    scheme: &WorkItemIdScheme,
     index: &BTreeMap<String, &ScannedItem>,
 ) -> BTreeSet<String> {
     let mut cyclic = BTreeSet::new();
     for item in items {
         let mut seen = BTreeSet::new();
-        let mut cursor = canonical_ref(&item.id, pattern, project);
+        let mut cursor = canonical_reference(&item.id, scheme);
         loop {
             if !seen.insert(cursor.clone()) {
-                cyclic.insert(canonical_ref(&item.id, pattern, project));
+                cyclic.insert(canonical_reference(&item.id, scheme));
                 break;
             }
             let Some(current) = index.get(&cursor) else {
@@ -467,7 +392,7 @@ fn cyclic_members(
             let Some(parent) = current
                 .parent
                 .as_deref()
-                .map(|raw| canonical_ref(raw, pattern, project))
+                .map(|raw| canonical_reference(raw, scheme))
                 .filter(|key| index.contains_key(key))
             else {
                 break;
@@ -480,21 +405,20 @@ fn cyclic_members(
 
 fn child_index<'a>(
     items: &[&'a ScannedItem],
-    pattern: &str,
-    project: &str,
+    scheme: &WorkItemIdScheme,
     index: &BTreeMap<String, &ScannedItem>,
     in_cycle: &BTreeSet<String>,
 ) -> BTreeMap<String, Vec<&'a ScannedItem>> {
     let mut children: BTreeMap<String, Vec<&ScannedItem>> = BTreeMap::new();
     for item in items {
-        let key = canonical_ref(&item.id, pattern, project);
+        let key = canonical_reference(&item.id, scheme);
         if in_cycle.contains(&key) {
             continue;
         }
         if let Some(parent) = item
             .parent
             .as_deref()
-            .map(|raw| canonical_ref(raw, pattern, project))
+            .map(|raw| canonical_reference(raw, scheme))
             .filter(|parent| {
                 index.contains_key(parent) && !in_cycle.contains(parent)
             })
@@ -511,8 +435,7 @@ fn render_children(
     labels: Option<&BTreeMap<String, &'static str>>,
     lines: &mut Vec<String>,
     depth: usize,
-    pattern: &str,
-    project: &str,
+    scheme: &WorkItemIdScheme,
 ) {
     let Some(group) = children.get(parent) else {
         return;
@@ -528,16 +451,8 @@ fn render_children(
             "{indent}{connector}{}",
             tree_line(child, labels.and_then(|map| map.get(&child.id)))
         ));
-        let key = canonical_ref(&child.id, pattern, project);
-        render_children(
-            &key,
-            children,
-            labels,
-            lines,
-            depth + 1,
-            pattern,
-            project,
-        );
+        let key = canonical_reference(&child.id, scheme);
+        render_children(&key, children, labels, lines, depth + 1, scheme);
     }
 }
 
@@ -571,13 +486,13 @@ pub fn filter_echo(filter: &Filter, count: usize) -> String {
         if conjuncts(filter).is_empty() {
             return format!(
                 "Children of {parent} ({count} matches)",
-                parent = strip_frontmatter_ref(parent)
+                parent = strip_reference_prefix(parent)
             );
         }
     }
     let mut parts = conjuncts(filter);
     if let Some(parent) = &filter.parent {
-        parts.insert(0, format!("parent={}", strip_frontmatter_ref(parent)));
+        parts.insert(0, format!("parent={}", strip_reference_prefix(parent)));
     }
     format!("Filter: {} ({count} matches)", parts.join(", "))
 }
@@ -590,7 +505,7 @@ pub fn empty_message(filter: &Filter) -> String {
         "all work items".to_owned()
     } else if let Some(parent) = &filter.parent {
         if conjuncts(filter).is_empty() {
-            format!("children of {}", strip_frontmatter_ref(parent))
+            format!("children of {}", strip_reference_prefix(parent))
         } else {
             conjuncts(filter).join(", ")
         }
@@ -667,16 +582,15 @@ pub fn render(
     filter: &Filter,
     labels: Option<&BTreeMap<String, &'static str>>,
     hierarchy: bool,
-    scheme: (&str, &str),
+    scheme: &WorkItemIdScheme,
 ) -> String {
-    let (pattern, project) = scheme;
-    let selected = apply_filter(items, filter, pattern, project);
+    let selected = apply_filter(items, filter, scheme);
     if selected.is_empty() {
         return empty_message(filter);
     }
     let echo = filter_echo(filter, selected.len());
     let body = if hierarchy {
-        render_hierarchy(&selected, labels, pattern, project)
+        render_hierarchy(&selected, labels, scheme)
     } else {
         render_table(&selected, labels)
     };
@@ -702,11 +616,7 @@ pub fn run(
         };
     }
 
-    let pattern = crate::config::effective_nonempty(config, "work.id_pattern")
-        .unwrap_or_default();
-    let project =
-        crate::config::effective_nonempty(config, "work.default_project_code")
-            .unwrap_or_default();
+    let scheme = crate::config::resolve_scheme(config).unwrap_or_default();
 
     let scan_result = scan(&work_dir);
     if scan_result.items.is_empty() {
@@ -732,7 +642,7 @@ pub fn run(
         &filter,
         labels.as_ref(),
         args.hierarchy,
-        (&pattern, &project),
+        &scheme,
     );
     RunOutcome::Rendered {
         output,
@@ -809,7 +719,9 @@ mod tests {
 
     use super::*;
 
-    const PATTERN: &str = "{number:04d}";
+    fn scheme() -> WorkItemIdScheme {
+        WorkItemIdScheme::numeric()
+    }
 
     struct AlwaysClean;
     impl WorkingCopyStatus for AlwaysClean {
@@ -926,62 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn each_scalar_filter_selects_its_subset() {
-        let mut bug = item("0001");
-        bug.kind = Some("bug".to_owned());
-        bug.status = Some("done".to_owned());
-        let mut story = item("0002");
-        story.kind = Some("story".to_owned());
-        let items = vec![bug, story];
-
-        let filter = Filter {
-            kind: Some("bug".to_owned()),
-            ..Filter::default()
-        };
-        let selected = apply_filter(&items, &filter, PATTERN, "");
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].id, "0001");
-    }
-
-    #[test]
-    fn a_multi_flag_filter_is_conjunctive() {
-        let mut done_bug = item("0001");
-        done_bug.kind = Some("bug".to_owned());
-        done_bug.status = Some("done".to_owned());
-        let mut draft_bug = item("0002");
-        draft_bug.kind = Some("bug".to_owned());
-        draft_bug.status = Some("draft".to_owned());
-        let items = vec![done_bug, draft_bug];
-
-        let filter = Filter {
-            kind: Some("bug".to_owned()),
-            status: Some("done".to_owned()),
-            ..Filter::default()
-        };
-        let selected = apply_filter(&items, &filter, PATTERN, "");
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].id, "0001");
-    }
-
-    #[test]
-    fn a_repeatable_tag_filter_requires_every_tag() {
-        let mut both = item("0001");
-        both.tags = vec!["backend".to_owned(), "api".to_owned()];
-        let mut one = item("0002");
-        one.tags = vec!["backend".to_owned()];
-        let items = vec![both, one];
-
-        let filter = Filter {
-            tags: vec!["backend".to_owned(), "api".to_owned()],
-            ..Filter::default()
-        };
-        let selected = apply_filter(&items, &filter, PATTERN, "");
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].id, "0001");
-    }
-
-    #[test]
-    fn the_parent_filter_canonicalises_both_sides() {
+    fn apply_filter_selects_scanned_items_through_the_configured_scheme() {
         let mut child = item("0043");
         child.parent = Some("work-item:0042".to_owned());
         let orphan = item("0044");
@@ -991,36 +848,9 @@ mod tests {
             parent: Some("42".to_owned()),
             ..Filter::default()
         };
-        let selected = apply_filter(&items, &filter, PATTERN, "");
+        let selected = apply_filter(&items, &filter, &scheme());
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0].id, "0043");
-    }
-
-    #[test]
-    fn the_title_term_is_a_case_insensitive_substring() {
-        let mut login = item("0001");
-        login.title = Some("Login Form Rework".to_owned());
-        let mut other = item("0002");
-        other.title = Some("Sync engine".to_owned());
-        let items = vec![login, other];
-
-        let filter = Filter {
-            term: Some("login".to_owned()),
-            ..Filter::default()
-        };
-        let selected = apply_filter(&items, &filter, PATTERN, "");
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].id, "0001");
-    }
-
-    #[test]
-    fn a_filter_matching_nothing_selects_the_empty_set() {
-        let items = vec![item("0001")];
-        let filter = Filter {
-            kind: Some("epic".to_owned()),
-            ..Filter::default()
-        };
-        assert!(apply_filter(&items, &filter, PATTERN, "").is_empty());
     }
 
     #[test]
@@ -1260,7 +1090,7 @@ mod tests {
         let items = vec![parent, child, orphan];
         let selected: Vec<&ScannedItem> = items.iter().collect();
 
-        let tree = render_hierarchy(&selected, None, PATTERN, "");
+        let tree = render_hierarchy(&selected, None, &scheme());
 
         assert!(
             tree.contains("0042 — Epic (kind: epic, status: ready)"),
@@ -1282,7 +1112,7 @@ mod tests {
         let items = vec![a, b];
         let selected: Vec<&ScannedItem> = items.iter().collect();
 
-        let tree = render_hierarchy(&selected, None, PATTERN, "");
+        let tree = render_hierarchy(&selected, None, &scheme());
 
         assert!(
             tree.contains(
@@ -1307,7 +1137,7 @@ mod tests {
         let mut labels = BTreeMap::new();
         labels.insert("0042".to_owned(), "🟢 synced");
 
-        let tree = render_hierarchy(&selected, Some(&labels), PATTERN, "");
+        let tree = render_hierarchy(&selected, Some(&labels), &scheme());
 
         assert!(tree.ends_with("🟢 synced"), "{tree}");
     }
