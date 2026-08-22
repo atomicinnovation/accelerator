@@ -296,10 +296,18 @@ if [[ ! -x "${shim}" ]] ||
 	# This body is the first required write into the cache dir, so gating here
 	# covers every write. Anything that writes there earlier needs its own gate.
 	require_exec_capable_cache
-	cp "${shim_source}" "${shim}" 2>/dev/null ||
+	# Stage through a per-process temp and rename into place: a bare cp to the
+	# final path races a concurrent bootstrap already executing it, which the
+	# kernel rejects with ETXTBSY. A rename over a file another process is
+	# running never fails that way, and same-digest writers converge on
+	# identical bytes.
+	shim_tmp="${shim}.staging.$$"
+	cp "${shim_source}" "${shim_tmp}" 2>/dev/null ||
 		fail_integrity "could not stage the verify shim into ${cache_dir}"
-	chmod +x "${shim}" 2>/dev/null ||
+	chmod +x "${shim_tmp}" 2>/dev/null ||
 		fail_integrity "could not make the verify shim executable"
+	mv -f "${shim_tmp}" "${shim}" 2>/dev/null ||
+		fail_integrity "could not stage the verify shim into ${cache_dir}"
 fi
 
 # Serialise concurrent first-use sessions; a lock orphaned by a SIGKILL'd
