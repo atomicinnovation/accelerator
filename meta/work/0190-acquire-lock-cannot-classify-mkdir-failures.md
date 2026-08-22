@@ -1,7 +1,7 @@
 ---
 type: work-item
 id: "0190"
-title: "acquire_lock cannot classify an unusable lock directory"
+title: "acquire_lock misclassifies an unusable lock directory and can spin unbounded on reclaim"
 date: "2026-08-03T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
@@ -9,14 +9,14 @@ status: draft
 kind: bug
 priority: medium
 parent: "work-item:0136"
-relates_to: ["work-item:0186", "work-item:0164"]
+relates_to: ["work-item:0186", "work-item:0164", "work-item:0191"]
 tags: [bug, shell, bootstrap, bash-3.2]
-last_updated: "2026-08-03T00:00:00+00:00"
+last_updated: "2026-08-21T15:21:54+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0190: acquire_lock cannot classify an unusable lock directory
+# 0190: acquire_lock misclassifies an unusable lock directory and can spin unbounded on reclaim
 
 **Kind**: Bug
 **Status**: Draft
@@ -28,8 +28,8 @@ schema_version: 1
 `acquire_lock` in [`bin/accelerator`](../../bin/accelerator) treats every failed
 `mkdir "${lock_dir}"` as "someone else holds the lock". It has no notion of an
 `mkdir` that can never succeed, so an unusable lock directory is reported as a
-lock timeout after the full 300 × 0.1 s budget — and one arm has no bound at
-all.
+lock timeout after the full 300 × 0.1 s budget — and one branch of the retry
+loop has no bound at all.
 
 ## Context
 
@@ -42,7 +42,7 @@ failing with the wrong diagnostic (measured at a reduced ceiling as
 `TIMEOUT after 31 iters, 3s`). The gate masks that instance; it does not fix the
 classification.
 
-There is a worse arm, which neither gate prevents. When the pid file names a
+There is a worse arm, which the probe gate does not prevent. When the pid file names a
 dead process, the loop does `rm -f`/`rmdir` then `continue` — **with no `sleep`
 and no `waited` increment**. If the lock directory cannot be removed (created by
 another user, or the cache directory is writable but the lock directory is not),
@@ -53,36 +53,136 @@ happens to be foreign.
 ## Requirements
 
 - Classify the `mkdir` failure instead of assuming contention: after a failed
-  `mkdir`, `[[ -d "${lock_dir}" ]]` distinguishes `EEXIST` (a genuine
-  competitor) from a permission or I/O failure (unrecoverable — fail
-  immediately, naming the cause).
+  `mkdir`, `[[ -d "${lock_dir}" ]]` distinguishes `EEXIST` on a real directory
+  (a genuine competitor) from a path that is not a usable directory — a
+  non-directory occupying it, or an unwritable parent — which `mkdir` can never
+  resolve. Fail immediately, naming the lock path with a cause-neutral message.
 - Give the dead-owner reclaim arm a bound: a failed `rmdir` must not loop
-  without advancing the budget.
+  without advancing the budget. This arm is the more severe of the two defects
+  — an unbounded hang, not a wrong diagnostic after a bounded budget — even
+  though the item as a whole is medium priority.
+- Make the loop's iteration ceiling env-injectable so the bounded arm can be
+  exercised under a small budget: the default stays `300` (× `sleep 0.1`), and
+  a test overrides it to a low value for a sub-second, deterministic
+  bounded-vs-unbounded check.
 - Stay within the bash 3.2 floor.
 
-**Scope**: classifying `mkdir` and `rmdir` failures. **Not** re-wording the
-timeout message, and not redesigning the locking scheme.
+**Scope**: classifying `mkdir` and `rmdir` failures, and the env-injectable
+ceiling that makes the bounded arm testable. **Not** re-wording the timeout
+message, and not redesigning the locking scheme.
 
 ## Acceptance Criteria
 
-- [ ] A cold run against a cache directory whose lock directory cannot be
-      created fails within a second with a diagnostic naming the cause, not
-      after the timeout budget with a lock-timeout message.
+The second criterion (the unremovable dead-owner arm) manufactures its
+precondition by `chmod` — a lock directory at `0o555`, so `rm -f` of its pid
+file fails and the pid persists across iterations — so 0186's permission-test
+rule governs it: it asserts `id -u` ≠ 0 and **hard-fails rather than skips**
+when run as root, since root bypasses the removal restriction the case relies on
+and would satisfy the assertion regardless of the fix. A lane structurally
+unable to comply is **excluded explicitly** by the implementer, justified by a
+recorded privilege check (`id -u` returning 0, or a temp-dir check that file
+removal inside a `chmod`-restricted directory fails), never skipped silently.
+See the Acceptance Criteria preamble of
+`meta/work/0186-remove-exec-probe-from-bootstrap-warm-path.md` for the full
+rule.
+
+The first criterion (the fail-fast arm) does **not** use `chmod` and needs no
+root guard. The 0186 probe gate checks `cache_dir` writability, not the lock
+*subdirectory*, so a `chmod`-unwritable cache directory is caught before
+`acquire_lock` is ever reached — the fail-fast branch is deterministically
+reachable only by planting a **non-directory file at the lock path**, which
+makes `mkdir` fail while `[[ -d ]]` is false without any permission
+manipulation.
+
+- [ ] A cold run whose lock path is occupied by a non-directory file (so
+      `mkdir` fails and `[[ -d "${lock_dir}" ]]` is false) fails fast, its
+      combined output containing the lock directory path and the fixed cause
+      substring `cannot create the launcher cache lock` (asserted verbatim) —
+      not after the budget with a lock-timeout message. Needs no `chmod` and no
+      root guard. Run under the injected low ceiling so a regression that falls
+      through to the `else` arm still completes in well under a second, making
+      the diagnostic the discriminator rather than wall-clock.
 - [ ] A lock directory holding a dead owner's pid file that cannot be removed
-      terminates within the timeout budget rather than spinning unbounded —
-      pinned by a case with an explicit `timeout=`, so a regression shows as a
-      failure rather than a hung suite.
-- [ ] `test_stale_lock_is_reclaimed` and
-      `test_concurrent_cold_cache_slow_downloader_all_succeed` stay green: a
-      live owner still extends the budget and a dead owner is still reclaimed.
+      — its directory `chmod`ed to `0o555`, so `rm -f` of the pid fails and the
+      pid persists — terminates within the loop's budget rather than spinning
+      unbounded, and its terminating exit is non-zero carrying the existing
+      lock-timeout message. Run under a small env-injected ceiling so the case
+      completes in well under a second, pinned by a harness subprocess
+      `timeout=` set above that injected budget (distinct from, and far below,
+      the default `300`-iteration budget) — so an unbounded regression trips the
+      harness timeout and shows as a failure rather than a hung suite.
+- [ ] `test_stale_lock_is_reclaimed` (a dead owner is still reclaimed) and
+      `test_concurrent_cold_cache_slow_downloader_all_succeed` (a live owner
+      still extends the budget) stay green.
+- [ ] A lock directory holding an empty or unreadable pid file advances the
+      budget rather than failing fast or reclaiming — a deterministic case that
+      pins the `else` arm the classification branch must leave intact, run under
+      the injected low ceiling so it terminates in well under a second.
 - [ ] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
 - [ ] `mise run` (bare default task) exits 0 end-to-end.
 
 ## Dependencies
 
 - **Relates to**: 0186, which masked the one reachable instance and recorded the
-  unbounded arm; 0164, which introduced the lock.
+  unbounded arm; 0164, which introduced the lock; 0191, which edits a different
+  region of `bin/accelerator` (the shim-staging block), so the two can land in
+  either order — the shared file is not a merge coupling.
+- **On 0186's masking gate**: the cold-branch probe gate 0186 added is retained
+  as defence-in-depth, not removed by this fix — the item does not redesign the
+  locking scheme, and the gate keeps its own regression guard
+  (`test_unverifiable_launcher_in_readonly_cache_fails_fast`). Nothing
+  downstream waits on this fix.
 - **Parent**: epic 0136.
+
+## Technical Notes
+
+The loop in `acquire_lock` has three post-`mkdir`-failure arms. The fix adds one
+classification branch and bounds a second arm; the mkdir+pid scheme is otherwise
+unchanged.
+
+**Classification branch (mkdir arm).** After a failed `mkdir "${lock_dir}"`,
+test `[[ -d "${lock_dir}" ]]` before reading the pid file. A failed `mkdir`
+whose path is *not a directory* is not a live-competitor `EEXIST` — either a
+non-directory file occupies the path or the parent is unwritable, and the
+`mkdir` can never succeed. Fail immediately, naming the lock path with a
+cause-neutral message, instead of entering the wait loop. `mkdir` exposes no
+shell-portable errno, so directory-presence is the only portable discriminator —
+which is why the Requirements pick that predicate. The 0186 probe gate guards
+`cache_dir`, not the lock subdirectory, so the reachable-in-test trigger for
+this branch is a non-directory at the lock path, not an unwritable parent (which
+the gate catches first).
+
+**Bounding the dead-owner arm.** The reclaim arm (`rm -f pid` → `rmdir` →
+`continue`) advances neither `waited` nor `sleep`, so a `rmdir` that fails on a
+foreign lock directory spins unbounded. Gate the `continue` on `rmdir`
+succeeding; on `rmdir` failure fall through to `waited=$((waited + 1))` and
+`sleep 0.1`, so the arm shares the `else` arm's 300-iteration cap. The
+acceptance criterion specifies "terminates within the timeout budget" for this
+arm rather than fail-fast, so a foreign lock directory is caught by the existing
+bound, not a new immediate-fail path.
+
+**Post-fix arm order.** mkdir succeeds → hold; mkdir fails + path is not a
+directory → fail fast (new); directory + live owner → reset budget; directory + dead owner +
+`rmdir` ok → reclaim and retry; directory + dead owner + `rmdir` fails → advance
+budget; directory + empty/unreadable pid (the `else` arm) → advance budget. That
+`else` arm still covers the genuine race window — a competitor that created the
+directory but has not yet written its pid.
+
+**bash 3.2 floor.** `[[ -d ]]`, `[[ -n ]]`, `kill -0`, and `$(( ))` are all
+3.2-safe; the fix needs no bash-4 construct (no associative arrays, `${var,,}`,
+or `mapfile`).
+
+**Testability of the timeout case.** The ceiling defaults to `300`
+(× `sleep 0.1` ≈ 30 s wall) but is env-injectable (a Requirement), so the
+bounded-arm case overrides it to a low value and completes in well under a
+second. The acceptance criterion's harness subprocess `timeout=`
+(`_run_bootstrap(..., timeout=N)` in
+`tests/integration/entrypoint/test_accelerator_entrypoint.py`) is a **distinct**
+timeout from the loop's own budget: set it above the injected ceiling but far
+below the default 30 s, so a correctly-bounded loop exits cleanly before it
+fires while an unbounded regression trips it — either way a failure, never a
+hung suite and never a permanently ~30 s test. The env-injectable ceiling is a
+testability seam, not a redesign of the scheme.
 
 ## References
 
