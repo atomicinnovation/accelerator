@@ -5,7 +5,7 @@ title: "acquire_lock mkdir classification and bounded reclaim Implementation Pla
 date: "2026-08-21T15:21:54+00:00"
 author: Toby Clemson
 producer: create-plan
-status: draft
+status: done
 work_item_id: "work-item:0190"
 parent: "work-item:0190"
 derived_from: ["codebase-research:2026-08-21-0190-acquire-lock-mkdir-classification"]
