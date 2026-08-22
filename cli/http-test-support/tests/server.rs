@@ -200,6 +200,46 @@ fn headers_are_recorded_per_route_rather_than_globally() {
 }
 
 #[test]
+fn every_hit_body_is_recorded_in_order_while_last_body_stays_the_most_recent() {
+    let server = MockServer::start();
+    let key = RequestKey::post("/graphql");
+    server.route(
+        key.clone(),
+        Route::Sequence(vec![
+            Route::Json {
+                status: 200,
+                body: "{}".to_owned(),
+            },
+            Route::Json {
+                status: 200,
+                body: "{}".to_owned(),
+            },
+        ]),
+    );
+
+    request(&server, "POST", "/graphql", &[], b"{\"op\":\"create\"}");
+    request(&server, "POST", "/graphql", &[], b"{\"op\":\"writeback\"}");
+
+    assert_eq!(
+        server.bodies(&key),
+        vec![
+            b"{\"op\":\"create\"}".to_vec(),
+            b"{\"op\":\"writeback\"}".to_vec(),
+        ],
+        "the first POST's body must survive the second"
+    );
+    assert_eq!(
+        server.last_body(&key),
+        Some(b"{\"op\":\"writeback\"}".to_vec()),
+        "last_body still returns the most recent hit"
+    );
+    assert_eq!(
+        server.bodies(&RequestKey::post("/never")),
+        Vec::<Vec<u8>>::new()
+    );
+}
+
+#[test]
 fn a_json_route_returns_its_body_verbatim() {
     let server = MockServer::start();
     server.route(
