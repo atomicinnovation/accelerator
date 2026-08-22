@@ -707,25 +707,26 @@ could freeze as ground truth.
 
 #### Automated Verification:
 
-- [ ] The differential passes with the drivers **absent**, proving the
+- [x] The differential passes with the drivers **absent**, proving the
       decoupling rather than asserting it. The restore must run unconditionally so
       a failing run (the exact case this proves) cannot leave the tree displaced:
       `mv skills/integrations/jira/scripts/jira-adf-{to-md,render}.* /tmp;
       cargo nextest run -p jira-client; rc=$?; git checkout
-      skills/integrations/jira/scripts/; exit $rc` (from `cli/`)
-- [ ] `cargo nextest run -p jira-client` green in the default profile
-- [ ] The oracle manifest matches every frozen file and the case count is pinned
-      to the final total (56 + ported `adf-samples/`), set once after §4
-- [ ] `frozen_oracle` hard-fails on a missing or empty corpus file, and any
+      skills/integrations/jira/scripts/; exit $rc` (from `cli/`) — proven with all
+      five deleted-in-Phase-4 assets absent (jj tree, restore via `mv`), 159 pass
+- [x] `cargo nextest run -p jira-client` green in the default profile
+- [x] The oracle manifest matches every frozen file and the case count is pinned
+      to the final total (56 + ported `adf-samples/`), set once after §4 — **57**
+- [x] `frozen_oracle` hard-fails on a missing or empty corpus file, and any
       case's `oracle.out` agrees with its existing committed `expected.*`
-- [ ] `adf_differential_self_test.rs` is unedited and still fails on a planted
+- [x] `adf_differential_self_test.rs` is unedited and still fails on a planted
       wrong rendering
-- [ ] No `Command::new("bash")` remains anywhere under `cli/jira-client/tests/`
-- [ ] Full read-only gate: `mise run check`
+- [x] No `Command::new("bash")` remains anywhere under `cli/jira-client/tests/`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification:
 
-- [ ] The ADF ledger accounts for all 43 `adf-samples/` files, each row naming
+- [x] The ADF ledger accounts for all 43 `adf-samples/` files, each row naming
       its disposition and, for a "already represented" row, the case that
       represents it
 

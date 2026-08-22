@@ -37,4 +37,5 @@ tracker-support = { path = "../tracker-support" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 tempfile = { workspace = true }
