@@ -8,10 +8,19 @@ use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work::sync::push_precondition;
+use work::sync::MarkerState;
+use work::sync::PendingPush;
+use work::sync::PushPrecondition;
+use work::sync::RefusalReason;
+use work::sync::RequestFingerprint;
 
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::create::DiscoveredIssue;
+use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
+use crate::sync::pending_push;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureClass {
@@ -73,6 +82,48 @@ pub struct PushRequest<'a> {
     pub title: &'a str,
     pub body: &'a str,
     pub file_path: &'a Path,
+}
+
+/// The inputs `create_from_local` needs beyond the applier's own ports.
+///
+/// `marker_path` is precomputed by the run so the applier stays ignorant of
+/// the integrations layout, and `corpus_carries` reports whether any local
+/// item already carries a candidate `external_id` — the guard that stops a
+/// recovered `Created` marker binding two files to one remote issue.
+pub struct CreateFromLocalRequest<'a> {
+    pub item_id: &'a str,
+    pub file_path: &'a Path,
+    pub title: &'a str,
+    pub body: &'a str,
+    pub kind: &'a str,
+    pub marker_path: &'a Path,
+    pub author: &'a dyn LocalAuthor,
+    pub corpus_carries: &'a dyn Fn(&ExternalId) -> bool,
+    pub attempted_at: u64,
+}
+
+fn refusal_detail(reason: RefusalReason, marker_path: &Path) -> String {
+    let marker = marker_path.display();
+    match reason {
+        RefusalReason::MarkerUnreadable => format!(
+            "pending-push marker at {marker} could not be parsed; a previous \
+             create may have partially applied — inspect or remove it"
+        ),
+        RefusalReason::PriorAttemptUnknownOutcome => format!(
+            "a previous create attempt recorded at {marker} has an unknown \
+             outcome — a remote issue may already exist; inspect it, then \
+             remove the marker to retry"
+        ),
+        RefusalReason::FingerprintMismatch => format!(
+            "the pending-push marker at {marker} was recorded for a different \
+             request; remove it to force a new create"
+        ),
+        RefusalReason::AlreadyWritten => format!(
+            "the pending-push marker at {marker} names an external_id already \
+             carried by a work item on disk; remove it if this is a genuine \
+             duplicate create"
+        ),
+    }
 }
 
 pub struct PullRequest<'a> {
@@ -196,6 +247,242 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 },
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
+    }
+
+    /// Authors a discovered remote issue as a new local file and records its
+    /// baseline entry, so the next run classifies it as synced. Returns the
+    /// allocated local id.
+    ///
+    /// The `show` fetches the projected body the local file and the baseline
+    /// both need — `Discovery` carries only ids and stamps. The exclusive
+    /// authoring write lives behind [`LocalAuthor`], so an id collision
+    /// surfaces as an error here rather than a silent clobber.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError`] when the `show`, the authoring write, or the baseline
+    /// write fails.
+    pub fn create_from_remote(
+        &mut self,
+        external_id: &ExternalId,
+        author: &dyn LocalAuthor,
+    ) -> Result<String, ApplyError> {
+        let issue = self.tracker.show(external_id).map_err(|source| {
+            ApplyError::Tracker {
+                item_id: external_id.as_str().to_owned(),
+                operation: "show",
+                source,
+            }
+        })?;
+        let authored = author
+            .author_from_remote(&DiscoveredIssue {
+                external_id: external_id.clone(),
+                issue: issue.clone(),
+            })
+            .map_err(|error| {
+                io_error(external_id.as_str(), "author-local", error)
+            })?;
+
+        let local_content = std::fs::read_to_string(&authored.path)
+            .map_err(|error| io_error(&authored.id, "read-local", error))?;
+        let local_hash = digest::local(&local_content)
+            .map_err(|error| io_error(&authored.id, "hash-local", error))?;
+        let remote_hash = digest::remote_body(&issue.body);
+
+        self.baseline
+            .set(
+                &authored.id,
+                Entry {
+                    remote_updated_at: issue.updated,
+                    remote_hash,
+                    local_hash,
+                },
+            )
+            .map_err(|error| io_error(&authored.id, "baseline-set", error))?;
+        Ok(authored.id)
+    }
+
+    /// Creates a remote issue for an unsynced local draft, links the returned
+    /// id back into the file, and records the baseline entry.
+    ///
+    /// The durable [`crate::sync::pending_push`] marker is written **before**
+    /// the non-idempotent `create`, so a crash in the window between a
+    /// successful remote create and the local link is recoverable: the next
+    /// run reads the marker and reuses the id rather than creating a duplicate.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError`] when the marker refuses the attempt, the `create` fails,
+    /// or a filesystem/baseline write fails.
+    pub fn create_from_local(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        let digest = pending_push::request_digest(
+            request.title,
+            request.body,
+            request.kind,
+        );
+
+        match Self::push_decision(request, &digest) {
+            PushPrecondition::Refuse(reason) => Err(io_error(
+                request.item_id,
+                "create",
+                refusal_detail(reason, request.marker_path),
+            )),
+            PushPrecondition::ReuseId(external_id) => {
+                self.link_and_baseline(request, &external_id)
+            }
+            PushPrecondition::Proceed => {
+                self.create_marking_progress(request, digest)
+            }
+        }
+    }
+
+    fn push_decision(
+        request: &CreateFromLocalRequest<'_>,
+        digest: &str,
+    ) -> PushPrecondition {
+        let marker_content = std::fs::read_to_string(request.marker_path).ok();
+        let parsed = pending_push::read(marker_content.as_deref());
+        let marker_state = match &parsed {
+            Err(_) => MarkerState::Unreadable,
+            Ok(None) => MarkerState::Absent,
+            Ok(Some(marker)) => MarkerState::Present(marker),
+        };
+        push_precondition(&marker_state, digest, request.corpus_carries)
+    }
+
+    fn create_marking_progress(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+        digest: String,
+    ) -> Result<(), ApplyError> {
+        let fingerprint = RequestFingerprint {
+            title: request.title.to_owned(),
+            digest,
+            attempted_at: request.attempted_at,
+            failure: None,
+        };
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Attempted {
+                request: fingerprint.clone(),
+            },
+        )?;
+
+        match self
+            .tracker
+            .create(request.title, request.body, request.kind)
+        {
+            Ok(external_id) => {
+                self.record_created(request, &fingerprint, &external_id)
+            }
+            Err(source @ TrackerError::Retryable { .. }) => {
+                Self::abandon_attempt(request, source)
+            }
+            Err(TrackerError::Terminal { detail }) => {
+                self.record_terminal_failure(request, fingerprint, detail)
+            }
+        }
+    }
+
+    fn record_created(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+        fingerprint: &RequestFingerprint,
+        external_id: &ExternalId,
+    ) -> Result<(), ApplyError> {
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Created {
+                request: fingerprint.clone(),
+                external_id: external_id.clone(),
+            },
+        )?;
+        self.link_and_baseline(request, external_id)
+    }
+
+    fn abandon_attempt(
+        request: &CreateFromLocalRequest<'_>,
+        source: TrackerError,
+    ) -> Result<(), ApplyError> {
+        std::fs::remove_file(request.marker_path).ok();
+        Err(ApplyError::Tracker {
+            item_id: request.item_id.to_owned(),
+            operation: "create",
+            source,
+        })
+    }
+
+    fn record_terminal_failure(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        fingerprint: RequestFingerprint,
+        detail: String,
+    ) -> Result<(), ApplyError> {
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Attempted {
+                request: RequestFingerprint {
+                    failure: Some(detail.clone()),
+                    ..fingerprint
+                },
+            },
+        )?;
+        Err(ApplyError::Tracker {
+            item_id: request.item_id.to_owned(),
+            operation: "create",
+            source: TrackerError::Terminal { detail },
+        })
+    }
+
+    fn write_marker(
+        &self,
+        path: &Path,
+        marker: &PendingPush,
+    ) -> Result<(), ApplyError> {
+        self.writer
+            .write(path, pending_push::render(marker).as_bytes())
+            .map_err(|error| io_error("<marker>", "marker-write", error))
+    }
+
+    fn link_and_baseline(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+        external_id: &ExternalId,
+    ) -> Result<(), ApplyError> {
+        request
+            .author
+            .link_external_id(request.file_path, external_id)
+            .map_err(|error| {
+                io_error(request.item_id, "link-external-id", error)
+            })?;
+
+        let (remote_updated, remote_hash) = match self.tracker.show(external_id)
+        {
+            Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
+            Err(_) => (RemoteTimestamp::NotRead, String::new()),
+        };
+        let local_content = std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.item_id, "read-local", error))?;
+        let local_hash = digest::local(&local_content)
+            .map_err(|error| io_error(request.item_id, "hash-local", error))?;
+
+        self.baseline
+            .set(
+                request.item_id,
+                Entry {
+                    remote_updated_at: remote_updated,
+                    remote_hash,
+                    local_hash,
+                },
+            )
+            .map_err(|error| {
+                io_error(request.item_id, "baseline-set", error)
+            })?;
+        std::fs::remove_file(request.marker_path).ok();
+        Ok(())
     }
 
     /// Advances the baseline's global timestamp, blanking nothing: the run

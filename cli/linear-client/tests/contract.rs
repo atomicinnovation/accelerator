@@ -20,11 +20,15 @@ use linear_client::transport::Transport;
 use linear_client::{LinearClient, UploadTransport};
 use tracker::ExternalId;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker_support::{
     ClockJitter, CommandPolicy, CredentialContext, SystemEnvironment,
     SystemSleeper, TransportConfig,
 };
 use tracker_test_support::contract::{run_all, ContractSubject};
+use tracker_test_support::seed::{
+    guard_target, representative_records, run_seed, ScratchAllowlist,
+};
 
 /// A live run resolves its token from the environment, where no provenance
 /// question arises.
@@ -91,6 +95,13 @@ impl ContractSubject for LiveClient {
 
     fn unreadable_id(&self) -> ExternalId {
         self.unreadable.clone()
+    }
+
+    /// A live tenant returns a complete result well within the 250-item page,
+    /// so no benign scope this subject could name reports `complete == false`.
+    /// The truncation property is enforced offline against a failed page.
+    fn can_induce_truncation(&self) -> bool {
+        false
     }
 }
 
@@ -200,4 +211,62 @@ fn writes_reduced_evidence_when_a_path_is_configured() {
     );
     std::fs::write(&path, rendered)
         .unwrap_or_else(|error| panic!("write evidence to {path:?}: {error}"));
+}
+
+/// Seeds the scratch Linear team with the representative corpus, idempotently.
+///
+/// A no-op unless `ACCELERATOR_TRACKER_SEED=1`, so an ordinary contract run
+/// never writes issues. When seeding, the contract gate must be open and the
+/// target team must be on `ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST` — a
+/// non-scratch team is refused before any create. Re-running reuses the
+/// already-seeded issues rather than duplicating them.
+#[test]
+fn seeds_the_scratch_corpus_when_requested() {
+    if std::env::var_os("ACCELERATOR_TRACKER_SEED").is_none() {
+        return;
+    }
+    assert_eq!(
+        std::env::var("ACCELERATOR_TRACKER_CONTRACT")
+            .ok()
+            .as_deref(),
+        Some("1"),
+        "seeding needs the contract gate open: set \
+         ACCELERATOR_TRACKER_CONTRACT=1",
+    );
+
+    let team = std::env::var("ACCELERATOR_LINEAR_CONTRACT_TEAM_KEY")
+        .expect("ACCELERATOR_LINEAR_CONTRACT_TEAM_KEY names the scratch team");
+    let allowlist = ScratchAllowlist::from_list(
+        &std::env::var("ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST").expect(
+            "ACCELERATOR_TRACKER_SCRATCH_ALLOWLIST lists the scratch \
+             projects/teams the seed may write to",
+        ),
+    );
+    guard_target(&allowlist, &team).unwrap_or_else(|refusal| {
+        panic!("refusing to seed a non-scratch target: {refusal:?}")
+    });
+
+    let subject = live_client();
+    let scope = SearchScope {
+        project: Some(team),
+        all_projects: false,
+        filters: Vec::new(),
+    };
+    let records = representative_records();
+    let summary = run_seed(subject.tracker(), &scope, &records)
+        .unwrap_or_else(|error| panic!("seed failed: {error:?}"));
+
+    println!(
+        "linear seed: {} created, {} reused",
+        summary.created.len(),
+        summary.reused.len()
+    );
+    for (record, id) in summary.created.iter().chain(&summary.reused) {
+        println!("  {record} -> {}", id.as_str());
+    }
+    assert_eq!(
+        summary.created.len() + summary.reused.len(),
+        records.len(),
+        "every record is either created or reused",
+    );
 }

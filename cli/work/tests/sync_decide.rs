@@ -1,10 +1,8 @@
 //! Runs `work::sync::decide` and `resolve_conflict_token` against the
-//! shared golden in
-//! `skills/work/scripts/test-fixtures/work-item-sync-decide.golden`.
+//! committed golden in `tests/fixtures/work-item-sync-decide.golden`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;
-use std::path::PathBuf;
 
 use work::sync::decide;
 use work::sync::resolve_conflict_token;
@@ -21,12 +19,6 @@ const EXPECTED_DECIDE_RUST_ONLY_ROWS: usize = 3;
 const EXPECTED_TOKEN_ROWS: usize = 5;
 const EXPECTED_TOKEN_RUST_ONLY_ROWS: usize = 1;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 enum Section {
     Decide,
     DecideRustOnly,
@@ -35,8 +27,8 @@ enum Section {
 }
 
 fn golden_lines() -> Result<Vec<String>, TestError> {
-    let path = repo_root()?
-        .join("skills/work/scripts/test-fixtures/work-item-sync-decide.golden");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-sync-decide.golden");
     Ok(std::fs::read_to_string(path)?
         .lines()
         .map(str::to_owned)

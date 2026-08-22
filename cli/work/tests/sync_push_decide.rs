@@ -1,9 +1,8 @@
-//! Runs `work::sync::push_decide` against the shared golden in
-//! `skills/work/scripts/test-fixtures/work-item-push-decide.golden`.
+//! Runs `work::sync::push_decide` against the committed golden in
+//! `tests/fixtures/work-item-push-decide.golden`.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;
-use std::path::PathBuf;
 
 use work::sync::push_decide;
 use work::sync::PushOutcome;
@@ -11,12 +10,6 @@ use work::sync::PushOutcome;
 type TestError = Box<dyn std::error::Error>;
 
 const EXPECTED_ROWS: usize = 13;
-
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
 
 fn outcome(raw: &str) -> PushOutcome {
     match raw {
@@ -30,8 +23,8 @@ fn outcome(raw: &str) -> PushOutcome {
 
 #[test]
 fn every_row_matches_the_golden() -> Result<(), TestError> {
-    let path = repo_root()?
-        .join("skills/work/scripts/test-fixtures/work-item-push-decide.golden");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-push-decide.golden");
     let content = std::fs::read_to_string(path)?;
     let mut ran = 0;
 

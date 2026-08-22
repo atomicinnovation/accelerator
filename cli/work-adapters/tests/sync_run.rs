@@ -98,6 +98,35 @@ impl WorkingCopyStatus for AlwaysClean {
     }
 }
 
+struct AlwaysDirty;
+
+impl WorkingCopyStatus for AlwaysDirty {
+    fn is_dirty(&self, _path: &Path) -> Dirtiness {
+        Dirtiness::Dirty
+    }
+}
+
+/// A `LocalAuthor` the create-free scenarios never invoke: an empty discovery
+/// and no unsynced items mean neither create path runs.
+struct UnusedAuthor;
+
+impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
+    fn author_from_remote(
+        &self,
+        _issue: &work_adapters::sync::create::DiscoveredIssue,
+    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+        panic!("no scenario in this suite authors from a discovered issue")
+    }
+
+    fn link_external_id(
+        &self,
+        _path: &Path,
+        _external_id: &ExternalId,
+    ) -> Result<(), kernel::Error> {
+        panic!("no scenario in this suite links an external id")
+    }
+}
+
 struct FixedClock(u64);
 
 impl work::sync::RunClock for FixedClock {
@@ -183,7 +212,7 @@ struct Scenario {
     items: Vec<LocalItem>,
     tracker: RecordingTracker,
     spy: Spy,
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
 }
 
 fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
@@ -212,13 +241,14 @@ fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
         items,
         tracker: RecordingTracker::holding(issues),
         spy,
-        _dir: dir,
+        dir,
     })
 }
 
-const fn request<'a>(
+fn request<'a>(
     items: &'a [LocalItem],
     resolutions: &'a BTreeMap<String, Resolution>,
+    integrations_root: &'a Path,
     max_pulls: usize,
     max_pushes: usize,
     mode: RunMode,
@@ -231,6 +261,9 @@ const fn request<'a>(
         max_pulls,
         max_pushes,
         mode,
+        integrations_root,
+        integration: "jira",
+        scope: tracker::SearchScope::default(),
     }
 }
 
@@ -242,11 +275,13 @@ fn execute(
 ) -> Result<work_adapters::sync::run::RunReport, RunError> {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
+    let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
+        author: &author,
     };
     let mut store = BaselineStore::new(
         PathBuf::from(BASELINE_PATH),
@@ -257,7 +292,14 @@ fn execute(
     run(
         &ports,
         &mut store,
-        &request(&scenario.items, &resolutions, max_pulls, max_pushes, mode),
+        &request(
+            &scenario.items,
+            &resolutions,
+            scenario.dir.path(),
+            max_pulls,
+            max_pushes,
+            mode,
+        ),
     )
 }
 
@@ -336,11 +378,14 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
             pushes,
             max_pulls,
             max_pushes,
+            ..
         } => {
             assert_eq!((pulls, max_pulls), (3, 2));
             assert_eq!((pushes, max_pushes), (0, 25));
         }
-        RunError::Read(_) | RunError::Internal(_) => {
+        RunError::Read(_)
+        | RunError::Internal(_)
+        | RunError::DiscoveryIncomplete { .. } => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -390,7 +435,9 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
         RunError::Refused {
             pushes, max_pushes, ..
         } => assert_eq!((pushes, max_pushes), (2, 1)),
-        RunError::Read(_) | RunError::Internal(_) => {
+        RunError::Read(_)
+        | RunError::Internal(_)
+        | RunError::DiscoveryIncomplete { .. } => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -477,7 +524,7 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
             },
         )]),
         spy,
-        _dir: dir,
+        dir,
     };
 
     let report = execute(&scenario, 25, 25, RunMode::Apply)
@@ -574,7 +621,7 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         items: vec![item_a, item_b],
         tracker: RecordingTracker::holding(vec![issue_a, issue_b]),
         spy,
-        _dir: dir,
+        dir,
     };
 
     let report = execute(&scenario, 25, 25, RunMode::Apply)
@@ -656,7 +703,7 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
             },
         )]),
         spy,
-        _dir: dir,
+        dir,
     };
 
     let report = execute(&scenario, 25, 25, RunMode::Apply)
@@ -678,5 +725,119 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
         "no sections are fabricated from an unreadable local side"
     );
     assert_eq!(dossier.local_modified, None);
+    Ok(())
+}
+
+#[test]
+fn preview_lists_every_action_and_validates_push_entries_only(
+) -> Result<(), TestError> {
+    let scenario = scenario(2, 1)?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Preview)
+        .map_err(|_| "preview must not refuse within the bounds")?;
+
+    assert_eq!(
+        report.reported.len(),
+        3,
+        "the preview report must not shrink below the whole plan"
+    );
+    for item in &report.reported {
+        let is_push = item.planned.action == work::sync::Action::Push;
+        assert_eq!(
+            item.validation.is_some(),
+            is_push,
+            "only push entries carry a validation outcome: {:?}",
+            item.planned
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
+) -> Result<(), TestError> {
+    // The pushable fixture's frontmatter carries no `title`, so the composed
+    // update payload leaves the required field empty and the local check
+    // rejects it.
+    let scenario = scenario(0, 1)?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Preview)
+        .map_err(|_| "preview must not refuse within the bounds")?;
+
+    let push = report
+        .reported
+        .iter()
+        .find(|item| item.planned.action == work::sync::Action::Push)
+        .expect("one push entry");
+    assert!(
+        matches!(
+            push.validation,
+            Some(tracker::ValidationOutcome::Rejected { .. })
+        ),
+        "a missing required field must be rejected, got {:?}",
+        push.validation
+    );
+
+    let mutated = scenario.tracker.calls().iter().any(|call| {
+        matches!(
+            call,
+            tracker_test_support::Call::Update { .. }
+                | tracker_test_support::Call::Create { .. }
+        )
+    });
+    assert!(
+        !mutated,
+        "validate_update must make no mutating remote call"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let (item, issue, entry) = pullable(dir.path(), 1)?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry]));
+    let tracker = RecordingTracker::holding(vec![issue]);
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysDirty;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &tracker,
+        status: &status,
+        writer: &spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &spy, &spy);
+    let resolutions = BTreeMap::new();
+    let integrations_root = dir.path().to_path_buf();
+
+    let report = run(
+        &ports,
+        &mut store,
+        &request(
+            std::slice::from_ref(&item),
+            &resolutions,
+            &integrations_root,
+            25,
+            25,
+            RunMode::Apply,
+        ),
+    )
+    .map_err(|_| "a dirty conflict is not a write, so bounds cannot refuse")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Prompt,
+        "a dirty remotely-modified item must decide Prompt, not Pull"
+    );
+    assert!(
+        !spy.writes.borrow().iter().any(|path| path == &item.path),
+        "the dirty guard must leave the item's file unwritten"
+    );
+    assert_eq!(report.awaiting_human().count(), 1);
     Ok(())
 }

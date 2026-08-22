@@ -1,5 +1,5 @@
-# The identifiers both providers accept and refuse, transcribed from
-# _wicr_identifier_safe (work-item-create-remote.sh:62-87).
+# The identifiers both providers accept and refuse, transcribed from the
+# bash create-remote identifier guard.
 #
 # `/`, `#` and `@` are permitted MID-token: GitHub (owner/repo#42) and Trello
 # identifiers legitimately carry them. The refusals are scoped to what breaks

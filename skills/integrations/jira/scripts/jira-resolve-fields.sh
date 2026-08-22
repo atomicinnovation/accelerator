@@ -137,7 +137,7 @@ _jrf_main() {
     external_id=$(printf '%s\n' "$fm" | _jrf_fm_field external_id)
 
     # Already-synced guard (presence-based, same normalisation as the Linear
-    # guard and work-item-sync-label.sh).
+    # guard).
     local eid_trimmed
     eid_trimmed=$(printf '%s' "$external_id" | sed "s/^[[:space:]\"']*//; s/[[:space:]\"']*\$//")
     if [[ -n "$eid_trimmed" ]]; then

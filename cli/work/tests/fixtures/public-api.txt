@@ -48,6 +48,38 @@ pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option:
 pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
 pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
 pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
+pub mod work::filter
+pub struct work::filter::Filter
+pub work::filter::Filter::kind: core::option::Option<alloc::string::String>
+pub work::filter::Filter::parent: core::option::Option<alloc::string::String>
+pub work::filter::Filter::priority: core::option::Option<alloc::string::String>
+pub work::filter::Filter::status: core::option::Option<alloc::string::String>
+pub work::filter::Filter::tags: alloc::vec::Vec<alloc::string::String>
+pub work::filter::Filter::term: core::option::Option<alloc::string::String>
+impl work::filter::Filter
+pub const fn work::filter::Filter::is_empty(&self) -> bool
+pub const fn work::filter::Filter::is_title_only(&self) -> bool
+pub fn work::filter::Filter::matches(&self, item: &work::filter::WorkItemView<'_>, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
+impl core::clone::Clone for work::filter::Filter
+pub fn work::filter::Filter::clone(&self) -> work::filter::Filter
+impl core::default::Default for work::filter::Filter
+pub fn work::filter::Filter::default() -> work::filter::Filter
+impl core::fmt::Debug for work::filter::Filter
+pub fn work::filter::Filter::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct work::filter::WorkItemView<'a>
+pub work::filter::WorkItemView::kind: core::option::Option<&'a str>
+pub work::filter::WorkItemView::parent: core::option::Option<&'a str>
+pub work::filter::WorkItemView::priority: core::option::Option<&'a str>
+pub work::filter::WorkItemView::status: core::option::Option<&'a str>
+pub work::filter::WorkItemView::tags: &'a [alloc::string::String]
+pub work::filter::WorkItemView::title: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for work::filter::WorkItemView<'a>
+pub fn work::filter::WorkItemView<'a>::clone(&self) -> work::filter::WorkItemView<'a>
+impl<'a> core::fmt::Debug for work::filter::WorkItemView<'a>
+pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
+pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
+pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingProject
@@ -191,6 +223,8 @@ pub trait work::sync::clock::RunClock
 pub fn work::sync::clock::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
 pub mod work::sync::decide
 pub enum work::sync::decide::Action
+pub work::sync::decide::Action::CreateFromLocal
+pub work::sync::decide::Action::CreateFromRemote
 pub work::sync::decide::Action::Noop
 pub work::sync::decide::Action::Prompt
 pub work::sync::decide::Action::Pull
@@ -418,6 +452,8 @@ pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Forma
 impl core::marker::Copy for work::sync::state::SyncState
 impl core::marker::StructuralPartialEq for work::sync::state::SyncState
 pub enum work::sync::Action
+pub work::sync::Action::CreateFromLocal
+pub work::sync::Action::CreateFromRemote
 pub work::sync::Action::Noop
 pub work::sync::Action::Prompt
 pub work::sync::Action::Pull

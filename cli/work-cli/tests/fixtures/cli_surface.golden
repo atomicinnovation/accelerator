@@ -12,6 +12,7 @@ Commands:
   update           Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   canonicalise-id  Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
   next-number      Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  list             List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
   sync             Reconcile local work items with the configured remote tracker (`work.integration`)
   help             Print this message or the help of the given subcommand(s)
 
@@ -87,7 +88,8 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
-      --push                         Push the new item to the configured remote tracker before writing it locally. A failure is reported, not prompted; the file is still written either way (see `--help`'s exit-code notes)
+      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist — see `exit_codes` for the 70/71 contract). The file is written either way
+      --dry-run                      Preview the fields a `--push` create would resolve against the configured tracker, then exit without writing a file or creating a remote issue. Prints one tab-separated line the create skill parses; exits 70 when the tracker is unreachable (the preview could not be resolved), so the caller can distinguish an unreachable tracker from an unresolvable configured value (reported as an `unresolvable` source on the line, exit 0)
   -h, --help                         Print help
 
 === accelerator-work update --help ===
@@ -128,8 +130,27 @@ Options:
       --count <COUNT>      How many sequential IDs to print [default: 1]
   -h, --help               Print help
 
+=== accelerator-work list --help ===
+List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
+
+Usage: accelerator-work list [OPTIONS] [TERM]
+
+Arguments:
+  [TERM]  Keep only items whose title contains this substring (case-insensitive)
+
+Options:
+      --status <STATUS>      Keep only items whose `status` equals this value exactly
+      --kind <KIND>          Keep only items whose `kind` equals this value exactly
+      --priority <PRIORITY>  Keep only items whose `priority` equals this value exactly
+      --parent <PARENT>      Keep only items whose `parent` canonicalises to this value (short and long ID forms compare equal)
+      --tag <TAGS>           Keep only items carrying this tag; repeatable, and every one supplied must be present
+      --hierarchy            Render the parent/child hierarchy as a tree instead of a table
+  -h, --help                 Print help
+
 === accelerator-work sync --help ===
 Reconcile local work items with the configured remote tracker (`work.integration`).
+
+A run may author **new** artefacts on both sides beyond updating existing ones: it creates remote issues from unsynced local drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote issues into new local files (bounded by `--max-pulls`, counted as pulls). Untracked discovery is scoped to the configured project, and a run that would exceed either bound refuses with zero writes (exit 5).
 
 Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 1 an internal error; 2 a usage error; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
 

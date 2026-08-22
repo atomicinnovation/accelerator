@@ -15,10 +15,13 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use tracker::CreatePreview;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::ValidationOutcome;
 
 /// One implementation under test, plus the ids it supplies the two induced
 /// conditions with.
@@ -47,6 +50,39 @@ pub trait ContractSubject {
     /// [`unaccountable_id`]: ContractSubject::unaccountable_id
     fn can_nominate_indeterminate(&self) -> bool {
         true
+    }
+
+    /// A scope whose discovery this implementation reports **incomplete** — a
+    /// truncated retrieval, a page cap, or a failed query.
+    ///
+    /// The default is a bare scope. A subject that can only be truncated through
+    /// a specific configuration overrides both this and
+    /// [`can_induce_truncation`].
+    ///
+    /// [`can_induce_truncation`]: ContractSubject::can_induce_truncation
+    fn truncating_scope(&self) -> SearchScope {
+        SearchScope::default()
+    }
+
+    /// Whether [`truncating_scope`] actually yields `complete == false` for this
+    /// subject.
+    ///
+    /// A subject with no inducible truncation path — a live tenant that returns
+    /// a clean complete result for any benign scope — declares `false`, and
+    /// [`timed_conformance`] skips the truncation property for it, exactly as
+    /// [`can_nominate_indeterminate`] gates the indeterminate property. The
+    /// property stays enforced offline against a mock that forces the cut-off.
+    ///
+    /// [`truncating_scope`]: ContractSubject::truncating_scope
+    /// [`can_nominate_indeterminate`]: ContractSubject::can_nominate_indeterminate
+    fn can_induce_truncation(&self) -> bool {
+        true
+    }
+
+    /// The `kind` this subject's create preview resolves. The default is the
+    /// empty string — the tracker's configured default issue type.
+    fn preview_kind(&self) -> String {
+        String::new()
     }
 }
 
@@ -244,6 +280,145 @@ pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
     );
 }
 
+/// A truncated discovery must report `complete == false`, so a caller never
+/// mistakes a cut-off query for the whole of what the tracker holds.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn search_reports_truncation(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    search_reports_truncation_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An offline caller with a mock-backed subject enforces them in the default
+/// profile. The gate stays on the wrapper: reaching a property directly must
+/// not thereby reach a live provider.
+pub fn search_reports_truncation_property(subject: &dyn ContractSubject) {
+    let scope = subject.truncating_scope();
+    let discovery = subject
+        .tracker()
+        .search(&scope)
+        .expect("search must succeed for a conformant implementation");
+    assert!(
+        !discovery.complete,
+        "a truncated discovery must report complete == false"
+    );
+}
+
+/// A create preview contacts the tracker but mutates nothing.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn preview_create_makes_no_mutation(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    preview_create_makes_no_mutation_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// A preview must resolve without error. The no-mutation invariant proper — no
+/// `create` observed — is additionally pinned offline, where a mock records
+/// whether a create request was sent; the shared property cannot inspect a live
+/// tracker's state.
+pub fn preview_create_makes_no_mutation_property(
+    subject: &dyn ContractSubject,
+) {
+    subject
+        .tracker()
+        .preview_create(&subject.preview_kind())
+        .expect("preview_create must succeed for a conformant implementation");
+}
+
+/// A create preview resolves each field to the expected three-state outcome.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn preview_create_resolves_fields(
+    subject: &dyn ContractSubject,
+    expected: &CreatePreview,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    preview_create_resolves_fields_property(subject, expected);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// Enforced offline, where three separately-configured mocks stand in for a
+/// resolved, an unset and an unresolvable field.
+pub fn preview_create_resolves_fields_property(
+    subject: &dyn ContractSubject,
+    expected: &CreatePreview,
+) {
+    let preview = subject
+        .tracker()
+        .preview_create(&subject.preview_kind())
+        .expect("preview_create must succeed for a conformant implementation");
+    assert_eq!(
+        &preview, expected,
+        "the create preview must resolve each field to its expected state"
+    );
+}
+
+/// A payload missing a locally-required field is `Rejected` naming it; a
+/// complete payload is `Valid`. The check is local, so no remote state is
+/// asserted — the type makes a mutation unrepresentable.
+///
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn validate_update_reports_outcome(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    validate_update_reports_outcome_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// An empty title is the locally-required omission both providers reject: the
+/// composed payload's summary/title field would be blank.
+pub fn validate_update_reports_outcome_property(subject: &dyn ContractSubject) {
+    let id = ExternalId::new("PREVIEW-1".to_owned());
+    let valid = subject.tracker().validate_update(
+        &id,
+        "A present title",
+        "A present body\n",
+    );
+    assert_eq!(
+        valid,
+        ValidationOutcome::Valid,
+        "a complete payload must validate"
+    );
+
+    let rejected =
+        subject
+            .tracker()
+            .validate_update(&id, "", "A present body\n");
+    assert!(
+        matches!(rejected, ValidationOutcome::Rejected { .. }),
+        "a payload missing a required field must be rejected, got {rejected:?}"
+    );
+    if let ValidationOutcome::Rejected { reasons } = rejected {
+        assert!(
+            !reasons.is_empty(),
+            "a rejection must name the missing field"
+        );
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContractGateError {
     NotOptedIn,
@@ -302,8 +477,10 @@ pub fn run_all(
     create_then_show_round_trips(subject)?;
     update_replaces_whole_content(subject)?;
     fetch_all_partitions_totally(subject, ids)?;
+    preview_create_makes_no_mutation(subject)?;
+    validate_update_reports_outcome(subject)?;
 
-    Ok(3)
+    Ok(5)
 }
 
 /// Run the full conformance set against a live subject, timing each property,
@@ -362,6 +539,17 @@ pub fn timed_conformance(
     records.push(run("a_failing_read_is_retryable", 1, &|| {
         a_failing_read_is_retryable_property(subject);
     }));
+    records.push(run("preview_create_makes_no_mutation", 1, &|| {
+        preview_create_makes_no_mutation_property(subject);
+    }));
+    records.push(run("validate_update_reports_outcome", 1, &|| {
+        validate_update_reports_outcome_property(subject);
+    }));
+    if subject.can_induce_truncation() {
+        records.push(run("search_reports_truncation", 1, &|| {
+            search_reports_truncation_property(subject);
+        }));
+    }
 
     Ok(records)
 }
@@ -392,6 +580,24 @@ mod tests {
             }),
             ("a_failing_read_is_retryable", |subject| {
                 super::a_failing_read_is_retryable(subject)
+            }),
+            ("search_reports_truncation", |subject| {
+                super::search_reports_truncation(subject)
+            }),
+            ("preview_create_makes_no_mutation", |subject| {
+                super::preview_create_makes_no_mutation(subject)
+            }),
+            ("preview_create_resolves_fields", |subject| {
+                super::preview_create_resolves_fields(
+                    subject,
+                    &tracker::CreatePreview {
+                        project: tracker::FieldResolution::Unset,
+                        issue_type: tracker::FieldResolution::Unset,
+                    },
+                )
+            }),
+            ("validate_update_reports_outcome", |subject| {
+                super::validate_update_reports_outcome(subject)
             }),
             ("timed_conformance", |subject| {
                 super::timed_conformance(subject, &[]).map(|_| ())

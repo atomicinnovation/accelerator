@@ -1,34 +1,26 @@
-//! Pins `exit_codes.rs`'s 70-73 constants against the `E_DISPATCH_*` lines
-//! the bridge scripts declare.
+//! Pins `exit_codes.rs`'s dispatch constants against a frozen expectation.
 //!
-//! `accelerator-work` is bin-only, so both sides are parsed textually
-//! rather than one of them imported.
+//! The integers are a live contract the work skills branch on, so the guard
+//! holds them against literals committed here — an independent frozen oracle,
+//! not the deleted bash bridge it replaced — rather than re-deriving them from
+//! the `exit_codes.rs` constants it guards, which would be a tautology no
+//! accidental renumbering could red.
+//!
+//! `accelerator-work` is bin-only, so the constants are parsed textually
+//! rather than imported.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::path::Path;
-use std::path::PathBuf;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
-fn bash_codes() -> Result<Vec<(String, u8)>, TestError> {
-    let source = std::fs::read_to_string(
-        repo_root()?.join("skills/work/scripts/work-item-bridge-codes.sh"),
-    )?;
-    Ok(source
-        .lines()
-        .filter_map(|line| {
-            let rest = line.trim().strip_prefix("readonly E_DISPATCH_")?;
-            let (name, value) = rest.split_once('=')?;
-            Some((name.to_owned(), value.parse().ok()?))
-        })
-        .collect())
-}
+const FROZEN_DISPATCH_CODES: &[(&str, u8)] = &[
+    ("RETRYABLE", 70),
+    ("TERMINAL", 71),
+    ("NOT_AVAILABLE", 72),
+    ("UNRECOGNISED", 73),
+    ("UNCONFIGURED", 74),
+];
 
 fn rust_codes() -> Result<Vec<(String, u8)>, TestError> {
     let source = std::fs::read_to_string(
@@ -50,29 +42,19 @@ fn rust_codes() -> Result<Vec<(String, u8)>, TestError> {
 }
 
 #[test]
-fn every_bash_dispatch_code_matches_its_rust_constant() -> Result<(), TestError>
+fn every_dispatch_code_matches_its_frozen_expectation() -> Result<(), TestError>
 {
-    let bash = bash_codes()?;
     let rust = rust_codes()?;
 
-    assert_eq!(
-        bash.len(),
-        5,
-        "a dispatch code was added or removed in bash without a matching \
-         update here"
-    );
-
-    for (name, value) in bash {
+    for (name, value) in FROZEN_DISPATCH_CODES {
         let rust_value = rust
             .iter()
-            .find(|(rust_name, _)| *rust_name == name)
+            .find(|(rust_name, _)| rust_name == name)
             .unwrap_or_else(|| {
-                panic!(
-                    "exit_codes.rs has no RETRYABLE-shaped constant for {name}"
-                )
+                panic!("exit_codes.rs has no constant named {name}")
             })
             .1;
-        assert_eq!(value, rust_value, "{name} has drifted from bash");
+        assert_eq!(*value, rust_value, "{name} has drifted from its contract");
     }
 
     Ok(())

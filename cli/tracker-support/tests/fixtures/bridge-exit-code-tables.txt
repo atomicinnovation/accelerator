@@ -2,22 +2,21 @@
 #
 # | Mapper                      | Source                                |
 # |-----------------------------|---------------------------------------|
-# | _wicr_map_jira              | work-item-create-remote.sh:105-111     |
-# | _wicr_map_linear            | work-item-create-remote.sh:92-97       |
-# | _wiur_map_jira              | work-item-update-remote.sh:51-57       |
-# | _wiur_map_linear            | work-item-update-remote.sh:66-72       |
-# | _linear_map_no_file_failure | linear-create-flow.sh:177-182          |
+# | _wicr_map_jira              | bash create-remote mapper (jira)       |
+# | _wicr_map_linear            | bash create-remote mapper (linear)     |
+# | _wiur_map_jira              | bash update-remote mapper (jira)       |
+# | _wiur_map_linear            | bash update-remote mapper (linear)     |
+# | _linear_map_no_file_failure | bash linear create-flow mapper         |
 #
 # The keys are each integration's OWN namespaced codes — NOT curl exit values.
-# `jira-request.sh:340-348` and `linear-graphql.sh:232-241` collapse curl's
-# status into a boolean, so every transport failure arrives as script code 21.
+# The Jira and Linear transport layers collapse curl's status into a boolean,
+# so every transport failure arrives as script code 21.
 #
 # `retryable` is E_DISPATCH_RETRYABLE (70) and `terminal` is
-# E_DISPATCH_TERMINAL (71); both are defined in work-item-bridge-codes.sh:30-33.
+# E_DISPATCH_TERMINAL (71).
 #
 # Every mapper's default arm is `terminal`, so a code absent from this file
-# classifies terminal. mapper_differential.rs drives that rule against the
-# running bash for every code 0-130, so an unlisted code is checked too.
+# classifies terminal.
 #
 # `linear create` is two layers: _linear_map_no_file_failure maps its
 # pre-send set to E_CREATE_PRE_SEND (108) and everything else to
@@ -27,12 +26,12 @@
 #
 # Three facts about the divergence, each verified against the source:
 #
-# - The Jira pair does not diverge. work-item-create-remote.sh:108 and
-#   work-item-update-remote.sh:54 are byte-identical including indentation:
+# - The Jira pair does not diverge. The create and update mappers are
+#   byte-identical including indentation:
 #   `11 | 12 | 13 | 14 | 15 | 17 | 19 | 22 | 34) return "$E_DISPATCH_RETRYABLE" ;;`
 # - Linear diverges in both directions. 34 is retryable on create and terminal
 #   on update — documented, because a 200-body error may mean the mutation
-#   applied (work-item-update-remote.sh:62-65). 18, 23, 25, 27 and 29 run the
+#   applied. 18, 23, 25, 27 and 29 run the
 #   other way with no rationale anywhere, despite all five being raised before
 #   a byte leaves the process.
 # - 35 and 36 are retryable on BOTH Linear operations, as are 11 and 22.

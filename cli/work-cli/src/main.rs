@@ -7,10 +7,12 @@ mod config;
 mod create;
 mod diff;
 mod exit_codes;
+mod list;
 mod next_number;
 mod resolve;
 mod show;
 mod sync;
+mod sync_author;
 mod template_hints;
 mod tracker_registry;
 mod update;
@@ -190,6 +192,7 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
         producer: cli_args.producer,
         body_file: cli_args.body_file,
         push: cli_args.push,
+        dry_run: cli_args.dry_run,
     }
 }
 
@@ -240,6 +243,14 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
                 );
             }
             ExitCode::from(exit_code)
+        }
+        create::RunOutcome::Previewed(line) => {
+            println!("{line}");
+            ExitCode::SUCCESS
+        }
+        create::RunOutcome::PreviewFailed { message, code } => {
+            eprintln!("Error: {message}");
+            ExitCode::from(code)
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");
@@ -364,6 +375,54 @@ fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
     }
 }
 
+fn run_list(args: &cli::ListArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    match list::run(
+        &start,
+        service,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
+        args,
+    ) {
+        list::RunOutcome::Rendered { output, warnings } => {
+            for warning in warnings {
+                eprintln!("{warning}");
+            }
+            println!("{output}");
+            ExitCode::SUCCESS
+        }
+        list::RunOutcome::EmptyDirectory { message, warnings } => {
+            for warning in warnings {
+                eprintln!("{warning}");
+            }
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        list::RunOutcome::MissingDirectory { message } => {
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        list::RunOutcome::Failed(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn run_sync(args: &cli::SyncArgs) -> ExitCode {
     let start = match current_dir() {
         Ok(dir) => dir,
@@ -402,6 +461,7 @@ fn main() -> ExitCode {
         Command::NextNumber { project, count } => {
             run_next_number(project.as_deref(), count)
         }
+        Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
     }
 }

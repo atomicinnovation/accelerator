@@ -9,15 +9,20 @@
 
 pub mod contract;
 pub mod evidence;
+pub mod seed;
 
 use std::cell::RefCell;
 
+use tracker::CreatePreview;
+use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::ValidationOutcome;
 
 /// One call the fake observed, carrying enough of the request for a test to
 /// assert the whole-content contract rather than only the call count.
@@ -39,6 +44,17 @@ pub enum Call {
     FetchAll {
         ids: Vec<ExternalId>,
     },
+    Search {
+        scope: SearchScope,
+    },
+    PreviewCreate {
+        kind: String,
+    },
+    ValidateUpdate {
+        id: ExternalId,
+        title: String,
+        body: String,
+    },
 }
 
 /// A `RemoteTracker` fake that records every call it receives and can be
@@ -49,6 +65,9 @@ pub struct RecordingTracker {
     show_failures: Vec<(ExternalId, TrackerError)>,
     update_failures: Vec<(ExternalId, TrackerError)>,
     create_failure: Option<(TrackerError, bool)>,
+    preview_failure: Option<TrackerError>,
+    search_result: RefCell<Option<Discovery>>,
+    preview: RefCell<Option<CreatePreview>>,
     next_id: RefCell<u32>,
     calls: RefCell<Vec<Call>>,
 }
@@ -62,6 +81,9 @@ impl RecordingTracker {
             show_failures: Vec::new(),
             update_failures: Vec::new(),
             create_failure: None,
+            preview_failure: None,
+            search_result: RefCell::new(None),
+            preview: RefCell::new(None),
             next_id: RefCell::new(1),
             calls: RefCell::new(Vec::new()),
         }
@@ -123,9 +145,37 @@ impl RecordingTracker {
         self
     }
 
+    /// A tracker whose `preview_create` cannot reach the remote and so
+    /// reports the failure rather than a resolution — the transport-failure
+    /// path the create-preview gate must degrade around, distinct from an
+    /// `Unresolvable` field.
+    #[must_use]
+    pub fn failing_preview(mut self, error: TrackerError) -> Self {
+        self.preview_failure = Some(error);
+        self
+    }
+
     #[must_use]
     pub fn failing_show(mut self, id: ExternalId, error: TrackerError) -> Self {
         self.show_failures.push((id, error));
+        self
+    }
+
+    /// Seeds the discovery `search` returns, with an explicit truncation flag.
+    #[must_use]
+    pub fn discovering(
+        self,
+        found: Vec<(ExternalId, RemoteTimestamp)>,
+        complete: bool,
+    ) -> Self {
+        *self.search_result.borrow_mut() = Some(Discovery { found, complete });
+        self
+    }
+
+    /// Seeds the create preview.
+    #[must_use]
+    pub fn previewing(self, preview: CreatePreview) -> Self {
+        *self.preview.borrow_mut() = Some(preview);
         self
     }
 
@@ -260,6 +310,61 @@ impl RemoteTracker for RecordingTracker {
             }
         }
         Ok(outcome)
+    }
+
+    fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        self.calls.borrow_mut().push(Call::Search {
+            scope: scope.clone(),
+        });
+        Ok(self.search_result.borrow().clone().unwrap_or(Discovery {
+            found: Vec::new(),
+            complete: true,
+        }))
+    }
+
+    fn preview_create(
+        &self,
+        kind: &str,
+    ) -> Result<CreatePreview, TrackerError> {
+        self.calls.borrow_mut().push(Call::PreviewCreate {
+            kind: kind.to_owned(),
+        });
+        if let Some(error) = &self.preview_failure {
+            return Err(error.clone());
+        }
+        Ok(self.preview.borrow().clone().unwrap_or(CreatePreview {
+            project: tracker::FieldResolution::Unset,
+            issue_type: tracker::FieldResolution::Unset,
+        }))
+    }
+
+    fn validate_update(
+        &self,
+        id: &ExternalId,
+        title: &str,
+        body: &str,
+    ) -> ValidationOutcome {
+        self.calls.borrow_mut().push(Call::ValidateUpdate {
+            id: id.clone(),
+            title: title.to_owned(),
+            body: body.to_owned(),
+        });
+        validate_local_payload(title)
+    }
+}
+
+/// Both providers' `validate_update` is a local composition check whose only
+/// locally-detectable omission is an empty title: the composed payload's
+/// summary/title field would be blank.
+fn validate_local_payload(title: &str) -> ValidationOutcome {
+    if title.trim().is_empty() {
+        ValidationOutcome::Rejected {
+            reasons: vec![
+                "title is required but the payload leaves it empty".to_owned()
+            ],
+        }
+    } else {
+        ValidationOutcome::Valid
     }
 }
 

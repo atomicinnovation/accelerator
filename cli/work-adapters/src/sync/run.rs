@@ -1,12 +1,15 @@
 //! The whole-corpus sync run: plan-then-apply over the gathered facts.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
 use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
@@ -21,11 +24,14 @@ use work::sync::SyncState;
 
 use crate::diff_shellout::DiffUnavailable;
 use crate::sync::apply::ApplyError;
+use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::create::canonical_external_key;
+use crate::sync::create::LocalAuthor;
 use crate::sync::digest::LazyItemDigests;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
@@ -34,12 +40,26 @@ use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
 
+#[derive(Debug)]
 pub enum RunError {
+    /// The plan's writes exceed a bound. `pulls`/`pushes` are the totals per
+    /// direction; `new_local_files`/`new_remote_issues` break out how many of
+    /// each total are brand-new artefacts (untracked-remote imports and
+    /// unsynced-local creates respectively), so the operator sees the creation
+    /// blast within the dimension that tripped.
     Refused {
         pulls: usize,
         pushes: usize,
         max_pulls: usize,
         max_pushes: usize,
+        new_local_files: usize,
+        new_remote_issues: usize,
+    },
+    /// A discovery query was cut short (`complete == false`). Refused rather
+    /// than acted on: an incomplete untracked set is a lower bound, and the
+    /// remedy is to scope the search, not to raise a limit.
+    DiscoveryIncomplete {
+        found: usize,
     },
     Read(TrackerError),
     Internal(kernel::Error),
@@ -56,6 +76,11 @@ pub struct SyncPorts<'a> {
     pub status: &'a dyn WorkingCopyStatus,
     pub writer: &'a dyn AtomicWrite,
     pub clock: &'a dyn RunClock,
+    /// Authors the local files the two create paths need: a work-item file
+    /// for a discovered remote issue, and the `external_id` write-back for an
+    /// unsynced local draft. Behind a port because both need config, an id
+    /// scheme, and a frontmatter renderer that live in the binary layer.
+    pub author: &'a dyn LocalAuthor,
 }
 
 pub struct SyncRequest<'a> {
@@ -66,6 +91,14 @@ pub struct SyncRequest<'a> {
     pub max_pulls: usize,
     pub max_pushes: usize,
     pub mode: RunMode,
+    /// Where the pending-push markers for unsynced-local creates live.
+    pub integrations_root: &'a Path,
+    /// The active tracker's name, naming the marker directory alongside the
+    /// baseline.
+    pub integration: &'a str,
+    /// The scope untracked-remote discovery searches. Team/project-scoped by
+    /// default so the untracked set stays bounded on a shared workspace.
+    pub scope: SearchScope,
 }
 
 pub enum ItemOutcome {
@@ -77,6 +110,14 @@ pub enum ItemOutcome {
 pub struct ReportedItem {
     pub planned: PlannedAction,
     pub outcome: ItemOutcome,
+    /// The local payload-composition check attached to a `Push` entry during
+    /// a preview. `None` outside preview, and for every non-`Push` action.
+    ///
+    /// A `Rejected` outcome surfaces a locally-detectable missing required
+    /// field before any mutation. It does not reproduce a live-tracker field
+    /// check — a `Valid` preview does not guarantee the tracker accepts the
+    /// push.
+    pub validation: Option<tracker::ValidationOutcome>,
 }
 
 pub struct RunReport {
@@ -329,24 +370,297 @@ fn readable_dossier(
     }
 }
 
-/// Runs a complete sync: gather, plan, and — under [`RunMode::Apply`] —
-/// execute.
+/// Reports the whole plan for a preview, attaching a local payload-validation
+/// outcome to each `Push` entry.
 ///
-/// Refuses before any write, in both modes, when the plan's pull or push
-/// count exceeds its bound: a preview that reported an over-threshold plan
-/// and exited 0 would mispredict exactly the run with the largest blast
-/// radius.
+/// Every planned action is reported `NotApplied`, so the report never shrinks
+/// below the plan. The `validate_update` call is a local composition check —
+/// it makes no remote call — so a `Rejected` outcome names a locally-detectable
+/// missing field without reproducing the tracker's own field validation.
+fn validate_pushes(
+    plan: &work::sync::SyncPlan,
+    items: &[LocalItem],
+    tracker: &dyn RemoteTracker,
+) -> Vec<ReportedItem> {
+    plan.actions
+        .iter()
+        .map(|planned| {
+            let validation = (planned.action == Action::Push)
+                .then(|| validate_push(planned, items, tracker))
+                .flatten();
+            ReportedItem {
+                planned: planned.clone(),
+                outcome: ItemOutcome::NotApplied,
+                validation,
+            }
+        })
+        .collect()
+}
+
+fn validate_push(
+    planned: &PlannedAction,
+    items: &[LocalItem],
+    tracker: &dyn RemoteTracker,
+) -> Option<tracker::ValidationOutcome> {
+    let item = items.iter().find(|candidate| candidate.id == planned.id)?;
+    let external_id = item.external_id.as_ref()?;
+    let content = std::fs::read_to_string(&item.path).ok()?;
+    let (title, body) = local_title_and_body(&content);
+    Some(tracker.validate_update(external_id, &title, &body))
+}
+
+struct Discovered {
+    ids: Vec<ExternalId>,
+    complete: bool,
+}
+
+/// The untracked remote issues: a `search` over `scope` minus the
+/// canonicalised set of local `external_id`s. A stored id differing from a
+/// search result only cosmetically folds equal and is excluded.
+fn discover_untracked(
+    tracker: &dyn RemoteTracker,
+    scope: &SearchScope,
+    items: &[LocalItem],
+) -> Result<Discovered, TrackerError> {
+    let discovery = tracker.search(scope)?;
+    let local: std::collections::BTreeSet<String> = items
+        .iter()
+        .filter_map(|item| item.external_id.as_ref())
+        .map(canonical_external_key)
+        .collect();
+    let ids = discovery
+        .found
+        .into_iter()
+        .map(|(id, _)| id)
+        .filter(|id| !local.contains(&canonical_external_key(id)))
+        .collect();
+    Ok(Discovered {
+        ids,
+        complete: discovery.complete,
+    })
+}
+
+/// The unsynced local drafts eligible for create-from-local: state `Unsynced`
+/// (no `external_id`), under a push-capable direction.
+fn unsynced_creates<'a>(
+    plan: &work::sync::SyncPlan,
+    items: &'a [LocalItem],
+    direction: SyncDirection,
+) -> Vec<&'a LocalItem> {
+    if matches!(direction, SyncDirection::PullOnly) {
+        return Vec::new();
+    }
+    plan.actions
+        .iter()
+        .filter(|planned| planned.state == SyncState::Unsynced)
+        .filter_map(|planned| items.iter().find(|item| item.id == planned.id))
+        .collect()
+}
+
+/// The `(title, body, kind)` a create-from-local needs, read from the draft's
+/// own frontmatter and body. `None` when the file is unreadable or malformed.
+fn create_inputs(path: &Path) -> Option<(String, String, String)> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let (frontmatter, body) =
+        crate::sync::digest::split_frontmatter_and_body(&content).ok()?;
+    let title =
+        work::show::read_field_raw(&frontmatter, "title").unwrap_or_default();
+    let kind =
+        work::show::read_field_raw(&frontmatter, "kind").unwrap_or_default();
+    Some((title, body, kind))
+}
+
+/// A create report line, always `Unsynced`-stated so it renders as an action
+/// row rather than folding into the synced count, and never awaiting-human.
+const fn create_report(
+    id: String,
+    action: Action,
+    outcome: ItemOutcome,
+) -> ReportedItem {
+    ReportedItem {
+        planned: PlannedAction {
+            id,
+            state: SyncState::Unsynced,
+            action,
+        },
+        outcome,
+        validation: None,
+    }
+}
+
+fn push_outcome(
+    applier: &mut ItemApplier<'_, '_>,
+    item: &LocalItem,
+    external_id: &ExternalId,
+) -> ItemOutcome {
+    let content = match std::fs::read_to_string(&item.path) {
+        Ok(content) => content,
+        Err(error) => {
+            return ItemOutcome::Failed(ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "read-local",
+                detail: error.to_string(),
+            });
+        }
+    };
+    let (title, body) = local_title_and_body(&content);
+    match applier.push(&PushRequest {
+        id: &item.id,
+        external_id,
+        title: &title,
+        body: &body,
+        file_path: &item.path,
+    }) {
+        Ok(()) => ItemOutcome::Applied,
+        Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
+fn pull_outcome(
+    applier: &mut ItemApplier<'_, '_>,
+    item: &LocalItem,
+    facts: &GatheredFacts,
+) -> ItemOutcome {
+    let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
+    let projected_body = remote.and_then(|r| r.body.as_deref()).unwrap_or("");
+    let local_content = std::fs::read_to_string(&item.path).unwrap_or_default();
+    let content = reconstruct_pulled_content(&local_content, projected_body);
+    let remote_updated =
+        remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
+    match applier.pull(&PullRequest {
+        id: &item.id,
+        file_path: &item.path,
+        content: &content,
+        projected_body,
+        remote_updated,
+    }) {
+        Ok(()) => ItemOutcome::Applied,
+        Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
+const fn not_applied(planned: PlannedAction) -> ReportedItem {
+    ReportedItem {
+        planned,
+        outcome: ItemOutcome::NotApplied,
+        validation: None,
+    }
+}
+
+/// Applies one id-keyed planned action, returning its report line. A `Conflict`
+/// under any skip action records its id for baseline blanking. The two create
+/// actions are unreachable: both create paths run out-of-band of this loop.
+fn apply_planned_action(
+    applier: &mut ItemApplier<'_, '_>,
+    planned: PlannedAction,
+    index: &ItemIndex<'_>,
+    facts: &GatheredFacts,
+    blank_local_hash: &mut Vec<String>,
+) -> ReportedItem {
+    let item = index.get(&planned.id);
+    let outcome = match planned.action {
+        Action::Push => {
+            match item
+                .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
+            {
+                Some((item, external_id)) => {
+                    push_outcome(applier, item, external_id)
+                }
+                None => return not_applied(planned),
+            }
+        }
+        Action::Pull => match item {
+            Some(item) => pull_outcome(applier, item, facts),
+            None => return not_applied(planned),
+        },
+        Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
+            if matches!(planned.state, SyncState::Conflict) {
+                blank_local_hash.push(planned.id.clone());
+            }
+            ItemOutcome::NotApplied
+        }
+        Action::Noop => ItemOutcome::NotApplied,
+        Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
+            "the two create actions are applied out-of-band by the create \
+             paths, never through the id-keyed plan loop, and decide() never \
+             produces them"
+        ),
+    };
+    ReportedItem {
+        planned,
+        outcome,
+        validation: None,
+    }
+}
+
+fn apply_local_create(
+    applier: &mut ItemApplier<'_, '_>,
+    item: &LocalItem,
+    request: &SyncRequest<'_>,
+    author: &dyn LocalAuthor,
+    corpus_carries: &dyn Fn(&ExternalId) -> bool,
+    attempted_at: u64,
+) -> ReportedItem {
+    let Some((title, body, kind)) = create_inputs(&item.path) else {
+        return create_report(
+            item.id.clone(),
+            Action::CreateFromLocal,
+            ItemOutcome::Failed(ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "read-local",
+                detail: "unreadable or malformed frontmatter".to_owned(),
+            }),
+        );
+    };
+    let marker_path = crate::sync::pending_push::path(
+        request.integrations_root,
+        request.integration,
+        &item.id,
+    );
+    let outcome = match applier.create_from_local(&CreateFromLocalRequest {
+        item_id: &item.id,
+        file_path: &item.path,
+        title: &title,
+        body: &body,
+        kind: &kind,
+        marker_path: &marker_path,
+        author,
+        corpus_carries,
+        attempted_at,
+    }) {
+        Ok(()) => ItemOutcome::Applied,
+        Err(error) => ItemOutcome::Failed(error),
+    };
+    create_report(item.id.clone(), Action::CreateFromLocal, outcome)
+}
+
+/// The gathered facts and bounded plan a run acts on, shared verbatim by the
+/// preview and apply paths so both report the same blast radius.
+struct PreparedRun<'a> {
+    run_start_epoch: u64,
+    degradation: Degradation,
+    read_failure: Option<TrackerError>,
+    facts: GatheredFacts,
+    plan: SyncPlan,
+    untracked: Vec<ExternalId>,
+    creates_from_local: Vec<&'a LocalItem>,
+    index: ItemIndex<'a>,
+    dossiers: Vec<ConflictDossier>,
+}
+
+/// Gathers facts, plans, discovers both create sets, and refuses before any
+/// write when the plan's pull or push count exceeds its bound.
 ///
 /// # Errors
 ///
 /// [`RunError::Internal`] for a clock, baseline-store or planning failure;
+/// [`RunError::DiscoveryIncomplete`] when the untracked search is cut short;
 /// [`RunError::Refused`] when the plan would exceed the write bounds.
-#[allow(clippy::too_many_lines)]
-pub fn run<'a>(
-    ports: &SyncPorts<'a>,
-    baseline: &mut BaselineStore<'a>,
-    request: &SyncRequest<'_>,
-) -> Result<RunReport, RunError> {
+fn prepare_run<'a>(
+    ports: &SyncPorts<'_>,
+    baseline: &BaselineStore<'_>,
+    request: &SyncRequest<'a>,
+) -> Result<PreparedRun<'a>, RunError> {
     let run_start_epoch =
         ports.clock.run_start_epoch().map_err(RunError::Internal)?;
 
@@ -385,123 +699,166 @@ pub fn run<'a>(
         compute_plan(&plan_inputs, request.direction, request.resolutions)
             .map_err(RunError::Internal)?;
 
-    let pulls = plan.pull_count();
-    let pushes = plan.push_count();
+    let mut read_failure = facts.read_failure.clone();
+
+    // Untracked-remote discovery and unsynced-local creates are computed from
+    // reads only, so the combined gate below can bound every write — planned
+    // pulls, planned pushes, and both create paths — before a single one runs.
+    let discovery_enabled =
+        !matches!(request.direction, SyncDirection::PushOnly)
+            && (request.scope.project.is_some() || request.scope.all_projects);
+    let untracked = if discovery_enabled {
+        match discover_untracked(ports.tracker, &request.scope, request.items) {
+            Ok(discovered) if !discovered.complete => {
+                return Err(RunError::DiscoveryIncomplete {
+                    found: discovered.ids.len(),
+                });
+            }
+            Ok(discovered) => discovered.ids,
+            Err(error) => {
+                read_failure = read_failure.or(Some(error));
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
+    let creates_from_local =
+        unsynced_creates(&plan, request.items, request.direction);
+
+    // A create-from-remote authors a new local file (pull-direction); a
+    // create-from-local issues a new remote issue (push-direction). Each folds
+    // into the existing directional bound rather than a third knob.
+    let pulls = plan.pull_count() + untracked.len();
+    let pushes = plan.push_count() + creates_from_local.len();
     if pulls > request.max_pulls || pushes > request.max_pushes {
         return Err(RunError::Refused {
             pulls,
             pushes,
             max_pulls: request.max_pulls,
             max_pushes: request.max_pushes,
+            new_local_files: untracked.len(),
+            new_remote_issues: creates_from_local.len(),
         });
     }
 
     let index = ItemIndex::build(request.items);
     let dossiers = build_dossiers(&plan, &index, &facts);
 
+    Ok(PreparedRun {
+        run_start_epoch,
+        degradation,
+        read_failure,
+        facts,
+        plan,
+        untracked,
+        creates_from_local,
+        index,
+        dossiers,
+    })
+}
+
+/// Runs a complete sync: gather, plan, and — under [`RunMode::Apply`] —
+/// execute.
+///
+/// Refuses before any write, in both modes, when the plan's pull or push
+/// count exceeds its bound: a preview that reported an over-threshold plan
+/// and exited 0 would mispredict exactly the run with the largest blast
+/// radius.
+///
+/// # Errors
+///
+/// [`RunError::Internal`] for a clock, baseline-store or planning failure;
+/// [`RunError::Refused`] when the plan would exceed the write bounds.
+pub fn run<'a>(
+    ports: &SyncPorts<'a>,
+    baseline: &mut BaselineStore<'a>,
+    request: &SyncRequest<'_>,
+) -> Result<RunReport, RunError> {
+    let PreparedRun {
+        run_start_epoch,
+        degradation,
+        read_failure,
+        facts,
+        plan,
+        untracked,
+        creates_from_local,
+        index,
+        dossiers,
+    } = prepare_run(ports, baseline, request)?;
+
     if matches!(request.mode, RunMode::Preview) {
+        let mut reported = validate_pushes(&plan, request.items, ports.tracker);
+        for external_id in &untracked {
+            reported.push(create_report(
+                external_id.as_str().to_owned(),
+                Action::CreateFromRemote,
+                ItemOutcome::NotApplied,
+            ));
+        }
+        for item in &creates_from_local {
+            reported.push(create_report(
+                item.id.clone(),
+                Action::CreateFromLocal,
+                ItemOutcome::NotApplied,
+            ));
+        }
         return Ok(RunReport {
-            reported: plan
-                .actions
-                .into_iter()
-                .map(|planned| ReportedItem {
-                    planned,
-                    outcome: ItemOutcome::NotApplied,
-                })
-                .collect(),
-            read_failure: facts.read_failure,
+            reported,
+            read_failure,
             baseline_degradation: degradation,
             finalised: false,
             dossiers,
         });
     }
 
-    let mut reported = Vec::with_capacity(plan.actions.len());
+    let mut reported = Vec::with_capacity(
+        plan.actions.len() + untracked.len() + creates_from_local.len(),
+    );
     let mut blank_local_hash: Vec<String> = Vec::new();
+    let corpus_carries = |candidate: &ExternalId| {
+        request
+            .items
+            .iter()
+            .any(|item| item.external_id.as_ref() == Some(candidate))
+    };
 
     {
         let mut applier =
             ItemApplier::new(ports.tracker, ports.writer, baseline);
+
+        for external_id in &untracked {
+            let outcome =
+                match applier.create_from_remote(external_id, ports.author) {
+                    Ok(_) => ItemOutcome::Applied,
+                    Err(error) => ItemOutcome::Failed(error),
+                };
+            reported.push(create_report(
+                external_id.as_str().to_owned(),
+                Action::CreateFromRemote,
+                outcome,
+            ));
+        }
+
         for planned in plan.actions {
-            let item = index.get(&planned.id);
-            let outcome = match planned.action {
-                Action::Push => {
-                    let Some(item) = item else {
-                        reported.push(ReportedItem {
-                            planned,
-                            outcome: ItemOutcome::NotApplied,
-                        });
-                        continue;
-                    };
-                    let Some(external_id) = &item.external_id else {
-                        reported.push(ReportedItem {
-                            planned,
-                            outcome: ItemOutcome::NotApplied,
-                        });
-                        continue;
-                    };
-                    match std::fs::read_to_string(&item.path) {
-                        Ok(content) => {
-                            let (title, body) = local_title_and_body(&content);
-                            match applier.push(&PushRequest {
-                                id: &item.id,
-                                external_id,
-                                title: &title,
-                                body: &body,
-                                file_path: &item.path,
-                            }) {
-                                Ok(()) => ItemOutcome::Applied,
-                                Err(error) => ItemOutcome::Failed(error),
-                            }
-                        }
-                        Err(error) => ItemOutcome::Failed(ApplyError::Io {
-                            item_id: item.id.clone(),
-                            operation: "read-local",
-                            detail: error.to_string(),
-                        }),
-                    }
-                }
-                Action::Pull => {
-                    let Some(item) = item else {
-                        reported.push(ReportedItem {
-                            planned,
-                            outcome: ItemOutcome::NotApplied,
-                        });
-                        continue;
-                    };
-                    let remote = facts.per_id.get(&item.id).map(|(r, _)| r);
-                    let projected_body =
-                        remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-                    let local_content =
-                        std::fs::read_to_string(&item.path).unwrap_or_default();
-                    let content = reconstruct_pulled_content(
-                        &local_content,
-                        projected_body,
-                    );
-                    let remote_updated = remote
-                        .map_or(tracker::RemoteTimestamp::NotRead, |r| {
-                            r.remote_updated.clone()
-                        });
-                    match applier.pull(&PullRequest {
-                        id: &item.id,
-                        file_path: &item.path,
-                        content: &content,
-                        projected_body,
-                        remote_updated,
-                    }) {
-                        Ok(()) => ItemOutcome::Applied,
-                        Err(error) => ItemOutcome::Failed(error),
-                    }
-                }
-                Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-                    if matches!(planned.state, SyncState::Conflict) {
-                        blank_local_hash.push(planned.id.clone());
-                    }
-                    ItemOutcome::NotApplied
-                }
-                Action::Noop => ItemOutcome::NotApplied,
-            };
-            reported.push(ReportedItem { planned, outcome });
+            reported.push(apply_planned_action(
+                &mut applier,
+                planned,
+                &index,
+                &facts,
+                &mut blank_local_hash,
+            ));
+        }
+
+        for item in &creates_from_local {
+            reported.push(apply_local_create(
+                &mut applier,
+                item,
+                request,
+                ports.author,
+                &corpus_carries,
+                run_start_epoch,
+            ));
         }
     }
 
@@ -511,7 +868,7 @@ pub fn run<'a>(
 
     Ok(RunReport {
         reported,
-        read_failure: facts.read_failure,
+        read_failure,
         baseline_degradation: degradation,
         finalised,
         dossiers,

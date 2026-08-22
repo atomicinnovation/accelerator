@@ -235,6 +235,78 @@ pub struct FetchOutcome {
     pub indeterminate: Vec<ExternalId>,
 }
 
+/// Where an unkeyed discovery query looks.
+///
+/// A discovery has no requested id set — it asks the tracker which issues exist
+/// within a scope — so it needs its own scoping vocabulary rather than the id
+/// slice `fetch_all` takes.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SearchScope {
+    /// The single project or team to scope discovery to.
+    ///
+    /// When both this and `all_projects` are set, `project` wins: a named
+    /// project always narrows. The precedence is stated here rather than left to
+    /// the composer so a caller reading the type knows which field decides.
+    pub project: Option<String>,
+    /// Discover across every project the credentials can see.
+    pub all_projects: bool,
+    /// Extra provider-specific field filters, each a `(field, value)` pair.
+    pub filters: Vec<(String, String)>,
+}
+
+/// What an unkeyed discovery established.
+///
+/// Distinct from [`FetchOutcome`]: a discovery has no requested id set to
+/// partition over, so it carries a truncation flag rather than an `absent`
+/// vector. `complete == false` means the query was cut short — a page cap, a
+/// deadline, a rate limit — and the caller must treat the result as a lower
+/// bound, never as the whole of what the tracker holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Discovery {
+    /// The issues the query saw, each with the stamp the tracker reported.
+    pub found: Vec<(ExternalId, RemoteTimestamp)>,
+    /// Whether the query saw everything in scope. `false` on any truncation.
+    pub complete: bool,
+}
+
+/// One create-preview field, resolved to one of three states.
+///
+/// The three stay distinct because the create skill renders each field's
+/// *source*, and a two-state `Option` would collapse `Unset` and `Unresolvable`
+/// into one `None` and lose the distinction the create-preview must flag.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FieldResolution {
+    /// A configured value that the tracker confirmed exists.
+    Resolved(String),
+    /// Nothing configured — a benign default applies.
+    Unset,
+    /// A configured value the tracker does not hold. The state the
+    /// create-preview exists to surface, carrying the offending value.
+    Unresolvable(String),
+}
+
+/// The fields a create would resolve, previewed without creating anything.
+///
+/// Both the project and the issue type are three-state [`FieldResolution`]s so
+/// the caller can distinguish a benign default from a configured value absent
+/// remotely, and recover each field's source for rendering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatePreview {
+    pub project: FieldResolution,
+    pub issue_type: FieldResolution,
+}
+
+/// Whether a composed update payload would be accepted.
+///
+/// Distinguishes a valid payload from a rejected one carrying *why*, rather
+/// than folding rejection into an error class — the reasons are shown to the
+/// operator before any mutation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationOutcome {
+    Valid,
+    Rejected { reasons: Vec<String> },
+}
+
 /// The operations a remote issue tracker exposes to the sync engine.
 ///
 /// Synchronous and `&self`-taking so the trait stays dyn-compatible: the sync
@@ -339,4 +411,60 @@ pub trait RemoteTracker {
         &self,
         ids: &[ExternalId],
     ) -> Result<FetchOutcome, TrackerError>;
+
+    /// Discovers the issues within `scope`, without a requested id set.
+    ///
+    /// An unkeyed remote read: it asks the tracker which issues exist, rather
+    /// than reporting on ids the caller already holds. A cap-hit or a truncated
+    /// page is not a failure — it returns [`Discovery`] with `complete == false`
+    /// so the caller treats the result as a lower bound.
+    ///
+    /// # Errors
+    ///
+    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
+    /// a read mutates nothing. A retrieval cut short reports
+    /// `complete == false` rather than erroring.
+    fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError>;
+
+    /// Previews the fields a `create` of the given `kind` would resolve,
+    /// without creating anything.
+    ///
+    /// Performs a remote existence check — a provider that resolves a project
+    /// key against its live catalogue contacts the tracker — so it can fail on a
+    /// transport failure. An unresolvable value is **not** a failure: it is a
+    /// successful [`CreatePreview`] carrying [`FieldResolution::Unresolvable`],
+    /// which is the state the caller must surface.
+    ///
+    /// `kind` is the work item's `kind`, taken opaquely as for
+    /// [`RemoteTracker::create`]; the empty string means the tracker's
+    /// configured default.
+    ///
+    /// # Errors
+    ///
+    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
+    /// the check applies no mutation, so a read that provably changed nothing
+    /// can only be retryable.
+    fn preview_create(&self, kind: &str)
+        -> Result<CreatePreview, TrackerError>;
+
+    /// Validates the payload a `update` of this content would send, without
+    /// sending it.
+    ///
+    /// A **local payload-composition check** for both providers: it composes the
+    /// update payload the way [`RemoteTracker::update`] would and reports whether
+    /// it is locally well-formed, making no remote call. It detects
+    /// locally-checkable omissions — a required field the composed payload leaves
+    /// empty — and reports them as [`ValidationOutcome::Rejected`]. It does not
+    /// reproduce a live-tracker field check; a clean outcome does not guarantee
+    /// the tracker will accept the push.
+    ///
+    /// Returns [`ValidationOutcome`] directly rather than a `Result`: the check
+    /// makes no remote call and so cannot fail with a [`TrackerError`], and the
+    /// type makes a mutation unrepresentable.
+    fn validate_update(
+        &self,
+        id: &ExternalId,
+        title: &str,
+        body: &str,
+    ) -> ValidationOutcome;
 }

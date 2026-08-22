@@ -1,5 +1,5 @@
 //! Pins `remote_projection` against the committed
-//! `test-fixtures/work-item-project-remote/case-*` fixtures.
+//! `tests/fixtures/work-item-project-remote/case-*` fixtures.
 //!
 //! Each `expected.txt` is four lines: `integration=<name>`,
 //! `updated=<value>`, then the projected two-line body verbatim. Any
@@ -15,16 +15,10 @@ use remote_projection::Op;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn case_dir(name: &str) -> Result<PathBuf, TestError> {
-    Ok(repo_root()?.join(format!(
-        "skills/work/scripts/test-fixtures/work-item-project-remote/{name}"
-    )))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/work-item-project-remote/{name}"))
+        .canonicalize()?)
 }
 
 struct Expected {

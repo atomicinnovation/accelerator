@@ -18,6 +18,7 @@ const SUBCOMMANDS: &[&str] = &[
     "update",
     "canonicalise-id",
     "next-number",
+    "list",
     "sync",
 ];
 

@@ -21,9 +21,7 @@ type TestError = Box<dyn std::error::Error>;
 
 fn case_dir(name: &str) -> Result<PathBuf, TestError> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(
-            "../../skills/work/scripts/test-fixtures/work-item-project-remote",
-        )
+        .join("../remote-projection/tests/fixtures/work-item-project-remote")
         .join(name)
         .canonicalize()?)
 }

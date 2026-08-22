@@ -7,7 +7,6 @@ argument-hint: "[filter description]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/*)
 ---
 
 # List Work Items
@@ -26,11 +25,11 @@ accelerator:web-search-researcher.
 **Default project code**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code --fail-safe`
 **Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
 
-The **Active integration** line above gates the sync-status rendering (Step 4).
-`config-read-work.sh integration` exits 0 with an **empty line** when no
-integration is configured, so branch on the **string**, not the exit code:
-treat a non-empty value as *integration configured* and an empty value as *not
-configured*.
+The reads above inform how you parse the filter argument. `accelerator work
+list` owns the sync-status rendering itself: it adds the Sync column only when
+`work.integration` names a tracker and a `last-sync.json` baseline exists, and
+degrades to presence-only when the remote is unreachable — you do not branch on
+the integration here.
 
 ## Work Item Template
 
@@ -51,8 +50,9 @@ appear on work items — legacy values like `todo`, `done`, or
 
 You are tasked with listing and filtering work items from the configured
 work items directory. This is a **read-only** skill — never write any files
-and never spawn sub-agents. The entire flow uses filesystem reads and the
-companion scripts listed in `allowed-tools`.
+and never spawn sub-agents. Your job is to parse the user's natural-language
+filter into `accelerator work list`'s flags and present its output; the CLI
+owns the scan, filter, sync classification, and table/hierarchy rendering.
 
 ## Step 1: Resolve Filter
 
@@ -94,293 +94,69 @@ ask the user for disambiguation rather than guessing.
 1–4 is treated as a case-insensitive substring search against the
 `title:` frontmatter field.
 
-**Always echo the interpreted filter** before showing results so the
-user can rephrase if the parse was wrong. Example: `Filter: status=draft
-(3 matches)`.
+If no argument was provided: no filter — list every work item.
 
-If no argument was provided: filter is "all work items, no filter".
+### Translate the parsed filter into `work list` flags
 
-## Step 2: Scan Work Items Directory
+Once the argument is parsed, map each recognised clause onto a concrete
+flag. This translation is the only work the skill does; the CLI applies the
+filters and echoes the interpreted filter and match count itself, so do not
+echo it separately.
 
-1. Check that `{work_dir}` exists. If not, print:
-   ```
-   Work items directory `{work_dir}` not found.
-   Check the `paths.work` configuration or run `/create-work-item` to
-   create the first work item.
-   ```
-   and exit cleanly.
+| Parsed clause | Flag |
+|---|---|
+| presentation keyword (`hierarchy`, `as a tree`) | `--hierarchy` |
+| `tagged X` / `with tag X` (repeatable) | `--tag X` |
+| `under X` / `children of X` | `--parent X` |
+| `status X`, or a status shorthand token | `--status X` |
+| `kind X`, or a kind shorthand token | `--kind X` |
+| `priority X` | `--priority X` |
+| `about X`, or free-text (rule 5) | positional `X` (last argument) |
 
-2. List all `*.md` files in `{work_dir}`. The discovery glob is broadened
-   from a literal numeric prefix to `*.md` because the work-item ID
-   pattern is configurable (`work.id_pattern`) and legacy `NNNN-*.md`
-   files may coexist with project-coded files (`PROJ-NNNN-*.md`) during
-   a pattern transition. A file is treated as a work item iff it has
-   YAML frontmatter and a non-empty `id` field (or `work_item_id` on
-   legacy files) — applied as a post-filter on the single-pass
-   extraction in step 4 below, not a separate per-file check.
-   Files lacking either are silently excluded; files with malformed
-   frontmatter emit a one-line warning to stderr and are skipped.
+A multi-token shorthand (rule 3, e.g. `bugs in review`) becomes several
+flags (`--kind bug --status review`). Pass the canonical value the parse
+resolved (singularised, synonym-mapped); `--parent` is canonicalised by the
+CLI, so pass the bare form the user gave. Every flag is a conjunct — an item
+must satisfy all of them.
 
-3. If no work-item files exist after filtering, print:
-   ```
-   No work items found in `{work_dir}`.
-   ```
-   and exit cleanly.
+## Step 2: Run `work list` and present its output
 
-4. **Extract frontmatter from all work items in a single pass.** Work item
-   directories can contain dozens of files, so reading each one
-   individually would be too slow. Instead, use a single Bash command
-   to extract the frontmatter fields from every matching file at once.
-
-   Example approach — run one `awk` command across all `*.md` files:
-   ```bash
-   for f in {work_dir}/*.md; do
-     awk -v file="$f" '
-       NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
-       NR==1 { print file "\tERROR\tno frontmatter"; exit }
-       in_fm && /^---[[:space:]]*$/ { closed=1; exit }
-       in_fm { print file "\t" $0 }
-       END { if (in_fm && !closed) print file "\tERROR\tunclosed frontmatter" }
-     ' "$f"
-   done
-   ```
-
-   This outputs one line per frontmatter field per file (tab-delimited:
-   filepath, field line) plus ERROR lines for malformed files. Parse the
-   output to build the work item list in memory.
-
-   - Lines containing `ERROR	no frontmatter`: warn
-     `"<filename>: skipped — no frontmatter"` and exclude the file.
-   - Lines containing `ERROR	unclosed frontmatter`: warn
-     `"<filename>: skipped — unclosed frontmatter"` and exclude.
-   - For each file with well-formed frontmatter, check its extracted
-     lines for a non-empty `id` field (or `work_item_id` on legacy
-     files, stripping surrounding quotes and trailing whitespace). A
-     file with neither is **silently** excluded (not a warning — it is
-     simply not a work item, e.g. a `README.md` dropped into the
-     directory). This is the "is a work item" predicate from step 2.
-   - For each remaining file, derive the work item ID from the
-     filename by matching it against the configured `work.id_pattern`'s
-     compiled scan regex, with a legacy-fallback path so a bare
-     `0042-foo.md` file remains visible even under a
-     `{project}-{number:04d}` pattern. The filename prefix remains the
-     authoritative work item ID, even if the `id` field (or
-     `work_item_id` on legacy files) in frontmatter differs.
-
-5. **Mixed-prefix discoverability hint**: when the listing detects both
-   files matching the legacy `[0-9]{4}-` shape AND files matching the
-   configured `{project}` pattern in the same corpus, prepend a single
-   informational line to the output before the table:
-
-   ```
-   note: mixed prefix corpus detected — N legacy items, M project-prefixed
-   items. Run /accelerator:migrate to normalise.
-   ```
-
-   The note appears once per invocation (not per file) and is suppressed
-   when the configured pattern lacks `{project}`.
-
-5. From the extracted frontmatter lines, parse these fields for each
-   work item (all optional — missing fields are recorded as absent, not
-   as errors):
-   - `title` — the human-readable title
-   - `kind` — the work item kind
-   - `status` — the current status
-   - `priority` — the priority level
-   - `tags` — a YAML inline array (e.g. `[backend, api]`)
-   - `parent` — the parent work item number
-   - `external_id` — the remote tracker's identifier, used only for the
-     sync-status label in Step 4. It is already present in the single-pass
-     frontmatter stream above (the `awk` prints every frontmatter line), so
-     reading it adds no extra per-file process. Read it **only** when an
-     integration is configured; otherwise ignore it.
-
-   **Sync classification (only when an integration is configured).** For each
-   file that *passed* the frontmatter validity check above, classify it
-   presence-based:
-   - `external_id` absent → **unsynced** (never an error — the item was simply
-     never pushed).
-   - `external_id` present but normalising to empty (after stripping surrounding
-     quotes and whitespace — e.g. `external_id: ""`) → **unsynced**.
-   - `external_id` present and non-empty after normalisation → **synced**.
-
-   Do not hand-roll the normalisation: pass the raw `external_id` value (or
-   nothing, when the field is absent) to the authoritative classifier
-   `work-item-sync-label.sh` (Step 4), which owns the trimming rule and the
-   label vocabulary. A file that Step 2 already flagged as malformed stays a
-   **skip**, not an unsynced row. The filename remains the authoritative
-   displayed ID — `external_id` never changes the displayed ID.
-
-   This presence-only `synced`/`unsynced` split is the **floor**. When a
-   `last-sync.json` baseline exists, Step 4 **upgrades** tracked items (those
-   with an `external_id` *and* a baseline entry) to the three baseline-dependent
-   states — `locally-modified`, `remotely-modified`, `conflict` — via a single
-   bulk remote read and the shared change-detection engine, degrading back to
-   this presence-only floor whenever the remote is unreachable or no baseline
-   exists. See "Sync Status Labels" in Step 4.
-
-## Step 3: Apply Filter
-
-Apply the parsed filter from Step 1 to the scanned work items.
-
-- **"All, no filter"**: keep every work item.
-- **Status/kind/priority filter**: match the field value exactly
-  (case-sensitive, matching the raw frontmatter value). Work items missing
-  the filtered field are excluded from the result (not errors).
-- **Tag filter**: parse the raw `tags` value (e.g. `[backend, api]`)
-  into individual tag strings. A work item matches if any tag equals the
-  filter value. Work items with `tags: []`, empty `tags:`, or absent `tags`
-  field do not match (and are not errors).
-- **Parent filter** (`under X`): normalise both the filter value and
-  each work item's `parent` field via
-
-  ```
-  ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work canonicalise-id <input>
-  ```
-
-  before comparison. The canonicaliser strips quotes, accepts short and
-  long forms, and
-  zero-pads to the configured pattern's width (or pre-pends the
-  default project code when the pattern requires `{project}` and the
-  input is a bare number). So under default config `parent: "0042"`,
-  `parent: 0042`, `parent: 42`, and `parent: "42"` all match
-  `under 0042` or `under 42`. Under `{project}-{number:04d}` config
-  with `default_project_code: PROJ`, `parent: "PROJ-0042"`,
-  `parent: "0042"` (legacy), and `parent: 42` all canonicalise to
-  `PROJ-0042` and match `under PROJ-0042` or `under 42`.
-- **Free-text title search** (`about X` or rule 5): case-insensitive
-  substring match against the `title:` frontmatter value. Work items
-  without a `title` field are excluded.
-- **Combined filters** (rule 3): all conditions must hold (AND).
-
-## Step 4: Render
-
-### Sync Status Labels (only when an integration is configured)
-
-When the **Active integration** read at the top of this skill is a **non-empty**
-string, each rendered work item carries a sync-status label. When it is empty,
-render exactly as today — **no** Sync column, no label, output unchanged.
-
-All five label states are owned by one source of truth so the table and
-hierarchy views never drift:
+Invoke the CLI with the translated flags:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-label.sh --label <state>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator work list \
+  [--status <s>] [--kind <k>] [--priority <p>] [--parent <ref>] \
+  [--tag <t>]... [--hierarchy] [<title-substring>]
 ```
 
-where `<state>` ∈ `synced`, `unsynced`, `locally-modified`, `remotely-modified`,
-`conflict` renders the markdown-native label (`🟢 synced`, `⚪ unsynced`,
-`🔵 locally modified`, `🟣 remotely modified`, `🔴 conflict`). Every pair differs
-in **both glyph and text**, and the labels are **markdown-native** (a Unicode
-glyph + text) emitted into the conversation's table — **never** ANSI escape
-codes, which would surface as literal `\033[…]` text.
+The CLI does everything the previous scan/filter/render steps did, so there
+is nothing to reconstruct in prose:
 
-#### Which states are reachable depends on the baseline
+- **Scan and validity.** It reads every `*.md` file in the work directory,
+  treats a file as a work item only when it has closed frontmatter and a
+  non-empty `id` (or legacy `work_item_id`), silently excludes non-items,
+  and warns `"<filename>: skipped — no frontmatter"` /
+  `"… unclosed frontmatter"` on malformed files. The filename prefix stays
+  the authoritative displayed ID.
+- **Filter.** Each flag is applied as a conjunct; `--parent` canonicalises
+  both sides (short and long ID forms compare equal); the title term is a
+  case-insensitive substring. The CLI prints the interpreted filter and
+  match count itself (`Filter: status=draft (3 matches)`, `Children of 0042
+  (2 matches)`, or `All work items (29 total)`).
+- **Sync column.** When `work.integration` names a tracker and a
+  `last-sync.json` baseline exists, it appends a **Sync** column carrying
+  the five-state label vocabulary (`🟢 synced`, `⚪ unsynced`,
+  `🔵 locally modified`, `🟣 remotely modified`, `🔴 conflict`), driven by one
+  bulk remote read through the shared classifier. With no integration or no
+  baseline it renders presence-only and omits the column; if the remote is
+  unreachable it degrades to presence-only and still exits 0 — never
+  retrying or hanging.
+- **Hierarchy.** `--hierarchy` renders the parent/child tree with Unicode
+  box-drawing characters, appends each line's sync label, marks an
+  out-of-set parent `(parent … not found)`, and detects cycles so rendering
+  always terminates.
 
-Resolve the baseline path:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-baseline.sh path
-```
-
-- **No `last-sync.json` baseline file** (the resolved path does not exist):
-  there is no referent for change detection, so classify every item
-  **presence-only** — `external_id` non-empty → `synced`, else `unsynced` (pass
-  the raw value to `work-item-sync-label.sh <external-id-value>`, which owns the
-  trimming rule). Do **no** remote read. This is exactly the 0047 behaviour.
-
-- **Baseline exists**: render the full five-state set for tracked items, driven
-  by a SINGLE bulk remote read plus the shared engine. Items with no
-  `external_id`, or no baseline entry, stay presence-only.
-
-#### Five-state classification (baseline present)
-
-1. **Bulk pre-filter read — one call, never N.** Collect the non-empty
-   `external_id`s of all listed items and fetch their remote `updated` stamps in
-   one call:
-
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-fetch-remote.sh \
-     --integration <sys> search --keys <comma-separated external_ids>
-   ```
-
-   It returns `{ "found": {<key>:{updated}}, "absent": [...],
-   "indeterminate": [...] }` — the adapter chose the per-tracker strategy, so you
-   never branch on tracker. **Graceful degradation:** if the bridge exits
-   non-zero (remote unreachable / timed out), do **not** retry or hang — fall
-   back to presence-only for **every** item, render the listing, and exit 0. One
-   bulk call bounds the whole degradation path; a key that lands in
-   `indeterminate` is likewise treated as unknown, never as remote-absent.
-
-2. **Per item, derive the remote status to hand the engine:**
-   - no `external_id` → presence-only `unsynced` (skip the engine).
-   - `external_id` present but **no baseline entry**
-     (`work-item-sync-baseline.sh get <id>` prints nothing) → presence-only
-     (`synced`); skip the engine.
-   - key in `indeterminate`, or the bulk read degraded → `--remote-status
-     indeterminate`.
-   - key in `absent` → `--remote-status absent`.
-   - key in `found` → `--remote-status present --remote-updated <its updated>`.
-     If that `updated` differs from the baseline entry's `remote_updated_at`,
-     this item is in the genuinely-changed minority: fetch its body
-     (`work-item-fetch-remote.sh … show --external-id <key>`), **project +
-     canonicalise** it to the comparable local shape (jira: `.fields.summary` →
-     title, `.fields.description` ADF through `jq -S`; linear:
-     `.data.issue.title` + `.data.issue.description` Markdown, **no** `jq -S`),
-     write it to a temp file, and pass `--remote-body-file`. Reserve `show` for
-     this minority and emit `classifying item k of N` progress so a long pass
-     never reads as a hang.
-
-3. **Classify** via the shared engine and render its keyword:
-
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/work/scripts/work-item-sync-classify.sh \
-     --file <path> --external-id <key> \
-     --baseline "$(work-item-sync-baseline.sh get <id>)" \
-     --timestamp "$(jq -r '.timestamp // 0' "$(work-item-sync-baseline.sh path)")" \
-     --remote-status <present|absent|indeterminate> \
-     [--remote-updated <iso>] [--remote-body-file <tmp>]
-   ```
-
-   The engine prints one of `synced | unsynced | locally-modified |
-   remotely-modified | conflict | remote-absent | indeterminate`. Feed the first
-   five straight to `work-item-sync-label.sh --label <state>`. For
-   `remote-absent` and `indeterminate`, render the **presence-only** label
-   (`synced`, since the item carries an `external_id`): the remote state is
-   unknown or the issue is gone, and the listing must never fail or hang on it.
-
-The `canonical-tree-fence` example below stays **label-free**.
-
-### Default Rendering (table)
-
-Present the filtered work items as a markdown table with these columns:
-
-| ID | Title | Kind | Status | Priority |
-
-When an integration is configured (see "Sync Status Labels" above), append a
-**Sync** column carrying each item's label:
-
-| ID | Title | Kind | Status | Priority | Sync |
-
-- Sort rows by work item number ascending.
-- Render missing fields as `—`.
-- If a column would be `—` for every row in the current result set,
-  suppress that column entirely to reduce noise. For example, a listing
-  of only legacy work items (which lack `priority`) would omit the Priority
-  column. The **Sync** column follows the same rule in reverse: it is present
-  **only** when an integration is configured, and suppressed entirely when one
-  is not (there is no label to show).
-
-### Hierarchy Rendering
-
-If a hierarchy presentation keyword was detected in Step 1:
-
-- Work items with no `parent` (or empty `parent`) appear at the top level.
-- Work items whose `parent` points to a work item in the current result
-  set are rendered as children. Each parent→children group prints
-  as a tree using Unicode box-drawing characters. Children use
-  `├── ` for all entries except the last in the group, which uses
-  `└── `. Indent two spaces per depth level. Example:
+  The parent/child tree renders as, for example:
 
 <!-- canonical-tree-fence -->
 NNNN — parent title (kind: <kind>, status: <status>)
@@ -389,65 +165,21 @@ NNNN — parent title (kind: <kind>, status: <status>)
   └── NNNN — last child title (kind: <kind>, status: <status>)
 <!-- /canonical-tree-fence -->
 
-  No ASCII fallback is attempted; terminals without Unicode
-  support will render mojibake. Users on such terminals can
-  re-display the hierarchy via /list-work-items.
-- **Sync labels in the tree** (only when an integration is configured): append
-  each item's sync label — obtained from `work-item-sync-label.sh`, the same
-  source of truth the table uses — to the end of its line, after the
-  `(kind: …, status: …)` segment. For example:
+- **Empty and missing.** A directory that does not exist prints the
+  `paths.work` guidance and exits 0; an empty directory prints `No work
+  items found in …`; a filter that matches nothing prints `No work items
+  matched: …` rather than an empty table.
 
-  ```
-  0042 — User Auth Rework (kind: epic, status: ready) 🟢 synced
-    └── 0043 — Login form (kind: story, status: draft) ⚪ unsynced
-  ```
-
-  The shared `canonical-tree-fence` example above is deliberately kept
-  **label-free**: it is an integration-agnostic static example shared
-  byte-for-byte with `/refine-work-item` (which has no integration gate), so the
-  sync label is applied to the live rendered output, never to that example.
-- Work items whose `parent` points to a work item number that does not exist
-  in the result set appear at the top level with a suffix:
-  `(parent NNNN not found)`.
-- **Cycle detection**: before rendering, walk the parent chain for each
-  work item. If a work item is visited twice during a walk, it is part of a
-  cycle. Render all cyclic work items at the top level with a `(cycle)`
-  marker. This ensures bounded execution — no infinite loops.
-
-### Empty Results
-
-- If zero work items match the filter, print:
-  ```
-  No work items matched: <filter description>.
-  ```
-  Do not render an empty table. If the active filter was a free-text
-  title search (rule 5), append:
-  ```
-  Tip: to filter by field value, use `status <value>`, `kind <value>`,
-  or `tagged <value>`.
-  ```
-
-### Filter Echo
-
-Always print the interpreted filter and match count above the table:
-```
-Filter: status=draft (3 matches)
-```
-or for a parent filter:
-```
-Children of 0042 (2 matches)
-```
-or for no filter:
-```
-All work items (29 total)
-```
+Print the CLI's stdout to the user as-is (it is markdown-native — a table or
+tree the conversation renders directly), and surface any stderr warnings it
+emitted. Do not re-echo the filter or re-render the table.
 
 ## Quality Guidelines
 
 - **Read-only**: never write any files. This skill only reads and
   displays.
-- **No sub-agents**: never spawn sub-agents. All work is done via
-  filesystem reads and companion scripts.
+- **No sub-agents**: never spawn sub-agents. All work is a natural-language
+  filter parse plus one `accelerator work list` invocation.
 - **No hardcoded field values**: never assume a specific set of status,
   kind, or priority values. The template's comments list shipping
   defaults, not a closed set. Users may override the template with

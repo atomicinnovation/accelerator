@@ -11,12 +11,14 @@ parent: "work-item:0211"
 relates_to:
   - "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"
   - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
+  - "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"
 topic: "Implementation ground for shipping accelerator-jira and accelerator-linear and retiring both bash script clusters"
 tags: [research, codebase, jira, linear, integrations, cli, cutover, exit-codes, registration]
-revision: "5e8e86777e45334c864b21053d5e6abe7a2c7a89"
+revision: "990669317762ae2f6f7283437cbd8dd85d2f1fa8"
 repository: "accelerator"
-last_updated: "2026-08-17T13:16:26+00:00"
+last_updated: "2026-08-19T01:04:51+00:00"
 last_updated_by: Toby Clemson
+last_updated_note: "Added follow-up research for the completion of work item 0210 (provider client crates)"
 schema_version: 1
 ---
 
@@ -27,6 +29,15 @@ schema_version: 1
 **Git Commit**: `5e8e86777e45334c864b21053d5e6abe7a2c7a89`
 **Branch**: no bookmark (change `pmluwtrlktmo`)
 **Repository**: accelerator
+
+> **Update 2026-08-19**: work item **0210 is now complete** (merged in PR #70).
+> The findings below describe the pre-0210 codebase at revision `5e8e8677`;
+> where 0210's completion changes them, see
+> [Follow-up Research (2026-08-19)](#follow-up-research-2026-08-19--0210-complete)
+> at the end. The headline reverses in 0211's favour: the client crates now
+> implement **every** provider flow — comment, transition, attach, discovery and
+> search included — so `accelerator-jira`/`accelerator-linear` are genuinely
+> thin.
 
 ## Research Question
 
@@ -650,3 +661,213 @@ Raised by this research:
 - **Where does `jira-jql-cli.sh` go?** It is an orphan: executable, arg-parsing,
   25 lines, invoked only by `test-jira-jql.sh`. Porting it would create
   user-facing surface that does not exist today.
+
+## Follow-up Research 2026-08-19 — 0210 complete
+
+**Revision**: `990669317762ae2f6f7283437cbd8dd85d2f1fa8`
+**Author**: Toby Clemson
+
+Work item 0210 merged (PR #70, "Mark work item 0210 done"). It shipped
+`jira-client`, `linear-client`, the shared `tracker-support` policy crate and the
+`http-test-support` dev harness, wired both clients into `accelerator-work`'s
+composition root, and committed the three oracle transcriptions. Every finding
+above that assumed "0210 has not started" is discharged here. **The headline
+reverses in 0211's favour: the client crates implement every provider flow, so
+`accelerator-jira`/`accelerator-linear` are genuinely thin.**
+
+### The port-less flows are built — the largest open question is closed
+
+The original research's sharpest uncertainty — "Does 0211 grow to cover the extra
+entrypoints, or does the surface shrink?" — is answered by neither. **0210
+absorbed the whole provider surface into the client crates.** Every port-less
+flow the bash clusters expose is an inherent method on `JiraClient`/`LinearClient`
+returning a dedicated `SurfaceError`:
+
+| Flow | Jira method(s) | Linear method(s) |
+|---|---|---|
+| comment | `add_comment`/`edit_comment`/`delete_comment`/`list_comments` (`comment.rs`) | `add_comment` (`comment.rs`) |
+| transition | `list_transitions`/`resolve_transition`/`transition` (`transition.rs`) | `resolve_state`/`transition` (`transition.rs`) |
+| attach | `attach` (`attach.rs`) | `attach_link`/`attach_file` (`attach.rs`, three-step upload) |
+| init/discovery | `discover_site`/`discover_projects`/`discover_fields` (`discovery.rs`) | `discover_viewer`/`list_teams`/`discover_team` (`discovery.rs`) |
+| search | JQL composer (`jql.rs`) | `IssueFilter` composer (`filter.rs`) |
+
+The lib docs make the intent explicit: these "sit beyond the four `RemoteTracker`
+port methods … and have no port of their own yet"
+(`cli/jira-client/src/surface.rs:1-8`). Endpoint paths and GraphQL documents are
+hard-coded inside the crates (Jira REST constants at
+`cli/jira-client/src/client.rs:47-48`; Linear `const &str` documents at
+`cli/linear-client/src/client.rs:44-65`), and the pup rules forbid any of it
+leaking out (`cli/pup.ron:194-262`). **0211's binaries need no request
+construction** — they parse args, assemble a credential context, call these
+methods, and render JSON or errors.
+
+### The public surface 0211 consumes, and the three error layers it renders
+
+The thin CLIs link against `JiraClient`/`LinearClient` (`from_config`
+constructors at `client.rs:83` / `:101`) plus free functions
+(`document_to_markdown`, `markdown_to_document`, `resolve_credentials`,
+`classify`). ⚠️ **Neither crate carries a public-API snapshot** — both are
+`_EXEMPT_MEMBERS`/`_ADAPTER` (`tasks/public_api.py:52-59`), so the surface is
+unpinned and each CLI binds whatever its crate exposes.
+
+Each binary must render **three** error layers to stderr plus an exit code, not
+one:
+
+- **`classify → TrackerError`** for the four port operations (`classify.rs`) —
+  the retryable/terminal verdict the sync bridge reads.
+- **`SurfaceError`** for the port-less flows — richly `E_*`-coded
+  (`E_TRANSITION_NOT_FOUND`, `E_TRANSITION_AMBIGUOUS`, `E_ATTACH_BAD_FILENAME`,
+  `E_COMMENT_BAD_PAGE_SIZE`, …) at `surface.rs`.
+- **`ClientError`** for config/site/token/transport faults (`error.rs`).
+
+Mapping these `E_*` variants to the numeric exit codes the SKILL bodies branch on
+is the substance of the still-open "binaries' exit-code contract" decision below.
+
+### ⚠️ The test seam the original research proposed does not exist
+
+The original "Test seam" finding proposed `ACCELERATOR_JIRA_API_URL` /
+`ACCELERATOR_LINEAR_API_URL` on the `collaboration-cli` model. **Those env vars
+exist nowhere in the client crates.** The seam is constructor-based: Linear's
+`Transport::new` takes the endpoint explicitly
+(`cli/linear-client/src/transport.rs:91-97`), Jira derives it from
+`credentials.base` (i.e. `jira.site`). `with_base_uri` is deliberately absent —
+the transport doc forbids post-construction setters because `reqwest`'s timeout
+is fixed at build time. **0211's CLI layer must add the env→constructor plumbing
+itself**, reading `ACCELERATOR_*_API_URL` in the binary and feeding it into
+`Transport::new`, mirroring `cli/collaboration-cli/src/main.rs:42-46`.
+
+### The `wiremock` question is settled: no library, `http-test-support`
+
+0171 decision **D3**: no mock library. `wiremock`, `mockito` and `httpmock`
+appear nowhere in the workspace — none can hang a connect phase or drop a
+connection mid-body, so the hand-rolled stall responder would survive regardless
+and the dependency would replace nothing. The two former hand-rolled servers
+(`launcher`/`github` `tests/common/mod.rs`, both now deleted) are unioned into
+**`cli/http-test-support`** — a zero-dependency, std-only crate providing
+request-body capture, a per-route response queue (`Route::Sequence`) and the
+decisive `Route::Stall(Duration)` (`cli/http-test-support/src/lib.rs:56-58`). It
+is a dev-dependency of both clients and of six crates in all. **0211 inherits
+this harness**, closing the original's last open question on the point.
+
+### The contract lane: offline-enforcing, evidence-file assured
+
+0210 split the lane in two. `contract_offline.rs` runs in the **default** profile
+over the `http-test-support` mock and is the *enforcing* gate; `contract.rs`
+(named exactly so `nextest`'s `default-filter = 'not binary(=contract)'` excludes
+it, `cli/.config/nextest.toml:5`) makes the live calls, and its output is a
+committed evidence file. `ContractSubject` is implemented four times — live plus
+offline per crate. The committed evidence
+(`cli/{jira,linear}-client/tests/evidence/contract-run.txt`, live-tenant runs
+dated **2026-08-18**) records **jira 4 / linear 5** conformance records — Linear
+carries the extra `unaccounted_id_is_indeterminate_not_absent` because its team
+scope is a structural indeterminate path, which a live Jira tenant cannot produce
+for a benign key. `evidence_hygiene.rs` runs in the default profile and refuses
+any evidence file carrying payloads or secrets. **No CI job exists** for the
+contract lane — the acceptance route chosen was the committed evidence file, not
+a required workflow. ⚠️ The evidence `README.md` still says "not committed yet",
+stale relative to the committed data.
+
+### The three oracle transcriptions landed — and one original expectation was wrong
+
+All three exist and are consumed by tests:
+
+| Oracle | Path | Shape | Consumer |
+|---|---|---|---|
+| Exit-code tables | `cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt` | 74 rows, 5 cols (code/provider/operation/class/source) | `jira`+`linear-client/tests/classify.rs` |
+| ADF inventory | `cli/jira-client/tests/fixtures/adf-node-types.txt` | 41 node + 16 mark rows | `cli/jira-client/tests/adf_inventory.rs` |
+| Parity baseline | `cli/work-adapters/tests/fixtures/bash-parity-baseline.txt` | 11 test rows + case-set rows | `bash_parity_baseline.rs` |
+
+Two corrections to the original research:
+
+- ⚠️ **The exit-code tables live under `tracker-support`, not `tracker`.** The
+  original "Code References" cited `cli/tracker/tests/fixtures/…`; that path does
+  not exist. And the classification is now *live*: `classify_bash_code` in both
+  clients consumes the fixture (`cli/jira-client/src/classify.rs:73-74`,
+  `cli/linear-client/src/classify.rs:160-161`), reproducing the create/update
+  divergence — code `34` retryable on create, terminal on update.
+- ⚠️ **The parity baseline records no `68` count.** The original research
+  (via 0210's brief) expected the file to carry the pre-change file count under
+  `skills/work/scripts/test-fixtures/` "as a committed number". The landed
+  fixture deliberately does the opposite — it pins case-name **sets**, not a
+  total, with an in-file note that "storing the numbers too is how the numeric
+  copy goes stale". 0211/0212 verify against the sets; there is no committed 68.
+
+### Exit-code landscape: classification pinned, the binaries' contract still open
+
+The original section holds for what 0211 still owns — the *binaries'* exit-code
+contract and its document of record remain **open** (0171 Decisions). But 0210
+pinned the classification half beneath the port:
+
+- **HTTP status → exit code** is fixed in each `classify.rs` `bash_code`: Jira
+  `400→34, 401→11, 403→12, 404→13, 410→14, 429→19, non-JSON→16, transport→21`;
+  Linear `auth→11, complexity→36, ratelimited→35, bad→34, non-JSON→16,
+  transport→21`.
+- **`classify` is per-operation**, and a read never yields `Terminal` — the port
+  invariant the original flagged.
+- **D11**: `Unconfigured` is exit **74**, and `70`/`71`
+  (`E_DISPATCH_RETRYABLE`/`TERMINAL`) derive *exclusively* from `TrackerError`.
+  This resolves the original's hardest constraint (the `70-73` collision) at the
+  composition-root boundary.
+
+Still 0211's to decide: the numeric codes for the `SurfaceError` variants (the
+port-less flows), `EXIT_CODES.md` siting, and the binaries' document of record.
+
+### The composition root is wired
+
+`cli/work-cli/src/tracker_registry.rs` now resolves real clients: the `jira` arm
+calls `JiraClient::from_config` and the `linear` arm
+`LinearClient::from_config(&integrations_root)` (`:169-179`); `resolve`'s
+signature is unchanged, with config injected at construction via
+`ConfiguredTrackers::new`. `trello`/`github-issues` return `NotAvailable`
+(exit 72); `SelectionError` maps `Unset`/`Unrecognised`→73, `NotAvailable`→72,
+`Unconfigured`→74.
+
+Consequently the test the original research flagged has flipped: **`cli_sync.rs`
+no longer asserts `jira` exits `72`.** A wired-but-unconfigured `jira` now exits
+**74** (`a_wired_tracker_without_credentials_exits_74`, `:78-84`), and only
+`trello` still exits `72`. `cli_update_push.rs` matches (jira→74);
+`cli_create_push.rs` has `--push` fall back to a local save. `linear.team_id` was
+added to both the Rust catalogue (`cli/config/src/catalogue.rs:126`) and the bash
+mirror (`scripts/config-defaults.sh:217`, Rust-only, no bash consumer). The
+`for_tracker_error` duplication is resolved — `#[allow(dead_code)]` is gone and
+`cli/work-cli/src/create.rs:462` delegates.
+
+### Registration: the library surface is done; the tokens are still 0211's
+
+0210 registered the two clients as **library adapter crates** and nothing more.
+The workspace lists **35 members** (the original counted 30);
+`jira-client`/`linear-client` carry `denied`-only pup rules with probe pairs
+(`cli/pup.ron:194-262`, `tests/integration/pup/test_import_rule.py:1148-1276`)
+and `_ADAPTER` classification. **No new licence exception was added** — the
+rustls/HTTP tree rides the existing permissive allow, and 0171 D3 records no
+copyleft is introduced, so **0203 does *not* become a release-path dependency of
+0211** (evidence: `cli/licence-audit/new-trees.txt`,
+`tests/integration/deny/test_licence_closure.py`). Two hickory DNS advisory
+ignores (`RUSTSEC-2026-0118/0119`, review-by 2026-11-03) cover the reqwest stack.
+
+What remains for 0211 is unchanged from the original "Registration" section:
+**`DISPATCHED_SUBBINARIES` still lists 7 tokens** (`tasks/shared/paths.py:29-37`)
+— `jira`/`linear` are absent — and the binary crates `jira-cli`/`linear-cli` are
+not workspace members. The thirteen-point checklist applies to the two binary
+crates and two tokens; the *library-crate* surface (pup rule, probe pair,
+`public_api` classification) is already discharged for the client crates, and the
+two new `*-cli` crates carry no pup rule of their own — the rules attach to the
+client crates beside them, already present.
+
+### Open questions: what 0210 closed, what carries forward
+
+Closed by 0210: port-less-flow ownership (in the crates), `wiremock` vs
+hand-rolled (`http-test-support`), `gouqi` (read, not vendored — D1), ADF
+hand-built vs composed (hand-built — D5), `TrackerRegistry` config acquisition
+(construction-time), the Linear team-id key (`linear.team_id`), and the
+copyleft/0203 question (no copyleft).
+
+Still open, and now unambiguously 0211's: the **binaries' exit-code contract**
+and its document of record (only classification is pinned); **`EXIT_CODES.md`
+siting**; the **`*-auth-cli.sh` cleartext-credentials** decision (reproducing
+token-on-stdout as a subcommand is a security call, not a mechanical port); the
+**`jira-jql-cli.sh` orphan**; and the shape of **`jira-resolve-fields.sh`** — its
+field resolution now lives in the crate (`AccountResolver`/`FieldResolver` at
+`cli/jira-client/src/client.rs:108-113`), but its frontmatter-parsing,
+tab-separated contract is a work-domain concern the CLIs must either reproduce or
+relocate to `accelerator work`.

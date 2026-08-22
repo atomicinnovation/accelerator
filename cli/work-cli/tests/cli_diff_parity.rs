@@ -8,16 +8,12 @@ use std::process::Command;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn fixture(case: &str, file: &str) -> Result<PathBuf, TestError> {
-    Ok(repo_root()?.join(format!(
-        "skills/work/scripts/test-fixtures/work-item-section-diff/{case}/{file}"
-    )))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!(
+            "../work-adapters/tests/fixtures/work-item-section-diff/{case}/{file}"
+        ))
+        .canonicalize()?)
 }
 
 fn run(local: &Path, remote: &Path) -> Result<std::process::Output, TestError> {

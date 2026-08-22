@@ -20,6 +20,14 @@ pub enum Dirtiness {
     Unknown,
 }
 
+/// One reconciliation action for a single work item.
+///
+/// The `CreateFromRemote` and `CreateFromLocal` variants are never returned by
+/// [`decide`]: the decision table maps `Unsynced` to `Noop` in every direction,
+/// because remote-issue creation was always separate orchestration rather than a
+/// table entry. The sync engine produces the two create actions out-of-band and
+/// reports them under these keywords; they exist here so a report round-trips and
+/// the engine's exhaustive action match names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Push,
@@ -28,6 +36,8 @@ pub enum Action {
     SkipDirty,
     Prompt,
     Noop,
+    CreateFromRemote,
+    CreateFromLocal,
 }
 
 impl Action {
@@ -40,6 +50,8 @@ impl Action {
             "skip-dirty" => Self::SkipDirty,
             "unresolved" => Self::Prompt,
             "noop" => Self::Noop,
+            "create-from-remote" => Self::CreateFromRemote,
+            "create-from-local" => Self::CreateFromLocal,
             _ => return None,
         })
     }
@@ -54,6 +66,8 @@ impl std::fmt::Display for Action {
             Self::SkipDirty => "skip-dirty",
             Self::Prompt => "unresolved",
             Self::Noop => "noop",
+            Self::CreateFromRemote => "create-from-remote",
+            Self::CreateFromLocal => "create-from-local",
         })
     }
 }
@@ -127,5 +141,68 @@ pub fn resolve_conflict_token(raw: &str) -> Option<Resolution> {
         "local" => Some(Resolution::PushLocal),
         "skip" => Some(Resolution::Skip),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Action;
+
+    #[test]
+    fn every_action_round_trips_through_its_keyword() {
+        let variants = [
+            Action::Push,
+            Action::Pull,
+            Action::SkipConflict,
+            Action::SkipDirty,
+            Action::Prompt,
+            Action::Noop,
+            Action::CreateFromRemote,
+            Action::CreateFromLocal,
+        ];
+        for variant in variants {
+            let keyword = variant.to_string();
+            assert_eq!(Action::from_keyword(&keyword), Some(variant));
+        }
+    }
+
+    #[test]
+    fn the_two_create_actions_never_come_from_the_decision_table() {
+        use super::decide;
+        use super::Dirtiness;
+        use super::SyncDirection;
+        use crate::sync::state::SyncState;
+
+        let states = [
+            SyncState::Synced,
+            SyncState::Unsynced,
+            SyncState::LocallyModified,
+            SyncState::RemotelyModified,
+            SyncState::Conflict,
+            SyncState::RemoteAbsent,
+            SyncState::Indeterminate,
+        ];
+        let directions = [
+            SyncDirection::Bidirectional,
+            SyncDirection::PushOnly,
+            SyncDirection::PullOnly,
+        ];
+        let dirtiness =
+            [Dirtiness::Clean, Dirtiness::Dirty, Dirtiness::Unknown];
+        for state in states {
+            for direction in directions {
+                for dirty in dirtiness {
+                    let action = decide(direction, state, dirty);
+                    assert!(
+                        !matches!(
+                            action,
+                            Action::CreateFromRemote | Action::CreateFromLocal
+                        ),
+                        "decide produced a create action for \
+                         {direction:?}/{state:?}/{dirty:?}"
+                    );
+                }
+            }
+        }
     }
 }

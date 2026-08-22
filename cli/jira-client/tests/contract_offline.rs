@@ -14,13 +14,21 @@ use http_test_support::{MockServer, RequestKey, Route};
 use jira_client::JiraClient;
 use support::client::{brief, client_with};
 use support::RecordingSleeper;
+use tracker::CreatePreview;
 use tracker::ExternalId;
+use tracker::FieldResolution;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
+use tracker::ValidationOutcome;
 use tracker_test_support::contract::{
     a_failing_read_is_retryable_property,
     create_then_show_round_trips_property,
     fetch_all_partitions_totally_property,
-    unaccounted_id_is_indeterminate_not_absent_property, ContractSubject,
+    preview_create_makes_no_mutation_property,
+    preview_create_resolves_fields_property,
+    search_reports_truncation_property,
+    unaccounted_id_is_indeterminate_not_absent_property,
+    validate_update_reports_outcome_property, ContractSubject,
 };
 
 const CREATED: &str = "ENG-1";
@@ -44,6 +52,15 @@ impl ContractSubject for MockBackedClient {
 
     fn unreadable_id(&self) -> ExternalId {
         ExternalId::new(UNREADABLE.to_owned())
+    }
+
+    /// The mock fails every `/search/jql`, so any project-scoped discovery
+    /// comes back `complete == false`.
+    fn truncating_scope(&self) -> SearchScope {
+        SearchScope {
+            project: Some(support::client::PROJECT.to_owned()),
+            ..SearchScope::default()
+        }
     }
 }
 
@@ -84,6 +101,16 @@ fn conformant_server() -> MockServer {
     server.route(
         RequestKey::get(&format!("/rest/api/3/issue/{UNREADABLE}")),
         Route::Status(404),
+    );
+    server.route(
+        RequestKey::get("/rest/api/3/project"),
+        Route::Json {
+            status: 200,
+            body: format!(
+                "[{{\"key\":\"{}\",\"id\":\"1\",\"name\":\"Engineering\"}}]",
+                support::client::PROJECT
+            ),
+        },
     );
     server
 }
@@ -149,6 +176,151 @@ fn update_replaces_the_content_offline() {
         .tracker()
         .update(&created, "Updated", "Updated body\n")
         .expect("update succeeds");
+}
+
+fn client_with_project(server: &MockServer, project: &str) -> JiraClient {
+    use jira_client::jql::FixedResolver;
+    use jira_client::transport::Transport;
+    use tracker_support::TransportConfig;
+    let transport = Transport::new(
+        support::client::credentials(&server.base_url()),
+        TransportConfig {
+            timeout: std::time::Duration::from_millis(400),
+            ..TransportConfig::default()
+        },
+        Box::new(RecordingSleeper::new()),
+        Box::new(support::NoJitter),
+    )
+    .expect("the transport builds");
+    JiraClient::new(
+        transport,
+        project.to_owned(),
+        Box::new(FixedResolver::new()),
+        Box::new(FixedResolver::new()),
+    )
+}
+
+fn project_server(keys: &[&str]) -> MockServer {
+    let server = MockServer::start();
+    let entries: Vec<String> = keys
+        .iter()
+        .map(|key| format!("{{\"key\":\"{key}\",\"id\":\"1\",\"name\":\"n\"}}"))
+        .collect();
+    server.route(
+        RequestKey::get("/rest/api/3/project"),
+        Route::Json {
+            status: 200,
+            body: format!("[{}]", entries.join(",")),
+        },
+    );
+    server
+}
+
+#[test]
+fn the_new_conformance_properties_hold_offline() {
+    let server = conformant_server();
+    search_reports_truncation_property(&subject(&server));
+
+    let server = conformant_server();
+    preview_create_makes_no_mutation_property(&subject(&server));
+
+    let server = conformant_server();
+    validate_update_reports_outcome_property(&subject(&server));
+}
+
+#[test]
+fn preview_create_resolves_each_field_state() {
+    let resolved = project_server(&["ENG"]);
+    preview_create_resolves_fields_property(
+        &subject(&resolved),
+        &CreatePreview {
+            project: FieldResolution::Resolved("ENG".to_owned()),
+            issue_type: FieldResolution::Unset,
+        },
+    );
+
+    let absent = project_server(&["OTHER"]);
+    preview_create_resolves_fields_property(
+        &subject(&absent),
+        &CreatePreview {
+            project: FieldResolution::Unresolvable("ENG".to_owned()),
+            issue_type: FieldResolution::Unset,
+        },
+    );
+
+    // An unconfigured project resolves to Unset with no remote call.
+    let unset = MockServer::start();
+    let subject = MockBackedClient {
+        client: client_with_project(&unset, ""),
+    };
+    preview_create_resolves_fields_property(
+        &subject,
+        &CreatePreview {
+            project: FieldResolution::Unset,
+            issue_type: FieldResolution::Unset,
+        },
+    );
+    assert_eq!(
+        unset.hits(&RequestKey::get("/rest/api/3/project")),
+        0,
+        "an unset project must not trigger a discovery call"
+    );
+}
+
+#[test]
+fn a_non_empty_kind_resolves_the_issue_type() {
+    let resolved = project_server(&["ENG"]);
+    let preview = subject(&resolved)
+        .tracker()
+        .preview_create("Bug")
+        .expect("preview_create succeeds");
+    assert_eq!(
+        preview.issue_type,
+        FieldResolution::Resolved("Bug".to_owned())
+    );
+}
+
+#[test]
+fn preview_create_issues_no_remote_create() {
+    let server = conformant_server();
+    subject(&server)
+        .tracker()
+        .preview_create("")
+        .expect("preview_create succeeds");
+    assert_eq!(
+        server.hits(&RequestKey::post("/rest/api/3/issue")),
+        0,
+        "a preview must not create an issue"
+    );
+}
+
+#[test]
+fn the_surface_error_shim_maps_a_read_failure_to_retryable() {
+    let server = MockServer::start();
+    server.route(RequestKey::get("/rest/api/3/project"), Route::Status(500));
+    let error = subject(&server)
+        .tracker()
+        .preview_create("")
+        .expect_err("a failed discovery must surface");
+    assert!(
+        matches!(error, tracker::TrackerError::Retryable { .. }),
+        "a discovery read that mutated nothing must be Retryable, got {error:?}"
+    );
+}
+
+#[test]
+fn validate_update_rejects_a_missing_summary_offline() {
+    let server = conformant_server();
+    let id = ExternalId::new(CREATED.to_owned());
+    let outcome = subject(&server)
+        .tracker()
+        .validate_update(&id, "", "Body\n");
+    match outcome {
+        ValidationOutcome::Rejected { reasons } => {
+            assert!(!reasons.is_empty());
+        }
+        ValidationOutcome::Valid => panic!("an empty summary must be rejected"),
+    }
 }
 
 #[test]

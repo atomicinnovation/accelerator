@@ -10,12 +10,17 @@ use remote_projection::Integration;
 use remote_projection::Op;
 use serde_json::json;
 use serde_json::Value;
+use tracker::CreatePreview;
+use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::FieldResolution;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::ValidationOutcome;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -191,20 +196,17 @@ impl LinearClient {
         }
     }
 
-    /// One page of the team-scoped search, following the Relay cursor.
+    /// One page of a search, following the Relay cursor.
     fn fetch_page(
         &self,
+        search: &Search,
         cursor: Option<&str>,
         deadline: &Deadline,
     ) -> Result<Page, String> {
         if deadline.expired() {
             return Err("the operation deadline expired".to_owned());
         }
-        let search = Search {
-            team_id: Some(self.credentials().team_id.clone()),
-            ..Search::default()
-        };
-        let filter = compose(&search, self.states.as_ref())
+        let filter = compose(search, self.states.as_ref())
             .map_err(|error| error.to_string())?;
         let variables = json!({
             "filter": filter,
@@ -244,6 +246,47 @@ impl LinearClient {
             .and_then(Value::as_str)
             .map(str::to_owned);
         Ok((found, cursor))
+    }
+
+    /// Pages a search to exhaustion, returning the accumulated index and, when
+    /// the retrieval was cut short, the reason. A cap-hit, a deadline or a
+    /// failed page all leave `Some(reason)`; a clean finish leaves `None`.
+    fn page_all(
+        &self,
+        search: &Search,
+    ) -> (Vec<(String, RemoteTimestamp)>, Option<String>) {
+        let deadline = self.transport.deadline();
+        let cap = self.transport.config().max_pages;
+        let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
+        let mut cursor: Option<String> = None;
+        let mut truncated = None;
+
+        for page in 1..=cap {
+            match self.fetch_page(search, cursor.as_deref(), &deadline) {
+                Ok((mut found, next)) => {
+                    index.append(&mut found);
+                    cursor = next;
+                    if cursor.is_none() {
+                        break;
+                    }
+                    if page == cap {
+                        truncated =
+                            Some(format!("the {cap}-page cap was reached"));
+                    }
+                }
+                Err(reason) => {
+                    truncated = Some(reason);
+                    break;
+                }
+            }
+        }
+        if let Some(reason) = &truncated {
+            tracing::warn!(
+                reason = %reason,
+                "linear: the retrieval was incomplete"
+            );
+        }
+        (index, truncated)
     }
 }
 
@@ -367,37 +410,11 @@ impl RemoteTracker for LinearClient {
             })?;
         }
 
-        let deadline = self.transport.deadline();
-        let cap = self.transport.config().max_pages;
-        let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
-        let mut cursor: Option<String> = None;
-        let mut truncated = None;
-
-        for page in 1..=cap {
-            match self.fetch_page(cursor.as_deref(), &deadline) {
-                Ok((mut found, next)) => {
-                    index.append(&mut found);
-                    cursor = next;
-                    if cursor.is_none() {
-                        break;
-                    }
-                    if page == cap {
-                        truncated =
-                            Some(format!("the {cap}-page cap was reached"));
-                    }
-                }
-                Err(reason) => {
-                    truncated = Some(reason);
-                    break;
-                }
-            }
-        }
-        if let Some(reason) = &truncated {
-            tracing::warn!(
-                reason = %reason,
-                "linear fetch_all: the retrieval was incomplete"
-            );
-        }
+        let team_search = Search {
+            team_id: Some(self.credentials().team_id.clone()),
+            ..Search::default()
+        };
+        let (index, truncated) = self.page_all(&team_search);
 
         for id in requested {
             let stamp = index
@@ -418,5 +435,64 @@ impl RemoteTracker for LinearClient {
             }
         }
         Ok(outcome)
+    }
+
+    fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        let mut search = Search {
+            team_id: scope
+                .project
+                .clone()
+                .or_else(|| Some(self.credentials().team_id.clone())),
+            ..Search::default()
+        };
+        for (field, value) in &scope.filters {
+            match field.as_str() {
+                "state" => search.state = Some(value.clone()),
+                "assignee" => search.assignee = Some(value.clone()),
+                "label" => search.label = Some(value.clone()),
+                "text" => search.text = Some(value.clone()),
+                _ => {}
+            }
+        }
+        let (index, truncated) = self.page_all(&search);
+        Ok(Discovery {
+            found: index
+                .into_iter()
+                .map(|(id, stamp)| (ExternalId::new(id), stamp))
+                .collect(),
+            complete: truncated.is_none(),
+        })
+    }
+
+    fn preview_create(
+        &self,
+        _kind: &str,
+    ) -> Result<CreatePreview, TrackerError> {
+        // Single-team, catalogue-fixed: Linear has no project key to resolve
+        // and no per-issue type.
+        Ok(CreatePreview {
+            project: FieldResolution::Unset,
+            issue_type: FieldResolution::Unset,
+        })
+    }
+
+    fn validate_update(
+        &self,
+        _id: &ExternalId,
+        title: &str,
+        _body: &str,
+    ) -> ValidationOutcome {
+        // Local composition check: Linear's GraphQL has no non-mutating
+        // update-validation endpoint, so a remote pre-flight is unavailable.
+        if title.trim().is_empty() {
+            ValidationOutcome::Rejected {
+                reasons: vec![
+                    "title is required but the payload leaves it empty"
+                        .to_owned(),
+                ],
+            }
+        } else {
+            ValidationOutcome::Valid
+        }
     }
 }

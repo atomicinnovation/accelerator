@@ -301,7 +301,7 @@ _linear_create_from_file() {
 
   # Already-synced guard: presence-based. Trim surrounding quotes/whitespace;
   # a non-empty remainder means the item already carries a remote identifier.
-  # (Same normalisation as the Jira guard and work-item-sync-label.sh.)
+  # (Same normalisation as the Jira guard.)
   local eid_trimmed
   eid_trimmed=$(printf '%s' "$external_id" | sed "s/^[[:space:]\"']*//; s/[[:space:]\"']*\$//")
   if [[ -n "$eid_trimmed" ]]; then

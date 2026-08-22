@@ -1,5 +1,5 @@
 //! The classification-stability oracle: for each
-//! `skills/work/scripts/test-fixtures/work-item-sync-baseline/case-*`
+//! `tests/fixtures/work-item-sync-baseline/case-*`
 //! fixture, asserts the digest recipes reproduce the committed
 //! `expected.json`, which is captured independently of this code.
 //!
@@ -20,15 +20,10 @@ type TestError = Box<dyn std::error::Error>;
 
 const EXPECTED_CASE_COUNT: usize = 11;
 
-fn repo_root() -> Result<PathBuf, TestError> {
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?)
-}
-
 fn corpus_root() -> Result<PathBuf, TestError> {
-    Ok(repo_root()?
-        .join("skills/work/scripts/test-fixtures/work-item-sync-baseline"))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/work-item-sync-baseline")
+        .canonicalize()?)
 }
 
 fn case_dirs() -> Result<Vec<PathBuf>, TestError> {

@@ -99,6 +99,27 @@ impl WorkingCopyStatus for AlwaysClean {
     }
 }
 
+/// The default scope disables discovery and every item here carries an
+/// external id, so neither create path — and so neither author method — runs.
+struct UnusedAuthor;
+
+impl work_adapters::sync::create::LocalAuthor for UnusedAuthor {
+    fn author_from_remote(
+        &self,
+        _issue: &work_adapters::sync::create::DiscoveredIssue,
+    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+        panic!("the real-client scenarios never author from a discovery")
+    }
+
+    fn link_external_id(
+        &self,
+        _path: &Path,
+        _external_id: &ExternalId,
+    ) -> Result<(), kernel::Error> {
+        panic!("the real-client scenarios never link an external id")
+    }
+}
+
 struct FixedClock(u64);
 
 impl work::sync::RunClock for FixedClock {
@@ -195,14 +216,17 @@ fn execute(
 ) -> RunReport {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
+    let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker,
         status: &status,
         writer: spy,
         clock: &clock,
+        author: &author,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         items,
         direction: SyncDirection::Bidirectional,
@@ -211,6 +235,12 @@ fn execute(
         max_pulls: 25,
         max_pushes: 25,
         mode,
+        // The default scope disables untracked discovery, so these
+        // real-client scenarios exercise only the keyed pull/push flow and
+        // never issue a search against the mock.
+        integrations_root: &integrations_root,
+        integration: "jira",
+        scope: tracker::SearchScope::default(),
     };
     run(&ports, &mut store, &request)
         .unwrap_or_else(|_| panic!("the run must not refuse"))
