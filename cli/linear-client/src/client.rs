@@ -56,6 +56,19 @@ const SHOW: &str = "query($id: String!) {
     }
   }";
 
+/// The read-side show projection the `show` subcommand renders. The port `show`
+/// projects to a stamp and a Markdown body; this keeps the state, assignee and
+/// comments the bash `show` table shows, over a query distinct from the port's.
+const SHOW_DETAILED: &str = "query($id: String!) {
+    issue(id: $id) {
+      id identifier title updatedAt
+      state { name }
+      assignee { name }
+      description
+      comments { nodes { body } }
+    }
+  }";
+
 const CREATE: &str = "mutation($input: IssueCreateInput!) {
     issueCreate(input: $input) { success issue { id identifier } }
   }";
@@ -396,6 +409,30 @@ impl LinearClient {
         Ok(DetailedPage { nodes, truncated })
     }
 
+    /// Fetches one issue's full detail for the `show` subcommand, returning the
+    /// raw GraphQL body. A `comments` cap keeps only the last N comment nodes,
+    /// reproducing the bash flow's client-side slice.
+    ///
+    /// # Errors
+    ///
+    /// [`SurfaceError`] for a refused identifier, a transport failure, or a
+    /// response carrying `errors[]`.
+    pub fn show_detailed(
+        &self,
+        id: &ExternalId,
+        comments: Option<usize>,
+    ) -> Result<Value, SurfaceError> {
+        check_identifier(id.as_str())?;
+        let received = self
+            .transport
+            .send(SHOW_DETAILED, &json!({"id": id.as_str()}))?;
+        let mut body = interpret_surface(&received, "show")?;
+        if let Some(limit) = comments {
+            slice_comments(&mut body, limit);
+        }
+        Ok(body)
+    }
+
     /// `create`, surfacing the structured discriminant. The port `create`
     /// derives its `TrackerError` from this.
     ///
@@ -513,6 +550,20 @@ fn stamp(value: Option<&Value>) -> RemoteTimestamp {
         .map_or(RemoteTimestamp::NotReported, |stamp| {
             RemoteTimestamp::Reported(stamp.to_owned())
         })
+}
+
+/// Keeps only the last `limit` comment nodes, reproducing the bash `--comments`
+/// client-side slice.
+fn slice_comments(body: &mut Value, limit: usize) {
+    if let Some(nodes) = body
+        .pointer_mut("/data/issue/comments/nodes")
+        .and_then(Value::as_array_mut)
+    {
+        if nodes.len() > limit {
+            let start = nodes.len() - limit;
+            nodes.drain(0..start);
+        }
+    }
 }
 
 fn refuse_identifier_op(

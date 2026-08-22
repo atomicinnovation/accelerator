@@ -62,6 +62,7 @@ _EXEMPT_MEMBERS = {
         " collaboration-adapters, but that is what it is"
     ),
     "collaboration-cli": _COMPOSITION_ROOT,
+    "linear-cli": _COMPOSITION_ROOT,
     "corpus-cli": _COMPOSITION_ROOT,
     "design-cli": _COMPOSITION_ROOT,
     "migrate-cli": _COMPOSITION_ROOT,
@@ -84,6 +85,7 @@ _EXEMPT_MEMBERS = {
     "http-test-support": _TEST_SUPPORT,
     "tracker-test-support": _TEST_SUPPORT,
     "vcs-test-support": _TEST_SUPPORT,
+    "cli-test-support": _TEST_SUPPORT,
 }
 
 

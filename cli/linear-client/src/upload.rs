@@ -186,7 +186,7 @@ impl UploadTransport {
 /// `evil-linear.app` is refused. An `http://127.0.0.1|localhost` destination is
 /// admitted only when `allow_loopback` is set, which only tests do.
 #[must_use]
-pub(crate) fn url_is_allowed(url: &str, allow_loopback: bool) -> bool {
+pub fn url_is_allowed(url: &str, allow_loopback: bool) -> bool {
     let Ok(parsed) = Url::parse(url) else {
         return false;
     };

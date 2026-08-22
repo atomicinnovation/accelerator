@@ -1,0 +1,39 @@
+[package]
+name = "linear-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "The linear create|update|show|search|comment|transition|attach|init sub-binary."
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-linear"
+path = "src/main.rs"
+
+[features]
+# Admits a loopback API URL override so the integration tests can point the
+# binary at a mock. NEVER enabled in a release build — a compile guard and a
+# staged-binary byte scan both enforce that.
+test-loopback = []
+
+[dependencies]
+linear-client = { path = "../linear-client" }
+tracker = { path = "../tracker" }
+tracker-support = { path = "../tracker-support" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+kernel = { path = "../kernel" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+serde_json = { workspace = true }
+clap = { workspace = true }
+reqwest = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+http-test-support = { path = "../http-test-support" }
+cli-test-support = { path = "../cli-test-support" }
