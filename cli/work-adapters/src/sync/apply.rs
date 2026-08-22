@@ -318,21 +318,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         &mut self,
         request: &CreateFromLocalRequest<'_>,
     ) -> Result<(), ApplyError> {
-        let marker_content = std::fs::read_to_string(request.marker_path).ok();
-        let parsed = pending_push::read(marker_content.as_deref());
         let digest = pending_push::request_digest(
             request.title,
             request.body,
             request.kind,
         );
-        let marker_state = match &parsed {
-            Err(_) => MarkerState::Unreadable,
-            Ok(None) => MarkerState::Absent,
-            Ok(Some(marker)) => MarkerState::Present(marker),
-        };
 
-        match push_precondition(&marker_state, &digest, request.corpus_carries)
-        {
+        match Self::push_decision(request, &digest) {
             PushPrecondition::Refuse(reason) => Err(io_error(
                 request.item_id,
                 "create",
@@ -342,60 +334,107 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 self.link_and_baseline(request, &external_id)
             }
             PushPrecondition::Proceed => {
-                let fingerprint = RequestFingerprint {
-                    title: request.title.to_owned(),
-                    digest,
-                    attempted_at: request.attempted_at,
-                    failure: None,
-                };
-                self.write_marker(
-                    request.marker_path,
-                    &PendingPush::Attempted {
-                        request: fingerprint.clone(),
-                    },
-                )?;
-                match self.tracker.create(
-                    request.title,
-                    request.body,
-                    request.kind,
-                ) {
-                    Ok(external_id) => {
-                        self.write_marker(
-                            request.marker_path,
-                            &PendingPush::Created {
-                                request: fingerprint,
-                                external_id: external_id.clone(),
-                            },
-                        )?;
-                        self.link_and_baseline(request, &external_id)
-                    }
-                    Err(source @ TrackerError::Retryable { .. }) => {
-                        std::fs::remove_file(request.marker_path).ok();
-                        Err(ApplyError::Tracker {
-                            item_id: request.item_id.to_owned(),
-                            operation: "create",
-                            source,
-                        })
-                    }
-                    Err(TrackerError::Terminal { detail }) => {
-                        self.write_marker(
-                            request.marker_path,
-                            &PendingPush::Attempted {
-                                request: RequestFingerprint {
-                                    failure: Some(detail.clone()),
-                                    ..fingerprint
-                                },
-                            },
-                        )?;
-                        Err(ApplyError::Tracker {
-                            item_id: request.item_id.to_owned(),
-                            operation: "create",
-                            source: TrackerError::Terminal { detail },
-                        })
-                    }
-                }
+                self.create_marking_progress(request, digest)
             }
         }
+    }
+
+    fn push_decision(
+        request: &CreateFromLocalRequest<'_>,
+        digest: &str,
+    ) -> PushPrecondition {
+        let marker_content = std::fs::read_to_string(request.marker_path).ok();
+        let parsed = pending_push::read(marker_content.as_deref());
+        let marker_state = match &parsed {
+            Err(_) => MarkerState::Unreadable,
+            Ok(None) => MarkerState::Absent,
+            Ok(Some(marker)) => MarkerState::Present(marker),
+        };
+        push_precondition(&marker_state, digest, request.corpus_carries)
+    }
+
+    fn create_marking_progress(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+        digest: String,
+    ) -> Result<(), ApplyError> {
+        let fingerprint = RequestFingerprint {
+            title: request.title.to_owned(),
+            digest,
+            attempted_at: request.attempted_at,
+            failure: None,
+        };
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Attempted {
+                request: fingerprint.clone(),
+            },
+        )?;
+
+        match self
+            .tracker
+            .create(request.title, request.body, request.kind)
+        {
+            Ok(external_id) => {
+                self.record_created(request, &fingerprint, &external_id)
+            }
+            Err(source @ TrackerError::Retryable { .. }) => {
+                Self::abandon_attempt(request, source)
+            }
+            Err(TrackerError::Terminal { detail }) => {
+                self.record_terminal_failure(request, fingerprint, detail)
+            }
+        }
+    }
+
+    fn record_created(
+        &mut self,
+        request: &CreateFromLocalRequest<'_>,
+        fingerprint: &RequestFingerprint,
+        external_id: &ExternalId,
+    ) -> Result<(), ApplyError> {
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Created {
+                request: fingerprint.clone(),
+                external_id: external_id.clone(),
+            },
+        )?;
+        self.link_and_baseline(request, external_id)
+    }
+
+    fn abandon_attempt(
+        request: &CreateFromLocalRequest<'_>,
+        source: TrackerError,
+    ) -> Result<(), ApplyError> {
+        std::fs::remove_file(request.marker_path).ok();
+        Err(ApplyError::Tracker {
+            item_id: request.item_id.to_owned(),
+            operation: "create",
+            source,
+        })
+    }
+
+    fn record_terminal_failure(
+        &self,
+        request: &CreateFromLocalRequest<'_>,
+        fingerprint: RequestFingerprint,
+        detail: String,
+    ) -> Result<(), ApplyError> {
+        self.write_marker(
+            request.marker_path,
+            &PendingPush::Attempted {
+                request: RequestFingerprint {
+                    failure: Some(detail.clone()),
+                    ..fingerprint
+                },
+            },
+        )?;
+        Err(ApplyError::Tracker {
+            item_id: request.item_id.to_owned(),
+            operation: "create",
+            source: TrackerError::Terminal { detail },
+        })
     }
 
     fn write_marker(
