@@ -12,13 +12,14 @@ relates_to:
   - "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"
   - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
   - "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"
+  - "codebase-research:2026-08-19-0212-work-item-script-cutover"
 topic: "Implementation ground for shipping accelerator-jira and accelerator-linear and retiring both bash script clusters"
 tags: [research, codebase, jira, linear, integrations, cli, cutover, exit-codes, registration]
-revision: "990669317762ae2f6f7283437cbd8dd85d2f1fa8"
+revision: "88689fde6792965a6489d11178dc94ccd241a832"
 repository: "accelerator"
-last_updated: "2026-08-19T01:04:51+00:00"
+last_updated: "2026-08-22T17:51:49+00:00"
 last_updated_by: Toby Clemson
-last_updated_note: "Added follow-up research for the completion of work item 0210 (provider client crates)"
+last_updated_note: "Added follow-up research re-grounding every finding against work item 0211's requirements after 0212 merged"
 schema_version: 1
 ---
 
@@ -38,6 +39,15 @@ schema_version: 1
 > implement **every** provider flow — comment, transition, attach, discovery and
 > search included — so `accelerator-jira`/`accelerator-linear` are genuinely
 > thin.
+>
+> **Update 2026-08-22**: work item **0212 is now complete** (merged in PR #73),
+> so 0211 is unblocked and is the last of 0171's children. An **approved 0211
+> plan already exists**. Every finding below has been re-measured at revision
+> `88689fde` and re-grounded against 0211's requirements — see
+> [Follow-up Research (2026-08-22)](#follow-up-research-2026-08-22--0212-complete-0211-unblocked).
+> The headline is a new one: **deleting the Jira cluster reds `mise run test`
+> today**, because a Rust test shells out to two of its scripts and neither the
+> work item nor the plan names that coupling.
 
 ## Research Question
 
@@ -871,3 +881,517 @@ field resolution now lives in the crate (`AccountResolver`/`FieldResolver` at
 `cli/jira-client/src/client.rs:108-113`), but its frontmatter-parsing,
 tab-separated contract is a work-domain concern the CLIs must either reproduce or
 relocate to `accelerator work`.
+
+## Follow-up Research 2026-08-22 — 0212 complete, 0211 unblocked
+
+**Revision**: `88689fde6792965a6489d11178dc94ccd241a832`
+**Author**: Toby Clemson
+
+Work item 0212 merged (PR #73). `skills/work/scripts/` is gone entirely — all
+eighteen scripts, five suites and the `EXIT_CODES.md` — so both of 0211's
+blockers are discharged and it is now the last of 0171's children. An
+**approved 0211 plan already exists**
+(`meta/plans/2026-08-19-0211-integration-binaries-and-bash-cluster-retirement.md`,
+four review passes → APPROVE, four phases, ten decisions), which closes most of
+the Open Questions this research raised.
+
+This pass re-measures every finding at the current revision and grounds it
+against the work item's requirements. **Three findings are new and none appears
+in the work item or the plan**; five figures the work item carries are wrong;
+one acceptance criterion is unsatisfiable as written.
+
+### ⚠️ The ADF differential shells out to bash — deleting the cluster reds the test lane
+
+This is the headline, and it is the one thing here that blocks a green tree.
+`cli/jira-client/tests/support/adf_oracle.rs:14-17` hard-codes two cluster
+scripts as the differential oracle:
+
+```rust
+pub const ADF_TO_MD: &str = "skills/integrations/jira/scripts/jira-adf-to-md.sh";
+pub const MD_TO_ADF: &str = "skills/integrations/jira/scripts/jira-md-to-adf.sh";
+```
+
+`run_oracle` spawns `bash <repo_root>/<script>` (`adf_oracle.rs:62-96`) and its
+doc comment is explicit that it will not degrade: *"Fails rather than skips when
+bash or jq is unavailable: a gate that passes when its tool is missing proves
+nothing."* Five call sites in `cli/jira-client/tests/adf_differential.rs`
+(`:58`, `:114`, `:180`, `:193`, `:216`) plus
+`adf_differential_self_test.rs`, over 56 case directories at
+`cli/jira-client/tests/fixtures/adf/`. It runs in the **default** nextest
+profile — `cli/.config/nextest.toml` excludes only `binary(=contract)`.
+
+The transitive set is wider than the two drivers: `jira-adf-to-md.sh` invokes
+`jira-adf-render.jq`, and `jira-md-to-adf.sh` invokes `jira-md-tokenise.awk`
+plus `jira-md-assemble.jq`. So all three of the `.jq`/`.awk` data assets the
+work item's Assumptions dismiss as mapping "onto no subcommand" are load-bearing
+for a live Rust test.
+
+The plan classifies both scripts as *"internal — `document_to_markdown` /
+`markdown_to_document`, no subcommand"* (plan `:744-745`) and never mentions the
+oracle. That classification is right about the *product* surface and wrong about
+the *deletion* surface.
+
+⚠️ This inverts the work item's framing that the coupling is one-directional.
+The cluster→outside direction is not comment-only any more: `cli/jira-client`
+depends on the Jira cluster at test time. 0211's deletion set therefore includes
+a Rust test conversion, and the 0212 precedent is exactly the technique — 0212
+retired its two bash differentials (`cli/tracker-support/tests/mapper_differential.rs`,
+`cli/work-adapters/tests/sync_baseline_shellout_parity.rs`) **before** deleting
+the scripts they drove, replacing each with a frozen-corpus reader guarded by a
+sha256 manifest. Linear is unaffected — it is Markdown-native and has no ADF
+pipeline.
+
+### `scripts/work-common.sh` is orphaned by the deletion, silently
+
+Second finding absent from both documents. `scripts/work-common.sh` is a
+repo-root shared library whose only consumers are inside the clusters:
+
+| Site | Kind |
+|---|---|
+| `skills/integrations/jira/scripts/jira-common.sh:61` | `source` |
+| `skills/integrations/linear/scripts/linear-common.sh:60` | `source` |
+| `skills/integrations/jira/scripts/jira-create-flow.sh:214` | calls `work_resolve_default_project` |
+| `skills/integrations/jira/scripts/jira-search-flow.sh:253` | calls `work_resolve_default_project` |
+
+Its own header says so: *"Sourced by jira-common.sh (and by future
+linear-common.sh / etc.)"*. After 0211 it has **zero consumers**, but because
+the file still exists the stale-entry guard does not fire — it becomes dead code
+pinned in two guard lists (`tasks/lint/scripts.py:23`,
+`tests/unit/tasks/test_exec_bits.py:249`). It is one of 0174's fourteen
+repo-root entries, so the decision is whether 0211 removes it early or hands
+0174 a known-dead entry. Either is defensible; silence is not.
+
+### The dispatch band is 70–74, and the enforcement question is settled by attrition
+
+Three changes here, all from 0212.
+
+**The band grew.** `cli/tracker/tests/fixtures/dispatch-codes.txt` is deleted;
+its content is inlined as an independent frozen oracle at
+`cli/tracker/tests/errors.rs:29-57` (`recorded_codes()`), now **five** rows —
+`E_DISPATCH_RETRYABLE` 70, `TERMINAL` 71, `NOT_AVAILABLE` 72, `UNRECOGNISED` 73
+and the new `UNCONFIGURED` **74**, the last three tagged `AboveThePort`.
+`cli/work-cli/src/exit_codes.rs:55-59` carries the constants.
+
+⚠️ The work item's reservation clause and its fourth acceptance criterion both
+say `70`–`73`. **Both must become `70`–`74`.** A binary emitting 74 for a
+provider-level condition would read as "tracker wired but unconfigured" at the
+composition root.
+
+**The parity test no longer touches bash.**
+`cli/work-cli/tests/exit_codes_parity.rs` textually parses
+`src/exit_codes.rs` (the crate is bin-only) and compares it against
+`FROZEN_DISPATCH_CODES` literals committed in the test file (`:17-23`, `:44`).
+Its header states the rule 0211 must inherit: an independent frozen oracle,
+*"not re-derived from the `exit_codes.rs` constants it guards, which would be a
+tautology no accidental renumbering could red"*.
+
+**The work item's open question is now moot.** It asks which of the
+repository's two working enforcement models to pick — Linear's derived-doc grep
+(`test-linear-paths.sh:71-103`) or `work-cli`'s `exit_codes.rs` plus parity
+test. The grep model lives inside the deletion set. Only one model survives the
+change, and plan Decision 6 already chose it. Two consequences worth carrying:
+there is **no `EXIT_CODES.md` anywhere under `cli/`** — the module doc comment is
+the convention, so the plan's committed `cli/jira-cli/EXIT_CODES.md` and
+`cli/linear-cli/EXIT_CODES.md` establish a new one; and **no binary in the repo
+has a table-driven CLI-level exit-code assertion**, which the third acceptance
+criterion demands. `work-cli` asserts codes one test at a time
+(`cli/work-cli/tests/cli_sync.rs:55-120`). 0211 would be the first to build it.
+
+### The flow surface re-measured — the file counts hold, the verb counts do not
+
+The clusters are untouched by 0212, so the file inventory in the work item's
+"Cluster inventory, corrected" table is still exactly right: Jira 22 production
+`.sh` (17 executable, 5 libraries) at 5,082 lines; Linear 12 (10, 2) at 2,912.
+`linear-graphql.sh` remains a production script on all four tests — `0755`, off
+`SHELL_LIBRARIES`, zero `source`rs, eight out-of-process call sites (one per
+flow), no `BASH_SOURCE` guard around its top-level dispatch. The removal count
+stays **seven**.
+
+The **verb** counts do not hold, and they are the denominator of the
+flow-coverage criterion.
+
+| Provider | Work item says | Measured |
+|---|---|---|
+| Jira | "roughly 25 distinct verbs" | 14 named verbs across 4 scripts, +4 HTTP methods, +2 `resolve-fields` modes, +1 bare init = **21 dispatch modes** |
+| Linear | "roughly 15" | 3 named verbs (init only), +1 bare init, +2 `create` modes = **6 dispatch modes** |
+
+Jira's fourteen are `init`'s six, `fields`' three, `comment`'s four and
+`jql-cli`'s one; `jira-request.sh` adds `GET`/`POST`/`PUT`/`DELETE` as validated
+argv-position tokens (`:300-309`). Eleven of Jira's seventeen executables and
+**nine of Linear's ten** have a zero-verb surface — they are flag-and-positional
+only. Linear is far thinner than the work item's sizing implies.
+
+Two reachability corrections:
+
+- **Linear has 9 SKILL-reachable entrypoints, not 10.** `linear-graphql.sh` has
+  zero `SKILL.md` references of any kind — not even in prose. It is reachable
+  only through the wildcard `allowed-tools` glob, exactly as this research
+  recorded, but it is not an entrypoint the sixteen skills name. Jira's eleven
+  are confirmed.
+- ⚠️ **`linear-init-flow.sh`'s bare mode does not block on `read`.** There is no
+  `read` anywhere in the file; bare mode runs `_linear_verify`, then prints the
+  team list to stderr and returns with a "re-run with `--team-id`" instruction
+  (`:254-255`). Only Jira blocks, at `jira-init-flow.sh:191`, and only when
+  `work.default_project_code` is unset *and* `--non-interactive` was not passed.
+  The work item's requirement to "state the TTY policy for the bare mode" is
+  therefore a **Jira-only** obligation.
+
+One entrypoint detail the work item asserts and this pass confirms:
+`jira-resolve-fields.sh` makes **no provider API call at all**. Its only
+external reads are `source scripts/config-common.sh` (`:40`) and a single
+shell-out to `accelerator config work default_project_code` (`:163`). No `curl`,
+no `jira-request.sh`, no `jira-auth.sh`.
+
+### The deletion set is 21% larger than recorded
+
+263 files and **21,422 lines**, against the work item's "roughly 17,650 lines
+across 34 production files, 33 suites and 191 fixture/helper files". The file
+counts are right; the line total omitted the two `EXIT_CODES.md` files (291) and
+the fixture and helper trees (3,478).
+
+| | Jira | Linear | Total |
+|---|---|---|---|
+| Production `.sh` | 22 / 5,082 | 12 / 2,912 | 34 / 7,994 |
+| Data assets (`.jq`, `.awk`, `.md`) | 4 / 609 | 1 / 137 | 5 / 746 |
+| `test-*.sh` suites | 21 / 6,871 | 12 / 2,333 | 33 / 9,204 |
+| `test-fixtures/` | 148 / 1,988 | 40 / 1,091 | 188 / 3,079 |
+| `test-helpers/` | 2 / 171 | 1 / 228 | 3 / 399 |
+| **Total** | **197 / 14,721** | **66 / 6,701** | **263 / 21,422** |
+
+Jira's fixtures split `adf-samples/` 43, `api-responses/` 10, `scenarios/` 95;
+Linear's 40 are all `scenarios/`. Four Jira files are zero-length and contribute
+files but not lines. The figure excludes the sixteen `SKILL.md` bodies, which
+survive, and the four `evals/*.json` under `comment-jira-issue/` and
+`create-jira-issue/`.
+
+The suite floor is **exactly** satisfied: 21 Jira + 12 Linear = 33 `test-*.sh`,
+minus `test-jira-scripts.sh` excluded by name, gives 32 =
+`_EXPECTED_INTEGRATIONS_SUITES` (`tasks/test/integration.py:51`). Retiring it
+also requires dropping `"test-jira-scripts.sh"` from `EXCLUDED_HELPER_NAMES`
+(`tasks/test/helpers.py:10`) — the plan already carries this at `:948-949`, the
+work item does not.
+
+### The shared-asset sweep is clean, but the criterion as written cannot pass
+
+Every *executing* consumer of `test-helpers/` and `test-fixtures/` is now inside
+the two clusters. The four 0212 suites that used to reach in are deleted, and
+nothing in `scripts/`, `hooks/`, `templates/`, `agents/`, `.github/`,
+`mise.toml`, `README.md` or `plugin.json` references either tree.
+
+⚠️ The sixth acceptance criterion expects the grep to return "hits only from
+inside the clusters being deleted". It will not. Six categories of surviving
+reference exist, and each is a record or an edit rather than a consumer:
+
+| Reference | File | Nature |
+|---|---|---|
+| `SHELL_LIBRARIES` members | `tasks/lint/scripts.py:34-40` | edit |
+| `_RECONCILED_LIBRARIES` mirror | `tests/unit/tasks/test_exec_bits.py:260-266` | edit |
+| `_DUAL_USE_SCRIPTS` | `tests/unit/tasks/test_exec_bits.py:274` | edit |
+| `MOCK_JIRA` / `MOCK_LINEAR` | `tests/unit/tasks/test_python_coverage.py:33-35` | edit |
+| ruff `extend-exclude` | `pyproject.toml:79-80` | edit |
+| ADF oracle consts | `cli/jira-client/tests/support/adf_oracle.rs:14-17` | **live invocation** |
+| release history | `CHANGELOG.md` | immutable record |
+| frozen eval transcript | `skills/work/create-work-item/evals/benchmark.json` | immutable record |
+| generated mirror pages | `docs-site/src/content/docs/reference/skills/…` | gitignored artefact |
+
+This is 0212's own lesson: *"a literally-empty grep is unreachable; declare the
+exclusions up front."* The criterion needs an exclusion list, not a stricter
+grep.
+
+### Registration: seven line-number anchors moved, and one criterion is unsatisfiable
+
+`DISPATCHED_SUBBINARIES` is still seven tokens
+(`tasks/shared/paths.py:29-37`); `jira` and `linear` are absent, and both still
+clear every constraint. The upload set and manifest are still *derived*, so
+registration remains a registry edit — adding two tokens adds 16 upload assets,
+8 signing targets and 2 manifest entries across the four targets in
+`tasks/shared/targets.py:3-8`. `.gitignore`'s per-token block is intact at
+`:45-57`, so `bin/jira-*` and `bin/linear-*` insert after `bin/design-*` at
+`:53`.
+
+What moved since this research was written:
+
+| Item | Recorded here | Now |
+|---|---|---|
+| Sub-binary checklist | `tasks/README.md:399-563` | `:499-663` |
+| Library-crate checklist | `tasks/README.md:565-622` | `:665-722` |
+| `_SUBBINARY_MANIFESTS` | `tasks/manifest.py:55-65` | unchanged |
+| `_CLI_RELEASE_BINARIES` | `tasks/build.py:36-45` | unchanged, 8 entries (visualiser is staged separately at `build.py:370`) |
+| `test_github.py` tuple pin | `:36-51`, `:533-541` | `:36-51`, `:530-541` |
+| Workspace members | 30 | **35** |
+| `RESERVED_TOKENS`, `BUILTIN_SUBCOMMANDS` | *implied* `paths.py` | `dispatch_coherence.py:46`, `:41` |
+
+⚠️ **The ninth acceptance criterion is unsatisfiable as written.** It requires
+"the two binary crates carry pup rules and public-API snapshots". Neither exists
+by convention:
+
+- **No `*-cli` crate in the repo carries a `cli/pup.ron` rule.** The rules
+  attach to the domain and adapter crates beside them, and the four provider
+  rules 0211 would want already landed in 0210 at `cli/pup.ron:194-262`, with
+  probe pairs at `tests/integration/pup/test_import_rule.py:1002-1179`.
+- **A composition root is `public_api`-exempt, not pinned.** `cargo public-api`
+  snapshots exist for exactly the 13 `_PINNED_CRATES` — one
+  `tests/fixtures/public-api.txt` each, no extras. `jira-client` and
+  `linear-client` are `_ADAPTER`-exempt (`tasks/public_api.py:52-59`) and must
+  *not* gain one; the two new binary crates take `_COMPOSITION_ROOT`, matching
+  every other `*-cli`.
+
+The plan already gets this right (`:97`, `:823`). The work item's text is the
+stale copy, and its criterion should read "are classified in
+`tasks/public_api.py`" instead.
+
+Two further registration facts worth carrying. The checklist is itself guarded —
+`tests/unit/tasks/test_registration_docs.py` asserts thirteen points and that
+every named identifier resolves, so editing the section can red the build. And
+`cli/deny.toml:73-78` still says "all six dispatched sub-binaries" and omits
+`accelerator-design` from its `uluru` symbol-count table; it is stale at seven
+and will be staler at nine. The reqwest/rustls tree still rides the existing
+permissive allow, so point 13 remains a no-op.
+
+The `design` token is the worked template, and its file set maps one-to-one:
+`paths.py:36`, `test_github.py:46-49` + `:540`, `manifest.py:63`,
+`cli/design-cli/Cargo.toml`, `cli/Cargo.toml:38`, `.gitignore:53`,
+`skills/design/analyse-design-gaps/SKILL.md:12`, `build.py:44`,
+`docs-site/src/content/docs/design.md`, `astro.config.mjs:102`, `README.md:64-65`.
+Points 6, 9, 10, 12 and 13 were untouched for `design`; expect the same here.
+
+### 0212 shipped the repointing template, and it moved away from integer branching
+
+The `jq`/`curl` survivor set is unchanged: 12 hits across 6 files, all of them
+the jira and linear read/init skills, all the bare parenthesised form. The two
+inline `jq -r` uses this research flagged as a latent gap in
+`skills/work/list-work-items` and `sync-work-items` are **gone** — 0212 removed
+both, so the seventh acceptance criterion's "empty" is now reachable with no
+collateral. The only surviving `jq` string in `skills/work/` is a negative
+assertion at `sync-work-items/SKILL.md:57`.
+
+The permission split is confirmed unchanged: six path-scoped read/init skills
+that can witness a token, ten write skills declaring bare `Bash`. The bare grant
+covers exactly two things a scoped rule would not — `wc -c` at
+`attach-jira-issue/SKILL.md:70` and the `source` of `scripts/config-common.sh`
+at `create-jira-issue/SKILL.md:113`. A tree-wide sweep for other shell usage in
+the ten write skills found nothing else; every other command they run is already
+inside the cluster glob.
+
+The witness shape 0212 landed is the direct template:
+
+```yaml
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
+```
+
+at `sync-work-items/SKILL.md:8-10`, `list-work-items/SKILL.md:7-9` and
+`create-work-item/SKILL.md:7-9`, with no bare `Bash` and no `Read`/`Write`.
+Invocations are fenced blocks, not `!` preprocessor — with one exception worth
+noting: `list-work-items/SKILL.md:40-42` runs
+`accelerator work template-hints kind|status|priority` at `!` time **without
+`--fail-safe`**, which the lint permits because it requires that flag only for
+`config ` commands (`skill_permissions.py:50`, `:79`). It is the only `!`-time
+use of a dispatched non-`config` token in the repo and the strongest available
+prompt-assembly-time witness.
+
+⚠️ **0212 deliberately moved the skill contract off exit integers where it
+could**, which bears directly on the second and third acceptance criteria:
+
+- `sync-work-items/SKILL.md:108-109` — *"The stdout report is authoritative.
+  Read it for `unresolved` lines regardless of exit code."*
+- `create-work-item/SKILL.md:549-569` — `work create --push` prints the path on
+  line 1 and `<keyword>\t<external_id>` on line 2, keyword ∈ `{write-once,
+  local-save, loud-terminal}`, and *"the authoritative outcome is the keyword"*.
+
+A structured stdout discriminant is now the repository's answer to brittle
+integer branching. That matters most on the Jira side, where the ten write
+skills encode dense integer tables — roughly forty-five distinct integers across
+nine tables — while the Linear skills cite exactly one (`107` at
+`create-linear-issue/SKILL.md:92`) and are otherwise symbolic `E_*` names.
+
+Two skill-level details for the plan:
+
+- ⚠️ **The four-field tab contract now has two producers.**
+  `create-jira-issue/SKILL.md:60-68` calls `jira-resolve-fields.sh` "the single
+  source of truth … so the two entry points can never disagree", but 0212 gave
+  `work create --push --dry-run` a five-field variant of the same tuple
+  (`create-work-item/SKILL.md:506`, `:513`). Plan Decision 4 keeps
+  `resolve-fields` as an `accelerator jira` subcommand, so after 0211 the same
+  tuple is produced under two tokens. The reconciliation needs stating.
+- `create-work-item/SKILL.md:27` still names the deleted `config-read-work.sh` —
+  a 0212 prose leftover the comment scrub missed.
+
+`EXPECTED_INJECTION_SKILLS` is **unchanged at 42**
+(`tasks/lint/skill_permissions.py:48`), and 42 files carry each of `config
+context --skill` and `config instructions` — verified directly. The constant was
+not touched by 0212 and is not touched by 0211, whose skills survive with only
+their bodies repointed. All 32 `!` blocks across the sixteen cluster files
+remain `config context|instructions … --fail-safe`, so the work item is right
+that no `!`-preprocessor clause is needed.
+
+### The client-crate surface 0211 binds, re-measured
+
+Both crates grew 0212's three port operations, so `RemoteTracker` is now **seven
+methods** (`cli/tracker/src/lib.rs:342-469`): `create`, `update`, `show`,
+`fetch_all`, `search`, `preview_create`, `validate_update`. `TrackerError` is
+still the two-variant split and still deliberately not `#[non_exhaustive]`
+(`:136-138`). `cli/tracker` gained a public-API snapshot
+(`tests/fixtures/public-api.txt`, 139 lines) because it is a `_PINNED_CRATE` —
+not a policy change.
+
+The three-error-layer rendering this research described holds, with counts:
+Jira `SurfaceError` 11 variants, `ClientError` 13, `AdfError` 7 (the only ones
+carrying numeric codes, 40/41/42); Linear `SurfaceError` 12, `ClientError` 9.
+⚠️ `SurfaceError::status` is `pub(crate)` in both crates — a binary can match on
+variants but cannot construct one.
+
+`cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt` holds **74 data
+rows** in four blocks — jira create 22, jira update 21, linear create 13, linear
+update 18, i.e. jira 43 / linear 31 — and both totals are hard-asserted as
+coverage guards (`cli/jira-client/tests/classify.rs:190-198`,
+`cli/linear-client/tests/classify.rs:262-269`). Adding a row without updating the
+count fails the build. Note the module that used to re-derive this table from
+bash is now dead code: `run_bash` and `repo_root` in
+`cli/tracker-support/tests/support/mod.rs` have no caller since
+`mapper_differential.rs` was deleted, and the module doc at `:4` is stale.
+
+**The test seam is still constructor-only, and it is now defended by a test.**
+`ACCELERATOR_JIRA_API_URL` / `ACCELERATOR_LINEAR_API_URL` exist nowhere in the
+workspace — only in the plan, which proposes them.
+`cli/jira-client/tests/auth.rs:326-352` sets the bash-era override env vars plus
+`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` and still expects `BadSite`, commenting
+*"No environment escape hatch exists: the test seam is the constructor, so no
+process state can turn the site validator off."* `cli/linear-client/src/upload.rs:10-13`
+states the security rationale: an env switch would turn the loopback allowlist
+"from a security control into an advisory one that any hostile repo hook could
+disable". Plan Decision 10's `test-loopback` cargo feature is consistent with
+that posture; an env-var base URL read *inside the client crates* would not be.
+If 0211 needs a binary-level mock seam, the precedent to copy is
+`collaboration-cli`'s env var gated in the **binary**
+(`cli/collaboration-cli/src/main.rs:41-48`), with the split `work-cli` uses:
+subprocess tests assert the resolution boundary
+(`cli/work-cli/tests/sync_resolves_real_client.rs`), library tests construct
+clients against a loopback `MockServer`
+(`cli/work-adapters/tests/sync_run_real_client.rs:145-185`).
+
+Two constructor asymmetries the binaries must handle: `LinearClient::from_config`
+takes an extra `integrations_root: &Path` for the catalogue and team key
+(`cli/linear-client/src/client.rs:106`), and Jira's `Received` has no `json()`
+while Linear's does.
+
+**The contract evidence is fresher than recorded here.** Both evidence files are
+now dated **2026-08-21** and carry more records than the 2026-08-19 follow-up
+states — jira **6** properties, linear **7** (not 4 and 5). Jira runs six because
+its `LiveClient` declares `can_nominate_indeterminate() → false` and
+`can_induce_truncation() → false` (`cli/jira-client/tests/contract.rs:82`,
+`:90`), so `timed_conformance` skips two properties live while the offline mock
+still enforces them. `ContractSubject` now carries eight properties and four
+defaulted capability predicates. ⚠️ Both `tests/evidence/README.md:8` still say
+*"The file is not committed yet"*, contradicting the committed data beside them.
+
+### Build-system guard state: what 0212 already did, and what 0211 still owns
+
+0212 cleared its own entries everywhere, leaving a clean edit surface.
+
+| Guard | State | 0211 must |
+|---|---|---|
+| `SHELL_LIBRARIES` (`tasks/lint/scripts.py:18-42`) | 21 members, no work entries | remove the 7 cluster entries (`:34-40`) |
+| `_RECONCILED_LIBRARIES` (`test_exec_bits.py:244-268`) | 21, set-equality mirror | remove the same 7 |
+| `_DUAL_USE_SCRIPTS` (`test_exec_bits.py:274`) | 1-tuple, `jira-fields.sh` | empty it, or find a surviving exemplar |
+| `_EXPECTED_INTEGRATIONS_SUITES` (`tasks/test/integration.py:51`) | 32, exactly satisfied | retire it |
+| `_GUARDED` (`test_integration.py:63-69`) | no `work` row; `integrations` present | drop the `integrations` row |
+| `_LAUNCHER_DEPENDENTS` (`test_mise.py:50-57`) | contains `work` **and** `integrations` | drop `integrations` if the task goes |
+| `MOCK_JIRA`/`MOCK_LINEAR` (`test_python_coverage.py:33-35`) | untouched by 0212 | three-way edit with `pyproject.toml:77-81` |
+
+Two things the deleted-work precedent shows. First, **mirror-set edits are never
+one edit** — 0212's Phase 6 discovered both the `_RECONCILED_LIBRARIES` and
+`_GUARDED` mirrors mid-flight; 0211 hits the same pair. Second, 0212 left
+`test:integration:work` fully wired at `mise.toml:364` even though it now
+discovers zero suites and passes green running nothing. That is a live precedent
+0211 can copy or improve on, but it should be a decision rather than an
+inheritance.
+
+`tasks/README.md:90-94` still documents the entire dual-use classification
+through `jira-fields.sh`, which is `source`d by `jira-init-flow.sh:32` *and*
+path-invoked from four flows. Deleting it orphans the prose as well as the test.
+
+### Meta state: the plan answers most of this research's open questions
+
+- **An approved 0211 plan exists**, dated 2026-08-19, four phases in two
+  provider tracks with Linear leading, ten decisions, APPROVE at review pass 4.
+  It closes, from this research's Open Questions: the provider-seam split
+  (D1, declined), the `*-auth-cli.sh` cleartext-credential fate (D3, dropped —
+  folded into `init verify`), `jira-resolve-fields.sh` (D4, an `accelerator
+  jira` subcommand keeping the tab contract and codes 108/109),
+  `jira-emit-key.sh` and `jira-jql-cli.sh` (D5, `create --emit key` and drop),
+  the exit-code enforcement model (D6), the bare-`Bash` write skills (D7, they
+  stay bare), golden provenance (D8, mock-served with 0210's live evidence as
+  the anchor), and the fixture harness (`http-test-support`, settled in 0210).
+- **0212's work item is still `status: ready` with all thirteen criteria
+  unticked** despite merging. Its plan and validation are the record, not its
+  body.
+- **0212's validation is `partial`, no defect** — phases 1-6 green, phase 7's
+  live credentialed run deferred by design as infrastructure-gated and
+  0171-owned. It flags one residual risk 0211 inherits: with the differential
+  oracles retired, byte-identity now rests entirely on the sha256 manifest plus
+  reviewers honouring "never regenerate from Rust output".
+- **0171's `## Decisions` has six entries still `pending` and three `open`** —
+  including all three this research and the work item name as 0211's:
+  `linear-graphql.sh`'s classification (9), the reverse cross-cluster sweep (11,
+  now obsolete by construction since its source directory is gone), and the
+  flow-coverage mapping (12). The `jq`/`curl` audit (17) and fixture provenance
+  (16) are likewise unrecorded even though both are now answered. The plan's ten
+  decisions are marked "to be mirrored into 0171" and have not been.
+- ⚠️ **0171 carries three stale statements attributing the whole-repository
+  `jq`/`curl` equality to 0212.** The dangerous one is in `## Scope`
+  (`:135-136`), because that section declares the children normative; the others
+  are in the drafting notes (`:687-688`, `:773-776`). The 0211 review's
+  `## Correction` settled this — 0211 owns the equality, 0212 asserted only the
+  work-skill half.
+- **0203 did not fire.** 0171 Decision 8 records no copyleft introduced, so it
+  is not a release-path dependency. Caveat: that was measured on 0210's client
+  crates, not on the two new `*-cli` binaries, which become sub-binaries seven
+  and eight.
+- **0174 waits on exactly two things from 0211** — retiring
+  `_EXPECTED_INTEGRATIONS_SUITES` and the seven cluster `SHELL_LIBRARIES`
+  entries. Its own line-number anchors are already stale post-0212.
+- **0213 is `done` and disjoint** — no shared files with 0211. It contributes
+  one precedent: `tasks/lint/sync_conflict_flow.py` registered as a Python
+  invoke lint with a `test_mise.py` placement assertion, which is the
+  alternative shape to the shell suite plan Decision 2 proposes.
+- **No new ADRs.** The highest is ADR-0060, predating this line of work.
+- **`meta/inventories/` still holds only the 0167 set plus `0172-suite-audit`.**
+  0212 produced none, so 0167 remains the sole template for the removal-set,
+  suite-audit and divergences artefacts 0211 owes. One trap: `0167-suite-audit.md:31`
+  points at `0167-removal-set-references.md`, which does not exist — 0211 should
+  either write the fourth artefact or fold the consumer sweep into the removal
+  set rather than repeat a dangling reference.
+
+### Open questions after this pass
+
+Closed since the 2026-08-19 follow-up: the exit-code enforcement model (settled
+by attrition and plan D6), and every question the plan's ten decisions answer.
+
+Newly raised, none of them owned by the work item or the plan:
+
+- **Who converts the ADF differential?** `cli/jira-client`'s bash oracle must be
+  replaced by a frozen corpus before the two driver scripts and three `.jq`/`.awk`
+  assets can be deleted. This is a phase, not a line item.
+- **What happens to `scripts/work-common.sh`?** Removed early by 0211, or handed
+  to 0174 as a known-dead entry.
+- **How is the two-producer tab contract reconciled** once `accelerator jira
+  resolve-fields` and `accelerator work create --push --dry-run` both emit it?
+
+Carried and still unanswered in 0171: the credentialed target's secrets siting
+(de facto "manual, no CI job, committed evidence" but never written back), and
+`EXIT_CODES.md` siting (de facto answered for `work` by folding into the module
+doc; 0211's plan establishes a new `cli/*/EXIT_CODES.md` convention instead).
+
+Corrections the work item needs before planning is re-read against it:
+
+| Clause | Currently | Should be |
+|---|---|---|
+| Dispatch reservation and AC 4 | `70`–`73` | `70`–`74` |
+| AC 9 pup/public-API | "binary crates carry pup rules and public-API snapshots" | classified in `tasks/public_api.py`; no `*-cli` pup rule exists |
+| AC 6 sweep | "hits only from inside the clusters" | needs a declared exclusion list |
+| Assumptions, verb counts | ~25 Jira, ~15 Linear | 21 and 6 dispatch modes |
+| Context, deletion total | ~17,650 lines | 21,422 lines, 263 files |
+| `init` TTY policy | implies both providers block | Jira only |
+| Assumptions, `.jq`/`.awk` | "map onto no subcommand", disappear in Rust | true of the product surface, false of the test surface |
