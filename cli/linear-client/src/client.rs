@@ -37,10 +37,13 @@ use crate::classify::classify_errors;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::error::ClientError;
+use crate::failure::LinearFailure;
 use crate::filter::compose;
 use crate::filter::Search;
 use crate::filter::StateResolver;
 use crate::filter::FETCH_PAGE_SIZE;
+use crate::surface::interpret as interpret_surface;
+use crate::surface::SurfaceError;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
@@ -69,9 +72,38 @@ const SEARCH: &str =
     }
   }";
 
+/// The read-side search projection the `search` subcommand renders. Distinct
+/// from `SEARCH` — which the sync engine's bulk read (`fetch_all`/`fetch_page`)
+/// spends its complexity budget on — so widening the projection never changes
+/// the port read's request shape. It selects the state and assignee names the
+/// bash search table shows and keeps the title, which the stamps-only port
+/// `search` discards.
+const SEARCH_PROJECTION: &str =
+    "query($cursor: String, $filter: IssueFilter, $first: Int) {
+    issues(first: $first, after: $cursor, filter: $filter) {
+      nodes {
+        id identifier title updatedAt
+        state { name }
+        assignee { name }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }";
+
 /// One page of the bulk read: the issues it accounted for, and the cursor to
 /// the next page when there is one.
 type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
+
+/// The accumulated result of a detailed search.
+///
+/// The raw projection nodes in arrival order, and whether the retrieval was cut
+/// short (a cap-hit or deadline, mirroring the bash `.data.issues.truncated`
+/// flag).
+#[derive(Debug)]
+pub struct DetailedPage {
+    pub nodes: Vec<Value>,
+    pub truncated: bool,
+}
 
 pub struct LinearClient {
     transport: Transport,
@@ -154,21 +186,51 @@ impl LinearClient {
         )
     }
 
-    /// A GraphQL call, with the body classified the way the bash classifies it:
-    /// a 200 carrying `errors[]` is a failure, and a 400's body decides between
-    /// auth, complexity, rate limiting and a bad request.
-    fn call(
+    /// A GraphQL call whose failure carries the structured discriminant. The
+    /// binary maps its [`Outcome`] straight to an exit code; the port derives a
+    /// `TrackerError` from the same value.
+    fn call_op(
         &self,
         document: &str,
         variables: &Value,
         operation: Operation,
         detail: &str,
-    ) -> Result<Value, TrackerError> {
+    ) -> Result<Value, LinearFailure> {
         let received =
             self.transport.send(document, variables).map_err(|error| {
-                classify(Outcome::Transport, operation, &error.to_string())
+                LinearFailure::wire(
+                    Outcome::Transport,
+                    operation,
+                    error.to_string(),
+                )
             })?;
-        Self::interpret(&received, operation, detail)
+        Self::interpret_outcome(&received).map_err(|outcome| {
+            LinearFailure::wire(outcome, operation, detail.to_owned())
+        })
+    }
+
+    /// Classifies a response body the way the bash classifies it — a 200
+    /// carrying `errors[]` is a failure, and a 400's body decides between auth,
+    /// complexity, rate limiting and a bad request — into the wire [`Outcome`]
+    /// the exit code is read from.
+    fn interpret_outcome(received: &Received) -> Result<Value, Outcome> {
+        let Some(body) = received.json() else {
+            return Err(if (200..300).contains(&received.status) {
+                Outcome::NonJsonBody
+            } else {
+                Outcome::Unexpected
+            });
+        };
+        match received.status {
+            200..300 if carries_errors(&body) => {
+                Err(Outcome::SuccessWithErrors(classify_errors(&body)))
+            }
+            200..300 => Ok(body),
+            401 => Err(Outcome::Unauthorised),
+            400 => Err(Outcome::BadRequest(classify_errors(&body))),
+            500..600 => Err(Outcome::ServerError),
+            _ => Err(Outcome::Unexpected),
+        }
     }
 
     fn interpret(
@@ -176,24 +238,8 @@ impl LinearClient {
         operation: Operation,
         detail: &str,
     ) -> Result<Value, TrackerError> {
-        let outcome = |outcome| classify(outcome, operation, detail);
-        let Some(body) = received.json() else {
-            return Err(outcome(if (200..300).contains(&received.status) {
-                Outcome::NonJsonBody
-            } else {
-                Outcome::Unexpected
-            }));
-        };
-        match received.status {
-            200..300 if carries_errors(&body) => {
-                Err(outcome(Outcome::SuccessWithErrors(classify_errors(&body))))
-            }
-            200..300 => Ok(body),
-            401 => Err(outcome(Outcome::Unauthorised)),
-            400 => Err(outcome(Outcome::BadRequest(classify_errors(&body)))),
-            500..600 => Err(outcome(Outcome::ServerError)),
-            _ => Err(outcome(Outcome::Unexpected)),
-        }
+        Self::interpret_outcome(received)
+            .map_err(|outcome| classify(outcome, operation, detail))
     }
 
     /// One page of a search, following the Relay cursor.
@@ -288,6 +334,174 @@ impl LinearClient {
         }
         (index, truncated)
     }
+
+    /// Pages a search over the richer [`SEARCH_PROJECTION`] to exhaustion,
+    /// returning the raw nodes the `search` subcommand renders. Unlike the port
+    /// `search`, a wire failure is an error rather than a degraded page — the
+    /// bash search flow propagates the transport code — while a cap-hit or
+    /// expired deadline is a successful, truncated result.
+    ///
+    /// # Errors
+    ///
+    /// [`SurfaceError`] for a rejected filter (an unknown state), a transport
+    /// failure, or a response carrying `errors[]`.
+    pub fn search_detailed(
+        &self,
+        search: &Search,
+    ) -> Result<DetailedPage, SurfaceError> {
+        let filter = compose(search, self.states.as_ref())?;
+        let cap = self.transport.config().max_pages;
+        let deadline = self.transport.deadline();
+        let mut nodes = Vec::new();
+        let mut cursor: Option<String> = None;
+        let mut truncated = false;
+
+        for page in 1..=cap {
+            if deadline.expired() {
+                truncated = true;
+                break;
+            }
+            let variables = json!({
+                "filter": filter,
+                "first": FETCH_PAGE_SIZE,
+                "cursor": cursor,
+            });
+            let received =
+                self.transport.send(SEARCH_PROJECTION, &variables)?;
+            let body = interpret_surface(&received, "search")?;
+
+            let issues = body.pointer("/data/issues");
+            if let Some(page_nodes) = issues
+                .and_then(|issues| issues.get("nodes"))
+                .and_then(Value::as_array)
+            {
+                nodes.extend(page_nodes.iter().cloned());
+            }
+            let page_info = issues.and_then(|issues| issues.get("pageInfo"));
+            let has_next = page_info
+                .and_then(|info| info.get("hasNextPage"))
+                .and_then(Value::as_bool)
+                == Some(true);
+            cursor = page_info
+                .and_then(|info| info.get("endCursor"))
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            if !has_next || cursor.is_none() {
+                break;
+            }
+            if page == cap {
+                truncated = true;
+            }
+        }
+        Ok(DetailedPage { nodes, truncated })
+    }
+
+    /// `create`, surfacing the structured discriminant. The port `create`
+    /// derives its `TrackerError` from this.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] carrying either the wire outcome or the post-create
+    /// unwritable-identifier case.
+    pub fn create_op(
+        &self,
+        title: &str,
+        body: &str,
+        _kind: &str,
+    ) -> Result<ExternalId, LinearFailure> {
+        // Linear has no per-issue type: `kind` has no destination.
+        let variables = json!({"input": {
+            "teamId": self.credentials().team_id,
+            "title": title,
+            "description": body,
+        }});
+        let response =
+            self.call_op(CREATE, &variables, Operation::Create, title)?;
+        let identifier = response
+            .pointer("/data/issueCreate/issue/identifier")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                LinearFailure::wire(
+                    Outcome::NonJsonBody,
+                    Operation::Create,
+                    "the create response carried no identifier".to_owned(),
+                )
+            })?;
+        // The issue exists remotely, so an unusable identifier is Terminal.
+        check_identifier(identifier).map_err(|error| {
+            LinearFailure::UnwritableIdentifier {
+                identifier: identifier.to_owned(),
+                reason: error.to_string(),
+            }
+        })?;
+        Ok(ExternalId::new(identifier.to_owned()))
+    }
+
+    /// `update`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] for a refused identifier or a wire failure.
+    pub fn update_op(
+        &self,
+        id: &ExternalId,
+        title: &str,
+        body: &str,
+    ) -> Result<(), LinearFailure> {
+        refuse_identifier_op(id, Operation::Update)?;
+        let variables = json!({
+            "id": id.as_str(),
+            "input": {"title": title, "description": body},
+        });
+        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
+        Ok(())
+    }
+
+    /// `show`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] for a refused identifier, a wire failure, or a
+    /// response that cannot be projected.
+    pub fn show_op(
+        &self,
+        id: &ExternalId,
+    ) -> Result<RemoteIssue, LinearFailure> {
+        refuse_identifier_op(id, Operation::Read)?;
+        let received = self
+            .transport
+            .send(SHOW, &json!({"id": id.as_str()}))
+            .map_err(|error| {
+            LinearFailure::wire(
+                Outcome::Transport,
+                Operation::Read,
+                error.to_string(),
+            )
+        })?;
+        let body = Self::interpret_outcome(&received).map_err(|outcome| {
+            LinearFailure::wire(
+                outcome,
+                Operation::Read,
+                id.as_str().to_owned(),
+            )
+        })?;
+        let projected = remote_projection::project_raw(
+            Integration::Linear,
+            Op::Body,
+            &received.body,
+        )
+        .map_err(|error| {
+            LinearFailure::wire(
+                Outcome::NonJsonBody,
+                Operation::Read,
+                error.to_string(),
+            )
+        })?;
+        Ok(RemoteIssue {
+            updated: stamp(body.pointer("/data/issue/updatedAt")),
+            body: port_body(&projected),
+        })
+    }
 }
 
 /// A populated stamp is held verbatim. A blank, absent or `null` one is
@@ -301,13 +515,20 @@ fn stamp(value: Option<&Value>) -> RemoteTimestamp {
         })
 }
 
+fn refuse_identifier_op(
+    id: &ExternalId,
+    operation: Operation,
+) -> Result<(), LinearFailure> {
+    check_identifier(id.as_str()).map_err(|error| {
+        LinearFailure::wire(Outcome::Transport, operation, error.to_string())
+    })
+}
+
 fn refuse_identifier(
     id: &ExternalId,
     operation: Operation,
 ) -> Result<(), TrackerError> {
-    check_identifier(id.as_str()).map_err(|error| {
-        classify(Outcome::Transport, operation, &error.to_string())
-    })
+    refuse_identifier_op(id, operation).map_err(TrackerError::from)
 }
 
 impl RemoteTracker for LinearClient {
@@ -315,36 +536,10 @@ impl RemoteTracker for LinearClient {
         &self,
         title: &str,
         body: &str,
-        _kind: &str,
+        kind: &str,
     ) -> Result<ExternalId, TrackerError> {
-        // Linear has no per-issue type: `kind` has no destination.
-        let variables = json!({"input": {
-            "teamId": self.credentials().team_id,
-            "title": title,
-            "description": body,
-        }});
-        let response =
-            self.call(CREATE, &variables, Operation::Create, title)?;
-        let identifier = response
-            .pointer("/data/issueCreate/issue/identifier")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                classify(
-                    Outcome::NonJsonBody,
-                    Operation::Create,
-                    "the create response carried no identifier",
-                )
-            })?;
-        // The issue exists remotely, so an unusable identifier is Terminal.
-        check_identifier(identifier).map_err(|error| {
-            TrackerError::Terminal {
-                detail: format!(
-                    "linear create: the issue was created as \
-                     {identifier:?}, which cannot be written back — {error}"
-                ),
-            }
-        })?;
-        Ok(ExternalId::new(identifier.to_owned()))
+        self.create_op(title, body, kind)
+            .map_err(TrackerError::from)
     }
 
     fn update(
@@ -353,36 +548,11 @@ impl RemoteTracker for LinearClient {
         title: &str,
         body: &str,
     ) -> Result<(), TrackerError> {
-        refuse_identifier(id, Operation::Update)?;
-        let variables = json!({
-            "id": id.as_str(),
-            "input": {"title": title, "description": body},
-        });
-        self.call(UPDATE, &variables, Operation::Update, id.as_str())?;
-        Ok(())
+        self.update_op(id, title, body).map_err(TrackerError::from)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
-        refuse_identifier(id, Operation::Read)?;
-        let received = self
-            .transport
-            .send(SHOW, &json!({"id": id.as_str()}))
-            .map_err(|error| {
-            classify(Outcome::Transport, Operation::Read, &error.to_string())
-        })?;
-        let body = Self::interpret(&received, Operation::Read, id.as_str())?;
-        let projected = remote_projection::project_raw(
-            Integration::Linear,
-            Op::Body,
-            &received.body,
-        )
-        .map_err(|error| {
-            classify(Outcome::NonJsonBody, Operation::Read, &error.to_string())
-        })?;
-        Ok(RemoteIssue {
-            updated: stamp(body.pointer("/data/issue/updatedAt")),
-            body: port_body(&projected),
-        })
+        self.show_op(id).map_err(TrackerError::from)
     }
 
     fn fetch_all(
