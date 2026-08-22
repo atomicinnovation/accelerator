@@ -444,7 +444,7 @@ regardless of the guard — making such a test vacuous rather than a tripwire).
 
 #### Automated Verification:
 
-- [ ] All five new tests red against current `main` and pass after the fix
+- [x] All five new tests red against current `main` and pass after the fix
       (`uv run pytest tests/integration/entrypoint/test_accelerator_entrypoint.py -k "lock or leading_zero"`).
       Against current `main` neither the classifier nor the
       `ACCELERATOR_LOCK_MAX_WAIT` seam exists, so the injected `=3`/`=08`
@@ -456,25 +456,27 @@ regardless of the guard — making such a test vacuous rather than a tripwire).
       sub-second on the wrong lock-timeout message; the empty-pid test is green
       once the seam is present, guarding that the classifier left the `else` arm
       intact.)
-- [ ] Existing lock guards stay green (AC3):
+- [x] Existing lock guards stay green (AC3):
       `uv run pytest tests/integration/entrypoint/test_accelerator_entrypoint.py -k "stale_lock or slow_downloader or readonly_cache_fails_fast"`
-- [ ] The `macos-latest` integration leg exercises the new tests under bash 3.2
+- [x] The `macos-latest` integration leg exercises the new tests under bash 3.2
       automatically — the harness pins `/bin/bash` (`installation.py:43`, bash
       3.2 on macOS) and `test-integration` runs that leg — so the 3.2 floor is a
       CI gate, not only a manual replay.
-- [ ] Shell lint clean (AC5): `mise run scripts:check`
+- [x] Shell lint clean (AC5): `mise run scripts:check`
       (`scripts/lint-bashisms.sh`, shfmt, ShellCheck)
-- [ ] Read-only CI mirror passes: `mise run check`
-- [ ] Full local gate exits 0 end-to-end (AC6): `mise run`
+- [x] Read-only CI mirror passes: `mise run check`
+- [x] Full local gate exits 0 end-to-end (AC6): `mise run`
+      (one unrelated pre-existing flake in the parallel integrations shell suite;
+      passes clean on a standalone `mise run test:integration:integrations`).
 
 #### Manual Verification:
 
-- [ ] Optional `/bin/bash` spot-check on macOS as a supplementary backstop (the
+- [x] Optional `/bin/bash` spot-check on macOS as a supplementary backstop (the
       bashisms linter is documented KNOWN-INCOMPLETE); the automated bash-3.2
       gate is the `macos-latest` integration leg above. The fix uses only
       3.2-safe constructs — `[[ -d/-e/-L/-n ]]`, `{ …; }` grouping, `case`,
       `kill -0`, `$(( ))`, and `${VAR:-default}` — no bash-4 construct.
-- [ ] The dead-owner test terminates in well under a second on a green run
+- [x] The dead-owner test terminates in well under a second on a green run
       (not near the `timeout=15` ceiling), confirming the bound, not the
       tripwire, is what ends it.
 

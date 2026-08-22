@@ -15,7 +15,8 @@
 # cache directory may be read-only.
 #
 # Test seams (unset in production): ACCELERATOR_UNAME_S/_M override host
-# detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER injects a `downloader <url> <dest>`.
+# detection; ACCELERATOR_BOOTSTRAP_DOWNLOADER injects a `downloader <url> <dest>`;
+# ACCELERATOR_LOCK_MAX_WAIT caps the lock-wait iteration ceiling (default 300).
 #
 # Local-build override (contributor-only): with ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER=1,
 # the untracked .accelerator-dev-launcher marker, and ACCELERATOR_LAUNCHER_BIN
@@ -323,6 +324,11 @@ release_lock() {
 }
 
 acquire_lock() {
+	max_wait="${ACCELERATOR_LOCK_MAX_WAIT:-300}"
+	case "${max_wait}" in
+	*[!0-9]*) max_wait=300 ;;
+	*) max_wait=$((10#${max_wait})) ;;
+	esac
 	waited=0
 	while true; do
 		if mkdir "${lock_dir}" 2>/dev/null; then
@@ -331,6 +337,10 @@ acquire_lock() {
 			trap release_lock EXIT INT TERM
 			return 0
 		fi
+		if [[ -L "${lock_dir}" ]] ||
+			[[ -e "${lock_dir}" && ! -d "${lock_dir}" ]]; then
+			fail "cannot create the launcher cache lock: ${lock_dir}"
+		fi
 		owner=$(cat "${lock_dir}/pid" 2>/dev/null)
 		if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
 			# A live owner is fetching, bounded by curl's --max-time; reset the
@@ -338,13 +348,12 @@ acquire_lock() {
 			# waiter. The budget elapses only while no live owner is seen — a
 			# dead owner is reclaimed immediately below.
 			waited=0
-		elif [[ -n "${owner}" ]]; then
-			rm -f "${lock_dir}/pid" 2>/dev/null
-			rmdir "${lock_dir}" 2>/dev/null
+		elif [[ -n "${owner}" ]] && rm -f "${lock_dir}/pid" 2>/dev/null &&
+			rmdir "${lock_dir}" 2>/dev/null; then
 			continue
 		else
 			waited=$((waited + 1))
-			if [[ "${waited}" -gt 300 ]]; then
+			if [[ "${waited}" -gt "${max_wait}" ]]; then
 				fail "timed out acquiring the launcher cache lock: ${lock_dir}"
 			fi
 		fi

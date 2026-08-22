@@ -322,6 +322,129 @@ def test_stale_lock_is_reclaimed(
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_uncreatable_lock_dir_fails_fast(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    root, server = harness.root, harness.server
+    # A file at the lock path: mkdir fails and the path is a non-directory.
+    (root / f"bin/.accelerator-lock-{host_platform}").write_text("")
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={"ACCELERATOR_LOCK_MAX_WAIT": "3"},
+        timeout=15,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "cannot create the launcher cache lock" in output, output
+    assert "timed out" not in output, output
+
+
+def test_unremovable_dead_owner_lock_terminates_within_budget(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    _require_unprivileged()
+    harness = make_harness()
+    root, server = harness.root, harness.server
+    lock = root / f"bin/.accelerator-lock-{host_platform}"
+    lock.mkdir()
+    (lock / "pid").write_text("999999\n")  # dead PID, unreadable-to-rm below
+    with _restricted(lock, 0o555):  # rm of pid fails; the pid persists
+        result = _run_bootstrap(
+            root,
+            server,
+            downloader,
+            extra_env={"ACCELERATOR_LOCK_MAX_WAIT": "3"},
+            timeout=15,
+        )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "timed out acquiring the launcher cache lock" in output, output
+
+
+def test_empty_pid_lock_advances_budget(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    root, server = harness.root, harness.server
+    lock = root / f"bin/.accelerator-lock-{host_platform}"
+    lock.mkdir()
+    (lock / "pid").write_text("")  # competitor made the dir, no pid written yet
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={"ACCELERATOR_LOCK_MAX_WAIT": "3"},
+        timeout=15,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "timed out acquiring the launcher cache lock" in output, output
+    assert "cannot create the launcher cache lock" not in output, output
+
+
+def test_symlink_lock_path_fails_fast(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    root, server = harness.root, harness.server
+    target = root / "foreign-lock-target"
+    target.mkdir()
+    (target / "pid").write_text(
+        "999999\n"
+    )  # a dead owner: reclaim would rm this
+    (root / f"bin/.accelerator-lock-{host_platform}").symlink_to(target)
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        extra_env={"ACCELERATOR_LOCK_MAX_WAIT": "3"},
+        timeout=15,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "cannot create the launcher cache lock" in output, output
+    assert "timed out" not in output, output
+    assert (target / "pid").read_text() == "999999\n", (
+        "reclaim followed symlink"
+    )
+
+
+def test_leading_zero_ceiling_is_decimal_not_octal(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    host_platform: str,
+) -> None:
+    harness = make_harness()
+    root, server = harness.root, harness.server
+    lock = root / f"bin/.accelerator-lock-{host_platform}"
+    lock.mkdir()
+    (lock / "pid").write_text(
+        ""
+    )  # empty pid → else arm, bounded by the ceiling
+    result = _run_bootstrap(
+        root,
+        server,
+        downloader,
+        # 08: invalid octal; base-10 makes it a ceiling of 8, not an error
+        extra_env={"ACCELERATOR_LOCK_MAX_WAIT": "08"},
+        timeout=15,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "timed out acquiring the launcher cache lock" in output, output
+
+
 def test_path_planted_decoy_shim_is_not_used(
     make_harness: Callable[..., Harness],
     downloader: Path,
