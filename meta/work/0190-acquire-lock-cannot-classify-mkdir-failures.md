@@ -16,6 +16,7 @@ tags: [bug, shell, bootstrap, bash-3.2]
 last_updated: 2026-08-21T15:21:54+00:00
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-720
 ---
 
 # 0190: acquire_lock misclassifies an unusable lock directory and can spin unbounded on reclaim

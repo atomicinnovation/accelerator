@@ -15,6 +15,7 @@ tags: [rust, vcs, cleanup, tech-debt]
 last_updated: "2026-08-10T02:08:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-715
 ---
 
 # 0185: Converge corpus-adapters on the Library-Backed VCS Adapter

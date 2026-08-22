@@ -14,6 +14,7 @@ tags: [skills, sync, work-items, conflicts, cli]
 last_updated: 2026-08-19T01:14:08+00:00
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-743
 ---
 
 # 0213: Conversational Conflict Resolution Flow for Sync

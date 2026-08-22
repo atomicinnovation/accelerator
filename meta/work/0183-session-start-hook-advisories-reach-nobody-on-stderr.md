@@ -19,6 +19,7 @@ last_updated_note: "Abandoned: work-item:0172 Phase 7 absorbed this item's
   own Dependencies amendment already pointed to for vcs-detect/config-summary.
   No separate audit-and-fix pass is needed for this one remaining site."
 schema_version: 1
+external_id: PP-713
 ---
 
 # 0183: SessionStart hook advisories written to stderr at exit 0 reach nobody

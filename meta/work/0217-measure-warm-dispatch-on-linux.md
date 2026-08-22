@@ -15,6 +15,7 @@ tags: [cli, launcher, performance, measurement]
 last_updated: "2026-08-17T20:36:49+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-746
 ---
 
 # 0217: Measure warm dispatch on linux
