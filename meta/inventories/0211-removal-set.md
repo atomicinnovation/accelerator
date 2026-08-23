@@ -80,4 +80,57 @@ contract evidence (Decision 8).
 
 ## Jira track (Phase 4)
 
-_Pending — recorded at Phase 4's deletion boundary._
+**Deleted**: the whole `skills/integrations/jira/scripts/` subtree — **197
+files**:
+
+- **17 flow/helper executables**: `jira-{create,update,show,search,comment,
+  transition,attach,init}-flow.sh`, `jira-auth-cli.sh`, `jira-jql-cli.sh`,
+  `jira-emit-key.sh`, `jira-resolve-fields.sh`, `jira-fields.sh` (the dual-use
+  script), `jira-request.sh`, `jira-render-adf-fields.sh`, `jira-adf-to-md.sh`,
+  `jira-md-to-adf.sh`.
+- **5 libraries**: `jira-common.sh`, `jira-auth.sh`, `jira-jql.sh`,
+  `jira-body-input.sh`, `jira-custom-fields.sh` (were `SHELL_LIBRARIES` entries).
+- **3 data assets**: `jira-adf-render.jq`, `jira-md-assemble.jq`,
+  `jira-md-tokenise.awk` — the ADF pipeline's `.jq`/`.awk`, load-bearing for
+  `cli/jira-client`'s differential until Phase 0 froze it to a committed oracle.
+- **`EXIT_CODES.md`** — the prose exit-code doc (already wrong on usage codes),
+  superseded by `cli/jira-cli/src/exit_codes.rs`'s module doc plus the captured
+  `bash-exit-codes.txt` fixture (Decision 6).
+- **21 `test-jira-*.sh` suites** and `test-helpers/` (`.gitkeep` +
+  `mock-jira-server.py`, the deterministic mock server).
+- **`test-fixtures/` — 148 files** — reconciled in
+  `0211-fixture-reconciliation.md` (the scenario JSONs ported where a `*-cli`
+  test drives them; the rest ledgered with a reason).
+
+**Consumer sweep** — nothing outside the deleted subtree still depends on it:
+
+- The read/init skill frontmatters dropped the `jira/scripts/*` glob grant (and
+  `jq`/`curl`) for the scoped `accelerator jira *` grant; the write skills invoke
+  `accelerator jira` via bare `Bash`. `grep -rn "jira/scripts" skills/` returns
+  nothing.
+- `cli/jira-cli/tests/fixtures/capture-bash-exit-codes.sh` and
+  `cli/jira-client/tests/support/capture-adf-oracle.sh` name the flow/driver
+  scripts, but are committed **provenance** records (they captured
+  `bash-exit-codes.txt` and the Phase 0 oracle corpus), never executed by a
+  test. They survive deletion as the capture recipes.
+
+**Guards retired**: five `SHELL_LIBRARIES` members (`tasks/lint/scripts.py`
+19→14) and their `_RECONCILED_LIBRARIES` mirror; `_DUAL_USE_SCRIPTS` and
+`test_dual_use_scripts_are_entrypoints` (the sole exemplar, `jira-fields.sh`, is
+gone — detection is retained by the exec-bit invariant guard, see
+`0211-divergences.md`); the `_EXPECTED_INTEGRATIONS_SUITES` floor and the
+`integrations` task, its `mise` leaf, its `_GUARDED` entry and its `test_mise`
+member, removed outright; the `test-jira-scripts.sh` `EXCLUDED_HELPER_NAMES`
+entry; the `mock-jira-server.py` ruff exclude in `pyproject.toml` and its
+`test_python_coverage.py` `MOCK_JIRA` pin.
+
+**Generator provenance / revival anchor**: `mock-jira-server.py`, the 22
+production scripts, the 3 data assets and the 21 suites last existed at revision
+**`6edd08fb`** ("Register the jira token and repoint the jira skills"), the
+commit immediately before the deletion. To revive a generator, check that
+revision out and read `skills/integrations/jira/scripts/`. `bash-exit-codes.txt`
+was captured by `capture-bash-exit-codes.sh` run against that revision's cluster;
+the Phase 0 ADF oracle corpus was captured by `capture-adf-oracle.sh` against
+the ADF drivers at their checked-out revision; each jira golden is mock-served
+against `mock-jira-server.py` at that revision, live-anchored to 0210's
+2026-08-21 contract evidence (Decision 8).

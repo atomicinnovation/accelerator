@@ -162,9 +162,10 @@ inline** by a named `jira-cli` flow test that drives the same condition, or
 **superseded** by an existing `cli/jira-client` crate test (read, pagination,
 retry, timeout, multipart and error-classification conditions are client-crate
 concerns the thin adapter does not re-test), or **superseded by Decision 2**
-(the wire-payload `--print-payload`/`--describe` preview is not reproduced), or
-a **known divergence** (custom-field composition is not reproduced — the binary
-installs the no-op `FixedResolver`, recorded in `0211-divergences.md`).
+(the wire-payload `--print-payload`/`--describe` preview is not reproduced). The
+custom-field scenarios are covered inline: the Phase 4 widening restored
+`--custom` composition, so they are driven by the `flow_create` field-set and
+bad-field tests.
 
 Covered inline by a `jira-cli` flow test (examples):
 `create-201.json`, `create-201-capture.json` (`flow_create`);
@@ -205,23 +206,26 @@ Superseded by Decision 2 — wire-payload preview not reproduced (7):
 `transition-describe-guard.json`, `print-payload-guard.json`,
 `print-payload-guard-update.json`.
 
-Known divergence — custom-field composition not reproduced:
-`create-with-custom-fields-capture.json`, `create-400-bad-customfield.json`; and
-the cross-crate `apply-push-204-show.json` (the `work-adapters` sync-apply path,
-driven by `work-adapters/tests/sync_apply.rs`).
+Custom-field composition (restored by the Phase 4 widening), covered inline:
+`create-with-custom-fields-capture.json` and `create-400-bad-customfield.json`
+are driven by `flow_create.rs::create_sends_the_full_resolved_field_set` and
+`::an_unknown_custom_field_is_103`; the cross-crate `apply-push-204-show.json` is
+the `work-adapters` sync-apply path, driven by
+`work-adapters/tests/sync_apply.rs`.
 
 **Count**: 95 files = **7** superseded by Decision 2 (the `*-print-payload-guard`
 and `*-describe-guard` files, the wire-payload preview not reproduced) + **88**
 remaining, each covered inline by a named `jira-cli` flow test or superseded by
 a `cli/jira-client` crate test driving the same read/pagination/retry/timeout/
 multipart/error-classification condition — of which **2** (the
-`*custom-field*`/`*customfield*` scenarios) are recorded in `0211-divergences.md`
-as a known divergence (custom-field composition uses the no-op `FixedResolver`)
-and **1** (`apply-push-204-show.json`) is the `work-adapters` sync-apply path
-driven by `work-adapters/tests/sync_apply.rs`. No jira scenario file is ported
-into a `tests/fixtures/scenarios/` directory, so there is no ported-but-
-unconsumed surface to police; the `jira-cli` flow tests drive every reproduced
-condition directly. Porting all 95 mechanically is declined (Decision 15).
+`*custom-field*`/`*customfield*` scenarios) are covered inline by the
+`flow_create` custom-field tests after the Phase 4 widening restored `--custom`
+composition, and **1** (`apply-push-204-show.json`) is the `work-adapters`
+sync-apply path driven by `work-adapters/tests/sync_apply.rs`. No jira scenario
+file is ported into a `tests/fixtures/scenarios/` directory, so there is no
+ported-but-unconsumed surface to police; the `jira-cli` flow tests drive every
+reproduced condition directly. Porting all 95 mechanically is declined
+(Decision 15).
 
 The ten `skills/integrations/jira/scripts/test-fixtures/api-responses/` files are
 ledgered as **already dead** — zero consumers before this change — and deleted
