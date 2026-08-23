@@ -10,10 +10,8 @@ description: >
 argument-hint: "[--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(jq)
-  - Bash(curl)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira *)
 ---
 
 # Init Jira
@@ -30,60 +28,64 @@ You are setting up the Jira Cloud integration for this project. Work through
 the steps below in order, stopping to prompt the user only when a value is
 missing and cannot be derived from existing configuration.
 
+Run every `accelerator jira …` and `accelerator config …` invocation **directly**
+as an executable; never prefix it with `bash`/`sh`/`env` and never pipe its
+output (a wrapper prefix or a pipe escapes the skill's `allowed-tools`
+permission and forces an unnecessary prompt).
+
 ## Step 0: Parse arguments
 
 Read the argument string (if any) and note:
 
 - `--site <subdomain>` — Jira Cloud subdomain override (e.g. `atomic-innovation`)
 - `--email <addr>` — Atlassian account email override
-- `--refresh-fields` — skip steps 1–4; re-run field discovery only
+- `--refresh-fields` — re-run field discovery only
 - `--list-projects` — print cached projects and exit (no network call)
 - `--list-fields` — print cached fields and exit (no network call)
 
 If `--list-projects` was requested, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh list-projects
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init list-projects
 ```
 
 If `--list-fields` was requested, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh list-fields
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init list-fields
 ```
 
-If `--refresh-fields` was requested, skip to Step 5 (field discovery only).
+Both print the cached JSON array; render it as a readable list. If
+`--refresh-fields` was requested, skip to Step 5 (field discovery only).
 
 ## Step 1: Resolve site
 
-Use the site from `--site` if provided. Otherwise read it from config by running
-`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.site ""`. Run the bare path
-**directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-prompt).
-
-If still empty, prompt: *"Enter your Jira Cloud subdomain (the part before
-`.atlassian.net`, e.g. `mycompany`):"*
+Use the site from `--site` if provided. Otherwise read it from config:
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.site ""`. If still empty,
+prompt: *"Enter your Jira Cloud subdomain (the part before `.atlassian.net`,
+e.g. `mycompany`):"*
 
 ## Step 2: Resolve email
 
-Use `--email` if provided. Otherwise read it from config by running
-`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.email ""`. Run the bare path
-**directly** as an executable; never prefix it with `bash`/`sh`/`env` (a wrapper
-prefix escapes the skill's `allowed-tools` permission and forces an unnecessary
-prompt).
+Use `--email` if provided. Otherwise read it from config:
+`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.email ""`. If still empty,
+prompt: *"Enter your Atlassian account email:"*
 
-If still empty, prompt: *"Enter your Atlassian account email:"*
+## Step 3: Verify and persist site.json
 
-## Step 3: Resolve token
-
-Run the credential resolver:
+Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-auth-cli.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init verify
 ```
 
-If it exits non-zero with `E_NO_TOKEN`, tell the user:
+Credential resolution folds into this one call; the token is never printed. On
+success the subcommand emits a JSON document with `outcome: "verified"` plus
+`{site, accountId}`, and writes
+`.accelerator/state/integrations/jira/site.json`. Print: *"Verified as
+`<accountId>` on `<site>.atlassian.net`."*
+
+If it fails naming a missing token, tell the user:
 
 > No Jira API token found. Generate one at
 > <https://id.atlassian.com/manage-profile/security/api-tokens>, then add it
@@ -98,52 +100,39 @@ If it exits non-zero with `E_NO_TOKEN`, tell the user:
 >
 > Re-run `/init-jira` once the token is configured.
 
-Then stop. Do not continue with verification until the token is available.
+Then stop. On any other non-zero exit, show the error and stop.
 
-## Step 4: Verify and persist site.json
-
-Run the full initialisation flow (or just verify if re-running mid-setup):
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh verify
-```
-
-On success, `.accelerator/state/integrations/jira/site.json` is written with `{site, accountId}`.
-Print: *"Verified as `<accountId>` on `<site>.atlassian.net`."*
-
-On failure, show the error from `jira-request.sh` and stop.
-
-## Step 5: Discover projects and fields
+## Step 4: Discover projects and fields
 
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh discover
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init discover
 ```
 
-This writes `projects.json` (project key/id/name) and `fields.json` (field
-id/key/name/slug) atomically. Both files are byte-idempotent — re-running
-against an unchanged tenant produces no diff.
+On `outcome: "discovered"` the subcommand writes `projects.json` (project
+key/id/name) and `fields.json` (field id/key/name/slug/schema) atomically. Both
+are byte-idempotent — re-running against an unchanged tenant produces no diff.
 
 If `--refresh-fields` was requested, run only:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh refresh-fields
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init refresh-fields
 ```
 
-## Step 6: Default project key
+## Step 5: Default project key
 
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-init-flow.sh prompt-default
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init prompt-default
 ```
 
-If `work.default_project_code` is already set, this is a no-op. Otherwise the
-helper prints the available projects and prompts for a selection. Offer to
+On `default-prompted` the subcommand reports the resolved default project. If
+`work.default_project_code` is already set this is a no-op; otherwise offer to
 write the chosen key to `config.md`.
 
-## Step 7: Confirm completion
+## Step 6: Confirm completion
 
 Print a summary:
 

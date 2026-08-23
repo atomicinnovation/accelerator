@@ -5,10 +5,10 @@ description: >
   modify an existing Jira issue. This is a write skill with irreversible side
   effects — it must never be auto-invoked from conversational context. Accepts
   an issue key and at least one mutating flag (summary, body, priority, assignee,
-  labels, components, parent, custom fields). Shows a payload preview with
-  explicit set-vs-update label semantics, requires explicit confirmation, then
+  reporter, parent, labels, components, custom fields). Previews the resolved
+  intent with set-vs-update semantics, requires explicit confirmation, then
   PUTs to Jira.
-argument-hint: "ISSUE-KEY [--summary TEXT] [--body TEXT | --body-file PATH] [--priority NAME] [--assignee @me|ACCTID|\"\"] [--reporter @me|ACCTID] [--parent KEY|\"\"] [--label NAME]... [--add-label NAME]... [--remove-label NAME]... [--component NAME]... [--add-component NAME]... [--remove-component NAME]... [--custom SLUG=VALUE]... [--no-notify] [--quiet]"
+argument-hint: "ISSUE-KEY [--summary TEXT] [--body TEXT | --body-file PATH] [--priority NAME] [--assignee @me|ACCTID|\"\"] [--reporter @me|ACCTID] [--parent KEY|\"\"] [--label NAME]... [--add-label NAME]... [--remove-label NAME]... [--component NAME]... [--add-component NAME]... [--remove-component NAME]... [--custom SLUG=VALUE]... [--no-notify]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -30,165 +30,98 @@ body content always comes from the user's prompt or a path the user named.
 
 ## Step 1: Parse the flag set
 
-The first positional argument is the issue key (e.g. `ENG-42`). Remaining flags:
+The first positional argument is the issue key (e.g. `ENG-42`). Remaining flags
+(at least one mutating flag is required):
 
-**Mutating flags (at least one required):**
-- `--summary TEXT` — replace summary
-- `--body TEXT` — replace description (Markdown → ADF)
-- `--body-file PATH` — replace description from file (Markdown → ADF)
-- `--priority NAME` — replace priority (e.g. `High`)
-- `--assignee @me|ACCTID|""` — replace or unassign (`""` = unassign); email not supported
-- `--reporter @me|ACCTID` — replace reporter
-- `--parent KEY|""` — replace or clear parent
-- `--label NAME` — repeatable; **replaces ALL labels** (exclusive with `--add-label`/`--remove-label`)
-- `--add-label NAME` — repeatable; add label incrementally (preserves others)
-- `--remove-label NAME` — repeatable; remove label incrementally (preserves others)
-- `--component NAME` — repeatable; **replaces ALL components** (exclusive with `--add-component`/`--remove-component`)
-- `--add-component NAME` — repeatable; add component incrementally
-- `--remove-component NAME` — repeatable; remove component incrementally
-- `--custom SLUG=VALUE` — repeatable; custom field by slug; use `@json:<literal>` for arrays/objects
-
-**Optional flags:**
-- `--no-notify` — suppress watcher email notifications (`?notifyUsers=false`)
-- `--quiet` — suppress INFO stderr lines
+- `--summary TEXT` — replace the summary
+- `--body TEXT` / `--body-file PATH` — replace the description (Markdown → ADF)
+- `--priority NAME` — replace the priority
+- `--assignee @me|ACCTID|""` — replace or, with `""`, unassign; an email is
+  refused, never resolved
+- `--reporter @me|ACCTID` — replace the reporter
+- `--parent KEY|""` — replace or, with `""`, clear the parent
+- `--label NAME` — repeatable; **replaces ALL labels** (exclusive with
+  `--add-label`/`--remove-label`)
+- `--add-label NAME` / `--remove-label NAME` — repeatable; add or remove one
+  label, preserving the others
+- `--component NAME` — repeatable; **replaces ALL components** (exclusive with
+  `--add-component`/`--remove-component`)
+- `--add-component NAME` / `--remove-component NAME` — repeatable; incremental
+- `--custom SLUG=VALUE` — repeatable; custom field by slug, `@json:<literal>`
+  for arrays/objects
+- `--no-notify` — suppress watcher email notifications
 
 ## Step 2: Trust-boundary enforcement
 
 Before assembling `--body`, verify that any body content comes ONLY from text the
-user typed in this turn or a file path the user explicitly named in this turn.
+user typed in this turn or a file path the user explicitly named in this turn —
+never a previously-fetched description, a web fetch, or a prior assistant
+message. If the user's phrasing implies "use the fetched content", ask them to
+paste or confirm the literal text first.
 
-Do NOT substitute body content from:
-- A previously-fetched issue description
-- A web fetch result
-- A prior assistant message quoting external sources
-- Any content not directly typed by the user in this message
+## Step 3: Preview the resolved intent
 
-If the user's phrasing implies "use the description from above" or "replace with
-the fetched content", ask them to paste or confirm the literal text first.
+Show, under **Proposed Jira write — review before sending**:
 
-## Step 3: Generate the payload preview
+- the issue key and each field being changed;
+- **label/component framing** so the user can audit set-vs-update semantics:
+  `--label` → "labels: REPLACE ALL to [...]"; `--add-label`/`--remove-label` →
+  "labels: ADD x, y; REMOVE z"; the same for components;
+- the description (truncate at 500 chars for display), and a ⚠️ warning if it
+  would replace the existing description with an empty document;
+- a ⚠️ notifications-suppressed notice if `--no-notify`.
 
-Invoke the helper with `--print-payload` to produce the preview without making
-an API call:
+`@me` resolves through the cached `site.json`; `--custom` slugs resolve through
+`fields.json` — both inside the subcommand, refused before any write if
+unresolvable.
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-update-flow.sh \
-  --print-payload \
-  <KEY> [all flags from Step 1]
-```
-
-## Step 4: Handle --print-payload failures
-
-If the helper exits non-zero or produces empty output, stop immediately. Tell
-the user:
-
-> Could not preview the Jira write (`--print-payload` exited \<code\>); no API
-> call was made. See the error above for details.
-
-Do NOT proceed to the confirmation gate.
-
-## Step 5: Render the preview
-
-Show the payload to the user under this heading:
-
-> **Proposed Jira write — review before sending**
-
-Include:
-- Method and endpoint: `PUT /rest/api/3/issue/<KEY>`
-- Issue key and a summary of changed fields
-- The full assembled JSON payload
-
-**Label/component framing** — so the user can audit set-vs-update semantics:
-- If `--label` was used: `labels: REPLACE ALL to [...]`
-- If `--add-label`/`--remove-label` were used: `labels: ADD x, y; REMOVE z`
-- Same framing for components.
-
-**Empty description warning**: if `body.fields.description` is present but
-renders as an empty ADF document, show:
-
-> ⚠️ This will replace the existing description with an empty document.
-
-**Body truncation**: if `body.fields.description` exceeds 500 characters,
-truncate the displayed value to the first 500 chars and append:
-`[… truncated for preview, full content will be sent]`
-
-**No-notify notice**: if `--no-notify` was supplied:
-
-> ⚠️ Notifications suppressed: watchers will not be emailed.
-
-## Step 6: Confirm before writing
+## Step 4: Confirm before writing
 
 Ask the user:
 
 > Send this to Jira? Reply **y** to confirm, **n** to revise, anything else
 > to abort.
 
-Interpret the reply:
-- Clear yes intent — `y`, `Y`, `yes`, `YES`, or a phrase like "yes go ahead",
-  "looks good", "sure", "confirmed" → proceed to Step 7.
-- Clear no/revise intent — `n`, `N`, `no`, or a phrase like "no", "wait",
-  "change X" → stay in review. Ask "What would you like to change?" Re-apply
-  Step 2 (trust-boundary enforcement) to the revision before invoking
-  `--print-payload` again. Rebuild the preview from Step 3 and re-ask.
-  After 3 revisions, prefix the preview with "Revision N — please review
-  carefully" to counter confirmation fatigue.
-- Ambiguous or off-topic reply (silence, a question, unrelated text) → abort:
+A clear `y`/`yes` proceeds; a `n`/revise stays in review (re-apply Step 2 to any
+revised body); anything ambiguous aborts with "Aborted — no Jira write was
+made."
 
-  > Aborted — no Jira write was made.
-
-## Step 7: Send the request
-
-On `y`: invoke the helper without `--print-payload`:
+## Step 5: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-update-flow.sh \
-  <KEY> [all flags from Step 1]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira update <KEY> [flags from Step 1]
 ```
 
-## Step 8: Render the response
+Run the bare launcher **directly** as an executable; never prefix it with
+`bash`/`sh`/`env` and never pipe its output.
 
-`PUT /rest/api/3/issue` returns 204 with no body on success. Show:
+## Step 6: Render the response
 
-> ✓ **\<KEY\>** updated.
+The subcommand prints its outcome as a trailing `updated\t<KEY>` line. On the
+`updated` keyword, confirm `✓ **<KEY>** updated.` and suggest
+`/show-jira-issue <KEY>` to verify.
 
-## Step 9: Exit-code handling
-
-If the helper exits non-zero, show the error and the relevant guidance:
-
-| Code | Name | User-facing message |
-|------|------|---------------------|
-| 110 | `E_UPDATE_NO_KEY` | No issue key supplied. Pass the key as the first positional argument. |
-| 111 | `E_UPDATE_LABEL_MODE_CONFLICT` | `--label` cannot be mixed with `--add-label`/`--remove-label`; same for `--component`. Use one mode per field. |
-| 112 | `E_UPDATE_NO_OPS` | No mutating flags supplied. Provide at least one field to change. |
-| 113 | `E_UPDATE_BAD_FLAG` | Unrecognised flag. See the usage banner. |
-| 114 | `E_UPDATE_BAD_FIELD` | A `--custom` value failed validation. Check the slug and value type. Run `/init-jira --refresh-fields` if a field id was rejected. |
-| 115 | `E_UPDATE_NO_SITE_CACHE` | `@me` was used but `site.json` is missing. Run `/init-jira` first. |
-| 116 | `E_UPDATE_NO_BODY` | `--body-file` not found or body resolution failed. Check the path. |
-| 117 | `E_UPDATE_BAD_ASSIGNEE` | `--assignee` accepts `@me`, `""` (unassign), or a raw accountId; email addresses are not resolved. |
-| 11–12, 22 | auth | Check credentials with `/init-jira`. |
-| 13 | not found | Issue key not found — check the key is correct. |
-| 19 | rate-limited | Wait briefly and retry. |
-| 20 | server error | Jira returned a server error; check the Jira status page. |
-| 21 | connection | Connection failed; check network and Jira site config. |
-| 34 | `E_REQ_BAD_REQUEST` | HTTP 400 — Jira rejected the request. See the error body above. Run `/init-jira --refresh-fields` if a custom field id was referenced. |
+On a non-zero exit no write was made; show the error, which names its cause on
+stderr:
+- `E_UPDATE_NO_OPS` — no mutating flag was supplied;
+- `E_UPDATE_LABEL_MODE_CONFLICT` — a replace-all `--label`/`--component` was
+  mixed with its incremental form; use one mode per field;
+- `E_UPDATE_BAD_FIELD` — a `--custom` value failed validation; run
+  `/init-jira --refresh-fields` if a field id was rejected;
+- `E_UPDATE_NO_SITE_CACHE` — `@me` was used but `site.json` is missing; run
+  `/init-jira`;
+- `E_UPDATE_BAD_ASSIGNEE` — `--assignee` accepts `@me`, `""`, or a raw
+  accountId, not an email;
+- an auth or transport failure — suggest checking credentials with `/init-jira`.
 
 ## Examples
 
 **Example 1 — add a label without replacing others**
 User: `/update-jira-issue ENG-42 --add-label needs-review`
-Skill shows preview with `labels: ADD needs-review`, confirms, updates.
+Skill previews "labels: ADD needs-review", confirms, updates.
 
-**Example 2 — replace summary and notify suppression**
-User: `/update-jira-issue ENG-42 --summary "Revised title" --no-notify`
-Preview shows the new summary and the ⚠️ no-notify notice. On `y`, updates.
-
-**Example 3 — unassign an issue**
+**Example 2 — unassign an issue**
 User: `/update-jira-issue ENG-42 --assignee ""`
-Preview shows `assignee: (unassigned)`. On `y`, updates.
-
-**Example 4 — update description from file**
-User: `/update-jira-issue ENG-42 --body-file revised-spec.md`
-Skill reads `revised-spec.md`, converts to ADF, shows truncated preview if long,
-confirms, updates.
+Skill previews "assignee: (unassigned)", confirms, updates.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-jira-issue --fail-safe`

@@ -35,6 +35,7 @@ DISPATCHED_SUBBINARIES: tuple[str, ...] = (
     "migrate",
     "design",
     "linear",
+    "jira",
 )
 # Tokens whose only consumer is a hook or another binary, never a SKILL.md.
 SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
