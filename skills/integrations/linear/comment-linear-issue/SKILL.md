@@ -6,7 +6,7 @@ description: >
   irreversible side effects — it must never be auto-invoked from conversational
   context. It shows the comment preview, requires explicit confirmation, then
   posts the comment.
-argument-hint: "<IDENTIFIER> --body TEXT | --body-file PATH [--print-payload] [--quiet]"
+argument-hint: "<IDENTIFIER> --body TEXT | --body-file PATH [--quiet]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -32,24 +32,17 @@ the user named this turn — never synthesised from prior context.
 Read the issue identifier (positional) and the body source (`--body TEXT` or
 `--body-file PATH`).
 
-## Step 2: Generate the preview
+## Step 2: Render the preview
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-comment-flow.sh \
-  <IDENTIFIER> --body "..." --print-payload
-```
+Resolve the body: if `--body-file PATH` was given, read the file; otherwise take
+`--body TEXT` verbatim. If neither is present, STOP with `E_COMMENT_NO_BODY`.
 
-If the helper exits non-zero (e.g. no body — `E_COMMENT_NO_BODY`), STOP and
-report the error.
-
-## Step 3: Render the preview
-
-Show the operation (`commentCreate`), the target issue, and the Markdown body
-under:
+Show the resolved intent — the operation (`commentCreate`), the target issue,
+and the Markdown body — under:
 
 > **Proposed Linear write — review before sending**
 
-## Step 4: Confirm before writing
+## Step 3: Confirm before writing
 
 Ask:
 
@@ -59,13 +52,14 @@ Ask:
 On a clear yes, proceed. On no/revise, rebuild the preview. On anything
 ambiguous, abort with "Aborted — no Linear write was made."
 
-## Step 5: Send and render
+## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-comment-flow.sh \
-  <IDENTIFIER> --body "..."
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear comment add <IDENTIFIER> --body "..."
 ```
 
-Confirm the comment was posted.
+The subcommand emits a JSON envelope with a top-level `outcome` keyword. On
+`added`, confirm the comment was posted. On any non-zero exit, report the error
+and stop.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions comment-linear-issue --fail-safe`

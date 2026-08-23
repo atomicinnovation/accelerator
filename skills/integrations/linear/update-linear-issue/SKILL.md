@@ -6,7 +6,7 @@ description: >
   assignee, priority). This is a write skill with irreversible side effects — it
   must never be auto-invoked from conversational context. It shows a payload
   preview, requires explicit confirmation, then applies the update.
-argument-hint: "<IDENTIFIER> [--title TEXT] [--description TEXT] [--state NAME] [--assignee-id ID] [--priority N] [--print-payload] [--quiet]"
+argument-hint: "<IDENTIFIER> [--title TEXT] [--description TEXT] [--state NAME] [--assignee-id ID] [--priority N] [--quiet]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -31,25 +31,20 @@ Read the issue identifier (positional) and the mutating flags: `--title`,
 `--description`, `--state` (a WorkflowState name resolved to its UUID via the
 catalogue), `--assignee-id`, `--priority`. At least one is required.
 
-## Step 2: Generate the payload preview
+## Step 2: Render the preview
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-update-flow.sh \
-  <IDENTIFIER> [flags] --print-payload
-```
-
-If the helper exits non-zero (e.g. unknown state — `E_UPDATE_BAD_STATE`, or no
-mutating flags — `E_UPDATE_NO_OPS`), STOP and report the error; make no API
-call.
-
-## Step 3: Render the preview
-
-Show the operation (`issueUpdate`), the target `id`, and the assembled `input`
-under:
+Show the resolved intent — the operation (`issueUpdate`), the target issue, and
+the fields being set (`--title`/`--description`/`--state`/`--assignee-id`/
+`--priority`) — under:
 
 > **Proposed Linear write — review before sending**
 
-## Step 4: Confirm before writing
+At least one mutating flag is required; with none the subcommand refuses before
+any write (`E_UPDATE_NO_OPS`, exit `111`). A `--state` change resolves through
+the catalogue and is refused before any write if the name is unknown or
+ambiguous.
+
+## Step 3: Confirm before writing
 
 Ask:
 
@@ -59,13 +54,16 @@ Ask:
 On a clear yes, proceed. On no/revise, rebuild the preview. On anything
 ambiguous, abort with "Aborted — no Linear write was made."
 
-## Step 5: Send and render
+## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-update-flow.sh \
-  <IDENTIFIER> [flags]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear update <IDENTIFIER> [flags]
 ```
 
-Confirm the updated fields. Suggest `/show-linear-issue <IDENTIFIER>` to verify.
+The subcommand reports the `updated` keyword on success (the trailing
+`updated\t<identifier>` line, or the `outcome` field when a `--state` change
+renders JSON). Confirm the updated fields and suggest `/show-linear-issue
+<IDENTIFIER>` to verify. On any non-zero exit, report the error — no write was
+made.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-linear-issue --fail-safe`

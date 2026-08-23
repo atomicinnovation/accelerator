@@ -51,6 +51,10 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
             "The design validate-source|resolve-auth|scrub-secrets|"
             "notify-downgrade|audit-cue-phrases sub-binary."
         ),
+        "linear": (
+            "The linear create|update|show|search|comment|transition|"
+            "attach|init sub-binary."
+        ),
     }
 )
 
@@ -628,6 +632,7 @@ class TestBuilderSeams:
             "collaboration",
             "migrate",
             "design",
+            "linear",
         )
 
 

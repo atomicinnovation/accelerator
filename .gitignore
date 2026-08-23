@@ -51,6 +51,7 @@ bin/corpus-*
 bin/collaboration-*
 bin/migrate-*
 bin/design-*
+bin/linear-*
 bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log
