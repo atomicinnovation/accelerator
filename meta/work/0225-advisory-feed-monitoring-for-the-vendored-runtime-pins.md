@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0220"
+id: "0225"
 title: "Advisory-Feed Monitoring for the Vendored Runtime Pins"
 date: "2026-08-20T00:00:00+00:00"
 author: Toby Clemson
@@ -15,7 +15,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0220: Advisory-Feed Monitoring for the Vendored Runtime Pins
+# 0225: Advisory-Feed Monitoring for the Vendored Runtime Pins
 
 **Kind**: Task
 **Status**: Draft

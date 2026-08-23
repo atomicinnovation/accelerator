@@ -50,7 +50,7 @@ Vendors the Playwright runtime so the design tooling stops depending on a system
 
 ### Removal sweep
 
-- Deletes `ensure-playwright.sh` and its test, `package-lock.json` and the metadata-script residue; drops the system-Node prerequisite from `plugin.json`; updates the config-suite floor, the docs, ADR-0064 (superseding ADR-0061), and raises four follow-up work items (0220–0223).
+- Deletes `ensure-playwright.sh` and its test, `package-lock.json` and the metadata-script residue; drops the system-Node prerequisite from `plugin.json`; updates the config-suite floor, the docs, ADR-0064 (superseding ADR-0061), and raises four follow-up work items (0222, 0223, 0225, 0226).
 
 ### Trust anchors provisioned, and the assembly proven against real upstream
 

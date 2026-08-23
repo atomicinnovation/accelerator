@@ -530,8 +530,8 @@ the nine live `notify-downgrade` reasons, `plugin.json` dropping `Node >= 20`,
 the changelog entry — the skill reference pages regenerate from SKILL.md and the
 lockhash env vars are gone). §3 (ADR-0064 supersedes ADR-0061's attestation and
 pointer; ADR-0061 → `superseded`; work-item:0196's addressing/prerequisite text
-corrected). §5 (four follow-up work items raised: 0220 advisory-feed monitoring,
-0221 config-key executable-path audit, 0222 offline `cache ensure --from`, 0223
+corrected). §5 (four follow-up work items raised: 0225 advisory-feed monitoring,
+0226 config-key executable-path audit, 0222 offline `cache ensure --from`, 0223
 default-cache-root bounding). §6 (work-item:0208 records the container lane as the
 CI-job owner, with its stale `mise.toml` citations fixed). What remains in Removal
 is gated: `docs:check` (network + Chromium), the clean-`git-status`-after-

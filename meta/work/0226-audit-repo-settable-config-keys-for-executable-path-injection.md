@@ -1,6 +1,6 @@
 ---
 type: work-item
-id: "0221"
+id: "0226"
 title: "Audit Repo-Settable Config Keys for Executable-Path Injection"
 date: "2026-08-20T00:00:00+00:00"
 author: Toby Clemson
@@ -15,7 +15,7 @@ last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
-# 0221: Audit Repo-Settable Config Keys for Executable-Path Injection
+# 0226: Audit Repo-Settable Config Keys for Executable-Path Injection
 
 **Kind**: Task
 **Status**: Draft
