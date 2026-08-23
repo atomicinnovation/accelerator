@@ -14,6 +14,7 @@ tags: [rust, work-items, tech-debt]
 last_updated: "2026-08-08T12:27:18+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-731
 ---
 
 # 0201: In-Process Section Diff

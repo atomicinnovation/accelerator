@@ -15,6 +15,7 @@ tags: [rust, migration, vcs, shell, cli]
 last_updated: "2026-08-06T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-729
 ---
 
 # 0199: Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh

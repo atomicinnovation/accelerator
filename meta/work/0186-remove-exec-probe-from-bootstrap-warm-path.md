@@ -24,6 +24,7 @@ tags: [shell, performance, bootstrap]
 last_updated: "2026-08-11T13:21:34+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-716
 ---
 
 # 0186: Remove the Exec Probe from the Bootstrap Warm Path

@@ -15,6 +15,7 @@ tags: [rust, tracker, sync, port]
 last_updated: "2026-08-12T00:30:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-734
 ---
 
 # 0204: RemoteTracker Port

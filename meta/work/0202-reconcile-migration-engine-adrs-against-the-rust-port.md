@@ -14,6 +14,7 @@ tags: [rust, migration-engine, adr, reconciliation]
 last_updated: "2026-08-09T08:00:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-732
 ---
 
 # 0202: Reconcile Migration-Engine ADRs Against the Rust Port

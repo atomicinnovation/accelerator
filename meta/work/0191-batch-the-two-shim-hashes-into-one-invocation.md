@@ -16,6 +16,7 @@ tags: [shell, performance, bootstrap, bash-3.2]
 last_updated: "2026-08-17T13:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-721
 ---
 
 # 0191: Batch the bootstrap's two shim hashes into one sha256 invocation

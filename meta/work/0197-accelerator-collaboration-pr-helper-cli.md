@@ -14,6 +14,7 @@ tags: [rust, collaboration, cli, github, gh]
 last_updated: "2026-08-08T16:30:32+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
+external_id: PP-727
 ---
 
 # 0197: accelerator-collaboration: PR Helper CLI
