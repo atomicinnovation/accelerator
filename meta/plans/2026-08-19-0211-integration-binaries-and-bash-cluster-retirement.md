@@ -1256,15 +1256,21 @@ anchor.
 - [x] Exec-bit + stale-library guards green: `mise run lint:scripts:check`
 - [x] Python coverage + ruff-exclude equality green (`test_python_coverage.py`,
       `test_exec_bits.py`, `test_integration.py` pass)
-- [ ] Full run green end to end: `mise run` — pending, after the guards + artefacts
+- [x] Full run green end to end: `mise run` — exit 0 (after fixing two latent
+      full-run reds surfaced by the first end-to-end run: the plan's
+      `status: approved` was outside the corpus vocab, and `linear-cli` used
+      `reqwest::Url` past the provider-transport tripwire)
 
 #### Manual Verification:
 
-- [ ] Every linear `SKILL.md` body invokes `accelerator linear …`; no linear
-      skill declares `jq`, `curl` or a `scripts/` grant
-- [ ] The confirm gate still previews the resolved intent before a write
-- [ ] Reconciliation table reconciles to 10 executables + 2 libraries, and
-      records the 9 (not 10) `SKILL.md`-reachable entrypoints
+- [x] Every linear `SKILL.md` body invokes `accelerator linear …`; no linear
+      skill declares `jq`, `curl` or a `scripts/` grant — verified by grep and
+      the doc-vs-binary guard
+- [x] The confirm gate still previews the resolved intent before a write —
+      enforced by `skill_write_gate.py`
+- [x] Reconciliation table reconciles to 10 executables + 2 libraries, and
+      records the 9 (not 10) `SKILL.md`-reachable entrypoints —
+      `meta/inventories/0211-reconciliation.md`
 
 ---
 
