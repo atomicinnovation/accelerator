@@ -1,0 +1,28 @@
+{
+  "data": {
+    "issue": {
+      "assignee": {
+        "name": "Carol"
+      },
+      "comments": {
+        "nodes": [
+          {
+            "body": "first comment"
+          },
+          {
+            "body": "second comment"
+          }
+        ]
+      },
+      "description": "The description D, in **Markdown**.",
+      "id": "uuid-BLA-42",
+      "identifier": "BLA-42",
+      "state": {
+        "name": "In Review"
+      },
+      "title": "The title T",
+      "updatedAt": "2026-06-02T11:00:00.000Z"
+    }
+  },
+  "outcome": "found"
+}

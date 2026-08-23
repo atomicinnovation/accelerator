@@ -50,6 +50,29 @@ pub enum Token {
     Absent,
 }
 
+/// Asserts `actual` byte-for-byte against the committed golden at `name` under
+/// `tests/fixtures/goldens/`. Running with `UPDATE_GOLDEN=1` rewrites the golden
+/// instead of asserting, so a deliberate output change is a reviewable diff.
+pub fn assert_golden(name: &str, actual: &[u8]) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/goldens")
+        .join(name);
+    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+        std::fs::create_dir_all(path.parent().expect("golden parent"))
+            .expect("mkdir goldens");
+        std::fs::write(&path, actual).expect("write golden");
+        return;
+    }
+    let expected = std::fs::read(&path)
+        .expect("missing golden — run with UPDATE_GOLDEN=1 to create it");
+    assert_eq!(
+        actual,
+        expected.as_slice(),
+        "stdout diverged from golden {}; re-run with UPDATE_GOLDEN=1 to accept",
+        path.display()
+    );
+}
+
 /// Runs the binary against `server` from `dir`, with the env token and the
 /// loopback API URL set and the token-command env scrubbed.
 pub fn run(dir: &Path, server: &MockServer, args: &[&str]) -> Output {
