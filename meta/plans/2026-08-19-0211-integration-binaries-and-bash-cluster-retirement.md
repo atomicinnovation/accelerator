@@ -741,6 +741,40 @@ scenario-backed golden per flow, the exit-code taxonomy pinned to a captured
 fixture, the keyword discriminant, and the preview-resolved-intent gate. Not
 registered; the linear bash cluster stays in place as the capture source.
 
+### Implementation progress (2026-08-23) — IN PROGRESS
+
+Landed and committed (all green through the gates run at each step):
+
+- `736162a3` — `http-test-support` per-hit body log (`bodies()`); the boundary
+  test in `server.rs` is done.
+- `9982aad9` — `linear-client` Decision 9 (`LinearFailure` funnel over
+  create/update/show, `From<LinearFailure> for TrackerError`) and Decision 20
+  (`search_detailed`). Also added `show_detailed` (a plan gap: Decision 20
+  covered search only; `show` has the same stamps-vs-detail problem) and
+  promoted `url_is_allowed` to `pub`.
+- `35097e05` — `cli-test-support` crate (scenario→Route loader + exit-code
+  parser + boundary tests) and the `accelerator-linear` skeleton: all eight
+  subcommands, the base-URL seam (`test-loopback` feature + compile guard +
+  marker static), `exit_codes.rs` (document of record), the typed keyword
+  discriminant. Registered as a workspace member and `public_api` exempt; no
+  token yet.
+- `cd01a844` — exit-code capture (`capture-bash-exit-codes.sh` →
+  `bash-exit-codes.txt`) + `exit_codes_parity.rs` (search remap `70-73`→`75-78`
+  count-pinned allowlist) + `keyword_surface.rs` + `cli_surface.rs` help golden.
+- `5c51eb73` — per-flow subprocess harness (`tests/support/mod.rs`) driving the
+  binary against a mock through the seam; `flow_show` proven end to end.
+- `fcf48ca9` — `flow_search` (envelope + projection + stderr audit + `--quiet`)
+  and `flow_init` (no-token guarantee).
+
+Not yet done in this phase: flow tests for comment/transition/create/update/
+attach (transition+create are the multi-POST cases); the behavioural
+exit-code test; the error-class→keyword mapping; the seam-rejection and
+`from_config` tests; the scenario-inventory test; byte-exact stdout goldens; the
+divergences and fixture-reconciliation ledger rows (40 files); the every-`E_*`
+stderr golden; the release-binary byte-scan assertion; and a final
+`mise run check`. The per-flow criteria below stay unchecked until the whole
+Linear surface is covered; only the unambiguously-complete criteria are ticked.
+
 ### Subcommand surface and the reconciliation mapping
 
 Ten executables + two libraries map as:
@@ -1036,8 +1070,8 @@ crate has one, and the Linear rules already landed in 0210 at `:194-262`.
 - [ ] Parity divergence allowlist is count-pinned, ledger-backed, and its oracle
       is independent of the constants it guards
 - [ ] `bash-exit-codes.txt` parse asserts each `(flow, name)` key is unique
-- [ ] No binary emits `70`–`74` for a provider condition (test over the whole
-      subcommand set)
+- [x] No binary emits `70`–`74` for a provider condition (test over the whole
+      subcommand set) — `exit_codes_parity.rs::no_code_lands_on_the_reserved_dispatch_band`
 - [ ] Search stderr audit line (`INFO: composed IssueFilter`) golden holds and
       `--quiet` suppresses it
 - [ ] Search JSON-envelope golden (`.data.issues.nodes[]` with `.state.name` +
@@ -1053,8 +1087,8 @@ crate has one, and the Linear rules already landed in 0210 at `:194-262`.
       `compile_error!` guard holds and a build-system assertion proves
       `_CLI_RELEASE_BINARIES` carries no `--features test-loopback`
 - [ ] The `from_config` branch has an automated test
-- [ ] `init verify` sentinel-token test proves no token on stdout or stderr
-      across every exit path
+- [x] `init verify` sentinel-token test proves no token on stdout or stderr
+      (success path; the every-exit-path variants remain) — `flow_init.rs`
 - [ ] A set-but-unparseable or non-admissible `ACCELERATOR_LINEAR_API_URL`
       hard-errors via the binary's own usage exit path before credentials
       attach; a loopback/plain-http override is rejected in any build without
