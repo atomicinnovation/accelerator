@@ -14,7 +14,12 @@ use crate::classify::classify;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 
-/// A create/update failure, carrying the discriminant the binary needs.
+/// A fallible port-op failure, carrying the discriminant the binary needs.
+///
+/// Every error site of the six fallible port methods (`create`, `update`,
+/// `show`, `fetch_all`, `search`, `preview_create`) funnels through here, so
+/// `TrackerError` is derived from one place (`From<JiraFailure>`) and a new
+/// variant forces an `exit_codes.rs` arm (Decision 9).
 #[derive(Debug, Clone)]
 pub enum JiraFailure {
     /// A wire outcome the classifier recognises. `bash_code(outcome)` is the
@@ -28,6 +33,14 @@ pub enum JiraFailure {
     /// written back — the non-retryable "created remotely but unwritable" case
     /// the create flow must distinguish from a pre-send refusal.
     UnwritableIdentifier { identifier: String, reason: String },
+    /// A `fetch_all` request id that cannot be safely embedded in a JQL query
+    /// (the pre-flight identifier-safety refusal).
+    UnsafeQueryId { identifier: String, reason: String },
+    /// A `search`/`discover` scope that cannot be composed into JQL (no project
+    /// and not `all_projects`, or an unquotable value).
+    ComposeRejected { detail: String },
+    /// A discovery read failure behind `resolve_project`/`preview_create`.
+    ReadFailure { detail: String },
 }
 
 impl JiraFailure {
@@ -60,6 +73,16 @@ impl From<JiraFailure> for TrackerError {
                     ),
                 }
             }
+            JiraFailure::UnsafeQueryId { identifier, reason } => {
+                Self::Retryable {
+                    detail: format!(
+                        "jira fetch_all: {identifier:?} cannot be embedded in \
+                         a query — {reason}"
+                    ),
+                }
+            }
+            JiraFailure::ComposeRejected { detail }
+            | JiraFailure::ReadFailure { detail } => Self::Retryable { detail },
         }
     }
 }

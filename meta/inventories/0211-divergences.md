@@ -38,6 +38,18 @@ so every row names a real, passing test.**
 No residual search-envelope client-vs-bash shape gap was found: the read-side op
 carries every column the bash table rendered.
 
-## Jira track (Phase 4)
+## Jira track (Phase 3 — binary)
 
-_Pending — recorded at Phase 4's deletion boundary._
+| Divergence | Why | Detecting test |
+|---|---|---|
+| Search codes remapped `70`–`73` → `75`–`78` | The dispatch layer reserves `70`–`74` (`E_DISPATCH_UNCONFIGURED` = 74, Decision 16); a search code in that band would read as a dispatch verdict at the composition root | `cli/jira-cli/tests/exit_codes_parity.rs::no_code_lands_on_the_reserved_dispatch_band` and `::the_allowlist_is_count_pinned_and_moves_off_the_reserved_band` — the count-pinned allowlist asserts the remapped value while `bash-exit-codes.txt` keeps the original |
+| Errors route to exit codes + `E_*` stderr, not to a keyword | The keyword discriminant (Decision 11) carries **success** outcomes; error classes have no keyword, so a repointed body handling an error keys on the `E_*` stderr name or a non-zero exit | `cli/jira-cli/tests/flow_errors.rs` (observed exit code per class); the `for_surface`/`for_client`/`for_failure`/`for_credential` maps are wildcard-free so a new variant is a compile error, and `exit_codes_parity.rs::exit_codes_never_parses_a_tracker_error_detail` proves the code is read structurally |
+| Cleartext-credential subcommand dropped | `jira-auth-cli.sh` is not reproduced; credential validation folds into `init verify`, which resolves and checks the token without printing it (Decision 3) | `cli/jira-cli/tests/flow_init.rs::verify_caches_the_site_and_stamps_the_outcome`, `::a_verify_failure_never_leaks_the_token`, `::a_missing_token_never_leaks_and_maps_to_no_token` — the sentinel token appears on neither stdout nor stderr on any exit path |
+| `init` owns cache production | The repointed `init-jira` skill drops the `Write` grant, so the binary writes `site.json` (verify) and `projects.json`/`fields.json` (discover) via `JiraCache`, scaffolding the state dir itself | `cli/jira-cli/tests/flow_init.rs::verify_caches_the_site_and_stamps_the_outcome` |
+| `jira create --emit key` emits the bare key, no keyword | The post-create writeback consumer reads a bare validated key; the keyword discriminant is suppressed in `--emit key` mode, and the created-but-unwritable orphan is signalled by exit 16 (Decision 5/11) | `cli/jira-cli/tests/flow_create.rs::emit_key_prints_only_the_bare_key` and `::a_control_byte_key_fails_closed_at_exit_16` |
+| Custom-field composition not reproduced | The binary installs the no-op `FixedResolver` for both account and field resolution (`from_config`), so a `--custom slug=value` mutation and `@me` slug resolution are not composed; the CLI surface carries no custom-field flags | `cli/jira-cli/tests/cli_surface.rs::the_full_cli_surface_matches_the_committed_golden` pins the surface, so re-introducing the flags is a visible golden diff; the 3 `*custom-field*` scenarios are ledgered in `0211-fixture-reconciliation.md` |
+
+## Jira track (Phase 4 — cutover)
+
+_Pending — the write-gate, doc-vs-binary parity and deletion-boundary rows are
+recorded at Phase 4's deletion boundary._

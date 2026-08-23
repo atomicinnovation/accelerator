@@ -39,9 +39,7 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
         JiraFailure::Wire { outcome, .. } => {
             assert_eq!(bash_code(outcome), 11, "401 is unauthorised");
         }
-        JiraFailure::UnwritableIdentifier { .. } => {
-            panic!("a 401 is a wire failure, not the post-create case")
-        }
+        other => panic!("a 401 is a wire failure, got {other:?}"),
     }
 }
 
@@ -76,9 +74,23 @@ fn an_update_wire_failure_carries_the_granular_not_found_code() {
         JiraFailure::Wire { outcome, .. } => {
             assert_eq!(bash_code(outcome), 13, "a 404 is not-found");
         }
-        JiraFailure::UnwritableIdentifier { .. } => {
-            panic!("a 404 is a wire failure, not the post-create case")
+        other => panic!("a 404 is a wire failure, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_show_wire_failure_surfaces_the_granular_code() {
+    let server = MockServer::start();
+    server.route(RequestKey::get(&format!("{ISSUE}/ENG-9")), json(403, "{}"));
+
+    let client = client_for(&server, brief());
+    let failure = client.show_op(&id("ENG-9")).expect_err("403");
+
+    match failure {
+        JiraFailure::Wire { outcome, .. } => {
+            assert_eq!(bash_code(outcome), 12, "a 403 is forbidden");
         }
+        other => panic!("a 403 is a wire failure, got {other:?}"),
     }
 }
 

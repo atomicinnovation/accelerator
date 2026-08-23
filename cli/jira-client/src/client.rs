@@ -27,7 +27,6 @@ use tracker_support::TransportConfig;
 
 use crate::adf::markdown_to_document;
 use crate::auth::resolve_credentials;
-use crate::classify::classify;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::error::ClientError;
@@ -40,7 +39,6 @@ use crate::jql::FieldResolver;
 use crate::jql::FixedResolver;
 use crate::jql::Search;
 use crate::path;
-use crate::surface::SurfaceError;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
@@ -175,7 +173,7 @@ impl JiraClient {
     /// Reads one issue, returning the response **text** as well as its parsed
     /// form: the projection re-serialises the description, and only the raw
     /// bytes carry a numeric literal faithfully.
-    fn read(&self, id: &ExternalId) -> Result<(String, Value), TrackerError> {
+    fn read(&self, id: &ExternalId) -> Result<(String, Value), JiraFailure> {
         let path = Self::issue_path(id.as_str(), "")
             .map_err(|error| read_failure(&error.to_string()))?;
         let received = self
@@ -187,7 +185,7 @@ impl JiraClient {
                 None,
             )
             .map_err(|error| read_failure(&error.to_string()))?;
-        let parsed = json_body(&received, Operation::Read, id.as_str())?;
+        let parsed = json_body_op(&received, Operation::Read, id.as_str())?;
         Ok((received.body, parsed))
     }
 
@@ -280,8 +278,10 @@ impl JiraClient {
         };
         let clause =
             compose(&search, self.accounts.as_ref(), self.fields.as_ref())
-                .map_err(|error| TrackerError::Retryable {
-                    detail: error.to_string(),
+                .map_err(|error| {
+                    TrackerError::from(JiraFailure::ComposeRejected {
+                        detail: error.to_string(),
+                    })
                 })?;
 
         let mut found = Vec::new();
@@ -375,9 +375,11 @@ impl JiraClient {
         if self.project.is_empty() {
             return Ok(FieldResolution::Unset);
         }
-        let discovered = self
-            .discover_projects()
-            .map_err(|error| surface_read_failure(&error))?;
+        let discovered = self.discover_projects().map_err(|error| {
+            TrackerError::from(JiraFailure::ReadFailure {
+                detail: error.to_string(),
+            })
+        })?;
         let exists = discovered
             .get("projects")
             .and_then(Value::as_array)
@@ -507,24 +509,36 @@ impl JiraClient {
             id.as_str().to_owned(),
         ))
     }
+
+    /// `show`, surfacing the structured discriminant. The port `show` derives
+    /// its `TrackerError` from this.
+    ///
+    /// # Errors
+    ///
+    /// [`JiraFailure`] for a transport failure, a non-2xx status, a non-JSON
+    /// body, or a response that cannot be projected.
+    pub fn show_op(&self, id: &ExternalId) -> Result<RemoteIssue, JiraFailure> {
+        let (raw, payload) = self.read(id)?;
+        let projected =
+            remote_projection::project_raw(Integration::Jira, Op::Body, &raw)
+                .map_err(|error| read_failure(&error.to_string()))?;
+        Ok(RemoteIssue {
+            updated: timestamp(&payload),
+            // The projection deliberately emits no trailing newline; the port
+            // requires exactly one.
+            body: port_body(&projected),
+        })
+    }
 }
 
-/// A read never produces `Terminal`, so every read failure routes through the
-/// one classifier arm that cannot.
-fn read_failure(detail: &str) -> TrackerError {
-    classify(Outcome::Transport, Operation::Read, detail)
+/// A read never produces `Terminal`: every read failure carries the `Read`
+/// operation, whose `Transport` outcome the port derives as `Retryable`.
+fn read_failure(detail: &str) -> JiraFailure {
+    JiraFailure::wire(Outcome::Transport, Operation::Read, detail.to_owned())
 }
 
-fn json_body(
-    received: &Received,
-    operation: Operation,
-    detail: &str,
-) -> Result<Value, TrackerError> {
-    json_body_op(received, operation, detail).map_err(TrackerError::from)
-}
-
-/// The `json_body` parse, surfacing the structured discriminant so a port op's
-/// `create_op`/`update_op` path reads the granular code before the collapse.
+/// A 2xx JSON body, surfacing the structured discriminant so a port op reads
+/// the granular code before the collapse to `TrackerError`.
 fn json_body_op(
     received: &Received,
     operation: Operation,
@@ -566,14 +580,6 @@ fn update_fields(
     Ok(json!({"fields": {"summary": title, "description": description}}))
 }
 
-/// A discovery read applied no mutation, so a `SurfaceError` from it can only
-/// ever be [`TrackerError::Retryable`].
-fn surface_read_failure(error: &SurfaceError) -> TrackerError {
-    TrackerError::Retryable {
-        detail: error.to_string(),
-    }
-}
-
 impl RemoteTracker for JiraClient {
     fn create(
         &self,
@@ -595,16 +601,7 @@ impl RemoteTracker for JiraClient {
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
-        let (raw, payload) = self.read(id)?;
-        let projected =
-            remote_projection::project_raw(Integration::Jira, Op::Body, &raw)
-                .map_err(|error| read_failure(&error.to_string()))?;
-        Ok(RemoteIssue {
-            updated: timestamp(&payload),
-            // The projection deliberately emits no trailing newline; the port
-            // requires exactly one.
-            body: port_body(&projected),
-        })
+        self.show_op(id).map_err(TrackerError::from)
     }
 
     fn fetch_all(
@@ -629,12 +626,11 @@ impl RemoteTracker for JiraClient {
         }
         for id in &requested {
             tracker_support::identifier_is_safe(id.as_str()).map_err(
-                |refusal| TrackerError::Retryable {
-                    detail: format!(
-                        "jira fetch_all: {:?} cannot be embedded in a query \
-                         — {refusal}",
-                        id.as_str()
-                    ),
+                |refusal| {
+                    TrackerError::from(JiraFailure::UnsafeQueryId {
+                        identifier: id.as_str().to_owned(),
+                        reason: refusal.to_string(),
+                    })
                 },
             )?;
         }

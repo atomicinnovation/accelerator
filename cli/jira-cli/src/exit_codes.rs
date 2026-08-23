@@ -143,6 +143,9 @@ pub fn for_failure(failure: &JiraFailure) -> u8 {
     match failure {
         JiraFailure::Wire { outcome, .. } => code_for_outcome(*outcome),
         JiraFailure::UnwritableIdentifier { .. } => REQ_BAD_RESPONSE,
+        JiraFailure::UnsafeQueryId { .. } => JQL_UNSAFE_VALUE,
+        JiraFailure::ComposeRejected { .. } => JQL_NO_PROJECT,
+        JiraFailure::ReadFailure { .. } => SERVER_ERROR,
     }
 }
 
