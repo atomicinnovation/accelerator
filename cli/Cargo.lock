@@ -2802,7 +2802,7 @@ dependencies = [
 
 [[package]]
 name = "jira-cli"
-version = "1.24.0-pre.45"
+version = "1.24.0-pre.48"
 dependencies = [
  "clap",
  "cli-test-support",
