@@ -5,7 +5,7 @@ title: "Integration Binaries and Bash Cluster Retirement Implementation Plan"
 date: "2026-08-19T02:05:51+00:00"
 author: Toby Clemson
 producer: create-plan
-status: approved
+status: in-progress
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 derived_from: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
