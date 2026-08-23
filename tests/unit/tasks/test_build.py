@@ -10,6 +10,7 @@ import tasks.build as tb
 from tasks.build import (
     VersionCoherenceError,
     _assert_no_e2e_insecure,
+    _assert_no_test_loopback,
     _assert_static_elf,
     _debug_archive_targets,
     _is_statically_linked,
@@ -135,6 +136,29 @@ class TestAssertNoE2eInsecure:
         artifact.write_bytes(b"x\x00ACCELERATOR_VISUALISER_E2E_INSECURE\x00y")
         with pytest.raises(RuntimeError, match="E2E_INSECURE"):
             _assert_no_e2e_insecure(artifact)
+
+
+class TestAssertNoTestLoopback:
+    def test_passes_when_marker_absent(self, tmp_path):
+        artifact = tmp_path / "accelerator-linear-linux-x64"
+        artifact.write_bytes(b"\x00\x01an ordinary release binary\x00")
+        _assert_no_test_loopback(artifact)  # must not raise
+
+    def test_raises_for_the_linear_marker(self, tmp_path):
+        artifact = tmp_path / "accelerator-linear-linux-x64"
+        artifact.write_bytes(
+            b"x\x00ACCELERATOR_LINEAR_TEST_LOOPBACK_MARKER\x00y"
+        )
+        with pytest.raises(RuntimeError, match="test-loopback"):
+            _assert_no_test_loopback(artifact)
+
+    def test_raises_for_the_jira_marker(self, tmp_path):
+        # The shared suffix covers jira before its binary phase lands, so no
+        # per-provider edit is needed when it joins the release set.
+        artifact = tmp_path / "accelerator-jira-linux-x64"
+        artifact.write_bytes(b"ACCELERATOR_JIRA_TEST_LOOPBACK_MARKER\x00")
+        with pytest.raises(RuntimeError, match="test-loopback"):
+            _assert_no_test_loopback(artifact)
 
 
 class TestDebugArchiveTargets:
