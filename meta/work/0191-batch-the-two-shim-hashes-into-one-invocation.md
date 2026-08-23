@@ -5,7 +5,7 @@ title: "Batch the bootstrap's two shim hashes into one sha256 invocation"
 date: "2026-08-03T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
-status: draft
+status: ready
 kind: task
 priority: low
 parent: "work-item:0136"
@@ -13,7 +13,7 @@ relates_to:
   ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205",
    "work-item:0215", "work-item:0216"]
 tags: [shell, performance, bootstrap, bash-3.2]
-last_updated: "2026-08-17T13:00:00+00:00"
+last_updated: "2026-08-22T21:51:15+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-721
@@ -22,7 +22,7 @@ external_id: PP-721
 # 0191: Batch the bootstrap's two shim hashes into one sha256 invocation
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Ready
 **Priority**: Low
 **Author**: Toby Clemson
 
@@ -35,6 +35,17 @@ single `sha256sum f1 f2` with no `awk` saves roughly 2.5 ms per warm call
 without weakening anything: both digests are still computed and compared.
 
 ## Context
+
+**Current position (2026-08-22).** Batching the two hashes is worth doing on its
+own merits — a measured ~2.48 ms warm-path saving on this host's fast backend.
+The dated blocks below are the history of how its relationship to the latency
+gate shifted; the settled reading is that it is **not** required to close that
+gate (0189 closed at a ratio ceiling of 1.4, which the current measurement
+already clears) but is the evidence route to tightening the ceiling back to 1.3.
+Throughout, **G** is warm-call latency of the guarded `bin/accelerator` dispatch
+path and **B** the bare shell baseline it is measured against; `median(G) /
+median(B)` is 0189's **C5** criterion (its fifth acceptance criterion). Both
+definitions are inherited from 0169.
 
 Raised from 0186's closeout, which removed the exec probe and left this as the
 largest remaining warm-path term. 0186 deliberately did **not** absorb this: it
@@ -73,9 +84,10 @@ attempt 2 is retained above because it was quoted here first.
 
 **So 2.48 ms against a 0.747 ms shortfall — over three times what is needed.**
 The two `sha256_file` substitutions were re-measured in attempt 3's own session at
-**3.824 ms** combined (4.316 ms in attempt 2), consistent with the 7.05 ms row
-below once the 2.02 ms bash baseline is netted off, so the saving is expected to
-hold on this host.
+**3.824 ms** combined (4.316 ms in attempt 2). These come from a different session
+than the 7.05 ms table row below and were taken in a different shape, so they only
+broadly agree rather than reconcile term-for-term — but both put the two-hash cost
+well above the 0.747 ms shortfall, so the saving is expected to hold on this host.
 
 ⚠️ **The projection is a projection.** It assumes `median(B)` is unmoved by a
 change that touches only `G`, which is sound, and that the whole 2.48 ms lands
@@ -140,10 +152,23 @@ input is missing.
       `awk` — assertable from a `bash -x` trace using the seam 0186 added to
       `run_bootstrap`.
 - [ ] The three planted-stub tests pass unmodified.
-- [ ] A cold run with no staged shim behaves as today and produces no spurious
-      diagnostic from the missing second input.
+- [ ] A cold run with no staged shim exits with the same status as before the
+      change, and its combined output carries no new stderr line referencing the
+      missing second hash input — verified against a captured before/after diff
+      of the cold-run output.
+- [ ] On the one-input-missing path (no staged shim), the source shim's digest
+      from the batched call equals its standalone `sha256_file` value, asserting
+      digests are keyed to their path rather than to output position so a missing
+      second input cannot mis-assign the surviving digest.
+- [ ] The batched multi-file output format and the missing-second-input exit
+      behaviour are confirmed on the GNU coreutils backend (which the linux CI
+      lane resolves) and on the `shasum` fallback if the batched form is used
+      there, with the observed output recorded — mirroring how the criterion
+      below records the resolved backend.
 - [ ] Warm-path median measured before and after in one session on one host,
-      both figures and the resolved backend recorded.
+      both figures and the resolved backend recorded, and the after-median is
+      strictly less than the before-median on the resolved backend. The absolute
+      delta is recorded but not itself gated, to absorb host variance.
 - [ ] **The warm-dispatch ratio is re-measured after this lands**, via `mise run
       measure:warm-dispatch`, and the before/after `median(G) / median(B)`
       recorded beside the millisecond figures. Added 2026-08-17: this item's
@@ -156,20 +181,77 @@ input is missing.
 - [ ] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
 - [ ] `mise run` (bare default task) exits 0 end-to-end.
 
+## Open Questions
+
+- Does the batched `sha256sum f1 f2` form print one `<digest>  <path>` line per
+  input in argument order, and exit sanely when the second input is missing, on
+  GNU coreutils and on the `shasum` fallback? Verified only on Apple
+  `/sbin/sha256sum`. This blocks quoting a saving on any non-Apple lane, and
+  decides whether the parse can key on argument order or must key on the path
+  column.
+- Is the residual still worth removing once 0215 and 0216 are weighed? The
+  measured 2.48 ms is on the fast Apple backend; 0216 may cut the digest cost at
+  source and 0215 may remove a whole warm-path hash, either of which changes
+  what this term is worth — and which backend a CI lane resolves already swings
+  it roughly 3×. Resolved for scheduling as intentionally independent (see
+  Dependencies → Sequencing): this is context, not a gate on when the item runs.
+
 ## Dependencies
 
 - **Relates to**: 0186 (measured the saving and declined to absorb it), 0169
-  (whose latency gate this most directly affects), 0189 (measured the ratio this
-  item can move), **0215** (the other warm-path lever — removing the cache-hit
-  sha256) and **0216** (which may cut the digest cost instead, changing what this
-  item is worth).
+  (whose latency gate this most directly affects, and the origin of the
+  `median(G)/median(B)` definition), 0189 (measured the ratio this item can
+  move), **0205** (the source of the baseline warm-dispatch measurement —
+  `median(B)`/`median(G)`, the 1.3260 ratio and `warm-dispatch-3.json` — that
+  this item is measured against), **0215** (the other warm-path lever — removing
+  the cache-hit sha256) and **0216** (which may cut the digest cost instead,
+  changing what this item is worth).
+- **Sequencing**: intentionally independent of 0215/0216. On the fast backend the
+  two-hash batching stands on its own measured saving regardless of whether a
+  sibling later removes or cheapens a hash, so this item is not gated on that
+  decision; the second Open Question records the contingency as context, not a
+  scheduling constraint.
 - **Parent**: epic 0136.
 
 ## Assumptions
 
-- Every supported backend prints one `<digest>  <path>` line per input in
-  argument order. Verified for Apple `/sbin/sha256sum`; unverified for GNU
-  coreutils and `shasum` at time of writing.
+- The warm-path `median(B)` is unaffected by a change that touches only `G`. The
+  projected post-change ratio of ≈1.233 depends on it.
+
+## Technical Notes
+
+- Two call sites, one guarded. `sha256_file "${shim_source}"` always runs;
+  `sha256_file "${shim}"` runs only past the `[[ ! -x "${shim}" ]] ||`
+  short-circuit. A batch must not unconditionally hash `${shim}` on a cold run.
+- `sha256_file` is inlined into `bin/accelerator` deliberately — the
+  root-of-trust entry point sources nothing. Any batched helper stays inline.
+- Two viable shapes: keep the guard and batch only when the staged shim exists;
+  or always batch both, tolerate the missing-file stderr plus exit 1, and parse
+  the surviving digests by path column rather than position. The requirement not
+  to mis-assign digests when one input is missing favours the keyed parse, or
+  the guarded form that avoids the case entirely.
+- Bash 3.2 floor: no `mapfile`/`readarray`, no associative arrays. Read the two
+  lines with `read` over a here-string or a positional split.
+- Assert the fork count via the trace seam 0186 added to `run_bootstrap` — one
+  backend fork, zero `awk`, from a `bash -x` trace.
+
+## Drafting Notes
+
+- Moved the backend output-format item from Assumptions to Open Questions on the
+  author's instruction, and narrowed Assumptions to the one load-bearing
+  projection assumption so the section stays substantive.
+- Confirmed against 0189 (now `done`) that its measurement approach is settled:
+  absolute `median`/`p90` budgets gate, and C5 (`median(G)/median(B) ≤ 1.4` on
+  the fast backend) is retained only as the historical comparison discharging
+  0169. This item's "tighten C5 to 1.3 on evidence" reading remains accurate as
+  an opportunity, not a blocker.
+- Read the current `bin/accelerator` to ground the Technical Notes rather than
+  infer them.
+- Review pass 1 (2026-08-22) drove the AC and clarity edits: defined `G`/`B` and
+  `C5` in Context, gated the measurement AC, added the cross-backend AC, and
+  recorded 0205 plus the intentional-independence decision on 0215/0216. The
+  warm-dispatch ratio re-measurement criterion's 0189-tightening rationale was
+  kept as-is by author decision.
 
 ## References
 
@@ -178,3 +260,9 @@ input is missing.
   Results, which carries the measurement and the backend range
 - `meta/plans/2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path.md` —
   What We're NOT Doing
+- `meta/work/0169-vcs-subdomain-and-hooks-migration.md` — origin (its deferred
+  Phase 10) of the `median(G)/median(B)` ratio definition this item inherits
+- `meta/work/0189-once-per-dispatch-cache-root-probe-guarantee.md` — defines the
+  C5 ratio criterion and the 1.4 ceiling this item's re-measurement can tighten
+- `meta/work/0205-close-the-warm-dispatch-measurement-method.md` — the baseline
+  warm-dispatch figures (`warm-dispatch-3.json`) this item is measured against
