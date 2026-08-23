@@ -9,6 +9,10 @@
 //! - JSON-emitting subcommands carry a top-level `outcome` field inside the
 //!   envelope, so stdout stays one parseable document.
 
+// The keyword-surface test `#[path]`-includes this module standalone, where the
+// render helpers read as unused; they are used from `main`.
+#![allow(dead_code)]
+
 use serde_json::Value;
 
 /// Emits the trailing `<keyword>\t<detail>` discriminant for a text subcommand.

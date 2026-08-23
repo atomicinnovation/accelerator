@@ -1,0 +1,129 @@
+=== accelerator-linear --help ===
+Usage: accelerator-linear <COMMAND>
+
+Commands:
+  create      Create an issue from a work-item file or an explicit title
+  update      Update an issue's fields
+  show        Show an issue as JSON
+  search      Search issues, rendering a JSON envelope
+  comment     Comment on an issue
+  transition  Transition an issue to a named workflow state
+  attach      Attach a link or a file to an issue
+  init        Verify credentials, list teams, or discover a team's states
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-linear create --help ===
+Create an issue from a work-item file or an explicit title
+
+Usage: accelerator-linear create [OPTIONS] [FILE]
+
+Arguments:
+  [FILE]  A work-item file whose frontmatter and body seed the issue
+
+Options:
+      --title <TITLE>          The issue title (the no-file mode)
+      --body-file <BODY_FILE>  A Markdown body file for the no-file mode
+  -q, --quiet                  
+  -h, --help                   Print help
+
+=== accelerator-linear update --help ===
+Update an issue's fields
+
+Usage: accelerator-linear update [OPTIONS] <ID>
+
+Arguments:
+  <ID>  
+
+Options:
+      --title <TITLE>              
+      --description <DESCRIPTION>  
+      --state <STATE>              
+      --assignee-id <ASSIGNEE_ID>  
+      --priority <PRIORITY>        
+  -q, --quiet                      
+  -h, --help                       Print help
+
+=== accelerator-linear show --help ===
+Show an issue as JSON
+
+Usage: accelerator-linear show [OPTIONS] <ID>
+
+Arguments:
+  <ID>  
+
+Options:
+      --comments <COMMENTS>  Include the most recent N comments
+  -h, --help                 Print help
+
+=== accelerator-linear search --help ===
+Search issues, rendering a JSON envelope
+
+Usage: accelerator-linear search [OPTIONS]
+
+Options:
+      --state <STATE>        
+      --assignee <ASSIGNEE>  
+      --label <LABEL>        
+      --text <TEXT>          
+      --limit <LIMIT>        
+  -q, --quiet                
+  -h, --help                 Print help
+
+=== accelerator-linear comment --help ===
+Comment on an issue
+
+Usage: accelerator-linear comment <COMMAND>
+
+Commands:
+  add   Add a Markdown comment to an issue
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-linear transition --help ===
+Transition an issue to a named workflow state
+
+Usage: accelerator-linear transition [OPTIONS] <ID> [STATE]
+
+Arguments:
+  <ID>     
+  [STATE]  The target state name, positional or via `--state`
+
+Options:
+      --state <STATE>  
+  -q, --quiet          
+  -h, --help           Print help
+
+=== accelerator-linear attach --help ===
+Attach a link or a file to an issue
+
+Usage: accelerator-linear attach [OPTIONS] <ID>
+
+Arguments:
+  <ID>  
+
+Options:
+      --url <URL>      
+      --file <FILE>    
+      --title <TITLE>  
+  -q, --quiet          
+  -h, --help           Print help
+
+=== accelerator-linear init --help ===
+Verify credentials, list teams, or discover a team's states
+
+Usage: accelerator-linear init <COMMAND>
+
+Commands:
+  verify      Verify credentials without printing them
+  list-teams  List the teams the token can see
+  discover    Discover a team's workflow states
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
