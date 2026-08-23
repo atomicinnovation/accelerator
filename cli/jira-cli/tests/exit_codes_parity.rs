@@ -104,3 +104,24 @@ fn no_code_lands_on_the_reserved_dispatch_band() {
         );
     }
 }
+
+/// The binary reads the granular code from the structured discriminant
+/// (`JiraFailure`'s `Outcome`, a `SurfaceError`, a `ClientError`), never by
+/// parsing it back out of a collapsed `TrackerError` detail string (Decision 9).
+/// This grep guard fails a regression to a `detail` parse, which the compiler
+/// alone would not catch.
+#[test]
+fn exit_codes_never_parses_a_tracker_error_detail() {
+    let source = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/exit_codes.rs"),
+    )
+    .expect("exit_codes.rs is readable");
+    assert!(
+        !source.contains("TrackerError"),
+        "exit_codes.rs must not reach for TrackerError — read the discriminant"
+    );
+    assert!(
+        !source.contains(".detail"),
+        "exit_codes.rs must not read a `.detail` string to derive a code"
+    );
+}
