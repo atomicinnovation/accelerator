@@ -113,7 +113,8 @@ fixture is pinned as consumed by `scenario_inventory.rs`.
 | `show-issue-404.json` | **ported** | `show-issue-404.json` — `flow_errors::show_not_found_routes_to_its_own_code` (200 `issue: null` → 82) |
 | `teams-200.json` | **ported** | `teams-200.json` — `flow_init::init_list_teams_renders_the_teams_with_the_listed_keyword` |
 | `transition-update-200.json` | **ported** | `transition-update-200.json` — `flow_transition::transition_resolves_the_state_and_posts_the_stateid` |
-| `viewer-200.json` | **ported** | `viewer-200.json` — `flow_init::init_verify_never_emits_the_token…` + `flow_errors` |
+| `viewer-200.json` | **ported** | `viewer-200.json` — `flow_init::init_verify_persists_the_viewer_without_leaking_the_token` + `flow_errors` |
+| `team-states-200.json` | **ported** | `team-states-200.json` — `flow_init::init_discover_persists_the_catalogue` (the `discover` cache-write path) |
 | `attach-binary-bad-upload-url.json` | superseded | `linear-client/tests/attach.rs::an_upload_url_off_linear_app_is_refused_before_any_bytes_move` (`BadUploadUrl`; the binary maps it to 135, pinned by `exit_codes_parity.rs`) |
 | `attach-binary-crlf-header.json.tmpl` | superseded | `attach.rs::an_echoed_header_carrying_crlf_is_refused` |
 | `attach-binary-redirect.json.tmpl` | superseded | `attach.rs::a_redirect_response_to_the_put_is_refused_rather_than_followed` |
@@ -134,15 +135,14 @@ fixture is pinned as consumed by `scenario_inventory.rs`.
 | `paginate-zero.json` | superseded | `port.rs` (empty result) |
 | `search-paginate-200.json` | superseded | `linear-client/tests/search_projection.rs` (Decision 20 projection paging) |
 | `team-no-states-200.json` | superseded | `linear-client/tests/discovery.rs` (a team with no states) |
-| `team-states-200.json` | superseded | `discovery.rs` (`discover_team` states) |
 | `team-states-y-200.json` | superseded | `discovery.rs` (a second team's states) |
 | `create-response-dropped-200.json` | superseded | `linear-client/tests/projection_corpus.rs` (create response missing projected fields) |
 | `issue-update-dropped-200.json` | superseded | `projection_corpus.rs` (update response missing projected fields) |
 | `viewer-slow-200.json` | superseded | `linear-client/tests/timeouts.rs` (a slow response exercising the read timeout) |
 | `update-200-capture.json` | superseded | ported `issue-update-200.json` above — the same `issueUpdate` condition, capture-body variant |
 
-**Count**: 40 files — **14 ported** into `cli/linear-cli/tests/fixtures/
-scenarios/` (each consumed, pinned by `scenario_inventory.rs`), **26
+**Count**: 40 files — **15 ported** into `cli/linear-cli/tests/fixtures/
+scenarios/` (each consumed, pinned by `scenario_inventory.rs`), **25
 superseded** by an existing `cli/linear-client` crate test driving the same
 condition. Porting all 40 mechanically is declined (Decision 15): it would
 re-create test surface the client crate already carries.

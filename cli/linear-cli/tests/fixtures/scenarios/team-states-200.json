@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"team\": {\"id\": \"team-x-uuid\", \"key\": \"BLA\", \"name\": \"Team X\", \"states\": {\"nodes\": [{\"id\": \"state-todo\", \"name\": \"Todo\", \"type\": \"unstarted\", \"position\": 0}, {\"id\": \"state-ip\", \"name\": \"In Progress\", \"type\": \"started\", \"position\": 1}]}}}}"
+      },
+      "expect_body_contains": "team"
+    }
+  ]
+}

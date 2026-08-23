@@ -105,14 +105,24 @@ fn integrations_dir(
     })
 }
 
+/// A built client and the paths its init caches are written under.
+pub struct Built {
+    pub client: LinearClient,
+    /// `paths.integrations` — the Linear state dir is `<root>/linear/`.
+    pub integrations_root: PathBuf,
+    /// The discovered project root, the write-bounds ceiling for the caches.
+    pub project_root: PathBuf,
+}
+
 /// Builds a Linear client from the working directory's configuration, honouring
-/// the validated base-URL seam, and returns it alongside the integrations root.
+/// the validated base-URL seam, and returns it alongside the paths the init
+/// caches are written under.
 ///
 /// # Errors
 ///
 /// [`ContextError`] for a bad override, an unreadable config, or a client that
 /// cannot be constructed.
-pub fn build_client() -> Result<(LinearClient, PathBuf), ContextError> {
+pub fn build_client() -> Result<Built, ContextError> {
     let start = std::env::current_dir().map_err(|error| {
         ContextError::Config(format!(
             "could not read the working directory: {error}"
@@ -143,7 +153,11 @@ pub fn build_client() -> Result<(LinearClient, PathBuf), ContextError> {
         None => LinearClient::from_config(&context, &integrations_root)
             .map_err(ContextError::Client)?,
     };
-    Ok((client, integrations_root))
+    Ok(Built {
+        client,
+        integrations_root,
+        project_root: root,
+    })
 }
 
 /// The override branch: the whole client `from_config` builds, differing only in

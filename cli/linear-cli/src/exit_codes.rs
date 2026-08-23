@@ -100,8 +100,19 @@ pub const ATTACH_UPLOAD_FAILED: u8 = 136;
 pub const ATTACH_REGISTER_FAILED: u8 = 137;
 pub const ATTACH_BAD_FLAG: u8 = 138;
 
+use linear_client::cache::CacheError;
 use linear_client::classify::{bash_code, Outcome};
 use linear_client::{ClientError, LinearFailure, SurfaceError};
+
+/// The exit code for a discovery-cache write failure. A held lock maps to the
+/// shared refresh-lock code; an IO or serialisation failure is a generic error.
+#[must_use]
+pub const fn for_cache(error: &CacheError) -> u8 {
+    match error {
+        CacheError::LockContended { .. } => REFRESH_LOCKED,
+        CacheError::Io { .. } | CacheError::Serialise { .. } => ERROR,
+    }
+}
 
 /// The exit code for a structured port-op failure (`create`/`update`/`show`).
 #[must_use]

@@ -11,7 +11,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser as _;
-use linear_client::{LinearClient, Search};
+use linear_client::cache::{LinearCache, SystemFilesystem};
+use linear_client::Search;
 use serde_json::{json, Value};
 use tracker::ExternalId;
 
@@ -36,7 +37,7 @@ fn id_of(value: &str) -> ExternalId {
 }
 
 /// Builds the client, or prints the failure and returns the mapped exit code.
-fn client_or_report() -> Result<(LinearClient, std::path::PathBuf), ExitCode> {
+fn client_or_report() -> Result<context::Built, ExitCode> {
     context::build_client().map_err(|error| match error {
         ContextError::BadApiUrl(raw) => {
             eprintln!(
@@ -66,7 +67,7 @@ fn print_json(value: &Value) {
 
 fn run_show(args: &ShowArgs) -> ExitCode {
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     match client.show_detailed(&id_of(&args.id), args.comments) {
@@ -94,7 +95,7 @@ fn run_show(args: &ShowArgs) -> ExitCode {
 
 fn run_search(args: SearchArgs) -> ExitCode {
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     let search = Search {
@@ -144,7 +145,7 @@ fn run_comment(action: CommentAction) -> ExitCode {
             Err(code) => return code,
         };
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     match client.add_comment(&args.id, &body) {
@@ -185,7 +186,7 @@ fn run_transition(args: TransitionArgs) -> ExitCode {
         return ExitCode::from(exit_codes::TRANSITION_NO_STATE);
     };
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     match client.transition(&args.id, &state) {
@@ -205,7 +206,7 @@ fn run_transition(args: TransitionArgs) -> ExitCode {
 
 fn run_attach(args: &AttachArgs) -> ExitCode {
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     let result = match (args.url.as_deref(), args.file.as_deref()) {
@@ -250,7 +251,7 @@ fn run_update(args: UpdateArgs) -> ExitCode {
         return ExitCode::from(exit_codes::UPDATE_NO_OPS);
     }
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     // A state change routes through the transition mutation; a plain field
@@ -290,7 +291,7 @@ fn run_create(args: &CreateArgs) -> ExitCode {
         Err(code) => return code,
     };
     let client = match client_or_report() {
-        Ok((client, _)) => client,
+        Ok(built) => built.client,
         Err(code) => return code,
     };
     match client.create_op(&title, &body, "story") {
@@ -355,14 +356,30 @@ fn resolve_create_inputs(
 }
 
 fn run_init(action: InitAction) -> ExitCode {
-    let client = match client_or_report() {
-        Ok((client, _)) => client,
+    let built = match client_or_report() {
+        Ok(built) => built,
         Err(code) => return code,
     };
+    let state_dir = built.integrations_root.join("linear");
+    // The catalogue write takes an mkdir lock whose parent must already exist,
+    // so scaffold the state directory before either cache write.
+    if let Err(error) = std::fs::create_dir_all(&state_dir) {
+        eprintln!("E_CACHE_IO: {}: {error}", state_dir.display());
+        return ExitCode::from(exit_codes::ERROR);
+    }
+    let filesystem = SystemFilesystem::new(built.project_root.clone());
+    let cache = LinearCache::new(&filesystem, state_dir);
     match action {
-        InitAction::Verify => match client.discover_viewer() {
-            Ok(_) => {
-                keywords::text_line(keywords::Init::Verified.keyword(), "");
+        InitAction::Verify => match built.client.discover_viewer() {
+            Ok(viewer) => {
+                if let Err(error) = cache.write_viewer(&viewer) {
+                    eprintln!("{error}");
+                    return ExitCode::from(exit_codes::for_cache(&error));
+                }
+                print_json(&keywords::with_outcome(
+                    viewer,
+                    keywords::Init::Verified.keyword(),
+                ));
                 ExitCode::SUCCESS
             }
             Err(error) => {
@@ -370,7 +387,7 @@ fn run_init(action: InitAction) -> ExitCode {
                 ExitCode::from(exit_codes::INIT_VERIFY_FAILED)
             }
         },
-        InitAction::ListTeams => match client.list_teams() {
+        InitAction::ListTeams => match built.client.list_teams() {
             Ok(teams) => {
                 let envelope = json!({"teams": teams});
                 print_json(&keywords::with_outcome(
@@ -385,8 +402,12 @@ fn run_init(action: InitAction) -> ExitCode {
             }
         },
         InitAction::Discover { team_id } => {
-            match client.discover_team(&team_id) {
+            match built.client.discover_team(&team_id) {
                 Ok(catalogue) => {
+                    if let Err(error) = cache.write_catalogue(&catalogue) {
+                        eprintln!("{error}");
+                        return ExitCode::from(exit_codes::for_cache(&error));
+                    }
                     print_json(&keywords::with_outcome(
                         catalogue,
                         keywords::Init::Discovered.keyword(),
