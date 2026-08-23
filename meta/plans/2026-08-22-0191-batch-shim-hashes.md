@@ -466,22 +466,22 @@ output. Mirror the existing cold-path probe test's fresh-cache setup.
 
 #### Automated Verification
 
-- [ ] The warm-path fork-count test fails before the code change and passes
+- [x] The warm-path fork-count test fails before the code change and passes
       after: `mise run test:integration -- -k forks_the_sha256_backend_once`
-- [ ] The cold-path fork-count / no-missing-input test passes (AC-3):
+- [x] The cold-path fork-count / no-missing-input test passes (AC-3):
       `mise run test:integration -- -k cold_path`
-- [ ] The forced-fallback test exercises the batched `shasum` form and passes:
+- [x] The forced-fallback test exercises the batched `shasum` form and passes:
       `mise run test:integration -- -k on_the_shasum_fallback`
-- [ ] The stale-shim rejection test (which discharges AC-4) passes:
+- [x] The stale-shim rejection test (which discharges AC-4) passes:
       `mise run test:integration -- -k stale_staged_shim`
-- [ ] The three planted-stub tests pass unmodified:
+- [x] The three planted-stub tests pass unmodified:
       `mise run test:integration -- -k planted_staged_shim`
-- [ ] The existing newline-cache-dir test stays green under the new path-column
+- [x] The existing newline-cache-dir test stays green under the new path-column
       parse: `mise run test:integration -- -k newline`
-- [ ] The full entrypoint suite passes:
+- [x] The full entrypoint suite passes:
       `mise run test:integration -- tests/integration/entrypoint`
-- [ ] `scripts/lint-bashisms.sh` reports no findings on `bin/accelerator`
-- [ ] `mise run check` exits 0 (shfmt + ShellCheck across `scripts`, plus the
+- [x] `scripts/lint-bashisms.sh` reports no findings on `bin/accelerator`
+- [x] `mise run check` exits 0 (shfmt + ShellCheck across `scripts`, plus the
       other components)
 
 The cold-path fork count / AC-3 stderr and the version-change (stale-shim) cases
