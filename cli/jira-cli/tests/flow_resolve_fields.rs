@@ -39,6 +39,31 @@ fn the_configured_default_project_is_the_config_source() {
 }
 
 #[test]
+fn the_project_derives_from_the_shared_config_source() {
+    // Decision 17: `jira resolve-fields` and `work create --push --dry-run` do
+    // NOT agree field-for-field — the work form emits the raw kind with a
+    // network-preview `configured`/`unresolvable` source vocabulary, while this
+    // config-only form emits the mapped Jira issue-type with a `mapped`/`config`
+    // vocabulary. The one field they genuinely share is the project value, both
+    // read from `work.default_project_code`; this pins that shared derivation.
+    let dir = support::scratch(support::CONFIG);
+    let output = run(dir.path(), &["resolve-fields", "--kind", "bug"]);
+    assert!(output.status.success(), "exited {:?}", output.status.code());
+    let fields: Vec<String> = stdout_of(&output)
+        .trim_end()
+        .split('\t')
+        .map(str::to_owned)
+        .collect();
+    // project value == work.default_project_code, from the config source.
+    assert_eq!(fields[2], "ENG", "the project is the configured default");
+    assert_eq!(fields[3], "config", "read from the shared config source");
+    // The type is the mapped Jira issue-type name, not the raw kind the work
+    // form emits — the deliberate divergence.
+    assert_eq!(fields[0], "Bug", "the mapped issue-type, not the raw kind");
+    assert_eq!(fields[1], "mapped");
+}
+
+#[test]
 fn an_unknown_kind_defaults_to_task() {
     let dir = support::scratch(support::CONFIG);
     let output = run(
