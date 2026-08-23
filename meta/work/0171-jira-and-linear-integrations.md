@@ -132,13 +132,16 @@ and restates it, so an increment can be planned, merged and accepted on its own.
   repoints, the work suite floor, the dirty guard, the `E_DISPATCH_*`
   consolidation, the `tracker` doc-comment sweep — and the **three port-less
   bridge capabilities**, since this is the child that deletes the scripts
-  carrying them. It also owns the whole-repository `jq`/`curl` equality
-  assertion, because the work skills are repointed here.
+  carrying them. It owns only the **work-skill** half of the `jq`/`curl`
+  equality (its repointed work skills); the **whole-repository** `jq`/`curl`
+  survivor-set assertion is 0211's, since only 0211 can satisfy it once the
+  integration bodies are repointed.
 - **0211 — Integration Binaries and Bash Cluster Retirement.**
   `accelerator-jira` and `accelerator-linear` with eight flows each, their exit-
   code contract, per-flow request and **stdout** goldens, registration and the
   release manifest, then both script clusters, their suites, the mock servers,
-  the integrations floor and the seven jira/linear `SHELL_LIBRARIES` entries.
+  the integrations floor and the seven jira/linear `SHELL_LIBRARIES` entries. It
+  owns the **whole-repository** `jq`/`curl` survivor-set assertion.
 - **0213 — Conversational Conflict Resolution Flow.** The conversational half in
   `sync-work-items/SKILL.md`. Gated by none of this item's Open Questions and by
   no credentialed target, so it can land first — and should, since
@@ -266,15 +269,22 @@ settled and closed.
   Evidence: `cli/licence-audit/new-trees.txt` and
   `tests/integration/deny/test_licence_closure.py`.
 - `linear-graphql.sh` classified as a production script or a library entry —
-  *pending*.
+  **decided** (0211 Phase 2): a production script, not a `SHELL_LIBRARIES` entry.
+  It is named by no `SKILL.md` (not even in prose) and is reachable only through
+  the wildcard glob, so it was never a witnessed entrypoint; it was deleted with
+  the linear cluster (`0211-removal-set.md`).
 - Consumer sweep result for the eighteen deleted work scripts (the grep command
   and its empty output) — *pending*.
 - Reverse cross-cluster sweep result: references from `skills/work/scripts/` into
   either integration cluster or into the two Python mock servers, with each one's
-  resolution — *pending* (0211).
+  resolution — **decided** (0211 Phase 5): obsolete by construction. 0212 deleted
+  `skills/work/scripts/` entirely, so the source directory of any such reference
+  no longer exists — its absence is itself the record.
 - Flow-coverage mapping: each of the 22 Jira and 12 Linear production scripts to a
-  named subcommand or a recorded internal-helper classification — *pending*
-  (0211).
+  named subcommand or a recorded internal-helper classification — **decided**
+  (0211 Phases 2/4): recorded in `0211-reconciliation.md` (the reconciliation
+  table, each internal helper naming its subsuming subcommand) and cross-checked
+  by `0211-suite-audit.md`.
 - Conflict-flow walkthrough evidence, one run per fixture including the clean
   exit-`0` case, committed under `skills/work/sync-work-items/evals/` in the
   reduced secret-scrubbed shape of `cli/tracker-test-support/src/evidence.rs` —
@@ -303,8 +313,13 @@ settled and closed.
   baseline records. Byte-identity of every relocated golden is now guarded by a
   sha256 manifest in `cli/work-adapters/tests/fixtures/bash-parity-baseline.txt`.
 - Per-flow fixture capture source (credentialed target or mock-served) —
-  *pending*.
-- Cross-skill `jq`/`curl` `allowed-tools` audit result — *pending*.
+  **decided** (0211 Phases 2/4): mock-served against the deterministic mock
+  servers, live-anchored to 0210's 2026-08-21 contract evidence (Decision 8);
+  each generator's revival anchor is recorded in `0211-removal-set.md`.
+- Cross-skill `jq`/`curl` `allowed-tools` audit result — **decided** (0211
+  Phase 5): `grep -rn "Bash(jq\|Bash(curl" skills/` returns nothing; the
+  whole-repository shared-asset sweep's residual set is empty under its declared
+  exclusions (`0211-divergences.md` / `0211-removal-set.md`).
 - Identifier-safety check — **decided**: carried forward, an unsafe identifier
   is a `Terminal` failure.
 
@@ -451,6 +466,105 @@ the error variant asserted. A 1.35×T bound leaves 140ms of slack at T = 400ms,
 inside scheduler jitter on a loaded runner, and this repo has a documented flake
 history. Retry timing is asserted as *data* through an injected `Sleeper` and
 seeded `Jitter`, never by wall clock.
+
+### Plan decision register (0211)
+
+The cross-cutting rationale from the 0211 plan, mirrored here so it survives the
+plan's archival. The plan's own copy and this one must not be re-argued
+independently.
+
+1. **Merge granularity — one work item, six phases.** Jira and Linear are
+   independently-mergeable phase groups within 0211; the provider-seam split into
+   sibling children is declined, absorbed by the phases.
+2. **Preview resolved intent, not wire bytes.** The write flows drop the
+   `--print-payload`/`--describe` wire preview; repointed bodies preview the
+   resolved human-facing intent and the binary sends atomically after a confirm,
+   pinned by the write-gate guard and a stdout-before-mutation assertion.
+3. **Drop the cleartext-credential subcommand.** `jira-auth-cli.sh` /
+   `linear-auth-cli.sh` are not reproduced; credential validation folds into
+   `init verify`, which resolves and checks the token without printing it.
+4. **`resolve-fields` is an `accelerator jira` subcommand.** It reproduces the
+   tab-separated four-field contract and its exit codes, reading config through
+   the `config` crates with no shell-out and no API call.
+5. **`jira-emit-key.sh` → `jira create --emit key`.** A bare-key projection
+   carrying the post-create "created remotely but unwritable" semantic; its code
+   is taken from the captured fixture, not asserted as a literal.
+   `jira-jql-cli.sh` is dropped (orphan).
+6. **Exit-code enforcement — the `work-cli` model, module doc as document of
+   record.** Handlers return `ExitCode` inline; each binary carries
+   `exit_codes.rs` + a fixture-anchored parity test with a count-pinned
+   divergence allowlist. `bash-exit-codes.txt` is the authoritative name→integer
+   contract.
+7. **Write skills stay bare-`Bash`.** They need not witness a token (the six
+   read/init skills do); `wc -c` and the `config-common.sh` writeback survive.
+8. **Golden provenance — mock-served, live-anchored.** Bash-flow goldens are
+   captured against the deterministic mocks; 0210's 2026-08-21 contract evidence
+   (jira 6 / linear 7 records) is the reality anchor.
+9. **Port-op integers read structurally, not parsed from `detail`.** Every
+   fallible port-op error site funnels through one internal rich failure enum
+   (`JiraFailure`/`LinearFailure`) from which `TrackerError` is derived, so a new
+   variant forces an `exit_codes.rs` arm; the binary maps the same value to an
+   exit code. Contained inside the `_ADAPTER`-exempt client crate.
+10. **The base-URL seam is a validated credential destination; loopback is behind
+    a test-only feature.** `ACCELERATOR_{JIRA,LINEAR}_API_URL` ships in release
+    but is admitted only as an https allowlisted-host destination through each
+    client's own strict check; loopback is gated by the `test-loopback` cargo
+    feature, enforced by a compile guard and a staged-binary byte scan.
+11. **Repointed bodies branch on a structured stdout keyword; the integers
+    survive as machine parity.** Each subcommand emits a closed, count-pinned
+    keyword (trailing `<keyword>\t<detail>`, a top-level `outcome` field for JSON,
+    or suppressed for strict/bare projections); bodies branch on it, and a
+    doc-vs-binary parity guard binds body keywords to the crate's declared set.
+12. **The ADF differential is converted to a frozen oracle before deletion
+    (Phase 0).** `cli/jira-client`'s bash-shelling differential is rewritten to
+    read a committed, digest-pinned corpus, so deleting the ADF drivers cannot red
+    the test lane. The unedited self-test still proves the comparison can reject.
+13. **`scripts/work-common.sh` is retired by 0211, not handed to 0174.** Its four
+    consumers are all inside the two clusters, so it is dead once they go and is
+    removed with its two guard-list entries (`SHELL_LIBRARIES` 14→13).
+14. **The `test:integration:work` husk is retired alongside `integrations`.** It
+    discovered zero suites and passed green over nothing; both are removed with
+    their `mise` leaves, roll-up members and partition mirrors.
+15. **Fixture migration bar — port what a Rust test consumes, ledger the rest.**
+    Every ported scenario is consumed by a test; the rest are ledgered with a
+    reason, count-pinned against the pre-deletion list
+    (`0211-fixture-reconciliation.md`).
+16. **The reserved dispatch band is `70`–`74`.** 0212 added
+    `E_DISPATCH_UNCONFIGURED` = 74; the search codes remap off the whole band
+    (bash `70`–`73` → `75`–`78`) and a test proves no binary emits `70`–`74`.
+17. **The two-producer tab contract is reconciled by prefix.** `jira
+    resolve-fields` and `work create --push --dry-run` are not unified; a test
+    pins the shared config source. *Refined during implementation*: they resolve
+    different vocabularies (config-only mapped type vs network raw kind), so only
+    the project source is genuinely shared — recorded as a divergence.
+18. **`cli/tracker-support`'s dead bash helpers go.** `run_bash` and its sole
+    caller `repo_root` have had no consumer since 0212 deleted
+    `mapper_differential.rs`; both are removed and the module doc rewritten.
+19. **The shared-asset sweep is recorded with a declared exclusion list.** The
+    grep excludes `meta/`, `CHANGELOG.md`, the frozen eval transcript and the
+    gitignored docs-site mirror, and asserts the residual set is empty.
+20. **Search gets an additive read-side client surface.** Each client gains a
+    read-only projection op over a distinct search query (linear `state`/
+    `assignee` with the title preserved; jira the requested `fields` map plus the
+    `nextPageToken` cursor), so the rendered table is not degraded — additive
+    inside the `_ADAPTER`-exempt crate, touching neither the port nor the sync
+    request shape.
+21. **Init cache is read-compatible with bash-era state, and fails closed on an
+    unrecognisable one.** An absent version marker is the implicit bash-era
+    version and reads unchanged; a present-but-unrecognised marker or an
+    unparseable shape fails closed in the client crate's cache-read path, before
+    any mutation.
+
+**Amendment (implementation, session 3).** Phase 3 shipped a thin jira
+`create`/`update` (summary/body/type only). Before the jira cutover the surface
+was widened back to bash parity — priority, labels, components, parent, custom
+fields, assignee, reporter, inline body, issuetype-id — so `/create-jira-issue`
+and `/update-jira-issue` keep their capability. This reverses Decision 2's
+implication that the rich flags vanish (it does **not** re-open the mutation
+surface for the sync port): resolution happens in the binary over the caches and
+`create_op`/`update_op` assemble the payload, leaving the port's minimal
+`create`/`update` and the Decision-9 funnel unchanged. Recorded in
+`0211-divergences.md`.
 
 ## Dependencies
 
@@ -683,9 +797,11 @@ seeded `Jitter`, never by wall clock.
   document the same child authors — it previously could not fail. The per-flow
   fixture *provenance* obligation, silently dropped in the carve-out, is restored,
   so sixteen fixtures cannot quietly pin the new clients to the mock servers 0211
-  deletes. The whole-repository `jq`/`curl` equality assertion moved to 0212, since
-  0211 could not satisfy it before the work skills were repointed. The
-  ADF/JQL/GraphQL assertions moved to 0210, where the code they pin lives. 0210
+  deletes. The whole-repository `jq`/`curl` equality assertion is 0211's (a later
+  ## Correction settled this — the carve-out had mis-moved it to 0212); only 0211
+  can satisfy it, since it repoints the last integration bodies, while 0212
+  asserts only the work-skill half. The ADF/JQL/GraphQL assertions moved to 0210,
+  where the code they pin lives. 0210
   gained a whole-corpus offline projection criterion — the only window in which the
   bash corpus exists — and its three transcriptions now have named paths and are
   scoped to its own merge, so the siblings' "verify against 0210's baseline"

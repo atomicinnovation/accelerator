@@ -245,7 +245,6 @@ _RECONCILED_LIBRARIES = frozenset(
         "scripts/fs-common.sh",
         "scripts/hash-common.sh",
         "scripts/log-common.sh",
-        "scripts/work-common.sh",
         "scripts/config-defaults.sh",
         "scripts/config-common.sh",
         "scripts/atomic-common.sh",

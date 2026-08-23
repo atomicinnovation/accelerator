@@ -1,8 +1,8 @@
-//! The committed exit-code transcription, the classification rule it implies,
-//! and the comparison the differential test runs against the bash.
+//! The committed exit-code transcription and the classification rule it
+//! implies, with the comparison the self-test runs against it.
 //!
-//! Shared by `mapper_differential.rs` and by `mapper_differential_self_test.rs`,
-//! which proves the comparison can fail.
+//! Consumed by `mapper_differential_self_test.rs`, which proves the comparison
+//! can reject a disagreement.
 
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
 
@@ -41,13 +41,6 @@ pub struct Row {
     pub operation: String,
     pub class: Class,
     pub source: String,
-}
-
-pub fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("the repository root resolves")
 }
 
 pub fn fixture_path() -> PathBuf {
@@ -130,25 +123,4 @@ pub fn disagreement(
         "{provider} {operation} code {code}: transcribed {}, bash says {bash}",
         transcribed.name()
     ))
-}
-
-/// Runs a bash snippet against the repository root, returning its stdout.
-pub fn run_bash(script: &str) -> String {
-    let output = std::process::Command::new("bash")
-        .arg("-c")
-        .arg(script)
-        .current_dir(repo_root())
-        .output()
-        .expect(
-            "bash runs: this differential fails rather than skips when the \
-             oracle is unavailable, because a gate that passes when the tool \
-             is missing is the failure mode it exists to prevent",
-        );
-    assert!(
-        output.status.success(),
-        "the mapper harness exited {:?}: {}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout).expect("the harness prints UTF-8")
 }

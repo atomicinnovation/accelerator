@@ -46,4 +46,30 @@ positional only; only `init` has named modes (verify/list-teams/discover).
 
 ## Jira track (Phase 4) — 17 executables + 5 libraries + 3 data assets
 
-_Pending — recorded at Phase 4's deletion boundary._
+| Bash executable | Disposition |
+|---|---|
+| `jira-create-flow.sh` | `jira create` |
+| `jira-update-flow.sh` | `jira update` |
+| `jira-show-flow.sh` | `jira show` |
+| `jira-search-flow.sh` | `jira search` (`jql::compose` + the read-side projection op, Decision 20) |
+| `jira-comment-flow.sh` | `jira comment add \| list \| edit \| delete` |
+| `jira-transition-flow.sh` | `jira transition` |
+| `jira-attach-flow.sh` | `jira attach` |
+| `jira-init-flow.sh` | `jira init verify \| discover \| prompt-default \| refresh-fields \| list-projects \| list-fields` |
+| `jira-resolve-fields.sh` | `jira resolve-fields` (Decision 4) |
+| `jira-emit-key.sh` | `jira create --emit key` (Decision 5) |
+| `jira-fields.sh` | `jira fields refresh \| resolve \| list` (the dual-use script) |
+| `jira-render-adf-fields.sh` | subsumed by `--render-adf` (`jira-cli` `render.rs` over `jira-client`'s ADF) |
+| `jira-adf-to-md.sh` | subsumed by `jira-client`'s `adf::document_to_markdown` |
+| `jira-md-to-adf.sh` | subsumed by `jira-client`'s `adf::markdown_to_document` |
+| `jira-request.sh` | subsumed — the bounded transport is `jira-client`'s `transport.rs` |
+| `jira-auth-cli.sh` | dropped — subsumed by `init verify` (Decision 3) |
+| `jira-jql-cli.sh` | dropped — orphan, invoked only by its own test (Decision 5) |
+| `jira-common.sh`, `jira-auth.sh`, `jira-jql.sh`, `jira-body-input.sh`, `jira-custom-fields.sh` (libraries) | subsumed by the crate (`auth.rs`, `jql.rs`, `custom_fields.rs`; interactive body resolution stays out of the crate) |
+| `jira-adf-render.jq`, `jira-md-tokenise.awk`, `jira-md-assemble.jq` (data assets) | subsumed by `jira-client`'s `adf/` module |
+
+**`SKILL.md`-reachable entrypoints: 11, not 8** — the eight flows plus
+`jira-auth-cli.sh`, `jira-resolve-fields.sh` and `jira-emit-key.sh` (named by
+`create-jira-issue`/`init-jira`). **Dispatch-mode count: 21** — `comment`'s four
+subcommands, `init`'s six, `fields`' three and `resolve-fields` bring the 17
+executables to 21 named modes.

@@ -86,8 +86,9 @@ So "22 production scripts **plus** five libraries" was wrong: it is 22 files
 `linear-common` and `linear-auth`, of which 10 are executable. The
 flow-coverage criterion's denominator is corrected accordingly.
 
-Total deletion set is roughly **17,650 lines** across 34 production files, 33
-suites and 191 fixture/helper files.
+Total deletion set (measured at implementation) is **263 files / 21,422 lines** —
+production `.sh` 34/7,994, data assets 5/746, suites 33/9,204, `test-fixtures/`
+188/3,079, `test-helpers/` 3/399 — not the ~17,650 lines first estimated.
 
 ## Requirements
 
@@ -96,7 +97,9 @@ suites and 191 fixture/helper files.
 - Implement `accelerator-jira` and `accelerator-linear` as thin inbound CLI
   adapters over 0210's client crates, covering **the whole executable surface of
   each cluster, not merely the eight named flows**. Per Assumptions, that is 17
-  Jira executables spanning roughly 25 distinct verbs and 10 Linear executables.
+  Jira executables spanning **21 dispatch modes** and 10 Linear executables
+  spanning **6 dispatch modes** (most linear executables are flag-and-positional
+  only), not the ~25/~15 first estimated.
   Where a script becomes a flag or a projection of another subcommand rather
   than a peer subcommand, record that mapping — it is the flow-coverage
   criterion's evidence.
@@ -119,7 +122,10 @@ suites and 191 fixture/helper files.
   `list-fields` plus a bare interactive full-flow that blocks on `read -r`
   (`jira-init-flow.sh:191`); `linear-init-flow.sh` takes `verify`, `list-teams`
   and `discover` plus a bare mode. State the TTY policy for the bare mode — the
-  existing `--non-interactive` flag only half-covers it.
+  existing `--non-interactive` flag only half-covers it. The TTY-refusal
+  obligation is **Jira-only**: `linear-init-flow.sh`'s bare mode does not block
+  on `read`; it prints the team list and returns a "re-run with `--team-id`"
+  instruction, so only `jira init` needs the no-TTY refusal.
 
 ### Exit-code contract
 
@@ -132,15 +138,16 @@ suites and 191 fixture/helper files.
   document of record (the CLI's own exit-code documentation). Choosing the
   integers freely and then writing them down would make the mapping
   unfalsifiable, and the repointed skill bodies branch on these values.
-- ⚠️ **`70`–`73` are reserved for the dispatch meaning** at any surface
-  `accelerator-work` consumes. `work-item-bridge-codes.sh:30-33` defines
-  `E_DISPATCH_RETRYABLE/TERMINAL/NOT_AVAILABLE/UNRECOGNISED` on exactly the
-  integers both search flows use for their own errors (Jira `70-73` is
-  `E_SEARCH_BAD_PAGE_TOKEN/BAD_LIMIT/NO_SITE_CACHE/BAD_FLAG`; Linear `70-73` is
-  `E_SEARCH_BAD_FLAG/BAD_LIMIT/NO_CATALOGUE/BAD_STATE`). An unmapped search-flow
-  code reaching the caller reads as a dispatch verdict. `72` and `73` resolve
-  **above** the port (`cli/tracker/tests/fixtures/dispatch-codes.txt:3-6`), so
-  neither binary may own them.
+- ⚠️ **`70`–`74` are reserved for the dispatch meaning** at any surface
+  `accelerator-work` consumes (corrected from `70`–`73`: 0212 added
+  `E_DISPATCH_UNCONFIGURED` = 74). The dispatch band defines
+  `E_DISPATCH_RETRYABLE/TERMINAL/NOT_AVAILABLE/UNRECOGNISED/UNCONFIGURED` on
+  exactly the integers both search flows use for their own errors (Jira `70-73`
+  is `E_SEARCH_BAD_PAGE_TOKEN/BAD_LIMIT/NO_SITE_CACHE/BAD_FLAG`; Linear `70-73`
+  is `E_SEARCH_BAD_FLAG/BAD_LIMIT/NO_CATALOGUE/BAD_STATE`). An unmapped
+  search-flow code reaching the caller reads as a dispatch verdict, so the search
+  codes are remapped off the whole `70`–`74` band (to `75`–`78`) and a test
+  proves no binary emits `70`–`74`.
 - Reproduce, or deliberately diverge from and record, three cross-provider
   collisions the two tables already carry:
 
@@ -201,9 +208,11 @@ suites and 191 fixture/helper files.
 ### Registration
 
 - Register both dispatch tokens per
-  `tasks/README.md#registering-a-dispatched-sub-binary`, add the **two binary
-  crates'** `cli/pup.ron` import rules and public-API snapshots — `jira-client`
-  and `linear-client` carry theirs in 0210 — and add both binaries to the
+  `tasks/README.md#registering-a-dispatched-sub-binary`. Corrected: the two
+  `*-cli` composition-root crates carry **no** `cli/pup.ron` rule and **no**
+  public-API snapshot — they are classified as composition roots in
+  `tasks/public_api.py`'s `_EXEMPT_MEMBERS`; the client crates (`jira-client`,
+  `linear-client`) carry the pup rules from 0210. Add both binaries to the
   per-platform release upload set and the minisign-signed `manifest.json` 0165
   owns. If 0210's copyleft check fired, 0203's attribution artefact is a
   release-path dependency.
@@ -341,11 +350,14 @@ Recorded so the plan does not spend effort on them:
       libraries). A classification of "internal helper" must name the subcommand
       whose implementation subsumes it, so the criterion cannot be satisfied by
       fiat.
-- [ ] The shared-asset sweep is recorded and empty: grepping the repository,
-      excluding `meta/`, for the four cluster `test-helpers`/`test-fixtures`
-      paths plus `mock-jira-server` and `mock-linear-server` returns hits only
-      from inside the clusters being deleted. The grep command and its output are
-      the recorded result.
+- [ ] The shared-asset sweep is recorded and its residual set is empty: grepping
+      the repository for the four cluster `test-helpers`/`test-fixtures` paths
+      plus `mock-jira-server` and `mock-linear-server`, under the **declared
+      exclusion list** — `meta/`, `CHANGELOG.md` (immutable release record),
+      `skills/work/create-work-item/evals/benchmark.json` (frozen eval
+      transcript) and `docs-site/src/content/docs/reference/skills/` (gitignored
+      generated mirror) — returns nothing outside the deleted clusters. The grep
+      command, its exclusions and its output are the recorded result.
 - [ ] `ls skills/integrations/jira/scripts/*.sh` and
       `ls skills/integrations/linear/scripts/*.sh` each match nothing (or both
       directories are absent); `mock-jira-server.py` and
@@ -358,8 +370,10 @@ Recorded so the plan does not spend effort on them:
       work skill declares them — a condition already true before 0212 began.)
 - [ ] Both dispatch tokens are registered per the sub-binary checklist **in the
       same commit as the skill repointing**, both binaries appear in the
-      per-platform upload set and the signed `manifest.json`, and the two binary
-      crates carry pup rules and public-API snapshots. At least one witness skill
+      per-platform upload set and the signed `manifest.json`, and the two `*-cli`
+      composition-root crates are classified in `tasks/public_api.py` (no pup
+      rule, no public-API snapshot; the client crates carry the pup rules). At
+      least one witness skill
       per token declares a `Bash(...)` rule whose subcommand segment is exactly
       that token, in a skill carrying no bare `Bash`.
 - [ ] `mise run build-system:check` is green, which exercises
@@ -431,12 +445,14 @@ Recorded so the plan does not spend effort on them:
     flows plus `jira-auth-cli.sh` (`init-jira/SKILL.md:83`),
     `jira-resolve-fields.sh` (`create-jira-issue/SKILL.md:61`) and
     `jira-emit-key.sh` (`create-jira-issue/SKILL.md:105`). Seventeen executables
-    in total, spanning roughly twenty-five distinct verbs once `comment`'s four
-    subcommands, `init`'s seven, `fields`' three and `resolve-fields`' two modes
-    are counted.
+    in total, spanning **21 dispatch modes** (not the ~25 first estimated) once
+    `comment`'s four subcommands, `init`'s six, `fields`' three and
+    `resolve-fields`' modes are counted.
   - **Linear**: ten executables — the eight flows plus `linear-auth-cli.sh`
     (`init-linear/SKILL.md:38`) and `linear-graphql.sh` (internal, no `SKILL.md`
-    caller, but reachable via the wildcard `allowed-tools` glob).
+    caller, but reachable via the wildcard `allowed-tools` glob) — spanning only
+    **6 dispatch modes** (nine of the ten executables are flag-and-positional
+    only), not the ~15 first estimated.
 
   This child is correspondingly larger than its sizing allowed. Per 0171's
   drafting notes, a short flow list is the trigger for revisiting the declined
@@ -444,9 +460,25 @@ Recorded so the plan does not spend effort on them:
   That should be reconsidered before planning commits to a shape.
 - The three `.jq`/`.awk` assets map onto no subcommand. The `\x1f`/`\x1e` binary
   record stream between `jira-md-tokenise.awk` and `jira-md-assemble.jq` is a
-  bash-pipeline artefact with no public contract; it disappears in Rust.
+  bash-pipeline artefact with no public contract; it disappears in Rust. This was
+  true of the **product** surface but **false of the test surface** until Phase 0:
+  `cli/jira-client`'s ADF differential shelled to the two driver scripts (which
+  pull in the `.jq`/`.awk`), so all three were load-bearing for a live Rust test.
+  Phase 0 froze that differential to a committed oracle before the deletion.
 - The committed goldens are a sufficient oracle once their bash generators are
   gone.
+- Corrected: the client crates' read surface is **not** complete for search. The
+  port `search` op returns a stamps-only `Discovery` (external ids + timestamps),
+  which cannot render the State/Assignee/Status columns the search bodies show
+  nor jira's `--page-token` cursor. Each client therefore gains an **additive
+  read-side projection op** over a distinct search query (Decision 20), bound by
+  the search subcommand — not the port `Discovery`.
+- Corrected: the `init` caches are **read-compatible** with bash-era state and
+  **fail closed** on an unrecognisable one (Decision 21). Bash-era `site.json`/
+  `fields.json` carry no version envelope, so an absent marker is the implicit
+  bash-era version and reads unchanged; a present-but-unrecognised marker or an
+  unparseable shape fails closed in the client crate's cache-read path, before
+  any live-tenant mutation.
 
 ## Open Questions
 

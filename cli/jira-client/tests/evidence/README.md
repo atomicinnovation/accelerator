@@ -5,7 +5,8 @@ This directory holds `contract-run.txt`: the reduced record of a live-tenant
 beside the offline conformance suite (`contract_offline.rs`), which is the
 enforcing gate.
 
-The file is not committed yet — it needs a credentialed tenant. Produce it with:
+The committed `contract-run.txt` was produced against a credentialed tenant;
+regenerate it with:
 
 ```bash
 ACCELERATOR_TRACKER_CONTRACT=1 \

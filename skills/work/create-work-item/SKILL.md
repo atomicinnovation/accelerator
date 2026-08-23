@@ -23,9 +23,9 @@ accelerator:web-search-researcher.
 **Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
 **Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
 
-The **Active integration** line gates the post-draft push offer (Step 5).
-`config-read-work.sh integration` exits 0 with an **empty line** when no
-integration is configured, so branch on the **string**: a non-empty value means
+The **Active integration** line gates the post-draft push offer (Step 5). The
+`accelerator config work integration` command above prints an **empty line**
+when no integration is configured, so branch on the **string**: a non-empty value means
 *integration configured* (offer the push); an empty value means *not configured*
 (no push offer — behave exactly as today). This is the single resolution of the
 active tracker for this invocation; the push dispatcher is told which tracker to

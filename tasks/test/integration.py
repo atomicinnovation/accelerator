@@ -375,12 +375,6 @@ def github(context: Context) -> None:
     _require_suite_floor(suites, _EXPECTED_GITHUB_SUITES, (), "github")
 
 
-@task
-def work(context: Context) -> None:
-    """Integration tests for the work-management skill scripts."""
-    run_shell_suites(context, "skills/work", accelerator_env())
-
-
 # The Playwright-executor suites that need a real runtime.
 #
 # Discovered by name, not by a glob, so this lane's file set is stated rather
