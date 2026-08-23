@@ -63,7 +63,6 @@ keyword_enum!(Comment {
     Deleted => "deleted",
 });
 keyword_enum!(Transition { Transitioned => "transitioned" });
-keyword_enum!(Attach { Attached => "attached" });
 keyword_enum!(Init {
     Verified => "verified",
     Discovered => "discovered",

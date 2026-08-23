@@ -246,7 +246,12 @@ fn run_search(args: &SearchArgs) -> ExitCode {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    let search = search_from(args);
+    let mut search = search_from(args);
+    // Default the project from config when neither --project nor --all-projects
+    // is given, reproducing the bash search flow.
+    if search.project.is_none() && !search.all_projects {
+        search.project = resolve_fields::configured_default_project();
+    }
     if !args.quiet {
         if let Ok(jql) = client.compose_search_jql(&search) {
             eprintln!("INFO: composed JQL: {jql}");
@@ -469,11 +474,11 @@ fn run_attach(args: &AttachArgs) -> ExitCode {
         .client
         .attach(&args.key, &files, &client.project_root)
     {
+        // The attachments response is a bare JSON array, which cannot carry a
+        // top-level `outcome` field; attach is exit-code driven (a write flow),
+        // so the array is emitted verbatim as the bash flow did.
         Ok(response) => {
-            print_json(&keywords::with_outcome(
-                response,
-                keywords::Attach::Attached.keyword(),
-            ));
+            print_json(&response);
             ExitCode::SUCCESS
         }
         Err(error) => surface_failure(&error),

@@ -167,7 +167,8 @@ const fn is_quote_or_space(c: char) -> bool {
 
 /// `work.default_project_code` from the composed config, or `None` when unset or
 /// unreadable — an unresolvable project is the resolver's own reportable state.
-fn configured_default_project() -> Option<String> {
+#[must_use]
+pub fn configured_default_project() -> Option<String> {
     let start = std::env::current_dir().ok()?;
     let composed = compose(&start, LegacyPolicy::Reject).ok()?;
     let key = Key::parse("work.default_project_code").ok()?;

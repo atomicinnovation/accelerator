@@ -57,17 +57,29 @@ fn api_base_uri() -> Result<Option<Url>, ContextError> {
         return Ok(None);
     };
     let raw = raw.to_string_lossy().into_owned();
+    // The test-loopback build admits a loopback mock verbatim — and only a
+    // loopback host, so a non-loopback override still faces the strict bar even
+    // under the feature.
     if cfg!(feature = "test-loopback") {
-        let url = Url::parse(&raw)
-            .map_err(|_| ContextError::BadApiUrl(raw.clone()))?;
-        return Ok(Some(url));
+        if let Ok(url) = Url::parse(&raw) {
+            if is_loopback(&url) {
+                return Ok(Some(url));
+            }
+        }
     }
-    // Release: the override must clear the same strict destination bar a
+    // The override must otherwise clear the same strict destination bar a
     // configured `jira.site` does — https, no userinfo/port/query/fragment, an
     // `*.atlassian.net` host — with no loopback relaxation.
     base_url(&raw, &[])
         .map(Some)
         .map_err(|_| ContextError::BadApiUrl(raw))
+}
+
+fn is_loopback(url: &Url) -> bool {
+    matches!(
+        url.host_str(),
+        Some("127.0.0.1" | "localhost" | "::1" | "[::1]")
+    )
 }
 
 struct VcsProvenance {

@@ -1,0 +1,61 @@
+//! Freezes `accelerator-jira`'s whole `--help` surface against one committed
+//! golden, so a flag rename becomes a visible, deliberate diff. Run with
+//! `UPDATE_GOLDEN=1` to accept an intended surface change.
+
+#![allow(clippy::expect_used)]
+
+use std::fmt::Write as _;
+use std::process::Command;
+
+type TestError = Box<dyn std::error::Error>;
+
+const SUBCOMMANDS: &[&str] = &[
+    "create",
+    "update",
+    "show",
+    "search",
+    "comment",
+    "transition",
+    "attach",
+    "init",
+    "fields",
+    "resolve-fields",
+];
+
+fn help(args: &[&str]) -> Result<String, TestError> {
+    let output = Command::new(env!("CARGO_BIN_EXE_accelerator-jira"))
+        .args(args)
+        .arg("--help")
+        .output()?;
+    assert!(output.status.success(), "{args:?} --help did not exit 0");
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+#[test]
+fn the_full_cli_surface_matches_the_committed_golden() -> Result<(), TestError>
+{
+    let mut actual =
+        format!("=== accelerator-jira --help ===\n{}\n", help(&[])?);
+    for subcommand in SUBCOMMANDS {
+        write!(
+            actual,
+            "=== accelerator-jira {subcommand} --help ===\n{}\n",
+            help(&[subcommand])?
+        )?;
+    }
+
+    let golden_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/cli_surface.golden"
+    );
+    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+        std::fs::write(golden_path, &actual)?;
+        return Ok(());
+    }
+    let golden = std::fs::read_to_string(golden_path)?;
+    assert_eq!(
+        actual, golden,
+        "the CLI surface changed — re-run with UPDATE_GOLDEN=1 if intended"
+    );
+    Ok(())
+}

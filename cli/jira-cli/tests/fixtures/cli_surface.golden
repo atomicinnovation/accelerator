@@ -1,0 +1,199 @@
+=== accelerator-jira --help ===
+Usage: accelerator-jira <COMMAND>
+
+Commands:
+  create          Create an issue
+  update          Update an issue's summary and body
+  show            Show an issue as JSON, rendering ADF fields to Markdown
+  search          Search issues, rendering Jira's verbatim envelope
+  comment         Comment on an issue
+  transition      Transition an issue to a named workflow state
+  attach          Attach files to an issue
+  init            Verify credentials, discover the catalogue, or list its parts
+  fields          Refresh, resolve or list the custom-field cache
+  resolve-fields  Resolve the issue type and project for a create, as a tab-separated line
+  help            Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-jira create --help ===
+Create an issue
+
+Usage: accelerator-jira create [OPTIONS]
+
+Options:
+      --summary <SUMMARY>
+          
+
+      --type <TYPE>
+          
+
+      --project <PROJECT>
+          
+
+      --body-file <BODY_FILE>
+          
+
+      --assignee <ASSIGNEE>
+          
+
+      --emit <EMIT>
+          The stdout projection: the full JSON, or the bare key for a writeback
+
+          Possible values:
+          - json: The full issue JSON envelope (the default)
+          - key:  Only the bare validated key, for a frontmatter writeback
+          
+          [default: json]
+
+  -q, --quiet
+          
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+=== accelerator-jira update --help ===
+Update an issue's summary and body
+
+Usage: accelerator-jira update [OPTIONS] <KEY>
+
+Arguments:
+  <KEY>  
+
+Options:
+      --summary <SUMMARY>      
+      --body-file <BODY_FILE>  
+  -q, --quiet                  
+  -h, --help                   Print help
+
+=== accelerator-jira show --help ===
+Show an issue as JSON, rendering ADF fields to Markdown
+
+Usage: accelerator-jira show [OPTIONS] <KEY>
+
+Arguments:
+  <KEY>  
+
+Options:
+      --comments <COMMENTS>  Include the most recent N comments (0-100)
+      --fields <FIELDS>      The field selection query (default `*all`) [default: *all]
+      --expand <EXPAND>      The expand query (default `names,schema,transitions`) [default: names,schema,transitions]
+      --render-adf           Render ADF fields to Markdown (on by default)
+      --no-render-adf        
+  -h, --help                 Print help
+
+=== accelerator-jira search --help ===
+Search issues, rendering Jira's verbatim envelope
+
+Usage: accelerator-jira search [OPTIONS]
+
+Options:
+      --project <PROJECT>        
+      --all-projects             
+      --status <STATUSES>        
+      --label <LABELS>           
+      --assignee <ASSIGNEES>     
+      --type <TYPES>             
+      --component <COMPONENTS>   
+      --reporter <REPORTERS>     
+      --parent <PARENTS>         
+      --text <TEXTS>             
+      --watching                 
+      --jql <JQL>                
+      --field <FIELDS>           
+      --limit <LIMIT>            [default: 50]
+      --page-token <PAGE_TOKEN>  
+      --render-adf               Render ADF fields in the results to Markdown (off by default)
+  -q, --quiet                    
+  -h, --help                     Print help
+
+=== accelerator-jira comment --help ===
+Comment on an issue
+
+Usage: accelerator-jira comment <COMMAND>
+
+Commands:
+  add     Add a comment to an issue
+  list    List an issue's comments as a paginated envelope
+  edit    Edit an existing comment
+  delete  Delete a comment
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-jira transition --help ===
+Transition an issue to a named workflow state
+
+Usage: accelerator-jira transition [OPTIONS] <KEY> [STATE]
+
+Arguments:
+  <KEY>    
+  [STATE]  The target state name, positional or via `--state`
+
+Options:
+      --state <STATE>                  
+      --transition-id <TRANSITION_ID>  
+      --resolution <RESOLUTION>        
+      --comment <COMMENT>              
+      --no-notify                      
+  -q, --quiet                          
+  -h, --help                           Print help
+
+=== accelerator-jira attach --help ===
+Attach files to an issue
+
+Usage: accelerator-jira attach [OPTIONS] <KEY> <FILES>...
+
+Arguments:
+  <KEY>       
+  <FILES>...  
+
+Options:
+  -q, --quiet  
+  -h, --help   Print help
+
+=== accelerator-jira init --help ===
+Verify credentials, discover the catalogue, or list its parts
+
+Usage: accelerator-jira init <COMMAND>
+
+Commands:
+  verify          Verify credentials and cache the site identity, without printing them
+  discover        Discover the project and field catalogue, caching it
+  prompt-default  Print the resolved default project
+  refresh-fields  Refresh the custom-field cache
+  list-projects   List the cached projects
+  list-fields     List the cached fields
+  help            Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-jira fields --help ===
+Refresh, resolve or list the custom-field cache
+
+Usage: accelerator-jira fields <COMMAND>
+
+Commands:
+  refresh  Refresh the custom-field cache from the live tracker
+  resolve  Resolve one field name or id to its field id
+  list     List the cached fields
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-jira resolve-fields --help ===
+Resolve the issue type and project for a create, as a tab-separated line
+
+Usage: accelerator-jira resolve-fields [OPTIONS]
+
+Options:
+      --file <FILE>        A work-item file whose frontmatter seeds the resolution
+      --kind <KIND>        An explicit kind (story|bug|epic|task|spike)
+      --project <PROJECT>  An explicit project key
+      --id <ID>            A project-coded id the project can be read from
+  -h, --help               Print help
+
