@@ -1,0 +1,17 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"teams\": {\"nodes\": [{\"id\": \"team-x-uuid\", \"name\": \"Team X\", \"key\": \"TX\"}, {\"id\": \"team-y-uuid\", \"name\": \"Team Y\", \"key\": \"TY\"}]}}}"
+      },
+      "expect_body_contains": "teams"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"attachmentCreate\": {\"success\": true, \"attachment\": {\"id\": \"att-1\"}}}}"
+      },
+      "expect_body_contains": "attachmentCreate",
+      "capture_body": true
+    }
+  ]
+}

@@ -11,13 +11,19 @@ use std::path::Path;
 
 use cli_test_support::Scenario;
 use http_test_support::MockServer;
+use serde_json::Value;
+
+fn install(server: &MockServer, name: &str) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/scenarios")
+        .join(format!("{name}.json"));
+    Scenario::load(&path).expect("scenario").install(server);
+}
 
 #[test]
 fn init_verify_never_emits_the_token_on_stdout_or_stderr() {
     let server = MockServer::start();
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/scenarios/viewer-200.json");
-    Scenario::load(&path).expect("scenario").install(&server);
+    install(&server, "viewer-200");
     let dir = support::scratch(support::CONFIG);
 
     let output = support::run(dir.path(), &server, &["init", "verify"]);
@@ -36,5 +42,31 @@ fn init_verify_never_emits_the_token_on_stdout_or_stderr() {
     assert!(
         stdout.starts_with("verified\t"),
         "init verify emits the verified keyword: {stdout}"
+    );
+}
+
+#[test]
+fn init_list_teams_renders_the_teams_with_the_listed_keyword() {
+    let server = MockServer::start();
+    install(&server, "teams-200");
+    let dir = support::scratch(support::CONFIG);
+
+    let output = support::run(dir.path(), &server, &["init", "list-teams"]);
+
+    assert!(
+        output.status.success(),
+        "init list-teams exited {:?}: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout: Value =
+        serde_json::from_slice(&output.stdout).expect("one JSON document");
+    assert_eq!(
+        stdout.get("outcome").and_then(Value::as_str),
+        Some("listed")
+    );
+    assert!(
+        stdout.pointer("/teams").is_some(),
+        "the team list is rendered: {stdout}"
     );
 }
