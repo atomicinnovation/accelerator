@@ -1239,13 +1239,15 @@ anchor.
 - [x] Dispatch coherence green both directions, with `search-linear-issues` as a
       metacharacter-free witness (bound, not merely invoked): `mise run
       build-system:check` — green
-- [ ] `test-skill-write-gate.sh` asserts each linear write skill's confirm step
+- [x] The write-gate guard asserts each linear write skill's confirm step
       lexically precedes its `accelerator linear …` mutation invocation —
-      **not yet written** (the invariant is upheld by the repoint; the guard
-      enforcing it is outstanding)
-- [ ] Doc-vs-binary parity: every keyword a repointed linear body branches on
+      `tasks/shared/skill_write_gate.py` under `lint:integration-skills:check`,
+      with an adversarial reversed-body test (implemented as a build-system
+      guard beside `dispatch_coherence`, not a `.sh` suite — see divergences)
+- [x] Doc-vs-binary parity: every keyword a repointed linear body branches on
       exists in the binary's declared set; no body cites a bash exit integer —
-      **not yet written** (invariant upheld; guard outstanding)
+      `tasks/shared/skill_keyword_parity.py`, count-pinned, with a stale-keyword
+      test
 - [x] `ls skills/integrations/linear/scripts/*.sh` matches nothing;
       `mock-linear-server.py` does not exist — the whole `linear/scripts/` dir is
       deleted
