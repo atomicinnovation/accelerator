@@ -47,11 +47,6 @@ use crate::transport::Transport;
 const CHUNK: usize = 50;
 const PAGE_SIZE: u64 = 100;
 
-/// The issue type a `create` uses when the caller supplies no `kind`. The port
-/// says the empty string means "the tracker's configured default"; Jira has no
-/// per-project default the API exposes, and every tenant ships `Task`.
-const DEFAULT_ISSUE_TYPE: &str = "Task";
-
 const SEARCH_PATH: &str = "/rest/api/3/search/jql";
 const ISSUE_PATH: &str = "/rest/api/3/issue";
 
@@ -124,6 +119,11 @@ impl JiraClient {
     #[must_use]
     pub fn fields(&self) -> &dyn FieldResolver {
         self.fields.as_ref()
+    }
+
+    #[must_use]
+    pub fn project(&self) -> &str {
+        &self.project
     }
 
     /// The composed, validated path for one issue.
@@ -396,120 +396,6 @@ impl JiraClient {
         }
     }
 
-    /// `create`, surfacing the structured discriminant. The port `create`
-    /// derives its `TrackerError` from this.
-    ///
-    /// # Errors
-    ///
-    /// [`JiraFailure`] carrying either the wire outcome or the post-create
-    /// unwritable-identifier case.
-    pub fn create_op(
-        &self,
-        title: &str,
-        body: &str,
-        kind: &str,
-    ) -> Result<ExternalId, JiraFailure> {
-        let description =
-            markdown_to_document(body, None).map_err(|error| {
-                JiraFailure::wire(
-                    Outcome::Transport,
-                    Operation::Create,
-                    error.to_string(),
-                )
-            })?;
-        let issue_type = if kind.is_empty() {
-            DEFAULT_ISSUE_TYPE
-        } else {
-            kind
-        };
-        let payload = json!({
-            "fields": {
-                "project": {"key": self.project},
-                "summary": title,
-                "issuetype": {"name": issue_type},
-                "description": description
-            }
-        });
-        let payload =
-            serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_owned());
-        let received = self
-            .transport
-            .send(&Method::POST, ISSUE_PATH, &[], Some(&payload))
-            .map_err(|error| {
-                JiraFailure::wire(
-                    Outcome::Transport,
-                    Operation::Create,
-                    error.to_string(),
-                )
-            })?;
-        let created = json_body_op(&received, Operation::Create, title)?;
-        let key =
-            created.get("key").and_then(Value::as_str).ok_or_else(|| {
-                JiraFailure::wire(
-                    Outcome::NonJsonBody,
-                    Operation::Create,
-                    "the create response carried no key".to_owned(),
-                )
-            })?;
-        // The issue exists remotely, so an unusable identifier is Terminal: a
-        // repeat would duplicate it, and the caller must be told rather than
-        // handed a value that would corrupt the work item.
-        tracker_support::identifier_is_safe(key).map_err(|refusal| {
-            JiraFailure::UnwritableIdentifier {
-                identifier: key.to_owned(),
-                reason: refusal.to_string(),
-            }
-        })?;
-        Ok(ExternalId::new(key.to_owned()))
-    }
-
-    /// `update`, surfacing the structured discriminant.
-    ///
-    /// # Errors
-    ///
-    /// [`JiraFailure`] for a refused identifier or a wire failure.
-    pub fn update_op(
-        &self,
-        id: &ExternalId,
-        title: &str,
-        body: &str,
-    ) -> Result<(), JiraFailure> {
-        let fields = update_fields(title, body).map_err(|error| {
-            JiraFailure::wire(
-                Outcome::Transport,
-                Operation::Update,
-                error.to_string(),
-            )
-        })?;
-        let path = Self::issue_path(id.as_str(), "").map_err(|error| {
-            JiraFailure::wire(
-                Outcome::Transport,
-                Operation::Update,
-                error.to_string(),
-            )
-        })?;
-        let payload =
-            serde_json::to_string(&fields).unwrap_or_else(|_| "{}".to_owned());
-        let received = self
-            .transport
-            .send(&Method::PUT, &path, &[], Some(&payload))
-            .map_err(|error| {
-                JiraFailure::wire(
-                    Outcome::Transport,
-                    Operation::Update,
-                    error.to_string(),
-                )
-            })?;
-        if (200..300).contains(&received.status) {
-            return Ok(());
-        }
-        Err(JiraFailure::wire(
-            Outcome::Status(received.status),
-            Operation::Update,
-            id.as_str().to_owned(),
-        ))
-    }
-
     /// `show`, surfacing the structured discriminant. The port `show` derives
     /// its `TrackerError` from this.
     ///
@@ -539,7 +425,7 @@ fn read_failure(detail: &str) -> JiraFailure {
 
 /// A 2xx JSON body, surfacing the structured discriminant so a port op reads
 /// the granular code before the collapse to `TrackerError`.
-fn json_body_op(
+pub(crate) fn json_body_op(
     received: &Received,
     operation: Operation,
     detail: &str,
@@ -587,8 +473,26 @@ impl RemoteTracker for JiraClient {
         body: &str,
         kind: &str,
     ) -> Result<ExternalId, TrackerError> {
-        self.create_op(title, body, kind)
-            .map_err(TrackerError::from)
+        let issue_type = if kind.is_empty() {
+            crate::mutation::IssueType::Default
+        } else {
+            crate::mutation::IssueType::Name(kind)
+        };
+        let custom = serde_json::Map::new();
+        let fields = crate::mutation::CreateFields {
+            summary: title,
+            body,
+            issue_type,
+            project: None,
+            assignee: None,
+            reporter: None,
+            priority: None,
+            labels: &[],
+            components: &[],
+            parent: None,
+            custom: &custom,
+        };
+        self.create_op(&fields).map_err(TrackerError::from)
     }
 
     fn update(
@@ -597,7 +501,24 @@ impl RemoteTracker for JiraClient {
         title: &str,
         body: &str,
     ) -> Result<(), TrackerError> {
-        self.update_op(id, title, body).map_err(TrackerError::from)
+        let custom = serde_json::Map::new();
+        let edit = crate::mutation::UpdateFields {
+            summary: Some(title),
+            body: Some(body),
+            priority: None,
+            assignee: None,
+            reporter: None,
+            parent: None,
+            labels: None,
+            add_labels: &[],
+            remove_labels: &[],
+            components: None,
+            add_components: &[],
+            remove_components: &[],
+            custom: &custom,
+            no_notify: false,
+        };
+        self.update_op(id, &edit).map_err(TrackerError::from)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

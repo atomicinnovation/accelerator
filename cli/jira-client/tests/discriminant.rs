@@ -9,7 +9,9 @@ mod support;
 
 use http_test_support::{MockServer, RequestKey, Route};
 use jira_client::classify::bash_code;
+use jira_client::mutation::{CreateFields, FieldEdit, IssueType, UpdateFields};
 use jira_client::JiraFailure;
+use serde_json::{Map, Value};
 use support::client::{brief, client_for};
 use tracker::ExternalId;
 use tracker::RemoteTracker as _;
@@ -18,6 +20,50 @@ const ISSUE: &str = "/rest/api/3/issue";
 
 fn id(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
+}
+
+const fn create<'a>(
+    summary: &'a str,
+    body: &'a str,
+    kind: &'a str,
+    custom: &'a Map<String, Value>,
+) -> CreateFields<'a> {
+    CreateFields {
+        summary,
+        body,
+        issue_type: IssueType::Name(kind),
+        project: None,
+        assignee: None,
+        reporter: None,
+        priority: None,
+        labels: &[],
+        components: &[],
+        parent: None,
+        custom,
+    }
+}
+
+const fn edit<'a>(
+    summary: &'a str,
+    body: &'a str,
+    custom: &'a Map<String, Value>,
+) -> UpdateFields<'a> {
+    UpdateFields {
+        summary: Some(summary),
+        body: Some(body),
+        priority: None,
+        assignee: None::<FieldEdit<'a>>,
+        reporter: None,
+        parent: None,
+        labels: None,
+        add_labels: &[],
+        remove_labels: &[],
+        components: None,
+        add_components: &[],
+        remove_components: &[],
+        custom,
+        no_notify: false,
+    }
 }
 
 fn json(status: u16, body: &str) -> Route {
@@ -33,7 +79,10 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
     server.route(RequestKey::post(ISSUE), json(401, "{}"));
 
     let client = client_for(&server, brief());
-    let failure = client.create_op("t", "b", "story").expect_err("401");
+    let custom = Map::new();
+    let failure = client
+        .create_op(&create("t", "b", "story", &custom))
+        .expect_err("401");
 
     match failure {
         JiraFailure::Wire { outcome, .. } => {
@@ -54,7 +103,10 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
     );
 
     let client = client_for(&server, brief());
-    let failure = client.create_op("t", "b", "story").expect_err("unwritable");
+    let custom = Map::new();
+    let failure = client
+        .create_op(&create("t", "b", "story", &custom))
+        .expect_err("unwritable");
 
     assert!(
         matches!(failure, JiraFailure::UnwritableIdentifier { .. }),
@@ -68,7 +120,10 @@ fn an_update_wire_failure_carries_the_granular_not_found_code() {
     server.route(RequestKey::put(&format!("{ISSUE}/ENG-1")), json(404, "{}"));
 
     let client = client_for(&server, brief());
-    let failure = client.update_op(&id("ENG-1"), "t", "b").expect_err("404");
+    let custom = Map::new();
+    let failure = client
+        .update_op(&id("ENG-1"), &edit("t", "b", &custom))
+        .expect_err("404");
 
     match failure {
         JiraFailure::Wire { outcome, .. } => {

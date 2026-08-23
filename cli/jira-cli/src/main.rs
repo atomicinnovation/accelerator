@@ -19,8 +19,16 @@ use clap::Parser as _;
 use jira_client::cache::JiraCache;
 use jira_client::cache::SystemFilesystem;
 use jira_client::comment::Visibility;
+use jira_client::custom_fields;
+use jira_client::mutation::CreateFields;
+use jira_client::mutation::FieldEdit;
+use jira_client::mutation::IssueType;
+use jira_client::mutation::UpdateFields;
+use jira_client::principal;
+use jira_client::principal::PrincipalError;
 use jira_client::transition::Target;
 use serde_json::json;
+use serde_json::Map;
 use serde_json::Value;
 use tracker::ExternalId;
 
@@ -107,29 +115,170 @@ fn parse_visibility(raw: &str) -> Result<Visibility, ExitCode> {
     }
 }
 
+/// The exit codes and `E_*` diagnostic names a principal-resolution failure
+/// maps to, per mutating operation.
+struct PrincipalCodes {
+    no_site: u8,
+    bad: u8,
+    no_site_name: &'static str,
+    bad_name: &'static str,
+}
+
+const CREATE_PRINCIPAL_CODES: PrincipalCodes = PrincipalCodes {
+    no_site: exit_codes::CREATE_NO_SITE_CACHE,
+    bad: exit_codes::CREATE_BAD_ASSIGNEE,
+    no_site_name: "E_CREATE_NO_SITE_CACHE",
+    bad_name: "E_CREATE_BAD_ASSIGNEE",
+};
+
+const UPDATE_PRINCIPAL_CODES: PrincipalCodes = PrincipalCodes {
+    no_site: exit_codes::UPDATE_NO_SITE_CACHE,
+    bad: exit_codes::UPDATE_BAD_ASSIGNEE,
+    no_site_name: "E_UPDATE_NO_SITE_CACHE",
+    bad_name: "E_UPDATE_BAD_ASSIGNEE",
+};
+
+/// The cache pointed at the working directory's Jira state dir, reading the
+/// caches `create`/`update` need to resolve `@me` and custom fields.
+fn jira_cache(built: &context::Built) -> (SystemFilesystem, PathBuf) {
+    (
+        SystemFilesystem::new(built.project_root.clone()),
+        built.integrations_root.join("jira"),
+    )
+}
+
+/// The cached accountId (`site.json`), or `None` when the cache is absent.
+fn cached_account_id(cache: &JiraCache<'_>) -> Option<String> {
+    cache.read_cache("site.json").ok().and_then(|value| {
+        value
+            .get("accountId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    })
+}
+
+/// Resolves an assignee/reporter token to an accountId, mapping a failure to the
+/// operation's exit code and `E_*` diagnostic.
+fn resolve_principal(
+    cache: &JiraCache<'_>,
+    token: &str,
+    codes: &PrincipalCodes,
+) -> Result<String, ExitCode> {
+    let account_id =
+        (token == "@me").then(|| cached_account_id(cache)).flatten();
+    principal::resolve(token, account_id.as_deref()).map_err(|error| match error
+    {
+        PrincipalError::NoSiteCache => {
+            eprintln!(
+                "{}: @me cannot be resolved without site.json — run /init-jira",
+                codes.no_site_name
+            );
+            ExitCode::from(codes.no_site)
+        }
+        PrincipalError::BadPrincipal { token } => {
+            eprintln!(
+                "{}: {token:?} is not a raw accountId (emails are not resolved)",
+                codes.bad_name
+            );
+            ExitCode::from(codes.bad)
+        }
+    })
+}
+
+/// Resolves and coerces every `--custom SLUG=VALUE` against `fields.json`,
+/// mapping any failure to the operation's bad-field code.
+fn resolve_customs(
+    cache: &JiraCache<'_>,
+    raw: &[String],
+    bad_field: u8,
+    name: &str,
+) -> Result<Map<String, Value>, ExitCode> {
+    if raw.is_empty() {
+        return Ok(Map::new());
+    }
+    let fields = cache.read_cache("fields.json").map_err(|error| {
+        eprintln!("{name}: {error}");
+        ExitCode::from(bad_field)
+    })?;
+    custom_fields::coerce(&fields, raw).map_err(|error| {
+        eprintln!("{name}: {error}");
+        ExitCode::from(bad_field)
+    })
+}
+
+fn read_create_body(args: &CreateArgs) -> Result<String, ExitCode> {
+    match (args.body.as_deref(), args.body_file.as_deref()) {
+        (Some(body), _) => Ok(body.to_owned()),
+        (None, Some(path)) => std::fs::read_to_string(path).map_err(|error| {
+            eprintln!("E_CREATE_NO_BODY: could not read --body-file: {error}");
+            ExitCode::from(exit_codes::CREATE_NO_BODY)
+        }),
+        (None, None) => Ok(String::new()),
+    }
+}
+
 fn run_create(args: &CreateArgs) -> ExitCode {
     let Some(summary) = args.summary.as_deref() else {
         eprintln!("E_CREATE_NO_SUMMARY: a --summary is required");
         return ExitCode::from(exit_codes::CREATE_NO_SUMMARY);
     };
-    let body = match args.body_file.as_deref() {
-        Some(path) => match std::fs::read_to_string(path) {
-            Ok(body) => body,
-            Err(error) => {
-                eprintln!(
-                    "E_CREATE_NO_BODY: could not read --body-file: {error}"
-                );
-                return ExitCode::from(exit_codes::CREATE_NO_BODY);
-            }
-        },
-        None => String::new(),
-    };
-    let kind = args.r#type.clone().unwrap_or_default();
-    let client = match client_or_report() {
-        Ok(built) => built.client,
+    let issue_type =
+        match (args.issuetype_id.as_deref(), args.r#type.as_deref()) {
+            (Some(id), _) => IssueType::Id(id),
+            (None, Some(name)) => IssueType::Name(name),
+            (None, None) => IssueType::Default,
+        };
+    let body = match read_create_body(args) {
+        Ok(body) => body,
         Err(code) => return code,
     };
-    match client.create_op(summary, &body, &kind) {
+    let built = match client_or_report() {
+        Ok(built) => built,
+        Err(code) => return code,
+    };
+    let (filesystem, state_dir) = jira_cache(&built);
+    let cache = JiraCache::new(&filesystem, state_dir);
+    let assignee = match args.assignee.as_deref() {
+        Some(token) => {
+            match resolve_principal(&cache, token, &CREATE_PRINCIPAL_CODES) {
+                Ok(id) => Some(id),
+                Err(code) => return code,
+            }
+        }
+        None => None,
+    };
+    let reporter = match args.reporter.as_deref() {
+        Some(token) => {
+            match resolve_principal(&cache, token, &CREATE_PRINCIPAL_CODES) {
+                Ok(id) => Some(id),
+                Err(code) => return code,
+            }
+        }
+        None => None,
+    };
+    let custom = match resolve_customs(
+        &cache,
+        &args.custom,
+        exit_codes::CREATE_BAD_FIELD,
+        "E_CREATE_BAD_FIELD",
+    ) {
+        Ok(custom) => custom,
+        Err(code) => return code,
+    };
+    let fields = CreateFields {
+        summary,
+        body: &body,
+        issue_type,
+        project: args.project.as_deref(),
+        assignee: assignee.as_deref(),
+        reporter: reporter.as_deref(),
+        priority: args.priority.as_deref(),
+        labels: &args.labels,
+        components: &args.components,
+        parent: args.parent.as_deref(),
+        custom: &custom,
+    };
+    match built.client.create_op(&fields) {
         Ok(key) => emit_created(key.as_str(), args.emit),
         Err(jira_client::JiraFailure::UnwritableIdentifier {
             identifier,
@@ -162,29 +311,124 @@ fn emit_created(key: &str, emit: CreateEmit) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn run_update(args: &UpdateArgs) -> ExitCode {
-    if args.summary.is_none() && args.body_file.is_none() {
-        eprintln!("E_UPDATE_NO_OPS: at least one field to update is required");
-        return ExitCode::from(exit_codes::UPDATE_NO_OPS);
-    }
-    let body = match args.body_file.as_deref() {
-        Some(path) => match std::fs::read_to_string(path) {
-            Ok(body) => body,
-            Err(error) => {
+const fn update_has_ops(args: &UpdateArgs) -> bool {
+    args.summary.is_some()
+        || args.body.is_some()
+        || args.body_file.is_some()
+        || args.priority.is_some()
+        || args.assignee.is_some()
+        || args.reporter.is_some()
+        || args.parent.is_some()
+        || !args.labels.is_empty()
+        || !args.add_labels.is_empty()
+        || !args.remove_labels.is_empty()
+        || !args.components.is_empty()
+        || !args.add_components.is_empty()
+        || !args.remove_components.is_empty()
+        || !args.custom.is_empty()
+}
+
+const fn label_mode_conflict(args: &UpdateArgs) -> bool {
+    let labels = !args.labels.is_empty()
+        && (!args.add_labels.is_empty() || !args.remove_labels.is_empty());
+    let components = !args.components.is_empty()
+        && (!args.add_components.is_empty()
+            || !args.remove_components.is_empty());
+    labels || components
+}
+
+fn read_update_body(args: &UpdateArgs) -> Result<Option<String>, ExitCode> {
+    match (args.body.as_deref(), args.body_file.as_deref()) {
+        (Some(body), _) => Ok(Some(body.to_owned())),
+        (None, Some(path)) => {
+            std::fs::read_to_string(path).map(Some).map_err(|error| {
                 eprintln!(
                     "E_UPDATE_NO_BODY: could not read --body-file: {error}"
                 );
-                return ExitCode::from(exit_codes::UPDATE_NO_BODY);
-            }
-        },
-        None => String::new(),
-    };
-    let summary = args.summary.clone().unwrap_or_default();
-    let client = match client_or_report() {
-        Ok(built) => built.client,
+                ExitCode::from(exit_codes::UPDATE_NO_BODY)
+            })
+        }
+        (None, None) => Ok(None),
+    }
+}
+
+fn run_update(args: &UpdateArgs) -> ExitCode {
+    if !update_has_ops(args) {
+        eprintln!("E_UPDATE_NO_OPS: at least one field to update is required");
+        return ExitCode::from(exit_codes::UPDATE_NO_OPS);
+    }
+    if label_mode_conflict(args) {
+        eprintln!(
+            "E_UPDATE_LABEL_MODE_CONFLICT: a replace-all --label/--component \
+             cannot be mixed with its --add-/--remove- form"
+        );
+        return ExitCode::from(exit_codes::UPDATE_LABEL_MODE_CONFLICT);
+    }
+    let body = match read_update_body(args) {
+        Ok(body) => body,
         Err(code) => return code,
     };
-    match client.update_op(&id_of(&args.key), &summary, &body) {
+    let built = match client_or_report() {
+        Ok(built) => built,
+        Err(code) => return code,
+    };
+    let (filesystem, state_dir) = jira_cache(&built);
+    let cache = JiraCache::new(&filesystem, state_dir);
+    let assignee_id = match args.assignee.as_deref() {
+        Some(token) if !token.is_empty() => {
+            match resolve_principal(&cache, token, &UPDATE_PRINCIPAL_CODES) {
+                Ok(id) => Some(id),
+                Err(code) => return code,
+            }
+        }
+        _ => None,
+    };
+    let reporter_id = match args.reporter.as_deref() {
+        Some(token) => {
+            match resolve_principal(&cache, token, &UPDATE_PRINCIPAL_CODES) {
+                Ok(id) => Some(id),
+                Err(code) => return code,
+            }
+        }
+        None => None,
+    };
+    let custom = match resolve_customs(
+        &cache,
+        &args.custom,
+        exit_codes::UPDATE_BAD_FIELD,
+        "E_UPDATE_BAD_FIELD",
+    ) {
+        Ok(custom) => custom,
+        Err(code) => return code,
+    };
+    let assignee = match args.assignee.as_deref() {
+        None => None,
+        Some("") => Some(FieldEdit::Clear),
+        Some(_) => assignee_id.as_deref().map(FieldEdit::Set),
+    };
+    let parent = match args.parent.as_deref() {
+        None => None,
+        Some("") => Some(FieldEdit::Clear),
+        Some(key) => Some(FieldEdit::Set(key)),
+    };
+    let edit = UpdateFields {
+        summary: args.summary.as_deref(),
+        body: body.as_deref(),
+        priority: args.priority.as_deref(),
+        assignee,
+        reporter: reporter_id.as_deref(),
+        parent,
+        labels: (!args.labels.is_empty()).then_some(args.labels.as_slice()),
+        add_labels: &args.add_labels,
+        remove_labels: &args.remove_labels,
+        components: (!args.components.is_empty())
+            .then_some(args.components.as_slice()),
+        add_components: &args.add_components,
+        remove_components: &args.remove_components,
+        custom: &custom,
+        no_notify: args.no_notify,
+    };
+    match built.client.update_op(&id_of(&args.key), &edit) {
         Ok(()) => {
             keywords::text_line(keywords::Update::Updated.keyword(), &args.key);
             ExitCode::SUCCESS
@@ -433,6 +677,24 @@ fn run_comment_delete(args: &CommentDeleteArgs) -> ExitCode {
     }
 }
 
+fn transition_comment(
+    args: &TransitionArgs,
+) -> Result<Option<String>, ExitCode> {
+    match (args.comment.as_deref(), args.comment_file.as_deref()) {
+        (Some(comment), _) => Ok(Some(comment.to_owned())),
+        (None, Some(path)) => {
+            std::fs::read_to_string(path).map(Some).map_err(|error| {
+                eprintln!(
+                    "E_TRANSITION_NO_BODY: could not read --comment-file: \
+                     {error}"
+                );
+                ExitCode::from(exit_codes::TRANSITION_NO_BODY)
+            })
+        }
+        (None, None) => Ok(None),
+    }
+}
+
 fn run_transition(args: &TransitionArgs) -> ExitCode {
     let state = args.state.as_deref().or(args.state_flag.as_deref());
     let target = match (args.transition_id.as_deref(), state) {
@@ -443,6 +705,10 @@ fn run_transition(args: &TransitionArgs) -> ExitCode {
             return ExitCode::from(exit_codes::TRANSITION_NO_STATE);
         }
     };
+    let comment = match transition_comment(args) {
+        Ok(comment) => comment,
+        Err(code) => return code,
+    };
     let client = match client_or_report() {
         Ok(built) => built.client,
         Err(code) => return code,
@@ -451,7 +717,7 @@ fn run_transition(args: &TransitionArgs) -> ExitCode {
         &args.key,
         &target,
         args.resolution.as_deref(),
-        args.comment.as_deref(),
+        comment.as_deref(),
         !args.no_notify,
     ) {
         Ok(()) => {

@@ -103,3 +103,97 @@ fn a_missing_summary_exits_before_the_wire() {
     assert_eq!(output.status.code(), Some(102));
     assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0, "nothing sent");
 }
+
+const SITE: &str = r#"{"site":"acme","accountId":"acc-me"}"#;
+const FIELDS: &str = r#"{"site":"acme","fields":[
+    {"id":"customfield_10","key":"cf","name":"Story Points",
+     "slug":"story-points","schema":{"type":"number"}}]}"#;
+
+#[test]
+fn create_sends_the_full_resolved_field_set() {
+    let server = created(r#"{"key":"ENG-7"}"#);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_cache(dir.path(), "site.json", SITE);
+    support::seed_cache(dir.path(), "fields.json", FIELDS);
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &[
+            "create",
+            "--summary",
+            "Rich",
+            "--type",
+            "Bug",
+            "--priority",
+            "High",
+            "--label",
+            "backend",
+            "--component",
+            "api",
+            "--parent",
+            "ENG-1",
+            "--assignee",
+            "@me",
+            "--custom",
+            "story-points=5",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "create exited {:?}: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let sent: Value = serde_json::from_slice(
+        &server.last_body(&RequestKey::post(ISSUE)).expect("body"),
+    )
+    .expect("json body");
+    let fields = &sent["fields"];
+    assert_eq!(fields["priority"]["name"], "High");
+    assert_eq!(fields["labels"], serde_json::json!(["backend"]));
+    assert_eq!(fields["components"], serde_json::json!([{"name": "api"}]));
+    assert_eq!(fields["parent"]["key"], "ENG-1");
+    assert_eq!(fields["assignee"]["accountId"], "acc-me", "@me resolved");
+    assert_eq!(fields["customfield_10"], serde_json::json!(5));
+}
+
+#[test]
+fn an_email_assignee_is_refused_at_107_before_the_wire() {
+    let server = created("{}");
+    let dir = support::scratch(support::CONFIG);
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", "--summary", "x", "--assignee", "toby@example.com"],
+    );
+    assert_eq!(output.status.code(), Some(107));
+    assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0, "nothing sent");
+}
+
+#[test]
+fn at_me_without_a_site_cache_is_106() {
+    let server = created("{}");
+    let dir = support::scratch(support::CONFIG);
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", "--summary", "x", "--assignee", "@me"],
+    );
+    assert_eq!(output.status.code(), Some(106));
+    assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0, "nothing sent");
+}
+
+#[test]
+fn an_unknown_custom_field_is_103() {
+    let server = created("{}");
+    let dir = support::scratch(support::CONFIG);
+    support::seed_cache(dir.path(), "fields.json", FIELDS);
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["create", "--summary", "x", "--custom", "no-such=1"],
+    );
+    assert_eq!(output.status.code(), Some(103));
+    assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0, "nothing sent");
+}

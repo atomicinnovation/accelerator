@@ -67,12 +67,34 @@ pub struct CreateArgs {
     pub summary: Option<String>,
     #[arg(long, alias = "issuetype")]
     pub r#type: Option<String>,
+    /// A numeric issue type id, winning over `--type`.
+    #[arg(long = "issuetype-id")]
+    pub issuetype_id: Option<String>,
     #[arg(long)]
     pub project: Option<String>,
+    /// An inline Markdown body (converted to ADF).
+    #[arg(long)]
+    pub body: Option<String>,
     #[arg(long)]
     pub body_file: Option<PathBuf>,
+    /// `@me` or a raw accountId; an email is refused.
     #[arg(long)]
     pub assignee: Option<String>,
+    /// `@me` or a raw accountId; an email is refused.
+    #[arg(long)]
+    pub reporter: Option<String>,
+    #[arg(long)]
+    pub priority: Option<String>,
+    #[arg(long = "label")]
+    pub labels: Vec<String>,
+    #[arg(long = "component")]
+    pub components: Vec<String>,
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// A `SLUG=VALUE` custom field; repeatable. `@json:<literal>` sets an
+    /// array or object verbatim.
+    #[arg(long = "custom")]
+    pub custom: Vec<String>,
     /// The stdout projection: the full JSON, or the bare key for a writeback.
     #[arg(long, value_enum, default_value = "json")]
     pub emit: CreateEmit,
@@ -85,8 +107,42 @@ pub struct UpdateArgs {
     pub key: String,
     #[arg(long)]
     pub summary: Option<String>,
+    /// An inline Markdown body (converted to ADF).
+    #[arg(long)]
+    pub body: Option<String>,
     #[arg(long)]
     pub body_file: Option<PathBuf>,
+    #[arg(long)]
+    pub priority: Option<String>,
+    /// `@me`, a raw accountId, or `""` to unassign.
+    #[arg(long)]
+    pub assignee: Option<String>,
+    /// `@me` or a raw accountId.
+    #[arg(long)]
+    pub reporter: Option<String>,
+    /// A parent key, or `""` to clear the parent.
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// Replace all labels; exclusive with `--add-label`/`--remove-label`.
+    #[arg(long = "label")]
+    pub labels: Vec<String>,
+    #[arg(long = "add-label")]
+    pub add_labels: Vec<String>,
+    #[arg(long = "remove-label")]
+    pub remove_labels: Vec<String>,
+    /// Replace all components; exclusive with the incremental component flags.
+    #[arg(long = "component")]
+    pub components: Vec<String>,
+    #[arg(long = "add-component")]
+    pub add_components: Vec<String>,
+    #[arg(long = "remove-component")]
+    pub remove_components: Vec<String>,
+    /// A `SLUG=VALUE` custom field; repeatable. `@json:<literal>` sets an
+    /// array or object verbatim.
+    #[arg(long = "custom")]
+    pub custom: Vec<String>,
+    #[arg(long = "no-notify")]
+    pub no_notify: bool,
     #[arg(long, short)]
     pub quiet: bool,
 }
@@ -226,6 +282,9 @@ pub struct TransitionArgs {
     pub resolution: Option<String>,
     #[arg(long)]
     pub comment: Option<String>,
+    /// A comment body from a file (Markdown), converted to ADF.
+    #[arg(long = "comment-file")]
+    pub comment_file: Option<PathBuf>,
     #[arg(long = "no-notify")]
     pub no_notify: bool,
     #[arg(long, short)]

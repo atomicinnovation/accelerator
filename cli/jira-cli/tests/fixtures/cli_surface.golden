@@ -29,14 +29,38 @@ Options:
       --type <TYPE>
           
 
+      --issuetype-id <ISSUETYPE_ID>
+          A numeric issue type id, winning over `--type`
+
       --project <PROJECT>
           
+
+      --body <BODY>
+          An inline Markdown body (converted to ADF)
 
       --body-file <BODY_FILE>
           
 
       --assignee <ASSIGNEE>
+          `@me` or a raw accountId; an email is refused
+
+      --reporter <REPORTER>
+          `@me` or a raw accountId; an email is refused
+
+      --priority <PRIORITY>
           
+
+      --label <LABELS>
+          
+
+      --component <COMPONENTS>
+          
+
+      --parent <PARENT>
+          
+
+      --custom <CUSTOM>
+          A `SLUG=VALUE` custom field; repeatable. `@json:<literal>` sets an array or object verbatim
 
       --emit <EMIT>
           The stdout projection: the full JSON, or the bare key for a writeback
@@ -62,10 +86,40 @@ Arguments:
   <KEY>  
 
 Options:
-      --summary <SUMMARY>      
-      --body-file <BODY_FILE>  
-  -q, --quiet                  
-  -h, --help                   Print help
+      --summary <SUMMARY>
+          
+      --body <BODY>
+          An inline Markdown body (converted to ADF)
+      --body-file <BODY_FILE>
+          
+      --priority <PRIORITY>
+          
+      --assignee <ASSIGNEE>
+          `@me`, a raw accountId, or `""` to unassign
+      --reporter <REPORTER>
+          `@me` or a raw accountId
+      --parent <PARENT>
+          A parent key, or `""` to clear the parent
+      --label <LABELS>
+          Replace all labels; exclusive with `--add-label`/`--remove-label`
+      --add-label <ADD_LABELS>
+          
+      --remove-label <REMOVE_LABELS>
+          
+      --component <COMPONENTS>
+          Replace all components; exclusive with the incremental component flags
+      --add-component <ADD_COMPONENTS>
+          
+      --remove-component <REMOVE_COMPONENTS>
+          
+      --custom <CUSTOM>
+          A `SLUG=VALUE` custom field; repeatable. `@json:<literal>` sets an array or object verbatim
+      --no-notify
+          
+  -q, --quiet
+          
+  -h, --help
+          Print help
 
 === accelerator-jira show --help ===
 Show an issue as JSON, rendering ADF fields to Markdown
@@ -137,6 +191,7 @@ Options:
       --transition-id <TRANSITION_ID>  
       --resolution <RESOLUTION>        
       --comment <COMMENT>              
+      --comment-file <COMMENT_FILE>    A comment body from a file (Markdown), converted to ADF
       --no-notify                      
   -q, --quiet                          
   -h, --help                           Print help
