@@ -13,7 +13,7 @@ relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:01
 tags: [rust, jira, linear, integrations, cli, cutover, exit-codes, registration]
 revision: "45fe2827ec4eab9404ea4fb851de05fcbd9b87b3"
 repository: "accelerator"
-last_updated: "2026-08-22T21:33:25+00:00"
+last_updated: "2026-08-23T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1521,9 +1521,13 @@ credential-resolution divergence (Jira flattens to `22`) is already encoded in
 #### Manual Verification:
 
 - [ ] `accelerator-jira` against a live Jira project matches `jira-*-flow.sh`
-      for every flow (spot-check against 0210's 2026-08-21 contract evidence)
-- [ ] `jira resolve-fields` output is byte-identical to the bash resolver line
-- [ ] `init verify` prints no credential
+      for every flow (spot-check against 0210's 2026-08-21 contract evidence) —
+      live-tenant, still pending
+- [ ] `jira resolve-fields` output is byte-identical to the bash resolver line —
+      the tab-separated format is pinned byte-exactly by
+      `flow_resolve_fields.rs`; a live diff against the bash script is pending
+- [ ] `init verify` prints no credential — asserted automatically on every exit
+      path by `flow_init.rs`; a live-tenant confirmation is pending
 
 ---
 
