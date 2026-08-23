@@ -41,7 +41,7 @@ Run the bare launcher **directly** as an executable; never prefix it with
 permission and forces an unnecessary prompt). Credential resolution and
 verification fold into this one call; the token is never printed.
 
-If it exits `24` (no token found), tell the user:
+If it fails naming `E_NO_TOKEN` (no token found), tell the user:
 
 > No Linear API token found. Generate a personal API key at
 > <https://linear.app/settings/account/security> (the value starts with

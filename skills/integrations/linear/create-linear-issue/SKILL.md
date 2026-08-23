@@ -49,10 +49,11 @@ the Markdown body (truncate to the first 500 characters for display if longer;
 the full body is still sent). State plainly that on success this skill will
 **set** the file's `external_id` to the new identifier.
 
-A file that already carries a non-empty `external_id` (`E_CREATE_ALREADY_SYNCED`,
-exit `102`) or has missing/unclosed frontmatter (`E_CREATE_BAD_FRONTMATTER`,
-exit `101`) is refused at send time with no API call — if you can already see an
-`external_id` in the file, stop now and tell the user it is already synced.
+A file that already carries a non-empty `external_id`
+(`E_CREATE_ALREADY_SYNCED`) or has missing/unclosed frontmatter
+(`E_CREATE_BAD_FRONTMATTER`) is refused at send time with no API call — if you
+can already see an `external_id` in the file, stop now and tell the user it is
+already synced.
 
 ## Step 3: Confirm before writing
 
@@ -81,8 +82,8 @@ outcome never writes `external_id` and never invites a blind re-run:
   `external_id: <identifier>` in the work-item file's frontmatter (insert the
   line if absent), then report: *"Issue created: **\<identifier\>** — the work
   item's `external_id` is now `\<identifier\>`."*
-- **`writeback-failed`** (exit `107`) — the issue **was** created remotely but
-  its identifier is unusable. Do **not** write `external_id`. Surface this
+- **`writeback-failed`** — the issue **was** created remotely but its
+  identifier is unusable. Do **not** write `external_id`. Surface this
   loudly: give the user the identifier, tell them NOT to re-run (it would create
   a duplicate), and that they should reconcile `external_id` by hand.
 - **any other non-zero exit** — no issue was created. Do **not** write

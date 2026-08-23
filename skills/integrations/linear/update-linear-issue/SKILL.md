@@ -40,7 +40,7 @@ the fields being set (`--title`/`--description`/`--state`/`--assignee-id`/
 > **Proposed Linear write — review before sending**
 
 At least one mutating flag is required; with none the subcommand refuses before
-any write (`E_UPDATE_NO_OPS`, exit `111`). A `--state` change resolves through
+any write (`E_UPDATE_NO_OPS`). A `--state` change resolves through
 the catalogue and is refused before any write if the name is unknown or
 ambiguous.
 

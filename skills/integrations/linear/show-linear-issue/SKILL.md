@@ -45,8 +45,8 @@ Run the bare launcher **directly** as an executable; never prefix it with
 permission and forces an unnecessary prompt).
 
 The subcommand emits a JSON document with a top-level `outcome` keyword —
-`found` or `not-found`. When `outcome` is `not-found` (exit 82), tell the user
-the issue was not found.
+`found` or `not-found`. When `outcome` is `not-found`, tell the user the issue
+was not found.
 
 ## Step 3: Render the issue
 

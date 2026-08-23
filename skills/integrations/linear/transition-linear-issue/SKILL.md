@@ -39,8 +39,8 @@ issue, and the target state name — under:
 
 State matching is case-insensitive and trimmed. Resolution happens inside the
 subcommand from the cached catalogue; a name that is not in the catalogue or is
-shared by two states is refused at send time **before any write** (exit `122`
-`E_TRANSITION_STATE_NOT_IN_CATALOGUE`, `123` `E_TRANSITION_STATE_AMBIGUOUS`).
+shared by two states is refused at send time **before any write**
+(`E_TRANSITION_STATE_NOT_IN_CATALOGUE`, `E_TRANSITION_STATE_AMBIGUOUS`).
 
 ## Step 3: Confirm before writing
 
@@ -60,8 +60,9 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear transition <IDENTIFIER> "<STATE-NAM
 
 The subcommand emits a JSON envelope with a top-level `outcome` keyword. On
 `transitioned`, confirm the new state and suggest `/show-linear-issue
-<IDENTIFIER>` to verify. If it exits `122`/`123`, the state could not be resolved
-and no write was made — suggest `/init-linear` to refresh, or ask the user to
-pick an unambiguous state.
+<IDENTIFIER>` to verify. On a non-zero exit naming
+`E_TRANSITION_STATE_NOT_IN_CATALOGUE` or `E_TRANSITION_STATE_AMBIGUOUS`, the
+state could not be resolved and no write was made — suggest `/init-linear` to
+refresh, or ask the user to pick an unambiguous state.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions transition-linear-issue --fail-safe`

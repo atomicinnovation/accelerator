@@ -34,7 +34,10 @@ _CLI_CHECK_GATES = [
 # — that would additionally force it into cli:check. It rides build-system:check
 # because that is the roll-up CI runs, and lint:check for the same
 # bare-`default` reason as the cli/-scoped guards above.
-_BUILD_SYSTEM_CHECK_GATES = ["lint:dispatch-coherence:check"]
+_BUILD_SYSTEM_CHECK_GATES = [
+    "lint:dispatch-coherence:check",
+    "lint:integration-skills:check",
+]
 
 _LAUNCHER = "build:cli:dev"
 _INTEGRATION_PREFIX = "test:integration:"
