@@ -42,6 +42,8 @@ OUT="$SCRIPT_DIR/bash-exit-codes.txt"
   echo "SERVER_ERROR=20"
   echo ""
   echo "# Named codes, grepped from the EXIT_CODES.md namespace table."
+  # The backticks and backrefs are literal regex, not shell expansions.
+  # shellcheck disable=SC2016
   grep -oE '^\| [0-9]+ +\| `E_[A-Z_]+\*?`' "$TABLE" |
     sed -E 's/^\| ([0-9]+) +\| `E_([A-Z_]+)\*?`/\2=\1/' |
     sed -E 's/^ADF_UNSUPPORTED_=/ADF_UNSUPPORTED=/' |
