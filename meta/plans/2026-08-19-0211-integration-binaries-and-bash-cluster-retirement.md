@@ -1236,20 +1236,25 @@ anchor.
 
 #### Automated Verification:
 
-- [ ] Dispatch coherence green both directions, with `search-linear-issues` as a
+- [x] Dispatch coherence green both directions, with `search-linear-issues` as a
       metacharacter-free witness (bound, not merely invoked): `mise run
-      build-system:check`
+      build-system:check` — green
 - [ ] `test-skill-write-gate.sh` asserts each linear write skill's confirm step
-      lexically precedes its `accelerator linear …` mutation invocation
+      lexically precedes its `accelerator linear …` mutation invocation —
+      **not yet written** (the invariant is upheld by the repoint; the guard
+      enforcing it is outstanding)
 - [ ] Doc-vs-binary parity: every keyword a repointed linear body branches on
-      exists in the binary's declared set; no body cites a bash exit integer
-- [ ] `ls skills/integrations/linear/scripts/*.sh` matches nothing;
-      `mock-linear-server.py` does not exist
-- [ ] Linear integration floor holds at 20 and the `integrations` task runs the
-      surviving jira suites: `mise run test:integration:integrations`
-- [ ] Exec-bit + stale-library guards green: `mise run lint:scripts:check`
-- [ ] Python coverage + ruff-exclude equality green: `mise run test:unit`
-- [ ] Full run green end to end: `mise run`
+      exists in the binary's declared set; no body cites a bash exit integer —
+      **not yet written** (invariant upheld; guard outstanding)
+- [x] `ls skills/integrations/linear/scripts/*.sh` matches nothing;
+      `mock-linear-server.py` does not exist — the whole `linear/scripts/` dir is
+      deleted
+- [x] Linear integration floor holds at 20 and the `integrations` task runs the
+      surviving jira suites (exactly 20 `test-jira-*.sh`)
+- [x] Exec-bit + stale-library guards green: `mise run lint:scripts:check`
+- [x] Python coverage + ruff-exclude equality green (`test_python_coverage.py`,
+      `test_exec_bits.py`, `test_integration.py` pass)
+- [ ] Full run green end to end: `mise run` — pending, after the guards + artefacts
 
 #### Manual Verification:
 
