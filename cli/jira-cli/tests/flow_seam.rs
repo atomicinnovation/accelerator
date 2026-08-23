@@ -54,6 +54,23 @@ fn the_from_config_branch_resolves_config_without_an_override() {
     );
 }
 
+#[test]
+fn bare_init_without_a_default_project_refuses_rather_than_blocking() {
+    // A config with no `work.default_project_code`, and the harness runs with
+    // stdin closed (never a TTY), so bare `jira init` must refuse with the
+    // needs-config code instead of blocking on an interactive prompt.
+    let config = "---\nwork:\n  integration: jira\njira:\n  site: acme\n  \
+        email: toby@example.com\n---\n";
+    let dir = support::scratch(config);
+    let output =
+        support::run_with(dir.path(), &["init"], None, &Token::Present);
+    assert_eq!(
+        output.status.code(),
+        Some(60),
+        "no default project + no TTY → INIT_NEEDS_CONFIG, not a hang"
+    );
+}
+
 #[cfg(not(feature = "test-loopback"))]
 #[test]
 fn a_loopback_override_is_refused_without_the_test_feature() {

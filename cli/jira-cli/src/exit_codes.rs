@@ -211,6 +211,7 @@ pub const fn for_credential(error: &CredentialError) -> u8 {
 pub const fn for_cache(error: &CacheError) -> u8 {
     match error {
         CacheError::LockContended { .. } => REFRESH_LOCKED,
+        CacheError::Incompatible { .. } => FIELD_CACHE_CORRUPT,
         CacheError::Io { .. } | CacheError::Serialise { .. } => ERROR,
     }
 }

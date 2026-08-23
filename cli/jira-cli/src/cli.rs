@@ -37,10 +37,11 @@ pub enum Command {
     Transition(TransitionArgs),
     /// Attach files to an issue.
     Attach(AttachArgs),
-    /// Verify credentials, discover the catalogue, or list its parts.
+    /// Verify credentials, discover the catalogue, or list its parts. With no
+    /// subcommand, runs the full verify → discover → prompt-default flow.
     Init {
         #[command(subcommand)]
-        action: InitAction,
+        action: Option<InitAction>,
     },
     /// Refresh, resolve or list the custom-field cache.
     Fields {

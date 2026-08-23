@@ -10,6 +10,7 @@ mod keywords;
 mod render;
 mod resolve_fields;
 
+use std::io::IsTerminal as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -490,7 +491,21 @@ fn surface_failure(error: &jira_client::SurfaceError) -> ExitCode {
     ExitCode::from(exit_codes::for_surface(error))
 }
 
-fn run_init(action: &InitAction) -> ExitCode {
+fn run_init(action: Option<&InitAction>) -> ExitCode {
+    // Bare `jira init` with no configured default project would, in bash, block
+    // on an interactive `read`. The binary never prompts: with no TTY to read
+    // from it refuses explicitly rather than hanging (TTY policy, Decision 4).
+    if action.is_none()
+        && resolve_fields::configured_default_project().is_none()
+        && !std::io::stdin().is_terminal()
+    {
+        eprintln!(
+            "E_INIT_NEEDS_CONFIG: no default project and no TTY to prompt on — \
+             set work.default_project_code or run a specific init subcommand"
+        );
+        return ExitCode::from(exit_codes::INIT_NEEDS_CONFIG);
+    }
+
     let built = match client_or_report() {
         Ok(built) => built,
         Err(code) => return code,
@@ -501,61 +516,73 @@ fn run_init(action: &InitAction) -> ExitCode {
         return ExitCode::from(exit_codes::ERROR);
     }
     let filesystem = SystemFilesystem::new(built.project_root.clone());
-    let cache = JiraCache::new(&filesystem, state_dir.clone());
+    let cache = JiraCache::new(&filesystem, state_dir);
     match action {
-        InitAction::Verify => init_verify(&built, &cache),
-        InitAction::Discover | InitAction::RefreshFields => {
-            init_discover(&built, &cache)
+        Some(InitAction::Verify) => code(init_verify(&built, &cache)),
+        Some(InitAction::Discover | InitAction::RefreshFields) => {
+            code(init_discover(&built, &cache))
         }
-        InitAction::PromptDefault => init_prompt_default(),
-        InitAction::ListProjects => {
-            list_cached(&state_dir, "projects.json", "projects")
+        Some(InitAction::PromptDefault) => init_prompt_default(),
+        Some(InitAction::ListProjects) => {
+            list_cached(&cache, "projects.json", "projects")
         }
-        InitAction::ListFields => {
-            list_cached(&state_dir, "fields.json", "fields")
+        Some(InitAction::ListFields) => {
+            list_cached(&cache, "fields.json", "fields")
         }
+        // The full flow: verify the credentials, discover the catalogue, then
+        // report the resolved default project.
+        None => init_verify(&built, &cache)
+            .and_then(|()| init_discover(&built, &cache))
+            .map_or_else(|failure| failure, |()| init_prompt_default()),
     }
 }
 
-fn init_verify(built: &context::Built, cache: &JiraCache<'_>) -> ExitCode {
-    match built.client.discover_site() {
-        Ok(site) => {
-            if let Err(error) = cache.write_site(&site) {
-                eprintln!("{error}");
-                return ExitCode::from(exit_codes::for_cache(&error));
-            }
-            print_json(&keywords::with_outcome(
-                site,
-                keywords::Init::Verified.keyword(),
-            ));
-            ExitCode::SUCCESS
-        }
-        Err(error) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::INIT_VERIFY_FAILED)
-        }
-    }
+/// Collapses a step result to its exit code — success or the carried failure.
+fn code(result: Result<(), ExitCode>) -> ExitCode {
+    result.err().unwrap_or(ExitCode::SUCCESS)
 }
 
-fn init_discover(built: &context::Built, cache: &JiraCache<'_>) -> ExitCode {
-    let projects = match built.client.discover_projects() {
-        Ok(projects) => projects,
-        Err(error) => return surface_failure(&error),
-    };
-    let fields = match built.client.discover_fields() {
-        Ok(fields) => fields,
-        Err(error) => return surface_failure(&error),
-    };
-    if let Err(error) = cache.write_discovery(&projects, &fields) {
+fn init_verify(
+    built: &context::Built,
+    cache: &JiraCache<'_>,
+) -> Result<(), ExitCode> {
+    let site = built.client.discover_site().map_err(|error| {
         eprintln!("{error}");
-        return ExitCode::from(exit_codes::for_cache(&error));
-    }
+        ExitCode::from(exit_codes::INIT_VERIFY_FAILED)
+    })?;
+    cache.write_site(&site).map_err(|error| {
+        eprintln!("{error}");
+        ExitCode::from(exit_codes::for_cache(&error))
+    })?;
+    print_json(&keywords::with_outcome(
+        site,
+        keywords::Init::Verified.keyword(),
+    ));
+    Ok(())
+}
+
+fn init_discover(
+    built: &context::Built,
+    cache: &JiraCache<'_>,
+) -> Result<(), ExitCode> {
+    let projects = built
+        .client
+        .discover_projects()
+        .map_err(|error| surface_failure(&error))?;
+    let fields = built
+        .client
+        .discover_fields()
+        .map_err(|error| surface_failure(&error))?;
+    cache.write_discovery(&projects, &fields).map_err(|error| {
+        eprintln!("{error}");
+        ExitCode::from(exit_codes::for_cache(&error))
+    })?;
     let envelope = json!({"projects": projects, "fields": fields});
     print_json(&keywords::with_outcome(
         envelope,
         keywords::Init::Discovered.keyword(),
     ));
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 fn init_prompt_default() -> ExitCode {
@@ -580,21 +607,28 @@ fn init_prompt_default() -> ExitCode {
     }
 }
 
-fn list_cached(state_dir: &Path, file: &str, field: &str) -> ExitCode {
-    let path = state_dir.join(file);
-    let Ok(text) = std::fs::read_to_string(&path) else {
-        eprintln!(
-            "E_FIELD_CACHE_MISSING: {}; run init discover",
-            path.display()
-        );
-        return ExitCode::from(exit_codes::FIELD_CACHE_MISSING);
-    };
-    let Ok(cached) = serde_json::from_str::<Value>(&text) else {
-        eprintln!(
-            "E_FIELD_CACHE_CORRUPT: {} is not valid JSON",
-            path.display()
-        );
-        return ExitCode::from(exit_codes::FIELD_CACHE_CORRUPT);
+/// Reads a marker-checked cache file (Decision 21), or maps the failure to an
+/// exit code: an absent file is a missing cache, an unrecognised version marker
+/// or unparseable shape a corrupt one.
+fn read_cache_or_report(
+    cache: &JiraCache<'_>,
+    file: &str,
+) -> Result<Value, ExitCode> {
+    cache.read_cache(file).map_err(|error| {
+        eprintln!("{error}");
+        match error {
+            jira_client::cache::CacheError::Io { .. } => {
+                ExitCode::from(exit_codes::FIELD_CACHE_MISSING)
+            }
+            _ => ExitCode::from(exit_codes::for_cache(&error)),
+        }
+    })
+}
+
+fn list_cached(cache: &JiraCache<'_>, file: &str, field: &str) -> ExitCode {
+    let cached = match read_cache_or_report(cache, file) {
+        Ok(cached) => cached,
+        Err(code) => return code,
     };
     let list = cached.get(field).cloned().unwrap_or(Value::Array(vec![]));
     print_json(&list);
@@ -607,36 +641,25 @@ fn run_fields(action: FieldsAction) -> ExitCode {
         Err(code) => return code,
     };
     let state_dir = built.integrations_root.join("jira");
+    let filesystem = SystemFilesystem::new(built.project_root.clone());
+    let cache = JiraCache::new(&filesystem, state_dir.clone());
     match action {
         FieldsAction::Refresh => {
             if let Err(error) = std::fs::create_dir_all(&state_dir) {
                 eprintln!("E_CACHE_IO: {}: {error}", state_dir.display());
                 return ExitCode::from(exit_codes::ERROR);
             }
-            let filesystem = SystemFilesystem::new(built.project_root.clone());
-            let cache = JiraCache::new(&filesystem, state_dir);
-            init_discover(&built, &cache)
+            code(init_discover(&built, &cache))
         }
-        FieldsAction::List => list_cached(&state_dir, "fields.json", "fields"),
-        FieldsAction::Resolve { query } => resolve_field(&state_dir, &query),
+        FieldsAction::List => list_cached(&cache, "fields.json", "fields"),
+        FieldsAction::Resolve { query } => resolve_field(&cache, &query),
     }
 }
 
-fn resolve_field(state_dir: &Path, query: &str) -> ExitCode {
-    let path = state_dir.join("fields.json");
-    let Ok(text) = std::fs::read_to_string(&path) else {
-        eprintln!(
-            "E_FIELD_CACHE_MISSING: {}; run init discover",
-            path.display()
-        );
-        return ExitCode::from(exit_codes::FIELD_CACHE_MISSING);
-    };
-    let Ok(cached) = serde_json::from_str::<Value>(&text) else {
-        eprintln!(
-            "E_FIELD_CACHE_CORRUPT: {} is not valid JSON",
-            path.display()
-        );
-        return ExitCode::from(exit_codes::FIELD_CACHE_CORRUPT);
+fn resolve_field(cache: &JiraCache<'_>, query: &str) -> ExitCode {
+    let cached = match read_cache_or_report(cache, "fields.json") {
+        Ok(cached) => cached,
+        Err(code) => return code,
     };
     let fields = cached.get("fields").and_then(Value::as_array);
     let resolved = fields.and_then(|fields| {
@@ -703,7 +726,7 @@ fn main() -> ExitCode {
         Command::Comment { action } => run_comment(action),
         Command::Transition(args) => run_transition(&args),
         Command::Attach(args) => run_attach(&args),
-        Command::Init { action } => run_init(&action),
+        Command::Init { action } => run_init(action.as_ref()),
         Command::Fields { action } => run_fields(action),
         Command::ResolveFields(args) => run_resolve_fields(&args),
     }

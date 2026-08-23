@@ -105,6 +105,26 @@ fn no_code_lands_on_the_reserved_dispatch_band() {
     }
 }
 
+/// The `81`/`82`/`34` integers collide across providers — Linear and Jira each
+/// give them a different meaning. This pins Jira's stated per-provider
+/// behaviour, so a drift toward Linear's assignment fails here.
+#[test]
+fn the_cross_provider_collision_codes_carry_their_jira_meaning() {
+    let rust = rust_codes();
+    let expect = |name: &str, value: u8| {
+        assert_eq!(
+            rust.get(name).copied(),
+            Some(value),
+            "{name} must be {value} for Jira"
+        );
+    };
+    // 81/82 are Jira's show argument-validation codes (Linear uses them for
+    // SHOW_BAD_FLAG / SHOW_NOT_FOUND); 34 is Jira's HTTP-400 REQ_BAD_REQUEST.
+    expect("SHOW_BAD_COMMENTS_LIMIT", 81);
+    expect("SHOW_BAD_FLAG", 82);
+    expect("REQ_BAD_REQUEST", 34);
+}
+
 /// The binary reads the granular code from the structured discriminant
 /// (`JiraFailure`'s `Outcome`, a `SurfaceError`, a `ClientError`), never by
 /// parsing it back out of a collapsed `TrackerError` detail string (Decision 9).

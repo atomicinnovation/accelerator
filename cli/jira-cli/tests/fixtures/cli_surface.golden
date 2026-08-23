@@ -9,7 +9,7 @@ Commands:
   comment         Comment on an issue
   transition      Transition an issue to a named workflow state
   attach          Attach files to an issue
-  init            Verify credentials, discover the catalogue, or list its parts
+  init            Verify credentials, discover the catalogue, or list its parts. With no subcommand, runs the full verify → discover → prompt-default flow
   fields          Refresh, resolve or list the custom-field cache
   resolve-fields  Resolve the issue type and project for a create, as a tab-separated line
   help            Print this message or the help of the given subcommand(s)
@@ -155,9 +155,9 @@ Options:
   -h, --help   Print help
 
 === accelerator-jira init --help ===
-Verify credentials, discover the catalogue, or list its parts
+Verify credentials, discover the catalogue, or list its parts. With no subcommand, runs the full verify → discover → prompt-default flow
 
-Usage: accelerator-jira init <COMMAND>
+Usage: accelerator-jira init [COMMAND]
 
 Commands:
   verify          Verify credentials and cache the site identity, without printing them
