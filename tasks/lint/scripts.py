@@ -36,8 +36,6 @@ SHELL_LIBRARIES: frozenset[str] = frozenset(
         "skills/integrations/jira/scripts/jira-jql.sh",
         "skills/integrations/jira/scripts/jira-body-input.sh",
         "skills/integrations/jira/scripts/jira-custom-fields.sh",
-        "skills/integrations/linear/scripts/linear-common.sh",
-        "skills/integrations/linear/scripts/linear-auth.sh",
     }
 )
 

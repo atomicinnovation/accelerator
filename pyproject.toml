@@ -85,7 +85,6 @@ target-version = "py314"
 extend-exclude = [
     "workspaces",
     "skills/integrations/jira/scripts/test-helpers/mock-jira-server.py",
-    "skills/integrations/linear/scripts/test-helpers/mock-linear-server.py",
 ]
 
 [tool.ruff.lint]
