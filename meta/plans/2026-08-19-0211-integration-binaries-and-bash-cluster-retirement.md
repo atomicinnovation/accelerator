@@ -766,14 +766,25 @@ Landed and committed (all green through the gates run at each step):
 - `fcf48ca9` — `flow_search` (envelope + projection + stderr audit + `--quiet`)
   and `flow_init` (no-token guarantee).
 
-Not yet done in this phase: flow tests for comment/transition/create/update/
-attach (transition+create are the multi-POST cases); the behavioural
-exit-code test; the error-class→keyword mapping; the seam-rejection and
-`from_config` tests; the scenario-inventory test; byte-exact stdout goldens; the
-divergences and fixture-reconciliation ledger rows (40 files); the every-`E_*`
-stderr golden; the release-binary byte-scan assertion; and a final
-`mise run check`. The per-flow criteria below stay unchecked until the whole
-Linear surface is covered; only the unambiguously-complete criteria are ticked.
+Landed since (all green through the per-step gates):
+
+- Mutation flow tests — `flow_comment`/`flow_create`/`flow_transition`/
+  `flow_update`/`flow_attach`. `resolve_state` is a **local** catalogue lookup,
+  so create and transition are single-POST; the binary-attach three-step
+  (`fileUpload` POST → raw PUT → `attachmentCreate` POST) is the genuine linear
+  multi-POST case, asserted per hit.
+- Behavioural exit-code test (`flow_errors`) and the seam + `from_config` tests
+  (`flow_seam`), the scenario-inventory test (`scenario_inventory`), the stderr
+  `E_*` diagnostics golden (`stderr_diagnostics`), byte-exact stdout goldens for
+  the JSON subcommands (`stdout_goldens`), and the 40-row linear fixture ledger.
+- The release-binary byte-scan (`tasks/build.py::_assert_no_test_loopback`) with
+  its `test_build.py` coverage.
+
+Remaining in this phase: the `mise run check` full read-only gate and the manual
+live-tenant spot-check. One design divergence to fold into Phase 2's divergences
+ledger: errors route to exit codes + `E_*` stderr, not to keywords, so the
+"every error class → one keyword" criterion is reframed (keywords carry success
+outcomes only).
 
 ### Subcommand surface and the reconciliation mapping
 
@@ -1056,46 +1067,63 @@ crate has one, and the Linear rules already landed in 0210 at `:194-262`.
 
 #### Automated Verification:
 
-- [ ] Workspace builds locked: `mise run cli:check`
-- [ ] Linear CLI tests pass (per-flow request/response/stdout goldens, exit-code
-      parity, keyword surface, help surface): `cargo nextest run -p
-      accelerator-linear` (from `cli/`)
-- [ ] Behavioural exit-code test drives the binary into each error class and
+- [x] Workspace builds locked: `mise run cli:check` — green (exit 0)
+- [x] Linear CLI tests pass (per-flow request/response/stdout goldens, exit-code
+      parity, keyword surface, help surface): `cargo nextest run -p linear-cli
+      --features test-loopback` (from `cli/`) — 26 pass with the feature, 14
+      without; CI runs `--all-features`, which enables `test-loopback`
+- [x] Behavioural exit-code test drives the binary into each error class and
       asserts the *observed* exit code; its class set is an exhaustive match over
       the error enums (not the keyword set, not the bash capture), so a new
       variant is a compile error until driven and binary-owned classes absent
-      from bash are still driven
+      from bash are still driven — `flow_errors.rs` (network 401/400, not-found,
+      the argument-validation refusals, missing token); the `for_surface`/
+      `for_client`/`for_failure` maps are wildcard-free exhaustive matches, so a
+      new variant is a compile error at the mapping
 - [ ] Every error class maps to exactly one keyword in the closed, count-pinned
-      per-subcommand keyword set
-- [ ] Parity divergence allowlist is count-pinned, ledger-backed, and its oracle
-      is independent of the constants it guards
-- [ ] `bash-exit-codes.txt` parse asserts each `(flow, name)` key is unique
+      per-subcommand keyword set — **design divergence**: errors route to exit
+      codes + `E_*` stderr, not keywords; keywords carry success outcomes only
+      (`keyword_surface.rs` pins the closed set). To record in Phase 2's
+      divergences ledger.
+- [x] Parity divergence allowlist is count-pinned, ledger-backed, and its oracle
+      is independent of the constants it guards — `exit_codes_parity.rs`
+- [x] `bash-exit-codes.txt` parse asserts each `(flow, name)` key is unique
 - [x] No binary emits `70`–`74` for a provider condition (test over the whole
       subcommand set) — `exit_codes_parity.rs::no_code_lands_on_the_reserved_dispatch_band`
-- [ ] Search stderr audit line (`INFO: composed IssueFilter`) golden holds and
-      `--quiet` suppresses it
-- [ ] Search JSON-envelope golden (`.data.issues.nodes[]` with `.state.name` +
+- [x] Search stderr audit line (`INFO: composed IssueFilter`) golden holds and
+      `--quiet` suppresses it — `flow_search.rs`
+- [x] Search JSON-envelope golden (`.data.issues.nodes[]` with `.state.name` +
       `.assignee.name` from the read-side op, Decision 20, + `.truncated`)
-      matches the binary's emission
-- [ ] Multi-POST flows assert the `/graphql` hit count and per-hit bodies, and
+      matches the binary's emission — `stdout_goldens.rs::search_stdout_matches_the_golden`
+- [x] Multi-POST flows assert the `/graphql` hit count and per-hit bodies, and
       the additive `Vec<Received>` change is tested at its own boundary in
       `cli/http-test-support/tests/server.rs` (ordered per-hit bodies; `last_body`
-      unchanged after multiple hits)
-- [ ] Every ported scenario under `tests/fixtures/scenarios/` is referenced by at
+      unchanged after multiple hits) — the binary-attach three-step is the linear
+      multi-POST case (`flow_attach.rs`); create/transition are single-POST
+      because `resolve_state` is a local catalogue lookup
+- [x] Every ported scenario under `tests/fixtures/scenarios/` is referenced by at
       least one test (inventory test), so "ported" means "consumed" (Decision 15)
-- [ ] The `test-loopback` feature is off in the release build: the per-crate
+      — `scenario_inventory.rs`
+- [x] The `test-loopback` feature is off in the release build: the per-crate
       `compile_error!` guard holds and a build-system assertion proves
-      `_CLI_RELEASE_BINARIES` carries no `--features test-loopback`
-- [ ] The `from_config` branch has an automated test
+      `_CLI_RELEASE_BINARIES` carries no `--features test-loopback` — staged-binary
+      byte scan `tasks/build.py::_assert_no_test_loopback` (covers jira/linear
+      once they join the release set), tested in `test_build.py`
+- [x] The `from_config` branch has an automated test — `flow_seam.rs::the_from_config_branch_resolves_config_without_an_override`
 - [x] `init verify` sentinel-token test proves no token on stdout or stderr
       (success path; the every-exit-path variants remain) — `flow_init.rs`
-- [ ] A set-but-unparseable or non-admissible `ACCELERATOR_LINEAR_API_URL`
+- [x] A set-but-unparseable or non-admissible `ACCELERATOR_LINEAR_API_URL`
       hard-errors via the binary's own usage exit path before credentials
       attach; a loopback/plain-http override is rejected in any build without
-      the `test-loopback` feature
-- [ ] Every stderr `E_*` name any current linear body references is pinned by a
-      golden
-- [ ] The fixture ledger accounts for all 40 linear scenario files
+      the `test-loopback` feature — `flow_seam.rs` (non-admissible host and
+      unparseable → 2; the `not(feature)` loopback-refusal case; the underlying
+      `url_is_allowed(_, false)` rejection is pinned in `linear-client`'s
+      `upload.rs` tests)
+- [x] Every stderr `E_*` name any current linear body references is pinned by a
+      golden — `stderr_diagnostics.rs` (the binary-owned argument-validation and
+      seam tokens, asserted verbatim)
+- [x] The fixture ledger accounts for all 40 linear scenario files —
+      `meta/inventories/0211-fixture-reconciliation.md`
 - [ ] Full read-only gate: `mise run check`
 
 #### Manual Verification:
