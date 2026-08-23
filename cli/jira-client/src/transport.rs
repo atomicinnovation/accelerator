@@ -15,7 +15,7 @@ use std::time::Instant;
 
 use reqwest::blocking::Client;
 use reqwest::Method;
-use reqwest::Url;
+pub use reqwest::Url;
 use tracker_support::Jitter;
 use tracker_support::RetryPolicy;
 use tracker_support::Sleeper;

@@ -2801,6 +2801,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "jira-cli"
+version = "1.24.0-pre.45"
+dependencies = [
+ "clap",
+ "cli-test-support",
+ "config",
+ "config-adapters",
+ "http-test-support",
+ "jira-client",
+ "kernel",
+ "serde_json",
+ "tempfile",
+ "tracker",
+ "tracker-support",
+ "vcs",
+ "vcs-adapters",
+]
+
+[[package]]
 name = "jira-client"
 version = "1.24.0-pre.50"
 dependencies = [

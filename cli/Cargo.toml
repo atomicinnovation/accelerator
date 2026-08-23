@@ -33,6 +33,7 @@ members = [
     "tracker-support",
     "cli-test-support",
     "jira-client",
+    "jira-cli",
     "linear-client",
     "linear-cli",
     "design",
