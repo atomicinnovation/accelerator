@@ -715,7 +715,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cli-test-support"
-version = "1.24.0-pre.45"
+version = "1.24.0-pre.48"
 dependencies = [
  "http-test-support",
  "serde",
@@ -2995,7 +2995,7 @@ dependencies = [
 
 [[package]]
 name = "linear-cli"
-version = "1.24.0-pre.45"
+version = "1.24.0-pre.48"
 dependencies = [
  "clap",
  "cli-test-support",
