@@ -55,7 +55,6 @@ _LAUNCHER_DEPENDENTS = [
     "test:integration:decisions",
     "test:integration:hooks",
     "test:integration:work",
-    "test:integration:integrations",
     "test:integration:visualiser",
 ]
 

@@ -390,11 +390,6 @@ description = "Run work-management skill script tests (shell harnesses)"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.work"
 
-[tasks."test:integration:integrations"]
-description = "Run jira/linear integration script tests (shell harnesses + python3 mock servers)"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.integrations"
-
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -409,7 +404,6 @@ depends = [
     "test:integration:hooks",
     "test:integration:github",
     "test:integration:work",
-    "test:integration:integrations",
 ]
 
 [tasks."test:e2e:visualiser"]
