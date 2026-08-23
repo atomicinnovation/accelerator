@@ -88,6 +88,47 @@ override reusing a promoted `allowed_sites` with provenance-refusal tests, the
 Jira module doc scoped to bands, and the discriminant carried in-envelope for
 JSON subcommands.
 
+## Implementation status — 2026-08-23
+
+**Phases 0, 1 and 2 are complete and green; Phases 3–5 (the Jira track) are not
+started.** The full `mise run` exits 0 end to end (1222s). Implementation paused
+at the Phase 2 merge boundary — the Linear track is independently mergeable (the
+Jira cluster is untouched and the integrations floor still holds at 20) — so it
+can be reviewed and merged before the larger Jira work begins. Per-phase detail
+is in each phase's success criteria; the highlights:
+
+- **Phase 0 (ADF oracle freeze)** — done + committed before this work (`4eb1fbba`).
+- **Phase 1 (`cli/linear-cli`)** — done. Every subcommand is driven through the
+  `test-loopback` seam, with byte-exact stdout goldens, exit-code parity, the
+  keyword surface, the behavioural exit-code test, the seam/`from_config` tests,
+  the scenario inventory, the stderr `E_*` golden, and the release byte-scan
+  guard. **Plan gap found and filled**: the binary now owns init cache
+  production (`viewer.json`/`catalogue.json`) because the repointed `init-linear`
+  skill drops its `Write` grant — `LinearCache` was present in `linear-client`
+  but unwired. Two Phase 1 criteria remain unticked on purpose: the "every error
+  class → one keyword" line is a recorded **design divergence** (errors route to
+  exit codes + `E_*` stderr, keywords carry success outcomes), and the live-tenant
+  spot-check is a manual step.
+- **Phase 2 (Linear cutover + retirement)** — done. Token registered, all eight
+  bodies repointed onto keywords, the 66-file cluster deleted, guards retired,
+  two enforcement guards added (`lint:integration-skills:check`), and the four
+  Linear inventory artefacts recorded with the revival anchor `5ca7dc49`. The
+  `test-skill-write-gate.sh` / doc-vs-binary guards were implemented as
+  **build-system Python guards beside `dispatch_coherence`**, not a `.sh` suite —
+  recorded in the divergences ledger.
+
+**Two latent full-run reds** surfaced only when the *full* `mise run` was first
+executed (Phase 1 had only run `mise run check`, which does not exercise them)
+and were fixed: the plan's own `status: approved` fell outside the corpus status
+vocab (now `in-progress`), and `linear-cli` reached `reqwest::Url` past the
+provider-transport tripwire in `work-cli/tests/provider_isolation.rs` (`Url` is
+now re-exported from `linear-client`'s transport module). **Lesson for the Jira
+track: run the full `mise run`, not just `mise run check`, before calling a phase
+done.**
+
+The full 21-decision mirror into 0171's `## Decisions` is deferred to Phase 5 as
+the plan specifies.
+
 ## Current State Analysis
 
 0210 (merged, PR #70) absorbed the entire provider surface into the client
@@ -741,7 +782,7 @@ scenario-backed golden per flow, the exit-code taxonomy pinned to a captured
 fixture, the keyword discriminant, and the preview-resolved-intent gate. Not
 registered; the linear bash cluster stays in place as the capture source.
 
-### Implementation progress (2026-08-23) — IN PROGRESS
+### Implementation progress (2026-08-23) — DONE
 
 Landed and committed (all green through the gates run at each step):
 
