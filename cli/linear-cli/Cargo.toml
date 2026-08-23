@@ -31,7 +31,6 @@ vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 serde_json = { workspace = true }
 clap = { workspace = true }
-reqwest = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
