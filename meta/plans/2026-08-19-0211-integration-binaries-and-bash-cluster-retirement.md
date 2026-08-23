@@ -1124,7 +1124,7 @@ crate has one, and the Linear rules already landed in 0210 at `:194-262`.
       seam tokens, asserted verbatim)
 - [x] The fixture ledger accounts for all 40 linear scenario files —
       `meta/inventories/0211-fixture-reconciliation.md`
-- [ ] Full read-only gate: `mise run check`
+- [x] Full read-only gate: `mise run check` — green (exit 0)
 
 #### Manual Verification:
 
