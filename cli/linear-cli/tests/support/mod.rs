@@ -44,20 +44,53 @@ pub fn seed_catalogue(dir: &Path) {
     .expect("write catalogue");
 }
 
+/// Whether the binary run carries a resolvable credential.
+pub enum Token {
+    Present,
+    Absent,
+}
+
 /// Runs the binary against `server` from `dir`, with the env token and the
 /// loopback API URL set and the token-command env scrubbed.
 pub fn run(dir: &Path, server: &MockServer, args: &[&str]) -> Output {
+    run_with(
+        dir,
+        args,
+        Some(&format!("{}/graphql", server.base_url())),
+        &Token::Present,
+    )
+}
+
+/// Runs the binary with an explicit `ACCELERATOR_LINEAR_API_URL` (or none) and a
+/// present or absent token — the seam and missing-credential paths.
+pub fn run_with(
+    dir: &Path,
+    args: &[&str],
+    api_url: Option<&str>,
+    token: &Token,
+) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-linear"));
     command
         .args(args)
         .current_dir(dir)
         .env("ACCELERATOR_PLUGIN_ROOT", dir)
-        .env("ACCELERATOR_LINEAR_TOKEN", TOKEN_SENTINEL)
-        .env(
-            "ACCELERATOR_LINEAR_API_URL",
-            format!("{}/graphql", server.base_url()),
-        )
         .env_remove("ACCELERATOR_LINEAR_TOKEN_CMD")
         .stdin(Stdio::null());
+    match token {
+        Token::Present => {
+            command.env("ACCELERATOR_LINEAR_TOKEN", TOKEN_SENTINEL);
+        }
+        Token::Absent => {
+            command.env_remove("ACCELERATOR_LINEAR_TOKEN");
+        }
+    }
+    match api_url {
+        Some(url) => {
+            command.env("ACCELERATOR_LINEAR_API_URL", url);
+        }
+        None => {
+            command.env_remove("ACCELERATOR_LINEAR_API_URL");
+        }
+    }
     command.output().expect("run accelerator-linear")
 }

@@ -1,0 +1,16 @@
+{
+  "expectations": [
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "consume": false,
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"errors\": [{\"message\": \"Authentication required - not authenticated\", \"extensions\": {\"type\": \"authentication error\"}}]}"
+      }
+    }
+  ]
+}
