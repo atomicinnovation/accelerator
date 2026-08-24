@@ -13,7 +13,7 @@ relates_to:
   ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205",
    "work-item:0215", "work-item:0216"]
 tags: [shell, performance, bootstrap, bash-3.2]
-last_updated: "2026-08-22T21:51:15+00:00"
+last_updated: "2026-08-24T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-721
@@ -148,28 +148,31 @@ input is missing.
 
 ## Acceptance Criteria
 
-- [ ] The warm path forks the sha256 backend once, not twice, and forks no
+- [x] The warm path forks the sha256 backend once, not twice, and forks no
       `awk` — assertable from a `bash -x` trace using the seam 0186 added to
       `run_bootstrap`.
-- [ ] The three planted-stub tests pass unmodified.
-- [ ] A cold run with no staged shim exits with the same status as before the
+- [x] The three planted-stub tests pass unmodified.
+- [x] A cold run with no staged shim exits with the same status as before the
       change, and its combined output carries no new stderr line referencing the
       missing second hash input — verified against a captured before/after diff
       of the cold-run output.
-- [ ] On the one-input-missing path (no staged shim), the source shim's digest
+- [x] On the one-input-missing path (no staged shim), the source shim's digest
       from the batched call equals its standalone `sha256_file` value, asserting
       digests are keyed to their path rather than to output position so a missing
       second input cannot mis-assign the surviving digest.
-- [ ] The batched multi-file output format and the missing-second-input exit
+- [~] The batched multi-file output format and the missing-second-input exit
       behaviour are confirmed on the GNU coreutils backend (which the linux CI
       lane resolves) and on the `shasum` fallback if the batched form is used
       there, with the observed output recorded — mirroring how the criterion
-      below records the resolved backend.
-- [ ] Warm-path median measured before and after in one session on one host,
+      below records the resolved backend. Apple `/sbin/sha256sum` and Perl
+      `/usr/bin/shasum` confirmed locally (`<hex>␣␣<path>` per input, argument
+      order, exit 0); GNU coreutils awaits the linux CI lane running the Phase 1
+      tests green.
+- [x] Warm-path median measured before and after in one session on one host,
       both figures and the resolved backend recorded, and the after-median is
       strictly less than the before-median on the resolved backend. The absolute
       delta is recorded but not itself gated, to absorb host variance.
-- [ ] **The warm-dispatch ratio is re-measured after this lands**, via `mise run
+- [x] **The warm-dispatch ratio is re-measured after this lands**, via `mise run
       measure:warm-dispatch`, and the before/after `median(G) / median(B)`
       recorded beside the millisecond figures. Added 2026-08-17: this item's
       2.48 ms is over three times the 0.747 ms that separates the measured
@@ -178,8 +181,66 @@ input is missing.
       condition for this item — its own case stands on the millisecond saving —
       but the re-measurement is, because without it the tightening has nothing
       to rest on.
-- [ ] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
+- [x] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
 - [ ] `mise run` (bare default task) exits 0 end-to-end.
+
+## Measurement Results
+
+Measured 2026-08-24 on darwin-arm64 (macOS 26.3, Apple M4 Max), one session,
+n=200 interleaved samples per shape, each marginal over an empty `bash -c :`
+bracket. `before` is the two `sha256sum f | awk` substitutions; `after` is the
+one `sha256sum f1 f2` call with no `awk`.
+
+**Digest bracket, both resolved backends (AC-6, AC-5).**
+
+| Backend | before | after | saving | after < before |
+| --- | --- | --- | --- | --- |
+| `/sbin/sha256sum` (Apple, fast) | 3.557 ms (IQR 0.488) | 1.204 ms (IQR 0.276) | **2.352 ms** | yes |
+| `/usr/bin/shasum` (Perl, fallback) | 18.208 ms (IQR 0.550) | 9.134 ms (IQR 0.345) | **9.074 ms** | yes |
+
+The 2.352 ms fast-backend saving agrees with the ~2.48 ms projected from the
+attempt-3 session. The fallback saving is ~3.9× larger, consistent with the
+~3× backend swing noted in Context. Both backends print `<hex>␣␣<path>` per
+input in argument order and exit 0 on the multi-file form; **GNU coreutils
+remains confirmed only once the linux CI lane runs the Phase 1 tests green**.
+
+**Steady-state accumulation and the DoS ceiling (AC-6 steady state).** The
+batched call hashes the source plus every hex-named candidate, so a growing
+cache costs one extra in-process read+hash each. Sweeping the candidate count
+`k` (distinct ~475 KB copies):
+
+| k candidates | fast marginal | fallback marginal |
+| --- | --- | --- |
+| 1 (steady state) | 1.204 ms | 9.134 ms |
+| 2 | 1.406 ms | 10.020 ms |
+| 4 | 1.847 ms | 11.868 ms |
+| 8 | 2.751 ms | 15.485 ms |
+| 16 (break-even) | 4.511 ms | 22.766 ms |
+| 32 | 8.194 ms | 37.382 ms |
+| 64 (worst case) | 15.412 ms | 66.817 ms |
+
+**Break-even N = 16 stale candidates** on both backends — the count at which the
+accumulated read cost cancels the two-fork `before`. A cache dir reaches that
+only with 16 distinct historical shim digests, far above realistic release
+churn (the verify shim changes rarely, and only a changed shim adds a digest).
+The k=64 row is the adversarial cache-dir-write worst case: a known 15.4 ms
+(fast) / 66.8 ms (fallback) per-warm-start amplification, a denial of service
+against an already-attacker-writable cache, never a trust breach.
+
+**Warm-dispatch ratio (AC-7).** `mise run measure:warm-dispatch` after the
+change wrote `meta/measurements/warm-dispatch-4.json` (host uncalibrated for
+bash/shasum; load ~4.0/16, so absolutes are indicative not gated):
+
+| | before (`warm-dispatch-3`) | after (`warm-dispatch-4`) |
+| --- | --- | --- |
+| C5 `median(G)/median(B)`, fast | 1.3260 [1.3236, 1.3279] | **1.2773 [1.2747, 1.2806]** |
+| `median(G)`, fast | 35.531 ms | 36.155 ms [36.079, 36.231] |
+
+The after-ratio **clears 1.3** (and the relaxed 1.4 the gate now carries), so it
+is the evidence to tighten 0189's C5 back from 1.4 to 1.3. `median(G)` rose
+slightly against the attempt-3 figure because this session's host was busier
+(higher `median(B)` too), which is exactly why the ratio, not the absolute, is
+the transferable quantity — and the ratio moved in the expected direction.
 
 ## Open Questions
 

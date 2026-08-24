@@ -558,20 +558,22 @@ the this-session check (`<hex>␣␣<path>`, argument order, exit 0).
 
 #### Automated Verification
 
-- [ ] `mise run measure:warm-dispatch` completes and writes a measurement record
+- [x] `mise run measure:warm-dispatch` completes and writes a measurement record
 - [ ] `mise run` (bare default task) exits 0 end-to-end (AC-8), including the
       linux CI lane confirming the GNU coreutils backend
 
 #### Manual Verification
 
-- [ ] Before/after digest-bracket medians, `n`, a dispersion figure, and the
+- [x] Before/after digest-bracket medians, `n`, a dispersion figure, and the
       resolved backend are recorded in the work item, from interleaved samples;
       after < before on the resolved backend (AC-6)
-- [ ] A seeded-accumulation after-measurement (several stale hex-named candidates)
+- [x] A seeded-accumulation after-measurement (several stale hex-named candidates)
       is recorded and still shows after < before (AC-6, steady state)
-- [ ] Before/after `median(G)/median(B)` recorded beside the millisecond figures
+- [x] Before/after `median(G)/median(B)` recorded beside the millisecond figures
       (AC-7); the after-ratio and whether it clears 1.3 are noted
-- [ ] The GNU coreutils and `shasum` observed formats are recorded (AC-5)
+- [~] The GNU coreutils and `shasum` observed formats are recorded (AC-5) —
+      `shasum` and Apple `sha256sum` recorded; GNU coreutils pending the linux CI
+      lane
 
 ---
 
