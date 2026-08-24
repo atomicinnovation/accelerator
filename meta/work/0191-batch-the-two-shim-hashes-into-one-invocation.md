@@ -182,7 +182,7 @@ input is missing.
       but the re-measurement is, because without it the tightening has nothing
       to rest on.
 - [x] `scripts/lint-bashisms.sh`, shfmt and ShellCheck report no findings.
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
+- [x] `mise run` (bare default task) exits 0 end-to-end.
 
 ## Measurement Results
 

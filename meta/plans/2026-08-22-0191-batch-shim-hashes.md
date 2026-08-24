@@ -559,8 +559,9 @@ the this-session check (`<hex>␣␣<path>`, argument order, exit 0).
 #### Automated Verification
 
 - [x] `mise run measure:warm-dispatch` completes and writes a measurement record
-- [ ] `mise run` (bare default task) exits 0 end-to-end (AC-8), including the
-      linux CI lane confirming the GNU coreutils backend
+- [~] `mise run` (bare default task) exits 0 end-to-end (AC-8), including the
+      linux CI lane confirming the GNU coreutils backend — bare `mise run` passed
+      locally; the linux CI GNU-coreutils confirmation still rides on the push
 
 #### Manual Verification
 
