@@ -9,12 +9,19 @@ host, executing the downloaded binaries.
 """
 
 import os
+from pathlib import Path
 
 from invoke import Context, task
 
 from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
 from tasks.shared.targets import TARGETS
-from tasks.shared.vendor import assemble, trust_anchors, upstream
+from tasks.shared.vendor import (
+    archive,
+    assemble,
+    attestation,
+    trust_anchors,
+    upstream,
+)
 
 VENDOR_INPUTS = REPO_ROOT / "dist" / "vendor-inputs"
 PLAYWRIGHT_PACKAGE_JSON = (
@@ -80,3 +87,19 @@ def smoke_runtime(context: Context, platform: str = "") -> None:
             "no platform given (pass --platform or set SMOKE_PLATFORM)"
         )
     assemble.smoke_downloaded_archives(RELEASE_STAGING, resolved)
+
+
+@task(name="build-archive")
+def build_archive(
+    context: Context, tree: str, dest: str, platform: str
+) -> None:
+    """Build one deterministic tree archive and its detached attestation.
+
+    Writes the archive to ``dest`` and its attestation to ``<dest>.sealed``.
+    The cross-language contract test drives this to prove the Python producer
+    and the Rust consumer agree on the archive and attestation formats.
+    """
+    stats = archive.write_deterministic_archive(Path(tree), Path(dest))
+    Path(f"{dest}.sealed").write_bytes(
+        attestation.build_attestation("driver", platform, stats)
+    )

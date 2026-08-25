@@ -252,6 +252,10 @@ run = "invoke vendor.assemble-tree-artifacts"
 description = "Execute the downloaded tree binaries for one platform natively (release smoke gate)"
 run = "invoke vendor.smoke-runtime"
 
+[tasks."vendor:build-archive"]
+description = "Build one deterministic tree archive and its attestation from a tree dir (cross-language contract test helper)"
+run = "invoke vendor.build-archive"
+
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]

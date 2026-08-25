@@ -2,10 +2,11 @@
 //!
 //! `tasks/shared/vendor/archive.py` builds a deterministic `.tar.gz` with the `.files`
 //! table as its first member; the launcher's `extract_archive` verifies every
-//! member against that table as it extracts. This test runs the real Python
-//! producer over a synthetic tree and extracts the result with the real Rust
-//! consumer, so a table-format disagreement fails here rather than in a
-//! container fixture after both halves have merged.
+//! member against that table as it extracts. This test drives the real Python
+//! producer through the `vendor:build-archive` task over a synthetic tree and
+//! extracts the result with the real Rust consumer, so a table-format
+//! disagreement fails here rather than in a container fixture after both halves
+//! have merged.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
@@ -26,42 +27,35 @@ fn repo_root() -> PathBuf {
         .expect("repo root")
 }
 
-fn python() -> Option<PathBuf> {
+fn mise() -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     std::env::split_paths(&path)
-        .flat_map(|dir| [dir.join("python3"), dir.join("python")])
+        .map(|dir| dir.join("mise"))
         .find(|candidate| candidate.is_file())
 }
 
 /// Build an archive from `tree` into `dest` and its attestation into
-/// `<dest>.sealed`, via the real Python assembly path.
-fn python_build_archive(python: &Path, tree: &Path, dest: &Path) -> bool {
-    let script = "from pathlib import Path; import sys; \
-         from tasks.shared.vendor.archive import write_deterministic_archive; \
-         from tasks.shared.vendor.attestation import build_attestation; \
-         stats = write_deterministic_archive(Path(sys.argv[1]), Path(sys.argv[2])); \
-         Path(sys.argv[2] + '.sealed').write_bytes(\
-             build_attestation('driver', sys.argv[3], stats))";
-    let status = Command::new(python)
-        .arg("-c")
-        .arg(script)
-        .arg(tree)
-        .arg(dest)
-        .arg(HOST_PLATFORM)
+/// `<dest>.sealed`, via the `vendor:build-archive` build task.
+fn build_archive(mise: &Path, tree: &Path, dest: &Path) -> bool {
+    let status = Command::new(mise)
+        .args(["run", "vendor:build-archive", "--"])
+        .arg(format!("--tree={}", tree.display()))
+        .arg(format!("--dest={}", dest.display()))
+        .arg(format!("--platform={HOST_PLATFORM}"))
         .current_dir(repo_root())
         .status()
-        .expect("run python archive builder");
+        .expect("run the vendor:build-archive task");
     status.success()
 }
 
 #[test]
 fn a_python_built_archive_extracts_under_the_rust_contract() {
-    let Some(python) = python() else {
+    let Some(mise) = mise() else {
         assert!(
             std::env::var_os("CI").is_none(),
-            "python is required under CI"
+            "mise is required under CI"
         );
-        eprintln!("skipping: python not on PATH");
+        eprintln!("skipping: mise not on PATH");
         return;
     };
 
@@ -76,14 +70,12 @@ fn a_python_built_archive_extracts_under_the_rust_contract() {
     std::os::unix::fs::symlink("data.pak", tree.join("lib/current")).unwrap();
 
     let archive = workdir.path().join("out.tar.gz");
-    if !python_build_archive(&python, &tree, &archive) {
+    if !build_archive(&mise, &tree, &archive) {
         assert!(
             std::env::var_os("CI").is_none(),
-            "the python archive build failed under CI"
+            "the vendor:build-archive task failed under CI"
         );
-        eprintln!(
-            "skipping: python could not import tasks.shared.vendor.archive"
-        );
+        eprintln!("skipping: the vendor:build-archive task could not run");
         return;
     }
 
