@@ -92,7 +92,7 @@ def _write_symlink(root: Path, target: Path, link_target: str) -> None:
     target.symlink_to(link_target)
 
 
-def read_pinned_playwright_version(package_json: Path) -> str:
+def pinned_playwright_version(package_json: Path) -> str:
     """Return the exact ``playwright`` version declared in ``package_json``.
 
     Raises if the pin is a range rather than an exact version, so a Playwright

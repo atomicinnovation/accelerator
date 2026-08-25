@@ -92,19 +92,19 @@ def _browsers_json(path, revision="1181"):
 
 
 def test_the_pinned_playwright_version_is_read_from_dependencies(tmp_path):
-    from tasks.shared.vendor.assemble import read_pinned_playwright_version
+    from tasks.shared.vendor.assemble import pinned_playwright_version
 
-    version = read_pinned_playwright_version(
+    version = pinned_playwright_version(
         _package_json(tmp_path / "package.json")
     )
     assert version == "1.55.1"
 
 
 def test_a_caret_ranged_playwright_pin_is_refused(tmp_path):
-    from tasks.shared.vendor.assemble import read_pinned_playwright_version
+    from tasks.shared.vendor.assemble import pinned_playwright_version
 
     with pytest.raises(ValueError, match="exact"):
-        read_pinned_playwright_version(
+        pinned_playwright_version(
             _package_json(tmp_path / "package.json", "^1.55.1")
         )
 

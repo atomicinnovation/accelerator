@@ -92,7 +92,7 @@ def verify_upstream_inputs(
 ) -> VerifiedInputs:
     """Fetch and verify playwright-core, Node and Chromium for one platform."""
     staging_dir.mkdir(parents=True, exist_ok=True)
-    playwright_version = assemble.read_pinned_playwright_version(package_json)
+    playwright_version = assemble.pinned_playwright_version(package_json)
 
     packument = fetch_json(npm_packument_url(PLAYWRIGHT_PACKAGE))
     dist = npm.packument_dist(packument, playwright_version)
