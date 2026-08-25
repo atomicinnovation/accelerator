@@ -9,7 +9,7 @@ import tarfile
 
 import pytest
 
-from tasks.vendor.archive import (
+from tasks.shared.vendor.archive import (
     TABLE_NAME,
     write_deterministic_archive,
 )
@@ -142,7 +142,7 @@ def test_the_table_digest_matches_the_embedded_table(tmp_path):
 
 
 def test_read_archive_stats_recomputes_the_produced_stats(tmp_path):
-    from tasks.vendor.archive import read_archive_stats
+    from tasks.shared.vendor.archive import read_archive_stats
 
     dest = tmp_path / "out.tar.gz"
     produced = write_deterministic_archive(_tree(tmp_path / "tree"), dest)
@@ -153,7 +153,7 @@ def test_read_archive_stats_recomputes_the_produced_stats(tmp_path):
 def test_read_archive_stats_refuses_a_tableless_archive(tmp_path):
     import tarfile as _tarfile
 
-    from tasks.vendor.archive import read_archive_stats
+    from tasks.shared.vendor.archive import read_archive_stats
 
     dest = tmp_path / "no-table.tar.gz"
     with _tarfile.open(dest, "w:gz") as archive:

@@ -196,7 +196,7 @@ change only when their publishers rotate them.
    revision comes from that package's `browsers.json`; the assembly cross-checks
    `pins.toml`'s value against it, so a mismatch fails loudly. The per-platform
    Chromium sha256 and the Node version are the byte digest and pairing the
-   verification steps in `tasks/vendor/{chromium,nodejs}.py` expect.
+   verification steps in `tasks/shared/vendor/{chromium,nodejs}.py` expect.
 3. **Assemble once locally to obtain the digests.** With the keys and Chromium/Node
    pins in place, run the assembly and read the sha256 of each produced archive
    under `dist/release/`:

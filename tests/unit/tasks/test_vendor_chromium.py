@@ -9,7 +9,7 @@ import hashlib
 
 import pytest
 
-from tasks.vendor.chromium import verify_chromium
+from tasks.shared.vendor.chromium import verify_chromium
 
 
 def _browsers_json(path, revision="1181"):

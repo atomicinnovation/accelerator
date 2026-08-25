@@ -12,7 +12,7 @@ import zipfile
 
 import pytest
 
-from tasks.vendor.assemble import extract_zip
+from tasks.shared.vendor.assemble import extract_zip
 
 
 def _add_file(archive, name, data, mode):
@@ -92,7 +92,7 @@ def _browsers_json(path, revision="1181"):
 
 
 def test_the_pinned_playwright_version_is_read_from_dependencies(tmp_path):
-    from tasks.vendor.assemble import read_pinned_playwright_version
+    from tasks.shared.vendor.assemble import read_pinned_playwright_version
 
     version = read_pinned_playwright_version(
         _package_json(tmp_path / "package.json")
@@ -101,7 +101,7 @@ def test_the_pinned_playwright_version_is_read_from_dependencies(tmp_path):
 
 
 def test_a_caret_ranged_playwright_pin_is_refused(tmp_path):
-    from tasks.vendor.assemble import read_pinned_playwright_version
+    from tasks.shared.vendor.assemble import read_pinned_playwright_version
 
     with pytest.raises(ValueError, match="exact"):
         read_pinned_playwright_version(
@@ -110,7 +110,7 @@ def test_a_caret_ranged_playwright_pin_is_refused(tmp_path):
 
 
 def test_the_headless_shell_revision_is_read_from_browsers_json(tmp_path):
-    from tasks.vendor.assemble import browser_revision
+    from tasks.shared.vendor.assemble import browser_revision
 
     revision = browser_revision(
         _browsers_json(tmp_path / "browsers.json"),
@@ -120,7 +120,7 @@ def test_the_headless_shell_revision_is_read_from_browsers_json(tmp_path):
 
 
 def test_a_matching_pairing_passes_the_guard(tmp_path):
-    from tasks.vendor.assemble import assert_version_pairing
+    from tasks.shared.vendor.assemble import assert_version_pairing
 
     assert_version_pairing(
         fetched_playwright_version="1.55.1",
@@ -131,7 +131,7 @@ def test_a_matching_pairing_passes_the_guard(tmp_path):
 
 
 def test_a_playwright_version_mismatch_fails_the_release(tmp_path):
-    from tasks.vendor.assemble import assert_version_pairing
+    from tasks.shared.vendor.assemble import assert_version_pairing
 
     with pytest.raises(ValueError, match="playwright"):
         assert_version_pairing(
@@ -143,7 +143,7 @@ def test_a_playwright_version_mismatch_fails_the_release(tmp_path):
 
 
 def test_a_chromium_revision_mismatch_fails_the_release(tmp_path):
-    from tasks.vendor.assemble import assert_version_pairing
+    from tasks.shared.vendor.assemble import assert_version_pairing
 
     with pytest.raises(ValueError, match="Chromium"):
         assert_version_pairing(
@@ -168,7 +168,7 @@ def _licence(path, text="MIT licence text"):
 
 
 def test_notices_get_one_directory_per_component(tmp_path):
-    from tasks.vendor.assemble import NoticeSource, write_notices
+    from tasks.shared.vendor.assemble import NoticeSource, write_notices
 
     tree = tmp_path / "tree"
     tree.mkdir()
@@ -186,7 +186,7 @@ def test_notices_get_one_directory_per_component(tmp_path):
 
 
 def test_a_component_with_no_licence_files_fails(tmp_path):
-    from tasks.vendor.assemble import NoticeSource, write_notices
+    from tasks.shared.vendor.assemble import NoticeSource, write_notices
 
     tree = tmp_path / "tree"
     tree.mkdir()
@@ -195,7 +195,7 @@ def test_a_component_with_no_licence_files_fails(tmp_path):
 
 
 def test_staging_a_tree_places_files_and_keeps_the_exec_bit(tmp_path):
-    from tasks.vendor.assemble import (
+    from tasks.shared.vendor.assemble import (
         NoticeSource,
         TreePlacement,
         TreeSpec,
@@ -221,7 +221,7 @@ def test_staging_a_tree_places_files_and_keeps_the_exec_bit(tmp_path):
 
 
 def test_the_structural_check_passes_a_well_formed_tree(tmp_path):
-    from tasks.vendor.assemble import structural_check
+    from tasks.shared.vendor.assemble import structural_check
 
     tree = tmp_path / "tree"
     _executable(tree / "node")
@@ -230,7 +230,7 @@ def test_the_structural_check_passes_a_well_formed_tree(tmp_path):
 
 
 def test_the_structural_check_fails_a_non_executable_binary(tmp_path):
-    from tasks.vendor.assemble import structural_check
+    from tasks.shared.vendor.assemble import structural_check
 
     tree = tmp_path / "tree"
     (tree).mkdir()
@@ -243,7 +243,7 @@ def test_the_structural_check_fails_a_non_executable_binary(tmp_path):
 
 
 def test_the_structural_check_fails_an_empty_notices_component(tmp_path):
-    from tasks.vendor.assemble import structural_check
+    from tasks.shared.vendor.assemble import structural_check
 
     tree = tmp_path / "tree"
     _executable(tree / "node")
@@ -255,7 +255,7 @@ def test_the_structural_check_fails_an_empty_notices_component(tmp_path):
 
 
 def test_the_smoke_check_runs_each_executable(tmp_path):
-    from tasks.vendor.assemble import smoke_check
+    from tasks.shared.vendor.assemble import smoke_check
 
     tree = tmp_path / "tree"
     _executable(tree / "node", "#!/bin/sh\necho v20\n")
@@ -263,7 +263,7 @@ def test_the_smoke_check_runs_each_executable(tmp_path):
 
 
 def test_the_smoke_check_fails_an_unrunnable_binary(tmp_path):
-    from tasks.vendor.assemble import smoke_check
+    from tasks.shared.vendor.assemble import smoke_check
 
     tree = tmp_path / "tree"
     (tree).mkdir()
@@ -274,7 +274,11 @@ def test_the_smoke_check_fails_an_unrunnable_binary(tmp_path):
 
 
 def _miniature_specs(tmp_path):
-    from tasks.vendor.assemble import NoticeSource, TreePlacement, TreeSpec
+    from tasks.shared.vendor.assemble import (
+        NoticeSource,
+        TreePlacement,
+        TreeSpec,
+    )
 
     node = _executable(tmp_path / "in" / "node", "#!/bin/sh\necho v20\n")
     core = tmp_path / "in" / "playwright-core"
@@ -303,7 +307,7 @@ def _miniature_specs(tmp_path):
 
 
 def test_assembly_produces_flat_named_archives(tmp_path):
-    from tasks.vendor.assemble import assemble_specs
+    from tasks.shared.vendor.assemble import assemble_specs
 
     stats = assemble_specs(
         _miniature_specs(tmp_path),
@@ -317,7 +321,7 @@ def test_assembly_produces_flat_named_archives(tmp_path):
 
 
 def test_assembling_the_same_specs_twice_is_byte_identical(tmp_path):
-    from tasks.vendor.assemble import assemble_specs
+    from tasks.shared.vendor.assemble import assemble_specs
 
     assemble_specs(
         _miniature_specs(tmp_path),
@@ -349,7 +353,7 @@ def _pins_toml(path, digests):
 
 
 def test_a_matching_archive_passes_the_pin_gate(tmp_path):
-    from tasks.vendor.assemble import assemble_specs, assert_matches_pin
+    from tasks.shared.vendor.assemble import assemble_specs, assert_matches_pin
 
     stats = assemble_specs(
         _miniature_specs(tmp_path),
@@ -373,7 +377,7 @@ def test_a_matching_archive_passes_the_pin_gate(tmp_path):
 
 
 def test_a_mismatched_archive_fails_the_pin_gate(tmp_path):
-    from tasks.vendor.assemble import assemble_specs, assert_matches_pin
+    from tasks.shared.vendor.assemble import assemble_specs, assert_matches_pin
 
     assemble_specs(
         _miniature_specs(tmp_path),
@@ -431,7 +435,11 @@ def _miniature_inputs(tmp_path):
 
 
 def _mini_spec_builder(tmp_path):
-    from tasks.vendor.assemble import NoticeSource, TreePlacement, TreeSpec
+    from tasks.shared.vendor.assemble import (
+        NoticeSource,
+        TreePlacement,
+        TreeSpec,
+    )
 
     lic = _licence(tmp_path / "LICENSE")
 
@@ -467,7 +475,7 @@ def _mini_spec_builder(tmp_path):
 
 
 def test_assemble_tree_artifacts_produces_archives_and_attestations(tmp_path):
-    from tasks.vendor.assemble import assemble_tree_artifacts
+    from tasks.shared.vendor.assemble import assemble_tree_artifacts
 
     node_tar, pw_tar, chromium_zip = _miniature_inputs(tmp_path)
     stats = assemble_tree_artifacts(
@@ -487,7 +495,7 @@ def test_assemble_tree_artifacts_produces_archives_and_attestations(tmp_path):
 
 
 def test_assemble_tree_artifacts_runs_the_structural_and_smoke_gates(tmp_path):
-    from tasks.vendor.assemble import assemble_tree_artifacts
+    from tasks.shared.vendor.assemble import assemble_tree_artifacts
 
     node_tar, pw_tar, _chromium_zip = _miniature_inputs(tmp_path)
     # A browser whose shell will not execute must fail the assembly.
@@ -538,7 +546,7 @@ def _realistic_inputs(tmp_path):
 def test_default_spec_builder_maps_the_real_layout(tmp_path):
     import tarfile
 
-    from tasks.vendor.assemble import (
+    from tasks.shared.vendor.assemble import (
         assemble_tree_artifacts,
         default_spec_builder,
     )
@@ -571,7 +579,10 @@ def test_default_spec_builder_maps_the_real_layout(tmp_path):
 
 
 def test_default_spec_builder_fails_loudly_on_an_unexpected_layout(tmp_path):
-    from tasks.vendor.assemble import ExtractedInputs, default_spec_builder
+    from tasks.shared.vendor.assemble import (
+        ExtractedInputs,
+        default_spec_builder,
+    )
 
     empty = tmp_path / "empty"
     empty.mkdir()

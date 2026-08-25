@@ -7,7 +7,7 @@ the repository's live anchors are ready — which, pre-refresh, they are not.
 
 import pytest
 
-from tasks.vendor.trust_anchors import (
+from tasks.shared.vendor.trust_anchors import (
     TrustAnchorsNotReadyError,
     assert_ready,
     placeholder_reasons,

@@ -12,8 +12,8 @@ import pytest
 from tasks import signing
 from tasks.shared.errors import SigningError
 from tasks.shared.paths import tree_artifact_asset_path
-from tasks.vendor.archive import write_deterministic_archive
-from tasks.vendor.attestation import build_attestation
+from tasks.shared.vendor.archive import write_deterministic_archive
+from tasks.shared.vendor.attestation import build_attestation
 
 _ONE_PLATFORM = (("_", "linux-x64"),)
 

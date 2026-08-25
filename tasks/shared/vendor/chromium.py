@@ -17,8 +17,8 @@ import hashlib
 from pathlib import Path
 
 from tasks.shared.paths import PINS_TOML
-from tasks.vendor import pins
-from tasks.vendor.assemble import browser_revision
+from tasks.shared.vendor import pins
+from tasks.shared.vendor.assemble import browser_revision
 
 _CHUNK = 64 * 1024
 _HEADLESS_SHELL = "chromium-headless-shell"

@@ -20,7 +20,7 @@ drift test pins them together.
 
 import json
 
-from tasks.vendor.archive import ArchiveStats
+from tasks.shared.vendor.archive import ArchiveStats
 
 ATTESTATION_FORMAT_VERSION = 1
 

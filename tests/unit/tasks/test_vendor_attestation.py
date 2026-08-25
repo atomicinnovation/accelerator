@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from tasks.vendor.archive import ArchiveStats
-from tasks.vendor.attestation import build_attestation
+from tasks.shared.vendor.archive import ArchiveStats
+from tasks.shared.vendor.attestation import build_attestation
 
 _REPO = Path(__file__).resolve().parents[3]
 _ATTESTATION_RS = (

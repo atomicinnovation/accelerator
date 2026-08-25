@@ -11,7 +11,7 @@ import hashlib
 
 import pytest
 
-from tasks.vendor import upstream
+from tasks.shared.vendor import upstream
 
 
 def test_the_npm_packument_url_names_the_package():

@@ -1,6 +1,6 @@
 //! The Python producer and the Rust consumer agree on the archive contract.
 //!
-//! `tasks/vendor/archive.py` builds a deterministic `.tar.gz` with the `.files`
+//! `tasks/shared/vendor/archive.py` builds a deterministic `.tar.gz` with the `.files`
 //! table as its first member; the launcher's `extract_archive` verifies every
 //! member against that table as it extracts. This test runs the real Python
 //! producer over a synthetic tree and extracts the result with the real Rust
@@ -37,8 +37,8 @@ fn python() -> Option<PathBuf> {
 /// `<dest>.sealed`, via the real Python assembly path.
 fn python_build_archive(python: &Path, tree: &Path, dest: &Path) -> bool {
     let script = "from pathlib import Path; import sys; \
-         from tasks.vendor.archive import write_deterministic_archive; \
-         from tasks.vendor.attestation import build_attestation; \
+         from tasks.shared.vendor.archive import write_deterministic_archive; \
+         from tasks.shared.vendor.attestation import build_attestation; \
          stats = write_deterministic_archive(Path(sys.argv[1]), Path(sys.argv[2])); \
          Path(sys.argv[2] + '.sealed').write_bytes(\
              build_attestation('driver', sys.argv[3], stats))";
@@ -81,7 +81,9 @@ fn a_python_built_archive_extracts_under_the_rust_contract() {
             std::env::var_os("CI").is_none(),
             "the python archive build failed under CI"
         );
-        eprintln!("skipping: python could not import tasks.vendor.archive");
+        eprintln!(
+            "skipping: python could not import tasks.shared.vendor.archive"
+        );
         return;
     }
 

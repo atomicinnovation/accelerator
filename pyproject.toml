@@ -28,7 +28,7 @@ build = [
     # a relock must not silently move the fetcher a trust check depends on.
     "requests==2.34.2",
     # ECDSA P-256 verification of the npm registry signature over
-    # <name>@<version>:<integrity> (tasks/vendor/npm.py) — a primitive the
+    # <name>@<version>:<integrity> (tasks/shared/vendor/npm.py) — a primitive the
     # stdlib lacks. Exact pin for the same trust-anchor reason.
     "cryptography==50.0.0",
 ]

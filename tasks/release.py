@@ -22,7 +22,7 @@ from .shared.paths import (
     tree_artifact_asset_path,
 )
 from .shared.targets import TARGETS
-from .vendor.assemble import assert_matches_pin
+from .shared.vendor.assemble import assert_matches_pin
 
 # git status --porcelain markers for artifacts that must never reach the
 # version-bump commit: a materialised signing secret, anything under the

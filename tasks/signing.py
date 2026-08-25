@@ -21,7 +21,7 @@ from tasks.shared.paths import (
     tree_artifact_asset_path,
 )
 from tasks.shared.targets import TARGETS
-from tasks.vendor.archive import read_archive_stats
+from tasks.shared.vendor.archive import read_archive_stats
 
 SECRET_KEY_ENV = "ACCELERATOR_RELEASE_SECRET_KEY"  # noqa: S105 — env var name, not a secret
 

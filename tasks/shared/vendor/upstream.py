@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.shared.paths import PINS_TOML
-from tasks.vendor import assemble, chromium, nodejs, npm, pins
-from tasks.vendor.fetch import Fetcher, JsonFetcher, download, get_json
+from tasks.shared.vendor import assemble, chromium, nodejs, npm, pins
+from tasks.shared.vendor.fetch import Fetcher, JsonFetcher, download, get_json
 
 NPM_REGISTRY = "https://registry.npmjs.org"
 NODE_DIST = "https://nodejs.org/dist"

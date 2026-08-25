@@ -14,8 +14,8 @@ from tasks.manifest import (
 )
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import tree_artifact_asset_path
-from tasks.vendor.archive import write_deterministic_archive
-from tasks.vendor.attestation import build_attestation
+from tasks.shared.vendor.archive import write_deterministic_archive
+from tasks.shared.vendor.attestation import build_attestation
 
 _REAL_VERSION = "0.44.0"
 

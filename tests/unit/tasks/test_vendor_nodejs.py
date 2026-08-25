@@ -11,7 +11,7 @@ import hashlib
 
 import pytest
 
-from tasks.vendor.nodejs import digest_for_filename, verify_node_runtime
+from tasks.shared.vendor.nodejs import digest_for_filename, verify_node_runtime
 
 _FINGERPRINT = "AAAABBBBCCCCDDDDEEEEFFFF0000111122223333"
 

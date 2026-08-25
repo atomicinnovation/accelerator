@@ -3,7 +3,7 @@
 Node publishes ``SHASUMS256.txt`` and a detached ``SHASUMS256.txt.sig`` (the
 ``.asc`` beside it is a clearsigned copy, not a detached signature).
 Verification is: the signature is good under the committed keyring (delegated to
-:mod:`tasks.vendor.gpg`, which rejects revoked keys that still emit
+:mod:`tasks.shared.vendor.gpg`, which rejects revoked keys that still emit
 ``VALIDSIG``), and the fetched tarball's sha256 equals the digest its
 ``SHASUMS256.txt`` line records. The digest is matched by **exact filename**,
 not by searching the file for a digest — a search would accept a line describing
@@ -19,7 +19,7 @@ import hashlib
 from collections.abc import Iterable
 from pathlib import Path
 
-from tasks.vendor import gpg
+from tasks.shared.vendor import gpg
 
 # The primary-key fingerprints of the Node release keys, checked against the
 # committed keyring by a build-system consistency test. Filled under the

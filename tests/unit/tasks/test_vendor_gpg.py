@@ -7,7 +7,7 @@ a particular host GnuPG.
 
 from pathlib import Path
 
-from tasks.vendor.gpg import classify_status_lines, verify_detached
+from tasks.shared.vendor.gpg import classify_status_lines, verify_detached
 
 # A plausible Node release primary-key fingerprint and a subkey under it.
 PRIMARY = "4ED778F539E3634C779C87C6D7062848A1AB005C"

@@ -14,7 +14,7 @@ from invoke import Context, task
 
 from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
 from tasks.shared.targets import TARGETS
-from tasks.vendor import assemble, trust_anchors, upstream
+from tasks.shared.vendor import assemble, trust_anchors, upstream
 
 VENDOR_INPUTS = REPO_ROOT / "dist" / "vendor-inputs"
 PLAYWRIGHT_PACKAGE_JSON = (

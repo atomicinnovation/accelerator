@@ -3,7 +3,7 @@ r"""Compose the driver and browser trees from verified upstream inputs.
 The driver tree carries the Node binary and ``playwright-core``; the browser
 tree carries ``chromium-headless-shell`` only. Assembly extracts an npm tarball
 and Chromium's *zip*, composes each tree, writes a ``NOTICES/`` directory, and
-packs both deterministically through :mod:`tasks.vendor.archive`.
+packs both deterministically through :mod:`tasks.shared.vendor.archive`.
 
 Two extraction hazards are handled explicitly. Python's ``zipfile`` ignores the
 Unix permission bits stored in ``external_attr`` and materialises symlink
@@ -32,9 +32,12 @@ from tasks.shared.paths import (
     RELEASE_STAGING,
     tree_artifact_asset_path,
 )
-from tasks.vendor import pins
-from tasks.vendor.archive import ArchiveStats, write_deterministic_archive
-from tasks.vendor.attestation import build_attestation
+from tasks.shared.vendor import pins
+from tasks.shared.vendor.archive import (
+    ArchiveStats,
+    write_deterministic_archive,
+)
+from tasks.shared.vendor.attestation import build_attestation
 
 _DEFAULT_FILE_MODE = 0o644
 _SMOKE_TIMEOUT = 30

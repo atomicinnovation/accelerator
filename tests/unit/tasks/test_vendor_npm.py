@@ -14,7 +14,7 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from tasks.vendor.npm import (
+from tasks.shared.vendor.npm import (
     assert_integrity_binds_tarball,
     signed_message,
     verify_registry_signature,
@@ -160,7 +160,7 @@ def _packument(version="1.55.1", *, signatures=True, attestations=True):
 
 
 def test_packument_dist_extracts_the_signed_fields():
-    from tasks.vendor.npm import packument_dist
+    from tasks.shared.vendor.npm import packument_dist
 
     dist = packument_dist(_packument(), "1.55.1")
     assert dist.tarball.endswith("playwright-core-1.55.1.tgz")
@@ -170,28 +170,28 @@ def test_packument_dist_extracts_the_signed_fields():
 
 
 def test_a_version_absent_from_the_packument_raises():
-    from tasks.vendor.npm import packument_dist
+    from tasks.shared.vendor.npm import packument_dist
 
     with pytest.raises(ValueError, match="absent"):
         packument_dist(_packument(), "1.99.0")
 
 
 def test_an_unsigned_version_is_refused():
-    from tasks.vendor.npm import packument_dist
+    from tasks.shared.vendor.npm import packument_dist
 
     with pytest.raises(ValueError, match="signature"):
         packument_dist(_packument(signatures=False), "1.55.1")
 
 
 def test_a_version_without_attestations_is_refused():
-    from tasks.vendor.npm import packument_dist
+    from tasks.shared.vendor.npm import packument_dist
 
     with pytest.raises(ValueError, match="attestations"):
         packument_dist(_packument(attestations=False), "1.55.1")
 
 
 def test_provenance_bundle_selects_the_slsa_attestation():
-    from tasks.vendor.npm import provenance_bundle
+    from tasks.shared.vendor.npm import provenance_bundle
 
     doc = {
         "attestations": [
@@ -206,7 +206,7 @@ def test_provenance_bundle_selects_the_slsa_attestation():
 
 
 def test_a_document_without_slsa_provenance_is_refused():
-    from tasks.vendor.npm import provenance_bundle
+    from tasks.shared.vendor.npm import provenance_bundle
 
     doc = {"attestations": [{"predicateType": "https://github.com/npm/..."}]}
     with pytest.raises(ValueError, match="SLSA"):
