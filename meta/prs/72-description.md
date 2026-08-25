@@ -35,7 +35,7 @@ Vendors the Playwright runtime so the design tooling stops depending on a system
 - The `accelerator cache` built-in adds `ensure`, `verify`, `repair`, `prune` and `notices`. `flock` is the only cross-process liveness mechanism — an in-use lease and a single-flight lock, no pid gates — and retention claims (`trees/claims/`) let sibling installs share a cache root without one evicting another's ~294MB.
 - Adversarial and concurrency coverage: path-escape/symlink/hardlink/device rejection, decompression-bomb ceilings, crash injection across every publish step, two concurrent cold resolutions issuing exactly one fetch, the ownership/symlink guard on `trees/`, and `cache verify`'s tamper detection (including a `.files` table rewritten to match a substituted member, caught by the signed `table_sha256`).
 
-### Phase 2 — release pipeline assembles and verifies the runtime (`tasks/vendor`, `.github/workflows`)
+### Phase 2 — release pipeline assembles and verifies the runtime (`tasks/shared/vendor`, `.github/workflows`)
 
 - A new `assemble-runtime` CI job (`permissions: {}`) verifies the three upstream inputs against their publishers and assembles the driver and browser trees per platform; a matrix `smoke-runtime` job executes the binaries natively; `release`/`prerelease` consume the workflow artifacts and gate them against `pins.toml` before signing.
 - Upstream verification: `playwright-core`'s npm/Sigstore SLSA provenance (via `cosign verify-blob-attestation`, pinned to microsoft/playwright's publish workflow) plus the registry-signature-and-integrity binding; Node's GPG-signed `SHASUMS256.txt`; and Chromium pinned by revision (cross-checked against `browsers.json`) and per-platform byte digest.

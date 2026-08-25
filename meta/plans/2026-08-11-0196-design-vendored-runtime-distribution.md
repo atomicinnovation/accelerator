@@ -191,10 +191,10 @@ launcher code:**
 
 **Phase 2 (release pipeline) — the artifact contract and GPG check are in; the
 rest is not started.** Done and green: the exact playwright version pin (§1);
-`tasks/vendor/gpg.py` — the `classify_status_lines` pure predicate plus an
-injected-runner wrapper (§2 Node bullet); `tasks/vendor/archive.py` — the
+`tasks/shared/vendor/gpg.py` — the `classify_status_lines` pure predicate plus an
+injected-runner wrapper (§2 Node bullet); `tasks/shared/vendor/archive.py` — the
 deterministic `.tar.gz` with the `.files` table as its first member, each
-normalisation asserted with a negative case (§3, §8); `tasks/vendor/attestation.py`
+normalisation asserted with a negative case (§3, §8); `tasks/shared/vendor/attestation.py`
 — the signed document's body, matching the Rust reader's fields (§5 arm 0); the
 `manifest.schema.json` artifact `$defs` and the contract test (§6); and — the
 load-bearing cross-phase check — a Rust test (`cli/launcher/tests/cross_language_archive.rs`)
@@ -208,18 +208,18 @@ table keys them `lib`).
 verification logic are now built and green** in `test:unit:tasks`, added as
 tested units since the artifact contract landed:
 
-- `tasks/vendor/assemble.py` — `extract_zip` (the `external_attr` mode +
+- `tasks/shared/vendor/assemble.py` — `extract_zip` (the `external_attr` mode +
   `S_IFLNK` symlink reconstruction, with in-root containment §3 warns about),
   the version guards (§4), `NoticeSource`/`TreeSpec`/`stage_tree` composition and
   `write_notices` (§9), `structural_check`/`smoke_check` predicates, and
   `assemble_specs` + `assert_matches_pin` producing flat, deterministically-named
   archives gated against `ASSEMBLED_SHA256` (§3, §8).
-- `tasks/vendor/chromium.py` — the pinned-revision cross-check and per-platform
+- `tasks/shared/vendor/chromium.py` — the pinned-revision cross-check and per-platform
   byte-hash (§2), with `pins.toml` gaining `[chromium]`/`[node]` sections and
   `pins.py` the accessors.
-- `tasks/vendor/nodejs.py` — the exact-filename digest match wired onto
+- `tasks/shared/vendor/nodejs.py` — the exact-filename digest match wired onto
   `gpg.verify_detached` with an injected runner (§2 Node bullet).
-- `tasks/vendor/npm.py` — **the npm ECDSA decision is settled: `cryptography`
+- `tasks/shared/vendor/npm.py` — **the npm ECDSA decision is settled: `cryptography`
   was added** (exact-pinned, with `requests`, to the build group). Registry
   ECDSA-P256 signature verify, the sha512-integrity binding, and SLSA via an
   injected argv-pinned `gh attestation verify` runner (§2 npm bullet).
@@ -240,12 +240,12 @@ deletes a published tag (§7). The attest globs are asserted to cover the flat
 tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
 
 **The fetch orchestration and CI workflow are now built and green too.**
-- `tasks/vendor/fetch.py` — the streamed `download` + `get_json`, injected everywhere.
-- `tasks/vendor/upstream.py` — `verify_upstream_inputs` wiring npm/nodejs/chromium
+- `tasks/shared/vendor/fetch.py` — the streamed `download` + `get_json`, injected everywhere.
+- `tasks/shared/vendor/upstream.py` — `verify_upstream_inputs` wiring npm/nodejs/chromium
   verification over the fetch layer, with the URL builders; the SLSA signer
   workflow, Chromium CDN base and per-platform names are marked release-lane
   validated. `npm.packument_dist` parses the registry packument.
-- `tasks/vendor/assemble.py` — `extract_tar` + `assemble_tree_artifacts`
+- `tasks/shared/vendor/assemble.py` — `extract_tar` + `assemble_tree_artifacts`
   (extract → compose → attest → structural/smoke gate, `run_smoke` off for
   cross-platform assembly) + `default_spec_builder` (the real driver/browser
   layout, glob-based, fails loudly on an unexpected layout) +
@@ -271,7 +271,7 @@ tree archives (§6.2). 2691 tasks tests green; `build-system:check` clean.
   `download-artifact@d3f86a1…` v4.3.0), and the two "SHA-pin before merge" NOTE
   comments are dropped. All 2632 tasks tests stay green.
 - **A placeholder-detection trust-anchor guard is wired.**
-  `tasks/vendor/trust_anchors.py` (`placeholder_reasons`/`assert_ready`) plus the
+  `tasks/shared/vendor/trust_anchors.py` (`placeholder_reasons`/`assert_ready`) plus the
   `vendor:check-trust-anchors` task run first in `assemble-runtime`, so a release
   cut before the anchors are real fails immediately with every offending anchor
   named and a pointer to RELEASING.md, rather than a cryptic missing-key traceback
@@ -1457,7 +1457,7 @@ earlier revision needed before the reuse scan could discover an already-present 
 
 `ASSEMBLED_SHA256` now has three consumers: the release job's pre-signing gate, the
 launcher's compiled-in map, and the attestation's content. It therefore moves from
-`tasks/vendor/pins.py` into a language-neutral `pins.toml` that both `tasks/` and a
+`tasks/shared/vendor/pins.py` into a language-neutral `pins.toml` that both `tasks/` and a
 `cli/launcher` build step read, pinned by a drift test in the same shape as the
 `TREE_ARTIFACTS` mirror.
 
@@ -2359,8 +2359,8 @@ than three that can drift. AC10's guard reads this file.
 
 #### 2. Upstream input verification
 
-**Files**: `tasks/vendor/npm.py` (new), `tasks/vendor/nodejs.py` (new),
-`tasks/vendor/chromium.py` (new), `tasks/vendor/gpg.py` (new), `tasks/vendor/pins.py`
+**Files**: `tasks/shared/vendor/npm.py` (new), `tasks/shared/vendor/nodejs.py` (new),
+`tasks/shared/vendor/chromium.py` (new), `tasks/shared/vendor/gpg.py` (new), `tasks/shared/vendor/pins.py`
 (new), `tasks/__init__.py`, `keys/nodejs-release.asc` (new), `keys/npm-registry.pem`
 (new), `pyproject.toml`, `mise.toml`, `RELEASING.md`
 **Changes**: Three verifications, each failing the release rather than the user's run.
@@ -2425,7 +2425,7 @@ sets are committed.
   All the subtlety in this phase lives in that classification, and testing it through the
   subprocess would mean crafting revoked and expired keyrings and depending on a
   particular host GnuPG — the same shape as the `skip_if_no_minisign!` trap Phase 1
-  rejects. So `tasks/vendor/gpg.py` exposes `classify_status_lines(lines) -> Verdict`,
+  rejects. So `tasks/shared/vendor/gpg.py` exposes `classify_status_lines(lines) -> Verdict`,
   fed by a thin wrapper, and every combination is a table-driven unit test over recorded
   fixture output: `VALIDSIG` with `REVKEYSIG`, `VALIDSIG` with `EXPKEYSIG`, a subkey
   fingerprint whose primary differs from the allowlist, `NO_PUBKEY`, and the good case.
@@ -2474,7 +2474,7 @@ and any key that rotated with it.
 
 The procedure is documentation, so it is backed by mechanical guards, because a committed
 anchor is only as strong as the review that gates it and this repository has no CODEOWNERS
-file — a change to `keys/**` or `tasks/vendor/pins.py` is reviewed exactly like a version
+file — a change to `keys/**` or `tasks/shared/vendor/pins.py` is reviewed exactly like a version
 bump today.
 
 1. **A required CI job fails on any diff to the anchor set unless a second person
@@ -2534,7 +2534,7 @@ Python packages. It is pinned exactly, matching the group's existing discipline 
 
 #### 3. Assembly
 
-**Files**: `tasks/vendor/assemble.py` (new), `tasks/vendor/archive.py` (new),
+**Files**: `tasks/shared/vendor/assemble.py` (new), `tasks/shared/vendor/archive.py` (new),
 `tasks/build.py`, `tasks/release.py`, `.github/workflows/main.yml`,
 `tests/unit/tasks/test_workflows.py`
 **Changes**: **Assembly moves out of the `release` job entirely, into an upstream job
@@ -2606,7 +2606,7 @@ persists into `.git/config`. A separate job with `permissions: {}` removes all o
 residual token exposure by saying the committed digest "means tampered bytes cannot reach
 the signing step at all — the attacker's path to a *signed* artifact is closed
 independently of the token question". That does not hold when assembly and the check share
-a checkout: `tasks/vendor/pins.py` and the code enforcing it are exactly what a
+a checkout: `tasks/shared/vendor/pins.py` and the code enforcing it are exactly what a
 path-traversal escape targets — the plan itself names "a `tasks/*.py` module that the later
 Sign step imports" as the hazard motivating out-of-checkout staging — so an escape defeats
 the digest gate in the same run, before Sign. With assembly upstream, the `release` job
@@ -2645,7 +2645,7 @@ path; `tarfile` preserves modes only under a deliberately chosen extraction filt
 browser tree whose `chrome-headless-shell` lost its executable bit would pass the
 structural check, sha256, minisign and `ASSEMBLED_SHA256`, be sealed `0444` on the user's
 machine, and fail at `execve` with `EACCES` — unrecoverable without a new release, and
-invisible on any platform the smoke matrix does not execute. So `tasks/vendor/archive.py`
+invisible on any platform the smoke matrix does not execute. So `tasks/shared/vendor/archive.py`
 reconstructs modes from `external_attr` and symlinks from the `S_IFLNK` marker explicitly,
 and a CI-side assertion checks the executable bit on every expected binary in **every**
 produced archive, not only the runner's.
@@ -2699,7 +2699,7 @@ secret, and `main.yml` scopes `ACCELERATOR_RELEASE_SECRET_KEY` to Sign steps del
 
 #### 4. Version guards
 
-**File**: `tasks/vendor/assemble.py`
+**File**: `tasks/shared/vendor/assemble.py`
 **Changes**: The assembly fails the release if the fetched `playwright-core` is not the
 exact version `package.json` declares, or if the fetched Chromium revision is not the
 one that package's `browsers.json` names. Per ADR-0059 the pairing is structural, so
@@ -2954,7 +2954,7 @@ manifest — raises outside the delete envelope entirely.
 
 #### 8. Reuse across cuts, and a functional gate
 
-**Files**: `tasks/vendor/assemble.py`, `.github/workflows/main.yml`
+**Files**: `tasks/shared/vendor/assemble.py`, `.github/workflows/main.yml`
 **Changes**: Two problems that only appear once assembly is in the pipeline.
 
 **Every release becomes dependent on three third-party hosts.** `assemble-runtime` runs
@@ -3144,7 +3144,7 @@ architecture.
 
 #### 9. Redistribution notices
 
-**File**: `tasks/vendor/assemble.py`
+**File**: `tasks/shared/vendor/assemble.py`
 **Changes**: Each artifact carries the notices for what it contains — Node and its
 bundled dependencies, `playwright-core`, and Chromium's credits — assembled into a
 `NOTICES/` directory at the tree root. Phase 3 adds the subcommand that surfaces them,
@@ -3161,7 +3161,7 @@ rather than ship.
 #### Automated Verification
 
 - [ ] Failing test first: *a `SHASUMS256.txt` signed by a key absent from the committed
-      allowlist fails the release* — red before `tasks/vendor/nodejs.py` exists, and it
+      allowlist fails the release* — red before `tasks/shared/vendor/nodejs.py` exists, and it
       exercises `classify_status_lines` over recorded fixture output rather than needing a
       crafted keyring
 - [ ] Verifications use recorded upstream fixtures rather than live network calls.
