@@ -8,8 +8,6 @@ and producing the archives; and ``smoke_runtime`` runs per platform on a native
 host, executing the downloaded binaries.
 """
 
-from __future__ import annotations
-
 import os
 
 from invoke import Context, task

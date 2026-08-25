@@ -15,8 +15,6 @@ being verified. Populating ``keys/nodejs-release.asc`` and
 second-person review, under the refresh procedure recorded in RELEASING.md.
 """
 
-from __future__ import annotations
-
 import hashlib
 from collections.abc import Iterable
 from pathlib import Path

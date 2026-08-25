@@ -12,8 +12,6 @@ Pure over its inputs: the pins document and the keys directory are parameters,
 so the check is exercised against fixtures without a real release.
 """
 
-from __future__ import annotations
-
 import tomllib
 from pathlib import Path
 

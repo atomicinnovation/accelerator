@@ -22,8 +22,6 @@ validates would reproduce the problem one level up. Populating it is a
 trust-anchor operation.
 """
 
-from __future__ import annotations
-
 import base64
 import hashlib
 import subprocess

@@ -17,8 +17,6 @@ signature, but the ones it made while valid stand, and Node's release keys
 expire faster than the upstream repo extends them.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 import tempfile

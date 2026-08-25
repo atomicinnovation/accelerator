@@ -6,8 +6,6 @@ verification logic is exercised against recorded fixtures rather than the live
 registry, nodejs.org and CDN.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any

@@ -15,8 +15,6 @@ agreement about the table's internal shape is needed beyond this reader parsing
 what this writer emits.
 """
 
-from __future__ import annotations
-
 import gzip
 import hashlib
 import io

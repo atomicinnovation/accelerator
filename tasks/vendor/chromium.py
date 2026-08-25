@@ -13,8 +13,6 @@ pin, so an upstream Chromium bump cannot slip in under an unchanged Playwright
 pin.
 """
 
-from __future__ import annotations
-
 import hashlib
 from pathlib import Path
 

@@ -18,8 +18,6 @@ The field set and order match the launcher's ``Attestation`` reader exactly; a
 drift test pins them together.
 """
 
-from __future__ import annotations
-
 import json
 
 from tasks.vendor.archive import ArchiveStats

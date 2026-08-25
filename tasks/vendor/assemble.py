@@ -14,8 +14,6 @@ contained under its destination the way the launcher's own allowlist contains
 it, so a hostile input fails at assembly rather than on a user's machine.
 """
 
-from __future__ import annotations
-
 import hashlib
 import json
 import re
