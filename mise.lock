@@ -4,6 +4,11 @@
 version = "0.19.8"
 backend = "aqua:EmbarkStudios/cargo-deny"
 
+[tools."aqua:EmbarkStudios/cargo-deny"."platforms.linux-arm64"]
+checksum = "sha256:67ef48056523d27f58a527c5e49172bc24758f7b8147998d47219d45b181c354"
+url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.8/cargo-deny-0.19.8-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-deny/releases/assets/431892981"
+
 [tools."aqua:EmbarkStudios/cargo-deny"."platforms.linux-x64"]
 checksum = "sha256:70e769ae3872e34d45132b17040859175e11401dc12dddb0303e0b8c7d088f3f"
 url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.8/cargo-deny-0.19.8-x86_64-unknown-linux-musl.tar.gz"
@@ -20,6 +25,11 @@ url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.8/carg
 version = "0.9.138"
 backend = "aqua:nextest-rs/nextest/cargo-nextest"
 
+[tools."aqua:nextest-rs/nextest/cargo-nextest"."platforms.linux-arm64"]
+checksum = "sha256:e1c85dbe02dcf5b963803b3f96f4f561757f5c37cab68c932411dea20d57284e"
+url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.138/cargo-nextest-0.9.138-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/nextest-rs/nextest/releases/assets/453982267"
+
 [tools."aqua:nextest-rs/nextest/cargo-nextest"."platforms.linux-x64"]
 checksum = "sha256:8e4183e39b857350b928e053b40ffc7180c01e7cbf4d13146e5d8a12ec210f4f"
 url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.138/cargo-nextest-0.9.138-x86_64-unknown-linux-musl.tar.gz"
@@ -35,6 +45,12 @@ url = "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9
 [[tools."aqua:rhysd/actionlint"]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"
+
+[tools."aqua:rhysd/actionlint"."platforms.linux-arm64"]
+checksum = "sha256:325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924897"
+provenance = "github-attestations"
 
 [tools."aqua:rhysd/actionlint"."platforms.linux-x64"]
 checksum = "sha256:8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
@@ -55,6 +71,12 @@ provenance = "github-attestations"
 version = "0.8.7"
 backend = "aqua:taiki-e/cargo-llvm-cov"
 
+[tools."aqua:taiki-e/cargo-llvm-cov"."platforms.linux-arm64"]
+checksum = "sha256:b7bb2ad514166f3b19fc06874c577eefde0010e5ac571f9ae33ff45cd19a4785"
+url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-llvm-cov-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/taiki-e/cargo-llvm-cov/releases/assets/418861713"
+provenance = "github-attestations"
+
 [tools."aqua:taiki-e/cargo-llvm-cov"."platforms.linux-x64"]
 checksum = "sha256:967b5cc996c29d8baa52bbb4595ef1f53af35255af8e2036ddbc6468d7b523c7"
 url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-llvm-cov-x86_64-unknown-linux-musl.tar.gz"
@@ -70,6 +92,12 @@ url = "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.8.7/cargo-
 [[tools.gh]]
 version = "2.89.0"
 backend = "aqua:cli/cli"
+
+[tools.gh."platforms.linux-arm64"]
+checksum = "sha256:9e64a623dfc242990aa5d9b3f507111149c4282f66b68eaad1dc79eeb13b9ce5"
+url = "https://github.com/cli/cli/releases/download/v2.89.0/gh_2.89.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/382152834"
+provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
 checksum = "sha256:d0422caade520530e76c1c558da47daebaa8e1203d6b7ff10ad7d6faba3490d8"
@@ -90,6 +118,11 @@ provenance = "github-attestations"
 version = "0.43.0"
 backend = "aqua:jj-vcs/jj"
 
+[tools.jj."platforms.linux-arm64"]
+checksum = "sha256:289197b6bec60b4e57d47260624b617716f737eb02cdfd9155791b2576aa5862"
+url = "https://github.com/jj-vcs/jj/releases/download/v0.43.0/jj-v0.43.0-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/jj-vcs/jj/releases/assets/463825313"
+
 [tools.jj."platforms.linux-x64"]
 checksum = "sha256:59e5588583ac82b623239929368c65b90735931c0f26b5a16c1f04d5bb97643d"
 url = "https://github.com/jj-vcs/jj/releases/download/v0.43.0/jj-v0.43.0-x86_64-unknown-linux-musl.tar.gz"
@@ -109,6 +142,11 @@ url_api = "https://api.github.com/repos/jj-vcs/jj/releases/assets/463825063"
 version = "1.7.1"
 backend = "aqua:jqlang/jq"
 
+[tools.jq."platforms.linux-arm64"]
+checksum = "sha256:4dd2d8a0661df0b22f1bb9a1f9830f06b6f3b8f7d91211a1ef5d7c4f06a8b4a5"
+url = "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-arm64"
+url_api = "https://api.github.com/repos/jqlang/jq/releases/assets/140520982"
+
 [tools.jq."platforms.linux-x64"]
 checksum = "sha256:5942c9b0934e510ee61eb3e30273f1b3fe2590df93933a93d7c58b81d19c8ff5"
 url = "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64"
@@ -125,6 +163,10 @@ url = "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64"
 version = "22.22.2"
 backend = "core:node"
 
+[tools.node."platforms.linux-arm64"]
+checksum = "sha256:b2f3a96f31486bfc365192ad65ced14833ad2a3c2e1bcefec4846902f264fa28"
+url = "https://nodejs.org/dist/v22.22.2/node-v22.22.2-linux-arm64.tar.gz"
+
 [tools.node."platforms.linux-x64"]
 checksum = "sha256:978978a635eef872fa68beae09f0aad0bbbae6757e444da80b570964a97e62a3"
 url = "https://nodejs.org/dist/v22.22.2/node-v22.22.2-linux-x64.tar.gz"
@@ -140,6 +182,11 @@ url = "https://nodejs.org/dist/v22.22.2/node-v22.22.2-darwin-x64.tar.gz"
 [[tools.python]]
 version = "3.14.4"
 backend = "core:python"
+
+[tools.python."platforms.linux-arm64"]
+checksum = "sha256:b8b597fdb2f8dccdc502c11947b60a4b65eb6bce79cfa60c7ccf9b6e8352c60a"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260414/cpython-3.14.4+20260414-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64"]
 checksum = "sha256:fe9a9c32d13870af632cbac3dfc7528ae53597e94472aa4c7d6a42e8166136cd"
@@ -167,6 +214,11 @@ components = "clippy,rustfmt"
 version = "0.11.0"
 backend = "aqua:koalaman/shellcheck"
 
+[tools.shellcheck."platforms.linux-arm64"]
+checksum = "sha256:12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.xz"
+url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056934"
+
 [tools.shellcheck."platforms.linux-x64"]
 checksum = "sha256:8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
 url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz"
@@ -182,6 +234,11 @@ url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellche
 [[tools.shfmt]]
 version = "3.13.1"
 backend = "aqua:mvdan/sh"
+
+[tools.shfmt."platforms.linux-arm64"]
+checksum = "sha256:32d92acaa5cd8abb29fc49dac123dc412442d5713967819d8af2c29f1b3857c7"
+url = "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_arm64"
+url_api = "https://api.github.com/repos/mvdan/sh/releases/assets/390322859"
 
 [tools.shfmt."platforms.linux-x64"]
 checksum = "sha256:fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1"
@@ -212,6 +269,12 @@ exe = "cosign"
 [[tools.uv]]
 version = "0.11.6"
 backend = "aqua:astral-sh/uv"
+
+[tools.uv."platforms.linux-arm64"]
+checksum = "sha256:d14ebd6f200047264152daaf97b8bd36c7885a5033e9e8bba8366cb0049c0d00"
+url = "https://github.com/astral-sh/uv/releases/download/0.11.6/uv-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/392367465"
+provenance = "github-attestations"
 
 [tools.uv."platforms.linux-x64"]
 checksum = "sha256:aa342a53abe42364093506d7704214d2cdca30b916843e520bc67759a5d20132"
