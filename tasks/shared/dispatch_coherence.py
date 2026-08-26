@@ -14,8 +14,9 @@ start and the point it is actually needed) — either way, gated on the same
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 from tasks.shared.errors import DispatchCoherenceError
 from tasks.shared.paths import (
@@ -38,7 +39,7 @@ from tasks.shared.skill_parsing import (
 
 # Must equal the launcher's built-in set; a test pins it against the clap
 # `Command` enum, which is not compile-enforced from this side.
-BUILTIN_SUBCOMMANDS = frozenset({"version", "config", "help"})
+BUILTIN_SUBCOMMANDS = frozenset({"version", "config", "cache", "help"})
 # Staged-but-never-dispatched binaries whose asset name a token would collide
 # with, plus `launcher`. Derived by test from _CLI_RELEASE_BINARIES minus the
 # dispatched set: a third staged binary cannot silently become registrable, and
@@ -47,14 +48,14 @@ RESERVED_TOKENS = frozenset({"verify", "launcher"})
 _TOKEN = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
-def _authorises(rules: list[str], *, token: str, command: str) -> bool:
+def _authorises(rules: Sequence[str], *, token: str, command: str) -> bool:
     return any(
         launcher_token(rule) == token and covered_by(command, rule)
         for rule in rules
     )
 
 
-def _is_over_broad(text: str, rules: list[str]) -> bool:
+def _is_over_broad(text: str, rules: Sequence[str]) -> bool:
     return (
         has_bare_bash(text)
         or any(covered_by(BARE_LAUNCHER, rule) for rule in rules)
@@ -81,7 +82,14 @@ def _every_token(command: str) -> set[str]:
     return tokens
 
 
-def _bindings(root: Path) -> tuple[set[str], dict[str, str]]:
+class Bindings(NamedTuple):
+    """Tokens a skill authorises via a Bash rule, and where each is invoked."""
+
+    bound: set[str]
+    invoked: dict[str, str]
+
+
+def _bindings(root: Path) -> Bindings:
     bound: set[str] = set()
     invoked: dict[str, str] = {}
     for path in sorted((root / "skills").rglob("SKILL.md")):
@@ -109,11 +117,11 @@ def _bindings(root: Path) -> tuple[set[str], dict[str, str]]:
                 and _authorises(rules, token=token, command=command)
             ):
                 bound.add(token)
-    return bound, invoked
+    return Bindings(bound, invoked)
 
 
 def _registry_problems(
-    tokens: tuple[str, ...], exempt: tuple[str, ...]
+    tokens: Sequence[str], exempt: Sequence[str]
 ) -> list[str]:
     if not tokens:
         return [

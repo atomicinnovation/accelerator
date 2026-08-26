@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 from invoke import Context, task
 
@@ -13,7 +14,15 @@ from . import (
     signing,
     version,
 )
-from .shared.paths import DISPATCHED_SUBBINARIES, RELEASE_MANIFEST
+from .shared.paths import (
+    DISPATCHED_SUBBINARIES,
+    PINS_TOML,
+    RELEASE_MANIFEST,
+    TREE_ARTIFACTS,
+    tree_artifact_asset_path,
+)
+from .shared.targets import TARGETS
+from .shared.vendor.assemble import assert_matches_pin
 
 # git status --porcelain markers for artifacts that must never reach the
 # version-bump commit: a materialised signing secret, anything under the
@@ -81,6 +90,59 @@ def _assert_staged_manifest_is_current(version: str) -> None:
             f"release is {version} — dist/release/ is from an earlier cut; "
             "re-run the prepare and sign steps"
         )
+    staged_artifacts = staged.get("artifacts")
+    if staged_artifacts is not None:
+        expected = {
+            (name, platform)
+            for name in TREE_ARTIFACTS
+            for _triple, platform in TARGETS
+        }
+        actual = {
+            (name, platform)
+            for name, entry in staged_artifacts.items()
+            for platform in entry.get("platforms", {})
+        }
+        if actual != expected:
+            raise RuntimeError(
+                "staged manifest artifacts cover "
+                f"{sorted(actual)} but this release assembles "
+                f"{sorted(expected)} — a partially-assembled artifact set "
+                "must not reach a signed, published manifest"
+            )
+
+
+def _tree_artifacts_staged() -> bool:
+    return any(
+        tree_artifact_asset_path(name, platform).exists()
+        for name in TREE_ARTIFACTS
+        for _triple, platform in TARGETS
+    )
+
+
+def _assert_assembled_matches_pins(pins_path: Path = PINS_TOML) -> None:
+    """Gate every assembled archive against its reviewed digest before signing.
+
+    Runs from the release job's own clean checkout against bytes that arrived as
+    an opaque workflow artifact. When no archive is staged the release took the
+    skip-tree-artifacts escape and there is nothing to gate; when any is staged
+    the whole set must be present, so a partial assembly fails closed.
+    """
+    if not _tree_artifacts_staged():
+        return
+    for name in TREE_ARTIFACTS:
+        for _triple, platform in TARGETS:
+            archive = tree_artifact_asset_path(name, platform)
+            if not archive.exists():
+                raise RuntimeError(
+                    f"{name}/{platform} archive is missing from a partial "
+                    "tree-artifact assembly"
+                )
+            assert_matches_pin(
+                archive,
+                artifact=name,
+                platform=platform,
+                pins_path=pins_path,
+            )
 
 
 def _sign(context: Context) -> None:
@@ -88,15 +150,22 @@ def _sign(context: Context) -> None:
 
     The only task that receives the signing secret. Fails closed: an absent
     secret raises inside `resolve_secret_key` rather than silently skipping.
+    Tree artifacts are signed and collected only when staged, so the
+    skip-tree-artifacts escape emits a manifest with no `artifacts` key.
     """
     resolved_version = str(version.read(context, print_to_stdout=False))
     with signing.resolve_secret_key() as key:
         signing.sign_staged_binaries(key)
+        artifacts = None
+        if _tree_artifacts_staged():
+            signing.sign_tree_artifacts(key)
+            artifacts = manifest.collect_artifact_entries()
         manifest.emit_manifest(
             RELEASE_MANIFEST,
             resolved_version,
             manifest.collect_entries(),
             key,
+            artifacts=artifacts,
         )
 
 
@@ -126,6 +195,7 @@ def prerelease_prepare(context: Context) -> None:
     build.server_cross_compile(context)
     build.cli_cross_compile(context)
     build.assert_staged_launcher_versions(resolved_version)
+    _assert_assembled_matches_pins()
     build.create_debug_archives(context)
 
 
@@ -157,6 +227,7 @@ def release_prepare(context: Context) -> None:
     build.server_cross_compile(context)
     build.cli_cross_compile(context)
     build.assert_staged_launcher_versions(resolved_version)
+    _assert_assembled_matches_pins()
     build.create_debug_archives(context)
 
 

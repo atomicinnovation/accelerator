@@ -412,7 +412,7 @@ fn the_forward_compatible_flags_are_accepted() {
             "--to",
             "code",
             "--reason",
-            "bootstrap-failed",
+            "artifact-unavailable",
         ]),
         0
     );
@@ -525,4 +525,24 @@ fn every_migrated_script_has_a_subcommand() {
 #[test]
 fn an_unknown_subcommand_is_a_usage_error() {
     assert_eq!(code(&["not-a-subcommand"]), 2);
+}
+
+#[test]
+fn notices_lists_a_materialised_tree() -> Result<(), TestError> {
+    let tree = tempfile::tempdir()?;
+    std::fs::create_dir_all(tree.path().join("NOTICES/node"))?;
+    std::fs::create_dir_all(tree.path().join("NOTICES/playwright-core"))?;
+    let path = tree.path().display().to_string();
+    let out = stdout_of(
+        &["notices", "--artifact", "driver"],
+        &[("ACCELERATOR_TREE_DRIVER", path.as_str())],
+    );
+    assert!(out.contains("node"), "{out}");
+    assert!(out.contains("playwright-core"), "{out}");
+    Ok(())
+}
+
+#[test]
+fn notices_rejects_when_nothing_is_materialised() {
+    assert_eq!(code(&["notices"]), 1);
 }

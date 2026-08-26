@@ -1,1 +1,0 @@
-inventory-design: Playwright bootstrap failed. Falling back to code-only crawler. Run `ensure-playwright.sh` manually to see the full error, or pass --crawler code to suppress this notice.

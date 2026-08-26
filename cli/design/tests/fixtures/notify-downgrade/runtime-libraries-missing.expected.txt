@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (a shared library the browser needs is missing). Falling back to code-only crawler. Install the package providing the named library, or pass --crawler code to suppress this notice.

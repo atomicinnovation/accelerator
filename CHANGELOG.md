@@ -12,6 +12,16 @@
   no shell in between. The two metadata helpers retire into
   `accelerator corpus metadata derive`.
 
+- **The Playwright runtime is vendored, so a design crawl needs no system
+  Node.** `runtime` and `hybrid` inventory crawls run against a driver bundle
+  and a headless-Chromium browser the release publishes under the project's
+  signing key and the launcher materialises on demand — replacing the
+  `ensure-playwright.sh` bootstrap, its `npm install` and the `Node >= 20`
+  prerequisite. `accelerator cache verify|repair|ensure|prune` manage the
+  materialised trees; `design.browser_path` (a personal-level key) points the
+  crawler at a browser you already have; and `design notices` lists the bundled
+  redistribution notices.
+
 - **A new `accelerator work` command family replaces the bash work-item
   lifecycle scripts.** `work create`, `show`, `resolve`, `diff`, and `update`
   cover the full create/read/resolve/diff/update lifecycle for work items,

@@ -9,17 +9,22 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "flate2",
  "http-test-support",
  "kernel",
  "minisign-verify",
+ "rand 0.9.5",
  "reqwest",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "store",
+ "tar",
  "tempfile",
  "time",
+ "toml",
  "tracing",
  "vergen",
  "vergen-gitcl",
@@ -4476,6 +4481,16 @@ name = "tagptr"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
+
+[[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+]
 
 [[package]]
 name = "tempfile"

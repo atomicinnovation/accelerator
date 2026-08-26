@@ -125,67 +125,69 @@ fn a_missing_command_is_a_usage_error() -> Result<(), TestError> {
     Ok(())
 }
 
-/// A bootstrapped-looking repository with an empty namespace: exit 3, naming
-/// the directory the surviving bootstrap script would populate.
+/// With the runtime not yet materialised and no launcher reachable, the
+/// executor downgrades to `artifact-unavailable` rather than failing hard, so
+/// the caller falls back to the code-only crawler.
 #[test]
-fn an_unpopulated_namespace_reports_playwright_not_installed(
+fn an_unresolvable_launcher_downgrades_to_artifact_unavailable(
 ) -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
     let repo = work.path().join("repo");
     fs::create_dir_all(repo.join(".git"))?;
-    let cache = work.path().join("cache");
-    fs::create_dir_all(&cache)?;
+    // A plugin root with no launcher under `bin`, and a PATH carrying none
+    // either, so discovery exhausts every source.
+    let empty_bin = work.path().join("bin");
+    fs::create_dir_all(&empty_bin)?;
 
     let output = executor(
         &["ping"],
         &repo,
         &[
-            ("ACCELERATOR_PLAYWRIGHT_CACHE", &cache.display().to_string()),
             (
                 "ACCELERATOR_PLUGIN_ROOT",
-                &plugin_root().display().to_string(),
+                &work.path().display().to_string(),
             ),
+            ("PATH", &empty_bin.display().to_string()),
         ],
     );
 
     assert_eq!(code_of(&output), 3);
     let message = stderr_of(&output);
+    assert!(message.contains(r#""error":"downgrade""#), "{message}");
     assert!(
-        message.contains(r#""error":"playwright-not-installed""#),
+        message.contains(r#""reason":"artifact-unavailable""#),
         "{message}"
-    );
-    assert!(message.contains(r#""category":"bootstrap""#), "{message}");
-    assert!(
-        message.contains(&cache.display().to_string()),
-        "the envelope names the namespace it looked in: {message}"
     );
     Ok(())
 }
 
-/// The launcher cannot derive its own location, so an unset plugin root must
-/// say so rather than failing somewhere further in.
+/// An unset plugin root is no longer a pre-flight hard error: the runtime check
+/// runs first, and with no launcher reachable it downgrades rather than naming
+/// the unset variable — a diagnostic only a resolved runtime reaches.
 #[test]
-fn an_unset_plugin_root_is_reported_rather_than_guessed(
+fn an_unset_plugin_root_downgrades_rather_than_hard_failing(
 ) -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
     let repo = work.path().join("repo");
     fs::create_dir_all(repo.join(".git"))?;
+    let empty_bin = work.path().join("bin");
+    fs::create_dir_all(&empty_bin)?;
 
-    let output = executor(&["ping"], &repo, &[]);
+    let output = executor(
+        &["ping"],
+        &repo,
+        &[("PATH", &empty_bin.display().to_string())],
+    );
 
-    assert_eq!(code_of(&output), 1);
+    assert_eq!(code_of(&output), 3);
+    let message = stderr_of(&output);
     assert!(
-        stderr_of(&output).contains("ACCELERATOR_PLUGIN_ROOT"),
-        "{}",
-        stderr_of(&output)
+        message.contains(r#""reason":"artifact-unavailable""#),
+        "{message}"
+    );
+    assert!(
+        !message.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "an unset plugin root must not surface as a hard error here: {message}"
     );
     Ok(())
-}
-
-fn plugin_root() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .unwrap_or_default()
 }

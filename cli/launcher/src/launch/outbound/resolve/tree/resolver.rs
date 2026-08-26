@@ -1,0 +1,1103 @@
+//! The concrete tree resolver: `acquire`/`query`/`materialise`/`verify` over
+//! the leaf modules.
+
+use std::collections::BTreeSet;
+use std::io::Read as _;
+use std::os::unix::fs::MetadataExt as _;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use sha2::{Digest as _, Sha256};
+
+use crate::launch::core::tree::{
+    AcquireSealedTree, AcquiredTree, Clock, Discrepancy, MaterialiseTree,
+    SealedTree, TreeError, TreeReport, VerifyTree,
+};
+use crate::launch::core::tree_entry::{EntryKind, ExtractionLimits};
+
+use super::super::cache_root;
+use super::super::fetcher::Fetcher;
+use super::super::keys::TrustedKeys;
+use super::super::manifest::Manifest;
+use super::attestation::Attestation;
+use super::layout::{
+    generation_name, generation_prefix, is_privately_owned,
+    validated_generation, TreePaths, LAYOUT_VERSION,
+};
+use super::lease::{hold_shared_lease, take_single_flight, try_single_flight};
+use super::table::{FileTable, TABLE_NAME};
+use super::{claims, download, extract, pins, reap, seal};
+
+/// The publish-sequence steps a crash can be injected after.
+///
+/// Numbered to match the materialise sequence below. A test seam, not a cargo
+/// feature: `mise run cli:check` and `test:unit:cli` both pass `--all-features`,
+/// so a feature would be on during every check, whereas an injected observer is
+/// a no-op unless a test supplies one. Injecting here tests the *publish
+/// sequencing* — that a crash at any step leaves only reclaimable garbage —
+/// rather than the reaper against seven hand-built on-disk states.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaterialiseStep {
+    ArchiveStreamed,
+    ArchiveVerified,
+    Extracted,
+    Sealed,
+    SidecarsWritten,
+    LeaseHeld,
+    Renamed,
+}
+
+/// Observes each completed publish step. Production uses the no-op; a test can
+/// return an error after a chosen step to simulate a crash there.
+pub trait StepObserver {
+    /// # Errors
+    ///
+    /// Whatever the observer decides — the materialiser propagates it, aborting
+    /// the publish before the pointer is written.
+    fn after(&self, step: MaterialiseStep) -> Result<(), TreeError>;
+}
+
+/// The production observer: every step is fine. Constructed at the composition
+/// root, alongside the `cache` built-in.
+#[allow(dead_code)]
+pub struct NoSteps;
+
+impl StepObserver for NoSteps {
+    fn after(&self, _step: MaterialiseStep) -> Result<(), TreeError> {
+        Ok(())
+    }
+}
+
+/// Where the launcher's expected `(artifact, platform) -> digest` map comes
+/// from.
+///
+/// Production always uses [`ExpectedDigests::Compiled`] — the rollback defence
+/// is that the digest is baked into the binary from the reviewed anchor. The
+/// injected variant is a test seam only, the same shape as `Fetcher`'s
+/// backoff-injecting constructor, so an end-to-end test can pin a digest it
+/// controls without a real release.
+pub enum ExpectedDigests {
+    /// Read the compiled-in map.
+    Compiled,
+    /// A test-supplied `(artifact, platform) -> digest` map.
+    Fixed(std::collections::BTreeMap<(String, String), String>),
+}
+
+impl ExpectedDigests {
+    fn digest_for(&self, artifact: &str, platform: &str) -> Option<String> {
+        match self {
+            Self::Compiled => {
+                pins::expected_digest_on(artifact, platform).map(str::to_owned)
+            }
+            Self::Fixed(map) => map
+                .get(&(artifact.to_owned(), platform.to_owned()))
+                .cloned(),
+        }
+    }
+}
+
+/// Everything the resolver needs to reach the release and the cache root.
+pub struct TreeResolver<'a> {
+    pub cache_root: PathBuf,
+    pub base_url: String,
+    pub platform: String,
+    pub expected_version: String,
+    pub keys: &'a TrustedKeys,
+    pub fetcher: &'a Fetcher,
+    pub clock: &'a dyn Clock,
+    /// A per-install identity for the retention claim, so two installs sharing
+    /// a cache root each write their own claim file.
+    pub launcher_id: String,
+    /// Production is always [`ExpectedDigests::Compiled`]; the injected variant
+    /// is a test seam.
+    pub expected_digests: ExpectedDigests,
+    /// The bounded waiter's deadline: a loser waiting on the single-flight lock
+    /// gives up after this and emits `materialisation-in-progress`, so a
+    /// slow-but-healthy first fetch cannot strand the rest of a crawl.
+    pub waiter_bound: Duration,
+    /// The crash-injection seam; production is [`NoSteps`].
+    pub steps: &'a dyn StepObserver,
+}
+
+impl TreeResolver<'_> {
+    fn paths(&self) -> TreePaths {
+        TreePaths::under(&self.cache_root)
+    }
+
+    /// The digest this launcher expects for `artifact`, or a miss-shaped `None`
+    /// when this platform publishes none.
+    fn expected_digest(&self, artifact: &str) -> Option<String> {
+        self.expected_digests.digest_for(artifact, &self.platform)
+    }
+
+    /// Steps 1-5: the side-effect-free query behind both `query` and `acquire`.
+    ///
+    /// Returns the validated generation name and the verified attestation, or
+    /// `None` for any miss. No I/O error propagates: within design a broken
+    /// cache path is a miss, not a failure, so the crawl re-materialises rather
+    /// than aborting.
+    fn locate(&self, artifact: &str, digest: &str) -> Option<Located> {
+        let paths = self.paths();
+
+        // 1. The pointer: owned by us, not a symlink, not group/world-writable,
+        //    before its contents are read.
+        let pointer = paths.pointer(artifact, &self.platform, digest);
+        if !is_privately_owned(&pointer) {
+            return None;
+        }
+        let contents = std::fs::read_to_string(&pointer).ok()?;
+
+        // 2. The contents become a path only after the full grammar validates.
+        let generation = validated_generation(
+            &contents,
+            artifact,
+            &self.platform,
+            digest,
+            LAYOUT_VERSION,
+        )
+        .ok()?;
+
+        // 3. The generation directory: a real directory, owned, not writable by
+        //    others, and not a symlink pointing at one.
+        let generation_dir = paths.generation(&generation);
+        let identity = directory_identity(&generation_dir)?;
+
+        // 4-5. The attestation, verified under the embedded key and checked
+        //      field by field against what is being resolved.
+        let document = std::fs::read(paths.attestation(&generation)).ok()?;
+        let signature =
+            std::fs::read_to_string(paths.attestation_signature(&generation))
+                .ok()?;
+        let attestation =
+            Attestation::verified(&document, &signature, self.keys).ok()?;
+        attestation.matches(artifact, &self.platform, digest).ok()?;
+
+        Some(Located {
+            generation,
+            generation_dir,
+            identity,
+            attestation,
+        })
+    }
+
+    /// Materialise into a fresh generation under the single-flight lock, which
+    /// the caller already holds.
+    fn materialise_locked(
+        &self,
+        artifact: &str,
+        digest: &str,
+    ) -> Result<SealedTree, TreeError> {
+        let paths = self.paths();
+
+        // 1. Reuse scan, before any network access: an existing generation at
+        //    this digest and layout that still verifies is a hit.
+        if let Some(existing) = self.reuse_scan(artifact, digest) {
+            self.publish_pointer(&paths, artifact, digest, &existing)?;
+            self.write_claim(&paths, digest);
+            return Ok(self.sealed(&paths, artifact, &existing, digest));
+        }
+
+        self.materialise_fresh(artifact, digest)
+    }
+
+    /// Fetch, verify, extract, seal and publish a brand-new generation,
+    /// bypassing the reuse scan.
+    ///
+    /// This is what `repair` needs: an existing generation whose *contents* are
+    /// corrupt still passes the reuse scan's attestation check, so reusing it
+    /// would make repair a no-op. Forcing a fresh materialisation builds the
+    /// replacement beside the tree in use and swaps the pointer to it.
+    fn materialise_fresh(
+        &self,
+        artifact: &str,
+        digest: &str,
+    ) -> Result<SealedTree, TreeError> {
+        let paths = self.paths();
+
+        // 2. The manifest, whose digest for this artifact must be the one this
+        //    launcher expects — a disagreement is a refusal, not an instruction
+        //    to fetch something else.
+        let manifest = self.load_manifest()?;
+        let entry = manifest
+            .artifact_platform_entry(artifact, &self.platform)
+            .ok_or_else(|| TreeError::Attestation {
+                detail: format!(
+                    "the manifest publishes no {artifact} for {}",
+                    self.platform
+                ),
+            })?;
+        if entry.sha256 != digest {
+            return Err(TreeError::UnexpectedDigest {
+                artifact: artifact.to_owned(),
+                expected: digest.to_owned(),
+                found: entry.sha256.clone(),
+            });
+        }
+
+        // 3. Free-space precheck against archive + extracted copy.
+        self.check_free_space(
+            &paths,
+            entry.archive_size + entry.uncompressed_size,
+        )?;
+
+        // 4. Stream the archive to a digest-named temp file.
+        let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
+        let archive_url = format!(
+            "{}/{}",
+            self.base_url,
+            asset_name(artifact, &self.platform)
+        );
+        let streamed = download::stream_archive(
+            self.fetcher,
+            &archive_url,
+            &temp_archive,
+            entry.archive_size,
+        )?;
+        self.steps.after(MaterialiseStep::ArchiveStreamed)?;
+
+        // 5. The attestation and the archive verification.
+        let attestation =
+            self.fetch_and_check_attestation(artifact, digest, &manifest)?;
+        download::verify_archive_file(
+            &temp_archive,
+            &streamed,
+            digest,
+            &entry.signature,
+            self.keys,
+        )?;
+        self.steps.after(MaterialiseStep::ArchiveVerified)?;
+
+        // 6. Extract into a fresh temp generation, verifying each member as it
+        //    is written.
+        let suffix = generation_suffix();
+        let generation = generation_name(
+            artifact,
+            &self.platform,
+            digest,
+            LAYOUT_VERSION,
+            &suffix,
+        );
+        let temp_generation = paths.temp_generation(&generation);
+        std::fs::create_dir_all(&temp_generation).map_err(|error| {
+            TreeError::Extraction {
+                detail: format!("cannot create the temp generation: {error}"),
+            }
+        })?;
+        let archive = std::fs::File::open(&temp_archive).map_err(|error| {
+            TreeError::Extraction {
+                detail: format!(
+                    "cannot reopen the archive to extract: {error}"
+                ),
+            }
+        })?;
+        extract::extract_archive(
+            flate2::read::GzDecoder::new(archive),
+            &temp_generation,
+            &ExtractionLimits {
+                uncompressed_size: attestation.uncompressed_size,
+                entry_count: attestation.entry_count,
+            },
+        )?;
+        self.steps.after(MaterialiseStep::Extracted)?;
+
+        // 7. Seal, then 8. write the sidecars from the release's own bytes.
+        seal::seal_tree(&temp_generation)?;
+        self.steps.after(MaterialiseStep::Sealed)?;
+        write_private(
+            &paths.attestation(&generation),
+            &self.reread(&paths, artifact, digest)?,
+        )?;
+
+        // The attestation document and signature are the release's bytes, not
+        // locally synthesised.
+        self.write_sidecars(&paths, &generation, artifact, digest)?;
+        self.steps.after(MaterialiseStep::SidecarsWritten)?;
+
+        // 9. Hold the lease before the rename, so the 9->10 window cannot look
+        //    like crash residue to a concurrent prune.
+        let _lease = hold_shared_lease(&paths.lease(&generation))?;
+        self.steps.after(MaterialiseStep::LeaseHeld)?;
+
+        // 10. Rename into place — fresh by construction, so a collision is an
+        //     internal error rather than a merge.
+        let final_generation = paths.generation(&generation);
+        std::fs::rename(&temp_generation, &final_generation).map_err(
+            |error| TreeError::Extraction {
+                detail: format!("cannot publish the generation: {error}"),
+            },
+        )?;
+        let _ = std::fs::remove_file(&temp_archive);
+        self.steps.after(MaterialiseStep::Renamed)?;
+
+        // 11. Publish the pointer, last, so a crash before here leaves only
+        //     reclaimable garbage.
+        self.publish_pointer(&paths, artifact, digest, &generation)?;
+        self.write_claim(&paths, digest);
+
+        Ok(self.sealed(&paths, artifact, &generation, digest))
+    }
+
+    fn reuse_scan(&self, artifact: &str, digest: &str) -> Option<String> {
+        let paths = self.paths();
+        let prefix =
+            generation_prefix(artifact, &self.platform, digest, LAYOUT_VERSION);
+        let entries = std::fs::read_dir(paths.root()).ok()?;
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_str()?;
+            if !name.starts_with(&prefix) || has_sidecar_suffix(name) {
+                continue;
+            }
+            if self.locate(artifact, digest).is_some() {
+                return Some(name.to_owned());
+            }
+        }
+        None
+    }
+
+    fn load_manifest(&self) -> Result<Manifest, TreeError> {
+        let base = &self.base_url;
+        let manifest_bytes = self
+            .fetcher
+            .get(&format!("{base}/manifest.json"))
+            .map_err(|error| TreeError::Attestation {
+                detail: format!("cannot fetch the manifest: {error:?}"),
+            })?;
+        let signature = self
+            .fetcher
+            .get(&format!("{base}/manifest.minisig"))
+            .map_err(|error| TreeError::Attestation {
+            detail: format!("cannot fetch the manifest signature: {error:?}"),
+        })?;
+        let signature = String::from_utf8_lossy(&signature);
+        if !self.keys.verifies(&manifest_bytes, &signature) {
+            return Err(TreeError::Attestation {
+                detail: "the manifest signature does not verify".to_owned(),
+            });
+        }
+        Manifest::parse_and_validate(&manifest_bytes, &self.expected_version)
+            .map_err(|error| TreeError::Attestation {
+                detail: format!("the manifest is unusable: {error}"),
+            })
+    }
+
+    fn fetch_and_check_attestation(
+        &self,
+        artifact: &str,
+        digest: &str,
+        _manifest: &Manifest,
+    ) -> Result<Attestation, TreeError> {
+        let base = &self.base_url;
+        let asset = asset_name(artifact, &self.platform);
+        let bytes = download::fetch_attestation(
+            self.fetcher,
+            &format!("{base}/{asset}.sealed"),
+            &format!("{base}/{asset}.sealed.sig"),
+        )?;
+        let attestation = Attestation::verified(
+            &bytes.document,
+            &bytes.signature,
+            self.keys,
+        )?;
+        attestation.matches(artifact, &self.platform, digest)?;
+        Ok(attestation)
+    }
+
+    /// Reread the freshly fetched attestation document so its own bytes — not a
+    /// locally synthesised copy — are written into the sealed tree's sidecar.
+    fn reread(
+        &self,
+        _paths: &TreePaths,
+        artifact: &str,
+        _digest: &str,
+    ) -> Result<Vec<u8>, TreeError> {
+        let base = &self.base_url;
+        let asset = asset_name(artifact, &self.platform);
+        self.fetcher
+            .get(&format!("{base}/{asset}.sealed"))
+            .map_err(|error| TreeError::Attestation {
+                detail: format!("cannot reread the attestation: {error:?}"),
+            })
+    }
+
+    fn write_sidecars(
+        &self,
+        paths: &TreePaths,
+        generation: &str,
+        artifact: &str,
+        _digest: &str,
+    ) -> Result<(), TreeError> {
+        let base = &self.base_url;
+        let asset = asset_name(artifact, &self.platform);
+        let signature = self
+            .fetcher
+            .get(&format!("{base}/{asset}.sealed.sig"))
+            .map_err(|error| TreeError::Attestation {
+                detail: format!(
+                    "cannot reread the attestation signature: {error:?}"
+                ),
+            })?;
+        write_private(&paths.attestation_signature(generation), &signature)
+    }
+
+    fn publish_pointer(
+        &self,
+        paths: &TreePaths,
+        artifact: &str,
+        digest: &str,
+        generation: &str,
+    ) -> Result<(), TreeError> {
+        let pointer = paths.pointer(artifact, &self.platform, digest);
+        let temp = paths.root().join(format!(".tmp-{generation}.ref"));
+        write_private(&temp, generation.as_bytes())?;
+        std::fs::rename(&temp, &pointer).map_err(|error| {
+            let _ = std::fs::remove_file(&temp);
+            TreeError::Pointer {
+                detail: format!("cannot publish the pointer: {error}"),
+            }
+        })
+    }
+
+    fn write_claim(&self, paths: &TreePaths, digest: &str) {
+        claims::refresh(paths, digest, &self.launcher_id, self.clock);
+    }
+
+    fn check_free_space(
+        &self,
+        paths: &TreePaths,
+        needed: u64,
+    ) -> Result<(), TreeError> {
+        let Some(available) = available_bytes(paths.root(), &self.cache_root)
+        else {
+            return Ok(());
+        };
+        if available < needed {
+            return Err(TreeError::DiskShortfall { needed, available });
+        }
+        Ok(())
+    }
+
+    fn sealed(
+        &self,
+        paths: &TreePaths,
+        artifact: &str,
+        generation: &str,
+        digest: &str,
+    ) -> SealedTree {
+        let _ = self;
+        SealedTree {
+            artifact: artifact.to_owned(),
+            path: paths.generation(generation),
+            lease_path: paths.lease(generation),
+            digest: digest.to_owned(),
+        }
+    }
+}
+
+impl AcquireSealedTree for TreeResolver<'_> {
+    fn query(&self, artifact: &str) -> Result<Option<SealedTree>, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Ok(None);
+        };
+        let digest = digest.as_str();
+        let paths = self.paths();
+        Ok(self.locate(artifact, digest).map(|located| {
+            self.sealed(&paths, artifact, &located.generation, digest)
+        }))
+    }
+
+    fn acquire(
+        &self,
+        artifact: &str,
+    ) -> Result<Option<AcquiredTree>, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Ok(None);
+        };
+        let digest = digest.as_str();
+        let paths = self.paths();
+
+        // The lease-then-recheck is retried once, so a prune reclaiming between
+        // the directory check and the lease hands back a miss rather than a
+        // lease held on an unlinked inode.
+        for _ in 0..2 {
+            let Some(located) = self.locate(artifact, digest) else {
+                return Ok(None);
+            };
+            let Ok(lease) =
+                hold_shared_lease(&paths.lease(&located.generation))
+            else {
+                return Ok(None);
+            };
+            match directory_identity(&located.generation_dir) {
+                Some(now) if now == located.identity => {
+                    self.write_claim(&paths, digest);
+                    return Ok(Some(AcquiredTree {
+                        tree: self.sealed(
+                            &paths,
+                            artifact,
+                            &located.generation,
+                            digest,
+                        ),
+                        lease: Box::new(lease)
+                            as Box<dyn crate::launch::core::tree::HeldLease>,
+                    }));
+                }
+                // The generation changed under us; drop the lease and retry.
+                _ => drop(lease),
+            }
+        }
+        Ok(None)
+    }
+}
+
+impl MaterialiseTree for TreeResolver<'_> {
+    fn materialise(&self, artifact: &str) -> Result<SealedTree, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Err(TreeError::Attestation {
+                detail: format!(
+                    "this launcher publishes no {artifact} for {}",
+                    self.platform
+                ),
+            });
+        };
+        let digest = digest.as_str();
+
+        // Probe the cache root exactly once, before any cache-root write, so an
+        // unwritable or full root surfaces as the intended downgrade rather than
+        // an opaque lock-file error.
+        cache_root::verify_writable(&self.cache_root).map_err(|error| {
+            TreeError::CacheRootUnwritable {
+                detail: format!("the cache root is unusable: {error}"),
+            }
+        })?;
+        let paths = self.paths();
+        ensure_trees_dir(&paths)?;
+        let lock_path = paths.single_flight_lock(artifact, &self.platform);
+
+        // The bounded waiter: try the lock without blocking, and between tries
+        // re-check whether the winner has published. A loser never hangs for the
+        // winner's whole download — it gives up after `waiter_bound` with a
+        // non-sticky `materialisation-in-progress`, so a slow-but-healthy first
+        // fetch cannot degrade the rest of a crawl to code-only.
+        let started = self.clock.now_seconds();
+        loop {
+            if let Some(located) = self.locate(artifact, digest) {
+                return Ok(self.sealed(
+                    &paths,
+                    artifact,
+                    &located.generation,
+                    digest,
+                ));
+            }
+            if let Some(_lock) = try_single_flight(&lock_path)? {
+                // Won the lock; re-check, then materialise.
+                if let Some(located) = self.locate(artifact, digest) {
+                    return Ok(self.sealed(
+                        &paths,
+                        artifact,
+                        &located.generation,
+                        digest,
+                    ));
+                }
+                let sealed = self.materialise_locked(artifact, digest)?;
+                let mut keep = BTreeSet::new();
+                keep.insert(digest.to_owned());
+                let _ = reap::reap_orphans(&paths, self.clock, &keep);
+                return Ok(sealed);
+            }
+
+            // Another process holds the lock; wait, bounded.
+            let waited = self.clock.now_seconds().saturating_sub(started);
+            if waited >= self.waiter_bound.as_secs() {
+                return Err(TreeError::MaterialisationInProgress {
+                    waited: Duration::from_secs(waited),
+                });
+            }
+            self.clock.sleep_poll_interval();
+        }
+    }
+}
+
+impl TreeResolver<'_> {
+    /// Re-materialise a tree that fails verification, swapping the pointer to a
+    /// fresh generation and reaping the superseded one.
+    ///
+    /// Without `force`, a tree that verifies clean is left untouched. With it, a
+    /// tree is re-materialised unconditionally — the only recovery for one that
+    /// is internally consistent but wrong, which `verify` cannot detect since
+    /// such a tree matches its own table perfectly.
+    ///
+    /// The replacement is built beside the tree in use and the pointer swapped
+    /// only once it exists, so a refetch that fails leaves the working tree
+    /// exactly as it was. The superseded generation is reaped immediately if no
+    /// live process holds its lease, and left for a later `prune` otherwise.
+    ///
+    /// # Errors
+    ///
+    /// A [`TreeError`] if the tree cannot be verified, re-fetched or published.
+    pub fn repair(
+        &self,
+        artifact: &str,
+        force: bool,
+    ) -> Result<SealedTree, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Err(TreeError::Attestation {
+                detail: format!("unknown artifact {artifact}"),
+            });
+        };
+        let digest = digest.as_str();
+
+        if !force {
+            if let Some(located) = self.locate(artifact, digest) {
+                if self.verify(artifact)?.is_sound() {
+                    return Ok(self.sealed(
+                        &self.paths(),
+                        artifact,
+                        &located.generation,
+                        digest,
+                    ));
+                }
+            }
+        }
+
+        cache_root::verify_writable(&self.cache_root).map_err(|error| {
+            TreeError::CacheRootUnwritable {
+                detail: format!("the cache root is unusable: {error}"),
+            }
+        })?;
+        let paths = self.paths();
+        ensure_trees_dir(&paths)?;
+        let _lock = take_single_flight(
+            &paths.single_flight_lock(artifact, &self.platform),
+        )?;
+
+        let superseded = self
+            .locate(artifact, digest)
+            .map(|located| located.generation);
+        let sealed = self.materialise_fresh(artifact, digest)?;
+
+        // Reap the superseded generation now if nobody holds it; the age-gated
+        // reaper would otherwise spare it as too young.
+        if let Some(old) = superseded {
+            if paths.generation(&old) != sealed.path {
+                Self::reap_superseded(&paths, &old);
+            }
+        }
+        Ok(sealed)
+    }
+
+    /// Remove a superseded generation and its sidecars, but only if no live
+    /// process holds its lease.
+    fn reap_superseded(paths: &TreePaths, generation: &str) {
+        use super::lease::{probe_liveness, Liveness};
+        if probe_liveness(&paths.lease(generation)) == Liveness::Held {
+            return;
+        }
+        let _ = std::fs::remove_dir_all(paths.generation(generation));
+        for sidecar in reap::sidecars_of(paths, generation) {
+            let _ = std::fs::remove_file(sidecar);
+        }
+    }
+
+    /// Reclaim residue for one artifact under its single-flight lock.
+    ///
+    /// Runs under the lock the reaper requires, so it and a concurrent
+    /// materialisation of a different artifact cannot disagree about `trees/`.
+    /// The artifact's current expected digest is spared, so a resumable partial
+    /// download survives.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError`] if the lock cannot be taken or the directory cannot be
+    /// read.
+    pub fn prune(
+        &self,
+        artifact: &str,
+        older_than: Option<Duration>,
+    ) -> Result<reap::Reclaimed, TreeError> {
+        let paths = self.paths();
+        let _lock = take_single_flight(
+            &paths.single_flight_lock(artifact, &self.platform),
+        )?;
+
+        // First reclaim any pointed-at generation whose digest no installed
+        // launcher has claimed inside the window — the running launcher's own
+        // expected digest is spared, since it just refreshed its claim.
+        let mut reclaimed =
+            self.reclaim_unclaimed(&paths, artifact, older_than);
+
+        let mut keep = BTreeSet::new();
+        if let Some(digest) = self.expected_digest(artifact) {
+            keep.insert(digest);
+        }
+        let orphans = reap::reap_orphans(&paths, self.clock, &keep)?;
+        reclaimed.entries += orphans.entries;
+        Ok(reclaimed)
+    }
+
+    /// Remove pointers, and the generations they name, whose digest has no
+    /// fresh claim — the running launcher's own expected digest excepted.
+    fn reclaim_unclaimed(
+        &self,
+        paths: &TreePaths,
+        artifact: &str,
+        older_than: Option<Duration>,
+    ) -> reap::Reclaimed {
+        let window = older_than.unwrap_or(claims::CLAIM_WINDOW);
+        let own = self.expected_digest(artifact);
+        let mut reclaimed = reap::Reclaimed::default();
+        for (pointer, digest, generation) in
+            self.artifact_pointers(paths, artifact)
+        {
+            if own.as_deref() == Some(digest.as_str()) {
+                continue;
+            }
+            if claims::claimed_within(paths, &digest, window, self.clock) {
+                continue;
+            }
+            // A live consumer keeps a stale-claimed generation until it exits.
+            if super::lease::probe_liveness(&paths.lease(&generation))
+                == super::lease::Liveness::Held
+            {
+                continue;
+            }
+            let _ = std::fs::remove_file(&pointer);
+            if std::fs::remove_dir_all(paths.generation(&generation)).is_ok() {
+                reclaimed.entries += 1;
+            }
+            for sidecar in reap::sidecars_of(paths, &generation) {
+                let _ = std::fs::remove_file(sidecar);
+            }
+            claims::drop_all(paths, &digest);
+        }
+        reclaimed
+    }
+
+    /// The `(pointer path, digest, generation name)` of every pointer this
+    /// artifact currently publishes.
+    fn artifact_pointers(
+        &self,
+        paths: &TreePaths,
+        artifact: &str,
+    ) -> Vec<(PathBuf, String, String)> {
+        let prefix = format!("{artifact}-{}-", self.platform);
+        let Ok(entries) = std::fs::read_dir(paths.root()) else {
+            return Vec::new();
+        };
+        let mut pointers = Vec::new();
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            let Some(digest) = name
+                .strip_prefix(&prefix)
+                .and_then(|rest| rest.strip_suffix(".ref"))
+            else {
+                continue;
+            };
+            if let Ok(generation) = std::fs::read_to_string(entry.path()) {
+                pointers.push((
+                    entry.path(),
+                    digest.to_owned(),
+                    generation.trim().to_owned(),
+                ));
+            }
+        }
+        pointers
+    }
+}
+
+impl VerifyTree for TreeResolver<'_> {
+    fn verify(&self, artifact: &str) -> Result<TreeReport, TreeError> {
+        let Some(digest) = self.expected_digest(artifact) else {
+            return Err(TreeError::Attestation {
+                detail: format!("unknown artifact {artifact}"),
+            });
+        };
+        let digest = digest.as_str();
+        let Some(located) = self.locate(artifact, digest) else {
+            return Ok(TreeReport {
+                artifact: artifact.to_owned(),
+                findings: vec![(String::new(), Discrepancy::Missing)],
+            });
+        };
+
+        let table = self.load_and_check_table(&located)?;
+        let findings = walk_against_table(&located.generation_dir, &table);
+        Ok(TreeReport {
+            artifact: artifact.to_owned(),
+            findings,
+        })
+    }
+}
+
+impl TreeResolver<'_> {
+    /// Read the `.files` table and confirm its digest against the signed
+    /// `table_sha256` before trusting a single row — otherwise a table edited
+    /// after materialisation to match a substituted member would make every
+    /// tree-side detection vacuous.
+    fn load_and_check_table(
+        &self,
+        located: &Located,
+    ) -> Result<FileTable, TreeError> {
+        let _ = self;
+        let table_path = located.generation_dir.join(TABLE_NAME);
+        let bytes = std::fs::read(&table_path).map_err(|error| {
+            TreeError::Extraction {
+                detail: format!("cannot read the file table: {error}"),
+            }
+        })?;
+        let digest = {
+            let hash: [u8; 32] = Sha256::digest(&bytes).into();
+            hex(&hash)
+        };
+        if digest != located.attestation.table_sha256 {
+            return Err(TreeError::Extraction {
+                detail: "the file table does not match its signed digest"
+                    .to_owned(),
+            });
+        }
+        FileTable::parse(&bytes)
+    }
+}
+
+/// The verified generation, ready for the lease step or the verify walk.
+struct Located {
+    generation: String,
+    generation_dir: PathBuf,
+    identity: (u64, u64),
+    attestation: Attestation,
+}
+
+fn has_sidecar_suffix(name: &str) -> bool {
+    [".ref", ".sealed", ".sealed.sig", ".lease"]
+        .iter()
+        .any(|suffix| name.ends_with(suffix))
+}
+
+fn asset_name(artifact: &str, platform: &str) -> String {
+    format!("accelerator-{artifact}-{platform}.tar.gz")
+}
+
+/// A directory's `(st_dev, st_ino)`, or `None` when the path is absent, a
+/// symlink, not a directory, wrongly owned, or group/world-writable.
+fn directory_identity(path: &Path) -> Option<(u64, u64)> {
+    if !is_privately_owned(path) {
+        return None;
+    }
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    if !metadata.is_dir() {
+        return None;
+    }
+    Some((metadata.dev(), metadata.ino()))
+}
+
+fn generation_suffix() -> String {
+    // 16 hex characters from the platform CSPRNG: fresh by construction, so the
+    // rename never lands on an existing target and there is no already-present
+    // branch to get right.
+    let mut bytes = [0_u8; 8];
+    rand::fill(&mut bytes);
+    hex(&bytes)
+}
+
+fn ensure_trees_dir(paths: &TreePaths) -> Result<(), TreeError> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = paths.root();
+    std::fs::create_dir_all(root).map_err(|error| TreeError::Lease {
+        detail: format!("cannot create the trees directory: {error}"),
+    })?;
+    // The launcher owns trees/ and chmods it into compliance, so a cache root
+    // inherited at 0775 under a user-private group still resolves: only trees/
+    // is held to the strict mode, not the umask-dependent cache root above it.
+    let _ =
+        std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700));
+
+    // What chmod cannot fix is refused, with the exact remediation named: a
+    // trees/ that is a symlink, owned by another uid, or still writable by
+    // group or other after the chmod.
+    if !is_privately_owned(root) {
+        return Err(TreeError::Lease {
+            detail: format!(
+                "the trees directory {} is not exclusively owned by you; \
+                 run `chown $(id -u) {0} && chmod 700 {0}`, or point \
+                 ACCELERATOR_CACHE_DIR at a private, user-owned path",
+                root.display()
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn walk_against_table(
+    root: &Path,
+    table: &FileTable,
+) -> Vec<(String, Discrepancy)> {
+    let mut findings = Vec::new();
+    let mut seen = BTreeSet::new();
+    walk_dir(root, root, table, &mut findings, &mut seen);
+    // Anything the table describes that the walk did not see is missing.
+    for (path, _) in table.iter() {
+        if !seen.contains(path) {
+            findings.push((path.clone(), Discrepancy::Missing));
+        }
+    }
+    findings
+}
+
+fn walk_dir(
+    root: &Path,
+    dir: &Path,
+    table: &FileTable,
+    findings: &mut Vec<(String, Discrepancy)>,
+    seen: &mut BTreeSet<String>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(relative) = path.strip_prefix(root) else {
+            continue;
+        };
+        let Some(relative) = relative.to_str() else {
+            continue;
+        };
+        if relative == TABLE_NAME {
+            // The table is an archive member with no row describing itself.
+            continue;
+        }
+        let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        seen.insert(relative.to_owned());
+        match table.row(relative) {
+            None => {
+                findings.push((relative.to_owned(), Discrepancy::Unexpected));
+            }
+            Some(row) => {
+                check_entry(relative, &path, &metadata, row, findings);
+            }
+        }
+        if metadata.is_dir() {
+            walk_dir(root, &path, table, findings, seen);
+        }
+    }
+}
+
+fn check_entry(
+    relative: &str,
+    path: &Path,
+    metadata: &std::fs::Metadata,
+    row: &super::table::TableRow,
+    findings: &mut Vec<(String, Discrepancy)>,
+) {
+    use std::os::unix::fs::PermissionsExt as _;
+    let expected_mode =
+        seal::sealed_mode(row.kind == EntryKind::Directory, row.mode);
+    match row.kind {
+        EntryKind::Directory if !metadata.is_dir() => {
+            findings.push((relative.to_owned(), Discrepancy::Unexpected));
+        }
+        EntryKind::Symlink => {
+            let target = std::fs::read_link(path)
+                .ok()
+                .and_then(|target| target.to_str().map(str::to_owned));
+            if target.as_deref() != row.link_target.as_deref() {
+                findings.push((
+                    relative.to_owned(),
+                    Discrepancy::LinkTarget {
+                        expected: row.link_target.clone().unwrap_or_default(),
+                        found: target.unwrap_or_default(),
+                    },
+                ));
+            }
+        }
+        EntryKind::File => {
+            if metadata.len() != row.size {
+                findings.push((
+                    relative.to_owned(),
+                    Discrepancy::Size {
+                        expected: row.size,
+                        found: metadata.len(),
+                    },
+                ));
+            } else if file_digest(path).as_deref() != row.sha256.as_deref() {
+                findings.push((relative.to_owned(), Discrepancy::Digest));
+            }
+            let mode = metadata.permissions().mode() & 0o777;
+            if mode != expected_mode {
+                findings.push((
+                    relative.to_owned(),
+                    Discrepancy::Mode {
+                        expected: expected_mode,
+                        found: mode,
+                    },
+                ));
+            }
+        }
+        EntryKind::Directory => {
+            let mode = metadata.permissions().mode() & 0o777;
+            if mode != expected_mode {
+                findings.push((
+                    relative.to_owned(),
+                    Discrepancy::Mode {
+                        expected: expected_mode,
+                        found: mode,
+                    },
+                ));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn file_digest(path: &Path) -> Option<String> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).ok()?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    let hash: [u8; 32] = hasher.finalize().into();
+    Some(hex(&hash))
+}
+
+fn available_bytes(trees_root: &Path, cache_root: &Path) -> Option<u64> {
+    // Prefer the trees root, falling back to the cache root before it exists.
+    let target = if trees_root.exists() {
+        trees_root
+    } else {
+        cache_root
+    };
+    let stat = rustix::fs::statvfs(target).ok()?;
+    Some(stat.f_bavail.saturating_mul(stat.f_frsize))
+}
+
+fn write_private(path: &Path, bytes: &[u8]) -> Result<(), TreeError> {
+    use std::io::Write as _;
+    use std::os::unix::fs::OpenOptionsExt as _;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|error| TreeError::Pointer {
+            detail: format!("cannot write {}: {error}", path.display()),
+        })?;
+    file.write_all(bytes).map_err(|error| TreeError::Pointer {
+        detail: format!("cannot write {}: {error}", path.display()),
+    })
+}
+
+fn hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    bytes.iter().fold(String::new(), |mut acc, byte| {
+        let _ = write!(acc, "{byte:02x}");
+        acc
+    })
+}

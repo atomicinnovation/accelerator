@@ -606,7 +606,7 @@ class TestCrossLanguagePins:
     def test_builtin_subcommands_match_the_clap_command_enum(self) -> None:
         text = _CLI_RS.read_text()
         variants = _command_variants(text)
-        assert variants == {"Version", "Config", "External"}
+        assert variants == {"Version", "Config", "Cache", "External"}
         dispatchable = {v.lower() for v in variants if v != "External"}
         assert dispatchable | {"help"} == set(BUILTIN_SUBCOMMANDS)
 

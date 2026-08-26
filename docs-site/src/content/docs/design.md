@@ -141,15 +141,18 @@ percent-encoded or truncated is not detected.
 ## `notify-downgrade`
 
 ```bash
-accelerator design notify-downgrade --reason node-missing
-accelerator design notify-downgrade --from hybrid --to code --reason bootstrap-failed
+accelerator design notify-downgrade --reason unsupported-platform
+accelerator design notify-downgrade --from hybrid --to code --reason artifact-unavailable
 ```
 
-Prints the notice for one of six reasons: `node-missing`, `node-too-old`,
-`bootstrap-failed`, `executor-ping-failed`, `cache-unwritable`,
-`disk-floor-not-met`. `--from` and `--to` are accepted for forward
-compatibility and do not affect the message. An unknown reason is exit 2 and
-lists the whole vocabulary.
+Prints the notice for one of nine reasons: `unsupported-platform`,
+`loader-unresolvable`, `glibc-too-old`, `runtime-libraries-missing`,
+`artifact-unavailable`, `materialisation-in-progress`, `executor-ping-failed`,
+`cache-unwritable` and `disk-floor-not-met`. `--from` and `--to` are accepted
+for forward compatibility and do not affect the message. An unknown reason is
+exit 2 and lists the whole vocabulary. The executor emits the same tokens in its
+downgrade envelope, so a caller reads the reason from the executor and renders
+it here.
 
 ## `audit-cue-phrases`
 
@@ -166,11 +169,55 @@ there is nothing to revise.
 The patterns come from `scripts/extract-work-items-cue-phrases.txt`, the same
 file `extract-work-items` reads, and a test pins the two against each other.
 
+## Runtime and cache
+
+A `runtime` or `hybrid` crawl drives a bundled Playwright runtime: a **driver**
+tree (the automation library and its own Node) and a **browser** tree (a
+headless Chromium shell). Both are vendored — the release pipeline assembles
+them from verified upstream inputs and publishes them under the project's
+signing key — so a design crawl needs **no system Node** and no `npm install`.
+The old `ensure-playwright.sh` bootstrap, its lockhash cache namespace and the
+`Node >= 20` prerequisite are gone.
+
+The runtime is materialised on demand and cached per plugin version. The
+`accelerator cache` verbs manage it:
+
+| Verb     | What it does                                                        |
+|----------|--------------------------------------------------------------------|
+| `ensure` | Materialise the named trees (`driver`, `browser`), fetching if cold |
+| `verify` | Check a materialised tree against its sealed file table             |
+| `repair` | Re-materialise a tree whose contents no longer verify               |
+| `prune`  | Reclaim the cache roots Claude Code's orphan sweep never reaches    |
+
+When the runtime cannot start, the executor downgrades to the code-only crawler
+and names one of the reasons `notify-downgrade` renders.
+`runtime-libraries-missing` and `glibc-too-old` are host properties: a re-fetch
+will not fix them, so they persist until `accelerator cache repair` or a host
+change.
+
+### The browser hatch
+
+`design.browser_path` points the runtime crawler at a browser executable you
+already have, skipping the bundled browser entirely (the driver is still
+materialised). It is a **personal-level key** — settable only in the gitignored
+`.accelerator/config.local.md`, never a repo-tracked `.accelerator/config.md` —
+because a value committed to a shared config would name the binary the inventory
+skill executes on every contributor's machine. A value resolving inside the
+repository being inventoried is refused for the same reason.
+
 ## Environment
 
-| Variable                | Effect                                                                                                                        |
-|-------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| `ACCELERATOR_DESIGN_BIN` | One-shot override pointing `accelerator design …` at a locally-built `accelerator-design` binary, bypassing the normal fetch-and-cache dispatch |
+| Variable                       | Effect                                                                                                                        |
+|--------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| `ACCELERATOR_DESIGN_BIN`       | One-shot override pointing `accelerator design …` at a locally-built `accelerator-design` binary, bypassing the normal fetch-and-cache dispatch |
+| `ACCELERATOR_CACHE_DIR`        | Where materialised runtime trees live. **Trust-relevant**: it must be a private, user-owned path and a **local filesystem** — `flock` is unreliable on NFS/SMB/FUSE, and an unresponsive network mount can block a cache hit in the kernel |
+| `ACCELERATOR_RELEASE_BASE_URL` | Mirror hatch for the release host the runtime is fetched from. The redirect allowlist is derived from this host, so a mirror must serve the bytes inline rather than 3xx-redirecting to another host |
 
-This mirrors `ACCELERATOR_CORPUS_BIN` and `ACCELERATOR_VCS_BIN` for the
-sub-binaries they name.
+`ACCELERATOR_DESIGN_BIN` mirrors `ACCELERATOR_CORPUS_BIN` and
+`ACCELERATOR_VCS_BIN` for the sub-binaries they name.
+
+**Ephemeral environments.** CI agents, devcontainers and Codespaces have no
+persistent cache, so the first `runtime` or `hybrid` design command of every
+session materialises the runtime (a few hundred MB) or downgrades. Point
+`ACCELERATOR_CACHE_DIR` at a mounted, cached path so that cost is paid once per
+cache generation rather than once per session.

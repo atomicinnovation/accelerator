@@ -131,6 +131,7 @@ pub const EXTRA_KEYS: &[&str] = &[
     "visualiser.editor",
     "visualiser.editor_project",
     "visualiser.binary",
+    "design.browser_path",
 ];
 
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
@@ -327,6 +328,13 @@ mod tests {
     fn extra_keys_declares_the_github_credential_keys() {
         assert!(EXTRA_KEYS.contains(&"github.token"));
         assert!(EXTRA_KEYS.contains(&"github.token_cmd"));
+    }
+
+    #[test]
+    fn extra_keys_declares_the_design_browser_path_hatch() {
+        // Presence-only, no catalogue default — the executor reads it ad-hoc
+        // from the personal level.
+        assert!(EXTRA_KEYS.contains(&"design.browser_path"));
     }
 
     #[test]

@@ -401,14 +401,19 @@
             ],
         )),
         // Mirrors vcs_adapters_library_reads_in_process, and scoped the same
-        // way and for the same reason: the two modules named here read in
+        // way and for the same reason: the modules named here read in
         // process, while the sibling `process` module the Playwright launcher
         // needs — daemon spawn, signalling, and the start-time probe — spawns
         // by design. Landing this crate-wide and weakening it when that module
-        // arrives would read as a rule nobody meant.
+        // arrives would read as a rule nobody meant. `platform` reads /bin/sh
+        // and the psABI loader path in process and spawns nothing, so it joins;
+        // `marker` reads and writes the sticky-failure file in process and
+        // spawns nothing either.
         Module((
             name: "design_adapters_read_in_process",
-            matches: Module("^design_adapters::(filesystem|environment)($|::)"),
+            matches: Module(
+                "^design_adapters::(filesystem|environment|platform|marker)($|::)"
+            ),
             rules: [
                 RestrictImports(
                     allowed_only: None,

@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is being materialised by another process. Falling back to code-only crawler for this invocation; it retries on the next. Pass --crawler code to suppress this notice.

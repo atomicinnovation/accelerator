@@ -159,6 +159,8 @@ pub fn config::paths::is_unsafe(dir: &str) -> bool
 pub fn config::paths::normalise(dir: &str) -> alloc::string::String
 pub fn config::paths::resolve_with_fallback(config: &dyn config::service::ConfigAccess, path_key: &str, level: core::option::Option<config::level::Level>) -> core::result::Result<alloc::string::String, config::error::ConfigError>
 pub fn config::paths::unknown_path_key_error(key: &str) -> config::error::ConfigError
+pub mod config::precedence
+pub fn config::precedence::env_beats_config(from_env: core::option::Option<&str>, from_config: core::option::Option<&str>) -> core::option::Option<alloc::string::String>
 pub mod config::render
 pub fn config::render::render_value(value: &config::service::Value) -> alloc::string::String
 pub mod config::service
@@ -552,6 +554,7 @@ pub fn config::TemplateOverride::eject(&self, name: &str, templates_dir: &str, f
 pub fn config::TemplateOverride::within_project(&self, abs_path: &str) -> bool
 pub trait config::WriteConfigLevel
 pub fn config::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::env_beats_config(from_env: core::option::Option<&str>, from_config: core::option::Option<&str>) -> core::option::Option<alloc::string::String>
 pub fn config::project(node: &config::node::Node) -> config::service::Value
 pub fn config::render_value(value: &config::service::Value) -> alloc::string::String
 pub fn config::validate_identifier(kind: &str, name: &str) -> core::result::Result<(), config::error::ConfigError>

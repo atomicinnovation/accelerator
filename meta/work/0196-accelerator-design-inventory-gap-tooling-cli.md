@@ -11,7 +11,7 @@ priority: medium
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 tags: [rust, design, cli, playwright, distribution]
-last_updated: "2026-08-12T23:21:12+00:00"
+last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-726
@@ -124,15 +124,13 @@ of assumed present on the host.
   refetch) is required to restore recovery from a corrupt or partial tree.
 - `accelerator-design`'s Playwright executor launches browser automation via
   the assembled driver (its Node binary + `playwright-core`'s CLI/driver
-  entrypoint), removing the system Node.js ≥20 prerequisite currently
-  enforced by `ensure-playwright.sh`
-  (`skills/design/inventory-design/scripts/ensure-playwright.sh`).
+  entrypoint), removing the system Node.js ≥20 prerequisite that
+  `ensure-playwright.sh` formerly enforced — that script is now deleted, and
+  `plugin.json` no longer declares the requirement.
 - No browser download happens on the user's machine. `npx playwright install
-  chromium` disappears with `ensure-playwright.sh`, and its
-  `<lockfile-hash>` namespace under
-  `${ACCELERATOR_PLAYWRIGHT_CACHE:-$HOME/.cache/accelerator/playwright}` goes
-  with it — the `package-lock.json` it hashed does not survive `npm ci`'s
-  removal.
+  chromium` went with `ensure-playwright.sh`, along with its `<lockfile-hash>`
+  namespace under the old `ACCELERATOR_PLAYWRIGHT_CACHE` root — the
+  `package-lock.json` it hashed is deleted too.
 - Tree artifacts cache under the launcher's existing plugin-root-scoped cache
   root (`resolve/cache_root.rs`, `ACCELERATOR_CACHE_DIR` override, no XDG
   fallback because an XDG-resident binary would break the plugin-root
@@ -142,9 +140,12 @@ of assumed present on the host.
   plugin upgrade discards them: at roughly 117MB of driver plus 177MB of
   headless shell, each upgrade refetches ~294MB per platform, and this plugin
   pre-releases often. `ACCELERATOR_CACHE_DIR` is the escape for anyone who
-  wants a longer-lived location, and because ADR-0060 addresses tree entries by
-  version and digest, sharing them across plugin versions later would need no
-  redesign.
+  wants a longer-lived location (a **trust-relevant** one — private, user-owned,
+  on a local filesystem), and because ADR-0061 addresses tree entries by content
+  digest — not by release version, superseding ADR-0060's version-and-digest
+  scheme — sharing them across plugin versions is what the addressing already
+  gives, needing no redesign (ADR-0063 records the per-plugin-version cache
+  root).
 - The browser artifact is `chromium-headless-shell`, not full Chromium. The
   daemon launches headless (`lib/daemon.js:106`), and the shell is 177MB across
   14 files against 297MB across 327 — materially cheaper to host, fetch,
@@ -237,8 +238,8 @@ of assumed present on the host.
       sha256/minisign verification exercised by the criterion above. Per
       ADR-0059.
 - [ ] **AC9.** Driver-bundle download and browser download each happen at most once
-      per platform per version (cache hit on subsequent runs), matching the
-      idempotency of today's `ensure-playwright.sh` sentinel behaviour.
+      per platform per version (cache hit on subsequent runs), provided by the
+      launcher's sealed-tree cache-hit sentinel.
 - [ ] **AC10.** The assembly step fails the release if the `playwright-core` it
       fetched is not the exact version declared in
       `skills/design/inventory-design/scripts/playwright/package.json`, or if

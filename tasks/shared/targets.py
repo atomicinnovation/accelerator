@@ -1,17 +1,22 @@
 import platform as _platform
+from typing import Literal
 
-TARGETS = (
+type Platform = Literal[
+    "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"
+]
+
+TARGETS: tuple[tuple[str, Platform], ...] = (
     ("aarch64-apple-darwin", "darwin-arm64"),
     ("x86_64-apple-darwin", "darwin-x64"),
     ("aarch64-unknown-linux-musl", "linux-arm64"),
     ("x86_64-unknown-linux-musl", "linux-x64"),
 )
 
-ALIASES = tuple(alias for _triple, alias in TARGETS)
+ALIASES: tuple[Platform, ...] = tuple(alias for _triple, alias in TARGETS)
 
 # (uname -s lowercased, uname -m) -> platform alias. The launcher and bootstrap
 # normalise the same spellings; the coherence test asserts all three agree.
-UNAME_TO_ALIAS = {
+UNAME_TO_ALIAS: dict[tuple[str, str], Platform] = {
     ("darwin", "arm64"): "darwin-arm64",
     ("darwin", "aarch64"): "darwin-arm64",
     ("darwin", "x86_64"): "darwin-x64",
@@ -23,7 +28,7 @@ UNAME_TO_ALIAS = {
 }
 
 
-def host_platform() -> str:
+def host_platform() -> Platform:
     """Return the platform alias of the host running this process.
 
     Used to pick the runner-arch verify shim for the release re-verify step
@@ -35,3 +40,17 @@ def host_platform() -> str:
         return UNAME_TO_ALIAS[key]
     except KeyError:
         raise RuntimeError(f"unsupported host platform: {key}") from None
+
+
+def parse_platform(value: str) -> Platform:
+    """Narrow an untrusted platform string to a supported alias.
+
+    The boundary where a CLI argument or environment variable enters the typed
+    pipeline; raises on an unknown alias rather than letting it flow inward.
+    """
+    for alias in ALIASES:
+        if value == alias:
+            return alias
+    raise ValueError(
+        f"unsupported platform {value!r} (expected one of {list(ALIASES)})"
+    )

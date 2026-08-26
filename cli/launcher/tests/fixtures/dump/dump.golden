@@ -70,3 +70,4 @@
 | `visualiser.editor` | *(not set)* | default |
 | `visualiser.editor_project` | *(not set)* | default |
 | `visualiser.binary` | *(not set)* | default |
+| `design.browser_path` | *(not set)* | default |

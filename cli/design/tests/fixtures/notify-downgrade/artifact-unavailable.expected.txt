@@ -1,0 +1,1 @@
+inventory-design: Playwright runtime is unavailable (the runtime artifacts could not be materialised). Falling back to code-only crawler. Run `accelerator cache repair` to re-materialise, or pass --crawler code to suppress this notice.

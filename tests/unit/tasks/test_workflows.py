@@ -206,11 +206,18 @@ def test_every_attest_block_declares_the_same_subjects(wf):
 
 def test_attest_globs_cover_every_published_asset(wf):
     from tasks.github import _release_uploads
+    from tasks.shared.paths import TREE_ARTIFACTS
 
+    # Include the tree artifacts and their sidecars, flat in dist/release/, so
+    # the check proves the accelerator-* glob covers them rather than assuming
+    # the flat naming does.
     published = [
-        path.relative_to(REPO_ROOT).as_posix() for path in _release_uploads()
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in _release_uploads(tree_tokens=TREE_ARTIFACTS)
     ]
-    assert published, "the publish set is empty — the derivation broke"
+    assert any(".tar.gz" in path for path in published), (
+        "tree archives absent from the publish set — the derivation broke"
+    )
     for _job, step in _all_steps(wf["jobs"]):
         if not _is_attest(step):
             continue
@@ -532,3 +539,44 @@ def test_isolation_rejects_known_bad_shapes(wf, mutate):
     mutate(bad["jobs"])
     with pytest.raises(AssertionError):
         _isolation_invariants(bad)
+
+
+# --- Vendored-runtime assembly / smoke jobs ----------------------------
+
+
+def test_assemble_and_smoke_hold_no_permissions(wf):
+    # Both jobs handle untrusted third-party input, so neither may reach the
+    # release secret, mint an OIDC token, or write attestations.
+    for name in ("assemble-runtime", "smoke-runtime"):
+        assert wf["jobs"][name].get("permissions") == {}, (
+            f"{name} must declare permissions: {{}}"
+        )
+
+
+def test_assemble_and_smoke_never_reference_the_signing_secret(wf):
+    for job_name, step in _all_steps(wf["jobs"]):
+        if job_name in ("assemble-runtime", "smoke-runtime"):
+            assert not _references_secret(step), (
+                f"{job_name} references the signing secret"
+            )
+
+
+def test_release_and_prerelease_need_both_runtime_jobs(wf):
+    for name in ("prerelease", "release"):
+        needs = _needs(wf["jobs"][name])
+        assert "assemble-runtime" in needs, f"{name} must need assemble-runtime"
+        assert "smoke-runtime" in needs, f"{name} must need smoke-runtime"
+
+
+def test_smoke_runtime_covers_every_target_natively(wf):
+    from tasks.shared.targets import ALIASES
+
+    matrix = wf["jobs"]["smoke-runtime"]["strategy"]["matrix"]["include"]
+    covered = {leg["platform"] for leg in matrix}
+    assert covered == set(ALIASES), "the smoke matrix must cover every target"
+    images = {leg["os"] for leg in matrix}
+    assert "macos-13" not in images, "macos-13 is a retired runner image"
+
+
+def test_smoke_runtime_needs_the_assembly(wf):
+    assert "assemble-runtime" in _needs(wf["jobs"]["smoke-runtime"])

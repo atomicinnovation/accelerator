@@ -56,6 +56,11 @@ pub enum Route {
     /// Send headers promising a body, then go idle for this long without
     /// sending it — so the client's body read stalls (exercises read timeout).
     Stall(Duration),
+    /// Promise the whole body in the headers, then send only its first `sent`
+    /// bytes and close — so the client's streamed read ends short of the
+    /// promised length (exercises a broken-transfer retry). A `sent` past the
+    /// body's length sends the whole body.
+    Truncated { body: Vec<u8>, sent: usize },
 }
 
 /// The routing and recording key: a method and a path, with any query string
@@ -353,6 +358,17 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             )?;
             stream.flush()?;
             thread::sleep(delay);
+            return Ok(());
+        }
+        Some(Route::Truncated { body, sent }) => {
+            let headers = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\
+                 Connection: close\r\n\r\n",
+                body.len()
+            );
+            stream.write_all(headers.as_bytes())?;
+            stream.write_all(&body[..sent.min(body.len())])?;
+            stream.flush()?;
             return Ok(());
         }
         None => http_response(UNMATCHED_STATUS, &[], &[]),

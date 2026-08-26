@@ -1,9 +1,9 @@
 import json
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from tasks.build import validate_version_coherence
 from tasks.shared.dispatch_coherence import validate_dispatch_coherence
@@ -14,13 +14,25 @@ from tasks.shared.paths import (
     CLI_DIR,
     DISPATCHED_SUBBINARIES,
     RELEASE_STAGING,
+    TREE_ARTIFACTS,
     load_toml,
     subbinary_asset_path,
+    tree_artifact_asset_path,
 )
 from tasks.shared.targets import TARGETS
+from tasks.shared.vendor.attestation import SealedAttestation
 from tasks.signing import sign_file
 
 SCHEMA_VERSION = 1
+
+# Tree-artifact descriptions come from the assembly, not a Cargo.toml, so they
+# are declared here rather than sourced like the sub-binary descriptions.
+TREE_ARTIFACT_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
+    {
+        "driver": "Playwright driver bundle (Node runtime + playwright-core)",
+        "browser": "Chromium headless shell",
+    }
+)
 
 
 class PlatformAsset(TypedDict):
@@ -28,21 +40,41 @@ class PlatformAsset(TypedDict):
     signature: str
 
 
+class ArtifactPlatformAsset(TypedDict):
+    sha256: str
+    signature: str
+    archive_size: int
+    uncompressed_size: int
+    entry_count: int
+
+
 class ManifestBinary(TypedDict):
     description: str
     platforms: dict[str, PlatformAsset]
+
+
+class ManifestArtifact(TypedDict):
+    description: str
+    platforms: dict[str, ArtifactPlatformAsset]
 
 
 class Manifest(TypedDict):
     schema_version: int
     version: str
     binaries: dict[str, ManifestBinary]
+    artifacts: NotRequired[dict[str, ManifestArtifact]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BinaryEntry:
     description: str
     platforms: Mapping[str, PlatformAsset]
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactEntry:
+    description: str
+    platforms: Mapping[str, ArtifactPlatformAsset]
 
 
 # Dispatched sub-binaries whose crate manifest is not `cli/<name>/Cargo.toml`
@@ -108,10 +140,49 @@ def collect_entries(
     return entries
 
 
+def collect_artifact_entries(
+    tokens: Iterable[str] = TREE_ARTIFACTS,
+    *,
+    staging_dir: Path = RELEASE_STAGING,
+    platforms: Sequence[tuple[str, str]] = TARGETS,
+) -> dict[str, ArtifactEntry]:
+    """Assemble the typed per-tree-artifact manifest entries.
+
+    Reads each staged archive's sha256, inline `.minisig` and byte size, and the
+    extraction bounds from its `.sealed` attestation — so the bounds the
+    launcher enforces are the ones the assembly measured, not values restated
+    here. Descriptions come from the fixed tree-artifact table, not a crate
+    manifest.
+    """
+    entries: dict[str, ArtifactEntry] = {}
+    for name in tokens:
+        assets: dict[str, ArtifactPlatformAsset] = {}
+        for _triple, platform in platforms:
+            archive = tree_artifact_asset_path(name, platform, staging_dir)
+            signature = archive.with_name(archive.name + ".minisig")
+            sealed = archive.with_name(archive.name + ".sealed")
+            document: SealedAttestation = json.loads(sealed.read_text())
+            assets[platform] = {
+                "sha256": compute_sha256(archive),
+                "signature": signature.read_text(),
+                "archive_size": archive.stat().st_size,
+                "uncompressed_size": document["uncompressed_size"],
+                "entry_count": document["entry_count"],
+            }
+        entries[name] = ArtifactEntry(
+            description=TREE_ARTIFACT_DESCRIPTIONS.get(name, ""),
+            platforms=assets,
+        )
+    return entries
+
+
 def build_manifest(
-    version: str, entries: Mapping[str, BinaryEntry]
+    version: str,
+    entries: Mapping[str, BinaryEntry],
+    *,
+    artifacts: Mapping[str, ArtifactEntry] | None = None,
 ) -> Manifest:
-    return {
+    manifest: Manifest = {
         "schema_version": SCHEMA_VERSION,
         "version": version,
         "binaries": {
@@ -128,6 +199,24 @@ def build_manifest(
             for name, entry in entries.items()
         },
     }
+    if artifacts:
+        manifest["artifacts"] = {
+            name: {
+                "description": entry.description,
+                "platforms": {
+                    plat: {
+                        "sha256": asset["sha256"],
+                        "signature": asset["signature"],
+                        "archive_size": asset["archive_size"],
+                        "uncompressed_size": asset["uncompressed_size"],
+                        "entry_count": asset["entry_count"],
+                    }
+                    for plat, asset in entry.platforms.items()
+                },
+            }
+            for name, entry in artifacts.items()
+        }
+    return manifest
 
 
 def emit_manifest(
@@ -135,6 +224,8 @@ def emit_manifest(
     version: str,
     entries: Mapping[str, BinaryEntry],
     secret_key: Path,
+    *,
+    artifacts: Mapping[str, ArtifactEntry] | None = None,
 ) -> Path:
     """Serialise, version-check, and sign the manifest as a single artifact.
 
@@ -149,7 +240,7 @@ def emit_manifest(
     upload, so the signature always covers the shipped bytes.
     """
     validate_dispatch_coherence()
-    manifest = build_manifest(version, entries)
+    manifest = build_manifest(version, entries, artifacts=artifacts)
     atomic_write_text(path, json.dumps(manifest, indent=2) + "\n")
     validate_version_coherence(version, manifest_path=path)
     signature = path.with_name("manifest.minisig")

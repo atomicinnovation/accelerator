@@ -7,10 +7,13 @@
 
 pub mod clock;
 pub mod cue_phrases;
+pub mod ensure;
 pub mod environment;
 pub mod filesystem;
 pub mod lock;
+pub mod marker;
 pub mod paths;
+pub mod platform;
 pub mod process;
 pub mod state;
 
@@ -22,6 +25,7 @@ pub use filesystem::read_document;
 pub use filesystem::DirectoryCheck;
 pub use lock::FileLock;
 pub use paths::HostPaths;
+pub use process::BootstrapLog;
 pub use process::DaemonSpawner;
 pub use process::ExecClient;
 pub use process::HostControl;
