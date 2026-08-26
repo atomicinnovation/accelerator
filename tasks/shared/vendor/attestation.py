@@ -21,6 +21,7 @@ drift test pins them together.
 import json
 from typing import TypedDict
 
+from tasks.shared.targets import Platform
 from tasks.shared.vendor.archive import ArchiveStats
 
 ATTESTATION_FORMAT_VERSION = 1
@@ -35,7 +36,7 @@ class SealedAttestation(TypedDict):
 
     attestation_format_version: int
     artifact: str
-    platform: str
+    platform: Platform
     archive_sha256: str
     uncompressed_size: int
     entry_count: int
@@ -43,7 +44,7 @@ class SealedAttestation(TypedDict):
 
 
 def build_attestation(
-    artifact: str, platform: str, stats: ArchiveStats
+    artifact: str, platform: Platform, stats: ArchiveStats
 ) -> bytes:
     """Render the attestation document for one artifact on one platform.
 

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.shared.paths import PINS_TOML
+from tasks.shared.targets import Platform
 from tasks.shared.vendor import assemble, chromium, nodejs, npm, pins
 from tasks.shared.vendor.fetch import Fetcher, JsonFetcher, download, get_json
 
@@ -36,7 +37,7 @@ PLAYWRIGHT_PROVENANCE_IDENTITY = (
 CHROMIUM_CDN = (
     "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium"
 )
-_CHROMIUM_PLATFORM = {
+_CHROMIUM_PLATFORM: dict[Platform, str] = {
     "linux-x64": "linux",
     "linux-arm64": "linux-arm64",
     "darwin-x64": "mac",
@@ -65,22 +66,22 @@ def node_shasums_url(version: str) -> str:
     return f"{NODE_DIST}/v{version}/SHASUMS256.txt"
 
 
-def node_tarball_name(version: str, platform: str) -> str:
+def node_tarball_name(version: str, platform: Platform) -> str:
     return f"node-v{version}-{platform}.tar.gz"
 
 
-def node_tarball_url(version: str, platform: str) -> str:
+def node_tarball_url(version: str, platform: Platform) -> str:
     return f"{NODE_DIST}/v{version}/{node_tarball_name(version, platform)}"
 
 
-def chromium_url(revision: str, platform: str) -> str:
+def chromium_url(revision: str, platform: Platform) -> str:
     build = _CHROMIUM_PLATFORM[platform]
     return f"{CHROMIUM_CDN}/{revision}/chromium-headless-shell-{build}.zip"
 
 
 def verify_upstream_inputs(
     *,
-    platform: str,
+    platform: Platform,
     staging_dir: Path,
     package_json: Path,
     keys_dir: Path,

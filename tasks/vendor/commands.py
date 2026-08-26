@@ -14,7 +14,7 @@ from pathlib import Path
 from invoke import Context, task
 
 from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
-from tasks.shared.targets import TARGETS
+from tasks.shared.targets import TARGETS, parse_platform
 from tasks.shared.vendor import (
     archive,
     assemble,
@@ -86,7 +86,9 @@ def smoke_runtime(context: Context, platform: str = "") -> None:
         raise ValueError(
             "no platform given (pass --platform or set SMOKE_PLATFORM)"
         )
-    assemble.smoke_downloaded_archives(RELEASE_STAGING, resolved)
+    assemble.smoke_downloaded_archives(
+        RELEASE_STAGING, parse_platform(resolved)
+    )
 
 
 @task(name="build-archive")
@@ -101,5 +103,5 @@ def build_archive(
     """
     stats = archive.write_deterministic_archive(Path(tree), Path(dest))
     Path(f"{dest}.sealed").write_bytes(
-        attestation.build_attestation("driver", platform, stats)
+        attestation.build_attestation("driver", parse_platform(platform), stats)
     )

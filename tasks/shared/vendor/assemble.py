@@ -33,6 +33,7 @@ from tasks.shared.paths import (
     RELEASE_STAGING,
     tree_artifact_asset_path,
 )
+from tasks.shared.targets import Platform
 from tasks.shared.vendor import pins
 from tasks.shared.vendor.archive import (
     ArchiveStats,
@@ -286,7 +287,7 @@ def smoke_check(tree: Path, *, executables: Iterable[str]) -> None:
 def assemble_specs(
     specs: Iterable[TreeSpec],
     *,
-    platform: str,
+    platform: Platform,
     staging_dir: Path,
     dist_dir: Path = RELEASE_STAGING,
 ) -> dict[str, ArchiveStats]:
@@ -309,7 +310,7 @@ def assert_matches_pin(
     archive_path: Path,
     *,
     artifact: str,
-    platform: str,
+    platform: Platform,
     pins_path: Path = PINS_TOML,
 ) -> None:
     """Fail unless ``archive_path`` hashes to its reviewed pin.
@@ -345,7 +346,7 @@ def assemble_tree_artifacts(
     playwright_tarball: Path,
     node_tarball: Path,
     chromium_archive: Path,
-    platform: str,
+    platform: Platform,
     staging_dir: Path,
     dist_dir: Path = RELEASE_STAGING,
     spec_builder: SpecBuilder,
@@ -475,7 +476,7 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
     return (driver, browser)
 
 
-def smoke_downloaded_archives(dist_dir: Path, platform: str) -> None:
+def smoke_downloaded_archives(dist_dir: Path, platform: Platform) -> None:
     """Extract each downloaded tree archive and execute its binary natively.
 
     Run per platform on a matching host, since executing the artifact is a

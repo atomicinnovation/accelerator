@@ -17,6 +17,7 @@ import hashlib
 from pathlib import Path
 
 from tasks.shared.paths import PINS_TOML
+from tasks.shared.targets import Platform
 from tasks.shared.vendor import pins
 from tasks.shared.vendor.assemble import browser_revision
 
@@ -27,7 +28,7 @@ _HEADLESS_SHELL = "chromium-headless-shell"
 def assert_chromium_bytes(
     archive: Path,
     *,
-    platform: str,
+    platform: Platform,
     pins_path: Path = PINS_TOML,
 ) -> None:
     """Fail unless ``archive``'s sha256 matches the reviewed per-platform pin.
@@ -47,7 +48,7 @@ def assert_chromium_bytes(
 def verify_chromium(
     archive: Path,
     *,
-    platform: str,
+    platform: Platform,
     browsers_json: Path,
     pins_path: Path = PINS_TOML,
 ) -> None:
