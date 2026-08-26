@@ -509,9 +509,38 @@ def _write_marker(root: Path) -> None:
     (root / ".accelerator-dev-launcher").write_text("")
 
 
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+
+
 def _source_shim_digest(root: Path, host_platform: str) -> str:
     shim = root / f"bin/accelerator-verify-{host_platform}"
     return hashlib.sha256(shim.read_bytes()).hexdigest()
+
+
+def _staged_shim_path(root: Path, host_platform: str) -> Path:
+    """The staged shim under the default cache dir.
+
+    Matches the same strict 64-lowercase-hex suffix the production glob admits,
+    so a surviving `.staging.$$` temp is never mistaken for it, and resolves the
+    candidate whose suffix equals the current source digest when several exist.
+    """
+    prefix = f"accelerator-verify-{host_platform}-"
+    source_digest = _source_shim_digest(root, host_platform)
+    candidates = [
+        entry
+        for entry in (root / "bin").glob(f"{prefix}*")
+        if _HEX64.fullmatch(entry.name[len(prefix) :])
+    ]
+    matching = [c for c in candidates if c.name.endswith(source_digest)]
+    assert matching, (
+        f"no staged shim under {root / 'bin'} matches the source digest; "
+        f"candidates={sorted(c.name for c in candidates)}"
+    )
+    return matching[0]
+
+
+def _staged_shim_digest(root: Path, host_platform: str) -> str:
+    return _staged_shim_path(root, host_platform).name[-64:]
 
 
 @pytest.fixture
@@ -1460,3 +1489,125 @@ def test_uncreatable_cache_dir_is_a_named_error(
     assert result.returncode != 0, output
     assert "no writable, exec-capable cache directory" in output, output
     assert "could not be created" in output, output
+
+
+# ── Batched shim digest: one backend fork, no awk ────────────────────────────
+
+
+def _backend_execs(trace: str) -> int:
+    # `command -v sha256sum` is traced too; anchoring on the path argument
+    # counts only a real hashing invocation, not the detection line.
+    pattern = r"^\++\S*:(?:sha256sum|shasum(?: -a 256)?) /"
+    return len(re.findall(pattern, trace, re.MULTILINE))
+
+
+def test_warm_path_forks_the_sha256_backend_once_without_awk(
+    make_harness: Callable[..., Harness], downloader: Path
+) -> None:
+    harness = make_harness()
+    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    assert warm.returncode == 0, warm.stdout + warm.stderr
+    traced = _traced(harness, downloader)
+    assert traced.returncode == 0, traced.stdout + traced.stderr
+    assert _backend_execs(traced.stderr) == 1, traced.stderr
+    assert not re.search(r"^\++\S*:awk\b", traced.stderr, re.MULTILINE), (
+        traced.stderr
+    )
+
+
+def test_cold_path_forks_the_backend_once_with_no_missing_input(
+    make_harness: Callable[..., Harness], downloader: Path, tmp_path: Path
+) -> None:
+    harness = make_harness()
+    cache = tmp_path / "fresh-cache"
+    traced = _traced(
+        harness, downloader, extra_env={"ACCELERATOR_CACHE_DIR": str(cache)}
+    )
+    assert traced.returncode == 0, traced.stdout + traced.stderr
+    assert _backend_execs(traced.stderr) == 1, traced.stderr
+    assert not re.search(r"^\++\S*:awk\b", traced.stderr, re.MULTILINE), (
+        traced.stderr
+    )
+    combined = traced.stdout + traced.stderr
+    assert "No such file" not in combined, combined
+    assert "unbound variable" not in combined, combined
+
+
+def test_warm_path_on_the_shasum_fallback_batches_and_trusts(
+    make_harness: Callable[..., Harness],
+    downloader: Path,
+    tmp_path: Path,
+    host_platform: str,
+) -> None:
+    # Curate a PATH that resolves `shasum` but not `sha256sum`, so detection
+    # misses and the batched multi-input `shasum -a 256 f1 f2` form runs — the
+    # parse that is otherwise untested. Prime with the real PATH first so the
+    # traced run is a warm cache hit that finds a staged candidate; the digest
+    # is identical whichever backend computed it.
+    shasum = shutil.which("shasum")
+    if shasum is None:
+        pytest.skip("no shasum backend to exercise the fallback")
+    fallback_bin = tmp_path / "fallback-bin"
+    fallback_bin.mkdir()
+    for tool in (
+        "shasum",
+        "python3",
+        "env",
+        "uname",
+        "sed",
+        "date",
+        "readlink",
+    ):
+        resolved = shutil.which(tool)
+        if resolved:
+            (fallback_bin / tool).symlink_to(resolved)
+    harness = make_harness()
+    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    assert warm.returncode == 0, warm.stdout + warm.stderr
+    traced = _run_bootstrap(
+        harness.root,
+        harness.server,
+        downloader,
+        path=str(fallback_bin),
+        xtrace=True,
+    )
+    assert traced.returncode == 0, traced.stdout + traced.stderr
+    assert re.search(r"^\++\S*:shasum -a 256 /", traced.stderr, re.MULTILINE), (
+        traced.stderr
+    )
+    assert not re.search(r"^\++\S*:sha256sum /", traced.stderr, re.MULTILINE), (
+        traced.stderr
+    )
+    assert _backend_execs(traced.stderr) == 1, traced.stderr
+    assert not re.search(r"^\++\S*:awk\b", traced.stderr, re.MULTILINE), (
+        traced.stderr
+    )
+    assert _staged_shim_digest(
+        harness.root, host_platform
+    ) == _source_shim_digest(harness.root, host_platform)
+
+
+def test_stale_staged_shim_is_ignored_not_trusted_or_removed(
+    make_harness: Callable[..., Harness], downloader: Path, host_platform: str
+) -> None:
+    # A valid-shaped stale candidate (garbage bytes, a hex suffix that is not
+    # the current source digest) beside the real staged shim forces the batched,
+    # path-keyed multi-input parse. If the source digest were mis-keyed by
+    # output position the run would compute a wrong `${shim}`, fail to match the
+    # real candidate, and spuriously re-stage — changing the inode.
+    harness = make_harness()
+    warm = _run_bootstrap(harness.root, harness.server, downloader)
+    assert warm.returncode == 0, warm.stdout + warm.stderr
+    shim = _staged_shim_path(harness.root, host_platform)
+    before = shim.stat()
+    stale = shim.with_name(shim.name[:-64] + "0" * 64)
+    stale.write_bytes(b"#!/bin/sh\nexit 3\n")
+    stale.chmod(0o755)
+    again = _run_bootstrap(harness.root, harness.server, downloader)
+    assert again.returncode == 0, again.stdout + again.stderr
+    after = shim.stat()
+    assert (after.st_ino, after.st_mtime_ns) == (
+        before.st_ino,
+        before.st_mtime_ns,
+    )
+    assert stale.exists()

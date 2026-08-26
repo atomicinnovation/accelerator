@@ -267,33 +267,71 @@ require_exec_capable_cache() {
 	esac
 }
 
-# Portable full-digest sha256 (detection-based backend, matching the repo idiom);
-# inlined to keep this root-of-trust entry point self-contained (it sources
-# nothing else).
-sha256_file() {
+# Portable full-digest sha256 over one or more files (detection-based backend,
+# matching the repo idiom); inlined to keep this root-of-trust entry point
+# self-contained (it sources nothing else). Echoes the backend's raw
+# `<digest>  <path>` line per argument, in argument order, with no awk.
+sha256_files() {
 	if command -v sha256sum >/dev/null 2>&1; then
-		sha256sum "$1" | awk '{print $1}'
+		sha256sum "$@" 2>/dev/null
 	else
-		shasum -a 256 "$1" | awk '{print $1}'
+		shasum -a 256 "$@" 2>/dev/null
 	fi
 }
 
-# The plugin root may be noexec, so run the shim from the cache dir, and by
-# absolute path so a PATH-planted decoy cannot stand in for the verifier.
-# Content-addressed by the source shim's own digest: a warm call re-hashes
-# instead of re-copying ~475KB — now the largest remaining warm-path cost,
-# retained deliberately because the digest check is what makes a planted stub
-# get re-staged rather than trusted by name
-# (test_planted_staged_shim_rehashed_then_succeeds,
-# test_planted_staged_shim_is_not_trusted,
-# test_planted_staged_shim_via_cache_dir_is_not_trusted) — a uniquely-named file
-# is never torn by a concurrent reader, and skip-if-exists verifies the staged
-# bytes against that digest.
-shim_digest=$(sha256_file "${shim_source}") ||
+# The plugin root may be noexec, so the shim runs from the cache dir, addressed
+# by absolute path so a PATH-planted decoy cannot stand in for the verifier.
+# Content-addressed by the source shim's own digest: the staged copy is named
+# for that digest and re-hashed on every warm start, so a stub planted at the
+# path is re-staged on the byte mismatch rather than trusted by its name — a
+# uniquely-named file is also never torn by a concurrent reader. The staged copy
+# is discovered by a glob constrained to a bare 64-hex suffix, not by
+# recomputing its name from the source digest first, so the backend forks once
+# over the source and the candidates together. That suffix constraint is
+# load-bearing: it makes the path-column parse of the batched output unforgeable
+# and keeps the .staging.$$ temps out of the hashed set. Both digests are keyed
+# on their path column, never on output position, so a candidate vanishing
+# mid-run (a concurrent bootstrap's mv) drops to a re-stage instead of
+# corrupting the source digest; the parse therefore assumes the cache and root
+# paths carry no newline or backslash, where a pathological path degrades to a
+# benign re-stage.
+shim_prefix="${cache_dir}/accelerator-verify-${platform}-"
+shim_candidates=()
+for candidate in "${shim_prefix}"*; do
+	[[ -f "${candidate}" && -x "${candidate}" ]] || continue
+	suffix=${candidate#"${shim_prefix}"}
+	case "${suffix}" in
+	"" | *[!0-9a-f]*) continue ;;
+	esac
+	[[ ${#suffix} -eq 64 ]] || continue
+	shim_candidates+=("${candidate}")
+done
+
+if [[ ${#shim_candidates[@]} -eq 0 ]]; then
+	shim_digests=$(sha256_files "${shim_source}") ||
+		fail_integrity "could not hash the verify shim source: ${shim_source}"
+else
+	shim_digests=$(sha256_files "${shim_source}" "${shim_candidates[@]}")
+fi
+
+shim_digest=""
+while read -r line_digest line_path; do
+	[[ "${line_path}" == "${shim_source}" ]] || continue
+	shim_digest="${line_digest}"
+	break
+done <<<"${shim_digests}"
+[[ -n "${shim_digest}" ]] ||
 	fail_integrity "could not hash the verify shim source: ${shim_source}"
+
 shim="${cache_dir}/accelerator-verify-${platform}-${shim_digest}"
-if [[ ! -x "${shim}" ]] ||
-	[[ "$(sha256_file "${shim}" 2>/dev/null)" != "${shim_digest}" ]]; then
+staged_digest=""
+while read -r candidate_digest candidate_path; do
+	[[ "${candidate_path}" == "${shim}" ]] || continue
+	staged_digest="${candidate_digest}"
+	break
+done <<<"${shim_digests}"
+
+if [[ "${staged_digest}" != "${shim_digest}" ]]; then
 	# This body is the first required write into the cache dir, so gating here
 	# covers every write. Anything that writes there earlier needs its own gate.
 	require_exec_capable_cache
