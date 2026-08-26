@@ -12,8 +12,8 @@ from typing import Any
 
 import requests
 
-Fetcher = Callable[[str, Path], None]
-JsonFetcher = Callable[[str], "dict[str, Any]"]
+type Fetcher = Callable[[str, Path], None]
+type JsonFetcher = Callable[[str], dict[str, Any]]
 
 _CHUNK = 64 * 1024
 _DOWNLOAD_TIMEOUT = 300

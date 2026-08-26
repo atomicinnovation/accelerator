@@ -13,6 +13,7 @@ so the check is exercised against fixtures without a real release.
 """
 
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 
 from tasks.shared.paths import KEYS_DIR, PINS_TOML
@@ -38,7 +39,7 @@ def _document(pins_path: Path) -> dict[str, object]:
         return tomllib.load(handle)
 
 
-def _assembled_reasons(document: dict[str, object]) -> list[str]:
+def _assembled_reasons(document: Mapping[str, object]) -> list[str]:
     assembled = document.get("assembled_sha256", {})
     if not isinstance(assembled, dict):
         return []
@@ -55,7 +56,7 @@ def _assembled_reasons(document: dict[str, object]) -> list[str]:
     return reasons
 
 
-def _chromium_reasons(document: dict[str, object]) -> list[str]:
+def _chromium_reasons(document: Mapping[str, object]) -> list[str]:
     chromium = document.get("chromium", {})
     if not isinstance(chromium, dict):
         return ["chromium is a placeholder"]
@@ -73,7 +74,7 @@ def _chromium_reasons(document: dict[str, object]) -> list[str]:
     return reasons
 
 
-def _node_reasons(document: dict[str, object]) -> list[str]:
+def _node_reasons(document: Mapping[str, object]) -> list[str]:
     node = document.get("node", {})
     version = str(node.get("version", "")) if isinstance(node, dict) else ""
     if not version or version.startswith("0."):

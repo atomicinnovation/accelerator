@@ -19,10 +19,27 @@ drift test pins them together.
 """
 
 import json
+from typing import TypedDict
 
 from tasks.shared.vendor.archive import ArchiveStats
 
 ATTESTATION_FORMAT_VERSION = 1
+
+
+class SealedAttestation(TypedDict):
+    """The ``.sealed`` attestation document's fields.
+
+    The field set matches the launcher's ``Attestation`` reader exactly; a drift
+    test pins them together.
+    """
+
+    attestation_format_version: int
+    artifact: str
+    platform: str
+    archive_sha256: str
+    uncompressed_size: int
+    entry_count: int
+    table_sha256: str
 
 
 def build_attestation(
@@ -34,7 +51,7 @@ def build_attestation(
     the document the publishing job signs is byte-identical to the one assembly
     produced.
     """
-    document = {
+    document: SealedAttestation = {
         "attestation_format_version": ATTESTATION_FORMAT_VERSION,
         "artifact": artifact,
         "platform": platform,

@@ -44,7 +44,7 @@ _CHROMIUM_PLATFORM = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class VerifiedInputs:
     """Verified local paths and the versions they were fetched for."""
 

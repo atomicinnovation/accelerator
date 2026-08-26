@@ -1,6 +1,7 @@
 import os
 import shlex
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 
 from invoke import Context, Exit, task
@@ -65,9 +66,9 @@ _EXPECTED_GITHUB_SUITES = 0
 
 
 def _require_suite_floor(
-    suites: list[str],
+    suites: Sequence[str],
     floor: int,
-    required: tuple[str, ...],
+    required: Sequence[str],
     subject: str,
 ) -> None:
     """Fail loudly when discovery shrinks below its floor or loses a gate.
@@ -315,7 +316,7 @@ def _resolve_vcs_binaries(context: Context) -> list[Path]:
 
 
 def _restore_vcs_binaries(
-    context: Context, shadow_dir: Path, shadowed: list[Path]
+    context: Context, shadow_dir: Path, shadowed: Sequence[Path]
 ) -> None:
     """Put every shadowed binary back, then prove it is runnable again.
 

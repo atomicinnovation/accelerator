@@ -25,7 +25,7 @@ trust-anchor operation.
 import base64
 import hashlib
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,7 +36,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 # Injected in tests so the argv is pinned without a real `cosign`; production
 # passes a subprocess runner. Returns the process exit code.
-SlsaRunner = Callable[[list[str]], int]
+type SlsaRunner = Callable[[list[str]], int]
 
 # The SLSA provenance predicate npm's attestation bundle carries.
 SLSA_PREDICATE_TYPE = "https://slsa.dev/provenance/v1"
@@ -44,7 +44,7 @@ SLSA_PREDICATE_TYPE = "https://slsa.dev/provenance/v1"
 _CHUNK = 64 * 1024
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DistInfo:
     """The fields of a packument version's ``dist`` the checks consume."""
 
@@ -54,7 +54,7 @@ class DistInfo:
     attestations_url: str
 
 
-def packument_dist(packument: dict[str, Any], version: str) -> DistInfo:
+def packument_dist(packument: Mapping[str, Any], version: str) -> DistInfo:
     """Extract one version's tarball URL, integrity, signature and attestations.
 
     Refuses a version carrying no registry signature or no attestations URL
@@ -78,7 +78,7 @@ def packument_dist(packument: dict[str, Any], version: str) -> DistInfo:
     )
 
 
-def provenance_bundle(attestations: dict[str, Any]) -> dict[str, Any]:
+def provenance_bundle(attestations: Mapping[str, Any]) -> dict[str, Any]:
     """Return the SLSA provenance Sigstore bundle from npm's attestations doc.
 
     Refuses a document with no SLSA provenance rather than accepting the npm

@@ -3,7 +3,7 @@ import os
 import stat
 import subprocess
 import tempfile
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -105,7 +105,7 @@ def _reverify_sealed(archive: Path) -> Path:
     sealed = archive.with_name(archive.name + ".sealed")
     if not sealed.exists():
         raise SigningError(f"{archive.name}: missing .sealed attestation")
-    document = json.loads(sealed.read_text())
+    document: Mapping[str, object] = json.loads(sealed.read_text())
     stats = read_archive_stats(archive)
     for field, actual in (
         ("archive_sha256", stats.archive_sha256),

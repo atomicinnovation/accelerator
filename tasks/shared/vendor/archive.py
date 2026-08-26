@@ -20,8 +20,12 @@ import hashlib
 import io
 import stat
 import tarfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, assert_never
+
+type EntryKind = Literal["f", "d", "l"]
 
 TABLE_NAME = ".files"
 TABLE_FORMAT_VERSION = 1
@@ -41,7 +45,7 @@ _GNAME = ""
 _CHUNK = 64 * 1024
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ArchiveStats:
     """What a produced archive measures, for the manifest and attestation."""
 
@@ -52,9 +56,9 @@ class ArchiveStats:
     table_sha256: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Entry:
-    kind: str  # "f", "d", or "l"
+    kind: EntryKind
     path: str
     mode: int
     size: int
@@ -69,7 +73,7 @@ def masked_mode(is_dir: bool, is_executable: bool) -> int:
     return _EXEC_MODE if is_executable else _FILE_MODE
 
 
-def build_files_table(entries: list[_Entry]) -> bytes:
+def build_files_table(entries: Iterable[_Entry]) -> bytes:
     """Render the ``.files`` table for ``entries`` in the launcher's format."""
     lines = [f"version {TABLE_FORMAT_VERSION}"]
     for entry in sorted(entries, key=lambda item: item.path):
@@ -221,10 +225,12 @@ def _append_entry(archive: tarfile.TarFile, tree: Path, entry: _Entry) -> None:
         info = _tarinfo(entry.path, tarfile.SYMTYPE, 0o777, 0)
         info.linkname = entry.link_target or ""
         archive.addfile(info)
-    else:
+    elif entry.kind == "f":
         data = (tree / entry.path).read_bytes()
         info = _tarinfo(entry.path, tarfile.REGTYPE, entry.mode, len(data))
         archive.addfile(info, io.BytesIO(data))
+    else:
+        assert_never(entry.kind)
 
 
 def _tarinfo(

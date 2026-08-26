@@ -23,11 +23,12 @@ import tempfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple, Self
 
 _STATUS_PREFIX = "[GNUPG:] "
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Verdict:
     """Whether the signature is trusted, and why not when it is not."""
 
@@ -35,12 +36,19 @@ class Verdict:
     reason: str = ""
 
     @classmethod
-    def ok(cls) -> Verdict:
+    def ok(cls) -> Self:
         return cls(trusted=True)
 
     @classmethod
-    def rejected(cls, reason: str) -> Verdict:
+    def rejected(cls, reason: str) -> Self:
         return cls(trusted=False, reason=reason)
+
+
+class Status(NamedTuple):
+    """One parsed GnuPG ``--status-fd`` line: its keyword and remaining args."""
+
+    keyword: str
+    args: list[str]
 
 
 def classify_status_lines(
@@ -53,13 +61,13 @@ def classify_status_lines(
     key fingerprint in the allowlist. Every other shape is a named rejection.
     """
     allowed = {fingerprint.upper() for fingerprint in allowed_fingerprints}
-    statuses: list[tuple[str, list[str]]] = []
+    statuses: list[Status] = []
     for line in lines:
         if not line.startswith(_STATUS_PREFIX):
             continue
         parts = line[len(_STATUS_PREFIX) :].split()
         if parts:
-            statuses.append((parts[0], parts[1:]))
+            statuses.append(Status(parts[0], parts[1:]))
 
     keywords = {keyword for keyword, _ in statuses}
 
@@ -101,7 +109,7 @@ def classify_status_lines(
 
 # The status-fd producer, injected in tests so the classifier is exercised
 # without a real gpg or keyring.
-Runner = Callable[[Path, Path, Path], "list[str] | None"]
+type Runner = Callable[[Path, Path, Path], list[str] | None]
 
 
 def verify_detached(

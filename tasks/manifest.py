@@ -20,6 +20,7 @@ from tasks.shared.paths import (
     tree_artifact_asset_path,
 )
 from tasks.shared.targets import TARGETS
+from tasks.shared.vendor.attestation import SealedAttestation
 from tasks.signing import sign_file
 
 SCHEMA_VERSION = 1
@@ -64,13 +65,13 @@ class Manifest(TypedDict):
     artifacts: NotRequired[dict[str, ManifestArtifact]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BinaryEntry:
     description: str
     platforms: Mapping[str, PlatformAsset]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ArtifactEntry:
     description: str
     platforms: Mapping[str, ArtifactPlatformAsset]
@@ -160,7 +161,7 @@ def collect_artifact_entries(
             archive = tree_artifact_asset_path(name, platform, staging_dir)
             signature = archive.with_name(archive.name + ".minisig")
             sealed = archive.with_name(archive.name + ".sealed")
-            document = json.loads(sealed.read_text())
+            document: SealedAttestation = json.loads(sealed.read_text())
             assets[platform] = {
                 "sha256": compute_sha256(archive),
                 "signature": signature.read_text(),

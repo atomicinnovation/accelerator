@@ -25,6 +25,7 @@ import zipfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, NamedTuple
 
 from tasks.shared.paths import (
     CHROMIUM_LICENSE,
@@ -38,6 +39,8 @@ from tasks.shared.vendor.archive import (
     write_deterministic_archive,
 )
 from tasks.shared.vendor.attestation import build_attestation
+
+type Artifact = Literal["driver", "browser"]
 
 _DEFAULT_FILE_MODE = 0o644
 _SMOKE_TIMEOUT = 30
@@ -148,7 +151,7 @@ def assert_version_pairing(
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NoticeSource:
     """One licensed component's redistribution notices."""
 
@@ -156,7 +159,7 @@ class NoticeSource:
     licence_files: tuple[Path, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TreePlacement:
     """A source file or directory and where it lands within a tree."""
 
@@ -164,22 +167,30 @@ class TreePlacement:
     dest_relpath: str
 
 
-@dataclass(frozen=True)
+class Rename(NamedTuple):
+    """A rename applied at the tree root after placement.
+
+    A placed upstream directory's binary can carry the name the runtime expects
+    (Chromium ships ``headless_shell``; the runtime resolves
+    ``chrome-headless-shell``).
+    """
+
+    source_name: str
+    dest_name: str
+
+
+@dataclass(frozen=True, slots=True)
 class TreeSpec:
     """What one artifact tree is composed from."""
 
-    artifact: str
+    artifact: Artifact
     placements: tuple[TreePlacement, ...]
     notices: tuple[NoticeSource, ...]
     executables: tuple[str, ...] = ()
-    # (source_name, dest_name) renames applied at the tree root after placement,
-    # so a placed upstream directory's binary can carry the name the runtime
-    # expects (Chromium ships `headless_shell`; the runtime resolves
-    # `chrome-headless-shell`).
-    renames: tuple[tuple[str, str], ...] = ()
+    renames: tuple[Rename, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ExtractedInputs:
     """The three extracted upstream trees, before composition."""
 
@@ -315,7 +326,7 @@ def assert_matches_pin(
         )
 
 
-SpecBuilder = Callable[[ExtractedInputs], "tuple[TreeSpec, ...]"]
+type SpecBuilder = Callable[[ExtractedInputs], tuple[TreeSpec, ...]]
 
 
 def extract_tar(archive: Path, dest: Path) -> None:
@@ -392,7 +403,7 @@ def _extract_into(
 
 
 # The binary each artifact tree carries at its root, for the smoke check.
-ARTIFACT_EXECUTABLES: dict[str, tuple[str, ...]] = {
+ARTIFACT_EXECUTABLES: dict[Artifact, tuple[str, ...]] = {
     "driver": ("node",),
     "browser": ("chrome-headless-shell",),
 }
@@ -459,7 +470,7 @@ def default_spec_builder(extracted: ExtractedInputs) -> tuple[TreeSpec, ...]:
         placements=(TreePlacement(shell.parent, ""),),
         notices=(NoticeSource("chromium", (chromium_licence,)),),
         executables=("chrome-headless-shell",),
-        renames=(("headless_shell", "chrome-headless-shell"),),
+        renames=(Rename("headless_shell", "chrome-headless-shell"),),
     )
     return (driver, browser)
 

@@ -5,10 +5,13 @@ import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import semver
 from invoke import Context, task
+
+if TYPE_CHECKING:
+    from tasks.manifest import Manifest
 
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
@@ -327,7 +330,7 @@ def _tree_artifact_reverifies(
     names = tuple(tree_tokens)
     if not names:
         return []
-    manifest = json.loads(RELEASE_MANIFEST.read_text())
+    manifest: Manifest = json.loads(RELEASE_MANIFEST.read_text())
     items: list[_Reverify] = []
     for name in names:
         entry = manifest["artifacts"][name]
@@ -371,7 +374,7 @@ def _subbinary_reverifies(
     names = tuple(tokens)
     if not names:
         return []
-    manifest = json.loads(RELEASE_MANIFEST.read_text())
+    manifest: Manifest = json.loads(RELEASE_MANIFEST.read_text())
     items: list[_Reverify] = []
     for name in names:
         entry = manifest["binaries"][name]
