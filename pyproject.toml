@@ -26,7 +26,7 @@ build = [
     # The only HTTP client in tasks/: the vendored-runtime assembly fetches npm,
     # nodejs.org and the Chromium CDN over it. Exact pin (matching pyyaml/ruff):
     # a relock must not silently move the fetcher a trust check depends on.
-    "requests==2.34.2",
+    "httpx==0.28.1",
     # ECDSA P-256 verification of the npm registry signature over
     # <name>@<version>:<integrity> (tasks/shared/vendor/npm.py) — a primitive the
     # stdlib lacks. Exact pin for the same trust-anchor reason.
