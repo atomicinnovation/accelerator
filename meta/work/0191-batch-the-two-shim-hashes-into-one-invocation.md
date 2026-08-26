@@ -5,7 +5,7 @@ title: "Batch the bootstrap's two shim hashes into one sha256 invocation"
 date: "2026-08-03T00:00:00+00:00"
 author: Toby Clemson
 producer: implement-plan
-status: ready
+status: done
 kind: task
 priority: low
 parent: "work-item:0136"
@@ -22,7 +22,7 @@ external_id: PP-721
 # 0191: Batch the bootstrap's two shim hashes into one sha256 invocation
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

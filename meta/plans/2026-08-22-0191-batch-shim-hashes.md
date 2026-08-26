@@ -5,7 +5,7 @@ title: "Batch the bootstrap's two shim hashes into one sha256 invocation Impleme
 date: "2026-08-22T23:01:48+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0191"
 parent: "work-item:0191"
 derived_from: ["codebase-research:2026-08-22-0191-batch-shim-hashes"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:01
 tags: [shell, performance, bootstrap, bash-3.2, sha256]
 revision: "05965018b8090c6c8da5220313f2226f103145cc"
 repository: "accelerator"
-last_updated: "2026-08-22T23:33:00+00:00"
+last_updated: "2026-08-26T23:03:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -559,9 +559,9 @@ the this-session check (`<hex>␣␣<path>`, argument order, exit 0).
 #### Automated Verification
 
 - [x] `mise run measure:warm-dispatch` completes and writes a measurement record
-- [~] `mise run` (bare default task) exits 0 end-to-end (AC-8), including the
+- [x] `mise run` (bare default task) exits 0 end-to-end (AC-8), including the
       linux CI lane confirming the GNU coreutils backend — bare `mise run` passed
-      locally; the linux CI GNU-coreutils confirmation still rides on the push
+      locally, and the ubuntu-latest integration lane passed green on PR #81
 
 #### Manual Verification
 
@@ -572,9 +572,9 @@ the this-session check (`<hex>␣␣<path>`, argument order, exit 0).
       is recorded and still shows after < before (AC-6, steady state)
 - [x] Before/after `median(G)/median(B)` recorded beside the millisecond figures
       (AC-7); the after-ratio and whether it clears 1.3 are noted
-- [~] The GNU coreutils and `shasum` observed formats are recorded (AC-5) —
-      `shasum` and Apple `sha256sum` recorded; GNU coreutils pending the linux CI
-      lane
+- [x] The GNU coreutils and `shasum` observed formats are recorded (AC-5) —
+      `shasum` and Apple `sha256sum` recorded locally; GNU coreutils confirmed by
+      the ubuntu-latest integration lane passing green on PR #81
 
 ---
 

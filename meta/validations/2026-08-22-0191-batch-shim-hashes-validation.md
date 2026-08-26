@@ -6,18 +6,18 @@ date: "2026-08-24T22:51:44+00:00"
 author: Toby Clemson
 producer: validate-plan
 status: complete
-result: partial
+result: pass
 parent: "plan:2026-08-22-0191-batch-shim-hashes"
 target: "plan:2026-08-22-0191-batch-shim-hashes"
 tags: [shell, performance, bootstrap, bash-3.2, sha256]
-last_updated: "2026-08-24T22:51:44+00:00"
+last_updated: "2026-08-26T23:03:02+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
 
 ## Validation Report: Batch the bootstrap's two shim hashes into one sha256 invocation
 
-Both phases are implemented and every automated check that can run on this host is green. The result is **partial** for one reason only: two success criteria (AC-5 GNU coreutils format, AC-8 full `mise run` on the linux lane) are structurally CI-gated and cannot be confirmed before the branch is pushed. Nothing is failing; the plan authors marked these `[~]` themselves.
+Both phases are implemented and every success criterion is now green. The two previously CI-gated criteria — AC-5 (GNU coreutils format) and AC-8 (full `mise run` on the linux lane) — were confirmed by the ubuntu-latest integration lane passing on PR #81, so the result is **pass**. This report was first written `partial` before the push; the push closed the only gap.
 
 ### Implementation Status
 
@@ -31,7 +31,7 @@ Both phases are implemented and every automated check that can run on this host 
 - ✅ New + regression subset — `7 passed` (`forks_the_sha256_backend_once`, `on_the_shasum_fallback`, `stale_staged_shim`, `cold_path_forks`, three `planted_staged_shim`).
 - ✅ Newline cache-dir guard — `test_a_record_is_always_one_line` passes (the `-k newline` filter in the plan matches nothing; see Deviations).
 - ✅ `mise run check` — exit 0 (format + lint + types across all four components).
-- 🟡 `mise run` (bare default, incl. linux CI GNU-coreutils lane) — passed locally per `7a5d7bd50e4d`; the linux lane rides on the push.
+- ✅ `mise run` (bare default, incl. linux CI GNU-coreutils lane) — passed locally per `7a5d7bd50e4d`, and the ubuntu-latest integration lane passed green on PR #81 (AC-5, AC-8).
 
 ### Code Review Findings
 
@@ -51,17 +51,17 @@ Both phases are implemented and every automated check that can run on this host 
 
 #### Potential Issues
 
-- **None material.** The two `[~]` criteria are CI-lane confirmations, not defects. The documented directory-path domain constraint (newline/backslash/edge-whitespace in the cache path degrades to a benign re-stage) is guarded by `test_a_record_is_always_one_line`.
+- **None material.** The two previously CI-gated criteria are now confirmed green. The documented directory-path domain constraint (newline/backslash/edge-whitespace in the cache path degrades to a benign re-stage) is guarded by `test_a_record_is_always_one_line`.
 
 ### Manual Testing Required
 
-1. Cross-backend confirmation (blocks closing the plan):
-  - [ ] Push the branch and confirm the linux CI lane runs the Phase 1 tests green against GNU coreutils `sha256sum` (AC-5, AC-8).
+1. Cross-backend confirmation:
+  - [x] The ubuntu-latest integration lane on PR #81 ran the Phase 1 tests green against GNU coreutils `sha256sum` (AC-5, AC-8).
 2. Eyeball trace sanity (plan's standing manual check):
   - [ ] A `bash -x` warm-path trace shows exactly one `sha256sum`/`shasum` line and no `awk` line — already asserted by `test_warm_path_forks_the_sha256_backend_once_without_awk`, kept as a by-eye backstop.
 
 ### Recommendations
 
-- **Push to confirm the third backend, then close.** The only gap is the linux-CI GNU-coreutils lane; once it is green, flip AC-5 and AC-8 to `[x]` and re-run `/validate-plan` (or set the plan `status: done` directly) — the result becomes an unqualified pass.
+- **Closed out.** The linux-CI GNU-coreutils lane is green on PR #81, AC-5 and AC-8 are `[x]` in the plan, and the plan `status` is `done`. The result is an unqualified pass.
 - **Feed the ratio evidence to 0189.** The after-ratio 1.2773 clears 1.3, which is the stated evidence route to tightening 0189's C5 threshold from the relaxed 1.4 back to 1.3. Track that follow-up on 0189, not here.
 - **Fix the plan's `-k newline` criterion if the plan is revised** — point it at `test_a_record_is_always_one_line` so the filter is runnable; low priority, the coverage already exists.
