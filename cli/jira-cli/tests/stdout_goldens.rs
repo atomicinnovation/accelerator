@@ -15,7 +15,7 @@ use http_test_support::{MockServer, RequestKey, Route};
 #[test]
 fn search_stdout_matches_the_golden() {
     let server = MockServer::start();
-    // The widened read-side projection (Decision 20): each issue's full `fields`
+    // The widened read-side projection: each issue's full `fields`
     // map — Summary/Status/Assignee — plus the `nextPageToken` cursor, emitted
     // verbatim with the outcome stamp.
     server.route(

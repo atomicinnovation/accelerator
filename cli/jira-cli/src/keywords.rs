@@ -1,4 +1,4 @@
-//! The closed, per-subcommand keyword discriminant (Decision 11).
+//! The closed, per-subcommand keyword discriminant.
 //!
 //! Each outcome is a typed enum with a `keyword(self)` projection, so
 //! exhaustiveness is compiler-checked and a new variant cannot compile without

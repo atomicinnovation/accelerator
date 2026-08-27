@@ -1,5 +1,5 @@
-//! The read-side projections the `search` and `show` subcommands render
-//! (Decision 20): the verbatim Jira envelope a `search` echoes, the composed
+//! The read-side projections the `search` and `show` subcommands render:
+//! the verbatim Jira envelope a `search` echoes, the composed
 //! JQL its audit line prints, and the raw issue a `show` renders ADF over. The
 //! port `search`/`show` reshape to the sync contract; these keep Jira's own
 //! wire shape the bash flows emitted.

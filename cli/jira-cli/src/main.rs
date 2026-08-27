@@ -760,7 +760,7 @@ fn surface_failure(error: &jira_client::SurfaceError) -> ExitCode {
 fn run_init(action: Option<&InitAction>) -> ExitCode {
     // Bare `jira init` with no configured default project would, in bash, block
     // on an interactive `read`. The binary never prompts: with no TTY to read
-    // from it refuses explicitly rather than hanging (TTY policy, Decision 4).
+    // from it refuses explicitly rather than hanging (TTY policy).
     if action.is_none()
         && resolve_fields::configured_default_project().is_none()
         && !std::io::stdin().is_terminal()
@@ -873,7 +873,7 @@ fn init_prompt_default() -> ExitCode {
     }
 }
 
-/// Reads a marker-checked cache file (Decision 21), or maps the failure to an
+/// Reads a marker-checked cache file, or maps the failure to an
 /// exit code: an absent file is a missing cache, an unrecognised version marker
 /// or unparseable shape a corrupt one.
 fn read_cache_or_report(

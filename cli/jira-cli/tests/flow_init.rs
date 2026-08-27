@@ -1,6 +1,6 @@
 //! The `init verify` flow: it verifies credentials against `/myself`, caches the
 //! site identity, stamps the `verified` outcome, and — the load-bearing
-//! guarantee — never prints the token on any exit path (Decision 3). The
+//! guarantee — never prints the token on any exit path. The
 //! `Secret` redaction in `tracker_support` is why the guarantee holds.
 
 #![cfg(feature = "test-loopback")]

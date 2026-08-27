@@ -1,6 +1,6 @@
 //! The `resolve-fields` contract: the single source of truth for the kind →
 //! issue-type and the `--project` precedence a create resolves, emitted as one
-//! tab-separated line. Read-only and API-free (Decision 4) — it reads
+//! tab-separated line. Read-only and API-free — it reads
 //! `work.default_project_code` through the config crates, never the tracker.
 //!
 //! Output: `<issue_type>\t<issue_type_source>\t<project>\t<project_source>` with

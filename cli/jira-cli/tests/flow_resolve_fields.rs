@@ -40,7 +40,7 @@ fn the_configured_default_project_is_the_config_source() {
 
 #[test]
 fn the_project_derives_from_the_shared_config_source() {
-    // Decision 17: `jira resolve-fields` and `work create --push --dry-run` do
+    // `jira resolve-fields` and `work create --push --dry-run` do
     // NOT agree field-for-field — the work form emits the raw kind with a
     // network-preview `configured`/`unresolvable` source vocabulary, while this
     // config-only form emits the mapped Jira issue-type with a `mapped`/`config`

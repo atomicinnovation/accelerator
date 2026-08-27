@@ -1,7 +1,7 @@
 //! The credential context, the client builder, and the validated base-URL seam.
 //!
 //! The `ACCELERATOR_JIRA_API_URL` override ships in the release binary but is
-//! admitted only as a validated credential destination (Decision 10): the
+//! admitted only as a validated credential destination: the
 //! release path routes it through Jira's own strict `auth::base_url` (https, no
 //! userinfo/port/query/fragment, an `*.atlassian.net`/allowlisted host),
 //! **unchanged**. A loopback mock is reached only under the test-only

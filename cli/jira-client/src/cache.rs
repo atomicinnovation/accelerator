@@ -50,7 +50,7 @@ pub enum CacheError {
     /// The cache carries an unrecognised version marker, or a shape that does
     /// not parse as the known layout — a stale or corrupt cache that could feed
     /// wrong values into a live mutation. Read fails closed rather than trusting
-    /// it (Decision 21).
+    /// it.
     #[error(
         "E_CACHE_INCOMPATIBLE: {detail}; re-run init to rebuild the cache"
     )]
@@ -138,7 +138,7 @@ impl<'a> JiraCache<'a> {
     }
 
     /// Reads a discovery cache file, failing closed on an unrecognised version
-    /// marker or a shape that does not parse (Decision 21). An absent marker is
+    /// marker or a shape that does not parse. An absent marker is
     /// the implicit bash-era version and reads unchanged, so no existing install
     /// must re-initialise.
     ///

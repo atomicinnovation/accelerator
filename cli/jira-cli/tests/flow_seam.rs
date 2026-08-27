@@ -1,4 +1,4 @@
-//! The `ACCELERATOR_JIRA_API_URL` seam (Decision 10). A set-but-inadmissible
+//! The `ACCELERATOR_JIRA_API_URL` seam. A set-but-inadmissible
 //! override is a hard usage error before any credential attaches; a plain-http
 //! or loopback override is refused in a build without `test-loopback`. The
 //! no-override path takes the `from_config` branch, exercised here through its

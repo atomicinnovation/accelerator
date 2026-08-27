@@ -3,10 +3,9 @@
 //! Non-allowlisted names must equal the value the retiring cluster returned.
 //! The only divergence is the search remap off the reserved `70`–`74` dispatch
 //! band: each allowlisted name asserts the *remapped* Rust value while the
-//! fixture keeps the original bash value, and every allowlisted name is
-//! recorded in `meta/inventories/0211-divergences.md`. The count pin makes a
-//! silent allowlist addition fail. The oracle is the committed fixture, never
-//! the constants it guards.
+//! fixture keeps the original bash value. The count pin makes a silent
+//! allowlist addition fail. The oracle is the committed fixture, never the
+//! constants it guards.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
@@ -127,7 +126,7 @@ fn the_cross_provider_collision_codes_carry_their_jira_meaning() {
 
 /// The binary reads the granular code from the structured discriminant
 /// (`JiraFailure`'s `Outcome`, a `SurfaceError`, a `ClientError`), never by
-/// parsing it back out of a collapsed `TrackerError` detail string (Decision 9).
+/// parsing it back out of a collapsed `TrackerError` detail string.
 /// This grep guard fails a regression to a `detail` parse, which the compiler
 /// alone would not catch.
 #[test]

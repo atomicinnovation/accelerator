@@ -19,7 +19,7 @@ use crate::classify::Outcome;
 /// Every error site of the six fallible port methods (`create`, `update`,
 /// `show`, `fetch_all`, `search`, `preview_create`) funnels through here, so
 /// `TrackerError` is derived from one place (`From<JiraFailure>`) and a new
-/// variant forces an `exit_codes.rs` arm (Decision 9).
+/// variant forces an `exit_codes.rs` arm.
 #[derive(Debug, Clone)]
 pub enum JiraFailure {
     /// A wire outcome the classifier recognises. `bash_code(outcome)` is the
