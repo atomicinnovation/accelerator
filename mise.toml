@@ -509,9 +509,14 @@ description = "Bind every DISPATCHED_SUBBINARIES token to a SKILL.md that invoke
 depends = ["deps:install:python"]
 run = "invoke lint.dispatch-coherence.check"
 
+[tasks."lint:integration-skills:check"]
+description = "Guard the repointed integration skills: outcome-keyword parity against each sub-binary's declared set, and a confirm step before every write mutation"
+depends = ["deps:install:python"]
+run = "invoke lint.integration-skills.check"
+
 [tasks."build-system:check"]
 description = "Run all Python format, lint, and type checks plus workflow lint and the dispatch-coherence guard (ruff + pyrefly + actionlint)"
-depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check", "lint:workflows:check", "lint:dispatch-coherence:check"]
+depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check", "lint:workflows:check", "lint:dispatch-coherence:check", "lint:integration-skills:check"]
 
 [tasks."format:server:check"]
 description = "Check Rust formatting with rustfmt (cargo fmt --check)"
@@ -643,7 +648,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:vcs-settings:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:vcs-settings:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

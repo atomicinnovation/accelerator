@@ -133,6 +133,9 @@ ns_lint.add_collection(
     Collection.from_module(lint.dispatch_coherence)
 )  # lint.dispatch-coherence.check
 ns_lint.add_collection(
+    Collection.from_module(lint.integration_skills)
+)  # lint.integration-skills.check
+ns_lint.add_collection(
     Collection.from_module(lint.vcs_settings)
 )  # lint.vcs-settings.check
 ns.add_collection(ns_lint)

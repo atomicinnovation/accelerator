@@ -42,6 +42,7 @@ _CLI_RELEASE_BINARIES = (
     "accelerator-collaboration",
     "accelerator-migrate",
     "accelerator-design",
+    "accelerator-linear",
 )
 
 # The linked/stubbed pair whose size delta proves the VCS dependency trees are
@@ -347,6 +348,26 @@ def _assert_no_e2e_insecure(src: Path) -> None:
         )
 
 
+def _assert_no_test_loopback(src: Path) -> None:
+    """Fail staging if a release artifact carries a `test-loopback` marker.
+
+    The `accelerator-jira` / `accelerator-linear` binaries admit a loopback API
+    URL only under the test-only `test-loopback` feature, whose sole reason to
+    exist is pointing the integration tests at a mock. Each binary emits a
+    ``*_TEST_LOOPBACK_MARKER`` symbol only under that feature, so its presence
+    in a staged artifact proves the feature leaked into a release. A binary
+    without the feature (every current release binary) carries no such symbol
+    and this is a no-op — the guard covers jira/linear automatically once they
+    join ``_CLI_RELEASE_BINARIES``, needing no per-provider edit.
+    """
+    marker = b"TEST_LOOPBACK_MARKER"
+    if marker in src.read_bytes():
+        raise RuntimeError(
+            f"{src}: release artifact contains a {marker.decode()} — the "
+            "test-loopback feature must never be built into a release binary"
+        )
+
+
 @task
 def server_cross_compile(context: Context) -> None:
     """Cross-compile the visualiser server for all four release targets.
@@ -420,6 +441,7 @@ def cli_cross_compile(context: Context) -> None:
         for name in _CLI_RELEASE_BINARIES:
             src = CLI_DIR / "target" / triple / "release" / name
             _assert_magic_bytes(src, triple)
+            _assert_no_test_loopback(src)
             if "musl" in triple:
                 _assert_static_elf(src)
             shutil.copy2(src, cli_binary_path(name, platform))

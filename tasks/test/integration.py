@@ -38,10 +38,11 @@ _ABSOLUTE_VCS_PATHS = (
 _EXPECTED_CONFIG_SUITES = 14
 
 # The skills/integrations subtree discoverable shell suites (every individual
-# test-jira-*.sh + test-linear-*.sh; the test-jira-scripts.sh umbrella runner is
-# excluded from discovery — see EXCLUDED_HELPER_NAMES). At-least floor so a
-# dropped exec bit can't silently drop a create/auth suite from CI.
-_EXPECTED_INTEGRATIONS_SUITES = 32
+# test-jira-*.sh; the test-jira-scripts.sh umbrella runner is excluded from
+# discovery — see EXCLUDED_HELPER_NAMES). At-least floor so a dropped exec bit
+# can't silently drop a create/auth suite from CI. The linear suites are gone
+# (0211 retired the linear bash cluster).
+_EXPECTED_INTEGRATIONS_SUITES = 20
 
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count

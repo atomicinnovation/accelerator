@@ -17,7 +17,10 @@ use std::time::Duration;
 use std::time::Instant;
 
 use reqwest::blocking::Client;
-use reqwest::Url;
+// Re-exported so a composition root (the `*-cli` seam) can name the endpoint
+// type without importing reqwest itself — the provider-isolation tripwire keeps
+// reqwest inside the client crates.
+pub use reqwest::Url;
 use serde_json::json;
 use serde_json::Value;
 use tracker_support::Jitter;

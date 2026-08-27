@@ -96,7 +96,7 @@ impl RequestKey {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Received {
     query: Option<String>,
     headers: HashMap<String, String>,
@@ -106,7 +106,7 @@ struct Received {
 #[derive(Default)]
 struct Record {
     hits: usize,
-    last: Option<Received>,
+    all: Vec<Received>,
 }
 
 struct Shared {
@@ -170,6 +170,26 @@ impl MockServer {
         self.with_last(key, |received| Some(received.body.clone()))
     }
 
+    /// Every request body matching `key`, in the order the requests arrived —
+    /// the per-hit log a single-endpoint API needs, where two POSTs to one
+    /// `(method, path)` key would otherwise overwrite each other in `last_*`.
+    #[must_use]
+    pub fn bodies(&self, key: &RequestKey) -> Vec<Vec<u8>> {
+        self.shared
+            .records
+            .lock()
+            .expect("records")
+            .get(key)
+            .map(|record| {
+                record
+                    .all
+                    .iter()
+                    .map(|received| received.body.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// The query string of the most recent request matching `key`, without
     /// its leading `?`, or `None` if there was no such request or it carried
     /// no query.
@@ -196,7 +216,7 @@ impl MockServer {
             .lock()
             .expect("records")
             .get(key)
-            .and_then(|record| record.last.as_ref())
+            .and_then(|record| record.all.last())
             .and_then(read)
     }
 }
@@ -298,7 +318,7 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let index = {
         let mut records = shared.records.lock().expect("records");
         let record = records.entry(key.clone()).or_default();
-        record.last = Some(Received {
+        record.all.push(Received {
             query,
             headers,
             body,

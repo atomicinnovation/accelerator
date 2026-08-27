@@ -7,7 +7,7 @@ description: >
   conversational context. Link mode registers an external URL; binary mode
   uploads a local file via Linear's pre-signed URL flow and registers the
   resulting asset. Shows a preview, requires explicit confirmation, then attaches.
-argument-hint: "<IDENTIFIER> (--url URL | --file PATH) [--title T] [--describe] [--quiet]"
+argument-hint: "<IDENTIFIER> (--url URL | --file PATH) [--title T] [--quiet]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -36,16 +36,12 @@ the path or URL explicitly.
 Read the issue identifier (positional) and exactly one of `--url URL` or
 `--file PATH`, plus optional `--title`.
 
-## Step 2: Preview
+## Step 2: Prepare the preview
 
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-attach-flow.sh \
-  <IDENTIFIER> (--url URL | --file PATH) [--title T] --describe
-```
-
-If the helper exits non-zero (missing/unreadable file —
-`E_ATTACH_FILE_MISSING`; both targets — `E_ATTACH_BOTH_TARGETS`; bad URL —
-`E_ATTACH_BAD_URL`), STOP and report.
+Resolve the target from the current turn: exactly one of `--url URL` or
+`--file PATH`, plus optional `--title`. Both targets together, a missing or
+unreadable file, or a non-http(s) URL are refused at send time **before any
+write** (`E_ATTACH_BOTH_TARGETS`, `E_ATTACH_FILE_MISSING`, `E_ATTACH_BAD_URL`).
 
 ## Step 3: Render the preview and confirm
 
@@ -70,13 +66,13 @@ write was made."
 ## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-attach-flow.sh \
-  <IDENTIFIER> (--url URL | --file PATH) [--title T]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear attach <IDENTIFIER> (--url URL | --file PATH) [--title T]
 ```
 
-Binary mode is **not idempotent across steps**: if the PUT succeeds but
-registration fails (`E_ATTACH_REGISTER_FAILED`), the asset is orphaned in Linear
-— tell the user which step failed and that a blind re-run re-uploads. On
-success, confirm the attachment was added.
+The subcommand emits a JSON envelope with a top-level `outcome` keyword. Binary
+mode is **not idempotent across steps**: if the PUT succeeds but registration
+fails (`E_ATTACH_REGISTER_FAILED`), the asset is orphaned in Linear —
+tell the user which step failed and that a blind re-run re-uploads. On
+`attached`, confirm the attachment was added.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions attach-linear-issue --fail-safe`

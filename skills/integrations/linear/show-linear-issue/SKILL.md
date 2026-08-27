@@ -12,10 +12,8 @@ description: >
 argument-hint: "<IDENTIFIER> [--comments N]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(jq)
-  - Bash(curl)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
 ---
 
 # Show Linear Issue
@@ -39,15 +37,16 @@ supplied, ask the user which issue to show.
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-show-flow.sh <IDENTIFIER> [--comments N]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear show <IDENTIFIER> [--comments N]
 ```
 
-Run the bare path **directly** as an executable; never prefix it with
+Run the bare launcher **directly** as an executable; never prefix it with
 `bash`/`sh`/`env` (a wrapper prefix escapes the skill's `allowed-tools`
 permission and forces an unnecessary prompt).
 
-An unknown identifier exits non-zero (`E_SHOW_NOT_FOUND`) — tell the user the
-issue was not found.
+The subcommand emits a JSON document with a top-level `outcome` keyword —
+`found` or `not-found`. When `outcome` is `not-found`, tell the user the issue
+was not found.
 
 ## Step 3: Render the issue
 

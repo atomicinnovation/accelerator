@@ -1,0 +1,34 @@
+{
+  "data": {
+    "issues": {
+      "nodes": [
+        {
+          "assignee": {
+            "name": "Alice"
+          },
+          "id": "uuid-BLA-1",
+          "identifier": "BLA-1",
+          "state": {
+            "name": "In Progress"
+          },
+          "title": "First in progress",
+          "updatedAt": "2026-06-01T10:00:00.000Z"
+        },
+        {
+          "assignee": {
+            "name": "Bob"
+          },
+          "id": "uuid-BLA-2",
+          "identifier": "BLA-2",
+          "state": {
+            "name": "In Progress"
+          },
+          "title": "Second in progress",
+          "updatedAt": "2026-06-01T12:30:00.000Z"
+        }
+      ],
+      "truncated": false
+    }
+  },
+  "outcome": "results"
+}

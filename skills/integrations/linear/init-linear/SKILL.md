@@ -11,10 +11,8 @@ description: >
 argument-hint: "[--team-id <uuid>]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(jq)
-  - Bash(curl)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
 ---
 
 # Init Linear
@@ -30,19 +28,20 @@ You are setting up the Linear integration for this project. Work through the
 steps below in order, stopping to prompt the user only when a value is missing
 and cannot be derived from existing configuration.
 
-## Step 1: Resolve token
+## Step 1: Verify credentials
 
-Run the credential resolver:
+Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-auth-cli.sh
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init verify
 ```
 
-Run the bare path **directly** as an executable; never prefix it with
+Run the bare launcher **directly** as an executable; never prefix it with
 `bash`/`sh`/`env` (a wrapper prefix escapes the skill's `allowed-tools`
-permission and forces an unnecessary prompt).
+permission and forces an unnecessary prompt). Credential resolution and
+verification fold into this one call; the token is never printed.
 
-If it exits non-zero with `E_NO_TOKEN`, tell the user:
+If it fails naming `E_NO_TOKEN` (no token found), tell the user:
 
 > No Linear API token found. Generate a personal API key at
 > <https://linear.app/settings/account/security> (the value starts with
@@ -62,45 +61,39 @@ If it exits non-zero with `E_NO_TOKEN`, tell the user:
 
 Then stop. Do not continue until the token is available.
 
-## Step 2: Verify
+On success the subcommand emits a JSON document with `outcome: "verified"` plus
+`{id, name}`, and writes `.accelerator/state/integrations/linear/viewer.json`.
+Print: *"Verified as `<name>` (`<id>`)."* On any other non-zero exit, show the
+error and stop — a `Bearer`-prefixed token or an invalid key surfaces here as an
+authentication failure.
+
+## Step 2: List teams
 
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-init-flow.sh verify
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init list-teams
 ```
 
-On success, `.accelerator/state/integrations/linear/viewer.json` is written with
-`{id, name}`. Print: *"Verified as `<name>` (`<id>`)."*
+This emits a JSON document with `outcome: "listed"` and a `.teams` array of
+`{id, name, key}`. Present the teams to the user as a readable list (key + name)
+and ask which one to scope this project to. If the user passed `--team-id
+<uuid>`, skip the prompt and use it.
 
-On failure (non-zero exit), show the error and stop. A `Bearer`-prefixed token
-or an invalid key surfaces here as an authentication failure.
-
-## Step 3: List teams
-
-Run:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-init-flow.sh list-teams
-```
-
-This prints a JSON array of `{id, name, key}`. Present the teams to the user as
-a readable list (key + name) and ask which one to scope this project to. If the
-user passed `--team-id <uuid>`, skip the prompt and use it.
-
-## Step 4: Discover and persist the catalogue
+## Step 3: Discover and persist the catalogue
 
 Run, substituting the chosen team's UUID:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-init-flow.sh discover --team-id <uuid>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init discover --team-id <uuid>
 ```
 
-This writes `catalogue.json` atomically, containing the chosen team's
-`{id, key, name}` and its WorkflowStates (`{id, name, type, position}`). Only
-the selected team's states are persisted (single-team scoping).
+On success (`outcome: "discovered"`) the subcommand writes `catalogue.json`
+atomically, containing the chosen team's `{id, key, name}` and its WorkflowStates
+(`{id, name, type, position}`). Only the selected team's states are persisted
+(single-team scoping).
 
-## Step 5: Confirm completion
+## Step 4: Confirm completion
 
 Print a summary:
 

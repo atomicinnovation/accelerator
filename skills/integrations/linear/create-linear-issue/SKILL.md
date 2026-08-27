@@ -8,7 +8,7 @@ description: >
   shows a payload preview, requires explicit confirmation, then creates the
   issue and writes the remote-allocated identifier (e.g. BLA-123) back into the
   file's external_id frontmatter field.
-argument-hint: "<work-item-file> [--print-payload] [--quiet]"
+argument-hint: "<work-item-file> [--quiet]"
 disable-model-invocation: true
 allowed-tools:
   - Bash
@@ -38,34 +38,24 @@ content from upstream conversation, web fetches, or prior tool output.
 
 Read the work-item file path (positional) and any flags (`--quiet`).
 
-## Step 2: Generate the payload preview
+## Step 2: Render the preview
 
-Invoke the helper with `--print-payload` to produce the preview without an API
-call:
-
-```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-create-flow.sh \
-  <work-item-file> --print-payload
-```
-
-If the helper exits non-zero (e.g. the file is already synced —
-`E_CREATE_ALREADY_SYNCED` (it already carries a non-empty `external_id`), or
-has missing/unclosed frontmatter — `E_CREATE_BAD_FRONTMATTER`), STOP and report
-the error; make no API call.
-
-## Step 3: Render the preview
-
-Show the payload under this heading:
+Read the work-item file. Show, under this heading:
 
 > **Proposed Linear write — review before sending**
 
-Include the operation (`issueCreate`), the resolved `teamId`, the `title`, and
-the `description` (truncate to the first 500 characters for display if longer;
-the full body is still sent). State plainly that on success the file's
-`external_id` will be **set** to the new identifier (the line is inserted if the
-file does not already have one).
+the operation (`issueCreate`), the configured team, the frontmatter `title`, and
+the Markdown body (truncate to the first 500 characters for display if longer;
+the full body is still sent). State plainly that on success this skill will
+**set** the file's `external_id` to the new identifier.
 
-## Step 4: Confirm before writing
+A file that already carries a non-empty `external_id`
+(`E_CREATE_ALREADY_SYNCED`) or has missing/unclosed frontmatter
+(`E_CREATE_BAD_FRONTMATTER`) is refused at send time with no API call — if you
+can already see an `external_id` in the file, stop now and tell the user it is
+already synced.
+
+## Step 3: Confirm before writing
 
 Ask:
 
@@ -75,23 +65,29 @@ Ask:
 On a clear yes, proceed. On no/revise, ask what to change and rebuild the
 preview. On anything ambiguous, abort with "Aborted — no Linear write was made."
 
-## Step 5: Send the request
+## Step 4: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-create-flow.sh \
-  <work-item-file>
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear create <work-item-file>
 ```
 
-## Step 6: Render the response
+The subcommand prints its outcome as a trailing `<keyword>\t<identifier>` line.
 
-On success the helper prints the new identifier. Report:
+## Step 5: Gate the writeback on the keyword
 
-> Issue created: **\<IDENTIFIER\>** — the work item's `external_id` is now
-> `\<IDENTIFIER\>`.
+Branch on the keyword — the writeback is **fail-closed**, so a non-`created`
+outcome never writes `external_id` and never invites a blind re-run:
 
-If the helper exits `E_CREATE_WRITEBACK_FAILED` (107), the issue **was** created
-remotely but the local file was **not** updated. Surface this loudly: tell the
-user the created identifier, that they must NOT blindly re-run (it would create
-a duplicate), and that they should set `external_id: <IDENTIFIER>` by hand.
+- **`created`** — the issue exists remotely with `<identifier>`. Set
+  `external_id: <identifier>` in the work-item file's frontmatter (insert the
+  line if absent), then report: *"Issue created: **\<identifier\>** — the work
+  item's `external_id` is now `\<identifier\>`."*
+- **`writeback-failed`** — the issue **was** created remotely but its
+  identifier is unusable. Do **not** write `external_id`. Surface this
+  loudly: give the user the identifier, tell them NOT to re-run (it would create
+  a duplicate), and that they should reconcile `external_id` by hand.
+- **any other non-zero exit** — no issue was created. Do **not** write
+  `external_id`; report the error. The file is unchanged, so it is safe to fix
+  and retry.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-linear-issue --fail-safe`

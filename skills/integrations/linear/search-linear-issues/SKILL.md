@@ -11,10 +11,8 @@ description: >
 argument-hint: "[--state NAME] [--assignee NAME] [--label NAME] [--text STR] [--limit 1..250] [--quiet]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(jq)
-  - Bash(curl)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
 ---
 
 # Search Linear Issues
@@ -44,19 +42,21 @@ Read the argument string and note each flag:
 
 ## Step 2: Run the search
 
-Run the search flow, passing the flags through verbatim:
+Run the search subcommand, passing the flags through verbatim:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/linear/scripts/linear-search-flow.sh [flags]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear search [flags]
 ```
 
-Run the bare path **directly** as an executable; never prefix it with
-`bash`/`sh`/`env` (a wrapper prefix escapes the skill's `allowed-tools`
-permission and forces an unnecessary prompt).
+Run the bare launcher **directly** as an executable; never prefix it with
+`bash`/`sh`/`env` and never pipe its output (a wrapper prefix or a pipe escapes
+the skill's `allowed-tools` permission and forces an unnecessary prompt).
 
-The flow echoes the composed `IssueFilter` to stderr (`INFO:`) for auditability
-and emits a single merged JSON result with all pages under `.data.issues.nodes`.
-If `.data.issues.truncated` is `true`, more pages remained than were fetched —
+The subcommand echoes the composed `IssueFilter` to stderr (`INFO:`) for
+auditability and emits a single merged JSON document with all pages under
+`.data.issues.nodes`, plus a top-level `outcome` keyword — `results`, `empty`,
+or `truncated`. When `outcome` is `truncated` (equivalently
+`.data.issues.truncated` is `true`), more pages remained than were fetched —
 say so.
 
 ## Step 3: Render the results

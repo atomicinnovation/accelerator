@@ -1,4 +1,11 @@
-//! Drives the bash ADF pipeline and compares its output with this crate's.
+//! Reads the frozen bash-ADF oracle corpus and compares it with this crate's.
+//!
+//! Each case directory carries the bash pipeline's captured `oracle.out`,
+//! `oracle.err` and `oracle-status.txt`, frozen by
+//! `tests/support/capture-adf-oracle.sh` while the drivers still existed. The
+//! comparison reads the corpus rather than running `jira-adf-to-md.sh` /
+//! `jira-md-to-adf.sh`, so it survives their deletion; the corpus is never
+//! regenerated from this crate's output.
 //!
 //! Shared by `adf_differential.rs` and by `adf_differential_self_test.rs`,
 //! which proves the comparison can fail.
@@ -7,21 +14,8 @@
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 
 use serde_json::Value;
-
-pub const ADF_TO_MD: &str =
-    "skills/integrations/jira/scripts/jira-adf-to-md.sh";
-pub const MD_TO_ADF: &str =
-    "skills/integrations/jira/scripts/jira-md-to-adf.sh";
-
-pub fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("the repository root resolves")
-}
 
 pub fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/adf")
@@ -54,44 +48,30 @@ pub struct Run {
     pub stderr: String,
 }
 
-/// Runs one of the bash drivers over `input`.
+/// Reads one case's frozen oracle output.
 ///
-/// Fails rather than skips when bash or jq is unavailable: a gate that passes
-/// when its tool is missing proves nothing, and both platforms CI runs on ship
-/// them.
-pub fn run_oracle(script: &str, input: &[u8], seeded: bool) -> Run {
-    let mut command = Command::new("bash");
-    command
-        .arg(repo_root().join(script))
-        .current_dir(repo_root())
-        .stdin(std::process::Stdio::piped());
-    if seeded {
-        command.env("JIRA_ADF_LOCALID_SEED", "1");
-    } else {
-        command.env_remove("JIRA_ADF_LOCALID_SEED");
-    }
-    let mut child = command
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .expect(
-            "bash runs: this differential fails rather than skips when the \
-             oracle is unavailable",
-        );
-    {
-        use std::io::Write as _;
-        child
-            .stdin
-            .as_mut()
-            .expect("stdin is piped")
-            .write_all(input)
-            .expect("the input is written");
-    }
-    let output = child.wait_with_output().expect("the oracle terminates");
+/// Fails rather than skips on a missing corpus file or an empty/unparseable
+/// status: a truncated capture must red the differential loudly, not turn a
+/// case into a silent no-op. An empty `oracle.out` is legitimate — the
+/// empty-document render and every abort/reject case emit no stdout — so the
+/// status file is the signal that distinguishes them.
+pub fn frozen_oracle(case: &Path) -> Run {
+    let name = case_name(case);
+    let stdout = std::fs::read(case.join("oracle.out"))
+        .unwrap_or_else(|_| panic!("{name}: the frozen oracle.out is missing"));
+    let stderr = std::fs::read_to_string(case.join("oracle.err"))
+        .unwrap_or_else(|_| panic!("{name}: the frozen oracle.err is missing"));
+    let raw = std::fs::read_to_string(case.join("oracle-status.txt"))
+        .unwrap_or_else(|_| {
+            panic!("{name}: the frozen oracle-status.txt is missing")
+        });
+    let status = raw.trim().parse::<i32>().unwrap_or_else(|_| {
+        panic!("{name}: oracle-status.txt is empty or not an integer: {raw:?}")
+    });
     Run {
-        status: output.status.code().unwrap_or(-1),
-        stdout: output.stdout,
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        status,
+        stdout,
+        stderr,
     }
 }
 
