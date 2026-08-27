@@ -385,11 +385,6 @@ description = "Run github skills integration tests (shell harnesses)"
 run = "invoke test.integration.github"
 env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
-[tasks."test:integration:work"]
-description = "Run work-management skill script tests (shell harnesses)"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.work"
-
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -403,7 +398,6 @@ depends = [
     "test:integration:tasks",
     "test:integration:hooks",
     "test:integration:github",
-    "test:integration:work",
 ]
 
 [tasks."test:e2e:visualiser"]

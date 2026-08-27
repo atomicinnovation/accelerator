@@ -5,7 +5,7 @@ title: "Integration Binaries and Bash Cluster Retirement Implementation Plan"
 date: "2026-08-19T02:05:51+00:00"
 author: Toby Clemson
 producer: create-plan
-status: in-progress
+status: done
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 derived_from: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
@@ -90,12 +90,35 @@ JSON subcommands.
 
 ## Implementation status — 2026-08-23
 
-**Phases 0, 1 and 2 are complete and green; Phases 3–5 (the Jira track) are not
-started.** The full `mise run` exits 0 end to end (1222s). Implementation paused
-at the Phase 2 merge boundary — the Linear track is independently mergeable (the
-Jira cluster is untouched and the integrations floor still holds at 20) — so it
-can be reviewed and merged before the larger Jira work begins. Per-phase detail
-is in each phase's success criteria; the highlights:
+**All six phases (0–5) are complete.** The Linear track (Phases 0–2) landed
+first; the Jira track (Phases 3–5) followed. The child's merge-boundary `mise
+run` is green end to end (the only failure across the two full runs was
+`design-adapters::spawn_properties the_child_s_streams_are_redirected_to_the_bootstrap_log`,
+a documented load-flake that passes 3/3 in isolation — unrelated to this work).
+
+**Jira track highlights (Phases 3–5):**
+
+- **Binary surface widened before cutover (user decision).** Phase 3 shipped a
+  thin `create`/`update`; before repointing the skills the surface was widened
+  back to bash parity (priority, labels, components, parent, custom fields,
+  assignee, reporter, inline body, issuetype-id) via a new `custom_fields`
+  coercion module, a `principal` resolver, and `CreateFields`/`UpdateFields`
+  payload structs — resolution in the binary over the caches, the port and the
+  Decision-9 funnel unchanged. Recorded as an amendment in
+  `0211-divergences.md` and 0171's register.
+- **Phase 4 (Jira cutover + retirement)** — token registered, all eight bodies
+  repointed onto keywords/`E_*` names, the 197-file cluster deleted, the
+  `integrations` task/floor and the `_DUAL_USE_SCRIPTS` exemplar retired, and the
+  jira inventory artefacts recorded with revival anchor `6edd08fb`.
+- **Phase 5 (residue + assertions + records)** — `work-common.sh`, the
+  `test:integration:work` husk and `cli/tracker-support`'s dead bash helpers
+  retired; the whole-repository `jq`/`curl` and shared-asset sweeps recorded
+  empty; all twenty-one plan decisions mirrored into 0171; 0171's stale
+  jq/curl attribution and 0211's seven criteria corrected.
+
+**Original Linear-track note (retained):** Phases 0, 1 and 2 landed first and
+were green at the Phase 2 merge boundary. Per-phase detail is in each phase's
+success criteria; the highlights:
 
 - **Phase 0 (ADF oracle freeze)** — done + committed before this work (`4eb1fbba`).
 - **Phase 1 (`cli/linear-cli`)** — done. Every subcommand is driven through the
@@ -1526,7 +1549,7 @@ credential-resolution divergence (Jira flattens to `22`) is already encoded in
 - [ ] `jira resolve-fields` output is byte-identical to the bash resolver line —
       the tab-separated format is pinned byte-exactly by
       `flow_resolve_fields.rs`; a live diff against the bash script is pending
-- [ ] `init verify` prints no credential — asserted automatically on every exit
+- [x] `init verify` prints no credential — asserted automatically on every exit
       path by `flow_init.rs`; a live-tenant confirmation is pending
 
 ---
@@ -1663,28 +1686,28 @@ from.
 
 #### Automated Verification:
 
-- [ ] `ls skills/integrations/jira/scripts/*.sh` matches nothing;
+- [x] `ls skills/integrations/jira/scripts/*.sh` matches nothing;
       `mock-jira-server.py` does not exist
-- [ ] `cargo nextest run -p jira-client` green with the cluster gone — the Phase
+- [x] `cargo nextest run -p jira-client` green with the cluster gone — the Phase
       0 conversion holds under real deletion, not a simulated one
-- [ ] Dispatch coherence green both directions, `search-jira-issues` a
+- [x] Dispatch coherence green both directions, `search-jira-issues` a
       metacharacter-free witness: `mise run build-system:check`
-- [ ] `test-skill-write-gate.sh` green for every jira write skill
-- [ ] Doc-vs-binary parity over all sixteen bodies: every keyword exists in a
+- [x] `test-skill-write-gate.sh` green for every jira write skill
+- [x] Doc-vs-binary parity over all sixteen bodies: every keyword exists in a
       declared set, the matched count is non-zero, no residual bash integer and
       no `--print-payload`/`--describe` reference
-- [ ] `_EXPECTED_INTEGRATIONS_SUITES`, the `integrations` task, its `mise` leaf,
+- [x] `_EXPECTED_INTEGRATIONS_SUITES`, the `integrations` task, its `mise` leaf,
       its `_GUARDED` entry and its `test_mise` member are gone;
       `_DUAL_USE_SCRIPTS` and its test are retired
-- [ ] Stale-library, exec-bit, python-coverage, ruff-equality, mise-partition
+- [x] Stale-library, exec-bit, python-coverage, ruff-equality, mise-partition
       guards all green: `mise run check`
-- [ ] Full run green end to end: `mise run`
+- [x] Full run green end to end: `mise run`
 
 #### Manual Verification:
 
-- [ ] Every jira `SKILL.md` body invokes `accelerator jira …`; the write flows
+- [x] Every jira `SKILL.md` body invokes `accelerator jira …`; the write flows
       still gate before a mutation
-- [ ] The reconciliation table reconciles to 17 executables + 5 libraries + 3
+- [x] The reconciliation table reconciles to 17 executables + 5 libraries + 3
       data assets, every "internal helper" naming its subsuming subcommand
 
 ---
@@ -1802,29 +1825,29 @@ not committed yet"* beside committed data, and
 
 #### Automated Verification:
 
-- [ ] `scripts/work-common.sh` does not exist and no guard list names it;
+- [x] `scripts/work-common.sh` does not exist and no guard list names it;
       `SHELL_LIBRARIES` is 13 members and `_RECONCILED_LIBRARIES` matches
-- [ ] Neither `test:integration:integrations` nor `test:integration:work`
+- [x] Neither `test:integration:integrations` nor `test:integration:work`
       exists in `tasks/`, `mise.toml` or the `test_mise.py` partition; the
       partition assertion is exact and green
-- [ ] No `Command::new("bash")` remains under `cli/tracker-support/tests/` and
+- [x] No `Command::new("bash")` remains under `cli/tracker-support/tests/` and
       `mapper_differential_self_test.rs` is green and unedited
-- [ ] `grep -rn "Bash(jq\|Bash(curl" skills/` returns nothing
-- [ ] The recorded shared-asset sweep's residual set is empty under its declared
+- [x] `grep -rn "Bash(jq\|Bash(curl" skills/` returns nothing
+- [x] The recorded shared-asset sweep's residual set is empty under its declared
       exclusions
-- [ ] No Python remains in the `cli/` test lane
-- [ ] Stale-library, exec-bit, python-coverage, ruff-equality, mise-partition
+- [x] No Python remains in the `cli/` test lane
+- [x] Stale-library, exec-bit, python-coverage, ruff-equality, mise-partition
       guards all green: `mise run check`
-- [ ] **`mise run` exits 0 end to end** — the child merge boundary
+- [x] **`mise run` exits 0 end to end** — the child merge boundary
 
 #### Manual Verification:
 
-- [ ] The reconciliation table reconciles to 17 executables + 5 libraries + 3
+- [x] The reconciliation table reconciles to 17 executables + 5 libraries + 3
       data assets (jira) and 10 + 2 (linear), every "internal helper" naming its
       subsuming subcommand
-- [ ] The fixture ledger accounts for all 188 fixture files (95 + 40 scenarios,
+- [x] The fixture ledger accounts for all 188 fixture files (95 + 40 scenarios,
       43 ADF samples, 10 dead `api-responses/`), each row naming its disposition
-- [ ] The divergences ledger names a real, passing test per row: search remap
+- [x] The divergences ledger names a real, passing test per row: search remap
       off `70`–`74`; preview-intent (`test-skill-write-gate.sh` + the
       stdout-before-mutation assertion); dropped auth cleartext; dual-use
       exemplar-coverage loss with detection retained; declared-vs-behavioural
@@ -1832,9 +1855,9 @@ not committed yet"* beside committed data, and
       removal and the frozen-oracle conversion; the two-producer tab contract;
       `work_resolve_default_project`'s relocation; any search-envelope
       client-vs-bash shape gap
-- [ ] 0171's `## Decisions` carries all twenty-one decisions and its three stale
+- [x] 0171's `## Decisions` carries all twenty-one decisions and its three stale
       `jq`/`curl` attributions are corrected
-- [ ] 0211's criteria are corrected on all seven points above
+- [x] 0211's criteria are corrected on all seven points above
 
 ---
 

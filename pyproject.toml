@@ -114,8 +114,6 @@ ignore = [
 # noise on test code, and the test tree deliberately has no __init__.py (pytest
 # importlib mode) so implicit-namespace-package never applies.
 "tests/**" = ["S", "ANN", "D", "PLR2004", "SLF001", "PT", "INP001"]
-# (mock-jira-server.py is fully excluded via [tool.ruff] extend-exclude above
-# because of its 3.9 floor — no per-file ignore needed.)
 
 [tool.ruff.format]
 # Defaults (double quotes, space indent); line-length inherited from [tool.ruff].
@@ -129,8 +127,6 @@ python-version = "3.14"
 # type-check lives under tasks/. Out of scope, by construction:
 #  - workspaces/  : jj workspace checkouts (full repo copies).
 #  - .venv/       : the virtualenv (third-party site-packages).
-#  - mock-jira-server.py / mock-linear-server.py (under skills/) : read ad-hoc
-#    attributes off HTTPServer and target the 3.9 floor.
 #  - tests/       : pytest + MagicMock suites are inherently dynamic — fixtures
 #    inject un-annotated params and mocks present arbitrary attributes/returns,
 #    so strict typing yields only false positives. Tests are validated by
