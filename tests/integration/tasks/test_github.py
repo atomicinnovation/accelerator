@@ -55,6 +55,10 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
             "The linear create|update|show|search|comment|transition|"
             "attach|init sub-binary."
         ),
+        "jira": (
+            "The jira create|update|show|search|comment|transition|attach|"
+            "init|fields|resolve-fields sub-binary."
+        ),
     }
 )
 
@@ -633,6 +637,7 @@ class TestBuilderSeams:
             "migrate",
             "design",
             "linear",
+            "jira",
         )
 
 

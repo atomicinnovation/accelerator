@@ -70,12 +70,16 @@ confidence-threshold = 0.8
 # actually linked — distributing such a binary requires telling recipients how
 # to obtain the source, which the release upload set carries no artefact for.
 #
-# Measured across all six dispatched sub-binaries, unstripped --release,
+# Measured across the dispatched sub-binaries, unstripped --release,
 # aarch64-apple-darwin, by counting `gix_`/`jj_lib`/`uluru` symbols:
 #
 #   accelerator-vcs, -work, -collaboration, -migrate  uluru linked
 #   accelerator-corpus                                uluru linked
 #   accelerator-visualiser                            no gix, jj-lib or uluru
+#   accelerator-design, -linear, -jira                no gix, jj-lib or uluru
+#
+# The linear and jira sub-binaries carry the reqwest/rustls tree only, riding
+# the existing permissive allow; they add no copyleft closure.
 #
 # The first four are a pre-existing finding, not a new one: each constructs
 # InProcessProbe directly, and each already carried the closure before the

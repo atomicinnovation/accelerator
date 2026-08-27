@@ -110,7 +110,15 @@ fn write_site_writes_the_shape_and_the_scaffold() {
 
     assert!(fs.get(&cache_root().join("site.json")).is_some());
     let rules = fs.lines(&cache_root().join(".gitignore"));
-    assert_eq!(rules, vec!["site.json", ".refresh-meta.json", ".lock/"]);
+    assert_eq!(
+        rules,
+        vec![
+            "site.json",
+            ".refresh-meta.json",
+            ".cache-version.json",
+            ".lock/"
+        ]
+    );
     assert!(fs.exists(&cache_root().join(".gitkeep")));
 }
 
@@ -124,7 +132,67 @@ fn the_scaffold_is_idempotent_across_two_runs() {
     cache.write_site(&shape).expect("second run");
 
     let rules = fs.lines(&cache_root().join(".gitignore"));
-    assert_eq!(rules.len(), 3, "no rule is duplicated on the second run");
+    assert_eq!(rules.len(), 4, "no rule is duplicated on the second run");
+}
+
+#[test]
+fn a_markerless_bash_era_cache_reads_unchanged() {
+    // The migration population: a cache written by the retiring bash carries no
+    // version marker, so it is the implicit bash-era version and reads as-is.
+    let fs = FakeFs::default();
+    fs.files.borrow_mut().insert(
+        cache_root().join("fields.json"),
+        r#"{"fields":[{"id":"cf-1","name":"Sprint"}]}"#.to_owned(),
+    );
+    let cache = JiraCache::new(&fs, cache_root());
+
+    let read = cache.read_cache("fields.json").expect("bash-era reads");
+    assert_eq!(
+        read.pointer("/fields/0/id").and_then(|v| v.as_str()),
+        Some("cf-1")
+    );
+}
+
+#[test]
+fn an_unrecognised_version_marker_fails_closed() {
+    // A stale future-versioned cache that could feed wrong values into a live
+    // mutation: the read refuses rather than trusting it.
+    let fs = FakeFs::default();
+    fs.files.borrow_mut().insert(
+        cache_root().join(".cache-version.json"),
+        r#"{"version":999}"#.to_owned(),
+    );
+    fs.files.borrow_mut().insert(
+        cache_root().join("fields.json"),
+        r#"{"fields":[]}"#.to_owned(),
+    );
+    let cache = JiraCache::new(&fs, cache_root());
+
+    let error = cache.read_cache("fields.json").expect_err("fails closed");
+    assert!(
+        matches!(error, CacheError::Incompatible { .. }),
+        "expected a fail-closed incompatibility, got {error:?}"
+    );
+}
+
+#[test]
+fn a_first_init_stamps_the_marker_so_later_reads_are_versioned() {
+    let fs = FakeFs::default();
+    let cache = JiraCache::new(&fs, cache_root());
+
+    cache
+        .write_discovery(&json!({"projects": []}), &json!({"fields": []}))
+        .expect("discovery is written");
+
+    // The marker is stamped, so a subsequent read is version-checked (and, at
+    // the current version, permitted).
+    assert!(
+        fs.get(&cache_root().join(".cache-version.json")).is_some(),
+        "the version marker is stamped on first write"
+    );
+    cache
+        .read_cache("fields.json")
+        .expect("the versioned cache reads");
 }
 
 #[test]

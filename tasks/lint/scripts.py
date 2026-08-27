@@ -31,11 +31,6 @@ SHELL_LIBRARIES: frozenset[str] = frozenset(
         "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",
         "scripts/accelerator-scaffold.sh",
-        "skills/integrations/jira/scripts/jira-common.sh",
-        "skills/integrations/jira/scripts/jira-auth.sh",
-        "skills/integrations/jira/scripts/jira-jql.sh",
-        "skills/integrations/jira/scripts/jira-body-input.sh",
-        "skills/integrations/jira/scripts/jira-custom-fields.sh",
     }
 )
 

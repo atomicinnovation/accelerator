@@ -23,7 +23,6 @@ Construction guards (or the synthetic tests pass vacuously):
   than firing incidentally on real members the synthetic list omits.
 """
 
-import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -257,19 +256,8 @@ _RECONCILED_LIBRARIES = frozenset(
         "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",
         "scripts/accelerator-scaffold.sh",
-        "skills/integrations/jira/scripts/jira-common.sh",
-        "skills/integrations/jira/scripts/jira-auth.sh",
-        "skills/integrations/jira/scripts/jira-jql.sh",
-        "skills/integrations/jira/scripts/jira-body-input.sh",
-        "skills/integrations/jira/scripts/jira-custom-fields.sh",
     }
 )
-
-# Dual-use scripts: sourced for their functions AND invoked by path in
-# production, so they are entrypoints that must stay OFF the list at 0755.
-# Pinning them is the regression net for the single most error-prone
-# classification.
-_DUAL_USE_SCRIPTS = ("skills/integrations/jira/scripts/jira-fields.sh",)
 
 
 class TestShellLibrariesIntegrity:
@@ -282,17 +270,6 @@ class TestShellLibrariesIntegrity:
         sources = set(lint.shell_sources())
         missing = sorted(m for m in lint.SHELL_LIBRARIES if m not in sources)
         assert not missing, f"library-list members not enumerated: {missing}"
-
-    def test_dual_use_scripts_are_entrypoints(self):
-        repo = lint.repo_root()
-        for rel in _DUAL_USE_SCRIPTS:
-            assert rel not in lint.SHELL_LIBRARIES, (
-                f"{rel} is dual-use (also path-invoked) and must stay OFF "
-                "SHELL_LIBRARIES"
-            )
-            assert os.access(repo / rel, os.X_OK), (
-                f"{rel} is an entrypoint and must be executable on the tree"
-            )
 
 
 class TestExecBitsRealTree:

@@ -17,11 +17,10 @@ from pathlib import Path
 
 from tasks.shared.paths import REPO_ROOT
 
-# The repointed bodies and the crate whose keyword set is their authority. Jira
-# joins when its cutover lands; until then its bodies still call the bash
-# cluster and are out of scope.
+# The repointed bodies and the crate whose keyword set is their authority.
 _PROVIDERS: dict[str, Path] = {
     "linear": REPO_ROOT / "cli/linear-cli/src/keywords.rs",
+    "jira": REPO_ROOT / "cli/jira-cli/src/keywords.rs",
 }
 
 # A keyword literal in a `keyword(self)` projection: `=> "created",`.
@@ -39,7 +38,9 @@ _DROPPED_PREVIEW = re.compile(r"--print-payload|--describe")
 
 # Tokens that are backticked and lower-kebab but are never outcome keywords, so
 # a branch-cue line mentioning one is not a keyword reference to check.
-_NOT_KEYWORDS = frozenset({"outcome", "y", "n", "external_id", "init-linear"})
+_NOT_KEYWORDS = frozenset(
+    {"outcome", "y", "n", "external_id", "init-linear", "init-jira"}
+)
 
 
 def declared_keywords(keywords_rs: Path) -> set[str]:

@@ -715,7 +715,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cli-test-support"
-version = "1.24.0-pre.48"
+version = "1.24.0-pre.50"
 dependencies = [
  "http-test-support",
  "serde",
@@ -2801,6 +2801,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "jira-cli"
+version = "1.24.0-pre.50"
+dependencies = [
+ "clap",
+ "cli-test-support",
+ "config",
+ "config-adapters",
+ "http-test-support",
+ "jira-client",
+ "kernel",
+ "serde_json",
+ "tempfile",
+ "tracker",
+ "tracker-support",
+ "vcs",
+ "vcs-adapters",
+]
+
+[[package]]
 name = "jira-client"
 version = "1.24.0-pre.50"
 dependencies = [
@@ -2995,7 +3014,7 @@ dependencies = [
 
 [[package]]
 name = "linear-cli"
-version = "1.24.0-pre.48"
+version = "1.24.0-pre.50"
 dependencies = [
  "clap",
  "cli-test-support",

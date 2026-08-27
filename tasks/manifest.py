@@ -94,6 +94,7 @@ _SUBBINARY_MANIFESTS: Mapping[str, Path] = MappingProxyType(
         "migrate": CLI_DIR / "migrate-cli/Cargo.toml",
         "design": CLI_DIR / "design-cli/Cargo.toml",
         "linear": CLI_DIR / "linear-cli/Cargo.toml",
+        "jira": CLI_DIR / "jira-cli/Cargo.toml",
     }
 )
 

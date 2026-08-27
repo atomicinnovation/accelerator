@@ -146,3 +146,87 @@ scenarios/` (each consumed, pinned by `scenario_inventory.rs`), **25
 superseded** by an existing `cli/linear-client` crate test driving the same
 condition. Porting all 40 mechanically is declined (Decision 15): it would
 re-create test surface the client crate already carries.
+
+---
+
+## Jira scenarios — 95 files (Phase 3)
+
+Disposition of every file under
+`skills/integrations/jira/scripts/test-fixtures/scenarios/`. Unlike the Linear
+track (which ported 15 scenario files into `cli/linear-cli/tests/fixtures/
+scenarios/`), the `jira-cli` flow tests define their mock bodies **inline** — the
+condition each scenario encoded is driven directly in a `flow_*.rs` test — so no
+scenario file is carried into a `tests/fixtures/scenarios/` directory that would
+need an inventory test to police. Every file is therefore either **covered
+inline** by a named `jira-cli` flow test that drives the same condition, or
+**superseded** by an existing `cli/jira-client` crate test (read, pagination,
+retry, timeout, multipart and error-classification conditions are client-crate
+concerns the thin adapter does not re-test), or **superseded by Decision 2**
+(the wire-payload `--print-payload`/`--describe` preview is not reproduced). The
+custom-field scenarios are covered inline: the Phase 4 widening restored
+`--custom` composition, so they are driven by the `flow_create` field-set and
+bad-field tests.
+
+Covered inline by a `jira-cli` flow test (examples):
+`create-201.json`, `create-201-capture.json` (`flow_create`);
+`issue-200.json`, `issue-with-adf.json`, `issue-with-comments.json`
+(`flow_show`/`stdout_goldens`); `search-200.json`, `search-empty.json`,
+`search-with-adf.json` (`flow_search`); `comment-add-201.json`,
+`comment-list-200.json`, `comment-edit-200.json`, `comment-delete-204.json`
+(`flow_comment`); `transition-post-204.json`, `transition-post-204-direct.json`,
+`transition-list-200.json` (`flow_transition`); `attach-post-200.json`,
+`attach-post-200-two-files.json` (`flow_attach`); `init-flow-200.json`
+(`flow_init`).
+
+Superseded by a `cli/jira-client` crate test (examples): the HTTP status classes
+`error-{400,401,403,404,410,500}.json`, `issue-{401,403,404}.json`,
+`create-{400-missing-summary,400-bad-customfield,500}.json`,
+`comment-{add-500,edit-500,delete-500,list-404,list-500}.json`,
+`transition-{list-401,list-404,post-400}.json`, `update-{400-bad-field,404,500}.json`,
+`fetch-keys-{400}.json` (`classify.rs`/`transport.rs`, exit-code parity);
+the bulk read `fetch-keys-{200,paginated,twochunks}.json`,
+`fetch-plain-search-200.json` (`port.rs`); the comment-list pagination and
+degeneracy `comment-list-{paginated,exact-page-200,natural-end-at-cap,runaway,
+shrinking-total,bad-total,empty-200,empty-mid-page}.json` (`comment.rs`);
+the retry/timeout `retry-after-{delta,http-date.json.tmpl,malformed,no-tz,
+past.json.tmpl,rfc850.json.tmpl}.json`, `retry-exhausted.json`,
+`slow-200.json`, `fields-slow-200.json`, `non-json-200.json` (`transport.rs`/
+`timeouts.rs`); the transport/multipart `post-200.json`, `post-multipart-200.json`,
+`get-200.json`, `empty-200.json`, `unicode-200.json`,
+`issue-{empty-comments,mixed-content,no-comment-block,url-capture,with-2-comments}.json`,
+`issue-with-adf`-adjacent read shapes, `search-{fields-capture,paginated-page1,
+paginated-page2}.json`, `fields-{200,with-schema-200}.json`,
+`transition-{list-ambiguous-200,post-204-capture,post-204-no-notify}.json`,
+`attach-{post-401,post-403}.json`, `comment-add-201`-capture read shapes
+(`transport.rs`/`comment.rs`/`attach.rs`/`discovery.rs`/`read_projection.rs`).
+
+Superseded by Decision 2 — wire-payload preview not reproduced (7):
+`comment-add-print-payload-guard.json`, `comment-edit-print-payload-guard.json`,
+`comment-delete-describe-guard.json`, `attach-describe-guard.json`,
+`transition-describe-guard.json`, `print-payload-guard.json`,
+`print-payload-guard-update.json`.
+
+Custom-field composition (restored by the Phase 4 widening), covered inline:
+`create-with-custom-fields-capture.json` and `create-400-bad-customfield.json`
+are driven by `flow_create.rs::create_sends_the_full_resolved_field_set` and
+`::an_unknown_custom_field_is_103`; the cross-crate `apply-push-204-show.json` is
+the `work-adapters` sync-apply path, driven by
+`work-adapters/tests/sync_apply.rs`.
+
+**Count**: 95 files = **7** superseded by Decision 2 (the `*-print-payload-guard`
+and `*-describe-guard` files, the wire-payload preview not reproduced) + **88**
+remaining, each covered inline by a named `jira-cli` flow test or superseded by
+a `cli/jira-client` crate test driving the same read/pagination/retry/timeout/
+multipart/error-classification condition — of which **2** (the
+`*custom-field*`/`*customfield*` scenarios) are covered inline by the
+`flow_create` custom-field tests after the Phase 4 widening restored `--custom`
+composition, and **1** (`apply-push-204-show.json`) is the `work-adapters`
+sync-apply path driven by `work-adapters/tests/sync_apply.rs`. No jira scenario
+file is ported into a `tests/fixtures/scenarios/` directory, so there is no
+ported-but-unconsumed surface to police; the `jira-cli` flow tests drive every
+reproduced condition directly. Porting all 95 mechanically is declined
+(Decision 15).
+
+The ten `skills/integrations/jira/scripts/test-fixtures/api-responses/` files are
+ledgered as **already dead** — zero consumers before this change — and deleted
+without porting (Phase 4).

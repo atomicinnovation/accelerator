@@ -22,10 +22,22 @@ use store::WriteBounds;
 use thiserror::Error;
 
 /// The gitignored entries in a Jira state directory.
-const GITIGNORE_RULES: &[&str] = &["site.json", ".refresh-meta.json", ".lock/"];
+const GITIGNORE_RULES: &[&str] = &[
+    "site.json",
+    ".refresh-meta.json",
+    ".cache-version.json",
+    ".lock/",
+];
 
 /// The lock directory name.
 const LOCK_DIR: &str = ".lock";
+
+/// The cache-layout version the binary writes and reads. Bash-era caches carry
+/// no marker and are classified as the implicit version 0 — read unchanged.
+const CACHE_VERSION: u64 = 1;
+
+/// The marker file recording the cache-layout version.
+const VERSION_FILE: &str = ".cache-version.json";
 
 #[derive(Debug, Error)]
 pub enum CacheError {
@@ -35,6 +47,14 @@ pub enum CacheError {
     LockContended { path: String },
     #[error("E_CACHE_BAD_JSON: {detail}")]
     Serialise { detail: String },
+    /// The cache carries an unrecognised version marker, or a shape that does
+    /// not parse as the known layout — a stale or corrupt cache that could feed
+    /// wrong values into a live mutation. Read fails closed rather than trusting
+    /// it.
+    #[error(
+        "E_CACHE_INCOMPATIBLE: {detail}; re-run init to rebuild the cache"
+    )]
+    Incompatible { detail: String },
 }
 
 /// The filesystem operations the cache writer needs.
@@ -95,6 +115,7 @@ impl<'a> JiraCache<'a> {
     /// [`CacheError`] for a write or serialisation failure.
     pub fn write_site(&self, shape: &Value) -> Result<(), CacheError> {
         self.write_json("site.json", shape)?;
+        self.stamp_version()?;
         self.ensure_scaffold()
     }
 
@@ -111,8 +132,64 @@ impl<'a> JiraCache<'a> {
         let lockdir = self.state_dir.join(LOCK_DIR);
         self.fs.with_lock(&lockdir, &mut || {
             self.write_json("projects.json", projects)?;
-            self.write_json("fields.json", fields)
+            self.write_json("fields.json", fields)?;
+            self.stamp_version()
         })
+    }
+
+    /// Reads a discovery cache file, failing closed on an unrecognised version
+    /// marker or a shape that does not parse. An absent marker is
+    /// the implicit bash-era version and reads unchanged, so no existing install
+    /// must re-initialise.
+    ///
+    /// # Errors
+    ///
+    /// [`CacheError::Incompatible`] for a stale/corrupt cache; [`CacheError::Io`]
+    /// when `name` is absent.
+    pub fn read_cache(&self, name: &str) -> Result<Value, CacheError> {
+        self.assert_version()?;
+        let path = self.state_dir.join(name);
+        let text = self.fs.read(&path).ok_or_else(|| CacheError::Io {
+            path: path.display().to_string(),
+            detail: "the cache file is absent".to_owned(),
+        })?;
+        serde_json::from_str(&text).map_err(|error| CacheError::Incompatible {
+            detail: format!("{name} is not valid JSON: {error}"),
+        })
+    }
+
+    /// Records the current cache-layout version, so a subsequent read is
+    /// versioned rather than treated as bash-era.
+    fn stamp_version(&self) -> Result<(), CacheError> {
+        self.write_json(
+            VERSION_FILE,
+            &serde_json::json!({"version": CACHE_VERSION}),
+        )
+    }
+
+    /// Classifies the version marker: absent is bash-era (permitted), the
+    /// current version is permitted, anything else fails closed.
+    fn assert_version(&self) -> Result<(), CacheError> {
+        let Some(text) = self.fs.read(&self.state_dir.join(VERSION_FILE))
+        else {
+            return Ok(());
+        };
+        let marker: Value = serde_json::from_str(&text).map_err(|error| {
+            CacheError::Incompatible {
+                detail: format!(
+                    "the version marker is not valid JSON: {error}"
+                ),
+            }
+        })?;
+        match marker.get("version").and_then(Value::as_u64) {
+            Some(CACHE_VERSION) => Ok(()),
+            other => Err(CacheError::Incompatible {
+                detail: format!(
+                    "cache version {other:?} is not the supported version \
+                     {CACHE_VERSION}"
+                ),
+            }),
+        }
     }
 
     fn write_json(&self, name: &str, value: &Value) -> Result<(), CacheError> {

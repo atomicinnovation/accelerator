@@ -1,0 +1,8 @@
+{
+  "fields": {
+    "description": "hello",
+    "summary": "a bug"
+  },
+  "key": "ENG-42",
+  "outcome": "found"
+}

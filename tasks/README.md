@@ -88,10 +88,10 @@ is no longer enumerated.
   only touch `SHELL_LIBRARIES` (the manifest in `tasks/lint/scripts.py`) for a
   sourced-only library.
 - **The classification rule is two-part: sourced AND never invoked by path.**
-  "Sourced" alone is not enough. `jira-fields.sh` is `source`d by
-  `jira-init-flow.sh` *and* invoked `bash …/jira-fields.sh refresh` in
-  production, so it is an **entrypoint** that stays OFF the list at `0755`.
-  Dual-use ⇒ entrypoint.
+  "Sourced" alone is not enough — a script that is both `source`d for its
+  functions *and* invoked by path in production is a dual-use script, which
+  counts as an **entrypoint** that stays OFF the list at `0755`. Dual-use ⇒
+  entrypoint.
 - **Maintenance:** a new sourced-only library must be **added** to
   `SHELL_LIBRARIES` (or the guard demands `+x`); a removed/renamed library must
   be **deleted/updated** there (or the stale-entry check fails).

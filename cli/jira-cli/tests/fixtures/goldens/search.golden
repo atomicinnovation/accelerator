@@ -1,0 +1,18 @@
+{
+  "issues": [
+    {
+      "fields": {
+        "assignee": {
+          "displayName": "Ada"
+        },
+        "status": {
+          "name": "In Progress"
+        },
+        "summary": "a bug"
+      },
+      "key": "ENG-1"
+    }
+  ],
+  "nextPageToken": "tok-2",
+  "outcome": "results"
+}

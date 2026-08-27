@@ -37,13 +37,6 @@ _ABSOLUTE_VCS_PATHS = (
 # must equal the count the discovery below finds.
 _EXPECTED_CONFIG_SUITES = 14
 
-# The skills/integrations subtree discoverable shell suites (every individual
-# test-jira-*.sh; the test-jira-scripts.sh umbrella runner is excluded from
-# discovery — see EXCLUDED_HELPER_NAMES). At-least floor so a dropped exec bit
-# can't silently drop a create/auth suite from CI. The linear suites are gone
-# (0211 retired the linear bash cluster).
-_EXPECTED_INTEGRATIONS_SUITES = 20
-
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count
 # still passes via other suites. The producer-conformance guard (work item
@@ -386,15 +379,6 @@ def github(context: Context) -> None:
 def work(context: Context) -> None:
     """Integration tests for the work-management skill scripts."""
     run_shell_suites(context, "skills/work", accelerator_env())
-
-
-@task
-def integrations(context: Context) -> None:
-    """Integration tests for the jira/linear integration scripts."""
-    suites = run_shell_suites(context, "skills/integrations", accelerator_env())
-    _require_suite_floor(
-        suites, _EXPECTED_INTEGRATIONS_SUITES, (), "integrations"
-    )
 
 
 # The Playwright-executor suites that need a real runtime.

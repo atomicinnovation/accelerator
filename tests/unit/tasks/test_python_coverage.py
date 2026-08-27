@@ -30,12 +30,11 @@ import pytest
 from tasks.shared.sources import repo_root, walk_files
 
 REPO = repo_root()
-MOCK_JIRA = "skills/integrations/jira/scripts/test-helpers/mock-jira-server.py"
 
 # The justified scope — kept in lockstep with pyproject.toml. The point of
 # pinning it here is that any change to discovery must also change this test, so
 # no file silently drops out of coverage.
-RUFF_JUSTIFIED_EXCLUDES = {"workspaces", MOCK_JIRA}
+RUFF_JUSTIFIED_EXCLUDES = {"workspaces"}
 # pyrefly scopes by include, not exclude: project-excludes only filters the
 # matched-file set, it does not prune the directory walk, so it cannot keep
 # pyrefly out of node_modules (which it would otherwise readdir while expanding
@@ -96,16 +95,11 @@ class TestInScopeSet:
         assert py, "no .py files discovered — the walk is broken"
         # A core build-system module is in scope.
         assert "tasks/build.py" in py
-        # The 3.9-floor mock server is in the tree but excluded from ruff.
-        assert MOCK_JIRA in py
         # workspaces/ is gitignored, so the walk never surfaces it.
         assert not any(p.startswith("workspaces/") for p in py)
         # .venv holds thousands of vendored .py files; either the gitignore
         # entry or walk_files' prune alone is enough to keep them out.
         assert not any(p.startswith(".venv/") for p in py)
-        ruff_in_scope = py - {MOCK_JIRA}
-        assert ruff_in_scope, "ruff in-scope set is empty after excludes"
-        assert MOCK_JIRA not in ruff_in_scope
 
 
 def _run_sentinel_probe(

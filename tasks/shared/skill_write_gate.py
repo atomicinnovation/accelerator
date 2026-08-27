@@ -19,6 +19,7 @@ _MUTATION_VERBS: dict[str, frozenset[str]] = {
     "linear": frozenset(
         {"create", "update", "comment", "transition", "attach"}
     ),
+    "jira": frozenset({"create", "update", "comment", "transition", "attach"}),
 }
 
 _CONFIRM = re.compile(r"to confirm", re.IGNORECASE)

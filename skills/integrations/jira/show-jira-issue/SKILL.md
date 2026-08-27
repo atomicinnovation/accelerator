@@ -9,13 +9,11 @@ description: >
   reference. Do NOT trigger when an issue key appears incidentally inside
   other prose (commit messages, code review comments, release notes),
   where the user is talking about the issue rather than asking to fetch it.
-argument-hint: "<ISSUE-KEY> [--fields a,b,c|--fields a]... [--expand a,b,c] [--comments N] [--render-adf|--no-render-adf]"
+argument-hint: "<ISSUE-KEY> [--fields a,b,c] [--expand a,b,c] [--comments N] [--render-adf|--no-render-adf]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/*)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(jq)
-  - Bash(curl)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira *)
 ---
 
 # Show Jira Issue
@@ -28,41 +26,37 @@ in order.
 ## Step 1: Parse the issue key and flags
 
 The first positional argument is the issue key (e.g. `ENG-42`, `PROJ-1234`).
-Remaining arguments are passed through to the helper as-is.
+Remaining arguments are passed through to the subcommand as-is.
 
-`--render-adf` defaults to ON at the helper layer — single-issue reads are
-for humans, so rendered Markdown is the natural output. Pass `--no-render-adf`
-verbatim if the user explicitly asked for raw ADF or JSON. The SKILL does
-not invert the default; the default lives in the helper where it is testable
-and consistent with running the helper directly.
+`--render-adf` defaults to ON — single-issue reads are for humans, so rendered
+Markdown is the natural output. Pass `--no-render-adf` verbatim if the user
+explicitly asked for raw ADF or JSON.
 
-## Step 2: Run the helper
+## Step 2: Fetch the issue
 
-Invoke `jira-show-flow.sh` with the key and any flags supplied:
+Run the show subcommand with the key and any flags supplied:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/integrations/jira/scripts/jira-show-flow.sh \
-  <ISSUE-KEY> [flags]
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show <ISSUE-KEY> [flags]
 ```
 
-If the exit code is non-zero, show the error to the user:
+Run the bare launcher **directly** as an executable; never prefix it with
+`bash`/`sh`/`env` and never pipe its output (a wrapper prefix or a pipe escapes
+the skill's `allowed-tools` permission and forces an unnecessary prompt).
 
-- Exit 80 (`E_SHOW_NO_KEY`): no issue key was supplied — ask the user for one.
-- Exit 81 (`E_SHOW_BAD_COMMENTS_LIMIT`): `--comments` was out of range [0, 100].
-  Explain the constraint.
-- Exit 82 (`E_SHOW_BAD_FLAG`): unrecognised flag. Show the usage banner from
-  the helper's stderr.
-- Any `jira-request.sh` exit (11–23): show the error and suggest checking
-  credentials with `/init-jira`.
+The subcommand emits a JSON document with a top-level `outcome` keyword:
+`found` or `not-found`. On `not-found`, tell the user the issue was not found
+and check the key. On a non-zero exit, show the error — a credential or site
+failure names an `E_*` cause on stderr; suggest `/init-jira`.
 
 ## Step 3: Render the result
 
-Parse the JSON response and present a human-readable summary:
+Parse the JSON response and present a human-readable summary from `.fields`:
 
 - **Heading**: `## KEY — Summary text`
 - **Fields block**: Status, Type, Priority, Assignee, Reporter (omit if absent).
-- **Description**: render inline as Markdown (already rendered by the helper
-  when `--render-adf` is on).
+- **Description**: render inline as Markdown (already rendered when
+  `--render-adf` is on).
 - **Comments** (when `--comments N` was passed): render each comment as a
   mini conversation block — author, timestamp, body.
 
@@ -75,16 +69,15 @@ only render the fields that are present; do not invent missing ones.
 User: "look up PROJ-1234"
 Skill invokes:
 ```
-jira-show-flow.sh PROJ-1234
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show PROJ-1234
 ```
-(No `--render-adf` flag needed — it is the helper default.)
 Then renders the issue with description as Markdown.
 
 **Example 2 — show recent comments**
 User: "what's the discussion on ENG-42 — show me the last few comments"
 Skill invokes:
 ```
-jira-show-flow.sh ENG-42 --comments 5
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show ENG-42 --comments 5
 ```
 Then renders the summary + last 5 comments as an inline conversation.
 
@@ -92,7 +85,7 @@ Then renders the summary + last 5 comments as an inline conversation.
 User: "give me the raw JSON for ENG-42 — I'm piping it to jq"
 Skill invokes:
 ```
-jira-show-flow.sh ENG-42 --no-render-adf
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show ENG-42 --no-render-adf
 ```
 Then prints the response with ADF intact.
 

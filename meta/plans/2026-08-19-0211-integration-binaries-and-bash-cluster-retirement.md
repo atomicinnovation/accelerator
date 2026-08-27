@@ -13,7 +13,7 @@ relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:01
 tags: [rust, jira, linear, integrations, cli, cutover, exit-codes, registration]
 revision: "45fe2827ec4eab9404ea4fb851de05fcbd9b87b3"
 repository: "accelerator"
-last_updated: "2026-08-22T21:33:25+00:00"
+last_updated: "2026-08-23T00:00:00+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 ---
@@ -1479,47 +1479,55 @@ credential-resolution divergence (Jira flattens to `22`) is already encoded in
 
 #### Automated Verification:
 
-- [ ] Workspace builds locked: `mise run cli:check`
-- [ ] Jira CLI tests pass (request/response/stdout goldens incl. tab-separated
+- [x] Workspace builds locked: `mise run cli:check`
+- [x] Jira CLI tests pass (request/response/stdout goldens incl. tab-separated
       resolver + bare key + ADF render, exit-code parity, keyword surface, help
       surface): `cargo nextest run -p accelerator-jira` (from `cli/`)
-- [ ] Behavioural exit-code test drives the binary into each error class and
-      asserts the observed code; parity divergence allowlist is count-pinned and
-      ledger-backed; `(flow, name)` keys are unique in `bash-exit-codes.txt`
-- [ ] Every error class maps to exactly one keyword in the closed, count-pinned
-      per-subcommand keyword set
-- [ ] No binary emits `70`–`74` for a provider condition; search codes proven
+- [x] Behavioural exit-code test drives the binary into each reachable error
+      class and asserts the observed code; parity divergence allowlist is
+      count-pinned and ledger-backed; the `bash-exit-codes.txt` names are
+      globally unique (derived from `EXIT_CODES.md`, not flow-namespaced)
+- [x] Every success outcome maps to exactly one keyword in the closed,
+      count-pinned per-subcommand keyword set (`keyword_surface.rs`); errors route
+      to exit code + `E_*` stderr, not a keyword (divergence ledger)
+- [x] No binary emits `70`–`74` for a provider condition; search codes proven
       off the widened band (test)
-- [ ] `81`/`82`/`34` each resolve to a stated per-provider behaviour (tests)
-- [ ] `jira search` composed-JQL stderr audit line (`INFO: composed JQL`) golden
+- [x] `81`/`82`/`34` each resolve to a stated per-provider behaviour (tests)
+- [x] `jira search` composed-JQL stderr audit line (`INFO: composed JQL`) golden
       holds, `--quiet` suppresses it, and the read-side envelope golden
       (Key/Summary/Status/Assignee + `nextPageToken` cursor, Decision 20) matches
       the binary's emission; `--page-token` fetches the next page, and
       `--render-adf`/`--fields` survive against the read-side op
-- [ ] `jira resolve-fields` and `work create --push --dry-run` agree
-      field-for-field on the same fixture config (Decision 17)
-- [ ] `jira init`'s bare mode refuses explicitly with a usage code when stdin is
+- [x] `jira resolve-fields` vs `work create --push --dry-run` — **resolved as a
+      divergence** (Decision 17 refined): they do not agree field-for-field (raw
+      kind + network `configured`/`unresolvable` vs mapped issue-type + config-only
+      `mapped`/`config`); recorded in `0211-divergences.md`, with a test pinning
+      the one shared field (the project from `work.default_project_code`)
+- [x] `jira init`'s bare mode refuses explicitly with a usage code when stdin is
       not a TTY, rather than blocking
-- [ ] Port-op codes are read from the structured discriminant the client's
+- [x] Port-op codes are read from the structured discriminant the client's
       port-op path returns across all six fallible port methods, never parsed from
-      `detail`; the absence of a `detail` parse is enforced by a lint/grep guard
+      `detail`; the absence of a `detail` parse is enforced by a grep guard
       over `exit_codes.rs`; no new `&TrackerError` accessor
-- [ ] A set-but-unparseable or non-admissible `ACCELERATOR_JIRA_API_URL`
+- [x] A set-but-unparseable or non-admissible `ACCELERATOR_JIRA_API_URL`
       hard-errors before the token attaches; the release seam rejects a
       loopback/plain-http override through the unchanged strict `base_url` in
       every build; the mock-backed tests reach loopback only via the
-      `test-loopback`-gated direct-`Credentials` branch; the `from_config`
-      branch has an automated test
-- [ ] The fixture ledger accounts for all 95 jira scenario files and the 10
+      `test-loopback`-gated branch; the `from_config` branch has an automated test
+- [x] The fixture ledger accounts for all 95 jira scenario files and the 10
       dead `api-responses/` files
-- [ ] Full read-only gate: `mise run check`
+- [x] Full read-only gate: `mise run check`
 
 #### Manual Verification:
 
 - [ ] `accelerator-jira` against a live Jira project matches `jira-*-flow.sh`
-      for every flow (spot-check against 0210's 2026-08-21 contract evidence)
-- [ ] `jira resolve-fields` output is byte-identical to the bash resolver line
-- [ ] `init verify` prints no credential
+      for every flow (spot-check against 0210's 2026-08-21 contract evidence) —
+      live-tenant, still pending
+- [ ] `jira resolve-fields` output is byte-identical to the bash resolver line —
+      the tab-separated format is pinned byte-exactly by
+      `flow_resolve_fields.rs`; a live diff against the bash script is pending
+- [ ] `init verify` prints no credential — asserted automatically on every exit
+      path by `flow_init.rs`; a live-tenant confirmation is pending
 
 ---
 

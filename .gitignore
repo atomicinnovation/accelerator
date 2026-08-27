@@ -52,6 +52,7 @@ bin/collaboration-*
 bin/migrate-*
 bin/design-*
 bin/linear-*
+bin/jira-*
 bin/*.minisig
 bin/.accelerator-lock-*
 bin/.accelerator-unverified.log
