@@ -5,7 +5,7 @@ title: "Work-Item Script Cutover"
 date: "2026-08-17T11:17:18+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0171"
@@ -22,7 +22,7 @@ external_id: PP-742
 # 0212: Work-Item Script Cutover
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

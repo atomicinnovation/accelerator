@@ -5,7 +5,7 @@ title: "Integration Binaries and Bash Cluster Retirement"
 date: "2026-08-17T11:17:18+00:00"
 author: Toby Clemson
 producer: review-work-item
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0171"
@@ -22,7 +22,7 @@ external_id: PP-741
 # 0211: Integration Binaries and Bash Cluster Retirement
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
