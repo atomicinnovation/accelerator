@@ -1,7 +1,7 @@
 //! The credential context, the client builder, and the validated base-URL seam.
 //!
 //! The `ACCELERATOR_LINEAR_API_URL` override ships in the release binary but is
-//! admitted only as a validated credential destination (Decision 10): Linear's
+//! admitted only as a validated credential destination: Linear's
 //! own `url_is_allowed` enforces https and a `*.linear.app` host, and a loopback
 //! destination is admitted only under the test-only `test-loopback` feature,
 //! never `debug_assertions`. A set-but-inadmissible value is a hard usage error,

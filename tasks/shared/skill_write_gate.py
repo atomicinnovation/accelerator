@@ -1,7 +1,7 @@
 """Confirm-before-mutation gate for the repointed integration write skills.
 
-Decision 2 replaced the wire-payload preview with a resolved-intent preview and
-an explicit confirm step. This guard pins the ordering the design depends on:
+The write skills preview resolved intent rather than a wire payload, gated by an
+explicit confirm step. This guard pins the ordering the design depends on:
 in every write skill that invokes an ``accelerator <provider> <mutation>``
 subcommand, a confirm prompt must be **present** and lexically **precede** the
 mutation invocation, and the two must not sit in the same fenced block. A

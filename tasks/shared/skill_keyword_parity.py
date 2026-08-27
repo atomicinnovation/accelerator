@@ -1,7 +1,7 @@
 """Doc-vs-binary keyword parity for the repointed integration skills.
 
-Under Decision 11 the jira/linear write and read bodies branch on a structured
-stdout *keyword* rather than a bash exit integer. This guard binds the two
+The jira/linear write and read bodies branch on a structured stdout *keyword*
+rather than a bash exit integer. This guard binds the two
 representations: every outcome keyword a repointed ``SKILL.md`` body branches on
 must exist in the sub-binary's own declared keyword set (parsed from its
 ``keywords.rs``), the match must be non-vacuous (an under-matching extractor
@@ -18,8 +18,8 @@ from pathlib import Path
 from tasks.shared.paths import REPO_ROOT
 
 # The repointed bodies and the crate whose keyword set is their authority. Jira
-# joins when its cutover lands (Phase 4); until then its bodies still call the
-# bash cluster and are out of scope.
+# joins when its cutover lands; until then its bodies still call the bash
+# cluster and are out of scope.
 _PROVIDERS: dict[str, Path] = {
     "linear": REPO_ROOT / "cli/linear-cli/src/keywords.rs",
 }
@@ -91,7 +91,7 @@ def violations() -> list[str]:
             if _DROPPED_PREVIEW.search(text):
                 problems.append(
                     f"{rel}: references a dropped --print-payload/--describe "
-                    "preview (Decision 2)"
+                    "preview"
                 )
     if total_matches == 0:
         problems.append(

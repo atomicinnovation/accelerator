@@ -1,5 +1,5 @@
 //! `init verify` validates credentials without ever printing the token
-//! (Decision 3) and persists `viewer.json`; `init discover` persists
+//! and persists `viewer.json`; `init discover` persists
 //! `catalogue.json`. The `Secret`-redaction invariant is why the no-token
 //! guarantee holds; the binary owns cache production so the repointed skill
 //! needs no `Write` grant.

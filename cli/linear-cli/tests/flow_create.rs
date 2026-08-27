@@ -1,6 +1,6 @@
 //! The `create` flow: the `created\t<identifier>` text discriminant on success,
 //! and the fail-closed `writeback-failed` orphan case when the remote returns an
-//! unusable identifier (Decision 5).
+//! unusable identifier.
 #![cfg(feature = "test-loopback")]
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 

@@ -1,5 +1,5 @@
 //! Pins the `E_*` diagnostic names the binary writes to stderr for its
-//! argument-validation and seam refusals. Under Decision 11 the repointed
+//! argument-validation and seam refusals. The repointed
 //! bodies branch on the stdout keyword, but the `E_*` names remain the stderr
 //! diagnostic a human (and a legacy grep) reads, so each is asserted verbatim.
 //! Every case refuses before any request, so no mock is needed.

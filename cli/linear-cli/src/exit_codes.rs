@@ -21,10 +21,10 @@
 //! "created remotely" states a re-run must not blindly repeat — the create flow
 //! surfaces the key and steers the operator to reconcile rather than re-create.
 //!
-//! Deliberate divergence (recorded in `meta/inventories/0211-divergences.md`):
-//! the search flow's `SEARCH_*` codes are remapped from bash `70`–`73` to
-//! `75`–`78`, off the `70`–`74` band the dispatch layer reserves — a code in
-//! that band reaching `accelerator-work` would read as a dispatch verdict.
+//! Deliberate divergence: the search flow's `SEARCH_*` codes are remapped from
+//! bash `70`–`73` to `75`–`78`, off the `70`–`74` band the dispatch layer
+//! reserves — a code in that band reaching `accelerator-work` would read as a
+//! dispatch verdict.
 
 // Every code is a declared contract the parity test reads textually; a code no
 // handler yet references is still part of the surface, not dead.

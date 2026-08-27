@@ -3,10 +3,9 @@
 //! Non-allowlisted names must equal the value the retiring flow returned. The
 //! only divergence is the search remap off the reserved `70`–`74` dispatch
 //! band: each allowlisted name asserts the *remapped* Rust value while the
-//! fixture keeps the original bash value, and every allowlisted name is
-//! recorded in `meta/inventories/0211-divergences.md`. The count pin makes a
-//! silent allowlist addition fail. The oracle is the committed fixture, never
-//! the constants it guards.
+//! fixture keeps the original bash value. The count pin makes a silent
+//! allowlist addition fail. The oracle is the committed fixture, never the
+//! constants it guards.
 
 #![allow(clippy::expect_used, clippy::panic)]
 

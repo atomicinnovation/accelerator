@@ -5,9 +5,9 @@ parse the same ``skills/integrations/*/SKILL.md`` bodies:
 
 - **keyword parity** — every outcome keyword a body branches on exists in the
   sub-binary's declared keyword set, no body cites a bash exit integer or a
-  dropped ``--print-payload``/``--describe`` preview (Decision 11);
+  dropped ``--print-payload``/``--describe`` preview;
 - **write gate** — every write skill's confirm step precedes its
-  ``accelerator <provider> <mutation>`` invocation (Decision 2).
+  ``accelerator <provider> <mutation>`` invocation.
 """
 
 from invoke import Context, Exit, task

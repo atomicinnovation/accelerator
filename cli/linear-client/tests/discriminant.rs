@@ -1,4 +1,4 @@
-//! The structured discriminant the `*_op` methods surface (Decision 9): the
+//! The structured discriminant the `*_op` methods surface: the
 //! binary reads the granular bash exit code from it, and the post-create
 //! "created remotely but unwritable" case is a distinct variant, not a wire
 //! outcome — so it never has to be parsed back out of a `TrackerError` string.

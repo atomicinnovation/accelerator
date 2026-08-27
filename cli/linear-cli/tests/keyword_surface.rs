@@ -1,4 +1,4 @@
-//! Pins the closed, per-subcommand keyword set (Decision 11). A new outcome
+//! Pins the closed, per-subcommand keyword set. A new outcome
 //! variant cannot compile without a keyword; this golden is the backstop that
 //! catches a keyword *string* changing under a repointed body's feet.
 

@@ -1,4 +1,4 @@
-//! The read-side search projection (Decision 20): the widened field selection
+//! The read-side search projection: the widened field selection
 //! the `search` subcommand renders, and the cursor round-trip across pages.
 //!
 //! The port `search` returns stamps only; this op keeps the title and adds the

@@ -1,5 +1,5 @@
 //! Every scenario fixture under `tests/fixtures/scenarios/` must be referenced
-//! by at least one test (Decision 15), so "ported" provably means "consumed":
+//! by at least one test, so "ported" provably means "consumed":
 //! a scenario carried over from the retiring bash cluster but driven by nothing
 //! would re-create the dead surface the migration bar exists to prevent.
 //!
@@ -59,7 +59,7 @@ fn every_scenario_fixture_is_referenced_by_a_test() {
         assert!(
             sources.contains(stem.as_str()),
             "scenario {stem:?} is not referenced by any test — port it into a \
-             test or remove it (Decision 15)"
+             test or remove it"
         );
     }
 }
