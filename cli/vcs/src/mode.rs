@@ -1,9 +1,8 @@
 //! The command-set mode a checkout calls for: `jj`, `jj-colocated`, or `git`.
 //!
-//! Mirrors `scripts/vcs-common.sh`'s `vcs_mode`, but resolved from the two
-//! library-backed queries rather than a `[ -d ... ]` test on the combined
-//! walk's own root — the correction that also makes this robust to a `.git`
-//! *file* (a worktree/submodule marker), which `-d` cannot see.
+//! Resolved from the two library-backed queries rather than a `[ -d ... ]`
+//! test on the combined walk's own root — which makes this robust to a `.git`
+//! *file* (a worktree/submodule marker) that `-d` cannot see.
 
 use std::path::Path;
 use std::path::PathBuf;

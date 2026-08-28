@@ -5,7 +5,7 @@ reader in the product. Two anti-regression guards remain, both cheap:
 
 * **Grep B** — no ``skills/**/SKILL.md`` names a ``scripts/config-`` script;
   a reintroduced bash config call site would prompt at load and bypass the
-  launcher contract. The retained ``config-common.sh`` (0174) is permitted.
+  launcher contract.
 * **``--allow-legacy-layout`` confinement** — the flag stays inside the
   allowlisted ``doc-type-table.sh``; anywhere else it would silently suppress
   the uniform legacy-layout refusal. The meta-directory migration engine
@@ -24,18 +24,12 @@ from tasks.shared.sources import repo_root
 
 
 def grep_b_hits(root: Path) -> list[str]:
-    """Return SKILL.md lines naming a removed ``scripts/config-`` script.
-
-    ``config-common.sh`` (0174) is permitted.
-    """
+    """Return SKILL.md lines naming a removed ``scripts/config-`` script."""
     hits: list[str] = []
-    allowed = ("config-common.sh",)
     for path in sorted((root / "skills").rglob("SKILL.md")):
         rel = path.relative_to(root).as_posix()
         for number, line in enumerate(path.read_text().splitlines(), start=1):
-            if "scripts/config-" in line and not any(
-                a in line for a in allowed
-            ):
+            if "scripts/config-" in line:
                 hits.append(f"{rel}:{number}:{line.strip()}")
     return hits
 

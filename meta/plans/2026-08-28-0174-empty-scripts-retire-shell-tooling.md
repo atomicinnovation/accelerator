@@ -321,14 +321,29 @@ if split.
 
 #### Automated Verification
 
-- [ ] `find scripts -name 'config-common.sh' -o -name 'vcs-common.sh' -o -name 'config-defaults.sh' -o -name 'atomic-common.sh'` returns nothing
-- [ ] Config crate tests pass (the surviving provider-key test runs): `mise run test:unit:cli`
-- [ ] Exec-bits lint clean (no stale entry): `mise run lint:scripts:exec-bits:check`
-- [ ] Bare default green end-to-end: `mise run`
+- [x] `find scripts -name 'config-common.sh' -o -name 'vcs-common.sh' -o -name 'config-defaults.sh' -o -name 'atomic-common.sh'` returns nothing
+- [x] Config crate tests pass (the surviving provider-key test runs): `mise run test:unit:cli`
+- [x] Exec-bits lint clean (no stale entry): `mise run lint:scripts:exec-bits:check`
+- [x] Bare default green end-to-end: `mise run`
+
+Deviations from the written Changes Required (all verified green):
+- The inline `#[cfg(test)]` drift test `the_rust_catalogue_matches_the_bash_catalogue`
+  in `cli/config/src/catalogue.rs` also sourced `config-common.sh`; removed it and
+  its helpers (unlisted in the phase, but within its "every drift-oracle coupling"
+  intent).
+- The step-3 native config-path-key check was added to `cli/visualiser/server/tests/parity.rs`
+  (already depends on both `corpus` and `config`), asserting each `config_path_key()`
+  is in `config::catalogue::PATH_KEYS` — no new crate edge.
+- `tasks/measure.py`'s `RECOVERED_FILES` was **left untouched**: it recovers
+  `scripts/vcs-common.sh` from a pinned `BASELINE_COMMIT` as the recovered guard's
+  runtime dependency, not the live tree; removing it would break `recover_baseline`.
+  (User-confirmed.)
+- Stale `cli/` doc comments naming the deleted files (`vcs/src/mode.rs`,
+  `vcs/src/classify.rs`, `corpus-adapters/src/lock.rs`) were reworded in the same commit.
 
 #### Manual Verification
 
-- [ ] No `skills/`/`hooks/`/`templates/` file still sources the deleted chain
+- [x] No `skills/`/`hooks/`/`templates/` file still sources the deleted chain
       (repo-wide grep for each path resolves to nothing live).
 
 ---

@@ -1,7 +1,6 @@
-//! The dir→type fact is declared once, in `DocTypeKey`. The bash
-//! `config-defaults.sh` `PATH_KEYS` registry and `scripts/linkage-type-pairs.tsv`
-//! each declare a related fact independently, so this suite cross-checks the
-//! crate against them.
+//! The dir→type fact is declared once, in `DocTypeKey`.
+//! `scripts/linkage-type-pairs.tsv` declares a related fact independently, so
+//! this suite cross-checks the crate against it.
 //!
 //! The 0007 migration's own awk rewrite used to be cross-checked here too,
 //! as a second independent dir→type matcher — removed once that awk was
@@ -18,7 +17,6 @@
 mod common;
 
 use std::fs;
-use std::process::Command;
 
 use common::{doc_type_table, require_file, TestError};
 use corpus::DocTypeKey;
@@ -49,57 +47,6 @@ fn every_non_virtual_type_is_registered_exactly_once() -> Result<(), TestError>
         table.len(),
         declared.len()
     );
-    Ok(())
-}
-
-/// Every doc type's config key must exist in the bash config schema.
-///
-/// `config_path_key` is how `corpus-adapters` keys the resolved doc-paths map, so
-/// a key renamed in `config-defaults.sh` without updating `DocTypeKey` would
-/// silently drop that type from the table — the document would simply stop being
-/// classified, with nothing to report it.
-#[test]
-fn every_config_path_key_exists_in_the_config_schema() -> Result<(), TestError>
-{
-    let defaults = require_file("scripts/config-defaults.sh")?;
-    let output = Command::new("bash")
-        .arg("-c")
-        .arg(format!(
-            "source {}; printf '%s\\n' \"${{PATH_KEYS[@]}}\"",
-            defaults.display()
-        ))
-        .output()
-        .map_err(|error| format!("could not read PATH_KEYS: {error}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "config-defaults.sh failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-
-    let declared: Vec<String> = String::from_utf8(output.stdout)?
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_owned)
-        .collect();
-    assert!(
-        !declared.is_empty(),
-        "config-defaults.sh declared no PATH_KEYS — the probe has broken"
-    );
-
-    for kind in DocTypeKey::all() {
-        let Some(key) = kind.config_path_key() else {
-            continue;
-        };
-        let qualified = format!("paths.{key}");
-        assert!(
-            declared.contains(&qualified),
-            "{kind:?} claims the config key {qualified:?}, which the config \
-             schema does not declare — the crate and the config have drifted"
-        );
-    }
     Ok(())
 }
 

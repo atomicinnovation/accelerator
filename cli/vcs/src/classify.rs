@@ -1,9 +1,9 @@
 //! The seven-arm checkout taxonomy, composed over `CheckoutProbe`'s four
 //! queries.
 //!
-//! Mirrors `scripts/vcs-common.sh`'s `classify_checkout` cascade, with the
-//! arm order load-bearing: `Colocated` must precede both `Nested*` arms
-//! because a true colocated checkout also satisfies both nested predicates.
+//! The arm order is load-bearing: `Colocated` must precede both `Nested*`
+//! arms because a true colocated checkout also satisfies both nested
+//! predicates.
 
 use std::path::Path;
 use std::path::PathBuf;
