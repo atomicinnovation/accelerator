@@ -876,16 +876,17 @@ frozenset edit. It is a `.sh` in the walk, so its deletion shrinks
 
 #### Automated Verification
 
-- [ ] The Python bashisms task flags every bash-4 construct on a captured golden
+- [x] The Python bashisms task flags every bash-4 construct on a captured golden
       corpus and passes the conforming survivors: `mise run test:unit:tasks`
-- [ ] `mise run lint:scripts:bashisms:check` still guards the surviving shell
-- [ ] `find scripts -name 'lint-bashisms.sh'` returns nothing
-- [ ] Bare default green: `mise run`
+- [x] `mise run lint:scripts:bashisms:check` still guards the surviving shell
+- [x] `find scripts -name 'lint-bashisms.sh'` returns nothing
+- [x] Bare default green: `mise run`
 
 #### Manual Verification
 
-- [ ] The Python patterns match the retired awk denylist construct-for-construct
-      (spot-check each of the eight against a known offender).
+- [x] The Python patterns match the retired awk denylist construct-for-construct
+      (a per-pattern golden test for each of the eight, plus an indented mid-line
+      offender and near-miss).
 
 ---
 

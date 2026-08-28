@@ -16,7 +16,6 @@ from tasks.shared.targets import ALIASES
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _BOOTSTRAP = "bin/accelerator"
 _KEY = "keys/accelerator-release.pub"
-_BASHISMS = _REPO_ROOT / "scripts/lint-bashisms.sh"
 _BUILD_RS = _REPO_ROOT / "cli/launcher/build.rs"
 _BOOTSTRAP_SRC = _REPO_ROOT / "bin/accelerator"
 _PLUGIN_ROOT = "ACCELERATOR_PLUGIN_ROOT"
@@ -28,8 +27,9 @@ def test_bootstrap_is_in_the_shfmt_and_shellcheck_discovery() -> None:
 
 
 def test_bootstrap_is_in_the_bashisms_discovery() -> None:
-    # lint-bashisms.sh globs `*.sh`, which never matches an extensionless file.
-    assert _BOOTSTRAP in _BASHISMS.read_text()
+    # The Python bashisms task scans the same discovered set as shfmt and
+    # shellcheck; the extensionless bootstrap must appear in it.
+    assert _BOOTSTRAP in shell_sources()
 
 
 def test_bootstrap_is_an_executable_entrypoint() -> None:
