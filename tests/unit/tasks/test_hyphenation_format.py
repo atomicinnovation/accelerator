@@ -1,5 +1,5 @@
-"""Tests for the hyphenation format guard ported from
-``scripts/test-format.sh``.
+"""Tests for the hyphenation format guard, ported from the retired test-format
+shell guard.
 
 The guard forbids ``work item`` (with a space) wherever it reads as part of a
 compound identifier or path — the correct form there is ``work-item``. It

@@ -3,7 +3,7 @@ import shlex
 from invoke import Context, Exit, task
 from invoke.runners import Result
 
-from tasks.shared.sources import repo_root, shell_sources
+from tasks.shared.sources import SURVIVING_SHELL_SOURCES, repo_root
 
 
 def _shfmt(context: Context, op_flags: str) -> Result:
@@ -13,7 +13,7 @@ def _shfmt(context: Context, op_flags: str) -> Result:
     as the single source of truth for style — passing CLI style flags would
     make shfmt ignore EditorConfig entirely and reintroduce local-vs-CI drift.
     """
-    sources = shell_sources()
+    sources = SURVIVING_SHELL_SOURCES
     if not sources:
         # Fail loudly, not green: an empty match set means scope discovery broke
         # (a glob/`_keep` regression), not that there is nothing to format
@@ -23,9 +23,9 @@ def _shfmt(context: Context, op_flags: str) -> Result:
             code=1,
         )
     args = " ".join(shlex.quote(s) for s in sources)
-    # mise runs invoke tasks from the repo root and shell_sources() returns
-    # repo-relative paths, so no cwd override is needed (invoke's run() does
-    # not accept one anyway).
+    # mise runs invoke tasks from the repo root and the survivor paths are
+    # repo-relative, so no cwd override is needed (invoke's run() does not
+    # accept one anyway).
     with context.cd(str(repo_root())):
         return context.run(f"shfmt {op_flags} {args}", warn=True, pty=False)
 

@@ -73,7 +73,7 @@ def run_shell_suites(
 ) -> list[str]:
     """Glob-discover and run every executable test-*.sh inside a subtree.
 
-    The exec-bit filter excludes `scripts/test-helpers.sh` (sourced,
+    The exec-bit filter excludes any sourced-only `test-helpers.sh` (sourced,
     not run); the name-level filter is belt-and-braces for
     filesystems that synthesise exec bits uniformly.
 

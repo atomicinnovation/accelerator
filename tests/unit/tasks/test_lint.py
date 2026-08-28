@@ -20,9 +20,7 @@ def _command(ctx) -> str:
 
 class TestShellcheckTask:
     def test_command(self, ctx, mocker):
-        mocker.patch.object(
-            lint, "shell_sources", return_value=["a.sh", "b.sh"]
-        )
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ("a.sh", "b.sh"))
         lint.shellcheck(ctx)
         cmd = _command(ctx)
         # Flag ownership moved to .shellcheckrc: the invocation is now bare.
@@ -34,15 +32,15 @@ class TestShellcheckTask:
         assert "a.sh" in cmd and "b.sh" in cmd
 
     def test_raises_on_findings(self, ctx, mocker):
-        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ("a.sh",))
         ctx.run.return_value = MagicMock(exited=1)
         with pytest.raises(Exit):
             lint.shellcheck(ctx)
 
     def test_raises_on_empty_source_set(self, ctx, mocker):
-        # Fail-closed: an empty match set means scope discovery broke, not that
-        # there is nothing to lint — the task must raise, not pass green.
-        mocker.patch.object(lint, "shell_sources", return_value=[])
+        # Fail-closed: an empty survivor list means it was emptied by mistake,
+        # not that there is nothing to lint — the task must raise.
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ())
         with pytest.raises(Exit):
             lint.shellcheck(ctx)
         ctx.run.assert_not_called()
@@ -50,7 +48,7 @@ class TestShellcheckTask:
 
 class TestBashismsTask:
     def test_raises_on_findings(self, ctx, mocker):
-        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ("a.sh",))
         mocker.patch.object(
             lint, "scan_bashisms", return_value=["a.sh:1: bash-4 construct: x"]
         )
@@ -58,14 +56,14 @@ class TestBashismsTask:
             lint.bashisms(ctx)
 
     def test_passes_when_the_scanner_is_clean(self, ctx, mocker):
-        mocker.patch.object(lint, "shell_sources", return_value=["a.sh"])
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ("a.sh",))
         mocker.patch.object(lint, "scan_bashisms", return_value=[])
         lint.bashisms(ctx)  # must not raise
 
     def test_raises_on_empty_source_set(self, ctx, mocker):
-        # Fail-closed, as for shellcheck — no source to scan means discovery
-        # broke, not that the tree is clean.
-        mocker.patch.object(lint, "shell_sources", return_value=[])
+        # Fail-closed, as for shellcheck — an empty survivor list means it was
+        # emptied by mistake, not that the tree is clean.
+        mocker.patch.object(lint, "SURVIVING_SHELL_SOURCES", ())
         with pytest.raises(Exit):
             lint.bashisms(ctx)
 

@@ -366,20 +366,10 @@ description = "Run the RemoteTracker contract harness against a live tracker (op
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
 run = "invoke test.integration.tracker-contract"
 
-[tasks."test:integration:decisions"]
-description = "Run decisions integration tests"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.decisions"
-
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
-
-[tasks."test:integration:github"]
-description = "Run github skills integration tests (shell harnesses)"
-run = "invoke test.integration.github"
-env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
@@ -390,10 +380,8 @@ depends = [
     "test:integration:skill-invocation",
     "test:integration:conformance",
     "test:integration:deny",
-    "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:hooks",
-    "test:integration:github",
 ]
 
 [tasks."test:e2e:visualiser"]
@@ -443,13 +431,9 @@ run = "invoke lint.scripts.shellcheck"
 description = "Guard the bash-3.2 floor (denylist of bash-4 constructs)"
 run = "invoke lint.scripts.bashisms"
 
-[tasks."lint:scripts:exec-bits:check"]
-description = "Enforce exec-bit invariant: a tracked .sh is executable iff not a sourced library"
-run = "invoke lint.scripts.exec-bits"
-
 [tasks."lint:scripts:check"]
 description = "Run all shell lint checks"
-depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check", "lint:scripts:exec-bits:check"]
+depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
 
 [tasks."scripts:check"]
 description = "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)"

@@ -1,8 +1,7 @@
 """Guard that the canonical hierarchy tree fence is byte-for-byte identical.
 
-Ported from ``scripts/test-hierarchy-format.sh`` (the guard) and the
-hierarchy-format cases of ``scripts/test-evals-structure-self.sh`` (its
-meta-tests over fixture pairs).
+Ported from the retired hierarchy-format shell guard and the hierarchy-format
+cases of its evals-structure-self meta-test (its checks over fixture pairs).
 
 Both ``list-work-items/SKILL.md`` and ``refine-work-item/SKILL.md`` bracket
 the canonical hierarchy example with::

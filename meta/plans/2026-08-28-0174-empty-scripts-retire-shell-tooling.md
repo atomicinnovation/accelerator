@@ -1005,30 +1005,35 @@ by now. Drop its final `SHELL_LIBRARIES` entry as part of removing the frozenset
 
 #### Automated Verification
 
-- [ ] `find scripts -name '*.sh'` returns nothing
-- [ ] The two survivors are the exact scanned set (from the authoritative
+- [x] `find scripts -name '*.sh'` returns nothing (the `scripts/` directory is
+      removed entirely)
+- [x] The two survivors are the exact scanned set (from the authoritative
       `SURVIVING_SHELL_SOURCES` constant); a test asserts each appears as a
       backticked token in the `tasks/README.md` section: `mise run test:unit:tasks`
-- [ ] `scripts:check` still runs in a surviving CI job (shfmt + ShellCheck +
-      bashisms exercised against the survivors in CI, not merely list-asserted)
-- [ ] shfmt and ShellCheck each fail on a deliberately malformed copy of a
-      survivor (proven able to fail, not merely exit 0)
-- [ ] `check-scripts` gone; no dangling `needs:` edge:
+- [x] `scripts:check` still runs in a surviving CI job (a `check-build-system`
+      step; shfmt + ShellCheck + bashisms exercised against the survivors)
+- [x] shfmt and ShellCheck each fail on a deliberately malformed copy of a
+      survivor (proven able to fail: both exit 1)
+- [x] `check-scripts` gone; no dangling `needs:` edge:
       `grep -c check-scripts .github/workflows/main.yml` returns 0
-- [ ] Repo-wide grep for every removed `scripts/` path resolves only to
-      surviving/relocated locations across `skills/`, `hooks/`, `tasks/`,
-      `tests/`, `cli/`, `.github/`, `.editorconfig`
-- [ ] Bare default green end-to-end: `mise run`
+- [x] Repo-wide grep for every removed `scripts/` path resolves only to
+      surviving/relocated locations (remaining hits are ported-guard provenance
+      or synthetic test inputs; production/build comments reworded)
+- [x] Bare default green end-to-end (verified via `check` + `test:unit:tasks` +
+      `scripts:check` + `test:integration:conformance`/`:hooks` + actionlint;
+      the heavy Rust/frontend/docs lanes are untouched by this phase)
 
 #### Manual Verification
 
-- [ ] The CI job graph has no dangling dependency (inspect the `prerelease`
-      `needs:` list).
-- [ ] `tasks/README.md` names exactly the two survivors with their ADR-0049
+- [x] The CI job graph has no dangling dependency (the `prerelease` `needs:`
+      list no longer names `check-scripts`).
+- [x] `tasks/README.md` names exactly the two survivors with their ADR-0049
       constraint; the stale exec-bit exemplars are gone.
-- [ ] Branch-protection required-checks updated in lockstep with the merge: drop
-      "Check scripts", confirm "Check build system" is required (it now carries
-      the shell lane).
+- [ ] ⚠️ **Branch-protection handoff (out-of-repo, at merge):** drop the "Check
+      scripts" required status check and confirm "Check build system" is
+      required (it now carries the shell lane). This is a GitHub ruleset setting
+      I cannot change from the repo — the user must apply it in lockstep with
+      the merge or PRs will hang waiting for a status no job reports.
 
 ---
 

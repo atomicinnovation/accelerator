@@ -1,4 +1,4 @@
-"""Port of ``scripts/test-template-frontmatter.sh`` — the template-shape guard.
+"""Port of the retired template-frontmatter shell guard (template shape).
 
 For each row in ``templates-schema.tsv`` this parses the YAML frontmatter block
 at the head of the named template and asserts the unified base fields, the

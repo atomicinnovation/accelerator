@@ -1,5 +1,5 @@
-"""Guard the review lens boundary evals, ported from
-``scripts/test-boundary-evals.sh``.
+"""Guard the review lens boundary evals, ported from the retired
+boundary-evals shell guard.
 
 Each lens ships a ``boundary_benchmark.json`` recording a negative-output
 regression run — proof the lens does not produce findings in a peer lens's

@@ -19,7 +19,7 @@ def _command(ctx) -> str:
 
 class TestFormatCheck:
     def test_runs_shfmt_diff_with_no_formatting_flags(self, ctx, mocker):
-        mocker.patch.object(fmt, "shell_sources", return_value=["a.sh", "b.sh"])
+        mocker.patch.object(fmt, "SURVIVING_SHELL_SOURCES", ("a.sh", "b.sh"))
         fmt.check(ctx)
         cmd = _command(ctx)
         assert cmd.startswith("shfmt -d ")
@@ -29,15 +29,15 @@ class TestFormatCheck:
             assert flag not in cmd
 
     def test_raises_on_drift(self, ctx, mocker):
-        mocker.patch.object(fmt, "shell_sources", return_value=["a.sh"])
+        mocker.patch.object(fmt, "SURVIVING_SHELL_SOURCES", ("a.sh",))
         ctx.run.return_value = MagicMock(exited=1)
         with pytest.raises(Exit):
             fmt.check(ctx)
 
     def test_raises_on_empty_source_set(self, ctx, mocker):
-        # Fail-closed: an empty match set means scope discovery broke, not that
-        # there is nothing to format — check must raise, not pass green.
-        mocker.patch.object(fmt, "shell_sources", return_value=[])
+        # Fail-closed: an empty survivor list means it was emptied by mistake,
+        # not that there is nothing to format — check must raise.
+        mocker.patch.object(fmt, "SURVIVING_SHELL_SOURCES", ())
         with pytest.raises(Exit):
             fmt.check(ctx)
         ctx.run.assert_not_called()
@@ -45,6 +45,6 @@ class TestFormatCheck:
 
 class TestFormatFix:
     def test_runs_shfmt_list_write(self, ctx, mocker):
-        mocker.patch.object(fmt, "shell_sources", return_value=["a.sh"])
+        mocker.patch.object(fmt, "SURVIVING_SHELL_SOURCES", ("a.sh",))
         fmt.fix(ctx)
         assert _command(ctx).startswith("shfmt -l -w ")

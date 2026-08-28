@@ -9,7 +9,7 @@ from invoke import Context, Exit, task
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
 
-from .helpers import accelerator_env, repo_root, run_shell_suites
+from .helpers import accelerator_env, repo_root
 
 # An env gate rather than a `--yes` flag: a task name can be tab-completed by
 # accident, and the CI step sets this in `env:`.
@@ -29,41 +29,6 @@ _ABSOLUTE_VCS_PATHS = (
     "/usr/local/bin/jj",
     "/opt/homebrew/bin/jj",
 )
-
-# Two previously-unguarded subtrees, each at its current size. Their shell
-# suites are pytest now, where a lost file is a collection error rather than a
-# silently smaller run, so no by-name floor is needed.
-_EXPECTED_DECISIONS_SUITES = 0
-_EXPECTED_GITHUB_SUITES = 0
-
-
-def _require_suite_floor(
-    suites: Sequence[str],
-    floor: int,
-    required: Sequence[str],
-    subject: str,
-) -> None:
-    """Fail loudly when discovery shrinks below its floor or loses a gate.
-
-    An exec bit dropped on an exec-bit-lossy filesystem, or a suite renamed off
-    the ``test-*.sh`` convention, otherwise removes a regression net from CI
-    while every task still exits 0.
-    """
-    if len(suites) < floor:
-        raise Exit(
-            f"Expected at least {floor} {subject} shell suites, found "
-            f"{len(suites)}: {suites}. An exec bit may have been dropped — a "
-            f"regression suite is missing from CI.",
-            code=1,
-        )
-    missing = [s for s in required if s not in suites]
-    if missing:
-        raise Exit(
-            f"Required {subject} shell suite(s) not discovered by name: "
-            f"{missing} (found {suites}). A gate may have lost its exec bit or "
-            f"been renamed off the test-*.sh convention.",
-            code=1,
-        )
 
 
 @task
@@ -329,13 +294,6 @@ def conformance(context: Context) -> None:
 
 
 @task
-def decisions(context: Context) -> None:
-    """Integration tests for the decisions skill scripts."""
-    suites = run_shell_suites(context, "skills/decisions", accelerator_env())
-    _require_suite_floor(suites, _EXPECTED_DECISIONS_SUITES, (), "decisions")
-
-
-@task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
@@ -348,13 +306,6 @@ def hooks(context: Context) -> None:
         "uv run pytest tests/integration/hooks -v",
         env=accelerator_env(vcs_bin=True),
     )
-
-
-@task
-def github(context: Context) -> None:
-    """Integration tests for the github skills (shell harnesses)."""
-    suites = run_shell_suites(context, "skills/github")
-    _require_suite_floor(suites, _EXPECTED_GITHUB_SUITES, (), "github")
 
 
 # The Playwright-executor suites that need a real runtime.

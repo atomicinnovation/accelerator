@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from tasks.shared.paths import vendored_shim_path
-from tasks.shared.sources import shell_sources
+from tasks.shared.sources import SURVIVING_SHELL_SOURCES
 from tasks.shared.targets import ALIASES
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -23,13 +23,13 @@ _PLUGIN_ROOT_READER = _REPO_ROOT / "cli/config-adapters/src/store.rs"
 
 
 def test_bootstrap_is_in_the_shfmt_and_shellcheck_discovery() -> None:
-    assert _BOOTSTRAP in shell_sources()
+    assert _BOOTSTRAP in SURVIVING_SHELL_SOURCES
 
 
 def test_bootstrap_is_in_the_bashisms_discovery() -> None:
-    # The Python bashisms task scans the same discovered set as shfmt and
+    # The Python bashisms task scans the same survivor set as shfmt and
     # shellcheck; the extensionless bootstrap must appear in it.
-    assert _BOOTSTRAP in shell_sources()
+    assert _BOOTSTRAP in SURVIVING_SHELL_SOURCES
 
 
 def test_bootstrap_is_an_executable_entrypoint() -> None:
