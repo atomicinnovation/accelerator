@@ -12,7 +12,7 @@ parent: "work-item:0136"
 blocked_by: []
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [shell, tooling, ci, cleanup]
-last_updated: "2026-08-28T00:05:44+00:00"
+last_updated: "2026-08-28T00:37:08+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: "PP-195"
@@ -36,8 +36,8 @@ surface toward the thin-wrapper floor ADR-0048 targets. The bashisms denylist is
 re-homed rather than dropped: its shell implementation (`scripts/lint-bashisms.sh`)
 is reimplemented as a Python task under `tasks/`, so no shell tool lints shell, and
 shfmt + ShellCheck are retained — all three rescoped from the whole-tree walk to the
-handful of surviving thin-shell files (the launcher bootstrap, hook wrapper and
-Playwright executor). Beyond the guards, empty the
+two surviving thin-shell files (the launcher bootstrap and the hook wrapper; the
+Playwright step is `run.js`, JavaScript, not shell). Beyond the guards, empty the
 `scripts/` directory itself: delete the residual shell libraries, their `test-*.sh`
 harnesses and orphaned fixtures; relocate the two data files that Rust consumes as
 production or drift-test source-of-truth into their consuming `cli/` crate; and port
@@ -52,8 +52,9 @@ frozenset, the shell-suite discovery + minimum-count floors, shfmt + ShellCheck,
 `.shellcheckrc` and `[*.sh]` editorconfig block, and the `check-scripts` CI job (a
 release gate). Most become removable outright as the scripts they police disappear;
 the bash-3.2 guard is the exception — a thin slice of shell remains (the launcher
-bootstrap, the hook wrapper, the Playwright executor) and stays under the bash-3.2
-floor, so the bashisms denylist is re-homed to Python and shfmt + ShellCheck are
+bootstrap `bin/accelerator` and the hook wrapper `hooks/launcher-link-refresh.sh` —
+two files; the Playwright step is `run.js`, JavaScript, not shell) and stays under the
+bash-3.2 floor, so the bashisms denylist is re-homed to Python and shfmt + ShellCheck are
 retained, all rescoped to that survivor set rather than removed. The floors must be
 decremented in lockstep with suite retirement to avoid a green→red CI gap.
 
@@ -91,9 +92,11 @@ writeback.
   job (`.github/workflows/main.yml`), enumerating every `needs: check-scripts` edge —
   the release gate and any other job — and repointing or dropping each, once no
   policed shell remains.
-- Keep the surviving thin shell (launcher bootstrap, hook wrapper, Playwright
-  executor) bash-3.2-safe, guarded automatically by the Python bashisms task plus
-  shfmt and ShellCheck over the explicit surviving-file list — not by hand review.
+- Keep the surviving thin shell — the launcher bootstrap `bin/accelerator` and the
+  hook wrapper `hooks/launcher-link-refresh.sh` (two files; the Playwright executor is
+  `run.js`, JavaScript, outside the shell survivor set) — bash-3.2-safe, guarded
+  automatically by the Python bashisms task plus shfmt and ShellCheck over the explicit
+  surviving-file list — not by hand review.
 - Do **not** carry the work-item or integration clusters. 0171 was widened on
   2026-08-17 to delete every `work-item-*.sh` and `test-work-item-*.sh` outright
   — including `work-item-sync-label.sh`, `work-item-normalise.sh` and
@@ -106,13 +109,26 @@ writeback.
   linear library entries. This story's lockstep obligation covers only what
   remains — the fourteen `scripts/*.sh` entries and the config, hooks, decisions
   and github floors.
-- Sever the one live bash coupling first: repoint
-  `skills/integrations/jira/create-jira-issue/SKILL.md` off
-  `config_upsert_frontmatter_field` to the Rust `external_id` writeback
-  (`cli/work-cli/src/sync_author.rs`), then delete `config-common.sh` together with
-  its `vcs-common.sh`, `config-defaults.sh` and `atomic-common.sh` source chain and
-  the drift-oracle tests — each a Rust test that diffs the crate against the bash
-  file to catch the two drifting apart — that read them
+- Sever the one live bash coupling first: add a new `accelerator work
+  link-external-id <work-item-path> <external-id>` subcommand and repoint
+  `skills/integrations/jira/create-jira-issue/SKILL.md:111-112` off the bash
+  `config_upsert_frontmatter_field` onto it, replacing that one line while keeping WF-4's
+  existing two-step shape (`jira create --emit key` at `:102`, then the writeback) and
+  its non-atomic caveat (`:124-127`) unchanged. The new subcommand lives in `work-cli`,
+  not `jira-cli`: `work-cli` already depends on the full frontmatter-writing stack
+  (`document`, `corpus`, `corpus-adapters`, `tracker`, `work`, `work-adapters`) and
+  already contains the writeback, so it adds **zero** new crate dependencies; folding it
+  into `jira create` would instead force the remote-only `jira-cli` binary to take on
+  `document`/`corpus`/`corpus-adapters`, inverting the crate boundaries. Reuse the
+  existing writeback `link_external_id` (`cli/work-cli/src/sync_author.rs:139-161`,
+  `Mapping::set` upsert) — its body touches none of `ConfiguredLocalAuthor`'s fields, so
+  the new arm either lifts it directly or calls it via the `run_sync` construction recipe
+  (`sync.rs:411-412`); the `<external-id>` argument builds through `ExternalId::new`
+  (`cli/tracker/src/lib.rs:24`). Model the command on the sibling `work update`
+  (`work-cli/src/cli.rs:57`, `main.rs:262-311`). Only then delete `config-common.sh`
+  together with its `vcs-common.sh`, `config-defaults.sh` and `atomic-common.sh` source
+  chain and the drift-oracle tests — each a Rust test that diffs the crate against the
+  bash file to catch the two drifting apart — that read them
   (`cli/config/tests/extra_keys_mirror.rs`, the `config-defaults.sh` reads in the
   corpus parity suites).
 - Delete the orphaned libraries and their paired tests outright — `log-common.sh`,
@@ -120,6 +136,27 @@ writeback.
   `fs-common.sh`+`test-merge-move.sh` — plus `status-legacy-map.tsv` and the
   `test-fixtures/config-read-review/` goldens (their production script was removed
   in 0167).
+- Delete the sole hooks suite `hooks/test-vcs-detect.sh` — the one the
+  `_EXPECTED_HOOKS_SUITES = 1` floor (`tasks/test/integration.py:57`) guards — and bring
+  that floor to zero, but first port the two guards it uniquely carries that are **not**
+  VCS-detection behaviour. Its detection coverage is fully mirrored in Rust:
+  `cli/vcs-adapters/tests/classify.rs` (the whole topology matrix — main/none/worktree/
+  jj-secondary/colocated/nested-both-ways/hostile), `cli/vcs-cli/tests/detect_goldens.rs`
+  (end-to-end through the compiled `accelerator-vcs` against the same
+  `hooks/test-fixtures/vcs-detect/*.json` goldens), and `cli/vcs-adapters/tests/detection.rs`
+  (repo facts). The two things Rust does **not** cover — port them minimally to pytest,
+  the repo's non-Rust test language: (1) end-to-end dispatch through the `bin/accelerator`
+  launcher wrapper (the Rust goldens invoke the sub-binary directly, bypassing the
+  launcher) and its empty-stderr assertion, and (2) `hooks/hooks.json` SessionStart
+  registration integrity (command string, empty matcher, one hook, `type=command`). Once
+  ported, the hooks floor is removed rather than kept.
+- Keep the `hooks/test-fixtures/vcs-detect/` goldens tree — `detect_goldens.rs` reads its
+  four `*.json` files — but delete the already-dead regenerator
+  `hooks/test-fixtures/vcs-detect/regenerate.sh` (it invokes the long-removed
+  `hooks/vcs-detect.sh` and self-heals its `vcs-common.sh` provenance read to `UNKNOWN`,
+  so no repoint is needed). `scripts/test-helpers.sh` is deleted **last**, only once every
+  `scripts/test-*.sh` and `hooks/test-vcs-detect.sh` that source it are gone — it is the
+  shared assertion library for all of them, so its removal cannot precede its consumers.
 - Delete `doc-type-inference.sh` and `test-doc-type-inference.sh` once
   `cli/corpus-adapters/tests/parity.rs` — the parity test that sources it as a bash
   oracle — is removed; `corpus::doc_type::infer` is already natively unit-tested.
@@ -153,10 +190,17 @@ writeback.
   `doc-type-inference`, `merge-move`) are already mirror-tested in `cli/` and are
   deleted without a port.
 - Drop the retired-script references from `tasks/measure.py` (the `RECOVERED_FILES`
-  `vcs-common.sh` pin) and `tasks/lint/call_site_migration.py` (the `config-common.sh`,
-  `doc-type-inference.sh`, `doc-type-table.sh` allowlist entries) in the same change
-  that deletes each file, and leave no dangling reference in `skills/`, `hooks/`,
-  `.github/` or `.editorconfig`.
+  `vcs-common.sh` pin — a provenance record frozen at the baseline revision, also
+  mirrored in `tests/unit/tasks/test_measure.py`) and `tasks/lint/call_site_migration.py`
+  (the `config-common.sh` allowed-tuple entry at `:32` and the `doc-type-table.sh`
+  legacy-flag exemption at `:55` — `doc-type-inference.sh` is **not** referenced there)
+  in the same change that deletes each file, and leave no dangling reference in
+  `skills/`, `hooks/`, `tasks/`, `tests/`, `cli/`, `.github/` or `.editorconfig`.
+- Update the guard-mirroring Python unit suites in the same lockstep commits, or the
+  Python test lane goes red: `tests/unit/tasks/test_exec_bits.py:245-257` mirrors the
+  entire `SHELL_LIBRARIES` list, and `test_measure.py`, `test_lint.py`,
+  `test_bootstrap_coverage.py` and `test_call_site_migration.py` each reference deleted
+  scripts. The story's earlier dangling-reference enumeration omitted `tests/`.
 
 ## Acceptance Criteria
 
@@ -173,13 +217,22 @@ writeback.
       `needs: check-scripts` edge in `.github/workflows/main.yml` — the release gate
       and any other job — is enumerated and repointed or dropped, so the CI job graph
       has no dangling dependency.
-- [ ] The repointed `create-jira-issue/SKILL.md` writes the `external_id` frontmatter
-      field equivalently to the retired `config_upsert_frontmatter_field` upsert — for
-      both the insert case (no prior `external_id`) and the update case (existing
+- [ ] A new `accelerator work link-external-id <work-item-path> <external-id>`
+      subcommand exists in `work-cli` (adding no new crate dependency), and the repointed
+      `create-jira-issue/SKILL.md` calls it in place of `config_upsert_frontmatter_field`.
+      It writes the `external_id` frontmatter field equivalently to the retired upsert —
+      for both the insert case (no prior `external_id`) and the update case (existing
       `external_id` overwritten), the written value matches the retired path. Verified
       against the local writeback path only (no live Jira API call), so the check
       carries no external-service coupling, before `config-common.sh` and its source
       chain are deleted.
+- [ ] `hooks/test-vcs-detect.sh` is deleted and `_EXPECTED_HOOKS_SUITES` removed (floor to
+      zero), but its two non-detection guards are first ported to pytest and pass: an
+      end-to-end launcher-dispatch smoke through `bin/accelerator` (empty stderr, expected
+      hook envelope) and a `hooks/hooks.json` SessionStart registration-integrity check
+      (command string, empty matcher, single `type=command` hook). The
+      `hooks/test-fixtures/vcs-detect/` goldens tree is retained (read by
+      `cli/vcs-cli/tests/detect_goldens.rs`); the dead `regenerate.sh` is deleted.
 - [ ] The surviving thin-shell files are enumerated in `tasks/README.md` with their
       bash-3.2 constraint recorded (ADR-0049).
 - [ ] The surviving thin shell's bash-3.2 safety is verified automatically by the
@@ -189,9 +242,10 @@ writeback.
       survivor is caught.
 - [ ] `scripts/` retains no shell library, `test-*.sh`, orphaned fixture, or bashisms
       linter — the denylist is now a Python `tasks/` task — so `find scripts -name
-      '*.sh'` returns nothing. Every surviving thin-shell file (launcher bootstrap,
-      hook wrapper, Playwright executor) is homed outside `scripts/` (in `hooks/` and
-      `cli/`), and that full set matches the `tasks/README.md` enumeration exactly.
+      '*.sh'` returns nothing. Both surviving thin-shell files — the launcher bootstrap
+      `bin/accelerator` and the hook wrapper `hooks/launcher-link-refresh.sh` — are
+      homed outside `scripts/` (in `bin/` and `hooks/`), and that two-file set matches
+      the `tasks/README.md` enumeration exactly.
 - [ ] No dangling reference to any deleted `scripts/` file remains in `skills/`,
       `hooks/`, `tasks/`, `cli/`, `.github/` or `.editorconfig`; a repo-wide grep for
       each removed path resolves only to surviving or relocated locations.
@@ -220,6 +274,19 @@ writeback.
 
 ## Open Questions
 
+- **Resolved 2026-08-28** — the Jira cutover shape: add a new `accelerator work
+  link-external-id <work-item-path> <external-id>` subcommand in `work-cli` (zero new
+  crate deps; reuses `link_external_id`, whose body is field-independent) and repoint the
+  SKILL.md's one bash writeback line onto it, keeping WF-4's two-step shape. Rejected
+  folding the writeback into `jira create` — that would drag `document`/`corpus`/
+  `corpus-adapters` into the remote-only `jira-cli` binary. See Requirements.
+- **Resolved 2026-08-28** — the `hooks/test-vcs-detect.sh` disposition: **delete** it
+  (its VCS detection is fully mirrored in `cli/vcs-adapters/tests/classify.rs`,
+  `cli/vcs-cli/tests/detect_goldens.rs`, `cli/vcs-adapters/tests/detection.rs`) and bring
+  the hooks floor to zero, after porting to pytest the two non-detection guards it alone
+  carries — launcher-dispatch smoke and `hooks.json` registration integrity. Keep the
+  vcs-detect goldens tree (Rust reads it); drop the already-dead `regenerate.sh`;
+  `test-helpers.sh` is deleted last, after its consumers. See Requirements.
 - **Resolved 2026-08-28** — the bashisms/thin-shell question: the denylist is
   reimplemented as a Python task under `tasks/` and shfmt + ShellCheck are retained,
   all rescoped to the surviving thin-shell files (see Requirements). No open question
@@ -242,40 +309,56 @@ writeback.
 
 ## Assumptions
 
-- A residual thin shell surface remains (bootstrap, hook wrapper, Playwright
-  executor); full removal of all shell is not the goal (ADR-0048 thin-wrapper
-  floor).
+- A residual thin shell surface remains — two files, the launcher bootstrap
+  `bin/accelerator` and the hook wrapper `hooks/launcher-link-refresh.sh`; the
+  Playwright executor is `run.js` (JavaScript), not shell. Full removal of all shell is
+  not the goal (ADR-0048 thin-wrapper floor).
 
 ## Technical Notes
 
-- Anchors: `scripts/lint-bashisms.sh`; `tasks/lint/scripts.py:18,86,100`
-  (SHELL_LIBRARIES, bashisms, exec-bits); `tasks/test/integration.py:8-36` (floors);
-  `tasks/format/scripts.py:9` (shfmt); `tasks/lint/scripts.py:70` (shellcheck);
-  `tasks/shared/sources.py:60` (`shell_sources`); `.shellcheckrc`;
-  `.editorconfig:36-39`; `.github/workflows/main.yml:99` (`check-scripts`).
+- Anchors (line numbers re-verified 2026-08-28 against revision 85f919af):
+  `scripts/lint-bashisms.sh`; `tasks/lint/scripts.py:18,86,100` (SHELL_LIBRARIES,
+  bashisms, exec-bits — still accurate); `tasks/test/integration.py:38,57,58,59`
+  (the four surviving floors) plus `:48` (`_REQUIRED_CONFIG_SUITES`);
+  `tasks/format/scripts.py:16` (shfmt); `tasks/lint/scripts.py:52-65` (shellcheck);
+  `tasks/shared/sources.py:113` (`shell_sources`, with `:110`
+  `_EXTRA_SHELL_SOURCES`); `.shellcheckrc`; `.editorconfig:33-39` (`[*.sh]`);
+  `.github/workflows/main.yml:147-163` (`check-scripts`) with its sole `needs:` edge
+  at `:587` (the `prerelease` release gate).
   Post-resolution disposition of these anchors: **remove** SHELL_LIBRARIES, exec-bits,
   floors, `shell_sources()` and `check-scripts`; **re-home** `lint-bashisms.sh` (:86)
   as a Python task; **retain and rescope** shfmt (:9), ShellCheck (:70), `.shellcheckrc`
   and the `[*.sh]` editorconfig block to the explicit thin-shell survivor list rather
   than the `shell_sources()` walk.
-- Floor ownership as of 2026-08-17. `tasks/test/integration.py` declares six:
-  `_EXPECTED_CONFIG_SUITES = 15` (:45), `_EXPECTED_WORK_SUITES = 5` (:51),
-  `_EXPECTED_INTEGRATIONS_SUITES = 32` (:57), `_EXPECTED_HOOKS_SUITES = 1` (:76),
-  `_EXPECTED_DECISIONS_SUITES = 0` (:77) and `_EXPECTED_GITHUB_SUITES = 0` (:78).
-  0171 removes the work and integrations pair; this story owns the other four —
-  `_EXPECTED_CONFIG_SUITES` (15) and `_EXPECTED_HOOKS_SUITES` (1) are decremented to
-  zero as their suites go and then removed, while `_EXPECTED_DECISIONS_SUITES` and
-  `_EXPECTED_GITHUB_SUITES` already stand at 0 and are simply removed. No config- or
-  hooks-cluster story performs those decrements.
-- `SHELL_LIBRARIES` ownership: 0171 clears the single `skills/work/scripts/`
-  entry and the seven `skills/integrations/{jira,linear}/scripts/` entries. The
-  fourteen `scripts/*.sh` entries — `fs-common`, `hash-common`, `log-common`,
-  `work-common`, `config-defaults`, `config-common`, `atomic-common`,
-  `vcs-common`, `doc-type-table`, `doc-type-inference`,
-  `frontmatter-emission-rules`, `frontmatter-fixtures`, `test-helpers` and
-  `accelerator-scaffold` — are removed by this story directly (every owning cluster is
-  already done), each dropped from the frozenset in the change that deletes its file;
-  the frozenset itself disappears once the last is gone.
+- Floor ownership as of 2026-08-28 (re-verified against live code). Only **four** floor
+  constants remain in `tasks/test/integration.py`: `_EXPECTED_CONFIG_SUITES = 14` (:38),
+  `_EXPECTED_HOOKS_SUITES = 1` (:57), `_EXPECTED_DECISIONS_SUITES = 0` (:58) and
+  `_EXPECTED_GITHUB_SUITES = 0` (:59). `_EXPECTED_WORK_SUITES` and
+  `_EXPECTED_INTEGRATIONS_SUITES` are **already removed** (0212 and 0211, both done) —
+  do not re-retire them, and note the config floor is **14, not 15**. This story owns
+  the four survivors: config and hooks are decremented to zero as their suites go and
+  then removed, while decisions and github already stand at 0 and are simply removed.
+- The config floor is a `scripts/`-wide `test-*.sh` gauge, not a config-cluster floor:
+  the `config` task calls `run_shell_suites(context, "scripts", ...)`, discovering all
+  fourteen `test-*.sh` under `scripts/`. So **every** `test-*.sh` deletion — the five
+  domain tests *and* the nine authoring-guard ports alike — decrements this one floor
+  toward zero; the port is not floor-neutral. `_require_suite_floor` also enforces
+  `_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)` (:48):
+  porting that named guard forces an edit to this tuple, not just a floor decrement, or
+  the check raises on the missing required suite.
+- `SHELL_LIBRARIES` ownership: the prior clusters already cleared the
+  `skills/work/scripts/` and `skills/integrations/{jira,linear}/scripts/` entries. As of
+  2026-08-28 the live frozenset (`tasks/lint/scripts.py:18`, entries at `:20-32`) holds
+  **thirteen** `scripts/*.sh` entries — `fs-common`, `hash-common`, `log-common`,
+  `config-defaults`, `config-common`, `atomic-common`, `vcs-common`, `doc-type-table`,
+  `doc-type-inference`, `frontmatter-emission-rules`, `frontmatter-fixtures`,
+  `test-helpers` and `accelerator-scaffold`. (`work-common.sh` is **not** present — an
+  earlier draft listed fourteen including it; it was already removed.) All thirteen are
+  removed by this story directly, each dropped from the frozenset in the change that
+  deletes its file; the frozenset itself disappears once the last is gone. The
+  exec_bits stale-entry guard (`tasks/lint/scripts.py:98-103`) fails the lint if a file
+  is deleted while its frozenset entry remains — this is the coupling that forces the
+  per-commit lockstep.
 
 ### `scripts/` disposition (2026-08-27 audit)
 
@@ -400,6 +483,28 @@ shipped templates' shape or the SKILL.md-literal conformance these guards enforc
   `check-scripts` release gate) still goes. The surviving checks run in the normal
   `mise run check` lint lane, not as a `check-scripts` release gate.
 
+- Reconciled against live code 2026-08-28 (research pass, revision 85f919af — see
+  `meta/research/codebase/2026-08-28-0174-empty-scripts-and-retire-shell-tooling.md`).
+  Corrections applied: the surviving thin shell is **two** files (the Playwright
+  executor is `run.js`, JavaScript, not shell); the config floor is **14, not 15** and
+  only four floor constants remain (work/integrations already retired by 0211/0212);
+  `SHELL_LIBRARIES` holds **thirteen** entries (no `work-common.sh`); the
+  `_REQUIRED_CONFIG_SUITES` coupling and the `scripts/`-wide nature of the config floor
+  were added; the Jira cutover target was found to be a non-invokable trait method
+  (new Open Question); `tests/unit/tasks/` was folded into the dangling-reference and
+  lockstep scope; the `hooks/test-vcs-detect.sh`/`test-helpers.sh` tension was surfaced
+  (new Requirement + Open Question); stale line anchors were refreshed; and
+  `call_site_migration.py` was corrected to two allowlist entries, not three.
+- Two Open Questions resolved 2026-08-28 (each backed by a focused code investigation).
+  (1) Jira cutover: `accelerator work link-external-id` in `work-cli` — chosen over
+  folding into `jira create` because `work-cli` already owns the frontmatter-writing
+  stack and the `link_external_id` writeback (zero new deps), whereas `jira-cli` is a
+  remote-only binary that would otherwise gain `document`/`corpus`/`corpus-adapters`.
+  (2) `test-vcs-detect.sh`: delete (VCS detection fully mirrored in `cli/vcs-adapters`
+  classify/detection + `cli/vcs-cli` detect_goldens), porting only its launcher-dispatch
+  and `hooks.json`-integrity guards to pytest, floor to zero. Both are now folded into
+  Requirements and Acceptance Criteria; no open question gates planning.
+
 > Extracted from source documents without interactive enrichment, then reviewed
 > across three passes (review 1) and promoted to `ready` on 2026-08-28.
 
@@ -409,6 +514,7 @@ shipped templates' shape or the SKILL.md-literal conformance these guards enforc
 - Parent: `meta/work/0136-migrate-shell-scripts-to-rust-cli.md`
 - ADRs: ADR-0048, ADR-0049
 - Prior research: `meta/research/codebase/2026-06-23-0136-shell-scripts-rust-cli-migration-surface.md`
+- Grounding research (this story): `meta/research/codebase/2026-08-28-0174-empty-scripts-and-retire-shell-tooling.md`
 - Predecessors (all done): 0167, 0168, 0169, 0170, 0171, 0172, 0195, 0196, 0197,
   0211, 0212 — the domain-cluster migrations this cleanup follows.
 - Rust successors of the retiring libraries: `cli/store/src/lib.rs`,
