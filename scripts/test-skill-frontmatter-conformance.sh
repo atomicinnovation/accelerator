@@ -50,7 +50,7 @@ CORPUS_BIN="${ACCELERATOR_BIN:-$ROOT/bin/accelerator}"
 # shellcheck source=frontmatter-fixtures.sh
 source "$SCRIPT_DIR/frontmatter-fixtures.sh"
 
-SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
+SCHEMA_TSV="$SCRIPT_DIR/../cli/corpus/src/frontmatter_validation/templates-schema.tsv"
 TEMPLATES_DIR="$ROOT/templates"
 cd "$ROOT"
 
@@ -74,6 +74,11 @@ while IFS=$'\t' read -r tmpl type anchored extras vocab forbidden linkkeys; do
   SCHEMA_FORBIDDEN+=("$forbidden")
   SCHEMA_LINKKEYS+=("$linkkeys")
 done < <(tail -n +2 "$SCHEMA_TSV")
+
+if [ ! -r "$SCHEMA_TSV" ] || [ "${#SCHEMA_TYPES[@]}" -eq 0 ]; then
+  echo "  FAIL: templates-schema.tsv unreadable or has no rows at $SCHEMA_TSV"
+  exit 1
+fi
 
 schema_index() { # $1 type -> index or ""
   local needle="$1" i

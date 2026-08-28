@@ -1,4 +1,4 @@
-//! The cross-cutting facts `scripts/templates-schema.tsv` alone does not
+//! The cross-cutting facts the corpus `templates-schema.tsv` alone does not
 //! carry: the own-identity key per type (distinct from a type's *forbidden*
 //! own-id keys — the rename this drives always pre-empts the drop rule from
 //! ever seeing the same key), the legacy type-alias fold, and the

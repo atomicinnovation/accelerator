@@ -27,7 +27,11 @@ export LC_ALL=C
 
 echo "=== Template frontmatter shape ==="
 
-SCHEMA_TSV="$SCRIPT_DIR/templates-schema.tsv"
+SCHEMA_TSV="$SCRIPT_DIR/../cli/corpus/src/frontmatter_validation/templates-schema.tsv"
+if [ ! -r "$SCHEMA_TSV" ] || [ "$(tail -n +2 "$SCHEMA_TSV" | grep -c .)" -eq 0 ]; then
+  echo "  FAIL: templates-schema.tsv unreadable or has no rows at $SCHEMA_TSV"
+  exit 1
+fi
 # Cross-check inputs: each listed work item carries a Schema Reference table;
 # the union of those tables must match the TSV exactly.
 WORK_ITEM_MDS=(

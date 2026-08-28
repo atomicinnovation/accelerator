@@ -396,14 +396,14 @@ two shell guards' TSV-path repoint, in one commit.
 
 #### Automated Verification
 
-- [ ] `corpus` and `design` test builds compile and pass: `mise run test:unit:cli`
-- [ ] `templates-schema.tsv` and `extract-work-items-cue-phrases.txt` no longer
+- [x] `corpus` and `design` test builds compile and pass: `mise run test:unit:cli`
+- [x] `templates-schema.tsv` and `extract-work-items-cue-phrases.txt` no longer
       under `scripts/`; both resolve under `cli/`
-- [ ] Bare default green: `mise run`
+- [x] Bare default green: `mise run`
 
 #### Manual Verification
 
-- [ ] No dangling `scripts/templates-schema.tsv` or
+- [x] No dangling `scripts/templates-schema.tsv` or
       `scripts/extract-work-items-cue-phrases.txt` reference in `cli/`,
       `tasks/`, or the two still-live shell guards.
 
