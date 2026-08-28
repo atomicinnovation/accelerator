@@ -108,8 +108,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira create --project <project> --type <is
   item's `external_id` (insert the line if absent):
 
   ```
-  source ${CLAUDE_PLUGIN_ROOT}/scripts/config-common.sh
-  config_upsert_frontmatter_field <work-item-file> external_id <KEY>
+  ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work link-external-id <work-item-file> <KEY>
   ```
 
   Then report `Issue created: <KEY> — the work item's external_id is now <KEY>.`
@@ -122,7 +121,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira create --project <project> --type <is
   and retry.
 
 The create-then-writeback sequence is **non-atomic**: if the create succeeds but
-the `config_upsert_frontmatter_field` writeback fails, surface it loudly — the
+the `work link-external-id` writeback fails, surface it loudly — the
 issue exists remotely as `<KEY>`, the user must NOT blindly re-run (it would
 duplicate), and they should set `external_id: <KEY>` by hand.
 

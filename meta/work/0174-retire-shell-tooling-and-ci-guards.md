@@ -9,7 +9,6 @@ status: ready
 kind: story
 priority: medium
 parent: "work-item:0136"
-blocked_by: []
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 tags: [shell, tooling, ci, cleanup]
 last_updated: "2026-08-28T00:37:08+00:00"

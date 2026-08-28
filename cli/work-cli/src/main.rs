@@ -310,6 +310,17 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
     }
 }
 
+fn run_link_external_id(path: &Path, external_id: &str) -> ExitCode {
+    let external_id = tracker::ExternalId::new(external_id.to_owned());
+    match sync_author::link_external_id(path, &external_id) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn run_canonicalise_id(input: &str) -> ExitCode {
     let start = match current_dir() {
         Ok(dir) => dir,
@@ -457,6 +468,9 @@ fn main() -> ExitCode {
         Command::Diff { local, remote } => run_diff(&local, &remote),
         Command::Create(args) => run_create(*args),
         Command::Update(args) => run_update(&args),
+        Command::LinkExternalId { path, external_id } => {
+            run_link_external_id(&path, &external_id)
+        }
         Command::CanonicaliseId { input } => run_canonicalise_id(&input),
         Command::NextNumber { project, count } => {
             run_next_number(project.as_deref(), count)

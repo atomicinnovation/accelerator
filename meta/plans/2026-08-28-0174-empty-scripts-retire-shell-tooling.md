@@ -232,21 +232,21 @@ harmless) and is removed in Phase 2.
 
 #### Automated Verification
 
-- [ ] Workspace builds and clippy passes: `mise run cli:check`
-- [ ] New integration test passes (model on `cli/work-cli/tests/cli_update.rs`),
+- [x] Workspace builds and clippy passes: `mise run cli:check`
+- [x] New integration test passes (model on `cli/work-cli/tests/cli_update.rs`),
       landing the failing cases first: insert (no prior `external_id`) and
       overwrite both write the expected `external_id` scalar **and** leave the
       rest of the file (all other frontmatter fields and the body) byte-identical
       — assert whole-file, minus the changed scalar, not merely the neighbours;
       at least one error case (non-mapping frontmatter or unreadable
       file) yields a non-zero exit with a stderr message: `mise run test:unit:cli`
-- [ ] No live-Jira coupling in the test — it invokes the built binary against a
+- [x] No live-Jira coupling in the test — it invokes the built binary against a
       scratch repo only.
-- [ ] Bare default stays green: `mise run`
+- [x] Bare default stays green: `mise run`
 
 #### Manual Verification
 
-- [ ] The repointed SKILL.md reads coherently as model-instruction text; the
+- [x] The repointed SKILL.md reads coherently as model-instruction text; the
       non-atomic caveat names `work link-external-id`, not the retired helper.
 
 ---

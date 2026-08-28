@@ -72,6 +72,28 @@ fn failed(message: impl std::fmt::Display) -> kernel::Error {
     kernel::Error::Failed(message.to_string())
 }
 
+/// Upsert `external_id` into a work item's frontmatter, preserving every other
+/// field and the body verbatim.
+pub fn link_external_id(
+    path: &Path,
+    external_id: &ExternalId,
+) -> Result<(), kernel::Error> {
+    let content = std::fs::read_to_string(path).map_err(failed)?;
+    let mut yaml = document::parse(&content).map_err(failed)?;
+    let Yaml::Mapping(mapping) = &mut yaml else {
+        return Err(failed("frontmatter is not a mapping"));
+    };
+    mapping.set(
+        "external_id".to_owned(),
+        Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
+    );
+    let rendered = document::render(Some(&content), &yaml).map_err(failed)?;
+    let store =
+        FileCorpusStore::new(path.parent().unwrap_or_else(|| Path::new(".")));
+    AtomicWrite::write(&store, path, rendered.as_bytes()).map_err(failed)?;
+    Ok(())
+}
+
 impl LocalAuthor for ConfiguredLocalAuthor<'_> {
     fn author_from_remote(
         &self,
@@ -141,22 +163,6 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         path: &Path,
         external_id: &ExternalId,
     ) -> Result<(), kernel::Error> {
-        let content = std::fs::read_to_string(path).map_err(failed)?;
-        let mut yaml = document::parse(&content).map_err(failed)?;
-        let Yaml::Mapping(mapping) = &mut yaml else {
-            return Err(failed("frontmatter is not a mapping"));
-        };
-        mapping.set(
-            "external_id".to_owned(),
-            Yaml::Scalar(Scalar::String(external_id.as_str().to_owned())),
-        );
-        let rendered =
-            document::render(Some(&content), &yaml).map_err(failed)?;
-        let store = FileCorpusStore::new(
-            path.parent().unwrap_or_else(|| Path::new(".")),
-        );
-        AtomicWrite::write(&store, path, rendered.as_bytes())
-            .map_err(failed)?;
-        Ok(())
+        link_external_id(path, external_id)
     }
 }
