@@ -1,4 +1,4 @@
-"""Cross-engine validation of hooks/test-fixtures/masks.toml.
+"""Cross-engine validation of cli/vcs-test-support/fixtures/masks.toml.
 
 Mirrored by cli/vcs-test-support/tests/masks.rs, which runs the identical
 positive/negative samples through the Rust `regex` crate. A pattern that
@@ -12,7 +12,11 @@ import tomllib
 from pathlib import Path
 
 MASKS_PATH = (
-    Path(__file__).parents[3] / "hooks" / "test-fixtures" / "masks.toml"
+    Path(__file__).parents[3]
+    / "cli"
+    / "vcs-test-support"
+    / "fixtures"
+    / "masks.toml"
 )
 
 EXPECTED_PATTERN_NAMES = {

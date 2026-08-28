@@ -1,7 +1,6 @@
 //! `vcs status`/`vcs log` against the committed golden fixtures, replayed
-//! end to end through the compiled `accelerator-vcs` binary over the same
-//! ten real jj/git checkout states
-//! `hooks/test-fixtures/generate_vcs_goldens.py` captured.
+//! end to end through the compiled `accelerator-vcs` binary over ten real
+//! jj/git checkout states, under `vcs-test-support/fixtures/vcs-status-log`.
 #![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeMap;
@@ -19,12 +18,12 @@ const BIN: &str = env!("CARGO_BIN_EXE_accelerator-vcs");
 
 fn masks_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../hooks/test-fixtures/masks.toml")
+        .join("../vcs-test-support/fixtures/masks.toml")
 }
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../hooks/test-fixtures/vcs-status-log")
+        .join("../vcs-test-support/fixtures/vcs-status-log")
 }
 
 fn golden(name: &str) -> Result<String, TestError> {

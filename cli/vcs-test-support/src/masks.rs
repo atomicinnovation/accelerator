@@ -1,5 +1,5 @@
-//! Loads `hooks/test-fixtures/masks.toml`, the volatile-field mask table
-//! shared with the Python golden-generation script.
+//! Loads `vcs-test-support/fixtures/masks.toml`, the volatile-field mask table
+//! shared across the Rust and Python golden cross-checks.
 
 use std::path::Path;
 

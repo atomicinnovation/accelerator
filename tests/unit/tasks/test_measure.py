@@ -444,7 +444,7 @@ class TestEnvelopeNormalisation:
         json.loads(
             (
                 Path(__file__).resolve().parents[3]
-                / "hooks/test-fixtures/vcs-guard/decision-table.json"
+                / "cli/vcs-test-support/fixtures/vcs-guard/decision-table.json"
             ).read_text()
         )[:40],
     )
