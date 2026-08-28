@@ -514,13 +514,13 @@ without the feature.
 
 #### Automated Verification
 
-- [ ] `find scripts -name 'linkage-type-pairs.tsv'` returns nothing
-- [ ] The de-gated resolver case passes: `mise run test:unit:cli`
-- [ ] Bare default green: `mise run`
+- [x] `find scripts -name 'linkage-type-pairs.tsv'` returns nothing
+- [x] The de-gated resolver case passes: `mise run test:unit:cli`
+- [x] Bare default green: `mise run`
 
 #### Manual Verification
 
-- [ ] Nothing in `cli/` reads `linkage-type-pairs.tsv`; `TYPE_PAIRS` stands as
+- [x] Nothing in `cli/` reads `linkage-type-pairs.tsv`; `TYPE_PAIRS` stands as
       the single source with no drift oracle.
 
 ---
