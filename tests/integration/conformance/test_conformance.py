@@ -58,7 +58,7 @@ STATUS_AXIS = (
 
 DISCOVERY_RE = re.compile(
     r"schema_version:|Populate frontmatter|Substitute .*frontmatter|"
-    r"frontmatter-emission|artifact-derive-metadata\.sh"
+    r"frontmatter-emission"
 )
 
 
