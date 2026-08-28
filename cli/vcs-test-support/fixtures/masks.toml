@@ -1,6 +1,6 @@
 # Volatile-field mask patterns for VCS status/log golden fixtures.
 #
-# Loaded identically by tests/integration/hooks/test_masks.py (Python's `re`)
+# Loaded identically by tests/unit/vcs/test_masks.py (Python's `re`)
 # and cli/vcs-test-support/tests/masks.rs (the Rust `regex` crate) so both the
 # golden-generation side and the comparison harness mask the same bytes. Each
 # pattern carries its own positive/negative sample so both

@@ -1,6 +1,6 @@
 //! Cross-engine validation of `vcs-test-support/fixtures/masks.toml`.
 //!
-//! Mirrored by `tests/integration/hooks/test_masks.py`, which runs the
+//! Mirrored by `tests/unit/vcs/test_masks.py`, which runs the
 //! identical positive/negative samples through Python's `re`. A pattern
 //! that the two engines interpret differently fails exactly one of the two
 //! suites, catching engine-syntax drift that a single shared file does not

@@ -271,6 +271,11 @@ description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/tasks -v"
 
+[tasks."test:unit:vcs"]
+description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
+depends = ["deps:install:python"]
+run = "uv run pytest tests/unit/vcs -v"
+
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
@@ -287,7 +292,7 @@ run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:cli", "test:unit:design-automation"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
 # suites need a bootstrapped Playwright runtime, which no CI lane provisions.
