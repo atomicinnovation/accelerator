@@ -21,7 +21,6 @@ SHELL_LIBRARIES: frozenset[str] = frozenset(
         "scripts/hash-common.sh",
         "scripts/log-common.sh",
         "scripts/doc-type-table.sh",
-        "scripts/doc-type-inference.sh",
         "scripts/frontmatter-emission-rules.sh",
         "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",

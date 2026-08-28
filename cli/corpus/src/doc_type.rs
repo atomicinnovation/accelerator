@@ -331,4 +331,22 @@ mod tests {
     fn infer_requires_a_whole_segment_not_a_prefix() {
         assert_eq!(infer(Path::new("meta/plans-archive/x.md"), &table()), None);
     }
+
+    #[test]
+    fn infer_breaks_an_exact_length_tie_by_keeping_the_first_entry() {
+        let tied = vec![
+            (DocTypeKey::PlanReviews, PathBuf::from("meta/reviews")),
+            (DocTypeKey::PrReviews, PathBuf::from("meta/reviews")),
+        ];
+        assert_eq!(
+            infer(Path::new("meta/reviews/2026-01-01-x-review-1.md"), &tied),
+            Some(DocTypeKey::PlanReviews)
+        );
+    }
+
+    #[test]
+    fn infer_matches_a_directory_as_an_interior_path_segment() {
+        let path = Path::new("/tmp/checkout/meta/work/0042-foo.md");
+        assert_eq!(infer(path, &table()), Some(DocTypeKey::WorkItems));
+    }
 }

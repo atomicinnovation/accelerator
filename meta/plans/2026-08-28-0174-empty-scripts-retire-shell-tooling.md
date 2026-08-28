@@ -465,13 +465,16 @@ no edit there.
 
 #### Automated Verification
 
-- [ ] `find scripts -name '*doc-type-inference*'` returns nothing
-- [ ] The de-gated regex case runs in the default lane: `mise run test:unit:cli`
-- [ ] Exec-bits clean; bare default green: `mise run`
+- [x] `find scripts -name '*doc-type-inference*'` returns nothing
+- [x] The de-gated regex case runs in the default lane: `mise run test:unit:cli`
+- [x] Exec-bits clean; bare default green: `mise run`
+
+Native tie-break and interior-segment `infer` tests were added to
+`cli/corpus/src/doc_type.rs` before deleting the bash oracle.
 
 #### Manual Verification
 
-- [ ] `parity.rs` reads coherently as a single pure-Rust regex pin.
+- [x] `parity.rs` reads coherently as a single pure-Rust regex pin.
 
 ---
 
