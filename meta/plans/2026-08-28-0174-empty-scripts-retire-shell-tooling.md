@@ -771,16 +771,22 @@ Add two guards:
 
 #### Automated Verification
 
-- [ ] The two ported guards pass: `mise run test:integration:hooks`
-- [ ] `find hooks -name 'test-vcs-detect.sh' -o -name 'regenerate.sh'` returns nothing
-- [ ] `detect_goldens.rs` still reads its four goldens and passes: `mise run test:unit:cli`
+- [x] The two ported guards pass: `mise run test:integration:hooks`
+- [x] `find hooks -name 'test-vcs-detect.sh' -o -name 'regenerate.sh'` returns nothing
+- [x] `detect_goldens.rs` still reads its four goldens and passes: `mise run test:unit:cli`
       (the lane compiles with `--all-features`, so its `bash-parity` gate is a
       live gate, not a skip — the goldens run in the bare default)
-- [ ] Bare default green: `mise run`
+- [x] Bare default green: `mise run`
+
+The dead `CAPTURE-SOURCE.txt` (regenerate.sh's provenance companion, naming the
+retired `vcs-common.sh`) was removed alongside `regenerate.sh`. The
+launcher-dispatch smoke sets `ACCELERATOR_LOG=error` to suppress the sub-binary
+override's INFO diagnostic — a test-only artifact — so the empty-stderr
+assertion tests the production path's cleanliness.
 
 #### Manual Verification
 
-- [ ] The launcher-dispatch guard exercises the real `bin/accelerator` wrapper
+- [x] The launcher-dispatch guard exercises the real `bin/accelerator` wrapper
       end-to-end (not the sub-binary directly).
 
 ---

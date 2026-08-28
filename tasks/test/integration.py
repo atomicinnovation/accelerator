@@ -30,14 +30,9 @@ _ABSOLUTE_VCS_PATHS = (
     "/opt/homebrew/bin/jj",
 )
 
-# The three previously-unguarded subtrees, each at its current size. hooks/
-# holds only the one bash harness that predates Python becoming the standard
-# test language (test-vcs-detect.sh — the meta-directory migration
-# discoverability hook's own harness retired alongside the bash migration
-# engine it gated); the link-refresh suite is pytest, where a lost file is a
-# collection error rather than a silently smaller run, so no by-name entry is
-# needed.
-_EXPECTED_HOOKS_SUITES = 1
+# Two previously-unguarded subtrees, each at its current size. Their shell
+# suites are pytest now, where a lost file is a collection error rather than a
+# silently smaller run, so no by-name floor is needed.
 _EXPECTED_DECISIONS_SUITES = 0
 _EXPECTED_GITHUB_SUITES = 0
 
@@ -344,15 +339,15 @@ def decisions(context: Context) -> None:
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
-    Two halves: the pytest suites and the one remaining bash harness that
-    predates Python becoming the test language for the non-Rust surfaces.
-    That harness (test-vcs-detect.sh) dispatches the compiled accelerator-vcs
-    sub-binary through the real launcher, so it needs both on
-    ACCELERATOR_BIN/ACCELERATOR_VCS_BIN — the vcs_bin=True overlay.
+    The launcher-dispatch smoke drives the compiled accelerator-vcs through the
+    real `bin/accelerator` wrapper, so it needs ACCELERATOR_VCS_BIN — the
+    vcs_bin=True overlay — and the launcher built by the build:cli:dev
+    dependency.
     """
-    context.run("uv run pytest tests/integration/hooks -v")
-    suites = run_shell_suites(context, "hooks", accelerator_env(vcs_bin=True))
-    _require_suite_floor(suites, _EXPECTED_HOOKS_SUITES, (), "hooks")
+    context.run(
+        "uv run pytest tests/integration/hooks -v",
+        env=accelerator_env(vcs_bin=True),
+    )
 
 
 @task

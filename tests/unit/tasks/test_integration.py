@@ -61,7 +61,6 @@ class TestRunShellSuitesExecBit:
 # appears here, so a new floor without a paired case is a visible omission
 # rather than an untested Exit branch.
 _GUARDED = [
-    ("hooks", "_EXPECTED_HOOKS_SUITES", None),
     ("decisions", "_EXPECTED_DECISIONS_SUITES", None),
     ("github", "_EXPECTED_GITHUB_SUITES", None),
 ]
