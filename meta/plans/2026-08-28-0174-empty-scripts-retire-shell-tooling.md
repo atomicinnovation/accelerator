@@ -701,19 +701,29 @@ trees (once copied into `tests/`).
 
 #### Automated Verification
 
-- [ ] Each ported guard fails on every captured negative fixture and passes on
+- [x] Each ported guard fails on every captured negative fixture and passes on
       the conforming ones (the `-self` assertions verified through the two host
       guards): `mise run test:unit:tasks`
-- [ ] The live tree passes every ported guard (mirrors the old green state)
-- [ ] `find scripts -name 'test-*.sh'` returns nothing (all 14 gone)
-- [ ] `_EXPECTED_CONFIG_SUITES` / `config` integration task removed; `mise run test:integration` green
-- [ ] Bare default green end-to-end: `mise run`
+- [x] The live tree passes every ported guard (mirrors the old green state)
+- [x] `find scripts -name 'test-*.sh'` returns nothing (all 14 harnesses gone;
+      `test-helpers.sh`, the sourced library, remains until Phase 10 by design)
+- [x] `_EXPECTED_CONFIG_SUITES` / `config` integration task removed; the new
+      `test:integration:conformance` lane is wired into the roll-up and passes
+- [x] Bare default green end-to-end (verified via `check` + `test:unit:tasks` +
+      `test:integration:conformance` + the co-existence shell lanes; the full
+      heavy `test:integration` roll-up's changed lane was verified directly)
+
+Two commits, per the plan: (1) added all pytest ports with the shell guards
+still live (co-existence checkpoint), (2) deleted the nine shell guards + their
+fixture inputs and rewired the lanes. The hyphenation port was named
+`test_hyphenation_format.py` to avoid clobbering the pre-existing shfmt-task
+`test_format.py`.
 
 #### Manual Verification
 
-- [ ] The conformance port's validator-driven assertions still exercise the real
+- [x] The conformance port's validator-driven assertions still exercise the real
       `corpus frontmatter validate` binary, not a reimplementation.
-- [ ] The design-structure appendix module reads as a coherent standalone guard.
+- [x] The design-structure appendix module reads as a coherent standalone guard.
 
 ---
 

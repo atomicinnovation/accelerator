@@ -1,8 +1,8 @@
 """Producer-conformance guard: drives the real corpus validator.
 
-Ports the validator-driving half of
-`scripts/test-skill-frontmatter-conformance.sh`. For each frontmatter-emitting
-SKILL.md it extracts the hard-coded literals, derives the enforced attribute set
+Ports the validator-driving half of the retired shell conformance guard. For
+each frontmatter-emitting SKILL.md it extracts the hard-coded literals, derives
+the enforced attribute set
 from `templates-schema.tsv` and `frontmatter_rules`, and runs `accelerator
 corpus frontmatter validate` over a synthesised fixture — asserting acceptance,
 plus a per-axis negative self-test proving the guard is wired.

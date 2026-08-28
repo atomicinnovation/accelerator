@@ -34,24 +34,6 @@ def frontend(context: Context) -> None:
     context.run(f"npm --prefix {frontend_root} run test")
 
 
-@task
-def templates(context: Context) -> None:
-    """Run template / SKILL schema tests."""
-    drivers = [
-        "scripts/test-template-frontmatter.sh",
-        "scripts/test-skill-frontmatter-population.sh",
-    ]
-    failures: list[str] = []
-    for driver in drivers:
-        result = context.run(f"bash {driver}", warn=True, pty=False)
-        if result.exited != 0:
-            failures.append(driver)
-    if failures:
-        raise Exit(
-            f"Template schema tests failed: {', '.join(failures)}", code=1
-        )
-
-
 # The runtime-free JavaScript suites under the Playwright executor's `lib/`.
 #
 # A file-count floor alone would not catch a whole suite evaporating: `node

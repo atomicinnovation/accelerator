@@ -30,23 +30,6 @@ _ABSOLUTE_VCS_PATHS = (
     "/opt/homebrew/bin/jj",
 )
 
-# The config subtree (scripts/) discoverable shell suites. This is an
-# at-least floor so a dropped exec bit on a fail-closed gate (e.g.
-# test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
-# Raised as suites are added under scripts/, lowered as they are retired; it
-# must equal the count the discovery below finds.
-_EXPECTED_CONFIG_SUITES = 9
-
-# Fail-closed gates that MUST run by name, not merely satisfy the count floor —
-# a guard renamed off the `test-*.sh` convention would vanish while the count
-# still passes via other suites. The producer-conformance guard (work item
-# 0103) is the gate that "cannot drift undetected". The corpus validator's own
-# migration-completion gate (work item 0102) moved with it to `corpus-cli`'s
-# unconditional `this_repositorys_own_corpus_is_clean` cargo test — a `cargo
-# test` failure already fails CI unconditionally, so no bash-style
-# required-suite registration applies there.
-_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
-
 # The three previously-unguarded subtrees, each at its current size. hooks/
 # holds only the one bash harness that predates Python becoming the standard
 # test language (test-vcs-detect.sh — the meta-directory migration
@@ -336,13 +319,17 @@ def _restore_vcs_binaries(
 
 
 @task
-def config(context: Context) -> None:
-    """Integration tests for the plugin-wide config scripts."""
-    suites = run_shell_suites(
-        context, "scripts", accelerator_env(corpus_bin=True)
-    )
-    _require_suite_floor(
-        suites, _EXPECTED_CONFIG_SUITES, _REQUIRED_CONFIG_SUITES, "config"
+def conformance(context: Context) -> None:
+    """Producer-conformance guard: drives the real corpus validator.
+
+    Runs the launcher-provisioning pytest lane with ACCELERATOR_CORPUS_BIN
+    overlaid (via ``accelerator_env(corpus_bin=True)``) and the launcher built
+    by the ``build:cli:dev`` mise dependency, so it dispatches
+    ``accelerator corpus frontmatter validate`` to the compiled sub-binary.
+    """
+    context.run(
+        "uv run pytest tests/integration/conformance -v",
+        env=accelerator_env(corpus_bin=True),
     )
 
 

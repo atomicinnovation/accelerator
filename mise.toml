@@ -276,10 +276,6 @@ description = "Run cli/ workspace tests via nextest with coverage folded in (rep
 depends = ["deps:install:rust-components"]
 run = "invoke test.cli.run"
 
-[tasks."test:unit:templates"]
-description = "Run template / SKILL / metadata-helper schema tests"
-run = "invoke test.unit.templates"
-
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
 depends = ["deps:install:python"]
@@ -291,7 +287,7 @@ run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates", "test:unit:cli", "test:unit:design-automation"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
 # suites need a bootstrapped Playwright runtime, which no CI lane provisions.
@@ -321,10 +317,10 @@ description = "Extract every bin/accelerator config !-site command from skills/*
 depends = ["deps:install:python"]
 run = "invoke test.integration.skill-invocation"
 
-[tasks."test:integration:config"]
-description = "Run config integration tests"
+[tasks."test:integration:conformance"]
+description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
 depends = ["build:cli:dev"]
-run = "invoke test.integration.config"
+run = "invoke test.integration.conformance"
 
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
@@ -392,7 +388,7 @@ depends = [
     "test:integration:dev",
     "test:integration:entrypoint",
     "test:integration:skill-invocation",
-    "test:integration:config",
+    "test:integration:conformance",
     "test:integration:deny",
     "test:integration:decisions",
     "test:integration:tasks",

@@ -1,9 +1,8 @@
 """Design-skill, agent, and docs structure guard.
 
-Ports the design-structure appendix of
-`scripts/test-skill-frontmatter-conformance.sh` — a pure content/source scan
-(no compiled binary), so it homes here with the other content scanners rather
-than in the launcher-provisioning conformance lane.
+Ports the design-structure appendix of the retired shell conformance guard — a
+pure content/source scan (no compiled binary), so it homes here with the other
+content scanners rather than in the launcher-provisioning conformance lane.
 """
 
 import re

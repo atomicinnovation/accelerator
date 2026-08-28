@@ -47,11 +47,12 @@ _INTEGRATION_PREFIX = "test:integration:"
 _CONTRACT_LANE = "test:integration:tracker-contract"
 
 # Integration tasks that reach the compiled launcher and so MUST carry the
-# build:cli:dev edge. All drive shell suites through accelerator_env(), except
-# hooks, whose surviving bash harness dispatches accelerator-vcs through the
-# launcher directly (ACCELERATOR_VCS_BIN), not via a repointed shell script.
+# build:cli:dev edge. conformance drives the corpus validator through the
+# launcher via accelerator_env(corpus_bin=True); decisions drives shell suites
+# through accelerator_env(); hooks dispatches accelerator-vcs through the
+# launcher directly (ACCELERATOR_VCS_BIN).
 _LAUNCHER_DEPENDENTS = [
-    "test:integration:config",
+    "test:integration:conformance",
     "test:integration:decisions",
     "test:integration:hooks",
     "test:integration:visualiser",

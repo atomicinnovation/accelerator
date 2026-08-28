@@ -242,8 +242,6 @@ class TestExecBitsAntiVacuous:
 # red.
 _RECONCILED_LIBRARIES = frozenset(
     {
-        "scripts/frontmatter-emission-rules.sh",
-        "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",
     }
 )

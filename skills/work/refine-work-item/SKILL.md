@@ -392,9 +392,9 @@ was cancelled, declined by user, or the parent Edit failed).
 Render the parent → children tree using the format pinned in `/list-work-items`:
 Unicode box-drawing characters, two-space indent per depth level, `├── ` for
 all children except the last, `└── ` for the last child. The canonical fence
-below MUST appear verbatim in this step's prose so
-`scripts/test-hierarchy-format.sh` can verify byte-equality with the matching
-fence in `list-work-items/SKILL.md`:
+below MUST appear verbatim in this step's prose so the hierarchy-format guard
+can verify byte-equality with the matching fence in
+`list-work-items/SKILL.md`:
 
 <!-- canonical-tree-fence -->
 NNNN — parent title (kind: <kind>, status: <status>)

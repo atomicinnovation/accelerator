@@ -1,7 +1,5 @@
 //! The per-type schema table (mirrors `templates-schema.tsv`) and the
-//! cross-cutting emission rules (mirrors
-//! `scripts/frontmatter-emission-rules.sh`). Pure data — no filesystem, no
-//! regex.
+//! cross-cutting emission rules. Pure data — no filesystem, no regex.
 
 /// One `templates-schema.tsv` row, keyed by [`crate::DocTypeKey::linkage_type_name`].
 pub struct SchemaRow {

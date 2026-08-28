@@ -17,8 +17,6 @@ _EMPTY_SCOPE = "no shell sources matched — scope discovery is broken"
 # "Executable-bit invariant" subsection in tasks/README.md.
 SHELL_LIBRARIES: frozenset[str] = frozenset(
     {
-        "scripts/frontmatter-emission-rules.sh",
-        "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",
     }
 )
