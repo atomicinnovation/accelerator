@@ -6,11 +6,11 @@ reader in the product. Two anti-regression guards remain, both cheap:
 * **Grep B** — no ``skills/**/SKILL.md`` names a ``scripts/config-`` script;
   a reintroduced bash config call site would prompt at load and bypass the
   launcher contract.
-* **``--allow-legacy-layout`` confinement** — the flag stays inside the
-  allowlisted ``doc-type-table.sh``; anywhere else it would silently suppress
-  the uniform legacy-layout refusal. The meta-directory migration engine
-  reads legacy layout in-process via ``config-adapters``' own
-  ``LegacyPolicy::Allow``, not this flag, so it carries no exemption here.
+* **``--allow-legacy-layout`` confinement** — no ``skills/`` or ``scripts/``
+  ``.sh`` names the flag; anywhere it would silently suppress the uniform
+  legacy-layout refusal. The meta-directory migration engine reads legacy
+  layout in-process via ``config-adapters``' own ``LegacyPolicy::Allow``, not
+  this flag.
 
 The functional-invocation census (Grep A) that proved the migration landed is
 retired with the removal set it enumerated.
@@ -37,16 +37,13 @@ def grep_b_hits(root: Path) -> list[str]:
 def stray_legacy_flag(root: Path) -> list[str]:
     """Return ``*.sh`` files naming ``--allow-legacy-layout`` out of bounds.
 
-    Scans ``skills/`` and ``scripts/``; the allowlisted ``doc-type-table.sh``,
-    tests, and this gate are permitted.
+    Scans ``skills/`` and ``scripts/``; tests and this gate are permitted.
     """
     stray: list[str] = []
     for base in ("skills", "scripts"):
         for path in sorted((root / base).rglob("*.sh")):
             rel = path.relative_to(root).as_posix()
             if "allow-legacy-layout" not in path.read_text():
-                continue
-            if rel == "scripts/doc-type-table.sh":
                 continue
             name = Path(rel).name
             if (

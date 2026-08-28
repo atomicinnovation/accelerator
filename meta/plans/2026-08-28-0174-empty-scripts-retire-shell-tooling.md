@@ -558,13 +558,17 @@ the config floor.
 
 #### Automated Verification
 
-- [ ] `find scripts \( -name 'log-common.sh' -o -name 'accelerator-scaffold.sh' -o -name 'doc-type-table.sh' -o -name 'hash-common.sh' -o -name 'fs-common.sh' -o -name 'status-legacy-map.tsv' \)` returns nothing; `scripts/test-fixtures/config-read-review/` gone
-- [ ] `call_site_migration` lint still passes with the exemption removed: `mise run lint:build-system:check`
-- [ ] Exec-bits clean; bare default green: `mise run`
+- [x] `find scripts \( -name 'log-common.sh' -o -name 'accelerator-scaffold.sh' -o -name 'doc-type-table.sh' -o -name 'hash-common.sh' -o -name 'fs-common.sh' -o -name 'status-legacy-map.tsv' \)` returns nothing; `scripts/test-fixtures/config-read-review/` gone
+- [x] `call_site_migration` lint still passes with the exemption removed: `mise run lint:build-system:check`
+- [x] Exec-bits clean; bare default green: `mise run`
+
+Stale `cli/` doc comments naming `fs-common.sh` / `status-legacy-map.tsv`
+(`migrate-adapters/src/merge_move.rs`, `migrate/src/ports.rs`,
+`migrate/src/migrations/m0007/status_map.rs`) were reworded in the same commit.
 
 #### Manual Verification
 
-- [ ] No `--allow-legacy-layout` reference now lives outside the migration
+- [x] No `--allow-legacy-layout` reference now lives outside the migration
       engine (the exemption's removal did not orphan a real call site).
 
 ---

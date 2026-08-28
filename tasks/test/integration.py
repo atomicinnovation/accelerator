@@ -35,7 +35,7 @@ _ABSOLUTE_VCS_PATHS = (
 # test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
 # Raised as suites are added under scripts/, lowered as they are retired; it
 # must equal the count the discovery below finds.
-_EXPECTED_CONFIG_SUITES = 11
+_EXPECTED_CONFIG_SUITES = 9
 
 # Fail-closed gates that MUST run by name, not merely satisfy the count floor —
 # a guard renamed off the `test-*.sh` convention would vanish while the count

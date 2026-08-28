@@ -242,14 +242,9 @@ class TestExecBitsAntiVacuous:
 # red.
 _RECONCILED_LIBRARIES = frozenset(
     {
-        "scripts/fs-common.sh",
-        "scripts/hash-common.sh",
-        "scripts/log-common.sh",
-        "scripts/doc-type-table.sh",
         "scripts/frontmatter-emission-rules.sh",
         "scripts/frontmatter-fixtures.sh",
         "scripts/test-helpers.sh",
-        "scripts/accelerator-scaffold.sh",
     }
 )
 
