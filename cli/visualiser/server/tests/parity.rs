@@ -95,6 +95,16 @@ fn doc_type_wire_and_config_keys_are_pinned() {
         assert_eq!(kind.wire_str(), *wire, "wire for {kind:?}");
         assert_eq!(DocTypeKey::from_wire_str(wire), Some(*kind));
         assert_eq!(kind.config_path_key(), *config_key, "config for {kind:?}");
+        if let Some(key) = kind.config_path_key() {
+            assert!(
+                config::catalogue::PATH_KEYS
+                    .iter()
+                    .any(|(path_key, _)| path_key.strip_prefix("paths.")
+                        == Some(key)),
+                "{kind:?} claims config path key {key:?}, which \
+                 config::catalogue::PATH_KEYS does not declare"
+            );
+        }
     }
 }
 

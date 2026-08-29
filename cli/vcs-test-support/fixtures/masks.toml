@@ -1,0 +1,61 @@
+# Volatile-field mask patterns for VCS status/log golden fixtures.
+#
+# Loaded identically by tests/unit/vcs/test_masks.py (Python's `re`)
+# and cli/vcs-test-support/tests/masks.rs (the Rust `regex` crate) so both the
+# golden-generation side and the comparison harness mask the same bytes. Each
+# pattern carries its own positive/negative sample so both
+# engines can be pinned against the identical source of truth rather than
+# hand-duplicating samples in two languages.
+#
+# Closed once committed: do not add a pattern, or loosen an existing one, to
+# make a failing golden pass — see Phase 1 of
+# meta/plans/2026-08-05-0169-vcs-subdomain-and-hooks-migration.md.
+
+[[pattern]]
+name = "hex_object_id"
+regex = '\b[0-9a-f]{7,40}\b'
+description = "git commit / blob / tree hex object ids"
+sample_match = "a1b2c3d"
+sample_no_match = "feature"
+
+[[pattern]]
+name = "jj_change_id"
+regex = '\b[k-z]{8,32}\b'
+description = "jj change ids (k-z alphabet, disjoint from hex digits)"
+sample_match = "kvwrmzxy"
+sample_no_match = "workspace"
+
+[[pattern]]
+name = "iso8601_timestamp"
+regex = '\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?\b'
+description = "ISO-8601 timestamps"
+sample_match = "2026-08-05T14:23:11Z"
+sample_no_match = "2026-08-05"
+
+[[pattern]]
+name = "jj_space_timestamp"
+regex = '\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b'
+description = "jj log's default space-separated date/time format"
+sample_match = "2026-08-05 14:23:11"
+sample_no_match = "meeting at 14:23:11"
+
+[[pattern]]
+name = "relative_age"
+regex = '\b\d+ (second|minute|hour|day|week|month|year)s? ago\b'
+description = "relative age strings (e.g. '3 minutes ago')"
+sample_match = "3 minutes ago"
+sample_no_match = "3 minutes remaining"
+
+[[pattern]]
+name = "fixture_tempdir_path"
+regex = '(/private)?/(tmp|var/folders)/\S+'
+description = "the fixture builder's mktemp tempdir path"
+sample_match = "/private/var/folders/xy/ab12cd/T/repo-xyz"
+sample_no_match = "/Users/toby/project/tmp-notes"
+
+[[pattern]]
+name = "author_identity"
+regex = '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]+'
+description = "author/committer email identity"
+sample_match = "t@e.x"
+sample_no_match = "author-name"

@@ -4,17 +4,18 @@ The `accelerator-work` command-line surface: work-item lifecycle primitives (`cr
 Usage: accelerator-work <COMMAND>
 
 Commands:
-  resolve          Resolve a user-supplied work-item identifier (a path, a full ID, or a bare number) to a canonical file path
-  template-hints   Print the work-item template's hint values for a frontmatter field (e.g. `kind`, `status`, `priority`), one per line. Always exits 0
-  show             Print a work item: the whole file, or a single frontmatter field
-  diff             Show a per-section diff between two work-item-shaped files, for conflict-resolution review. `local` is the `-` side, `remote` is the `+` side
-  create           Atomically create a new work item under the configured pattern, self-allocating its own ID
-  update           Atomically apply field/tag/list-field edits to an existing work item's frontmatter
-  canonicalise-id  Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
-  next-number      Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
-  list             List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
-  sync             Reconcile local work items with the configured remote tracker (`work.integration`)
-  help             Print this message or the help of the given subcommand(s)
+  resolve           Resolve a user-supplied work-item identifier (a path, a full ID, or a bare number) to a canonical file path
+  template-hints    Print the work-item template's hint values for a frontmatter field (e.g. `kind`, `status`, `priority`), one per line. Always exits 0
+  show              Print a work item: the whole file, or a single frontmatter field
+  diff              Show a per-section diff between two work-item-shaped files, for conflict-resolution review. `local` is the `-` side, `remote` is the `+` side
+  create            Atomically create a new work item under the configured pattern, self-allocating its own ID
+  update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
+  link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
+  canonicalise-id   Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
+  next-number       Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+  list              List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
+  sync              Reconcile local work items with the configured remote tracker (`work.integration`)
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -108,6 +109,18 @@ Options:
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
       --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged) or 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict)
   -h, --help                      Print help
+
+=== accelerator-work link-external-id --help ===
+Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
+
+Usage: accelerator-work link-external-id <PATH> <EXTERNAL_ID>
+
+Arguments:
+  <PATH>         The work-item file to link
+  <EXTERNAL_ID>  The remote identifier to record
+
+Options:
+  -h, --help  Print help
 
 === accelerator-work canonicalise-id --help ===
 Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)

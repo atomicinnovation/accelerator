@@ -18,9 +18,8 @@ pub fn repo_root() -> Result<PathBuf, TestError> {
         .canonicalize()?)
 }
 
-/// Asserts a file the harness *reads* is present — a sourced bash library, an
-/// awk program, a TSV table. Per the repo's exec-bit invariant these are not
-/// executable, so no mode is asserted.
+/// Asserts a file the harness *reads* is present — a data table or other
+/// input. These are read, not spawned, so no mode is asserted.
 pub fn require_file(relative: &str) -> Result<PathBuf, TestError> {
     let path = repo_root()?.join(relative);
     if !path.is_file() {

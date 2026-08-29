@@ -1,5 +1,5 @@
-//! Mirrors `scripts/status-legacy-map.tsv` — a legacy-to-canonical status
-//! mapping, by type. Only `plan` and `plan-review` carry any rows.
+//! A legacy-to-canonical status mapping, by type. Only `plan` and
+//! `plan-review` carry any rows.
 
 /// The canonical status for a legacy `(type, status)` pair, or `None` when
 /// unmapped.

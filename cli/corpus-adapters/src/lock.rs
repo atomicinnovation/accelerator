@@ -6,10 +6,9 @@
 //! injectable ceiling. POSIX-only, matching the bash source and the darwin +
 //! musl target set.
 //!
-//! `scripts/atomic-common.sh` implements the same protocol over the same
-//! `<target>.lockdir` convention, so the two can hold against and reclaim after
-//! each other. The on-disk sentinel format is therefore a shared contract:
-//! change it in one and the other stops recognising a held lock.
+//! The lockdir format also recognises a legacy nonce-less `owner` sentinel:
+//! nothing writes it any more, but a holder that died before the nonce upgrade
+//! may have left one, so reclaim still reads it.
 
 use std::fs;
 use std::io::ErrorKind;
@@ -174,9 +173,8 @@ fn reclaimable(
     is_alive: &impl Fn(i32) -> bool,
 ) -> Option<String> {
     // The ordinary case: a holder whose PID is dead. `legacy_owner` is the
-    // same case in the nonce-less format that `scripts/atomic-common.sh` also
-    // still reads — nothing writes it any more, so it can only be an orphan
-    // left by a holder that died before the upgrade.
+    // same case in the nonce-less format nothing writes any more — it can only
+    // be an orphan left by a holder that died before the upgrade.
     if let Some((name, _)) = dead_sentinel(lockdir, OWNER, is_alive) {
         return Some(name);
     }

@@ -1,7 +1,5 @@
-//! The per-type schema table (mirrors `scripts/templates-schema.tsv`) and the
-//! cross-cutting emission rules (mirrors
-//! `scripts/frontmatter-emission-rules.sh`). Pure data — no filesystem, no
-//! regex.
+//! The per-type schema table (mirrors `templates-schema.tsv`) and the
+//! cross-cutting emission rules. Pure data — no filesystem, no regex.
 
 /// One `templates-schema.tsv` row, keyed by [`crate::DocTypeKey::linkage_type_name`].
 pub struct SchemaRow {
@@ -13,7 +11,7 @@ pub struct SchemaRow {
     pub typed_linkage_keys: &'static [&'static str],
 }
 
-/// Mirrors `scripts/templates-schema.tsv` row for row. A `corpus` test
+/// Mirrors `templates-schema.tsv` row for row. A `corpus` test
 /// asserts the two agree.
 pub const SCHEMA: [SchemaRow; 13] = [
     SchemaRow {
@@ -273,8 +271,7 @@ mod tests {
         Ok(())
     }
 
-    const TEMPLATES_SCHEMA_TSV: &str =
-        include_str!("../../../../scripts/templates-schema.tsv");
+    const TEMPLATES_SCHEMA_TSV: &str = include_str!("templates-schema.tsv");
 
     #[test]
     fn every_row_matches_templates_schema_tsv(

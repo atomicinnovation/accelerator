@@ -1,9 +1,8 @@
 //! `merge_move`: relocate a file or directory onto a destination, merging
-//! directories recursively — the Rust equivalent of `scripts/fs-common.sh`'s
-//! bash function of the same name.
+//! directories recursively.
 //!
-//! NON-ATOMIC by design, mirroring the bash original: a per-entry
-//! rename/remove sequence, so a mid-merge failure can leave a partially
+//! NON-ATOMIC by design: a per-entry rename/remove sequence, so a mid-merge
+//! failure can leave a partially
 //! merged tree. A re-run converges (each migration's own idempotency
 //! self-check is the recovery net, not this function).
 

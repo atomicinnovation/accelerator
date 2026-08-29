@@ -24,7 +24,7 @@ fn tempdir(tag: &str) -> Result<tempfile::TempDir, TestError> {
 
 fn decision_table() -> Result<Vec<Value>, TestError> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../hooks/test-fixtures/vcs-guard/decision-table.json");
+        .join("../vcs-test-support/fixtures/vcs-guard/decision-table.json");
     let text = fs::read_to_string(&path)
         .map_err(|error| format!("reading {}: {error}", path.display()))?;
     Ok(serde_json::from_str(&text)?)

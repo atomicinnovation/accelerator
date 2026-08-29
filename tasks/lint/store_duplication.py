@@ -34,8 +34,7 @@ ALLOWLIST: frozenset[str] = frozenset(
         # refuse an existing non-empty target, so the workspace is built
         # elsewhere and moved — a directory relocation, not a whole-file write.
         "cli/vcs-test-support/src/fixtures.rs",
-        # `merge_move`: relocates a file or directory onto a destination
-        # (the Rust equivalent of bash's `scripts/fs-common.sh::merge_move`),
+        # `merge_move`: relocates a file or directory onto a destination,
         # merging directories recursively — a relocation of existing content,
         # never a whole-file replacement of new bytes.
         "cli/migrate-adapters/src/merge_move.rs",

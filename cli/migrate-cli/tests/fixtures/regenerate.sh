@@ -15,7 +15,7 @@ set -uo pipefail
 # Fixture-tree-building helpers below mirrored the fixture setup used by the
 # historical bash test suites, rather than being invented fresh.
 #
-# Determinism guarantees, mirroring hooks/test-fixtures/vcs-detect/regenerate.sh:
+# Determinism guarantees, mirroring the retired vcs-detect golden capture:
 #   - TMPDIR is explicitly /tmp (or realpath-resolved).
 #   - GIT_CEILING_DIRECTORIES scopes git's upward discovery to the capture
 #     sandbox, preventing accidental walks into the accelerator's own .git.

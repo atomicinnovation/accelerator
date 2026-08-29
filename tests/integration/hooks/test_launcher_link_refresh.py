@@ -437,11 +437,10 @@ def test_nothing_outside_plugin_data_is_created_or_modified(
 class TestRegistration:
     """Selected by command content, never by index.
 
-    `hooks/test-vcs-detect.sh` used to hard-code `SessionStart[0]`; 0169
-    rewrote that assertion order-independent (a `vcs detect` entry can now
-    move within the array without breaking either suite), so no positional
-    coupling on hooks.json's SessionStart array remains anywhere — this must
-    not reintroduce one.
+    This suite selects the SessionStart entry by its command string, never by
+    index, so a `vcs detect` entry can move within the array without breaking
+    it — no positional coupling on hooks.json's SessionStart array remains
+    anywhere, and this must not reintroduce one.
     """
 
     def _group(self) -> dict:

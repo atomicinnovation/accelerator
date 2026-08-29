@@ -47,12 +47,11 @@ _INTEGRATION_PREFIX = "test:integration:"
 _CONTRACT_LANE = "test:integration:tracker-contract"
 
 # Integration tasks that reach the compiled launcher and so MUST carry the
-# build:cli:dev edge. All drive shell suites through accelerator_env(), except
-# hooks, whose surviving bash harness dispatches accelerator-vcs through the
-# launcher directly (ACCELERATOR_VCS_BIN), not via a repointed shell script.
+# build:cli:dev edge. conformance drives the corpus validator through the
+# launcher via accelerator_env(corpus_bin=True); hooks dispatches
+# accelerator-vcs through the launcher directly (ACCELERATOR_VCS_BIN).
 _LAUNCHER_DEPENDENTS = [
-    "test:integration:config",
-    "test:integration:decisions",
+    "test:integration:conformance",
     "test:integration:hooks",
     "test:integration:visualiser",
 ]
@@ -68,7 +67,6 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
     "test:integration:tracker-contract": "cargo nextest against a live "
     "tracker; reaches no accelerator binary",
-    "test:integration:github": "shell suites run with no accelerator_env",
     "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
     "test:integration:zero-spawn:strong": "the same suite, with the real "
     "git/jj shadowed",

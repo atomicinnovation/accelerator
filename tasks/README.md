@@ -75,39 +75,21 @@ The `lint:<language>` task naming requested by work item 0098 is satisfied by
 these `<component>:check` roll-ups, and its aggregate `lint` / `format`
 acceptance criteria by the family aggregates above.
 
-### Executable-bit invariant
+### Surviving thin shell
 
-A tracked `.sh` is executable (`0755`) **iff it is _not_ a sourced-only
-library**. The `lint:scripts:exec-bits:check` guard
-(`exec_bits` in `tasks/lint/scripts.py`) enforces this over every shell source
-and fails — naming each offending file with the exact `chmod` to run — when an
-off-list entrypoint lacks `+x`, a library carries `+x`, or a library-list path
-is no longer enumerated.
+The shell surface is two thin-wrapper files, enumerated in
+`SURVIVING_SHELL_SOURCES` (`tasks/shared/sources.py`):
 
-- **Default: new `.sh` files are entrypoints.** `chmod +x` and commit them. You
-  only touch `SHELL_LIBRARIES` (the manifest in `tasks/lint/scripts.py`) for a
-  sourced-only library.
-- **The classification rule is two-part: sourced AND never invoked by path.**
-  "Sourced" alone is not enough — a script that is both `source`d for its
-  functions *and* invoked by path in production is a dual-use script, which
-  counts as an **entrypoint** that stays OFF the list at `0755`. Dual-use ⇒
-  entrypoint.
-- **Maintenance:** a new sourced-only library must be **added** to
-  `SHELL_LIBRARIES` (or the guard demands `+x`); a removed/renamed library must
-  be **deleted/updated** there (or the stale-entry check fails).
-- **Runner vs helper:** `hooks/test-vcs-detect.sh` is a test *runner* →
-  entrypoint → `0755`; `test-helpers.sh` is a sourced *helper* → on the list →
-  `0644`.
-- **Fixtures are a third category.** Scripts under `test-fixtures/**` are
-  bash-run migration fixtures (executed via `bash "$f"`, never sourced, never
-  path-invoked): the guard exempts them in both directions — they need neither
-  `+x` nor a list entry.
-- **Working-copy mode.** The guard reads the *working-copy* mode (matching
-  `tasks/test/helpers.py`), so the `chmod` must be **committed** to satisfy CI
-  on a fresh checkout. It intentionally enforces working-copy (not VCS-recorded)
-  mode and assumes an exec-bit-preserving filesystem — acceptable given the
-  macOS + Linux target matrix (CI runs `check-scripts` on `ubuntu-latest`; local
-  dev is macOS via jj workspaces).
+- `bin/accelerator` — the launcher bootstrap every skill invokes.
+- `hooks/launcher-link-refresh.sh` — the SessionStart hook wrapper.
+
+Both stay **bash-3.2-safe** (ADR-0049): macOS ships bash 3.2, so bash-4
+constructs are banned. The Python bashisms task (`tasks/lint/scripts.py`) plus
+shfmt and ShellCheck guard exactly these two, all fed from
+`SURVIVING_SHELL_SOURCES` — the authoritative single source, which this section
+documents rather than co-defines. Both files are tracked-executable (`0755`):
+Claude Code invokes them as bare commands. `scripts:check` runs the three
+guards in CI as a step of the `check-build-system` job.
 
 ### Library-backed VCS dependency pins
 

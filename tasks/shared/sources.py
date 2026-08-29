@@ -22,9 +22,9 @@ which it also lists. The walk is called with `tmp_path` roots that carry no
 `.gitignore` at all, so the prune is the only thing keeping a vendored tree out
 of those scans.
 
-`shell_sources` layers the shell policy on top: `*.sh`, minus `workspaces/` (jj
-checkouts), plus the explicitly-listed extensionless CLI script, so format and
-lint never disagree about what is in scope.
+The shell surface is now two thin-wrapper files, enumerated in
+`SURVIVING_SHELL_SOURCES` rather than discovered by a tree walk: the format and
+lint tasks feed it to shfmt, ShellCheck, and the Python bashisms scan.
 """
 
 import os
@@ -33,20 +33,19 @@ from pathlib import Path
 
 import pathspec
 
+# The surviving thin-shell files (repo-relative), guarded by shfmt, ShellCheck,
+# and the Python bashisms scan. `bin/accelerator` is the launcher bootstrap and
+# `hooks/launcher-link-refresh.sh` the hook wrapper; both stay bash-3.2-safe.
+# Enumerated, not walk-discovered, now the wider shell surface is retired.
+# tasks/README.md documents this set; a test pins them equal.
+SURVIVING_SHELL_SOURCES: tuple[str, ...] = (
+    "bin/accelerator",
+    "hooks/launcher-link-refresh.sh",
+)
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
-
-
-def _keep(rel: str) -> bool:
-    """Return True if a repo-relative shell path should be formatted/linted."""
-    if not rel:
-        return False
-    parts = rel.split("/")
-    # workspaces/ holds jj workspace checkouts — full copies of the repo.
-    # Linting them would re-lint every tracked script N times over, and they
-    # are never edited directly, so they are the one permanent exclusion.
-    return parts[0] != "workspaces"
 
 
 def _ignore_spec(repo: Path) -> pathspec.GitIgnoreSpec:
@@ -101,35 +100,3 @@ def walk_files(
             rel = filename if rel_dir == Path() else str(rel_dir / filename)
             if not spec.match_file(rel):
                 yield rel
-
-
-# The plugin entry point is a bash script with no .sh extension (Claude Code
-# invokes the bare command), so the walk's `.sh` filter never matches it.
-# Include it explicitly so it is linted/formatted like any other script;
-# shfmt/shellcheck detect bash from its `#!/usr/bin/env bash`.
-_EXTRA_SHELL_SOURCES = ("bin/accelerator",)
-
-
-def shell_sources(root: Path | None = None) -> list[str]:
-    """`.sh` files (repo-relative, sorted) with the exclusion set applied.
-
-    Keeps `.sh` files from `walk_files` that are not excluded by `_keep`. The
-    extensionless extras in `_EXTRA_SHELL_SOURCES` are appended afterwards (the
-    walk's `.sh` filter never matches them), which needs its own `_ignore_spec`
-    since `walk_files` does not expose the one it built.
-    """
-    repo = root or repo_root()
-    out = [
-        rel for rel in walk_files(repo) if rel.endswith(".sh") and _keep(rel)
-    ]
-    # Gate on existence under `repo` (so a tmp_path test root that lacks them
-    # does not pick up the literal) and still respect gitignore + _keep
-    # (defensive: a future workspaces-relative extra would be filtered, though
-    # the current literal never is).
-    spec = _ignore_spec(repo)
-    out.extend(
-        s
-        for s in _EXTRA_SHELL_SOURCES
-        if (repo / s).is_file() and _keep(s) and not spec.match_file(s)
-    )
-    return sorted(out)

@@ -9,7 +9,7 @@ from invoke import Context, Exit, task
 from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
 
-from .helpers import accelerator_env, repo_root, run_shell_suites
+from .helpers import accelerator_env, repo_root
 
 # An env gate rather than a `--yes` flag: a task name can be tab-completed by
 # accident, and the CI step sets this in `env:`.
@@ -29,63 +29,6 @@ _ABSOLUTE_VCS_PATHS = (
     "/usr/local/bin/jj",
     "/opt/homebrew/bin/jj",
 )
-
-# The config subtree (scripts/) discoverable shell suites. This is an
-# at-least floor so a dropped exec bit on a fail-closed gate (e.g.
-# test-skill-frontmatter-conformance.sh) can't silently vanish from CI.
-# Raised as suites are added under scripts/, lowered as they are retired; it
-# must equal the count the discovery below finds.
-_EXPECTED_CONFIG_SUITES = 14
-
-# Fail-closed gates that MUST run by name, not merely satisfy the count floor —
-# a guard renamed off the `test-*.sh` convention would vanish while the count
-# still passes via other suites. The producer-conformance guard (work item
-# 0103) is the gate that "cannot drift undetected". The corpus validator's own
-# migration-completion gate (work item 0102) moved with it to `corpus-cli`'s
-# unconditional `this_repositorys_own_corpus_is_clean` cargo test — a `cargo
-# test` failure already fails CI unconditionally, so no bash-style
-# required-suite registration applies there.
-_REQUIRED_CONFIG_SUITES = ("scripts/test-skill-frontmatter-conformance.sh",)
-
-# The three previously-unguarded subtrees, each at its current size. hooks/
-# holds only the one bash harness that predates Python becoming the standard
-# test language (test-vcs-detect.sh — the meta-directory migration
-# discoverability hook's own harness retired alongside the bash migration
-# engine it gated); the link-refresh suite is pytest, where a lost file is a
-# collection error rather than a silently smaller run, so no by-name entry is
-# needed.
-_EXPECTED_HOOKS_SUITES = 1
-_EXPECTED_DECISIONS_SUITES = 0
-_EXPECTED_GITHUB_SUITES = 0
-
-
-def _require_suite_floor(
-    suites: Sequence[str],
-    floor: int,
-    required: Sequence[str],
-    subject: str,
-) -> None:
-    """Fail loudly when discovery shrinks below its floor or loses a gate.
-
-    An exec bit dropped on an exec-bit-lossy filesystem, or a suite renamed off
-    the ``test-*.sh`` convention, otherwise removes a regression net from CI
-    while every task still exits 0.
-    """
-    if len(suites) < floor:
-        raise Exit(
-            f"Expected at least {floor} {subject} shell suites, found "
-            f"{len(suites)}: {suites}. An exec bit may have been dropped — a "
-            f"regression suite is missing from CI.",
-            code=1,
-        )
-    missing = [s for s in required if s not in suites]
-    if missing:
-        raise Exit(
-            f"Required {subject} shell suite(s) not discovered by name: "
-            f"{missing} (found {suites}). A gate may have lost its exec bit or "
-            f"been renamed off the test-*.sh convention.",
-            code=1,
-        )
 
 
 @task
@@ -336,43 +279,33 @@ def _restore_vcs_binaries(
 
 
 @task
-def config(context: Context) -> None:
-    """Integration tests for the plugin-wide config scripts."""
-    suites = run_shell_suites(
-        context, "scripts", accelerator_env(corpus_bin=True)
-    )
-    _require_suite_floor(
-        suites, _EXPECTED_CONFIG_SUITES, _REQUIRED_CONFIG_SUITES, "config"
-    )
+def conformance(context: Context) -> None:
+    """Producer-conformance guard: drives the real corpus validator.
 
-
-@task
-def decisions(context: Context) -> None:
-    """Integration tests for the decisions skill scripts."""
-    suites = run_shell_suites(context, "skills/decisions", accelerator_env())
-    _require_suite_floor(suites, _EXPECTED_DECISIONS_SUITES, (), "decisions")
+    Runs the launcher-provisioning pytest lane with ACCELERATOR_CORPUS_BIN
+    overlaid (via ``accelerator_env(corpus_bin=True)``) and the launcher built
+    by the ``build:cli:dev`` mise dependency, so it dispatches
+    ``accelerator corpus frontmatter validate`` to the compiled sub-binary.
+    """
+    context.run(
+        "uv run pytest tests/integration/conformance -v",
+        env=accelerator_env(corpus_bin=True),
+    )
 
 
 @task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 
-    Two halves: the pytest suites and the one remaining bash harness that
-    predates Python becoming the test language for the non-Rust surfaces.
-    That harness (test-vcs-detect.sh) dispatches the compiled accelerator-vcs
-    sub-binary through the real launcher, so it needs both on
-    ACCELERATOR_BIN/ACCELERATOR_VCS_BIN — the vcs_bin=True overlay.
+    The launcher-dispatch smoke drives the compiled accelerator-vcs through the
+    real `bin/accelerator` wrapper, so it needs ACCELERATOR_VCS_BIN — the
+    vcs_bin=True overlay — and the launcher built by the build:cli:dev
+    dependency.
     """
-    context.run("uv run pytest tests/integration/hooks -v")
-    suites = run_shell_suites(context, "hooks", accelerator_env(vcs_bin=True))
-    _require_suite_floor(suites, _EXPECTED_HOOKS_SUITES, (), "hooks")
-
-
-@task
-def github(context: Context) -> None:
-    """Integration tests for the github skills (shell harnesses)."""
-    suites = run_shell_suites(context, "skills/github")
-    _require_suite_floor(suites, _EXPECTED_GITHUB_SUITES, (), "github")
+    context.run(
+        "uv run pytest tests/integration/hooks -v",
+        env=accelerator_env(vcs_bin=True),
+    )
 
 
 # The Playwright-executor suites that need a real runtime.

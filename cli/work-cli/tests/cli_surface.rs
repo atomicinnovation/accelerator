@@ -16,6 +16,7 @@ const SUBCOMMANDS: &[&str] = &[
     "diff",
     "create",
     "update",
+    "link-external-id",
     "canonicalise-id",
     "next-number",
     "list",

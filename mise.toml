@@ -271,14 +271,15 @@ description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/tasks -v"
 
+[tasks."test:unit:vcs"]
+description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
+depends = ["deps:install:python"]
+run = "uv run pytest tests/unit/vcs -v"
+
 [tasks."test:unit:cli"]
 description = "Run cli/ workspace tests via nextest with coverage folded in (report-only; ACCELERATOR_COVERAGE=off drops to plain nextest)"
 depends = ["deps:install:rust-components"]
 run = "invoke test.cli.run"
-
-[tasks."test:unit:templates"]
-description = "Run template / SKILL / metadata-helper schema tests"
-run = "invoke test.unit.templates"
 
 [tasks."test:integration:tasks"]
 description = "Run pytest integration tests for invoke tasks"
@@ -291,7 +292,7 @@ run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:templates", "test:unit:cli", "test:unit:design-automation"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
 # suites need a bootstrapped Playwright runtime, which no CI lane provisions.
@@ -321,10 +322,10 @@ description = "Extract every bin/accelerator config !-site command from skills/*
 depends = ["deps:install:python"]
 run = "invoke test.integration.skill-invocation"
 
-[tasks."test:integration:config"]
-description = "Run config integration tests"
+[tasks."test:integration:conformance"]
+description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
 depends = ["build:cli:dev"]
-run = "invoke test.integration.config"
+run = "invoke test.integration.conformance"
 
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
@@ -370,20 +371,10 @@ description = "Run the RemoteTracker contract harness against a live tracker (op
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
 run = "invoke test.integration.tracker-contract"
 
-[tasks."test:integration:decisions"]
-description = "Run decisions integration tests"
-depends = ["build:cli:dev"]
-run = "invoke test.integration.decisions"
-
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
-
-[tasks."test:integration:github"]
-description = "Run github skills integration tests (shell harnesses)"
-run = "invoke test.integration.github"
-env = { PHASE = "{{ env.PHASE | default(value=\"final\") }}" }
 
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
@@ -392,12 +383,10 @@ depends = [
     "test:integration:dev",
     "test:integration:entrypoint",
     "test:integration:skill-invocation",
-    "test:integration:config",
+    "test:integration:conformance",
     "test:integration:deny",
-    "test:integration:decisions",
     "test:integration:tasks",
     "test:integration:hooks",
-    "test:integration:github",
 ]
 
 [tasks."test:e2e:visualiser"]
@@ -447,13 +436,9 @@ run = "invoke lint.scripts.shellcheck"
 description = "Guard the bash-3.2 floor (denylist of bash-4 constructs)"
 run = "invoke lint.scripts.bashisms"
 
-[tasks."lint:scripts:exec-bits:check"]
-description = "Enforce exec-bit invariant: a tracked .sh is executable iff not a sourced library"
-run = "invoke lint.scripts.exec-bits"
-
 [tasks."lint:scripts:check"]
 description = "Run all shell lint checks"
-depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check", "lint:scripts:exec-bits:check"]
+depends = ["lint:scripts:shellcheck:check", "lint:scripts:bashisms:check"]
 
 [tasks."scripts:check"]
 description = "Run all shell format and lint checks (shfmt + ShellCheck + bashisms)"

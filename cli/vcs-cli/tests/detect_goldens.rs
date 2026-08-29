@@ -23,7 +23,7 @@ fn tempdir(tag: &str) -> Result<tempfile::TempDir, TestError> {
 
 fn fixture(name: &str) -> Result<Value, TestError> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../hooks/test-fixtures/vcs-detect")
+        .join("../vcs-test-support/fixtures/vcs-detect")
         .join(name);
     let text = fs::read_to_string(&path)
         .map_err(|error| format!("reading {}: {error}", path.display()))?;

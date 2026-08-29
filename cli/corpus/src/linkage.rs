@@ -55,8 +55,7 @@ pub const SECTIONS: [&str; 5] = [
 
 /// The valid `(source_type, key, target_type)` pairings.
 ///
-/// Mirrors `scripts/linkage-type-pairs.tsv`, which the bash parser reads at
-/// runtime. A `corpus-adapters` suite asserts the two agree row for row.
+/// The single source of truth for the linkage-type table.
 pub const TYPE_PAIRS: [(&str, &str, &str); 16] = [
     ("work-item", "parent", "work-item"),
     ("plan", "parent", "work-item"),

@@ -144,24 +144,6 @@ jobs:
       - name: Run visual regression tests
         run: mise run test:e2e:visualiser:docker
 
-  check-scripts:
-    name: Check scripts
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-
-      - name: Install dependencies
-        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
-        with:
-          install: true
-          cache: true
-          experimental: true
-
-      - name: Run script checks
-        run: mise run scripts:check
-
   check-build-system:
     name: Check build system
     runs-on: ubuntu-latest
@@ -179,6 +161,9 @@ jobs:
 
       - name: Run build system checks
         run: mise run build-system:check
+
+      - name: Run script checks
+        run: mise run scripts:check
 
   check-visualiser-server:
     name: Check visualiser server
@@ -584,7 +569,6 @@ jobs:
       - test-integration
       - test-e2e
       - test-visual-regression
-      - check-scripts
       - check-build-system
       - check-visualiser-server
       - check-visualiser-frontend

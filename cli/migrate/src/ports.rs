@@ -217,11 +217,10 @@ pub trait MigrationContext {
         ))
     }
 
-    /// Moves `src` onto `dst`, merging directories recursively — mirrors
-    /// `scripts/fs-common.sh`'s `merge_move`: an absent destination is a
-    /// plain move; a type mismatch or same-named leaf collision is
-    /// source-wins; two directories merge entry-by-entry, then the
-    /// now-empty source is removed. A no-op when `src` does not exist.
+    /// Moves `src` onto `dst`, merging directories recursively: an absent
+    /// destination is a plain move; a type mismatch or same-named leaf
+    /// collision is source-wins; two directories merge entry-by-entry, then
+    /// the now-empty source is removed. A no-op when `src` does not exist.
     ///
     /// # Errors
     /// [`MigrationError`] when the destination is unsafe (empty, root, or

@@ -55,6 +55,14 @@ pub enum Command {
     /// Atomically apply field/tag/list-field edits to an existing work
     /// item's frontmatter.
     Update(Box<UpdateArgs>),
+    /// Write an already-created remote id into a local draft's
+    /// `external_id` frontmatter field (upsert).
+    LinkExternalId {
+        /// The work-item file to link.
+        path: PathBuf,
+        /// The remote identifier to record.
+        external_id: String,
+    },
     /// Canonicalise a work-item ID under the configured pattern (zero-pads
     /// a bare number, prepends the default project when the pattern needs
     /// one).

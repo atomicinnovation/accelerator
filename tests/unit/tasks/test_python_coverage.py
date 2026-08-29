@@ -1,8 +1,8 @@
 """Coverage guard for the Python lint / type-check file set.
 
-Unlike shell — where `shell_sources()` is a single inspectable function with its
-own regression test — ruff's `extend-exclude` and pyrefly's `project-includes`
-drive file discovery implicitly, so a mis-scoped exclude (ruff) or a too-narrow
+Unlike the shell surface — an explicit two-file `SURVIVING_SHELL_SOURCES` list —
+ruff's `extend-exclude` and pyrefly's `project-includes` drive file discovery
+implicitly, so a mis-scoped exclude (ruff) or a too-narrow
 include (pyrefly) could silently leave files unchecked while every command still
 exits 0 (a vacuous pass). This turns that risk into a standing guard with two
 parts:
@@ -15,9 +15,9 @@ parts:
    proving config-driven discovery reaches that location (not merely that the
    CLI lints a named file).
 
-The walk is VCS-agnostic (the same gitignore-honouring approach as
-`shell_sources`), NOT `git ls-files '*.py'` — that is blind in a jj workspace,
-making this guard vacuous/spurious locally.
+The walk is VCS-agnostic (the same gitignore-honouring `walk_files` traversal),
+NOT `git ls-files '*.py'` — that is blind in a jj workspace, making this guard
+vacuous/spurious locally.
 """
 
 import shutil

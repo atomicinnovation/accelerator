@@ -7,8 +7,7 @@
 use design::cue_phrase_audit::CASE_SENSITIVE_CUE_PHRASE_PATTERN;
 use design::CUE_PHRASE_PATTERNS;
 
-const CANONICAL: &str =
-    include_str!("../../../scripts/extract-work-items-cue-phrases.txt");
+const CANONICAL: &str = include_str!("extract-work-items-cue-phrases.txt");
 
 /// One ERE alternative per non-comment, non-blank line, as the file's own
 /// header states.
@@ -28,7 +27,7 @@ fn the_compiled_patterns_are_exactly_the_canonical_alternatives() {
         alternatives(),
         expected,
         "the compiled slice drifted from \
-         scripts/extract-work-items-cue-phrases.txt"
+         extract-work-items-cue-phrases.txt"
     );
 }
 
