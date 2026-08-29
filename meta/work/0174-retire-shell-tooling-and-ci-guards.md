@@ -5,7 +5,7 @@ title: "Empty scripts/ and Retire Shell Tooling and CI Guards"
 date: "2026-06-28T17:01:56+00:00"
 author: Toby Clemson
 producer: extract-work-items
-status: ready
+status: done
 kind: story
 priority: medium
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-195"
 # 0174: Empty scripts/ and Retire Shell Tooling and CI Guards
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
