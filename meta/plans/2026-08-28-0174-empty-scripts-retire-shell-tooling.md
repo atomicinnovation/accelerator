@@ -5,7 +5,7 @@ title: "Empty scripts/ and Retire Shell Tooling and CI Guards Implementation Pla
 date: "2026-08-28T07:28:16+00:00"
 author: Toby Clemson
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0174"
 parent: "work-item:0174"
 derived_from: ["codebase-research:2026-08-28-0174-empty-scripts-and-retire-shell-tooling"]
