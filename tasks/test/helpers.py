@@ -1,11 +1,6 @@
 import os
 from pathlib import Path
 
-from invoke import Context
-
-# test-helpers.sh is sourced, not run, so it is excluded from suite discovery.
-EXCLUDED_HELPER_NAMES = {"test-helpers.sh"}
-
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -33,8 +28,8 @@ def accelerator_env(
 
     ``vcs_bin=True`` additionally sets ACCELERATOR_VCS_BIN, the launcher's
     dev-only ``accelerator vcs ...`` dispatch override — needed only by the
-    repointed hooks/test-vcs-detect.sh parity gate, so it stays opt-in rather
-    than joining every subtree's overlay.
+    vcs-detect launcher-dispatch guard (tests/integration/hooks), so it stays
+    opt-in rather than joining every subtree's overlay.
 
     ``corpus_bin=True`` additionally sets ACCELERATOR_CORPUS_BIN, the
     launcher's dev-only ``accelerator corpus ...`` dispatch override — needed
@@ -66,39 +61,3 @@ def accelerator_env(
             "ACCELERATOR_CORPUS_BIN", default_corpus_bin
         )
     return env
-
-
-def run_shell_suites(
-    context: Context, subtree: str, env: dict[str, str] | None = None
-) -> list[str]:
-    """Glob-discover and run every executable test-*.sh inside a subtree.
-
-    The exec-bit filter excludes any sourced-only `test-helpers.sh` (sourced,
-    not run); the name-level filter is belt-and-braces for
-    filesystems that synthesise exec bits uniformly.
-
-    ``env`` is layered onto each suite's environment (via ``context.run``), not
-    the parent process; ``None`` runs with the inherited environment unchanged.
-    Suites that need the compiled launcher pass ``accelerator_env()``.
-
-    Returns the sorted list of suites that were discovered and run, so a
-    caller can assert a non-zero discovery count and fail loudly if an
-    exec bit was dropped (e.g. on an exec-bit-lossy filesystem) rather
-    than silently skipping its regression net.
-    """
-    repo = repo_root()
-    root = repo / subtree
-    if not root.exists():
-        return []
-    suites = sorted(
-        p.relative_to(repo).as_posix()
-        for p in root.glob("**/test-*.sh")
-        if p.is_file()
-        and p.name not in EXCLUDED_HELPER_NAMES
-        and os.access(p, os.X_OK)
-    )
-    for suite in suites:
-        print(f"Running {suite}...")
-        context.run(suite, env=env or {})
-        print()
-    return suites

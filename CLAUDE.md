@@ -71,15 +71,19 @@ Gotchas specific to the visualiser (`cli/visualiser/`) and the build system
 (`tasks/`) live in their own `CLAUDE.md` files, loaded when you work in those
 directories.
 
-### Shell scripts (`scripts/`, `hooks/`)
+### Shell scripts (`bin/`, `hooks/`)
 
-A large bash library backs the skills (config reading, VCS detection,
-frontmatter parsing, migrations). A custom **bashisms** linter
-(`scripts/lint-bashisms.sh`) guards a **bash 3.2 floor**
-— macOS ships bash 3.2, so bash-4 constructs (associative arrays, `${var,,}`,
-etc.) are banned. Suspect the 3.2 floor first for any macOS-only shell failure.
-`hooks/` contains `SessionStart`/`PreToolUse` hooks (config detection, VCS
-detection + git-guard, migration reminders).
+The shell surface is two thin wrappers — the launcher bootstrap
+`bin/accelerator` and the hook wrapper `hooks/launcher-link-refresh.sh`; the
+config reading, VCS detection, frontmatter parsing and migration logic they
+once backed now live in the `cli/` Rust workspace. Both stay under a **bash 3.2
+floor** — macOS ships bash 3.2, so bash-4 constructs (associative arrays,
+`${var,,}`, etc.) are banned. A Python **bashisms** task
+(`tasks/lint/scripts.py`) plus shfmt and ShellCheck guard exactly these two;
+suspect the 3.2 floor first for any macOS-only shell failure. `hooks/hooks.json`
+registers the `SessionStart`/`PreToolUse` hooks (VCS detection + git-guard,
+config summary, migration reminders), each dispatched through `bin/accelerator`
+into the `cli/` sub-binaries.
 
 ## How we write code
 
@@ -112,11 +116,10 @@ These are non-negotiable. They override convenience.
   natively. Keep the copies in sync — there is no automated check.
 - **Shell has no autofixer** — `scripts` is absent from `lint:fix`; ShellCheck
   findings are fixed by hand or with a justified `# shellcheck disable=`.
-- **Executable-bit invariant** — a tracked `.sh` is executable (`0755`) iff it
-  is *not* a sourced-only library; the `lint:scripts:exec-bits:check` guard
-  enforces it. New `.sh` files are entrypoints by default (`chmod +x` + commit);
-  only sourced-only libraries go in `SHELL_LIBRARIES`. See the "Executable-bit
-  invariant" subsection in `tasks/README.md`.
+- **Surviving thin shell** — the shell surface is exactly the two files in
+  `SURVIVING_SHELL_SOURCES` (`tasks/shared/sources.py`): `bin/accelerator` and
+  `hooks/launcher-link-refresh.sh`, both tracked-executable (`0755`) and
+  bash-3.2-safe. See the "Surviving thin shell" subsection in `tasks/README.md`.
 - Tests deliberately have **no `__init__.py`** (pytest importlib mode) and are
   held to relaxed ruff/pyrefly standards.
 - Tooling versions (uv, python, rust, node, jj, shellcheck, shfmt, jq) are

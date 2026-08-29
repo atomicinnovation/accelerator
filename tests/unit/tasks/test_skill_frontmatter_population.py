@@ -1,5 +1,5 @@
-"""SKILL-prose frontmatter-population guard, ported from the shell script
-``scripts/test-skill-frontmatter-population.sh``.
+"""SKILL-prose frontmatter-population guard, ported from the retired
+skill-frontmatter-population shell guard.
 
 For each row in ``skills-schema.tsv`` (carried at
 ``tests/unit/tasks/data/skills-schema.tsv``) this asserts that the consuming

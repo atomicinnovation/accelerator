@@ -28,7 +28,7 @@ def shellcheck(context: Context) -> None:
 
 
 # The bash-4 denylist, translated construct-for-construct from the retired
-# lint-bashisms.sh awk source. POSIX classes map to explicit ASCII ranges under
+# bash denylist's awk source. POSIX classes map to explicit ASCII ranges under
 # re.ASCII so `\w`/`\d`/`\s` never admit `_`, Unicode digits, or Unicode
 # whitespace the C-locale awk did not: [[:alpha:]]->[A-Za-z], [[:alnum:]_...]->
 # [A-Za-z0-9_...], [[:digit:]]->[0-9]. [[:space:]]->[ \t] is a deliberate

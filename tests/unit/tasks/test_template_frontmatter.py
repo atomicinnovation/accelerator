@@ -6,7 +6,7 @@ provenance bundle (when code-state-anchored), the per-type extras, the
 status-comment vocabulary, the typed-linkage slot grammar, the closed linkage
 set, and the absence of any legacy own-identity key. It also self-checks the
 TSV's field count and cross-checks the work-item Schema Reference tables against
-the TSV. See ADR-0033 / ADR-0034 / ADR-0040 for the contract.
+the TSV.
 
 The cross-cutting emission rules are single-sourced from
 ``tasks.lint.frontmatter_rules`` so this surface cannot drift from the corpus

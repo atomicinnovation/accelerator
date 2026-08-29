@@ -6,7 +6,7 @@ anywhere else under ``cli/**/src`` is a reintroduced duplicate. Two renames are
 genuine non-duplicates and are allowlisted (the cache publisher, the mkdir-lock
 claim).
 
-Two layers, mirroring ``test_exec_bits.py``:
+Two layers:
 
 * synthetic ``tmp_path`` trees exercising every branch of the scan, and
 * a real-tree assertion that the shipped ``cli/`` carries no duplicate — the

@@ -35,9 +35,9 @@ import pathspec
 
 # The surviving thin-shell files (repo-relative), guarded by shfmt, ShellCheck,
 # and the Python bashisms scan. `bin/accelerator` is the launcher bootstrap and
-# `hooks/launcher-link-refresh.sh` the hook wrapper; both stay bash-3.2-safe
-# (ADR-0049). Enumerated, not walk-discovered, now the wider shell surface is
-# retired. tasks/README.md documents this set; a test pins them equal.
+# `hooks/launcher-link-refresh.sh` the hook wrapper; both stay bash-3.2-safe.
+# Enumerated, not walk-discovered, now the wider shell surface is retired.
+# tasks/README.md documents this set; a test pins them equal.
 SURVIVING_SHELL_SOURCES: tuple[str, ...] = (
     "bin/accelerator",
     "hooks/launcher-link-refresh.sh",

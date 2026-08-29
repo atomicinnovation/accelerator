@@ -1,4 +1,4 @@
-"""The cross-cutting frontmatter emission rules (ADR-0033/0034/0040).
+"""The cross-cutting frontmatter emission rules.
 
 The single source for the emission rules that have no per-type column in
 `templates-schema.tsv`: the required base-field set, the quoted-`id:` rule,

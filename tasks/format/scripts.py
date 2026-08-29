@@ -15,9 +15,9 @@ def _shfmt(context: Context, op_flags: str) -> Result:
     """
     sources = SURVIVING_SHELL_SOURCES
     if not sources:
-        # Fail loudly, not green: an empty match set means scope discovery broke
-        # (a glob/`_keep` regression), not that there is nothing to format
-        # (fail-closed, not fail-open). Mirrors the lint tasks' guard.
+        # Fail loudly, not green: an empty survivor list means it was emptied by
+        # mistake, not that there is nothing to format (fail-closed, not
+        # fail-open). Mirrors the lint tasks' guard.
         raise Exit(
             "shfmt: no shell sources matched — scope discovery is broken",
             code=1,

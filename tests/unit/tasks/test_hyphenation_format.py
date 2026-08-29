@@ -4,7 +4,7 @@ shell guard.
 The guard forbids ``work item`` (with a space) wherever it reads as part of a
 compound identifier or path — the correct form there is ``work-item``. It
 scans ``skills/``, ``scripts/``, ``templates/``, ``README.md`` and
-``CHANGELOG.md`` for three targeted patterns and excludes its own source file.
+``CHANGELOG.md`` for three targeted patterns.
 
 Synthetic ``tmp_path`` trees exercise each pattern and its negative twin, plus
 a real-tree assertion that the shipped repository passes the guard.
@@ -17,7 +17,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _SCAN_DIRS = ("skills", "scripts", "templates")
 _SCAN_FILES = ("README.md", "CHANGELOG.md")
-_EXCLUDED = "scripts/test-format.sh"
 
 _COMPOUND_HYPHEN = re.compile(r"work item-[a-z]")
 _PLURAL_PATH = re.compile(r"work items/")
@@ -46,8 +45,6 @@ def violations(root: Path) -> list[str]:
     found: list[str] = []
     for path in _scan_paths(root):
         rel = path.relative_to(root).as_posix()
-        if rel == _EXCLUDED:
-            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError, OSError:
@@ -111,11 +108,6 @@ def test_readme_and_changelog_are_scanned(tmp_path: Path) -> None:
     _write(tmp_path, "README.md", "work items/\n")
     _write(tmp_path, "CHANGELOG.md", "paths.work items\n")
     assert len(violations(tmp_path)) == 2
-
-
-def test_the_guards_own_source_is_excluded(tmp_path: Path) -> None:
-    _write(tmp_path, _EXCLUDED, "work items/ and paths.work items\n")
-    assert violations(tmp_path) == []
 
 
 def test_files_outside_the_scan_targets_are_ignored(tmp_path: Path) -> None:

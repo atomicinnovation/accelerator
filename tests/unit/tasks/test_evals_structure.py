@@ -1,7 +1,7 @@
 """Guard the structural integrity of every ``evals/`` pair under ``skills/``.
 
-Ported from the retired ``scripts/test-evals-structure.sh`` (and the
-evals-structure cases of ``scripts/test-evals-structure-self.sh``). For each
+Ported from the retired evals-structure shell guard (and its
+evals-structure-self meta-test cases). For each
 ``evals.json`` found beneath a search root, the guard asserts:
 
 1. a ``benchmark.json`` sits alongside it;

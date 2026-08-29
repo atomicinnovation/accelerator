@@ -39,9 +39,8 @@ fn cli_root() -> PathBuf {
 }
 
 /// Every `.rs` file under a crate's `src/`, with the walk skipping `target`
-/// and any VCS directory — the tree-walking approach `shell_sources()`
-/// established, rather than `git ls-files`, which is blind inside a jj
-/// workspace.
+/// and any VCS directory — a filesystem walk rather than `git ls-files`, which
+/// is blind inside a jj workspace.
 fn source_files(root: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     collect(root, &mut files);

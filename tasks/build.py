@@ -306,15 +306,15 @@ def server_dev(context: Context) -> None:
 def cli_dev(context: Context) -> None:
     """Build the debug cli launcher and its dev-dispatched sub-binaries.
 
-    cli/target/debug/accelerator is the local launcher the repointed shell
-    suites and cargo integration tests invoke through ACCELERATOR_BIN;
-    cli/target/debug/accelerator-vcs is the sub-binary hooks/test-vcs-detect.sh
-    dispatches through it via the ACCELERATOR_VCS_BIN dev-only override;
-    cli/target/debug/accelerator-corpus is the sub-binary the config/migrate
-    shell suites dispatch through it via the ACCELERATOR_CORPUS_BIN dev-only
-    override. Declared as a mise build dependency of the test tasks so build
-    ordering lives in the task graph, not in ad-hoc cargo calls inside the
-    suites.
+    cli/target/debug/accelerator is the local launcher the pytest lanes and
+    cargo integration tests invoke through ACCELERATOR_BIN;
+    cli/target/debug/accelerator-vcs is the sub-binary the vcs-detect
+    launcher-dispatch guard dispatches through it via the ACCELERATOR_VCS_BIN
+    dev-only override; cli/target/debug/accelerator-corpus is the sub-binary the
+    conformance guard dispatches through it via the ACCELERATOR_CORPUS_BIN
+    dev-only override. Declared as a mise build dependency of the test tasks so
+    build ordering lives in the task graph, not in ad-hoc cargo calls inside the
+    tests.
     """
     context.run(
         f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "

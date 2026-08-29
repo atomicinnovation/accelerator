@@ -1,6 +1,6 @@
 """Guard the structural conformance of every review lens ``SKILL.md``.
 
-A Python port of ``scripts/test-lens-structure.sh``. For each ``*-lens``
+A Python port of the retired lens-structure shell guard. For each ``*-lens``
 directory under ``skills/review/lenses`` this asserts:
 
 1. the ``SKILL.md`` exists;
