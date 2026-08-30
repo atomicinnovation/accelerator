@@ -103,15 +103,47 @@ fn jira_without_a_token_reports_unconfigured() -> Result<(), TestError> {
 }
 
 #[test]
-fn linear_resolves_with_credentials_and_an_empty_corpus_exits_0(
+fn linear_push_only_resolves_with_credentials_and_an_empty_corpus_exits_0(
 ) -> Result<(), TestError> {
+    // `--push-only` skips discovery, so an unkeyed Linear config still exits 0:
+    // resolution succeeds and the empty push makes no network call.
+    let repo = scratch_repo(LINEAR_CONFIG)?;
+    let output = run_with_args(
+        repo.path(),
+        &["--push-only"],
+        &[("ACCELERATOR_LINEAR_TOKEN", "dummy")],
+    )?;
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "resolution succeeded and the empty push made no network call: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
+#[test]
+fn linear_bidirectional_without_a_key_refuses_discovery_and_exits_74(
+) -> Result<(), TestError> {
+    // A bidirectional run needs a discovery scope. An unkeyed Linear config
+    // names no team, so the run is refused pre-flight — nothing sent, exit 74 —
+    // rather than searching whatever team the credential happens to reach.
     let repo = scratch_repo(LINEAR_CONFIG)?;
     let output = run(repo.path(), &[("ACCELERATOR_LINEAR_TOKEN", "dummy")])?;
     assert_eq!(
         output.status.code(),
-        Some(0),
-        "resolution succeeded and the empty fetch made no network call: {}",
+        Some(74),
+        "an unkeyed bidirectional run refuses: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("discovery is unconfigured"),
+        "the refusal names the discovery fault: {stderr}"
+    );
+    assert!(
+        stderr.contains("work.default_project_code"),
+        "the refusal names the missing key: {stderr}"
     );
     Ok(())
 }

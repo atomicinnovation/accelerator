@@ -140,6 +140,13 @@ impl RemoteTracker for FixedTracker {
         })
     }
 
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, tracker::ScopeError> {
+        Ok(scope.clone())
+    }
+
     fn preview_create(
         &self,
         _kind: &str,

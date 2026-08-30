@@ -25,6 +25,7 @@ use jira_client::transport::Transport as JiraTransport;
 use jira_client::Credentials as JiraCredentials;
 use jira_client::JiraClient;
 use linear_client::filter::FixedStates;
+use linear_client::filter::FixedTeam;
 use linear_client::transport::Transport as LinearTransport;
 use linear_client::Credentials as LinearCredentials;
 use linear_client::{LinearClient, UploadTransport};
@@ -56,6 +57,12 @@ type TestError = Box<dyn std::error::Error>;
 const STAMP: &str = "2026-06-01T00:00:00.000+0000";
 const LINEAR_STAMP: &str = "2026-06-01T00:00:00.000Z";
 const BASELINE_PATH: &str = "/baseline/last-sync.json";
+
+/// The catalogue key → UUID pairing the Linear client resolves a scope through.
+/// Local to this crate because `linear-client`'s test constants are not visible
+/// here.
+const LINEAR_TEAM_KEY: &str = "ENG";
+const LINEAR_TEAM_ID: &str = "5c9f2a1b-0000-4000-8000-000000000001";
 
 #[derive(Default)]
 struct Spy {
@@ -168,7 +175,7 @@ fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
         Url::parse(&format!("{base}/graphql")).expect("an endpoint"),
         LinearCredentials {
             token: Secret::new("lin_api_secret".to_owned()),
-            team_id: "5c9f2a1b-0000-4000-8000-000000000001".to_owned(),
+            team_id: LINEAR_TEAM_ID.to_owned(),
             source: TokenSource::Env,
         },
         config,
@@ -176,10 +183,14 @@ fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
         Box::new(NoJitter),
     )
     .expect("the linear transport builds");
+    let mut team_map = std::collections::BTreeMap::new();
+    team_map.insert(LINEAR_TEAM_KEY.to_owned(), LINEAR_TEAM_ID.to_owned());
+    let teams = FixedTeam(team_map);
     LinearClient::new(
         transport,
         UploadTransport::production().expect("the upload transport builds"),
-        Some("ENG".to_owned()),
+        Some(LINEAR_TEAM_KEY.to_owned()),
+        Box::new(teams),
         Box::new(FixedStates::default()),
     )
 }
@@ -212,8 +223,10 @@ fn execute(
     tracker: &dyn RemoteTracker,
     spy: &Spy,
     items: &[LocalItem],
+    direction: SyncDirection,
+    scope: tracker::SearchScope,
     mode: RunMode,
-) -> RunReport {
+) -> Result<RunReport, work_adapters::sync::run::RunError> {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
     let author = UnusedAuthor;
@@ -229,21 +242,36 @@ fn execute(
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         items,
-        direction: SyncDirection::Bidirectional,
+        direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
         max_pulls: 25,
         max_pushes: 25,
         mode,
-        // The default scope disables untracked discovery, so these
-        // real-client scenarios exercise only the keyed pull/push flow and
-        // never issue a search against the mock.
         integrations_root: &integrations_root,
         integration: "jira",
-        scope: tracker::SearchScope::default(),
+        scope,
     };
     run(&ports, &mut store, &request)
-        .unwrap_or_else(|_| panic!("the run must not refuse"))
+}
+
+/// A push-only run: discovery is skipped, so the pull/push classification is
+/// exercised without a search against the mock.
+fn push_only_report(
+    tracker: &dyn RemoteTracker,
+    spy: &Spy,
+    items: &[LocalItem],
+    mode: RunMode,
+) -> RunReport {
+    execute(
+        tracker,
+        spy,
+        items,
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        mode,
+    )
+    .unwrap_or_else(|_| panic!("the run must not refuse"))
 }
 
 #[test]
@@ -294,7 +322,7 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
         &baseline_document(&entry("0001", STAMP, &remote_hash, "stale")),
     );
 
-    let report = execute(&client, &spy, &[item], RunMode::Preview);
+    let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
         report.reported[0].planned.state,
@@ -342,7 +370,7 @@ fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
         &baseline_document(&entry("0002", STAMP, "stale", "stale")),
     );
 
-    let report = execute(&client, &spy, &[item], RunMode::Apply);
+    let report = push_only_report(&client, &spy, &[item], RunMode::Apply);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(
         report.reported[0].planned.state,
@@ -418,7 +446,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
         &baseline_document(&entry("0001", LINEAR_STAMP, &remote_hash, "stale")),
     );
 
-    let report = execute(&client, &spy, &[item], RunMode::Preview);
+    let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(report.reported[0].planned.state, SyncState::LocallyModified);
     assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
@@ -461,7 +489,7 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
         &baseline_document(&entry("0002", LINEAR_STAMP, "stale", "stale")),
     );
 
-    let report = execute(&client, &spy, &[item], RunMode::Apply);
+    let report = push_only_report(&client, &spy, &[item], RunMode::Apply);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
     assert_eq!(
@@ -556,7 +584,19 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         ),
     );
 
-    let report = execute(&client, &spy, &items, RunMode::Preview);
+    let report = execute(
+        &client,
+        &spy,
+        &items,
+        SyncDirection::Bidirectional,
+        tracker::SearchScope {
+            project: Some("ENG".to_owned()),
+            all_projects: false,
+            filters: Vec::new(),
+        },
+        RunMode::Preview,
+    )
+    .expect("the run must not refuse");
 
     assert_eq!(report.dossiers.len(), 2, "one dossier per conflict");
     let ids: std::collections::BTreeSet<&str> =
@@ -587,4 +627,123 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         "an operand swap would leak the local body into the remote side"
     );
     Ok(())
+}
+
+/// AC-1/AC-4/AC-8: a keyed Linear discovery resolves the team key to the UUID,
+/// bounds the search to it, and reports the untracked issue as a planned pull.
+/// The load-bearing assertion is the captured body carrying `LINEAR_TEAM_ID` —
+/// a `MockServer` routes by method+path and does not evaluate the team filter,
+/// so the seeded issue surfaces even with the raw key; the raw key in the body
+/// is what fails against the old, unresolved gate.
+#[test]
+fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
+    let search_body = format!(
+        "{{\"data\":{{\"issues\":{{\"nodes\":[{{\"id\":\"i2\",\
+         \"identifier\":\"ENG-2\",\"title\":\"Untracked\",\
+         \"updatedAt\":\"{LINEAR_STAMP}\"}}],\"pageInfo\":\
+         {{\"hasNextPage\":false,\"endCursor\":null}}}}}}}}"
+    );
+
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post("/graphql"),
+        Route::Json {
+            status: 200,
+            body: search_body,
+        },
+    );
+    let client = linear_client(&server.base_url(), TransportConfig::default());
+
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    let report = execute(
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        tracker::SearchScope {
+            project: Some(LINEAR_TEAM_KEY.to_owned()),
+            all_projects: false,
+            filters: Vec::new(),
+        },
+        RunMode::Preview,
+    )
+    .expect("the keyed discovery run must not refuse");
+
+    let created: Vec<&str> = report
+        .reported
+        .iter()
+        .filter(|item| {
+            item.planned.action == work::sync::Action::CreateFromRemote
+        })
+        .map(|item| item.planned.id.as_str())
+        .collect();
+    assert_eq!(
+        created,
+        vec!["ENG-2"],
+        "the untracked issue is reported as a create-from-remote pull"
+    );
+
+    let bodies = server.bodies(&RequestKey::post("/graphql"));
+    assert!(
+        !bodies.is_empty(),
+        "the discovery search must reach the mock"
+    );
+    for body in &bodies {
+        let text = String::from_utf8_lossy(body);
+        assert!(
+            text.contains(LINEAR_TEAM_ID),
+            "every search body must carry the resolved team UUID, got: {text}"
+        );
+        assert!(
+            !text.contains("\"eq\":\"ENG\""),
+            "no search body may carry the raw team key, got: {text}"
+        );
+    }
+}
+
+/// AC-3: a bidirectional Linear run with no key refuses pre-flight and sends
+/// nothing. Linear posts search and every mutation to the one `/graphql` route,
+/// so "nothing was sent" is checkable only as zero requests.
+#[test]
+fn linear_discovery_with_no_key_refuses_before_any_request() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post("/graphql"),
+        Route::Json {
+            status: 200,
+            body: "{\"data\":{\"issues\":{\"nodes\":[],\"pageInfo\":\
+                   {\"hasNextPage\":false,\"endCursor\":null}}}}"
+                .to_owned(),
+        },
+    );
+    let client = linear_client(&server.base_url(), TransportConfig::default());
+
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+
+    let error = execute(
+        &client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        tracker::SearchScope::default(),
+        RunMode::Preview,
+    )
+    .err()
+    .expect("an unkeyed discovery run must refuse");
+
+    assert!(
+        matches!(
+            error,
+            work_adapters::sync::run::RunError::DiscoveryUnconfigured { .. }
+        ),
+        "an unkeyed run refuses as DiscoveryUnconfigured, got: {error:?}"
+    );
+    assert_eq!(
+        server.hits(&RequestKey::post("/graphql")),
+        0,
+        "a pre-flight config refusal must send nothing"
+    );
 }

@@ -14,6 +14,7 @@ use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
+use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker_test_support::Call;
@@ -384,6 +385,62 @@ fn an_over_threshold_untracked_set_aborts_with_no_creations_or_shows(
         "no per-issue show fan-out before the gate"
     );
     assert_eq!(fixture.spy.write_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn an_unresolvable_scope_refuses_pre_flight_and_sends_nothing(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    // An unsynced draft that would create-from-local were the run to proceed.
+    let item = fixture.unsynced_item("0001", "Draft")?;
+    let tracker =
+        RecordingTracker::holding(Vec::new()).refusing_scope(ScopeError {
+            detail: "E_SEARCH_NO_TEAM: discovery needs a team key".to_owned(),
+        });
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let error = run_sync(
+        &ports,
+        &[item],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .err()
+    .expect("an unresolvable scope must refuse the run");
+
+    assert!(
+        matches!(error, RunError::DiscoveryUnconfigured { .. }),
+        "an unresolvable scope refuses as DiscoveryUnconfigured, got: {error:?}"
+    );
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Search { .. })),
+        "a refused scope must not reach the search"
+    );
+    assert!(
+        !tracker.calls().iter().any(|call| matches!(
+            call,
+            Call::Create { .. } | Call::Update { .. }
+        )),
+        "a pre-flight refusal must send no push"
+    );
+    assert_eq!(
+        fixture.spy.write_count(),
+        0,
+        "a pre-flight refusal must not write"
+    );
     Ok(())
 }
 
@@ -1024,6 +1081,13 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
             found: Vec::new(),
             complete: true,
         })
+    }
+
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, tracker::ScopeError> {
+        Ok(scope.clone())
     }
 
     fn preview_create(

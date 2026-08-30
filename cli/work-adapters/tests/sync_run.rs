@@ -385,7 +385,8 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
         }
         RunError::Read(_)
         | RunError::Internal(_)
-        | RunError::DiscoveryIncomplete { .. } => {
+        | RunError::DiscoveryIncomplete { .. }
+        | RunError::DiscoveryUnconfigured { .. } => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -437,7 +438,8 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
         } => assert_eq!((pushes, max_pushes), (2, 1)),
         RunError::Read(_)
         | RunError::Internal(_)
-        | RunError::DiscoveryIncomplete { .. } => {
+        | RunError::DiscoveryIncomplete { .. }
+        | RunError::DiscoveryUnconfigured { .. } => {
             panic!("expected Refused, got a read or internal failure")
         }
     }

@@ -567,15 +567,15 @@ test double, or the override discovery path would refuse every key.
 
 #### Automated Verification:
 
-- [ ] `linear-client`/`jira-client` build and lint: `cd cli && cargo clippy -p linear-client -p jira-client --all-targets`
-- [ ] `resolve_scope` and search tests pass: `cd cli && cargo nextest run -p linear-client resolve_scope search`
-- [ ] `CatalogueTeam` tests pass: `cd cli && cargo nextest run -p linear-client catalogue_team`
-- [ ] The `tracker` public-api snapshot is regenerated and verified: `mise run public-api:update && mise run public-api:check`
-- [ ] The pre-flight refusal and e2e regression pass: `cd cli && cargo nextest run -p work-adapters sync_run_real_client sync_create`
-- [ ] `RunError::DiscoveryUnconfigured` exit-code test passes: `cd cli && cargo nextest run -p work-cli`
-- [ ] `cli/linear-cli` builds (the `build_with_override` caller compiles): `cd cli && cargo clippy -p linear-cli --all-targets`
-- [ ] Workspace check is green: `mise run cli:check`
-- [ ] Full CLI unit suite passes: `mise run test:unit:cli`
+- [x] `linear-client`/`jira-client` build and lint: `cd cli && cargo clippy -p linear-client -p jira-client --all-targets`
+- [x] `resolve_scope` and search tests pass: `cd cli && cargo nextest run -p linear-client resolve_scope search`
+- [x] `CatalogueTeam` tests pass: `cd cli && cargo nextest run -p linear-client catalogue_team`
+- [x] The `tracker` public-api snapshot is regenerated and verified: `mise run public-api:update && mise run public-api:check`
+- [x] The pre-flight refusal and e2e regression pass: `cd cli && cargo nextest run -p work-adapters sync_run_real_client sync_create`
+- [x] `RunError::DiscoveryUnconfigured` exit-code test passes: `cd cli && cargo nextest run -p work-cli`
+- [x] `cli/linear-cli` builds (the `build_with_override` caller compiles): `cd cli && cargo clippy -p linear-cli --all-targets`
+- [x] Workspace check is green: `mise run cli:check`
+- [x] Full CLI unit suite passes: `mise run test:unit:cli`
 
 #### Manual Verification:
 

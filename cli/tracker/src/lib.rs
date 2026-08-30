@@ -269,6 +269,33 @@ pub struct Discovery {
     pub complete: bool,
 }
 
+/// A discovery scope that names no valid search target for this tracker — a
+/// missing or unresolvable key.
+///
+/// A configuration fault, distinct from a transient read failure. It carries
+/// its own type rather than overloading [`TrackerError::Retryable`] so it can
+/// never be routed through a caller's tracker-error path and mis-exit as a
+/// transient failure: `resolve_scope` mutates nothing, so a scope fault is
+/// always something the operator must fix before any request goes out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopeError {
+    /// What is wrong with the scope, for a human. Names the missing or
+    /// unresolvable key and how to supply it.
+    pub detail: String,
+}
+
+impl Display for ScopeError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "the discovery scope names no valid target: {}",
+            self.detail
+        )
+    }
+}
+
+impl std::error::Error for ScopeError {}
+
 /// One create-preview field, resolved to one of three states.
 ///
 /// The three stay distinct because the create skill renders each field's
@@ -425,6 +452,26 @@ pub trait RemoteTracker {
     /// a read mutates nothing. A retrieval cut short reports
     /// `complete == false` rather than erroring.
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError>;
+
+    /// Resolves and validates a discovery `scope` for this tracker, without any
+    /// network call, returning the scope ready for [`RemoteTracker::search`].
+    ///
+    /// The one deterministic, local step in the discovery path: it substitutes
+    /// provider identity a search needs but a config only names — a Linear team
+    /// *key* for its UUID — and validates that the scope names a target at all.
+    /// A caller runs it before any mutation, so a scope fault refuses the run
+    /// before a single request goes out.
+    ///
+    /// # Errors
+    ///
+    /// [`ScopeError`] when the scope names no valid target — a missing or
+    /// unresolvable key. It resolves locally and mutates nothing, so it never
+    /// reports a transient or terminal failure; that separation is why the error
+    /// is a [`ScopeError`] and not a [`TrackerError`].
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, ScopeError>;
 
     /// Previews the fields a `create` of the given `kind` would resolve,
     /// without creating anything.

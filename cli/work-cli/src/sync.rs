@@ -514,6 +514,10 @@ pub fn run_sync(
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            eprintln!("refused: discovery is unconfigured — {detail}");
+            ExitCode::from(exit_codes::UNCONFIGURED)
+        }
         Err(RunError::Read(error)) => {
             eprintln!("{error}");
             ExitCode::from(exit_codes::RETRYABLE)

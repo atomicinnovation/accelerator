@@ -39,6 +39,28 @@ impl StateResolver for FixedStates {
     }
 }
 
+/// Resolves a team **key** — the `ENG` in `ENG-42` — to the team UUID a search
+/// filter needs.
+///
+/// A separate job from [`StateResolver`]: a config names the team by its key,
+/// but the `{team:{id:{eq:…}}}` filter is evaluated against the UUID, so an
+/// unresolved key silently matches no team. A port from the outset so the
+/// catalogue-backed implementation can land beside the fixed one.
+pub trait TeamResolver {
+    /// The team UUID `key` resolves to, or `None` when it matches no team.
+    fn resolve(&self, key: &str) -> Option<String>;
+}
+
+/// A fixed map, used by the search suites and by any caller with no catalogue.
+#[derive(Debug, Clone, Default)]
+pub struct FixedTeam(pub std::collections::BTreeMap<String, String>);
+
+impl TeamResolver for FixedTeam {
+    fn resolve(&self, key: &str) -> Option<String> {
+        self.0.get(key.trim()).cloned()
+    }
+}
+
 /// Everything the search surface accepts, in the bash's own shape.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {

@@ -147,6 +147,13 @@ impl RemoteTracker for Fake {
         unimplemented!("not exercised by the apply suite")
     }
 
+    fn resolve_scope(
+        &self,
+        scope: &tracker::SearchScope,
+    ) -> Result<tracker::SearchScope, tracker::ScopeError> {
+        Ok(scope.clone())
+    }
+
     fn preview_create(
         &self,
         _kind: &str,

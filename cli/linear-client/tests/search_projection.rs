@@ -13,6 +13,8 @@ use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::Search;
 use serde_json::Value;
 use support::client::{brief, client_for, TEAM_ID};
+use tracker::RemoteTracker;
+use tracker::SearchScope;
 
 const GRAPHQL: &str = "/graphql";
 
@@ -98,6 +100,46 @@ fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
         Some("c1"),
         "the second page carries the first page's endCursor"
     );
+}
+
+#[test]
+fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Sequence(vec![
+            Route::Json {
+                status: 200,
+                body: page(&node("ENG-1", "Todo", "Ada"), true, "c1"),
+            },
+            Route::Json {
+                status: 200,
+                body: page(&node("ENG-2", "Done", "Grace"), false, ""),
+            },
+        ]),
+    );
+    let client = client_for(&server, brief());
+
+    // A pre-resolved scope: `project` is the UUID `resolve_scope` produces.
+    let scope = SearchScope {
+        project: Some(TEAM_ID.to_owned()),
+        all_projects: false,
+        filters: Vec::new(),
+    };
+
+    let discovery = client.search(&scope).expect("the search runs");
+    assert_eq!(discovery.found.len(), 2, "both pages accumulate");
+
+    let bodies = server.bodies(&RequestKey::post(GRAPHQL));
+    assert_eq!(bodies.len(), 2, "two pages were fetched");
+    let expected = format!("\"team\":{{\"id\":{{\"eq\":\"{TEAM_ID}\"}}}}");
+    for body in &bodies {
+        let text = String::from_utf8(body.clone()).expect("utf8");
+        assert!(
+            text.contains(&expected),
+            "every search body carries the resolved team UUID: {text}"
+        );
+    }
 }
 
 #[test]

@@ -18,6 +18,7 @@ use tracker::FieldResolution;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
@@ -31,6 +32,7 @@ use crate::auth::check_identifier;
 use crate::auth::resolve_credentials;
 use crate::auth::Credentials;
 use crate::catalogue::CatalogueStates;
+use crate::catalogue::CatalogueTeam;
 use crate::classify::carries_errors;
 use crate::classify::classify;
 use crate::classify::classify_errors;
@@ -41,6 +43,7 @@ use crate::failure::LinearFailure;
 use crate::filter::compose;
 use crate::filter::Search;
 use crate::filter::StateResolver;
+use crate::filter::TeamResolver;
 use crate::filter::FETCH_PAGE_SIZE;
 use crate::surface::interpret as interpret_surface;
 use crate::surface::SurfaceError;
@@ -122,6 +125,7 @@ pub struct LinearClient {
     transport: Transport,
     upload: UploadTransport,
     team_key: Option<String>,
+    teams: Box<dyn TeamResolver>,
     states: Box<dyn StateResolver>,
 }
 
@@ -131,12 +135,14 @@ impl LinearClient {
         transport: Transport,
         upload: UploadTransport,
         team_key: Option<String>,
+        teams: Box<dyn TeamResolver>,
         states: Box<dyn StateResolver>,
     ) -> Self {
         Self {
             transport,
             upload,
             team_key,
+            teams,
             states,
         }
     }
@@ -161,8 +167,15 @@ impl LinearClient {
             Box::new(ClockJitter),
         )?;
         let upload = UploadTransport::production()?;
+        let teams = CatalogueTeam::load(integrations_root);
         let states = CatalogueStates::load(integrations_root);
-        Ok(Self::new(transport, upload, team_key, Box::new(states)))
+        Ok(Self::new(
+            transport,
+            upload,
+            team_key,
+            Box::new(teams),
+            Box::new(states),
+        ))
     }
 
     #[must_use]
@@ -658,12 +671,44 @@ impl RemoteTracker for LinearClient {
         Ok(outcome)
     }
 
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, ScopeError> {
+        let Some(key) = scope.project.as_deref() else {
+            return Err(ScopeError {
+                detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
+                         work.default_project_code, or run --push-only to push \
+                         without discovery"
+                    .to_owned(),
+            });
+        };
+        let Some(team_id) = self.teams.resolve(key) else {
+            return Err(ScopeError {
+                detail: format!(
+                    "E_SEARCH_UNKNOWN_TEAM: team key {key:?} resolves to no \
+                     team in the catalogue; check work.default_project_code \
+                     matches the catalogue team key, or refresh \
+                     linear/catalogue.json"
+                ),
+            });
+        };
+        Ok(SearchScope {
+            project: Some(team_id),
+            ..scope.clone()
+        })
+    }
+
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        let Some(team_id) = scope.project.clone() else {
+            return Err(TrackerError::Retryable {
+                detail: "E_SEARCH_UNRESOLVED_SCOPE: search needs a resolved \
+                         team id; call resolve_scope first"
+                    .to_owned(),
+            });
+        };
         let mut search = Search {
-            team_id: scope
-                .project
-                .clone()
-                .or_else(|| Some(self.credentials().team_id.clone())),
+            team_id: Some(team_id),
             ..Search::default()
         };
         for (field, value) in &scope.filters {

@@ -60,6 +60,12 @@ pub enum RunError {
     DiscoveryIncomplete {
         found: usize,
     },
+    /// The discovery scope names no valid search target — a missing or
+    /// unresolvable key. Caught pre-flight, before the apply/push phase, so
+    /// nothing was sent; the operator fixes the config and re-runs.
+    DiscoveryUnconfigured {
+        detail: String,
+    },
     Read(TrackerError),
     Internal(kernel::Error),
 }
@@ -624,8 +630,9 @@ struct PreparedRun<'a> {
 /// # Errors
 ///
 /// [`RunError::Internal`] for a clock, baseline-store or planning failure;
-/// [`RunError::DiscoveryIncomplete`] when the untracked search is cut short;
-/// [`RunError::Refused`] when the plan would exceed the write bounds.
+/// [`RunError::DiscoveryUnconfigured`] when the discovery scope names no valid
+/// target; [`RunError::DiscoveryIncomplete`] when the untracked search is cut
+/// short; [`RunError::Refused`] when the plan would exceed the write bounds.
 fn prepare_run<'a>(
     ports: &SyncPorts<'_>,
     baseline: &BaselineStore<'_>,
@@ -674,11 +681,20 @@ fn prepare_run<'a>(
     // Untracked-remote discovery and unsynced-local creates are computed from
     // reads only, so the combined gate below can bound every write — planned
     // pulls, planned pushes, and both create paths — before a single one runs.
-    let discovery_enabled =
-        !matches!(request.direction, SyncDirection::PushOnly)
-            && (request.scope.project.is_some() || request.scope.all_projects);
-    let untracked = if discovery_enabled {
-        match discover_untracked(ports.tracker, &request.scope, request.items) {
+    // A non-push-only run resolves its scope first: a missing or unresolvable
+    // key refuses the whole run here, before the apply/push phase, so nothing
+    // is sent.
+    let untracked = if matches!(request.direction, SyncDirection::PushOnly) {
+        Vec::new()
+    } else {
+        let resolved =
+            ports
+                .tracker
+                .resolve_scope(&request.scope)
+                .map_err(|error| RunError::DiscoveryUnconfigured {
+                    detail: error.detail,
+                })?;
+        match discover_untracked(ports.tracker, &resolved, request.items) {
             Ok(discovered) if !discovered.complete => {
                 return Err(RunError::DiscoveryIncomplete {
                     found: discovered.ids.len(),
@@ -690,8 +706,6 @@ fn prepare_run<'a>(
                 Vec::new()
             }
         }
-    } else {
-        Vec::new()
     };
     let creates_from_local =
         unsynced_creates(&plan, request.items, request.direction);
