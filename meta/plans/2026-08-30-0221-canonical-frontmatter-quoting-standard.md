@@ -795,14 +795,16 @@ non-zero and emits the specific code on stderr.
 
 #### Automated Verification
 
-- [ ] Coverage test green over the 21 skills; discovery gate flags none: `mise run test:unit:tasks`
-- [ ] SKILL.md tool-permission lint accepts the new rule: `mise run lint:skill-permissions:check`
-- [ ] CLI signal test passes: `cd cli && cargo nextest run -p corpus-cli`
-- [ ] Full gate green: `mise run check`
+- [x] Coverage test green over the 21 skills; discovery gate flags none: `mise run test:unit:tasks`
+- [x] SKILL.md tool-permission lint accepts the new rule: `mise run lint:skill-permissions:check`
+- [x] CLI signal test passes: `cd cli && cargo nextest run -p corpus-cli`
+- [x] Full gate green: `mise run check`
+
+Deviation recorded during implementation: the coverage test binds to a fenced `bash` block carrying the invocation (an executable step, immune to prose/comment/allowed-tools-glob matches) rather than a persistence-heading regex — the 21 skills' final-step headings vary too widely for a heading list to be robust, and the bash-fence requirement is the load-bearing mutation-catcher. The test is self-contained (its own discovery + constants) rather than sharing a support module with `test_skill_frontmatter_population.py`, to avoid refactoring the working population guard.
 
 #### Manual Verification
 
-- [ ] Run `create-work-item` (CLI-delegated) and `create-note` (direct Write) end-to-end; the validate step runs and surfaces a violation when the written file is made non-conformant.
+- [~] Run `create-work-item` (CLI-delegated) and `create-note` (direct Write) end-to-end; the validate step runs and surfaces a violation when the written file is made non-conformant. (The CLI signal it invokes is verified automatically; live skill runs not exercised.)
 
 ---
 

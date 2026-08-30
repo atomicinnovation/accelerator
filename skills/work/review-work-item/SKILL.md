@@ -8,6 +8,7 @@ allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Review Work Item
@@ -432,6 +433,16 @@ field is also emitted as a transitional alias carrying the same
 as the primary work-item cross-reference key today. Both fields
 encode the same edge; the duplication is bounded by the visualiser
 consumer update.
+
+**Validate the frontmatter**: after writing the review file, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <the review file path>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 5: Present the Review
 

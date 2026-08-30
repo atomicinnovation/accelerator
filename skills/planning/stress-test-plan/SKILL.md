@@ -6,6 +6,7 @@ description: Interactively stress-test an implementation plan by grilling the us
 argument-hint: "[path to plan file]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Stress-Test Plan
@@ -183,6 +184,17 @@ I've updated the plan at `[path]`. Changes made:
 - [Change 2] — addressing [issue]
 - [Noted as accepted risk] — [risk description]
 ```
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over each file you edited:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the edited document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Important Guidelines
 

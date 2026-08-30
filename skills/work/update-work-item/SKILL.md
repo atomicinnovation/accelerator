@@ -8,6 +8,7 @@ argument-hint: "[work-item-ref] [field-op...]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Update Work Item
@@ -270,6 +271,16 @@ After writing, print a confirmation:
 Updated <filename>:
   status: draft → ready
 ```
+
+**Validate the frontmatter**: after writing, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <filename>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Quality Guidelines
 

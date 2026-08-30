@@ -6,6 +6,7 @@ argument-hint: "[work item reference or description]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Implementation Plan
@@ -273,6 +274,17 @@ unified base fields into the template's frontmatter block:
    - `reviewer:` ← name/email of the plan reviewer. Leave for review-plan
      to fill; omit the key on a fresh draft until the plan is reviewed.
 3. Write the file with the substituted frontmatter block.
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the plan you just wrote:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the plan document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 6: Sync and Review
 

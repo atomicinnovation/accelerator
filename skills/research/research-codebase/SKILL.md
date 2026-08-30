@@ -7,6 +7,7 @@ argument-hint: "[research question]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Research Codebase
@@ -158,6 +159,17 @@ The key is to use these agents intelligently:
     explicit; otherwise omit the key.
   - `work_item_id:` ← the linked work item's full ID (quoted). Fill when
     the research is linked to a work item; otherwise omit the key.
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the research document you just wrote:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the research document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 7: Add GitHub permalinks (if applicable)
 

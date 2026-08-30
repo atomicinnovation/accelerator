@@ -8,6 +8,7 @@ argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pus
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Sync Work Items
@@ -245,3 +246,13 @@ locally-validated payload check) and report every pull instead of writing it;
 surfaced here before any mutation — but update validation is now **local-only**,
 so a clean preview does not guarantee a successful push (a tracker-side field
 rejection surfaces only at apply, as a `71`).
+
+**Validate the frontmatter**: the sync engine owns every write, so after the
+engine run validate each concrete item it touched (created or written back)
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <each touched item path>
+```
+
+If any invocation exits non-zero, that item violates the canonical
+frontmatter standard; report the emitted violation before completing.

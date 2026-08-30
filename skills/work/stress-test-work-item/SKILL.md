@@ -7,6 +7,7 @@ description: Interactively stress-test a work item by grilling the user
 argument-hint: "[work item number or path]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Stress-Test Work Item
@@ -175,6 +176,16 @@ Use the `AskUserQuestion` tool with two options:
      continue with the remaining agreed edits
 
 3. **After editing, summarise changes made**
+
+**Validate the frontmatter**: after any edit to the work item, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <the work item path>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Important Guidelines
 

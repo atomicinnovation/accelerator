@@ -7,6 +7,7 @@ argument-hint: "[issue description, stacktrace, or error message]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Research Issue
@@ -129,6 +130,17 @@ Then wait for the user's issue description.
 
 - Filename format: `YYYY-MM-DD-description.md` where description is a brief
   kebab-case summary of the issue (e.g., `2025-01-08-auth-timeout-on-refresh.md`)
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the RCA document you just wrote:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the RCA document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 7: Present findings (ONLY after the file has been written)
 

@@ -86,6 +86,35 @@ fn a_violation_in_the_default_whole_corpus_exits_1() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_bare_string_field_exits_1_and_names_unquoted_string(
+) -> Result<(), TestError> {
+    let dir = tempdir("unquoted-signal")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let file = root.join("meta/work/0001.md");
+    write_work_item(&file, "0001")?;
+    let content = fs::read_to_string(&file)?;
+    fs::write(&file, content.replace("author: \"a\"", "author: a"))?;
+
+    let output = run(
+        &root,
+        &[
+            "frontmatter",
+            "validate",
+            "--file",
+            file.to_str().ok_or("non-utf8")?,
+        ],
+    )?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNQUOTED-STRING"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
 fn dir_only_scopes_the_walk() -> Result<(), TestError> {
     let dir = tempdir("dir-only")?;
     let root = canonical_root(&dir)?;
