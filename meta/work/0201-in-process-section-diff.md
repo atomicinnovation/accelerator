@@ -1,17 +1,16 @@
 ---
 type: work-item
 id: "0201"
-title: "In-Process Section Diff"
-date: "2026-08-08T12:27:18+00:00"
+title: In-Process Section Diff
+date: 2026-08-08T12:27:18+00:00
 author: Toby Clemson
 producer: create-work-item
-status: draft
+status: ready
 kind: task
 priority: medium
-parent: "work-item:0174"
-relates_to: ["work-item:0170", "work-item:0188", "work-item:0198"]
+relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
 tags: [rust, work-items, tech-debt]
-last_updated: "2026-08-08T12:27:18+00:00"
+last_updated: 2026-08-08T12:27:18+00:00
 last_updated_by: Toby Clemson
 schema_version: 1
 external_id: PP-731
@@ -20,7 +19,7 @@ external_id: PP-731
 # 0201: In-Process Section Diff
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Ready
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -29,8 +28,9 @@ external_id: PP-731
 Replace `cli/work-adapters/src/diff_shellout.rs`'s subprocess-based section
 diff — which writes two temp files and shells out to the real `diff -u`
 binary — with an in-process Rust implementation. This removes the crate's
-one external process dependency, its associated spawn/timeout failure mode,
-and the architecture-enforcement rule that exists solely to quarantine it.
+one external process dependency and its associated spawn/timeout failure mode,
+and lets the architecture-enforcement rule that exists solely to quarantine it
+be removed or simplified.
 
 ## Context
 
@@ -64,6 +64,10 @@ different tradeoff is wanted at implementation time.
 
 ## Requirements
 
+- Before changing the diff body's formatting, scan for consumers of
+  `accelerator work diff` output beyond `cli/work/src/section_diff.rs` that
+  parse or grep the body, and confirm none depend on the body's internal
+  formatting. If any do, widen scope to accommodate them before proceeding.
 - Replace the subprocess `diff -u` invocation in `diff_shellout.rs` with an
   in-process Rust diff implementation — no `std::process::Command`, no temp
   files.
@@ -94,10 +98,20 @@ different tradeoff is wanted at implementation time.
       `work-adapters`.
 - [ ] Given the existing `=== name (- LOCAL / + REMOTE) ===` header and
       blank-line framing that `accelerator work diff` callers depend on,
-      when the in-process implementation replaces the subprocess one, then
-      that framing is unchanged.
-- [ ] Given two identical sections, when the renderer runs, then it reports
-      no differences (an empty diff body), matching current behaviour.
+      when the in-process section-diff renderer replaces the subprocess one,
+      then that framing is unchanged.
+- [ ] Given a fixed two-section fixture in which one section differs, when the
+      section-diff renderer runs, then its full rendered output matches an
+      exact expected-text golden held in the test suite, and the diff body
+      carries per-line `-`/`+` prefixes and at least one `@@`-style hunk
+      header.
+- [ ] Given the subprocess call is gone, when the migration completes, then
+      `render`'s signature no longer surfaces a `DiffUnavailable` variant —
+      either it is infallible, or its only remaining error variant reflects a
+      distinct failure mode identified during implementation.
+- [ ] Given two identical sections, when the section-diff renderer runs, then
+      it reports no differences (an empty diff body), matching current
+      behaviour.
 - [ ] Given the `bash-parity` feature and `diff_shellout_parity.rs` suite,
       when this change lands, then that suite is retired or rewritten to
       assert the new implementation's own output contract, and
@@ -149,9 +163,10 @@ different tradeoff is wanted at implementation time.
 
 ## Drafting Notes
 
-- Parent set to 0174 (the general shell-tooling-retirement epic) since this
-  is philosophically part of that effort even though 0174 doesn't literally
-  scope this item today — confirm or drop if that linkage doesn't fit.
+- 0174 (the general shell-tooling-retirement epic) is linked via `relates_to`
+  rather than `parent`: this is philosophically part of that effort, but 0174
+  doesn't literally scope this item, so an architectural-precedent link fits
+  better than a decomposition edge.
 - `relates_to` links 0170 (where this code was originally built) and
   0188/0198 (the analogous subprocess-to-in-process migration pattern on
   the VCS side) as architectural precedent, not because they share any
