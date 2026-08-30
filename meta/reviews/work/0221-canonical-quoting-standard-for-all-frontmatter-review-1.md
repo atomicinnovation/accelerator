@@ -8,7 +8,6 @@ producer: review-work-item
 status: complete
 parent: "work-item:0136"
 target: "work-item:0221"
-relates_to: []
 work_item_id: "0221"
 reviewer: Toby Clemson
 verdict: APPROVE

@@ -144,6 +144,6 @@ fn without_push_the_existing_update_behaviour_is_unchanged(
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("status: in-progress"));
+    assert!(content.contains("status: \"in-progress\""));
     Ok(())
 }

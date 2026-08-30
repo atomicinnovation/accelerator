@@ -91,3 +91,89 @@ fn render_fails_closed_on_fence_valid_but_invalid_yaml() {
     let node = Yaml::Mapping(Mapping::new());
     assert!(render(Some(existing), &node).is_err());
 }
+
+fn string_entry(key: &str, value: &str) -> (String, Yaml) {
+    (
+        key.to_owned(),
+        Yaml::Scalar(Scalar::String(value.to_owned())),
+    )
+}
+
+fn single(key: &str, value: Yaml) -> Yaml {
+    let mut mapping = Mapping::new();
+    mapping.push(key.to_owned(), value);
+    Yaml::Mapping(mapping)
+}
+
+#[test]
+fn every_string_scalar_and_element_is_double_quoted(
+) -> Result<(), DocumentError> {
+    let node = Yaml::Mapping(
+        [
+            string_entry("parent", "work-item:0171"),
+            string_entry("author", "Toby"),
+            (
+                "relates_to".to_owned(),
+                Yaml::Sequence(vec![
+                    Yaml::Scalar(Scalar::String("work-item:0194".to_owned())),
+                    Yaml::Scalar(Scalar::String("adr:ADR-0034".to_owned())),
+                ]),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    let rendered = render(None, &node)?;
+    assert!(
+        rendered.contains("parent: \"work-item:0171\""),
+        "{rendered}"
+    );
+    assert!(rendered.contains("author: \"Toby\""), "{rendered}");
+    assert!(
+        rendered.contains("relates_to: [\"work-item:0194\", \"adr:ADR-0034\"]"),
+        "{rendered}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_long_string_stays_single_line_double_quoted() -> Result<(), DocumentError>
+{
+    let long = "a very long title that exceeds eighty columns ".repeat(3);
+    let node = single("title", Yaml::Scalar(Scalar::String(long.clone())));
+    let rendered = render(None, &node)?;
+    assert!(
+        rendered.contains(&format!("title: \"{long}\"")),
+        "{rendered}"
+    );
+    assert!(!rendered.contains(">-"), "{rendered}");
+    assert!(!rendered.contains(">\n"), "{rendered}");
+    assert!(!rendered.contains('|'), "{rendered}");
+    Ok(())
+}
+
+#[test]
+fn a_bare_typed_scalar_stays_bare() -> Result<(), DocumentError> {
+    let node = Yaml::Mapping(
+        [
+            ("schema_version".to_owned(), Yaml::Scalar(Scalar::Int(1))),
+            ("draft".to_owned(), Yaml::Scalar(Scalar::Bool(true))),
+            ("parent".to_owned(), Yaml::Scalar(Scalar::Null)),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    let rendered = render(None, &node)?;
+    assert!(rendered.contains("schema_version: 1"), "{rendered}");
+    assert!(rendered.contains("draft: true"), "{rendered}");
+    assert!(!rendered.contains("\"1\""), "{rendered}");
+    Ok(())
+}
+
+#[test]
+fn a_float_scalar_is_quoted() -> Result<(), DocumentError> {
+    let node = single("ratio", Yaml::Scalar(Scalar::Float(1.0)));
+    let rendered = render(None, &node)?;
+    assert!(rendered.contains("ratio: \"1\""), "{rendered}");
+    Ok(())
+}

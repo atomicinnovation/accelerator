@@ -899,6 +899,29 @@ mod tests {
     }
 
     #[test]
+    fn a_write_emits_canonical_quoting() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let root = root.path().to_path_buf();
+        seed(
+            &root,
+            "config.md",
+            "---\ncore:\n  count: 8080\n  example: dark\n---\n",
+        )?;
+        let store = FileConfigStore::at(&root);
+        service(&store).set(
+            &Key::parse("core.example")?,
+            "light",
+            Level::Team,
+        )?;
+
+        let content = fs::read_to_string(root.join(".accelerator/config.md"))?;
+        assert!(content.contains("example: \"light\""), "{content}");
+        assert!(content.contains("count: 8080"), "{content}");
+        assert!(!content.contains("count: \"8080\""), "{content}");
+        Ok(())
+    }
+
+    #[test]
     fn typed_scalars_and_a_sequence_parse() -> Result<(), TestError> {
         let root = tempdir()?;
         let root = root.path().to_path_buf();

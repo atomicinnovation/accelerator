@@ -258,11 +258,11 @@ alter the `cli/work` public surface and require a snapshot regeneration.
 
 #### Automated Verification
 
-- [ ] The AC #9 regression test fails before change 1 and passes after: `cd cli && cargo nextest run -p document`
-- [ ] Work-CLI producer tests pass with quoted expectations: `mise run test:unit:cli`
-- [ ] Single-component loop green: `mise run cli:check`
-- [ ] `cli/document` public-api snapshot unchanged (the `Serialize` impl signature does not change): `mise run public-api:check`
-- [ ] Full read-only gate green: `mise run check`
+- [x] The AC #9 regression test fails before change 1 and passes after: `cd cli && cargo nextest run -p document`
+- [x] Work-CLI producer tests pass with quoted expectations: `mise run test:unit:cli`
+- [x] Single-component loop green: `mise run cli:check`
+- [x] `cli/document` public-api snapshot unchanged (the `Serialize` impl signature does not change): `mise run public-api:check`
+- [x] Full read-only gate green: `mise run check`
 
 #### Manual Verification
 

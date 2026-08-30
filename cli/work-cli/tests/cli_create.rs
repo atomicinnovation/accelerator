@@ -60,17 +60,17 @@ fn creates_a_work_item_with_the_template_schema() -> Result<(), TestError> {
     let path = String::from_utf8(output.stdout)?.trim().to_owned();
     let content = fs::read_to_string(&path)?;
     assert!(content.contains("id: \"0001\""));
-    assert!(content.contains("title: Test item"));
-    assert!(content.contains("kind: task"));
-    assert!(content.contains("priority: medium"));
-    assert!(content.contains("status: draft"));
+    assert!(content.contains("title: \"Test item\""));
+    assert!(content.contains("kind: \"task\""));
+    assert!(content.contains("priority: \"medium\""));
+    assert!(content.contains("status: \"draft\""));
     assert!(content.contains("schema_version: 1"));
     assert!(content.contains("# 0001: Test item"));
     // No --author flag: author must come from work_adapters::author::
     // current_vcs_user() reading the scratch repo's own configured
     // git user.name, proving that fallback resolves end to end.
-    assert!(content.contains("author: Test User"));
-    assert!(content.contains("last_updated_by: Test User"));
+    assert!(content.contains("author: \"Test User\""));
+    assert!(content.contains("last_updated_by: \"Test User\""));
     Ok(())
 }
 
@@ -110,10 +110,10 @@ fn typed_linkage_and_tags_are_populated_and_omitted_when_empty(
     assert!(output.status.success());
     let path = String::from_utf8(output.stdout)?.trim().to_owned();
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("parent: work-item:0001"));
-    assert!(content.contains("blocks:") && content.contains("work-item:0099"));
-    assert!(content.contains("source: issue-research:0002"));
-    assert!(content.contains("tags:") && content.contains("api"));
+    assert!(content.contains("parent: \"work-item:0001\""));
+    assert!(content.contains("blocks: [\"work-item:0099\"]"));
+    assert!(content.contains("source: \"issue-research:0002\""));
+    assert!(content.contains("tags: [\"api\"]"));
     assert!(!content.contains("blocked_by:"));
     assert!(!content.contains("derived_from:"));
     assert!(!content.contains("relates_to:"));
@@ -168,7 +168,7 @@ fn producer_default_is_overridable() -> Result<(), TestError> {
     assert!(output.status.success());
     let path = String::from_utf8(output.stdout)?.trim().to_owned();
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("producer: create-work-item"));
+    assert!(content.contains("producer: \"create-work-item\""));
     Ok(())
 }
 
@@ -238,7 +238,7 @@ fn explicit_author_flag_overrides_vcs_identity() -> Result<(), TestError> {
     assert!(output.status.success());
     let path = String::from_utf8(output.stdout)?.trim().to_owned();
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("author: Someone Else"));
+    assert!(content.contains("author: \"Someone Else\""));
     Ok(())
 }
 
