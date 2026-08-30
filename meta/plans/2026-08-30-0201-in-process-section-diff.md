@@ -646,18 +646,18 @@ The existing `run` helper and `TestError` alias in the file are reused.
 
 #### Automated Verification
 
-- [ ] `similar` adds no packages and no new licence: `cd cli && cargo tree -p similar --edges normal` and `cargo deny check licenses`.
-- [ ] No subprocess or temp-file surface in the crate's source: `cd cli/work-adapters/src && grep -rn "std::process\|Command::new\|Stdio\|DiffUnavailable" .` returns nothing.
-- [ ] Adapter and CLI tests pass without a `diff` binary: `cd cli && env PATH="$(dirname "$(command -v cargo)")" cargo nextest run -p work-adapters -p work-cli` (a `PATH` with the toolchain but no `diff`).
-- [ ] Formatting and clippy clean: `mise run cli:check`.
-- [ ] Full `--all-features` lane green: `mise run test:unit:cli`.
-- [ ] Read-only CI mirror passes: `mise run check`.
+- [x] `similar` adds no packages and no new licence: `cd cli && cargo tree -p similar --edges normal` and `cargo deny check licenses`.
+- [x] No subprocess or temp-file surface in the crate's source: `cd cli/work-adapters/src && grep -rn "std::process\|Command::new\|Stdio\|DiffUnavailable" .` returns nothing.
+- [x] Adapter and CLI tests pass without a `diff` binary. The plan's stripped-`PATH` form is infeasible on this host (nextest and the C linker live outside the toolchain dir, and the create/sync suites legitimately spawn `git`/`jj`), so the property is proven instead by the empty-`PATH` binary render below (AC8, stronger — no external binary is reachable) plus the source grep above.
+- [x] Formatting and clippy clean: `mise run cli:check`.
+- [x] Full `--all-features` lane green: `mise run test:unit:cli`.
+- [x] Read-only CI mirror passes: `mise run check`.
 
 #### Manual Verification
 
-- [ ] `accelerator work diff <a.md> <b.md>` on two work items differing in one section prints the unchanged `=== … ===` framing with a `@@` hunk and `-`/`+` lines.
-- [ ] `env PATH= accelerator work diff <a.md> <b.md>` (empty `PATH`) still renders — proving no `diff` binary is reached (AC8).
-- [ ] `accelerator work diff` on two identical files prints `(no differing sections after normalisation)`.
+- [x] `accelerator work diff <a.md> <b.md>` on two work items differing in one section prints the unchanged `=== … ===` framing with a `@@` hunk and `-`/`+` lines.
+- [x] `env PATH= accelerator work diff <a.md> <b.md>` (empty `PATH`) still renders — proving no `diff` binary is reached (AC8).
+- [x] `accelerator work diff` on two identical files prints `(no differing sections after normalisation)`.
 
 ---
 
@@ -801,16 +801,16 @@ reach for the bare name.
 
 #### Automated Verification
 
-- [ ] The cargo-pup check passes: `mise run pup:check` (the cargo-pup lane, declared in `mise.toml` and documented in `tasks/README.md`).
-- [ ] The probe pair passes against the real config: `mise run test:integration:pup` — the rejection case names `work_adapters_is_zero_spawn`, the compliant case exits 0.
-- [ ] The runtime harness passes in the `--all-features` lane: `mise run test:unit:cli` runs `zero_spawn.rs` and the marker is never written.
-- [ ] Read-only CI mirror passes: `mise run check`.
-- [ ] Full local CI mirror is green end-to-end, no `diff` binary required: `mise run`.
+- [x] The cargo-pup check passes: `mise run pup:check` (the cargo-pup lane, declared in `mise.toml` and documented in `tasks/README.md`).
+- [x] The probe pair passes against the real config: `mise run test:integration:pup` — the rejection case names `work_adapters_is_zero_spawn`, the compliant case exits 0.
+- [x] The runtime harness passes in the `--all-features` lane: `mise run test:unit:cli` runs `zero_spawn.rs` and the marker is never written.
+- [x] Read-only CI mirror passes: `mise run check`.
+- [x] Full local CI mirror is green end-to-end, no `diff` binary required: `mise run`. Every lane passed; the sole failure was a confirmed load-induced flake in `test:integration:visualiser`'s `api_smoke` (the server's 30s startup budget exceeded only under the full run's parallel load), which passes standalone (`mise run test:integration:visualiser`, 3 passed).
 
 #### Manual Verification
 
-- [ ] The crate-wide rule has teeth beyond the allow-list: temporarily add `use std::process::Command;` to a **non-`filesystem`** `work-adapters` `src/` module (e.g. `author.rs`), confirm the cargo-pup check errors on `work_adapters_is_zero_spawn`, then revert.
-- [ ] The harness has teeth beyond the rule: temporarily add an inline `let _ = std::process::Command::new("diff").status();` to `diff::render` (no `use`, so the pup rule stays silent), confirm `zero_spawn.rs` fails on the written marker, then revert.
+- [x] The crate-wide rule has teeth beyond the allow-list: temporarily add `use std::process::Command;` to a **non-`filesystem`** `work-adapters` `src/` module (e.g. `author.rs`), confirm the cargo-pup check errors on `work_adapters_is_zero_spawn`, then revert.
+- [x] The harness has teeth beyond the rule: temporarily add an inline `let _ = std::process::Command::new("diff").status();` to `diff::render` (no `use`, so the pup rule stays silent), confirm `zero_spawn.rs` fails on the written marker, then revert.
 
 ---
 
