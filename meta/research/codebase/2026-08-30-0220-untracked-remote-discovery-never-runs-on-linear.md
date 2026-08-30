@@ -6,6 +6,7 @@ date: "2026-08-30T17:00:35+00:00"
 author: "Toby Clemson"
 producer: research-codebase
 status: complete
+topic: "Why untracked-remote discovery is skipped on Linear and where the gate, scope, and key resolution live"
 work_item_id: "0220"
 parent: "work-item:0220"
 tags: [research, codebase, sync, linear, tracker, discovery]

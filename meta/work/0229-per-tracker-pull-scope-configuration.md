@@ -8,7 +8,7 @@ producer: create-work-item
 status: draft
 kind: story
 priority: medium
-parent: work-item:0146
+parent: "work-item:0146"
 tags: [sync, scoping, tracker, configuration]
 last_updated: 2026-08-30T14:35:09+00:00
 last_updated_by: Toby Clemson

@@ -8,8 +8,8 @@ producer: create-work-item
 status: draft
 kind: task
 priority: high
-parent: work-item:0146
-relates_to: [work-item:0220]
+parent: "work-item:0146"
+relates_to: ["work-item:0220"]
 tags: [configuration, work-management, migration, tracker]
 last_updated: 2026-08-30T14:35:09+00:00
 last_updated_by: Toby Clemson
