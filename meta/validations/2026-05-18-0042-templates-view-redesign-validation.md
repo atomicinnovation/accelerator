@@ -1,17 +1,17 @@
 ---
 date: "2026-05-24T21:40:00+01:00"
-type: plan-validation
-producer: validate-plan
+type: "plan-validation"
+producer: "validate-plan"
 target: "plan:2026-05-18-0042-templates-view-redesign"
-result: pass
-status: complete
+result: "pass"
+status: "complete"
 id: "2026-05-18-0042-templates-view-redesign-validation"
 title: "2026-05-18-0042-templates-view-redesign-validation"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-24T21:40:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Validation Report: 0042 Templates View Redesign

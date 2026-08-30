@@ -1,15 +1,15 @@
 ---
 date: "2026-05-06T14:06:08+01:00"
-type: design-inventory
+type: "design-inventory"
 source: "claude-design-prototype"
 source_kind: "prototype"
 source_location: "https://64bfef0a-f5fb-4b90-81e4-229d1ebc705c.claudeusercontent.com/v1/design/projects/64bfef0a-f5fb-4b90-81e4-229d1ebc705c/serve/Accelerator%20Visualiser.html"
 crawler: "runtime"
 author: "Toby Clemson"
-status: superseded
+status: "superseded"
 sequence: 1
 screenshots_incomplete: false
-tags: [design, inventory, "claude-design-prototype"]
+tags: ["design", "inventory", "claude-design-prototype"]
 last_updated: "2026-05-06T14:06:08+01:00"
 last_updated_by: "Toby Clemson"
 id: "2026-05-06-140608-claude-design-prototype"

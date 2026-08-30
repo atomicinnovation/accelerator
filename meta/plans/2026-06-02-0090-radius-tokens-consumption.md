@@ -1,14 +1,14 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-02-0090-radius-tokens-consumption"
 title: "Radius Tokens Consumption Implementation Plan"
 date: "2026-06-02T16:02:57+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "0090"
 reviewer: "Toby Clemson"
-tags: [design, frontend, tokens, radius]
+tags: ["design", "frontend", "tokens", "radius"]
 revision: "947ee021d2441d539e6bbee77227bc4dd21fc3ed"
 repository: "visualisation-system"
 last_updated: "2026-06-03T00:00:00+00:00"

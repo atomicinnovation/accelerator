@@ -1,14 +1,14 @@
 ---
 date: "2026-05-19T08:56:33+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
-repository: accelerator
+repository: "accelerator"
 topic: "Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
-tags: [research, codebase, inventory-design, browser-locator, browser-analyser, playwright, config-read-path]
-status: complete
+tags: ["research", "codebase", "inventory-design", "browser-locator", "browser-analyser", "playwright", "config-read-path"]
+status: "complete"
 last_updated: "2026-05-19T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-19-inventory-design-and-browser-agent-fixes"
 title: "Research: Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
 schema_version: 1

@@ -31,7 +31,8 @@ fn fully_applied_project() -> Result<TempDir, TestError> {
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n",
+         0007-unify-meta-corpus-frontmatter\n\
+         0008-canonical-frontmatter-quoting\n",
     )?;
     Ok(dir)
 }

@@ -1,20 +1,20 @@
 ---
 date: "2026-06-01T01:00:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-31-0077-shadow-and-dark-accent-token-audit"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, documentation]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "documentation"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-31-0077-shadow-and-dark-accent-token-audit-review-1"
 title: "2026-05-31-0077-shadow-and-dark-accent-token-audit-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-06-01T01:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Shadow and Dark-Accent Token Audit Implementation Plan

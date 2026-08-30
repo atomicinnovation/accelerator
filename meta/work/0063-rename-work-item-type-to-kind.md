@@ -2,19 +2,19 @@
 id: "0063"
 title: "Rename work-item `type:` Field to `kind:`"
 date: "2026-05-17T17:16:35+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
 parent: "work-item:0057"
-tags: [refactor, work-item, schema, breaking-change]
-type: work-item
+tags: ["refactor", "work-item", "schema", "breaking-change"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocks: ["work-item:0065", "work-item:0070"]
 relates_to: ["adr:ADR-0023", "work-item:0023", "work-item:0057", "work-item:0060"]
-external_id: PP-85
+external_id: "PP-85"
 ---
 
 # 0063: Rename work-item `type:` Field to `kind:`

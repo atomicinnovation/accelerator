@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-11-0179-corpus-crates-parsing-conventions-validation"
 title: "Validation Report: corpus and corpus-adapters Crates for Parsing and Conventions"
 date: "2026-07-13T20:38:13+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-07-11-0179-corpus-crates-parsing-conventions"
 target: "plan:2026-07-11-0179-corpus-crates-parsing-conventions"
-tags: [rust, corpus, document, vcs, crates, frontmatter, serde-saphyr, doc-type, typed-linkage, parity]
+tags: ["rust", "corpus", "document", "vcs", "crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "parity"]
 last_updated: "2026-07-13T21:43:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

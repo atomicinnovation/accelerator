@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
 title: "Converge corpus-adapters on the Library-Backed VCS Adapter Implementation Plan"
 date: "2026-08-10T15:52:48+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0185"
 parent: "work-item:0185"
 derived_from: ["codebase-research:2026-08-10-0185-converge-corpus-adapters-library-backed-vcs"]
-tags: [rust, vcs, cleanup, tech-debt]
+tags: ["rust", "vcs", "cleanup", "tech-debt"]
 revision: "1e785e44f25480111414fe805bf645510d028fef"
 repository: "accelerator"
 last_updated: "2026-08-10T16:52:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

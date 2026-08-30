@@ -1,23 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0205"
 title: "Close the warm-dispatch latency measurement method"
 date: "2026-08-12T11:40:39+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: spike
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "spike"
+priority: "medium"
 parent: "work-item:0136"
-relates_to:
-  ["work-item:0189", "work-item:0169", "work-item:0186", "work-item:0188",
-   "work-item:0191"]
+relates_to: ["work-item:0189", "work-item:0169", "work-item:0186", "work-item:0188", "work-item:0191"]
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-tags: [cli, launcher, performance, bootstrap, measurement]
+tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 last_updated: "2026-08-13T15:28:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-735
+external_id: "PP-735"
 ---
 
 # 0205: Close the warm-dispatch latency measurement method

@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-11-0096-templates-view-auto-discovery"
 title: "Research: Templates View Auto-Discovers Available Templates (0096)"
 date: "2026-06-11T13:38:46+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0096"
 parent: "work-item:0096"
 relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
 topic: "Templates view auto-discovery from the templates/ directory"
-tags: [research, codebase, visualiser, templates, write-visualiser-config, config-generation, template-resolver]
+tags: ["research", "codebase", "visualiser", "templates", "write-visualiser-config", "config-generation", "template-resolver"]
 revision: "cc4054111f79f67229cdfa6fa9539b278b620f00"
 repository: "visualisation-system"
 last_updated: "2026-06-11T13:38:46+00:00"

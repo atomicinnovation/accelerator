@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-19-0180-atomic-store-primitives-corpus-adapters-review-1"
 title: "Plan Review: Atomic-Store Primitives in corpus-adapters"
 date: "2026-07-19T00:58:24+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-07-19-0180-atomic-store-primitives-corpus-adapters"
 parent: "plan:2026-07-19-0180-atomic-store-primitives-corpus-adapters"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, architecture, code-quality, test-coverage, safety, compatibility, portability, standards]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "architecture", "code-quality", "test-coverage", "safety", "compatibility", "portability", "standards"]
 review_number: 1
 review_pass: 2
-tags: [rust, corpus, corpus-adapters, atomic-store, jsonl, store]
+tags: ["rust", "corpus", "corpus-adapters", "atomic-store", "jsonl", "store"]
 last_updated: "2026-07-19T09:16:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

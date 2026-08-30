@@ -1,12 +1,12 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-01-lifecycle-clustering-composite-key"
 title: "Lifecycle Clustering Composite Key Implementation Plan"
 date: "2026-06-01T21:47:39+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
-tags: [visualiser, clusters, slug, typed-linkage, frontmatter]
+producer: "create-plan"
+status: "done"
+tags: ["visualiser", "clusters", "slug", "typed-linkage", "frontmatter"]
 revision: "d773efd41bb5d12c3fde4fffc25128da2708eda6"
 repository: "accelerator"
 last_updated: "2026-06-02T00:45:15+00:00"

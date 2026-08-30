@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "53"
 title: "Fix the lock reclaim race and the dev frontend-activation flake"
 date: "2026-08-06T08:25:28+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/53"
 pr_number: 53
 tags: []

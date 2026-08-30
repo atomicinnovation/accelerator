@@ -1,23 +1,23 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0204-remote-tracker-port-review-1"
 title: "Work Item Review: RemoteTracker Port"
 date: "2026-08-10T17:04:12+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0204"
 relates_to: ["work-item-review:0194-tracker-crate-and-remote-sync-engine-review-2"]
 work_item_id: "0204"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [rust, tracker, sync, port]
+tags: ["rust", "tracker", "sync", "port"]
 last_updated: "2026-08-10T17:52:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

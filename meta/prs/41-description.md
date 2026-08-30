@@ -1,28 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "41"
 title: "Probe the cache directory only on the bootstrap's cold path"
 date: "2026-08-03T12:29:40+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0186"
 parent: "work-item:0186"
-relates_to:
-  [
-    "work-item:0169",
-    "work-item:0182",
-    "work-item:0189",
-    "work-item:0190",
-    "work-item:0191",
-  ]
+relates_to: ["work-item:0169", "work-item:0182", "work-item:0189", "work-item:0190", "work-item:0191"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/41"
 pr_number: 41
-tags: [shell, performance, bootstrap, bash-3.2, testing]
+tags: ["shell", "performance", "bootstrap", "bash-3.2", "testing"]
 revision: "e503155c7bdd7c2379448331bb0f81e1e251a219"
 repository: "accelerator"
 last_updated: "2026-08-03T12:29:40+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

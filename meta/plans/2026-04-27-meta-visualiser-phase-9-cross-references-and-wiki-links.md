@@ -1,15 +1,15 @@
 ---
 date: "2026-04-27T00:00:00Z"
-type: plan
-producer: create-plan
-status: done
+type: "plan"
+producer: "create-plan"
+status: "done"
 id: "2026-04-27-meta-visualiser-phase-9-cross-references-and-wiki-links"
 title: "Phase 9 — Cross-references and wiki-links implementation plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-27T00:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-26-meta-visualiser-phase-8-kanban-write-path"]

@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0161"
 title: "Roll out Inspect evals across the remaining skills"
 date: "2026-06-28T11:44:00+00:00"
-author: Toby Clemson
-status: draft
-kind: task
-priority: medium
+author: "Toby Clemson"
+status: "draft"
+kind: "task"
+priority: "medium"
 external_id: "PP-180"
-tags: [evaluation, skills, inspect, testing, coverage]
+tags: ["evaluation", "skills", "inspect", "testing", "coverage"]
 blocked_by: ["work-item:0160"]
 relates_to: ["adr:ADR-0055"]
 last_updated: "2026-06-28T11:44:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

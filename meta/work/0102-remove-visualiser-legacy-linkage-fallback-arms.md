@@ -1,22 +1,22 @@
 ---
-type: work-item
+type: "work-item"
 id: "0102"
 title: "Remove Visualiser-Server Legacy Linkage Fallback Arms (Follow-on Contract)"
 date: "2026-06-09T10:30:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0057"
 blocked_by: ["work-item:0070"]
 blocks: ["work-item:0057"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0033"]
-tags: [migration, visualiser, frontmatter, cleanup, contract]
+tags: ["migration", "visualiser", "frontmatter", "cleanup", "contract"]
 last_updated: "2026-06-15T21:14:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-124
+external_id: "PP-124"
 ---
 
 # 0102: Remove Visualiser-Server Legacy Linkage Fallback Arms

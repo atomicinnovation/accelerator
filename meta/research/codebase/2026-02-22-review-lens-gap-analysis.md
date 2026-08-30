@@ -1,12 +1,12 @@
 ---
 date: "2026-02-22T23:01:34+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 topic: "Gap analysis of review lenses used by review-pr and review-plan skills"
-tags: [research, review-lenses, review-pr, review-plan, gap-analysis]
-status: complete
+tags: ["research", "review-lenses", "review-pr", "review-plan", "gap-analysis"]
+status: "complete"
 last_updated: "2026-02-22T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-02-22-review-lens-gap-analysis"
 title: "Research: Review Lens Gap Analysis"
 schema_version: 1

@@ -102,7 +102,7 @@ fn add_tag_appends_a_new_tag_without_losing_existing_ones(
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("tags: [a, b, c]"));
+    assert!(content.contains("tags: [\"a\", \"b\", \"c\"]"));
     Ok(())
 }
 
@@ -121,7 +121,7 @@ fn add_tag_repeated_across_invocations_never_loses_prior_tags(
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("tags: [a, b, c]"));
+    assert!(content.contains("tags: [\"a\", \"b\", \"c\"]"));
     Ok(())
 }
 
@@ -135,7 +135,7 @@ fn add_tag_duplicate_is_a_no_op() -> Result<(), TestError> {
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("tags: [a, b]"));
+    assert!(content.contains("tags: [\"a\", \"b\"]"));
     Ok(())
 }
 
@@ -149,7 +149,7 @@ fn remove_tag_removes_a_present_tag() -> Result<(), TestError> {
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("tags: [b]"));
+    assert!(content.contains("tags: [\"b\"]"));
     Ok(())
 }
 
@@ -214,7 +214,7 @@ fn remove_on_an_existing_sequence_changes_only_that_field(
     )?;
     assert!(output.status.success(), "{output:?}");
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("title: Test"));
+    assert!(content.contains("title: \"Test\""));
     let yaml = document::parse(&content)?;
     let Yaml::Mapping(mapping) = yaml else {
         unreachable!("expected a mapping");
@@ -416,6 +416,6 @@ fn a_dirty_working_copy_does_not_block_the_write() -> Result<(), TestError> {
          {output:?}"
     );
     let content = fs::read_to_string(&path)?;
-    assert!(content.contains("status: ready"));
+    assert!(content.contains("status: \"ready\""));
     Ok(())
 }

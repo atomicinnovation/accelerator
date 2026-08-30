@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-09-0098-repo-wide-linting-formatting-static-analysis"
 title: "Research: Codebase context for repo-wide linting, formatting, and static analysis guardrails (0098)"
 date: "2026-06-09T21:17:04+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0098"
 parent: "work-item:0098"
 topic: "Codebase context for implementing work item 0098 — repo-wide linting, formatting, and static analysis guardrails"
-tags: [research, codebase, linting, formatting, static-analysis, tooling, ci, mise, biome, ruff, pyrefly, clippy, shellcheck, shfmt]
+tags: ["research", "codebase", "linting", "formatting", "static-analysis", "tooling", "ci", "mise", "biome", "ruff", "pyrefly", "clippy", "shellcheck", "shfmt"]
 revision: "7d2dd42793f640752ec85594a8775f7a1163c6db"
 repository: "accelerator"
 last_updated: "2026-06-09T21:17:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

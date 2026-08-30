@@ -4,11 +4,11 @@ author: "Toby Clemson"
 revision: "bf60483a3af7e1519824704cb04cdca995bc2a70"
 repository: "accelerator"
 topic: "Implementation of work item 0033 — Design Token System"
-tags: [research, codebase, design-tokens, visualiser, frontend, css, theming, typography]
-status: complete
+tags: ["research", "codebase", "design-tokens", "visualiser", "frontend", "css", "theming", "typography"]
+status: "complete"
 last_updated: "2026-05-06T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-06-0033-design-token-system"
 title: "Research: Implementation of work item 0033 — Design Token System"
 schema_version: 1

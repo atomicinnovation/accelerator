@@ -1,14 +1,14 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"
 title: "Research: Inline code styling in meta artifact markdown (0094)"
 date: "2026-06-02T14:30:26+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0094"
 topic: "Inline code styling in the visualiser's meta-artifact markdown renderer"
-tags: [research, codebase, visualiser, markdown, css, design-tokens, inline-code]
+tags: ["research", "codebase", "visualiser", "markdown", "css", "design-tokens", "inline-code"]
 revision: "fd91646a8309247cdd84fd5654582f81fe5d8a52"
 repository: "ticket-management"
 last_updated: "2026-06-02T14:30:26+00:00"

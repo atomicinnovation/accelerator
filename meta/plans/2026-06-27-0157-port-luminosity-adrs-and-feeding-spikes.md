@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-27-0157-port-luminosity-adrs-and-feeding-spikes"
 title: "Port Luminosity ADRs and Feeding Spikes Implementation Plan"
 date: "2026-06-27T12:23:42+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: draft
+producer: "create-plan"
+status: "draft"
 work_item_id: "work-item:0157"
 parent: "work-item:0157"
 derived_from: ["codebase-research:2026-06-27-0157-porting-luminosity-adrs-and-feeding-spikes"]
-tags: [adr, decisions, porting, luminosity, rust-cli, spikes, supersession]
+tags: ["adr", "decisions", "porting", "luminosity", "rust-cli", "spikes", "supersession"]
 revision: "d88eba092cb9225c6e9727b8999181048c7104d6"
 repository: "accelerator"
 last_updated: "2026-06-27T12:23:42+00:00"

@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"
 title: "Fix Migration 0007 Incomplete Mechanical Normalisation Implementation Plan"
 date: "2026-06-17T22:43:39+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0114"
 parent: "work-item:0114"
 derived_from: ["codebase-research:2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation"]
-tags: [migrate, frontmatter, validator, unified-schema, "0007", awk]
+tags: ["migrate", "frontmatter", "validator", "unified-schema", "0007", "awk"]
 revision: "24cd0f82f087dfaa908d5d8bd59d5e9a3590c3d9"
 repository: "accelerator"
 last_updated: "2026-06-18T00:08:10+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

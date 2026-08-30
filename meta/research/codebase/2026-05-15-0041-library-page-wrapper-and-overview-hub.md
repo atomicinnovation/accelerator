@@ -1,15 +1,15 @@
 ---
 date: "2026-05-15T18:41:25+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "77c4cfe1aa718e2ca1d381780dc170b1b3db9334"
-repository: accelerator
+repository: "accelerator"
 topic: "Library Page Wrapper, Overview Hub, and List Views (work item 0041) — codebase context"
-tags: [research, codebase, visualiser, library, page-wrapper, sort, filter, server-driven, doc-types, popover]
-status: complete
+tags: ["research", "codebase", "visualiser", "library", "page-wrapper", "sort", "filter", "server-driven", "doc-types", "popover"]
+status: "complete"
 last_updated: "2026-05-15T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Resolved all eight open questions via Q&A with work-item author; updated work item 0041 to reflect decisions."
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-15-0041-library-page-wrapper-and-overview-hub"
 title: "Research: Work Item 0041 — Library Page Wrapper, Overview Hub, and List Views"
 schema_version: 1

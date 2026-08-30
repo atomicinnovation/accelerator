@@ -2,17 +2,17 @@
 id: "0057"
 title: "Unified Artifact Frontmatter and Typed Cross-Linking"
 date: "2026-05-14T17:41:22+00:00"
-author: Toby Clemson
-kind: epic
-status: done
-priority: high
-tags: [frontmatter, knowledge-graph, migration, schema, accelerator-plugin]
-type: work-item
+author: "Toby Clemson"
+kind: "epic"
+status: "done"
+priority: "high"
+tags: ["frontmatter", "knowledge-graph", "migration", "schema", "accelerator-plugin"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-23T12:13:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["work-item:0021", "work-item:0022", "work-item:0023", "work-item:0045", "work-item:0056", "work-item:0040"]
-external_id: PP-79
+external_id: "PP-79"
 ---
 
 # 0057: Unified Artifact Frontmatter and Typed Cross-Linking

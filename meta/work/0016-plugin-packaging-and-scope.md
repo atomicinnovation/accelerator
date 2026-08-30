@@ -1,18 +1,18 @@
 ---
 title: "Plugin packaging and scope boundary"
-kind: task
-status: draft
-type: work-item
+kind: "task"
+status: "draft"
+type: "work-item"
 id: "0016"
 date: "2026-05-24T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "codebase-research:2026-03-14-plugin-extraction"
-external_id: PP-38
+external_id: "PP-38"
 ---
 
 # ADR Ticket: Plugin packaging and scope boundary

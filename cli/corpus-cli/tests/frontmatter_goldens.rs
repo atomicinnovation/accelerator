@@ -48,11 +48,11 @@ fn write_work_item(path: &Path, id: &str) -> Result<(), TestError> {
     fs::write(
         path,
         format!(
-            "---\ntype: work-item\nid: \"{id}\"\ntitle: t\n\
-             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-             schema_version: 1\nstatus: draft\nkind: task\n\
-             priority: normal\n---\nbody\n"
+            "---\ntype: \"work-item\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\n---\nbody\n"
         ),
     )?;
     Ok(())
@@ -82,6 +82,35 @@ fn a_violation_in_the_default_whole_corpus_exits_1() -> Result<(), TestError> {
     let output = run(&root, &["frontmatter", "validate"])?;
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("INVALID-TYPE"));
+    Ok(())
+}
+
+#[test]
+fn a_bare_string_field_exits_1_and_names_unquoted_string(
+) -> Result<(), TestError> {
+    let dir = tempdir("unquoted-signal")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let file = root.join("meta/work/0001.md");
+    write_work_item(&file, "0001")?;
+    let content = fs::read_to_string(&file)?;
+    fs::write(&file, content.replace("author: \"a\"", "author: a"))?;
+
+    let output = run(
+        &root,
+        &[
+            "frontmatter",
+            "validate",
+            "--file",
+            file.to_str().ok_or("non-utf8")?,
+        ],
+    )?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNQUOTED-STRING"),
+        "{}",
+        stderr(&output)
+    );
     Ok(())
 }
 
@@ -184,11 +213,11 @@ fn checks_structure_only_omits_dangling_ref_violations() -> Result<(), TestError
     fs::create_dir_all(file.parent().ok_or("no parent")?)?;
     fs::write(
         &file,
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\n\
-         priority: normal\nparent: \"work-item:9999\"\n---\nbody\n",
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n",
     )?;
 
     let output =
@@ -207,11 +236,11 @@ fn checks_references_only_still_flags_a_dangling_ref() -> Result<(), TestError>
     fs::create_dir_all(file.parent().ok_or("no parent")?)?;
     fs::write(
         &file,
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\n\
-         priority: normal\nparent: \"work-item:9999\"\n---\nbody\n",
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n",
     )?;
 
     let output = run(
@@ -318,5 +347,22 @@ fn this_repositorys_own_corpus_is_clean() -> Result<(), TestError> {
          violations: {}",
         stderr(&output)
     );
+    Ok(())
+}
+
+#[test]
+fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
+    let dir = tempdir("print-schema")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let output = run(&root, &["frontmatter", "print-schema"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("\"base_fields\":[\"type\""), "{stdout}");
+    assert!(
+        stdout.contains("\"provenance_fields\":[\"revision\""),
+        "{stdout}"
+    );
+    assert!(stdout.contains("\"optional_extras\":"), "{stdout}");
     Ok(())
 }

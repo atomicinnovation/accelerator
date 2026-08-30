@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0118-reconcile-0007-backfill-sentinel-with-validator-review-1"
 title: "Work Item Review: Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-19T23:35:19+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0118"
 parent: "work-item:0115"
 work_item_id: "0118"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-19T23:47:28+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

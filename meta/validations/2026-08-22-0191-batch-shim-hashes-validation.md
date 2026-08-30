@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-22-0191-batch-shim-hashes-validation"
 title: "Validation Report: Batch the bootstrap's two shim hashes into one sha256 invocation"
 date: "2026-08-24T22:51:44+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-08-22-0191-batch-shim-hashes"
 target: "plan:2026-08-22-0191-batch-shim-hashes"
-tags: [shell, performance, bootstrap, bash-3.2, sha256]
+tags: ["shell", "performance", "bootstrap", "bash-3.2", "sha256"]
 last_updated: "2026-08-26T23:03:02+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

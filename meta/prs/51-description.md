@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "51"
 title: "0169: VCS subdomain and hooks migration"
 date: "2026-08-06T00:59:18+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0169"
 parent: "work-item:0169"
 relates_to: ["work-item:0125", "work-item:0172", "work-item:0183", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/51"
 pr_number: 51
-tags: [rust, vcs, hooks, migration]
+tags: ["rust", "vcs", "hooks", "migration"]
 revision: "e3c062d0e5f507be342f3c28f8f0565adcf154fb"
 repository: "accelerator"
 last_updated: "2026-08-06T00:59:18+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

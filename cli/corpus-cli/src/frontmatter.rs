@@ -104,6 +104,30 @@ pub fn run_validate<W: CorpusWalker + FileReader>(
     })
 }
 
+/// Runs `frontmatter print-schema`: the three cross-cutting schema banks as a
+/// single-line JSON object, so a non-Rust consumer sources them from the one
+/// Rust definition rather than a hand-synced copy.
+#[must_use]
+pub fn run_print_schema() -> Outcome {
+    use corpus::frontmatter_validation::schema;
+    let array = |items: &[&str]| -> String {
+        let quoted: Vec<String> =
+            items.iter().map(|item| format!("\"{item}\"")).collect();
+        format!("[{}]", quoted.join(","))
+    };
+    let stdout = format!(
+        "{{\"base_fields\":{},\"provenance_fields\":{},\
+         \"optional_extras\":{}}}\n",
+        array(&schema::BASE_FIELDS),
+        array(&schema::PROVENANCE_FIELDS),
+        array(&schema::OPTIONAL_EXTRAS),
+    );
+    Outcome {
+        stdout,
+        stderr: String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -167,17 +191,18 @@ mod tests {
     }
 
     fn valid_work_item() -> &'static str {
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\npriority: normal\n\
-         ---\nbody\n"
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\n---\nbody\n"
     }
 
     fn both_checks() -> Checks {
         Checks {
             structure: true,
             references: true,
+            canonical: true,
         }
     }
 
@@ -260,11 +285,11 @@ mod tests {
     #[test]
     fn checks_structure_only_omits_referential_violations(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let content = "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-             schema_version: 1\nstatus: draft\nkind: task\npriority: normal\n\
-             parent: \"work-item:9999\"\n---\nbody\n";
+        let content = "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n";
         let walker = StubFs::default().with_file("meta/work/0001.md", content);
         let outcome = run_validate(
             &[],
@@ -272,6 +297,7 @@ mod tests {
             Checks {
                 structure: true,
                 references: false,
+                canonical: true,
             },
             &table(),
             &walker,
@@ -290,6 +316,7 @@ mod tests {
             Checks {
                 structure: false,
                 references: true,
+                canonical: false,
             },
             &table(),
             &walker,

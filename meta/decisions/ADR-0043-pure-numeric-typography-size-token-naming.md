@@ -1,16 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0043"
 title: "Pure-numeric typography size-token naming"
 date: "2026-06-13T21:42:35+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
 supersedes: ["adr:ADR-0036"]
 relates_to: ["adr:ADR-0026", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0034", "adr:ADR-0036", "adr:ADR-0039", "work-item:0099", "work-item:0075", "work-item:0091"]
-tags: [visualiser, frontend, css, design-tokens, typography]
+tags: ["visualiser", "frontend", "css", "design-tokens", "typography"]
 last_updated: "2026-06-13T21:42:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

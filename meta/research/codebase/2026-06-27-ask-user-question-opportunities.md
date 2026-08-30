@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-27-ask-user-question-opportunities"
 title: "Research: AskUserQuestion Upgrade Opportunities Across All Skills"
 date: "2026-06-27T13:32:04+00:00"
 author: "John Cowie Del Corral"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 topic: "Skills that ask the user questions via plain text where AskUserQuestion tool could be used instead"
-tags: [research, codebase, skills, ux, ask-user-question, review-plan, respond-to-pr, review-pr, refine-work-item]
+tags: ["research", "codebase", "skills", "ux", "ask-user-question", "review-plan", "respond-to-pr", "review-pr", "refine-work-item"]
 revision: "1180b25e8710a3afe4a0080d02bccd24f439b95b"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-06-27T13:32:04+00:00"
 last_updated_by: "John Cowie Del Corral"
 schema_version: 1

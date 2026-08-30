@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"
 title: "accelerator-design: Design Inventory and Gap Tooling CLI Implementation Plan"
 date: "2026-08-11T15:52:23+00:00"
-author: Toby Clemson
-producer: create-plan
-status: superseded
+author: "Toby Clemson"
+producer: "create-plan"
+status: "superseded"
 work_item_id: "work-item:0196"
 parent: "work-item:0196"
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
-tags: [rust, design, cli, playwright, launcher, release-pipeline, tree-artifacts, sub-binary]
+tags: ["rust", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts", "sub-binary"]
 revision: "ed12be49cd87192e74090cb0af1eb109df19e8cb"
 repository: "accelerator"
 last_updated: "2026-08-11T16:16:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0102-remove-visualiser-legacy-linkage-fallback-arms-review-1"
 title: "Work Item Review: Remove Visualiser-Server Legacy Linkage Fallback Arms (Follow-on Contract)"
 date: "2026-06-15T20:56:49+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0057"
 target: "work-item:0102"
 work_item_id: "0102"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [migration, visualiser, frontmatter, cleanup, contract]
+tags: ["migration", "visualiser", "frontmatter", "cleanup", "contract"]
 last_updated: "2026-06-15T21:22:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

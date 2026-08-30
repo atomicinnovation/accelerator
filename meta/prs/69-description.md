@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "69"
 title: "Measure warm-dispatch latency and close 0189"
 date: "2026-08-17T20:58:52+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0189"
 parent: "work-item:0189"
 relates_to: ["work-item:0136", "work-item:0169", "work-item:0191", "work-item:0205", "work-item:0215", "work-item:0216", "work-item:0217", "work-item:0218", "work-item:0219"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/69"
 pr_number: 69
-tags: [cli, launcher, performance, bootstrap, measurement]
+tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 revision: "666fca95353045f7047fbfab391d628c95f67837"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-08-17T20:58:52+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-06-0101-unified-dev-task-for-visualiser-review-1"
 title: "Plan Review: Unified Managed dev Task for Visualiser Server and Frontend"
 date: "2026-06-06T19:05:17+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0101"
 target: "plan:2026-06-06-0101-unified-dev-task-for-visualiser"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, code-quality, safety, portability, usability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "safety", "portability", "usability"]
 review_number: 1
 review_pass: 4
 tags: []
 last_updated: "2026-06-06T22:39:15+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

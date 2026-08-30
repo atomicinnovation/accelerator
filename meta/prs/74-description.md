@@ -1,16 +1,16 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "74"
 title: "Classify acquire_lock mkdir failures and bound the reclaim arm"
 date: "2026-08-22T19:25:05+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0190"
 parent: "work-item:0190"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/74"
 pr_number: 74
-tags: [bug, shell, bootstrap, bash-3.2, locking]
+tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 revision: "70175a80a981c370bfa1d89d5ba87802e23474f7"
 repository: "accelerator"
 last_updated: "2026-08-22T19:25:05+00:00"

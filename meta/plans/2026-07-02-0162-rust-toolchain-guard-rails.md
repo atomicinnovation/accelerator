@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-02-0162-rust-toolchain-guard-rails"
 title: "Rust Toolchain Guard Rails in mise + CI Implementation Plan"
 date: "2026-07-02T01:23:10+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0162"
 parent: "work-item:0162"
 derived_from: ["codebase-research:2026-06-29-0162-rust-toolchain-guard-rails-wiring"]
 relates_to: ["work-item:0163", "work-item:0166"]
-tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
+tags: ["rust", "tooling", "ci", "guard-rails", "architecture-enforcement"]
 revision: "76856fe0ae0a5e746df3bf86f238bb1404ca2f13"
 repository: "accelerator"
 last_updated: "2026-07-02T15:05:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

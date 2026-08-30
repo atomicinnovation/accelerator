@@ -1,23 +1,23 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0210-provider-client-crates-over-the-tracker-port-review-1"
 title: "Work Item Review: Provider Client Crates over the RemoteTracker Port"
 date: "2026-08-17T11:17:18+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0171"
 target: "work-item:0210"
 work_item_id: "0210"
 relates_to: ["work-item-review:0171-jira-and-linear-integrations-review-1"]
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [rust, jira, linear, tracker, clients]
+tags: ["rust", "jira", "linear", "tracker", "clients"]
 last_updated: "2026-08-17T12:20:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 title: "VCS Subdomain and Hooks Migration Implementation Plan"
 date: "2026-08-05T15:35:17+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0169"
 parent: "work-item:0169"
 derived_from: ["codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
-tags: [rust, vcs, hooks, migration]
+tags: ["rust", "vcs", "hooks", "migration"]
 revision: "bdfcdea501958c41e2ffac0bf3f491d2d63ac53b"
 repository: "accelerator"
 last_updated: "2026-08-17T13:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

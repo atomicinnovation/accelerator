@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-10-0193-make-the-docs-amazing"
 title: "Research: Make the Docs Amazing (0193) — docs site overhaul groundwork"
 date: "2026-07-10T19:55:16+00:00"
-author: Phil Helm
-producer: research-codebase
-status: complete
+author: "Phil Helm"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0193"
 parent: "work-item:0193"
 relates_to: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
 topic: "Docs site overhaul: generated per-skill reference, tutorials, splash landing, sidebar restructure, drift guards"
-tags: [research, codebase, docs-site, starlight, skills, tasks, ci]
+tags: ["research", "codebase", "docs-site", "starlight", "skills", "tasks", "ci"]
 revision: "150f34d0b4e921942076d43ba726b137607ace1b"
 repository: "barcelona"
 last_updated: "2026-07-10T19:55:16+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

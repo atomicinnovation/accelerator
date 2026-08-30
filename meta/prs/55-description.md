@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "55"
 title: "[0170] Work-Item Lifecycle Subdomain"
 date: "2026-08-08T08:40:36+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0170"
 parent: "work-item:0170"
 relates_to: ["work-item:0194"]

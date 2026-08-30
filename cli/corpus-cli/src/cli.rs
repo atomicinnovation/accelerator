@@ -145,6 +145,9 @@ pub enum FrontmatterAction {
         )]
         checks: Vec<CheckKind>,
     },
+    /// Emit the cross-cutting frontmatter schema banks as JSON, so a
+    /// non-Rust consumer can source them from the single Rust definition.
+    PrintSchema,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]

@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-22-0167-config-command-refactoring-review-1"
 title: "Plan Review: 0167 config Command Refactoring"
 date: "2026-07-22T22:06:19+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-07-22-0167-config-command-refactoring"
 target: "plan:2026-07-22-0167-config-command-refactoring"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, correctness, test-coverage, compatibility, standards, safety]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "correctness", "test-coverage", "compatibility", "standards", "safety"]
 review_number: 1
 review_pass: 4
-tags: [rust, config, cli, launcher, store, hexagon, refactoring]
+tags: ["rust", "config", "cli", "launcher", "store", "hexagon", "refactoring"]
 last_updated: "2026-07-22T23:29:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

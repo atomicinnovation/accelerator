@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator-review-1"
 title: "Plan Review: Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-20T18:32:43+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
 target: "plan:2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, test-coverage, code-quality, architecture, safety, portability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "safety", "portability"]
 review_number: 1
 review_pass: 3
-tags: [migrate, migration-0007, corpus-validator, backfill, sentinel]
+tags: ["migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 last_updated: "2026-06-20T21:41:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

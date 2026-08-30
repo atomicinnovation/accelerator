@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots-validation"
 title: "Validation Report: Close the Corpus Validator Provenance and Linkage Blind Spots"
 date: "2026-06-15T23:00:09+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots"
 target: "plan:2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots"
-tags: [frontmatter, schema, validator, provenance, linkage]
+tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 last_updated: "2026-06-15T23:00:09+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

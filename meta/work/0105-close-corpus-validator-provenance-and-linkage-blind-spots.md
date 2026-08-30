@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0105"
 title: "Close the Corpus Validator Provenance and Linkage Blind Spots"
 date: "2026-06-10T13:37:48+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 parent: "work-item:0057"
 blocked_by: ["work-item:0103"]
 relates_to: ["work-item:0104", "work-item:0070", "adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0040"]
-tags: [frontmatter, schema, validator, provenance, linkage]
+tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 last_updated: "2026-06-15T20:21:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-127
+external_id: "PP-127"
 ---
 
 # 0105: Close the Corpus Validator Provenance and Linkage Blind Spots

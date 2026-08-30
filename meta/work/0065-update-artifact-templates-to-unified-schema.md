@@ -2,19 +2,19 @@
 id: "0065"
 title: "Update All Artifact Templates to Unified Schema"
 date: "2026-05-17T17:16:35+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
 parent: "work-item:0057"
-tags: [templates, frontmatter, schema]
-type: work-item
+tags: ["templates", "frontmatter", "schema"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["adr:ADR-0033", "work-item:0061", "work-item:0060", "work-item:0033", "work-item:0063", "work-item:0064", "work-item:0057", "work-item:0066"]
 blocks: ["work-item:0070", "work-item:0066"]
-external_id: PP-87
+external_id: "PP-87"
 ---
 
 # 0065: Update All Artifact Templates to Unified Schema

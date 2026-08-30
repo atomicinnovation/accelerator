@@ -1,13 +1,13 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-04-migration-upgrade-failures"
 title: "Research: Migration framework failures on consumer upgrade (0003 tmp conflict, dirty-tree re-check, 0006 bash 3.2)"
 date: "2026-06-04T13:51:06+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 topic: "Resolving migration failures encountered by a consumer upgrading the Accelerator plugin"
-tags: [research, codebase, migrate, run-migrations, bash-compatibility, clean-tree-preflight]
+tags: ["research", "codebase", "migrate", "run-migrations", "bash-compatibility", "clean-tree-preflight"]
 revision: "4730e9347dcaee854d9561c2c0f8e53465b7ad12"
 repository: "accelerator"
 last_updated: "2026-06-04T13:51:06+00:00"

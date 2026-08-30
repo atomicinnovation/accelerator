@@ -1,14 +1,14 @@
 ---
 date: "2026-04-07T22:39:55+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "508ca24b973d8c742e52e829c557f0c62f81076d"
-repository: accelerator
+repository: "accelerator"
 topic: "Why does the PR review skill use /tmp instead of meta/tmp?"
-tags: [research, codebase, review-pr, tmp-directory, template-variables]
-status: complete
+tags: ["research", "codebase", "review-pr", "tmp-directory", "template-variables"]
+status: "complete"
 last_updated: "2026-04-07T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-04-07-pr-review-tmp-directory-usage"
 title: "Research: Why Does the PR Review Skill Use /tmp Instead of meta/tmp?"
 schema_version: 1

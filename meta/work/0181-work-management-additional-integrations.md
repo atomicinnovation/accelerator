@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0181"
 title: "Work Management Additional Integrations"
 date: "2026-07-06T13:29:26+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: epic
-priority: high
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "epic"
+priority: "high"
 relates_to: ["work-item:0045"]
-external_id: PP-701
-tags: [work-management, integrations, trello, github-issues, sync]
+external_id: "PP-701"
+tags: ["work-management", "integrations", "trello", "github-issues", "sync"]
 last_updated: "2026-07-06T13:29:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

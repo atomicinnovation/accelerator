@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-02-0187-generalise-sub-binary-registration-surface-review-1"
 title: "Plan Review: Generalise the Sub-Binary Registration Surface"
 date: "2026-08-03T07:05:20+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-08-02-0187-generalise-sub-binary-registration-surface"
 target: "plan:2026-08-02-0187-generalise-sub-binary-registration-surface"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, test-coverage, architecture, code-quality, safety, security, documentation, standards]
+lenses: ["correctness", "test-coverage", "architecture", "code-quality", "safety", "security", "documentation", "standards"]
 review_number: 1
 review_pass: 4
-tags: [build-system, distribution, rust]
+tags: ["build-system", "distribution", "rust"]
 last_updated: "2026-08-03T12:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0169"
 title: "VCS Subdomain and Hooks Migration"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 blocked_by: ["work-item:0164", "work-item:0166", "work-item:0167", "work-item:0179", "work-item:0186", "work-item:0187", "work-item:0188"]
 blocks: ["work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173", "work-item:0174"]
 relates_to: ["work-item:0125", "work-item:0165", "work-item:0182", "work-item:0183", "work-item:0185", "work-item:0189", "work-item:0198", "work-item:0199", "work-item:0200", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-tags: [rust, vcs, hooks, migration]
+tags: ["rust", "vcs", "hooks", "migration"]
 last_updated: "2026-08-17T13:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-190"
 ---

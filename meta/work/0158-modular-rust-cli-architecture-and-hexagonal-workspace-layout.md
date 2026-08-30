@@ -1,16 +1,16 @@
 ---
-type: work-item
+type: "work-item"
 id: "0158"
 title: "Modular Rust CLI Architecture & Hexagonal Workspace Layout"
 date: "2026-06-27T12:23:42+00:00"
-author: Toby Clemson
-status: done
-kind: spike
-priority: high
+author: "Toby Clemson"
+status: "done"
+kind: "spike"
+priority: "high"
 external_id: "PP-181"
-tags: [spike, rust, cli, architecture, hexagonal]
+tags: ["spike", "rust", "cli", "architecture", "hexagonal"]
 last_updated: "2026-06-27T12:23:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

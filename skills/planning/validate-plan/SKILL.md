@@ -7,6 +7,7 @@ argument-hint: "[path to plan file]"
 allowed-tools:
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
    - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Validate Plan
@@ -191,6 +192,17 @@ Determine the `result` field from the report:
 ```
 Validation report saved to {validations directory}/{filename}.md
 ```
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the validation report you just wrote:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the report violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Working with Existing Context
 

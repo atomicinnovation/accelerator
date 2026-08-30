@@ -1,22 +1,22 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0196-design-cli-migration-review-1"
 title: "Plan Review: accelerator-design: CLI Migration and Shell-Free Executor"
 date: "2026-08-11T22:39:16+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0196"
 target: "plan:2026-08-11-0196-design-cli-migration"
 relates_to: ["plan-review:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1"]
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, architecture, test-coverage, code-quality, security, compatibility, safety, performance]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "architecture", "test-coverage", "code-quality", "security", "compatibility", "safety", "performance"]
 review_number: 1
 review_pass: 3
-tags: [rust, design, cli, sub-binary, executor, playwright]
+tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
 last_updated: "2026-08-12T11:19:28+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-06-0067-create-note-skill-review-1"
 title: "Plan Review: Create create-note Skill"
 date: "2026-06-06T11:54:02+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-06-0067-create-note-skill"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, standards, test-coverage, architecture, documentation, usability, code-quality]
+lenses: ["correctness", "standards", "test-coverage", "architecture", "documentation", "usability", "code-quality"]
 review_number: 1
 review_pass: 3
-tags: [skills, notes, templates, frontmatter, typed-linkage]
+tags: ["skills", "notes", "templates", "frontmatter", "typed-linkage"]
 last_updated: "2026-06-06T12:32:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

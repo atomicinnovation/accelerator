@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0104-add-rejected-to-adr-status-vocabulary-review-1"
 title: "Work Item Review: Add rejected to the ADR Status Vocabulary in the Unified Schema"
 date: "2026-06-11T12:51:55+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0104"
 relates_to: ["work-item:0103"]
 work_item_id: "0104"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [frontmatter, schema, adr, status, validator]
+tags: ["frontmatter", "schema", "adr", "status", "validator"]
 last_updated: "2026-06-11T12:56:01+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

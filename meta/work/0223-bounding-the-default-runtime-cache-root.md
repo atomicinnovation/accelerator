@@ -1,17 +1,17 @@
 ---
-type: work-item
+type: "work-item"
 id: "0223"
 title: "Bounding the Default Runtime Cache Root"
 date: "2026-08-20T00:00:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "low"
 relates_to: ["work-item:0196"]
-tags: [distribution, runtime, cache, prune, design]
+tags: ["distribution", "runtime", "cache", "prune", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

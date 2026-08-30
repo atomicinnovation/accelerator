@@ -10,6 +10,7 @@ argument-hint: "[path to spike work item or brief, or work item number]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Conduct Spike
@@ -225,6 +226,17 @@ ADR or updating a downstream item *as well*).
 If the spike worked from an **inline brief** with no work item, write the
 outcome to a research document in the configured research directory instead, and
 tell the user where it went.
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the work item you just updated:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the work item violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 7: Present and hand off
 

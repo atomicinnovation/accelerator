@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-20-0116-structured-stall-on-no-decision-input-validation"
 title: "Validation Report: Structured Stall on No Decision Input Implementation Plan"
 date: "2026-06-20T18:49:30+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-20-0116-structured-stall-on-no-decision-input"
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-20T18:49:30+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

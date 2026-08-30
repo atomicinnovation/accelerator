@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-09-0080-detail-page-header-actions"
 title: "Detail-Page Header Actions (Open in Editor, Copy Path) Implementation Plan"
 date: "2026-06-09T21:10:24+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0080"
 parent: "work-item:0080"
 derived_from: ["codebase-research:2026-06-09-0080-detail-page-header-actions"]
-tags: [design, frontend, detail-page, config, editor-deeplink, clipboard]
+tags: ["design", "frontend", "detail-page", "config", "editor-deeplink", "clipboard"]
 revision: "d6c9d9734f3e62cd207ad3216924ebfb4acafa81"
 repository: "visualisation-system"
 last_updated: "2026-06-09T21:10:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

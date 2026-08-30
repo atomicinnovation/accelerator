@@ -34,7 +34,8 @@ fn mark_all_migrations_applied(
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n",
+         0007-unify-meta-corpus-frontmatter\n\
+         0008-canonical-frontmatter-quoting\n",
     )?;
     Ok(())
 }
@@ -280,7 +281,8 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n",
+         0007-unify-meta-corpus-frontmatter\n\
+         0008-canonical-frontmatter-quoting\n",
     )?;
     fs::write(
         root.join(".accelerator/state/migrations-skipped"),

@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-29-0175-slim-readme-split-docs-tree"
 title: "Research: Slim the README and split content into a docs/ tree (0175)"
 date: "2026-06-29T12:52:42+00:00"
 author: "Phil Helm"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0175"
 parent: "work-item:0175"
 topic: "Slim the README and split content into a docs/ tree"
-tags: [research, codebase, readme, docs, documentation, information-architecture]
+tags: ["research", "codebase", "readme", "docs", "documentation", "information-architecture"]
 revision: "a78e30e55a553b280a4c72de4de223144dbe41e0"
 repository: "accelerator"
 last_updated: "2026-06-29T12:52:42+00:00"

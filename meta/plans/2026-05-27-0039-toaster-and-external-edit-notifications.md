@@ -1,16 +1,16 @@
 ---
 date: "2026-05-27T00:00:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0039"
-status: ready
+status: "ready"
 id: "2026-05-27-0039-toaster-and-external-edit-notifications"
 title: "Toaster and External-Edit Notifications Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-27T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "090c492fc437"
 repository: "ticket-management"
 relates_to: ["work-item:0039", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "note:2026-05-26-toast-correlation-should-use-document-id"]

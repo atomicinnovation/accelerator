@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0166"
 title: "Shared config, corpus, and store Crates"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 blocks: ["work-item:0167", "work-item:0168", "work-item:0169", "work-item:0170", "work-item:0171", "work-item:0172", "work-item:0173"]
 blocked_by: ["work-item:0163"]
 relates_to: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-tags: [rust, config, corpus, store, crates, dedup]
+tags: ["rust", "config", "corpus", "store", "crates", "dedup"]
 last_updated: "2026-07-19T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-187"
 ---

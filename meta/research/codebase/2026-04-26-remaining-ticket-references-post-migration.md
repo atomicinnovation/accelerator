@@ -1,15 +1,15 @@
 ---
 date: "2026-04-26T19:01:48+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "f03a7dfe"
-repository: accelerator
+repository: "accelerator"
 topic: "Remaining 'ticket' references after rename migration"
-tags: [ research, migration, ticket, work-item, terminology, cleanup ]
-status: complete
+tags: ["research", "migration", "ticket", "work-item", "terminology", "cleanup"]
+status: "complete"
 last_updated: "2026-04-26T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up research for agents/ directory"
-type: codebase-research
+type: "codebase-research"
 id: "2026-04-26-remaining-ticket-references-post-migration"
 title: "Research: Remaining 'ticket' References After Rename Migration"
 schema_version: 1

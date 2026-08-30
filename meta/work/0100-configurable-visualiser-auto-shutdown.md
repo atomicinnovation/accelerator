@@ -2,17 +2,17 @@
 id: "0100"
 title: "Configurable Visualiser Auto-Shutdown"
 date: "2026-06-02T13:37:32+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: low
-tags: [visualiser, server, configuration, lifecycle]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "low"
+tags: ["visualiser", "server", "configuration", "lifecycle"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-02T13:37:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["work-item:0055"]
-external_id: PP-122
+external_id: "PP-122"
 ---
 
 # 0100: Configurable Visualiser Auto-Shutdown

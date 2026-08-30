@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 title: "Research: find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T14:01:39+00:00"
-author: Phil Helm
-producer: research-codebase
-status: complete
+author: "Phil Helm"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0124"
 parent: "work-item:0124"
 relates_to: ["codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]
 topic: "find_repo_root fails in git worktrees (-d vs -e marker test)"
-tags: [research, codebase, scripts, vcs, git, worktree, conductor, vcs-common]
+tags: ["research", "codebase", "scripts", "vcs", "git", "worktree", "conductor", "vcs-common"]
 revision: "de38f5413b80f247fa8104ebebca0ed43d9a234b"
 repository: "accelerator"
 last_updated: "2026-06-22T14:01:39+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

@@ -1,18 +1,18 @@
 ---
 title: "Three-layer review system architecture"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0001"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "codebase-research:2026-02-22-pr-review-agents-design"
-external_id: PP-23
+external_id: "PP-23"
 ---
 
 # ADR Ticket: Three-layer review system architecture

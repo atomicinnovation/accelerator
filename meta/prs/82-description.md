@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "82"
 title: "Add linux-arm64 entries to mise.lock"
 date: "2026-08-26T23:26:43+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/82"
 pr_number: 82
 tags: []

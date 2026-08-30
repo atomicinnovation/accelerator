@@ -1,14 +1,14 @@
 ---
-type: plan
+type: "plan"
 id: "2026-05-31-0077-shadow-and-dark-accent-token-audit"
 title: "Shadow and Dark-Accent Token Audit Implementation Plan"
 date: "2026-05-31T22:42:34+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "0077"
 reviewer: "Toby Clemson"
-tags: [design, frontend, tokens, audit, visualiser]
+tags: ["design", "frontend", "tokens", "audit", "visualiser"]
 revision: "a1ba3a3789d27bd626f9f7f8c6f92b5517d81c0a"
 repository: "build-system"
 last_updated: "2026-06-01T01:00:00+00:00"

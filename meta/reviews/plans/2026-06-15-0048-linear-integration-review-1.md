@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-15-0048-linear-integration-review-1"
 title: "Plan Review: Linear Integration Implementation Plan"
 date: "2026-06-15T00:28:39+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-15-0048-linear-integration"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, standards, portability]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "standards", "portability"]
 review_number: 1
 review_pass: 3
-tags: [work-management, integrations, linear, graphql]
+tags: ["work-management", "integrations", "linear", "graphql"]
 last_updated: "2026-06-15T08:51:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

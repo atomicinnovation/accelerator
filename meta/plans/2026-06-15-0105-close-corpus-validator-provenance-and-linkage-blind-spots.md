@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots"
 title: "Close the Corpus Validator Provenance and Linkage Blind Spots Implementation Plan"
 date: "2026-06-15T19:21:05+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0105"
 parent: "work-item:0105"
 derived_from: ["codebase-research:2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots"]
-tags: [frontmatter, schema, validator, provenance, linkage]
+tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 revision: "9b3d121e111f9f676a8e27762efa42af640bed52"
 repository: "build-system"
 last_updated: "2026-06-15T21:21:56+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0121"
 title: "Topic Research Skillset"
 date: "2026-06-19T01:28:08+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: epic
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "epic"
+priority: "medium"
 relates_to: ["work-item:0056"]
-tags: [research, skills, deep-research, visualiser, infrastructure]
+tags: ["research", "skills", "deep-research", "visualiser", "infrastructure"]
 last_updated: "2026-06-19T01:28:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-22
+external_id: "PP-22"
 ---
 
 # 0121: Topic Research Skillset

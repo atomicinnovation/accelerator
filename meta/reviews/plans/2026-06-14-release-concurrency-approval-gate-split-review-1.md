@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-14-release-concurrency-approval-gate-split-review-1"
 title: "Plan Review: Release Concurrency Approval-Gate Split"
 date: "2026-06-14T12:31:42+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-14-release-concurrency-approval-gate-split"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, architecture, safety, security, compatibility, test-coverage, code-quality]
+lenses: ["correctness", "architecture", "safety", "security", "compatibility", "test-coverage", "code-quality"]
 review_number: 1
 review_pass: 3
-tags: [ci, github-actions, release, concurrency]
+tags: ["ci", "github-actions", "release", "concurrency"]
 last_updated: "2026-06-14T13:50:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-06-0172-migration-engine-implementation-research"
 title: "Research: Migration Engine Subdomain (0172) implementation groundwork"
 date: "2026-08-06T08:16:17+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0172"
 parent: "work-item:0172"
 topic: "Migration Engine Subdomain (0172) implementation groundwork"
-tags: [research, codebase, migration-engine, rust-cli, migrate, concurrency, interactive]
+tags: ["research", "codebase", "migration-engine", "rust-cli", "migrate", "concurrency", "interactive"]
 revision: "3eff062ce78e622016adc1f663ea4bbcbed17145"
 repository: "accelerator"
 last_updated: "2026-08-06T08:16:17+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

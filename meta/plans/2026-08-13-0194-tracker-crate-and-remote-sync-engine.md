@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-13-0194-tracker-crate-and-remote-sync-engine"
 title: "Tracker Crate and Remote Sync Engine Implementation Plan"
 date: "2026-08-12T23:16:02+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0194"
 parent: "work-item:0194"
 derived_from: ["codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine"]
 relates_to: ["plan:2026-08-11-0204-remote-tracker-port", "plan-review:2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1"]
-tags: [rust, sync, tracker, work-items, bash-parity]
+tags: ["rust", "sync", "tracker", "work-items", "bash-parity"]
 revision: "5ab2154f4ebbbbe2f6fde5c392e8aa714c6eb3fd"
 repository: "accelerator"
 last_updated: "2026-08-13T12:05:00+00:00"

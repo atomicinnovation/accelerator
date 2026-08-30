@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-19-0212-work-item-script-cutover"
 title: "Research: Work-Item Script Cutover (0212)"
 date: "2026-08-19T10:55:44+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0212"
 parent: "work-item:0212"
 relates_to: ["codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port", "codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement", "codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine"]
 topic: "Work-Item Script Cutover (0212)"
-tags: [research, codebase, rust, cutover, work-items, fixtures, cli, tracker]
+tags: ["research", "codebase", "rust", "cutover", "work-items", "fixtures", "cli", "tracker"]
 revision: "113d370d3f44e3bc51f75d656709d68e36073215"
 repository: "accelerator"
 last_updated: "2026-08-19T10:55:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up research scoping the extra work to make 0212 achievable in one plan"
 schema_version: 1
 ---

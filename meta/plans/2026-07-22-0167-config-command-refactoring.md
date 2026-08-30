@@ -1,22 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-22-0167-config-command-refactoring"
 title: "0167 config Command Refactoring Implementation Plan"
 date: "2026-07-22T21:45:15+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0167"
 parent: "work-item:0167"
-derived_from:
-  - "codebase-research:2026-07-22-0167-config-command-refactoring-opportunities"
-relates_to:
-  - "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
-tags: [rust, config, cli, launcher, store, hexagon, refactoring]
+derived_from: ["codebase-research:2026-07-22-0167-config-command-refactoring-opportunities"]
+relates_to: ["plan:2026-07-19-0167-config-command-and-invocation-contract-migration"]
+tags: ["rust", "config", "cli", "launcher", "store", "hexagon", "refactoring"]
 revision: "644b255f3b380739cbdc949a08da0d6688f1c4d0"
 repository: "build-system"
 last_updated: "2026-07-22T23:29:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

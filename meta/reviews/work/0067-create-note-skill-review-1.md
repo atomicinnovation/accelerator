@@ -1,11 +1,11 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0067-create-note-skill-review-1"
 title: "Work Item Review: Create `create-note` Skill"
 date: "2026-06-05T21:27:02+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0067"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"

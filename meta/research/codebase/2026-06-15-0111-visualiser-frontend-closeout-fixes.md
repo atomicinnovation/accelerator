@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-15-0111-visualiser-frontend-closeout-fixes"
 title: "Research: Visualiser Frontend Closeout Fixes (work item 0111)"
 date: "2026-06-15T19:23:00+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0111"
 parent: "work-item:0111"
 topic: "Visualiser Frontend Closeout Fixes (work item 0111)"
-tags: [research, codebase, visualiser, frontend, markdown, lifecycle, sidebar, design-tokens, visual-regression]
+tags: ["research", "codebase", "visualiser", "frontend", "markdown", "lifecycle", "sidebar", "design-tokens", "visual-regression"]
 revision: "656a1635e693f969f7d082b22204eafeb1756c75"
 repository: "visualisation-system"
 last_updated: "2026-06-15T19:23:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

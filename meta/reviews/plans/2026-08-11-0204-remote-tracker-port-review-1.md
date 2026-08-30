@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0204-remote-tracker-port-review-1"
 title: "Plan Review: RemoteTracker Port Implementation Plan"
 date: "2026-08-11T16:22:44+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0204"
 target: "plan:2026-08-11-0204-remote-tracker-port"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, code-quality, compatibility, usability, documentation, standards]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "compatibility", "usability", "documentation", "standards"]
 review_number: 1
 review_pass: 6
-tags: [rust, tracker, sync, port, cargo-pup]
+tags: ["rust", "tracker", "sync", "port", "cargo-pup"]
 last_updated: "2026-08-11T22:57:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

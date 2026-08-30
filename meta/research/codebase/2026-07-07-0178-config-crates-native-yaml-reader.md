@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-07-0178-config-crates-native-yaml-reader"
 title: "Research: config and config-adapters Crates with Native YAML Reader"
 date: "2026-07-07T00:49:01+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0178"
 parent: "work-item:0178"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "config and config-adapters Crates with Native YAML Reader"
-tags: [research, codebase, config, config-adapters, rust, hexagonal, serde, yaml, cargo-deny, cargo-pup, luminosity]
+tags: ["research", "codebase", "config", "config-adapters", "rust", "hexagonal", "serde", "yaml", "cargo-deny", "cargo-pup", "luminosity"]
 revision: "f38f8ca773496ec3e30561d6f1234166c9d5f38a"
 repository: "accelerator"
 last_updated: "2026-07-07T00:49:01+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

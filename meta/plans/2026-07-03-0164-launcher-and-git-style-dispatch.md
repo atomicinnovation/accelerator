@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-03-0164-launcher-and-git-style-dispatch"
 title: "Launcher and Git-Style Dispatch Implementation Plan"
 date: "2026-07-03T18:56:45+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0164"
 parent: "work-item:0164"
 derived_from: ["codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
 relates_to: ["work-item:0165", "work-item:0167", "work-item:0169"]
-tags: [rust, launcher, dispatch, cli, fetch-verify-cache-exec, minisign, reqwest, bootstrap]
+tags: ["rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign", "reqwest", "bootstrap"]
 revision: "db6fa85e195bdcb2e17e7f7f9bc7449341bfaca7"
 repository: "accelerator"
 last_updated: "2026-07-04T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

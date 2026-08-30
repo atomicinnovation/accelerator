@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "12"
 title: "Update skills docs (0176)"
 date: "2026-06-30T07:57:19+00:00"
-author: Phil Helm
-producer: describe-pr
-status: complete
+author: "Phil Helm"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0176"
 parent: "work-item:0176"
 relates_to: ["plan:2026-06-29-0176-skill-reference-index-and-subsections"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/12"
 pr_number: 12
-tags: [docs, skills, documentation]
+tags: ["docs", "skills", "documentation"]
 revision: "04a4886a18d67f152ffd16f6a9ff7b18257fbb67"
 repository: "barcelona"
 last_updated: "2026-06-30T07:57:19+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

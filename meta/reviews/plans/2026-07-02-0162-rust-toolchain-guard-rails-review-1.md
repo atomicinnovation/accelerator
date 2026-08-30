@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-02-0162-rust-toolchain-guard-rails-review-1"
 title: "Plan Review: Rust Toolchain Guard Rails in mise + CI"
 date: "2026-07-02T07:19:55+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-07-02-0162-rust-toolchain-guard-rails"
 target: "plan:2026-07-02-0162-rust-toolchain-guard-rails"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, compatibility, usability, security]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility", "usability", "security"]
 review_number: 1
 review_pass: 2
-tags: [rust, tooling, ci, guard-rails, architecture-enforcement]
+tags: ["rust", "tooling", "ci", "guard-rails", "architecture-enforcement"]
 last_updated: "2026-07-02T15:05:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

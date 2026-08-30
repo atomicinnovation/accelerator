@@ -1,16 +1,16 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "83"
 title: "Mark the Jira and Linear integrations epic done"
 date: "2026-08-27T22:49:42+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 parent: "work-item:0171"
 relates_to: ["work-item:0196", "work-item:0211", "work-item:0212"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/83"
 pr_number: 83
-tags: [work-items, status, jira, linear, integrations]
+tags: ["work-items", "status", "jira", "linear", "integrations"]
 revision: "0035551b87baf62df5dbbfd4808c0612c46292de"
 repository: "accelerator"
 last_updated: "2026-08-27T22:49:42+00:00"

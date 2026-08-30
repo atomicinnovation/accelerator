@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-06-0170-work-item-lifecycle-subdomain-validation"
 title: "Validation Report: Work-Item Lifecycle Subdomain Implementation Plan"
 date: "2026-08-07T23:26:37+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-08-06-0170-work-item-lifecycle-subdomain"
 tags: []
 last_updated: "2026-08-07T23:26:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

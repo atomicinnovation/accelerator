@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-06-0067-create-note-skill-validation"
 title: "Validation Report: Create create-note Skill Implementation Plan"
 date: "2026-06-06T13:35:06+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-06-06-0067-create-note-skill"
 target: "plan:2026-06-06-0067-create-note-skill"
-tags: [skills, notes, templates, frontmatter, typed-linkage]
+tags: ["skills", "notes", "templates", "frontmatter", "typed-linkage"]
 last_updated: "2026-06-06T13:35:06+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

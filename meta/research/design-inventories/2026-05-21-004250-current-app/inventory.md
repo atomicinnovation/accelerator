@@ -1,16 +1,16 @@
 ---
 date: "2026-05-21T00:42:50+01:00"
-type: design-inventory
+type: "design-inventory"
 source: "current-app"
 source_kind: "running-app"
 source_location: "http://127.0.0.1:52339/"
 revision: "07413d3a13c37ff94b38c36b020a902e58cdb77f"
 crawler: "hybrid"
 author: "Toby Clemson"
-status: draft
+status: "draft"
 sequence: 2
 screenshots_incomplete: false
-tags: [design, inventory, "current-app"]
+tags: ["design", "inventory", "current-app"]
 last_updated: "2026-05-21T00:42:50+01:00"
 last_updated_by: "Toby Clemson"
 id: "2026-05-21-004250-current-app"

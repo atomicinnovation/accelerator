@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-11-0179-corpus-crates-parsing-conventions"
 title: "corpus and corpus-adapters Crates for Parsing and Conventions Implementation Plan"
 date: "2026-07-11T12:40:21+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
-reviewer: Toby Clemson
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
+reviewer: "Toby Clemson"
 work_item_id: "work-item:0179"
 parent: "work-item:0179"
 derived_from: ["codebase-research:2026-07-11-0179-corpus-crates-parsing-conventions"]
-tags: [rust, corpus, config, crates, document, frontmatter, serde-saphyr, doc-type, typed-linkage, slug, work-item-id, vcs, artifact-metadata]
+tags: ["rust", "corpus", "config", "crates", "document", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "slug", "work-item-id", "vcs", "artifact-metadata"]
 revision: "83707a5ed6c23eaf40f7d1f39f5847dc1801c43f"
 repository: "accelerator"
 last_updated: "2026-07-12T00:05:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

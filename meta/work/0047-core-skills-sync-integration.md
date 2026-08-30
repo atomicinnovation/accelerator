@@ -2,19 +2,19 @@
 id: "0047"
 title: "Core Skills Sync Integration"
 date: "2026-05-06T17:49:44+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
 parent: "work-item:0045"
-tags: [work-management, integrations, sync, list-work-items, create-work-item]
-type: work-item
+tags: ["work-management", "integrations", "sync", "list-work-items", "create-work-item"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-16T07:23:53+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0046"]
 blocks: ["work-item:0051"]
-external_id: PP-69
+external_id: "PP-69"
 ---
 
 # 0047: Core Skills Sync Integration

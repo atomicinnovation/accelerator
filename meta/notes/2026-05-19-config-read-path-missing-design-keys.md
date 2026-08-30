@@ -1,17 +1,17 @@
 ---
-type: note
+type: "note"
 id: "2026-05-19-config-read-path-missing-design-keys"
 title: "Bug: `config-read-path.sh` has no defaults for `design_inventories` / `design_gaps`"
 date: "2026-05-19T00:00:00+00:00"
-author: Toby Clemson
-producer: create-note
-status: captured
+author: "Toby Clemson"
+producer: "create-note"
+status: "captured"
 topic: "Bug: `config-read-path.sh` has no defaults for `design_inventories` / `design_gaps`"
 tags: []
 revision: "11218123a1e4"
 repository: "ticket-management"
 last_updated: "2026-05-19T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

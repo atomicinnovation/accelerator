@@ -1,13 +1,13 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-17-readme-changelog-1.22.0-refresh"
 title: "Research: README and CHANGELOG refresh for the 1.22.0 release"
 date: "2026-06-17T11:10:41+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 topic: "README and CHANGELOG refresh for the 1.22.0 release"
-tags: [research, codebase, changelog, readme, release, visualiser, linear, migrations]
+tags: ["research", "codebase", "changelog", "readme", "release", "visualiser", "linear", "migrations"]
 revision: "d382c2656992f770140fed6f89a2552c0cce91be"
 repository: "accelerator"
 last_updated: "2026-06-17T11:10:41+00:00"

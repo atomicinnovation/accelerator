@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-09-0082-big-glyph-hero-illustrations"
 title: "Research: Implementing the BigGlyph hero illustration set (0082)"
 date: "2026-06-09T19:29:44+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0082"
 parent: "work-item:0082"
 relates_to: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 topic: "Implementing the BigGlyph per-doc-type hero illustration component"
-tags: [research, codebase, bigglyph, glyph, empty-state, palette, visual-regression, illustrations]
+tags: ["research", "codebase", "bigglyph", "glyph", "empty-state", "palette", "visual-regression", "illustrations"]
 revision: "666aa11b997815da7fff3730ad89161dd3c37e4f"
 repository: "build-system"
 last_updated: "2026-06-09T19:29:44+00:00"

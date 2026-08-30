@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0185-converge-corpus-adapters-on-library-backed-vcs-review-1"
 title: "Work Item Review: 0185: Converge corpus-adapters on the Library-Backed VCS Adapter"
 date: "2026-08-10T00:55:56+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0185"
 work_item_id: "0185"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-08-10T08:20:28+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

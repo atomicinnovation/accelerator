@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "31"
 title: "Refine the migration engine subdomain work item and record its review"
 date: "2026-08-01T13:18:04+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0172"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/31"
 pr_number: 31
-tags: [work-item, review, migrate, rust, planning]
+tags: ["work-item", "review", "migrate", "rust", "planning"]
 revision: "45e5c1a2566bcc714f3abba4b0406b1b89c15ff1"
 repository: "accelerator"
 last_updated: "2026-08-01T13:18:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,20 +1,20 @@
 ---
 date: "2026-04-22T18:30:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-22-ticket-review-core"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, compatibility, usability, standards, documentation]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "compatibility", "usability", "standards", "documentation"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-22-ticket-review-core-review-1"
 title: "2026-04-22-ticket-review-core-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-22T18:30:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Ticket Review (Core) — Phase 4

@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0196-accelerator-design-inventory-gap-tooling-cli-review-2"
 title: "Work Item Review: accelerator-design: Design Inventory and Gap Tooling CLI"
 date: "2026-08-09T08:18:33+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0196"
 work_item_id: "0196"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 2
 review_pass: 5
 tags: []
 last_updated: "2026-08-10T00:34:52+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

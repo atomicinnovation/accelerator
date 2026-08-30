@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation"
 title: "Validation Report: Bootstrap Self-Location and the ACCELERATOR_PLUGIN_ROOT Rename"
 date: "2026-07-29T13:36:14+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "partial"
 parent: "work-item:0182"
 target: "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
-tags: [validation, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
+tags: ["validation", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards"]
 last_updated: "2026-07-29T15:21:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

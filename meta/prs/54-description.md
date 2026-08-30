@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "54"
 title: "Renumber the VCS migration follow-ups and close the story"
 date: "2026-08-07T10:10:44+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0169", "work-item:0199", "work-item:0200"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/54"
 pr_number: 54
-tags: [meta, work-items, vcs]
+tags: ["meta", "work-items", "vcs"]
 revision: "1b24e4a10b1b87ca9bf74faff9fff70dca5d2cd0"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-08-07T10:10:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,22 +1,22 @@
 ---
-type: work-item
+type: "work-item"
 id: "0171"
-title: Jira and Linear Integrations
-date: 2026-06-28T17:01:56+00:00
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: epic
-priority: medium
+title: "Jira and Linear Integrations"
+date: "2026-06-28T17:01:56+00:00"
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "epic"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 blocks: ["work-item:0174"]
 relates_to: ["work-item:0170", "work-item:0194", "work-item:0204", "work-item:0174", "work-item:0165", "work-item:0203"]
-tags: [rust, jira, linear, integrations, reqwest, sync]
-last_updated: 2026-08-17T11:52:00+00:00
-last_updated_by: Toby Clemson
+tags: ["rust", "jira", "linear", "integrations", "reqwest", "sync"]
+last_updated: "2026-08-17T11:52:00+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-192
+external_id: "PP-192"
 ---
 
 # 0171: Jira and Linear Integrations

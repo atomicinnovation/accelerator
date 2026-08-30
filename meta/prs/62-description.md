@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "62"
 title: "[0204] RemoteTracker Port"
 date: "2026-08-12T13:30:41+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0204"
 parent: "work-item:0204"
 relates_to: ["work-item:0136", "work-item:0171", "work-item:0194"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/62"
 pr_number: 62
-tags: [rust, tracker, sync, port, cargo-pup, cargo-public-api]
+tags: ["rust", "tracker", "sync", "port", "cargo-pup", "cargo-public-api"]
 revision: "b75aeb8808a810f8c4220453aa846d186aec6136"
 repository: "accelerator"
 last_updated: "2026-08-12T13:30:41+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

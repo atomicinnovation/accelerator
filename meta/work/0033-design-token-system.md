@@ -2,18 +2,18 @@
 id: "0033"
 title: "Design Token System"
 date: "2026-05-06T14:04:04+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
-tags: [ design, frontend, tokens, foundation ]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
+tags: ["design", "frontend", "tokens", "foundation"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-06T14:04:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocks: ["work-item:0034"]
 relates_to: ["design-inventory:2026-05-06-140608-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "design-inventory:2026-05-06-135214-current-app"]
-external_id: PP-55
+external_id: "PP-55"
 ---
 
 # 0033: Design Token System

@@ -25,6 +25,7 @@ vcs-adapters = { path = "../vcs-adapters" }
 store = { path = "../store" }
 corpus = { path = "../corpus" }
 corpus-adapters = { path = "../corpus-adapters" }
+work-adapters = { path = "../work-adapters" }
 tracing = { workspace = true }
 time = { workspace = true }
 

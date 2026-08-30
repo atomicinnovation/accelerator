@@ -1,14 +1,14 @@
 ---
 date: "2026-05-27T01:25:11+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "0d17a89f376651d2d020d4b326d23fd9b2fc5cc2"
-repository: accelerator
+repository: "accelerator"
 topic: "Toaster and External-Edit Notifications (work item 0039)"
-tags: [research, codebase, toaster, notifications, sse, self-cause, react-query, routing, design-tokens]
-status: complete
+tags: ["research", "codebase", "toaster", "notifications", "sse", "self-cause", "react-query", "routing", "design-tokens"]
+status: "complete"
 last_updated: "2026-05-27T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-27-0039-toaster-and-external-edit-notifications"
 title: "Research: Toaster and External-Edit Notifications (work item 0039)"
 schema_version: 1

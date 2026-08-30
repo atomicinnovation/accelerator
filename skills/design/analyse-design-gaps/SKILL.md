@@ -11,6 +11,7 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Analyse Design Gaps
@@ -199,6 +200,16 @@ Write to:
 The `References` section must record:
 - The resolved inventory directory path for each source-id
 - Any resolver warnings emitted in Step 1
+
+**Validate the frontmatter**: after writing the artifact, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### 8. Present Summary
 

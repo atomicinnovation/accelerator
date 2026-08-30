@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-17-readme-changelog-1.22.0-refresh-review-1"
 title: "Plan Review: README and CHANGELOG 1.22.0 Refresh"
 date: "2026-06-17T14:02:53+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-17-readme-changelog-1.22.0-refresh"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [documentation, correctness, usability, standards]
+lenses: ["documentation", "correctness", "usability", "standards"]
 review_number: 1
 review_pass: 2
-tags: [changelog, readme, release, docs]
+tags: ["changelog", "readme", "release", "docs"]
 last_updated: "2026-06-17T14:50:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,24 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli"
 title: "Research: accelerator-design — Design Inventory and Gap Tooling CLI"
 date: "2026-08-10T00:43:47+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0196"
 parent: "work-item:0196"
-relates_to:
-  - "codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface"
-  - "codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
-  - "codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline"
-  - "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"
+relates_to: ["codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface", "codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli", "codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline", "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"]
 topic: "Implementation surface for migrating design inventory/gap tooling into an accelerator-design sub-binary with a bundled Playwright driver"
-tags: [research, codebase, design, playwright, cli, distribution, minisign, sub-binary]
+tags: ["research", "codebase", "design", "playwright", "cli", "distribution", "minisign", "sub-binary"]
 revision: "155e0919a0cdc9d73074b919b79fdb92b9083c39"
 repository: "accelerator"
 last_updated: "2026-08-10T00:43:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

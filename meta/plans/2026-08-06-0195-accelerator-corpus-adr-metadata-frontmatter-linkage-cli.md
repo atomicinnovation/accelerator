@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli"
 title: "accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI Implementation Plan"
 date: "2026-08-06T08:41:17+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0195"
 parent: "work-item:0195"
 derived_from: ["codebase-research:2026-08-06-0195-accelerator-corpus-cli-implementation-surface"]
-tags: [rust, corpus, cli, adr, frontmatter, linkage, sub-binary]
+tags: ["rust", "corpus", "cli", "adr", "frontmatter", "linkage", "sub-binary"]
 revision: "bb58376ea87e91b416b640f9e010671ab9ccd65b"
 repository: "accelerator"
 last_updated: "2026-08-07T13:33:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-23-0168-fold-visualiser-into-cli-workspace-review-1"
 title: "Plan Review: Fold the Visualiser into the cli/ Workspace"
 date: "2026-07-23T08:53:32+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-07-23-0168-fold-visualiser-into-cli-workspace"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, compatibility, portability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "compatibility", "portability"]
 review_number: 1
 review_pass: 3
-tags: [rust, visualiser, cli, launcher, corpus, workspace]
+tags: ["rust", "visualiser", "cli", "launcher", "corpus", "workspace"]
 last_updated: "2026-07-23T10:06:43+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

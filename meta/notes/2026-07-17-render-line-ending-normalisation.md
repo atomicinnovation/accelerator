@@ -1,11 +1,11 @@
 ---
-type: note
+type: "note"
 id: "2026-07-17-render-line-ending-normalisation"
 title: "Render round-trip emits mixed line endings for CRLF documents"
 date: "2026-07-17T14:29:19+00:00"
 author: "Toby Clemson"
-producer: create-note
-status: captured
+producer: "create-note"
+status: "captured"
 topic: "Document render line-ending normalisation"
 tags: ["cli-document", "render", "line-endings", "tech-debt"]
 revision: "f1e67c168e1d42ce03ec676e492faaa9a565ef67"

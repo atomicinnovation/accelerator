@@ -1,14 +1,14 @@
 ---
 date: "2026-04-25T21:03:16+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
-repository: accelerator
+repository: "accelerator"
 topic: "Rename `tickets` category to `work` and `ticket` to `work-item`, and consider an `/accelerator:migrate` skill"
-tags: [research, rename, terminology, work-item, migration, meta-directory, configuration]
-status: complete
+tags: ["research", "rename", "terminology", "work-item", "migration", "meta-directory", "configuration"]
+status: "complete"
 last_updated: "2026-04-25T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-04-25-rename-tickets-to-work-items"
 title: "Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`"
 schema_version: 1

@@ -1,11 +1,11 @@
 ---
-type: pr-review                              # ADR-0033 artifact-type discriminator
+type: "pr-review"                            # artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "123-review-1"
 title: "{PR Title}"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
-producer: review-pr
-status: complete                             # complete
+producer: "review-pr"
+status: "complete"                           # complete
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "pr:NNNN" or ""
 target: ""                                   # typed-linkage ref: "pr:NNNN" or ""
@@ -14,11 +14,11 @@ reviewer: ""                                 # name/email of reviewer (filled by
 verdict: ""                                  # APPROVE | REQUEST_CHANGES | COMMENT (filled by review-pr; enum matches GitHub Reviews API event values)
 lenses: []                                   # list of lens names used in this review (filled by review-pr)
 review_number: 0                             # which review of this PR (1-indexed; filled by review-pr)
-pr_number: 0                                 # bare integer; foreign reference to the external PR per ADR-0033 §Identity-value shape contract (filled by review-pr)
+pr_number: 0                                 # bare integer; foreign reference to the external PR (filled by review-pr)
 tags: []
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
-schema_version: 1                            # ADR-0033 §Schema versioning: bare integer
+schema_version: 1
 ---
 
 ## Code Review: #{number} - {PR Title}

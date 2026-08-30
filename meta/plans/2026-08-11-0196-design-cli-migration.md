@@ -1,21 +1,21 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0196-design-cli-migration"
 title: "accelerator-design: CLI Migration and Shell-Free Executor Implementation Plan"
 date: "2026-08-11T21:49:36+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0196"
 parent: "work-item:0196"
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
 relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 supersedes: ["plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"]
-tags: [rust, design, cli, sub-binary, executor, playwright]
+tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
 revision: "8117629cd5dc64027b0174a21ddb33c72ef0468d"
 repository: "accelerator"
 last_updated: "2026-08-12T11:19:28+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

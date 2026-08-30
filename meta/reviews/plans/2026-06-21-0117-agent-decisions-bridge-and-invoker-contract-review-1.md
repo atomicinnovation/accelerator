@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-21-0117-agent-decisions-bridge-and-invoker-contract-review-1"
 title: "Plan Review: Agent-Decisions Bridge and Documented Invoker Contract"
 date: "2026-06-21T08:10:27+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, code-quality, test-coverage, safety, portability, compatibility, usability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "code-quality", "test-coverage", "safety", "portability", "compatibility", "usability"]
 review_number: 1
 review_pass: 3
 tags: []
 last_updated: "2026-06-22T13:53:23+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

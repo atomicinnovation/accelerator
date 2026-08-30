@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-15-0047-core-skills-sync-integration"
 title: "Core Skills Sync Integration Implementation Plan"
 date: "2026-06-15T22:35:56+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0047"
 parent: "work-item:0047"
 derived_from: ["codebase-research:2026-06-15-0047-core-skills-sync-integration"]
-tags: [work-management, integrations, sync, list-work-items, create-work-item]
+tags: ["work-management", "integrations", "sync", "list-work-items", "create-work-item"]
 revision: "86a80de9ff33fe3e4b413d32f3f7d82cfa0b2097"
 repository: "ticket-management"
 last_updated: "2026-06-16T07:23:53+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

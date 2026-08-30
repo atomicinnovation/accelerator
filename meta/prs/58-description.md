@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "58"
 title: "Raise the file-descriptor limit before the zig cross-compiles"
 date: "2026-08-08T15:48:43+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0165"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/58"
 pr_number: 58

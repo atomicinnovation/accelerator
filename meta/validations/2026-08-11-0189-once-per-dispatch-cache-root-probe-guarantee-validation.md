@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-validation"
 title: "Validation Report: At-Most-Once Cache-Root Probe Guarantee Implementation Plan"
 date: "2026-08-12T13:43:58+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "work-item:0189"
 target: "plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
-tags: [cli, launcher, bootstrap]
+tags: ["cli", "launcher", "bootstrap"]
 last_updated: "2026-08-12T13:43:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

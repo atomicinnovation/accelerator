@@ -1,14 +1,14 @@
 ---
 date: "2026-05-08T17:30:00+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "ee509027f295c920a2e6ac97327cf182aa87a69e"
-repository: accelerator
+repository: "accelerator"
 topic: "Implementation of work item 0034 — Theme and Font-Mode Toggles"
-tags: [research, codebase, visualiser, theming, fonts, tokens, topbar, work-item-0034]
-status: complete
+tags: ["research", "codebase", "visualiser", "theming", "fonts", "tokens", "topbar", "work-item-0034"]
+status: "complete"
 last_updated: "2026-05-08T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-08-0034-theme-and-font-mode-toggles"
 title: "Research: Implementation of work item 0034 — Theme and Font-Mode Toggles"
 schema_version: 1

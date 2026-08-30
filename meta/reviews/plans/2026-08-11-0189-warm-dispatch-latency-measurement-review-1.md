@@ -1,23 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0189-warm-dispatch-latency-measurement-review-1"
 title: "Plan Review: Warm-Dispatch Latency Measurement Implementation Plan"
 date: "2026-08-12T08:58:06+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0189"
 target: "plan:2026-08-11-0189-warm-dispatch-latency-measurement"
-relates_to:
-  ["plan-review:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-review-1"]
+relates_to: ["plan-review:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-review-1"]
 reviewer: "Toby Clemson"
 verdict: "REVISE"
-lenses:
-  [performance, correctness, architecture, standards, portability, safety,
-   documentation]
+lenses: ["performance", "correctness", "architecture", "standards", "portability", "safety", "documentation"]
 review_number: 1
 review_pass: 2
-tags: [cli, launcher, performance, bootstrap, measurement]
+tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 last_updated: "2026-08-12T11:37:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

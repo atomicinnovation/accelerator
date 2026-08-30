@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-15-0111-visualiser-frontend-closeout-fixes-review-1"
 title: "Plan Review: Visualiser Frontend Closeout Fixes"
 date: "2026-06-15T20:57:16+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-15-0111-visualiser-frontend-closeout-fixes"
 target: "plan:2026-06-15-0111-visualiser-frontend-closeout-fixes"
-reviewer: Toby Clemson
-verdict: APPROVE
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility"]
 review_number: 1
 review_pass: 3
 tags: ["visualiser", "frontend", "markdown", "lifecycle", "sidebar", "milestone-closeout"]
 last_updated: "2026-06-15T21:20:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

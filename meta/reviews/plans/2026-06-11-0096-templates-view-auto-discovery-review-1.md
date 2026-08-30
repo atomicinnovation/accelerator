@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-11-0096-templates-view-auto-discovery-review-1"
 title: "Plan Review: Templates View Auto-Discovers Available Templates Implementation Plan"
 date: "2026-06-12T00:57:07+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-11-0096-templates-view-auto-discovery"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, correctness, test-coverage, code-quality, portability, compatibility]
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "portability", "compatibility"]
 review_number: 1
 review_pass: 2
-tags: [visualiser, templates, plan-review]
+tags: ["visualiser", "templates", "plan-review"]
 last_updated: "2026-06-12T09:25:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

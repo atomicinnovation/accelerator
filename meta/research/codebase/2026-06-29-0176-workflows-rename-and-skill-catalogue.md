@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-29-0176-workflows-rename-and-skill-catalogue"
 title: "Research: Renaming skill-family pages to \"workflows\", a master skill catalogue, and per-skill pages"
 date: "2026-06-29T15:01:34+00:00"
-author: Phil Helm
-producer: research-codebase
-status: complete
+author: "Phil Helm"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0176"
 parent: "work-item:0176"
 relates_to: ["codebase-research:2026-06-29-0175-slim-readme-split-docs-tree"]
 topic: "Skill-family page naming, a master user-invokable skill list, and per-skill reference pages"
-tags: [research, codebase, docs, skills, information-architecture, naming]
+tags: ["research", "codebase", "docs", "skills", "information-architecture", "naming"]
 revision: "7c12519d1173e25c10c85e22dd1f60b4916d5434"
 repository: "barcelona"
 last_updated: "2026-06-29T15:01:34+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

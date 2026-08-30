@@ -1,18 +1,18 @@
 ---
 title: "Diff data pipeline: shared storage, hybrid access, and validation"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0003"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "codebase-research:2026-02-22-pr-review-agents-design"
-external_id: PP-25
+external_id: "PP-25"
 ---
 
 # ADR Ticket: Diff data pipeline: shared storage, hybrid access, and validation

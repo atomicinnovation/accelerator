@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0170"
 title: "Work-Item Lifecycle Subdomain"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0194"]
 blocks: ["work-item:0194"]
-tags: [rust, work-items]
+tags: ["rust", "work-items"]
 last_updated: "2026-08-07T23:26:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-191"
 ---

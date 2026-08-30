@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-11-0179-corpus-crates-parsing-conventions"
 title: "Research: corpus and corpus-adapters Crates for Parsing and Conventions"
 date: "2026-07-11T11:27:14+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0179"
 parent: "work-item:0179"
 topic: "corpus and corpus-adapters crate extraction — parsing, conventions, and artifact-metadata"
-tags: [research, codebase, corpus, config-crates, frontmatter, serde-saphyr, doc-type, typed-linkage, slug, work-item-id, vcs-detection, cargo-pup]
+tags: ["research", "codebase", "corpus", "config-crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "slug", "work-item-id", "vcs-detection", "cargo-pup"]
 revision: "aa8adbc7216fad416d6d3531cfc74026c7b4c685"
 repository: "accelerator"
 last_updated: "2026-07-11T11:27:14+00:00"

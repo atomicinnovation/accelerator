@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-06-0100-configurable-visualiser-auto-shutdown-review-1"
 title: "Plan Review: Configurable Visualiser Auto-Shutdown"
 date: "2026-06-06T17:27:29+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-06-0100-configurable-visualiser-auto-shutdown"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
-lenses: [architecture, correctness, test-coverage, code-quality, usability, compatibility, standards, documentation]
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "usability", "compatibility", "standards", "documentation"]
 review_number: 1
 review_pass: 3
-tags: [visualiser, server, configuration, lifecycle]
+tags: ["visualiser", "server", "configuration", "lifecycle"]
 last_updated: "2026-06-06T19:06:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

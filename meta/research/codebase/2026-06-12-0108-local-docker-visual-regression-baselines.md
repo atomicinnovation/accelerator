@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-12-0108-local-docker-visual-regression-baselines"
 title: "Research: Local Docker-Based Visual Regression Baseline Generation (0108)"
 date: "2026-06-12T16:10:19+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0108"
 parent: "work-item:0108"
 topic: "Local Docker-Based Visual Regression Baseline Generation"
-tags: [research, codebase, visual-regression, playwright, docker, ci, baselines, testing]
+tags: ["research", "codebase", "visual-regression", "playwright", "docker", "ci", "baselines", "testing"]
 revision: "3234a3a815601552d5e3c81a0b41c5d232d87c50"
 repository: "miscellaneous"
 last_updated: "2026-06-12T16:15:40+00:00"

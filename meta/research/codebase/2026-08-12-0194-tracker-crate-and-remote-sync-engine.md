@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-12-0194-tracker-crate-and-remote-sync-engine"
 title: "Research: Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"
 date: "2026-08-12T21:29:42+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0194"
 parent: "work-item:0194"
 relates_to: ["codebase-research:2026-08-11-0204-remote-tracker-port", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"
-tags: [research, codebase, rust, sync, tracker, work-items, bash-parity]
+tags: ["research", "codebase", "rust", "sync", "tracker", "work-items", "bash-parity"]
 revision: "211759d5ec960752fcf8bd6dc26504fd5021906e"
 repository: "accelerator"
 last_updated: "2026-08-12T21:29:42+00:00"

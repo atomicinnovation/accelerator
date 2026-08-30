@@ -1,14 +1,14 @@
 ---
 date: "2026-05-15T12:35:58+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7"
-repository: accelerator
+repository: "accelerator"
 topic: "Workspace and worktree boundary detection at session start (0058)"
-tags: [research, codebase, hooks, vcs, jj, git, session-start, vcs-detect, vcs-common, worktree, workspace]
-status: complete
+tags: ["research", "codebase", "hooks", "vcs", "jj", "git", "session-start", "vcs-detect", "vcs-common", "worktree", "workspace"]
+status: "complete"
 last_updated: "2026-05-15T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-15-0058-workspace-worktree-boundary-detection"
 title: "Research: Workspace and worktree boundary detection at session start (work item 0058)"
 schema_version: 1

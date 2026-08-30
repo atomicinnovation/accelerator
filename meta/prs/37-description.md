@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "37"
 title: "Untrack the visualiser debug archives"
 date: "2026-08-02T19:20:49+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0168"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/37"
 pr_number: 37
-tags: [build, release, visualiser, gitignore, hygiene]
+tags: ["build", "release", "visualiser", "gitignore", "hygiene"]
 revision: "acb88ff0c88b3fa5c5cf752300c9e050bfacf7a7"
 repository: "accelerator"
 last_updated: "2026-08-02T19:20:49+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

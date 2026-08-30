@@ -249,7 +249,7 @@ fn a_matching_created_marker_with_the_id_absent_from_the_corpus_is_reused(
     let path = lines.next().expect("path line");
     assert_eq!(lines.next(), Some("write-once\tENG-1"));
     let content = fs::read_to_string(path)?;
-    assert!(content.contains("external_id: ENG-1"), "{content}");
+    assert!(content.contains("external_id: \"ENG-1\""), "{content}");
     assert!(
         !marker_path(repo.path(), "", slug).exists(),
         "the marker should be deleted after the reused write"

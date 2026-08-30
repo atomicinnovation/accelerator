@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-02-0187-generalise-sub-binary-registration-surface-validation"
 title: "Validation Report: Generalise the Sub-Binary Registration Surface Implementation Plan"
 date: "2026-08-03T13:14:54+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "work-item:0187"
 target: "plan:2026-08-02-0187-generalise-sub-binary-registration-surface"
-tags: [build-system, distribution, rust]
+tags: ["build-system", "distribution", "rust"]
 last_updated: "2026-08-03T13:14:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,18 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0062"
 title: "Browser Automation's Platform Boundary"
 date: "2026-08-17T11:00:25+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
 supersedes: ["adr:ADR-0057"]
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054",
-  "adr:ADR-0058", "adr:ADR-0061", "work-item:0196", "work-item:0214"]
-tags: [architecture, distribution, playwright, browser, platform-support,
-  glibc, musl, design]
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "adr:ADR-0061", "work-item:0196", "work-item:0214"]
+tags: ["architecture", "distribution", "playwright", "browser", "platform-support", "glibc", "musl", "design"]
 last_updated: "2026-08-17T11:00:25+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

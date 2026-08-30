@@ -1,20 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0189-warm-dispatch-latency-measurement"
 title: "Warm-Dispatch Latency Measurement Implementation Plan"
 date: "2026-08-11T19:43:42+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
-derived_from:
-  ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
-relates_to:
-  ["plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee",
-   "work-item:0205", "work-item:0169", "work-item:0186", "work-item:0188",
-   "work-item:0191", "work-item:0199"]
-tags: [cli, launcher, performance, bootstrap, measurement]
+derived_from: ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
+relates_to: ["plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee", "work-item:0205", "work-item:0169", "work-item:0186", "work-item:0188", "work-item:0191", "work-item:0199"]
+tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
 revision: "18042973ddd816622577925948c3db142852ffb9"
 repository: "accelerator"
 last_updated: "2026-08-17T13:30:00+00:00"

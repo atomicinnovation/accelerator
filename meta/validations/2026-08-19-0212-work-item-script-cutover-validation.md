@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-19-0212-work-item-script-cutover-validation"
 title: "Validation Report: Work-Item Script Cutover Implementation Plan"
 date: "2026-08-21T16:08:23+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: partial
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "partial"
 parent: "plan:2026-08-19-0212-work-item-script-cutover"
 target: "plan:2026-08-19-0212-work-item-script-cutover"
-tags: [rust, cutover, work-items, fixtures, cli, tracker]
+tags: ["rust", "cutover", "work-items", "fixtures", "cli", "tracker"]
 last_updated: "2026-08-21T16:08:23+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

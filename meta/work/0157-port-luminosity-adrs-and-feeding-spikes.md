@@ -1,17 +1,17 @@
 ---
-type: work-item
+type: "work-item"
 id: "0157"
 title: "Port Luminosity ADRs and Feeding Spikes into Accelerator"
 date: "2026-06-27T11:43:29+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 external_id: "PP-178"
-tags: [adr, decisions, porting, luminosity, architecture, rust-cli, spikes]
+tags: ["adr", "decisions", "porting", "luminosity", "architecture", "rust-cli", "spikes"]
 last_updated: "2026-06-27T11:43:29+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-11-0204-remote-tracker-port"
 title: "Research: Implementation ground for the RemoteTracker port crate"
 date: "2026-08-11T11:37:26+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0204"
 parent: "work-item:0204"
 topic: "What an implementation plan for 0204 (the tracker port crate) must know"
-tags: [research, codebase, rust, tracker, sync, port, cargo-pup, jira, linear]
+tags: ["research", "codebase", "rust", "tracker", "sync", "port", "cargo-pup", "jira", "linear"]
 revision: "669484767129367b025152ee975d53a6e096246f"
 repository: "accelerator"
 last_updated: "2026-08-11T11:37:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

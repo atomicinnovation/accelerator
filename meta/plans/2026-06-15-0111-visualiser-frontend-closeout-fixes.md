@@ -1,11 +1,11 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-15-0111-visualiser-frontend-closeout-fixes"
 title: "Visualiser Frontend Closeout Fixes Implementation Plan"
 date: "2026-06-15T20:36:00+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0111"
 parent: "work-item:0111"
 derived_from: ["codebase-research:2026-06-15-0111-visualiser-frontend-closeout-fixes"]
@@ -13,7 +13,7 @@ tags: ["visualiser", "frontend", "markdown", "lifecycle", "sidebar", "milestone-
 revision: "6bd95b32314656c07698ca08afda2eaed4415826"
 repository: "visualisation-system"
 last_updated: "2026-06-15T20:57:16+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

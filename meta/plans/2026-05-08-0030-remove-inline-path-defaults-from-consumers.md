@@ -1,16 +1,16 @@
 ---
 date: "2026-05-08T00:00:00Z"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0030"
-status: done
+status: "done"
 id: "2026-05-08-0030-remove-inline-path-defaults-from-consumers"
 title: "Remove Inline Path Defaults from Consumer Call Sites"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-08T00:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["work-item:0030", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "work-item:0052"]

@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0203"
 title: "Ship an MPL-2.0 Attribution Artefact with the Release Uploads"
 date: "2026-08-10T18:40:00+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: ready
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "ready"
+kind: "task"
+priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0185", "work-item:0188", "work-item:0165"]
-tags: [rust, licensing, release, vcs]
+tags: ["rust", "licensing", "release", "vcs"]
 last_updated: "2026-08-10T18:40:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-733
+external_id: "PP-733"
 ---
 
 # 0203: Ship an MPL-2.0 Attribution Artefact with the Release Uploads

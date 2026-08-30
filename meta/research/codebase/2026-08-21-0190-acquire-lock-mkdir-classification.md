@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-21-0190-acquire-lock-mkdir-classification"
 title: "Research: acquire_lock mkdir misclassification and unbounded reclaim (0190)"
 date: "2026-08-21T14:47:24+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0190"
 parent: "work-item:0190"
 topic: "acquire_lock cannot classify an unusable lock directory and can spin unbounded on reclaim"
-tags: [research, codebase, shell, bootstrap, bash-3.2, locking, acquire_lock]
+tags: ["research", "codebase", "shell", "bootstrap", "bash-3.2", "locking", "acquire_lock"]
 revision: "8c5eebef10dd63b532d9113e13b37b572456147e"
 repository: "accelerator"
 last_updated: "2026-08-21T14:47:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

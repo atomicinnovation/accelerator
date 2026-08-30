@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-23-0168-fold-visualiser-into-cli-workspace"
 title: "Research: Folding the Visualiser into the cli/ Workspace (0168)"
 date: "2026-07-23T01:40:15+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0168"
 parent: "work-item:0168"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Folding the Visualiser into the cli/ Workspace (0168)"
-tags: [research, codebase, rust, visualiser, cli, launcher, corpus, distribution, workspace]
+tags: ["research", "codebase", "rust", "visualiser", "cli", "launcher", "corpus", "distribution", "workspace"]
 revision: "393761cd0220577eb4a8470263ce4cb4039d1cd0"
 repository: "build-system"
 last_updated: "2026-07-23T01:40:15+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

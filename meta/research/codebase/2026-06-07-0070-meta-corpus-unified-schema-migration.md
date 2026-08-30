@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-07-0070-meta-corpus-unified-schema-migration"
 title: "Research: Implementing the meta/ corpus unified-schema migration (story 0070)"
 date: "2026-06-07T08:36:10+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0070"
 parent: "work-item:0070"
 relates_to: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "adr:ADR-0033", "adr:ADR-0037", "adr:ADR-0038"]
 topic: "Implementing the meta/ corpus unified-schema migration (story 0070)"
-tags: [research, codebase, migration, frontmatter, schema, interactive, visualiser, linkage]
+tags: ["research", "codebase", "migration", "frontmatter", "schema", "interactive", "visualiser", "linkage"]
 revision: "ae318e09c04bb2d7f7b78f4031f73696212e1062"
 repository: "ticket-management"
 last_updated: "2026-06-07T08:36:10+00:00"

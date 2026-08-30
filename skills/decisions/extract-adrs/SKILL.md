@@ -9,6 +9,7 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Extract ADRs from Meta Documents
@@ -204,6 +205,15 @@ Wait for user selection.
    All ADRs are in "proposed" status. Use `/accelerator:review-adr` to
    review and accept them.
    ```
+
+**Validate the frontmatter**: after writing each ADR, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file {decisions directory}/ADR-NNNN-description.md
+```
+
+If it exits non-zero, that ADR violates the canonical frontmatter standard;
+report the emitted violation and fix the frontmatter before completing.
 
 ## ADR Template
 

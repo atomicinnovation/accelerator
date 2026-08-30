@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0109"
 title: "Re-Evaluate Pyrefly's All Preset When v1.1 Ships"
 date: "2026-06-11T12:00:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "low"
 relates_to: ["work-item:0098"]
-tags: [tooling, static-analysis, pyrefly, types, build-system]
+tags: ["tooling", "static-analysis", "pyrefly", "types", "build-system"]
 last_updated: "2026-06-11T12:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-131
+external_id: "PP-131"
 ---
 
 # 0109: Re-Evaluate Pyrefly's All Preset When v1.1 Ships

@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0098"
 title: "Repo-Wide Linting, Formatting, And Static Analysis Guardrails"
 date: "2026-06-02T12:11:27+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
-tags: [tooling, linting, formatting, static-analysis, ci, guardrails]
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
+tags: ["tooling", "linting", "formatting", "static-analysis", "ci", "guardrails"]
 relates_to: ["work-item:0090"]
 last_updated: "2026-06-09T19:53:06+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-120
+external_id: "PP-120"
 ---
 
 # 0098: Repo-Wide Linting, Formatting, And Static Analysis Guardrails

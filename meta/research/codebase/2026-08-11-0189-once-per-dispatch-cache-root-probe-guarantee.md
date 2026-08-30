@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
 title: "Research: Implementation surface for 0189's at-most-once cache-root probe guarantee"
 date: "2026-08-11T15:44:00+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0189"
 parent: "work-item:0189"
 relates_to: ["codebase-research:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch", "codebase-research:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
 topic: "Implementation surface for 0189's at-most-once cache-root probe guarantee"
-tags: [research, codebase, cli, launcher, cache-root, probe, testability, latency]
+tags: ["research", "codebase", "cli", "launcher", "cache-root", "probe", "testability", "latency"]
 revision: "537892b5ac52bc1d0dd911a7276c682f3ee6448c"
 repository: "accelerator"
 last_updated: "2026-08-11T15:44:00+00:00"

@@ -1,15 +1,15 @@
 ---
 date: "2026-04-28T00:00:00Z"
-type: plan
-producer: create-plan
-status: ready
+type: "plan"
+producer: "create-plan"
+status: "ready"
 id: "2026-04-28-meta-visualiser-phase-10-error-handling-accessibility-polish"
 title: "Phase 10 — Error handling, accessibility, polish implementation plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-28T00:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context"]

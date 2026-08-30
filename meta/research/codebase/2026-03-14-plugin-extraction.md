@@ -1,14 +1,14 @@
 ---
 date: "2026-03-14T22:18:33+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "N/A"
-repository: .claude (user config directory)
+repository: ".claude (user config directory)"
 topic: "Extracting skills and agents into a Claude Code plugin"
-tags: [ research, plugin, skills, agents, extraction, accelerator ]
-status: complete
+tags: ["research", "plugin", "skills", "agents", "extraction", "accelerator"]
+status: "complete"
 last_updated: "2026-03-14T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-03-14-plugin-extraction"
 title: "Research: Extracting Skills and Agents into a Claude Code Plugin"
 schema_version: 1

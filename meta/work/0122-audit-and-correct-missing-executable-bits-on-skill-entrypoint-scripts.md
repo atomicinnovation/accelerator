@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0122"
 title: "Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts"
 date: "2026-06-20T13:29:42+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]
-tags: [scripts, permissions, ci, lint, plugin, executable-bit]
+tags: ["scripts", "permissions", "ci", "lint", "plugin", "executable-bit"]
 last_updated: "2026-06-20T13:29:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-143
+external_id: "PP-143"
 ---
 
 # 0122: Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts

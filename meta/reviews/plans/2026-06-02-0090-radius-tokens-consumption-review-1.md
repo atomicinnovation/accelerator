@@ -1,20 +1,20 @@
 ---
 date: "2026-06-03T00:00:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-06-02-0090-radius-tokens-consumption"
 review_number: 1
-verdict: APPROVE
-lenses: [correctness, test-coverage, architecture, code-quality, documentation, standards, usability]
+verdict: "APPROVE"
+lenses: ["correctness", "test-coverage", "architecture", "code-quality", "documentation", "standards", "usability"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-06-02-0090-radius-tokens-consumption-review-1"
 title: "2026-06-02-0090-radius-tokens-consumption-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-06-03T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Radius Tokens Consumption (0090)

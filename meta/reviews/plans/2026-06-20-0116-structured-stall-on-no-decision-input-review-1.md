@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-20-0116-structured-stall-on-no-decision-input-review-1"
 title: "Plan Review: Structured Stall on No Decision Input"
 date: "2026-06-20T16:26:50+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-20-0116-structured-stall-on-no-decision-input"
 target: "plan:2026-06-20-0116-structured-stall-on-no-decision-input"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, test-coverage, code-quality, architecture, usability, compatibility, safety]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "usability", "compatibility", "safety"]
 review_number: 1
 review_pass: 3
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-20T18:19:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

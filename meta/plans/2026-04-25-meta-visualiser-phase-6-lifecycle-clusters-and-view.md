@@ -1,15 +1,15 @@
 ---
 date: "2026-04-25T00:00:00+01:00"
-type: plan
-producer: create-plan
-status: draft
+type: "plan"
+producer: "create-plan"
+status: "draft"
 id: "2026-04-25-meta-visualiser-phase-6-lifecycle-clusters-and-view"
 title: "Meta visualiser Phase 6 — Lifecycle clusters and view"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-25T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher", "plan:2026-04-22-meta-visualiser-phase-5-frontend-scaffold-and-library-view"]

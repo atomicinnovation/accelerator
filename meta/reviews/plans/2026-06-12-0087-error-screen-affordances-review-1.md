@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-12-0087-error-screen-affordances-review-1"
 title: "Plan Review: 404 / Error Screen with Affordances"
 date: "2026-06-12T22:13:17+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-12-0087-error-screen-affordances"
 target: "plan:2026-06-12-0087-error-screen-affordances"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, usability, performance, standards]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "usability", "performance", "standards"]
 review_number: 1
 review_pass: 2
-tags: [design, frontend, error-states, routing, search, suggestions]
+tags: ["design", "frontend", "error-states", "routing", "search", "suggestions"]
 last_updated: "2026-06-12T23:07:27+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

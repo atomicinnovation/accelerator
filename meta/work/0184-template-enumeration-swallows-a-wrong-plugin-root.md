@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0184"
 title: "template_names succeeds-with-nothing on a plugin root that is not an installation"
 date: "2026-07-29T00:00:00+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: draft
-kind: bug
-priority: low
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "draft"
+kind: "bug"
+priority: "low"
 relates_to: ["work-item:0182"]
-tags: [bug, cli, config, templates, plugin-root]
+tags: ["bug", "cli", "config", "templates", "plugin-root"]
 last_updated: "2026-07-29T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-714
+external_id: "PP-714"
 ---
 
 # 0184: template_names succeeds-with-nothing on a plugin root that is not an installation

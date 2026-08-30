@@ -1,14 +1,14 @@
 ---
 date: "2026-05-26T16:58:27+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "745a54caf27eb8e5344023cc826231aacda82356"
-repository: accelerator
+repository: "accelerator"
 topic: "Codebase research for ADR work item 0062 (Interactive Validation for Corpus Migration)"
-tags: [research, codebase, adr-0062, migration, interactive-validation, typed-linkage, vocabulary, frontmatter]
-status: complete
+tags: ["research", "codebase", "adr-0062", "migration", "interactive-validation", "typed-linkage", "vocabulary", "frontmatter"]
+status: "complete"
 last_updated: "2026-05-26T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-26-0062-adr-interactive-validation-for-corpus-migration"
 title: "Research: Codebase grounding for ADR-0062 (Interactive Validation for Corpus Migration)"
 schema_version: 1

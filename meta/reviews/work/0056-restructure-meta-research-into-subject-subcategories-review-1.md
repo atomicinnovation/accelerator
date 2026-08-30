@@ -1,20 +1,20 @@
 ---
 date: "2026-05-11T21:29:22+00:00"
-type: work-item-review
-producer: review-work-item
+type: "work-item-review"
+producer: "review-work-item"
 target: "work-item:0056"
 review_number: 1
-verdict: COMMENT
-lenses: [clarity, completeness, dependency, scope, testability]
+verdict: "COMMENT"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "0056-restructure-meta-research-into-subject-subcategories-review-1"
 title: "0056-restructure-meta-research-into-subject-subcategories-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-11T21:29:22+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Work Item Review: Restructure meta/research/codebase/ into Subject Subcategories

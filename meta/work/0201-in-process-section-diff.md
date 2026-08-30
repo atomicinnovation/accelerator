@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0201"
-title: In-Process Section Diff
-date: 2026-08-08T12:27:18+00:00
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+title: "In-Process Section Diff"
+date: "2026-08-08T12:27:18+00:00"
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
-tags: [rust, work-items, tech-debt]
-last_updated: 2026-08-08T12:27:18+00:00
-last_updated_by: Toby Clemson
+tags: ["rust", "work-items", "tech-debt"]
+last_updated: "2026-08-08T12:27:18+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-731
+external_id: "PP-731"
 ---
 
 # 0201: In-Process Section Diff

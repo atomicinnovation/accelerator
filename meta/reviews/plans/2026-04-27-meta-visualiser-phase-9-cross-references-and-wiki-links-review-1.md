@@ -1,20 +1,20 @@
 ---
 date: "2026-04-28T15:00:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-27-meta-visualiser-phase-9-cross-references-and-wiki-links"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, security, standards, usability]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "standards", "usability"]
 review_pass: 4
-status: complete
+status: "complete"
 id: "2026-04-27-meta-visualiser-phase-9-cross-references-and-wiki-links-review-1"
 title: "2026-04-27-meta-visualiser-phase-9-cross-references-and-wiki-links-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-28T15:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Phase 9 — Cross-references and wiki-links

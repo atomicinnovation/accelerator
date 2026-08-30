@@ -1,16 +1,16 @@
 ---
 date: "2026-05-21T20:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "meta/work/0064-canonicalise-work-item-id-and-author-fields.md"
-status: done
+status: "done"
 id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
 title: "Canonicalise `work_item_id` and `author` Frontmatter Field Names — Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T20:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "620bda26c4ff"
 repository: "ticket-management"
 parent: "work-item:0064"

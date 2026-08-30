@@ -1,11 +1,11 @@
 ---
 date: "2026-05-21T03:53:43+01:00"
-type: design-gap
+type: "design-gap"
 current_inventory: "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/meta/research/design-inventories/2026-05-21-004250-current-app/inventory.md"
 target_inventory: "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/build-system/meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/inventory.md"
 author: "Toby Clemson"
-status: draft
-tags: [design, gap-analysis]
+status: "draft"
+tags: ["design", "gap-analysis"]
 id: "2026-05-21-current-app-vs-claude-design-prototype"
 title: "Design Gap Analysis: current-app → claude-design-prototype"
 schema_version: 1

@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "73"
 title: "Migrate the work-item subsystem from bash scripts to the Rust CLI"
 date: "2026-08-21T15:38:50+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0212"
 parent: "work-item:0212"
 relates_to: ["work-item:0211", "work-item:0213", "work-item:0171"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/73"
 pr_number: 73
-tags: [rust, cutover, work-items, cli, tracker, sync]
+tags: ["rust", "cutover", "work-items", "cli", "tracker", "sync"]
 revision: "45bb063038ec39ea7abb2d44bc015730a7e22fdf"
 repository: "accelerator"
 last_updated: "2026-08-21T15:38:50+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

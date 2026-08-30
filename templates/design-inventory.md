@@ -1,11 +1,11 @@
 ---
-type: design-inventory                       # artifact-type discriminator
+type: "design-inventory"                     # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "Design Inventory: {source-id}"
 date: "{ISO timestamp}"
 author: "{author name}"
-producer: inventory-design
-status: draft                                # draft | superseded
+producer: "inventory-design"
+status: "draft"                              # draft | superseded
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["design-inventory:NNNN", ...] or []
@@ -15,7 +15,7 @@ source_location: "{path or URL}"
 crawler: "{code | runtime | hybrid}"
 sequence: 1
 screenshots_incomplete: false
-tags: [design, inventory, "{source-id}"]
+tags: ["design", "inventory", "{source-id}"]
 revision: "{commit hash — omit if not a code repo}"
 repository: "{repo name — omit if not a code repo}"
 last_updated: "{ISO timestamp}"

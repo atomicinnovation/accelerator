@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "26"
 title: "[0167] Config command and invocation contract migration"
 date: "2026-07-23T01:00:42+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0167"
 parent: "work-item:0167"
 relates_to: ["work-item:0166", "work-item:0106", "work-item:0107", "work-item:0169", "work-item:0173", "work-item:0178"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/26"
 pr_number: 26
-tags: [rust, config, cli, skills, invocation-contract, allowed-tools, hooks, store, migration]
+tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]
 revision: "4af9f104c3153a6801518e43a735c6177d16d47c"
 repository: "build-system"
 last_updated: "2026-07-23T01:00:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

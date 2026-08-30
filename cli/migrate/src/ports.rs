@@ -217,6 +217,25 @@ pub trait MigrationContext {
         ))
     }
 
+    /// Recomputes the `/sync-work-items` change-detection baseline for every
+    /// tracked item that was `Synced` before this run, so a whole-corpus
+    /// re-render does not spuriously reclassify content-identical items as
+    /// locally modified. `pre_migration` carries each rewritten `meta/` file's
+    /// pre-render bytes, so an entry's pre-migration digest can still be
+    /// computed after the files on disk have been re-rendered. A pre-run
+    /// diverged entry keeps its baseline, so its pending push survives.
+    /// Returns the number of realigned baselines. Only migration 0008 calls
+    /// it.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when a baseline file cannot be read or written.
+    fn realign_sync_baseline(
+        &self,
+        _pre_migration: &[(PathBuf, String)],
+    ) -> Result<usize, MigrationError> {
+        Ok(0)
+    }
+
     /// Moves `src` onto `dst`, merging directories recursively: an absent
     /// destination is a plain move; a type mismatch or same-named leaf
     /// collision is source-wins; two directories merge entry-by-entry, then

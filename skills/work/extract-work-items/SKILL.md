@@ -10,6 +10,7 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Extract Work Items from Meta Documents
@@ -525,6 +526,17 @@ Created the following work items:
 
 Under the default `{number:04d}` pattern the ID column shows
 `0001`, `0002`, etc., and no project amendment table appears.
+
+**Validate the frontmatter**: after writing, run the validator on each work
+item written this batch
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <each written work item path>
+```
+
+If any invocation exits non-zero, the document violates the canonical
+frontmatter standard; report the emitted violation and fix the frontmatter
+before completing.
 
 ## Quality Guidelines
 

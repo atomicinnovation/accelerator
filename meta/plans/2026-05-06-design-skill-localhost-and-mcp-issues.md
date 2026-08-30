@@ -1,15 +1,15 @@
 ---
 date: "2026-05-06T16:49:30+01:00"
-type: plan
-producer: create-plan
-status: done
+type: "plan"
+producer: "create-plan"
+status: "done"
 id: "2026-05-06-design-skill-localhost-and-mcp-issues"
 title: "Design Skill — localhost validation and MCP-hallucination fixes"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-06T16:49:30+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "plan:2026-05-03-design-convergence-workflow"]

@@ -6,6 +6,7 @@ description: Execute an approved implementation plan from the configured plans
 argument-hint: "[path to plan file]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Implement Plan
@@ -76,6 +77,17 @@ After implementing a phase:
 
 Don't let verification interrupt your flow - batch it at natural stopping
 points.
+
+**Validate the frontmatter**: after writing, run `corpus frontmatter
+validate` over the plan file whose checkboxes you just updated:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the plan violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## If You Get Stuck
 

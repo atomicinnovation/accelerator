@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-validation"
 title: "Validation Report: Converge corpus-adapters on the Library-Backed VCS Adapter"
 date: "2026-08-11T09:24:20+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "work-item:0185"
 target: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
-tags: [rust, vcs, cleanup, tech-debt]
+tags: ["rust", "vcs", "cleanup", "tech-debt"]
 last_updated: "2026-08-11T09:24:20+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

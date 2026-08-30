@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0175"
 title: "Slim the README and split content into a docs/ tree"
 date: "2026-06-29T10:28:21+00:00"
-author: Phil Helm
-producer: refine-work-item
-status: done
-kind: story
-priority: medium
+author: "Phil Helm"
+producer: "refine-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0145"
 tags: []
 last_updated: "2026-06-29T14:46:59+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-697
+external_id: "PP-697"
 ---
 
 # 0175: Slim the README and split content into a docs/ tree

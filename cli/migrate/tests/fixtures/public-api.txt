@@ -147,6 +147,13 @@ pub fn migrate::migrations::m0007::Migration0007::verify_applied(&self, _transfo
 impl migrate::registry::MigrationMeta for migrate::migrations::m0007::Migration0007
 pub fn migrate::migrations::m0007::Migration0007::description(&self) -> &'static str
 pub fn migrate::migrations::m0007::Migration0007::id(&self) -> &'static str
+pub mod migrate::migrations::m0008
+pub struct migrate::migrations::m0008::Migration0008
+impl migrate::registry::Migration for migrate::migrations::m0008::Migration0008
+pub fn migrate::migrations::m0008::Migration0008::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0008::Migration0008
+pub fn migrate::migrations::m0008::Migration0008::description(&self) -> &'static str
+pub fn migrate::migrations::m0008::Migration0008::id(&self) -> &'static str
 pub mod migrate::migrations::text
 pub fn migrate::migrations::text::filter_lines(content: &str, keep: impl core::ops::function::Fn(&str) -> bool) -> alloc::string::String
 pub fn migrate::migrations::text::flat_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
@@ -236,6 +243,7 @@ pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path:
 pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::revision(&self) -> core::option::Option<alloc::string::String>
@@ -320,6 +328,8 @@ impl migrate::registry::Migration for migrate::migrations::m0005::Migration0005
 pub fn migrate::migrations::m0005::Migration0005::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 impl migrate::registry::Migration for migrate::migrations::m0006::Migration0006
 pub fn migrate::migrations::m0006::Migration0006::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0008::Migration0008
+pub fn migrate::migrations::m0008::Migration0008::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 pub trait migrate::registry::MigrationMeta
 pub fn migrate::registry::MigrationMeta::description(&self) -> &'static str
 pub fn migrate::registry::MigrationMeta::id(&self) -> &'static str
@@ -344,4 +354,7 @@ pub fn migrate::migrations::m0006::Migration0006::id(&self) -> &'static str
 impl migrate::registry::MigrationMeta for migrate::migrations::m0007::Migration0007
 pub fn migrate::migrations::m0007::Migration0007::description(&self) -> &'static str
 pub fn migrate::migrations::m0007::Migration0007::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0008::Migration0008
+pub fn migrate::migrations::m0008::Migration0008::description(&self) -> &'static str
+pub fn migrate::migrations::m0008::Migration0008::id(&self) -> &'static str
 pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>

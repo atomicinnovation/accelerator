@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-09-0070-meta-corpus-migration-dogfood"
 title: "Dogfood Validation: meta/ Corpus Unified-Schema Migration"
 date: "2026-06-09T10:00:00+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "work-item:0070"
 target: "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"
-tags: [migration, dogfood, validation, frontmatter, schema]
+tags: ["migration", "dogfood", "validation", "frontmatter", "schema"]
 last_updated: "2026-06-09T10:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

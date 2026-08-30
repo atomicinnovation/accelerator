@@ -1,6 +1,9 @@
-//! The violation taxonomy: the 16 bash-mirrored codes plus `DuplicateId` (a
-//! genuine addition — bash's associative-array-free index has no way to
-//! detect a collision).
+//! The violation taxonomy.
+//!
+//! The 16 bash-mirrored codes plus two genuine additions — `DuplicateId`
+//! (bash's associative-array-free index has no way to detect a collision) and
+//! `UnquotedString` (the canonical-quoting standard that postdates the bash
+//! implementation).
 
 use std::fmt;
 
@@ -65,6 +68,12 @@ pub enum Violation {
     DuplicateId {
         type_id: String,
     },
+    /// A bare scalar (or flow element) that the canonical-quoting standard
+    /// requires double-quoted — anything not an integer/boolean/null literal.
+    /// `id` keeps its own `UnquotedId` code, so this never fires for it.
+    UnquotedString {
+        key: String,
+    },
 }
 
 impl Violation {
@@ -89,6 +98,7 @@ impl Violation {
             Self::BadLinkageShape { .. } => "BAD-LINKAGE-SHAPE",
             Self::DanglingRef { .. } => "DANGLING-REF",
             Self::DuplicateId { .. } => "DUPLICATE-ID",
+            Self::UnquotedString { .. } => "UNQUOTED-STRING",
         }
     }
 
@@ -153,6 +163,9 @@ impl Violation {
             Self::DuplicateId { type_id } => format!(
                 "'{type_id}' is claimed by more than one file in the corpus"
             ),
+            Self::UnquotedString { key } => {
+                format!("{key}: value must be a double-quoted string")
+            }
         }
     }
 }

@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0213"
-title: Conversational Conflict Resolution Flow for Sync
-date: 2026-08-17T11:17:18+00:00
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: high
+title: "Conversational Conflict Resolution Flow for Sync"
+date: "2026-08-17T11:17:18+00:00"
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0171"
 relates_to: ["work-item:0194", "work-item:0210", "work-item:0212"]
-tags: [skills, sync, work-items, conflicts, cli]
-last_updated: 2026-08-19T01:14:08+00:00
-last_updated_by: Toby Clemson
+tags: ["skills", "sync", "work-items", "conflicts", "cli"]
+last_updated: "2026-08-19T01:14:08+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-743
+external_id: "PP-743"
 ---
 
 # 0213: Conversational Conflict Resolution Flow for Sync

@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-07-0070-meta-corpus-unified-schema-migration-review-1"
 title: "Plan Review: Ship meta/ Corpus Unified-Schema Migration"
 date: "2026-06-07T09:35:49+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"
 parent: "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
-lenses: [architecture, code-quality, test-coverage, correctness, safety, database, compatibility, portability]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "database", "compatibility", "portability"]
 review_number: 1
 review_pass: 6
-tags: [migration, frontmatter, schema, interactive, visualiser, linkage, review]
+tags: ["migration", "frontmatter", "schema", "interactive", "visualiser", "linkage", "review"]
 last_updated: "2026-06-08T00:12:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

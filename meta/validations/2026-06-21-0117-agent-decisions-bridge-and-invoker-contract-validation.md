@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-21-0117-agent-decisions-bridge-and-invoker-contract-validation"
 title: "Validation Report: Agent-Decisions Bridge and Documented Invoker Contract"
 date: "2026-06-22T23:23:41+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"
 target: "plan:2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-22T23:23:41+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

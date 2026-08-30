@@ -1,21 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"
 title: "Research: Remove the Exec Probe from the Bootstrap Warm Path"
 date: "2026-08-02T21:21:52+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0186"
 parent: "work-item:0186"
-relates_to:
-  [
-    "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration",
-    "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface",
-    "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch",
-  ]
+relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration", "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
 topic: "Remove the exec probe from the bin/accelerator warm path"
-tags: [research, codebase, bootstrap, shell, performance, testing, bash-3.2]
+tags: ["research", "codebase", "bootstrap", "shell", "performance", "testing", "bash-3.2"]
 revision: "dcf0eff40119220db91dd607de3b9089aa479b6b"
 repository: "accelerator"
 last_updated: "2026-08-02T21:21:52+00:00"

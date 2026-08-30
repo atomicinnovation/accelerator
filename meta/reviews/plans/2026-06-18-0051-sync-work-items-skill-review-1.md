@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-18-0051-sync-work-items-skill-review-1"
 title: "Plan Review: Sync Work Items Skill"
 date: "2026-06-18T13:17:32+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-18-0051-sync-work-items-skill"
 target: "plan:2026-06-18-0051-sync-work-items-skill"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, safety, test-coverage, code-quality, usability, portability, performance]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "safety", "test-coverage", "code-quality", "usability", "portability", "performance"]
 review_number: 1
 review_pass: 7
-tags: [work, integrations, sync]
+tags: ["work", "integrations", "sync"]
 last_updated: "2026-06-19T00:21:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

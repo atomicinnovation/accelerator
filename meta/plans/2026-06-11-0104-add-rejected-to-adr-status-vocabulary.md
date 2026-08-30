@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-11-0104-add-rejected-to-adr-status-vocabulary"
 title: "Add rejected to the ADR Status Vocabulary Implementation Plan"
 date: "2026-06-11T13:15:24+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0104"
 parent: "work-item:0104"
 derived_from: ["codebase-research:2026-06-11-0104-add-rejected-to-adr-status-vocabulary"]
 relates_to: ["work-item:0103"]
-tags: [frontmatter, schema, adr, status, validator]
+tags: ["frontmatter", "schema", "adr", "status", "validator"]
 revision: "f7d348e72248cf66d70955c7a90e5d51297ce9fd"
 repository: "build-system"
 last_updated: "2026-06-11T13:42:43+00:00"

@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-03-0188-library-backed-vcs-adapter-review-1"
 title: "Plan Review: Library-Backed VCS Adapter over gix and jj-lib Implementation Plan"
 date: "2026-08-03T11:42:20+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0188"
 target: "plan:2026-08-03-0188-library-backed-vcs-adapter"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
-lenses: [architecture, code-quality, test-coverage, correctness, compatibility, portability, safety, security]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "compatibility", "portability", "safety", "security"]
 review_number: 1
 review_pass: 4
-tags: [rust, vcs, dependencies, gix, jj-lib]
+tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 last_updated: "2026-08-03T15:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

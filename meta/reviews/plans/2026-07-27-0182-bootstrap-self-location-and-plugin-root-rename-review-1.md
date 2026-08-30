@@ -1,29 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-review-1"
 title: "Plan Review: Bootstrap Self-Location and the ACCELERATOR_PLUGIN_ROOT Rename"
 date: "2026-07-27T10:43:33+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
 relates_to: ["work-item:0182"]
 reviewer: "Toby Clemson"
 verdict: "REVISE"
-lenses:
-  [
-    correctness,
-    portability,
-    test-coverage,
-    architecture,
-    compatibility,
-    security,
-    code-quality,
-    standards,
-  ]
+lenses: ["correctness", "portability", "test-coverage", "architecture", "compatibility", "security", "code-quality", "standards"]
 review_number: 1
 review_pass: 4
-tags: [plan-review, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
+tags: ["plan-review", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards"]
 last_updated: "2026-07-27T21:33:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

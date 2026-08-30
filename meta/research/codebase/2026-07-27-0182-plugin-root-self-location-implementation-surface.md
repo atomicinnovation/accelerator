@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-27-0182-plugin-root-self-location-implementation-surface"
 title: "Research: Implementation surface for 0182 — bootstrap self-location and the ACCELERATOR_PLUGIN_ROOT rename"
 date: "2026-07-26T23:35:47+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0182"
 parent: "work-item:0182"
 relates_to: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"]
 topic: "Implementation surface for 0182: verifying the rename set, the bootstrap's gate/argv structure, the R4 seam mechanism, the lint-guard and hook patterns, and the build-order dependency"
-tags: [research, codebase, cli, launcher, bootstrap, plugin-root, hooks, lint-guards, build-system]
+tags: ["research", "codebase", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards", "build-system"]
 revision: "9f21238da828e777af109b37389e1c523e1c688f"
 repository: "accelerator"
 last_updated: "2026-07-26T23:35:47+00:00"

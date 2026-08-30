@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-28-0174-empty-scripts-retire-shell-tooling"
 title: "Empty scripts/ and Retire Shell Tooling and CI Guards Implementation Plan"
 date: "2026-08-28T07:28:16+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0174"
 parent: "work-item:0174"
 derived_from: ["codebase-research:2026-08-28-0174-empty-scripts-and-retire-shell-tooling"]
-tags: [shell, tooling, ci, cleanup, scripts]
+tags: ["shell", "tooling", "ci", "cleanup", "scripts"]
 revision: "b1d635d8f391ff188fc0a76508e85bf3a98d8ef0"
 repository: "accelerator"
 last_updated: "2026-08-28T12:44:34+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

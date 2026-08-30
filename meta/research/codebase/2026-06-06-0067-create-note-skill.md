@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-06-0067-create-note-skill"
 title: "Research: Implementing the create-note Skill (0067)"
 date: "2026-06-06T09:33:34+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0067"
 parent: "work-item:0067"
 relates_to: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "work-item:0057", "adr:ADR-0033", "adr:ADR-0034", "plan:2026-06-02-0093-extend-templates-with-typed-linkage-slots", "adr:ADR-0038"]
 topic: "Implementing the create-note skill and templates/note.md"
-tags: [research, codebase, skills, notes, templates, frontmatter, typed-linkage]
+tags: ["research", "codebase", "skills", "notes", "templates", "frontmatter", "typed-linkage"]
 revision: "70e86d6dd86759a59677bba83c922c83b08300b5"
 repository: "ticket-management"
 last_updated: "2026-06-06T09:33:34+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots"]
 ---

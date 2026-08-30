@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-09-0095-theme-reactive-markdown-task-list-checkboxes"
 title: "Theme-Reactive Markdown Task-List Checkboxes Implementation Plan"
 date: "2026-06-09T00:26:40+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0095"
 parent: "work-item:0095"
 derived_from: ["codebase-research:2026-06-09-0095-markdown-checkboxes-always-dark-mode-styled"]
 relates_to: ["plan:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
-tags: [visualiser, markdown, theme, dark-mode, checkbox, design-tokens, bug]
+tags: ["visualiser", "markdown", "theme", "dark-mode", "checkbox", "design-tokens", "bug"]
 revision: "1a9767797beb2083943bd3ab5a44b5a430fc3d07"
 repository: "visualisation-system"
 last_updated: "2026-06-09T07:43:28+00:00"

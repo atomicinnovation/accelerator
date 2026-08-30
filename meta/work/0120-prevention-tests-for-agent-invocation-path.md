@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0120"
 title: "Prevention Tests for the Agent-Invocation Path"
 date: "2026-06-19T23:13:17+00:00"
-author: Toby Clemson
-producer: refine-work-item
-status: done
-kind: task
-priority: high
+author: "Toby Clemson"
+producer: "refine-work-item"
+status: "done"
+kind: "task"
+priority: "high"
 parent: "work-item:0115"
 relates_to: ["work-item:0116", "work-item:0117", "work-item:0118", "work-item:0119"]
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-20T13:48:16+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-142
+external_id: "PP-142"
 ---
 
 # 0120: Prevention Tests for the Agent-Invocation Path

@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0117-agent-decisions-bridge-and-invoker-contract-review-1"
 title: "Work Item Review: Agent-Decisions Bridge and Documented Invoker Contract"
 date: "2026-06-20T11:02:01+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0117"
 relates_to: ["work-item:0115", "work-item:0116", "work-item:0118"]
 work_item_id: "0117"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 4
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-20T12:42:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

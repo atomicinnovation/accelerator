@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-13-0110-surface-rcas-in-visualiser-review-1"
 title: "Plan Review: Surface Root Cause Analyses in the Visualiser"
 date: "2026-06-13T21:41:30+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-13-0110-surface-rcas-in-visualiser"
 target: "plan:2026-06-13-0110-surface-rcas-in-visualiser"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, compatibility, documentation]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility", "documentation"]
 review_number: 1
 review_pass: 3
 tags: ["visualiser", "rca", "doc-types", "library", "operate"]
 last_updated: "2026-06-13T23:16:21+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

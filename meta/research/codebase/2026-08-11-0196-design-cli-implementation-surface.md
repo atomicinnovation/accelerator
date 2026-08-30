@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-11-0196-design-cli-implementation-surface"
 title: "Research: accelerator-design implementation surface for planning 0196"
 date: "2026-08-11T11:39:14+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0196"
 parent: "work-item:0196"
 topic: "Implementation surface for the accelerator-design sub-binary, tree artifacts, and the release-pipeline assembly step"
-tags: [research, codebase, design, cli, playwright, launcher, release-pipeline, tree-artifacts]
+tags: ["research", "codebase", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts"]
 revision: "14c96c74fc3821dbc37e68a4df9be6939fc8ea41"
 repository: "accelerator"
 last_updated: "2026-08-11T11:39:14+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

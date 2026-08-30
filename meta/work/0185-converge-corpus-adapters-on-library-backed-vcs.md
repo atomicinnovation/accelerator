@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0185"
 title: "Converge corpus-adapters on the Library-Backed VCS Adapter"
 date: "2026-07-31T08:36:03+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 parent: "work-item:0136"
 blocked_by: ["work-item:0188"]
 relates_to: ["work-item:0125", "work-item:0179", "work-item:0168", "work-item:0198"]
-tags: [rust, vcs, cleanup, tech-debt]
+tags: ["rust", "vcs", "cleanup", "tech-debt"]
 last_updated: "2026-08-10T02:08:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-715
+external_id: "PP-715"
 ---
 
 # 0185: Converge corpus-adapters on the Library-Backed VCS Adapter

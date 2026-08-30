@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-19-0180-atomic-store-primitives-corpus-adapters-validation"
 title: "Validation Report: Atomic-Store Primitives in corpus-adapters"
 date: "2026-07-19T17:14:03+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-07-19-0180-atomic-store-primitives-corpus-adapters"
 target: "plan:2026-07-19-0180-atomic-store-primitives-corpus-adapters"
-tags: [rust, corpus, corpus-adapters, atomic-store, jsonl, store]
+tags: ["rust", "corpus", "corpus-adapters", "atomic-store", "jsonl", "store"]
 last_updated: "2026-07-19T17:14:03+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

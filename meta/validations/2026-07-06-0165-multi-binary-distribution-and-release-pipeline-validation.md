@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-06-0165-multi-binary-distribution-and-release-pipeline-validation"
 title: "Validation Report: Multi-Binary Static Distribution and Release Pipeline with minisign"
 date: "2026-07-06T17:16:59+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-07-06-0165-multi-binary-distribution-and-release-pipeline"
 target: "plan:2026-07-06-0165-multi-binary-distribution-and-release-pipeline"
-tags: [rust, distribution, release, cross-compile, minisign]
+tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 last_updated: "2026-07-06T17:16:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

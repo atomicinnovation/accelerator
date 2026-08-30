@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-13-0194-tracker-crate-and-remote-sync-engine-validation"
 title: "Validation Report: Tracker Crate and Remote Sync Engine Implementation Plan"
 date: "2026-08-14T11:15:19+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: partial
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "partial"
 target: "plan:2026-08-13-0194-tracker-crate-and-remote-sync-engine"
 relates_to: ["plan-validation:2026-08-11-0204-remote-tracker-port-validation"]
-tags: [rust, tracker, sync, work-items, bash-parity, nextest]
+tags: ["rust", "tracker", "sync", "work-items", "bash-parity", "nextest"]
 last_updated: "2026-08-14T11:15:19+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

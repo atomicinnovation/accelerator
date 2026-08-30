@@ -7,6 +7,7 @@ argument-hint: "[path to plan file]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Review Plan
@@ -492,6 +493,16 @@ block:
 The per-lens results section contains the full content from each agent's
 JSON output, converted to readable markdown. This preserves the complete
 analysis for future reference while keeping it human-readable.
+
+**Validate the frontmatter**: after writing the review, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+```
+
+If it exits non-zero, the review document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### Step 5: Present the Review
 

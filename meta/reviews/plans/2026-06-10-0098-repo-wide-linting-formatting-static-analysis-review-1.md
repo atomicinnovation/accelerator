@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-10-0098-repo-wide-linting-formatting-static-analysis-review-1"
 title: "Plan Review: Repo-Wide Linting, Formatting, And Static Analysis Guardrails Implementation Plan"
 date: "2026-06-10T20:08:49+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-10-0098-repo-wide-linting-formatting-static-analysis"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, safety, compatibility]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability", "safety", "compatibility"]
 review_number: 1
 review_pass: 4
 tags: []
 last_updated: "2026-06-11T00:24:02+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

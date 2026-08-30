@@ -1,16 +1,15 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0058"
 title: "Shell-Free CLI-to-Node Delegation"
 date: "2026-08-10T16:19:07+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0049",
-  "adr:ADR-0053", "adr:ADR-0057", "work-item:0196"]
-tags: [architecture, cli, shell, node, process-supervision, playwright, design]
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0049", "adr:ADR-0053", "adr:ADR-0057", "work-item:0196"]
+tags: ["architecture", "cli", "shell", "node", "process-supervision", "playwright", "design"]
 last_updated: "2026-08-10T16:45:46+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

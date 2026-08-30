@@ -2,21 +2,21 @@
 id: "0093"
 title: "Extend Templates With Typed-Linkage Slots"
 date: "2026-05-31T12:13:53+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0057"
-tags: [templates, frontmatter, schema, linkage, emission]
+tags: ["templates", "frontmatter", "schema", "linkage", "emission"]
 last_updated: "2026-06-03T21:19:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-type: work-item
+type: "work-item"
 blocked_by: ["work-item:0061", "work-item:0034", "work-item:0065", "work-item:0066", "adr:ADR-0034"]
 blocks: ["work-item:0070"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0033", "adr:ADR-0040", "work-item:0057", "work-item:0065", "work-item:0066", "work-item:0070"]
-external_id: PP-115
+external_id: "PP-115"
 ---
 
 # 0093: Extend Templates With Typed-Linkage Slots

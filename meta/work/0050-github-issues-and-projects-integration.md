@@ -2,19 +2,19 @@
 id: "0050"
 title: "GitHub Issues and Projects Integration"
 date: "2026-05-06T17:49:44+00:00"
-author: Toby Clemson
-kind: story
-status: draft
-priority: medium
+author: "Toby Clemson"
+kind: "story"
+status: "draft"
+priority: "medium"
 parent: "work-item:0181"
-tags: [work-management, integrations, github-issues, github-projects]
-type: work-item
+tags: ["work-management", "integrations", "github-issues", "github-projects"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-07-06T13:29:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0046"]
 blocks: ["work-item:0051"]
-external_id: PP-72
+external_id: "PP-72"
 ---
 
 # 0050: GitHub Issues and Projects Integration

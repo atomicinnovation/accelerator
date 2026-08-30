@@ -1,11 +1,11 @@
 ---
-type: plan-validation                        # artifact-type discriminator
+type: "plan-validation"                      # artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "2026-05-18-0042-some-plan-validation"
 title: "Validation Report: {Plan Name}"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
-producer: validate-plan
-status: complete                             # complete
+producer: "validate-plan"
+status: "complete"                           # complete
 result: ""                                   # pass | partial | fail (filled by validate-plan)
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "plan:NNNN" or ""

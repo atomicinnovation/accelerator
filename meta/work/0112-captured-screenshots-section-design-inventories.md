@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0112"
 title: "Captured Screenshots Section on Design Inventory Pages"
 date: "2026-06-15T11:54:23+00:00"
-author: Toby Clemson
-producer: refine-work-item
-status: draft
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "refine-work-item"
+status: "draft"
+kind: "story"
+priority: "medium"
 relates_to: ["work-item:0097", "work-item:0111"]
 tags: ["visualiser", "frontend", "polish", "markdown", "milestone-closeout"]
 last_updated: "2026-06-15T11:54:23+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-134
+external_id: "PP-134"
 ---
 
 # 0112: Captured Screenshots Section on Design Inventory Pages

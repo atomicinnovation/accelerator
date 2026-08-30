@@ -1,16 +1,16 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "24"
 title: "[0168/0169] Refine work items"
 date: "2026-07-20T15:22:29+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 parent: "work-item:0136"
 relates_to: ["work-item:0166", "work-item:0168", "work-item:0169", "work-item:0180", "work-item:0172"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/24"
 pr_number: 24
-tags: [rust, vcs, visualiser, work-items, planning]
+tags: ["rust", "vcs", "visualiser", "work-items", "planning"]
 revision: "6a8227762496309959238736e78eb15607105dc5"
 repository: "accelerator"
 last_updated: "2026-07-20T15:49:34+00:00"

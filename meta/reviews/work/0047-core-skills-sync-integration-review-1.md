@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0047-core-skills-sync-integration-review-1"
 title: "Work Item Review: Core Skills Sync Integration"
 date: "2026-06-15T16:23:34+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0047"
 work_item_id: "0047"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-06-15T21:12:34+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,11 +1,11 @@
 ---
-type: note
+type: "note"
 id: "2026-07-13-bash-corpus-script-inconsistencies"
 title: "Inconsistencies in the bash corpus scripts surfaced by the 0179 port"
 date: "2026-07-13T10:16:57+00:00"
 author: "Toby Clemson"
-producer: create-note
-status: captured
+producer: "create-note"
+status: "captured"
 relates_to: ["work-item:0179"]
 topic: "Bash corpus script inconsistencies surfaced by the corpus crate port"
 tags: ["corpus", "linkage", "doc-types", "tech-debt", "rust-migration"]

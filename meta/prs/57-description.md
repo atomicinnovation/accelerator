@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "57"
 title: "[0195] accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI"
 date: "2026-08-08T14:52:17+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0195"
 parent: "work-item:0195"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/57"
@@ -14,7 +14,7 @@ tags: []
 revision: "3d6eebd9ddd5b7f0fe63ee72f445a2115f46b496"
 repository: "accelerator"
 last_updated: "2026-08-08T14:52:17+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

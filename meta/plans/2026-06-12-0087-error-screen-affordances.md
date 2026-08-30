@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-12-0087-error-screen-affordances"
 title: "404 / Error Screen with Affordances Implementation Plan"
 date: "2026-06-12T22:02:45+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0087"
 parent: "work-item:0087"
 derived_from: ["codebase-research:2026-06-12-0087-error-screen-affordances"]
 relates_to: ["work-item:0041", "work-item:0082", "work-item:0074", "work-item:0054"]
-tags: [design, frontend, error-states, routing, search, suggestions]
+tags: ["design", "frontend", "error-states", "routing", "search", "suggestions"]
 revision: "6547fec39be919e1f9669d4c4ecac36fd2e41077"
 repository: "build-system"
 last_updated: "2026-06-12T23:07:27+00:00"

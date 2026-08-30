@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-07-0070-meta-corpus-unified-schema-migration"
 title: "Ship meta/ Corpus Unified-Schema Migration Implementation Plan"
 date: "2026-06-07T09:05:13+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0070"
 parent: "work-item:0070"
 derived_from: ["codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration"]
-tags: [migration, frontmatter, schema, interactive, visualiser, linkage, dogfood]
+tags: ["migration", "frontmatter", "schema", "interactive", "visualiser", "linkage", "dogfood"]
 revision: "fd03c62147244115d0440905f91b5524f3ee5715"
 repository: "ticket-management"
 last_updated: "2026-06-08T09:33:11+00:00"

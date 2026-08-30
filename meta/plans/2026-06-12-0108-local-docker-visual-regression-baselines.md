@@ -1,11 +1,11 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-12-0108-local-docker-visual-regression-baselines"
 title: "Local Docker-Based Visual Regression Baseline Generation Implementation Plan"
 date: "2026-06-12T16:54:30+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0108"
 parent: "work-item:0108"
 derived_from: ["codebase-research:2026-06-12-0108-local-docker-visual-regression-baselines"]

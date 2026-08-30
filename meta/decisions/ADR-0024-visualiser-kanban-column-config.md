@@ -1,14 +1,14 @@
 ---
 id: "ADR-0024"
 date: "2026-05-05T00:00:00+01:00"
-author: Toby Clemson
-status: proposed
-tags: [visualiser, kanban, configuration]
-type: adr
+author: "Toby Clemson"
+status: "proposed"
+tags: ["visualiser", "kanban", "configuration"]
+type: "adr"
 title: "ADR-0024: Configurable Kanban Column Set"
 schema_version: 1
 last_updated: "2026-05-05T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 # ADR-0024: Configurable Kanban Column Set

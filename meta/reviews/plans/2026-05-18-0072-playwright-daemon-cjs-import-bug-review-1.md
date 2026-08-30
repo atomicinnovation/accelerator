@@ -1,20 +1,20 @@
 ---
 date: "2026-05-18T20:35:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-18-0072-playwright-daemon-cjs-import-bug"
 review_number: 1
-verdict: APPROVE
-lenses: [correctness, test-coverage, code-quality, architecture, security, compatibility]
+verdict: "APPROVE"
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "security", "compatibility"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-05-18-0072-playwright-daemon-cjs-import-bug-review-1"
 title: "2026-05-18-0072-playwright-daemon-cjs-import-bug-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-18T20:35:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: 0072 — Playwright daemon CJS-import bug

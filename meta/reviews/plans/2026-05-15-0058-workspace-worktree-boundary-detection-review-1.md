@@ -1,20 +1,20 @@
 ---
 date: "2026-05-15T15:35:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-15-0058-workspace-worktree-boundary-detection"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, portability, compatibility]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "portability", "compatibility"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-15-0058-workspace-worktree-boundary-detection-review-1"
 title: "2026-05-15-0058-workspace-worktree-boundary-detection-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-15T15:35:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Workspace and Worktree Boundary Detection Implementation Plan

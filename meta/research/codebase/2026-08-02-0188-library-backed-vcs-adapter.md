@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-02-0188-library-backed-vcs-adapter"
 title: "Research: Library-Backed VCS Adapter over gix and jj-lib (0188)"
 date: "2026-08-02T21:19:48+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0188"
 parent: "work-item:0188"
 relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 topic: "Library-backed VCS adapter over gix and jj-lib: enforcement surfaces, test apparatus, fixture matrix, CI capability and sibling hand-offs"
-tags: [research, codebase, vcs, vcs-adapters, gix, jj-lib, cargo-deny, cargo-pup, ci, fixtures]
+tags: ["research", "codebase", "vcs", "vcs-adapters", "gix", "jj-lib", "cargo-deny", "cargo-pup", "ci", "fixtures"]
 revision: "8f64589b3fb56512f7b0a55af5209ffa1babfaa3"
 repository: "accelerator"
 last_updated: "2026-08-03T06:52:09+00:00"

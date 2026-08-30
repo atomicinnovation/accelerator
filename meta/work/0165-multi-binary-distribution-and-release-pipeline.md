@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0165"
 title: "Multi-Binary Static Distribution and Release Pipeline with minisign"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0164", "work-item:0168"]
-tags: [rust, distribution, release, cross-compile, minisign]
+tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 last_updated: "2026-07-05T22:47:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-186"
 ---

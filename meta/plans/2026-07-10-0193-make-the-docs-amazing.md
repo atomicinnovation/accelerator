@@ -1,23 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-10-0193-make-the-docs-amazing"
 title: "Make the Docs Amazing Implementation Plan"
 date: "2026-07-10T20:08:08+00:00"
-author: Phil Helm
-producer: create-plan
-status: ready
+author: "Phil Helm"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0193"
 parent: "work-item:0193"
-derived_from:
-  [
-    "codebase-research:2026-07-10-0193-make-the-docs-amazing",
-    "codebase-research:2026-07-13-docs-site-visualiser-design-alignment",
-  ]
-tags: [docs, docs-site, starlight, generation, ci, design-tokens, theming]
+derived_from: ["codebase-research:2026-07-10-0193-make-the-docs-amazing", "codebase-research:2026-07-13-docs-site-visualiser-design-alignment"]
+tags: ["docs", "docs-site", "starlight", "generation", "ci", "design-tokens", "theming"]
 revision: "150f34d0b4e921942076d43ba726b137607ace1b"
 repository: "barcelona"
 last_updated: "2026-07-13T15:50:27+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 last_updated_note: "Added phases 8-10: docs-site alignment with visualiser design system"
 schema_version: 1
 ---

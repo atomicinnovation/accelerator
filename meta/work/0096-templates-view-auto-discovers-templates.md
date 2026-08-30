@@ -2,18 +2,18 @@
 id: "0096"
 title: "Templates View Auto-Discovers Available Templates"
 date: "2026-06-02T12:11:27+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
-tags: [visualiser, templates, frontend]
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
+tags: ["visualiser", "templates", "frontend"]
 last_updated: "2026-06-11T13:17:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-type: work-item
+type: "work-item"
 relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
-external_id: PP-118
+external_id: "PP-118"
 ---
 
 # 0096: Templates View Auto-Discovers Available Templates

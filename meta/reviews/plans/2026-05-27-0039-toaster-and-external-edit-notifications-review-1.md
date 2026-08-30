@@ -1,20 +1,20 @@
 ---
 date: "2026-05-30T00:00:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-27-0039-toaster-and-external-edit-notifications"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-27-0039-toaster-and-external-edit-notifications-review-1"
 title: "2026-05-27-0039-toaster-and-external-edit-notifications-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-30T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Toaster and External-Edit Notifications

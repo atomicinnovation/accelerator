@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-21-0190-classify-lock-mkdir-failures"
 title: "acquire_lock mkdir classification and bounded reclaim Implementation Plan"
 date: "2026-08-21T15:21:54+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0190"
 parent: "work-item:0190"
 derived_from: ["codebase-research:2026-08-21-0190-acquire-lock-mkdir-classification"]
-tags: [bug, shell, bootstrap, bash-3.2, locking]
+tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 revision: "4390192c1d375fa7646436166b422a1268f6ea42"
 repository: "accelerator"
 last_updated: "2026-08-21T15:21:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

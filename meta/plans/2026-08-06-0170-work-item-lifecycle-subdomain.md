@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-06-0170-work-item-lifecycle-subdomain"
 title: "Work-Item Lifecycle Subdomain Implementation Plan"
 date: "2026-08-06T08:39:45+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0170"
 parent: "work-item:0170"
 derived_from: ["codebase-research:2026-08-06-0170-work-item-lifecycle-subdomain"]
-tags: [rust, work-items, cli, corpus, config]
+tags: ["rust", "work-items", "cli", "corpus", "config"]
 revision: "702b6426ab80a1b6868f8921bb592360b9919a8d"
 repository: "accelerator"
 last_updated: "2026-08-07T13:12:10+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

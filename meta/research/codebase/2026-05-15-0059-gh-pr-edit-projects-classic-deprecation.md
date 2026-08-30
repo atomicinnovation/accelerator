@@ -1,14 +1,14 @@
 ---
 date: "2026-05-15T15:29:17+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7"
-repository: accelerator
+repository: "accelerator"
 topic: "Fix scope and reference patterns for `gh pr edit` → `gh api PATCH` migration in `describe-pr` (work item 0059)"
-tags: [research, codebase, describe-pr, review-pr, respond-to-pr, github-rest-api, projects-classic-deprecation]
-status: complete
+tags: ["research", "codebase", "describe-pr", "review-pr", "respond-to-pr", "github-rest-api", "projects-classic-deprecation"]
+status: "complete"
 last_updated: "2026-05-15T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-15-0059-gh-pr-edit-projects-classic-deprecation"
 title: "Research: `gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns"
 schema_version: 1

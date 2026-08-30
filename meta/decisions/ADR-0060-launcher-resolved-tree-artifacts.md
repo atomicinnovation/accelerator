@@ -1,18 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0060"
 title: "Launcher-Resolved Tree Artifacts"
 date: "2026-08-11T10:45:25+00:00"
-author: Toby Clemson
-producer: create-adr
-status: superseded
-superseded_by: ADR-0061
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059",
-  "work-item:0164", "work-item:0186", "work-item:0196"]
-tags: [architecture, distribution, integrity, manifest, launcher, cache,
-  design]
+author: "Toby Clemson"
+producer: "create-adr"
+status: "superseded"
+superseded_by: "ADR-0061"
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0059", "work-item:0164", "work-item:0186", "work-item:0196"]
+tags: ["architecture", "distribution", "integrity", "manifest", "launcher", "cache", "design"]
 last_updated: "2026-08-11T10:58:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

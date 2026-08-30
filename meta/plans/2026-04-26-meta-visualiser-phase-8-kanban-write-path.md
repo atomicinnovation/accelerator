@@ -1,16 +1,16 @@
 ---
 date: "2026-04-26T22:18:09Z"
-type: plan
-producer: create-plan
-status: done
+type: "plan"
+producer: "create-plan"
+status: "done"
 revised: "2026-04-27T00:00:00Z"
 id: "2026-04-26-meta-visualiser-phase-8-kanban-write-path"
 title: "Phase 8 — Kanban write path implementation plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-26T22:18:09Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only"]

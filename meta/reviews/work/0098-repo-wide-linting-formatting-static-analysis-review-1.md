@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0098-repo-wide-linting-formatting-static-analysis-review-1"
 title: "Work Item Review: Repo-Wide Linting, Formatting, And Static Analysis Guardrails"
 date: "2026-06-09T18:14:24+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0098"
 work_item_id: "0098"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 tags: []
 last_updated: "2026-06-09T20:04:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -7,6 +7,7 @@ argument-hint: "[note topic]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Create Note
@@ -140,5 +141,14 @@ Note created: <notes_dir>/YYYY-MM-DD-<slug>.md
 ```
 Note created: <final-path> (an earlier note on this topic exists at <first-path>; this one was written as <slug>-N.md)
 ```
+
+**Validate the frontmatter**: after writing, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <notes_dir>/YYYY-MM-DD-<slug>.md
+```
+
+If it exits non-zero, the note violates the canonical frontmatter standard;
+report the emitted violation and fix the frontmatter before completing.
 
 !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-note --fail-safe`

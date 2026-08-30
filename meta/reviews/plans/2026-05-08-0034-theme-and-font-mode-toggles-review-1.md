@@ -1,20 +1,20 @@
 ---
 date: "2026-05-08T21:30:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-08-0034-theme-and-font-mode-toggles"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, compatibility]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability", "compatibility"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-08-0034-theme-and-font-mode-toggles-review-1"
 title: "2026-05-08-0034-theme-and-font-mode-toggles-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-08T21:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: 0034 Theme and Font-Mode Toggles

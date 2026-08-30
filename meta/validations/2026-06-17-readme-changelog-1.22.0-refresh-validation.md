@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-17-readme-changelog-1.22.0-refresh-validation"
 title: "Validation Report: README and CHANGELOG 1.22.0 Refresh"
 date: "2026-06-17T17:24:12+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
-result: pass
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-17-readme-changelog-1.22.0-refresh"
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
-tags: [changelog, readme, release, docs]
+tags: ["changelog", "readme", "release", "docs"]
 last_updated: "2026-06-17T17:24:12+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

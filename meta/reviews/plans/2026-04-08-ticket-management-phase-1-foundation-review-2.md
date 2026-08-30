@@ -1,20 +1,20 @@
 ---
 date: "2026-04-18T17:30:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-08-ticket-management-phase-1-foundation"
 review_number: 2
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-08-ticket-management-phase-1-foundation-review-2"
 title: "2026-04-08-ticket-management-phase-1-foundation-review-2"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-18T17:30:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Ticket Management Phase 1 — Foundation and Configuration

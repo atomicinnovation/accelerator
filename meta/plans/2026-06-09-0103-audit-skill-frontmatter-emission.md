@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-09-0103-audit-skill-frontmatter-emission"
 title: "Audit Skill Frontmatter Emission Against the Unified Schema Implementation Plan"
 date: "2026-06-09T19:05:20+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0103"
 parent: "work-item:0103"
 derived_from: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
 relates_to: ["work-item:0057", "work-item:0070"]
-tags: [frontmatter, schema, skills, validation, audit, test-harness]
+tags: ["frontmatter", "schema", "skills", "validation", "audit", "test-harness"]
 revision: "cae1eebdfc645a3ac158ee419b52b70c6ee1b780"
 repository: "ticket-management"
 last_updated: "2026-06-09T21:50:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

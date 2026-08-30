@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-30-0201-in-process-section-diff-validation"
 title: "Validation Report: In-Process Section Diff Implementation Plan"
 date: "2026-08-30T20:17:14+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-08-30-0201-in-process-section-diff"
 target: "plan:2026-08-30-0201-in-process-section-diff"
-tags: [rust, work-adapters, diff, tech-debt]
+tags: ["rust", "work-adapters", "diff", "tech-debt"]
 last_updated: "2026-08-30T20:17:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

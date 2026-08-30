@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "72"
 title: "accelerator-design: vendored runtime distribution"
 date: "2026-08-21T14:24:50+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0196"
 parent: "work-item:0196"
 relates_to: ["work-item:0205", "work-item:0208", "work-item:0214"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/72"
 pr_number: 72
-tags: [rust, design, playwright, launcher, release-pipeline, tree-artifacts, distribution]
+tags: ["rust", "design", "playwright", "launcher", "release-pipeline", "tree-artifacts", "distribution"]
 revision: "b2f869a39e24c026bf017a3979ef1788052de903"
 repository: "accelerator"
 last_updated: "2026-08-21T14:24:50+00:00"

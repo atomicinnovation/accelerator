@@ -1,15 +1,15 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-05-0169-vcs-subdomain-and-hooks-migration-review-1"
 title: "Plan Review: VCS Subdomain and Hooks Migration Implementation Plan"
 date: "2026-08-05T16:27:45+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, compatibility, performance]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "compatibility", "performance"]
 review_number: 1
 review_pass: 3
 tags: []

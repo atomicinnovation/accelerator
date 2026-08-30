@@ -1,20 +1,20 @@
 ---
 date: "2026-04-19T00:00:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-19-ticket-creation-skills"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, correctness, test-coverage, standards, usability, safety]
+verdict: "COMMENT"
+lenses: ["architecture", "correctness", "test-coverage", "standards", "usability", "safety"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-19-ticket-creation-skills-review-1"
 title: "2026-04-19-ticket-creation-skills-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-19T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Ticket Creation Skills (Phase 2)

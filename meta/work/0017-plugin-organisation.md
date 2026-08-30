@@ -1,18 +1,18 @@
 ---
 title: "Plugin organisation: two-commit strategy and four skill groups"
-kind: task
-status: draft
-type: work-item
+kind: "task"
+status: "draft"
+type: "work-item"
 id: "0017"
 date: "2026-05-24T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "plan:2026-03-14-plugin-extraction"
-external_id: PP-39
+external_id: "PP-39"
 ---
 
 # ADR Ticket: Plugin organisation: two-commit strategy and four skill groups

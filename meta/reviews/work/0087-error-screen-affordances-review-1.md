@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0087-error-screen-affordances-review-1"
 title: "Work Item Review: 404 / Error Screen with Affordances"
 date: "2026-06-12T16:09:02+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0087"
 relates_to: ["work-item:0054"]
 work_item_id: "0087"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 tags: []
 last_updated: "2026-06-12T16:46:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

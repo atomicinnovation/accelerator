@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0113"
 title: "Derive the Config Dump's Template Rows From the Templates Directory"
 date: "2026-06-17T11:39:08+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "low"
 relates_to: ["work-item:0096", "work-item:0029", "work-item:0067", "codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
-tags: [templates, configure, config-dump]
+tags: ["templates", "configure", "config-dump"]
 last_updated: "2026-06-17T11:39:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-135
+external_id: "PP-135"
 ---
 
 # 0113: Derive the Config Dump's Template Rows From the Templates Directory

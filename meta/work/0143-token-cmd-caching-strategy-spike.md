@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0143"
 title: "Caching Strategy for token_cmd Skills"
 date: "2026-06-22T23:41:03+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: draft
-kind: spike
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "spike"
+priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 tags: []
 last_updated: "2026-06-22T23:41:03+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-164
+external_id: "PP-164"
 ---
 
 # 0143: Caching Strategy for token_cmd Skills

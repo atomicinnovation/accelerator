@@ -1,15 +1,15 @@
 ---
 date: "2026-05-05T00:46:40+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "3e96e9c5e616a93f42a7b1496c8c6e0b72092b9b"
-repository: accelerator
+repository: "accelerator"
 topic: "Consolidating Accelerator-owned files under .accelerator/ (work item 0031)"
-tags: [research, codebase, configuration, migration, init, init-jira, visualiser, paths, integrations]
-status: complete
+tags: ["research", "codebase", "configuration", "migration", "init", "init-jira", "visualiser", "paths", "integrations"]
+status: "complete"
 last_updated: "2026-05-05T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Resolved all seven open questions via Q1-Q7 review."
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-05-0031-consolidate-accelerator-owned-files"
 title: "Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)"
 schema_version: 1

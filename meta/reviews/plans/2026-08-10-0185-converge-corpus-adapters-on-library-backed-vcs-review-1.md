@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs-review-1"
 title: "Plan Review: Converge corpus-adapters on the Library-Backed VCS Adapter Implementation Plan"
 date: "2026-08-10T16:06:48+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
 target: "plan:2026-08-10-0185-converge-corpus-adapters-on-library-backed-vcs"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, compatibility]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "compatibility"]
 review_number: 1
 review_pass: 4
 tags: []
 last_updated: "2026-08-10T16:52:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

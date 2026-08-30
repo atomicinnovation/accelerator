@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-06-0165-multi-binary-distribution-and-release-pipeline"
 title: "Multi-Binary Static Distribution and Release Pipeline with minisign Implementation Plan"
 date: "2026-07-06T00:32:26+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0165"
 parent: "work-item:0165"
 derived_from: ["codebase-research:2026-07-06-0165-multi-binary-distribution-release-pipeline"]
 relates_to: ["work-item:0164", "work-item:0168"]
-tags: [rust, distribution, release, cross-compile, minisign]
+tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 revision: "d8e9c6eb30fa112f43efaa9c288a6245f76e7613"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-07-06T11:01:16+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

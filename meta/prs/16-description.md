@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "16"
 title: "[0178] Add config crates"
 date: "2026-07-09T18:25:01+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0178"
 parent: "work-item:0178"
 relates_to: ["work-item:0166"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/16"
 pr_number: 16
-tags: [rust, config, crates, yaml, catalogue]
+tags: ["rust", "config", "crates", "yaml", "catalogue"]
 revision: "e4ee2c163a9ab4ad785e50d49d545235e790e453"
 repository: "accelerator"
 last_updated: "2026-07-10T12:09:58+00:00"

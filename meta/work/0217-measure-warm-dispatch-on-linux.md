@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0217"
 title: "Measure warm dispatch on linux"
 date: "2026-08-17T20:36:49+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: draft
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "draft"
+kind: "task"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:0189"]
-tags: [cli, launcher, performance, measurement]
+tags: ["cli", "launcher", "performance", "measurement"]
 last_updated: "2026-08-17T20:36:49+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-746
+external_id: "PP-746"
 ---
 
 # 0217: Measure warm dispatch on linux

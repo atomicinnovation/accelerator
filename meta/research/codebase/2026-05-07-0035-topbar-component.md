@@ -1,14 +1,14 @@
 ---
 date: "2026-05-07T23:33:16+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "e5f283acf73ac13bc9806e9d8ab6055aba929dca"
-repository: accelerator
+repository: "accelerator"
 topic: "Implementation of work item 0035 — Topbar Component"
-tags: [research, codebase, topbar, root-layout, sse, breadcrumbs, tanstack-router, design-tokens]
-status: complete
+tags: ["research", "codebase", "topbar", "root-layout", "sse", "breadcrumbs", "tanstack-router", "design-tokens"]
+status: "complete"
 last_updated: "2026-05-07T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-07-0035-topbar-component"
 title: "Research: Implementation of work item 0035 — Topbar Component"
 schema_version: 1

@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0119-resume-safe-partial-migration-failure-review-1"
 title: "Work Item Review: Resume-Safe Partial Migration Failure"
 date: "2026-06-19T23:55:54+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0115"
 target: "work-item:0119"
 work_item_id: "0119"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [migrate, interactive-migration, agent-invocation]
+tags: ["migrate", "interactive-migration", "agent-invocation"]
 last_updated: "2026-06-20T00:36:16+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

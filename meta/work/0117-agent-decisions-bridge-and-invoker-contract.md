@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0117"
 title: "Agent-Decisions Bridge and Documented Invoker Contract"
 date: "2026-06-19T23:13:17+00:00"
-author: Toby Clemson
-producer: refine-work-item
-status: done
-kind: task
-priority: high
+author: "Toby Clemson"
+producer: "refine-work-item"
+status: "done"
+kind: "task"
+priority: "high"
 parent: "work-item:0115"
 relates_to: ["work-item:0069", "work-item:0092", "work-item:0116", "work-item:0118", "work-item:0119"]
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-22T21:46:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-139
+external_id: "PP-139"
 ---
 
 # 0117: Agent-Decisions Bridge and Documented Invoker Contract

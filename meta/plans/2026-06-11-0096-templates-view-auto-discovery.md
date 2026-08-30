@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-11-0096-templates-view-auto-discovery"
 title: "Templates View Auto-Discovers Available Templates Implementation Plan"
 date: "2026-06-11T15:24:40+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0096"
 parent: "work-item:0096"
 derived_from: ["codebase-research:2026-06-11-0096-templates-view-auto-discovery"]
 relates_to: ["work-item:0042", "work-item:0089", "work-item:0029", "work-item:0037"]
-tags: [visualiser, templates, write-visualiser-config, config-generation]
+tags: ["visualiser", "templates", "write-visualiser-config", "config-generation"]
 revision: "5db2e80bebd0a75326aa12b8849020591402bfae"
 repository: "visualisation-system"
 last_updated: "2026-06-12T09:25:43+00:00"

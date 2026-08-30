@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-10-0177-documentation-site-for-docs-tree"
 title: "Documentation Site for the docs/ Tree Implementation Plan"
 date: "2026-07-10T14:08:31+00:00"
-author: Phil Helm
-producer: create-plan
-status: done
+author: "Phil Helm"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0177"
 parent: "work-item:0177"
 derived_from: ["codebase-research:2026-07-10-0177-documentation-site-for-docs-tree"]
 relates_to: ["adr:ADR-0056"]
-tags: [docs, starlight, github-pages, mise, ci]
+tags: ["docs", "starlight", "github-pages", "mise", "ci"]
 revision: "012ec6fb8934c494ab3b9ecbc606df342273189a"
 repository: "barcelona"
 last_updated: "2026-07-23T00:00:00+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

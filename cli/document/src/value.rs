@@ -168,10 +168,11 @@ impl Serialize for Yaml {
                 serializer.serialize_i64(*value)
             }
             Self::Scalar(Scalar::Float(value)) => {
-                serializer.serialize_f64(*value)
+                serde_saphyr::DoubleQuoted(value.to_string())
+                    .serialize(serializer)
             }
             Self::Scalar(Scalar::String(value)) => {
-                serializer.serialize_str(value)
+                serde_saphyr::DoubleQuoted(value).serialize(serializer)
             }
             Self::Sequence(items) => {
                 serde_saphyr::FlowSeq(items).serialize(serializer)

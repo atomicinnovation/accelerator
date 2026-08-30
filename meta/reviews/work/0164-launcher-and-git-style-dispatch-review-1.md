@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0164-launcher-and-git-style-dispatch-review-1"
 title: "Work Item Review: Launcher and Git-Style Dispatch"
 date: "2026-07-03T12:18:42+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0164"
 work_item_id: "0164"
-reviewer: Toby Clemson
-verdict: REVISE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "REVISE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-07-03T13:40:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

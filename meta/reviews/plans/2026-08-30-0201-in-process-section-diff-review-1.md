@@ -1,15 +1,15 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-30-0201-in-process-section-diff-review-1"
 title: "Plan Review: In-Process Section Diff"
 date: "2026-08-30T15:04:32+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-30-0201-in-process-section-diff"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, compatibility, standards]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "compatibility", "standards"]
 review_number: 1
 review_pass: 2
 tags: []

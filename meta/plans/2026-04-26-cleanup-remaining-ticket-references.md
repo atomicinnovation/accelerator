@@ -1,15 +1,15 @@
 ---
 date: "2026-04-26T00:00:00+01:00"
-type: plan
-producer: create-plan
-status: done
+type: "plan"
+producer: "create-plan"
+status: "done"
 id: "2026-04-26-cleanup-remaining-ticket-references"
 title: "Cleanup Remaining Ticket References Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-26T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-26-remaining-ticket-references-post-migration", "plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0022"]

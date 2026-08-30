@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-11-0106-invoke-plugin-scripts-by-bare-path-validation"
 title: "Validation Report: Invoke Plugin Scripts by Bare Path in Skill Bodies"
 date: "2026-06-11T19:33:35+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 target: "plan:2026-06-11-0106-invoke-plugin-scripts-by-bare-path"
 relates_to: ["work-item:0106", "work-item:0107"]
-tags: [permissions, allowed-tools, skills, plugin, authoring-convention]
+tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 last_updated: "2026-06-11T19:33:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

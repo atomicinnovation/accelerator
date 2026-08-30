@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0108-local-docker-visual-regression-baselines-review-1"
 title: "Work Item Review: Local Docker-Based Visual Regression Baseline Generation"
 date: "2026-06-12T09:52:06+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0108"
 work_item_id: "0108"
-reviewer: Toby Clemson
-verdict: APPROVE
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 5
 tags: ["visual-regression", "testing", "ci", "docker"]
 last_updated: "2026-06-12T11:10:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,16 +1,15 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0063"
 title: "Plugin-Version-Scoped Artifact Cache"
 date: "2026-08-17T12:21:50+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0061", "adr:ADR-0062",
-  "work-item:0196", "work-item:0214"]
-tags: [architecture, distribution, cache, launcher, plugin, design]
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0061", "adr:ADR-0062", "work-item:0196", "work-item:0214"]
+tags: ["architecture", "distribution", "cache", "launcher", "plugin", "design"]
 last_updated: "2026-08-17T12:21:50+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

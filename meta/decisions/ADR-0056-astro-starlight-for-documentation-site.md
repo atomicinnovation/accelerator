@@ -1,15 +1,15 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0056"
 title: "Astro Starlight for the Documentation Site"
 date: "2026-07-10T13:05:52+00:00"
-author: Phil Helm
-producer: create-adr
-status: accepted
+author: "Phil Helm"
+producer: "create-adr"
+status: "accepted"
 parent: "work-item:0177"
-tags: [documentation, tooling]
+tags: ["documentation", "tooling"]
 last_updated: "2026-07-10T13:05:52+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

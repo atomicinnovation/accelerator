@@ -1,16 +1,16 @@
 ---
 date: "2026-05-08T22:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0046"
-status: done
+status: "done"
 id: "2026-05-08-0046-work-management-system-configuration"
 title: "0046 Work Management System Configuration — Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-08T22:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 parent: "work-item:0046"

@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-11-0085-humanise-detail-page-h1"
 title: "Humanise Detail-Page H1 Across All Doc Kinds Implementation Plan"
 date: "2026-06-11T13:14:35+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0085"
 parent: "work-item:0085"
 derived_from: ["codebase-research:2026-06-11-0085-humanise-detail-page-h1"]
-tags: [backend, detail-page, indexer, frontmatter, humanise-slug]
+tags: ["backend", "detail-page", "indexer", "frontmatter", "humanise-slug"]
 revision: "520427700dfc40e685bf46b0dedc8119947bcea4"
-repository: ticket-management
+repository: "ticket-management"
 last_updated: "2026-06-11T16:46:05+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

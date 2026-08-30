@@ -52,7 +52,7 @@ fn insert_writes_the_scalar_and_leaves_everything_else_byte_identical(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let fixture =
-        "---\ntitle: Test\nstatus: draft\npriority: medium\n---\nbody\n";
+        "---\ntitle: \"Test\"\nstatus: \"draft\"\npriority: \"medium\"\n---\nbody\n";
     let path = write_fixture(repo.path(), "f1.md", fixture)?;
 
     let output =
@@ -64,7 +64,7 @@ fn insert_writes_the_scalar_and_leaves_everything_else_byte_identical(
         external_id(&content)?,
         Some(Yaml::Scalar(Scalar::String("PP-195".to_owned())))
     );
-    let without = content.replace("external_id: PP-195\n", "");
+    let without = content.replace("external_id: \"PP-195\"\n", "");
     assert_eq!(
         without, fixture,
         "only the external_id scalar should differ from the original"
@@ -76,7 +76,7 @@ fn insert_writes_the_scalar_and_leaves_everything_else_byte_identical(
 fn overwrite_replaces_an_existing_external_id_only() -> Result<(), TestError> {
     let repo = scratch_repo()?;
     let fixture =
-        "---\ntitle: Test\nexternal_id: OLD-1\nstatus: draft\n---\nbody\n";
+        "---\ntitle: \"Test\"\nexternal_id: \"OLD-1\"\nstatus: \"draft\"\n---\nbody\n";
     let path = write_fixture(repo.path(), "f1.md", fixture)?;
 
     let output =
@@ -88,8 +88,8 @@ fn overwrite_replaces_an_existing_external_id_only() -> Result<(), TestError> {
         external_id(&content)?,
         Some(Yaml::Scalar(Scalar::String("PP-195".to_owned())))
     );
-    let restored =
-        content.replace("external_id: PP-195\n", "external_id: OLD-1\n");
+    let restored = content
+        .replace("external_id: \"PP-195\"\n", "external_id: \"OLD-1\"\n");
     assert_eq!(
         restored, fixture,
         "only the external_id value should differ from the original"

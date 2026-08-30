@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-03-0188-library-backed-vcs-adapter-validation"
 title: "Validation Report: Library-Backed VCS Adapter over gix and jj-lib"
 date: "2026-08-03T18:05:57+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "work-item:0188"
 target: "plan:2026-08-03-0188-library-backed-vcs-adapter"
-tags: [rust, vcs, dependencies, gix, jj-lib]
+tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 last_updated: "2026-08-03T18:05:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

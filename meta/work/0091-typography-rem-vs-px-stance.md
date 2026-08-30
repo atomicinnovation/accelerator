@@ -2,17 +2,17 @@
 id: "0091"
 title: "Typography rem-vs-px stance review"
 date: "2026-05-23T16:30:00+00:00"
-author: Toby Clemson
-kind: spike
-status: ready
-priority: low
-tags: [design, frontend, tokens, typography, accessibility]
-type: work-item
+author: "Toby Clemson"
+kind: "spike"
+status: "ready"
+priority: "low"
+tags: ["design", "frontend", "tokens", "typography", "accessibility"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-12T22:08:58+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["adr:ADR-0036", "work-item:0033", "work-item:0075", "work-item:0090", "work-item:0099", "plan:2026-05-23-0075-typography-size-scale-consumption"]
-external_id: PP-113
+external_id: "PP-113"
 ---
 
 # 0091: Typography rem-vs-px stance review

@@ -9,6 +9,7 @@ argument-hint: "[path to ADR] [--deprecate reason]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Review Architecture Decision Record
@@ -204,6 +205,15 @@ Wait for the user's decision.
 1. Make the suggested improvements to the ADR content
 2. Present the updated ADR for another round of review
 3. Return to Step 2
+
+**Validate the frontmatter**: after writing the status transition, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <adr-path>
+```
+
+If it exits non-zero, the ADR violates the canonical frontmatter standard;
+report the emitted violation and fix the frontmatter before completing.
 
 ### For Accepted ADRs — Deprecation Only
 

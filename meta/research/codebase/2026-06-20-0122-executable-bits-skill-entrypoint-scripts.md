@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-20-0122-executable-bits-skill-entrypoint-scripts"
 title: "Research: Executable-bit audit and a library-list guard for skill entrypoint scripts (0122)"
 date: "2026-06-20T16:43:31+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0122"
 parent: "work-item:0122"
 relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]
 topic: "Audit and correct missing executable bits on skill entrypoint scripts; library-list guard"
-tags: [research, codebase, scripts, permissions, executable-bit, lint, shell, ci]
+tags: ["research", "codebase", "scripts", "permissions", "executable-bit", "lint", "shell", "ci"]
 revision: "aa8c4ad505f7a69d44aab9df13ce5b8295122d56"
 repository: "build-system"
 last_updated: "2026-06-20T16:43:31+00:00"

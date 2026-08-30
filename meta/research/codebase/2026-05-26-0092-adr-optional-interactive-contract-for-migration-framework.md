@@ -1,14 +1,14 @@
 ---
 date: "2026-05-26T14:58:00+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "0f16c47c1f7cadb49bb69b320d94c7b36565c4d9"
-repository: accelerator
+repository: "accelerator"
 topic: "ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
-tags: [research, codebase, adr, migration, framework, interactive-hooks, adr-0023, adr-0030, adr-0031, accelerator-plugin]
-status: complete
+tags: ["research", "codebase", "adr", "migration", "framework", "interactive-hooks", "adr-0023", "adr-0030", "adr-0031", "accelerator-plugin"]
+status: "complete"
 last_updated: "2026-05-26T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"
 title: "Research: ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
 schema_version: 1

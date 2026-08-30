@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-28-0174-empty-scripts-and-retire-shell-tooling"
 title: "Research: Empty scripts/ and retire shell tooling and CI guards (0174)"
 date: "2026-08-28T00:37:08+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0174"
 parent: "work-item:0174"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Empty scripts/ and retire shell tooling and CI guards"
-tags: [research, codebase, shell, tooling, ci, cleanup, scripts, bashisms]
+tags: ["research", "codebase", "shell", "tooling", "ci", "cleanup", "scripts", "bashisms"]
 revision: "85f919af11c86a39fed31374591796d812713002"
 repository: "accelerator"
 last_updated: "2026-08-28T00:37:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

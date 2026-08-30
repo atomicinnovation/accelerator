@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0198"
 title: "Migrate vcs status/log off subprocess onto library-backed adapters"
 date: "2026-08-06T00:00:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0169", "work-item:0125"]
 derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
-tags: [rust, vcs, cli, performance]
+tags: ["rust", "vcs", "cli", "performance"]
 last_updated: "2026-08-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-728
+external_id: "PP-728"
 ---
 
 # 0198: Migrate vcs status/log off subprocess onto library-backed adapters

@@ -1,10 +1,10 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-29-0175-slim-readme-split-docs-tree"
 title: "Slim the README and split content into a docs/ tree (0175)"
 date: "2026-06-29T13:04:39+00:00"
 author: "Phil Helm"
-tags: [readme, docs, documentation, information-architecture]
+tags: ["readme", "docs", "documentation", "information-architecture"]
 revision: "a78e30e55a553b280a4c72de4de223144dbe41e0"
 repository: "accelerator"
 last_updated: "2026-06-29T13:04:39+00:00"

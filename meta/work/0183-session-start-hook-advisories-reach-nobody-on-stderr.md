@@ -1,25 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0183"
 title: "SessionStart hook advisories written to stderr at exit 0 reach nobody"
 date: "2026-07-28T09:14:02+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: abandoned
-kind: bug
-priority: low
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "abandoned"
+kind: "bug"
+priority: "low"
 relates_to: ["work-item:0182", "work-item:0172"]
-tags: [bug, hooks, session-start, diagnostics]
+tags: ["bug", "hooks", "session-start", "diagnostics"]
 last_updated: "2026-08-08T00:00:00+00:00"
-last_updated_by: Toby Clemson
-last_updated_note: "Abandoned: work-item:0172 Phase 7 absorbed this item's
-  contract directly. The migrate-discoverability advisory now goes through
-  kernel::hooks::session_start's systemMessage field
-  (cli/migrate-cli/src/discoverability.rs), the same mechanism this item's
-  own Dependencies amendment already pointed to for vcs-detect/config-summary.
-  No separate audit-and-fix pass is needed for this one remaining site."
+last_updated_by: "Toby Clemson"
+last_updated_note: "Abandoned: work-item:0172 Phase 7 absorbed this item's contract directly. The migrate-discoverability advisory now goes through kernel::hooks::session_start's systemMessage field (cli/migrate-cli/src/discoverability.rs), the same mechanism this item's own Dependencies amendment already pointed to for vcs-detect/config-summary. No separate audit-and-fix pass is needed for this one remaining site."
 schema_version: 1
-external_id: PP-713
+external_id: "PP-713"
 ---
 
 # 0183: SessionStart hook advisories written to stderr at exit 0 reach nobody

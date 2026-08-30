@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "81"
 title: "Batch the bootstrap's two shim hashes into one sha256 invocation"
 date: "2026-08-24T23:03:59+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0191"
 parent: "work-item:0191"
 relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:0169"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/81"
 pr_number: 81
-tags: [shell, performance, bootstrap, bash-3.2, sha256]
+tags: ["shell", "performance", "bootstrap", "bash-3.2", "sha256"]
 revision: "1f6fa3a5ebfb81426f6885b79f997d17eb63e29c"
 repository: "accelerator"
 last_updated: "2026-08-24T23:03:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

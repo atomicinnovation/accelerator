@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "78"
 title: "[0211] Migrate the Jira integration to accelerator-jira and retire its bash cluster"
 date: "2026-08-23T22:54:57+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 relates_to: ["work-item:0171", "work-item:0210", "work-item:0212"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/78"
 pr_number: 78
-tags: [rust, jira, integrations, cli, cutover, exit-codes, registration]
+tags: ["rust", "jira", "integrations", "cli", "cutover", "exit-codes", "registration"]
 revision: "fa463fdd19e2e8b6dddd0b63fff7f54a8d76b8ae"
 repository: "accelerator"
 last_updated: "2026-08-24T00:00:00+00:00"

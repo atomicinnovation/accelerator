@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-23-0120-prevention-tests-agent-invocation-path"
 title: "Research: Prevention Tests for the Agent-Invocation Path (0120)"
 date: "2026-06-23T00:15:59+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0120"
 parent: "work-item:0120"
 topic: "Prevention tests for the agent-invocation path: the no-input interactive stall and the 0007 backfill-vs-validator cross-check"
-tags: [research, codebase, migrate, interactive-migration, agent-invocation, testing, 0007, validation]
+tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "testing", "0007", "validation"]
 revision: "4f4dd27e6594f14c37936a49e138202c0518364b"
 repository: "accelerator"
 last_updated: "2026-06-23T00:15:59+00:00"

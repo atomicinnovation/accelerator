@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms-review-1"
 title: "Plan Review: Remove Visualiser-Server Legacy Linkage Fallback Arms"
 date: "2026-06-15T23:19:55+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, safety, compatibility, standards]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "compatibility", "standards"]
 review_number: 1
 review_pass: 2
-tags: [migration, visualiser, frontmatter, linkage, cleanup, contract]
+tags: ["migration", "visualiser", "frontmatter", "linkage", "cleanup", "contract"]
 last_updated: "2026-06-16T07:19:46+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

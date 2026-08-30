@@ -3,7 +3,8 @@
 Ports the validator-driving half of the retired shell conformance guard. For
 each frontmatter-emitting SKILL.md it extracts the hard-coded literals, derives
 the enforced attribute set
-from `templates-schema.tsv` and `frontmatter_rules`, and runs `accelerator
+from `templates-schema.tsv` and the Rust schema banks (via `frontmatter
+print-schema`), and runs `accelerator
 corpus frontmatter validate` over a synthesised fixture — asserting acceptance,
 plus a per-axis negative self-test proving the guard is wired.
 
@@ -13,14 +14,14 @@ it via `build:cli:dev`). This lane fails rather than skips when the launcher is
 absent: a skipped conformance guard is indistinguishable from a passing one.
 """
 
+import functools
+import json
 import os
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
-
-from tasks.lint import frontmatter_rules as fr
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_TSV = (
@@ -66,6 +67,33 @@ def _launcher() -> str:
     return os.environ.get(
         "ACCELERATOR_BIN", str(REPO_ROOT / "cli/target/debug/accelerator")
     )
+
+
+@functools.cache
+def _schema_banks() -> dict[str, tuple[str, ...]]:
+    """The three cross-cutting schema banks, sourced from the one Rust
+    definition via `accelerator corpus frontmatter print-schema` rather than a
+    hand-synced Python copy."""
+    proc = subprocess.run(
+        [_launcher(), "corpus", "frontmatter", "print-schema"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=True,
+    )
+    return {key: tuple(value) for key, value in json.loads(proc.stdout).items()}
+
+
+def _base_fields() -> tuple[str, ...]:
+    return tuple(_schema_banks()["base_fields"])
+
+
+def _provenance_fields() -> tuple[str, ...]:
+    return tuple(_schema_banks()["provenance_fields"])
+
+
+def _optional_extras() -> frozenset[str]:
+    return frozenset(_schema_banks()["optional_extras"])
 
 
 def _schema() -> dict[str, dict[str, str]]:
@@ -182,22 +210,22 @@ def _emit_valid(
     status = "".join(vocab.split("|", maxsplit=1)[0].split())
     lines = [
         "---",
-        f"type: {type_}",
+        f'type: "{type_}"',
         f'id: "{id_}"',
         f'title: "Fixture {type_}"',
         'date: "2026-01-01T00:00:00+00:00"',
-        "author: Fixture Author",
-        "producer: fixture",
-        f"status: {status}",
+        'author: "Fixture Author"',
+        'producer: "fixture"',
+        f'status: "{status}"',
         "tags: []",
         'last_updated: "2026-01-01T00:00:00+00:00"',
-        "last_updated_by: Fixture Author",
+        'last_updated_by: "Fixture Author"',
         "schema_version: 1",
     ]
     lines.extend(
         f'{extra}: "x"'
         for extra in extras.split()
-        if extra not in fr.OPTIONAL_EXTRAS
+        if extra not in _optional_extras()
     )
     if anchored == "yes":
         lines.append('revision: "abc123"')
@@ -284,12 +312,12 @@ def test_full_block_emitter_conforms(skill: str, tmp_path: Path) -> None:
         "producer",
         "schema_version",
     }
-    enforced = set(fr.BASE_FIELDS) | {"status"} | set(row["linkkeys"].split())
+    enforced = set(_base_fields()) | {"status"} | set(row["linkkeys"].split())
     enforced |= {
-        e for e in row["extras"].split() if e not in fr.OPTIONAL_EXTRAS
+        e for e in row["extras"].split() if e not in _optional_extras()
     }
     if row["anchored"] == "yes":
-        enforced |= set(fr.PROVENANCE_FIELDS)
+        enforced |= set(_provenance_fields())
     missing = sorted(enforced - covered)
     assert not missing, f"{skill} ({type_}): composed emission misses {missing}"
 
@@ -411,7 +439,7 @@ def test_conditional_axis_omit_when_empty(tmp_path: Path) -> None:
 
 
 _MUTATIONS = [
-    ("type", "INVALID-TYPE", r"^type: work-item$", "type: nonsense"),
+    ("type", "INVALID-TYPE", r'^type: "work-item"$', 'type: "nonsense"'),
     ("status", "BAD-STATUS", r"^status: .*", "status: bogus"),
     ("extra", "MISSING-EXTRA", r"^kind: .*", None),
     (
@@ -445,7 +473,7 @@ def test_negative_self_test_axis(
 
 
 def test_contract_is_sourced_not_reencoded() -> None:
-    # The enforced set derives from templates-schema.tsv and frontmatter_rules
+    # Enforced set: from templates-schema.tsv and the Rust schema banks
     # rather than being hard-coded here.
     assert SCHEMA, "templates-schema.tsv yielded no rows"
-    assert fr.BASE_FIELDS, "frontmatter_rules.BASE_FIELDS is empty"
+    assert _base_fields(), "print-schema base_fields bank is empty"

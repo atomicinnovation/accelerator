@@ -1,13 +1,13 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-14-release-concurrency-approval-gate-split"
 title: "Release Concurrency Approval-Gate Split Implementation Plan"
 date: "2026-06-14T12:02:57+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 derived_from: ["issue-research:2026-06-14-release-concurrency-group-blocks-prereleases"]
-tags: [ci, github-actions, release, concurrency]
+tags: ["ci", "github-actions", "release", "concurrency"]
 revision: "f4da84e73fa4cafea1ef809ad8239b9278361550"
 repository: "miscellaneous"
 last_updated: "2026-06-14T13:50:26+00:00"

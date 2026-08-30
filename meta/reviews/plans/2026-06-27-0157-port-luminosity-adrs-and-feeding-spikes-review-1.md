@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-27-0157-port-luminosity-adrs-and-feeding-spikes-review-1"
 title: "Plan Review: Port Luminosity ADRs and Feeding Spikes"
 date: "2026-06-27T12:37:11+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-27-0157-port-luminosity-adrs-and-feeding-spikes"
 parent: "plan:2026-06-27-0157-port-luminosity-adrs-and-feeding-spikes"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, documentation, safety, standards, architecture, test-coverage]
+lenses: ["correctness", "documentation", "safety", "standards", "architecture", "test-coverage"]
 review_number: 1
 review_pass: 2
-tags: [adr, decisions, porting, luminosity, supersession]
+tags: ["adr", "decisions", "porting", "luminosity", "supersession"]
 last_updated: "2026-06-27T14:45:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

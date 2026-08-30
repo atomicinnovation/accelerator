@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-12-0087-error-screen-affordances-validation"
 title: "Validation Report: 404 / Error Screen with Affordances Implementation Plan"
 date: "2026-06-13T08:06:59+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-12-0087-error-screen-affordances"
 target: "plan:2026-06-12-0087-error-screen-affordances"
-tags: [design, frontend, error-states, routing, search, suggestions]
+tags: ["design", "frontend", "error-states", "routing", "search", "suggestions"]
 last_updated: "2026-06-13T08:06:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

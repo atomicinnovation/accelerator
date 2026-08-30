@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "32"
 title: "Ignore build output under the stale visualiser location"
 date: "2026-08-01T13:18:04+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0168"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/32"
 pr_number: 32
-tags: [build, visualiser, jj, gitignore, hygiene]
+tags: ["build", "visualiser", "jj", "gitignore", "hygiene"]
 revision: "0e08537ac2f797c65904a6a337cd48b8979ba4f0"
 repository: "accelerator"
 last_updated: "2026-08-01T13:18:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

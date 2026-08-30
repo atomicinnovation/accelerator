@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-02-0163-cli-workspace-version-subcommand-scaffold"
 title: "Research: Scaffolding the cli/ Hexagonal Workspace with a version Subcommand (0163)"
 date: "2026-07-02T22:44:46+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0163"
 parent: "work-item:0163"
 topic: "Scaffolding the cli/ hexagonal workspace with a version subcommand"
-tags: [research, codebase, rust, cli, hexagonal, version, vergen, cargo-pup, kernel]
+tags: ["research", "codebase", "rust", "cli", "hexagonal", "version", "vergen", "cargo-pup", "kernel"]
 revision: "66168546461febe7a502fb44117ff16d4837c03a"
 repository: "accelerator"
 last_updated: "2026-07-02T22:44:46+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,14 +1,14 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-02-0090-radius-tokens-consumption-validation"
 title: "Validation Report: Radius Tokens Consumption Implementation Plan"
 date: "2026-06-04T00:00:00+01:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
-result: pass
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-02-0090-radius-tokens-consumption"
-tags: [design, frontend, tokens, radius]
+tags: ["design", "frontend", "tokens", "radius"]
 last_updated: "2026-06-04T00:00:00+01:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

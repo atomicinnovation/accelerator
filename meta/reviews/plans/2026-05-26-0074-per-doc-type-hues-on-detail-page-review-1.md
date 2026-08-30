@@ -1,20 +1,20 @@
 ---
 date: "2026-05-26T18:30:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-26-0074-per-doc-type-hues-on-detail-page"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability"]
 review_pass: 6
-status: complete
+status: "complete"
 id: "2026-05-26-0074-per-doc-type-hues-on-detail-page-review-1"
 title: "2026-05-26-0074-per-doc-type-hues-on-detail-page-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-26T18:30:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: 0074 — Per-Doc-Type Hues on Detail Page

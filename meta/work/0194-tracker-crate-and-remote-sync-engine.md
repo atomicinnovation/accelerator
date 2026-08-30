@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0194"
 title: "Tracker Crate and Remote Sync Engine"
 date: "2026-08-05T18:18:52+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0170", "work-item:0174"]
-tags: [rust, work-items, sync, tracker]
+tags: ["rust", "work-items", "sync", "tracker"]
 last_updated: "2026-08-13T12:20:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-724
+external_id: "PP-724"
 ---
 
 # 0194: Tracker Crate and Remote Sync Engine

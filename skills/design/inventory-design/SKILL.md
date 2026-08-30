@@ -12,6 +12,7 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Inventory Design
@@ -305,6 +306,16 @@ the just-written directory. For each remaining directory where `inventory.md` ha
 `status: draft` or `status: accepted`, set `status: superseded`. This step is
 idempotent; if it fails partway through, the new directory is already
 authoritative (the resolver uses `sequence` as its primary tiebreaker).
+
+**Validate the frontmatter**: after the inventory is at its final path, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <design_inventories>/YYYY-MM-DD-HHMMSS-{source-id}/inventory.md
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ### 12. Cleanup
 

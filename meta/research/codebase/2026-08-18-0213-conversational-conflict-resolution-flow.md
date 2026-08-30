@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-18-0213-conversational-conflict-resolution-flow"
 title: "Research: Implementation ground for 0213's conversational conflict resolution flow"
 date: "2026-08-17T23:16:08+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0213"
 parent: "work-item:0213"
 relates_to: ["codebase-research:2026-08-12-0194-tracker-crate-and-remote-sync-engine", "codebase-research:2026-08-11-0204-remote-tracker-port", "codebase-research:2026-06-18-0051-sync-work-items-skill"]
 topic: "Conversational conflict resolution flow for /sync-work-items"
-tags: [research, codebase, skills, sync, work-items, conflicts, tracker]
+tags: ["research", "codebase", "skills", "sync", "work-items", "conflicts", "tracker"]
 revision: "b8cc72701ab72574d9ef2d761113e0fb4488ead1"
 repository: "accelerator"
 last_updated: "2026-08-19T01:14:08+00:00"

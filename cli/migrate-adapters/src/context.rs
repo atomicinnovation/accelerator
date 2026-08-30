@@ -3,6 +3,7 @@
 //! migration's mutation routes through.
 
 use std::cell::OnceCell;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -239,6 +240,7 @@ impl MigrationContext for FileMigrationContext {
         let checks = corpus_adapters::frontmatter_validation::Checks {
             structure: true,
             references: true,
+            canonical: false,
         };
         let results =
             corpus_adapters::frontmatter_validation::validate_targets(
@@ -260,6 +262,122 @@ impl MigrationContext for FileMigrationContext {
             Err(MigrationError::new(messages.join("\n")))
         }
     }
+
+    fn realign_sync_baseline(
+        &self,
+        pre_migration: &[(PathBuf, String)],
+    ) -> Result<usize, MigrationError> {
+        let Some(relative) =
+            MigrationContext::config_value(self, "paths.integrations")?
+                .filter(|value| !value.is_empty())
+        else {
+            return Ok(0);
+        };
+        let integrations_root = {
+            let path = Path::new(&relative);
+            if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                self.root.join(path)
+            }
+        };
+        if !integrations_root.is_dir() {
+            return Ok(0);
+        }
+
+        let mut by_id: HashMap<String, (&Path, &str)> = HashMap::new();
+        for (path, original) in pre_migration {
+            if let Some(id) = frontmatter_id(original) {
+                by_id.insert(id, (path.as_path(), original.as_str()));
+            }
+        }
+
+        let mut realigned = 0;
+        let entries = fs::read_dir(&integrations_root)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        for entry in entries {
+            let entry = entry
+                .map_err(|error| MigrationError::new(error.to_string()))?;
+            if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                continue;
+            }
+            let integration = entry.file_name();
+            let integration = integration.to_string_lossy();
+            let baseline_path = work_adapters::sync::baseline::path(
+                &integrations_root,
+                &integration,
+            );
+            if baseline_path.exists() {
+                realigned += realign_one_baseline(&baseline_path, &by_id)?;
+            }
+        }
+        Ok(realigned)
+    }
+}
+
+/// The `id` field's stripped value from `content`'s frontmatter, if present.
+fn frontmatter_id(content: &str) -> Option<String> {
+    let (frontmatter, _) =
+        work_adapters::sync::digest::split_frontmatter_and_body(content)
+            .ok()?;
+    let entries = corpus::frontmatter_validation::parse_entries(&frontmatter);
+    let raw = corpus::frontmatter_validation::raw_value(&entries, "id")?;
+    let id = corpus::frontmatter_validation::strip_surrounding_quote(raw);
+    (!id.is_empty()).then(|| id.to_owned())
+}
+
+/// Realigns one integration's baseline: an entry whose pre-migration digest
+/// matched its stored `local_hash` (it was `Synced`) is advanced to the
+/// re-rendered file's digest; a diverged entry (it was `LocallyModified`) is
+/// left untouched so its pending push survives.
+fn realign_one_baseline(
+    baseline_path: &Path,
+    by_id: &HashMap<String, (&Path, &str)>,
+) -> Result<usize, MigrationError> {
+    let reader = corpus_adapters::fs::RealFs;
+    let store_dir = baseline_path.parent().unwrap_or_else(|| Path::new("."));
+    let writer = corpus_adapters::FileCorpusStore::new(store_dir);
+    let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
+        baseline_path.to_path_buf(),
+        &reader,
+        &writer,
+    );
+    let (baseline, _) = store
+        .load()
+        .map_err(|error| MigrationError::new(error.to_string()))?;
+
+    let mut realigned = 0;
+    for (id, &(path, original)) in by_id {
+        let Some(entry) = baseline.get(id) else {
+            continue;
+        };
+        let Ok(pre_hash) = work_adapters::sync::digest::local(original) else {
+            continue;
+        };
+        if pre_hash != entry.local_hash {
+            continue;
+        }
+        let Ok(new_content) = fs::read_to_string(path) else {
+            continue;
+        };
+        let Ok(new_hash) = work_adapters::sync::digest::local(&new_content)
+        else {
+            continue;
+        };
+        if new_hash == entry.local_hash {
+            continue;
+        }
+        let updated = work_adapters::sync::baseline::Entry {
+            local_hash: new_hash,
+            remote_hash: entry.remote_hash.clone(),
+            remote_updated_at: entry.remote_updated_at.clone(),
+        };
+        store
+            .set(id, updated)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        realigned += 1;
+    }
+    Ok(realigned)
 }
 
 /// Recursively collects entries under `dir`. `md_only` selects between

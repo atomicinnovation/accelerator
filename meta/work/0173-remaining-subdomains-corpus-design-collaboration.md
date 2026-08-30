@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0173"
 title: "Remaining Subdomains: corpus, design, collaboration"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: abandoned
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "abandoned"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 relates_to: ["work-item:0195", "work-item:0196", "work-item:0197"]
-tags: [rust, corpus, design, collaboration, subdomains]
+tags: ["rust", "corpus", "design", "collaboration", "subdomains"]
 last_updated: "2026-08-05T19:03:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-194"
 ---

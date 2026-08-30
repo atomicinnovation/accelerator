@@ -1,15 +1,15 @@
 ---
 date: "2026-05-26T15:58:09+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "745a54caf27eb8e5344023cc826231aacda82356"
-change_id: lswwkotttlkmvnxlrymqkqtqtmrkzmwl
-repository: accelerator
+change_id: "lswwkotttlkmvnxlrymqkqtqtmrkzmwl"
+repository: "accelerator"
 topic: "Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084"
-tags: [research, codebase, frontend, visualiser, frontmatter-chips, detail-page, status-badge, frontmatter-table, adr-0033]
-status: complete
+tags: ["research", "codebase", "frontend", "visualiser", "frontmatter-chips", "detail-page", "status-badge", "frontmatter-table", "adr-0033"]
+status: "complete"
 last_updated: "2026-05-26T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-26-0084-detail-page-chip-strip-cap"
 title: "Research: Detail-Page Chip Strip Cap (Status, Date, Author) — codebase landscape for work item 0084"
 schema_version: 1

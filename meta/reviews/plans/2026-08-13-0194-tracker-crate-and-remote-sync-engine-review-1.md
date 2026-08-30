@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-13-0194-tracker-crate-and-remote-sync-engine-review-1"
 title: "Plan Review: Tracker Crate and Remote Sync Engine Implementation Plan"
 date: "2026-08-13T09:02:44+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0194"
 target: "plan:2026-08-13-0194-tracker-crate-and-remote-sync-engine"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, correctness, test-coverage, code-quality, safety, compatibility, usability, standards]
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "safety", "compatibility", "usability", "standards"]
 review_number: 1
 review_pass: 3
-tags: [rust, sync, tracker, work-items, bash-parity]
+tags: ["rust", "sync", "tracker", "work-items", "bash-parity"]
 last_updated: "2026-08-13T12:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

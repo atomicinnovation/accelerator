@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0145"
 title: "Documentation Improvements"
 date: "2026-06-22T23:41:03+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: in-progress
-kind: epic
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "in-progress"
+kind: "epic"
+priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 tags: []
 last_updated: "2026-06-29T13:04:00+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-166
+external_id: "PP-166"
 parent: "work-item:0192"
 ---
 

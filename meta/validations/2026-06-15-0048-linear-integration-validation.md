@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-15-0048-linear-integration-validation"
 title: "Validation Report: Linear Integration Implementation Plan"
 date: "2026-06-15T12:31:26+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-15-0048-linear-integration"
 target: "plan:2026-06-15-0048-linear-integration"
-tags: [work-management, integrations, linear, graphql]
+tags: ["work-management", "integrations", "linear", "graphql"]
 last_updated: "2026-06-15T12:31:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

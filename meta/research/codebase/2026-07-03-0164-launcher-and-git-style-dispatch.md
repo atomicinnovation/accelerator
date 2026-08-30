@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-03-0164-launcher-and-git-style-dispatch"
 title: "Research: Launcher and Git-Style Dispatch (0164)"
 date: "2026-07-03T16:58:28+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0164"
 parent: "work-item:0164"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "Launcher and Git-Style Dispatch"
-tags: [research, codebase, rust, launcher, dispatch, cli, fetch-verify-cache-exec, minisign]
+tags: ["research", "codebase", "rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign"]
 revision: "9b12f6dec3eb8a38831637b01d2966198e9ddcd8"
 repository: "accelerator"
 last_updated: "2026-07-03T16:58:28+00:00"

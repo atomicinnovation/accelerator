@@ -1,18 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
 title: "At-Most-Once Cache-Root Probe Guarantee Implementation Plan"
 date: "2026-08-11T15:57:41+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0189"
 parent: "work-item:0189"
-derived_from:
-  ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
-relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement",
-  "work-item:0169", "work-item:0186"]
-tags: [cli, launcher, bootstrap]
+derived_from: ["codebase-research:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"]
+relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-item:0169", "work-item:0186"]
+tags: ["cli", "launcher", "bootstrap"]
 revision: "9fb90f8a26d91d640cf0f6ab8b272b6039d7bdbd"
 repository: "accelerator"
 last_updated: "2026-08-12T13:43:58+00:00"

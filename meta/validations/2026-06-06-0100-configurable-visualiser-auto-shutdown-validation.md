@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-06-0100-configurable-visualiser-auto-shutdown-validation"
 title: "Validation Report: Configurable Visualiser Auto-Shutdown Implementation Plan"
 date: "2026-06-06T21:19:15+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
-result: pass
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-06-06-0100-configurable-visualiser-auto-shutdown"
 target: "plan:2026-06-06-0100-configurable-visualiser-auto-shutdown"
-tags: [visualiser, server, configuration, lifecycle]
+tags: ["visualiser", "server", "configuration", "lifecycle"]
 last_updated: "2026-06-06T21:19:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

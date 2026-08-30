@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "52"
 title: "Split work-item 0173 into 0195/0196/0197, review each, and mark 0197 ready"
 date: "2026-08-06T01:34:44+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 parent: "work-item:0136"
 relates_to: ["work-item:0173", "work-item:0195", "work-item:0196", "work-item:0197"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/52"
@@ -14,7 +14,7 @@ tags: []
 revision: "da56e1204b087db48d4da7e48193cae002465c1b"
 repository: "accelerator"
 last_updated: "2026-08-06T01:34:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

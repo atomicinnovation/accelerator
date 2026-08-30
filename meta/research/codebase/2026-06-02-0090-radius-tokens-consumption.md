@@ -1,14 +1,14 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-02-0090-radius-tokens-consumption"
 title: "Research: Radius Tokens Consumption (0090) — current-app radius inventory and migration context"
 date: "2026-06-02T15:45:49+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0090"
 topic: "Full current-app border-radius inventory, pre-migration computed values, EXCEPTIONS cleanup scope, ADR + gate + Playwright-spec context for radius token consumption"
-tags: [research, codebase, visualiser, frontend, css, design-tokens, radius]
+tags: ["research", "codebase", "visualiser", "frontend", "css", "design-tokens", "radius"]
 revision: "ed3be5b886672d63f708b91cd5baa70dba792430"
 repository: "visualisation-system"
 last_updated: "2026-06-02T15:45:49+00:00"

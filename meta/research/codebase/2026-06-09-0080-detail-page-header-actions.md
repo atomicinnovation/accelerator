@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-09-0080-detail-page-header-actions"
 title: "Research: Detail-Page Header Actions (Open in Editor, Copy Path) — story 0080"
 date: "2026-06-09T19:08:54+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0080"
 parent: "work-item:0080"
 topic: "Detail-page header actions: Open in editor and Copy path for LibraryDocView"
-tags: [research, codebase, visualiser, detail-page, config, editor-deeplink, clipboard, toaster]
+tags: ["research", "codebase", "visualiser", "detail-page", "config", "editor-deeplink", "clipboard", "toaster"]
 revision: "450c4de8765ccbe351e838e419e2621a01f5c047"
 repository: "visualisation-system"
 last_updated: "2026-06-09T19:08:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

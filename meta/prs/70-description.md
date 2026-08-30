@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "70"
 title: "[0210] Provider client crates"
 date: "2026-08-19T00:30:47+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0210"
 parent: "work-item:0210"
 relates_to: ["work-item:0171", "work-item:0211", "work-item:0212"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/70"
 pr_number: 70
-tags: [rust, jira, linear, integrations, reqwest, tracker, adf, graphql]
+tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker", "adf", "graphql"]
 revision: "5126a4694550d96f81879f73beef7f9f6112c0c6"
 repository: "accelerator"
 last_updated: "2026-08-19T00:30:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

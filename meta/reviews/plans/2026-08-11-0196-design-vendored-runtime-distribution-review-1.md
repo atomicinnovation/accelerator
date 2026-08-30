@@ -1,22 +1,22 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0196-design-vendored-runtime-distribution-review-1"
 title: "Plan Review: accelerator-design: Vendored Runtime Distribution"
 date: "2026-08-17T13:19:24+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0196"
 target: "plan:2026-08-11-0196-design-vendored-runtime-distribution"
 relates_to: ["plan-review:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1", "plan-review:2026-08-11-0196-design-cli-migration-review-1"]
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, security, test-coverage, safety, portability, performance, code-quality]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "security", "test-coverage", "safety", "portability", "performance", "code-quality"]
 review_number: 1
 review_pass: 3
-tags: [rust, launcher, release-pipeline, supply-chain, tree-artifacts, playwright, distribution]
+tags: ["rust", "launcher", "release-pipeline", "supply-chain", "tree-artifacts", "playwright", "distribution"]
 last_updated: "2026-08-17T15:29:53+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

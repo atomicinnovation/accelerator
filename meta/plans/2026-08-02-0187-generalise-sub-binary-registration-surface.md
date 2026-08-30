@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-02-0187-generalise-sub-binary-registration-surface"
 title: "Generalise the Sub-Binary Registration Surface Implementation Plan"
 date: "2026-08-02T22:12:19+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0187"
 parent: "work-item:0187"
 derived_from: ["codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"]
 relates_to: ["plan-review:2026-08-02-0187-generalise-sub-binary-registration-surface-review-1"]
-tags: [build-system, distribution, rust]
+tags: ["build-system", "distribution", "rust"]
 revision: "d7b55d39a690ce91e887cf5e464320cb08c038b2"
 repository: "accelerator"
 last_updated: "2026-08-03T11:39:02+00:00"

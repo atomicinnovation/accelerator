@@ -1,13 +1,13 @@
 ---
-type: issue-research
+type: "issue-research"
 id: "2026-06-19-interactive-migration-unsatisfiable-under-agent-invocation"
 title: "Investigation: interactive migration prompt loop is unsatisfiable when the migrate skill is driven by an agent"
 date: "2026-06-19T22:02:06+00:00"
 author: "Toby Clemson"
-producer: research-issue
-status: complete
+producer: "research-issue"
+status: "complete"
 topic: "Interactive migration step (0007) aborts on its first prompt under agent-driven invocation, after earlier mechanical migrations have already dirtied the tree"
-tags: [research, debugging, migrate, interactive-migration, tty, validation]
+tags: ["research", "debugging", "migrate", "interactive-migration", "tty", "validation"]
 revision: "f98bfdc5fc38a0e6724b5c050dca11baad22de26"
 repository: "accelerator"
 last_updated: "2026-06-19T22:02:06+00:00"

@@ -44,21 +44,8 @@ fn is_block_style_tags(frontmatter_raw: &str) -> bool {
     false
 }
 
-fn needs_quoting(value: &str) -> bool {
-    value.contains(',') || value.contains(':') || value.contains('#')
-}
-
-fn format_tag(value: &str) -> String {
-    if needs_quoting(value) {
-        format!("\"{value}\"")
-    } else {
-        value.to_owned()
-    }
-}
-
 fn build_canonical(tags: &[String]) -> String {
-    let formatted: Vec<String> = tags.iter().map(|t| format_tag(t)).collect();
-    format!("[{}]", formatted.join(", "))
+    format!("[{}]", tags.join(", "))
 }
 
 /// Parses a canonical tags array value (`[a, b, "c,d"]`) into its items via
@@ -218,12 +205,12 @@ mod tests {
     }
 
     #[test]
-    fn tags_needing_quoting_are_quoted_on_rebuild() {
+    fn special_char_tags_are_joined_bare_for_the_renderer_to_quote() {
         let frontmatter = "tags: [needs:colon, needs#hash]\n";
         assert_eq!(
             mutate_tags(frontmatter, TagAction::Add, "z"),
             Ok(TagMutation::Changed(
-                "[\"needs:colon\", \"needs#hash\", z]".to_owned()
+                "[needs:colon, needs#hash, z]".to_owned()
             ))
         );
     }

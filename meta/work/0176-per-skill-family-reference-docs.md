@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0176"
 title: "Author per-skill-family reference docs under docs/"
 date: "2026-06-29T10:28:21+00:00"
-author: Phil Helm
-producer: refine-work-item
-status: done
-kind: story
-priority: medium
+author: "Phil Helm"
+producer: "refine-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0145"
 tags: []
 last_updated: "2026-07-10T10:29:38+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-698
+external_id: "PP-698"
 ---
 
 # 0176: Author per-skill-family reference docs under docs/

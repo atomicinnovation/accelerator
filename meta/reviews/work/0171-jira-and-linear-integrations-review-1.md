@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0171-jira-and-linear-integrations-review-1"
 title: "Work Item Review: Jira and Linear Integrations"
 date: "2026-08-17T10:13:53+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0171"
 work_item_id: "0171"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [rust, jira, linear, integrations, cutover]
+tags: ["rust", "jira", "linear", "integrations", "cutover"]
 last_updated: "2026-08-17T12:20:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

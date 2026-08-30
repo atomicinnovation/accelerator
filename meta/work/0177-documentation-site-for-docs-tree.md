@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0177"
 title: "Stand up a documentation site for the docs/ tree"
 date: "2026-06-29T10:28:21+00:00"
-author: Phil Helm
-producer: refine-work-item
-status: done
-kind: story
-priority: medium
+author: "Phil Helm"
+producer: "refine-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0192"
 tags: []
 last_updated: "2026-07-23T00:00:00+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-699
+external_id: "PP-699"
 ---
 
 # 0177: Stand up a documentation site for the docs/ tree

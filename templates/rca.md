@@ -1,17 +1,17 @@
 ---
-type: issue-research                         # artifact-type discriminator
+type: "issue-research"                       # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "Investigation: {Brief Issue Description}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
-producer: research-issue
-status: complete                             # complete
+producer: "research-issue"
+status: "complete"                           # complete
 work_item_id: ""                             # foreign reference; omitted when no linked work item
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["issue-research:NNNN", ...] or []
 topic: "{Brief description of the issue}"
-tags: [research, debugging, affected-component-names]
+tags: ["research", "debugging", "affected-component-names"]
 revision: "{commit hash from accelerator corpus metadata derive}"
 repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"

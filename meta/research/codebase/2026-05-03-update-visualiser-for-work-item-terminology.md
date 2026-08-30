@@ -1,14 +1,14 @@
 ---
 date: "2026-05-03T14:44:01+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "4c47a7a65115d4991f1b8886036d864593973a61"
-repository: accelerator
+repository: "accelerator"
 topic: "Updating the visualiser to support work-item terminology and the new work-management approach"
-tags: [research, visualiser, work-item, ticket, migration, terminology, kanban, wiki-links, configurable-id-pattern]
-status: complete
+tags: ["research", "visualiser", "work-item", "ticket", "migration", "terminology", "kanban", "wiki-links", "configurable-id-pattern"]
+status: "complete"
 last_updated: "2026-05-03T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-03-update-visualiser-for-work-item-terminology"
 title: "Research: Updating the visualiser to support work-item terminology"
 schema_version: 1

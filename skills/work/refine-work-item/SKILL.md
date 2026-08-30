@@ -8,6 +8,7 @@ argument-hint: "[work item number or path]"
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Refine Work Item
@@ -383,6 +384,16 @@ replace (overwrites existing entries) / append (add new entries after existing) 
 - `skip` → make no Edit
 
 On approval via Edit: modify only the Dependencies section.
+
+**Validate the frontmatter**: after editing the work item, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <the refined work item path>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Step 5 — Display Hierarchy
 

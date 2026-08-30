@@ -2,18 +2,18 @@
 id: "0101"
 title: "Unified Managed dev Task for Visualiser Server and Frontend"
 date: "2026-06-06T13:04:38+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 relates_to: ["work-item:0100"]
 tags: ["dev-tooling", "mise", "invoke", "visualiser"]
 last_updated: "2026-06-06T17:26:45+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-type: work-item
-external_id: PP-123
+type: "work-item"
+external_id: "PP-123"
 ---
 
 # 0101: Unified Managed dev Task for Visualiser Server and Frontend

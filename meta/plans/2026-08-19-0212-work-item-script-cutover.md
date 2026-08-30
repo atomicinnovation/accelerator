@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-19-0212-work-item-script-cutover"
 title: "Work-Item Script Cutover Implementation Plan"
 date: "2026-08-19T11:18:42+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0212"
 parent: "work-item:0212"
 derived_from: ["codebase-research:2026-08-19-0212-work-item-script-cutover"]
 relates_to: ["work-item:0213", "work-item:0211", "work-item:0171"]
-tags: [rust, cutover, work-items, fixtures, cli, tracker]
+tags: ["rust", "cutover", "work-items", "fixtures", "cli", "tracker"]
 revision: "792cb868f0b365c43d7f91680a221920c02e92d4"
 repository: "accelerator"
 last_updated: "2026-08-20T22:13:02+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

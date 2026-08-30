@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0196"
 title: "accelerator-design: Design Inventory and Gap Tooling CLI"
 date: "2026-08-05T19:03:35+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
-tags: [rust, design, cli, playwright, distribution]
+tags: ["rust", "design", "cli", "playwright", "distribution"]
 last_updated: "2026-08-20T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-726
+external_id: "PP-726"
 ---
 
 # 0196: accelerator-design: Design Inventory and Gap Tooling CLI

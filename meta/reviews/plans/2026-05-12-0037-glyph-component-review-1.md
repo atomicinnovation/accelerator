@@ -1,20 +1,20 @@
 ---
 date: "2026-05-12T12:30:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-12-0037-glyph-component"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, documentation, performance]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability", "documentation", "performance"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-12-0037-glyph-component-review-1"
 title: "2026-05-12-0037-glyph-component-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-12T12:30:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Glyph Component Implementation Plan

@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-19-0167-config-command-and-invocation-contract-migration-validation"
 title: "Validation Report: Built-in config Command and Invocation-Contract Migration"
 date: "2026-07-22T16:32:47+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "partial"
 parent: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
 target: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
-tags: [rust, config, cli, skills, invocation-contract, allowed-tools, hooks, store, migration]
+tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]
 last_updated: "2026-07-22T16:32:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

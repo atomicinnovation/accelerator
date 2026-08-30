@@ -100,6 +100,7 @@ fn resolve_checks(kinds: &[CheckKind]) -> Checks {
     Checks {
         structure: kinds.contains(&CheckKind::Structure),
         references: kinds.contains(&CheckKind::References),
+        canonical: kinds.contains(&CheckKind::Structure),
     }
 }
 
@@ -121,6 +122,7 @@ fn run_frontmatter(
                 &RealFs,
             )
         }
+        FrontmatterAction::PrintSchema => Ok(frontmatter::run_print_schema()),
     }
 }
 

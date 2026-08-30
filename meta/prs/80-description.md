@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "80"
 title: "[0211] Retire the cross-cluster bash residue and finalise the 0211 records"
 date: "2026-08-23T23:13:11+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:0174"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/80"
 pr_number: 80
-tags: [jira, linear, integrations, cli, cutover, residue]
+tags: ["jira", "linear", "integrations", "cli", "cutover", "residue"]
 revision: "f343df772dffc338835856b19c825b50ab364c2e"
 repository: "accelerator"
 last_updated: "2026-08-24T00:00:00+00:00"

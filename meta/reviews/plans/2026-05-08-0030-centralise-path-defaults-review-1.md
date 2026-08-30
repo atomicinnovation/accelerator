@@ -1,20 +1,20 @@
 ---
 date: "2026-05-08T10:18:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-08-0030-centralise-path-defaults"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, standards]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-05-08-0030-centralise-path-defaults-review-1"
 title: "2026-05-08-0030-centralise-path-defaults-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-08T10:18:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Centralise PATH and TEMPLATE Config Arrays

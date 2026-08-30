@@ -88,7 +88,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0003-relocate-accelerator-state\n\
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n",
+         0006-canonicalise-work-item-id-and-author\n\
+         0008-canonical-frontmatter-quoting\n",
     )
 }
 
@@ -125,6 +126,7 @@ fn a_resolved_band_reference_applies_mechanically_and_an_unresolvable_one_is_dro
          0004-restructure-meta-research-into-subject-subcategories\n\
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
+         0008-canonical-frontmatter-quoting\n\
          0007-unify-meta-corpus-frontmatter\n"
     );
 

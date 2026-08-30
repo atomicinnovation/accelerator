@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-11-0085-humanise-detail-page-h1-review-1"
 title: "Plan Review: Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-06-11T13:33:11+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-11-0085-humanise-detail-page-h1"
 target: "plan:2026-06-11-0085-humanise-detail-page-h1"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, correctness, test-coverage, standards, documentation]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "correctness", "test-coverage", "standards", "documentation"]
 review_number: 1
 review_pass: 2
-tags: [backend, detail-page, frontmatter, humanise-slug]
+tags: ["backend", "detail-page", "frontmatter", "humanise-slug"]
 last_updated: "2026-06-11T16:46:05+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

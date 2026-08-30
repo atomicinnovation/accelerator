@@ -1,11 +1,11 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-12-0108-local-docker-visual-regression-baselines-validation"
 title: "Validation Report: Local Docker-Based Visual Regression Baseline Generation Implementation Plan"
 date: "2026-06-13T21:00:48+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-12-0108-local-docker-visual-regression-baselines"
 target: "plan:2026-06-12-0108-local-docker-visual-regression-baselines"

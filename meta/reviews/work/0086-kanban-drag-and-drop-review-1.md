@@ -1,20 +1,20 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0086-kanban-drag-and-drop-review-1"
 title: "Work Item Review: Kanban Drag-and-Drop with Toast Confirmations"
 date: "2026-06-06T12:04:20+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0086"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [design, frontend, kanban, accessibility]
+tags: ["design", "frontend", "kanban", "accessibility"]
 last_updated: "2026-06-06T12:54:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

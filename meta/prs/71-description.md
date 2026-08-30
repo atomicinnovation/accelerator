@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "71"
 title: "[0213] Conversational conflict-resolution flow for sync"
 date: "2026-08-19T11:57:53+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0213"
 parent: "work-item:0213"
 relates_to: ["work-item:0171", "work-item:0212", "work-item:0194"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/71"
 pr_number: 71
-tags: [skills, sync, work-items, conflicts, cli, rust]
+tags: ["skills", "sync", "work-items", "conflicts", "cli", "rust"]
 revision: "5d4f6fdce5095499aca68f9568288c5d7fcc839e"
 repository: "accelerator"
 last_updated: "2026-08-19T11:57:53+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

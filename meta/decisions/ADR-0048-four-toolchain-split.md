@@ -1,14 +1,14 @@
 ---
 id: "ADR-0048"
 date: "2026-06-27T12:23:42+00:00"
-author: Toby Clemson
-status: accepted
-tags: [architecture, toolchain, rust, python, shell, typescript, foundations]
-type: adr
+author: "Toby Clemson"
+status: "accepted"
+tags: ["architecture", "toolchain", "rust", "python", "shell", "typescript", "foundations"]
+type: "adr"
 title: "ADR-0048: Four-Toolchain Split (Python / Shell / Rust / TypeScript)"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["adr:ADR-0045", "adr:ADR-0046"]
 ---
 

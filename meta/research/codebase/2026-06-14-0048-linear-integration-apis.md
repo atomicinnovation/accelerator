@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-14-0048-linear-integration-apis"
 title: "Research: Linear Integration — Jira patterns to mirror and a deep understanding of the Linear GraphQL API"
 date: "2026-06-14T21:19:22+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0048"
 parent: "work-item:0048"
 topic: "Linear Integration skills — Jira patterns and Linear GraphQL API (auth, rate limiting, pagination, mutations, attachments)"
-tags: [research, codebase, integrations, linear, jira, graphql, authentication]
+tags: ["research", "codebase", "integrations", "linear", "jira", "graphql", "authentication"]
 revision: "cefea6dd7267c4b4a5ebdaacf9ef1730d3827a7b"
 repository: "ticket-management"
 last_updated: "2026-06-14T21:19:22+00:00"

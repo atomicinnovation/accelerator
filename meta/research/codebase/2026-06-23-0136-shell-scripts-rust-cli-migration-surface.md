@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-23-0136-shell-scripts-rust-cli-migration-surface"
 title: "Research: Shell-script feature & test-suite surface for the Rust CLI migration"
 date: "2026-06-23T19:27:07+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0136"
 parent: "work-item:0136"
 topic: "Shell-script feature & test-suite surface for the Rust CLI migration"
-tags: [research, codebase, shell, rust-cli, migration, tooling, vcs, config, frontmatter]
+tags: ["research", "codebase", "shell", "rust-cli", "migration", "tooling", "vcs", "config", "frontmatter"]
 revision: "d1f2186bfeb1d753a1b844e9f0d238a538e76e98"
 repository: "accelerator"
 last_updated: "2026-06-23T19:27:07+00:00"

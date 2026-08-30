@@ -7,6 +7,7 @@ allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
 ---
 
 # Create Work Item
@@ -661,6 +662,16 @@ Work item created: `<path>`
 
 8. **On `n` or unrecognised**: stay in Step 4 / Step 5 review and iterate.
    Do not re-run the identity-swap check until the next `y`; do not write.
+
+**Validate the frontmatter**: after the work item is written, run
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <written work item path>
+```
+
+If it exits non-zero, the document violates the canonical frontmatter
+standard; report the emitted violation and fix the frontmatter before
+completing.
 
 ## Quality Guidelines
 

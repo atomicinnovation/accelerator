@@ -1,22 +1,22 @@
 ---
-type: work-item
+type: "work-item"
 id: "0211"
 title: "Integration Binaries and Bash Cluster Retirement"
 date: "2026-08-17T11:17:18+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0171"
 blocked_by: ["work-item:0210", "work-item:0212"]
 blocks: ["work-item:0174"]
 relates_to: ["work-item:0165", "work-item:0203", "codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
-tags: [rust, jira, linear, integrations, cli, cutover]
+tags: ["rust", "jira", "linear", "integrations", "cli", "cutover"]
 last_updated: "2026-08-17T13:33:15+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-741
+external_id: "PP-741"
 ---
 
 # 0211: Integration Binaries and Bash Cluster Retirement

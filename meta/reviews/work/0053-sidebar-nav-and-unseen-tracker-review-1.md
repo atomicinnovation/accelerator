@@ -1,20 +1,20 @@
 ---
 date: "2026-05-11T15:44:14+00:00"
-type: work-item-review
-producer: review-work-item
+type: "work-item-review"
+producer: "review-work-item"
 target: "work-item:0053"
 review_number: 1
-verdict: COMMENT
-lenses: [clarity, completeness, dependency, scope, testability]
+verdict: "COMMENT"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "0053-sidebar-nav-and-unseen-tracker-review-1"
 title: "0053-sidebar-nav-and-unseen-tracker-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-11T15:44:14+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Work Item Review: Sidebar Nav and Unseen-Changes Tracker

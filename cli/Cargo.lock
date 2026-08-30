@@ -57,6 +57,7 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "document",
  "kernel",
  "tempfile",
  "vcs-test-support",
@@ -88,6 +89,7 @@ dependencies = [
  "tempfile",
  "vcs",
  "vcs-test-support",
+ "work-adapters",
 ]
 
 [[package]]
@@ -3192,6 +3194,7 @@ dependencies = [
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
+ "work-adapters",
 ]
 
 [[package]]

@@ -1,15 +1,15 @@
 ---
 date: "2026-05-03T00:00:00+01:00"
-type: plan
-producer: create-plan
-status: ready
+type: "plan"
+producer: "create-plan"
+status: "ready"
 id: "2026-05-03-design-convergence-workflow"
 title: "Design Convergence Workflow Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-03T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-05-02-design-convergence-workflow", "note:2026-05-02-research-directory-subcategory-restructure", "adr:ADR-0001"]

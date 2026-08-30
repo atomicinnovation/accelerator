@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "18"
 title: "Update work items"
 date: "2026-07-10T21:35:56+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/18"
 pr_number: 18
 tags: []

@@ -1,24 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0189"
 title: "At-Most-Once Guarantee for the Launcher's Cache-Root Probe"
 date: "2026-08-03T00:00:00+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: done
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "done"
+kind: "task"
+priority: "low"
 parent: "work-item:0136"
 blocked_by: ["work-item:0169"]
-relates_to:
-  ["work-item:0186", "work-item:0164", "work-item:0191", "work-item:0205",
-   "work-item:0215", "work-item:0216", "work-item:0217", "work-item:0218",
-   "work-item:0219"]
-tags: [cli, launcher, performance, bootstrap]
+relates_to: ["work-item:0186", "work-item:0164", "work-item:0191", "work-item:0205", "work-item:0215", "work-item:0216", "work-item:0217", "work-item:0218", "work-item:0219"]
+tags: ["cli", "launcher", "performance", "bootstrap"]
 last_updated: "2026-08-17T13:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-719
+external_id: "PP-719"
 ---
 
 # 0189: At-Most-Once Guarantee for the Launcher's Cache-Root Probe

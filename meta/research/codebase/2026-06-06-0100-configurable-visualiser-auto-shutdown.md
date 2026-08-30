@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-06-0100-configurable-visualiser-auto-shutdown"
 title: "Research: Configurable Visualiser Auto-Shutdown"
 date: "2026-06-06T13:06:49+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0100"
 parent: "work-item:0100"
 topic: "Configurable Visualiser Auto-Shutdown"
-tags: [research, codebase, visualiser, server, lifecycle, configuration, idle-timeout]
+tags: ["research", "codebase", "visualiser", "server", "lifecycle", "configuration", "idle-timeout"]
 revision: "719910e7852565ad829715320048523384599d53"
 repository: "accelerator"
 last_updated: "2026-06-06T13:06:49+00:00"

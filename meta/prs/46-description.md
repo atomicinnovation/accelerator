@@ -1,14 +1,14 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "46"
 title: "Fix four load-sensitive test flakes"
 date: "2026-08-03T15:19:25+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/46"
 pr_number: 46
-tags: [testing, ci, flakiness, build-system, frontend, visualiser]
+tags: ["testing", "ci", "flakiness", "build-system", "frontend", "visualiser"]
 revision: "05a35fdc7abf372e3830ae5f6b3af334c4406e69"
 repository: "accelerator"
 last_updated: "2026-08-03T15:19:25+00:00"
