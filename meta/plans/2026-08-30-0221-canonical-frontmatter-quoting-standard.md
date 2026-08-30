@@ -38,8 +38,9 @@ validation to a new Rust check).
 
 ## Implementation Progress
 
-Phases 1–4 are complete, committed on the `0221-canonical-frontmatter-quoting-standard`
-bookmark, and green under the full `mise run check` gate. Phase 5 is in progress.
+All five phases are complete and committed on the
+`0221-canonical-frontmatter-quoting-standard` bookmark; the full `mise run`
+CI mirror (including the docs lane) is green end-to-end.
 
 - **Phase 1 — emitter + tag-rule retirement** (`a70f9034`). Every string and
   float scalar emits double-quoted via `serde_saphyr::DoubleQuoted`; the dead
@@ -58,10 +59,16 @@ bookmark, and green under the full `mise run check` gate. Phase 5 is in progress
 - **Phase 4 — producer-skill wiring** (`78df7c1b`). 21 skills gained an
   `allowed-tools` rule and a fenced validate step; a static coverage test and a
   CLI signal test pin the enforcement.
-- **Phase 5 — Python retirement + template-shape check.** In progress. Note the
-  coupling: canonicalising the templates and retiring the Python validator are
-  atomic, because `test_template_frontmatter.py` enforces a *bare* `type:` that a
-  canonical template contradicts.
+- **Phase 5 — Python retirement + template-shape check** (`35b17a43`). A Rust
+  template-shape check (`TemplateViolation` + a `validate-templates` action)
+  ports the retired Python surface, the 13 templates are canonicalised, and a
+  `print-schema` subcommand feeds the conformance test its constants. The
+  templates/validator retirement were atomic — `test_template_frontmatter.py`
+  enforced a bare `type:` that a canonical template contradicts.
+
+A trailing fixup commit (`9992fad9`) corrected two emitter-fallout test
+assertions that live in lanes outside the aggregate `check`, so the full
+`mise run` passes.
 
 Per-phase deviations from the plan are recorded inline against each phase's
 Success Criteria below.
@@ -960,7 +967,7 @@ snapshot for the new `TemplateViolation` surface with `mise run public-api:updat
 - [x] `frontmatter validate-templates` over `templates/` exits 0 post-regen; real-tree test green: `cd cli && cargo nextest run -p corpus-cli the_real_templates_tree_is_clean`
 - [x] `test:unit:tasks` green without `frontmatter_rules`; conformance green with re-sourced constants: `mise run test:unit:tasks` and `mise run test:integration:conformance`
 - [x] Corpus public-api snapshot regenerated and pinned: `mise run public-api:update` then `mise run public-api:check`
-- [ ] Full local CI mirror green end-to-end (including the docs lane): `mise run`
+- [x] Full local CI mirror green end-to-end (including the docs lane): `mise run` (exit 0, zero failures; two emitter-fallout test assertions in lanes outside the aggregate `check` — a config round-trip and the feature-gated dirty-tree preflight ledgers — were fixed).
 
 Deviations recorded during implementation: the template-shape check reads its per-type facts directly from the TSV rows (`TemplateRow`) rather than `schema.rs::SCHEMA`, keeping the TSV the single runtime source (the two are kept in sync by the existing schema tests). The `print-schema` subcommand emits the three banks as hand-rolled JSON (no serde dependency added to `corpus`/`corpus-cli`). The conformance test's `_emit_valid` fixtures and its `type` negative-mutation pattern were updated to the canonical quoting the tightened validator now requires — a Phase 3 fallout surfaced here because the conformance lane is outside the aggregate `check`. `pr-description.md`'s `pr_number` placeholder became a bare `0` to satisfy the canonical rule (matching `pr-review.md`).
 
