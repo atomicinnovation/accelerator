@@ -146,10 +146,17 @@ pub fn validate_path<F: FileReader>(
 }
 
 /// Which check categories a `frontmatter validate` invocation has enabled.
+///
+/// `canonical` gates the canonical-quoting check (`UNQUOTED-STRING`)
+/// independently of the rest of the structural checks: it is enforced by the
+/// standard-checking `validate` command but suppressed for a migration's own
+/// in-process self-check, since a migration that predates the canonical
+/// standard emits schema-valid but unquoted frontmatter.
 #[derive(Debug, Clone, Copy)]
 pub struct Checks {
     pub structure: bool,
     pub references: bool,
+    pub canonical: bool,
 }
 
 /// The outcome `validate_targets` reports for one target file.
@@ -189,7 +196,12 @@ pub fn validate_targets<F: FileReader>(
 ) -> Result<Vec<(PathBuf, TargetOutcome)>, kernel::Error> {
     let mut results = Vec::with_capacity(files.len());
     for path in files {
-        let structural = validate_path(path, file_reader)?;
+        let mut structural = validate_path(path, file_reader)?;
+        if !checks.canonical {
+            structural.retain(|violation| {
+                !matches!(violation, Violation::UnquotedString { .. })
+            });
+        }
         let gate_failed = structural_gate_failed(&structural);
 
         let mut emitted = if checks.structure {
@@ -283,11 +295,11 @@ mod tests {
             .map(|value| format!("parent: \"{value}\"\n"))
             .unwrap_or_default();
         format!(
-            "---\ntype: work-item\nid: \"{id}\"\ntitle: t\n\
-             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-             schema_version: 1\nstatus: draft\nkind: task\npriority: normal\n\
-             {parent_line}---\nbody\n"
+            "---\ntype: \"work-item\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\n{parent_line}---\nbody\n"
         )
     }
 
@@ -394,6 +406,7 @@ mod tests {
             Checks {
                 structure: true,
                 references: true,
+                canonical: true,
             },
             &walker,
         )?;
@@ -428,6 +441,7 @@ mod tests {
             Checks {
                 structure: true,
                 references: true,
+                canonical: true,
             },
             &walker,
         )?;
@@ -458,6 +472,7 @@ mod tests {
             Checks {
                 structure: false,
                 references: true,
+                canonical: false,
             },
             &walker,
         )?;
@@ -495,6 +510,7 @@ mod tests {
             Checks {
                 structure: true,
                 references: true,
+                canonical: true,
             },
             &walker,
         )?;

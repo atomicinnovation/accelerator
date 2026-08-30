@@ -240,6 +240,7 @@ impl MigrationContext for FileMigrationContext {
         let checks = corpus_adapters::frontmatter_validation::Checks {
             structure: true,
             references: true,
+            canonical: false,
         };
         let results =
             corpus_adapters::frontmatter_validation::validate_targets(

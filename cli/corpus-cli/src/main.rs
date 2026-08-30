@@ -100,6 +100,7 @@ fn resolve_checks(kinds: &[CheckKind]) -> Checks {
     Checks {
         structure: kinds.contains(&CheckKind::Structure),
         references: kinds.contains(&CheckKind::References),
+        canonical: kinds.contains(&CheckKind::Structure),
     }
 }
 

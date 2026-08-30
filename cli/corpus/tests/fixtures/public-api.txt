@@ -165,6 +165,8 @@ pub corpus::frontmatter_validation::violation::Violation::ObsoleteLegacyKey::key
 pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored
 pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored::field: &'static str
 pub corpus::frontmatter_validation::violation::Violation::UnquotedId
+pub corpus::frontmatter_validation::violation::Violation::UnquotedString
+pub corpus::frontmatter_validation::violation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
@@ -214,6 +216,8 @@ pub corpus::frontmatter_validation::Violation::ObsoleteLegacyKey::key: &'static 
 pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored
 pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored::field: &'static str
 pub corpus::frontmatter_validation::Violation::UnquotedId
+pub corpus::frontmatter_validation::Violation::UnquotedString
+pub corpus::frontmatter_validation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation

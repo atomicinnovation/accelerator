@@ -57,6 +57,7 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "document",
  "kernel",
  "tempfile",
  "vcs-test-support",

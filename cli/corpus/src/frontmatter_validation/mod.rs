@@ -22,6 +22,7 @@
 //! this module — bash's naive scanner has no equivalent concept, so this
 //! module never needs one either.
 
+mod canonical_quoting;
 pub mod schema;
 pub mod shape;
 pub mod violation;
@@ -204,7 +205,34 @@ pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     check_required_extras(&entries, row, &mut violations);
     check_empty_placeholders(&entries, &mut violations);
     check_linkage_shape(&entries, row, &mut violations);
+    check_canonical_quoting(&entries, row, &mut violations);
     violations
+}
+
+/// The fields with a dedicated quoting check, which
+/// [`check_canonical_quoting`] skips to avoid double-reporting: `id` (its own
+/// must-be-quoted-string check), `schema_version` (must be bare `1`), and the
+/// row's typed-linkage keys (`BAD-LINKAGE-SHAPE`).
+fn dedicated_check_keys(row: &schema::SchemaRow) -> Vec<&'static str> {
+    let mut keys = vec!["id", "schema_version"];
+    keys.extend(row.typed_linkage_keys.iter().copied());
+    keys
+}
+
+fn check_canonical_quoting(
+    entries: &[(String, String)],
+    row: &schema::SchemaRow,
+    violations: &mut Vec<Violation>,
+) {
+    let dedicated = dedicated_check_keys(row);
+    for (key, value) in entries {
+        if value.is_empty() || dedicated.contains(&key.as_str()) {
+            continue;
+        }
+        if !canonical_quoting::is_canonically_quoted(value) {
+            violations.push(Violation::UnquotedString { key: key.clone() });
+        }
+    }
 }
 
 fn check_base_fields(
@@ -223,7 +251,7 @@ fn check_id_quoting(
     violations: &mut Vec<Violation>,
 ) {
     if let Some(id) = raw_value(entries, "id") {
-        if !id.is_empty() && !is_quoted_scalar(id) {
+        if !id.is_empty() && !canonical_quoting::is_quoted_scalar(id) {
             violations.push(Violation::UnquotedId);
         }
     }
@@ -386,17 +414,6 @@ fn check_linkage_shape(
     }
 }
 
-fn is_quoted_scalar(raw: &str) -> bool {
-    let Some(rest) = raw.strip_prefix('"') else {
-        return false;
-    };
-    let Some(close) = rest.find('"') else {
-        return false;
-    };
-    let tail = &rest[close + 1..];
-    tail.is_empty() || is_trailing_comment(tail)
-}
-
 fn is_bare_one(raw: &str) -> bool {
     let Some(rest) = raw.strip_prefix('1') else {
         return false;
@@ -501,18 +518,18 @@ mod tests {
 
     fn minimal_valid_work_item() -> String {
         [
-            "type: work-item",
+            "type: \"work-item\"",
             "id: \"0042\"",
-            "title: Example",
+            "title: \"Example\"",
             "date: \"2026-01-01T00:00:00+00:00\"",
-            "author: Toby",
+            "author: \"Toby\"",
             "tags: []",
             "last_updated: \"2026-01-01T00:00:00+00:00\"",
-            "last_updated_by: Toby",
+            "last_updated_by: \"Toby\"",
             "schema_version: 1",
-            "status: draft",
-            "kind: feature",
-            "priority: normal",
+            "status: \"draft\"",
+            "kind: \"feature\"",
+            "priority: \"normal\"",
         ]
         .join("\n")
     }
@@ -635,7 +652,7 @@ mod tests {
     #[test]
     fn a_status_outside_the_vocab_is_flagged() {
         let mut source = minimal_valid_work_item();
-        source = source.replace("status: draft", "status: nonexistent");
+        source = source.replace("status: \"draft\"", "status: \"nonexistent\"");
         assert!(validate_file(&source)
             .iter()
             .any(|v| matches!(v, Violation::BadStatus { .. })));
@@ -887,6 +904,122 @@ mod tests {
     fn dangling_refs_skips_a_malformed_element_already_reported_elsewhere() {
         let source = "type: work-item\nparent: [unquoted]\n";
         assert!(dangling_refs(source, &Index::new()).is_empty());
+    }
+
+    fn unquoted_keys(source: &str) -> Vec<String> {
+        validate_file(source)
+            .into_iter()
+            .filter_map(|violation| match violation {
+                Violation::UnquotedString { key } => Some(key),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_bare_string_field_is_flagged_unquoted_string() {
+        let source = minimal_valid_work_item()
+            .replace("author: \"Toby\"", "author: Toby");
+        assert!(unquoted_keys(&source).contains(&"author".to_owned()));
+    }
+
+    #[test]
+    fn a_canonical_work_item_has_no_unquoted_string() {
+        assert!(unquoted_keys(&minimal_valid_work_item()).is_empty());
+    }
+
+    #[test]
+    fn a_bare_type_is_flagged_and_a_quoted_type_passes() {
+        let bare = minimal_valid_work_item()
+            .replace("type: \"work-item\"", "type: work-item");
+        assert!(unquoted_keys(&bare).contains(&"type".to_owned()));
+        assert!(!unquoted_keys(&minimal_valid_work_item())
+            .contains(&"type".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_tags_element_is_flagged() {
+        let source =
+            minimal_valid_work_item().replace("tags: []", "tags: [a, b]");
+        assert!(unquoted_keys(&source).contains(&"tags".to_owned()));
+    }
+
+    #[test]
+    fn a_quoted_tags_flow_passes() {
+        let source = minimal_valid_work_item()
+            .replace("tags: []", "tags: [\"a\", \"b\"]");
+        assert!(!unquoted_keys(&source).contains(&"tags".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_timestamp_is_flagged_unquoted_string() {
+        let source = minimal_valid_work_item().replace(
+            "date: \"2026-01-01T00:00:00+00:00\"",
+            "date: 2026-01-01T00:00:00+00:00",
+        );
+        assert!(unquoted_keys(&source).contains(&"date".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_integer_field_passes() {
+        let mut source = minimal_valid_work_item();
+        source.push_str("\nreview_pass: 5\n");
+        assert!(!unquoted_keys(&source).contains(&"review_pass".to_owned()));
+    }
+
+    #[test]
+    fn a_value_with_an_escaped_inner_quote_passes() {
+        let mut source = minimal_valid_work_item();
+        source.push_str("\nnote: \"a \\\"quoted\\\" word\"\n");
+        assert!(!unquoted_keys(&source).contains(&"note".to_owned()));
+    }
+
+    #[test]
+    fn a_quoted_value_carrying_a_hash_passes() {
+        let mut source = minimal_valid_work_item();
+        source.push_str("\nnote: \"question #1 answered\"\n");
+        assert!(!unquoted_keys(&source).contains(&"note".to_owned()));
+    }
+
+    #[test]
+    fn a_quoted_flow_element_with_a_comma_passes() {
+        let source = minimal_valid_work_item()
+            .replace("tags: []", "tags: [\"a, b\", \"c\"]");
+        assert!(!unquoted_keys(&source).contains(&"tags".to_owned()));
+    }
+
+    #[test]
+    fn a_quoted_flow_element_with_a_hash_passes() {
+        let source = minimal_valid_work_item()
+            .replace("tags: []", "tags: [\"needs#hash\"]");
+        assert!(!unquoted_keys(&source).contains(&"tags".to_owned()));
+    }
+
+    #[test]
+    fn a_flow_with_a_trailing_comment_carrying_a_bracket_passes() {
+        let source = minimal_valid_work_item()
+            .replace("tags: []", "tags: [\"a\"] # see [note]");
+        assert!(!unquoted_keys(&source).contains(&"tags".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_id_reports_unquoted_id_not_unquoted_string() {
+        let source =
+            minimal_valid_work_item().replace("id: \"0042\"", "id: 0042");
+        let violations = validate_file(&source);
+        assert!(violations.contains(&Violation::UnquotedId));
+        assert!(!unquoted_keys(&source).contains(&"id".to_owned()));
+    }
+
+    #[test]
+    fn a_bare_linkage_reports_bad_linkage_shape_not_unquoted_string() {
+        let mut source = minimal_valid_work_item();
+        source.push_str("\nparent: work-item:0001\n");
+        let violations = validate_file(&source);
+        assert!(violations
+            .iter()
+            .any(|v| matches!(v, Violation::BadLinkageShape { .. })));
+        assert!(!unquoted_keys(&source).contains(&"parent".to_owned()));
     }
 
     #[test]

@@ -167,17 +167,18 @@ mod tests {
     }
 
     fn valid_work_item() -> &'static str {
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\npriority: normal\n\
-         ---\nbody\n"
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\n---\nbody\n"
     }
 
     fn both_checks() -> Checks {
         Checks {
             structure: true,
             references: true,
+            canonical: true,
         }
     }
 
@@ -260,11 +261,11 @@ mod tests {
     #[test]
     fn checks_structure_only_omits_referential_violations(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let content = "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-             schema_version: 1\nstatus: draft\nkind: task\npriority: normal\n\
-             parent: \"work-item:9999\"\n---\nbody\n";
+        let content = "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n";
         let walker = StubFs::default().with_file("meta/work/0001.md", content);
         let outcome = run_validate(
             &[],
@@ -272,6 +273,7 @@ mod tests {
             Checks {
                 structure: true,
                 references: false,
+                canonical: true,
             },
             &table(),
             &walker,
@@ -290,6 +292,7 @@ mod tests {
             Checks {
                 structure: false,
                 references: true,
+                canonical: false,
             },
             &table(),
             &walker,

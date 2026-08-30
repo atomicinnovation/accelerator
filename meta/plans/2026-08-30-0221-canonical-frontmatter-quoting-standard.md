@@ -684,17 +684,19 @@ exist), `cli/corpus-cli/tests/frontmatter_goldens.rs`,
 
 #### Automated Verification
 
-- [ ] New `UnquotedString` unit tests (including the ` #`/comma quote-aware cases and the bare/quoted `type:` pair) fail before the check is added, pass after: `cd cli && cargo nextest run -p corpus`
-- [ ] The emitter↔validator symmetry guard and single-source skip-set tests pass: `cd cli && cargo nextest run -p corpus`
-- [ ] Self-check gate green against the canonical corpus: `cd cli && cargo nextest run -p corpus-cli this_repositorys_own_corpus_is_clean`
-- [ ] Requoted in-source fixtures pass; corpus public-api regenerated and pinned: `mise run public-api:update` then `mise run public-api:check`
-- [ ] Full gate green: `mise run check`
+- [x] New `UnquotedString` unit tests (including the ` #`/comma quote-aware cases and the bare/quoted `type:` pair) fail before the check is added, pass after: `cd cli && cargo nextest run -p corpus`
+- [x] The emitter↔validator symmetry guard and single-source skip-set tests pass: symmetry guard in `cli/corpus-cli/tests/frontmatter_symmetry.rs`, skip-set in `cargo nextest run -p corpus`.
+- [x] Self-check gate green against the canonical corpus: `cd cli && cargo nextest run -p corpus-cli this_repositorys_own_corpus_is_clean`
+- [x] Requoted in-source fixtures pass; corpus public-api regenerated and pinned: `mise run public-api:update` then `mise run public-api:check`
+- [x] Full gate green: `mise run check`
+
+Deviations recorded during implementation: the canonical-quoting predicate is homed in `corpus::frontmatter_validation::canonical_quoting` (reachable by the instance validator and the Phase 5 template-shape check, both in `corpus`) rather than a cross-domain shared crate — 0227's config validator can relocate it when it needs it, rather than introduce a `config -> corpus` edge now. A new `Checks.canonical` flag was required (unforeseen by the plan): migration 0007 rewrites to schema-valid but pre-canonical (bare) frontmatter and self-validates through the shared validator, so its in-process self-check must suppress `UNQUOTED-STRING` while the `validate` command and 0008 enforce it; `validate_targets` filters the code out when `canonical` is off.
 
 #### Manual Verification
 
-- [ ] `printf '...\nauthor: Toby\n...' > f.md && accelerator corpus frontmatter validate --file f.md` exits non-zero and prints `UNQUOTED-STRING` on stderr.
-- [ ] A quoted value carrying ` #` (e.g. `last_updated_note: "… question #1 …"`) validates cleanly — the real corpus case the sketch broke.
-- [ ] A hand-edited bare `parent: work-item:0001` still reports `BAD-LINKAGE-SHAPE` (linkage diagnostics preserved).
+- [x] `printf '...\nauthor: Toby\n...' > f.md && accelerator corpus frontmatter validate --file f.md` exits non-zero and prints `UNQUOTED-STRING` on stderr.
+- [x] A quoted value carrying ` #` (e.g. `last_updated_note: "… question #1 …"`) validates cleanly — the real corpus case the sketch broke.
+- [x] A hand-edited bare `parent: work-item:0001` still reports `BAD-LINKAGE-SHAPE` (linkage diagnostics preserved).
 
 ---
 

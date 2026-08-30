@@ -48,11 +48,11 @@ fn write_work_item(path: &Path, id: &str) -> Result<(), TestError> {
     fs::write(
         path,
         format!(
-            "---\ntype: work-item\nid: \"{id}\"\ntitle: t\n\
-             date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-             schema_version: 1\nstatus: draft\nkind: task\n\
-             priority: normal\n---\nbody\n"
+            "---\ntype: \"work-item\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\n---\nbody\n"
         ),
     )?;
     Ok(())
@@ -184,11 +184,11 @@ fn checks_structure_only_omits_dangling_ref_violations() -> Result<(), TestError
     fs::create_dir_all(file.parent().ok_or("no parent")?)?;
     fs::write(
         &file,
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\n\
-         priority: normal\nparent: \"work-item:9999\"\n---\nbody\n",
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n",
     )?;
 
     let output =
@@ -207,11 +207,11 @@ fn checks_references_only_still_flags_a_dangling_ref() -> Result<(), TestError>
     fs::create_dir_all(file.parent().ok_or("no parent")?)?;
     fs::write(
         &file,
-        "---\ntype: work-item\nid: \"0001\"\ntitle: t\n\
-         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\n\
-         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
-         schema_version: 1\nstatus: draft\nkind: task\n\
-         priority: normal\nparent: \"work-item:9999\"\n---\nbody\n",
+        "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"t\"\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+         schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+         priority: \"normal\"\nparent: \"work-item:9999\"\n---\nbody\n",
     )?;
 
     let output = run(
