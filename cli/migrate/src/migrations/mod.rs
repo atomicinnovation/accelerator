@@ -8,4 +8,5 @@ pub mod m0004;
 pub mod m0005;
 pub mod m0006;
 pub mod m0007;
+pub mod m0008;
 pub mod text;
