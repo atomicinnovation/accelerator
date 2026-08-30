@@ -1,5 +1,5 @@
 ---
-type: "work-item-review"                     # ADR-0033 artifact-type discriminator
+type: "work-item-review"                     # artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "0042-improve-search-review-1"
 title: "Work Item Review: {Work Item Title}"
 date: "{ISO timestamp}"
@@ -18,7 +18,7 @@ review_pass: 1                               # latest re-review pass within this
 tags: []
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
-schema_version: 1                            # ADR-0033 §Schema versioning: bare integer
+schema_version: 1
 ---
 
 ## Work Item Review: {Work Item Title}

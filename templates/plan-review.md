@@ -1,5 +1,5 @@
 ---
-type: "plan-review"                          # ADR-0033 artifact-type discriminator
+type: "plan-review"                          # artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "2026-05-31-some-plan-review-1"
 title: "Plan Review: {Plan Name}"
 date: "{ISO timestamp}"
@@ -18,7 +18,7 @@ review_pass: 1                               # latest re-review pass within this
 tags: []
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
-schema_version: 1                            # ADR-0033 §Schema versioning: bare integer
+schema_version: 1
 ---
 
 ## Plan Review: {Plan Name}

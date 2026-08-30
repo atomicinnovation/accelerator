@@ -7,9 +7,9 @@
 //! escaped inner `"`, a `#`, a comma, or a `[`/`]` is read as one string
 //! rather than truncated at the first structural-looking byte. Homed here in
 //! `corpus` rather than a cross-domain shared crate: its only consumers are the
-//! instance validator and the template-shape check, both in `corpus`. Work
-//! item 0227's config validator can relocate it to a shared crate when it
-//! needs it, rather than introduce a `config -> corpus` edge now.
+//! instance validator and the template-shape check, both in `corpus`. A future
+//! config validator can relocate it to a shared crate when it needs it, rather
+//! than introduce a `config -> corpus` edge now.
 
 use crate::frontmatter_validation::is_trailing_comment;
 

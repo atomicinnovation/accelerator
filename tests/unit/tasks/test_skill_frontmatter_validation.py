@@ -1,4 +1,4 @@
-"""Producer-run frontmatter-validation coverage guard (0221 AC #6).
+"""Producer-run frontmatter-validation coverage guard.
 
 Every in-scope producer skill must run ``accelerator corpus frontmatter
 validate`` on the document it wrote or edited, as its final persistence step.
