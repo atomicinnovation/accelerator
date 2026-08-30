@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "65"
 title: "[0194] Tracker crate and remote sync engine"
 date: "2026-08-13T19:46:29+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0194"
 parent: "work-item:0194"
 relates_to: ["work-item:0170", "work-item:0171", "work-item:0174", "work-item:0204"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/65"
 pr_number: 65
-tags: [rust, work-items, sync, tracker, nextest, cargo-pup]
+tags: ["rust", "work-items", "sync", "tracker", "nextest", "cargo-pup"]
 revision: "62cd925385c541254d9d0de518eaed3b5191e64d"
 repository: "accelerator"
 last_updated: "2026-08-15T12:55:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

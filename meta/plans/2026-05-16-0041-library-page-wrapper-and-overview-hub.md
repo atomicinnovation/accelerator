@@ -1,16 +1,16 @@
 ---
 date: "2026-05-16T09:00:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0041"
-status: done
+status: "done"
 id: "2026-05-16-0041-library-page-wrapper-and-overview-hub"
 title: "0041 — Library Page Wrapper, Overview Hub, and List Views Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-16T09:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["work-item:0041", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "plan:2026-05-15-0038-generic-chip-component"]

@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-30-0221-canonical-frontmatter-quoting-standard"
 title: "Canonical Frontmatter Quoting Standard Implementation Plan"
 date: "2026-08-30T14:58:52+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0221"
 parent: "work-item:0221"
 derived_from: ["codebase-research:2026-08-30-0221-canonical-frontmatter-quoting-standard"]
 relates_to: ["adr:ADR-0065", "work-item:0220", "work-item:0227"]
-tags: [frontmatter, corpus, document, emitter, validator, migration, quoting]
+tags: ["frontmatter", "corpus", "document", "emitter", "validator", "migration", "quoting"]
 revision: "9aa8a929a7780b654f44aaa906954495a61b5739"
 repository: "accelerator"
 last_updated: "2026-08-30T17:43:25+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

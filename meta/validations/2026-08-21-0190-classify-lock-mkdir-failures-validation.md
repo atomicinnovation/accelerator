@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-21-0190-classify-lock-mkdir-failures-validation"
 title: "Validation Report: acquire_lock mkdir classification and bounded reclaim"
 date: "2026-08-22T19:11:26+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "work-item:0190"
 target: "plan:2026-08-21-0190-classify-lock-mkdir-failures"
-tags: [bug, shell, bootstrap, bash-3.2, locking]
+tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 last_updated: "2026-08-22T19:11:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

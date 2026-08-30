@@ -2,18 +2,18 @@
 id: "0089"
 title: "Templates Preview Body White-Space Fix"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-kind: bug
-status: done
-priority: low
-tags: [design, frontend, templates, bug]
-type: work-item
+author: "Toby Clemson"
+kind: "bug"
+status: "done"
+priority: "low"
+tags: ["design", "frontend", "templates", "bug"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-12T11:15:21+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0042"]
-external_id: PP-111
+external_id: "PP-111"
 ---
 
 # 0089: Templates Preview Body White-Space Fix

@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0172"
 title: "Migration Engine Subdomain"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 blocked_by: ["work-item:0166", "work-item:0167", "work-item:0169", "work-item:0187"]
 blocks: ["work-item:0174"]
 relates_to: ["work-item:0195", "work-item:0180", "work-item:0182", "work-item:0183", "work-item:0202"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-tags: [rust, migration-engine, concurrency, interactive]
+tags: ["rust", "migration-engine", "concurrency", "interactive"]
 last_updated: "2026-08-09T19:01:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Transitioned to done following /validate-plan (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phase 10 (retirement cutover) closed out: all bash source deleted, call sites/guards/floors rewritten, skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract, the ADR-reconciliation follow-up (work-item:0202) created and linked, and the 0180/0168/0182/0167 cross-item records confirmed or closed out per the plan's Phase 10 point 5; the self-validation-obligation resolution is now also recorded on 0195 itself, closing a gap the first validation pass found. 53 of the 58 acceptance criteria above are ticked against direct evidence (passing tests, greps, and independent agent verification of every cross-item record), not by assertion. 5 are deliberately left unticked as genuine, disclosed gaps, none blocking: the doc-example fixture's transcript is not diffed byte-for-byte against its Phase-0 bash golden, nor is its session log's exact two-record shape asserted by a dedicated test (the underlying accept/edit/skip/resume behaviours are covered generically by synthetic-fixture tests elsewhere, per this plan's established pattern — see Phase 5's own success criteria); the two-owned-dirty-paths black-box test exercises only one owned path, not two, so the affordance message's naming of multiple paths together is untested; no test pins a failing migration's manifest containing exactly its pre-failure partial writes; and the JSON round-trip has no dedicated test for adversarial values (embedded quotes/backslashes/newlines/tabs/non-ASCII), relying on serde_json's own correctness instead of an in-repo assertion. A follow-up work item to close these (or a work-item update explicitly waiving them) is recommended but not created this session, per this session's standing authorisation not to expand scope unprompted."
 schema_version: 1
 external_id: "PP-193"

@@ -1,17 +1,15 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0059"
 title: "Build-Time Assembly of Vendored Browser Artifacts"
 date: "2026-08-10T16:58:36+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
-relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0058",
-  "work-item:0164", "work-item:0165", "work-item:0196"]
-tags: [architecture, distribution, provenance, supply-chain, playwright,
-  browser, design]
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
+relates_to: ["adr:ADR-0046", "adr:ADR-0054", "adr:ADR-0057", "adr:ADR-0058", "work-item:0164", "work-item:0165", "work-item:0196"]
+tags: ["architecture", "distribution", "provenance", "supply-chain", "playwright", "browser", "design"]
 last_updated: "2026-08-10T17:23:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,17 +1,16 @@
 ---
 id: "ADR-0057"
 date: "2026-08-10T09:36:08+00:00"
-author: Toby Clemson
-status: superseded
-superseded_by: ADR-0062
-tags: [architecture, distribution, playwright, browser, platform-support, glibc, musl, design]
-type: adr
+author: "Toby Clemson"
+status: "superseded"
+superseded_by: "ADR-0062"
+tags: ["architecture", "distribution", "playwright", "browser", "platform-support", "glibc", "musl", "design"]
+type: "adr"
 title: "ADR-0057: Browser Automation as a Glibc-Only Capability"
 schema_version: 1
 last_updated: "2026-08-10T16:29:22+00:00"
-last_updated_by: Toby Clemson
-relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054",
-  "adr:ADR-0058", "work-item:0196"]
+last_updated_by: "Toby Clemson"
+relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "adr:ADR-0054", "adr:ADR-0058", "work-item:0196"]
 ---
 
 # ADR-0057: Browser Automation as a Glibc-Only Capability

@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens"
 title: "Research: Remap Typography Size Scale To Pure-Numeric Tokens (0099)"
 date: "2026-06-13T09:39:37+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0099"
 parent: "work-item:0099"
 relates_to: ["codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-06-02-0090-radius-tokens-consumption", "codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Remap Typography Size Scale To Pure-Numeric Tokens"
-tags: [research, codebase, visualiser, design-tokens, typography, css, adr]
+tags: ["research", "codebase", "visualiser", "design-tokens", "typography", "css", "adr"]
 revision: "ad582c8544328b2e39327da23d31d2ff979555b3"
 repository: "visualisation-system"
 last_updated: "2026-06-13T09:39:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,13 +1,13 @@
 ---
-type: issue-research
+type: "issue-research"
 id: "2026-06-14-release-concurrency-group-blocks-prereleases"
 title: "Investigation: Shared release concurrency group blocks prereleases while a stable release awaits approval"
 date: "2026-06-14T11:41:37+00:00"
 author: "Toby Clemson"
-producer: research-issue
-status: complete
+producer: "research-issue"
+status: "complete"
 topic: "GHA concurrency group held by an approval-gated release job blocks subsequent prereleases"
-tags: [research, debugging, ci, github-actions, release, concurrency]
+tags: ["research", "debugging", "ci", "github-actions", "release", "concurrency"]
 revision: "0aa2e8912017c76a65770dbd9fd97a4a08fbb325"
 repository: "miscellaneous"
 last_updated: "2026-06-14T11:41:37+00:00"

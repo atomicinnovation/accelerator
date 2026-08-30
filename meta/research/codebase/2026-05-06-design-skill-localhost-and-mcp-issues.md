@@ -1,15 +1,15 @@
 ---
 date: "2026-05-06T14:41:55+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "bf60483a3af7e1519824704cb04cdca995bc2a70"
-repository: accelerator
+repository: "accelerator"
 topic: "inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination"
-tags: [research, inventory-design, design-skills, playwright, mcp, sub-agents, validation, plugin-dependencies]
-status: complete
+tags: ["research", "inventory-design", "design-skills", "playwright", "mcp", "sub-agents", "validation", "plugin-dependencies"]
+status: "complete"
 last_updated: "2026-05-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added Decisions section recording approach for both issues and the Playwright runtime install mechanism."
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-06-design-skill-localhost-and-mcp-issues"
 title: "Research: inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination"
 schema_version: 1

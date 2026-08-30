@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-27-0157-porting-luminosity-adrs-and-feeding-spikes"
 title: "Research: Porting luminosity ADRs and feeding spikes into Accelerator"
 date: "2026-06-27T12:00:42+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0157"
 parent: "work-item:0157"
 relates_to: ["codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Porting luminosity ADRs and feeding spikes into Accelerator"
-tags: [research, codebase, adr, decisions, porting, luminosity, rust-cli, schema, supersession]
+tags: ["research", "codebase", "adr", "decisions", "porting", "luminosity", "rust-cli", "schema", "supersession"]
 revision: "ecd3d7804d72058f35c87f12d549539b829fd6eb"
 repository: "accelerator"
 last_updated: "2026-06-27T12:00:42+00:00"

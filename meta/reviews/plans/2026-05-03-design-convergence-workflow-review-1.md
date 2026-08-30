@@ -1,20 +1,20 @@
 ---
 date: "2026-05-03T03:00:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-03-design-convergence-workflow"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, security, standards, usability, documentation]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "standards", "usability", "documentation"]
 review_pass: 4
-status: complete
+status: "complete"
 id: "2026-05-03-design-convergence-workflow-review-1"
 title: "2026-05-03-design-convergence-workflow-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-03T03:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Design Convergence Workflow Implementation Plan

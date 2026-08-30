@@ -1,18 +1,18 @@
 ---
 title: "Finding deduplication requires semantic similarity"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0006"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "plan:2026-02-22-pr-review-inline-comments"
-external_id: PP-28
+external_id: "PP-28"
 ---
 
 # ADR Ticket: Finding deduplication requires semantic similarity

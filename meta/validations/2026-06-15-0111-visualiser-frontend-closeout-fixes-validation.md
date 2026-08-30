@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-15-0111-visualiser-frontend-closeout-fixes-validation"
 title: "Validation Report: Visualiser Frontend Closeout Fixes Implementation Plan"
 date: "2026-06-16T07:18:11+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-15-0111-visualiser-frontend-closeout-fixes"
 tags: ["visualiser", "frontend", "markdown", "lifecycle", "sidebar", "milestone-closeout"]
 last_updated: "2026-06-16T07:18:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,15 +1,15 @@
 ---
 date: "2026-05-31T22:54:27+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "88b3cab89687dd2ca32bc4e38fb603198e46eb92"
-repository: accelerator
+repository: "accelerator"
 topic: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
-tags: [research, codebase, visualiser, frontmatter, title-cascade, indexer, humanise-slug]
-status: complete
+tags: ["research", "codebase", "visualiser", "frontmatter", "title-cascade", "indexer", "humanise-slug"]
+status: "complete"
 last_updated: "2026-06-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up research re-verifying live codebase state and dependency statuses; 0065 and 0066 now done, 0070 still draft."
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-31-0085-humanise-detail-page-h1-fallback"
 title: "Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 schema_version: 1

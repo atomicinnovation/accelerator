@@ -1,14 +1,14 @@
 ---
 date: "2026-04-27T09:44:53+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
-repository: accelerator
+repository: "accelerator"
 topic: "Extending create-work-item to accept an existing work item as a starting point"
-tags: [research, create-work-item, work-item, skills, argument-handling, enrichment]
-status: complete
+tags: ["research", "create-work-item", "work-item", "skills", "argument-handling", "enrichment"]
+status: "complete"
 last_updated: "2026-04-27T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-04-27-create-work-item-open-from-existing"
 title: "Research: Extending `create-work-item` to Accept an Existing Work Item"
 schema_version: 1

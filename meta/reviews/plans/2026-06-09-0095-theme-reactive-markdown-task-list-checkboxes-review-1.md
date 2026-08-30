@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-09-0095-theme-reactive-markdown-task-list-checkboxes-review-1"
 title: "Plan Review: Theme-Reactive Markdown Task-List Checkboxes Implementation Plan"
 date: "2026-06-09T06:31:46+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-09-0095-theme-reactive-markdown-task-list-checkboxes"
 target: "plan:2026-06-09-0095-theme-reactive-markdown-task-list-checkboxes"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, standards, usability, compatibility]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "usability", "compatibility"]
 review_number: 1
 review_pass: 3
-tags: [visualiser, markdown, theme, checkbox, accessibility, plan-review]
+tags: ["visualiser", "markdown", "theme", "checkbox", "accessibility", "plan-review"]
 last_updated: "2026-06-09T07:43:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

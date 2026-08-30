@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "50"
 title: "Split 0170/0194 tracker crate and remote sync engine work items"
 date: "2026-08-06T00:31:44+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 parent: "work-item:0136"
 relates_to: ["work-item:0170", "work-item:0194", "work-item:0171"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/50"
@@ -14,7 +14,7 @@ tags: []
 revision: "08de11b010aee84301b90f03b63ad26e5a6b653e"
 repository: "accelerator"
 last_updated: "2026-08-06T00:31:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

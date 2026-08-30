@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-02-0163-scaffold-cli-workspace-version-subcommand-review-1"
 title: "Plan Review: Scaffold the cli/ Hexagonal Workspace with a version Subcommand"
 date: "2026-07-02T23:47:36+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0163"
 target: "plan:2026-07-02-0163-scaffold-cli-workspace-version-subcommand"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, compatibility, portability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility", "portability"]
 review_number: 1
 review_pass: 2
-tags: [rust, cli, hexagonal, scaffold, version, kernel]
+tags: ["rust", "cli", "hexagonal", "scaffold", "version", "kernel"]
 last_updated: "2026-07-03T00:11:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

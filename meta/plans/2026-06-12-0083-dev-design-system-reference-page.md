@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-12-0083-dev-design-system-reference-page"
 title: "DevDesignSystem Reference Page Implementation Plan"
 date: "2026-06-12T23:10:21+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0083"
 parent: "work-item:0083"
 derived_from: ["codebase-research:2026-06-12-0083-dev-design-system-reference-page"]
-tags: [design, frontend, dev-tools, visualiser, design-system, visual-regression, theming, scroll-spy, keybind, icon]
+tags: ["design", "frontend", "dev-tools", "visualiser", "design-system", "visual-regression", "theming", "scroll-spy", "keybind", "icon"]
 revision: "e13cea2829821da417f7d7e91e9c2bb7ba8b3852"
 repository: "accelerator"
 last_updated: "2026-06-13T20:40:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

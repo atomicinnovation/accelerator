@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-21-0119-resume-safe-partial-migration-failure-validation"
 title: "Validation Report: Resume-Safe Partial Migration Failure"
 date: "2026-06-22T14:18:49+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-06-21-0119-resume-safe-partial-migration-failure"
 target: "plan:2026-06-21-0119-resume-safe-partial-migration-failure"
-tags: [migrate, interactive-migration, agent-invocation, tooling, manifest]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling", "manifest"]
 last_updated: "2026-06-22T14:18:49+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

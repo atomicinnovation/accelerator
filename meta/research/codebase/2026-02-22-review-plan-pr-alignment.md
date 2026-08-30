@@ -1,14 +1,14 @@
 ---
 date: "2026-02-22T17:06:11+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "n/a"
-repository: .claude
+repository: ".claude"
 topic: "Differences between review-pr and review-plan commands for alignment upgrade"
-tags: [research, codebase, review-plan, review-pr, plan-reviewers, pr-reviewers, alignment]
-status: complete
+tags: ["research", "codebase", "review-plan", "review-pr", "plan-reviewers", "pr-reviewers", "alignment"]
+status: "complete"
 last_updated: "2026-02-22T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-02-22-review-plan-pr-alignment"
 title: "Research: Differences Between review-pr and review-plan for Alignment Upgrade"
 schema_version: 1

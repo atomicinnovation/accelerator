@@ -1,19 +1,19 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0095-markdown-checkboxes-always-dark-mode-styled-review-1"
 title: "Work Item Review: Theme-Reactive Markdown Task-List Checkboxes"
 date: "2026-06-08T21:51:31+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0095"
 work_item_id: "0095"
 reviewer: "Toby Clemson"
 verdict: "COMMENT"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [visualiser, markdown, theme, dark-mode, bug]
+tags: ["visualiser", "markdown", "theme", "dark-mode", "bug"]
 last_updated: "2026-06-08T22:51:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-17-0210-provider-client-crates-over-the-tracker-port-validation"
 title: "Validation Report: Provider Client Crates over the RemoteTracker Port"
 date: "2026-08-19T00:21:06+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: partial
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "partial"
 target: "plan:2026-08-17-0210-provider-client-crates-over-the-tracker-port"
-tags: [rust, jira, linear, integrations, tracker, validation]
+tags: ["rust", "jira", "linear", "integrations", "tracker", "validation"]
 last_updated: "2026-08-19T00:21:06+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

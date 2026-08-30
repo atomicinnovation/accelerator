@@ -1,15 +1,15 @@
 ---
-type: issue-research
+type: "issue-research"
 id: "2026-07-26-cli-requires-claude-plugin-root-env-var"
 title: "Investigation: bin/accelerator hard-requires CLAUDE_PLUGIN_ROOT in the environment, which Claude Code only exports to hooks"
 date: "2026-07-26T18:27:02+00:00"
 author: "Toby Clemson"
-producer: research-issue
-status: complete
+producer: "research-issue"
+status: "complete"
 work_item_id: "0182"
 parent: "work-item:0182"
 topic: "Every skill that calls the CLI fails with 'accelerator: CLAUDE_PLUGIN_ROOT is not set' because the bash bootstrap reads the plugin root from the environment rather than deriving it from its own location"
-tags: [research, debugging, cli, launcher, bootstrap, plugin-root, allowed-tools]
+tags: ["research", "debugging", "cli", "launcher", "bootstrap", "plugin-root", "allowed-tools"]
 revision: "e8822dd5eafc8ab68df66d7c9858f0eb702a9633"
 repository: "accelerator"
 last_updated: "2026-07-26T18:27:02+00:00"

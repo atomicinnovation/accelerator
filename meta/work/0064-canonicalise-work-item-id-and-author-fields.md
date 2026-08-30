@@ -2,19 +2,19 @@
 id: "0064"
 title: "Canonicalise `work_item_id` and `author` Field Names"
 date: "2026-05-17T17:16:35+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
 parent: "work-item:0057"
-tags: [refactor, frontmatter, schema, migration]
-type: work-item
+tags: ["refactor", "frontmatter", "schema", "migration"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-17T17:16:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocks: ["work-item:0065"]
 relates_to: ["work-item:0057", "work-item:0060", "work-item:0063", "work-item:0070"]
-external_id: PP-86
+external_id: "PP-86"
 ---
 
 # 0064: Canonicalise `work_item_id` and `author` Field Names

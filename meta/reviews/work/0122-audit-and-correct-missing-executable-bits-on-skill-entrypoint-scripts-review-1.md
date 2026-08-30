@@ -1,19 +1,19 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0122-audit-and-correct-missing-executable-bits-on-skill-entrypoint-scripts-review-1"
 title: "Work Item Review: Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts"
 date: "2026-06-20T13:57:18+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0122"
 work_item_id: "0122"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [scripts, permissions, ci, lint]
+tags: ["scripts", "permissions", "ci", "lint"]
 last_updated: "2026-06-20T16:17:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots"
 title: "Research: Close the Corpus Validator Provenance and Linkage Blind Spots (0105)"
 date: "2026-06-15T16:38:06+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0105"
 parent: "work-item:0105"
 relates_to: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
 topic: "Folding the two known validate-corpus-frontmatter.sh blind spots (non-anchored provenance over-emission; bare/unquoted typed-linkage values) into the single oracle"
-tags: [research, codebase, frontmatter, schema, validator, provenance, linkage]
+tags: ["research", "codebase", "frontmatter", "schema", "validator", "provenance", "linkage"]
 revision: "d8d49046e5a3b3f9b9650a673c0ecf4edc3e7cfb"
 repository: "build-system"
 last_updated: "2026-06-15T16:38:06+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

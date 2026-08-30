@@ -1,14 +1,14 @@
 ---
 date: "2026-04-28T09:40:31+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "6947ac9f1b3d2429623df1d008cc38578bbde52f"
-repository: accelerator
+repository: "accelerator"
 topic: "Configurable work-item ID prefix pattern"
-tags: [ research, work-items, configuration, naming, migration, ticket-management ]
-status: complete
+tags: ["research", "work-items", "configuration", "naming", "migration", "ticket-management"]
+status: "complete"
 last_updated: "2026-04-28T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-04-28-configurable-work-item-id-pattern"
 title: "Research: Configurable work-item ID prefix pattern"
 schema_version: 1

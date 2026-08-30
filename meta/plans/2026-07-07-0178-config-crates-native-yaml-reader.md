@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-07-0178-config-crates-native-yaml-reader"
 title: "config and config-adapters Crates with Native YAML Reader Implementation Plan"
 date: "2026-07-07T01:13:37+00:00"
-author: Toby Clemson
-producer: create-plan
-status: draft
+author: "Toby Clemson"
+producer: "create-plan"
+status: "draft"
 work_item_id: "work-item:0178"
 parent: "work-item:0178"
 derived_from: ["codebase-research:2026-07-07-0178-config-crates-native-yaml-reader"]
-tags: [rust, config, config-adapters, serde, yaml, cargo-deny, cargo-pup, hexagonal]
+tags: ["rust", "config", "config-adapters", "serde", "yaml", "cargo-deny", "cargo-pup", "hexagonal"]
 revision: "0d38ece1e17e9aee360574399fb61efe3bffd89a"
 repository: "accelerator"
 last_updated: "2026-07-07T12:55:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

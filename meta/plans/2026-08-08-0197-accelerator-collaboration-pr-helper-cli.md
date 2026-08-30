@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
 title: "accelerator-collaboration: PR Helper CLI Implementation Plan"
 date: "2026-08-08T16:10:01+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0197"
 parent: "work-item:0197"
 derived_from: ["codebase-research:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"]
-tags: [rust, collaboration, cli, github, gh, octocrab]
+tags: ["rust", "collaboration", "cli", "github", "gh", "octocrab"]
 revision: "32ea3631c3796388be454a7eceeecf9c0d9c26be"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-08-09T09:15:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

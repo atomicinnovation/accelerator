@@ -1,16 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0042"
 title: "Reconciling Pre-Schema Status Values"
 date: "2026-06-08T00:23:02+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
 parent: "work-item:0070"
 relates_to: ["adr:ADR-0033", "work-item:0070", "plan:2026-06-07-0070-meta-corpus-unified-schema-migration"]
-tags: [migration, frontmatter, schema, status, vocabulary]
+tags: ["migration", "frontmatter", "schema", "status", "vocabulary"]
 last_updated: "2026-06-08T09:33:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

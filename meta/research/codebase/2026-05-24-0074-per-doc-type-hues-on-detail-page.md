@@ -1,18 +1,18 @@
 ---
 date: "2026-05-24T23:16:46+01:00"
-researcher: Toby Clemson
+researcher: "Toby Clemson"
 revision: "0f16c47c1f7cadb49bb69b320d94c7b36565c4d9"
-repository: accelerator
+repository: "accelerator"
 topic: "Pre-implementation context for 0074 — Per-Doc-Type Hues on Detail Page"
-tags: [research, codebase, frontend, detail-page, tokens, glyph, eyebrow, related-artifacts, e2e, visualiser]
-status: complete
+tags: ["research", "codebase", "frontend", "detail-page", "tokens", "glyph", "eyebrow", "related-artifacts", "e2e", "visualiser"]
+status: "complete"
 last_updated: "2026-05-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 work_item: "0074"
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-24-0074-per-doc-type-hues-on-detail-page"
 title: "Research: Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page"
-author: Toby Clemson
+author: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:0037", "work-item:0041", "work-item:0073", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype"]
 blocked_by: ["work-item:0079", "work-item:0082"]

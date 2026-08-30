@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0138"
 title: "Static-Analysis-Driven Refactoring Workflow"
 date: "2026-06-22T23:41:03+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: draft
-kind: epic
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "epic"
+priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 tags: []
 last_updated: "2026-06-22T23:41:03+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-159
+external_id: "PP-159"
 ---
 
 # 0138: Static-Analysis-Driven Refactoring Workflow

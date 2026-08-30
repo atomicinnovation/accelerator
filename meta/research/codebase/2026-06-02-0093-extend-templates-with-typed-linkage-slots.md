@@ -1,18 +1,18 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-02-0093-extend-templates-with-typed-linkage-slots"
 title: "Research: Extend Templates With Typed-Linkage Slots (0093)"
 date: "2026-06-02T11:23:51+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0093"
 topic: "Extend artifact templates with empty optional slots for the typed-linkage keys defined in ADR-0034"
-tags: [research, codebase, templates, frontmatter, schema, linkage, adr-0034]
-revision: 1486bcbe3adbdab4cf852d4716f339b47c1b08e3
-repository: build-system
+tags: ["research", "codebase", "templates", "frontmatter", "schema", "linkage", "adr-0034"]
+revision: "1486bcbe3adbdab4cf852d4716f339b47c1b08e3"
+repository: "build-system"
 last_updated: "2026-06-02T16:07:06+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Rebased on top of typed-linkage clustering rollout (commits xzkvrrlw..tntvnkpq); added Follow-up Research section covering the new typed_ref.rs / cluster_key.rs / widened indexer consumers and recording the Pass 3 APPROVE verdict on the 0093 work-item review."
 schema_version: 1
 relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0038", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "work-item:0093"]

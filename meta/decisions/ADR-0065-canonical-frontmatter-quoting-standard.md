@@ -1,17 +1,17 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0065"
 title: "Canonical Frontmatter Quoting Standard"
 date: "2026-08-28T17:17:31+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
-decision_makers: [Toby Clemson]
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
+decision_makers: ["Toby Clemson"]
 parent: "work-item:0221"
 relates_to: ["adr:ADR-0033", "adr:ADR-0034"]
-tags: [frontmatter, yaml, corpus, config]
+tags: ["frontmatter", "yaml", "corpus", "config"]
 last_updated: "2026-08-30T01:06:43+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

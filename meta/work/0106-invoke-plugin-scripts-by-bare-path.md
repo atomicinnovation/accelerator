@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0106"
 title: "Invoke Plugin Scripts by Bare Path in Skill Bodies"
 date: "2026-06-10T20:58:58+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "task"
+priority: "medium"
 relates_to: ["work-item:0107"]
 source: "issue-research:2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission"
-tags: [permissions, allowed-tools, skills, plugin, authoring-convention]
+tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 last_updated: "2026-06-10T20:58:58+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-128
+external_id: "PP-128"
 ---
 
 # 0106: Invoke Plugin Scripts by Bare Path in Skill Bodies

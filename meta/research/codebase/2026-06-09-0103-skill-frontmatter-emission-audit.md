@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-09-0103-skill-frontmatter-emission-audit"
 title: "Research: Skill Frontmatter Emission Audit Against the Unified Schema (work item 0103)"
 date: "2026-06-09T18:44:38+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0103"
 parent: "work-item:0103"
 topic: "How skills emit artifact frontmatter, what the unified-schema validator enforces, the known validate-plan divergence, and how to wire an automated producer-conformance guard"
-tags: [research, codebase, frontmatter, schema, validator, skills, validate-plan, test-harness, mise]
+tags: ["research", "codebase", "frontmatter", "schema", "validator", "skills", "validate-plan", "test-harness", "mise"]
 revision: "dc9490fb6caadb129f9899e48d6e5e300ec2d663"
 repository: "ticket-management"
 last_updated: "2026-06-09T18:44:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

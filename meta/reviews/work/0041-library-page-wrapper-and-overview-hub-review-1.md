@@ -1,20 +1,20 @@
 ---
 date: "2026-05-15T16:25:27+00:00"
-type: work-item-review
-producer: review-work-item
+type: "work-item-review"
+producer: "review-work-item"
 target: "work-item:0041"
 review_number: 1
-verdict: COMMENT
-lenses: [clarity, completeness, dependency, scope, testability]
+verdict: "COMMENT"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "0041-library-page-wrapper-and-overview-hub-review-1"
 title: "0041-library-page-wrapper-and-overview-hub-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-15T16:25:27+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Work Item Review: Library Page Wrapper, Overview Hub, and List Views

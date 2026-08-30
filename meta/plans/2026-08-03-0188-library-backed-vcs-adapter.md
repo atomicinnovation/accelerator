@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-03-0188-library-backed-vcs-adapter"
 title: "Library-Backed VCS Adapter over gix and jj-lib Implementation Plan"
 date: "2026-08-03T09:10:56+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0188"
 parent: "work-item:0188"
 derived_from: ["codebase-research:2026-08-02-0188-library-backed-vcs-adapter"]
 relates_to: ["work-item:0169", "work-item:0185", "work-item:0125"]
-tags: [rust, vcs, dependencies, gix, jj-lib]
+tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 revision: "2ec1cc10961f3070ff6432cd2ebe54c52886b13e"
 repository: "accelerator"
 last_updated: "2026-08-03T09:10:56+00:00"

@@ -1,20 +1,20 @@
 ---
 date: "2026-04-21T10:30:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api"
 review_number: 1
-verdict: REVISE
-lenses: [architecture, code-quality, test-coverage, correctness, security, performance, usability]
+verdict: "REVISE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "performance", "usability"]
 review_pass: 1
-status: complete
+status: "complete"
 id: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api-review-1"
 title: "2026-04-21-meta-visualiser-phase-3-file-driver-indexer-api-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-21T10:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Meta Visualiser — Phase 3: FileDriver, Indexer, and read-only API

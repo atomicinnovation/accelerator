@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-29-0162-rust-toolchain-guard-rails-wiring"
 title: "Research: Rust Toolchain Guard Rails in mise + CI (work item 0162)"
 date: "2026-06-29T00:20:02+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0162"
 parent: "work-item:0162"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "How to extend Rust toolchain guard rails (format/lint/test/coverage/supply-chain/architecture-enforcement) into mise tasks and CI for the incoming cli/ workspace"
-tags: [research, codebase, rust, tooling, ci, mise, cargo-deny, cargo-pup, architecture-enforcement]
+tags: ["research", "codebase", "rust", "tooling", "ci", "mise", "cargo-deny", "cargo-pup", "architecture-enforcement"]
 revision: "09e89cf0215120877a7562cae508dd4b08b10471"
 repository: "accelerator"
 last_updated: "2026-06-29T00:20:02+00:00"

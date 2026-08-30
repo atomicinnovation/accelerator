@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0209"
 title: "Wire Up Or Retire The Header-Auth Path"
 date: "2026-08-12T23:21:12+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: ready
-kind: bug
-priority: high
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "ready"
+kind: "bug"
+priority: "high"
 parent: "work-item:0196"
 derived_from: ["plan:2026-08-11-0196-design-cli-migration"]
 relates_to: ["work-item:0196"]
-tags: [design, security, playwright, auth]
+tags: ["design", "security", "playwright", "auth"]
 last_updated: "2026-08-12T23:21:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-739
+external_id: "PP-739"
 ---
 
 # Wire Up Or Retire The Header-Auth Path

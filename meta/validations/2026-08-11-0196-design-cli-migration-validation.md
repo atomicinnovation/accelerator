@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-11-0196-design-cli-migration-validation"
 title: "Validation Report: accelerator-design: CLI Migration and Shell-Free Executor"
 date: "2026-08-13T11:48:29+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "partial"
 parent: "work-item:0196"
 target: "plan:2026-08-11-0196-design-cli-migration"
-tags: [rust, design, cli, sub-binary, executor, playwright]
+tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
 last_updated: "2026-08-13T11:48:29+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-06-0170-work-item-lifecycle-subdomain"
 title: "Research: Work-Item Lifecycle Subdomain (accelerator-work)"
 date: "2026-08-06T08:12:12+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0170"
 parent: "work-item:0170"
 topic: "Work-Item Lifecycle Subdomain (accelerator-work)"
-tags: [research, codebase, rust, work-items, cli, corpus, config, store]
+tags: ["research", "codebase", "rust", "work-items", "cli", "corpus", "config", "store"]
 revision: "0008d64b6ae5772c53e58c99fc2e968ec8f56d93"
 repository: "accelerator"
 last_updated: "2026-08-06T08:12:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

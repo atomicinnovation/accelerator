@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0179"
 title: "corpus and corpus-adapters Crates for Parsing and Conventions"
 date: "2026-07-06T22:27:35+00:00"
-author: Toby Clemson
-producer: refine-work-item
-status: done
-kind: task
-priority: high
+author: "Toby Clemson"
+producer: "refine-work-item"
+status: "done"
+kind: "task"
+priority: "high"
 parent: "work-item:0166"
-external_id: PP-703
+external_id: "PP-703"
 blocks: ["work-item:0180", "work-item:0170", "work-item:0195", "work-item:0168"]
-tags: [rust, config, corpus, store, crates, dedup, frontmatter, serde, vcs, metadata]
+tags: ["rust", "config", "corpus", "store", "crates", "dedup", "frontmatter", "serde", "vcs", "metadata"]
 last_updated: "2026-07-11T11:10:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

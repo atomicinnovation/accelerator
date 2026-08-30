@@ -1,18 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0064"
 title: "Producer-Signed Tree Attestation over a Compiled-In Digest"
 date: "2026-08-20T00:00:00+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
 supersedes: ["adr:ADR-0061"]
-relates_to: ["adr:ADR-0059", "adr:ADR-0060", "adr:ADR-0063",
-  "work-item:0196", "work-item:0214"]
-tags: [architecture, distribution, integrity, manifest, launcher, cache,
-  design]
+relates_to: ["adr:ADR-0059", "adr:ADR-0060", "adr:ADR-0063", "work-item:0196", "work-item:0214"]
+tags: ["architecture", "distribution", "integrity", "manifest", "launcher", "cache", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

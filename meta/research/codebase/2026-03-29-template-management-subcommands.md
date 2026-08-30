@@ -1,14 +1,14 @@
 ---
 date: "2026-03-29T14:24:21+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "508ca24b973d8c742e52e829c557f0c62f81076d"
-repository: accelerator
+repository: "accelerator"
 topic: "Template management subcommands for the configure skill"
-tags: [ research, codebase, templates, configure, configuration, customisation ]
-status: complete
+tags: ["research", "codebase", "templates", "configure", "configuration", "customisation"]
+status: "complete"
 last_updated: "2026-03-29T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-03-29-template-management-subcommands"
 title: "Research: Template Management Subcommands for the Configure Skill"
 schema_version: 1

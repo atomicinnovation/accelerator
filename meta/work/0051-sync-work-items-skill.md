@@ -2,18 +2,18 @@
 id: "0051"
 title: "Sync Work Items Skill"
 date: "2026-05-06T17:49:44+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: medium
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "medium"
 parent: "work-item:0045"
-tags: [work-management, integrations, sync]
-type: work-item
+tags: ["work-management", "integrations", "sync"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-18T12:36:36+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0046", "work-item:0047"]
-external_id: PP-73
+external_id: "PP-73"
 ---
 
 # 0051: Sync Work Items Skill

@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "14"
 title: "Multi-binary static distribution and release pipeline with minisign"
 date: "2026-07-06T17:37:11+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0165-multi-binary-distribution-and-release-pipeline"
 parent: "work-item:0165"
 relates_to: ["work-item:0164", "work-item:0168"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/14"
 pr_number: 14
-tags: [rust, distribution, release, cross-compile, minisign]
+tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 revision: "da9276c630caf608c38e4d34e90fb9aed91d749c"
 repository: "accelerator"
 last_updated: "2026-07-06T17:37:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

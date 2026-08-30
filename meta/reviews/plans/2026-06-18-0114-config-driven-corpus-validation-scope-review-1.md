@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-18-0114-config-driven-corpus-validation-scope-review-1"
 title: "Plan Review: Config-Driven Corpus Validation Scope"
 date: "2026-06-18T18:40:21+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-18-0114-config-driven-corpus-validation-scope"
 reviewer: "Toby Clemson"
-verdict: REVISE
-lenses: [architecture, correctness, code-quality, test-coverage, portability, safety, compatibility, performance]
+verdict: "REVISE"
+lenses: ["architecture", "correctness", "code-quality", "test-coverage", "portability", "safety", "compatibility", "performance"]
 review_number: 1
 review_pass: 2
-tags: [validator, frontmatter, config, doc-type-inference, allowlist]
+tags: ["validator", "frontmatter", "config", "doc-type-inference", "allowlist"]
 last_updated: "2026-06-19T00:10:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

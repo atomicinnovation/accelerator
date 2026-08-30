@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"
 title: "Research: Agent-Decisions Bridge and Documented Invoker Contract (0117)"
 date: "2026-06-21T00:14:37+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0117"
 parent: "work-item:0117"
 relates_to: ["codebase-research:2026-06-20-0116-structured-stall-on-no-decision-input"]
 topic: "Agent-Decisions Bridge: --list mode, decisions-file promotion, invoker contract"
-tags: [research, codebase, migrate, interactive-migration, agent-invocation, run-migrations, interactive-lib, skill-md]
+tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "run-migrations", "interactive-lib", "skill-md"]
 revision: "5a9ac98c68492ad71bea388d0ceeafc41d9aa7a6"
 repository: "accelerator"
 last_updated: "2026-06-21T00:14:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

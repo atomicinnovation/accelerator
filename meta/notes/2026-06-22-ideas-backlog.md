@@ -1,13 +1,13 @@
 ---
-type: note
+type: "note"
 id: "2026-06-22-ideas-backlog"
 title: "Ideas Backlog"
 date: "2026-06-22T23:49:56+00:00"
 author: "Toby Clemson"
-producer: create-note
-status: captured
+producer: "create-note"
+status: "captured"
 topic: "Ideas backlog"
-tags: [backlog, ideas]
+tags: ["backlog", "ideas"]
 revision: "59c765f5533a34285f086d31f5190fbb2689082e"
 repository: "miscellaneous"
 last_updated: "2026-06-22T23:49:56+00:00"

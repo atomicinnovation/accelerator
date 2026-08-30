@@ -2,17 +2,17 @@
 id: "0045"
 title: "Work Management Integration"
 date: "2026-05-04T23:56:41+00:00"
-author: Toby Clemson
-kind: epic
-status: done
-priority: high
-tags: [work-management, integrations, jira, linear, sync]
-type: work-item
+author: "Toby Clemson"
+kind: "epic"
+status: "done"
+priority: "high"
+tags: ["work-management", "integrations", "jira", "linear", "sync"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-07-06T13:29:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-27-create-work-item-open-from-existing", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-04-29-jira-cloud-integration-skills"]
-external_id: PP-67
+external_id: "PP-67"
 ---
 
 # 0045: Work Management Integration

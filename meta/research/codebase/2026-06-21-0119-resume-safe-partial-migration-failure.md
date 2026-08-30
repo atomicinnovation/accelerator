@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-21-0119-resume-safe-partial-migration-failure"
 title: "Research: Resume-Safe Partial Migration Failure (work item 0119)"
 date: "2026-06-21T00:17:27+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0119"
 parent: "work-item:0119"
 relates_to: ["work-item:0115", "work-item:0116", "work-item:0118", "work-item:0069", "work-item:0120"]
 topic: "Resume-Safe Partial Migration Failure (work item 0119)"
-tags: [research, codebase, migrate, run-migrations, interactive-migration, manifest, tooling]
+tags: ["research", "codebase", "migrate", "run-migrations", "interactive-migration", "manifest", "tooling"]
 revision: "8f2814b2f569f1f6174d736e525d9d27deb77317"
 repository: "build-system"
 last_updated: "2026-06-21T00:17:27+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

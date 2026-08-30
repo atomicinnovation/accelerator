@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-23-0168-fold-visualiser-into-cli-workspace"
 title: "Fold the Visualiser into the cli/ Workspace Implementation Plan"
 date: "2026-07-23T08:41:19+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0168"
 parent: "work-item:0168"
 derived_from: ["codebase-research:2026-07-23-0168-fold-visualiser-into-cli-workspace"]
 relates_to: ["work-item:0165"]
-tags: [rust, visualiser, cli, launcher, corpus, workspace]
+tags: ["rust", "visualiser", "cli", "launcher", "corpus", "workspace"]
 revision: "220cb821e3efd2e87acbd84600c02b36555e40e6"
 repository: "build-system"
 last_updated: "2026-07-23T17:29:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

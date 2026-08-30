@@ -1,20 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0125"
 title: "Converge legacy lexical VCS detection (find_repo_root / vcs_mode) on the 0058 probe layer"
 date: "2026-06-22T14:38:56+00:00"
-author: Phil Helm
-producer: create-work-item
-status: draft
-kind: task
-priority: medium
-relates_to: ["work-item:0124", "work-item:0058", "work-item:0020",
-  "work-item:0188"]
-tags: [tech-debt, scripts, vcs, git, jj, worktree, vcs-common]
+author: "Phil Helm"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "medium"
+relates_to: ["work-item:0124", "work-item:0058", "work-item:0020", "work-item:0188"]
+tags: ["tech-debt", "scripts", "vcs", "git", "jj", "worktree", "vcs-common"]
 last_updated: "2026-08-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-146
+external_id: "PP-146"
 ---
 
 # 0125: Converge legacy lexical VCS detection on the 0058 probe layer

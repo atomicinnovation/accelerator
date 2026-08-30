@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0111"
 title: "Visualiser Frontend Fixes for First Milestone Closeout"
 date: "2026-06-15T10:26:21+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 relates_to: ["work-item:0097"]
 tags: ["visualiser", "frontend", "polish", "markdown", "milestone-closeout"]
 last_updated: "2026-06-15T16:23:39+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-133
+external_id: "PP-133"
 ---
 
 # 0111: Visualiser Frontend Fixes for First Milestone Closeout

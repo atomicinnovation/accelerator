@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli-review-1"
 title: "Work Item Review: accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI"
 date: "2026-08-05T19:24:34+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0195"
 work_item_id: "0195"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-08-06T00:06:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

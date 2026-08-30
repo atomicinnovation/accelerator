@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation"
 title: "Research: Migration 0007 incomplete mechanical normalisation (work item 0114)"
 date: "2026-06-17T21:52:32+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0114"
 parent: "work-item:0114"
 relates_to: ["issue-research:2026-06-17-migration-0007-incomplete-mechanical-normalisation"]
 topic: "How migration 0007's mechanical passes diverge from its validator, and exactly where each of the six fixes must land"
-tags: [research, codebase, migrate, frontmatter, validator, unified-schema, "0007", awk]
+tags: ["research", "codebase", "migrate", "frontmatter", "validator", "unified-schema", "0007", "awk"]
 revision: "3ecb810f52d725b09c23747f29784ba78097ecb7"
 repository: "accelerator"
 last_updated: "2026-06-17T21:52:32+00:00"

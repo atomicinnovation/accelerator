@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-07-0172-migration-engine-subdomain"
 title: "Migration Engine Subdomain (accelerator-migrate) Implementation Plan"
 date: "2026-08-07T09:08:23+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0172"
 parent: "work-item:0172"
 derived_from: ["codebase-research:2026-08-06-0172-migration-engine-implementation-research"]
-tags: [rust, migration-engine, concurrency, interactive, cli]
+tags: ["rust", "migration-engine", "concurrency", "interactive", "cli"]
 revision: "4056d016bf415f182aa18b785d3177b81c04a458"
 repository: "accelerator"
 last_updated: "2026-08-09T19:01:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "All ten phases (0-10) implemented and committed; re-validated 2026-08-09 (meta/validations/2026-08-07-0172-migration-engine-subdomain-validation.md, result: pass). Phases 0-8 completed across earlier sessions per the phase-by-phase notes preserved in each phase's own section below. Phase 9 (assertion inventory + suite coverage) closed via a 4-agent coverage audit rather than a mechanical 1:1 black-box rewrite (its own disclosed, reasoned deviation) — 1,010 assertions inventoried, 79/80 test-migrate.sh gaps and all 17 test-migrate-0007.sh gaps closed with new Rust tests, recorded in meta/inventories/0172-suite-audit.md. Phase 10 (retirement cutover) landed at commit 5f0c6e8a9e8c: every retiring bash/awk file, the six shell suites, and jsonl-common.sh deleted; call sites, guards, and suite floors rewritten; skills/config/migrate/SKILL.md and docs-site/src/content/docs/migrations.md rewritten for the Rust contract; the ADR-reconciliation follow-up (work-item:0202) created and linked; cross-item records on 0180/0168/0182/0183/0167 confirmed or closed out. This pass's changes, made to close out the first validation's findings: (1) recorded the self-validation-obligation resolution on work-item:0195 itself, not just on 0172; (2) reconciled the Phase 9 deviation note, the Phase 10 overview, and the Phase 5 deviation note's stale \"still outstanding\"/\"not implemented\" language against the later, more detailed checkbox write-ups and commits that had already superseded them; (3) audited all 58 of work-item:0172's acceptance criteria against the live codebase and test suite and ticked the 53 genuinely satisfied, leaving 5 honestly unticked (see the work item's own last_updated_note for the list) rather than ticking by assertion; (4) transitioned work-item:0172 to status: done to match 0195's precedent, with its 5 open criteria disclosed rather than silently dropped."
 schema_version: 1
 ---

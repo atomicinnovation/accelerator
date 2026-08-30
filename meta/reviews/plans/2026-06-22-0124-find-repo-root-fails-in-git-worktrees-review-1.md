@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees-review-1"
 title: "Plan Review: find_repo_root fails in git worktrees (-d → -e)"
 date: "2026-06-22T14:18:48+00:00"
-author: Phil Helm
-producer: review-plan
-status: complete
+author: "Phil Helm"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 target: "plan:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
-reviewer: Phil Helm
-verdict: REVISE
-lenses: [correctness, test-coverage, code-quality, architecture, portability]
+reviewer: "Phil Helm"
+verdict: "REVISE"
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "portability"]
 review_number: 1
 review_pass: 1
-tags: [plan-review, scripts, vcs, git, worktree, conductor, bug]
+tags: ["plan-review", "scripts", "vcs", "git", "worktree", "conductor", "bug"]
 last_updated: "2026-06-22T14:18:48+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

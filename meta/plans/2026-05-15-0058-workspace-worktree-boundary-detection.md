@@ -1,16 +1,16 @@
 ---
 date: "2026-05-15T15:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0058"
-status: done
+status: "done"
 id: "2026-05-15-0058-workspace-worktree-boundary-detection"
 title: "Workspace and Worktree Boundary Detection Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-15T15:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["work-item:0058", "codebase-research:2026-05-15-0058-workspace-worktree-boundary-detection"]

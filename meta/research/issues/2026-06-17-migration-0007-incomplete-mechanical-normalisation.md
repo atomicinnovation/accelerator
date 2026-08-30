@@ -1,13 +1,13 @@
 ---
-type: issue-research
+type: "issue-research"
 id: "2026-06-17-migration-0007-incomplete-mechanical-normalisation"
 title: "Investigation: Migration 0007 fails self-validation on real corpora (incomplete mechanical normalisation)"
 date: "2026-06-17T20:59:08+00:00"
 author: "Toby Clemson"
-producer: research-issue
-status: complete
+producer: "research-issue"
+status: "complete"
 topic: "Why migration 0007 cannot pass its own structural validation gate on a real meta/ corpus"
-tags: [research, debugging, migrate, "0007", frontmatter, validator]
+tags: ["research", "debugging", "migrate", "0007", "frontmatter", "validator"]
 revision: "9d0bc5f4847178976ab8e996de31a60b6308f027"
 repository: "accelerator"
 last_updated: "2026-06-17T20:59:08+00:00"

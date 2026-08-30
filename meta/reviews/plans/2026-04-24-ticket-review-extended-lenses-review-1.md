@@ -1,20 +1,20 @@
 ---
 date: "2026-04-24T10:55:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-24-ticket-review-extended-lenses"
 review_number: 1
-verdict: REVISE
-lenses: [architecture, correctness, test-coverage, code-quality, documentation, usability, standards, compatibility]
+verdict: "REVISE"
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "documentation", "usability", "standards", "compatibility"]
 review_pass: 1
-status: complete
+status: "complete"
 id: "2026-04-24-ticket-review-extended-lenses-review-1"
 title: "2026-04-24-ticket-review-extended-lenses-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-24T10:55:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Ticket Review (Extended Lenses) — Phase 5

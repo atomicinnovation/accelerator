@@ -2,19 +2,19 @@
 id: "0079"
 title: "Detail-Page Aside Region Redesign"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: medium
-tags: [design, frontend, detail-page, aside]
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "medium"
+tags: ["design", "frontend", "detail-page", "aside"]
 last_updated: "2026-06-05T21:38:10+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-type: work-item
+type: "work-item"
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0043"]
-external_id: PP-101
+external_id: "PP-101"
 ---
 
 # 0079: Detail-Page Aside Region Redesign

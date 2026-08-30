@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0163"
 title: "Scaffold the cli/ Hexagonal Workspace with a version Subcommand"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 blocks: ["work-item:0164", "work-item:0165", "work-item:0166"]
 blocked_by: ["work-item:0162"]
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-tags: [rust, cli, hexagonal, scaffold, workspace]
+tags: ["rust", "cli", "hexagonal", "scaffold", "workspace"]
 last_updated: "2026-07-02T22:27:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-184"
 ---

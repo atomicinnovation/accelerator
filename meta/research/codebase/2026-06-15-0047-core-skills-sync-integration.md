@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-15-0047-core-skills-sync-integration"
 title: "Research: Core Skills Sync Integration (story 0047)"
 date: "2026-06-15T21:25:19+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0047"
 parent: "work-item:0047"
 relates_to: ["codebase-research:2026-06-14-0048-linear-integration-apis", "codebase-research:2026-05-08-0046-work-management-system-configuration"]
 topic: "Core Skills Sync Integration"
-tags: [research, codebase, work-management, integrations, sync, list-work-items, create-work-item]
+tags: ["research", "codebase", "work-management", "integrations", "sync", "list-work-items", "create-work-item"]
 revision: "7e4e9358c62ccb9863763c6aa42e0ffce439bac0"
 repository: "ticket-management"
 last_updated: "2026-06-15T21:25:19+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

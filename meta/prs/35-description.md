@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "35"
 title: "Bump the jj pin to 0.43.0 to match the jj-lib crate"
 date: "2026-08-02T18:55:44+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0136", "work-item:0188"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/35"
 pr_number: 35
-tags: [toolchain, mise, jj, vcs, dependencies]
+tags: ["toolchain", "mise", "jj", "vcs", "dependencies"]
 revision: "e6ebc18aab5bc277914b7b096e21d3e030042f94"
 repository: "accelerator"
 last_updated: "2026-08-02T18:55:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

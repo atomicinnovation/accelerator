@@ -1,11 +1,11 @@
 ---
 date: "2026-05-06T14:46:33+01:00"
-type: design-gap
+type: "design-gap"
 current_inventory: "meta/research/design-inventories/2026-05-06-135214-current-app/inventory.md"
 target_inventory: "meta/research/design-inventories/2026-05-06-140608-claude-design-prototype/inventory.md"
 author: "Toby Clemson"
-status: draft
-tags: [design, gap-analysis]
+status: "draft"
+tags: ["design", "gap-analysis"]
 id: "2026-05-06-current-app-vs-claude-design-prototype"
 title: "Design Gap Analysis: current-app → claude-design-prototype"
 schema_version: 1

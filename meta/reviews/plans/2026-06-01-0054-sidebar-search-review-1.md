@@ -1,20 +1,20 @@
 ---
 date: "2026-06-01T21:15:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-06-01-0054-sidebar-search"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, performance, usability, security, standards]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "performance", "usability", "security", "standards"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-06-01-0054-sidebar-search-review-1"
 title: "2026-06-01-0054-sidebar-search-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-06-01T21:15:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: 0054 Sidebar Search Input and API Search Endpoint

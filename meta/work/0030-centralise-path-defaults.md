@@ -2,19 +2,19 @@
 id: "0030"
 title: "Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh"
 date: "2026-04-26T00:00:00+00:00"
-author: Toby Clemson
-kind: task
-status: done
-priority: low
-tags: [config, refactoring]
-type: work-item
+author: "Toby Clemson"
+kind: "task"
+status: "done"
+priority: "low"
+tags: ["config", "refactoring"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-04-26T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocks: ["work-item:0052"]
 source: "plan:2026-04-25-rename-tickets-to-work-items"
 relates_to: ["codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "adr:ADR-0023"]
-external_id: PP-52
+external_id: "PP-52"
 ---
 
 # 0030: Centralise PATH and TEMPLATE config arrays to scripts/config-defaults.sh

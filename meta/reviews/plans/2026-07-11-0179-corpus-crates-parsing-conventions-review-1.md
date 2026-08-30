@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-11-0179-corpus-crates-parsing-conventions-review-1"
 title: "Plan Review: corpus and corpus-adapters Crates for Parsing and Conventions Implementation Plan"
 date: "2026-07-11T13:45:34+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-07-11-0179-corpus-crates-parsing-conventions"
 reviewer: "Toby Clemson"
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, code-quality, compatibility, portability, standards, safety]
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "compatibility", "portability", "standards", "safety"]
 review_number: 1
 review_pass: 3
-tags: [rust, corpus, crates, plan-review, vcs, frontmatter]
+tags: ["rust", "corpus", "crates", "plan-review", "vcs", "frontmatter"]
 last_updated: "2026-07-11T21:25:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

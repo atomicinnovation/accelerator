@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-11-0106-bare-path-script-invocation-call-sites"
 title: "Research: Bare-path script-invocation call sites in SKILL.md bodies (work item 0106)"
 date: "2026-06-11T13:23:54+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0106"
 parent: "work-item:0106"
 topic: "Which SKILL.md passages invoke artifact-*/config-* plugin scripts, how each is shaped, and whether the work item's acceptance criteria are satisfiable"
-tags: [research, codebase, permissions, allowed-tools, skills, plugin, authoring-convention]
+tags: ["research", "codebase", "permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 revision: "3b82e5d1b902b6e57db51ac345df5e72105c5455"
 repository: "miscellaneous"
 last_updated: "2026-06-11T13:23:54+00:00"

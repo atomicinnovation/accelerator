@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-27-ask-user-question-skill-upgrades"
 title: "AskUserQuestion Skill Upgrades (Priorities 1–3) Implementation Plan"
 date: "2026-06-27T16:14:08+00:00"
 author: "John Cowie Del Corral"
-producer: create-plan
-status: draft
+producer: "create-plan"
+status: "draft"
 derived_from: ["codebase-research:2026-06-27-ask-user-question-opportunities"]
-tags: [skills, ux, ask-user-question, review-pr, review-work-item, respond-to-pr, commit]
+tags: ["skills", "ux", "ask-user-question", "review-pr", "review-work-item", "respond-to-pr", "commit"]
 revision: "e72cb30556fe3a3caaf952092d8056c932a2baa9"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-06-27T16:14:08+00:00"
 last_updated_by: "John Cowie Del Corral"
 schema_version: 1

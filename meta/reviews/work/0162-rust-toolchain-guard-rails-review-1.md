@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0162-rust-toolchain-guard-rails-review-1"
 title: "Work Item Review: Rust Toolchain Guard Rails in mise + CI"
 date: "2026-06-28T23:41:15+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0162"
 work_item_id: "0162"
-reviewer: Toby Clemson
-verdict: COMMENT
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "COMMENT"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [rust, tooling, ci, guard-rails]
+tags: ["rust", "tooling", "ci", "guard-rails"]
 last_updated: "2026-06-28T23:54:50+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

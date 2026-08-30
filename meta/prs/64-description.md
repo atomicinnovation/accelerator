@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "64"
 title: "accelerator-design: CLI migration and shell-free executor"
 date: "2026-08-13T14:02:43+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0196"
 parent: "work-item:0196"
 relates_to: ["work-item:0206", "work-item:0207", "work-item:0208", "work-item:0209"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/64"
 pr_number: 64
-tags: [rust, design, cli, sub-binary, executor, playwright]
+tags: ["rust", "design", "cli", "sub-binary", "executor", "playwright"]
 revision: "da9b1803d352bf9a3ed64ec924491d0fbe40b5a2"
 repository: "accelerator"
 last_updated: "2026-08-13T15:24:41+00:00"

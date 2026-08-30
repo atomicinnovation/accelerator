@@ -1,14 +1,14 @@
 ---
 date: "2026-05-12T10:40:16+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "6c0e429bfbbc6b4541906fe5cbdf1b04d5f4ef9c"
-repository: accelerator
+repository: "accelerator"
 topic: "Glyph Component (work item 0037)"
-tags: [research, codebase, visualiser, frontend, components, design-tokens, glyph, doc-types, theming]
-status: complete
+tags: ["research", "codebase", "visualiser", "frontend", "components", "design-tokens", "glyph", "doc-types", "theming"]
+status: "complete"
 last_updated: "2026-05-12T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-12-0037-glyph-component"
 title: "Research: Glyph Component (work item 0037)"
 schema_version: 1

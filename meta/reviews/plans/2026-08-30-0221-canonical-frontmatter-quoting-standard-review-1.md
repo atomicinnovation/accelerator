@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-30-0221-canonical-frontmatter-quoting-standard-review-1"
 title: "Plan Review: Canonical Frontmatter Quoting Standard"
 date: "2026-08-30T15:24:05+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-30-0221-canonical-frontmatter-quoting-standard"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, code-quality, test-coverage, safety, standards, compatibility]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "code-quality", "test-coverage", "safety", "standards", "compatibility"]
 review_number: 1
 review_pass: 3
-tags: [frontmatter, corpus, validator, migration, quoting]
+tags: ["frontmatter", "corpus", "validator", "migration", "quoting"]
 last_updated: "2026-08-30T17:43:25+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

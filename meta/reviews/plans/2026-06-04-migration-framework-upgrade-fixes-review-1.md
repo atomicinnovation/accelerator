@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-04-migration-framework-upgrade-fixes-review-1"
 title: "Plan Review: Migration Framework Upgrade-Failure Fixes"
 date: "2026-06-04T16:21:41+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-04-migration-framework-upgrade-fixes"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, safety, compatibility, portability, test-coverage, architecture, code-quality]
+lenses: ["correctness", "safety", "compatibility", "portability", "test-coverage", "architecture", "code-quality"]
 review_number: 1
 review_pass: 2
-tags: [migrate, run-migrations, bash-compatibility, merge-move, shell-lint]
+tags: ["migrate", "run-migrations", "bash-compatibility", "merge-move", "shell-lint"]
 last_updated: "2026-06-04T17:00:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

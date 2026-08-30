@@ -1,15 +1,15 @@
 ---
 id: "ADR-0027"
 date: "2026-05-17T20:13:38+00:00"
-author: Toby Clemson
-status: superseded
+author: "Toby Clemson"
+status: "superseded"
 superseded_by: "adr:ADR-0052"
-tags: [artifacts, persistence, reviews, meta-directory]
-type: adr
+tags: ["artifacts", "persistence", "reviews", "meta-directory"]
+type: "adr"
 title: "ADR-0027: Persist structured skill outputs to meta/"
 schema_version: 1
 last_updated: "2026-05-17T20:13:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["codebase-research:2026-03-18-meta-management-strategy", "plan:2026-03-22-persist-review-artifacts", "adr:ADR-0001", "adr:ADR-0006", "adr:ADR-0008", "adr:ADR-0019"]
 ---
 

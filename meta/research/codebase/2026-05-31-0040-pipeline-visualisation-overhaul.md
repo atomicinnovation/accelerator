@@ -1,14 +1,14 @@
 ---
 date: "2026-05-31T23:08:12+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "88b3cab89687dd2ca32bc4e38fb603198e46eb92"
-repository: accelerator
+repository: "accelerator"
 topic: "Pipeline Visualisation Overhaul (work item 0040) — codebase landing readiness"
-tags: [research, codebase, visualiser, pipeline, lifecycle, kanban, indexer, work-item-0040]
-status: complete
+tags: ["research", "codebase", "visualiser", "pipeline", "lifecycle", "kanban", "indexer", "work-item-0040"]
+status: "complete"
 last_updated: "2026-05-31T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-31-0040-pipeline-visualisation-overhaul"
 title: "Research: Pipeline Visualisation Overhaul (0040)"
 schema_version: 1

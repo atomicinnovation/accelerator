@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0105-close-corpus-validator-provenance-and-linkage-blind-spots-review-1"
 title: "Work Item Review: Close the Corpus Validator Provenance and Linkage Blind Spots"
 date: "2026-06-15T00:38:36+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0057"
 target: "work-item:0105"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 work_item_id: "0105"
-tags: [frontmatter, schema, validator, provenance, linkage]
+tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 last_updated: "2026-06-15T07:41:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

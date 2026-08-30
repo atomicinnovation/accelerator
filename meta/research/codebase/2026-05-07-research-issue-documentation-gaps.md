@@ -1,14 +1,14 @@
 ---
 date: "2026-05-07T18:10:33+02:00"
-author: jonassvalin
+author: "jonassvalin"
 revision: "986954db59e2eb6d9c9a7426c4f52852d00f1afb"
-repository: accelerator
+repository: "accelerator"
 topic: "Documentation and registration gaps for the new research-issue skill"
-tags: [research, skills, research-issue, documentation, conventions]
-status: complete
+tags: ["research", "skills", "research-issue", "documentation", "conventions"]
+status: "complete"
 last_updated: "2026-05-07T00:00:00+00:00"
-last_updated_by: jonassvalin
-type: codebase-research
+last_updated_by: "jonassvalin"
+type: "codebase-research"
 id: "2026-05-07-research-issue-documentation-gaps"
 title: "Research: Documentation and Registration Gaps for research-issue Skill"
 schema_version: 1

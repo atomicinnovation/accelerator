@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-07-0172-migration-engine-subdomain-review-1"
 title: "Plan Review: Migration Engine Subdomain (accelerator-migrate) Implementation Plan"
 date: "2026-08-07T10:18:07+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-07-0172-migration-engine-subdomain"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, safety, compatibility, usability, documentation]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "compatibility", "usability", "documentation"]
 review_number: 1
 review_pass: 3
 tags: []
 last_updated: "2026-08-07T14:01:48+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

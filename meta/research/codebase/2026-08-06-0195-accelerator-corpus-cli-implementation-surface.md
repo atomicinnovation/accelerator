@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-06-0195-accelerator-corpus-cli-implementation-surface"
 title: "Research: Implementation surface for work-item 0195 (accelerator-corpus CLI)"
 date: "2026-08-06T08:16:04+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0195"
 parent: "work-item:0195"
 topic: "Implementation surface for accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI"
-tags: [research, codebase, rust, cli, corpus, adr, frontmatter, linkage, sub-binary]
+tags: ["research", "codebase", "rust", "cli", "corpus", "adr", "frontmatter", "linkage", "sub-binary"]
 revision: "451c185a684756747b850c5530088878fc02949a"
 repository: "accelerator"
 last_updated: "2026-08-06T08:16:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

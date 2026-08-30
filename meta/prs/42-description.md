@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "42"
 title: "Generalise the sub-binary registration surface"
 date: "2026-08-03T13:46:38+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0187"
 parent: "work-item:0187"
 relates_to: ["work-item:0136", "work-item:0168"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/42"
 pr_number: 42
-tags: [build-system, distribution, release, rust, docs]
+tags: ["build-system", "distribution", "release", "rust", "docs"]
 revision: "ba749cf4d48dedd788af9251f7cded140686a0b9"
 repository: "accelerator"
 last_updated: "2026-08-03T13:46:38+00:00"

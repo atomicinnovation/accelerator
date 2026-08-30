@@ -2,13 +2,13 @@
 date: "2026-06-01T22:18:41+01:00"
 author: "Toby Clemson"
 revision: "53e5936ccef94b353d2aec867e95314f77cb564a"
-repository: accelerator
+repository: "accelerator"
 topic: "Lifecycle clustering breaks because work-item slugs and plan/research/review slugs use different shapes; validations/PR-descriptions/PR-reviews never join a cluster"
-tags: [research, codebase, visualiser, clusters, slug, work-item-id, typed-linkage]
-status: complete
+tags: ["research", "codebase", "visualiser", "clusters", "slug", "work-item-id", "typed-linkage"]
+status: "complete"
 last_updated: "2026-06-01T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-01-lifecycle-clustering-slug-mismatch"
 title: "Research: lifecycle clustering breaks because slugs don't agree across doc types"
 schema_version: 1

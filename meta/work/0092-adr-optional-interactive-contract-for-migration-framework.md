@@ -2,20 +2,20 @@
 id: "0092"
 title: "ADR: Optional Interactive Contract for the Migration Framework"
 date: "2026-05-26T10:00:00+00:00"
-author: Toby Clemson
-kind: task
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "task"
+status: "done"
+priority: "high"
 parent: "work-item:0057"
-tags: [adr, migration, framework, accelerator-plugin]
-type: work-item
+tags: ["adr", "migration", "framework", "accelerator-plugin"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-26T10:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0068", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 blocks: ["work-item:0062", "work-item:0069"]
 relates_to: ["adr:ADR-0023", "adr:ADR-0030", "work-item:0023", "work-item:0030", "work-item:0057", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
-external_id: PP-114
+external_id: "PP-114"
 ---
 
 # 0092: ADR: Optional Interactive Contract for the Migration Framework

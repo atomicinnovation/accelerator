@@ -2,19 +2,19 @@
 id: "0087"
 title: "404 / Error Screen with Affordances"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: low
-tags: [design, frontend, error-states]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "low"
+tags: ["design", "frontend", "error-states"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-12T16:46:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0041", "work-item:0082", "work-item:0074"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0054"]
-external_id: PP-109
+external_id: "PP-109"
 ---
 
 # 0087: 404 / Error Screen with Affordances

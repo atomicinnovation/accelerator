@@ -1,13 +1,13 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-17-readme-changelog-1.22.0-refresh"
 title: "README and CHANGELOG 1.22.0 Refresh Implementation Plan"
 date: "2026-06-17T13:00:50+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 derived_from: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
-tags: [changelog, readme, release, docs]
+tags: ["changelog", "readme", "release", "docs"]
 revision: "996916b98aac33db7f09f6a5cffb7e1cbf97604e"
 repository: "accelerator"
 last_updated: "2026-06-17T17:24:12+00:00"

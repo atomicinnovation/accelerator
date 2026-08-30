@@ -1,12 +1,12 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-04-migration-framework-upgrade-fixes"
 title: "Migration Framework Upgrade-Failure Fixes Implementation Plan"
 date: "2026-06-04T15:54:32+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: draft
-tags: [migrate, run-migrations, bash-compatibility, merge-move, shell-lint]
+producer: "create-plan"
+status: "draft"
+tags: ["migrate", "run-migrations", "bash-compatibility", "merge-move", "shell-lint"]
 revision: "03b648e48e3ccf390c71cc1e622e350d4c5fc450"
 repository: "accelerator"
 last_updated: "2026-06-04T15:54:32+00:00"

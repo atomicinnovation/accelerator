@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-07-03-0164-launcher-and-git-style-dispatch-validation"
 title: "Validation Report: Launcher and Git-Style Dispatch Implementation Plan"
 date: "2026-07-05T14:18:42+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-07-03-0164-launcher-and-git-style-dispatch"
 target: "plan:2026-07-03-0164-launcher-and-git-style-dispatch"
-tags: [rust, launcher, dispatch, cli, fetch-verify-cache-exec, minisign, reqwest, bootstrap]
+tags: ["rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign", "reqwest", "bootstrap"]
 last_updated: "2026-07-05T14:18:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

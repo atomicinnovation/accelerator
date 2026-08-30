@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
 title: "Research: Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-20T16:47:01+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0118"
 parent: "work-item:0118"
 relates_to: ["work-item:0114", "work-item:0115", "work-item:0120"]
 topic: "Reconcile 0007 Backfill Sentinel With Its Validator"
-tags: [research, codebase, migrate, migration-0007, corpus-validator, backfill, sentinel]
+tags: ["research", "codebase", "migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 revision: "6b9e9bba0648c707e6563e416b03c4203b38d736"
 repository: "visualisation-system"
 last_updated: "2026-06-20T16:47:01+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

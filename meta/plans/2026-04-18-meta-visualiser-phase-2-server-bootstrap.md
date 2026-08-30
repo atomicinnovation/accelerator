@@ -1,15 +1,15 @@
 ---
 date: "2026-04-18T15:00:00+01:00"
-type: plan
-producer: create-plan
-status: ready
+type: "plan"
+producer: "create-plan"
+status: "ready"
 id: "2026-04-18-meta-visualiser-phase-2-server-bootstrap"
 title: "Meta Visualiser — Phase 2: Server Bootstrap and Lifecycle"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-18T15:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "plan:2026-04-18-meta-visualiser-phase-1-skill-scaffolding"]

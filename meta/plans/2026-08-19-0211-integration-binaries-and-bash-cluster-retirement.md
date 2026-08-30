@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-19-0211-integration-binaries-and-bash-cluster-retirement"
 title: "Integration Binaries and Bash Cluster Retirement Implementation Plan"
 date: "2026-08-19T02:05:51+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 derived_from: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
 relates_to: ["work-item:0171", "work-item:0210", "work-item:0212", "work-item:0174", "work-item:0165"]
-tags: [rust, jira, linear, integrations, cli, cutover, exit-codes, registration]
+tags: ["rust", "jira", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
 revision: "45fe2827ec4eab9404ea4fb851de05fcbd9b87b3"
 repository: "accelerator"
 last_updated: "2026-08-23T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

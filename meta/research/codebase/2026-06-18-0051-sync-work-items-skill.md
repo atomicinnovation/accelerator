@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-18-0051-sync-work-items-skill"
 title: "Research: Sync Work Items Skill (0051)"
 date: "2026-06-18T12:48:49+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0051"
 parent: "work-item:0051"
 relates_to: ["codebase-research:2026-06-15-0047-core-skills-sync-integration"]
 topic: "Implementing /sync-work-items: reconciliation engine, last-sync.json baseline, conflict UX, and the /list-work-items five-state extension"
-tags: [research, codebase, work, integrations, sync, jira, last-sync]
+tags: ["research", "codebase", "work", "integrations", "sync", "jira", "last-sync"]
 revision: "2aec82d6560fe5407629156cde6eb8d99b208b6a"
 repository: "ticket-management"
 last_updated: "2026-06-18T12:48:49+00:00"

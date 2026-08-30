@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-20-0122-executable-bits-skill-entrypoint-scripts-review-1"
 title: "Plan Review: Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts"
 date: "2026-06-20T18:19:51+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-20-0122-executable-bits-skill-entrypoint-scripts"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, usability, documentation, standards, portability]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "usability", "documentation", "standards", "portability"]
 review_number: 1
 review_pass: 3
-tags: [scripts, permissions, ci, lint, plugin, executable-bit]
+tags: ["scripts", "permissions", "ci", "lint", "plugin", "executable-bit"]
 last_updated: "2026-06-20T18:46:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

@@ -1,14 +1,14 @@
 ---
 date: "2026-05-08T20:42:32+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "8f03965c736cef0f31a56eefa0852e50be23f513"
-repository: accelerator
+repository: "accelerator"
 topic: "Work Management System Configuration (work item 0046) — implementation prep"
-tags: [research, codebase, work-management, integrations, configuration, work.integration]
-status: complete
+tags: ["research", "codebase", "work-management", "integrations", "configuration", "work.integration"]
+status: "complete"
 last_updated: "2026-05-08T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-08-0046-work-management-system-configuration"
 title: "Research: Work Management System Configuration (0046)"
 schema_version: 1

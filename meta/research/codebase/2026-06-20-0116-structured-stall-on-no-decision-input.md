@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-20-0116-structured-stall-on-no-decision-input"
 title: "Research: Structured Stall on No Decision Input (work item 0116)"
 date: "2026-06-20T15:40:00+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0116"
 parent: "work-item:0116"
 topic: "Structured Stall on No Decision Input"
-tags: [research, codebase, migrate, interactive-migration, agent-invocation, interactive-lib, run-migrations]
+tags: ["research", "codebase", "migrate", "interactive-migration", "agent-invocation", "interactive-lib", "run-migrations"]
 revision: "1fd8ceeccfa2af3146dc8034973152919b3ad0c1"
 repository: "accelerator"
 last_updated: "2026-06-20T15:40:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added 'Interaction Model — how 0116 and 0117 couple' section clarifying the batch list→decide→write→resume flow vs live back-and-forth, and the decisions-file bulk-response semantics"
 schema_version: 1
 ---

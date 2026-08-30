@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-19-0213-conversational-conflict-resolution-flow-review-1"
 title: "Plan Review: Conversational Conflict Resolution Flow for Sync"
 date: "2026-08-19T02:19:43+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-08-19-0213-conversational-conflict-resolution-flow"
 target: "plan:2026-08-19-0213-conversational-conflict-resolution-flow"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, safety, security, usability, compatibility]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "security", "usability", "compatibility"]
 review_number: 1
 review_pass: 3
-tags: [skills, sync, work-items, conflicts, cli]
+tags: ["skills", "sync", "work-items", "conflicts", "cli"]
 last_updated: "2026-08-19T09:29:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

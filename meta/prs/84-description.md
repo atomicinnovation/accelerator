@@ -1,20 +1,20 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "84"
 title: "Empty scripts/ and retire shell tooling and CI guards"
 date: "2026-08-29T08:15:27+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0174"
 parent: "work-item:0174"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/84"
 pr_number: 84
-tags: [shell, tooling, ci, cleanup, scripts]
+tags: ["shell", "tooling", "ci", "cleanup", "scripts"]
 revision: "a9cf9fb6ad2ada3ef8f661ad63fdc69ed41ec9de"
 repository: "accelerator"
 last_updated: "2026-08-29T08:15:27+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

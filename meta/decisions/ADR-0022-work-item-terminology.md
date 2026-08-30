@@ -1,14 +1,14 @@
 ---
 id: "ADR-0022"
 date: "2026-04-25T22:30:00+01:00"
-author: Toby Clemson
-status: accepted
-tags: [terminology, work-items, naming]
-type: adr
+author: "Toby Clemson"
+status: "accepted"
+tags: ["terminology", "work-items", "naming"]
+type: "adr"
 title: "ADR-0022: Use `work`/`work-item` terminology"
 schema_version: 1
 last_updated: "2026-04-25T22:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-08-ticket-management-skills", "adr:ADR-0023"]
 ---
 

@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-05-0169-vcs-subdomain-and-hooks-migration-validation"
 title: "Validation Report: VCS Subdomain and Hooks Migration Implementation Plan"
 date: "2026-08-06T00:45:48+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"
-tags: [rust, vcs, hooks, migration]
+tags: ["rust", "vcs", "hooks", "migration"]
 last_updated: "2026-08-17T13:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

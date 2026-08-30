@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-22-0191-batch-shim-hashes"
 title: "Research: Batch the bootstrap's two shim hashes into one sha256 invocation (0191)"
 date: "2026-08-22T22:37:37+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0191"
 parent: "work-item:0191"
 relates_to: ["work-item:0186", "work-item:0189", "work-item:0205", "work-item:0169"]
 topic: "Batching the two shim sha256 hashes in bin/accelerator into one backend invocation"
-tags: [research, codebase, shell, bootstrap, bash-3.2, performance, sha256]
+tags: ["research", "codebase", "shell", "bootstrap", "bash-3.2", "performance", "sha256"]
 revision: "9fa29fb6a49c5538d81fbb91d168a3dd89d4bcdc"
 repository: "accelerator"
 last_updated: "2026-08-22T22:37:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

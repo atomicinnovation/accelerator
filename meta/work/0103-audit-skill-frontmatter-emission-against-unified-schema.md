@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0103"
 title: "Audit Skill Frontmatter Emission Against the Unified Schema"
 date: "2026-06-09T14:13:02+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "medium"
 parent: "work-item:0057"
 relates_to: ["work-item:0070"]
-tags: [frontmatter, schema, skills, validation, audit]
+tags: ["frontmatter", "schema", "skills", "validation", "audit"]
 last_updated: "2026-06-10T13:37:48+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-125
+external_id: "PP-125"
 ---
 
 # 0103: Audit Skill Frontmatter Emission Against the Unified Schema

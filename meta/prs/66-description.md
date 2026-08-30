@@ -1,18 +1,18 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "66"
 title: "Claim built binaries out of cargo's uplift path"
 date: "2026-08-17T08:05:56+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/66"
 pr_number: 66
-tags: [tests, cargo, build-system, flakiness]
+tags: ["tests", "cargo", "build-system", "flakiness"]
 revision: "d94680ab79164e5781c732694803655cda938cea"
 repository: "accelerator"
 last_updated: "2026-08-17T08:05:56+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

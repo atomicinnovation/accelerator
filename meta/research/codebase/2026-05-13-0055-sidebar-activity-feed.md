@@ -1,14 +1,14 @@
 ---
 date: "2026-05-13T09:15:21+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "99c29ca35498adbe72fafec97a68216d6ebf6fde"
-repository: accelerator
+repository: "accelerator"
 topic: "Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator"
-tags: [research, codebase, sse, watcher, activity-feed, sidebar, sse-hub, frontend, server, work-item-0055]
-status: complete
+tags: ["research", "codebase", "sse", "watcher", "activity-feed", "sidebar", "sse-hub", "frontend", "server", "work-item-0055"]
+status: "complete"
 last_updated: "2026-05-13T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-13-0055-sidebar-activity-feed"
 title: "Research: Educate implementation of 0055 — Sidebar Activity Feed and SSE Action Discriminator"
 schema_version: 1

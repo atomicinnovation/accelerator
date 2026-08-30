@@ -1,13 +1,13 @@
 ---
-type: issue-research
+type: "issue-research"
 id: "2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission"
 title: "Investigation: bash wrapper prefix defeats skill allowed-tools permission for artifact-derive-metadata.sh"
 date: "2026-06-10T19:55:06+00:00"
 author: "Toby Clemson"
-producer: research-issue
-status: complete
+producer: "research-issue"
+status: "complete"
 topic: "Skills repeatedly prompt for permission to run artifact-derive-metadata.sh when invoked as `bash <script>` despite an allowed-tools rule"
-tags: [research, debugging, permissions, allowed-tools, skills, plugin]
+tags: ["research", "debugging", "permissions", "allowed-tools", "skills", "plugin"]
 revision: "faa5abe46ae193f6e329fbaa6868a066defaa824"
 repository: "miscellaneous"
 last_updated: "2026-06-10T19:55:06+00:00"

@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0174"
 title: "Empty scripts/ and Retire Shell Tooling and CI Guards"
 date: "2026-06-28T17:01:56+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
-tags: [shell, tooling, ci, cleanup]
+tags: ["shell", "tooling", "ci", "cleanup"]
 last_updated: "2026-08-28T00:37:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-195"
 ---

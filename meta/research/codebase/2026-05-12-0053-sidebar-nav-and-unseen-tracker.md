@@ -1,14 +1,14 @@
 ---
 date: "2026-05-12T20:55:11+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "4396ef3e3300789e6ecb80c36bac17ec2f2ac2d2"
-repository: accelerator
+repository: "accelerator"
 topic: "Sidebar Nav with Per-Type Change Indicators (work item 0053)"
-tags: [research, codebase, frontend, sidebar, navigation, sse, localstorage, doc-types, backend, types-endpoint, indexer]
-status: complete
+tags: ["research", "codebase", "frontend", "sidebar", "navigation", "sse", "localstorage", "doc-types", "backend", "types-endpoint", "indexer"]
+status: "complete"
 last_updated: "2026-05-12T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-12-0053-sidebar-nav-and-unseen-tracker"
 title: "Research: Sidebar Nav with Per-Type Change Indicators (work item 0053)"
 schema_version: 1

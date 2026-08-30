@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-21-0119-resume-safe-partial-migration-failure"
 title: "Resume-Safe Partial Migration Failure Implementation Plan"
 date: "2026-06-21T08:06:03+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0119"
 parent: "work-item:0119"
 derived_from: ["codebase-research:2026-06-21-0119-resume-safe-partial-migration-failure"]
 relates_to: ["work-item:0115", "work-item:0116", "work-item:0118", "work-item:0069", "work-item:0120"]
-tags: [migrate, interactive-migration, agent-invocation, tooling, manifest]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling", "manifest"]
 revision: "17a2ffbc90a5fa9c48f2621ab6a79e1ff451fc23"
 repository: "build-system"
 last_updated: "2026-06-22T12:35:23+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

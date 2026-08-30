@@ -1,16 +1,16 @@
 ---
 date: "2026-05-31T22:54:08+00:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0066"
-status: done
+status: "done"
 id: "2026-05-31-0066-update-review-skills-inline-frontmatter"
 title: "Move Review/Validation Skills' Frontmatter into Templates Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-31T22:54:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "ba1d8a25116a"
 repository: "ticket-management"
 relates_to: ["work-item:0066", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter", "adr:ADR-0033", "adr:ADR-0034", "work-item:0057", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema"]

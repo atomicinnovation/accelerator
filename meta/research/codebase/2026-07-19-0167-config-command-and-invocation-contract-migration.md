@@ -1,24 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-19-0167-config-command-and-invocation-contract-migration"
 title: "Research: Built-in config Command and Invocation-Contract Migration (0167)"
 date: "2026-07-19T17:39:37+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0167"
 parent: "work-item:0167"
-relates_to:
-  - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
-  - "codebase-research:2026-07-07-0178-config-crates-native-yaml-reader"
-  - "codebase-research:2026-07-19-0180-atomic-store-primitives-corpus-adapters"
-  - "codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"
+relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-07-0178-config-crates-native-yaml-reader", "codebase-research:2026-07-19-0180-atomic-store-primitives-corpus-adapters", "codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
 topic: "Built-in config Command and Invocation-Contract Migration (0167)"
-tags: [research, codebase, rust, config, cli, skills, invocation-contract, allowed-tools, hooks, atomic-write, migration]
+tags: ["research", "codebase", "rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "atomic-write", "migration"]
 revision: "1de6019f4e9e7955a0771b555967ebb6baa97081"
 repository: "build-system"
 last_updated: "2026-07-19T17:39:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "61"
 title: "[0185] Converge corpus-adapters on the Library-Backed VCS Adapter"
 date: "2026-08-11T09:46:24+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0185"
 parent: "work-item:0185"
 relates_to: ["work-item:0188", "work-item:0198", "work-item:0203"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/61"
 pr_number: 61
-tags: [rust, vcs, cleanup, tech-debt]
+tags: ["rust", "vcs", "cleanup", "tech-debt"]
 revision: "47987ff4ddf94a1cda3617c0ad163709d0277570"
 repository: "accelerator"
 last_updated: "2026-08-11T09:46:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

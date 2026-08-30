@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-11-0104-add-rejected-to-adr-status-vocabulary-review-1"
 title: "Plan Review: Add rejected to the ADR Status Vocabulary"
 date: "2026-06-11T13:24:38+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-11-0104-add-rejected-to-adr-status-vocabulary"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, test-coverage, architecture, code-quality, standards, documentation]
+lenses: ["correctness", "test-coverage", "architecture", "code-quality", "standards", "documentation"]
 review_number: 1
 review_pass: 2
-tags: [frontmatter, schema, adr, status, validator]
+tags: ["frontmatter", "schema", "adr", "status", "validator"]
 last_updated: "2026-06-11T13:42:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

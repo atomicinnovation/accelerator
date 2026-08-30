@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-02-0163-scaffold-cli-workspace-version-subcommand"
 title: "Scaffold the cli/ Hexagonal Workspace with a version Subcommand Implementation Plan"
 date: "2026-07-02T23:00:23+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0163"
 parent: "work-item:0163"
 derived_from: ["codebase-research:2026-07-02-0163-cli-workspace-version-subcommand-scaffold"]
-tags: [rust, cli, hexagonal, scaffold, workspace, version, kernel]
+tags: ["rust", "cli", "hexagonal", "scaffold", "workspace", "version", "kernel"]
 revision: "a0a3b3bcba66b9eddd787a1a571c14b32f3db1ae"
 repository: "accelerator"
 last_updated: "2026-07-03T00:11:47+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

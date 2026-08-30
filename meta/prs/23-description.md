@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "23"
 title: "[0180] Atomic store primitives"
 date: "2026-07-20T15:13:35+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0180"
 parent: "work-item:0166"
 relates_to: ["work-item:0172"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/23"
 pr_number: 23
-tags: [rust, corpus, store, crates]
+tags: ["rust", "corpus", "store", "crates"]
 revision: "b4b127ac9570b7c244380b2da115c29e21a6163a"
 repository: "accelerator"
 last_updated: "2026-07-20T15:13:35+00:00"

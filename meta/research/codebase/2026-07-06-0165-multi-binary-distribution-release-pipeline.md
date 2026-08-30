@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-06-0165-multi-binary-distribution-release-pipeline"
 title: "Research: Producer-side multi-binary distribution and release pipeline with minisign (0165)"
 date: "2026-07-05T23:35:11+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0165"
 parent: "work-item:0165"
 relates_to: ["codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
 topic: "How to build the producer half of the static-binary release pipeline that satisfies the launcher's frozen manifest.json + minisign contract"
-tags: [research, codebase, distribution, release, minisign, cross-compile, rust, version-coherence]
-revision: 4608507878edcffecab5d28e3945b4a0b90d0dd0
-repository: accelerator
+tags: ["research", "codebase", "distribution", "release", "minisign", "cross-compile", "rust", "version-coherence"]
+revision: "4608507878edcffecab5d28e3945b4a0b90d0dd0"
+repository: "accelerator"
 last_updated: "2026-07-05T23:35:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

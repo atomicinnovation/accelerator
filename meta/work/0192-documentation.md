@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0192"
 title: "Documentation"
 date: "2026-07-10T19:41:21+00:00"
-author: Phil Helm
-producer: create-work-item
-status: draft
-kind: epic
-priority: medium
+author: "Phil Helm"
+producer: "create-work-item"
+status: "draft"
+kind: "epic"
+priority: "medium"
 relates_to: ["work-item:0177", "work-item:0145"]
-tags: [docs]
+tags: ["docs"]
 last_updated: "2026-07-10T19:41:21+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-722
+external_id: "PP-722"
 ---
 
 # 0192: Documentation

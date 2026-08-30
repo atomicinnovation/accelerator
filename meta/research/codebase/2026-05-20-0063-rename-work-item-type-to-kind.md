@@ -1,14 +1,14 @@
 ---
 date: "2026-05-20T22:23:30+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "a1c1c10e25f7a789ab955fcd5d1cecfa883d677e"
-repository: accelerator
+repository: "accelerator"
 topic: "Rename work-item `type:` Field to `kind:` (story 0063) — affected surface and migration design"
-tags: [research, codebase, work-item, schema, migration, refactor, breaking-change, frontmatter, kind, visualiser]
-status: complete
+tags: ["research", "codebase", "work-item", "schema", "migration", "refactor", "breaking-change", "frontmatter", "kind", "visualiser"]
+status: "complete"
 last_updated: "2026-05-20T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-20-0063-rename-work-item-type-to-kind"
 title: "Research: Rename work-item `type:` Field to `kind:` (story 0063)"
 schema_version: 1

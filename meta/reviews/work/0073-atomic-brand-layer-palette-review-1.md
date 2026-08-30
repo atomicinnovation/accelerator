@@ -1,20 +1,20 @@
 ---
 date: "2026-05-23T13:43:40Z"
-type: work-item-review
-producer: review-work-item
+type: "work-item-review"
+producer: "review-work-item"
 target: "work-item:0073"
 review_number: 1
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "0073-atomic-brand-layer-palette-review-1"
 title: "0073-atomic-brand-layer-palette-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-23T13:43:40Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Work Item Review: 0073 Atomic Brand-Layer Palette

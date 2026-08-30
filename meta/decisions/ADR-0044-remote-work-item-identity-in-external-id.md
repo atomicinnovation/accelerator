@@ -1,16 +1,16 @@
 ---
-type: adr
+type: "adr"
 id: "ADR-0044"
 title: "Remote Work-item Identity in external_id (Presence-based Sync)"
 date: "2026-06-16T07:30:58+00:00"
-author: Toby Clemson
-producer: create-adr
-status: accepted
+author: "Toby Clemson"
+producer: "create-adr"
+status: "accepted"
 parent: "work-item:0047"
 relates_to: ["adr:ADR-0033", "adr:ADR-0040", "adr:ADR-0025", "adr:ADR-0022"]
-tags: [work-management, integrations, frontmatter, identity, sync]
+tags: ["work-management", "integrations", "frontmatter", "identity", "sync"]
 last_updated: "2026-06-16T08:09:15+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

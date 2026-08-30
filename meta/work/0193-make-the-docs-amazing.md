@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0193"
 title: "Make the Docs Amazing"
 date: "2026-07-10T19:47:43+00:00"
-author: Phil Helm
-producer: create-work-item
-status: draft
-kind: story
-priority: medium
+author: "Phil Helm"
+producer: "create-work-item"
+status: "draft"
+kind: "story"
+priority: "medium"
 parent: "work-item:0192"
 relates_to: ["work-item:0177", "work-item:0145"]
-tags: [docs]
+tags: ["docs"]
 last_updated: "2026-07-10T19:55:16+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 last_updated_note: "Corrected skill count to 69; recorded generation decisions from research"
 schema_version: 1
-external_id: PP-723
+external_id: "PP-723"
 ---
 
 # 0193: Make the Docs Amazing

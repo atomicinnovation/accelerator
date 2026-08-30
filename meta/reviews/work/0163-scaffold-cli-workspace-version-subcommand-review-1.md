@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0163-scaffold-cli-workspace-version-subcommand-review-1"
 title: "Work Item Review: Scaffold the cli/ Hexagonal Workspace with a version Subcommand"
 date: "2026-07-02T22:12:55+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0163"
 work_item_id: "0163"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [rust, cli, hexagonal, scaffold, workspace]
+tags: ["rust", "cli", "hexagonal", "scaffold", "workspace"]
 last_updated: "2026-07-02T22:27:38+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

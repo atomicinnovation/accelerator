@@ -1,16 +1,16 @@
 ---
-type: work-item
+type: "work-item"
 id: "0159"
 title: "Skill Evaluation Framework Selection"
 date: "2026-06-27T12:23:42+00:00"
-author: Toby Clemson
-status: done
-kind: spike
-priority: high
+author: "Toby Clemson"
+status: "done"
+kind: "spike"
+priority: "high"
 external_id: "PP-182"
-tags: [spike, evaluation, skills, tooling]
+tags: ["spike", "evaluation", "skills", "tooling"]
 last_updated: "2026-06-27T12:23:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

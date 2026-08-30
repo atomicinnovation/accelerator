@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-09-0082-big-glyph-hero-illustrations"
 title: "BigGlyph Hero Illustration Set Implementation Plan"
 date: "2026-06-09T21:09:35+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0082"
 parent: "work-item:0082"
 derived_from: ["codebase-research:2026-06-09-0082-big-glyph-hero-illustrations"]
-tags: [design, frontend, components, illustrations]
+tags: ["design", "frontend", "components", "illustrations"]
 revision: "d6c16730a6ca97d048cba981d3bc8fd921c38bca"
 repository: "build-system"
 last_updated: "2026-06-10T19:53:13+00:00"

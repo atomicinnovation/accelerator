@@ -1,23 +1,22 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-19-0167-config-command-and-invocation-contract-migration-review-2"
 title: "Plan Review: Built-in config Command and Invocation-Contract Migration"
 date: "2026-07-20T09:40:54+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
 target: "plan:2026-07-19-0167-config-command-and-invocation-contract-migration"
-relates_to:
-  - "plan-review:2026-07-19-0167-config-command-and-invocation-contract-migration-review-1"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, safety, compatibility, security, performance, code-quality]
+relates_to: ["plan-review:2026-07-19-0167-config-command-and-invocation-contract-migration-review-1"]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "safety", "compatibility", "security", "performance", "code-quality"]
 review_number: 2
 review_pass: 3
-tags: [rust, config, cli, skills, invocation-contract, allowed-tools, hooks, store, migration]
+tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]
 last_updated: "2026-07-20T13:32:01+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

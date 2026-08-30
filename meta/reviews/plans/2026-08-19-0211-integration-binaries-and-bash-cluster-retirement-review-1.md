@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-19-0211-integration-binaries-and-bash-cluster-retirement-review-1"
 title: "Plan Review: Integration Binaries and Bash Cluster Retirement"
 date: "2026-08-19T02:16:22+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-19-0211-integration-binaries-and-bash-cluster-retirement"
 parent: "work-item:0211"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, code-quality, safety, compatibility, security]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "code-quality", "safety", "compatibility", "security"]
 review_number: 1
 review_pass: 4
-tags: [rust, jira, linear, integrations, cli, cutover, exit-codes, registration]
+tags: ["rust", "jira", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
 last_updated: "2026-08-19T09:35:03+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

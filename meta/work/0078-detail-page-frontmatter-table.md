@@ -2,19 +2,19 @@
 id: "0078"
 title: "Detail-Page Frontmatter Table"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: medium
-tags: [design, frontend, detail-page, markdown]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "medium"
+tags: ["design", "frontend", "detail-page", "markdown"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-21T09:16:34+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0041"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0084", "work-item:0088", "work-item:0085"]
-external_id: PP-100
+external_id: "PP-100"
 ---
 
 # 0078: Detail-Page Frontmatter Table

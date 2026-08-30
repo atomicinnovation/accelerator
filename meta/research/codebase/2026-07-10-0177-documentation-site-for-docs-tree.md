@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-10-0177-documentation-site-for-docs-tree"
 title: "Research: Documentation site for the docs/ tree (0177)"
 date: "2026-07-10T13:16:28+00:00"
-author: Phil Helm
-producer: research-codebase
-status: complete
+author: "Phil Helm"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0177"
 parent: "work-item:0177"
 relates_to: ["codebase-research:2026-06-29-0175-slim-readme-split-docs-tree", "codebase-research:2026-06-29-0176-workflows-rename-and-skill-catalogue"]
 topic: "What must change in the docs/ tree, build system, and CI to stand up an Astro Starlight documentation site published to GitHub Pages"
-tags: [research, codebase, docs, starlight, github-pages, mise, ci]
+tags: ["research", "codebase", "docs", "starlight", "github-pages", "mise", "ci"]
 revision: "012ec6fb8934c494ab3b9ecbc606df342273189a"
 repository: "barcelona"
 last_updated: "2026-07-10T13:16:28+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

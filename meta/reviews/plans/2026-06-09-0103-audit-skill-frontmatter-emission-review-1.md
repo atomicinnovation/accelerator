@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-09-0103-audit-skill-frontmatter-emission-review-1"
 title: "Plan Review: Audit Skill Frontmatter Emission Against the Unified Schema"
 date: "2026-06-09T19:53:34+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
 target: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, portability, standards, documentation]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "portability", "standards", "documentation"]
 review_number: 1
 review_pass: 2
-tags: [frontmatter, schema, skills, validation, audit, test-harness]
+tags: ["frontmatter", "schema", "skills", "validation", "audit", "test-harness"]
 last_updated: "2026-06-09T21:50:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

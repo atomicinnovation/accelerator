@@ -2,19 +2,19 @@
 id: "0048"
 title: "Linear Integration"
 date: "2026-05-06T17:49:44+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: medium
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "medium"
 parent: "work-item:0045"
-tags: [work-management, integrations, linear]
-type: work-item
+tags: ["work-management", "integrations", "linear"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-15T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0046"]
 blocks: ["work-item:0051"]
-external_id: PP-70
+external_id: "PP-70"
 ---
 
 # 0048: Linear Integration

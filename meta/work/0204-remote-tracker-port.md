@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0204"
 title: "RemoteTracker Port"
 date: "2026-08-10T16:34:11+00:00"
-author: Toby Clemson
-producer: review-plan
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-plan"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-11-0204-remote-tracker-port"]
 blocks: ["work-item:0171", "work-item:0194"]
-tags: [rust, tracker, sync, port]
+tags: ["rust", "tracker", "sync", "port"]
 last_updated: "2026-08-12T00:30:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-734
+external_id: "PP-734"
 ---
 
 # 0204: RemoteTracker Port

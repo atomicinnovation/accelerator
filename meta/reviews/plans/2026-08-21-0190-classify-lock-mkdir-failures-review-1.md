@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-21-0190-classify-lock-mkdir-failures-review-1"
 title: "Plan Review: acquire_lock mkdir classification and bounded reclaim"
 date: "2026-08-21T15:44:37+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-08-21-0190-classify-lock-mkdir-failures"
 target: "plan:2026-08-21-0190-classify-lock-mkdir-failures"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, test-coverage, code-quality, portability, safety, security]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "test-coverage", "code-quality", "portability", "safety", "security"]
 review_number: 1
 review_pass: 3
-tags: [bug, shell, bootstrap, bash-3.2, locking]
+tags: ["bug", "shell", "bootstrap", "bash-3.2", "locking"]
 last_updated: "2026-08-21T19:51:37+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

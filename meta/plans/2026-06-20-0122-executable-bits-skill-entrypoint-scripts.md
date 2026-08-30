@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-20-0122-executable-bits-skill-entrypoint-scripts"
 title: "Audit and Correct Missing Executable Bits on Skill Entrypoint Scripts Implementation Plan"
 date: "2026-06-20T17:07:39+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0122"
 parent: "work-item:0122"
 derived_from: ["codebase-research:2026-06-20-0122-executable-bits-skill-entrypoint-scripts"]
 relates_to: ["work-item:0106", "work-item:0098", "work-item:0107"]
-tags: [scripts, permissions, ci, lint, plugin, executable-bit]
+tags: ["scripts", "permissions", "ci", "lint", "plugin", "executable-bit"]
 revision: "b717ec4ab24f1982ec33310679897f11a21db0cd"
 repository: "build-system"
 last_updated: "2026-06-20T18:46:15+00:00"

@@ -1,15 +1,15 @@
 ---
-type: pr-review
+type: "pr-review"
 id: "11-review-1"
 title: "Slim the README and split content into a docs/ tree (0175)"
 date: "2026-06-29T13:44:41+00:00"
 author: "Phil Helm"
-producer: review-pr
-status: complete
+producer: "review-pr"
+status: "complete"
 target: "pr:11"
 reviewer: "Phil Helm <phil@go-atomic.io>"
 verdict: "COMMENT"
-lenses: [documentation, standards, test-coverage, architecture, usability]
+lenses: ["documentation", "standards", "test-coverage", "architecture", "usability"]
 review_number: 1
 pr_number: 11
 tags: []

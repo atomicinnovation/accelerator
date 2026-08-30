@@ -1,14 +1,14 @@
 ---
 date: "2026-05-14T20:08:27+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "08a7f5e3cdca3fb84bae5b5ce3a98c909ad2cbb7"
-repository: accelerator
+repository: "accelerator"
 topic: "Generic Chip Component (work item 0038)"
-tags: [research, codebase, chip, design-system, tokens, frontend, components]
-status: complete
+tags: ["research", "codebase", "chip", "design-system", "tokens", "frontend", "components"]
+status: "complete"
 last_updated: "2026-05-14T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-14-0038-generic-chip-component"
 title: "Research: Generic Chip Component (work item 0038)"
 schema_version: 1

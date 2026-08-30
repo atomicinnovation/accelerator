@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "63"
 title: "Pin the cache-root probe to at most one attempt per dispatch"
 date: "2026-08-12T15:44:43+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0189"
 parent: "work-item:0189"
 relates_to: ["work-item:0169", "work-item:0186", "work-item:0205"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/63"
 pr_number: 63
-tags: [cli, launcher, bootstrap, documentation]
+tags: ["cli", "launcher", "bootstrap", "documentation"]
 revision: "26ccd657d2ed7725a09c00736194c7bb1b7b1162"
 repository: "accelerator"
 last_updated: "2026-08-12T15:44:43+00:00"

@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-09-0095-markdown-checkboxes-always-dark-mode-styled"
 title: "Research: Theme-Reactive Markdown Task-List Checkboxes (0095)"
 date: "2026-06-08T23:31:30+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0095"
 parent: "work-item:0095"
 relates_to: ["codebase-research:2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"]
 topic: "Theme-Reactive Markdown Task-List Checkboxes"
-tags: [research, codebase, visualiser, markdown, theme, dark-mode, checkbox, design-tokens]
+tags: ["research", "codebase", "visualiser", "markdown", "theme", "dark-mode", "checkbox", "design-tokens"]
 revision: "6f3f510d7176c1bb35f6ab123c200dac343dcc7e"
 repository: "visualisation-system"
 last_updated: "2026-06-08T23:31:30+00:00"

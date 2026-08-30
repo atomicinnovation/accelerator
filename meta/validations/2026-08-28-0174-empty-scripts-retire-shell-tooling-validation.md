@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-28-0174-empty-scripts-retire-shell-tooling-validation"
 title: "Validation Report: Empty scripts/ and Retire Shell Tooling and CI Guards Implementation Plan"
 date: "2026-08-29T00:46:02+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-08-28-0174-empty-scripts-retire-shell-tooling"
 target: "plan:2026-08-28-0174-empty-scripts-retire-shell-tooling"
-tags: [shell, tooling, ci, cleanup, scripts]
+tags: ["shell", "tooling", "ci", "cleanup", "scripts"]
 last_updated: "2026-08-29T00:46:02+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

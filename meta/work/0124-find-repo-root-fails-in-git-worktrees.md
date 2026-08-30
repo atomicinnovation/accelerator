@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0124"
 title: "find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T13:47:05+00:00"
-author: Phil Helm
-producer: create-work-item
-status: draft
-kind: bug
-priority: high
+author: "Phil Helm"
+producer: "create-work-item"
+status: "draft"
+kind: "bug"
+priority: "high"
 relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
-tags: [bug, scripts, vcs, git, worktree, conductor]
+tags: ["bug", "scripts", "vcs", "git", "worktree", "conductor"]
 last_updated: "2026-06-22T14:18:48+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
-external_id: PP-145
+external_id: "PP-145"
 ---
 
 # 0124: find_repo_root fails in git worktrees (-d test on .git)

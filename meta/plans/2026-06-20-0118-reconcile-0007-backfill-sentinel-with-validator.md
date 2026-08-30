@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
 title: "Reconcile 0007 Backfill Sentinel With Its Validator Implementation Plan"
 date: "2026-06-20T18:22:11+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0118"
 parent: "work-item:0118"
 derived_from: ["codebase-research:2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"]
-tags: [migrate, migration-0007, corpus-validator, backfill, sentinel]
+tags: ["migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 revision: "71735c71d7dab85e8ce4f743c3edac2693d2c563"
 repository: "visualisation-system"
 last_updated: "2026-06-20T21:41:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

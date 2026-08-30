@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-11-0104-add-rejected-to-adr-status-vocabulary"
 title: "Research: Add rejected to the ADR Status Vocabulary in the Unified Schema"
 date: "2026-06-11T13:10:20+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0104"
 parent: "work-item:0104"
 relates_to: ["codebase-research:2026-06-09-0103-skill-frontmatter-emission-audit"]
 topic: "Add rejected to the ADR Status Vocabulary in the Unified Schema"
-tags: [research, codebase, frontmatter, schema, adr, status, validator]
+tags: ["research", "codebase", "frontmatter", "schema", "adr", "status", "validator"]
 revision: "bc20205b3e486dd259502991396187eafaab482e"
 repository: "build-system"
 last_updated: "2026-06-11T13:10:20+00:00"

@@ -1,20 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-29-0169-vcs-subdomain-and-hooks-migration"
 title: "Research: VCS Subdomain and Hooks Migration (0169)"
 date: "2026-07-29T16:20:46+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0169"
 parent: "work-item:0169"
-relates_to:
-  - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
-  - "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"
-  - "codebase-research:2026-07-11-0179-corpus-crates-parsing-conventions"
-  - "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"
+relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration", "codebase-research:2026-07-11-0179-corpus-crates-parsing-conventions", "codebase-research:2026-07-03-0164-launcher-and-git-style-dispatch"]
 topic: "Implementation surface for the accelerator-vcs subdomain and the SessionStart/PreToolUse hooks migration"
-tags: [research, codebase, vcs, hooks, rust, cli, migration, gix, jj-lib]
+tags: ["research", "codebase", "vcs", "hooks", "rust", "cli", "migration", "gix", "jj-lib"]
 revision: "0b2f8920ae677b141a161c78fb35d4e7bb2ae0db"
 repository: "accelerator"
 last_updated: "2026-07-30T00:00:00+00:00"

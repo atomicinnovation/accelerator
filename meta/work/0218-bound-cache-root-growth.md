@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0218"
 title: "Bound cache-root growth"
 date: "2026-08-17T20:36:50+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: draft
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "draft"
+kind: "task"
+priority: "low"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 relates_to: ["work-item:0189", "work-item:0164"]
-tags: [cli, launcher, performance, bootstrap]
+tags: ["cli", "launcher", "performance", "bootstrap"]
 last_updated: "2026-08-17T20:36:50+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-747
+external_id: "PP-747"
 ---
 
 # 0218: Bound cache-root growth

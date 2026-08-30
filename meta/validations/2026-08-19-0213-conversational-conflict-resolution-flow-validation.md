@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-19-0213-conversational-conflict-resolution-flow-validation"
 title: "Validation Report: Conversational Conflict Resolution Flow for Sync"
 date: "2026-08-19T11:50:19+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: partial
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "partial"
 parent: "plan:2026-08-19-0213-conversational-conflict-resolution-flow"
 target: "plan:2026-08-19-0213-conversational-conflict-resolution-flow"
-tags: [skills, sync, work-items, conflicts, cli]
+tags: ["skills", "sync", "work-items", "conflicts", "cli"]
 last_updated: "2026-08-19T11:50:19+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

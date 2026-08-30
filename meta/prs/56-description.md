@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "56"
 title: "Add the in-process section diff work item"
 date: "2026-08-08T12:51:42+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0201"
 parent: "work-item:0201"
 relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]

@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-06-0165-multi-binary-distribution-and-release-pipeline-review-1"
 title: "Plan Review: Multi-Binary Static Distribution and Release Pipeline with minisign"
 date: "2026-07-06T00:46:14+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-07-06-0165-multi-binary-distribution-and-release-pipeline"
 target: "plan:2026-07-06-0165-multi-binary-distribution-and-release-pipeline"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, code-quality, test-coverage, security, safety, compatibility, portability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "code-quality", "test-coverage", "security", "safety", "compatibility", "portability"]
 review_number: 1
 review_pass: 2
-tags: [rust, distribution, release, cross-compile, minisign]
+tags: ["rust", "distribution", "release", "cross-compile", "minisign"]
 last_updated: "2026-07-06T11:01:16+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

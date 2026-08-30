@@ -1,24 +1,23 @@
 ---
-type: work-item
+type: "work-item"
 id: "0188"
 title: "Library-Backed VCS Adapter over gix and jj-lib"
 date: "2026-07-31T10:41:51+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 blocked_by: ["work-item:0179"]
 blocks: ["work-item:0169", "work-item:0185"]
-relates_to: ["work-item:0125", "work-item:0168", "work-item:0187",
-  "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
+relates_to: ["work-item:0125", "work-item:0168", "work-item:0187", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 derived_from: ["work-item:0169"]
-tags: [rust, vcs, dependencies]
+tags: ["rust", "vcs", "dependencies"]
 last_updated: "2026-08-05T17:36:44+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-718
+external_id: "PP-718"
 ---
 
 # 0188: Library-Backed VCS Adapter over gix and jj-lib

@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-08-0197-accelerator-collaboration-pr-helper-cli-review-1"
 title: "Plan Review: accelerator-collaboration: PR Helper CLI Implementation Plan"
 date: "2026-08-08T16:30:32+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
-reviewer: Toby Clemson
+reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, security, standards, compatibility, documentation]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "standards", "compatibility", "documentation"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-08-08T21:49:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

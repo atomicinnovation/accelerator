@@ -2,20 +2,20 @@
 id: "0086"
 title: "Kanban Drag-and-Drop with Toast Confirmations"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 relates_to: ["work-item:0040", "adr:ADR-0024"]
-tags: [design, frontend, kanban, accessibility]
+tags: ["design", "frontend", "kanban", "accessibility"]
 last_updated: "2026-06-06T12:54:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-type: work-item
+type: "work-item"
 blocked_by: ["work-item:0039", "work-item:0044"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
-external_id: PP-108
+external_id: "PP-108"
 ---
 
 # 0086: Kanban Drag-and-Drop with Toast Confirmations

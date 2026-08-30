@@ -1,16 +1,16 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "75"
 title: "Mark the acquire_lock mkdir classification work item done"
 date: "2026-08-22T19:56:17+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0190"
 parent: "work-item:0190"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/75"
 pr_number: 75
-tags: [work-item, status, housekeeping]
+tags: ["work-item", "status", "housekeeping"]
 revision: "8135fffef8070e43c4002a7e8b275947a4bdf0f7"
 repository: "accelerator"
 last_updated: "2026-08-22T19:56:17+00:00"

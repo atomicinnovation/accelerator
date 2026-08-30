@@ -2,19 +2,19 @@
 id: "0035"
 title: "Topbar Component"
 date: "2026-05-06T14:04:04+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
-tags: [design, frontend, chrome]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
+tags: ["design", "frontend", "chrome"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-06T14:04:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0033"]
 blocks: ["work-item:0034", "work-item:0036"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
-external_id: PP-57
+external_id: "PP-57"
 ---
 
 # 0035: Topbar Component

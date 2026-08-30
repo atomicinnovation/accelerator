@@ -1,15 +1,15 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-18-0114-config-driven-corpus-validation-scope-validation"
 title: "Validation Report: Config-Driven Corpus Validation Scope Implementation Plan"
 date: "2026-06-19T15:04:16+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-18-0114-config-driven-corpus-validation-scope"
 target: "plan:2026-06-18-0114-config-driven-corpus-validation-scope"
-tags: [validator, frontmatter, config, doc-type-inference, unified-schema, allowlist]
+tags: ["validator", "frontmatter", "config", "doc-type-inference", "unified-schema", "allowlist"]
 last_updated: "2026-06-19T15:04:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

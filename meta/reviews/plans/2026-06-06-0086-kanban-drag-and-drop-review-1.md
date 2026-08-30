@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-06-0086-kanban-drag-and-drop-review-1"
 title: "Plan Review: Kanban Drag-and-Drop with Toast Confirmations"
 date: "2026-06-06T16:53:04+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-06-0086-kanban-drag-and-drop"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, code-quality, test-coverage, correctness, usability, standards, portability]
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "usability", "standards", "portability"]
 review_number: 1
 review_pass: 4
-tags: [plan-review, frontend, kanban, drag-and-drop, dnd-kit, toaster, accessibility]
+tags: ["plan-review", "frontend", "kanban", "drag-and-drop", "dnd-kit", "toaster", "accessibility"]
 last_updated: "2026-06-06T19:15:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

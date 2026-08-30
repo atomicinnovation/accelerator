@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"
 title: "Research: Removing Visualiser-Server Legacy Linkage Fallback Arms (Story 0102)"
 date: "2026-06-15T22:02:48+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0102"
 parent: "work-item:0102"
 relates_to: ["codebase-research:2026-06-07-0070-meta-corpus-unified-schema-migration"]
 topic: "Removing the visualiser server's legacy linkage fallback arms (work-item:/ticket:/work_item_id:/filename) and adding a migration-completion gate"
-tags: [research, codebase, visualiser, frontmatter, linkage, migration, cleanup]
+tags: ["research", "codebase", "visualiser", "frontmatter", "linkage", "migration", "cleanup"]
 revision: "23ce3d841b36cc7fb4c39ac2243604cdd6b9de81"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-06-15T22:02:48+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

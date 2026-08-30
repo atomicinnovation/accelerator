@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-05-0169-vcs-subdomain-and-hooks-migration"
 title: "Research: VCS Subdomain and Hooks Migration (0169)"
 date: "2026-08-05T13:57:49+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0169"
 parent: "work-item:0169"
 relates_to: ["codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 topic: "VCS Subdomain and Hooks Migration (0169)"
-tags: [research, codebase, vcs, hooks, rust-cli, migration]
+tags: ["research", "codebase", "vcs", "hooks", "rust-cli", "migration"]
 revision: "d325ca978cb9b29fef6ba2e18f9e0c9042cfb123"
 repository: "accelerator"
 last_updated: "2026-08-05T13:57:49+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

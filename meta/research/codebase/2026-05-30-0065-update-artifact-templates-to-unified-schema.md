@@ -1,15 +1,15 @@
 ---
 date: "2026-05-30T01:11:44+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "0985b070621b1f5a39548ad3ee964992c943313e"
-repository: accelerator
+repository: "accelerator"
 topic: "Update all artifact templates to the unified schema (work item 0065)"
-tags: [research, codebase, templates, frontmatter, schema, work-item-0065]
-status: complete
+tags: ["research", "codebase", "templates", "frontmatter", "schema", "work-item-0065"]
+status: "complete"
 last_updated: "2026-05-30T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 work_item_id: "0065"
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-30-0065-update-artifact-templates-to-unified-schema"
 title: "Research: Update All Artifact Templates to Unified Schema (Work Item 0065)"
 schema_version: 1

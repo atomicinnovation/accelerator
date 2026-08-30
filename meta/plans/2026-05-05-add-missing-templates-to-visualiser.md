@@ -1,15 +1,15 @@
 ---
 date: "2026-05-05T00:00:00Z"
-type: plan
-producer: create-plan
-status: done
+type: "plan"
+producer: "create-plan"
+status: "done"
 id: "2026-05-05-add-missing-templates-to-visualiser"
 title: "Add Design Gap and Design Inventory to Visualiser"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-05T00:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 ---

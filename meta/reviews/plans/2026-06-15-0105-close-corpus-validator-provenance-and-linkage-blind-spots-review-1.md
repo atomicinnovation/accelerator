@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots-review-1"
 title: "Plan Review: Close the Corpus Validator Provenance and Linkage Blind Spots"
 date: "2026-06-15T20:21:42+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots"
 parent: "plan:2026-06-15-0105-close-corpus-validator-provenance-and-linkage-blind-spots"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, code-quality, test-coverage, architecture, portability, standards]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "code-quality", "test-coverage", "architecture", "portability", "standards"]
 review_number: 1
 review_pass: 3
-tags: [frontmatter, schema, validator, provenance, linkage]
+tags: ["frontmatter", "schema", "validator", "provenance", "linkage"]
 last_updated: "2026-06-15T21:18:25+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

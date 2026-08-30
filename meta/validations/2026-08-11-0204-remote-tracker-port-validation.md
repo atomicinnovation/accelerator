@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-11-0204-remote-tracker-port-validation"
 title: "Validation Report: RemoteTracker Port Implementation Plan"
 date: "2026-08-12T11:11:35+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-08-11-0204-remote-tracker-port"
-tags: [rust, tracker, sync, port, cargo-pup]
+tags: ["rust", "tracker", "sync", "port", "cargo-pup"]
 last_updated: "2026-08-12T11:11:35+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

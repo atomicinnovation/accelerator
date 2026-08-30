@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-15-0048-linear-integration"
 title: "Linear Integration Implementation Plan"
 date: "2026-06-14T23:37:32+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0048"
 parent: "work-item:0048"
 derived_from: ["codebase-research:2026-06-14-0048-linear-integration-apis"]
-tags: [work-management, integrations, linear, graphql]
+tags: ["work-management", "integrations", "linear", "graphql"]
 revision: "0df1144f5279aa68e84685405ea57e0f0de984e5"
 repository: "ticket-management"
 last_updated: "2026-06-15T08:51:06+00:00"

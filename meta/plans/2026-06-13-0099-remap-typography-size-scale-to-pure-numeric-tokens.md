@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens"
 title: "Remap Typography Size Scale To Pure-Numeric Tokens Implementation Plan"
 date: "2026-06-13T10:21:57+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0099"
 parent: "work-item:0099"
 derived_from: ["codebase-research:2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens"]
 relates_to: ["work-item:0091", "adr:ADR-0036", "plan:2026-06-02-0090-radius-tokens-consumption"]
-tags: [visualiser, design-tokens, typography, refactor, adr]
+tags: ["visualiser", "design-tokens", "typography", "refactor", "adr"]
 revision: "3817958f5589153365d2975b3052985f00872411"
 repository: "visualisation-system"
 last_updated: "2026-06-13T19:13:51+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0200"
 title: "Decide whether git log/diff belong in vcs guard's blocked subcommand set"
 date: "2026-08-06T00:00:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: spike
-priority: low
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "spike"
+priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0169"]
 derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
-tags: [vcs, hooks, guard, cli]
+tags: ["vcs", "hooks", "guard", "cli"]
 last_updated: "2026-08-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-730
+external_id: "PP-730"
 ---
 
 # 0200: Decide whether git log/diff belong in vcs guard's blocked subcommand set

@@ -1,21 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-22-0167-config-command-refactoring-opportunities"
 title: "Research: Duplication, layering, and shared-crate placement in the 0167 config-command migration"
 date: "2026-07-22T16:24:52+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0167"
 parent: "work-item:0167"
-relates_to:
-  - "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"
+relates_to: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"]
 topic: "Duplication, adapter-vs-core layering, and shared-crate placement in the implemented 0167 config-command migration"
-tags: [research, codebase, rust, cli, config, launcher, store, adapters, hexagon, refactoring]
+tags: ["research", "codebase", "rust", "cli", "config", "launcher", "store", "adapters", "hexagon", "refactoring"]
 revision: "407b626cb01aa9f77270bc1680f049ccde84629c"
 repository: "build-system"
 last_updated: "2026-07-22T16:24:52+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

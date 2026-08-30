@@ -1,22 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0191"
 title: "Batch the bootstrap's two shim hashes into one sha256 invocation"
 date: "2026-08-03T00:00:00+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: done
-kind: task
-priority: low
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "done"
+kind: "task"
+priority: "low"
 parent: "work-item:0136"
-relates_to:
-  ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205",
-   "work-item:0215", "work-item:0216"]
-tags: [shell, performance, bootstrap, bash-3.2]
+relates_to: ["work-item:0186", "work-item:0169", "work-item:0189", "work-item:0205", "work-item:0215", "work-item:0216"]
+tags: ["shell", "performance", "bootstrap", "bash-3.2"]
 last_updated: "2026-08-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-721
+external_id: "PP-721"
 ---
 
 # 0191: Batch the bootstrap's two shim hashes into one sha256 invocation

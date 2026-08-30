@@ -1,16 +1,16 @@
 ---
 date: "2026-05-18T22:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0042"
-status: done
+status: "done"
 id: "2026-05-18-0042-templates-view-redesign"
 title: "0042 Templates View Redesign — Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-18T22:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "79428b45d940"
 repository: "ticket-management"
 relates_to: ["work-item:0042", "codebase-research:2026-05-18-0042-templates-view-redesign"]

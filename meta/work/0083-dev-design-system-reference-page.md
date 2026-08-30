@@ -2,18 +2,18 @@
 id: "0083"
 title: "DevDesignSystem Reference Page"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: low
-tags: [design, frontend, dev-tools, documentation]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "low"
+tags: ["design", "frontend", "dev-tools", "documentation"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-06-13T07:24:32+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0033", "work-item:0035", "work-item:0037", "work-item:0038", "work-item:0039", "work-item:0040", "work-item:0041", "work-item:0076", "work-item:0086"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
-external_id: PP-105
+external_id: "PP-105"
 ---
 
 # 0083: DevDesignSystem Reference Page

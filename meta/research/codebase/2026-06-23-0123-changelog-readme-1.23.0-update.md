@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-23-0123-changelog-readme-1.23.0-update"
 title: "Research: User-facing CHANGELOG and README update for 1.23.0"
 date: "2026-06-23T12:35:21+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0123"
 parent: "work-item:0123"
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
 topic: "User-facing CHANGELOG and README update for 1.23.0"
-tags: [research, codebase, changelog, readme, release, migrations, sync-work-items, worktree]
+tags: ["research", "codebase", "changelog", "readme", "release", "migrations", "sync-work-items", "worktree"]
 revision: "5fdc6873db5d9cc4e3e97bd6fb95073bfd20f91d"
 repository: "accelerator"
 last_updated: "2026-06-23T12:35:21+00:00"

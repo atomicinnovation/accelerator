@@ -1,19 +1,19 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0189-once-per-dispatch-cache-root-probe-guarantee-review-1"
 title: "Work Item Review: Once-Per-Dispatch Guarantee for the Launcher's Cache-Root Probe"
 date: "2026-08-11T11:30:14+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0189"
 work_item_id: "0189"
 reviewer: "Toby Clemson"
 verdict: "REVISE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [cli, launcher, testability, dependency]
+tags: ["cli", "launcher", "testability", "dependency"]
 last_updated: "2026-08-11T13:21:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

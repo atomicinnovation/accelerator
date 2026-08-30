@@ -1,22 +1,22 @@
 ---
-type: work-item
+type: "work-item"
 id: "0195"
 title: "accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI"
 date: "2026-08-05T19:03:35+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0136"
 derived_from: ["work-item:0173"]
 relates_to: ["work-item:0172"]
-tags: [rust, corpus, cli, adr, frontmatter, linkage]
+tags: ["rust", "corpus", "cli", "adr", "frontmatter", "linkage"]
 last_updated: "2026-08-09T18:52:21+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Recorded the golden-capture-ordering edge work-item:0172's plan requires as a precondition of its Phase 0 bash-golden capture. Also recording, retroactively, the self-validation-obligation resolution work-item:0172's Phase 8 named as its only remaining dependency on this item: `accelerator corpus frontmatter validate` shipped here as an in-process corpus_adapters library (not a kept-alive shell script), which unblocked 0172's Rust port of migration 0007 — its self_validate_structural/referential gate calls this library directly via a new MigrationContext::validate_frontmatter method rather than shelling out to scripts/validate-corpus-frontmatter.sh."
 schema_version: 1
-external_id: PP-725
+external_id: "PP-725"
 ---
 
 # 0195: accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI

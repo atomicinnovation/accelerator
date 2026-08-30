@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator-validation"
 title: "Validation Report: Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-21T00:19:23+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
-tags: [migrate, migration-0007, corpus-validator, backfill, sentinel]
+tags: ["migrate", "migration-0007", "corpus-validator", "backfill", "sentinel"]
 last_updated: "2026-06-21T00:19:23+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

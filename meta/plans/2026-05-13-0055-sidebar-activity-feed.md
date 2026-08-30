@@ -1,16 +1,16 @@
 ---
 date: "2026-05-13T10:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "0055"
-status: done
+status: "done"
 id: "2026-05-13-0055-sidebar-activity-feed"
 title: "0055 — Sidebar Activity Feed and SSE Action Discriminator: Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-13T10:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["work-item:0053", "work-item:0055", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "work-item:0036"]

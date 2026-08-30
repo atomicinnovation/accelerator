@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli-validation"
 title: "Validation Report: accelerator-corpus: ADR, Metadata, Frontmatter Validation, and Linkage CLI Implementation Plan"
 date: "2026-08-08T14:43:51+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-08-06-0195-accelerator-corpus-adr-metadata-frontmatter-linkage-cli"
 tags: []
 last_updated: "2026-08-08T14:43:51+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

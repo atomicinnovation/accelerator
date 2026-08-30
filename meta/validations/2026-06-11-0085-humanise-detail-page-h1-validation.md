@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-11-0085-humanise-detail-page-h1-validation"
 title: "Validation Report: Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-06-12T01:02:45+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-11-0085-humanise-detail-page-h1"
 target: "plan:2026-06-11-0085-humanise-detail-page-h1"
-tags: [backend, detail-page, indexer, frontmatter, humanise-slug]
+tags: ["backend", "detail-page", "indexer", "frontmatter", "humanise-slug"]
 last_updated: "2026-06-12T01:02:45+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

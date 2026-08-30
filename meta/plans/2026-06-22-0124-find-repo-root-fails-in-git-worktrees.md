@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
 title: "find_repo_root fails in git worktrees (-d → -e) Implementation Plan"
 date: "2026-06-22T14:07:17+00:00"
-author: Phil Helm
-producer: create-plan
-status: draft
+author: "Phil Helm"
+producer: "create-plan"
+status: "draft"
 work_item_id: "work-item:0124"
 parent: "work-item:0124"
 derived_from: ["codebase-research:2026-06-22-0124-find-repo-root-fails-in-git-worktrees"]
 relates_to: ["work-item:0058", "work-item:0020", "work-item:0125"]
-tags: [plan, scripts, vcs, git, worktree, conductor, bug]
+tags: ["plan", "scripts", "vcs", "git", "worktree", "conductor", "bug"]
 revision: "de38f5413b80f247fa8104ebebca0ed43d9a234b"
 repository: "accelerator"
 last_updated: "2026-06-22T14:18:48+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

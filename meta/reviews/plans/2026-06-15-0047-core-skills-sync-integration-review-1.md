@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-15-0047-core-skills-sync-integration-review-1"
 title: "Plan Review: Core Skills Sync Integration"
 date: "2026-06-15T22:56:45+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-15-0047-core-skills-sync-integration"
 target: "plan:2026-06-15-0047-core-skills-sync-integration"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, safety, standards, compatibility, usability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "standards", "compatibility", "usability"]
 review_number: 1
 review_pass: 3
-tags: [work-management, integrations, sync, list-work-items, create-work-item]
+tags: ["work-management", "integrations", "sync", "list-work-items", "create-work-item"]
 last_updated: "2026-06-16T07:20:17+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

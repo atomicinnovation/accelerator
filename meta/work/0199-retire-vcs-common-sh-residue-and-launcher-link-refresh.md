@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0199"
 title: "Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh"
 date: "2026-08-06T00:00:00+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0169", "work-item:0125", "work-item:0172"]
 derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
-tags: [rust, migration, vcs, shell, cli]
+tags: ["rust", "migration", "vcs", "shell", "cli"]
 last_updated: "2026-08-06T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-729
+external_id: "PP-729"
 ---
 
 # 0199: Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh

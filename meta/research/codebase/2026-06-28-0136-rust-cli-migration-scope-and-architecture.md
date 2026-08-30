@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-28-0136-rust-cli-migration-scope-and-architecture"
 title: "Research: Full migration scope and CLI architecture for the shell-to-Rust migration (epic 0136)"
 date: "2026-06-28T13:21:27+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0136"
 parent: "work-item:0136"
 relates_to: ["codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 topic: "Full migration scope and CLI architecture required to migrate the shell library into the accelerator Rust CLI under the accepted ADRs"
-tags: [research, codebase, rust-cli, migration, hexagonal, workspace, distribution, launcher, config, visualiser, adr]
+tags: ["research", "codebase", "rust-cli", "migration", "hexagonal", "workspace", "distribution", "launcher", "config", "visualiser", "adr"]
 revision: "9ae5baf60c658edc2d2dd6ad3bd442079004be0c"
 repository: "accelerator"
 last_updated: "2026-06-28T13:21:27+00:00"

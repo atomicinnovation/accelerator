@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-29-0176-skill-reference-index-and-subsections"
 title: "Skill Reference Index & Per-Skill Subsections Implementation Plan"
 date: "2026-06-29T20:21:32+00:00"
-author: Phil Helm
-producer: create-plan
-status: draft
+author: "Phil Helm"
+producer: "create-plan"
+status: "draft"
 work_item_id: "0176"
 parent: "work-item:0176"
 derived_from: ["codebase-research:2026-06-29-0176-workflows-rename-and-skill-catalogue"]
-tags: [docs, skills, documentation]
+tags: ["docs", "skills", "documentation"]
 revision: "7c12519d1173e25c10c85e22dd1f60b4916d5434"
 repository: "barcelona"
 last_updated: "2026-06-29T20:21:32+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

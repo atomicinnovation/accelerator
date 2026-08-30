@@ -1,18 +1,18 @@
 ---
 title: "Artifact metadata, cross-referencing, and lifecycle transitions"
-kind: task
-status: draft
-type: work-item
+kind: "task"
+status: "draft"
+type: "work-item"
 id: "0022"
 date: "2026-05-24T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "plan:2026-03-22-validation-crossref-frontmatter"
-external_id: PP-44
+external_id: "PP-44"
 ---
 
 # ADR Ticket: Artifact metadata, cross-referencing, and lifecycle transitions

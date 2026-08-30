@@ -1,14 +1,14 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-05-0079-aside-region-redesign"
 title: "Detail-Page Aside Region Redesign Implementation Plan"
 date: "2026-06-05T22:36:44+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "0079"
 reviewer: "Toby Clemson"
-tags: [design, frontend, detail-page, aside, eyebrow, lifecycle-cluster]
+tags: ["design", "frontend", "detail-page", "aside", "eyebrow", "lifecycle-cluster"]
 revision: "4daa574d16893179833fe762052c84a863e2d635"
 repository: "visualisation-system"
 last_updated: "2026-06-06T01:00:00+00:00"

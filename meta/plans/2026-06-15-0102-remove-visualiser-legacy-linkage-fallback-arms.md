@@ -1,21 +1,21 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"
 title: "Remove Visualiser-Server Legacy Linkage Fallback Arms Implementation Plan"
 date: "2026-06-15T22:59:59+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0102"
 parent: "work-item:0102"
 blocks: ["work-item:0057"]
 derived_from: ["codebase-research:2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"]
 relates_to: ["adr:ADR-0034", "adr:ADR-0033"]
-tags: [migration, visualiser, frontmatter, linkage, cleanup, contract]
+tags: ["migration", "visualiser", "frontmatter", "linkage", "cleanup", "contract"]
 revision: "f693db554a35d0ab9ccc09d54bf22364083faa93"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-06-16T07:19:46+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

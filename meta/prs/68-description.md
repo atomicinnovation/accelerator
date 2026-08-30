@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "68"
 title: "Decompose the Jira and Linear integrations item into four children"
 date: "2026-08-17T13:08:08+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0171"
 parent: "work-item:0171"
 relates_to: ["work-item:0210", "work-item:0211", "work-item:0212", "work-item:0213", "work-item:0174"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/68"
 pr_number: 68
-tags: [work-items, reviews, decomposition, jira, linear]
+tags: ["work-items", "reviews", "decomposition", "jira", "linear"]
 revision: "46d6fdb76f52528138233be1e956fc6d6a3e5d48"
 repository: "accelerator"
 last_updated: "2026-08-17T13:08:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-11-0085-humanise-detail-page-h1"
 title: "Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 date: "2026-06-11T13:00:27+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0085"
 parent: "work-item:0085"
 relates_to: ["codebase-research:2026-05-31-0085-humanise-detail-page-h1-fallback"]
 topic: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
-tags: [research, codebase, visualiser, frontmatter, title-cascade, humanise-slug, slug, indexer]
+tags: ["research", "codebase", "visualiser", "frontmatter", "title-cascade", "humanise-slug", "slug", "indexer"]
 revision: "34c9bb2dc2e2d3c5db3308e07c4c311041a5ed6a"
-repository: ticket-management
+repository: "ticket-management"
 last_updated: "2026-06-11T13:00:27+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0114-fix-migration-0007-incomplete-mechanical-normalisation-review-1"
 title: "Work Item Review: Migration 0007 Incomplete Mechanical Normalisation"
 date: "2026-06-17T21:24:56+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0114"
 work_item_id: "0114"
-reviewer: Toby Clemson
-verdict: COMMENT
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "COMMENT"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
 tags: []
 last_updated: "2026-06-17T21:34:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

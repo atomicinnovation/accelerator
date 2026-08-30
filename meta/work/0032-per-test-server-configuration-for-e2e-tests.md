@@ -2,16 +2,16 @@
 id: "0032"
 title: "Per-test server configuration and fixtures for E2E tests"
 date: "2026-05-05T00:00:00+01:00"
-author: Toby Clemson
-kind: task
-status: draft
-priority: medium
-tags: [visualiser, testing, playwright, e2e]
-type: work-item
+author: "Toby Clemson"
+kind: "task"
+status: "draft"
+priority: "medium"
+tags: ["visualiser", "testing", "playwright", "e2e"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-05T00:00:00+01:00"
-last_updated_by: Toby Clemson
-external_id: PP-54
+last_updated_by: "Toby Clemson"
+external_id: "PP-54"
 ---
 
 # 0032: Per-test server configuration and fixtures for E2E tests

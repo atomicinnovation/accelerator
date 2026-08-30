@@ -1,18 +1,18 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-09-0103-audit-skill-frontmatter-emission-validation"
 title: "Validation Report: Audit Skill Frontmatter Emission Against the Unified Schema"
 date: "2026-06-10T14:22:48+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 parent: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
 target: "plan:2026-06-09-0103-audit-skill-frontmatter-emission"
 relates_to: ["work-item:0103", "work-item:0104", "work-item:0105"]
-tags: [frontmatter, schema, skills, validation, audit, test-harness]
+tags: ["frontmatter", "schema", "skills", "validation", "audit", "test-harness"]
 last_updated: "2026-06-10T14:22:48+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

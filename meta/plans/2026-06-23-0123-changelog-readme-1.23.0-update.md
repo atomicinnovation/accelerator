@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-23-0123-changelog-readme-1.23.0-update"
 title: "User-Facing CHANGELOG and README Update for 1.23.0 Implementation Plan"
 date: "2026-06-23T13:07:21+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: ready
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0123"
 parent: "work-item:0123"
 derived_from: ["codebase-research:2026-06-23-0123-changelog-readme-1.23.0-update"]
 relates_to: ["codebase-research:2026-06-17-readme-changelog-1.22.0-refresh"]
-tags: [documentation, release, changelog, readme]
+tags: ["documentation", "release", "changelog", "readme"]
 revision: "52a48331b22f8208e029fb5dfa59aa86ed1b4bf4"
 repository: "accelerator"
 last_updated: "2026-06-23T16:14:05+00:00"

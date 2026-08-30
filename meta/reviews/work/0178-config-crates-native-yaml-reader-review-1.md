@@ -1,17 +1,17 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0178-config-crates-native-yaml-reader-review-1"
 title: "Work Item Review: config and config-adapters Crates with Native YAML Reader"
 date: "2026-07-07T00:06:05+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0166"
 target: "work-item:0178"
 work_item_id: "0178"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
 tags: []

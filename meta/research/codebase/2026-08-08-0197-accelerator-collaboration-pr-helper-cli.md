@@ -1,18 +1,18 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
 title: "Research: Implementation surface for work-item 0197 (accelerator-collaboration PR Helper CLI)"
 date: "2026-08-08T15:50:29+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 parent: "work-item:0197"
 topic: "Implementation surface for the accelerator-collaboration PR Helper CLI"
-tags: [research, codebase, cli, collaboration, vcs, config, github, octocrab, rust]
+tags: ["research", "codebase", "cli", "collaboration", "vcs", "config", "github", "octocrab", "rust"]
 revision: "2b3b86f028048fc96ca382113794db546a0ae8a6"
-repository: accelerator
+repository: "accelerator"
 last_updated: "2026-08-08T15:50:29+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

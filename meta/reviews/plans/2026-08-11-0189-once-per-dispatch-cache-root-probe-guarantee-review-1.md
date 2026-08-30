@@ -1,18 +1,18 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee-review-1"
 title: "Plan Review: At-Most-Once Cache-Root Probe Guarantee Implementation Plan"
 date: "2026-08-11T16:21:18+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [correctness, test-coverage, code-quality, architecture, standards, documentation, performance, portability]
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "standards", "documentation", "performance", "portability"]
 review_number: 1
 review_pass: 6
-tags: [cli, launcher, performance, bootstrap]
+tags: ["cli", "launcher", "performance", "bootstrap"]
 last_updated: "2026-08-12T00:16:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

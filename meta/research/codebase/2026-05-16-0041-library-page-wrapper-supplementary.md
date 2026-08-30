@@ -1,15 +1,15 @@
 ---
 date: "2026-05-16T08:44:14+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "60812eb5fda5696e4b71499da7f36545027ae2fb"
-repository: accelerator
+repository: "accelerator"
 topic: "Work item 0041 — supplementary codebase research after work-item rewrite"
-tags: [research, codebase, visualiser, library, page-wrapper, five-route-migration, prs-rename, indexer, library-structure-endpoint]
-status: complete
+tags: ["research", "codebase", "visualiser", "library", "page-wrapper", "five-route-migration", "prs-rename", "indexer", "library-structure-endpoint"]
+status: "complete"
 last_updated: "2026-05-16T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 extends: "meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md"
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-16-0041-library-page-wrapper-supplementary"
 title: "Research: Work Item 0041 — Supplementary Findings"
 schema_version: 1

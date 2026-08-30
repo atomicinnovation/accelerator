@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0085-humanise-detail-page-h1-review-2"
 title: "Work Item Review: Humanise Detail-Page H1 Across All Doc Kinds"
 date: "2026-06-11T00:44:21+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0085"
 relates_to: ["work-item-review:0085-humanise-detail-page-h1-review-1"]
 work_item_id: "0085"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 2
 review_pass: 2
 tags: []
 last_updated: "2026-06-11T12:38:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

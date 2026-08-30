@@ -1,16 +1,16 @@
 ---
 date: "2026-05-26T00:00:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work-item: "0074"
-status: done
+status: "done"
 id: "2026-05-26-0074-per-doc-type-hues-on-detail-page"
 title: "0074 — Per-Doc-Type Hues on Detail Page"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-26T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "86048379aecc"
 repository: "ticket-management"
 relates_to: ["work-item:0074", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]

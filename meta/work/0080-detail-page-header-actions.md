@@ -2,18 +2,18 @@
 id: "0080"
 title: "Detail-Page Header Actions (Open in Editor, Copy Path)"
 date: "2026-05-21T09:16:34+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: medium
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "medium"
+type: "work-item"
 blocked_by: ["work-item:0041", "work-item:0039"]
 source: "design-gap:2026-05-21-current-app-vs-claude-design-prototype"
-tags: [design, frontend, detail-page, config]
+tags: ["design", "frontend", "detail-page", "config"]
 last_updated: "2026-06-09T18:46:39+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-102
+external_id: "PP-102"
 ---
 
 # 0080: Detail-Page Header Actions (Open in Editor, Copy Path)

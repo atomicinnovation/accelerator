@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-17-0210-provider-client-crates-over-the-tracker-port-review-1"
 title: "Plan Review: Provider Client Crates over the RemoteTracker Port"
 date: "2026-08-17T14:49:04+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0210"
 target: "plan:2026-08-17-0210-provider-client-crates-over-the-tracker-port"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, correctness, test-coverage, security, compatibility, code-quality]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "correctness", "test-coverage", "security", "compatibility", "code-quality"]
 review_number: 1
 review_pass: 3
-tags: [rust, jira, linear, integrations, reqwest, tracker, adf, graphql]
+tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker", "adf", "graphql"]
 last_updated: "2026-08-17T15:51:15+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

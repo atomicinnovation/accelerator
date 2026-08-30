@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-12-0087-error-screen-affordances"
 title: "Research: 404 / Error Screen with Affordances (work item 0087)"
 date: "2026-06-12T20:20:18+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0087"
 parent: "work-item:0087"
 relates_to: ["work-item:0041", "work-item:0082", "work-item:0074", "work-item:0054"]
 topic: "404 / Error Screen with Affordances"
-tags: [research, codebase, frontend, error-states, routing, search, page-shell, big-glyph, suggestions]
+tags: ["research", "codebase", "frontend", "error-states", "routing", "search", "page-shell", "big-glyph", "suggestions"]
 revision: "c0a447de2b29473893289377f9e8a499b3fa37e6"
 repository: "build-system"
 last_updated: "2026-06-12T20:20:18+00:00"

@@ -1,15 +1,15 @@
 ---
 id: "ADR-0016"
 date: "2026-04-17T17:18:53+01:00"
-author: Toby Clemson
-status: superseded
+author: "Toby Clemson"
+status: "superseded"
 superseded_by: "adr:ADR-0047"
-tags: [configuration, plugin, skills, bash, preprocessor]
-type: adr
+tags: ["configuration", "plugin", "skills", "bash", "preprocessor"]
+type: "adr"
 title: "ADR-0016: Userspace Configuration Model"
 schema_version: 1
 last_updated: "2026-04-17T17:18:53+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["codebase-research:2026-03-22-skill-customisation-and-override-patterns", "plan:2026-03-23-config-infrastructure"]
 ---
 

@@ -1,20 +1,20 @@
 ---
-type: work-item
+type: "work-item"
 id: "0136"
 title: "Migrate Shell Scripts into a Rust CLI"
 date: "2026-06-22T23:41:03+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: in-progress
-kind: epic
-priority: medium
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "in-progress"
+kind: "epic"
+priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
-tags: [rust, cli, migration, epic]
+tags: ["rust", "cli", "migration", "epic"]
 last_updated: "2026-08-05T22:11:33+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-157
+external_id: "PP-157"
 ---
 
 # 0136: Migrate Shell Scripts into a Rust CLI

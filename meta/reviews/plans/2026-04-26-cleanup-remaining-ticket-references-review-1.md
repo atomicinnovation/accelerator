@@ -1,20 +1,20 @@
 ---
 date: "2026-04-26T00:00:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-26-cleanup-remaining-ticket-references"
 review_number: 1
-verdict: APPROVE
-lenses: [correctness, safety, test-coverage, code-quality, standards, documentation]
+verdict: "APPROVE"
+lenses: ["correctness", "safety", "test-coverage", "code-quality", "standards", "documentation"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-26-cleanup-remaining-ticket-references-review-1"
 title: "2026-04-26-cleanup-remaining-ticket-references-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-26T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Cleanup Remaining Ticket References

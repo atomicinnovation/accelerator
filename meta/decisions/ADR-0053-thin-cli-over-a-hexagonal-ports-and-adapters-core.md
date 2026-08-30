@@ -1,14 +1,14 @@
 ---
 id: "ADR-0053"
 date: "2026-06-27T12:23:42+00:00"
-author: Toby Clemson
-status: accepted
-tags: [architecture, hexagonal, ports-and-adapters, dependency-inversion, rust, cli]
-type: adr
+author: "Toby Clemson"
+status: "accepted"
+tags: ["architecture", "hexagonal", "ports-and-adapters", "dependency-inversion", "rust", "cli"]
+type: "adr"
 title: "ADR-0053: Thin CLI over a Hexagonal Ports-and-Adapters Core"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0048", "work-item:0158"]
 ---
 

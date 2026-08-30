@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-19-0213-conversational-conflict-resolution-flow"
 title: "Conversational Conflict Resolution Flow for Sync Implementation Plan"
 date: "2026-08-19T02:05:23+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0213"
 parent: "work-item:0213"
 derived_from: ["codebase-research:2026-08-18-0213-conversational-conflict-resolution-flow"]
 relates_to: ["work-item:0212", "work-item:0194"]
-tags: [skills, sync, work-items, conflicts, cli]
+tags: ["skills", "sync", "work-items", "conflicts", "cli"]
 revision: "979cf97746ff7e5ee39e1bdb1debc3dd080c3f60"
 repository: "accelerator"
 last_updated: "2026-08-19T09:29:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

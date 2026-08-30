@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0187-generalise-sub-binary-registration-surface-review-1"
 title: "Work Item Review: Generalise the Sub-Binary Registration Surface"
 date: "2026-08-01T13:00:40+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0187"
 work_item_id: "0187"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 5
-tags: [build-system, distribution, rust]
+tags: ["build-system", "distribution", "rust"]
 last_updated: "2026-08-01T17:40:11+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

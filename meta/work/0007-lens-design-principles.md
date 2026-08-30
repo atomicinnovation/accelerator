@@ -1,18 +1,18 @@
 ---
 title: "Lens design principles: PBR, boundaries, and structural invariants"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0007"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "codebase-research:2026-03-15-review-lens-optimal-structure"
-external_id: PP-29
+external_id: "PP-29"
 ---
 
 # ADR Ticket: Lens design principles: PBR, boundaries, and structural invariants

@@ -1,11 +1,11 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-06-0101-unified-dev-task-for-visualiser"
 title: "Unified Managed dev Task for Visualiser Server and Frontend Implementation Plan"
 date: "2026-06-06T18:03:58+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0101"
 parent: "work-item:0101"
 derived_from: ["codebase-research:2026-06-06-0101-unified-dev-task-for-visualiser"]
@@ -14,7 +14,7 @@ tags: ["dev-tooling", "mise", "invoke", "visualiser", "circus", "process-supervi
 revision: "c893bc4638cdc31c029312742292e5abd6118ed9"
 repository: "miscellaneous"
 last_updated: "2026-06-06T22:48:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

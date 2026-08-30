@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-11-0106-invoke-plugin-scripts-by-bare-path-review-1"
 title: "Plan Review: Invoke Plugin Scripts by Bare Path in Skill Bodies"
 date: "2026-06-11T13:52:50+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-06-11-0106-invoke-plugin-scripts-by-bare-path"
 parent: "plan:2026-06-11-0106-invoke-plugin-scripts-by-bare-path"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, documentation, test-coverage, standards, architecture, usability, portability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "documentation", "test-coverage", "standards", "architecture", "usability", "portability"]
 review_number: 1
 review_pass: 2
-tags: [permissions, allowed-tools, skills, plugin, authoring-convention]
+tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 last_updated: "2026-06-11T16:17:52+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

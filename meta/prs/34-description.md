@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "34"
 title: "Split the VCS subdomain story into four independent work items"
 date: "2026-08-02T18:50:13+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0136", "work-item:0169", "work-item:0185", "work-item:0186", "work-item:0187", "work-item:0188", "codebase-research:2026-07-29-0169-vcs-subdomain-and-hooks-migration"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/34"
 pr_number: 34
-tags: [work-items, planning, vcs, hooks, rust, cli, migration]
+tags: ["work-items", "planning", "vcs", "hooks", "rust", "cli", "migration"]
 revision: "3b3ac9a995414cc85b78bda442322ebc3174278f"
 repository: "accelerator"
 last_updated: "2026-08-02T18:50:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

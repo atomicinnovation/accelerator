@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-29-0176-skill-reference-index-and-subsections-review-1"
 title: "Plan Review: Skill Reference Index & Per-Skill Subsections"
 date: "2026-06-29T20:29:39+00:00"
-author: Phil Helm
-producer: review-plan
-status: complete
+author: "Phil Helm"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-29-0176-skill-reference-index-and-subsections"
 target: "plan:2026-06-29-0176-skill-reference-index-and-subsections"
-reviewer: Phil Helm
-verdict: REVISE
-lenses: [documentation, test-coverage, correctness, standards, usability, architecture]
+reviewer: "Phil Helm"
+verdict: "REVISE"
+lenses: ["documentation", "test-coverage", "correctness", "standards", "usability", "architecture"]
 review_number: 1
 review_pass: 1
-tags: [docs, skills, documentation]
+tags: ["docs", "skills", "documentation"]
 last_updated: "2026-06-29T20:29:39+00:00"
-last_updated_by: Phil Helm
+last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 

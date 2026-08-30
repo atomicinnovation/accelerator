@@ -1,18 +1,18 @@
 ---
 title: "Test coverage as a plan review lens"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0012"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "plan:2026-02-22-review-plan-alignment"
-external_id: PP-34
+external_id: "PP-34"
 ---
 
 # ADR Ticket: Test coverage as a plan review lens

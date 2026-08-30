@@ -1,22 +1,22 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0196-design-vendored-runtime-distribution"
 title: "accelerator-design: Vendored Runtime Distribution Implementation Plan"
 date: "2026-08-11T21:49:36+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0196"
 parent: "work-item:0196"
 blocked_by: ["work-item:0205"]
 derived_from: ["codebase-research:2026-08-11-0196-design-cli-implementation-surface"]
 relates_to: ["plan:2026-08-11-0196-design-cli-migration", "work-item:0208", "plan-review:2026-08-11-0196-design-vendored-runtime-distribution-review-1"]
 supersedes: ["plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"]
-tags: [rust, design, playwright, launcher, release-pipeline, tree-artifacts, distribution]
+tags: ["rust", "design", "playwright", "launcher", "release-pipeline", "tree-artifacts", "distribution"]
 revision: "2cd521542aea64abb6cd81dc104505d8c7609519"
 repository: "accelerator"
 last_updated: "2026-08-19T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

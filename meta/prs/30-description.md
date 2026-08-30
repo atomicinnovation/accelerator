@@ -1,20 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "30"
 title: "[0182] Plugin root rename and terminal invocation surface"
 date: "2026-07-29T16:18:51+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0182"
 parent: "work-item:0182"
-relates_to:
-  - "plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
-  - "plan-validation:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation"
-  - "work-item:0184"
+relates_to: ["plan:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename", "plan-validation:2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename-validation", "work-item:0184"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/30"
 pr_number: 30
-tags: [pr, cli, launcher, plugin-root, hooks, lint-guards]
+tags: ["pr", "cli", "launcher", "plugin-root", "hooks", "lint-guards"]
 revision: "517db8c33c1a7964d22dbdf982aa32270a803545"
 repository: "accelerator"
 last_updated: "2026-07-29T16:18:51+00:00"

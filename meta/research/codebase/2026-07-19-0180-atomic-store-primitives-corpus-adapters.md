@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-19-0180-atomic-store-primitives-corpus-adapters"
 title: "Research: Porting the atomic-store primitives into corpus-adapters (0180)"
 date: "2026-07-18T23:21:31+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0180"
 parent: "work-item:0180"
 relates_to: ["work-item:0166", "work-item:0179", "work-item:0172"]
 topic: "Porting the bash atomic-store primitives (atomic_write, mkdir-lock, canonical JSONL) into the corpus-adapters Rust crate"
-tags: [research, codebase, rust, corpus, corpus-adapters, atomic-store, jsonl, ports-and-adapters, cargo-deny]
+tags: ["research", "codebase", "rust", "corpus", "corpus-adapters", "atomic-store", "jsonl", "ports-and-adapters", "cargo-deny"]
 revision: "61e1b9d3905ec815be161d6c33a432143944573f"
 repository: "accelerator"
 last_updated: "2026-07-19T00:55:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up resolving the libc/musl concern and open questions 2 (user_value gating) and 4 (port shape) with caller/reader/call-surface evidence"
 schema_version: 1
 ---

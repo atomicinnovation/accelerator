@@ -1,20 +1,20 @@
 ---
 date: "2026-06-06T01:00:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-06-05-0079-aside-region-redesign"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, performance, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "performance", "usability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-06-05-0079-aside-region-redesign-review-1"
 title: "2026-06-05-0079-aside-region-redesign-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-06-06T01:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Detail-Page Aside Region Redesign

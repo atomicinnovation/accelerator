@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0207"
 title: "Detect Encoded Credentials In Scrubbed Artefacts"
 date: "2026-08-12T23:21:12+00:00"
-author: Toby Clemson
-producer: implement-plan
-status: ready
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "implement-plan"
+status: "ready"
+kind: "story"
+priority: "medium"
 parent: "work-item:0196"
 derived_from: ["plan:2026-08-11-0196-design-cli-migration"]
 relates_to: ["work-item:0196"]
-tags: [design, security, secrets]
+tags: ["design", "security", "secrets"]
 last_updated: "2026-08-12T23:21:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-737
+external_id: "PP-737"
 ---
 
 # Detect Encoded Credentials In Scrubbed Artefacts

@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-02-0187-generalise-sub-binary-registration-surface"
 title: "Research: Generalise the Sub-Binary Registration Surface (0187)"
 date: "2026-08-02T21:22:36+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0187"
 parent: "work-item:0187"
 topic: "Generalising validate_dispatch_coherence over dispatch tokens, parameterising the release-stage builders, and documenting the sub-binary registration surface"
-tags: [research, codebase, build-system, distribution, rust, skills, tasks]
+tags: ["research", "codebase", "build-system", "distribution", "rust", "skills", "tasks"]
 revision: "4ccf888b9b6c29f4b8b752cf5ba6f76aeef2f610"
 repository: "accelerator"
 last_updated: "2026-08-02T21:22:36+00:00"

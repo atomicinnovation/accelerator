@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "59"
 title: "[0172] Migrate migrations to Rust CLI"
 date: "2026-08-10T00:17:55+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0172"
 parent: "work-item:0172"
 relates_to: ["work-item:0202"]
@@ -15,7 +15,7 @@ tags: []
 revision: "9e1a74739b3bcbd2a6dfc9e94f72260d637afc97"
 repository: "accelerator"
 last_updated: "2026-08-10T00:17:55+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

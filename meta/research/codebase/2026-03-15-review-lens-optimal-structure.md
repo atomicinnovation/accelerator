@@ -1,14 +1,14 @@
 ---
 date: "2026-03-15T15:46:31+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "54bf3e8f4bf2f289b9ecc6f68c5f4b06859023ad"
-repository: accelerator
+repository: "accelerator"
 topic: "Optimal structure for review lenses — codebase analysis and web research"
-tags: [ research, review-lenses, lens-structure, code-review, perspective-based-reading ]
-status: complete
+tags: ["research", "review-lenses", "lens-structure", "code-review", "perspective-based-reading"]
+status: "complete"
 last_updated: "2026-03-15T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-03-15-review-lens-optimal-structure"
 title: "Research: Optimal Structure for Review Lenses"
 schema_version: 1

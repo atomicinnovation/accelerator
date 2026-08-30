@@ -1,14 +1,14 @@
 ---
 date: "2026-05-11T23:54:00+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "81461f75df95cb56e25bda8a6503c4d873691b16"
-repository: accelerator
+repository: "accelerator"
 topic: "Restructure meta/research/codebase/ into subject subcategories (work item 0056)"
-tags: [research, codebase, migration, paths, documents-locator, configure, research-codebase, research-issue, design-convergence, work-item-0056]
-status: complete
+tags: ["research", "codebase", "migration", "paths", "documents-locator", "configure", "research-codebase", "research-issue", "design-convergence", "work-item-0056"]
+status: "complete"
 last_updated: "2026-05-11T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-11-0056-restructure-meta-research-into-subject-subcategories"
 title: "Research: Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056"
 schema_version: 1

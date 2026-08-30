@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0221"
 title: "Canonical Quoting Standard for All Frontmatter"
 date: "2026-08-22T23:41:55+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: ready
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "ready"
+kind: "story"
+priority: "high"
 parent: "work-item:0136"
 relates_to: ["work-item:0220", "work-item:0227", "adr:ADR-0065", "adr:ADR-0034", "adr:ADR-0033"]
-external_id: PP-750
-tags: [frontmatter, corpus, document, correctness, migration]
+external_id: "PP-750"
+tags: ["frontmatter", "corpus", "document", "correctness", "migration"]
 last_updated: "2026-08-30T14:58:52+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # 0221: Canonical Quoting Standard for All Frontmatter

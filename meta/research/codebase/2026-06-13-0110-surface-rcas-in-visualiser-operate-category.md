@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-13-0110-surface-rcas-in-visualiser-operate-category"
 title: "Research: Surfacing Root Cause Analyses in the Visualiser under a new Operate category"
 date: "2026-06-13T20:42:18+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0110"
 parent: "work-item:0110"
 relates_to: ["codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page", "codebase-research:2026-06-09-0082-big-glyph-hero-illustrations", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-06-01-0054-sidebar-search", "codebase-research:2026-06-11-0096-templates-view-auto-discovery"]
 topic: "Surfacing Root Cause Analyses in the Visualiser under a new Operate category"
-tags: [research, codebase, visualiser, rca, issue-research, doc-types, library, operate]
+tags: ["research", "codebase", "visualiser", "rca", "issue-research", "doc-types", "library", "operate"]
 revision: "c1f316728a5bef4414f6ea25351f5f3f9ef23a2f"
 repository: "build-system"
 last_updated: "2026-06-13T20:42:18+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -2,19 +2,19 @@
 id: "0055"
 title: "Sidebar Activity Feed and SSE Action Discriminator"
 date: "2026-05-11T12:11:50+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: high
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "high"
 parent: "work-item:0036"
-tags: [design, frontend, chrome, navigation]
-type: work-item
+tags: ["design", "frontend", "chrome", "navigation"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-11T12:11:50+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
 relates_to: ["work-item:0036"]
-external_id: PP-77
+external_id: "PP-77"
 ---
 
 # 0055: Sidebar Activity Feed and SSE Action Discriminator

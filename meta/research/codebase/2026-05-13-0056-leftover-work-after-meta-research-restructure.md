@@ -1,14 +1,14 @@
 ---
 date: "2026-05-13T09:29:26+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "99c29ca35498adbe72fafec97a68216d6ebf6fde"
-repository: accelerator
+repository: "accelerator"
 topic: "Leftover work / issues after meta directory restructure (0056)"
-tags: [research, codebase, migration, "0056", meta-restructure]
-status: complete
+tags: ["research", "codebase", "migration", "0056", "meta-restructure"]
+status: "complete"
 last_updated: "2026-05-13T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-13-0056-leftover-work-after-meta-research-restructure"
 title: "Research: Leftover work / issues after meta directory restructure (0056)"
 schema_version: 1

@@ -1,14 +1,14 @@
 ---
 date: "2026-05-18T21:28:41+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
-repository: accelerator
+repository: "accelerator"
 topic: "Fix scope, blast radius, test strategy, and fix-path candidates for `pr-base-repo.sh` `--json baseRepository` defect on `gh 2.65.0` (work item 0071)"
-tags: [research, codebase, github, describe-pr, review-pr, respond-to-pr, gh-cli-compat, pr-base-repo, testing]
-status: complete
+tags: ["research", "codebase", "github", "describe-pr", "review-pr", "respond-to-pr", "gh-cli-compat", "pr-base-repo", "testing"]
+status: "complete"
 last_updated: "2026-05-18T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-18-0071-describe-pr-base-repo-resolver-unsupported-gh-field"
 title: "Research: `pr-base-repo.sh` `--json baseRepository` Defect on `gh 2.65.0` — Fix Scope and Test Strategy"
 schema_version: 1

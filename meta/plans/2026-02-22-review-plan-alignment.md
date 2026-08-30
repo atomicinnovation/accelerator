@@ -1,14 +1,14 @@
 ---
-type: plan
+type: "plan"
 id: "2026-02-22-review-plan-alignment"
 title: "Review-Plan Alignment with Review-PR Patterns"
 date: "2026-02-22T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 revision: "cca787aeed49"
 repository: "ticket-management"
 last_updated: "2026-02-22T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 relates_to: ["codebase-research:2026-02-22-review-plan-pr-alignment", "codebase-research:2026-02-22-pr-review-agents-design", "plan:2026-02-22-pr-review-inline-comments"]
 ---

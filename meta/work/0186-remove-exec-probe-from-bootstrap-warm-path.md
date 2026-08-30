@@ -1,30 +1,22 @@
 ---
-type: work-item
+type: "work-item"
 id: "0186"
 title: "Remove the Exec Probe from the Bootstrap Warm Path"
 date: "2026-07-31T10:41:51+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: high
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "high"
 parent: "work-item:0136"
 blocked_by: ["work-item:0182"]
 blocks: ["work-item:0169"]
-relates_to:
-  [
-    "work-item:0164",
-    "work-item:0165",
-    "work-item:0167",
-    "work-item:0189",
-    "work-item:0190",
-    "work-item:0191",
-  ]
-tags: [shell, performance, bootstrap]
+relates_to: ["work-item:0164", "work-item:0165", "work-item:0167", "work-item:0189", "work-item:0190", "work-item:0191"]
+tags: ["shell", "performance", "bootstrap"]
 last_updated: "2026-08-11T13:21:34+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-716
+external_id: "PP-716"
 ---
 
 # 0186: Remove the Exec Probe from the Bootstrap Warm Path

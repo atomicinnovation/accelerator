@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-18-0114-config-driven-corpus-validation-scope"
 title: "Config-Driven Corpus Validation Scope Implementation Plan"
 date: "2026-06-18T17:22:07+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0114"
 parent: "work-item:0114"
 relates_to: ["plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"]
-tags: [validator, frontmatter, config, doc-type-inference, unified-schema, allowlist]
+tags: ["validator", "frontmatter", "config", "doc-type-inference", "unified-schema", "allowlist"]
 revision: "3a696f4cddb00fce6fbad76b41e32e1cf32e292b"
 repository: "accelerator"
 last_updated: "2026-06-19T00:26:18+00:00"

@@ -1,17 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"
 title: "Remove the Exec Probe from the Bootstrap Warm Path Implementation Plan"
 date: "2026-08-02T22:01:31+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0186"
 parent: "work-item:0186"
-derived_from:
-  ["codebase-research:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"]
+derived_from: ["codebase-research:2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"]
 relates_to: ["work-item:0169", "work-item:0182", "work-item:0164"]
-tags: [shell, performance, bootstrap, bash-3.2, testing]
+tags: ["shell", "performance", "bootstrap", "bash-3.2", "testing"]
 revision: "4a68344cd2614f3bdd07223c8aeaf64583c036f0"
 repository: "accelerator"
 last_updated: "2026-08-03T15:00:23+00:00"

@@ -1,24 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"
 title: "Research: Integration Binaries and Bash Cluster Retirement (0211)"
 date: "2026-08-17T13:16:26+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0211"
 parent: "work-item:0211"
-relates_to:
-  - "codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface"
-  - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
-  - "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"
-  - "codebase-research:2026-08-19-0212-work-item-script-cutover"
+relates_to: ["codebase-research:2026-08-02-0187-generalise-sub-binary-registration-surface", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port", "codebase-research:2026-08-19-0212-work-item-script-cutover"]
 topic: "Implementation ground for shipping accelerator-jira and accelerator-linear and retiring both bash script clusters"
-tags: [research, codebase, jira, linear, integrations, cli, cutover, exit-codes, registration]
+tags: ["research", "codebase", "jira", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
 revision: "88689fde6792965a6489d11178dc94ccd241a832"
 repository: "accelerator"
 last_updated: "2026-08-22T17:51:49+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up research re-grounding every finding against work item 0211's requirements after 0212 merged"
 schema_version: 1
 ---

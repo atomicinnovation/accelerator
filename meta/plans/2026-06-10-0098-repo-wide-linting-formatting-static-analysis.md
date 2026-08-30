@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-10-0098-repo-wide-linting-formatting-static-analysis"
 title: "Repo-Wide Linting, Formatting, And Static Analysis Guardrails Implementation Plan"
 date: "2026-06-10T14:04:25+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0098"
 parent: "work-item:0098"
 derived_from: ["codebase-research:2026-06-09-0098-repo-wide-linting-formatting-static-analysis"]
-tags: [tooling, linting, formatting, static-analysis, ci, guardrails, biome, ruff, pyrefly, clippy, shellcheck, shfmt, mise]
+tags: ["tooling", "linting", "formatting", "static-analysis", "ci", "guardrails", "biome", "ruff", "pyrefly", "clippy", "shellcheck", "shfmt", "mise"]
 revision: "5f0375c3b5a285489fe8094a65f96a43511db100"
 repository: "accelerator"
 last_updated: "2026-06-11T00:24:02+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

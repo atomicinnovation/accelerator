@@ -1,14 +1,14 @@
 ---
 date: "2026-05-05T00:00:00+00:00"
-author: jonassvalin
+author: "jonassvalin"
 revision: "a2d9c593ca9950596e4a6d53d3089245487372ba"
-repository: accelerator
+repository: "accelerator"
 topic: "Design research for a dedicated debug-issue skill"
-tags: [research, skill-design, debugging, production-issues]
-status: complete
+tags: ["research", "skill-design", "debugging", "production-issues"]
+status: "complete"
 last_updated: "2026-05-05T00:00:00+00:00"
-last_updated_by: jonassvalin
-type: codebase-research
+last_updated_by: "jonassvalin"
+type: "codebase-research"
 id: "2026-05-05-debug-issue-skill-design"
 title: "Research: Design for a Dedicated Debug-Issue Skill"
 schema_version: 1

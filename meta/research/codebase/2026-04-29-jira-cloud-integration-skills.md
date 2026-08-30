@@ -1,14 +1,14 @@
 ---
 date: "2026-04-29T22:31:35+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "77cbbb0e4288c49347d3258fffbcf3d83b396999"
-repository: accelerator
+repository: "accelerator"
 topic: "Jira Cloud integration skills as the first integration under skills/integrations/"
-tags: [research, integrations, jira, skills, work-management, adf, jql, configuration]
-status: complete
+tags: ["research", "integrations", "jira", "skills", "work-management", "adf", "jql", "configuration"]
+status: "complete"
 last_updated: "2026-04-29T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-04-29-jira-cloud-integration-skills"
 title: "Research: Jira Cloud Integration Skills"
 schema_version: 1

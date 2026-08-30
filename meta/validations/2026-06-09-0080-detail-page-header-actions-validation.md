@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-09-0080-detail-page-header-actions-validation"
 title: "Validation Report: Detail-Page Header Actions (Open in Editor, Copy Path)"
 date: "2026-06-10T21:34:09+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 parent: "plan:2026-06-09-0080-detail-page-header-actions"
 target: "plan:2026-06-09-0080-detail-page-header-actions"
-tags: [design, frontend, detail-page, config, editor-deeplink, clipboard]
+tags: ["design", "frontend", "detail-page", "config", "editor-deeplink", "clipboard"]
 last_updated: "2026-06-10T21:34:09+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

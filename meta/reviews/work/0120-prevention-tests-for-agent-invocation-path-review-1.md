@@ -1,19 +1,19 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0120-prevention-tests-for-agent-invocation-path-review-1"
 title: "Work Item Review: Prevention Tests for the Agent-Invocation Path"
 date: "2026-06-20T12:45:43+00:00"
 author: "Toby Clemson"
-producer: review-work-item
-status: complete
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0120"
 work_item_id: "0120"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [clarity, completeness, dependency, scope, testability]
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 3
-tags: [migrate, interactive-migration, agent-invocation, tooling]
+tags: ["migrate", "interactive-migration", "agent-invocation", "tooling"]
 last_updated: "2026-06-20T13:48:16+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

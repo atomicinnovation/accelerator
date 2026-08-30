@@ -1,20 +1,20 @@
 ---
 date: "2026-06-01T00:00:00+00:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-31-0040-pipeline-visualisation-overhaul"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, standards, compatibility, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "standards", "compatibility", "usability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-05-31-0040-pipeline-visualisation-overhaul-review-1"
 title: "2026-05-31-0040-pipeline-visualisation-overhaul-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-06-01T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Pipeline Visualisation Overhaul

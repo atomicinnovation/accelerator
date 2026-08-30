@@ -1,20 +1,20 @@
 ---
 date: "2026-05-06T20:33:40Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-06-design-skill-localhost-and-mcp-issues"
 review_number: 1
-verdict: REVISE
-lenses: [architecture, security, test-coverage, code-quality, correctness, usability, portability, safety, compatibility]
+verdict: "REVISE"
+lenses: ["architecture", "security", "test-coverage", "code-quality", "correctness", "usability", "portability", "safety", "compatibility"]
 review_pass: 4
-status: complete
+status: "complete"
 id: "2026-05-06-design-skill-localhost-and-mcp-issues-review-1"
 title: "2026-05-06-design-skill-localhost-and-mcp-issues-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-06T20:33:40Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Design Skill — localhost validation and MCP-hallucination fixes

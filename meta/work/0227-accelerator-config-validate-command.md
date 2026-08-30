@@ -1,17 +1,17 @@
 ---
-type: work-item
+type: "work-item"
 id: "0227"
 title: "accelerator config validate Command"
 date: "2026-08-28T14:14:31+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "story"
+priority: "medium"
 relates_to: ["work-item:0221", "work-item:0226"]
-tags: [config, validation, cli, correctness]
+tags: ["config", "validation", "cli", "correctness"]
 last_updated: "2026-08-29T17:07:24+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # 0227: accelerator config validate Command

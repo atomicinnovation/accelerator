@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "22"
 title: "[0179] Mark the corpus crates work item done"
 date: "2026-07-20T15:10:13+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0179"
 parent: "work-item:0179"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/22"

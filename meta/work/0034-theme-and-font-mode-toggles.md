@@ -2,18 +2,18 @@
 id: "0034"
 title: "Theme and Font-Mode Toggles"
 date: "2026-05-06T14:04:04+00:00"
-author: Toby Clemson
-kind: story
-status: done
-priority: medium
-tags: [design, frontend, theming]
-type: work-item
+author: "Toby Clemson"
+kind: "story"
+status: "done"
+priority: "medium"
+tags: ["design", "frontend", "theming"]
+type: "work-item"
 schema_version: 1
 last_updated: "2026-05-06T14:04:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 blocked_by: ["work-item:0033"]
 source: "design-gap:2026-05-06-current-app-vs-claude-design-prototype"
-external_id: PP-56
+external_id: "PP-56"
 ---
 
 # 0034: Theme and Font-Mode Toggles

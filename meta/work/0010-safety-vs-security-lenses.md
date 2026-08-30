@@ -1,18 +1,18 @@
 ---
 title: "Safety vs security as distinct lenses"
-kind: task
-status: done
-type: work-item
+kind: "task"
+status: "done"
+type: "work-item"
 id: "0010"
 date: "2026-05-21T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-21T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "plan:2026-03-15-new-review-lenses"
-external_id: PP-32
+external_id: "PP-32"
 ---
 
 # ADR Ticket: Safety vs security as distinct lenses

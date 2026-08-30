@@ -1,14 +1,14 @@
 ---
 date: "2026-05-18T18:56:43+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
-repository: accelerator
+repository: "accelerator"
 topic: "inventory-design Playwright daemon — `importPlaywright()` loads CJS entry and loses `chromium` named export"
-tags: [research, codebase, inventory-design, playwright, daemon, esm, cjs, bug]
-status: complete
+tags: ["research", "codebase", "inventory-design", "playwright", "daemon", "esm", "cjs", "bug"]
+status: "complete"
 last_updated: "2026-05-18T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-18-0072-playwright-daemon-cjs-import-bug"
 title: "Research: inventory-design Playwright daemon — `importPlaywright()` loads CJS entry and loses `chromium` named export"
 schema_version: 1

@@ -1,20 +1,20 @@
 ---
 date: "2026-04-29T17:00:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "codebase-research:2026-04-17-meta-visualiser-implementation-context"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, security, correctness, compatibility, portability, safety, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "security", "correctness", "compatibility", "portability", "safety", "usability"]
 review_pass: 3
-status: complete
+status: "complete"
 id: "2026-04-17-meta-visualiser-implementation-context-review-1"
 title: "2026-04-17-meta-visualiser-implementation-context-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-29T17:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Meta Visualiser v1 — Implementation Context and Phasing

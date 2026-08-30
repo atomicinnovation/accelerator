@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "48"
 title: "Add a library-backed VCS adapter over gix and jj-lib"
 date: "2026-08-03T23:18:17+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0188"
 parent: "work-item:0188"
 relates_to: ["work-item:0125", "work-item:0169", "work-item:0185"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/48"
 pr_number: 48
-tags: [rust, vcs, dependencies, gix, jj-lib]
+tags: ["rust", "vcs", "dependencies", "gix", "jj-lib"]
 revision: "53fe29fdd423a3f0617d9fa1a762928d88b77744"
 repository: "accelerator"
 last_updated: "2026-08-03T23:58:14+00:00"

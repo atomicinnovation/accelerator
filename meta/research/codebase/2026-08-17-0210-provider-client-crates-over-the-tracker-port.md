@@ -1,20 +1,20 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-17-0210-provider-client-crates-over-the-tracker-port"
 title: "Research: Provider Client Crates over the RemoteTracker Port (0210), including build-vs-buy"
 date: "2026-08-17T14:02:30+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0210"
 parent: "work-item:0210"
 relates_to: ["codebase-research:2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"]
 topic: "Implementation ground for jira-client and linear-client, and whether any existing crate simplifies the effort"
-tags: [research, codebase, jira, linear, tracker, reqwest, graphql, adf, build-vs-buy]
+tags: ["research", "codebase", "jira", "linear", "tracker", "reqwest", "graphql", "adf", "build-vs-buy"]
 revision: "5dd45e01ffcbd71e868ed8d84a588047cd899f84"
 repository: "accelerator"
 last_updated: "2026-08-17T14:02:30+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

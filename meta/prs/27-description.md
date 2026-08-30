@@ -1,21 +1,21 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "27"
 title: "[0168] Fold visualiser into CLI"
 date: "2026-07-26T17:15:54+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0168"
 parent: "work-item:0168"
 relates_to: ["work-item:0165"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/27"
 pr_number: 27
-tags: [rust, visualiser, cli, launcher, corpus, workspace]
+tags: ["rust", "visualiser", "cli", "launcher", "corpus", "workspace"]
 revision: "bd50e666663893c5f79a0a65869b6da7b076ca24"
 repository: "build-system"
 last_updated: "2026-07-26T17:15:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

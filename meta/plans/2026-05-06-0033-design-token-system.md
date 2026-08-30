@@ -1,16 +1,16 @@
 ---
 date: "2026-05-06T18:00:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work_item_id: "meta/work/0033-design-token-system.md"
-status: draft
+status: "draft"
 id: "2026-05-06-0033-design-token-system"
 title: "0033 Design Token System Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-06T18:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 relates_to: ["work-item:0033", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "work-item:0034"]

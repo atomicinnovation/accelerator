@@ -1,17 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-27-0182-bootstrap-self-location-and-plugin-root-rename"
 title: "Bootstrap Self-Location and the ACCELERATOR_PLUGIN_ROOT Rename Implementation Plan"
 date: "2026-07-27T09:02:16+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: in-progress
+producer: "create-plan"
+status: "in-progress"
 work_item_id: "work-item:0182"
 parent: "work-item:0182"
-derived_from:
-  - "codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface"
-  - "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"
-tags: [plan, cli, launcher, bootstrap, plugin-root, hooks, lint-guards]
+derived_from: ["codebase-research:2026-07-27-0182-plugin-root-self-location-implementation-surface", "issue-research:2026-07-26-cli-requires-claude-plugin-root-env-var"]
+tags: ["plan", "cli", "launcher", "bootstrap", "plugin-root", "hooks", "lint-guards"]
 revision: "e56fb165ea4b7591de3586bc43e96cb8bf7ab6df"
 repository: "accelerator"
 last_updated: "2026-07-29T15:21:21+00:00"

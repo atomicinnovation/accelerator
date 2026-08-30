@@ -1,11 +1,11 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "60"
 title: "[0197] Accelerator collaboration PR helper CLI"
 date: "2026-08-09T22:28:55+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0197"
 parent: "work-item:0197"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/60"
@@ -14,7 +14,7 @@ tags: []
 revision: "244bc6cf7a3e874e86b13e6f95a19f0ecdeaec0c"
 repository: "accelerator"
 last_updated: "2026-08-09T22:28:55+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,18 +1,18 @@
 ---
 title: "Respond-to-PR as sequential workflow with verify-before-implement"
-kind: task
-status: draft
-type: work-item
+kind: "task"
+status: "draft"
+type: "work-item"
 id: "0015"
 date: "2026-05-24T00:00:00+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-24T00:00:00+00:00"
-last_updated_by: Toby Clemson
-priority: medium
+last_updated_by: "Toby Clemson"
+priority: "medium"
 source: "codebase-research:2026-02-23-respond-to-pr-feedback-skill"
-external_id: PP-37
+external_id: "PP-37"
 ---
 
 # ADR Ticket: Respond-to-PR as sequential workflow with verify-before-implement

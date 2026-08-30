@@ -1,15 +1,15 @@
 ---
 date: "2026-05-08T01:08:36+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "7dab2df48e6016dd4fe9b3a807193000432ea002"
-repository: accelerator
+repository: "accelerator"
 topic: "Implementation of work item 0030: centralise PATH and TEMPLATE config arrays"
-tags: [research, codebase, config, refactoring, work-0030, path-defaults, config-dump]
-status: complete
+tags: ["research", "codebase", "config", "refactoring", "work-0030", "path-defaults", "config-dump"]
+status: "complete"
 last_updated: "2026-05-08T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 last_updated_note: "Corrected: workspaces/ is jj workspace checkouts, not source duplicates. There is only one config-dump.sh."
-type: codebase-research
+type: "codebase-research"
 id: "2026-05-08-0030-centralise-path-defaults-implementation"
 title: "Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays"
 schema_version: 1

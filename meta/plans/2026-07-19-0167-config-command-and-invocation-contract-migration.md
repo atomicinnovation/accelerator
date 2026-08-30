@@ -1,27 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-07-19-0167-config-command-and-invocation-contract-migration"
 title: "Built-in config Command and Invocation-Contract Migration Implementation Plan"
 date: "2026-07-19T21:06:21+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0167"
 parent: "work-item:0167"
-derived_from:
-  - "codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration"
-  - "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"
-relates_to:
-  - "work-item:0106"
-  - "work-item:0107"
-  - "work-item:0166"
-  - "work-item:0169"
-  - "work-item:0180"
-tags: [rust, config, cli, skills, invocation-contract, allowed-tools, hooks, store, migration]
+derived_from: ["codebase-research:2026-07-19-0167-config-command-and-invocation-contract-migration", "codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture"]
+relates_to: ["work-item:0106", "work-item:0107", "work-item:0166", "work-item:0169", "work-item:0180"]
+tags: ["rust", "config", "cli", "skills", "invocation-contract", "allowed-tools", "hooks", "store", "migration"]
 revision: "b290d5d94322d663af947227f8c64e7a470b173f"
 repository: "build-system"
 last_updated: "2026-07-20T11:15:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,19 +1,19 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-06-12-0083-dev-design-system-reference-page"
 title: "Research: DevDesignSystem Reference Page (0083)"
 date: "2026-06-12T22:17:22+00:00"
-author: Toby Clemson
-producer: research-codebase
-status: complete
+author: "Toby Clemson"
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0083"
 parent: "work-item:0083"
 topic: "DevDesignSystem Reference Page (0083)"
-tags: [research, codebase, visualiser, design-system, dev-tools, router, visual-regression, theming, scroll-spy, keybind]
+tags: ["research", "codebase", "visualiser", "design-system", "dev-tools", "router", "visual-regression", "theming", "scroll-spy", "keybind"]
 revision: "442b08ff4f2d54a55395f5b53b76d7f378c317c1"
 repository: "accelerator"
 last_updated: "2026-06-12T22:17:22+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

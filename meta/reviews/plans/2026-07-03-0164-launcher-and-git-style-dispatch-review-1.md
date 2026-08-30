@@ -1,20 +1,20 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-07-03-0164-launcher-and-git-style-dispatch-review-1"
 title: "Plan Review: Launcher and Git-Style Dispatch"
 date: "2026-07-03T19:23:13+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 target: "plan:2026-07-03-0164-launcher-and-git-style-dispatch"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, portability, compatibility]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "portability", "compatibility"]
 review_number: 1
 review_pass: 2
-tags: [rust, launcher, dispatch, cli, fetch-verify-cache-exec, minisign, security]
+tags: ["rust", "launcher", "dispatch", "cli", "fetch-verify-cache-exec", "minisign", "security"]
 last_updated: "2026-07-04T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

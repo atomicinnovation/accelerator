@@ -1,21 +1,21 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0182-cli-derives-plugin-root-from-own-location-review-1"
 title: "Work Item Review: bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never exported to skills)"
 date: "2026-07-26T22:51:54+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 target: "work-item:0182"
 work_item_id: "0182"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 2
-tags: [cli, launcher, bootstrap, plugin-root]
+tags: ["cli", "launcher", "bootstrap", "plugin-root"]
 last_updated: "2026-07-26T23:24:12+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

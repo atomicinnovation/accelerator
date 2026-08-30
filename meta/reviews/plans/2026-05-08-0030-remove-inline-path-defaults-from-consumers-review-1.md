@@ -1,20 +1,20 @@
 ---
 date: "2026-05-08T00:00:00Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-05-08-0030-remove-inline-path-defaults-from-consumers"
 review_number: 1
-verdict: COMMENT
-lenses: [correctness, test-coverage, code-quality, architecture, compatibility, safety]
+verdict: "COMMENT"
+lenses: ["correctness", "test-coverage", "code-quality", "architecture", "compatibility", "safety"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-05-08-0030-remove-inline-path-defaults-from-consumers-review-1"
 title: "2026-05-08-0030-remove-inline-path-defaults-from-consumers-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-08T00:00:00Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Remove Inline Path Defaults from Consumer Call Sites

@@ -1,22 +1,15 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "49"
 title: "Update VCS CLI rewrite and documentation stories"
 date: "2026-08-05T19:08:29+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
-relates_to:
-  [
-    "work-item:0187",
-    "work-item:0188",
-    "work-item:0192",
-    "work-item:0193",
-    "work-item:0136",
-  ]
+producer: "describe-pr"
+status: "complete"
+relates_to: ["work-item:0187", "work-item:0188", "work-item:0192", "work-item:0193", "work-item:0136"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/49"
 pr_number: 49
-tags: [meta, work-items, housekeeping]
+tags: ["meta", "work-items", "housekeeping"]
 revision: "6e3f9ed5f3d767c7bb0be4072599d948636d5cc3"
 repository: "accelerator"
 last_updated: "2026-08-05T19:14:12+00:00"

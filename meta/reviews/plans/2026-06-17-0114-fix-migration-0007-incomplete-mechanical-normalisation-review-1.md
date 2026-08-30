@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation-review-1"
 title: "Plan Review: Fix Migration 0007 Incomplete Mechanical Normalisation"
 date: "2026-06-17T22:58:39+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"
 target: "plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [correctness, code-quality, test-coverage, architecture, safety, compatibility, standards]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["correctness", "code-quality", "test-coverage", "architecture", "safety", "compatibility", "standards"]
 review_number: 1
 review_pass: 4
-tags: [migrate, frontmatter, validator, "0007", awk, review]
+tags: ["migrate", "frontmatter", "validator", "0007", "awk", "review"]
 last_updated: "2026-06-18T00:05:26+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

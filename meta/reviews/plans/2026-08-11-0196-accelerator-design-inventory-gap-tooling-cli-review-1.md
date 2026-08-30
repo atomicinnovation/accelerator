@@ -1,21 +1,21 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli-review-1"
 title: "Plan Review: accelerator-design: Design Inventory and Gap Tooling CLI Implementation Plan"
 date: "2026-08-11T16:16:42+00:00"
-author: Toby Clemson
-producer: review-plan
-status: complete
+author: "Toby Clemson"
+producer: "review-plan"
+status: "complete"
 parent: "work-item:0196"
 target: "plan:2026-08-11-0196-accelerator-design-inventory-gap-tooling-cli"
-reviewer: Toby Clemson
-verdict: REVISE
-lenses: [architecture, correctness, security, test-coverage, compatibility, performance, safety, code-quality]
+reviewer: "Toby Clemson"
+verdict: "REVISE"
+lenses: ["architecture", "correctness", "security", "test-coverage", "compatibility", "performance", "safety", "code-quality"]
 review_number: 1
 review_pass: 3
-tags: [rust, design, cli, playwright, launcher, release-pipeline, tree-artifacts, sub-binary]
+tags: ["rust", "design", "cli", "playwright", "launcher", "release-pipeline", "tree-artifacts", "sub-binary"]
 last_updated: "2026-08-11T21:49:36+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

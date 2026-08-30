@@ -1,14 +1,14 @@
 ---
 date: "2026-03-27T22:15:25+00:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "28643b69b3e8785dac181a9b36b779b4efb0cc76"
-repository: accelerator
+repository: "accelerator"
 topic: "Skill customisation implementation status and remaining improvements"
-tags: [ research, configuration, customisation, overrides, userspace, implementation-review ]
-status: complete
+tags: ["research", "configuration", "customisation", "overrides", "userspace", "implementation-review"]
+status: "complete"
 last_updated: "2026-03-27T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-03-27-skill-customisation-implementation-status"
 title: "Research: Skill Customisation Implementation Status and Remaining Improvements"
 schema_version: 1

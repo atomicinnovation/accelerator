@@ -1,15 +1,15 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "76"
 title: "Record Linear issue keys and raise the discovery-gate and frontmatter-quoting bugs"
 date: "2026-08-22T22:46:33+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0220", "work-item:0221"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/76"
 pr_number: 76
-tags: [sync, linear, work-items, frontmatter]
+tags: ["sync", "linear", "work-items", "frontmatter"]
 revision: "8b37e376ef2131de375f78c1a09ed29a0f6d1363"
 repository: "accelerator"
 last_updated: "2026-08-22T23:58:00+00:00"

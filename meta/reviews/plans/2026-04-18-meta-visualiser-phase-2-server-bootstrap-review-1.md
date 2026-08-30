@@ -1,20 +1,20 @@
 ---
 date: "2026-04-18T21:42:33Z"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-18-meta-visualiser-phase-2-server-bootstrap"
 review_number: 1
-verdict: APPROVE
-lenses: [architecture, code-quality, test-coverage, correctness, security, safety, portability, usability]
+verdict: "APPROVE"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "security", "safety", "portability", "usability"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-18-meta-visualiser-phase-2-server-bootstrap-review-1"
 title: "2026-04-18-meta-visualiser-phase-2-server-bootstrap-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-18T21:42:33Z"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Meta Visualiser — Phase 2: Server Bootstrap and Lifecycle

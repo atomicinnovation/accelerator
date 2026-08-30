@@ -1,16 +1,16 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "21"
 title: "[0179] Add corpus crates and supporting crates"
 date: "2026-07-13T21:54:19+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0179"
 parent: "work-item:0179"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/21"
 pr_number: 21
-tags: [rust, corpus, document, vcs, crates, frontmatter, serde-saphyr, doc-type, typed-linkage, parity]
+tags: ["rust", "corpus", "document", "vcs", "crates", "frontmatter", "serde-saphyr", "doc-type", "typed-linkage", "parity"]
 revision: "5339bfff226dc2b46dec31c7c2a5287638ed9540"
 repository: "accelerator"
 last_updated: "2026-07-13T22:48:00+00:00"

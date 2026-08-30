@@ -1,19 +1,19 @@
 ---
-type: work-item
+type: "work-item"
 id: "0110"
 title: "Surface Root Cause Analyses in the Visualiser Under a New Operate Category"
 date: "2026-06-13T09:31:54+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: high
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "high"
 relates_to: ["work-item:0041", "work-item:0074", "work-item:0054", "work-item:0057", "work-item:0082", "work-item:0093", "work-item:0096"]
 tags: ["visualiser", "rca", "doc-types", "library"]
 last_updated: "2026-06-13T09:31:54+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-132
+external_id: "PP-132"
 ---
 
 # 0110: Surface Root Cause Analyses in the Visualiser Under a New Operate Category

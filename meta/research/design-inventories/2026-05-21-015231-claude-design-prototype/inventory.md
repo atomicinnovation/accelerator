@@ -1,15 +1,15 @@
 ---
 date: "2026-05-21T01:52:31+01:00"
-type: design-inventory
+type: "design-inventory"
 source: "claude-design-prototype"
 source_kind: "prototype"
 source_location: "http://localhost:54844/Accelerator%20Visualiser.html"
 crawler: "hybrid"
 author: "Toby Clemson"
-status: draft
+status: "draft"
 sequence: 2
 screenshots_incomplete: false
-tags: [design, inventory, claude-design-prototype]
+tags: ["design", "inventory", "claude-design-prototype"]
 last_updated: "2026-05-21T02:35:00+01:00"
 last_updated_by: "Toby Clemson"
 id: "2026-05-21-015231-claude-design-prototype"

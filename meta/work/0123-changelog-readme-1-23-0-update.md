@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0123"
 title: "User-Facing CHANGELOG and README Update for 1.23.0"
 date: "2026-06-19T21:20:28+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: task
-priority: high
-tags: [documentation, release, changelog, readme]
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "task"
+priority: "high"
+tags: ["documentation", "release", "changelog", "readme"]
 last_updated: "2026-06-19T21:20:28+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-144
+external_id: "PP-144"
 ---
 
 # 0123: User-Facing CHANGELOG and README Update for 1.23.0

@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0210"
 title: "Provider Client Crates over the RemoteTracker Port"
 date: "2026-08-17T11:17:18+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 parent: "work-item:0171"
 blocks: ["work-item:0211", "work-item:0212"]
 relates_to: ["work-item:0194", "work-item:0204", "codebase-research:2026-08-17-0210-provider-client-crates-over-the-tracker-port"]
-tags: [rust, jira, linear, integrations, reqwest, tracker]
+tags: ["rust", "jira", "linear", "integrations", "reqwest", "tracker"]
 last_updated: "2026-08-17T14:10:59+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-740
+external_id: "PP-740"
 ---
 
 # 0210: Provider Client Crates over the RemoteTracker Port

@@ -1,14 +1,14 @@
 ---
 date: "2026-05-18T22:10:38+01:00"
-author: Toby Clemson
+author: "Toby Clemson"
 revision: "ee201256c147a4f4e8b8f7427f9292fd79925767"
-repository: accelerator
+repository: "accelerator"
 topic: "Templates View Redesign (work item 0042)"
-tags: [research, codebase, templates, sse, chip, page, etag, sha256, frontend, backend]
-status: complete
+tags: ["research", "codebase", "templates", "sse", "chip", "page", "etag", "sha256", "frontend", "backend"]
+status: "complete"
 last_updated: "2026-05-18T00:00:00+00:00"
-last_updated_by: Toby Clemson
-type: codebase-research
+last_updated_by: "Toby Clemson"
+type: "codebase-research"
 id: "2026-05-18-0042-templates-view-redesign"
 title: "Research: Templates View Redesign (work item 0042)"
 schema_version: 1

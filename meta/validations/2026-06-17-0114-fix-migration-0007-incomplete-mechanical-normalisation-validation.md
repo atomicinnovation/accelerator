@@ -1,16 +1,16 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation-validation"
 title: "Validation Report: Fix Migration 0007 Incomplete Mechanical Normalisation"
 date: "2026-06-18T11:40:04+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-17-0114-fix-migration-0007-incomplete-mechanical-normalisation"
-tags: [migrate, frontmatter, validator, unified-schema, "0007", awk]
+tags: ["migrate", "frontmatter", "validator", "unified-schema", "0007", "awk"]
 last_updated: "2026-06-18T11:40:04+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,11 +1,11 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-13-0110-surface-rcas-in-visualiser"
 title: "Surface Root Cause Analyses in the Visualiser Implementation Plan"
 date: "2026-06-13T21:15:56+00:00"
-author: Toby Clemson
-producer: create-plan
-status: ready
+author: "Toby Clemson"
+producer: "create-plan"
+status: "ready"
 work_item_id: "work-item:0110"
 parent: "work-item:0110"
 derived_from: ["codebase-research:2026-06-13-0110-surface-rcas-in-visualiser-operate-category"]
@@ -14,7 +14,7 @@ tags: ["visualiser", "rca", "doc-types", "library", "operate"]
 revision: "59fd3a3fc675d0605825bb97b9939dde47d61e67"
 repository: "build-system"
 last_updated: "2026-06-13T23:16:21+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

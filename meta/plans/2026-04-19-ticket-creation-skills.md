@@ -1,15 +1,15 @@
 ---
 date: "2026-04-19T00:00:00+01:00"
-type: plan
-producer: create-plan
-status: draft
+type: "plan"
+producer: "create-plan"
+status: "draft"
 id: "2026-04-19-ticket-creation-skills"
 title: "Ticket Creation Skills (Phase 2)"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-19T00:00:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "cca787aeed49"
 repository: "ticket-management"
 relates_to: ["codebase-research:2026-04-08-ticket-management-skills"]

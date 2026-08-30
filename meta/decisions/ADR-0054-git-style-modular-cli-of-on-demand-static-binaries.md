@@ -1,14 +1,14 @@
 ---
 id: "ADR-0054"
 date: "2026-06-27T12:23:42+00:00"
-author: Toby Clemson
-status: accepted
-tags: [architecture, cli, modular, git-style, dispatch, launcher, workspace, rust]
-type: adr
+author: "Toby Clemson"
+status: "accepted"
+tags: ["architecture", "cli", "modular", "git-style", "dispatch", "launcher", "workspace", "rust"]
+type: "adr"
 title: "ADR-0054: Git-Style Modular CLI of On-Demand Static Binaries"
 schema_version: 1
 last_updated: "2026-06-27T12:23:42+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 relates_to: ["adr:ADR-0045", "adr:ADR-0046", "adr:ADR-0053", "work-item:0158"]
 ---
 

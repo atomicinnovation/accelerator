@@ -1,21 +1,21 @@
 ---
-type: work-item
+type: "work-item"
 id: "0107"
 title: "Lint Skill-Body Script Invocations Against allowed-tools Rules"
 date: "2026-06-11T13:10:03+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "medium"
 blocked_by: ["work-item:0106"]
 relates_to: ["work-item:0098", "work-item:0106"]
 source: "issue-research:2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission"
-tags: [tooling, linting, static-analysis, ci, skills, allowed-tools, guardrails]
+tags: ["tooling", "linting", "static-analysis", "ci", "skills", "allowed-tools", "guardrails"]
 last_updated: "2026-06-11T13:10:03+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-129
+external_id: "PP-129"
 ---
 
 # 0107: Lint Skill-Body Script Invocations Against allowed-tools Rules

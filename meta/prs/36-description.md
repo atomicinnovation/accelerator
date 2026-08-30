@@ -1,19 +1,19 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "36"
 title: "Close out 0167, 0168 and 0182 now their code has landed"
 date: "2026-08-02T18:57:09+00:00"
-author: Toby Clemson
-producer: describe-pr
-status: complete
+author: "Toby Clemson"
+producer: "describe-pr"
+status: "complete"
 relates_to: ["work-item:0136", "work-item:0167", "work-item:0168", "work-item:0182", "work-item:0169", "work-item:0186", "work-item:0187"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/36"
 pr_number: 36
-tags: [work-items, bookkeeping, status]
+tags: ["work-items", "bookkeeping", "status"]
 revision: "aec98af456425821e21bd94c0049e94d4bb4fb46"
 repository: "accelerator"
 last_updated: "2026-08-02T18:57:09+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

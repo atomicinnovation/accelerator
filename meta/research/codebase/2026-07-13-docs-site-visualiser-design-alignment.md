@@ -1,13 +1,13 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-07-13-docs-site-visualiser-design-alignment"
 title: "Research: Can the docs website align with the visualiser design system?"
 date: "2026-07-13T08:32:46+00:00"
 author: "Phil Helm"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 topic: "Aligning the docs website with the visualiser design system"
-tags: [research, codebase, docs-site, starlight, design-tokens, visualiser, theming]
+tags: ["research", "codebase", "docs-site", "starlight", "design-tokens", "visualiser", "theming"]
 revision: "94dc5abbbce25f61c38d50d8ce90a49d40736ab9"
 repository: "barcelona"
 last_updated: "2026-07-13T08:45:00+00:00"

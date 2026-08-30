@@ -1,16 +1,16 @@
 ---
 date: "2026-05-23T09:30:00+01:00"
-type: plan
-producer: create-plan
+type: "plan"
+producer: "create-plan"
 work-item: "meta/work/0081-status-badge-component.md"
-status: done
+status: "done"
 id: "2026-05-22-0081-status-badge-component"
 title: "0081 — StatusBadge / VerdictBadge / ResultBadge Implementation Plan"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-05-23T09:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 revision: "0077b04e78a1"
 repository: "ticket-management"
 relates_to: ["work-item:0081", "codebase-research:2026-05-22-0081-status-badge-component", "adr:ADR-0007", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]

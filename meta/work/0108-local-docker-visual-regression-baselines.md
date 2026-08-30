@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0108"
 title: "Local Docker-Based Visual Regression Baseline Generation"
 date: "2026-06-12T09:08:47+00:00"
-author: Toby Clemson
-producer: create-work-item
-status: done
-kind: story
-priority: medium
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "done"
+kind: "story"
+priority: "medium"
 tags: ["visual-regression", "testing", "ci", "developer-experience", "docker"]
 last_updated: "2026-06-12T11:05:01+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
-external_id: PP-130
+external_id: "PP-130"
 ---
 
 # 0108: Local Docker-Based Visual Regression Baseline Generation

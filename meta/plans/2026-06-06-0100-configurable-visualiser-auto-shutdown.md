@@ -1,15 +1,15 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-06-0100-configurable-visualiser-auto-shutdown"
 title: "Configurable Visualiser Auto-Shutdown Implementation Plan"
 date: "2026-06-06T13:41:38+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0100"
 parent: "work-item:0100"
 derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown"]
-tags: [visualiser, server, configuration, lifecycle]
+tags: ["visualiser", "server", "configuration", "lifecycle"]
 revision: "e5f8b4b59e58392c80373edcc442b78ba2cacfce"
 repository: "accelerator"
 last_updated: "2026-06-06T19:12:16+00:00"

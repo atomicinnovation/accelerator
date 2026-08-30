@@ -1,22 +1,22 @@
 ---
-type: work-item-review
+type: "work-item-review"
 id: "0167-config-command-and-invocation-contract-migration-review-1"
 title: "Work Item Review: Built-in config Command and Invocation-Contract Migration"
 date: "2026-07-18T20:29:30+00:00"
-author: Toby Clemson
-producer: review-work-item
-status: complete
+author: "Toby Clemson"
+producer: "review-work-item"
+status: "complete"
 parent: "work-item:0136"
 target: "work-item:0167"
 work_item_id: "0167"
-reviewer: Toby Clemson
-verdict: APPROVE
-lenses: [clarity, completeness, dependency, scope, testability]
+reviewer: "Toby Clemson"
+verdict: "APPROVE"
+lenses: ["clarity", "completeness", "dependency", "scope", "testability"]
 review_number: 1
 review_pass: 5
-tags: [rust, config, skills, invocation-contract, migration]
+tags: ["rust", "config", "skills", "invocation-contract", "migration"]
 last_updated: "2026-07-19T18:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

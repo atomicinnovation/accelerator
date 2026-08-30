@@ -1,17 +1,17 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-06-18-0051-sync-work-items-skill-validation"
 title: "Validation Report: Sync Work Items Skill Implementation Plan"
 date: "2026-06-19T15:15:08+00:00"
-author: Toby Clemson
-producer: validate-plan
-status: complete
-result: pass
+author: "Toby Clemson"
+producer: "validate-plan"
+status: "complete"
+result: "pass"
 target: "plan:2026-06-18-0051-sync-work-items-skill"
 parent: "plan:2026-06-18-0051-sync-work-items-skill"
-tags: [work-management, integrations, sync]
+tags: ["work-management", "integrations", "sync"]
 last_updated: "2026-06-19T15:15:08+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

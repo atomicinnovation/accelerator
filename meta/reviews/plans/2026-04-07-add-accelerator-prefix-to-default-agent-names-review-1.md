@@ -1,20 +1,20 @@
 ---
 date: "2026-04-07T13:30:00+01:00"
-type: plan-review
-producer: review-plan
+type: "plan-review"
+producer: "review-plan"
 target: "plan:2026-04-07-add-accelerator-prefix-to-default-agent-names"
 review_number: 1
-verdict: COMMENT
-lenses: [architecture, code-quality, test-coverage, correctness, compatibility]
+verdict: "COMMENT"
+lenses: ["architecture", "code-quality", "test-coverage", "correctness", "compatibility"]
 review_pass: 2
-status: complete
+status: "complete"
 id: "2026-04-07-add-accelerator-prefix-to-default-agent-names-review-1"
 title: "2026-04-07-add-accelerator-prefix-to-default-agent-names-review-1"
-author: Toby Clemson
+author: "Toby Clemson"
 tags: []
 schema_version: 1
 last_updated: "2026-04-07T13:30:00+01:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 ---
 
 ## Plan Review: Add `accelerator:` Prefix to Default Agent Names

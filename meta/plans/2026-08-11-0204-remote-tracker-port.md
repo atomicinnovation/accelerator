@@ -1,19 +1,19 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-11-0204-remote-tracker-port"
 title: "RemoteTracker Port Implementation Plan"
 date: "2026-08-11T15:58:59+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0204"
 parent: "work-item:0204"
 derived_from: ["codebase-research:2026-08-11-0204-remote-tracker-port"]
-tags: [rust, tracker, sync, port, cargo-pup]
+tags: ["rust", "tracker", "sync", "port", "cargo-pup"]
 revision: "1b7e6583aacac3f08ea2b0c03635192f557290e1"
 repository: "accelerator"
 last_updated: "2026-08-12T00:00:00+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

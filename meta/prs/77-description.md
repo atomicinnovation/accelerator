@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "77"
 title: "Migrate the Linear integration to accelerator-linear and retire its bash cluster (0211)"
 date: "2026-08-23T14:04:30+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0211"
 parent: "work-item:0211"
 relates_to: ["work-item:0171"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/77"
 pr_number: 77
-tags: [rust, linear, integrations, cli, cutover, exit-codes, registration]
+tags: ["rust", "linear", "integrations", "cli", "cutover", "exit-codes", "registration"]
 revision: "86c435d560d2f2de02355adcc2b549ea70513503"
 repository: "accelerator"
 last_updated: "2026-08-23T14:04:30+00:00"

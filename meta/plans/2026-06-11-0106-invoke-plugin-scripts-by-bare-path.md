@@ -1,20 +1,20 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-11-0106-invoke-plugin-scripts-by-bare-path"
 title: "Invoke Plugin Scripts by Bare Path in Skill Bodies Implementation Plan"
 date: "2026-06-11T13:38:03+00:00"
-author: Toby Clemson
-producer: create-plan
-status: done
+author: "Toby Clemson"
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0106"
 parent: "work-item:0106"
 derived_from: ["codebase-research:2026-06-11-0106-bare-path-script-invocation-call-sites"]
 relates_to: ["work-item:0107"]
-tags: [permissions, allowed-tools, skills, plugin, authoring-convention]
+tags: ["permissions", "allowed-tools", "skills", "plugin", "authoring-convention"]
 revision: "b2f3fafe9a2e381b039648f551640426cd6c915f"
 repository: "miscellaneous"
 last_updated: "2026-06-11T16:31:31+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
