@@ -280,11 +280,30 @@
                 ),
             ],
         )),
-        // Isolates work-adapters' pure-read filesystem module from the
-        // subprocess-spawning modules a later phase adds (diff_shellout,
-        // author) — same shape as vcs_adapters_library_reads_in_process
-        // below, scoped to this one module so the sibling modules can spawn
-        // by design.
+        // work-adapters spawns no subprocess: its section-diff renders
+        // in-process and its VCS identity reads through vcs-adapters' library
+        // path. This crate-wide deny catches use-path std::process imports;
+        // work-adapters/tests/zero_spawn.rs closes the inline
+        // Command::new() blind spot at run time.
+        Module((
+            name: "work_adapters_is_zero_spawn",
+            matches: Module("^work_adapters($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // Confines work-adapters' pure-read filesystem module to its
+        // std/work/crate import set — a tighter allow-list than the crate-wide
+        // zero-spawn deny above, same shape as
+        // vcs_adapters_library_reads_in_process below. The paired std::process
+        // deny overlaps the crate-wide rule but is kept so this rule states the
+        // module's whole boundary on its own.
         Module((
             name: "work_adapters_filesystem_reads_in_process",
             matches: Module("^work_adapters::filesystem($|::)"),

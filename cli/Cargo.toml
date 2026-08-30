@@ -79,6 +79,11 @@ serde_json = "1"
 # Caret bound: regex's 1.x line is behaviour-stable, so the exact-pin discipline
 # that fences behaviour-sensitive crates is not warranted here.
 regex = "1"
+# In-process text differ. Default features only: `text` is dependency-free;
+# `bytes`/`unicode` pull extra crates and are not needed. Exact-pinned because
+# the section-diff goldens assert its unified-diff output byte-for-byte, so a
+# formatting change in a new release must arrive as a deliberate re-bless.
+similar = "=2.7.0"
 # Used to load vcs-test-support/fixtures/masks.toml, the volatile-field mask
 # table shared across the Rust and Python golden cross-checks
 # (vcs-test-support::masks).

@@ -1,5 +1,0 @@
----
-status: draft   
----
-## Summary
-text   

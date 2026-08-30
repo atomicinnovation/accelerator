@@ -10,9 +10,10 @@ publish.workspace = true
 workspace = true
 
 [features]
-# The diff_shellout golden comparison test shells the real `diff` binary. On,
-# an absent binary hard-fails; off, that suite is skipped entirely. CI enables
-# it (tasks/test/cli.py). Mirrors vcs-adapters' own bash-parity convention.
+# Gates the tests that need real VCS binaries on `PATH`:
+# sync_working_copy_status.rs's real-repo `jj`/`git` tests. On, an absent
+# binary hard-fails; off, those tests are skipped entirely. CI enables it
+# (tasks/test/cli.py). Mirrors vcs-adapters' own bash-parity convention.
 bash-parity = []
 
 [dependencies]
@@ -22,6 +23,7 @@ tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
+similar = { workspace = true }
 sha2 = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }

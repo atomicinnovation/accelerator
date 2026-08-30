@@ -33,9 +33,7 @@ fn corpus_home(directory: &str) -> Result<&'static str, TestError> {
     Ok(match directory {
         "work-item-normalise" => "cli/work/tests/fixtures",
         "work-item-project-remote" => "cli/remote-projection/tests/fixtures",
-        "work-item-section-diff" | "work-item-sync-baseline" => {
-            "cli/work-adapters/tests/fixtures"
-        }
+        "work-item-sync-baseline" => "cli/work-adapters/tests/fixtures",
         other => {
             return Err(format!(
                 "no relocated home recorded for corpus {other}"
@@ -50,7 +48,6 @@ fn corpus_home(directory: &str) -> Result<&'static str, TestError> {
 const RELOCATED_CORPORA: &[&str] = &[
     "work-item-normalise",
     "work-item-project-remote",
-    "work-item-section-diff",
     "work-item-sync-baseline",
 ];
 
@@ -194,8 +191,8 @@ fn every_recorded_parity_test_still_exists_with_its_recorded_count(
     let recorded = rows(&raw, "test");
     assert_eq!(
         recorded.len(),
-        10,
-        "the baseline names the ten pure-Rust parity tests 0212 left behind"
+        8,
+        "the baseline names the eight pure-Rust parity tests left behind"
     );
 
     for row in recorded {
