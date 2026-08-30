@@ -145,8 +145,6 @@ pub enum FrontmatterAction {
         )]
         checks: Vec<CheckKind>,
     },
-    /// Validate the `templates/*.md` skeletons against `templates-schema.tsv`.
-    ValidateTemplates,
     /// Emit the cross-cutting frontmatter schema banks as JSON, so a
     /// non-Rust consumer can source them from the single Rust definition.
     PrintSchema,

@@ -104,32 +104,6 @@ pub fn run_validate<W: CorpusWalker + FileReader>(
     })
 }
 
-/// Runs `frontmatter validate-templates`.
-///
-/// # Errors
-///
-/// A [`kernel::Error`] when a template read fails, or when any template
-/// carries a shape violation.
-pub fn run_validate_templates<R: FileReader>(
-    project_root: &Path,
-    reader: &R,
-) -> Result<Outcome, kernel::Error> {
-    let violations =
-        corpus_adapters::frontmatter_validation::validate_templates(
-            project_root,
-            reader,
-        )?;
-    if violations.is_empty() {
-        return Ok(Outcome::default());
-    }
-    let mut stderr = String::new();
-    for violation in &violations {
-        stderr.push_str(&violation.to_string());
-        stderr.push('\n');
-    }
-    Err(kernel::Error::Failed(stderr))
-}
-
 /// Runs `frontmatter print-schema`: the three cross-cutting schema banks as a
 /// single-line JSON object, so a non-Rust consumer sources them from the one
 /// Rust definition rather than a hand-synced copy.

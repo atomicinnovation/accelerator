@@ -351,22 +351,6 @@ fn this_repositorys_own_corpus_is_clean() -> Result<(), TestError> {
 }
 
 #[test]
-fn the_real_templates_tree_is_clean() -> Result<(), TestError> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()?;
-
-    let output = run(&root, &["frontmatter", "validate-templates"])?;
-    assert!(
-        output.status.success(),
-        "the shipped templates/ tree must carry zero template-shape \
-         violations: {}",
-        stderr(&output)
-    );
-    Ok(())
-}
-
-#[test]
 fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
     let dir = tempdir("print-schema")?;
     let root = canonical_root(&dir)?;
