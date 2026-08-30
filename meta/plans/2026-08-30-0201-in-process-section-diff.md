@@ -5,7 +5,7 @@ title: "In-Process Section Diff Implementation Plan"
 date: "2026-08-30T13:34:43+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0201"
 parent: "work-item:0201"
 derived_from: ["codebase-research:2026-08-30-0201-in-process-section-diff"]
