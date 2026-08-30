@@ -1,17 +1,17 @@
 ---
-type: design-gap                             # artifact-type discriminator
+type: "design-gap"                           # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "Design Gap Analysis: {current-source} → {target-source}"
 date: "{ISO timestamp}"
 author: "{author name}"
-producer: analyse-design-gaps
-status: draft                                # draft | accepted
+producer: "analyse-design-gaps"
+status: "draft"                              # draft | accepted
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["design-inventory:NNNN", ...] or []
 current_inventory: "{path to current inventory.md}"
 target_inventory: "{path to target inventory.md}"
-tags: [design, gap-analysis]
+tags: ["design", "gap-analysis"]
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author name}"
 schema_version: 1

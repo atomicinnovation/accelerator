@@ -25,6 +25,7 @@
 mod canonical_quoting;
 pub mod schema;
 pub mod shape;
+pub mod template_shape;
 pub mod violation;
 
 use std::collections::HashMap;
@@ -414,7 +415,7 @@ fn check_linkage_shape(
     }
 }
 
-fn is_bare_one(raw: &str) -> bool {
+pub(crate) fn is_bare_one(raw: &str) -> bool {
     let Some(rest) = raw.strip_prefix('1') else {
         return false;
     };

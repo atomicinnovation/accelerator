@@ -15,6 +15,7 @@ use corpus::frontmatter_validation::duplicate_check;
 use corpus::frontmatter_validation::parse_entries;
 use corpus::frontmatter_validation::raw_value;
 use corpus::frontmatter_validation::strip_surrounding_quote;
+use corpus::frontmatter_validation::template_shape;
 use corpus::frontmatter_validation::validate_file;
 use corpus::frontmatter_validation::Index;
 use corpus::frontmatter_validation::Violation;
@@ -230,6 +231,69 @@ pub fn validate_targets<F: FileReader>(
         }
     }
     Ok(results)
+}
+
+/// The work items whose `## Schema Reference` tables must agree with the TSV.
+const SCHEMA_REFERENCE_WORK_ITEMS: [&str; 3] = [
+    "meta/work/0065-update-artifact-templates-to-unified-schema.md",
+    "meta/work/0066-update-review-skills-inline-frontmatter.md",
+    "meta/work/0067-create-note-skill.md",
+];
+
+/// Validates every `templates/*.md` skeleton against the embedded
+/// `templates-schema.tsv`, plus the TSV field-count self-check and the
+/// work-item Schema-Reference cross-check.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when a file read fails for a reason other than absence.
+pub fn validate_templates<R: FileReader>(
+    project_root: &Path,
+    reader: &R,
+) -> Result<Vec<template_shape::TemplateViolation>, kernel::Error> {
+    let rows = match template_shape::parse_schema_tsv(
+        template_shape::TEMPLATES_SCHEMA_TSV,
+    ) {
+        Ok(rows) => rows,
+        Err(violation) => return Ok(vec![violation]),
+    };
+
+    let mut violations = Vec::new();
+    for row in &rows {
+        let path = project_root.join("templates").join(&row.template);
+        match reader.read(&path)? {
+            Some(content) => {
+                let frontmatter = template_shape::extract_frontmatter(&content);
+                violations.extend(template_shape::validate_template(
+                    row,
+                    &frontmatter,
+                ));
+            }
+            None => {
+                violations.push(
+                    template_shape::TemplateViolation::MissingTemplateFile {
+                        template: row.template.clone(),
+                    },
+                );
+            }
+        }
+    }
+
+    let mut schema_ref = Vec::new();
+    let mut any_work_item = false;
+    for work_item in SCHEMA_REFERENCE_WORK_ITEMS {
+        if let Some(content) = reader.read(&project_root.join(work_item))? {
+            any_work_item = true;
+            schema_ref
+                .extend(template_shape::schema_reference_templates(&content));
+        }
+    }
+    if any_work_item {
+        let tsv: Vec<String> =
+            rows.iter().map(|row| row.template.clone()).collect();
+        violations.extend(template_shape::cross_check(&schema_ref, &tsv));
+    }
+    Ok(violations)
 }
 
 #[cfg(test)]

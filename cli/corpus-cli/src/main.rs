@@ -122,6 +122,11 @@ fn run_frontmatter(
                 &RealFs,
             )
         }
+        FrontmatterAction::ValidateTemplates => {
+            let composed = config::compose(&current_dir()?)?;
+            frontmatter::run_validate_templates(&composed.project_root, &RealFs)
+        }
+        FrontmatterAction::PrintSchema => Ok(frontmatter::run_print_schema()),
     }
 }
 

@@ -1,11 +1,11 @@
 ---
-type: note                                   # artifact-type discriminator
+type: "note"                                 # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "{Note title}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
-producer: create-note
-status: captured                             # captured
+producer: "create-note"
+status: "captured"                           # captured
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []

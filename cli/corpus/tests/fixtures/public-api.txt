@@ -127,6 +127,90 @@ pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_v
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
+pub mod corpus::frontmatter_validation::template_shape
+pub enum corpus::frontmatter_validation::template_shape::TemplateViolation
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot::key: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadLinkageSlot::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadSchemaVersion
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadSchemaVersion::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadStatusVocab
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadStatusVocab::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::BadStatusVocab::vocab: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ClosedSetViolation
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ClosedSetViolation::key: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ClosedSetViolation::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::EmptyFrontmatter
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::EmptyFrontmatter::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenOwnId
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenOwnId::key: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenOwnId::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenProvenance
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenProvenance::field: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::ForbiddenProvenance::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingBaseField
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingBaseField::field: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingBaseField::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingExtra
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingExtra::extra: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingExtra::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingProvenance
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingProvenance::field: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingProvenance::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingTemplateFile
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingTemplateFile::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck::tsv: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck::work_item: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount::found: usize
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount::line: usize
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaNoRows
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey::key: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedId
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedId::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString::key: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType::expected: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType::template: alloc::string::String
+impl corpus::frontmatter_validation::template_shape::TemplateViolation
+pub const fn corpus::frontmatter_validation::template_shape::TemplateViolation::code(&self) -> &'static str
+impl core::clone::Clone for corpus::frontmatter_validation::template_shape::TemplateViolation
+pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::clone(&self) -> corpus::frontmatter_validation::template_shape::TemplateViolation
+impl core::cmp::Eq for corpus::frontmatter_validation::template_shape::TemplateViolation
+impl core::cmp::PartialEq for corpus::frontmatter_validation::template_shape::TemplateViolation
+pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::eq(&self, other: &corpus::frontmatter_validation::template_shape::TemplateViolation) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::template_shape::TemplateViolation
+pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::frontmatter_validation::template_shape::TemplateViolation
+pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::template_shape::TemplateViolation
+pub struct corpus::frontmatter_validation::template_shape::TemplateRow
+pub corpus::frontmatter_validation::template_shape::TemplateRow::code_state_anchored: bool
+pub corpus::frontmatter_validation::template_shape::TemplateRow::doc_type: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateRow::extras: alloc::vec::Vec<alloc::string::String>
+pub corpus::frontmatter_validation::template_shape::TemplateRow::forbidden_own_id_keys: alloc::vec::Vec<alloc::string::String>
+pub corpus::frontmatter_validation::template_shape::TemplateRow::status_vocab: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateRow::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateRow::typed_linkage_keys: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for corpus::frontmatter_validation::template_shape::TemplateRow
+pub fn corpus::frontmatter_validation::template_shape::TemplateRow::clone(&self) -> corpus::frontmatter_validation::template_shape::TemplateRow
+impl core::cmp::Eq for corpus::frontmatter_validation::template_shape::TemplateRow
+impl core::cmp::PartialEq for corpus::frontmatter_validation::template_shape::TemplateRow
+pub fn corpus::frontmatter_validation::template_shape::TemplateRow::eq(&self, other: &corpus::frontmatter_validation::template_shape::TemplateRow) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::template_shape::TemplateRow
+pub fn corpus::frontmatter_validation::template_shape::TemplateRow::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::template_shape::TemplateRow
+pub const corpus::frontmatter_validation::template_shape::TEMPLATES_SCHEMA_TSV: &str
+pub fn corpus::frontmatter_validation::template_shape::cross_check(schema_ref_templates: &[alloc::string::String], tsv_templates: &[alloc::string::String]) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
+pub fn corpus::frontmatter_validation::template_shape::extract_frontmatter(text: &str) -> alloc::string::String
+pub fn corpus::frontmatter_validation::template_shape::parse_schema_tsv(content: &str) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateRow>, corpus::frontmatter_validation::template_shape::TemplateViolation>
+pub fn corpus::frontmatter_validation::template_shape::schema_reference_templates(content: &str) -> alloc::vec::Vec<alloc::string::String>
+pub fn corpus::frontmatter_validation::template_shape::validate_template(row: &corpus::frontmatter_validation::template_shape::TemplateRow, frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
 pub mod corpus::frontmatter_validation::violation
 pub enum corpus::frontmatter_validation::violation::Violation
 pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape

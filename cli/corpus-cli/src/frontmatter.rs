@@ -104,6 +104,56 @@ pub fn run_validate<W: CorpusWalker + FileReader>(
     })
 }
 
+/// Runs `frontmatter validate-templates`.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when a template read fails, or when any template
+/// carries a shape violation.
+pub fn run_validate_templates<R: FileReader>(
+    project_root: &Path,
+    reader: &R,
+) -> Result<Outcome, kernel::Error> {
+    let violations =
+        corpus_adapters::frontmatter_validation::validate_templates(
+            project_root,
+            reader,
+        )?;
+    if violations.is_empty() {
+        return Ok(Outcome::default());
+    }
+    let mut stderr = String::new();
+    for violation in &violations {
+        stderr.push_str(&violation.to_string());
+        stderr.push('\n');
+    }
+    Err(kernel::Error::Failed(stderr))
+}
+
+/// Runs `frontmatter print-schema`: the three cross-cutting schema banks as a
+/// single-line JSON object, so a non-Rust consumer sources them from the one
+/// Rust definition rather than a hand-synced copy.
+#[must_use]
+pub fn run_print_schema() -> Outcome {
+    use corpus::frontmatter_validation::schema;
+    let array = |items: &[&str]| -> String {
+        let quoted: Vec<String> =
+            items.iter().map(|item| format!("\"{item}\"")).collect();
+        format!("[{}]", quoted.join(","))
+    };
+    let stdout = format!(
+        "{{\"base_fields\":{},\"provenance_fields\":{},\
+         \"optional_extras\":{}}}\n",
+        array(&schema::BASE_FIELDS),
+        array(&schema::PROVENANCE_FIELDS),
+        array(&schema::OPTIONAL_EXTRAS),
+    );
+    Outcome {
+        stdout,
+        stderr: String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

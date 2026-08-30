@@ -1,17 +1,17 @@
 ---
-type: codebase-research                      # artifact-type discriminator
+type: "codebase-research"                    # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
 title: "Research: {User's Question/Topic}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
-producer: research-codebase
-status: complete                             # complete
+producer: "research-codebase"
+status: "complete"                           # complete
 work_item_id: ""                             # foreign reference; omitted when no linked work item
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["codebase-research:NNNN", ...] or []
 topic: "{User's Question/Topic}"
-tags: [research, codebase, relevant-component-names]
+tags: ["research", "codebase", "relevant-component-names"]
 revision: "{commit hash from accelerator corpus metadata derive}"
 repository: "{repo name from accelerator corpus metadata derive}"
 last_updated: "{ISO timestamp}"

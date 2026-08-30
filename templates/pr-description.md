@@ -1,17 +1,17 @@
 ---
-type: pr-description                         # artifact-type discriminator
+type: "pr-description"                       # artifact-type discriminator
 id: "{pr_number}"                            # PR number as a quoted YAML string
 title: "{PR Title}"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
-producer: describe-pr
-status: complete                             # complete
+producer: "describe-pr"
+status: "complete"                           # complete
 work_item_id: ""                             # foreign reference; omitted when no linked work item
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
 pr_url: ""                                   # omitted until populated from `gh pr view`
-pr_number: {number}                          # bare integer
+pr_number: 0                                 # bare integer
 merge_commit: ""                             # omitted until merged
 tags: []
 revision: "{commit hash from accelerator corpus metadata derive}"

@@ -956,16 +956,18 @@ snapshot for the new `TemplateViolation` surface with `mise run public-api:updat
 
 #### Automated Verification
 
-- [ ] Template-shape unit tests fail before the check exists, pass after; one negative per ported rule fails: `cd cli && cargo nextest run -p corpus`
-- [ ] `frontmatter validate-templates` over `templates/` exits 0 post-regen; real-tree test green: `cd cli && cargo nextest run -p corpus-cli the_real_templates_tree_is_clean`
-- [ ] `test:unit:tasks` green without `frontmatter_rules`; conformance green with re-sourced (or drift-guarded) constants: `mise run test:unit:tasks` and `mise run test:integration:conformance`
-- [ ] Corpus public-api snapshot regenerated and pinned: `mise run public-api:update` then `mise run public-api:check`
+- [x] Template-shape unit tests fail before the check exists, pass after; one negative per ported rule fails: `cd cli && cargo nextest run -p corpus` (27 template_shape tests).
+- [x] `frontmatter validate-templates` over `templates/` exits 0 post-regen; real-tree test green: `cd cli && cargo nextest run -p corpus-cli the_real_templates_tree_is_clean`
+- [x] `test:unit:tasks` green without `frontmatter_rules`; conformance green with re-sourced constants: `mise run test:unit:tasks` and `mise run test:integration:conformance`
+- [x] Corpus public-api snapshot regenerated and pinned: `mise run public-api:update` then `mise run public-api:check`
 - [ ] Full local CI mirror green end-to-end (including the docs lane): `mise run`
+
+Deviations recorded during implementation: the template-shape check reads its per-type facts directly from the TSV rows (`TemplateRow`) rather than `schema.rs::SCHEMA`, keeping the TSV the single runtime source (the two are kept in sync by the existing schema tests). The `print-schema` subcommand emits the three banks as hand-rolled JSON (no serde dependency added to `corpus`/`corpus-cli`). The conformance test's `_emit_valid` fixtures and its `type` negative-mutation pattern were updated to the canonical quoting the tightened validator now requires — a Phase 3 fallout surfaced here because the conformance lane is outside the aggregate `check`. `pr-description.md`'s `pr_number` placeholder became a bare `0` to satisfy the canonical rule (matching `pr-review.md`).
 
 #### Manual Verification
 
-- [ ] `git diff templates/` shows only quoting/flow changes; placeholder tokens and `# typed-linkage ref` comments intact.
-- [ ] No `mise` task or CI workflow references the deleted Python module.
+- [x] `git diff templates/` shows only quoting/flow changes; placeholder tokens and `# typed-linkage ref` comments intact.
+- [x] No `mise` task or CI workflow references the deleted Python module.
 
 ---
 

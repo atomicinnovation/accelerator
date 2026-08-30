@@ -1,11 +1,11 @@
 ---
-type: plan-review                            # ADR-0033 artifact-type discriminator
+type: "plan-review"                          # ADR-0033 artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "2026-05-31-some-plan-review-1"
 title: "Plan Review: {Plan Name}"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
-producer: review-plan
-status: complete                             # complete
+producer: "review-plan"
+status: "complete"                           # complete
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "plan:NNNN" or ""
 target: ""                                   # typed-linkage ref: "plan:NNNN" or ""

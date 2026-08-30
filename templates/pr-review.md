@@ -1,11 +1,11 @@
 ---
-type: pr-review                              # ADR-0033 artifact-type discriminator
+type: "pr-review"                            # ADR-0033 artifact-type discriminator
 id: "{filename-stem}"                        # e.g. "123-review-1"
 title: "{PR Title}"
 date: "{ISO timestamp}"
 author: "{author from VCS}"
-producer: review-pr
-status: complete                             # complete
+producer: "review-pr"
+status: "complete"                           # complete
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                   # typed-linkage ref: "pr:NNNN" or ""
 target: ""                                   # typed-linkage ref: "pr:NNNN" or ""
