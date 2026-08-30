@@ -36,6 +36,36 @@ mechanical whole-corpus migration, a broadened validator, producer-skill wiring,
 and the retirement of a parallel Python enforcement surface (re-homing template
 validation to a new Rust check).
 
+## Implementation Progress
+
+Phases 1–4 are complete, committed on the `0221-canonical-frontmatter-quoting-standard`
+bookmark, and green under the full `mise run check` gate. Phase 5 is in progress.
+
+- **Phase 1 — emitter + tag-rule retirement** (`a70f9034`). Every string and
+  float scalar emits double-quoted via `serde_saphyr::DoubleQuoted`; the dead
+  tag-item quoting rule in `cli/work/src/tags.rs` is gone.
+- **Phase 2 — `m0008` migration + corpus canonicalisation** (`98a4298a` code,
+  `5bc07311` a bare-numeric-tag corpus fix, `ab742ecd` the mechanical rewrite).
+  The migration re-renders through the emitter with three fail-closed guards
+  (value-tree, structural-validation, loss diagnostics) and realigns the sync
+  baseline. Applied to this repo: 1052 files re-rendered, 0 lossy, 179 baselines
+  realigned; corpus self-check green; re-run is a no-op. Change #7 (config-path
+  preflight rescope) is deferred — downstream-relocated-corpora only.
+- **Phase 3 — validator general rule** (`be2d9d37`). `UNQUOTED-STRING` with an
+  escape-aware quote/flow scanner in a new `canonical_quoting` module. A new
+  `Checks.canonical` flag lets migration 0007's pre-canonical self-check pass
+  while the CLI and 0008 enforce the rule.
+- **Phase 4 — producer-skill wiring** (`78df7c1b`). 21 skills gained an
+  `allowed-tools` rule and a fenced validate step; a static coverage test and a
+  CLI signal test pin the enforcement.
+- **Phase 5 — Python retirement + template-shape check.** In progress. Note the
+  coupling: canonicalising the templates and retiring the Python validator are
+  atomic, because `test_template_frontmatter.py` enforces a *bare* `type:` that a
+  canonical template contradicts.
+
+Per-phase deviations from the plan are recorded inline against each phase's
+Success Criteria below.
+
 ## Current State Analysis
 
 Every frontmatter write in `cli/` funnels through one function:
