@@ -1745,7 +1745,7 @@ fn set_round_trips_and_preserves_the_body() -> TestResult {
     assert_eq!(code(&output), 0);
     assert!(output.stdout.is_empty());
     let after = read_file(&fixture.root, "config.md")?;
-    assert!(after.contains("example: new"));
+    assert!(after.contains("example: \"new\""));
     assert!(
         after.ends_with("Body prose.\n\nMore.\n"),
         "body lost: {after:?}"
