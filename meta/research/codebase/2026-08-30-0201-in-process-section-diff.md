@@ -1,16 +1,16 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-30-0201-in-process-section-diff"
 title: "Research: In-Process Section Diff (0201)"
 date: "2026-08-30T13:02:27+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 work_item_id: "0201"
 parent: "work-item:0201"
 relates_to: ["work-item:0170", "work-item:0188", "work-item:0198", "work-item:0174"]
 topic: "Replacing the subprocess diff -u section renderer with an in-process Rust implementation"
-tags: [research, codebase, work-adapters, diff, cargo-pup, cargo-deny]
+tags: ["research", "codebase", "work-adapters", "diff", "cargo-pup", "cargo-deny"]
 revision: "804b2a5b972bd17669adf2ab60d150f490333f26"
 repository: "accelerator"
 last_updated: "2026-08-30T13:02:27+00:00"

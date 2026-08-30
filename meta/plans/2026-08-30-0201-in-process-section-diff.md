@@ -1,16 +1,16 @@
 ---
-type: plan
+type: "plan"
 id: "2026-08-30-0201-in-process-section-diff"
 title: "In-Process Section Diff Implementation Plan"
 date: "2026-08-30T13:34:43+00:00"
 author: "Toby Clemson"
-producer: create-plan
-status: done
+producer: "create-plan"
+status: "done"
 work_item_id: "work-item:0201"
 parent: "work-item:0201"
 derived_from: ["codebase-research:2026-08-30-0201-in-process-section-diff"]
 relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
-tags: [rust, work-adapters, diff, tech-debt]
+tags: ["rust", "work-adapters", "diff", "tech-debt"]
 revision: "6e0cf31e384d6995030af9bf79a7b14b5ff5afc5"
 repository: "accelerator"
 last_updated: "2026-08-30T17:08:29+00:00"

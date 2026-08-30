@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "85"
 title: "[0201] In-process section diff"
 date: "2026-08-30T21:46:27+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "0201"
 parent: "work-item:0201"
 relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/85"
 pr_number: 85
-tags: [rust, work-adapters, diff, tech-debt]
+tags: ["rust", "work-adapters", "diff", "tech-debt"]
 revision: "a5d276abeb2fea458174694a46b3cda944008ed8"
 repository: "accelerator"
 last_updated: "2026-08-30T21:46:27+00:00"
