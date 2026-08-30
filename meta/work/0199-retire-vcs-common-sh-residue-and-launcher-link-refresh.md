@@ -5,7 +5,7 @@ title: "Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher
 date: "2026-08-06T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
@@ -21,7 +21,7 @@ external_id: "PP-729"
 # 0199: Retire scripts/vcs-common.sh's residual shell callers and hooks/launcher-link-refresh.sh
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -78,17 +78,38 @@ should resolve rather than assume.
 
 ## Acceptance Criteria
 
-- [ ] The caller inventory is recorded, with a migrate/keep decision per
+- [x] The caller inventory is recorded, with a migrate/keep decision per
       caller.
-- [ ] Every caller decided to migrate now calls the Rust adapter (directly or
+- [x] Every caller decided to migrate now calls the Rust adapter (directly or
       through a subcommand), with parity fixtures matching 0169's own
       pattern (masked goldens, quote-aware/behaviour-preserving departures
       declared explicitly where taken).
-- [ ] `classify_checkout`'s fate (deleted or retained-with-named-callers) is
+- [x] `classify_checkout`'s fate (deleted or retained-with-named-callers) is
       explicit, not left ambiguous.
-- [ ] `hooks/launcher-link-refresh.sh`'s fate (ported or explicitly kept
+- [x] `hooks/launcher-link-refresh.sh`'s fate (ported or explicitly kept
       shell, with a reason) is explicit.
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
+- [x] `mise run` (bare default task) exits 0 end-to-end.
+
+## Closing Note
+
+Closed 2026-08-30. Every decision this item scoped was settled elsewhere; no
+code change was made under it.
+
+The `scripts/` shell surface it targeted was removed wholesale by 0174:
+`scripts/vcs-common.sh` (with its `classify_checkout`, `find_repo_root`, and
+`vcs_mode`) and `scripts/test-vcs-common.sh` no longer exist. That dissolves
+the caller-inventory, `classify_checkout`-fate, and test-repoint requirements —
+there are no surviving `find_repo_root`/`vcs_mode` shell callers to inventory,
+and `classify_checkout` is deleted along with its file.
+
+`hooks/launcher-link-refresh.sh` was deliberately retained as bash-3.2 shell.
+It is one of the two entries in `SURVIVING_SHELL_SOURCES`
+(`tasks/shared/sources.py`) and documented under "Surviving thin shell" in
+`tasks/README.md` — the "explicitly kept shell, with a reason" outcome this
+item's fourth requirement called for.
+
+0125, for which this item was the designated successor, should be reconciled
+separately — its remaining surface was likewise absorbed by 0174's deletion.
 
 ## Dependencies
 
