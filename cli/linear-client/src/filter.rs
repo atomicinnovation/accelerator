@@ -12,9 +12,6 @@ use serde_json::Value;
 use crate::error::ClientError;
 
 /// Resolves a workflow-state name to its UUID.
-///
-/// A port from the outset so the cache-backed implementation can land later
-/// without a constructor change.
 pub trait StateResolver {
     /// The single UUID a name resolves to, or `None` when it names no state or
     /// more than one.
@@ -44,8 +41,7 @@ impl StateResolver for FixedStates {
 ///
 /// A separate job from [`StateResolver`]: a config names the team by its key,
 /// but the `{team:{id:{eq:…}}}` filter is evaluated against the UUID, so an
-/// unresolved key silently matches no team. A port from the outset so the
-/// catalogue-backed implementation can land beside the fixed one.
+/// unresolved key silently matches no team.
 pub trait TeamResolver {
     /// The team UUID `key` resolves to, or `None` when it matches no team.
     fn resolve(&self, key: &str) -> Option<String>;

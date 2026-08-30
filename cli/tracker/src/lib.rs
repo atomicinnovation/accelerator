@@ -479,9 +479,7 @@ pub trait RemoteTracker {
     /// # Errors
     ///
     /// [`ScopeError`] when the scope names no valid target — a missing or
-    /// unresolvable key. It resolves locally and mutates nothing, so it never
-    /// reports a transient or terminal failure; that separation is why the error
-    /// is a [`ScopeError`] and not a [`TrackerError`].
+    /// unresolvable key.
     fn resolve_scope(
         &self,
         scope: &SearchScope,

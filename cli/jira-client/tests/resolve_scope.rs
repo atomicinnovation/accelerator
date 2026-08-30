@@ -1,4 +1,4 @@
-//! `resolve_scope`: Jira's discovery-path refusal, moved ahead of `search`.
+//! `resolve_scope`: Jira's discovery-path refusal, run before `search`.
 //! An unscoped scope is refused with `E_JQL_NO_PROJECT`; a scoped one passes
 //! through unchanged (Jira's JQL uses the project key directly).
 

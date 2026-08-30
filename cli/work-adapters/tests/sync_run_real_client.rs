@@ -629,8 +629,8 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
     Ok(())
 }
 
-/// AC-1/AC-4/AC-8: a keyed Linear discovery resolves the team key to the UUID,
-/// bounds the search to it, and reports the untracked issue as a planned pull.
+/// A keyed Linear discovery resolves the team key to the UUID, bounds the
+/// search to it, and reports the untracked issue as a planned pull.
 /// The load-bearing assertion is the captured body carrying `LINEAR_TEAM_ID` —
 /// a `MockServer` routes by method+path and does not evaluate the team filter,
 /// so the seeded issue surfaces even with the raw key; the raw key in the body
@@ -703,7 +703,7 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
     }
 }
 
-/// AC-3: a bidirectional Linear run with no key refuses pre-flight and sends
+/// A bidirectional Linear run with no key refuses pre-flight and sends
 /// nothing. Linear posts search and every mutation to the one `/graphql` route,
 /// so "nothing was sent" is checkable only as zero requests.
 #[test]
