@@ -33,10 +33,8 @@ test  cli/work/tests/sync_classify.rs                     1   work-item-sync-cla
 test  cli/work/tests/sync_decide.rs                       1   work-item-sync-decide.golden
 test  cli/work/tests/sync_label_parity.rs                 2   work-item-sync-label.golden
 test  cli/work/tests/sync_push_decide.rs                  1   work-item-push-decide.golden
-test  cli/work-adapters/tests/diff_shellout_parity.rs     3   work-item-section-diff
 test  cli/work-adapters/tests/sync_baseline_corpus.rs     1   work-item-sync-baseline
 test  cli/work-adapters/tests/sync_working_copy_status.rs 7   (no committed fixture)
-test  cli/work-cli/tests/cli_diff_parity.rs               3   work-item-section-diff
 test  cli/remote-projection/tests/parity.rs               4   work-item-project-remote
 
 case  work-item-normalise        case-file-mode
@@ -46,12 +44,6 @@ case  work-item-normalise        case-stdin-mode
 case  work-item-project-remote   case-jira
 case  work-item-project-remote   case-jira-reordered
 case  work-item-project-remote   case-linear
-
-case  work-item-section-diff     case-frontmatter-only
-case  work-item-section-diff     case-frontmatter-only-last-updated
-case  work-item-section-diff     case-named-heading-and-one-sided
-case  work-item-section-diff     case-no-diff-after-normalisation
-case  work-item-section-diff     case-preamble
 
 case  work-item-sync-baseline    case-all-blank-body
 case  work-item-sync-baseline    case-empty-body
@@ -75,11 +67,6 @@ hash  cli/work/tests/fixtures/work-item-normalise/case-stdin-mode/expected.txt  
 hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-jira/expected.txt  7fb593f43a433c228d8fc40b187190784ccdd3bcaad92c3d2cad795b670053a7
 hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-jira-reordered/expected.txt  6f6315464beaf0824a86a48a9cd9530cd0ddb0c76f111a37a37a96231eaacb06
 hash  cli/remote-projection/tests/fixtures/work-item-project-remote/case-linear/expected.txt  65c78e7364a1d6ca6f8f82455ed78fd48e73025904d49dae3ca18b50dbebe936
-hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-frontmatter-only/expected.txt  0c2ea143a10b9814d649ab54d6155a507036fff2e312d26f7686a2ce657009c3
-hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-frontmatter-only-last-updated/expected.txt  7619e0de8579f4b69cc20d7e6e9f86abfd4f04178aa7cc6b125ce241798c2ecd
-hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-named-heading-and-one-sided/expected.txt  f7cbedcbdeb86499fcda21c458566fede9dc7525af56330aa544e8295696a0c5
-hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-no-diff-after-normalisation/expected.txt  45cf13f6917764fe06d68be9331b8a1408cc52735d62f55ddf3507d3d109daec
-hash  cli/work-adapters/tests/fixtures/work-item-section-diff/case-preamble/expected.txt  5425fdda1f74d4c8a57624ea12118e26c98cbfb42f71dfc2f5818cc411aa56d5
 hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-all-blank-body/expected.json  48c342a1c26a34749a2552eeeac938794e603e7dc14ebb9b7a3e403bf2bd863a
 hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-empty-body/expected.json  48c342a1c26a34749a2552eeeac938794e603e7dc14ebb9b7a3e403bf2bd863a
 hash  cli/work-adapters/tests/fixtures/work-item-sync-baseline/case-error-empty-file/expected.json  adaa9ee179ce975a03fbe404b561eff1a53daaaaf1bebfe8ac17688703f3831d

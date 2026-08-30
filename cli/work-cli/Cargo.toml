@@ -10,12 +10,6 @@ description = "The work create|show|resolve|diff|update sub-binary."
 [lints]
 workspace = true
 
-[features]
-# Independent of work-adapters' own bash-parity flag of the same name —
-# vcs-cli/vcs-adapters follow the identical two-independent-features shape,
-# coordinated only by CI's --all-features run.
-bash-parity = []
-
 [[bin]]
 name = "accelerator-work"
 path = "src/main.rs"

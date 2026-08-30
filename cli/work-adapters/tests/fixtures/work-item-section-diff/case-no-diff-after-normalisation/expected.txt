@@ -1,2 +1,0 @@
-differing sections (in order): (none)
-output: (no differing sections after normalisation)
