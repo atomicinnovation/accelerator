@@ -125,12 +125,31 @@ pub struct ReportedItem {
     pub validation: Option<tracker::ValidationOutcome>,
 }
 
+/// What untracked-remote discovery did on a run that got past the pre-flight
+/// scope check, so a skip is never mistaken for a search that found nothing.
+///
+/// A config fault never reaches here — it is refused pre-flight as
+/// [`RunError::DiscoveryUnconfigured`] before a report exists — so there is no
+/// unconfigured variant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiscoveryStatus {
+    /// The search ran and completed, seeing `found` untracked issues. `found ==
+    /// 0` is a real, distinguishable "searched and found nothing".
+    Ran { found: usize },
+    /// The run was push-only, so discovery was deliberately not run.
+    SkippedPushOnly,
+    /// The search failed transiently (network). Maps to `RETRYABLE` (70), the
+    /// fate a failed read carries.
+    Failed { detail: String },
+}
+
 pub struct RunReport {
     pub reported: Vec<ReportedItem>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
     pub finalised: bool,
     pub dossiers: Vec<ConflictDossier>,
+    pub discovery: DiscoveryStatus,
 }
 
 impl RunReport {
@@ -619,6 +638,7 @@ struct PreparedRun<'a> {
     facts: GatheredFacts,
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
+    discovery: DiscoveryStatus,
     creates_from_local: Vec<&'a LocalItem>,
     index: ItemIndex<'a>,
     dossiers: Vec<ConflictDossier>,
@@ -676,7 +696,7 @@ fn prepare_run<'a>(
         compute_plan(&plan_inputs, request.direction, request.resolutions)
             .map_err(RunError::Internal)?;
 
-    let mut read_failure = facts.read_failure.clone();
+    let read_failure = facts.read_failure.clone();
 
     // Untracked-remote discovery and unsynced-local creates are computed from
     // reads only, so the combined gate below can bound every write — planned
@@ -684,29 +704,34 @@ fn prepare_run<'a>(
     // A non-push-only run resolves its scope first: a missing or unresolvable
     // key refuses the whole run here, before the apply/push phase, so nothing
     // is sent.
-    let untracked = if matches!(request.direction, SyncDirection::PushOnly) {
-        Vec::new()
-    } else {
-        let resolved =
-            ports
+    let (untracked, discovery) =
+        if matches!(request.direction, SyncDirection::PushOnly) {
+            (Vec::new(), DiscoveryStatus::SkippedPushOnly)
+        } else {
+            let resolved = ports
                 .tracker
                 .resolve_scope(&request.scope)
                 .map_err(|error| RunError::DiscoveryUnconfigured {
                     detail: error.detail,
                 })?;
-        match discover_untracked(ports.tracker, &resolved, request.items) {
-            Ok(discovered) if !discovered.complete => {
-                return Err(RunError::DiscoveryIncomplete {
-                    found: discovered.ids.len(),
-                });
+            match discover_untracked(ports.tracker, &resolved, request.items) {
+                Ok(discovered) if !discovered.complete => {
+                    return Err(RunError::DiscoveryIncomplete {
+                        found: discovered.ids.len(),
+                    });
+                }
+                Ok(discovered) => {
+                    let found = discovered.ids.len();
+                    (discovered.ids, DiscoveryStatus::Ran { found })
+                }
+                Err(error) => (
+                    Vec::new(),
+                    DiscoveryStatus::Failed {
+                        detail: error.into_detail(),
+                    },
+                ),
             }
-            Ok(discovered) => discovered.ids,
-            Err(error) => {
-                read_failure = read_failure.or(Some(error));
-                Vec::new()
-            }
-        }
-    };
+        };
     let creates_from_local =
         unsynced_creates(&plan, request.items, request.direction);
 
@@ -736,6 +761,7 @@ fn prepare_run<'a>(
         facts,
         plan,
         untracked,
+        discovery,
         creates_from_local,
         index,
         dossiers,
@@ -766,6 +792,7 @@ pub fn run<'a>(
         facts,
         plan,
         untracked,
+        discovery,
         creates_from_local,
         index,
         dossiers,
@@ -793,6 +820,7 @@ pub fn run<'a>(
             baseline_degradation: degradation,
             finalised: false,
             dossiers,
+            discovery,
         });
     }
 
@@ -856,6 +884,7 @@ pub fn run<'a>(
         baseline_degradation: degradation,
         finalised,
         dossiers,
+        discovery,
     })
 }
 

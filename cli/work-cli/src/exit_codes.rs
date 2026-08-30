@@ -21,9 +21,9 @@
 //! skills branch on it:
 //!
 //! - `70` `RETRYABLE` — the failure is provably *before* any remote mutation
-//!   (argument/validation/auth/connect, or a read that failed). **Safe to
-//!   retry.** A read that fails degrades to presence-only and reports `70`; a
-//!   read never emits `71`.
+//!   (argument/validation/auth/connect, a read that failed, or a discovery
+//!   search that failed transiently). **Safe to retry.** A read that fails
+//!   degrades to presence-only and reports `70`; a read never emits `71`.
 //! - `71` `TERMINAL` — the failure is *at or after* a mutation, so its outcome
 //!   is unknown. **Never auto-retried.** The hazard differs by path: a remote
 //!   `create` is non-idempotent, so a repeat would *double-apply* (a second
@@ -31,17 +31,22 @@
 //!   idempotent, so there the hazard is response *uncertainty*, not
 //!   double-apply. Either way the operator reconciles by hand.
 //!
-//! Tracker selection/configuration codes (`72`–`74`), emitted from
-//! `SelectionError` — a failure to *select or configure* a tracker, not a
-//! tracker-error class:
+//! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
+//! configure* a tracker rather than a tracker-error class. `72`/`73` and the
+//! credential branch of `74` come from `SelectionError`; `74` is also emitted
+//! pre-flight when a run's discovery scope names no valid target
+//! (`RunError::DiscoveryUnconfigured`):
 //!
 //! - `72` `NOT_AVAILABLE` — the configured tracker is recognised but has no
 //!   client wired yet (`trello`/`github-issues`).
 //! - `73` `UNRECOGNISED` — `work.integration` is unset or names a tracker
 //!   outside `{linear, jira, trello, github-issues}`. Fail closed.
-//! - `74` `UNCONFIGURED` — the tracker is wired but its configuration or
-//!   credentials are missing or refused. **Nothing was sent** — save locally
-//!   and fix the config; never reconcile against a create that never happened.
+//! - `74` `UNCONFIGURED` — the tracker is wired but a run cannot proceed on its
+//!   configuration: its credentials are missing or refused, or a non-push-only
+//!   run's discovery scope names no valid target (an unset or unresolvable
+//!   key). **Nothing was sent** — the discovery refusal is pre-flight, before
+//!   the apply/push phase — so save locally and fix the config; never reconcile
+//!   against a create that never happened.
 
 use tracker::TrackerError;
 

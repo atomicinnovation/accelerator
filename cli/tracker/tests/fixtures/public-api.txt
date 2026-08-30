@@ -31,6 +31,8 @@ pub tracker::TrackerError::Retryable
 pub tracker::TrackerError::Retryable::detail: alloc::string::String
 pub tracker::TrackerError::Terminal
 pub tracker::TrackerError::Terminal::detail: alloc::string::String
+impl tracker::TrackerError
+pub fn tracker::TrackerError::into_detail(self) -> alloc::string::String
 impl core::clone::Clone for tracker::TrackerError
 pub fn tracker::TrackerError::clone(&self) -> tracker::TrackerError
 impl core::cmp::Eq for tracker::TrackerError

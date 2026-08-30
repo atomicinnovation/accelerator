@@ -789,12 +789,12 @@ a discovery search failed transiently".
 
 #### Automated Verification:
 
-- [ ] `work-adapters` and `work-cli` build and lint: `mise run cli:check`
-- [ ] Discovery-status run tests pass: `cd cli && cargo nextest run -p work-adapters discovery`
-- [ ] Render/exit-code tests pass: `cd cli && cargo nextest run -p work-cli render_report`
-- [ ] Full CLI unit suite passes: `mise run test:unit:cli`
-- [ ] Read-only aggregate is green: `mise run check`
-- [ ] The updated `skills/work/sync-work-items/SKILL.md` exit-code list matches
+- [x] `work-adapters` and `work-cli` build and lint: `mise run cli:check`
+- [x] Discovery-status run tests pass: `cd cli && cargo nextest run -p work-adapters discovery`
+- [x] Render/exit-code tests pass: `cd cli && cargo nextest run -p work-cli render_report`
+- [x] Full CLI unit suite passes: `mise run test:unit:cli`
+- [x] Read-only aggregate is green: `mise run check`
+- [x] The updated `skills/work/sync-work-items/SKILL.md` exit-code list matches
       `exit_codes.rs` (checked by eye — there is no automated drift check).
 
 #### Manual Verification:

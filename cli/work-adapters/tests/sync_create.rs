@@ -31,6 +31,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
@@ -487,6 +488,114 @@ fn a_push_only_run_authors_no_untracked_local_files() -> Result<(), TestError> {
             .iter()
             .any(|call| matches!(call, Call::Search { .. })),
         "push-only must not even search"
+    );
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_skipped_push_only() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::PushOnly,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "push-only must not refuse")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedPushOnly);
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_ran_with_the_untracked_count() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new()).discovering(
+        vec![
+            (
+                ExternalId::new("ENG-1".to_owned()),
+                RemoteTimestamp::NotReported,
+            ),
+            (
+                ExternalId::new("ENG-2".to_owned()),
+                RemoteTimestamp::NotReported,
+            ),
+        ],
+        true,
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "the run must not refuse")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::Ran { found: 2 });
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_failed_on_a_transient_search_error(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_search(
+        TrackerError::Retryable {
+            detail: "connection refused".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "a failed search degrades, it does not refuse")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::Failed {
+            detail: "connection refused".to_owned(),
+        },
+        "the detail is the raw inner string, without the Display prefix"
+    );
+    assert!(
+        report.read_failure.is_none(),
+        "a discovery search failure no longer folds into read_failure"
     );
     Ok(())
 }

@@ -178,6 +178,20 @@ pub enum TrackerError {
     },
 }
 
+impl TrackerError {
+    /// The inner `detail`, unwrapped from either class.
+    ///
+    /// The two variants carry the same field, so a caller wanting the message
+    /// alone — a report line, not the `Display` wrapper's class prose — takes it
+    /// through one exhaustive match here rather than destructuring both arms.
+    #[must_use]
+    pub fn into_detail(self) -> String {
+        match self {
+            Self::Retryable { detail } | Self::Terminal { detail } => detail,
+        }
+    }
+}
+
 impl Display for TrackerError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

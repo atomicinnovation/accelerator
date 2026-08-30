@@ -51,11 +51,14 @@ configured.
 
 `trello` and `github-issues` are not built yet; `work sync` exits **72**
 ("not available") for them, which you surface as a clear message. A wired
-tracker (`jira`, `linear`) whose configuration or credentials are missing or
-refused exits **74** ("unconfigured") — surface it as a "fix your config"
-message (nothing was sent), never as a reconciliation prompt. `work sync`
-resolves its own tracker binary, credentials, and hashing; you do not pre-check
-`jq`, `sha256sum`, or the VCS binary.
+tracker (`jira`, `linear`) exits **74** ("unconfigured") when a run cannot
+proceed on its configuration — its credentials are missing or refused, or a
+non-push-only run's discovery scope names no valid target (an unset or
+unresolvable key, e.g. Linear with no `work.default_project_code`). Surface it
+as a "fix your config" message (nothing was sent), never as a reconciliation
+prompt; the escape hatch for the scope case is `--push-only`, which skips
+discovery. `work sync` resolves its own tracker binary, credentials, and
+hashing; you do not pre-check `jq`, `sha256sum`, or the VCS binary.
 
 ## Step 1: Parse mode and flags
 
@@ -102,21 +105,28 @@ is carried inside the engine; you never need to test file cleanliness yourself.
 **new** artefacts on both sides: it creates remote issues from unsynced local
 drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote
 issues into new local files (bounded by `--max-pulls`, counted as pulls).
-Untracked discovery is scoped to the configured project, so it stays bounded on
-a shared multi-team workspace; a truncated or over-budget discovery is a refusal
-with guidance (exit 5), not a silent flood.
+Untracked discovery is scoped to the configured key (a Jira project, a Linear
+team), so it stays bounded on a shared multi-team workspace; a truncated or
+over-budget discovery is a refusal with guidance (exit 5), and an unset or
+unresolvable key is a pre-flight refusal (exit 74), neither a silent flood nor a
+silent skip. The report carries a `#\tdiscovery\t…` line saying whether the
+search **ran** (`found=N`), was **skipped** because the run was push-only, or
+**failed** transiently — so a completed search that found nothing is never
+mistaken for a skip.
 
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent or indeterminate items); `5` refused (would exceed
-`--max-pulls`/`--max-pushes`, zero writes); `70` a read failed or every per-item
-failure was retryable; `71` a per-item failure was terminal (a whole-item update
-is idempotent, so the hazard is response uncertainty — never auto-retried); `72`
-tracker recognised but no client built; `73` `work.integration` unset or
-unrecognised; `74` wired but unconfigured (nothing sent). Under `--preview` no
-baseline mutation occurs and every planned push carries a locally-validated
-payload check.
+`--max-pulls`/`--max-pushes`, zero writes); `70` a read failed, a discovery
+search failed transiently, or every per-item failure was retryable; `71` a
+per-item failure was terminal (a whole-item update is idempotent, so the hazard
+is response uncertainty — never auto-retried); `72` tracker recognised but no
+client built; `73` `work.integration` unset or unrecognised; `74` wired but a
+run cannot proceed on its config — missing/refused credentials, or a
+non-push-only run whose discovery scope names no valid target (nothing sent;
+set the key or run `--push-only`). Under `--preview` no baseline mutation occurs
+and every planned push carries a locally-validated payload check.
 
 ## Step 3: Conflict resolution (bidirectional only)
 
