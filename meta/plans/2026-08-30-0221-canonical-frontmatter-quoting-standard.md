@@ -476,21 +476,23 @@ caveat.
 
 #### Automated Verification
 
-- [ ] Migration unit + e2e tests pass: `mise run test:unit:cli` and `cd cli && cargo nextest run -p migrate-cli`
-- [ ] Sync-baseline realignment tests (both directions): a pre-migration-`Synced` item is not spuriously flagged after the migration, and a pre-migration-`LocallyModified` item stays flagged (its pending push survives): `cd cli && cargo nextest run -p migrate-cli migration_0008`
-- [ ] Value-preservation aborts on parse-time normalisation of a bare padded numeric (`id: 0042`) and on a residual `validate_frontmatter` violation, not only on render-introduced drift: `cd cli && cargo nextest run -p migrate-cli migration_0008`
-- [ ] The double-apply byte-equality idempotency test passes (the real proof of AC #4's byte-stability): `cd cli && cargo nextest run -p migrate-cli migration_0008`
-- [ ] `accelerator migrate` applies cleanly and the in-process `validate_frontmatter` self-check passes.
-- [ ] The self-check gate stays green under the unchanged validator: `cd cli && cargo nextest run -p corpus-cli this_repositorys_own_corpus_is_clean`
-- [ ] Migrate public-api regenerated (`Migration0008` + the new port method) and pinned: `mise run public-api:update` then `mise run public-api:check`
-- [ ] Full gate green: `mise run check`
+- [x] Migration unit + e2e tests pass: `mise run test:unit:cli` and `cd cli && cargo nextest run -p migrate-cli`
+- [x] Sync-baseline realignment tests (both directions): a pre-migration-`Synced` item is not spuriously flagged after the migration, and a pre-migration-`LocallyModified` item stays flagged (its pending push survives): `cd cli && cargo nextest run -p migrate-cli migration_0008`
+- [x] Value-preservation aborts on parse-time normalisation of a bare padded numeric (`id: 0042`) and on a residual `validate_frontmatter` violation, not only on render-introduced drift: `cd cli && cargo nextest run -p migrate-cli migration_0008`
+- [x] The double-apply byte-equality idempotency test passes (the real proof of AC #4's byte-stability): proved directly at the emitter level by `re_rendering_is_a_byte_level_fixed_point` in `cargo nextest run -p migrate m0008`.
+- [x] `accelerator migrate` applies cleanly and the in-process `validate_frontmatter` self-check passes (1052 files re-rendered, 0 lossy, 179 baselines realigned).
+- [x] The self-check gate stays green under the unchanged validator: `cd cli && cargo nextest run -p corpus-cli this_repositorys_own_corpus_is_clean`
+- [x] Migrate public-api regenerated (`Migration0008` + the new port method) and pinned: `mise run public-api:update` then `mise run public-api:check`
+- [x] Full gate green: `mise run check`
+
+Deviations recorded during implementation: the `canonicalise_frontmatter` port was dropped — `migrate` already depends on `document`, so `m0008` calls `document::render` directly, avoiding a redundant port and its test-double burden. The residual-violation gate uses the pure `corpus::frontmatter_validation::validate_file` on the in-memory re-rendered frontmatter (before writing) rather than the disk-based `validate_frontmatter` port. Change #7 (config-path-aware preflight rescope) is deferred: it hardens config-*relocated* corpora only, and this repository (default paths) already has every migration write scope inside the fixed preflight set.
 
 #### Manual Verification
 
-- [ ] `git diff` on the migration commit shows only quoting/flow changes — no body edits, no reordered keys, no semantic changes.
-- [ ] Re-running `accelerator migrate` records `0008` in the ledger and reports no work (a ledger sanity check — the byte-stability proof is the automated double-apply test above, since the ledger unconditionally skips an already-applied migration).
-- [ ] Any violation the block-to-flow reflow newly exposes on the 18 block-style files is a real corpus defect and is fixed, not suppressed.
-- [ ] After migrating a repo with a `last-sync.json`, run `/sync-work-items` (preview) and confirm no item is spuriously reported as locally-modified — the baseline was realigned in the same pass (change #6).
+- [x] `git diff` on the migration commit shows only quoting/flow changes — no body edits, no reordered keys, no semantic changes.
+- [x] Re-running `accelerator migrate` records `0008` in the ledger and reports no work (a ledger sanity check — the byte-stability proof is the automated double-apply test above, since the ledger unconditionally skips an already-applied migration).
+- [x] Any violation the block-to-flow reflow newly exposes is a real corpus defect and is fixed, not suppressed (six bare numeric work-item-number tags were quoted in a preceding commit).
+- [ ] After migrating a repo with a `last-sync.json`, run `/sync-work-items` (preview) and confirm no item is spuriously reported as locally-modified — the baseline was realigned in the same pass (change #6). (Covered by the automated both-directions tests; live preview not run.)
 
 ---
 
