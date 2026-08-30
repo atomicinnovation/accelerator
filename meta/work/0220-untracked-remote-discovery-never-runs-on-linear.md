@@ -5,7 +5,7 @@ title: "Untracked-Remote Discovery Never Runs on Linear"
 date: "2026-08-22T22:38:58+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0146"
@@ -19,7 +19,7 @@ schema_version: 1
 # 0220: Untracked-Remote Discovery Never Runs on Linear
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
