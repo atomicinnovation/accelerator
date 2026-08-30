@@ -15,7 +15,6 @@ use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
-use work_adapters::diff_shellout::DiffUnavailable;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::fetch::LocalItem;
@@ -282,7 +281,7 @@ fn persist_dossiers(
     dossiers: &[ConflictDossier],
     dir: &Path,
     scheme: &WorkItemIdScheme,
-    render: &dyn Fn(&SectionDiff) -> Result<String, DiffUnavailable>,
+    render: &dyn Fn(&SectionDiff) -> String,
 ) {
     let store = FileCorpusStore::new(dir);
     for dossier in dossiers {
@@ -315,7 +314,7 @@ fn persist_conflict_dossiers(
     dir: &Path,
     dossiers: &[ConflictDossier],
     scheme: &WorkItemIdScheme,
-    render: &dyn Fn(&SectionDiff) -> Result<String, DiffUnavailable>,
+    render: &dyn Fn(&SectionDiff) -> String,
 ) {
     match prepare_conflicts_dir(dir, scheme) {
         Ok(()) => persist_dossiers(dossiers, dir, scheme, render),
@@ -477,7 +476,7 @@ pub fn run_sync(
                     &conflicts_dir,
                     &report.dossiers,
                     &scheme,
-                    &work_adapters::diff_shellout::render,
+                    &work_adapters::diff::render,
                 ),
                 Err(error) => eprintln!(
                     "warning: conflict dossiers not written — could not \
@@ -544,17 +543,13 @@ mod tests {
     use work_adapters::sync::run::RunReport;
 
     use super::render_report;
-    use super::DiffUnavailable;
 
     fn scheme() -> WorkItemIdScheme {
         WorkItemIdScheme::numeric()
     }
 
-    fn ok_render(section: &SectionDiff) -> Result<String, DiffUnavailable> {
-        Ok(format!(
-            "=== {} (- LOCAL / + REMOTE) ===\nbody\n\n",
-            section.name
-        ))
+    fn ok_render(section: &SectionDiff) -> String {
+        format!("=== {} (- LOCAL / + REMOTE) ===\nbody\n\n", section.name)
     }
 
     fn conflict_dossier(id: &str, local_unreadable: bool) -> ConflictDossier {

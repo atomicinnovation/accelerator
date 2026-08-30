@@ -164,13 +164,6 @@ fn run_diff(local: &Path, remote: &Path) -> ExitCode {
             eprintln!("work-item-section-diff: both arguments must be files");
             ExitCode::from(2)
         }
-        diff::RunOutcome::DiffUnavailable => {
-            eprintln!(
-                "`diff` is required on PATH for `work diff`; install it or \
-                 check PATH"
-            );
-            ExitCode::FAILURE
-        }
     }
 }
 

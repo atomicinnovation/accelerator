@@ -22,7 +22,6 @@ use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
 
-use crate::diff_shellout::DiffUnavailable;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
@@ -165,8 +164,8 @@ fn reconstruct_pulled_content(
 }
 
 /// The six fields a user needs to choose a side of one conflict, gathered
-/// from the run's own facts. Structured, subprocess-free: rendering to text
-/// through `diff -u` is a separate, injectable step.
+/// from the run's own facts. Structured: rendering the sections to text is a
+/// separate, injectable step.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConflictDossier {
     pub id: String,
@@ -177,8 +176,8 @@ pub struct ConflictDossier {
     pub local_unreadable: bool,
 }
 
-/// A dossier rendered to text, tagged by whether every section could be
-/// shown through `diff -u`.
+/// A dossier rendered to text, tagged by whether the local file could be
+/// read and its sections shown.
 pub enum DossierRender {
     Renderable(String),
     Unrenderable(String),
@@ -220,58 +219,29 @@ fn renderable_header(dossier: &ConflictDossier) -> String {
 
 fn unrenderable_header(dossier: &ConflictDossier) -> String {
     format!(
-        "{}This conflict could not be rendered (the `diff` tool was \
-         unavailable). Item {} was left unresolved. Install `diff` and re-run \
-         the sync, or edit the work item by hand.\n\n",
+        "{}This conflict could not be rendered: the local file could not be \
+         read. Item {} was left unresolved. Fix the file and re-run the sync, \
+         or edit the work item by hand.\n\n",
         dossier_header(dossier, "unrenderable"),
         dossier.id,
     )
 }
 
-fn raw_sections(dossier: &ConflictDossier) -> String {
-    use std::fmt::Write as _;
-
-    let mut out = String::new();
-    for section in &dossier.sections {
-        let _ = writeln!(out, "=== {} (- LOCAL / + REMOTE) ===", section.name);
-        for line in section.local.lines() {
-            out.push_str("- ");
-            out.push_str(line);
-            out.push('\n');
-        }
-        for line in section.remote.lines() {
-            out.push_str("+ ");
-            out.push_str(line);
-            out.push('\n');
-        }
-        out.push('\n');
-    }
-    out
-}
-
 /// Renders a dossier to text.
 ///
-/// An infallible header, then each section through the injected `render`. Any
-/// failing section downgrades the whole item to
-/// [`DossierRender::Unrenderable`], whose text still lists the section names
-/// and raw values so the conflict is never announced with nothing to see.
+/// An infallible header, then each section through the injected `render`. An
+/// unreadable local file is the only downgrade to
+/// [`DossierRender::Unrenderable`].
 pub fn render_dossier(
     dossier: &ConflictDossier,
-    render: &dyn Fn(&SectionDiff) -> Result<String, DiffUnavailable>,
+    render: &dyn Fn(&SectionDiff) -> String,
 ) -> DossierRender {
     if dossier.local_unreadable {
         return DossierRender::Unrenderable(unrenderable_header(dossier));
     }
     let mut sections = String::new();
     for section in &dossier.sections {
-        match render(section) {
-            Ok(body) => sections.push_str(&body),
-            Err(DiffUnavailable) => {
-                return DossierRender::Unrenderable(
-                    unrenderable_header(dossier) + &raw_sections(dossier),
-                );
-            }
-        }
+        sections.push_str(&render(section));
     }
     DossierRender::Renderable(renderable_header(dossier) + &sections)
 }
@@ -888,7 +858,6 @@ mod tests {
 
     use super::render_dossier;
     use super::ConflictDossier;
-    use super::DiffUnavailable;
     use super::DossierRender;
 
     fn section(name: &str, local: &str, remote: &str) -> SectionDiff {
@@ -914,11 +883,8 @@ mod tests {
         }
     }
 
-    fn ok_renderer(section: &SectionDiff) -> Result<String, DiffUnavailable> {
-        Ok(format!(
-            "=== {} (- LOCAL / + REMOTE) ===\nbody\n\n",
-            section.name
-        ))
+    fn ok_renderer(section: &SectionDiff) -> String {
+        format!("=== {} (- LOCAL / + REMOTE) ===\nbody\n\n", section.name)
     }
 
     #[test]
@@ -949,7 +915,7 @@ mod tests {
             &dossier(
                 Some(1_700_000_000),
                 RemoteTimestamp::Reported("2026-07-01T00:00:00Z".to_owned()),
-                Vec::new(),
+                vec![section("(preamble)", "local body", "remote body")],
             ),
             &ok_renderer,
         );
@@ -964,39 +930,18 @@ mod tests {
             text.contains("remote updated: 2026-07-01T00:00:00Z"),
             "{text}"
         );
-    }
-
-    #[test]
-    fn a_failing_renderer_downgrades_to_unrenderable_with_raw_values() {
-        let failing = |_: &SectionDiff| -> Result<String, DiffUnavailable> {
-            Err(DiffUnavailable)
-        };
-        let rendered = render_dossier(
-            &dossier(
-                None,
-                RemoteTimestamp::NotRead,
-                vec![section("(preamble)", "local body", "remote body")],
-            ),
-            &failing,
-        );
-        let DossierRender::Unrenderable(text) = rendered else {
-            panic!("a failing renderer downgrades to unrenderable");
-        };
-        assert!(text.contains("status: unrenderable"), "{text}");
-        assert!(
-            text.contains("=== (preamble) (- LOCAL / + REMOTE) ==="),
-            "{text}"
-        );
-        assert!(text.contains("- local body"), "{text}");
-        assert!(text.contains("+ remote body"), "{text}");
+        let (header, body) = text
+            .split_once("=== (preamble) (- LOCAL / + REMOTE) ===")
+            .expect("the section body lands under the header");
+        assert!(header.contains("status: renderable"), "{text}");
+        assert!(body.contains("body"), "{text}");
     }
 
     #[test]
     fn a_local_unreadable_dossier_is_unrenderable_without_rendering() {
-        let must_not_render =
-            |_: &SectionDiff| -> Result<String, DiffUnavailable> {
-                panic!("the renderer must not run for an unreadable local file")
-            };
+        let must_not_render = |_: &SectionDiff| -> String {
+            panic!("the renderer must not run for an unreadable local file")
+        };
         let mut unreadable =
             dossier(None, RemoteTimestamp::NotRead, Vec::new());
         unreadable.local_unreadable = true;

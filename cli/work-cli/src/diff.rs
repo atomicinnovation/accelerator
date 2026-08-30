@@ -1,17 +1,16 @@
 //! Adapter/binary wiring for `work diff`: this module owns the CLI-level
 //! error arms only. Extraction and comparison come from
 //! `work::section_diff::differing_sections`, and each differing section's
-//! rendering from `work_adapters::diff_shellout::render`.
+//! rendering from `work_adapters::diff::render`.
 
 use std::path::Path;
 
 use work::section_diff::differing_sections;
-use work_adapters::diff_shellout::render;
+use work_adapters::diff::render;
 
 pub enum RunOutcome {
     Rendered(String),
     NonFileArgument,
-    DiffUnavailable,
 }
 
 /// # Errors
@@ -38,10 +37,7 @@ pub fn run(local: &Path, remote: &Path) -> RunOutcome {
 
     let mut out = String::new();
     for diff in &diffs {
-        match render(diff) {
-            Ok(rendered) => out.push_str(&rendered),
-            Err(_) => return RunOutcome::DiffUnavailable,
-        }
+        out.push_str(&render(diff));
     }
     RunOutcome::Rendered(out)
 }
