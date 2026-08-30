@@ -4,7 +4,7 @@ author: Toby Clemson
 revision: "99c29ca35498adbe72fafec97a68216d6ebf6fde"
 repository: accelerator
 topic: "Leftover work / issues after meta directory restructure (0056)"
-tags: [research, codebase, migration, 0056, meta-restructure]
+tags: [research, codebase, migration, "0056", meta-restructure]
 status: complete
 last_updated: "2026-05-13T00:00:00+00:00"
 last_updated_by: Toby Clemson

@@ -4,7 +4,7 @@ author: Toby Clemson
 revision: "88b3cab89687dd2ca32bc4e38fb603198e46eb92"
 repository: accelerator
 topic: "0066 — Move review/validation skills' frontmatter into templates on the unified schema"
-tags: [research, codebase, frontmatter, templates, review-skills, schema, unified-schema, 0066]
+tags: [research, codebase, frontmatter, templates, review-skills, schema, unified-schema, "0066"]
 status: complete
 last_updated: "2026-05-31T00:00:00+00:00"
 last_updated_by: Toby Clemson

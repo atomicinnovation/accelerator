@@ -13,7 +13,7 @@ verdict: APPROVE
 lenses: [test-coverage, correctness, code-quality, standards, portability, architecture]
 review_number: 1
 review_pass: 2
-tags: [migrate, interactive-migration, agent-invocation, testing, 0007]
+tags: [migrate, interactive-migration, agent-invocation, testing, "0007"]
 last_updated: "2026-06-23T09:17:20+00:00"
 last_updated_by: Toby Clemson
 schema_version: 1
