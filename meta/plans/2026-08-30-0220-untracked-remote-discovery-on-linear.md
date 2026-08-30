@@ -5,7 +5,7 @@ title: "Untracked-Remote Discovery on Linear Implementation Plan"
 date: "2026-08-30T17:33:07+00:00"
 author: "Toby Clemson"
 producer: create-plan
-status: ready
+status: done
 work_item_id: "work-item:0220"
 parent: "work-item:0220"
 derived_from: ["codebase-research:2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear"]
