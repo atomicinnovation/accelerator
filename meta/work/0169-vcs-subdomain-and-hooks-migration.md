@@ -594,7 +594,7 @@ segment matches; the first matching segment names the reported subcommand.
   the `log`/`diff` blocklist-membership decision this story's Phase 1/Phase 7
   declined to make (see the parity-scope note above and Phase 10 of the
   implementation plan). A third follow-up,
-  [`0198`](0198-migrate-vcs-status-log-onto-library-backed-adapters.md), owns
+  [`0198`](0198-vcs-agnostic-status-log-renderer.md), owns
   the deliberate subprocess-not-library choice for `vcs status`/`vcs log`
   themselves — Key Discoveries' "no byte-parity guarantee" note above is
   where that scope originates.
