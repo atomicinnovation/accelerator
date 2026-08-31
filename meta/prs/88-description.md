@@ -1,17 +1,17 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "88"
 title: "Bound Linear untracked discovery to the configured team"
 date: "2026-08-30T23:33:36+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 work_item_id: "work-item:0220"
 parent: "work-item:0220"
 relates_to: ["work-item:0146"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/88"
 pr_number: 88
-tags: [sync, linear, jira, tracker, discovery]
+tags: ["sync", "linear", "jira", "tracker", "discovery"]
 revision: "65916547e336fffe5244219d1385427c0e00a14a"
 repository: "accelerator"
 last_updated: "2026-08-30T23:33:36+00:00"

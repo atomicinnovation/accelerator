@@ -1,15 +1,15 @@
 ---
-type: codebase-research
+type: "codebase-research"
 id: "2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear"
 title: "Research: Untracked-Remote Discovery Never Runs on Linear (0220)"
 date: "2026-08-30T17:00:35+00:00"
 author: "Toby Clemson"
-producer: research-codebase
-status: complete
+producer: "research-codebase"
+status: "complete"
 topic: "Why untracked-remote discovery is skipped on Linear and where the gate, scope, and key resolution live"
 work_item_id: "0220"
 parent: "work-item:0220"
-tags: [research, codebase, sync, linear, tracker, discovery]
+tags: ["research", "codebase", "sync", "linear", "tracker", "discovery"]
 revision: "3cc3fe422551f0fd064105dc12e2f1f6082a67c5"
 repository: "accelerator"
 last_updated: "2026-08-30T17:00:35+00:00"

@@ -1,17 +1,17 @@
 ---
-type: work-item
+type: "work-item"
 id: "0230"
-title: Tracker-Owned Work Item ID Generation
-date: 2026-08-30T14:35:09+00:00
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: story
-priority: low
+title: "Tracker-Owned Work Item ID Generation"
+date: "2026-08-30T14:35:09+00:00"
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "story"
+priority: "low"
 parent: "work-item:0146"
-tags: [sync, tracker, id-generation]
-last_updated: 2026-08-30T14:35:09+00:00
-last_updated_by: Toby Clemson
+tags: ["sync", "tracker", "id-generation"]
+last_updated: "2026-08-30T14:35:09+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # 0230: Tracker-Owned Work Item ID Generation

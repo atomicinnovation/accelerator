@@ -1,19 +1,19 @@
 ---
-type: plan-review
+type: "plan-review"
 id: "2026-08-30-0220-untracked-remote-discovery-on-linear-review-1"
 title: "Plan Review: Untracked-Remote Discovery on Linear"
 date: "2026-08-30T17:48:07+00:00"
 author: "Toby Clemson"
-producer: review-plan
-status: complete
+producer: "review-plan"
+status: "complete"
 parent: "plan:2026-08-30-0220-untracked-remote-discovery-on-linear"
 target: "plan:2026-08-30-0220-untracked-remote-discovery-on-linear"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
-lenses: [architecture, correctness, code-quality, test-coverage, compatibility, usability]
+lenses: ["architecture", "correctness", "code-quality", "test-coverage", "compatibility", "usability"]
 review_number: 1
 review_pass: 3
-tags: [sync, linear, tracker, discovery]
+tags: ["sync", "linear", "tracker", "discovery"]
 last_updated: "2026-08-30T20:02:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1

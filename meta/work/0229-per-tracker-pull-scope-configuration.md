@@ -1,17 +1,17 @@
 ---
-type: work-item
+type: "work-item"
 id: "0229"
-title: Per-Tracker Pull Scope Configuration
-date: 2026-08-30T14:35:09+00:00
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: story
-priority: medium
+title: "Per-Tracker Pull Scope Configuration"
+date: "2026-08-30T14:35:09+00:00"
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "story"
+priority: "medium"
 parent: "work-item:0146"
-tags: [sync, scoping, tracker, configuration]
-last_updated: 2026-08-30T14:35:09+00:00
-last_updated_by: Toby Clemson
+tags: ["sync", "scoping", "tracker", "configuration"]
+last_updated: "2026-08-30T14:35:09+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # 0229: Per-Tracker Pull Scope Configuration

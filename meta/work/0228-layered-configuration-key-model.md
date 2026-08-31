@@ -1,18 +1,18 @@
 ---
-type: work-item
+type: "work-item"
 id: "0228"
-title: Layered Configuration Key Model
-date: 2026-08-30T14:35:09+00:00
-author: Toby Clemson
-producer: create-work-item
-status: draft
-kind: task
-priority: high
+title: "Layered Configuration Key Model"
+date: "2026-08-30T14:35:09+00:00"
+author: "Toby Clemson"
+producer: "create-work-item"
+status: "draft"
+kind: "task"
+priority: "high"
 parent: "work-item:0146"
 relates_to: ["work-item:0220"]
-tags: [configuration, work-management, migration, tracker]
-last_updated: 2026-08-30T14:35:09+00:00
-last_updated_by: Toby Clemson
+tags: ["configuration", "work-management", "migration", "tracker"]
+last_updated: "2026-08-30T14:35:09+00:00"
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 # 0228: Layered Configuration Key Model

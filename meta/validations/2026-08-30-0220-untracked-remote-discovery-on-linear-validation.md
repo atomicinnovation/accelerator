@@ -1,14 +1,14 @@
 ---
-type: plan-validation
+type: "plan-validation"
 id: "2026-08-30-0220-untracked-remote-discovery-on-linear-validation"
 title: "Validation Report: Untracked-Remote Discovery on Linear"
 date: "2026-08-30T23:24:29+00:00"
 author: "Toby Clemson"
-producer: validate-plan
-status: complete
+producer: "validate-plan"
+status: "complete"
 result: "pass"
 target: "plan:2026-08-30-0220-untracked-remote-discovery-on-linear"
-tags: [sync, linear, tracker, discovery]
+tags: ["sync", "linear", "tracker", "discovery"]
 last_updated: "2026-08-30T23:24:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
