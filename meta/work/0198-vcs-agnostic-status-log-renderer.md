@@ -5,7 +5,7 @@ title: "Replace vcs status/log with a VCS-agnostic library-backed renderer"
 date: "2026-08-06T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "low"
 parent: "work-item:0136"
@@ -13,7 +13,7 @@ blocked_by: ["work-item:0169", "work-item:0188"]
 relates_to: ["work-item:0125", "work-item:0185", "work-item:0199", "work-item:0200", "work-item:0201"]
 derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
 tags: ["rust", "vcs", "cli", "performance"]
-last_updated: "2026-08-30T22:29:25+00:00"
+last_updated: "2026-08-31T23:45:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-728"
@@ -22,7 +22,7 @@ external_id: "PP-728"
 # 0198: Replace vcs status/log with a VCS-agnostic library-backed renderer
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
