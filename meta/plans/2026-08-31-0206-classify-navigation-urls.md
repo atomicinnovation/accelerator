@@ -232,16 +232,17 @@ fn token(reach: HostReach) -> &'static str {
 
 #### Automated Verification
 
-- [ ] Rust suite passes against the fixture: `mise run cli:check` and
+- [x] Rust suite passes against the fixture: `mise run cli:check` and
       `cargo test --manifest-path cli/Cargo.toml -p design`
-- [ ] The fixture parses and every case is exercised (no silently-skipped
+- [x] The fixture parses and every case is exercised (no silently-skipped
       cases): a fixture-count assertion in the loader
-- [ ] The fixture is complete: a Rust assertion that every `HostReach` variant,
+- [x] The fixture is complete: a Rust assertion that every `HostReach` variant,
       every `embedded_v4` transition form (6to4, Teredo, NAT64, IPv4-mapped,
       IPv4-compatible), and every `HostError` kind appears in at least one case,
       so a branch dropped during migration fails the loader rather than silently
       losing coverage on both sides
-- [ ] Full local mirror green: `mise run`
+- [ ] Full local mirror green: `mise run` (deferred to the consolidated
+      end-to-end run)
 
 #### Manual Verification
 

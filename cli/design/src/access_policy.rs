@@ -101,23 +101,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn https_to_a_public_host_needs_no_flag() -> Result<(), TestError> {
-        assert_eq!(with_no_flags("https://example.com")?, Verdict::Accepted);
-        Ok(())
-    }
-
-    #[test]
-    fn http_to_a_public_host_needs_the_insecure_scheme_flag(
-    ) -> Result<(), TestError> {
-        let rejection = with_no_flags("http://example.com")?;
-        assert!(matches!(rejection, Verdict::Rejected(_)));
-        assert_eq!(
-            verdict("http://example.com", insecure())?,
-            Verdict::Accepted
-        );
-        Ok(())
-    }
+    // The scheme and reachability vectors live in the shared classification
+    // corpus (`tests/host_classification_vectors.rs`), which holds the Rust and
+    // JavaScript classifiers to the same cases. The tests below pin behaviour
+    // the corpus cannot: the loopback carve-out, the unrecoverable wildcard, the
+    // exact rejection prose, and the non-URL locations.
 
     /// The skill's primary documented invocation, carved out ahead of internal
     /// classification.
@@ -134,29 +122,6 @@ mod tests {
                 with_no_flags(location)?,
                 Verdict::Accepted,
                 "{location}"
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn every_internal_reach_is_recovered_by_allow_internal(
-    ) -> Result<(), TestError> {
-        for location in [
-            "http://10.0.0.1",
-            "http://169.254.169.254",
-            "http://100.64.0.1",
-            "http://[fd00::1]",
-            "http://[::ffff:10.0.0.1]",
-        ] {
-            assert!(
-                matches!(with_no_flags(location)?, Verdict::Rejected(_)),
-                "{location} must be rejected without --allow-internal"
-            );
-            assert_eq!(
-                verdict(location, internal())?,
-                Verdict::Accepted,
-                "{location} must be recovered by --allow-internal"
             );
         }
         Ok(())

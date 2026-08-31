@@ -173,7 +173,6 @@ mod tests {
     use std::str::FromStr as _;
 
     use super::Host;
-    use super::HostError;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -208,57 +207,12 @@ mod tests {
     }
 
     #[test]
-    fn a_userinfo_segment_is_rejected() {
-        assert_eq!(
-            Host::canonicalise("user:pass@127.0.0.1@evil.com"),
-            Err(HostError::Userinfo)
-        );
-        assert_eq!(
-            Host::canonicalise("user@example.com"),
-            Err(HostError::Userinfo)
-        );
-    }
-
-    #[test]
-    fn an_empty_authority_is_rejected() {
-        assert_eq!(Host::canonicalise(""), Err(HostError::Empty));
-        assert_eq!(Host::canonicalise(":3000"), Err(HostError::Empty));
-    }
-
-    #[test]
-    fn every_numeric_encoding_that_is_not_an_address_is_rejected() {
-        for authority in [
-            "2130706433",
-            "0x7f000001",
-            "0177.0.0.1",
-            "1.2.3.4.5",
-            "0x7f.1",
-            "127.0.0.01",
-            "10.0.0.256",
-        ] {
-            assert_eq!(
-                Host::canonicalise(authority),
-                Err(HostError::NumericEncoding),
-                "{authority} must not fall through to hostname treatment"
-            );
-        }
-    }
-
-    #[test]
     fn a_hostname_whose_first_label_looks_numeric_is_still_a_hostname(
     ) -> Result<(), TestError> {
         let host = Host::canonicalise("10.0.0.1.example.com")?;
         assert_eq!(host.to_string(), "10.0.0.1.example.com");
         assert_eq!(host.address(), None);
         Ok(())
-    }
-
-    #[test]
-    fn a_control_character_is_rejected_rather_than_carried() {
-        assert_eq!(
-            Host::canonicalise("127.0.0.1%0d%0aevil"),
-            Err(HostError::ControlCharacter)
-        );
     }
 
     #[test]
