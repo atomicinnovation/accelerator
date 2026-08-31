@@ -1,16 +1,16 @@
 ---
-type: work-item
+type: "work-item"
 id: "0252"
 title: "Federate Config Into Domain Crates"
 date: "2026-08-31T12:11:13+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: draft
-kind: task
-priority: medium
-tags: [config, crates, refactor]
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "task"
+priority: "medium"
+tags: ["config", "crates", "refactor"]
 last_updated: "2026-08-31T12:11:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

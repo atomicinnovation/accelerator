@@ -1,16 +1,16 @@
 ---
-type: work-item
+type: "work-item"
 id: "0257"
 title: "Sync A Single Work Item"
 date: "2026-08-31T12:11:13+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: draft
-kind: story
-priority: medium
-tags: [work, sync]
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "story"
+priority: "medium"
+tags: ["work", "sync"]
 last_updated: "2026-08-31T12:11:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

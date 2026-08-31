@@ -1,16 +1,16 @@
 ---
-type: work-item
+type: "work-item"
 id: "0240"
 title: "Corpus Update Frontmatter Quote Roundtrip"
 date: "2026-08-31T12:11:13+00:00"
-author: Toby Clemson
-producer: extract-work-items
-status: draft
-kind: bug
-priority: medium
-tags: [corpus, frontmatter]
+author: "Toby Clemson"
+producer: "extract-work-items"
+status: "draft"
+kind: "bug"
+priority: "medium"
+tags: ["corpus", "frontmatter"]
 last_updated: "2026-08-31T12:11:13+00:00"
-last_updated_by: Toby Clemson
+last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 

@@ -1,14 +1,14 @@
 ---
-type: pr-description
+type: "pr-description"
 id: "91"
 title: "Extract further-ideas backlog into work items 0231-0274"
 date: "2026-08-31T12:51:17+00:00"
 author: "Toby Clemson"
-producer: describe-pr
-status: complete
+producer: "describe-pr"
+status: "complete"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/91"
 pr_number: 91
-tags: [backlog, work-items]
+tags: ["backlog", "work-items"]
 revision: "e6341c463bb9a754114e2a914a48ac98ec906f70"
 repository: "accelerator"
 last_updated: "2026-08-31T12:51:17+00:00"
