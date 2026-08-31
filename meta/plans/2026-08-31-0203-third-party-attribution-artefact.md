@@ -558,24 +558,29 @@ matter**:
 
 #### Automated Verification:
 
-- [ ] Notices task registered: `mise run notices:update` writes
+- [x] Notices task registered: `mise run notices:update` writes
       `licenses/accelerator-third-party-notices.txt`
-- [ ] Drift check is idempotent: `mise run notices:update && mise run notices:check`
+- [x] Drift check is idempotent: `mise run notices:update && mise run notices:check`
       exits 0 with no working-tree change (`git status --porcelain` empty)
-- [ ] Gate placement guard passes: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Fold/render unit tests pass: `uv run pytest tests/unit/tasks/test_notices.py`
-- [ ] §3.2 regression passes: the committed artefact carries an `uluru`/`MPL-2.0`
+- [x] Gate placement guard passes: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] Fold/render unit tests pass: `uv run pytest tests/unit/tasks/test_notices.py`
+- [x] §3.2 regression passes: the committed artefact carries an `uluru`/`MPL-2.0`
       entry with a corresponding-source URL (asserted in `test_notices.py`)
-- [ ] Bundled-import guard passes: `uv run pytest tests/unit/tasks/test_frontend_licenses.py`
-      (every bundled module resolves to the `--production` closure)
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Aggregate read-only gate passes: `mise run check`
-- [ ] `mise.lock` regenerated and committed (no drift on re-run of `mise lock`)
-- [ ] `cli/visualiser/frontend/package-lock.json` regenerated and committed;
-      `npm ci` succeeds against it
+- [x] Bundled-import guard passes: `uv run pytest tests/unit/frontend/test_frontend_licenses.py`
+      (every bundled module resolves to the `--production` closure). NOTE: file
+      lives under `tests/unit/frontend/` (its own `test:unit:frontend-licenses`
+      lane), not `tests/unit/tasks/` — that lane has no built bundle, per §7.
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Aggregate read-only gate passes: `mise run check`
+- [~] `mise.lock` — N/A. cargo-about is source-built (`deps:install:cargo-about`),
+      not a `[tools]` ubi pin: its 0.9.x binaries omit `x86_64-apple-darwin`, so a
+      ubi pin would break `mise install` on the Intel-mac `smoke-runtime` leg.
+      No `[tools]` change means no `mise.lock` change. (User-approved deviation.)
+- [x] `cli/visualiser/frontend/package-lock.json` regenerated and committed;
+      `npm ci` succeeds against it (verified: `deps:install:node` runs `npm ci`)
 - [ ] Cross-platform determinism: `notices:update` on macOS and a Linux
       `notices:check` (or CI's `check-attribution` job) agree byte-for-byte
-      (targets pinned in `about.toml`, LF-normalised)
+      (targets pinned in `about.toml`, LF-normalised) — deferred to CI
 
 #### Manual Verification:
 

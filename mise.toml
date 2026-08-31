@@ -82,6 +82,14 @@ run = "invoke deps.install-public-api"
 description = "Install Node.js dependencies for the visualiser frontend"
 run = "invoke deps.install-node"
 
+[tasks."deps:install:cargo-about"]
+description = "Provision the pinned cargo-about (built from source on stable; its 0.9.x release binaries omit x86_64-apple-darwin, so a ubi pin would break mise install on the Intel-mac leg)"
+run = "invoke deps.install-cargo-about"
+
+[tasks."deps:install:cargo-sources"]
+description = "Populate the cli/ cargo registry so offline cargo-about can read licence files"
+run = "invoke deps.install-cargo-sources"
+
 [tasks."deps:install:playwright"]
 description = "Install Playwright browser binaries (Chromium + OS-level deps)"
 depends = ["deps:install:node"]
@@ -271,6 +279,11 @@ description = "Run pytest unit tests for invoke tasks"
 depends = ["deps:install:python"]
 run = "uv run pytest tests/unit/tasks -v"
 
+[tasks."test:unit:frontend-licenses"]
+description = "Guard that every module in the built frontend bundle resolves to the --production licence closure (its own sourcemap build; no shipped dist/ dependency)"
+depends = ["deps:install:node", "deps:install:python"]
+run = "uv run pytest tests/unit/frontend -v"
+
 [tasks."test:unit:vcs"]
 description = "Run pytest unit tests for the VCS test-support fixtures (cross-engine mask parity)"
 depends = ["deps:install:python"]
@@ -292,7 +305,7 @@ run = "invoke test.unit.design-automation"
 
 [tasks."test:unit"]
 description = "Run all unit tests in parallel"
-depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
+depends = ["test:unit:visualiser", "test:unit:frontend", "test:unit:frontend-licenses", "test:unit:tasks", "test:unit:vcs", "test:unit:cli", "test:unit:design-automation"]
 
 # Deliberately absent from `test:integration` and the bare default task: these
 # suites need a bootstrapped Playwright runtime, which no CI lane provisions.
@@ -590,6 +603,16 @@ description = "Regenerate every pinned crate's public-API snapshot with cargo-pu
 depends = ["deps:install:public-api"]
 run = "invoke public-api.update"
 
+[tasks."notices:check"]
+description = "Pin the third-party notices artefact against a fresh dual-generator render (cargo-about + license-checker)"
+depends = ["deps:install:node", "deps:install:cargo-about", "deps:install:cargo-sources"]
+run = "invoke notices.check"
+
+[tasks."notices:update"]
+description = "Regenerate the third-party notices artefact from the cli/ closure and the frontend production tree"
+depends = ["deps:install:node", "deps:install:cargo-about", "deps:install:cargo-sources"]
+run = "invoke notices.update"
+
 [tasks."format:frontend:check"]
 description = "Check frontend formatting with Biome (read-only)"
 depends = ["deps:install:node"]
@@ -637,11 +660,11 @@ depends = ["format:fix", "lint:fix"]
 
 [tasks.check]
 description = "Run all read-only format, lint, and type checks (what CI runs)"
-depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "public-api:check", "build-system:check", "scripts:check"]
+depends = ["frontend:check", "server:check", "cli:check", "deny:check", "pup:check", "public-api:check", "notices:check", "build-system:check", "scripts:check"]
 
 [tasks.default]
 description = "Full local CI mirror: build, format-fix, lint, type-check, deny/pup static checks, docs gate, test (heavy — reformats in place, compiles Rust several times, needs network + Chromium; for a fast inner loop use a single <component>:check)"
-depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "public-api:check", "docs:check", "test"]
+depends = ["build:frontend", "build:server:dev", "format:fix", "lint:check", "types:check", "deny:check", "pup:check", "public-api:check", "notices:check", "docs:check", "test"]
 
 [tasks."version:read"]
 description = "Read plugin version"

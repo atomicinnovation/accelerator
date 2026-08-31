@@ -1,0 +1,47 @@
+# cargo-about configuration for the third-party notices generator. Read by
+# `mise run notices:update` / `notices:check` via `cargo about generate`, run
+# from cli/ so this file resolves as the manifest-root about.toml. Width kept
+# <= 80 columns per the hand-duplication convention.
+
+# Scope to the distributed closure: build scripts and dev/test dependencies do
+# not link into a shipped binary, so their licences are neither owed nor
+# rendered. This mirrors the traversal deny.toml's allow-list is pruned to.
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# The permissive allow-list deny.toml carries, plus the uluru MPL-2.0 exception,
+# so the rendered Rust section supersets the linked closure deny gates. An
+# accepted id that no crate in the closure carries is inert (cargo-about does
+# not fail on an unused allowance), so BSD-2-Clause and the LLVM-exception form
+# stay listed against deny even while currently unused.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    "CC0-1.0",
+    "MPL-2.0",
+]
+
+# The four shipped release triples only. The resolved closure and its rendered
+# bytes are host-independent so the byte-compare drift check agrees on macOS
+# locally and Linux in CI. deny.toml lists a fifth (x86_64-unknown-linux-gnu,
+# its CI dev graph); it is excluded here because only the shipped closure is
+# distributed.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-musl",
+]
+
+# The cli/ workspace members are unpublished composition roots and libraries
+# with no third-party licence to attribute; ignore them so a missing licence on
+# a first-party crate never fails generation or pads the notice.
+[private]
+ignore = true

@@ -26,6 +26,14 @@ PUP_VERSION = "0.1.8"
 # nightly's JSON format before accepting a snapshot diff as toolchain-induced.
 PUBLIC_API_VERSION = "0.52.0"
 
+# cargo-about — the third-party notices generator (notices:check,
+# notices:update). Built from source on stable rather than pinned as a mise
+# [tool]: its 0.9.x release binaries omit x86_64-apple-darwin, so a ubi pin
+# would fail `mise install` on the Intel-mac CI leg. The source build resolves
+# on every host, matching the cargo-public-api provisioning pattern. This is a
+# fourth accepted unverified surface beside cargo-pup/cargo-public-api.
+ABOUT_VERSION = "0.9.2"
+
 _FALSEY = {"off", "false", "0", "no"}
 _PUP_MODES = {"deny", "warn"}
 
