@@ -705,8 +705,10 @@ detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
 in config.md ignored — move to config.local.md` to stderr.
 
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
-password manager. The resolver checks `config.local.md` permissions and
-warns if looser than `0600`.
+password manager. The resolver refuses to read credentials from a
+`config.local.md` looser than `0600` (override with
+`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
+`.accelerator/allow-insecure-local` marker).
 
 Example `config.local.md` (preferred form, using a password manager):
 
@@ -807,8 +809,8 @@ a committed `token_cmd` is a supply-chain command-injection sink. A
 `E_TOKEN_CMD_FROM_SHARED_CONFIG: linear.token_cmd in config.md ignored — move to
 config.local.md` to stderr. The resolver also refuses to read credentials from a
 `config.local.md` looser than `0600` (override with
-`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed `.claude/insecure-local-ok`
-marker), mirroring the Jira integration.
+`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
+`.accelerator/allow-insecure-local` marker), mirroring the Jira integration.
 
 Example `config.local.md` (preferred form, using a password manager):
 

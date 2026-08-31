@@ -33,6 +33,7 @@ use tracker_support::Provenance;
 use tracker_support::SystemEnvironment;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
+use tracker_support::INSECURE_MARKER_RELATIVE;
 use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs_adapters::library::InProcessProbe;
@@ -162,7 +163,7 @@ pub fn build_client() -> Result<Built, ContextError> {
         config: service,
         provenance: &provenance,
         personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(".claude/insecure-local-ok"),
+        insecure_marker: root.join(INSECURE_MARKER_RELATIVE),
         command: CommandPolicy::rooted_at(root.clone()),
     };
 

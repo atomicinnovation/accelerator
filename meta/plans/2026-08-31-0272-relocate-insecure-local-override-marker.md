@@ -306,36 +306,36 @@ is wrong; the override is the same env-var-plus-marker escape hatch.
 
 #### Automated Verification:
 
-- [ ] No legacy literal and no wrong-directory variant remains in code, docs, or
+- [x] No legacy literal and no wrong-directory variant remains in code, docs, or
   hooks: both `rg -n "insecure-local-ok" cli/ skills/ hooks/` and
   `rg -n "\.claude/allow-insecure-local" cli/ skills/ hooks/` return no matches.
-- [ ] The constant is the single source of truth carrying the new path:
+- [x] The constant is the single source of truth carrying the new path:
   `rg -n 'INSECURE_MARKER_RELATIVE.*"\.accelerator/allow-insecure-local"'
   cli/tracker-support/src/credentials.rs` matches.
-- [ ] Every production caller references the constant, not a literal:
+- [x] Every production caller references the constant, not a literal:
   `rg -n "INSECURE_MARKER_RELATIVE" cli/jira-cli/src/context.rs
   cli/linear-cli/src/context.rs cli/work-cli/src/tracker_registry.rs
   cli/jira-client/tests/contract.rs cli/linear-client/tests/contract.rs` matches
   all five.
-- [ ] The docs name the new path: `rg -c "allow-insecure-local"
+- [x] The docs name the new path: `rg -c "allow-insecure-local"
   skills/config/configure/SKILL.md` returns `2`, and
   `rg -n "allow-insecure-local" cli/tracker-support/src/credentials.rs` matches
   both the docstring and the constant.
-- [ ] The inaccurate Jira wording is gone:
+- [x] The inaccurate Jira wording is gone:
   `rg -n "warns if looser than" skills/config/configure/SKILL.md` returns no
   matches.
-- [ ] The marker path is not ignored by this repo's own `.gitignore`:
+- [x] The marker path is not ignored by this repo's own `.gitignore`:
   `git check-ignore .accelerator/allow-insecure-local` exits with status exactly
   `1` (matched-nothing; treat `128` as failure, since an environment error is not
   a pass). This guards the accelerator repo's dev checkout against a future broad
   `.accelerator/` ignore rule. It does **not** verify an end-user repo's ignore
   rules — the VCS-tracked gate runs against whatever repo the command executes in,
   which this check cannot inspect.
-- [ ] The `tracker-support` credential tests pass, including the new seam pin and
+- [x] The `tracker-support` credential tests pass, including the new seam pin and
   the two symlink characterisation tests:
   `cargo test -p tracker-support --test credentials`.
-- [ ] The Rust workspace is clean: `mise run cli:check`.
-- [ ] The full read-only CI mirror passes: `mise run check`.
+- [x] The Rust workspace is clean: `mise run cli:check`.
+- [x] The full read-only CI mirror passes: `mise run check`.
 
 #### Manual Verification:
 

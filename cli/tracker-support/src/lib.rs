@@ -25,6 +25,7 @@ pub use crate::credentials::Secret;
 pub use crate::credentials::SystemEnvironment;
 pub use crate::credentials::TokenKeys;
 pub use crate::credentials::TokenSource;
+pub use crate::credentials::INSECURE_MARKER_RELATIVE;
 pub use crate::identifier::identifier_is_safe;
 pub use crate::identifier::IdentifierRefusal;
 pub use crate::mime::sniff;

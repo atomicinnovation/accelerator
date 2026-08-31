@@ -121,7 +121,7 @@ fn live_client() -> LiveClient {
         config: &config,
         provenance: &provenance,
         personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(".claude/insecure-local-ok"),
+        insecure_marker: root.join(tracker_support::INSECURE_MARKER_RELATIVE),
         command: CommandPolicy::rooted_at(root.clone()),
     };
     let credentials =

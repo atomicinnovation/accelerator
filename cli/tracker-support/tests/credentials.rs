@@ -14,6 +14,7 @@ use tempfile::TempDir;
 use tracker_support::{
     refuse_tracked_source, resolve_token, CommandPolicy, CredentialContext,
     CredentialError, Environment, Provenance, TokenKeys, TokenSource,
+    INSECURE_MARKER_RELATIVE,
 };
 
 const SENTINEL: &str = "s3cr3t-sentinel-value";
@@ -136,7 +137,7 @@ impl Workspace {
     }
 
     fn marker(&self) -> PathBuf {
-        self.root.path().join("insecure-local-ok")
+        self.root.path().join("allow-insecure-local")
     }
 
     fn write_personal_config(&self, mode: u32) -> PathBuf {
@@ -428,6 +429,62 @@ fn the_insecure_override_needs_both_the_variable_and_a_tracked_marker() {
     )
     .expect("a tracked marker plus the variable honours the override");
     assert_eq!(resolved.value.expose(), "from-file");
+}
+
+#[test]
+fn the_marker_path_lives_under_accelerator() {
+    assert_eq!(
+        INSECURE_MARKER_RELATIVE,
+        ".accelerator/allow-insecure-local"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_personal_config_is_refused_even_under_the_override() {
+    let workspace = Workspace::new();
+    let target = workspace.root.path().join("config.local.md.real");
+    std::fs::write(&target, "---\njira:\n  token: from-file\n---\n")
+        .expect("write the real personal config");
+    std::os::unix::fs::symlink(&target, workspace.personal_config())
+        .expect("symlink the personal config");
+    let marker = workspace.marker();
+    std::fs::write(&marker, "").expect("write the marker");
+    let environment =
+        FixedEnvironment::empty().with("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1");
+    let config = FixedConfig::new().with_personal("jira.token", "from-file");
+    let provenance = FixedProvenance::tracking(&marker);
+
+    let error = resolve_token(
+        &workspace.context(&environment, &config, &provenance),
+        &keys(),
+    )
+    .expect_err("a symlinked personal config is refused");
+
+    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_marker_does_not_unlock_the_override() {
+    let workspace = Workspace::new();
+    workspace.write_personal_config(0o644);
+    let target = workspace.root.path().join("marker-target");
+    std::fs::write(&target, "").expect("write the marker target");
+    let marker = workspace.marker();
+    std::os::unix::fs::symlink(&target, &marker).expect("symlink the marker");
+    let environment =
+        FixedEnvironment::empty().with("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1");
+    let config = FixedConfig::new().with_personal("jira.token", "from-file");
+    let provenance = FixedProvenance::tracking(&marker);
+
+    let error = resolve_token(
+        &workspace.context(&environment, &config, &provenance),
+        &keys(),
+    )
+    .expect_err("a symlinked marker is refused");
+
+    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
 }
 
 #[test]

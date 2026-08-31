@@ -132,7 +132,7 @@ pub fn context<'a>(
         config,
         provenance,
         personal_config: root.join("config.local.md"),
-        insecure_marker: root.join("insecure-local-ok"),
+        insecure_marker: root.join("allow-insecure-local"),
         command: CommandPolicy::rooted_at(root.to_path_buf()),
     }
 }
