@@ -41,11 +41,11 @@ def frontend(context: Context) -> None:
 # gated itself on an absent runtime looked identical to a passing one. Both
 # floors are asserted, and the executed count comes from the runner's own TAP
 # summary rather than from anything this task counts itself.
-_EXPECTED_DESIGN_AUTOMATION_SUITES = 9
+_EXPECTED_DESIGN_AUTOMATION_SUITES = 10
 
 # Today's executed total across those files. An at-least floor: a suite may
 # legitimately gain cases, but must never quietly lose them.
-_EXPECTED_DESIGN_AUTOMATION_CASES = 76
+_EXPECTED_DESIGN_AUTOMATION_CASES = 82
 
 _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 

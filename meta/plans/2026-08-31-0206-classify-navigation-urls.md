@@ -320,23 +320,23 @@ forbids guard-clause returns in test bodies.
 
 #### Automated Verification
 
-- [ ] JS unit lane passes: `mise run test:unit:design-automation`
-- [ ] The fixture is found and non-empty (path-resolution guard asserts a
+- [x] JS unit lane passes: `mise run test:unit:design-automation`
+- [x] The fixture is found and non-empty (path-resolution guard asserts a
       positive case count)
-- [ ] The suite floor is raised: `_EXPECTED_DESIGN_AUTOMATION_SUITES` in
+- [x] The suite floor is raised: `_EXPECTED_DESIGN_AUTOMATION_SUITES` in
       `tasks/test/unit.py` is 10, not 9, and `_EXPECTED_DESIGN_AUTOMATION_CASES` is
       raised by the new suite's case count so the corpus cases enjoy the same
       at-least floor
-- [ ] Fail-closed paths hold: a missing-allowances call and an unhandled-reach
+- [x] Fail-closed paths hold: a missing-allowances call and an unhandled-reach
       input each return a refusal, not an allow
-- [ ] Every wire token is bound end-to-end through `classifyUrl`: policy cases
+- [x] Every wire token is bound end-to-end through `classifyUrl`: policy cases
       assert `malformed` (a userinfo URL) and `unspecified` (`http://0.0.0.0`), not
       only the reach/error layers
-- [ ] Lint and format clean: `mise run check`
+- [x] Lint and format clean: `mise run check`
 
 #### Manual Verification
 
-- [ ] A deliberate one-character edit to the JS Teredo unwrap turns a corpus
+- [x] A deliberate one-character edit to the JS Teredo unwrap turns a corpus
       case red, confirming the fixture actually binds the two implementations
 
 ---
