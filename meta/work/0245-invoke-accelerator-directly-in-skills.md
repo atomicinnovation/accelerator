@@ -8,10 +8,13 @@ producer: "extract-work-items"
 status: "draft"
 kind: "task"
 priority: "medium"
+parent: "work-item:0136"
 tags: ["skills", "cli"]
-last_updated: "2026-08-31T12:11:13+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
 schema_version: 1
+external_id: "PP-830"
 ---
 
 # 0245: Invoke Accelerator Directly In Skills

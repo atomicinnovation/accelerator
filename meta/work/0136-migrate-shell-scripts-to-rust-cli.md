@@ -55,7 +55,9 @@ dependency spine; each keeps the plugin functional at its step. Statuses vary
 and are tracked on the items themselves. Grandchildren are listed indented
 beneath the parent that owns them and are covered transitively by that parent's
 completion. This list was reconciled against the real parent-linked child set on
-2026-08-31 (see Drafting Notes).
+2026-08-31 (see Drafting Notes), and extended on 2026-09-05 with the
+post-migration remnants recovered from an audit of work items numbered above
+0136 (see the closing group).
 
 **Foundations (Phases 0–2):**
 - 0162 — Rust Toolchain Guard Rails in mise + CI
@@ -134,6 +136,34 @@ completion. This list was reconciled against the real parent-linked child set on
   on every dispatch)*
 - 0219 — Own the Recurring Absolute-Budget Check *(0189's primary gate is
   re-runnable in principle and re-run by nothing)*
+
+**Post-migration remnants (reconciled 2026-09-05):** recovered from an audit of
+work items numbered above 0136 that belonged to the migration or its shipped
+crates but had been left parentless. Post-migration *evolution* of the workspace
+(refactors, ergonomics, crate renames) is out of scope here and lives under the
+successor epic 0276.
+
+- 0158 — Modular Rust CLI Architecture and Hexagonal Workspace Layout *(the
+  foundational architecture spike, ported from luminosity, that feeds this epic)*
+- 0182 — bin/accelerator Requires CLAUDE_PLUGIN_ROOT in the Environment *(launcher
+  bug)*
+- 0184 — template_names Succeeds-With-Nothing on a Non-Installation Plugin Root
+  *(bug in the shipped config-adapters crate)*
+- 0201 — In-Process Section Diff *(removes work-adapters' shell-out to `diff -u`)*
+- 0240 — Corpus Update Frontmatter Quote Roundtrip *(bug in the shipped corpus
+  crate; pairs with 0221)*
+- 0241 — Migrate False Dirty-Tree Detection *(bug in the shipped migrate crate)*
+- 0245 — Invoke accelerator Directly in Skills *(completes the invocation-contract
+  cutover)*
+- 0264 — Remove Bash-Migration Negative-Assertion Tests *(retires migration
+  scaffolding)*
+- 0269 — Remove Bash References from the Jira and Linear Clients *(retires
+  shell-to-Rust residue)*
+- 0222 — Offline Populate Route for the Runtime Cache *(runtime-cache cluster)*
+- 0223 — Bounding the Default Runtime Cache Root *(sibling of 0218)*
+- 0225 — Advisory-Feed Monitoring for the Vendored Runtime Pins *(sibling of 0214)*
+- 0226 — Audit Repo-Settable Config Keys for Executable-Path Injection *(hardens
+  the shipped config crates)*
 
 The target architecture (git-style `accelerator` launcher dispatching to
 on-demand `accelerator-<sub>` static binaries, each a hexagonal crate; the

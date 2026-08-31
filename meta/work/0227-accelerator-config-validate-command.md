@@ -8,11 +8,14 @@ producer: "create-work-item"
 status: "draft"
 kind: "story"
 priority: "medium"
+parent: "work-item:0276"
 relates_to: ["work-item:0221", "work-item:0226"]
 tags: ["config", "validation", "cli", "correctness"]
-last_updated: "2026-08-29T17:07:24+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
 schema_version: 1
+external_id: "PP-812"
 ---
 # 0227: accelerator config validate Command
 

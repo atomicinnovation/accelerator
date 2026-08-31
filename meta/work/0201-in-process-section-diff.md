@@ -8,10 +8,12 @@ producer: "create-work-item"
 status: "done"
 kind: "task"
 priority: "medium"
+parent: "work-item:0136"
 relates_to: ["work-item:0170", "work-item:0174", "work-item:0188", "work-item:0198"]
 tags: ["rust", "work-items", "tech-debt"]
-last_updated: "2026-08-08T12:27:18+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
 schema_version: 1
 external_id: "PP-731"
 ---

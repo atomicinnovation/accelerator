@@ -8,11 +8,14 @@ producer: "create-work-item"
 status: "draft"
 kind: "task"
 priority: "medium"
+parent: "work-item:0136"
 relates_to: ["work-item:0196"]
 tags: ["security", "distribution", "runtime", "playwright", "ci"]
-last_updated: "2026-08-20T00:00:00+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
 schema_version: 1
+external_id: "PP-810"
 ---
 
 # 0225: Advisory-Feed Monitoring for the Vendored Runtime Pins

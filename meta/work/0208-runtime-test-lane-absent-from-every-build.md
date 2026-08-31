@@ -8,10 +8,12 @@ producer: "create-work-item"
 status: "draft"
 kind: "task"
 priority: "medium"
+parent: "work-item:0276"
 relates_to: ["work-item:0196"]
 tags: ["ci", "testing", "design", "playwright"]
-last_updated: "2026-08-20T00:00:00+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
 schema_version: 1
 external_id: "PP-738"
 ---
