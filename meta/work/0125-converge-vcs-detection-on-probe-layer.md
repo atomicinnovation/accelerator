@@ -5,7 +5,7 @@ title: "Converge legacy lexical VCS detection (find_repo_root / vcs_mode) on the
 date: "2026-06-22T14:38:56+00:00"
 author: "Phil Helm"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 relates_to: ["work-item:0124", "work-item:0058", "work-item:0020", "work-item:0188"]
@@ -19,9 +19,24 @@ external_id: "PP-146"
 # 0125: Converge legacy lexical VCS detection on the 0058 probe layer
 
 **Kind**: Task (tech debt)
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Phil Helm
+
+> **Closing note (2026-08-31, done)**: Superseded and completed via the
+> epic-0136 shell-retirement chain rather than a dedicated plan.
+> [`0188`](0188-library-backed-vcs-adapter.md) landed the library-backed
+> in-process VCS adapter; [`0169`](0169-vcs-subdomain-and-hooks-migration.md)
+> rebuilt the SessionStart/PreToolUse hooks on it;
+> [`0199`](0199-retire-vcs-common-sh-residue-and-launcher-link-refresh.md) —
+> this item's designated successor per the 2026-08-06 amendment below —
+> retired `find_repo_root`/`vcs_mode` and their ~20 residual callers; and
+> [`0174`](0174-retire-shell-tooling-and-ci-guards.md) then deleted the entire
+> `scripts/` directory, `vcs-common.sh` included. The two-strategy drift this
+> item existed to fix is structurally impossible now: VCS detection is
+> single-sourced through `vcs_adapters::library::InProcessProbe`. The residual
+> `find_repo_root`/`vcs-common` mentions surviving in `tasks/measure.py` and in
+> `config-adapters`/`vcs-adapters` doc comments are historical only.
 
 ## Summary
 
