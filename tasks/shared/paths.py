@@ -42,7 +42,7 @@ SKILL_EXEMPT_SUBBINARIES: tuple[str, ...] = ()
 # The directory-tree artifacts the release assembles and the launcher fetches
 # alongside the single-file sub-binaries. Every publish-path list derives from
 # this one tuple, so adding or retiring a tree artifact is a single edit.
-TREE_ARTIFACTS: tuple[str, ...] = (
+TREE_ARTEFACTS: tuple[str, ...] = (
     "driver",
     "browser",
 )
@@ -59,6 +59,11 @@ CHROMIUM_LICENSE = REPO_ROOT / "licenses" / "chromium.LICENSE"
 # `notices:check`, staged flat into dist/release/ for the release upload set.
 ATTRIBUTION_ARTEFACT = (
     REPO_ROOT / "licenses" / "accelerator-third-party-notices.txt"
+)
+# The committed notice staged flat into dist/release/ for the upload set; the
+# `accelerator-` prefix keeps it inside the existing provenance attest glob.
+ATTRIBUTION_ARTEFACT_STAGED = (
+    RELEASE_STAGING / "accelerator-third-party-notices.txt"
 )
 # Sub-binaries shipping a symbolication archive, and the committed tree each is
 # staged into so the provenance glob covers it. Every value must be a `bin/`

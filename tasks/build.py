@@ -13,6 +13,8 @@ from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.limits import raise_descriptor_limit
 from tasks.shared.paths import (
+    ATTRIBUTION_ARTEFACT,
+    ATTRIBUTION_ARTEFACT_STAGED,
     CARGO_TOML,
     CLI_DIR,
     CLI_TARGET_DIR,
@@ -660,3 +662,10 @@ def create_debug_archives(context: Context) -> None:
     tree, where the provenance glob covers it.
     """
     _write_debug_archives(_debug_archive_targets())
+
+
+@task
+def stage_notices(context: Context) -> None:
+    """Copy the committed third-party notices artefact into dist/release/."""
+    RELEASE_STAGING.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ATTRIBUTION_ARTEFACT, ATTRIBUTION_ARTEFACT_STAGED)

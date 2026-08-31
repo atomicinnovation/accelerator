@@ -68,7 +68,10 @@ confidence-threshold = 0.8
 # it cannot be feature-gated out. MPL-2.0 is file-level weak copyleft: we ship
 # no modifications, but §3.2's notice obligation binds wherever the closure is
 # actually linked — distributing such a binary requires telling recipients how
-# to obtain the source, which the release upload set carries no artefact for.
+# to obtain the source. The release upload set carries
+# accelerator-third-party-notices.txt, which lists each MPL-2.0 component with a
+# §3.2 corresponding-source statement naming its repository and crates.io
+# source; that discharges the obligation.
 #
 # Measured across the dispatched sub-binaries, unstripped --release,
 # aarch64-apple-darwin, by counting `gix_`/`jj_lib`/`uluru` symbols:
@@ -85,8 +88,10 @@ confidence-threshold = 0.8
 # InProcessProbe directly, and each already carried the closure before the
 # metadata-read path moved onto it. accelerator-corpus is the one this switch
 # caused — it carried none of the three before and carries all of them after.
-# So the notice obligation is live today for five shipped binaries, and a
-# third-party attribution artefact is owed by the release upload set.
+# So the notice obligation is live today for five shipped binaries, discharged
+# by accelerator-third-party-notices.txt in the release upload set. That file
+# ships unsigned — it is not a trust anchor — but rides the dist/release/
+# accelerator-* SLSA provenance glob like every other published asset.
 #
 # The visualiser alone still links none of it, so its original exception
 # rationale stands unchanged. Re-check when any code under

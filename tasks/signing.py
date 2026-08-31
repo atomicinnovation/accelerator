@@ -15,7 +15,7 @@ from tasks.shared.paths import (
     RELEASE_PUBLIC_KEY,
     RELEASE_SECRET_KEY,
     RELEASE_STAGING,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
     cli_binary_path,
     subbinary_asset_path,
     tree_artifact_asset_path,
@@ -85,7 +85,7 @@ def sign_staged_binaries(secret_key: Path) -> None:
 
 
 def _tree_artifact_signing_targets(
-    tokens: Iterable[str] = TREE_ARTIFACTS,
+    tokens: Iterable[str] = TREE_ARTEFACTS,
     staging_dir: Path = RELEASE_STAGING,
     platforms: Sequence[tuple[str, str]] = TARGETS,
 ) -> list[Path]:
@@ -123,7 +123,7 @@ def _reverify_sealed(archive: Path) -> Path:
 def sign_tree_artifacts(
     secret_key: Path,
     *,
-    tokens: Iterable[str] = TREE_ARTIFACTS,
+    tokens: Iterable[str] = TREE_ARTEFACTS,
     staging_dir: Path = RELEASE_STAGING,
     platforms: Sequence[tuple[str, str]] = TARGETS,
 ) -> None:

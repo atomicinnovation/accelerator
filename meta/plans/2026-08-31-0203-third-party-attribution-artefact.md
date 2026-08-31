@@ -752,13 +752,20 @@ separate task.
 
 #### Automated Verification:
 
-- [ ] Name-set presence guard passes: `uv run pytest tests/unit/tasks/test_build.py`
-- [ ] Attest-glob presence guard passes: `uv run pytest tests/unit/tasks/test_workflows.py`
-- [ ] Staging-wiring guard passes: both prepare lanes invoke `stage_notices`
+- [x] Name-set presence guard passes: `uv run pytest tests/unit/tasks/test_build.py`
+- [x] Attest-glob presence guard passes: `uv run pytest tests/unit/tasks/test_workflows.py`
+- [x] Staging-wiring guard passes: both prepare lanes invoke `stage_notices`
       (`uv run pytest tests/integration/tasks/test_release.py`)
-- [ ] cargo-deny still green after the comment edit: `mise run deny:check`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Aggregate read-only gate passes: `mise run check`
+- [x] cargo-deny still green after the comment edit: `mise run deny:check`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Aggregate read-only gate passes: `mise run check`
+
+Note: the `TREE_ARTIFACTS` → `TREE_ARTEFACTS` rename (§6) touched more files than
+the plan enumerated — the constant is also used in `tasks/signing.py`,
+`tasks/manifest.py`, `tests/unit/tasks/test_tree_artifact_pins.py` and
+`tests/integration/tasks/test_github.py`; a rename must update every reference,
+so all were updated. `test_github.py`'s upload harness gained the staged-notices
+fixture and one added upload in its exact-count assertion.
 
 #### Manual Verification:
 

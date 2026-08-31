@@ -16,12 +16,13 @@ if TYPE_CHECKING:
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.hashing import compute_sha256
 from tasks.shared.paths import (
+    ATTRIBUTION_ARTEFACT_STAGED,
     DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
     RELEASE_MANIFEST,
     RELEASE_MANIFEST_SIG,
     RELEASE_PUBLIC_KEY,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
     cli_binary_path,
     debug_archive_path,
     subbinary_asset_path,
@@ -234,7 +235,7 @@ def _subbinary_uploads(
 
 
 def _tree_artifact_uploads(
-    tree_tokens: Iterable[str] = TREE_ARTIFACTS,
+    tree_tokens: Iterable[str] = TREE_ARTEFACTS,
 ) -> list[Path]:
     """Every tree archive and its three sidecars.
 
@@ -272,6 +273,10 @@ def _release_uploads(
         uploads.append(_sig(launcher))
     uploads.append(RELEASE_MANIFEST)
     uploads.append(RELEASE_MANIFEST_SIG)
+    # Unsigned: the notice is not a trust anchor, so it carries no `.minisig`
+    # and no _release_reverifies() entry. SLSA provenance covers it via the
+    # dist/release/accelerator-* attest glob.
+    uploads.append(ATTRIBUTION_ARTEFACT_STAGED)
     uploads.extend(_subbinary_uploads(tokens))
     uploads.extend(_tree_artifact_uploads(tree_tokens))
     return uploads
@@ -318,7 +323,7 @@ def _release_reverifies(
 def _tree_artifact_reverifies(
     context: Context,
     tag: str,
-    tree_tokens: Iterable[str] = TREE_ARTIFACTS,
+    tree_tokens: Iterable[str] = TREE_ARTEFACTS,
 ) -> list[_Reverify]:
     """Re-verify each tree archive and its `.sealed` attestation.
 
