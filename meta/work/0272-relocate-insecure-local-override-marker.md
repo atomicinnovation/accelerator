@@ -5,7 +5,7 @@ title: "Relocate Insecure-Local Override Marker to .accelerator"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "medium"
 tags: ["security", "config", "cleanup"]
@@ -17,7 +17,7 @@ schema_version: 1
 # 0272: Relocate Insecure-Local Override Marker to .accelerator
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
