@@ -5,7 +5,7 @@ title: "VCS-agnostic status/log renderer Implementation Plan"
 date: "2026-08-31T12:07:44+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0198"
 parent: "work-item:0198"
 derived_from: ["codebase-research:2026-08-31-0198-vcs-agnostic-status-log-renderer"]
