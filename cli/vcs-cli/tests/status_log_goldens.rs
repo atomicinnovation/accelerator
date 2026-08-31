@@ -249,6 +249,43 @@ fn a_malformed_accelerator_log_still_renders_and_exits_zero(
 }
 
 #[test]
+fn a_forced_adapter_failure_emits_the_gix_token_to_stderr(
+) -> Result<(), TestError> {
+    // The deterministic D2 degenerate shape: a `.git` gitdir pointer to nowhere.
+    // gix cannot open it, so status/log fall back — and with ACCELERATOR_LOG set
+    // the warn must actually reach stderr, proving logging::init() delivers it
+    // (it was discarded before this work) rather than the launcher's dead init.
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-token-")
+        .tempdir()?;
+    let repo = work.path().join("broken");
+    fs::create_dir_all(&repo)?;
+    fs::write(repo.join(".git"), "gitdir: /nonexistent/elsewhere\n")?;
+
+    for subcommand in ["status", "log"] {
+        let output = Command::new(BIN)
+            .arg(subcommand)
+            .env("ACCELERATOR_LOG", "warn")
+            .current_dir(&repo)
+            .output()?;
+        assert!(
+            output.status.success(),
+            "{subcommand} must still exit 0 on an adapter failure"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("unavailable"),
+            "{subcommand} must render its fallback"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("gix"),
+            "{subcommand} must warn-log the gix token: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn fail_safe_has_no_effect_on_a_successful_status_or_log(
 ) -> Result<(), TestError> {
     let work = tempfile::Builder::new()

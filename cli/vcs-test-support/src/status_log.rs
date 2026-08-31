@@ -7,12 +7,24 @@
 //! carry no golden, to keep the golden set branch-stable.
 
 use std::collections::BTreeMap;
+use std::env;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use tempfile::TempDir;
+
+use crate::hermetic::assert_no_repository_ancestor;
 use crate::hermetic::Hermetic;
 use crate::Error;
+
+/// Names the root of a status/log state set built by an earlier step, for a
+/// caller inside the shadow window that cannot build one itself.
+pub const STATES_ROOT_VARIABLE: &str = "ACCELERATOR_ZERO_SPAWN_STATUS_LOG";
+
+/// Written beside the states so a later process can adopt them without git/jj.
+const MANIFEST: &str = "status-log-states.tsv";
 
 fn non_utf8(path: &Path) -> Error {
     Error::message(format!("non-utf8 path: {}", path.display()))
@@ -422,4 +434,146 @@ pub fn build_bookmark_states(
     states.insert("bookmark-two-jj", two);
 
     Ok(states)
+}
+
+/// A git repo whose config is hostile: a filesystem monitor, no golden.
+///
+/// It declares a `core.fsmonitor`, external content filters bound via
+/// `.gitattributes`, a diff textconv, and an external hooks path — every hook a
+/// repository could use to induce a spawn. `gix` runs none of them; this state
+/// proves a malicious config cannot make the status/log read launch a child.
+///
+/// # Errors
+///
+/// When the fixture cannot be built.
+pub fn build_adversarial_state(
+    work: &Path,
+    env: &Hermetic,
+    states: &mut BTreeMap<&'static str, PathBuf>,
+) -> Result<(), Error> {
+    let adversarial = work.join("adversarial-git");
+    fs::create_dir_all(&adversarial)?;
+    env.git(&["init", "--quiet"], &adversarial)?;
+    fs::write(adversarial.join("tracked.dat"), "data\n")?;
+    env.git(&["add", "tracked.dat"], &adversarial)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &adversarial)?;
+
+    let hooks = adversarial.join("hostile-hooks");
+    fs::create_dir_all(&hooks)?;
+    let hooks_path = hooks.to_str().ok_or_else(|| non_utf8(&hooks))?;
+    for (key, value) in [
+        ("core.fsmonitor", "/nonexistent/fsmonitor-hook"),
+        ("filter.evil.process", "/nonexistent/evil-process"),
+        ("filter.evil.clean", "/nonexistent/evil-clean"),
+        ("filter.evil.smudge", "/nonexistent/evil-smudge"),
+        ("diff.evil.textconv", "/nonexistent/evil-textconv"),
+        ("core.hooksPath", hooks_path),
+    ] {
+        env.git(&["config", key, value], &adversarial)?;
+    }
+    fs::write(
+        adversarial.join(".gitattributes"),
+        "*.dat filter=evil diff=evil\n",
+    )?;
+    // An untracked *.dat so the status dirwalk would trip the filter if gix ran
+    // it, and a worktree edit so the tracked one is re-hashed.
+    fs::write(adversarial.join("untracked.dat"), "more\n")?;
+    fs::write(adversarial.join("tracked.dat"), "data\nchanged\n")?;
+    states.insert("adversarial-git", adversarial);
+
+    Ok(())
+}
+
+/// The status/log states beneath a caller-supplied root, adopted inside the
+/// zero-spawn shadow window and built (with real git/jj) outside it.
+#[derive(Debug)]
+pub struct States {
+    pub base: PathBuf,
+    pub states: BTreeMap<String, PathBuf>,
+}
+
+impl States {
+    /// Adopts a state set already built beneath `base`, or builds one there.
+    ///
+    /// Adoption needs neither `git` nor `jj`, so a CI step builds the states
+    /// while both are reachable and this consumes them after they are shadowed.
+    ///
+    /// # Errors
+    ///
+    /// When the manifest is unreadable or malformed, or a builder fails.
+    pub fn build_or_adopt(base: &Path) -> Result<Self, Error> {
+        if base.join(MANIFEST).is_file() {
+            return Self::adopt(base);
+        }
+        assert_no_repository_ancestor(base)?;
+        let base = base.canonicalize()?;
+        let env = Hermetic::rooted_at(&base)?;
+
+        let mut states: BTreeMap<String, PathBuf> = build_states(&base, &env)?
+            .into_iter()
+            .map(|(key, path)| (key.to_owned(), path))
+            .collect();
+        let mut extra = BTreeMap::new();
+        build_adversarial_state(&base, &env, &mut extra)?;
+        states.extend(
+            extra.into_iter().map(|(key, path)| (key.to_owned(), path)),
+        );
+
+        let built = Self { base, states };
+        built.write_manifest()?;
+        Ok(built)
+    }
+
+    fn write_manifest(&self) -> Result<(), Error> {
+        let mut manifest = String::new();
+        for (key, path) in &self.states {
+            writeln!(manifest, "{key}\t{}", path.display())
+                .map_err(|error| Error::message(error.to_string()))?;
+        }
+        fs::write(self.base.join(MANIFEST), manifest)?;
+        Ok(())
+    }
+
+    fn adopt(base: &Path) -> Result<Self, Error> {
+        let base = base.canonicalize()?;
+        let manifest = fs::read_to_string(base.join(MANIFEST))?;
+        let mut states = BTreeMap::new();
+        for line in manifest.lines() {
+            let mut fields = line.split('\t');
+            let (Some(key), Some(path), None) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                return Err(Error::message(format!(
+                    "malformed status-log manifest line: {line}"
+                )));
+            };
+            states.insert(key.to_owned(), PathBuf::from(path));
+        }
+        if states.is_empty() {
+            return Err(Error::message(format!(
+                "the status-log manifest at {} is empty",
+                base.display()
+            )));
+        }
+        Ok(Self { base, states })
+    }
+}
+
+/// Where the status/log states should live: a caller-supplied root when one is
+/// named, otherwise a temp directory the returned guard owns.
+///
+/// # Errors
+///
+/// When the temp directory cannot be created.
+pub fn states_root() -> Result<(Option<TempDir>, PathBuf), Error> {
+    match env::var(STATES_ROOT_VARIABLE) {
+        Ok(root) if !root.is_empty() => Ok((None, PathBuf::from(root))),
+        _ => {
+            let guard = tempfile::Builder::new()
+                .prefix("vcs-status-log-")
+                .tempdir()?;
+            let path = guard.path().to_path_buf();
+            Ok((Some(guard), path))
+        }
+    }
 }

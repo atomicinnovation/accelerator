@@ -15,11 +15,15 @@
 #![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;
+use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
 use vcs_test_support::fixtures;
 use vcs_test_support::fixtures::Matrix;
+use vcs_test_support::masks;
+use vcs_test_support::status_log;
 use vcs_test_support::stubs::assert_shadowing_holds;
 use vcs_test_support::stubs::reference_artefact;
 use vcs_test_support::stubs::Mode;
@@ -103,6 +107,99 @@ fn the_queries_read_git_and_jj_without_spawning_them() -> Result<(), TestError>
              path: {reachable:?}"
         );
     }
+    Ok(())
+}
+
+fn status_log_fixtures_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../vcs-test-support/fixtures/vcs-status-log")
+}
+
+fn masks_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../vcs-test-support/fixtures/masks.toml")
+}
+
+/// Runs the reference artefact's `status`/`log` over `start`, stubbed.
+fn render(
+    binary: &Path,
+    subcommand: &str,
+    start: &Path,
+    stubs: &Stubs,
+) -> Result<String, TestError> {
+    let mut command = Command::new(binary);
+    command.arg(subcommand).arg(start);
+    stubs.apply(&mut command);
+    let output = command.output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "the reference artefact {subcommand} failed for {}: {}",
+            start.display(),
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    Ok(String::from_utf8(output.stdout)?
+        .trim_end_matches('\n')
+        .to_owned())
+}
+
+#[test]
+fn status_and_log_read_git_and_jj_without_spawning_them(
+) -> Result<(), TestError> {
+    let mode = Mode::from_environment()?;
+    assert_shadowing_holds(mode)?;
+
+    let (_states_guard, root) = status_log::states_root()?;
+    let states = status_log::States::build_or_adopt(&root)?;
+    let artefact = reference_artefact()?;
+    let masks = masks::load(&masks_path())?;
+
+    let stub_base = tempfile::Builder::new()
+        .prefix("vcs-status-log-zero-spawn-")
+        .tempdir()?;
+    let stubs = Stubs::rooted_at(stub_base.path())?;
+    assert!(
+        !states.states.is_empty(),
+        "an empty state set would pass every assertion below while proving \
+         nothing"
+    );
+
+    let mut mismatches = String::new();
+    for (name, directory) in &states.states {
+        for subcommand in ["status", "log"] {
+            let rendered = masks::apply(
+                &masks,
+                &render(&artefact, subcommand, directory, &stubs)?,
+            )?;
+            // The adversarial state carries no golden — it is present only to
+            // prove its hostile config induces no git/jj spawn.
+            let golden_path = status_log_fixtures_dir()
+                .join(format!("{name}-{subcommand}.txt"));
+            let Ok(golden) = fs::read_to_string(&golden_path) else {
+                continue;
+            };
+            if rendered.trim_end_matches('\n') != golden.trim_end_matches('\n')
+            {
+                writeln!(
+                    mismatches,
+                    "  {name}-{subcommand}:\n    golden: {:?}\n    actual: {rendered:?}",
+                    golden.trim_end_matches('\n')
+                )?;
+            }
+        }
+    }
+
+    assert_eq!(
+        stubs.spawns()?,
+        None,
+        "a git or jj subprocess was spawned by status/log; the stub recorded it"
+    );
+    assert!(
+        mismatches.is_empty(),
+        "status/log output changed under shadowing, so an adapter degraded \
+         rather than reading in-process:\n{mismatches}"
+    );
     Ok(())
 }
 

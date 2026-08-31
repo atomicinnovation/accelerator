@@ -1,18 +1,15 @@
 //! The outbound VCS adapters, and the composition root over them.
 //!
 //! [`library`] answers every port a repository is probed through — including
-//! [`facts`] — by reading both idioms in the calling process, and carries the
-//! taxonomy queries besides. [`subprocess`] survives only for `status`/`log`,
-//! the two human-facing renderings with no library equivalent. Keeping them
-//! apart is what lets [`library`] carry an import rule denying `std::process`
-//! while [`subprocess`] spawns by design.
+//! [`facts`] and the `status`/`log` renderings — by reading both idioms in the
+//! calling process, and carries the taxonomy queries besides. No adapter spawns
+//! a child: the crate carries a crate-wide import rule denying `std::process`.
 //!
-//! The ancestor walk and the marker reading live in a third, private module
+//! The ancestor walk and the marker reading live in a second, private module
 //! that [`library`] delegates *to*.
 
 pub mod library;
 mod markers;
-pub mod subprocess;
 
 use std::path::Path;
 

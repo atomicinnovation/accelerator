@@ -25,6 +25,7 @@ use std::path::Path;
 use std::process::Command;
 
 use vcs_test_support::fixtures::Matrix;
+use vcs_test_support::hermetic::Hermetic;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -48,8 +49,9 @@ fn run(start: &Path, poison: Option<&Poison>) -> Result<String, TestError> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
-/// Every variable the subprocess probe scrubs or forces, plus the two families
-/// `gix::open`'s default permissions actually consult.
+/// A real repository's git dir plus a divergent global config, the two families
+/// `gix::open`'s default permissions actually consult — enough to move a facts
+/// answer if anything read the environment (nothing does).
 struct Poison {
     git_dir: String,
     global_config: String,
@@ -153,6 +155,65 @@ fn the_poison_is_live() -> Result<(), TestError> {
          {reported} — if it did not, the poisoning is not live and the \
          invariant test above proves nothing",
         expected.display()
+    );
+    Ok(())
+}
+
+/// Status reads global git config, unlike the facts queries. The old subprocess
+/// path forced `GIT_CONFIG_NOSYSTEM=1` and scrubbed the global config; in-process
+/// `gix::open` honours it, exactly as real `git status` shows the developer. This
+/// pins that intended behaviour rather than a false invariance — a
+/// `core.excludesFile` that ignores an untracked file removes it from the render.
+#[test]
+fn status_honours_the_global_excludes_file() -> Result<(), TestError> {
+    let base = tempfile::Builder::new()
+        .prefix("vcs-scrub-status-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(base.path())?;
+
+    let repo = base.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.git(&["init", "--quiet"], &repo)?;
+    fs::write(repo.join("tracked.txt"), "t\n")?;
+    env.git(&["add", "tracked.txt"], &repo)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &repo)?;
+    fs::write(repo.join("ignore-me.log"), "noise\n")?;
+
+    let excludes = base.path().join("excludes");
+    fs::write(&excludes, "*.log\n")?;
+    let global_config = base.path().join("global.gitconfig");
+    fs::write(
+        &global_config,
+        format!("[core]\n\texcludesFile = {}\n", excludes.display()),
+    )?;
+
+    let status_under = |config: &Path| -> Result<String, TestError> {
+        let output = Command::new(FIXTURE)
+            .arg("status")
+            .arg(&repo)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_SYSTEM", "/dev/null")
+            .env("GIT_CONFIG_GLOBAL", config)
+            .output()?;
+        assert!(
+            output.status.success(),
+            "fixture status failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(String::from_utf8(output.stdout)?)
+    };
+
+    let clean = status_under(Path::new("/dev/null"))?;
+    assert!(
+        clean.contains("untracked  ignore-me.log"),
+        "with no excludes, the untracked file must appear: {clean:?}"
+    );
+
+    let hidden = status_under(&global_config)?;
+    assert!(
+        !hidden.contains("ignore-me.log"),
+        "the global core.excludesFile must hide the untracked file, proving \
+         status honours global config: {hidden:?}"
     );
     Ok(())
 }

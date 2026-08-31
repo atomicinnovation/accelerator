@@ -1032,20 +1032,20 @@ Run the full local CI mirror.
 
 #### Automated Verification
 
-- [ ] Subprocess module gone; crate compiles: `mise run cli:check`
-- [ ] Architecture check passes, including the new crate-wide `std::process` rule's probe pair: `mise run pup:check` and `mise run test:integration:pup`
-- [ ] AC6 real-binary token test passes: forcing the `D2` degenerate shape with `ACCELERATOR_LOG` set emits a `gix`/`jj-lib` line to stderr (automated, not manual): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
-- [ ] Build-system component green (edits to `tasks/test/integration.py`): `mise run build-system:check`
-- [ ] Zero-spawn (path-only, local), including the required adversarial-config state: `mise run test:integration:zero-spawn`
-- [ ] `mise run` (bare default task) exits 0 end to end.
+- [x] Subprocess module gone; crate compiles: `mise run cli:check`
+- [x] Architecture check passes, including the new crate-wide `std::process` rule's probe pair: `mise run pup:check` and `mise run test:integration:pup`
+- [x] AC6 real-binary token test passes: forcing the `D2` degenerate shape with `ACCELERATOR_LOG` set emits a `gix`/`jj-lib` line to stderr (automated, not manual): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
+- [x] Build-system component green (edits to `tasks/test/integration.py`): `mise run build-system:check`
+- [x] Zero-spawn (path-only, local), including the required adversarial-config state: `mise run test:integration:zero-spawn`
+- [x] `mise run` (bare default task) exits 0 end to end.
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_LOG=warn accelerator vcs status` on a forced-failure path emits
+- [x] `ACCELERATOR_LOG=warn accelerator vcs status` on a forced-failure path emits
       a line containing `gix` or `jj-lib`.
 - [ ] Strong-form zero-spawn is green on the `check-zero-spawn` CI job (Linux;
       cannot run under macOS SIP).
-- [ ] `grep -rn "subprocess" cli/vcs-adapters cli/vcs-cli` returns nothing
+- [x] `grep -rn "subprocess" cli/vcs-adapters cli/vcs-cli` returns nothing
       load-bearing.
 
 ---
