@@ -2,7 +2,7 @@
 //!
 //! `status`/`log` must return text on any failure (matching the shell's original
 //! `2>/dev/null || echo`), so this folds an adapter `Err` and a cleanly-unwinding
-//! panic to the ADR-0066 `(status|log unavailable)` fallback, warn-logging the
+//! panic to the `(status|log unavailable)` fallback, warn-logging the
 //! failing adapter's `gix`/`jj-lib` token on an `adapter =` field so the failure
 //! is diagnosable via `ACCELERATOR_LOG` rather than reading like a clean repo.
 //!
@@ -24,7 +24,7 @@ use vcs::VcsProbe as _;
 use vcs::VcsReporter;
 use vcs_adapters::library::InProcessProbe;
 
-/// The failing adapter's ADR-0066 token. Deliberately distinct from the
+/// The failing adapter's backend token. Deliberately distinct from the
 /// library adapter's own `vcs = "git"/"jj"` warnings, so a log consumer knows
 /// the status/log fallback is keyed on `adapter`, not `vcs`.
 const fn adapter_token(kind: VcsKind) -> &'static str {

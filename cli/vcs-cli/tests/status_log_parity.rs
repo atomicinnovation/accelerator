@@ -1,7 +1,7 @@
-//! Cross-backend parity for `vcs status`/`vcs log` (AC3).
+//! Cross-backend parity for `vcs status`/`vcs log`.
 //!
 //! Builds the same logical working-copy state in a git and a jj repo and asserts
-//! the ADR-0066 format renders in the same *shape* from both — not byte-identity,
+//! the agnostic format renders in the same *shape* from both — not byte-identity,
 //! since the branch value, the git-only staged row, and the untracked/added
 //! divergence differ by design. The log lines are compared per line after
 //! masking, never by equating the two masked blobs (which carry distinct

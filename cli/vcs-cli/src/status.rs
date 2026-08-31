@@ -1,4 +1,4 @@
-//! `vcs status`: the working-copy change summary in the ADR-0066 format,
+//! `vcs status`: the working-copy change summary in the agnostic format,
 //! computed in-process for git and jj.
 
 use std::path::Path;

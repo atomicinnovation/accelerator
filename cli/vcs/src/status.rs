@@ -2,7 +2,7 @@
 //!
 //! Both the git and jj adapters populate a [`StatusReport`]; this module owns
 //! the sort, the summary line, and the empty/conflict wording, so neither
-//! adapter re-implements the ADR-0066 format.
+//! adapter re-implements the agnostic format.
 
 /// The closed set of change types the agnostic status format renders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

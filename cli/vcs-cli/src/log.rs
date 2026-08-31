@@ -1,5 +1,5 @@
 //! `vcs log`: the five most recent commits as short id plus subject, in the
-//! ADR-0066 format, computed in-process for git and jj.
+//! agnostic format, computed in-process for git and jj.
 
 use std::path::Path;
 

@@ -66,7 +66,7 @@ fn main() -> ExitCode {
 }
 
 /// Mirrors `accelerator-vcs`'s status/log boundary over the port: discover the
-/// root, classify it, and fold an adapter `Err` to the same ADR-0066 fallback,
+/// root, classify it, and fold an adapter `Err` to the same fallback,
 /// so the zero-spawn goldens match the shipped binary's output.
 fn render_report(mode: &str, start: &Path) -> String {
     let probe = InProcessProbe;

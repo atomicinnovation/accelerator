@@ -1,7 +1,7 @@
 //! The backend-neutral log model and its pure renderer.
 //!
 //! Both adapters populate a [`LogReport`] of up to five entries, newest first;
-//! this module owns the ADR-0066 wording for the empty and empty-subject cases.
+//! this module owns the wording for the empty and empty-subject cases.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEntry {

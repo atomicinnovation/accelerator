@@ -1,7 +1,7 @@
 //! The status and log adapters over `gix` and `jj-lib`, in-process.
 //!
 //! Both backends populate the backend-neutral `vcs::status`/`vcs::log` models
-//! the ADR-0066 renderer consumes. The git side reads `gix::Repository::status`
+//! the renderer consumes. The git side reads `gix::Repository::status`
 //! and a first-parent revwalk; the jj side reads the shared working-copy
 //! snapshot (`snapshot::working_copy_diff`) plus a first-parent change-id peel
 //! (`snapshot::head_commit`), so the `UserSettings` construction stays confined

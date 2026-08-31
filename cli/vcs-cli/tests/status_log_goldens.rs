@@ -4,8 +4,8 @@
 //! `vcs-test-support/fixtures/vcs-status-log`.
 //!
 //! Setting `REGENERATE_GOLDENS=1` rewrites the golden files from the current
-//! binary output (masked) instead of comparing — the generation path the ADR
-//! goldens are produced through, reviewed by hand against ADR-0066.
+//! binary output (masked) instead of comparing — the generation path the
+//! goldens are produced through, reviewed by hand before they are committed.
 #![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeMap;

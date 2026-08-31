@@ -1,8 +1,8 @@
 //! The shared `vcs status`/`vcs log` fixture states.
 //!
 //! Built once here so the golden harness (`status_log_goldens.rs`), the parity
-//! harness, and the zero-spawn lane each consume one builder — Phase 3 does not
-//! transitively depend on Phase 2. `build_states` returns the states that carry
+//! harness, and the zero-spawn lane each consume one builder rather than
+//! duplicating state construction. `build_states` returns the states that carry
 //! committed goldens; the cap and bookmark states drive focused assertions and
 //! carry no golden, to keep the golden set branch-stable.
 

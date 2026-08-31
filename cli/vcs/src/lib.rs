@@ -79,7 +79,7 @@ pub trait VcsProbe {
 }
 
 /// Renders a repository's working-copy status and recent history into the
-/// backend-neutral model the ADR-0066 renderer consumes.
+/// backend-neutral model the renderer consumes.
 ///
 /// Unlike the sibling `Option`-returning ports, this one keeps the `Err` arm:
 /// the `vcs-cli` boundary folds it to the never-fail `(status|log unavailable)`
