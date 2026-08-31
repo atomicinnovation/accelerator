@@ -7,10 +7,12 @@ author: "Toby Clemson"
 status: "done"
 kind: "spike"
 priority: "high"
+parent: "work-item:0136"
 external_id: "PP-181"
 tags: ["spike", "rust", "cli", "architecture", "hexagonal"]
-last_updated: "2026-06-27T12:23:42+00:00"
+last_updated: "2026-09-05T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
 schema_version: 1
 ---
 
