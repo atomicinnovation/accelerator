@@ -13,6 +13,7 @@ tags: ["security", "config", "visualiser", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-756"
 ---
 
 # 0226: Audit Repo-Settable Config Keys for Executable-Path Injection

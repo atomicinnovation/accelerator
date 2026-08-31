@@ -12,6 +12,7 @@ tags: ["visualiser", "styling"]
 last_updated: "2026-08-31T12:11:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-762"
 ---
 
 # 0232: Render Inline Code In Document Detail Page Title

@@ -13,6 +13,7 @@ tags: ["config", "validation", "cli", "correctness"]
 last_updated: "2026-08-29T17:07:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-757"
 ---
 # 0227: accelerator config validate Command
 

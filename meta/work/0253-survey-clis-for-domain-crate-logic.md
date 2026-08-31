@@ -12,6 +12,7 @@ tags: ["cli", "crates", "refactor"]
 last_updated: "2026-08-31T12:11:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-783"
 ---
 
 # 0253: Survey CLIs For Domain-Crate Logic
