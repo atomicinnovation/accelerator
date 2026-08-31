@@ -871,13 +871,13 @@ masked.
 
 #### Automated Verification
 
-- [ ] Parity + golden tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
-- [ ] Mask cross-validation still green: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support` and `mise run check` (Python mask test)
-- [ ] `mise run check` green.
+- [x] Parity + golden tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
+- [x] Mask cross-validation still green: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support` and `mise run check` (Python mask test)
+- [x] `mise run check` green.
 
 #### Manual Verification
 
-- [ ] The parity harness fails informatively when a real shape difference is
+- [x] The parity harness fails informatively when a real shape difference is
       introduced (sanity-check by temporarily breaking the renderer).
 
 ---

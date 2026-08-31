@@ -342,6 +342,58 @@ pub fn build_cap_states(
     Ok(states)
 }
 
+/// The same logical working-copy state built in a git and a jj repo, for the
+/// cross-backend parity harness. No golden.
+///
+/// One modified tracked file and one untracked file over three prior commits,
+/// plus one git-only staged change (jj has no staging area). Returned as
+/// `parity-git` and `parity-jj`.
+///
+/// # Errors
+///
+/// When a fixture cannot be built.
+pub fn build_parity_states(
+    work: &Path,
+    env: &Hermetic,
+) -> Result<BTreeMap<&'static str, PathBuf>, Error> {
+    let mut states = BTreeMap::new();
+
+    let parity_git = work.join("parity-git");
+    fs::create_dir_all(&parity_git)?;
+    env.git(&["init", "--quiet"], &parity_git)?;
+    fs::write(parity_git.join("tracked.txt"), "v1\n")?;
+    env.git(&["add", "tracked.txt"], &parity_git)?;
+    env.git(&["commit", "--quiet", "-m", "commit-1"], &parity_git)?;
+    for index in 2..=3 {
+        fs::write(parity_git.join(format!("c{index}.txt")), "x\n")?;
+        env.git(&["add", "."], &parity_git)?;
+        env.git(
+            &["commit", "--quiet", "-m", &format!("commit-{index}")],
+            &parity_git,
+        )?;
+    }
+    fs::write(parity_git.join("tracked.txt"), "v2\n")?;
+    fs::write(parity_git.join("untracked.txt"), "new\n")?;
+    fs::write(parity_git.join("staged.txt"), "s\n")?;
+    env.git(&["add", "staged.txt"], &parity_git)?;
+    states.insert("parity-git", parity_git);
+
+    let parity_jj = work.join("parity-jj");
+    fs::create_dir_all(&parity_jj)?;
+    env.jj(&["git", "init", "--no-colocate"], &parity_jj)?;
+    fs::write(parity_jj.join("tracked.txt"), "v1\n")?;
+    env.jj(&["commit", "-m", "commit-1"], &parity_jj)?;
+    for index in 2..=3 {
+        fs::write(parity_jj.join(format!("c{index}.txt")), "x\n")?;
+        env.jj(&["commit", "-m", &format!("commit-{index}")], &parity_jj)?;
+    }
+    fs::write(parity_jj.join("tracked.txt"), "v2\n")?;
+    fs::write(parity_jj.join("untracked.txt"), "new\n")?;
+    states.insert("parity-jj", parity_jj);
+
+    Ok(states)
+}
+
 /// The states for the bookmark-header assertion, carrying no golden.
 ///
 /// A jj working-copy commit carrying one bookmark, and one carrying two —
