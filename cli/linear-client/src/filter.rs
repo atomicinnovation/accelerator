@@ -12,9 +12,6 @@ use serde_json::Value;
 use crate::error::ClientError;
 
 /// Resolves a workflow-state name to its UUID.
-///
-/// A port from the outset so the cache-backed implementation can land later
-/// without a constructor change.
 pub trait StateResolver {
     /// The single UUID a name resolves to, or `None` when it names no state or
     /// more than one.
@@ -36,6 +33,27 @@ pub struct FixedStates(pub std::collections::BTreeMap<String, String>);
 impl StateResolver for FixedStates {
     fn resolve(&self, name: &str) -> Option<String> {
         self.0.get(name).cloned()
+    }
+}
+
+/// Resolves a team **key** — the `ENG` in `ENG-42` — to the team UUID a search
+/// filter needs.
+///
+/// A separate job from [`StateResolver`]: a config names the team by its key,
+/// but the `{team:{id:{eq:…}}}` filter is evaluated against the UUID, so an
+/// unresolved key silently matches no team.
+pub trait TeamResolver {
+    /// The team UUID `key` resolves to, or `None` when it matches no team.
+    fn resolve(&self, key: &str) -> Option<String>;
+}
+
+/// A fixed map, used by the search suites and by any caller with no catalogue.
+#[derive(Debug, Clone, Default)]
+pub struct FixedTeam(pub std::collections::BTreeMap<String, String>);
+
+impl TeamResolver for FixedTeam {
+    fn resolve(&self, key: &str) -> Option<String> {
+        self.0.get(key.trim()).cloned()
     }
 }
 

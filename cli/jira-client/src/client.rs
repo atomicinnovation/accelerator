@@ -16,6 +16,7 @@ use tracker::FieldResolution;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
@@ -586,6 +587,20 @@ impl RemoteTracker for JiraClient {
             }
         }
         Ok(outcome)
+    }
+
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, ScopeError> {
+        if scope.project.is_none() && !scope.all_projects {
+            return Err(ScopeError {
+                detail: "E_JQL_NO_PROJECT: specify a project or all_projects, \
+                         or run --push-only to push without discovery"
+                    .to_owned(),
+            });
+        }
+        Ok(scope.clone())
     }
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {

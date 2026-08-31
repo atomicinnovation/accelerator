@@ -14,6 +14,7 @@ use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
+use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker_test_support::Call;
@@ -30,6 +31,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
@@ -388,6 +390,62 @@ fn an_over_threshold_untracked_set_aborts_with_no_creations_or_shows(
 }
 
 #[test]
+fn an_unresolvable_scope_refuses_pre_flight_and_sends_nothing(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    // An unsynced draft that would create-from-local were the run to proceed.
+    let item = fixture.unsynced_item("0001", "Draft")?;
+    let tracker =
+        RecordingTracker::holding(Vec::new()).refusing_scope(ScopeError {
+            detail: "E_SEARCH_NO_TEAM: discovery needs a team key".to_owned(),
+        });
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let error = run_sync(
+        &ports,
+        &[item],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .err()
+    .expect("an unresolvable scope must refuse the run");
+
+    assert!(
+        matches!(error, RunError::DiscoveryUnconfigured { .. }),
+        "an unresolvable scope refuses as DiscoveryUnconfigured, got: {error:?}"
+    );
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Search { .. })),
+        "a refused scope must not reach the search"
+    );
+    assert!(
+        !tracker.calls().iter().any(|call| matches!(
+            call,
+            Call::Create { .. } | Call::Update { .. }
+        )),
+        "a pre-flight refusal must send no push"
+    );
+    assert_eq!(
+        fixture.spy.write_count(),
+        0,
+        "a pre-flight refusal must not write"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_push_only_run_authors_no_untracked_local_files() -> Result<(), TestError> {
     let fixture = Fixture::new()?;
     let tracker = RecordingTracker::holding(vec![(
@@ -430,6 +488,114 @@ fn a_push_only_run_authors_no_untracked_local_files() -> Result<(), TestError> {
             .iter()
             .any(|call| matches!(call, Call::Search { .. })),
         "push-only must not even search"
+    );
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_skipped_push_only() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::PushOnly,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "push-only must not refuse")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedPushOnly);
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_ran_with_the_untracked_count() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new()).discovering(
+        vec![
+            (
+                ExternalId::new("ENG-1".to_owned()),
+                RemoteTimestamp::NotReported,
+            ),
+            (
+                ExternalId::new("ENG-2".to_owned()),
+                RemoteTimestamp::NotReported,
+            ),
+        ],
+        true,
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "the run must not refuse")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::Ran { found: 2 });
+    Ok(())
+}
+
+#[test]
+fn discovery_status_is_failed_on_a_transient_search_error(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_search(
+        TrackerError::Retryable {
+            detail: "connection refused".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        &[],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        scoped(),
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "a failed search degrades, it does not refuse")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::Failed {
+            detail: "connection refused".to_owned(),
+        },
+        "the detail is the raw inner string, without the Display prefix"
+    );
+    assert!(
+        report.read_failure.is_none(),
+        "a discovery search failure no longer folds into read_failure"
     );
     Ok(())
 }
@@ -1024,6 +1190,13 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
             found: Vec::new(),
             complete: true,
         })
+    }
+
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, tracker::ScopeError> {
+        Ok(scope.clone())
     }
 
     fn preview_create(

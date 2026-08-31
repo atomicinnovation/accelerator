@@ -20,6 +20,7 @@ use tracker::FetchOutcome;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
+use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
@@ -66,6 +67,8 @@ pub struct RecordingTracker {
     update_failures: Vec<(ExternalId, TrackerError)>,
     create_failure: Option<(TrackerError, bool)>,
     preview_failure: Option<TrackerError>,
+    scope_refusal: Option<ScopeError>,
+    search_failure: Option<TrackerError>,
     search_result: RefCell<Option<Discovery>>,
     preview: RefCell<Option<CreatePreview>>,
     next_id: RefCell<u32>,
@@ -82,6 +85,8 @@ impl RecordingTracker {
             update_failures: Vec::new(),
             create_failure: None,
             preview_failure: None,
+            scope_refusal: None,
+            search_failure: None,
             search_result: RefCell::new(None),
             preview: RefCell::new(None),
             next_id: RefCell::new(1),
@@ -158,6 +163,24 @@ impl RecordingTracker {
     #[must_use]
     pub fn failing_show(mut self, id: ExternalId, error: TrackerError) -> Self {
         self.show_failures.push((id, error));
+        self
+    }
+
+    /// A tracker whose `resolve_scope` refuses with `error`, so a run can be
+    /// driven into the pre-flight discovery refusal without a real client.
+    #[must_use]
+    pub fn refusing_scope(mut self, error: ScopeError) -> Self {
+        self.scope_refusal = Some(error);
+        self
+    }
+
+    /// A tracker whose `search` fails transiently with `error`, so the
+    /// discovery-failure report path can be driven without a real client. The
+    /// error must be `Retryable` or `Terminal` — the port contract forbids any
+    /// other class on a read.
+    #[must_use]
+    pub fn failing_search(mut self, error: TrackerError) -> Self {
+        self.search_failure = Some(error);
         self
     }
 
@@ -316,10 +339,22 @@ impl RemoteTracker for RecordingTracker {
         self.calls.borrow_mut().push(Call::Search {
             scope: scope.clone(),
         });
+        if let Some(error) = &self.search_failure {
+            return Err(error.clone());
+        }
         Ok(self.search_result.borrow().clone().unwrap_or(Discovery {
             found: Vec::new(),
             complete: true,
         }))
+    }
+
+    fn resolve_scope(
+        &self,
+        scope: &SearchScope,
+    ) -> Result<SearchScope, ScopeError> {
+        self.scope_refusal
+            .clone()
+            .map_or_else(|| Ok(scope.clone()), Err)
     }
 
     fn preview_create(

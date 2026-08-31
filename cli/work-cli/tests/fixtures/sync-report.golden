@@ -7,4 +7,5 @@
 0007	failed	locally-modified	terminal
 0009	noop	remote-absent	-
 0010	noop	indeterminate	-
+#	discovery	ran	found=0
 #	summary	synced	1

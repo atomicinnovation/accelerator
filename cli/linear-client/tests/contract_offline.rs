@@ -11,11 +11,12 @@ mod support;
 
 use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::LinearClient;
-use support::client::{brief, client_with, TEAM_KEY};
+use support::client::{brief, client_with, TEAM_ID, TEAM_KEY};
 use tracker::CreatePreview;
 use tracker::ExternalId;
 use tracker::FieldResolution;
 use tracker::RemoteTracker;
+use tracker::SearchScope;
 use tracker::ValidationOutcome;
 use tracker_test_support::contract::{
     a_failing_read_is_retryable_property,
@@ -50,6 +51,16 @@ impl ContractSubject for MockBackedClient {
 
     fn unreadable_id(&self) -> ExternalId {
         ExternalId::new(UNREADABLE.to_owned())
+    }
+
+    /// The truncation property calls `search` directly, so its scope must
+    /// already carry the resolved team UUID `resolve_scope` would have produced.
+    fn truncating_scope(&self) -> SearchScope {
+        SearchScope {
+            project: Some(TEAM_ID.to_owned()),
+            all_projects: false,
+            filters: Vec::new(),
+        }
     }
 }
 

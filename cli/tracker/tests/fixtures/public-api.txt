@@ -31,6 +31,8 @@ pub tracker::TrackerError::Retryable
 pub tracker::TrackerError::Retryable::detail: alloc::string::String
 pub tracker::TrackerError::Terminal
 pub tracker::TrackerError::Terminal::detail: alloc::string::String
+impl tracker::TrackerError
+pub fn tracker::TrackerError::into_detail(self) -> alloc::string::String
 impl core::clone::Clone for tracker::TrackerError
 pub fn tracker::TrackerError::clone(&self) -> tracker::TrackerError
 impl core::cmp::Eq for tracker::TrackerError
@@ -115,6 +117,19 @@ pub fn tracker::RemoteIssue::eq(&self, other: &tracker::RemoteIssue) -> bool
 impl core::fmt::Debug for tracker::RemoteIssue
 pub fn tracker::RemoteIssue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteIssue
+pub struct tracker::ScopeError
+pub tracker::ScopeError::detail: alloc::string::String
+impl core::clone::Clone for tracker::ScopeError
+pub fn tracker::ScopeError::clone(&self) -> tracker::ScopeError
+impl core::cmp::Eq for tracker::ScopeError
+impl core::cmp::PartialEq for tracker::ScopeError
+pub fn tracker::ScopeError::eq(&self, other: &tracker::ScopeError) -> bool
+impl core::error::Error for tracker::ScopeError
+impl core::fmt::Debug for tracker::ScopeError
+pub fn tracker::ScopeError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker::ScopeError
+pub fn tracker::ScopeError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::ScopeError
 pub struct tracker::SearchScope
 pub tracker::SearchScope::all_projects: bool
 pub tracker::SearchScope::filters: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
@@ -133,6 +148,7 @@ pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>
 pub fn tracker::RemoteTracker::preview_create(&self, kind: &str) -> core::result::Result<tracker::CreatePreview, tracker::TrackerError>
+pub fn tracker::RemoteTracker::resolve_scope(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::SearchScope, tracker::ScopeError>
 pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::Discovery, tracker::TrackerError>
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
 pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>

@@ -16,6 +16,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use linear_client::filter::FixedStates;
+use linear_client::filter::FixedTeam;
 use linear_client::transport::Transport;
 use linear_client::{LinearClient, UploadTransport};
 use tracker::ExternalId;
@@ -147,6 +148,7 @@ fn live_client() -> LiveClient {
             transport,
             UploadTransport::production().expect("the upload transport builds"),
             Some(team_key),
+            Box::new(FixedTeam::default()),
             Box::new(FixedStates::default()),
         ),
         unaccountable: ExternalId::new(

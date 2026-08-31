@@ -21,6 +21,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
+use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunError;
@@ -168,6 +169,26 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
     }
 }
 
+/// Collapses tab, newline and carriage return to a space, so a transport
+/// `detail` cannot break the single-record TSV format.
+fn single_line(text: &str) -> String {
+    text.replace(['\t', '\n', '\r'], " ")
+}
+
+fn discovery_line(discovery: &DiscoveryStatus) -> String {
+    match discovery {
+        DiscoveryStatus::Ran { found } => {
+            format!("#\tdiscovery\tran\tfound={found}")
+        }
+        DiscoveryStatus::SkippedPushOnly => {
+            "#\tdiscovery\tskipped\tpush-only".to_owned()
+        }
+        DiscoveryStatus::Failed { detail } => {
+            format!("#\tdiscovery\tfailed\t{}", single_line(detail))
+        }
+    }
+}
+
 fn render_report(report: &RunReport) -> String {
     let mut lines = Vec::new();
     let mut synced_count = 0usize;
@@ -196,8 +217,12 @@ fn render_report(report: &RunReport) -> String {
             item.planned.id, action_field, item.planned.state, detail
         ));
     }
+    // Capture before appending the always-present discovery line, which would
+    // otherwise make `is_empty()` false and drop the empty-run summary.
+    let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
-    if synced_count > 0 || lines.is_empty() {
+    lines.push(discovery_line(&report.discovery));
+    if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
     lines.join("\n")
@@ -224,7 +249,10 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
         exit_codes::TERMINAL
     } else if awaiting_human {
         exit_codes::UNRESOLVED
-    } else if any_retryable || report.read_failure.is_some() {
+    } else if any_retryable
+        || report.read_failure.is_some()
+        || matches!(report.discovery, DiscoveryStatus::Failed { .. })
+    {
         exit_codes::RETRYABLE
     } else {
         exit_codes::CLEAN
@@ -514,6 +542,10 @@ pub fn run_sync(
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            eprintln!("refused: discovery is unconfigured — {detail}");
+            ExitCode::from(exit_codes::UNCONFIGURED)
+        }
         Err(RunError::Read(error)) => {
             eprintln!("{error}");
             ExitCode::from(exit_codes::RETRYABLE)
@@ -538,6 +570,7 @@ mod tests {
     use work_adapters::sync::apply::ApplyError;
     use work_adapters::sync::baseline::Degradation;
     use work_adapters::sync::run::ConflictDossier;
+    use work_adapters::sync::run::DiscoveryStatus;
     use work_adapters::sync::run::ItemOutcome;
     use work_adapters::sync::run::ReportedItem;
     use work_adapters::sync::run::RunReport;
@@ -632,6 +665,7 @@ mod tests {
             baseline_degradation: Degradation::None,
             finalised: true,
             dossiers: Vec::new(),
+            discovery: DiscoveryStatus::Ran { found: 0 },
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -651,9 +685,87 @@ mod tests {
             baseline_degradation: Degradation::None,
             finalised: true,
             dossiers: Vec::new(),
+            discovery: DiscoveryStatus::SkippedPushOnly,
         };
 
-        assert_eq!(render_report(&report), "#\tsummary\tsynced\t0");
+        assert_eq!(
+            render_report(&report),
+            "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
+        );
+    }
+
+    fn report_with(discovery: DiscoveryStatus) -> RunReport {
+        RunReport {
+            reported: Vec::new(),
+            read_failure: None,
+            baseline_degradation: Degradation::None,
+            finalised: true,
+            dossiers: Vec::new(),
+            discovery,
+        }
+    }
+
+    #[test]
+    fn render_report_emits_each_discovery_status_line() {
+        assert!(
+            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
+                .contains("#\tdiscovery\tran\tfound=3")
+        );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
+                .contains("#\tdiscovery\tskipped\tpush-only")
+        );
+        let failed = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "connection refused".to_owned(),
+        }));
+        assert!(
+            failed.contains("#\tdiscovery\tfailed\tconnection refused"),
+            "{failed}"
+        );
+    }
+
+    #[test]
+    fn a_failed_discovery_detail_is_flattened_to_one_record() {
+        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "line one\tsplit\nline two\r".to_owned(),
+        }));
+        let discovery = rendered
+            .lines()
+            .find(|line| line.starts_with("#\tdiscovery\tfailed"))
+            .expect("a failed discovery line");
+        assert_eq!(
+            discovery, "#\tdiscovery\tfailed\tline one split line two ",
+            "tabs, newlines and carriage returns are collapsed to spaces"
+        );
+    }
+
+    #[test]
+    fn single_line_strips_record_breaking_whitespace() {
+        assert_eq!(super::single_line("a\tb\nc\rd"), "a b c d");
+    }
+
+    #[test]
+    fn a_failed_discovery_exits_retryable_and_the_others_are_clean() {
+        assert_eq!(
+            super::exit_code_for_report(&report_with(
+                DiscoveryStatus::Failed {
+                    detail: "boom".to_owned(),
+                }
+            )),
+            super::exit_codes::RETRYABLE
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report_with(DiscoveryStatus::Ran {
+                found: 0
+            })),
+            super::exit_codes::CLEAN
+        );
+        assert_eq!(
+            super::exit_code_for_report(&report_with(
+                DiscoveryStatus::SkippedPushOnly
+            )),
+            super::exit_codes::CLEAN
+        );
     }
 
     #[test]

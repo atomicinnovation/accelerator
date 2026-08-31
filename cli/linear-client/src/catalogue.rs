@@ -10,6 +10,20 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::filter::StateResolver;
+use crate::filter::TeamResolver;
+
+/// A non-empty string at `pointer` in `catalogue`, or `None`.
+///
+/// Mirrors `auth.rs`'s `catalogue_field`: an empty string reads as `None`, so a
+/// blank `/team/key` never resolves and a blank `/team/id` never masquerades as
+/// a UUID.
+fn pointer_string(catalogue: &Value, pointer: &str) -> Option<String> {
+    catalogue
+        .pointer(pointer)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+}
 
 /// Workflow states loaded from a catalogue, each a display name paired with its
 /// UUID.
@@ -73,5 +87,51 @@ impl StateResolver for CatalogueStates {
             .filter(|(state_name, _)| normalise(state_name) == wanted)
             .map(|(_, id)| id.clone())
             .collect()
+    }
+}
+
+/// The single team a catalogue names, its key paired with its UUID — the
+/// cache-backed [`TeamResolver`], resolving a configured team key to the UUID a
+/// search filter needs.
+#[derive(Debug, Clone, Default)]
+pub struct CatalogueTeam {
+    key: Option<String>,
+    id: Option<String>,
+}
+
+impl CatalogueTeam {
+    /// Loads the team from `<integrations_root>/linear/catalogue.json`, yielding
+    /// an empty resolver when the catalogue is absent or unreadable — so a
+    /// missing catalogue resolves nothing rather than erroring.
+    #[must_use]
+    pub fn load(integrations_root: &Path) -> Self {
+        let path = integrations_root.join("linear/catalogue.json");
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+            .map(|catalogue| Self::from_catalogue(&catalogue))
+            .unwrap_or_default()
+    }
+
+    /// Builds a resolver directly from a parsed catalogue.
+    #[must_use]
+    pub fn from_catalogue(catalogue: &Value) -> Self {
+        Self {
+            key: pointer_string(catalogue, "/team/key"),
+            id: pointer_string(catalogue, "/team/id"),
+        }
+    }
+}
+
+impl TeamResolver for CatalogueTeam {
+    fn resolve(&self, key: &str) -> Option<String> {
+        match (&self.key, &self.id) {
+            (Some(team_key), Some(team_id))
+                if team_key.trim() == key.trim() =>
+            {
+                Some(team_id.clone())
+            }
+            _ => None,
+        }
     }
 }

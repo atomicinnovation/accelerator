@@ -24,6 +24,7 @@ pub mod upload;
 pub use crate::auth::resolve_credentials;
 pub use crate::auth::Credentials;
 pub use crate::catalogue::CatalogueStates;
+pub use crate::catalogue::CatalogueTeam;
 pub use crate::classify::classify;
 pub use crate::classify::GraphQlError;
 pub use crate::classify::Operation;

@@ -5,7 +5,9 @@
 use std::time::Duration;
 
 use http_test_support::MockServer;
-use linear_client::filter::{FixedStates, StateResolver};
+use linear_client::filter::{
+    FixedStates, FixedTeam, StateResolver, TeamResolver,
+};
 use linear_client::transport::Transport;
 use linear_client::{Credentials, LinearClient, UploadTransport};
 use reqwest::Url;
@@ -15,6 +17,15 @@ use super::{NoJitter, RecordingSleeper};
 
 pub const TEAM_ID: &str = "5c9f2a1b-0000-4000-8000-000000000001";
 pub const TEAM_KEY: &str = "ENG";
+
+/// The catalogue's single key → UUID pairing, so a scope keyed by `TEAM_KEY`
+/// resolves to `TEAM_ID` the way `CatalogueTeam` would in production.
+#[must_use]
+pub fn fixed_team() -> Box<dyn TeamResolver> {
+    let mut map = std::collections::BTreeMap::new();
+    map.insert(TEAM_KEY.to_owned(), TEAM_ID.to_owned());
+    Box::new(FixedTeam(map))
+}
 
 #[must_use]
 pub fn credentials() -> Credentials {
@@ -69,6 +80,7 @@ pub fn client_with_states(
         transport,
         loopback_upload(),
         Some(TEAM_KEY.to_owned()),
+        fixed_team(),
         states,
     )
 }
@@ -93,6 +105,7 @@ pub fn client_with(
         transport,
         loopback_upload(),
         team_key,
+        fixed_team(),
         Box::new(FixedStates::default()),
     )
 }
