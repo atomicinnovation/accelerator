@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, realpathSync } from 'node:fs';
 import { fork } from 'node:child_process';
-import { request } from 'node:http';
+import { createServer, request } from 'node:http';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -190,5 +190,152 @@ test('links on about:blank returns an empty list rather than an error', { timeou
     const res = await linksOf(info, 'about:blank');
     assert.equal(res.url, 'about:blank');
     assert.deepEqual(res.links, []);
+  });
+});
+
+// Navigation classification over a real browser: the route handler must fire per
+// redirect hop and per page-initiated navigation, which a mocked route cannot
+// prove. A link-local host stands in for the metadata endpoint; the loopback
+// server that redirects to it is itself always allowed, so only the hop can
+// produce a link-local refusal.
+
+const INTERNAL_URL = 'http://169.254.169.254/';
+
+async function withServer(handler, body) {
+  const server = createServer(handler);
+  await new Promise(started => server.listen(0, '127.0.0.1', started));
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  try {
+    return await body(url);
+  } finally {
+    await new Promise(closed => server.close(closed));
+  }
+}
+
+function redirectTo(target) {
+  return (_req, res) => {
+    res.writeHead(302, { location: target });
+    res.end();
+  };
+}
+
+function serveHtml(html) {
+  return (_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(html);
+  };
+}
+
+test('a redirect to a link-local host is refused, not followed', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    await withServer(redirectTo(INTERNAL_URL), async serverUrl => {
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+      });
+      assert.equal(res.error, 'navigation-refused', JSON.stringify(res));
+      assert.equal(res.retryable, false, JSON.stringify(res));
+      assert.equal(res.details.classification, 'link-local');
+      assert.ok(!res.message.includes('?'), res.message);
+    });
+  });
+});
+
+test('allow_internal lets a link-local redirect past classification', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    await withServer(redirectTo(INTERNAL_URL), async serverUrl => {
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+        allow_internal: true,
+      });
+      // Classification allows the hop; the fetch to a dead link-local host then
+      // fails, so the outcome is a connection error, never navigation-refused.
+      assert.notEqual(res.error, 'navigation-refused', JSON.stringify(res));
+    });
+  });
+});
+
+test('two navigations on one daemon are judged under their own allowances', { timeout: 40000 }, async () => {
+  await withDaemon(async info => {
+    await withServer(redirectTo(INTERNAL_URL), async serverUrl => {
+      const allowed = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+        allow_internal: true,
+      });
+      assert.notEqual(
+        allowed.error,
+        'navigation-refused',
+        JSON.stringify(allowed)
+      );
+      const refused = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+      });
+      assert.equal(refused.error, 'navigation-refused', JSON.stringify(refused));
+      assert.equal(refused.details.classification, 'link-local');
+    });
+  });
+});
+
+test('a sub-frame navigation to an internal host does not mask the main frame', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const html = `<!doctype html><meta charset=utf8><iframe src="${INTERNAL_URL}"></iframe>main`;
+    await withServer(serveHtml(html), async serverUrl => {
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+      });
+      assert.equal(res.ok, true, JSON.stringify(res));
+    });
+  });
+});
+
+test('a click that navigates to an internal host is refused', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const html = `<!doctype html><meta charset=utf8><a id="go" href="${INTERNAL_URL}">go</a>`;
+    await withServer(serveHtml(html), async serverUrl => {
+      await send(info.url, { protocol: 1, command: 'navigate', url: serverUrl });
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'click',
+        ref: '#go',
+      });
+      assert.equal(res.error, 'navigation-refused', JSON.stringify(res));
+      assert.equal(res.details.classification, 'link-local');
+    });
+  });
+});
+
+test('a scripted redirect to an internal host after load is aborted', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const html =
+      `<!doctype html><meta charset=utf8><body>ok<script>` +
+      `setTimeout(function(){location.href=${JSON.stringify(INTERNAL_URL)};},50);` +
+      `</script></body>`;
+    await withServer(serveHtml(html), async serverUrl => {
+      const nav = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: serverUrl,
+      });
+      assert.equal(nav.ok, true, JSON.stringify(nav));
+      await new Promise(r => setTimeout(r, 400));
+      const location = await send(info.url, {
+        protocol: 1,
+        command: 'evaluate',
+        expression: 'location.href',
+      });
+      assert.ok(
+        !String(location.result).startsWith('http://169.254'),
+        JSON.stringify(location)
+      );
+    });
   });
 });

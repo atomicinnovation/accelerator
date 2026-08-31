@@ -285,3 +285,16 @@ export function classifyUrl(rawUrl, allowances) {
   }
   return { ok: true };
 }
+
+// The pure decision a route handler makes for one intercepted request. A
+// non-navigation request (a subresource) and an allowed navigation both
+// continue; a refused navigation aborts, carrying the classification and the
+// refused URL. The main-frame gate lives in the handler, not here, so this stays
+// a pure function of the request and the allowances.
+export function classifyNavigationRequest(request, allowances) {
+  if (!request.isNavigationRequest()) return { continue: true };
+  const url = request.url();
+  const verdict = classifyUrl(url, allowances);
+  if (verdict.ok) return { continue: true };
+  return { abort: true, classification: verdict.classification, url };
+}

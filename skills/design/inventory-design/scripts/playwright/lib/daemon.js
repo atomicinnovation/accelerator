@@ -15,6 +15,7 @@ import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
+import { classifyNavigationRequest } from './access-policy.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
 // typically span minutes) against bounding the lifetime of an
@@ -37,6 +38,38 @@ const WALL_CLOCK_GRACE_MS = 2000;
 // `snapshot` entries.
 const BLOCKING_OPS = new Set(['navigate', 'snapshot', 'links', 'screenshot', 'evaluate', 'click', 'type', 'wait_for']);
 
+// Reads the per-request allowance fields the executor injects into every body,
+// defaulting to deny-all so a body carrying neither is judged as an unflagged
+// invocation is.
+function allowancesOf(req) {
+  return {
+    allowInternal: req.allow_internal === true,
+    allowInsecureScheme: req.allow_insecure_scheme === true,
+  };
+}
+
+// Host and pathname only, so a token-bearing query or fragment on the refused
+// hop never reaches the caller, consistent with why `links` strips the href. An
+// unparseable URL falls back to a redacted placeholder rather than echoing it.
+function hostAndPath(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return '<redacted>';
+  }
+}
+
+function navigationRefusedEnvelope(refusal) {
+  return makeError({
+    error: 'navigation-refused',
+    message: `Navigation to ${hostAndPath(refusal.url)} was refused: ${refusal.classification}.`,
+    category: 'browser',
+    retryable: false,
+    details: { classification: refusal.classification },
+  });
+}
+
 export async function startDaemon({ stateDir }) {
   // Before the state dir, before any browser, before the listening socket: if
   // the launcher did not complete its handoff there is nothing to publish, and
@@ -50,6 +83,14 @@ export async function startDaemon({ stateDir }) {
   let shutdownInitiated = false;
   let idleTimer = null;
   let wallClockTimer = null;
+
+  // Set per request at the top of dispatch (deny-all default) and read by the
+  // page-lifetime route handler; the refusal it records is cleared per request
+  // too. Safe against interleaving only because the daemon processes one request
+  // per connection sequentially (PROTOCOL.md) — a single-flight invariant the
+  // handler depends on.
+  let currentAllowances = { allowInternal: false, allowInsecureScheme: false };
+  let lastRefusal = null;
 
   // ------ Shutdown --------------------------------------------------------
 
@@ -141,6 +182,35 @@ export async function startDaemon({ stateDir }) {
     browser = await chromium.launch({ headless: true, executablePath });
     const ctx = await browser.newContext();
     page = await ctx.newPage();
+
+    // One handler for the page's whole life, so a redirect hop and a
+    // page-initiated navigation (a <meta refresh>, a scripted location change)
+    // are classified under the current request's allowances too, not only the
+    // initial URL. A refusal is recorded only for the main frame, so a sub-frame
+    // abort never masks the top-level result. `fallback()` on the allow path
+    // leaves any later-registered route handler able to act on the request.
+    // The body fails closed: a thrown classifier error aborts as `malformed`
+    // rather than leaving the request unhandled to hang until the wall-clock.
+    await page.route('**/*', async route => {
+      let decision;
+      try {
+        decision = classifyNavigationRequest(
+          route.request(),
+          currentAllowances
+        );
+      } catch {
+        decision = {
+          abort: true,
+          classification: 'malformed',
+          url: route.request().url(),
+        };
+      }
+      if (decision.continue) return route.fallback();
+      if (route.request().frame() === page.mainFrame()) {
+        lastRefusal = decision;
+      }
+      return route.abort('blockedbyclient');
+    });
   }
 
   // ------ Request handler -------------------------------------------------
@@ -149,6 +219,12 @@ export async function startDaemon({ stateDir }) {
     if (req.protocol !== PROTOCOL) return protocolMismatch(req.protocol);
 
     const cmd = req.command;
+
+    // Every command is judged under its own allowances, and no prior request's
+    // refusal bleeds through — so a warm daemon never judges one invocation's
+    // navigation under another's allowances.
+    currentAllowances = allowancesOf(req);
+    lastRefusal = null;
 
     if (cmd === 'ping') {
       const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
@@ -202,7 +278,16 @@ export async function startDaemon({ stateDir }) {
     switch (cmd) {
       case 'navigate': {
         if (!req.url) return makeError({ error: 'missing-url', message: 'navigate requires a "url" field', category: 'usage', retryable: false });
-        await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: WALL_CLOCK_MS });
+        // The outcome is derived from the recorded refusal, not from whether
+        // goto threw: an aborted navigation rejects goto, but a refused hop after
+        // a settled load records without throwing.
+        try {
+          await page.goto(req.url, { waitUntil: 'domcontentloaded', timeout: WALL_CLOCK_MS });
+        } catch (error) {
+          if (lastRefusal) return navigationRefusedEnvelope(lastRefusal);
+          throw error;
+        }
+        if (lastRefusal) return navigationRefusedEnvelope(lastRefusal);
         return { protocol: PROTOCOL, ok: true, url: page.url() };
       }
 
@@ -279,7 +364,10 @@ export async function startDaemon({ stateDir }) {
 
       case 'click': {
         if (!req.ref) return makeError({ error: 'missing-ref', message: 'click requires a "ref" field', category: 'usage', retryable: false });
+        // page.click resolves before a triggered navigation settles, so the
+        // recorded refusal, not the action's return, is authoritative.
         await page.click(req.ref, { timeout: WALL_CLOCK_MS });
+        if (lastRefusal) return navigationRefusedEnvelope(lastRefusal);
         return { protocol: PROTOCOL, ok: true };
       }
 
@@ -287,6 +375,7 @@ export async function startDaemon({ stateDir }) {
         if (!req.ref) return makeError({ error: 'missing-ref', message: 'type requires a "ref" field', category: 'usage', retryable: false });
         if (req.text === undefined) return makeError({ error: 'missing-text', message: 'type requires a "text" field', category: 'usage', retryable: false });
         await page.fill(req.ref, req.text, { timeout: WALL_CLOCK_MS });
+        if (lastRefusal) return navigationRefusedEnvelope(lastRefusal);
         return { protocol: PROTOCOL, ok: true };
       }
 
@@ -297,6 +386,7 @@ export async function startDaemon({ stateDir }) {
         const truncated = capped < callerTimeout;
         try {
           await page.waitForSelector(`text=${req.text}`, { timeout: capped });
+          if (lastRefusal) return navigationRefusedEnvelope(lastRefusal);
           const base = { protocol: PROTOCOL, ok: true };
           if (truncated) Object.assign(base, { truncated, caller_timeout_ms: callerTimeout });
           return base;

@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { canonicalise, classifyHost, classifyUrl } from './access-policy.js';
+import {
+  canonicalise,
+  classifyHost,
+  classifyNavigationRequest,
+  classifyUrl,
+} from './access-policy.js';
 
 // The corpus lives in the Rust domain crate; the Rust classifier is held to the
 // same cases, so a failure on either side means the two implementations drifted.
@@ -91,5 +96,40 @@ test('every wire classification token is reachable through classifyUrl', () => {
     'malformed',
   ]) {
     assert.ok(tokens.has(token), `no policy case yields ${token}`);
+  }
+});
+
+function fakeRequest(url, isNavigation = true) {
+  return { url: () => url, isNavigationRequest: () => isNavigation };
+}
+
+test('classifyNavigationRequest aborts a refused navigation with its class', () => {
+  for (const item of CORPUS.policy) {
+    const decision = classifyNavigationRequest(
+      fakeRequest(item.url),
+      allowancesOf(item)
+    );
+    if (item.verdict === 'accepted') {
+      assert.deepEqual(decision, { continue: true }, item.url);
+    } else {
+      assert.equal(decision.abort, true, item.url);
+      assert.equal(decision.classification, item.classification, item.url);
+      assert.equal(decision.url, item.url, item.url);
+    }
+  }
+});
+
+test('classifyNavigationRequest continues every non-navigation request', () => {
+  // A subresource to an internal host is not a navigation, so it is not the
+  // route handler's concern — only navigations and followed links are classified.
+  for (const url of ['http://169.254.169.254/', 'https://example.com/app.js']) {
+    assert.deepEqual(
+      classifyNavigationRequest(fakeRequest(url, false), {
+        allowInternal: false,
+        allowInsecureScheme: false,
+      }),
+      { continue: true },
+      url
+    );
   }
 });

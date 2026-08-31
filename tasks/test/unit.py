@@ -45,7 +45,7 @@ _EXPECTED_DESIGN_AUTOMATION_SUITES = 10
 
 # Today's executed total across those files. An at-least floor: a suite may
 # legitimately gain cases, but must never quietly lose them.
-_EXPECTED_DESIGN_AUTOMATION_CASES = 82
+_EXPECTED_DESIGN_AUTOMATION_CASES = 84
 
 _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 

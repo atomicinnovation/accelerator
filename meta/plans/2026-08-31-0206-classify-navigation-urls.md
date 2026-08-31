@@ -552,39 +552,47 @@ not the action's return, is authoritative.
 
 #### Automated Verification
 
-- [ ] `classifyNavigationRequest` unit tests: for each refusal class in the corpus
+> Implementation note: the `daemon-runtime.test.js` lane is unrunnable in this
+> environment — a pre-existing breakage unrelated to 0206. `runtime-preflight.js`
+> still reads `package-lock.json`, which no longer exists since the runtime moved
+> to the vendored `bin/trees` scheme, so `requireRuntime` fails for every runtime
+> suite (the pre-existing ones included). The cases below are written to the
+> existing `withDaemon`/`send` harness and will run once the runtime lane is
+> repaired and provisioned; they are marked written-not-executed here.
+
+- [x] `classifyNavigationRequest` unit tests: for each refusal class in the corpus
       a fake navigation request returns `abort` with the documented classification;
       an allowed host and every non-navigation request return `continue`: new
       `access-policy.test.js` cases
-- [ ] The handler fails closed on a thrown classifier error — a stubbed
-      `classifyNavigationRequest` that throws yields `route.abort`, never an
-      unhandled (hung) request: new handler-level case
-- [ ] Sub-frame isolation: an iframe navigation to an internal host aborts but does
-      not become the `navigate` result — a top-level goto failing for an unrelated
-      reason after an iframe abort surfaces the real failure, not
-      `navigation-refused` (the main-frame gate lives in the handler, not the pure
-      decision, so this is a `daemon-runtime.test.js` case)
+- [ ] The handler fails closed on a thrown classifier error — the daemon.js
+      handler wraps the decision in try/catch and aborts as `malformed`; not
+      separately integration-tested (`classifyUrl` is total, so a throw needs
+      module stubbing the forked daemon cannot easily accept)
+- [ ] Sub-frame isolation: written as a `daemon-runtime.test.js` case (iframe to
+      an internal host aborts; the main-frame `navigate` still returns `ok`);
+      not executable here
 - [ ] A refused `navigate` returns `navigation-refused` with
       `details.classification` in `{private, link-local, reserved, unspecified,
       insecure-scheme, malformed}`, `retryable: false`, and a message carrying host
       plus pathname only (no query/fragment; `malformed` falls back to a redacted
-      placeholder)
+      placeholder) — written; the classification tokens are unit-asserted via
+      `classifyNavigationRequest`, the envelope shape in the runtime lane
 - [ ] Out-of-window coverage: a page that issues a `<meta refresh>` /
       `setTimeout(location=...)` redirect to an internal host after
       `domcontentloaded` is still aborted, and a `click`-triggered navigation to an
       internal host returns `navigation-refused` (not a silent `ok: true`): new
-      `daemon-runtime.test.js` cases
+      `daemon-runtime.test.js` cases (written; not executable here)
 - [ ] Per-request scope: two sequential navigations on one daemon with differing
       allowances are each judged under their own — the second, without
       `--allow-internal`, refuses an internal host the first allowed: new
-      `daemon-runtime.test.js` case
+      `daemon-runtime.test.js` case (written; not executable here)
 - [ ] Redirect hop: a real 302 from a public host to `http://169.254.169.254/`
       never issues the internal request: new `daemon-runtime.test.js` case over a
       forked daemon and a local redirecting server (proves Playwright re-invokes the
-      handler per hop — a mocked route cannot)
+      handler per hop — a mocked route cannot) (written; not executable here)
 - [ ] Positive path: with `allow_internal`, an internal host continues and
-      `navigate` succeeds
-- [ ] `mise run` green covers the unit lane (`test:unit:design-automation`). ⚠️ The
+      `navigate` succeeds (written as the `allow_internal` redirect case)
+- [x] `mise run` green covers the unit lane (`test:unit:design-automation`). ⚠️ The
       `daemon-runtime.test.js` cases above run only in the opt-in
       `test:integration:design-automation` lane, which `mise run` does **not**
       execute — run them explicitly, and gate a CI job on the provisioned Playwright
