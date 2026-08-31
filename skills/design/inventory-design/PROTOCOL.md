@@ -157,6 +157,18 @@ Navigate the browser page to a URL.
 }
 ```
 
+Two optional fields carry the invocation's access allowances:
+
+| Field                   | Type    | Required | Default | Description                                            |
+|-------------------------|---------|----------|---------|--------------------------------------------------------|
+| `allow_internal`        | boolean | no       | `false` | Permit navigation to a private, link-local or reserved host |
+| `allow_insecure_scheme` | boolean | no       | `false` | Permit navigation to a plaintext `http://` public host |
+
+The executor injects both into every forwarded request body from its
+`--allow-internal` / `--allow-insecure-scheme` flags, so they are scoped per
+invocation; a body that pre-sets either key is refused by the executor before
+forwarding. They apply on the `links` request envelope too.
+
 **Success response**
 
 ```json
@@ -171,11 +183,21 @@ Navigate the browser page to a URL.
 
 **Error codes**
 
-| Code                  | Category  | Retryable | Condition                            |
-|-----------------------|-----------|-----------|--------------------------------------|
-| `missing-url`         | `usage`   | false     | `url` field absent                   |
-| `wall-clock-exceeded` | `browser` | false     | Op exceeded per-op wall-clock budget |
-| `internal-error`      | `browser` | false     | Unexpected Playwright exception      |
+| Code                  | Category  | Retryable | Condition                                                |
+|-----------------------|-----------|-----------|----------------------------------------------------------|
+| `missing-url`         | `usage`   | false     | `url` field absent                                       |
+| `navigation-refused`  | `browser` | false     | The target, or a redirect hop, is refused by the access policy; the request is aborted before its fetch |
+| `wall-clock-exceeded` | `browser` | false     | Op exceeded per-op wall-clock budget                     |
+| `internal-error`      | `browser` | false     | Unexpected Playwright exception                          |
+
+`navigation-refused` classifies every main-frame navigation — the initial URL
+and every redirect hop — under the request's allowances, and a `click`, `type`
+or `wait_for` whose action triggers a navigation surfaces the same envelope. Its
+`details.classification` names the reason, one of `private`, `link-local`,
+`reserved`, `unspecified`, `insecure-scheme`, `malformed`. This is a **closed
+set today** but may gain values in a future additive change, so a consumer that
+branches on it must treat an unrecognised value as a refusal (default-deny). The
+message names host and pathname only — never a query string or fragment.
 
 ---
 
@@ -262,7 +284,7 @@ Per-entry fields:
 |---------------|-----------------|--------------------------------------------------------------|
 | `text`        | string          | Anchor `textContent`, whitespace collapsed with `/\s+/g → ' '` then trimmed |
 | `pathname`    | string \| null  | URL pathname only; query strings and fragments stripped. `null` if href is unparseable |
-| `same_origin` | boolean         | True iff resolved origin matches the page origin             |
+| `same_origin` | boolean         | True iff the resolved origin matches the page origin **and** the destination is not refused by the access policy |
 | `scheme`      | string \| null  | URL scheme without the trailing colon (`https`, `mailto`, `file`, etc.). `null` if unparseable |
 | `role`        | string \| null  | `getAttribute('role')` verbatim; `null` if the attribute is absent |
 
@@ -285,6 +307,17 @@ timer arms once the browser is ready and disarms on completion.
 
 **Notes**
 
+- **Policy fold (security-relevant)**: `same_origin` is now `false` for a
+  destination the access policy would refuse, folded into the existing
+  cross-origin skip rather than adding a wire field. A caller cannot tell from
+  the flag alone whether a destination was skipped for being cross-origin or for
+  being policy-refused; no caller needs that distinction. The daemon classifies
+  the **browser-resolved** host in Node under the request's `allow_internal` /
+  `allow_insecure_scheme`, then strips the host before responding. Because the
+  host is already resolved, the raw-URL canonicalisation rejections that yield
+  `malformed` on the `navigate` path (numeric encoding, userinfo, control
+  character) do not apply to `links`; both refuse the same internal reach
+  classes.
 - Invoking `links` before any `navigate` returns
   `{ url: "about:blank", links: [] }` rather than an error. Callers
   should ensure they have navigated first.
@@ -659,7 +692,10 @@ section in CHANGELOG.md `[Unreleased]`).
   coordination.
 - Additive fields in success responses are safe to ignore.
 - The `details` field in error envelopes is informational; callers SHOULD NOT
-  branch on its contents.
+  branch on its contents. The one documented exception is
+  `details.classification` on a `navigation-refused` envelope, which is a stable,
+  branchable field — with the default-deny rule for an unrecognised value stated
+  in the `navigate` error section.
 
 ### What v1 permits as additive (non-breaking) changes
 

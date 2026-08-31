@@ -1,5 +1,11 @@
 //! Whether a source location may be inspected, and what to say when it may
 //! not.
+//!
+//! This verdict now guards **every `navigate`** — its initial URL and every
+//! redirect hop — and every `links` destination per request in the daemon, not
+//! only where a crawl begins. Classification stays pre-resolution and does not
+//! cover page subresources, so it is not a full boundary around the navigation
+//! surface.
 
 use crate::host_reach;
 use crate::host_reach::HostReach;

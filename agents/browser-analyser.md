@@ -60,6 +60,12 @@ If `accelerator design executor <op>` returns an error JSON, surface it to the c
 `error.category`: `bootstrap` means unrecoverable; `browser` or `usage` means the caller should
 diagnose; `protocol` means a contract mismatch (file as a bug).
 
+A `navigation-refused` error is a **non-retryable policy refusal**, not a
+transient failure: the destination (or a redirect hop) is an internal or
+plaintext host the crawl's allowances do not permit. Do not retry it. Record the
+refused destination as an inspected-with-gap result — note the screen was
+reachable but not classified — and continue the crawl.
+
 ## Core Responsibilities
 
 1. **Capture Screen States**

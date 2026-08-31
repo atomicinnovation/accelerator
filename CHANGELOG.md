@@ -95,6 +95,28 @@
     (date warning + diff confirmation), and `/sync-work-items` (overwrite +
     untracked-pull gates).
 
+- **A design crawl now classifies navigation URLs per request, not only the
+  initial location.** A `navigate` or a redirect hop to an internal (private,
+  link-local, reserved, unspecified) or plaintext-`http` destination may now be
+  refused with a non-retryable `navigation-refused` error where it previously
+  succeeded, unless the invocation passed `--allow-internal` /
+  `--allow-insecure-scheme`. `links` now reports `same_origin: false` for a
+  policy-refused destination, folded into the existing cross-origin skip; the
+  `same_origin` field's definition is restated accordingly in `PROTOCOL.md`.
+
+### Security
+
+- **Per-request classification of navigations and followed links.** The
+  reachability + scheme verdict that guards a crawl's initial location is now
+  applied to every `navigate` (initial URL and every redirect hop) and every
+  `links` destination, aborting a refused request before its fetch via a
+  Playwright route handler. Scope is explicit: it covers navigations and
+  redirects, **not** page subresources (`<img>`, `<script>`, XHR/`fetch`) and
+  **not** DNS rebinding — a hostile page can still reach an internal or metadata
+  address through a subresource or a rebased hostname, so this is not end-to-end
+  SSRF closure. A single language-neutral vector corpus holds the Rust and the
+  new JavaScript classifier to identical cases.
+
 ## [1.23.0] - 2026-06-23
 
 ### Added

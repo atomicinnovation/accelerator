@@ -76,6 +76,13 @@ If `accelerator design executor navigate` returns an error JSON, surface it to t
 `error.category`: `bootstrap` means unrecoverable; `browser` or `usage` means the caller should
 diagnose; `protocol` means a contract mismatch (file as a bug).
 
+A `navigation-refused` error is a **non-retryable policy refusal**, not a
+transient failure: the destination (or a redirect hop) is an internal or
+plaintext host the crawl's allowances do not permit. Do not retry it. Record the
+route as reachable-but-unclassified in your findings and continue enumerating
+other routes. A policy-refused destination also reports `same_origin: false` in
+`links`, so it will not appear as a followable candidate in the first place.
+
 ## Search Strategy
 
 1. Navigate to the application root using `accelerator design executor {allow-flags} navigate '{"url":"<url>"}'`

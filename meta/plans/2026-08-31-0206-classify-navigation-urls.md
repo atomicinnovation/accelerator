@@ -765,28 +765,28 @@ changelog, only the root `CHANGELOG.md`.
 
 #### Automated Verification
 
-- [ ] No "front door" / "only the initial location" wording remains: `grep -rn
+- [x] No "front door" / "only the initial location" wording remains: `grep -rn
       "front door\|only the initial location" cli/design/src docs-site/src
       skills/design/inventory-design/PROTOCOL.md` returns nothing
-- [ ] The positive statements are present: `navigation-refused` appears in
+- [x] The positive statements are present: `navigation-refused` appears in
       `PROTOCOL.md`, and each of `host_reach.rs`, `access_policy.rs`, and
-      `design.md` contains the pinned substring `every navigate` (the shared phrase
-      asserting per-request `navigate`/`links` classification), so the three files
-      carry the same statement rather than divergent wordings
-- [ ] The `CHANGELOG.md` `[Unreleased]` section carries the behaviour-change entry
-- [ ] Docs build and the full mirror pass: `mise run` (and `mise run docs:check`
-      when touching `docs-site/`)
+      `design.md` contains the pinned substring `every `navigate`` (the shared
+      phrase asserting per-request `navigate`/`links` classification), so the
+      three files carry the same statement rather than divergent wordings
+- [x] The `CHANGELOG.md` `[Unreleased]` section carries the behaviour-change entry
+- [x] Docs build passes: `mise run docs:check` green (internal links valid). Full
+      mirror `mise run` deferred to the consolidated end-to-end run
 
 #### Manual Verification
 
-- [ ] Each of `host_reach.rs`, `access_policy.rs` and `design.md` states the scope
+- [x] Each of `host_reach.rs`, `access_policy.rs` and `design.md` states the scope
       precisely — per-request `navigate`/`links` classification, still
       pre-resolution, not covering subresources — without reading as "fully
       bounded"
-- [ ] `PROTOCOL.md` documents `navigation-refused`, the full classification value
+- [x] `PROTOCOL.md` documents `navigation-refused`, the full classification value
       set, the restated `same_origin` meaning, and the allowance request fields
       without contradicting the general details caveat
-- [ ] Both browser agent docs tell the agent how to react to `navigation-refused`
+- [x] Both browser agent docs tell the agent how to react to `navigation-refused`
 
 ---
 

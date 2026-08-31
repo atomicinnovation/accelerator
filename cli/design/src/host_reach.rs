@@ -6,11 +6,12 @@
 //! `169.254.169.254` still classifies as [`HostReach::Public`], and nothing
 //! re-checks after DNS.
 //!
-//! It covers **only the initial location**. The daemon's `navigate` command
-//! takes an arbitrary URL per request and follows it with no classification at
-//! all, and the `links` command hands the agent a crawlable set whose
-//! same-origin flag drives route following. This module is the front door, not
-//! a boundary around the navigation surface.
+//! The same verdict now guards **every `navigate`** — its initial URL and every
+//! redirect hop — and every `links` destination per request in the daemon, not
+//! only where a crawl begins. It stays pre-resolution and does not cover page
+//! subresources, so a hostile page can still reach an internal address through a
+//! subresource or a rebased hostname; this is not a full boundary around the
+//! navigation surface.
 //!
 //! It says nothing about **path locations**: a repository path is a valid
 //! source location wherever it points, and nothing confirms it lies inside a
