@@ -1,22 +1,21 @@
-//! `vcs status`: `jj status`, or `git diff --cached --stat` in a git (or
-//! repository-less) checkout.
+//! `vcs status`: the working-copy change summary in the ADR-0066 format,
+//! computed in-process for git and jj.
 
 use std::path::Path;
 
-use vcs::RepoRoot as _;
-use vcs::VcsKind;
-use vcs::VcsProbe as _;
-use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::subprocess;
+use vcs::VcsReporter;
 
-/// Never fails — see [`vcs_adapters::subprocess::status`].
+use crate::report;
+
+/// Never fails — folds any adapter failure to `(status unavailable)`.
 #[must_use]
-pub fn run(start: &Path) -> String {
-    let probe = InProcessProbe;
-    let root = probe.discover(start);
-    let kind = root
-        .as_deref()
-        .map_or(VcsKind::Git, |root| probe.kind(root));
-    let dir = root.as_deref().unwrap_or(start);
-    subprocess::status(dir, kind)
+pub fn run(start: &Path, reporter: &dyn VcsReporter) -> String {
+    report::run(
+        start,
+        reporter,
+        |reporter, dir, kind| reporter.status_report(dir, kind),
+        vcs::status::render,
+        "status",
+        "(status unavailable)",
+    )
 }

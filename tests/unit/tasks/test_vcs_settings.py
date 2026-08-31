@@ -72,17 +72,31 @@ def test_ignores_other_crates(tmp_path: Path) -> None:
     assert vcs_settings.violations(tmp_path) == []
 
 
-def test_the_dirty_paths_snapshot_module_is_individually_exempt(
+def test_the_snapshot_module_is_individually_exempt(
     tmp_path: Path,
 ) -> None:
     # Snapshotting genuinely cannot avoid UserSettings — unlike the
-    # settings-free detection paths this guard otherwise protects.
+    # settings-free detection paths this guard otherwise protects. Both
+    # dirty_paths and status_log reach the working copy through this module.
     _write(
         tmp_path,
-        "cli/vcs-adapters/src/library/dirty_paths.rs",
+        "cli/vcs-adapters/src/library/snapshot.rs",
         "let settings = UserSettings::from_config(config)?;\n",
     )
     assert vcs_settings.violations(tmp_path) == []
+
+
+def test_the_dirty_paths_module_is_no_longer_exempt(tmp_path: Path) -> None:
+    # It delegates the snapshot to snapshot.rs and constructs no UserSettings,
+    # so an exemption would go vacuous — the guard must flag a regression there.
+    _write(
+        tmp_path,
+        "cli/vcs-adapters/src/library/dirty_paths.rs",
+        "UserSettings::new()\n",
+    )
+    assert vcs_settings.violations(tmp_path) == [
+        "cli/vcs-adapters/src/library/dirty_paths.rs:1"
+    ]
 
 
 def test_the_tracked_module_is_individually_exempt(tmp_path: Path) -> None:

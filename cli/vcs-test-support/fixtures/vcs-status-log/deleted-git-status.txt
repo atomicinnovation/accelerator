@@ -1,0 +1,3 @@
+Branch: main
+1 changed
+  deleted  gone.txt

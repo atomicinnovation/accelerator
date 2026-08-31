@@ -65,6 +65,8 @@ use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
 mod dirty_paths;
+mod snapshot;
+mod status_log;
 mod tracked;
 
 /// A repository is here and the pinned library could not answer.
@@ -102,7 +104,7 @@ pub enum Error {
     JjConfig {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    JjDirtyPaths {
+    JjWorkingCopyDiff {
         path: PathBuf,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -157,7 +159,7 @@ impl fmt::Display for Error {
             Self::JjConfig { .. } => {
                 write!(formatter, "could not read the jj configuration")
             }
-            Self::JjDirtyPaths { path, .. } => {
+            Self::JjWorkingCopyDiff { path, .. } => {
                 write!(
                     formatter,
                     "could not compute the jj working-copy diff at {}",
@@ -178,7 +180,7 @@ impl std::error::Error for Error {
             | Self::JjCheckout { source, .. }
             | Self::JjOpStore { source }
             | Self::JjConfig { source }
-            | Self::JjDirtyPaths { source, .. } => Some(source.as_ref()),
+            | Self::JjWorkingCopyDiff { source, .. } => Some(source.as_ref()),
             Self::JjStoreLayout { .. } | Self::JjWorkingCopyBackend { .. } => {
                 None
             }
@@ -423,6 +425,32 @@ impl InProcessProbe {
             VcsKind::Jj => tracked::jj_is_tracked(root, relpath),
             VcsKind::None => Ok(false),
         }
+    }
+}
+
+impl vcs::VcsReporter for InProcessProbe {
+    fn status_report(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<vcs::status::StatusReport, kernel::Error> {
+        match kind {
+            VcsKind::Git | VcsKind::None => status_log::git_status(root),
+            VcsKind::Jj => status_log::jj_status(root),
+        }
+        .map_err(Into::into)
+    }
+
+    fn log_report(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<vcs::log::LogReport, kernel::Error> {
+        match kind {
+            VcsKind::Git | VcsKind::None => status_log::git_log(root),
+            VcsKind::Jj => status_log::jj_log(root),
+        }
+        .map_err(Into::into)
     }
 }
 
@@ -833,11 +861,19 @@ fn block_on_jj<T>(
 
 /// Whether the head could not be peeled because nothing is committed yet, as
 /// opposed to the repository being unreadable.
+///
+/// A fresh `git init` carries a HEAD symref pointing at an unborn branch, so
+/// `head()` succeeds and `peel_to_commit()` fails with the `Unborn` variant —
+/// the common case. `Head(NotFound)` covers a HEAD whose ref is missing outright.
 const fn is_unborn_head(error: &gix::reference::head_commit::Error) -> bool {
     matches!(
         error,
         gix::reference::head_commit::Error::Head(
             gix::reference::find::existing::Error::NotFound { .. }
+        ) | gix::reference::head_commit::Error::PeelToCommit(
+            gix::head::peel::to_commit::Error::PeelToObject(
+                gix::head::peel::to_object::Error::Unborn { .. }
+            )
         )
     )
 }

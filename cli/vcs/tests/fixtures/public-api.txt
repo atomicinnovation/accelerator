@@ -92,6 +92,31 @@ impl core::fmt::Debug for vcs::guard::GuardDecision
 pub fn vcs::guard::GuardDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::guard::GuardDecision
 pub fn vcs::guard::decide(command: &str) -> vcs::guard::GuardDecision
+pub mod vcs::log
+pub struct vcs::log::LogEntry
+pub vcs::log::LogEntry::short_id: alloc::string::String
+pub vcs::log::LogEntry::subject: alloc::string::String
+impl core::clone::Clone for vcs::log::LogEntry
+pub fn vcs::log::LogEntry::clone(&self) -> vcs::log::LogEntry
+impl core::cmp::Eq for vcs::log::LogEntry
+impl core::cmp::PartialEq for vcs::log::LogEntry
+pub fn vcs::log::LogEntry::eq(&self, other: &vcs::log::LogEntry) -> bool
+impl core::fmt::Debug for vcs::log::LogEntry
+pub fn vcs::log::LogEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::log::LogEntry
+pub struct vcs::log::LogReport
+pub vcs::log::LogReport::entries: alloc::vec::Vec<vcs::log::LogEntry>
+impl core::clone::Clone for vcs::log::LogReport
+pub fn vcs::log::LogReport::clone(&self) -> vcs::log::LogReport
+impl core::cmp::Eq for vcs::log::LogReport
+impl core::cmp::PartialEq for vcs::log::LogReport
+pub fn vcs::log::LogReport::eq(&self, other: &vcs::log::LogReport) -> bool
+impl core::default::Default for vcs::log::LogReport
+pub fn vcs::log::LogReport::default() -> vcs::log::LogReport
+impl core::fmt::Debug for vcs::log::LogReport
+pub fn vcs::log::LogReport::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::log::LogReport
+pub fn vcs::log::render(report: &vcs::log::LogReport) -> alloc::string::String
 pub mod vcs::mode
 pub enum vcs::mode::Mode
 pub vcs::mode::Mode::Git
@@ -113,6 +138,49 @@ pub fn vcs::mode::determine(start: &std::path::Path, probe: &dyn vcs::mode::Mode
 pub mod vcs::origin_remote
 pub trait vcs::origin_remote::OriginRemote
 pub fn vcs::origin_remote::OriginRemote::origin_url(&self, root: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub mod vcs::status
+pub enum vcs::status::ChangeType
+pub vcs::status::ChangeType::Added
+pub vcs::status::ChangeType::Conflicted
+pub vcs::status::ChangeType::Deleted
+pub vcs::status::ChangeType::Modified
+pub vcs::status::ChangeType::Untracked
+impl vcs::status::ChangeType
+pub const fn vcs::status::ChangeType::label(self) -> &'static str
+impl core::clone::Clone for vcs::status::ChangeType
+pub fn vcs::status::ChangeType::clone(&self) -> vcs::status::ChangeType
+impl core::cmp::Eq for vcs::status::ChangeType
+impl core::cmp::PartialEq for vcs::status::ChangeType
+pub fn vcs::status::ChangeType::eq(&self, other: &vcs::status::ChangeType) -> bool
+impl core::fmt::Debug for vcs::status::ChangeType
+pub fn vcs::status::ChangeType::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for vcs::status::ChangeType
+impl core::marker::StructuralPartialEq for vcs::status::ChangeType
+pub struct vcs::status::FileChange
+pub vcs::status::FileChange::change_type: vcs::status::ChangeType
+pub vcs::status::FileChange::path: alloc::string::String
+impl core::clone::Clone for vcs::status::FileChange
+pub fn vcs::status::FileChange::clone(&self) -> vcs::status::FileChange
+impl core::cmp::Eq for vcs::status::FileChange
+impl core::cmp::PartialEq for vcs::status::FileChange
+pub fn vcs::status::FileChange::eq(&self, other: &vcs::status::FileChange) -> bool
+impl core::fmt::Debug for vcs::status::FileChange
+pub fn vcs::status::FileChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::status::FileChange
+pub struct vcs::status::StatusReport
+pub vcs::status::StatusReport::branch: alloc::vec::Vec<alloc::string::String>
+pub vcs::status::StatusReport::changes: alloc::vec::Vec<vcs::status::FileChange>
+impl core::clone::Clone for vcs::status::StatusReport
+pub fn vcs::status::StatusReport::clone(&self) -> vcs::status::StatusReport
+impl core::cmp::Eq for vcs::status::StatusReport
+impl core::cmp::PartialEq for vcs::status::StatusReport
+pub fn vcs::status::StatusReport::eq(&self, other: &vcs::status::StatusReport) -> bool
+impl core::default::Default for vcs::status::StatusReport
+pub fn vcs::status::StatusReport::default() -> vcs::status::StatusReport
+impl core::fmt::Debug for vcs::status::StatusReport
+pub fn vcs::status::StatusReport::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::status::StatusReport
+pub fn vcs::status::render(report: &vcs::status::StatusReport) -> alloc::string::String
 pub enum vcs::VcsKind
 pub vcs::VcsKind::Git
 pub vcs::VcsKind::Jj
@@ -149,5 +217,8 @@ pub fn vcs::UserIdentityProbe::user_name(&self, root: &std::path::Path, kind: vc
 pub trait vcs::VcsProbe
 pub fn vcs::VcsProbe::kind(&self, root: &std::path::Path) -> vcs::VcsKind
 pub fn vcs::VcsProbe::revision(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::option::Option<alloc::string::String>
+pub trait vcs::VcsReporter
+pub fn vcs::VcsReporter::log_report(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::result::Result<vcs::log::LogReport, kernel::Error>
+pub fn vcs::VcsReporter::status_report(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::result::Result<vcs::status::StatusReport, kernel::Error>
 pub fn vcs::facts(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe) -> core::option::Option<vcs::RepoFacts>
 pub fn vcs::user_name(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe, identity: &dyn vcs::UserIdentityProbe) -> core::option::Option<alloc::string::String>

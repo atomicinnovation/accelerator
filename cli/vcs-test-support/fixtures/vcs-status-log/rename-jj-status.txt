@@ -1,0 +1,4 @@
+Branch: (none)
+2 changed
+  added  new.txt
+  deleted  old.txt

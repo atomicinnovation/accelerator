@@ -10,7 +10,7 @@ Two narrow, deliberate exceptions, both using jj-lib's own bundled defaults
 (``StackedConfig::with_defaults``) rather than a hand-populated settings value,
 so neither reaches the private-defaults fragility this guard was written for:
 
-- ``library/dirty_paths.rs``'s jj snapshot genuinely cannot avoid
+- ``library/snapshot.rs``'s jj working-copy snapshot genuinely cannot avoid
   ``UserSettings`` — snapshotting is not a read of already-recorded state (what
   the settings-free routes above cover), it is jj-lib re-deriving on-disk
   changes since the last operation, and that requires a real
@@ -18,6 +18,8 @@ so neither reaches the private-defaults fragility this guard was written for:
   fsmonitor backend) that only ``UserSettings`` supplies. Confirmed against
   jj-lib 0.43.0 and the real `jj` CLI's own snapshot path — there is no
   lower-ceremony construction that reaches ``LockedWorkingCopy::snapshot``.
+  ``dirty_paths.rs`` and ``status_log.rs`` both reach the working copy through
+  this module, so they construct no ``UserSettings`` of their own.
 - ``library/tracked.rs``'s is-path-tracked read needs the working-copy
   commit's *tree*, not merely its id. The settings-free op-store route yields
   the commit id alone; reading the tree behind it requires a loaded repo
@@ -45,7 +47,7 @@ CRATE = "cli/vcs-adapters"
 
 _EXEMPT = frozenset(
     {
-        f"{CRATE}/src/library/dirty_paths.rs",
+        f"{CRATE}/src/library/snapshot.rs",
         f"{CRATE}/src/library/tracked.rs",
     }
 )

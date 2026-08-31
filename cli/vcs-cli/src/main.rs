@@ -5,6 +5,7 @@ mod cli;
 mod detect;
 mod guard;
 mod log;
+mod report;
 mod status;
 
 use std::io::Read as _;
@@ -34,12 +35,14 @@ fn run_detect(descriptive: bool, fail_safe: bool) -> Result<(), kernel::Error> {
 }
 
 fn run_status() -> Result<(), kernel::Error> {
-    println!("{}", status::run(&current_dir()?));
+    let probe = InProcessProbe;
+    println!("{}", status::run(&current_dir()?, &probe));
     Ok(())
 }
 
 fn run_log() -> Result<(), kernel::Error> {
-    println!("{}", log::run(&current_dir()?));
+    let probe = InProcessProbe;
+    println!("{}", log::run(&current_dir()?, &probe));
     Ok(())
 }
 
@@ -80,6 +83,17 @@ fn report(error: &kernel::Error) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    // Gated on the env var: an unconditional init would install a default-INFO
+    // stderr subscriber for every subcommand (detect and the guard hook
+    // included), where today the launcher's exec() image swap leaves them
+    // silent. A malformed filter is reported and ignored so status/log still
+    // render.
+    if std::env::var_os("ACCELERATOR_LOG").is_some() {
+        if let Err(error) = kernel::logging::init() {
+            eprintln!("{error}");
+        }
+    }
+
     let cli = Cli::parse();
     let result = match cli.command {
         Command::Detect {

@@ -35,7 +35,7 @@ path = "tests/fixtures/vcs_adapters_fixture_stub.rs"
 [dependencies]
 vcs = { path = "../vcs" }
 kernel = { path = "../kernel" }
-gix = { workspace = true, features = ["status"] }
+gix = { workspace = true, features = ["status", "blob-diff"] }
 jj-lib = { workspace = true }
 pollster = { workspace = true }
 prost = { workspace = true }

@@ -108,6 +108,40 @@ impl Hermetic {
         self.run(command, dir, "git")
     }
 
+    /// Runs `git` in `dir` like [`Self::git`], but tolerates a non-zero exit —
+    /// for `git merge` on a conflict, whose whole point is to leave the tree
+    /// unmerged. Only spawn failure is an error.
+    ///
+    /// # Errors
+    ///
+    /// When git cannot be run at all.
+    pub fn git_allow_failure<S: AsRef<OsStr>>(
+        &self,
+        args: &[S],
+        dir: &Path,
+    ) -> Result<(), Error> {
+        let mut command = Command::new("git");
+        command.args([
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.com",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "init.defaultBranch=main",
+            "-c",
+            "protocol.file.allow=always",
+        ]);
+        command.args(args);
+        command.current_dir(dir);
+        self.apply(&mut command);
+        command
+            .output()
+            .map_err(|error| Error::message(format!("git: {error}")))?;
+        Ok(())
+    }
+
     /// Runs `jj` in `dir` with the identity and isolation the fixtures need.
     ///
     /// # Errors

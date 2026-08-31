@@ -782,27 +782,27 @@ Phase 2. `status_log_goldens.rs` calls the shared builder.
 
 #### Automated Verification
 
-- [ ] Renderer unit tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs`
-- [ ] Adapter + golden tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
-- [ ] Never-fail boundary tests — written red-first here with the §4 code: the `Err`-reporter (both git- and jj-classified `start`) and panic-reporter folds (each asserting the fallback text and the `warn!` adapter token) and the malformed-`ACCELERATOR_LOG` integration test (normal output, exit 0): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli`
-- [ ] Release-profile guard passes: a test asserting `cli/Cargo.toml`'s `[profile.release]` does not set `panic = "abort"` (so `catch_unwind` stays effective for the shipped binary): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli`
-- [ ] jj-settings guard + its paired exemption test pass: `mise run lint:vcs-settings:check` and `mise run test:unit:tasks`
-- [ ] Architecture rules pass (the new `vcs` modules obey `vcs_domain_imports_only_permitted`; `status_log.rs` and the port impl keep their `use` set inside the `vcs_adapters::library` permit list, routing `kernel::Error` through the `From` seam): `mise run pup:check` and `mise run test:integration:pup`
-- [ ] Feature graph unchanged: `mise run test:integration:deny` is green (not `check` — `test_vcs_library_graph.py` runs under `test:integration:deny`, not `deny:check`)
-- [ ] Licence closure unchanged if a gix feature was added: `mise run deny:check`
-- [ ] Public API baseline regenerated (diff reviewed as intended) then gated: `mise run public-api:update` then `mise run public-api:check`
-- [ ] Build-system component green (edits to `tasks/lint/vcs_settings.py`): `mise run build-system:check`
-- [ ] CLI component green: `mise run cli:check`
+- [x] Renderer unit tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs`
+- [x] Adapter + golden tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli --features bash-parity`
+- [x] Never-fail boundary tests — written red-first here with the §4 code: the `Err`-reporter (both git- and jj-classified `start`) and panic-reporter folds (each asserting the fallback text and the `warn!` adapter token) and the malformed-`ACCELERATOR_LOG` integration test (normal output, exit 0): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli`
+- [x] Release-profile guard passes: a test asserting `cli/Cargo.toml`'s `[profile.release]` does not set `panic = "abort"` (so `catch_unwind` stays effective for the shipped binary): `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-cli`
+- [x] jj-settings guard + its paired exemption test pass: `mise run lint:vcs-settings:check` and `mise run test:unit:tasks`
+- [x] Architecture rules pass (the new `vcs` modules obey `vcs_domain_imports_only_permitted`; `status_log.rs` and the port impl keep their `use` set inside the `vcs_adapters::library` permit list, routing `kernel::Error` through the `From` seam): `mise run pup:check` and `mise run test:integration:pup`
+- [x] Feature graph unchanged: `mise run test:integration:deny` is green (not `check` — `test_vcs_library_graph.py` runs under `test:integration:deny`, not `deny:check`)
+- [x] Licence closure unchanged if a gix feature was added: `mise run deny:check`
+- [x] Public API baseline regenerated (diff reviewed as intended) then gated: `mise run public-api:update` then `mise run public-api:check`
+- [x] Build-system component green (edits to `tasks/lint/vcs_settings.py`): `mise run build-system:check`
+- [x] CLI component green: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] Each regenerated golden reads as valid ADR-0066 output (spot-check
+- [x] Each regenerated golden reads as valid ADR-0066 output (spot-check
       `clean-git`, `dirty-git`, `detached-head-git`, `clean-jj`, `dirty-jj`,
       `colocated`, `jj-secondary`, `no-repo`, `conflict-git`, `conflict-jj`,
       `deleted-git`, `rename-git`, `unborn-git`).
-- [ ] The `conflict-git`/`conflict-jj` goldens show the `conflicted` marker with
+- [x] The `conflict-git`/`conflict-jj` goldens show the `conflicted` marker with
       the unmerged path, and `conflict-jj` shows it with no other change lines.
-- [ ] `accelerator vcs status`/`log` in a real git and a real jj checkout produce
+- [x] `accelerator vcs status`/`log` in a real git and a real jj checkout produce
       sensible orientation text for `/commit`.
 
 ---
@@ -1142,13 +1142,14 @@ lock.
   (a stuck filesystem, a contended jj lock) and an unbounded read are not caught —
   recovery is Ctrl-C. This is accepted for these single-shot `/commit` callers
   rather than re-introducing a worker-thread time cap; a future hang complaint
-  reopens it. ⚠️ Ctrl-C during a held jj working-copy lock terminates the process
-  without running the RAII drop, so if jj-lib 0.43's lock is a marker file (not an
-  OS-advisory lock auto-released on process death), it leaves a stale lock that
-  blocks the developer's *subsequent* real `jj` operations until jj's stale-lock
-  recovery runs. **Resolve which lock mechanism jj-lib 0.43 uses as a blocking
-  pre-req before implementation**, and state the acceptance unconditionally here
-  once known (with stale-lock-recovery guidance if it is a marker file).
+  reopens it. Ctrl-C during a held jj working-copy lock terminates the process
+  without running the RAII drop, but jj-lib 0.43 locks the working copy with an
+  `flock(2)` OS-advisory lock (`jj_lib::lock::unix::FileLock`), not a marker file:
+  the kernel releases the flock when the process dies, so a hard kill leaves at
+  most a re-lockable lockfile — the next real `jj` operation re-`flock`s it and
+  acquires immediately, with no stale-lock recovery needed. The acceptance is
+  therefore unconditional: no subsequent-operation hazard follows from the removed
+  RAII drop.
 - Several previously-empty goldens (`clean-git`, ahead/behind, `detached-head-git`)
   become non-empty under the always-present `Branch:` header.
 
