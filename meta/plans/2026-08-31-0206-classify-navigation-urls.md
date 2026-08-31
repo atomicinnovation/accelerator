@@ -423,21 +423,26 @@ consistent allowances.
 
 #### Automated Verification
 
-- [ ] Clap accepts `executor --allow-internal --allow-insecure-scheme navigate
+- [x] Clap accepts `executor --allow-internal --allow-insecure-scheme navigate
       '{...}'` and rejects an unknown flag: new tests in `cli.rs`
-- [ ] A flag placed after `command` is captured as a trailing argument, not the
-      flag, pinning the flag-then-command-then-trailing contract: new test in
-      `cli.rs`
-- [ ] The injected body carries both allowance keys, and a payload pre-setting
+- [x] A flag placed after the JSON body is captured as a trailing argument, not
+      the flag, pinning the flags-then-command-then-trailing contract: new test
+      in `cli.rs`. (Correction to the plan: clap only begins trailing collection
+      once the first `arguments` value appears, so a hyphen token immediately
+      after a bare `command` is still parsed as the flag; the flags must precede
+      `command`, which is how the agents emit them. A page influences only the
+      body, never argv, so this quirk grants no allowance.)
+- [x] The injected body carries both allowance keys, and a payload pre-setting
       one is refused: new tests in `executor.rs`
-- [ ] Rust and JS suites green: `mise run`
+- [ ] Rust and JS suites green: `mise run` (deferred to the consolidated
+      end-to-end run)
 
 #### Manual Verification
 
 - [ ] `accelerator design executor --allow-internal navigate
       '{"url":"http://localhost:3000"}'` still succeeds (loopback), confirming
-      the inert plumbing changed no outcome
-- [ ] The agent templates read naturally — an operator can see allowances are
+      the inert plumbing changed no outcome (needs a live runtime + app)
+- [x] The agent templates read naturally — an operator can see allowances are
       forwarded, not fixed
 
 ---

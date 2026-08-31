@@ -73,6 +73,7 @@ dependencies = [
  "design",
  "design-adapters",
  "kernel",
+ "serde_json",
  "tempfile",
  "vcs-adapters",
 ]

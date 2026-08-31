@@ -27,6 +27,7 @@ use design::runtime::ensure::classify_cause;
 use design::runtime::marker;
 use design::runtime::marker::Marker;
 use design::runtime::platform;
+use design::Allowances;
 use design::DowngradeReason;
 use design_adapters::ensure::discover_launcher;
 use design_adapters::ensure::ensure as run_ensure;
@@ -97,13 +98,25 @@ struct Ensured {
 /// is a downgrade the caller renders and decides on; every other failure the
 /// caller can act on is a three-key envelope on stderr.
 #[must_use]
-pub fn run(command: &str, arguments: &[String]) -> ExitCode {
+pub fn run(
+    command: &str,
+    arguments: &[String],
+    allowances: Allowances,
+) -> ExitCode {
     // Validated before anything is resolved: a rejected command must not create
     // a state directory or touch a lock.
     if let Err(rejection) = forwardable::check(command) {
         eprintln!("error: {rejection}");
         return ExitCode::from(2);
     }
+
+    let arguments = match merge_allowances(arguments, allowances) {
+        Ok(merged) => merged,
+        Err(rejection) => {
+            eprintln!("error: {rejection}");
+            return ExitCode::from(2);
+        }
+    };
 
     let resolved = match resolve() {
         Ok(resolved) => resolved,
@@ -144,10 +157,53 @@ pub fn run(command: &str, arguments: &[String]) -> ExitCode {
             }
             act_on(
                 &resolved, &runtime, &markers, &session, now, command,
-                arguments,
+                &arguments,
             )
         }
     }
+}
+
+/// Injects the invocation's allowances into the request body the executor
+/// forwards, so the daemon classifies each navigation under them. The body is
+/// `arguments[0]` when present; a command that carries none (`ping`,
+/// `daemon-stop`) gets a synthesised empty object.
+///
+/// # Errors
+///
+/// A message when the body is not a JSON object, or already carries either
+/// allowance key — a page-influenced payload must not pre-set its own
+/// allowance, mirroring the `command`/`protocol` guard in the Node client.
+fn merge_allowances(
+    arguments: &[String],
+    allowances: Allowances,
+) -> Result<Vec<String>, String> {
+    let raw = arguments.first().map_or("{}", String::as_str);
+    let mut body: serde_json::Value =
+        serde_json::from_str(raw).map_err(|error| {
+            format!("executor request body is not valid JSON: {error}")
+        })?;
+    let object = body.as_object_mut().ok_or_else(|| {
+        "executor request body must be a JSON object".to_owned()
+    })?;
+
+    for key in ["allow_internal", "allow_insecure_scheme"] {
+        if object.contains_key(key) {
+            return Err(format!(
+                "executor request body must not carry its own `{key}` field"
+            ));
+        }
+    }
+    object.insert("allow_internal".to_owned(), allowances.internal.into());
+    object.insert(
+        "allow_insecure_scheme".to_owned(),
+        allowances.insecure_scheme.into(),
+    );
+
+    let merged =
+        serde_json::to_string(&body).map_err(|error| error.to_string())?;
+    let mut result = vec![merged];
+    result.extend(arguments.iter().skip(1).cloned());
+    Ok(result)
 }
 
 /// Resolve the runtime crawler's preconditions in order — platform,
@@ -475,7 +531,9 @@ fn report(failure: LaunchFailure) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use design::executor::forwardable;
+    use design::Allowances;
 
+    use super::merge_allowances;
     use super::DAEMON_COMMAND;
 
     /// The forwarding allowlist must reject the runner's own internal
@@ -483,5 +541,54 @@ mod tests {
     #[test]
     fn the_daemon_command_is_not_forwardable() {
         assert!(forwardable::check(DAEMON_COMMAND).is_err());
+    }
+
+    #[test]
+    fn the_merge_injects_both_allowance_keys_into_the_body(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let merged = merge_allowances(
+            &[r#"{"url":"https://example.com"}"#.to_owned()],
+            Allowances {
+                internal: true,
+                insecure_scheme: false,
+            },
+        )?;
+        let body: serde_json::Value = serde_json::from_str(&merged[0])?;
+        assert_eq!(body["url"], serde_json::json!("https://example.com"));
+        assert_eq!(body["allow_internal"], serde_json::json!(true));
+        assert_eq!(body["allow_insecure_scheme"], serde_json::json!(false));
+        Ok(())
+    }
+
+    #[test]
+    fn the_merge_synthesises_a_body_for_a_command_that_carries_none(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let merged = merge_allowances(&[], Allowances::default())?;
+        assert_eq!(merged.len(), 1);
+        let body: serde_json::Value = serde_json::from_str(&merged[0])?;
+        assert_eq!(body["allow_internal"], serde_json::json!(false));
+        assert_eq!(body["allow_insecure_scheme"], serde_json::json!(false));
+        Ok(())
+    }
+
+    /// A page-influenced payload must not pre-set its own allowance.
+    #[test]
+    fn the_merge_refuses_a_payload_that_pre_sets_an_allowance() {
+        for key in ["allow_internal", "allow_insecure_scheme"] {
+            let body = format!(r#"{{"{key}":true}}"#);
+            assert!(
+                merge_allowances(&[body], Allowances::default()).is_err(),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_merge_refuses_a_body_that_is_not_a_json_object() {
+        assert!(merge_allowances(
+            &["[1,2,3]".to_owned()],
+            Allowances::default()
+        )
+        .is_err());
     }
 }

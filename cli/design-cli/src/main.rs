@@ -74,8 +74,21 @@ fn main() -> ExitCode {
     // The executor owns its own exit status: on the success path it replaces
     // the process image with the client, so there is no `Report` for it to
     // return through.
-    if let Command::Executor { command, arguments } = command {
-        return executor::run(&command, &arguments);
+    if let Command::Executor {
+        allow_internal,
+        allow_insecure_scheme,
+        command,
+        arguments,
+    } = command
+    {
+        return executor::run(
+            &command,
+            &arguments,
+            Allowances {
+                internal: allow_internal,
+                insecure_scheme: allow_insecure_scheme,
+            },
+        );
     }
     match run(command) {
         Ok(Report::Accepted { stdout, stderr }) => {
