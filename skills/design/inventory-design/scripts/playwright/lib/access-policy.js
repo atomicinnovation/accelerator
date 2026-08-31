@@ -258,20 +258,11 @@ export function classifyHost(host) {
     : classifyV6(host.address.bytes);
 }
 
-// Judges a raw navigation URL under the invocation's allowances. Fails closed
-// on every ambiguous input: missing allowances deny, a canonicalisation failure
-// is `malformed`, and any reach class the policy does not explicitly handle is
-// refused as `malformed` rather than emitting an off-contract token or
-// falling through to accept.
-export function classifyUrl(rawUrl, allowances) {
-  const { allowInternal = false, allowInsecureScheme = false } =
-    allowances ?? {};
-  const url = parseUrl(rawUrl);
-  if (!url.ok) return { ok: false, classification: 'malformed' };
-  const parsed = canonicalise(url.authority);
-  if (!parsed.ok) return { ok: false, classification: 'malformed' };
-
-  const reach = classifyHost(parsed.host);
+// The reach + scheme gate shared by classifyUrl and classifyLocation. Fails
+// closed: any reach class not explicitly handled (a future reach) is refused as
+// `malformed` rather than falling through to accept.
+function judge(scheme, host, allowInternal, allowInsecureScheme) {
+  const reach = classifyHost(host);
   if (reach === 'loopback') return { ok: true };
   if (reach === 'unspecified') {
     return { ok: false, classification: 'unspecified' };
@@ -280,10 +271,43 @@ export function classifyUrl(rawUrl, allowances) {
     return allowInternal ? { ok: true } : { ok: false, classification: reach };
   }
   if (reach !== 'public') return { ok: false, classification: 'malformed' };
-  if (url.scheme === 'http' && !allowInsecureScheme) {
+  if (scheme === 'http' && !allowInsecureScheme) {
     return { ok: false, classification: 'insecure-scheme' };
   }
   return { ok: true };
+}
+
+// Judges a raw navigation URL under the invocation's allowances. Fails closed
+// on every ambiguous input: missing allowances deny, and a canonicalisation
+// failure (userinfo, control character, numeric encoding, a refused scheme) is
+// `malformed`. The daemon never dials a URL this could not judge.
+export function classifyUrl(rawUrl, allowances) {
+  const { allowInternal = false, allowInsecureScheme = false } =
+    allowances ?? {};
+  const url = parseUrl(rawUrl);
+  if (!url.ok) return { ok: false, classification: 'malformed' };
+  const parsed = canonicalise(url.authority);
+  if (!parsed.ok) return { ok: false, classification: 'malformed' };
+  return judge(url.scheme, parsed.host, allowInternal, allowInsecureScheme);
+}
+
+// Judges a browser-resolved anchor destination — a concrete scheme and host,
+// not a raw URL. The browser has already produced the host, so the raw-URL
+// canonicalisation rejections that yield `malformed` on the navigate path
+// cannot arise; both paths refuse the same internal reach classes. Returns only
+// the boolean, since `links` folds a refusal into `same_origin: false`.
+export function classifyLocation(location, allowances) {
+  const { allowInternal = false, allowInsecureScheme = false } =
+    allowances ?? {};
+  const parsed = canonicalise(location.host);
+  if (!parsed.ok) return { ok: false };
+  const verdict = judge(
+    location.scheme,
+    parsed.host,
+    allowInternal,
+    allowInsecureScheme
+  );
+  return { ok: verdict.ok };
 }
 
 // The pure decision a route handler makes for one intercepted request. A

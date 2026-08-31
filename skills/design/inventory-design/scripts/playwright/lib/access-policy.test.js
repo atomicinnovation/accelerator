@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import {
   canonicalise,
   classifyHost,
+  classifyLocation,
   classifyNavigationRequest,
   classifyUrl,
 } from './access-policy.js';
@@ -116,6 +117,27 @@ test('classifyNavigationRequest aborts a refused navigation with its class', () 
       assert.equal(decision.classification, item.classification, item.url);
       assert.equal(decision.url, item.url, item.url);
     }
+  }
+});
+
+test('classifyLocation folds a links destination to a boolean', () => {
+  const deny = { allowInternal: false, allowInsecureScheme: false };
+  const allowInternal = { allowInternal: true, allowInsecureScheme: false };
+  const cases = [
+    [{ scheme: 'https', host: 'example.com' }, deny, true],
+    [{ scheme: 'https', host: 'localhost' }, deny, true],
+    [{ scheme: 'https', host: '10.0.0.1' }, deny, false],
+    [{ scheme: 'https', host: '10.0.0.1' }, allowInternal, true],
+    [{ scheme: 'https', host: '169.254.169.254' }, deny, false],
+    [{ scheme: 'https', host: '[fd00::1]' }, deny, false],
+    [{ scheme: 'http', host: 'example.com' }, deny, false],
+  ];
+  for (const [location, allowances, expected] of cases) {
+    assert.deepEqual(
+      classifyLocation(location, allowances),
+      { ok: expected },
+      JSON.stringify(location)
+    );
   }
 });
 

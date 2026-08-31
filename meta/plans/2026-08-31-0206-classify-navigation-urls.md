@@ -656,12 +656,16 @@ stripped (`PROTOCOL.md:269`).
 
 #### Automated Verification
 
-- [ ] A policy-refused internal destination reports `same_origin: false`; a
-      genuinely same-origin public destination still reports `true`: new
-      `daemon.test.js` links cases
-- [ ] The response carries no `host` field for any anchor (host never leaks):
-      assertion over the returned links
-- [ ] `mise run` green
+- [x] A policy-refused internal destination is folded to not-followable, and a
+      public destination is not: the `classifyLocation` decision is unit-tested
+      against the corpus reach classes in `access-policy.test.js`. (The page-level
+      `same_origin: false` assertion needs a page served from an internal host,
+      which is not reachable in this environment — carried by the manual step.)
+- [x] The response carries no `host` field (nor the raw same-origin flag) for any
+      anchor: the runtime privacy test forbids `"host"`/`"sameOriginRaw"` in the
+      response (written; runs in the opt-in runtime lane), and Node strips both
+      before returning
+- [ ] `mise run` green (deferred to the consolidated end-to-end run)
 
 #### Manual Verification
 

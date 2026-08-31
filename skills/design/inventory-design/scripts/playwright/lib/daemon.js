@@ -15,7 +15,7 @@ import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
 import { importPlaywright, resolvePlaywrightPkgPath } from './playwright-loader.js';
-import { classifyNavigationRequest } from './access-policy.js';
+import { classifyLocation, classifyNavigationRequest } from './access-policy.js';
 
 // 10-min default balances cross-turn daemon reuse (Claude Code sessions
 // typically span minutes) against bounding the lifetime of an
@@ -298,7 +298,10 @@ export async function startDaemon({ stateDir }) {
 
       case 'links': {
         const pageUrl = page.url();
-        const links = await page.evaluate(() => {
+        // The browser resolves each anchor and returns its host so Node can
+        // classify it; only host authorities cross the boundary, never query
+        // strings or fragments, so the host is stripped before the response.
+        const raw = await page.evaluate(() => {
           const pageOrigin = location.origin;
           const pageProtocol = location.protocol;
           // Opaque-origin schemes per HTML spec: file:, data:, javascript:,
@@ -309,19 +312,21 @@ export async function startDaemon({ stateDir }) {
           const OPAQUE = new Set(['file:', 'data:', 'javascript:', 'blob:']);
           return Array.from(document.querySelectorAll('a[href]')).map(a => {
             let pathname = null;
-            let sameOrigin = false;
+            let sameOriginRaw = false;
             let scheme = null;
+            let host = null;
             try {
               const u = new URL(a.href);
               pathname = u.pathname;
               scheme = u.protocol.replace(':', '');
+              host = u.host;
               // Same-origin check: both origins must match AND neither
               // side may be an opaque-origin scheme. Without the opaque
               // guard a `mailto:` or `javascript:void(0)` anchor on a
               // file:// page would be marked as same-origin, which is
               // wrong both semantically and as a security signal (the
               // locator's route-following rule trusts same_origin).
-              sameOrigin = u.origin === pageOrigin
+              sameOriginRaw = u.origin === pageOrigin
                 && u.origin !== 'null'
                 && !OPAQUE.has(u.protocol)
                 && !OPAQUE.has(pageProtocol);
@@ -332,11 +337,28 @@ export async function startDaemon({ stateDir }) {
             return {
               text: (a.textContent || '').replace(/\s+/g, ' ').trim(),
               pathname,
-              same_origin: sameOrigin,
+              sameOriginRaw,
               scheme,
               role: a.getAttribute('role'),
+              host,
             };
           });
+        });
+
+        // Fold a policy refusal into same_origin: a destination the policy
+        // would refuse is not a followable candidate, the same as a
+        // cross-origin one. The full host stays in Node; only the existing wire
+        // fields reach the caller.
+        const allowances = allowancesOf(req);
+        const links = raw.map(anchor => {
+          const policyAllows =
+            !anchor.host ||
+            classifyLocation(
+              { scheme: anchor.scheme, host: anchor.host },
+              allowances
+            ).ok;
+          const { host, sameOriginRaw, ...rest } = anchor;
+          return { ...rest, same_origin: sameOriginRaw && policyAllows };
         });
         return { protocol: PROTOCOL, url: pageUrl, links };
       }

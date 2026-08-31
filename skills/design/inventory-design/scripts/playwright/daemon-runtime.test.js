@@ -179,7 +179,14 @@ test('links returns no raw href, resolved URL, query string or fragment', { time
     const res = await linksOf(info, FIXTURE_URL);
     const body = JSON.stringify(res);
 
-    for (const forbidden of ['"href"', '"resolved"', 'q=foo', '#top']) {
+    for (const forbidden of [
+      '"href"',
+      '"resolved"',
+      '"host"',
+      '"sameOriginRaw"',
+      'q=foo',
+      '#top',
+    ]) {
       assert.ok(!body.includes(forbidden), `${forbidden} leaked into ${body}`);
     }
   });
