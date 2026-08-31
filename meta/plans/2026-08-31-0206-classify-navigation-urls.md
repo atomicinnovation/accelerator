@@ -241,12 +241,13 @@ fn token(reach: HostReach) -> &'static str {
       IPv4-compatible), and every `HostError` kind appears in at least one case,
       so a branch dropped during migration fails the loader rather than silently
       losing coverage on both sides
-- [ ] Full local mirror green: `mise run` (deferred to the consolidated
-      end-to-end run)
+- [x] Full local mirror green: `mise run` — consolidated run is green except
+      one pre-existing, unrelated release-signing test (`/tmp/key.sec` absent
+      locally); no 0206 file is in the signing/release path
 
 #### Manual Verification
 
-- [ ] The fixture reads as the single authority — a reviewer can see every
+- [x] The fixture reads as the single authority — a reviewer can see every
       encoding class from the story (decimal, hex, octal, IPv6 transition,
       IPv4-mapped) present as a named case
 
@@ -434,8 +435,8 @@ consistent allowances.
       body, never argv, so this quirk grants no allowance.)
 - [x] The injected body carries both allowance keys, and a payload pre-setting
       one is refused: new tests in `executor.rs`
-- [ ] Rust and JS suites green: `mise run` (deferred to the consolidated
-      end-to-end run)
+- [x] Rust and JS suites green: `mise run` — consolidated run green except the
+      unrelated release-signing test noted above
 
 #### Manual Verification
 
@@ -665,7 +666,8 @@ stripped (`PROTOCOL.md:269`).
       anchor: the runtime privacy test forbids `"host"`/`"sameOriginRaw"` in the
       response (written; runs in the opt-in runtime lane), and Node strips both
       before returning
-- [ ] `mise run` green (deferred to the consolidated end-to-end run)
+- [x] `mise run` green — consolidated run green except the unrelated
+      release-signing test noted in Phase 1
 
 #### Manual Verification
 
