@@ -27,7 +27,9 @@ use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
 use vcs::UserIdentityProbe;
+use vcs::VcsKind;
 use vcs::VcsProbe;
+use vcs::VcsReporter;
 use vcs_adapters::library::InProcessProbe;
 
 fn main() -> ExitCode {
@@ -35,9 +37,20 @@ fn main() -> ExitCode {
     let (queries, start): (Vec<&str>, &str) = match arguments.as_slice() {
         [mode, start] if mode == "all" => (ALL.to_vec(), start),
         [mode, start] if mode == "control" => (vec!["control"], start),
+        [mode, start] if mode == "status" || mode == "log" => {
+            // Brings the real `main`'s one path beyond the library — the
+            // ACCELERATOR_LOG subscriber install — inside the zero-spawn
+            // envelope. It reads config and installs a stderr subscriber; it
+            // never spawns.
+            let _ = kernel::logging::init();
+            println!("{}", render_report(mode, Path::new(start)));
+            return ExitCode::SUCCESS;
+        }
         [mode, query, start] if mode == "only" => (vec![query.as_str()], start),
         _ => {
-            eprintln!("usage: vcs-adapters-fixture (all|only <query>) <dir>");
+            eprintln!(
+                "usage: vcs-adapters-fixture (all|status|log|only <query>) <dir>"
+            );
             return ExitCode::from(2);
         }
     };
@@ -50,6 +63,29 @@ fn main() -> ExitCode {
         }
     }
     ExitCode::SUCCESS
+}
+
+/// Mirrors `accelerator-vcs`'s status/log boundary over the port: discover the
+/// root, classify it, and fold an adapter `Err` to the same fallback,
+/// so the zero-spawn goldens match the shipped binary's output.
+fn render_report(mode: &str, start: &Path) -> String {
+    let probe = InProcessProbe;
+    let root = probe.discover(start);
+    let kind = root
+        .as_deref()
+        .map_or(VcsKind::Git, |root| probe.kind(root));
+    let dir = root.as_deref().unwrap_or(start);
+    if mode == "log" {
+        probe.log_report(dir, kind).map_or_else(
+            |_| "(log unavailable)".to_owned(),
+            |report| vcs::log::render(&report),
+        )
+    } else {
+        probe.status_report(dir, kind).map_or_else(
+            |_| "(status unavailable)".to_owned(),
+            |report| vcs::status::render(&report),
+        )
+    }
 }
 
 // `kind_and_user_name` is deliberately absent: it reads the ambient

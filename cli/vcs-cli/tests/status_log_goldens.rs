@@ -1,6 +1,11 @@
-//! `vcs status`/`vcs log` against the committed golden fixtures, replayed
-//! end to end through the compiled `accelerator-vcs` binary over ten real
-//! jj/git checkout states, under `vcs-test-support/fixtures/vcs-status-log`.
+//! `vcs status`/`vcs log` against the committed golden fixtures, replayed end to
+//! end through the compiled `accelerator-vcs` binary over the real jj/git
+//! checkout states in `vcs-test-support/src/status_log.rs`, under
+//! `vcs-test-support/fixtures/vcs-status-log`.
+//!
+//! Setting `REGENERATE_GOLDENS=1` rewrites the golden files from the current
+//! binary output (masked) instead of comparing — the generation path the
+//! goldens are produced through, reviewed by hand before they are committed.
 #![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeMap;
@@ -11,6 +16,7 @@ use std::process::Command;
 
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::masks;
+use vcs_test_support::status_log;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -49,152 +55,8 @@ fn run_vcs(subcommand: &str, dir: &Path) -> Result<String, TestError> {
         .to_owned())
 }
 
-fn build_plain_git_states(
-    work: &Path,
-    env: &Hermetic,
-    states: &mut BTreeMap<&'static str, PathBuf>,
-) -> Result<(), TestError> {
-    let clean_git = work.join("clean-git");
-    fs::create_dir_all(&clean_git)?;
-    env.git(&["init", "--quiet"], &clean_git)?;
-    env.git(
-        &["commit", "--allow-empty", "--quiet", "-m", "init"],
-        &clean_git,
-    )?;
-    states.insert("clean-git", clean_git);
-
-    let dirty_git = work.join("dirty-git");
-    fs::create_dir_all(&dirty_git)?;
-    env.git(&["init", "--quiet"], &dirty_git)?;
-    fs::write(dirty_git.join("a.txt"), "A\n")?;
-    env.git(&["add", "a.txt"], &dirty_git)?;
-    env.git(&["commit", "--quiet", "-m", "init"], &dirty_git)?;
-    fs::write(dirty_git.join("a.txt"), "A\nchanged\n")?;
-    fs::write(dirty_git.join("untracked.txt"), "untracked\n")?;
-    fs::write(dirty_git.join("staged.txt"), "staged\n")?;
-    env.git(&["add", "staged.txt"], &dirty_git)?;
-    states.insert("dirty-git", dirty_git);
-
-    let detached = work.join("detached-head-git");
-    fs::create_dir_all(&detached)?;
-    env.git(&["init", "--quiet"], &detached)?;
-    fs::write(detached.join("d1.txt"), "1\n")?;
-    env.git(&["add", "d1.txt"], &detached)?;
-    env.git(&["commit", "--quiet", "-m", "commit-1"], &detached)?;
-    let first_sha = env.git(&["rev-parse", "HEAD"], &detached)?;
-    fs::write(detached.join("d2.txt"), "2\n")?;
-    env.git(&["add", "d2.txt"], &detached)?;
-    env.git(&["commit", "--quiet", "-m", "commit-2"], &detached)?;
-    env.git(&["checkout", "-q", &first_sha], &detached)?;
-    states.insert("detached-head-git", detached);
-
-    Ok(())
-}
-
-fn build_ahead_behind_states(
-    work: &Path,
-    env: &Hermetic,
-    states: &mut BTreeMap<&'static str, PathBuf>,
-) -> Result<(), TestError> {
-    let seed = work.join("seed");
-    fs::create_dir_all(&seed)?;
-    env.git(&["init", "--quiet"], &seed)?;
-    fs::write(seed.join("f.txt"), "1\n")?;
-    env.git(&["add", "f.txt"], &seed)?;
-    env.git(&["commit", "--quiet", "-m", "commit-1"], &seed)?;
-    let origin = work.join("origin.git");
-    env.git(
-        &[
-            "clone",
-            "-q",
-            "--bare",
-            seed.to_str().ok_or("non-utf8 seed path")?,
-            origin.to_str().ok_or("non-utf8 origin path")?,
-        ],
-        work,
-    )?;
-    let origin = origin.to_str().ok_or("non-utf8 origin path")?;
-
-    let git_ahead = work.join("git-ahead");
-    env.git(&["clone", "-q", origin, "git-ahead"], work)?;
-    fs::write(git_ahead.join("g.txt"), "2\n")?;
-    env.git(&["add", "g.txt"], &git_ahead)?;
-    env.git(&["commit", "--quiet", "-m", "commit-2"], &git_ahead)?;
-    fs::write(git_ahead.join("h.txt"), "3\n")?;
-    env.git(&["add", "h.txt"], &git_ahead)?;
-    env.git(&["commit", "--quiet", "-m", "commit-3"], &git_ahead)?;
-    states.insert("git-ahead", git_ahead);
-
-    let git_behind = work.join("git-behind");
-    env.git(&["clone", "-q", origin, "git-behind"], work)?;
-    fs::write(seed.join("i.txt"), "4\n")?;
-    env.git(&["add", "i.txt"], &seed)?;
-    env.git(&["commit", "--quiet", "-m", "commit-4"], &seed)?;
-    env.git(&["push", "-q", origin, "HEAD:refs/heads/main"], &seed)?;
-    states.insert("git-behind", git_behind);
-
-    Ok(())
-}
-
-fn build_jj_states(
-    work: &Path,
-    env: &Hermetic,
-    states: &mut BTreeMap<&'static str, PathBuf>,
-) -> Result<(), TestError> {
-    let clean_jj = work.join("clean-jj");
-    fs::create_dir_all(&clean_jj)?;
-    env.jj(&["git", "init", "--no-colocate"], &clean_jj)?;
-    states.insert("clean-jj", clean_jj);
-
-    let dirty_jj = work.join("dirty-jj");
-    fs::create_dir_all(&dirty_jj)?;
-    env.jj(&["git", "init", "--no-colocate"], &dirty_jj)?;
-    fs::write(dirty_jj.join("new-file.txt"), "new content\n")?;
-    states.insert("dirty-jj", dirty_jj);
-
-    let colocated = work.join("colocated");
-    fs::create_dir_all(&colocated)?;
-    env.git(&["init", "--quiet"], &colocated)?;
-    env.git(
-        &["commit", "--allow-empty", "--quiet", "-m", "init"],
-        &colocated,
-    )?;
-    env.jj(&["git", "init", "--colocate"], &colocated)?;
-    states.insert("colocated", colocated);
-
-    let jj_main = work.join("jj-secondary-main");
-    fs::create_dir_all(&jj_main)?;
-    env.jj(&["git", "init", "--no-colocate"], &jj_main)?;
-    let jj_secondary = work.join("jj-secondary");
-    env.jj(
-        &[
-            "workspace",
-            "add",
-            "--quiet",
-            jj_secondary.to_str().ok_or("non-utf8")?,
-        ],
-        &jj_main,
-    )?;
-    states.insert("jj-secondary", jj_secondary);
-
-    Ok(())
-}
-
-fn build_states(
-    work: &Path,
-    env: &Hermetic,
-) -> Result<BTreeMap<&'static str, PathBuf>, TestError> {
-    let mut states = BTreeMap::new();
-
-    build_plain_git_states(work, env, &mut states)?;
-    build_ahead_behind_states(work, env, &mut states)?;
-    build_jj_states(work, env, &mut states)?;
-
-    let no_repo = work.join("no-repo");
-    fs::create_dir_all(&no_repo)?;
-    states.insert("no-repo", no_repo);
-
-    Ok(states)
+fn regenerating() -> bool {
+    std::env::var_os("REGENERATE_GOLDENS").is_some()
 }
 
 #[test]
@@ -204,31 +66,222 @@ fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
         .prefix("vcs-status-log-goldens-")
         .tempdir()?;
     let env = Hermetic::rooted_at(work.path())?;
-    let states = build_states(work.path(), &env)?;
+    let states = status_log::build_states(work.path(), &env)?;
 
     let mut failures = Vec::new();
     for (name, directory) in &states {
-        let rendered_status =
-            masks::apply(&masks, &run_vcs("status", directory)?)?;
-        let expected_status = golden(&format!("{name}-status"))?;
-        if rendered_status.trim_end_matches('\n')
-            != expected_status.trim_end_matches('\n')
-        {
-            failures.push(format!(
-                "{name}-status:\n  expected: {expected_status:?}\n  actual:   {rendered_status:?}"
-            ));
-        }
-
-        let log = masks::apply(&masks, &run_vcs("log", directory)?)?;
-        let expected_log = golden(&format!("{name}-log"))?;
-        if log.trim_end_matches('\n') != expected_log.trim_end_matches('\n') {
-            failures.push(format!(
-                "{name}-log:\n  expected: {expected_log:?}\n  actual:   {log:?}"
-            ));
+        for subcommand in ["status", "log"] {
+            let rendered =
+                masks::apply(&masks, &run_vcs(subcommand, directory)?)?;
+            let golden_name = format!("{name}-{subcommand}");
+            if regenerating() {
+                fs::write(
+                    fixtures_dir().join(format!("{golden_name}.txt")),
+                    format!("{}\n", rendered.trim_end_matches('\n')),
+                )?;
+                continue;
+            }
+            let expected = golden(&golden_name)?;
+            if rendered.trim_end_matches('\n')
+                != expected.trim_end_matches('\n')
+            {
+                failures.push(format!(
+                    "{golden_name}:\n  expected: {expected:?}\n  \
+                     actual:   {rendered:?}"
+                ));
+            }
         }
     }
 
-    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+    assert!(
+        regenerating() || failures.is_empty(),
+        "{}",
+        failures.join("\n\n")
+    );
+    Ok(())
+}
+
+#[test]
+fn a_conflict_status_carries_the_conflicted_marker_and_path(
+) -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-conflict-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let states = status_log::build_states(work.path(), &env)?;
+
+    for name in ["conflict-git", "conflict-jj"] {
+        let directory = states.get(name).ok_or("conflict state missing")?;
+        let rendered = run_vcs("status", directory)?;
+        assert!(
+            rendered.contains("conflicted") && rendered.contains("f.txt"),
+            "{name} must mark the unmerged path conflicted: {rendered:?}"
+        );
+    }
+
+    // jj's conflict is absent from the change diff and unioned in from the
+    // tree, so it lists exactly the one conflicted path and no other change.
+    let conflict_jj = states.get("conflict-jj").ok_or("conflict-jj missing")?;
+    let rendered = run_vcs("status", conflict_jj)?;
+    assert!(
+        rendered.contains("1 changed, 1 conflicted"),
+        "conflict-jj must show a single conflicted change: {rendered:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_rename_renders_as_deleted_old_plus_added_new() -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-rename-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let states = status_log::build_states(work.path(), &env)?;
+    let rename_git = states.get("rename-git").ok_or("rename-git missing")?;
+
+    let rendered = run_vcs("status", rename_git)?;
+    let body: Vec<&str> = rendered.lines().skip(2).collect();
+    assert_eq!(
+        body,
+        ["  added  new.txt", "  deleted  old.txt"],
+        "a staged rename is exactly deleted-old plus added-new: {rendered:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_log_is_capped_at_five_entries() -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-cap-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let states = status_log::build_cap_states(work.path(), &env)?;
+
+    for (name, directory) in &states {
+        let log = run_vcs("log", directory)?;
+        assert_eq!(
+            log.lines().count(),
+            5,
+            "{name} log must be capped at five entries: {log:?}"
+        );
+        assert!(
+            !log.contains("commit-1"),
+            "{name} must omit the sixth ancestor: {log:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn an_empty_history_renders_no_commits() -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-empty-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let states = status_log::build_states(work.path(), &env)?;
+
+    for name in ["unborn-git", "empty-jj"] {
+        let directory = states.get(name).ok_or("empty state missing")?;
+        assert_eq!(
+            run_vcs("log", directory)?,
+            "No commits",
+            "{name} log must be No commits"
+        );
+    }
+    let unborn = states.get("unborn-git").ok_or("unborn-git missing")?;
+    assert!(
+        run_vcs("status", unborn)?.contains("No changes"),
+        "unborn-git status must be No changes"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_jj_bookmark_header_lists_the_byte_sorted_bookmarks(
+) -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-bookmark-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let states = status_log::build_bookmark_states(work.path(), &env)?;
+
+    let one = states.get("bookmark-one-jj").ok_or("one missing")?;
+    assert!(
+        run_vcs("status", one)?.starts_with("Branch: solo"),
+        "a single bookmark must head the status"
+    );
+    let two = states.get("bookmark-two-jj").ok_or("two missing")?;
+    assert!(
+        run_vcs("status", two)?.starts_with("Branch: alpha, zed"),
+        "two bookmarks must be byte-sorted and comma-joined"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_accelerator_log_still_renders_and_exits_zero(
+) -> Result<(), TestError> {
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-badlog-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let mut states = BTreeMap::new();
+    status_log::build_plain_git_states(work.path(), &env, &mut states)?;
+    let root = states.get("clean-git").ok_or("clean-git state missing")?;
+
+    for subcommand in ["status", "log"] {
+        let output = Command::new(BIN)
+            .arg(subcommand)
+            .env("ACCELERATOR_LOG", "bad=notalevel")
+            .current_dir(root)
+            .output()?;
+        assert!(
+            output.status.success(),
+            "{subcommand} must exit 0 under a malformed ACCELERATOR_LOG: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            !output.stdout.is_empty(),
+            "{subcommand} must still render under a malformed ACCELERATOR_LOG"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_forced_adapter_failure_emits_the_gix_token_to_stderr(
+) -> Result<(), TestError> {
+    // The deterministic D2 degenerate shape: a `.git` gitdir pointer to nowhere.
+    // gix cannot open it, so status/log fall back — and with ACCELERATOR_LOG set
+    // the warn must actually reach stderr, proving logging::init() delivers it
+    // (it was discarded before this work) rather than the launcher's dead init.
+    let work = tempfile::Builder::new()
+        .prefix("vcs-status-log-token-")
+        .tempdir()?;
+    let repo = work.path().join("broken");
+    fs::create_dir_all(&repo)?;
+    fs::write(repo.join(".git"), "gitdir: /nonexistent/elsewhere\n")?;
+
+    for subcommand in ["status", "log"] {
+        let output = Command::new(BIN)
+            .arg(subcommand)
+            .env("ACCELERATOR_LOG", "warn")
+            .current_dir(&repo)
+            .output()?;
+        assert!(
+            output.status.success(),
+            "{subcommand} must still exit 0 on an adapter failure"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("unavailable"),
+            "{subcommand} must render its fallback"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("gix"),
+            "{subcommand} must warn-log the gix token: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
     Ok(())
 }
 
@@ -240,7 +293,7 @@ fn fail_safe_has_no_effect_on_a_successful_status_or_log(
         .tempdir()?;
     let env = Hermetic::rooted_at(work.path())?;
     let mut states = BTreeMap::new();
-    build_plain_git_states(work.path(), &env, &mut states)?;
+    status_log::build_plain_git_states(work.path(), &env, &mut states)?;
     let root = states.get("clean-git").ok_or("clean-git state missing")?;
 
     for subcommand in ["status", "log"] {

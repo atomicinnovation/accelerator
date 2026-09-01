@@ -19,6 +19,10 @@ _SHADOW_OPT_IN = "ACCELERATOR_ZERO_SPAWN_SHADOW"
 # the binaries are out of reach. Mirrors fixtures::MATRIX_ROOT_VARIABLE.
 _MATRIX_ROOT = "ACCELERATOR_ZERO_SPAWN_MATRIX"
 
+# The same handshake for the status/log states, which also call the real git/jj.
+# Mirrors status_log::STATES_ROOT_VARIABLE.
+_STATUS_LOG_ROOT = "ACCELERATOR_ZERO_SPAWN_STATUS_LOG"
+
 # Checked alongside every PATH hit and `mise which`, because absolute-path
 # access is what the strong form has to defeat.
 _ABSOLUTE_VCS_PATHS = (
@@ -148,6 +152,10 @@ def zero_spawn_strong(context: Context) -> None:
     _compile_zero_spawn_targets(context)
     matrix_root = Path(tempfile.mkdtemp(prefix="accelerator-vcs-matrix-"))
     _build_fixture_matrix(context, matrix_root)
+    status_log_root = Path(
+        tempfile.mkdtemp(prefix="accelerator-vcs-status-log-")
+    )
+    _build_status_log_states(context, status_log_root)
 
     targets = _resolve_vcs_binaries(context)
     if not targets:
@@ -173,6 +181,7 @@ def zero_spawn_strong(context: Context) -> None:
                 ),
                 # Adopted, not rebuilt: there is no git or jj to build with now.
                 _MATRIX_ROOT: str(matrix_root),
+                _STATUS_LOG_ROOT: str(status_log_root),
             },
         )
     finally:
@@ -211,6 +220,23 @@ def _build_fixture_matrix(context: Context, root: Path) -> None:
         "-E 'binary(matrix) and test(every_recorded_fixture_key_is_built)'",
         pty=True,
         env={_MATRIX_ROOT: str(root)},
+    )
+
+
+def _build_status_log_states(context: Context, root: Path) -> None:
+    """Build the status/log states at `root` while the real CLIs are reachable.
+
+    A single test that populates the shared root, so the shadowed suite adopts
+    it rather than reaching for the git/jj that are gone by then.
+    """
+    context.run(
+        "cargo nextest run "
+        f"--manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p vcs-test-support "
+        "-E 'binary(status_log_states) and "
+        "test(every_status_log_state_is_built)'",
+        pty=True,
+        env={_STATUS_LOG_ROOT: str(root)},
     )
 
 

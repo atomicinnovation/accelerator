@@ -1,0 +1,3 @@
+Branch: (none)
+1 changed
+  deleted  gone.txt

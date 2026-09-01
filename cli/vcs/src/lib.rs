@@ -5,8 +5,10 @@
 pub mod checkout;
 pub mod classify;
 pub mod guard;
+pub mod log;
 pub mod mode;
 pub mod origin_remote;
+pub mod status;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -74,6 +76,35 @@ pub trait VcsProbe {
     /// fails to read one at all, so this folds to `None` like any other probe
     /// failure, rather than misreading the revision.
     fn revision(&self, root: &Path, kind: VcsKind) -> Option<String>;
+}
+
+/// Renders a repository's working-copy status and recent history into the
+/// backend-neutral model the renderer consumes.
+///
+/// Unlike the sibling `Option`-returning ports, this one keeps the `Err` arm:
+/// the `vcs-cli` boundary folds it to the never-fail `(status|log unavailable)`
+/// fallback and, on the `ACCELERATOR_LOG` path, names the failing adapter.
+/// `kernel::Error` is the sanctioned port error — `vcs` depends on `kernel`, not
+/// on `gix`/`jj-lib` — so an adapter propagates its own error through the shared
+/// `From` conversion rather than introducing a public error type here.
+pub trait VcsReporter {
+    /// # Errors
+    ///
+    /// When `root` carries the named idiom but its status cannot be read.
+    fn status_report(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<status::StatusReport, kernel::Error>;
+
+    /// # Errors
+    ///
+    /// When `root` carries the named idiom but its history cannot be read.
+    fn log_report(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<log::LogReport, kernel::Error>;
 }
 
 /// Reports a repository's configured user identity.

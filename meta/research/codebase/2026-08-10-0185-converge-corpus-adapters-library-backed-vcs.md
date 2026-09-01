@@ -619,7 +619,7 @@ any of it today.
   once proven — including reversing an earlier, wrong spike finding
   (amendment 8, withdrawn) that jj `revision` was out of reach; it is fully
   delivered (amendment 10).
-- `meta/work/0198-migrate-vcs-status-log-onto-library-backed-adapters.md`
+- `meta/work/0198-vcs-agnostic-status-log-renderer.md`
   (draft, low priority) owns the separate `status`/`log` subprocess path in
   the same `subprocess.rs` module (`run_vcs_text`) — explicitly out of
   0185's scope, and the reason `scrub_environment`/`run_capped` must survive

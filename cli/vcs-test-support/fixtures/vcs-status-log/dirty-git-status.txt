@@ -1,2 +1,5 @@
- staged.txt | 1 +
- 1 file changed, 1 insertion(+)
+Branch: main
+3 changed
+  modified  a.txt
+  added  staged.txt
+  untracked  untracked.txt

@@ -1,3 +1,2 @@
-The working copy has no changes.
-Working copy  (@) : <JJ_CHANGE_ID> <HEX_OBJECT_ID> (empty) (no description set)
-Parent commit (@-): <JJ_CHANGE_ID> <HEX_OBJECT_ID> (empty) (no description set)
+Branch: (none)
+No changes

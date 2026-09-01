@@ -321,16 +321,34 @@
                 ),
             ],
         )),
+        // vcs-adapters spawns no subprocess: every port, including the
+        // status/log renderings, reads both idioms in the calling process. This
+        // crate-wide deny catches use-path std::process imports anywhere in the
+        // crate; corpus-adapters/tests/zero_spawn.rs closes the inline
+        // Command::new() blind spot at run time.
+        Module((
+            name: "vcs_adapters_is_zero_spawn",
+            matches: Module("^vcs_adapters($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // A permit list alone cannot express this, because std::process sits
         // inside the permitted std, so the rule pairs one with an explicit
         // deny; the deny wins on overlap. The permit list rejects grouped
         // imports (cargo-pup resolves `use a::{b, c}` to an empty module name),
         // so that module writes one single-item `use` per import.
         //
-        // Scoped to the module because the sibling subprocess module spawns by
-        // design. This does not stop an inline fully-qualified
-        // std::process::Command::new(), nor reaching crate::subprocess through
-        // the permitted `^crate`; the harness is what establishes zero-spawn.
+        // The library module reads both idioms in-process; this states its whole
+        // import boundary. It does not stop an inline fully-qualified
+        // std::process::Command::new() — the harness is what establishes
+        // zero-spawn.
         Module((
             name: "vcs_adapters_library_reads_in_process",
             matches: Module("^vcs_adapters::library($|::)"),

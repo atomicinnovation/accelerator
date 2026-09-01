@@ -100,6 +100,8 @@ dependencies = [
  "kernel",
  "serde_json",
  "tempfile",
+ "tracing",
+ "tracing-subscriber",
  "vcs",
  "vcs-adapters",
  "vcs-test-support",

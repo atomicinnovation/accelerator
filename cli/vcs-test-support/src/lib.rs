@@ -8,6 +8,7 @@
 pub mod fixtures;
 pub mod hermetic;
 pub mod masks;
+pub mod status_log;
 pub mod stubs;
 
 use std::fmt;
