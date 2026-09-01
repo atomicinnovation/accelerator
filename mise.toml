@@ -43,10 +43,11 @@ experimental = true
 # Hash-pin the aqua-backed tool artifacts via a committed mise.lock (regenerate
 # + commit on any [tools] edit). Repo-global, so it also pins the pre-existing
 # aqua:rhysd/actionlint. Does NOT cover the rustup-managed nightly
-# (deps:install:nightly) or either tool built from source against it — cargo-pup
-# and cargo-public-api. Those are three accepted unverified surfaces, all
-# confined to the isolated nightly lane: neither tool has a publishable binary
-# suited to an aqua/ubi pin, unlike every other third-party tool here.
+# (deps:install:nightly) or the tools cargo-installed from crates.io outside
+# [tools]: cargo-pup and cargo-public-api (the nightly lane) and cargo-about (the
+# attribution lane). Those are not aqua/ubi-pinnable, but their crates.io source
+# is checksum-verified by cargo under `--locked`, so mise.lock's absence is not a
+# gap in their integrity — only in mise's own artifact pinning.
 lockfile = true
 
 [hooks]

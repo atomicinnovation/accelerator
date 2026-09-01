@@ -829,13 +829,15 @@ Pure documentation.
 
 #### Automated Verification:
 
-- [ ] Work-item frontmatter still validates:
+- [x] Work-item frontmatter still validates:
       `bin/accelerator corpus frontmatter validate --file meta/work/0203-ship-a-third-party-attribution-artefact-with-the-release.md`
 
 #### Manual Verification:
 
-- [ ] AC bullet 5 ("rationale for the chosen generated, dual-generator approach
-      is documented on this item") reads as satisfied
+- [x] AC bullet 5 ("rationale for the chosen generated, dual-generator approach
+      is documented on this item") reads as satisfied — a Design Rationale
+      section on 0203 records it, corrected for the source-build and
+      JSON-render deviations.
 
 ---
 

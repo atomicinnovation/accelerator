@@ -187,3 +187,57 @@ instead. Plain `grep` over a Mach-O binary also reports false positives here;
 - The frontend transitive licence set is not yet enumerated — only direct
   runtime deps were checked; the JS-side generator run produces the
   authoritative list.
+
+## Design Rationale
+
+Recorded against AC bullet 5, on the generated, dual-generator approach as built.
+
+- **Two generators, one file.** The Cargo and npm dependency graphs never meet:
+  `cargo-about` reads the `cli/` workspace closure, `license-checker-rseidelsohn`
+  reads the frontend production tree. `tasks/notices.py` folds both into
+  `licenses/accelerator-third-party-notices.txt`.
+- **Generated, not hand-maintained.** The manifest over-approximates the linked
+  closure — it lists components a binary may dead-code-eliminate. That is the
+  safe direction: over-inclusion in a notice is harmless, omitting a shipped
+  component is the violation.
+- **`license-checker-rseidelsohn`** over the abandoned original `license-checker`
+  (unmaintained since 2019).
+- **cargo-about is source-built, not a `mise [tools]` ubi pin.** Its 0.9.x
+  release binaries omit `x86_64-apple-darwin`, so a `[tools]` ubi pin would fail
+  `mise install` on the Intel-mac `smoke-runtime` CI leg. `deps:install:cargo-about`
+  runs `cargo install cargo-about --locked --features cli`, the `cargo-public-api`
+  pattern — resolvable on every host, and checksum-verified against crates.io by
+  cargo (more integrity than a mutable ubi release tag would have carried, not
+  less). It is a fourth cargo-installed tool outside `mise.lock`'s hash-pinning,
+  alongside cargo-pup and cargo-public-api.
+- **Both sections render in Python from `cargo about --format json`.** cargo-about's
+  Handlebars model is licence-grouped and cannot join crate-to-text or globally
+  sort per-crate blocks with their verbatim text, so `about.hbs` was dropped;
+  `_render_rust` and `_render_frontend` share one `_block` builder, making the two
+  halves structurally identical by construction.
+- **Hermetic generation** (`cargo about --frozen`, `license-checker --production`)
+  keeps the drift check in the fast `check` lane. `cargo fetch --locked` extracts
+  the registry sources `--frozen` reads, verified byte-identical across a cold and
+  a warm cache. The tradeoff: the byte-compare couples the committed file to each
+  tool's exact output, so a deliberate tool-version or `package-lock.json` bump is
+  expected to require a `notices:update`.
+- **§3.2 discharged by per-crate source URLs** (repository + the immutable
+  crates.io download endpoint) rather than a hosted mirror or written offer —
+  the cheapest form that resolves to obtainable source, byte-stable, no
+  infrastructure to maintain. The frontend renderer mirrors the emission against
+  the npm tarball, so the header's blanket §3.2 claim holds if a copyleft npm
+  dependency ever enters the closure.
+- **`--production` node_modules guarded, not bundle-rendered.** Rendering the
+  production superset keeps the check off `build:frontend`; a `default`-lane guard
+  (`test:unit:frontend-licenses`) closes the unsafe omission direction by
+  asserting every module in a throwaway sourcemap build resolves to that closure
+  — catching a runtime dep mis-declared under `devDependencies`.
+- **Unsigned artefact, tamper-detection via SLSA provenance.** The notice is not a
+  trust anchor — the launcher resolves nothing against it — so it carries no
+  `.minisig` and no `_release_reverifies()` entry, but rides the `dist/release/
+  accelerator-*` provenance glob. A swapped §3.2 pointer is implausible to
+  weaponise against durable crates.io/repository source anchors.
+- **Dedicated `check-attribution` CI job.** CI runs no aggregate `check`, and no
+  existing job provisions both the cargo registry and `node_modules`. The job is
+  read-only and holds no signing keys, so a substituted generator's blast radius
+  is bounded by job isolation rather than by the drift check.
