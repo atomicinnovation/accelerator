@@ -27,6 +27,11 @@ third-party component in the two distributed Accelerator closures: the Rust
 cli/ workspace linked into the signed launcher and sub-binaries, and the
 Vite-bundled frontend embedded in the visualiser binary.
 
+It does not cover the vendored runtime, which ships as its own archives: Node
+and playwright-core are attributed in the accelerator-driver-* archives, and
+Chromium in the accelerator-browser-* archives, each under a NOTICES/ directory
+that travels with the archive it describes.
+
 It is generated. Run `mise run notices:update` to regenerate it from both
 dependency graphs and `mise run notices:check` to pin it against drift. Do not
 edit it by hand.
