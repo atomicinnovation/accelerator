@@ -6,11 +6,12 @@
 //! `169.254.169.254` still classifies as [`HostReach::Public`], and nothing
 //! re-checks after DNS.
 //!
-//! It covers **only the initial location**. The daemon's `navigate` command
-//! takes an arbitrary URL per request and follows it with no classification at
-//! all, and the `links` command hands the agent a crawlable set whose
-//! same-origin flag drives route following. This module is the front door, not
-//! a boundary around the navigation surface.
+//! The same verdict now guards **every `navigate`** — its initial URL and every
+//! redirect hop — and every `links` destination per request in the daemon, not
+//! only where a crawl begins. It stays pre-resolution and does not cover page
+//! subresources, so a hostile page can still reach an internal address through a
+//! subresource or a rebased hostname; this is not a full boundary around the
+//! navigation surface.
 //!
 //! It says nothing about **path locations**: a repository path is a valid
 //! source location wherever it points, and nothing confirms it lies inside a
@@ -178,103 +179,13 @@ const fn is_v6_link_local(address: Ipv6Addr) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::classify;
     use super::HostReach;
-    use crate::host::Host;
-    use crate::host::HostError;
 
-    /// A host that fails canonicalisation classifies as nothing, so an
-    /// unparseable fixture is reported as such rather than panicking.
-    fn reach(authority: &str) -> Result<HostReach, HostError> {
-        Host::canonicalise(authority).map(|host| classify(&host))
-    }
-
-    #[test]
-    fn each_headline_address_classifies_as_its_own_reach(
-    ) -> Result<(), HostError> {
-        assert_eq!(reach("127.0.0.1")?, HostReach::Loopback);
-        assert_eq!(reach("[::1]")?, HostReach::Loopback);
-        assert_eq!(reach("[::ffff:127.0.0.1]")?, HostReach::Loopback);
-        assert_eq!(reach("0.0.0.0")?, HostReach::Unspecified);
-        assert_eq!(reach("[::]")?, HostReach::Unspecified);
-        assert_eq!(reach("10.0.0.1")?, HostReach::Private);
-        assert_eq!(reach("192.168.1.1")?, HostReach::Private);
-        assert_eq!(reach("169.254.169.254")?, HostReach::LinkLocal);
-        assert_eq!(reach("[fe80::1]")?, HostReach::LinkLocal);
-        assert_eq!(reach("example.com")?, HostReach::Public);
-        assert_eq!(reach("93.184.216.34")?, HostReach::Public);
-        Ok(())
-    }
-
-    #[test]
-    fn the_rfc1918_boundary_holds_at_both_edges_and_just_outside(
-    ) -> Result<(), HostError> {
-        assert_eq!(reach("172.16.0.0")?, HostReach::Private);
-        assert_eq!(reach("172.31.255.255")?, HostReach::Private);
-        assert_eq!(reach("172.15.255.255")?, HostReach::Public);
-        assert_eq!(reach("172.32.0.0")?, HostReach::Public);
-        Ok(())
-    }
-
-    /// Each is a route to a link-local metadata endpoint or an internal host
-    /// through an encoding a literal-string match would let past.
-    #[test]
-    fn every_indirect_encoding_classifies_internally() -> Result<(), HostError>
-    {
-        for (authority, expected) in [
-            ("[::ffff:169.254.169.254]", HostReach::LinkLocal),
-            ("[::ffff:10.0.0.1]", HostReach::Private),
-            ("[fd00::1]", HostReach::Private),
-            ("100.64.0.1", HostReach::Reserved),
-            ("0.1.2.3", HostReach::Reserved),
-            ("[2002:a9fe:a9fe::]", HostReach::LinkLocal),
-            // Teredo carries 169.254.169.254 bitwise-inverted: !0xa9fe = 0x5601.
-            ("[2001:0:0:0:0:0:5601:5601]", HostReach::LinkLocal),
-            ("[64:ff9b::a9fe:a9fe]", HostReach::LinkLocal),
-            ("192.0.0.1", HostReach::Reserved),
-            ("198.18.0.1", HostReach::Reserved),
-            ("240.0.0.1", HostReach::Reserved),
-            ("224.0.0.1", HostReach::Reserved),
-        ] {
-            assert_eq!(reach(authority)?, expected, "{authority}");
-        }
-        Ok(())
-    }
-
-    /// Loopback is every address `is_loopback` holds for, not two literal
-    /// strings, so `::1` fully expanded is the same address.
-    #[test]
-    fn the_loopback_set_covers_the_expanded_and_ranged_forms(
-    ) -> Result<(), HostError> {
-        for authority in
-            ["[0:0:0:0:0:0:0:1]", "127.0.0.2", "127.1.2.3", "[::1]"]
-        {
-            assert_eq!(reach(authority)?, HostReach::Loopback, "{authority}");
-        }
-        Ok(())
-    }
-
-    /// `localhost` is a name, so no address predicate reaches it.
-    #[test]
-    fn the_loopback_name_is_honoured_without_being_resolved(
-    ) -> Result<(), HostError> {
-        assert_eq!(reach("localhost")?, HostReach::Loopback);
-        assert_eq!(reach("localhost:3000")?, HostReach::Loopback);
-        assert_eq!(reach("LOCALHOST")?, HostReach::Loopback);
-        assert_eq!(reach("localhost.")?, HostReach::Loopback);
-        assert_eq!(reach("evil.localhost")?, HostReach::Public);
-        assert_eq!(reach("localhost.evil.com")?, HostReach::Public);
-        Ok(())
-    }
-
-    #[test]
-    fn the_ipv4_compatible_form_unwraps_the_same_way_the_mapped_one_does(
-    ) -> Result<(), HostError> {
-        assert_eq!(reach("[::169.254.169.254]")?, HostReach::LinkLocal);
-        assert_eq!(reach("[::10.0.0.1]")?, HostReach::Private);
-        Ok(())
-    }
-
+    // The reachability vectors — every headline address, boundary, indirect
+    // encoding and loopback form — live in the shared classification corpus
+    // (`tests/host_classification_vectors.rs`), so the JavaScript classifier is
+    // held to the same cases. Only the user-facing label vocabulary, which is
+    // Rust-only, is pinned here.
     #[test]
     fn every_variant_names_itself_for_the_rejection_message() {
         assert_eq!(HostReach::Loopback.description(), "loopback");

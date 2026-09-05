@@ -14,6 +14,7 @@ tags: ["distribution", "runtime", "cache", "offline", "security"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-752"
 ---
 
 # 0222: Offline Populate Route for the Runtime Cache

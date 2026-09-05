@@ -61,19 +61,32 @@ that placeholder is substituted into skill and agent *content*, not exported
 to the shell, so a Bash call would expand it to nothing.
 
 ```
-accelerator design executor navigate '{"url":"<url>"}'
-accelerator design executor snapshot
-accelerator design executor links
+accelerator design executor {allow-flags} navigate '{"url":"<url>"}'
+accelerator design executor {allow-flags} snapshot
+accelerator design executor {allow-flags} links
 ```
+
+**Allowances**: replace `{allow-flags}` with exactly the allowance flags you
+were given when spawned — `--allow-internal`, `--allow-insecure-scheme`, both,
+or nothing. Forward them verbatim on **every** executor call: the daemon
+classifies each `navigate` (and each `links` destination) under the flags that
+request carried. Never invent an allowance you were not given.
 
 If `accelerator design executor navigate` returns an error JSON, surface it to the caller without retrying. Inspect
 `error.category`: `bootstrap` means unrecoverable; `browser` or `usage` means the caller should
 diagnose; `protocol` means a contract mismatch (file as a bug).
 
+A `navigation-refused` error is a **non-retryable policy refusal**, not a
+transient failure: the destination (or a redirect hop) is an internal or
+plaintext host the crawl's allowances do not permit. Do not retry it. Record the
+route as reachable-but-unclassified in your findings and continue enumerating
+other routes. A policy-refused destination also reports `same_origin: false` in
+`links`, so it will not appear as a followable candidate in the first place.
+
 ## Search Strategy
 
-1. Navigate to the application root using `accelerator design executor navigate '{"url":"<url>"}'`
-2. Invoke `accelerator design executor links` to enumerate anchors on the
+1. Navigate to the application root using `accelerator design executor {allow-flags} navigate '{"url":"<url>"}'`
+2. Invoke `accelerator design executor {allow-flags} links` to enumerate anchors on the
    current screen. Each entry has
    `{text, pathname, same_origin, scheme, role}` — note that raw `href`
    and full resolved URL are deliberately omitted so query strings and

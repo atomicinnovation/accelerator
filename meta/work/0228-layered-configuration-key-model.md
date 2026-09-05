@@ -14,6 +14,7 @@ tags: ["configuration", "work-management", "migration", "tracker"]
 last_updated: "2026-08-30T14:35:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-758"
 ---
 # 0228: Layered Configuration Key Model
 

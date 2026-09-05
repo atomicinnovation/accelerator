@@ -12,6 +12,7 @@ tags: ["work", "crates", "refactor"]
 last_updated: "2026-08-31T12:11:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-786"
 ---
 
 # 0256: Push Work-List Logic Into Core Crate

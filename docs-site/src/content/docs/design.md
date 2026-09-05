@@ -95,11 +95,20 @@ names no host, so there is nothing for `--allow-internal` to recover into.
 
 ### What this check does not cover
 
-It is the front door, not a boundary. It is **pre-resolution** — a public
-hostname resolving to `169.254.169.254` still passes, and nothing re-checks
-after DNS. It covers **only the initial location**: the executor's `navigate`
-command follows whatever URL each request supplies, with no classification at
-all. And it does not confirm a path location lies inside a repository.
+The same verdict now classifies **every `navigate`** — its initial URL and every
+redirect hop — and every `links` destination per request in a crawl, not only
+where a crawl begins. Two residuals remain open, so this is not end-to-end SSRF
+safety:
+
+- It is **pre-resolution**. A public hostname resolving to `169.254.169.254`
+  still passes, and nothing re-checks after DNS. Because a navigation target is
+  attacker-influenced rather than operator-supplied, an attacker who controls a
+  hostname's DNS (rebinding) bypasses classification.
+- It does not classify **page subresources** (`<img>`, `<script>`, XHR/`fetch`),
+  only navigations and followed links, so a hostile page can still read an
+  internal or metadata response into the DOM through a subresource.
+
+It also does not confirm a path location lies inside a repository.
 
 ## `resolve-auth`
 

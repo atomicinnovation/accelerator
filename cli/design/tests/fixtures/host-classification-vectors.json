@@ -1,0 +1,77 @@
+{
+  "reach": [
+    { "authority": "127.0.0.1", "reach": "loopback" },
+    { "authority": "127.0.0.2", "reach": "loopback" },
+    { "authority": "127.1.2.3", "reach": "loopback" },
+    { "authority": "[::1]", "reach": "loopback" },
+    { "authority": "[0:0:0:0:0:0:0:1]", "reach": "loopback" },
+    { "authority": "[::ffff:127.0.0.1]", "reach": "loopback", "embedded": "ipv4-mapped" },
+    { "authority": "localhost", "reach": "loopback" },
+    { "authority": "localhost:3000", "reach": "loopback" },
+    { "authority": "LOCALHOST", "reach": "loopback" },
+    { "authority": "localhost.", "reach": "loopback" },
+
+    { "authority": "0.0.0.0", "reach": "unspecified" },
+    { "authority": "[::]", "reach": "unspecified" },
+
+    { "authority": "10.0.0.1", "reach": "private" },
+    { "authority": "192.168.1.1", "reach": "private" },
+    { "authority": "172.16.0.0", "reach": "private" },
+    { "authority": "172.31.255.255", "reach": "private" },
+    { "authority": "[fd00::1]", "reach": "private" },
+    { "authority": "[::ffff:10.0.0.1]", "reach": "private", "embedded": "ipv4-mapped" },
+    { "authority": "[::10.0.0.1]", "reach": "private", "embedded": "ipv4-compatible" },
+
+    { "authority": "169.254.169.254", "reach": "link-local" },
+    { "authority": "[fe80::1]", "reach": "link-local" },
+    { "authority": "[::ffff:169.254.169.254]", "reach": "link-local", "embedded": "ipv4-mapped" },
+    { "authority": "[2002:a9fe:a9fe::]", "reach": "link-local", "embedded": "6to4" },
+    { "authority": "[2001:0:0:0:0:0:5601:5601]", "reach": "link-local", "embedded": "teredo" },
+    { "authority": "[64:ff9b::a9fe:a9fe]", "reach": "link-local", "embedded": "nat64" },
+
+    { "authority": "100.64.0.1", "reach": "reserved" },
+    { "authority": "0.1.2.3", "reach": "reserved" },
+    { "authority": "192.0.0.1", "reach": "reserved" },
+    { "authority": "198.18.0.1", "reach": "reserved" },
+    { "authority": "240.0.0.1", "reach": "reserved" },
+    { "authority": "224.0.0.1", "reach": "reserved" },
+
+    { "authority": "example.com", "reach": "public" },
+    { "authority": "93.184.216.34", "reach": "public" },
+    { "authority": "172.15.255.255", "reach": "public" },
+    { "authority": "172.32.0.0", "reach": "public" },
+    { "authority": "evil.localhost", "reach": "public" },
+    { "authority": "localhost.evil.com", "reach": "public" },
+
+    { "authority": "2130706433", "error": "numeric-encoding" },
+    { "authority": "0x7f000001", "error": "numeric-encoding" },
+    { "authority": "0177.0.0.1", "error": "numeric-encoding" },
+    { "authority": "1.2.3.4.5", "error": "numeric-encoding" },
+    { "authority": "0x7f.1", "error": "numeric-encoding" },
+    { "authority": "127.0.0.01", "error": "numeric-encoding" },
+    { "authority": "10.0.0.256", "error": "numeric-encoding" },
+    { "authority": "user@example.com", "error": "userinfo" },
+    { "authority": "user:pass@127.0.0.1@evil.com", "error": "userinfo" },
+    { "authority": "127.0.0.1%0d%0aevil", "error": "control-character" },
+    { "authority": "", "error": "empty" },
+    { "authority": ":3000", "error": "empty" }
+  ],
+  "policy": [
+    { "url": "https://example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "http://localhost:3000", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "http://127.0.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "http://example.com", "allow_internal": false, "allow_insecure_scheme": true, "verdict": "accepted" },
+    { "url": "http://10.0.0.1", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "http://169.254.169.254", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "http://100.64.0.1", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
+    { "url": "https://[fd00::1]", "allow_internal": true, "allow_insecure_scheme": false, "verdict": "accepted" },
+
+    { "url": "http://example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "insecure-scheme" },
+    { "url": "http://10.0.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "private" },
+    { "url": "http://[fd00::1]", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "private" },
+    { "url": "http://169.254.169.254", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "link-local" },
+    { "url": "http://100.64.0.1", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "reserved" },
+    { "url": "http://0.0.0.0", "allow_internal": true, "allow_insecure_scheme": true, "verdict": "rejected", "classification": "unspecified" },
+    { "url": "http://user@example.com", "allow_internal": false, "allow_insecure_scheme": false, "verdict": "rejected", "classification": "malformed" }
+  ]
+}

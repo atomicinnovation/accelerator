@@ -13,6 +13,7 @@ tags: ["distribution", "runtime", "cache", "prune", "design"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-753"
 ---
 
 # 0223: Bounding the Default Runtime Cache Root

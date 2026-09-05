@@ -64,10 +64,20 @@ pub enum Command {
     /// would otherwise start a second foreground daemon over the live one's
     /// state.
     Executor {
+        /// Permit navigation to private, link-local and reserved hosts.
+        /// Injected into each forwarded request body; scoped per invocation.
+        #[arg(long)]
+        allow_internal: bool,
+        /// Permit navigation to a plaintext http:// public host. Injected into
+        /// each forwarded request body; scoped per invocation.
+        #[arg(long)]
+        allow_insecure_scheme: bool,
         /// The executor command: ping, navigate, snapshot, screenshot,
         /// evaluate, links or daemon-stop.
         command: String,
-        /// The command's own arguments, usually a single JSON object.
+        /// The command's own arguments, usually a single JSON object. The two
+        /// allowance flags must precede `command`: `allow_hyphen_values` makes
+        /// any hyphen-leading token after `command` a literal argument.
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         arguments: Vec<String>,
     },
@@ -277,6 +287,77 @@ mod tests {
             "validate-source",
             "--nonsense",
             "https://example.com",
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn the_executor_takes_both_allowance_flags_before_the_command(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cli = Cli::try_parse_from([
+            "accelerator-design",
+            "executor",
+            "--allow-internal",
+            "--allow-insecure-scheme",
+            "navigate",
+            r#"{"url":"https://example.com"}"#,
+        ])?;
+        let Command::Executor {
+            allow_internal,
+            allow_insecure_scheme,
+            command,
+            arguments,
+        } = cli.command
+        else {
+            return Err("expected executor".into());
+        };
+        assert!(allow_internal);
+        assert!(allow_insecure_scheme);
+        assert_eq!(command, "navigate");
+        assert_eq!(arguments, [r#"{"url":"https://example.com"}"#]);
+        Ok(())
+    }
+
+    /// Once the JSON body has begun the trailing var-arg, `allow_hyphen_values`
+    /// makes a following `--allow-internal` a literal argument, not the executor
+    /// flag — so the flags must precede `command`, which is how the agents emit
+    /// them. A page influences only the body, never argv, so this quirk cannot
+    /// grant an allowance.
+    #[test]
+    fn an_allowance_flag_after_the_body_is_a_trailing_argument(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cli = Cli::try_parse_from([
+            "accelerator-design",
+            "executor",
+            "navigate",
+            r#"{"url":"https://example.com"}"#,
+            "--allow-internal",
+        ])?;
+        let Command::Executor {
+            allow_internal,
+            command,
+            arguments,
+            ..
+        } = cli.command
+        else {
+            return Err("expected executor".into());
+        };
+        assert!(!allow_internal);
+        assert_eq!(command, "navigate");
+        assert_eq!(
+            arguments,
+            [r#"{"url":"https://example.com"}"#, "--allow-internal"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_unknown_executor_flag_is_a_parse_failure() {
+        assert!(Cli::try_parse_from([
+            "accelerator-design",
+            "executor",
+            "--nonsense",
+            "navigate",
         ])
         .is_err());
     }

@@ -73,6 +73,7 @@ dependencies = [
  "design",
  "design-adapters",
  "kernel",
+ "serde_json",
  "tempfile",
  "vcs-adapters",
 ]
@@ -1061,6 +1062,7 @@ name = "design"
 version = "1.24.0-pre.58"
 dependencies = [
  "kernel",
+ "serde_json",
 ]
 
 [[package]]

@@ -13,6 +13,7 @@ tags: ["security", "distribution", "runtime", "playwright", "ci"]
 last_updated: "2026-08-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-755"
 ---
 
 # 0225: Advisory-Feed Monitoring for the Vendored Runtime Pins

@@ -190,6 +190,16 @@ then spawn `{browser analyser agent}` for each screen group in parallel.
 output as ground truth for tokens and component names; use runtime output for
 screen states, computed styles, and screenshots.
 
+**Forward the allowances to the browser agents (security-relevant)**: when
+spawning `{browser locator agent}` or `{browser analyser agent}`, tell each to
+substitute `{allow-flags}` in its executor calls with exactly the allowance
+flags this invocation received — the same `${allow_internal_flag}` /
+`${allow_insecure_scheme_flag}` values passed to `validate-source` in Step 1.
+The executor injects them into every forwarded request so the daemon classifies
+each `navigate` and each `links` destination under them. Omitting this would let
+a legitimate `--allow-internal` crawl pass the front door and then be refused
+mid-crawl.
+
 **Crawl bounds** (enforced regardless of crawler mode):
 - **Page cap**: at most 50 distinct routes per crawl. On cap hit, write the
   inventory with `status: incomplete` and list unreached routes in `Crawl Notes`.

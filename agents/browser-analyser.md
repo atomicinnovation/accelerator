@@ -40,18 +40,31 @@ that placeholder is substituted into skill and agent *content*, not exported
 to the shell, so a Bash call would expand it to nothing.
 
 ```
-accelerator design executor navigate '{"url":"<url>"}'
-accelerator design executor snapshot
-accelerator design executor screenshot '{"path":"screenshots/<id>-<state>.png"}'
-accelerator design executor evaluate '{"expression":"<read-only expression>"}'
-accelerator design executor click '{"ref":"<ref>"}'
-accelerator design executor type '{"ref":"<ref>","text":"<text>"}'
-accelerator design executor wait_for '{"text":"<text>","timeout_ms":5000}'
+accelerator design executor {allow-flags} navigate '{"url":"<url>"}'
+accelerator design executor {allow-flags} snapshot
+accelerator design executor {allow-flags} screenshot '{"path":"screenshots/<id>-<state>.png"}'
+accelerator design executor {allow-flags} evaluate '{"expression":"<read-only expression>"}'
+accelerator design executor {allow-flags} click '{"ref":"<ref>"}'
+accelerator design executor {allow-flags} type '{"ref":"<ref>","text":"<text>"}'
+accelerator design executor {allow-flags} wait_for '{"text":"<text>","timeout_ms":5000}'
 ```
+
+**Allowances**: replace `{allow-flags}` with exactly the allowance flags you
+were given when spawned — `--allow-internal`, `--allow-insecure-scheme`, both,
+or nothing. Forward them verbatim on **every** executor call, never only
+`navigate`: the daemon classifies each request under the flags that request
+carried, and a `click` or `type` can itself trigger a navigation. Never invent
+an allowance you were not given.
 
 If `accelerator design executor <op>` returns an error JSON, surface it to the caller without retrying. Inspect
 `error.category`: `bootstrap` means unrecoverable; `browser` or `usage` means the caller should
 diagnose; `protocol` means a contract mismatch (file as a bug).
+
+A `navigation-refused` error is a **non-retryable policy refusal**, not a
+transient failure: the destination (or a redirect hop) is an internal or
+plaintext host the crawl's allowances do not permit. Do not retry it. Record the
+refused destination as an inspected-with-gap result — note the screen was
+reachable but not classified — and continue the crawl.
 
 ## Core Responsibilities
 

@@ -178,11 +178,11 @@ def test_design_skill_evals_are_present_and_valid_json() -> None:
 
 def test_browser_locator_links_contract() -> None:
     loc = _read(LOC)
-    assert "accelerator design executor links" in loc
+    assert "accelerator design executor {allow-flags} links" in loc
     assert "Use `pathname`" in loc
     assert "Routes come from" in loc
     assert "same_origin: true" in loc
-    assert "accelerator design executor links" not in _read(ANA)
+    assert "accelerator design executor {allow-flags} links" not in _read(ANA)
 
 
 _DESIGN_REFERRERS = (
