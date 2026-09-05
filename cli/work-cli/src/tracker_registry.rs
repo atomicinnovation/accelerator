@@ -12,6 +12,7 @@ use tracker_support::CredentialContext;
 use tracker_support::Environment;
 use tracker_support::Provenance;
 use tracker_support::SystemEnvironment;
+use tracker_support::INSECURE_MARKER_RELATIVE;
 use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs_adapters::library::InProcessProbe;
@@ -121,7 +122,7 @@ fn credential_context<'a>(
         config,
         provenance,
         personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(".claude/insecure-local-ok"),
+        insecure_marker: root.join(INSECURE_MARKER_RELATIVE),
         command: CommandPolicy::rooted_at(root.to_path_buf()),
     }
 }

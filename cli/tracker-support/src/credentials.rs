@@ -132,6 +132,9 @@ impl CommandPolicy {
     }
 }
 
+/// Repo-relative path of the insecure-local override marker.
+pub const INSECURE_MARKER_RELATIVE: &str = ".accelerator/allow-insecure-local";
+
 /// Everything the ladder reads beyond the keys themselves.
 pub struct CredentialContext<'a> {
     pub environment: &'a dyn Environment,
@@ -374,7 +377,8 @@ fn level_value(
 
 /// The mode-0600 gate on the personal config file, with an override:
 /// `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
-/// `.claude/insecure-local-ok` is a regular, non-symlink, VCS-tracked file.
+/// `.accelerator/allow-insecure-local` is a regular, non-symlink, VCS-tracked
+/// file.
 fn refuse_insecure_personal_config(
     context: &CredentialContext<'_>,
 ) -> Result<(), CredentialError> {

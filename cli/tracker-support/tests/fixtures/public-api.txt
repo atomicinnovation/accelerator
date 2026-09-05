@@ -108,6 +108,7 @@ pub fn tracker_support::credentials::TokenKeys::eq(&self, other: &tracker_suppor
 impl core::fmt::Debug for tracker_support::credentials::TokenKeys
 pub fn tracker_support::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenKeys
+pub const tracker_support::credentials::INSECURE_MARKER_RELATIVE: &str
 pub trait tracker_support::credentials::Environment
 pub fn tracker_support::credentials::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
 impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
@@ -348,6 +349,7 @@ impl core::fmt::Debug for tracker_support::transport::TransportConfig
 pub fn tracker_support::transport::TransportConfig::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for tracker_support::transport::TransportConfig
 impl core::marker::StructuralPartialEq for tracker_support::transport::TransportConfig
+pub const tracker_support::INSECURE_MARKER_RELATIVE: &str
 pub trait tracker_support::Environment
 pub fn tracker_support::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
 impl tracker_support::credentials::Environment for tracker_support::credentials::SystemEnvironment
