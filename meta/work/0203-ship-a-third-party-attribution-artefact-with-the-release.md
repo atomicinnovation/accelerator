@@ -5,7 +5,7 @@ title: "Ship a Third-Party Attribution Artefact with the Release Uploads"
 date: "2026-08-10T18:40:00+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-733"
 # 0203: Ship a Third-Party Attribution Artefact with the Release Uploads
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
