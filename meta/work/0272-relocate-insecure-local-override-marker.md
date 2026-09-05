@@ -12,6 +12,7 @@ tags: ["security", "config", "cleanup"]
 last_updated: "2026-08-31T20:26:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-857"
 ---
 
 # 0272: Relocate Insecure-Local Override Marker to .accelerator

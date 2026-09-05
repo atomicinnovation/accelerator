@@ -15,6 +15,7 @@ tags: ["rust", "design", "launcher", "distribution", "tree-artifacts", "playwrig
 last_updated: "2026-08-19T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-806"
 ---
 
 # 0214: Settle the vendored-runtime tree-artifact mechanisms
