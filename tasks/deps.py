@@ -2,8 +2,13 @@ import re
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import DOCS_SITE, FRONTEND
-from tasks.shared.rust import PUBLIC_API_VERSION, PUP_VERSION, RUST_NIGHTLY
+from tasks.shared.paths import CLI_DIR, DOCS_SITE, FRONTEND
+from tasks.shared.rust import (
+    ABOUT_VERSION,
+    PUBLIC_API_VERSION,
+    PUP_VERSION,
+    RUST_NIGHTLY,
+)
 from tasks.shared.targets import TARGETS
 
 _CROSS_TARGETS = tuple(triple for triple, _ in TARGETS)
@@ -150,6 +155,47 @@ def install_public_api(context: Context) -> None:
             f"failed to install cargo-public-api {PUBLIC_API_VERSION}",
             code=1,
         )
+
+
+def _cargo_about_already_installed(context: Context) -> bool:
+    # Token equality on the version line, not a substring match (0.9.20 would
+    # false-match 0.9.2): strip ANSI, then split so ABOUT_VERSION must be a
+    # whole token.
+    probe = context.run("cargo about --version", warn=True, pty=False)
+    return ABOUT_VERSION in _ANSI.sub("", probe.stdout).split()
+
+
+@task
+def install_cargo_about(context: Context) -> None:
+    """Provision the pinned cargo-about.
+
+    Built from source on stable rather than pinned as a mise [tool]: the 0.9.x
+    release binaries omit x86_64-apple-darwin, so a ubi pin would break `mise
+    install` on the Intel-mac CI leg. The source build resolves on every host.
+    Idempotent — no-ops when the pinned version is already present.
+    """
+    if _cargo_about_already_installed(context):
+        return
+    install = context.run(
+        f"cargo install cargo-about --version {ABOUT_VERSION} --locked "
+        "--features cli",
+        warn=True,
+        pty=False,
+    )
+    if install.exited != 0:
+        raise Exit(f"failed to install cargo-about {ABOUT_VERSION}", code=1)
+
+
+@task
+def install_cargo_sources(context: Context) -> None:
+    """Populate the cli/ registry so offline cargo-about can read licences.
+
+    cargo-about reads per-crate licence files from the local registry; a cold
+    clone has none. `cargo fetch --locked` downloads the whole locked closure
+    without building it, so the offline generate never races a cold cache.
+    """
+    with context.cd(str(CLI_DIR)):
+        context.run("cargo fetch --locked")
 
 
 @task

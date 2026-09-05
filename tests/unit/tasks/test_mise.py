@@ -16,7 +16,13 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
 # Gates that MUST be reachable from the aggregate `check` task.
-_CHECK_GATES = ["cli:check", "deny:check", "pup:check", "public-api:check"]
+_CHECK_GATES = [
+    "cli:check",
+    "deny:check",
+    "pup:check",
+    "public-api:check",
+    "notices:check",
+]
 
 # cli/-scoped Python guards ride in cli:check, which is what CI runs, *and* in
 # lint:check, which is the only path the bare `default` task reaches: `default`

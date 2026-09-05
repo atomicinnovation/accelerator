@@ -14,7 +14,7 @@ from tasks.shared.paths import (
     CLI_DIR,
     DISPATCHED_SUBBINARIES,
     RELEASE_STAGING,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
     load_toml,
     subbinary_asset_path,
     tree_artifact_asset_path,
@@ -143,7 +143,7 @@ def collect_entries(
 
 
 def collect_artifact_entries(
-    tokens: Iterable[str] = TREE_ARTIFACTS,
+    tokens: Iterable[str] = TREE_ARTEFACTS,
     *,
     staging_dir: Path = RELEASE_STAGING,
     platforms: Sequence[tuple[str, str]] = TARGETS,

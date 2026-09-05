@@ -18,7 +18,7 @@ from .shared.paths import (
     DISPATCHED_SUBBINARIES,
     PINS_TOML,
     RELEASE_MANIFEST,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
     tree_artifact_asset_path,
 )
 from .shared.targets import TARGETS
@@ -94,7 +94,7 @@ def _assert_staged_manifest_is_current(version: str) -> None:
     if staged_artifacts is not None:
         expected = {
             (name, platform)
-            for name in TREE_ARTIFACTS
+            for name in TREE_ARTEFACTS
             for _triple, platform in TARGETS
         }
         actual = {
@@ -114,7 +114,7 @@ def _assert_staged_manifest_is_current(version: str) -> None:
 def _tree_artifacts_staged() -> bool:
     return any(
         tree_artifact_asset_path(name, platform).exists()
-        for name in TREE_ARTIFACTS
+        for name in TREE_ARTEFACTS
         for _triple, platform in TARGETS
     )
 
@@ -129,7 +129,7 @@ def _assert_assembled_matches_pins(pins_path: Path = PINS_TOML) -> None:
     """
     if not _tree_artifacts_staged():
         return
-    for name in TREE_ARTIFACTS:
+    for name in TREE_ARTEFACTS:
         for _triple, platform in TARGETS:
             archive = tree_artifact_asset_path(name, platform)
             if not archive.exists():
@@ -197,6 +197,7 @@ def prerelease_prepare(context: Context) -> None:
     build.assert_staged_launcher_versions(resolved_version)
     _assert_assembled_matches_pins()
     build.create_debug_archives(context)
+    build.stage_notices(context)
 
 
 @task
@@ -229,6 +230,7 @@ def release_prepare(context: Context) -> None:
     build.assert_staged_launcher_versions(resolved_version)
     _assert_assembled_matches_pins()
     build.create_debug_archives(context)
+    build.stage_notices(context)
 
 
 @task

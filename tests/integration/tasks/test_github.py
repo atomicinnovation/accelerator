@@ -24,7 +24,7 @@ from tasks.shared.errors import InvalidVersionError
 from tasks.shared.paths import (
     DEBUG_ARCHIVE_DIRS,
     DISPATCHED_SUBBINARIES,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
 )
 from tasks.shared.targets import TARGETS
 from tests.support.artefacts import build_shim
@@ -298,11 +298,14 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
     )
     manifest = tmp_path / "manifest.json"
     manifest_sig = tmp_path / "manifest.minisig"
+    notices = tmp_path / "accelerator-third-party-notices.txt"
     mocker.patch.object(gh, "RELEASE_MANIFEST", manifest)
     mocker.patch.object(gh, "RELEASE_MANIFEST_SIG", manifest_sig)
+    mocker.patch.object(gh, "ATTRIBUTION_ARTEFACT_STAGED", notices)
     if create:
+        notices.write_text("third-party notices\n")
         for platform in _PLATFORMS:
-            for name in TREE_ARTIFACTS:
+            for name in TREE_ARTEFACTS:
                 archive = tmp_path / f"accelerator-{name}-{platform}.tar.gz"
                 archive.write_bytes(b"\x00" * 8)
                 archive.with_name(archive.name + ".minisig").write_text("sig")
@@ -369,7 +372,7 @@ def _setup_release(mocker, tmp_path: Path, *, create: bool = True) -> None:
                                 for p in _PLATFORMS
                             },
                         }
-                        for name in TREE_ARTIFACTS
+                        for name in TREE_ARTEFACTS
                     },
                 }
             )
@@ -392,13 +395,15 @@ class TestUploadAndVerifyRelease:
         ]
         debug_and_launcher_uploads = len(_PLATFORMS) * 3
         manifest_and_signature_uploads = 2
+        notices_upload = 1
         dispatched_subbinary_uploads = (
             len(DISPATCHED_SUBBINARIES) * len(_PLATFORMS) * 2
         )
-        tree_artifact_uploads = len(TREE_ARTIFACTS) * len(_PLATFORMS) * 4
+        tree_artifact_uploads = len(TREE_ARTEFACTS) * len(_PLATFORMS) * 4
         assert len(uploads) == (
             debug_and_launcher_uploads
             + manifest_and_signature_uploads
+            + notices_upload
             + dispatched_subbinary_uploads
             + tree_artifact_uploads
         )
@@ -419,7 +424,7 @@ class TestUploadAndVerifyRelease:
         inline = mocker.patch.object(gh, "_reverify_subbinary")
         detached = mocker.patch.object(gh, "_reverify_via_shim")
         upload_and_verify_release(ctx, "1.20.0")
-        tree = len(TREE_ARTIFACTS) * len(_PLATFORMS)
+        tree = len(TREE_ARTEFACTS) * len(_PLATFORMS)
         # Each tree archive re-verifies by inline sig, like a sub-binary; each
         # .sealed re-verifies by detached sig, via the shim.
         assert inline.call_count == (
@@ -437,7 +442,7 @@ class TestUploadAndVerifyRelease:
         document = json.loads(manifest.read_text())
         del document["artifacts"]
         manifest.write_text(json.dumps(document))
-        for name in TREE_ARTIFACTS:
+        for name in TREE_ARTEFACTS:
             for staged in tmp_path.glob(f"accelerator-{name}-*"):
                 staged.unlink()
         self._pass_reverify(mocker)
@@ -447,7 +452,7 @@ class TestUploadAndVerifyRelease:
         ]
         assert not any(
             f"accelerator-{name}-" in str(c)
-            for name in TREE_ARTIFACTS
+            for name in TREE_ARTEFACTS
             for c in uploads
         )
 

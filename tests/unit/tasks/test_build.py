@@ -507,3 +507,12 @@ class TestFixtureSizeFloor:
             assert not any(fixture in name for name in names), (
                 f"{fixture} is enumerated as a release upload"
             )
+
+    def test_the_attribution_artefact_is_a_release_upload(self) -> None:
+        # The positive counterpart to the negative guard above: a dropped
+        # append in _release_uploads() would let the release ship with no
+        # discharge for the notice-and-attribution licences it carries.
+        from tasks.github import _release_uploads
+
+        names = {path.name for path in _release_uploads()}
+        assert "accelerator-third-party-notices.txt" in names

@@ -1,6 +1,6 @@
 """The tree-artifact registry agrees across the language boundary.
 
-TREE_ARTIFACTS, the launcher's compiled-in digest map, the pins.toml anchor and
+TREE_ARTEFACTS, the launcher's compiled-in digest map, the pins.toml anchor and
 the manifest.example.json artifact keys must name the same set — otherwise
 retiring an artifact leaves the launcher exporting a variable nothing publishes,
 or the design binary requesting a name the manifest no longer carries, both of
@@ -13,7 +13,7 @@ import re
 import tomllib
 from pathlib import Path
 
-from tasks.shared.paths import TREE_ARTIFACTS
+from tasks.shared.paths import TREE_ARTEFACTS
 from tasks.shared.targets import ALIASES
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -28,7 +28,7 @@ def _assembled() -> dict:
 
 
 def test_pins_toml_names_exactly_the_tree_artifacts() -> None:
-    assert set(_assembled()) == set(TREE_ARTIFACTS)
+    assert set(_assembled()) == set(TREE_ARTEFACTS)
 
 
 def test_every_artifact_pins_every_platform() -> None:
@@ -44,7 +44,7 @@ def test_every_artifact_pins_every_platform() -> None:
 
 def test_manifest_fixture_artifacts_match_the_registry() -> None:
     manifest = json.loads(_GOLDEN.read_text())
-    assert set(manifest["artifacts"]) == set(TREE_ARTIFACTS)
+    assert set(manifest["artifacts"]) == set(TREE_ARTEFACTS)
     for artifact, entry in manifest["artifacts"].items():
         assert set(entry["platforms"]) == set(ALIASES), artifact
 

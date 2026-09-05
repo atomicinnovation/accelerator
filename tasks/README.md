@@ -45,9 +45,10 @@ too. Beyond `cli:check`, Rust
 enforcement also spans standalone entity tasks wired directly into the top-level
 `check` (they sit outside the `cli:` roll-up, mirroring `version:*` /
 `github:*`): `deny:check` (cargo-deny supply-chain), `pup:check` (cargo-pup
-architecture) and `public-api:check` (cargo-public-api surface pin). The last
-two are the build steps that run on the isolated nightly lane — see "The Rust
-nightly lane" below. `pup.ron` carries one rule per
+architecture), `public-api:check` (cargo-public-api surface pin) and
+`notices:check` (cargo-about + license-checker third-party attribution, paired
+with `notices:update`). `pup:check`/`public-api:check` are the build steps that
+run on the isolated nightly lane — see "The Rust nightly lane" below. `pup.ron` carries one rule per
 domain boundary plus `vcs_adapters_library_reads_in_process`, which scopes the
 library-backed VCS adapter's imports to a permit list and denies `std::process`
 — see "Library-backed VCS dependency pins" below.
@@ -166,7 +167,10 @@ action silently covers every class.
 pruned to exactly the licences the current closure carries, so a transitive
 crate acquiring or replacing one is a hard failure needing either an `allow`
 addition (permissive) or a justified `[[licenses.exceptions]]` (copyleft), with
-the `uluru` MPL-2.0 entry as the template.
+the `uluru` MPL-2.0 entry as the template. A licence bump that changes the
+distributed closure also changes the shipped attribution notice, so regenerate
+it with `mise run notices:update` (its `accepted` list in `cli/about.toml`
+mirrors this `allow` plus the `uluru` MPL-2.0 exception).
 
 ### Contract-suite filtering
 
@@ -713,5 +717,6 @@ locally with the mapped command:
 | `check-cli`                           | `mise run cli:check`                                                                                                                                                                 |
 | `check-supply-chain`                  | `mise run deny:check`                                                                                                                                                                |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`, `public-api:check`)                                                                                                                  |
+| `check-attribution`                   | `mise run notices:check` (regenerate with `mise run notices:update`; the job also warms the cli registry with `cargo fetch --locked`)                                                |
 | `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |
 | `check-docs`                          | `mise run docs:check` (absent from the aggregate `check` — needs network + Chromium — but reached by a bare `mise run`)                                                              |

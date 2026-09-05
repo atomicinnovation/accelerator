@@ -1,0 +1,4 @@
+# The third-party notices artefact is generated with LF endings and pinned by a
+# byte-compare drift check; keep git from normalising its bytes away from what
+# `mise run notices:update` renders.
+licenses/accelerator-third-party-notices.txt text eol=lf

@@ -206,14 +206,14 @@ def test_every_attest_block_declares_the_same_subjects(wf):
 
 def test_attest_globs_cover_every_published_asset(wf):
     from tasks.github import _release_uploads
-    from tasks.shared.paths import TREE_ARTIFACTS
+    from tasks.shared.paths import TREE_ARTEFACTS
 
     # Include the tree artifacts and their sidecars, flat in dist/release/, so
     # the check proves the accelerator-* glob covers them rather than assuming
     # the flat naming does.
     published = [
         path.relative_to(REPO_ROOT).as_posix()
-        for path in _release_uploads(tree_tokens=TREE_ARTIFACTS)
+        for path in _release_uploads(tree_tokens=TREE_ARTEFACTS)
     ]
     assert any(".tar.gz" in path for path in published), (
         "tree archives absent from the publish set — the derivation broke"
@@ -226,6 +226,19 @@ def test_attest_globs_cover_every_published_asset(wf):
             assert any(_glob_matches(path, p) for p in patterns), (
                 f"{path} is published but matched by no subject-path glob"
             )
+
+
+def test_the_attribution_artefact_is_published_and_attested(wf):
+    # Presence in the published set; the per-path glob loop above then proves
+    # the accelerator-* attest glob covers it, so a dropped append fails here
+    # rather than shipping an unattested, unlisted notice.
+    from tasks.github import _release_uploads
+    from tasks.shared.paths import TREE_ARTEFACTS
+
+    published = [
+        path.name for path in _release_uploads(tree_tokens=TREE_ARTEFACTS)
+    ]
+    assert "accelerator-third-party-notices.txt" in published
 
 
 def test_workflow_topology_invariants_hold(wf):

@@ -314,6 +314,44 @@ jobs:
       - name: Pin each named crate's public API
         run: mise run public-api:check
 
+  check-attribution:
+    name: Check third-party attribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      # notices:check reads the cli/ closure through cargo-about, so this job
+      # runs cargo: route rustup into the cached mise data dir before install,
+      # exactly as every other cargo-running job does, or a cache-hit run no-ops
+      # mise install while the toolchain is absent.
+      - name: Route the rust toolchain into the cached mise data dir
+        run: echo "RUSTUP_HOME=$HOME/.local/share/mise/rustup" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
+        with:
+          install: true
+          cache: true
+          # Own toolchain-cache namespace, distinct from every other cargo job.
+          cache_key_prefix: mise-attribution-v1
+          experimental: true
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          # notices:check builds cargo-about from source and reads the cli
+          # workspace's licence closure.
+          workspaces: cli
+
+      # notices:check provisions everything through its own task edges:
+      # deps:install:cargo-sources warms the cli registry for the offline
+      # cargo-about read, deps:install:node runs npm ci, and
+      # deps:install:cargo-about builds the pinned generator from source.
+      - name: Run third-party attribution check
+        run: mise run notices:check
+
   check-zero-spawn:
     name: Check zero-spawn
     runs-on: ubuntu-latest
@@ -575,6 +613,7 @@ jobs:
       - check-cli
       - check-supply-chain
       - check-architecture
+      - check-attribution
       - check-zero-spawn
       - assemble-runtime
       - smoke-runtime

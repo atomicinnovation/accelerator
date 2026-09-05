@@ -5,6 +5,7 @@ import pytest
 from invoke import Context
 
 import tasks.build as tb
+import tasks.changelog as tc
 import tasks.git as tgit
 import tasks.github as gh
 import tasks.manifest as tmani
@@ -20,13 +21,14 @@ from tasks.release import (
     prerelease_prepare,
     prerelease_sign,
     release,
+    release_prepare,
 )
 from tasks.shared.errors import SigningError
 from tasks.shared.paths import (
     BIN_DIR,
     DISPATCHED_SUBBINARIES,
     REPO_ROOT,
-    TREE_ARTIFACTS,
+    TREE_ARTEFACTS,
     debug_archive_path,
 )
 from tasks.shared.targets import TARGETS
@@ -49,7 +51,7 @@ def _full_artifacts(platforms=_ALIASES):
                 for platform in platforms
             },
         }
-        for name in TREE_ARTIFACTS
+        for name in TREE_ARTEFACTS
     }
 
 
@@ -103,6 +105,7 @@ class TestPrereleasePrepare:
         mocker.patch.object(tb, "cli_cross_compile")
         mocker.patch.object(tb, "assert_staged_launcher_versions")
         mocker.patch.object(tb, "create_debug_archives")
+        mocker.patch.object(tb, "stage_notices")
 
     def test_calls_configure_and_pull(self, ctx, mocker):
         self._setup(mocker)
@@ -142,10 +145,45 @@ class TestPrereleasePrepare:
         )
         mocker.patch.object(tb, "assert_staged_launcher_versions")
         mocker.patch.object(tb, "create_debug_archives")
+        mocker.patch.object(tb, "stage_notices")
 
         prerelease_prepare(ctx)
 
         assert call_log.index("cli_cross_compile") > call_log.index("bump")
+
+    def test_stages_the_attribution_artefact(self, ctx, mocker):
+        # Proves the file is *staged*, not merely *listed*: a dropped
+        # stage_notices passes every upload-set enumeration guard and fails
+        # only at release time, when the pre-upload existence assertion cannot
+        # find it.
+        self._setup(mocker)
+        prerelease_prepare(ctx)
+        tb.stage_notices.assert_called_once_with(ctx)
+
+
+# ── release_prepare() ────────────────────────────────────────────────
+
+
+class TestReleasePrepare:
+    def _setup(self, mocker):
+        mocker.patch.object(tgit, "configure")
+        mocker.patch.object(tgit, "pull")
+        mocker.patch.object(tv, "bump")
+        mock_read = mocker.patch.object(tv, "read", return_value=MagicMock())
+        mock_read.return_value.__str__ = lambda _: "1.21.0"
+        mocker.patch.object(tm, "update_version")
+        mocker.patch.object(tc, "release")
+        mocker.patch.object(tb, "frontend")
+        mocker.patch.object(tb, "server_cross_compile")
+        mocker.patch.object(tb, "cli_cross_compile")
+        mocker.patch.object(tb, "assert_staged_launcher_versions")
+        mocker.patch.object(tb, "create_debug_archives")
+        mocker.patch.object(tb, "stage_notices")
+
+    def test_stages_the_attribution_artefact(self, ctx, mocker):
+        self._setup(mocker)
+        release_prepare(ctx)
+        tb.stage_notices.assert_called_once_with(ctx)
 
 
 # ── prerelease_sign() ─────────────────────────────────────────────────
@@ -429,7 +467,7 @@ class TestAssembledPinGate:
         import hashlib
 
         digests = {}
-        for name in TREE_ARTIFACTS:
+        for name in TREE_ARTEFACTS:
             digests[name] = {}
             for platform in _ALIASES:
                 data = f"{name}-{platform}".encode()
@@ -444,9 +482,9 @@ class TestAssembledPinGate:
 
     def test_a_mismatched_archive_fails(self, mocker, tmp_path):
         digests = {
-            name: dict.fromkeys(_ALIASES, "00" * 32) for name in TREE_ARTIFACTS
+            name: dict.fromkeys(_ALIASES, "00" * 32) for name in TREE_ARTEFACTS
         }
-        for name in TREE_ARTIFACTS:
+        for name in TREE_ARTEFACTS:
             for platform in _ALIASES:
                 self._stage_archive(tmp_path, name, platform, b"real bytes")
         mocker.patch.object(
@@ -461,7 +499,7 @@ class TestAssembledPinGate:
         # Stage only a late-iterated archive so _tree_artifacts_staged() is
         # true, then the first missing one trips the fail-closed branch before
         # any digest is even looked up.
-        self._stage_archive(tmp_path, TREE_ARTIFACTS[-1], _ALIASES[-1], b"x")
+        self._stage_archive(tmp_path, TREE_ARTEFACTS[-1], _ALIASES[-1], b"x")
         mocker.patch.object(
             tr,
             "tree_artifact_asset_path",
