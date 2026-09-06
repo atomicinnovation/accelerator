@@ -5,7 +5,7 @@ title: "Invoke Accelerator Directly In Skills Implementation Plan"
 date: "2026-09-06T12:18:47+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0245"
 parent: "work-item:0245"
 derived_from: ["codebase-research:2026-09-06-0245-invoke-accelerator-directly-in-skills"]

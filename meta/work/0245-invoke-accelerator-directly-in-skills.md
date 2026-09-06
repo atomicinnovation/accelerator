@@ -11,9 +11,9 @@ priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0106", "work-item:0167", "work-item:0212", "work-item:0107", "work-item:0182"]
 tags: ["skills", "cli"]
-last_updated: "2026-09-06T20:52:56+00:00"
+last_updated: "2026-09-06T21:26:30+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Recorded the precondition gate's affirmative outcome (bare form resolves on the ! and Bash surfaces in a main session and a subagent, to the same ${CLAUDE_PLUGIN_ROOT}/bin/accelerator binary via the on-PATH plugin bin/), closing the PATH Open Question; noted the lint is built at tasks/lint/bare_invocation.py."
+last_updated_note: "Traced the version floor: the plugin bin/ PATH addition landed in Claude Code v2.1.91, below the declared minimum v2.1.144, so bin-on-PATH is guaranteed at the supported floor. Replaced the earlier untraced-floor wording in the Open Questions and Dependencies."
 schema_version: 1
 external_id: "PP-775"
 ---
@@ -106,12 +106,13 @@ the invocation form in skill bodies changes.
   symlink is a per-developer convenience, not a plugin-shipped guarantee — the
   general mechanism is the on-`PATH` plugin `bin/`.
 
-  **Not established:** the exact Claude Code version that first adds the plugin
-  `bin/` to the `!`-preprocessor / Bash-tool `PATH`. The gate is empirical on
-  the installed version, not a changelog trace against the declared minimum
-  v2.1.144. If a supported-floor guarantee is required, trace it (as 0182 traced
-  `${CLAUDE_PLUGIN_DATA}` to v2.1.78) before relying on the bare form on older
-  installs.
+  **Version floor traced (2026-09-06).** The Claude Code changelog records the
+  plugin `bin/` PATH addition at **v2.1.91**
+  (`https://code.claude.com/docs/en/changelog#2-1-91`), below the declared
+  minimum **v2.1.144** — so bin-on-`PATH` is guaranteed at the supported floor,
+  not merely observed on the developer's installed version. The changelog names
+  the Bash-tool `PATH`; it does not name the `!`-preprocessor surface, but the
+  empirical gate above confirmed that surface resolves too, so both are covered.
 
   **Accepted trade-off / revert path.** The bare form is unconditional and the
   new lint forbids the pathed form, so there is no per-call-site fallback. A
@@ -143,8 +144,8 @@ the invocation form in skill bodies changes.
 - External dependency (tracked, alongside 0182's documented behaviours): Claude
   Code placing the plugin `bin/` on the `!`-preprocessor / Bash-tool `PATH`, so
   bare `accelerator` resolves to `${CLAUDE_PLUGIN_ROOT}/bin/accelerator`. See the
-  Open Questions resolution for the untraced version floor and the accepted
-  revert path if a Claude Code change removes it.
+  Open Questions resolution for the traced version floor (v2.1.91) and the
+  accepted revert path if a Claude Code change removes it.
 - Relates to: 0106 (bash-free path invocation convention), 0167 and 0212
   (config and work clusters already migrated).
 
