@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "The vcs detect|status|log|guard sub-binary."
+description = "Detect and inspect version-control state"
 
 [lints]
 workspace = true

@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Apply pending meta-directory schema migrations."
+description = "Apply pending meta-directory schema migrations"
 
 [lints]
 workspace = true

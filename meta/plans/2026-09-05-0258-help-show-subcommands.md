@@ -316,13 +316,13 @@ remit.
 
 #### Automated Verification
 
-- [ ] Rust workspace check passes: `mise run cli:check`
-- [ ] Python build-system check passes: `mise run build-system:check`
-- [ ] `test_manifest.py` visualiser assertion passes: `uv run pytest
+- [x] Rust workspace check passes: `mise run cli:check`
+- [x] Python build-system check passes: `mise run build-system:check`
+- [x] `test_manifest.py` visualiser assertion passes: `uv run pytest
       tests/unit/tasks/test_manifest.py -k visualiser`
-- [ ] Sub-binary phrasing guard passes (no description contains `sub-binary` or
+- [x] Sub-binary phrasing guard passes (no description contains `sub-binary` or
       ends with `.`): `uv run pytest tests/unit/tasks/test_manifest.py -k phrasing`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 

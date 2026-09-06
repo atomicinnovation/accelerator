@@ -15,15 +15,15 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Print the version, commit SHA, build date, and target triple.
+    /// Print the version, commit SHA, build date, and target triple
     Version,
-    /// Read or write Accelerator configuration.
+    /// Read or write Accelerator configuration
     #[command(arg_required_else_help = true)]
     Config {
         #[command(subcommand)]
         action: ConfigAction,
     },
-    /// Inspect and repair the cached directory-tree artifacts.
+    /// Inspect and repair the cached directory-tree artifacts
     #[command(arg_required_else_help = true)]
     Cache {
         #[command(subcommand)]

@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "The jira create|update|show|search|comment|transition|attach|init|fields|resolve-fields sub-binary."
+description = "Manage Jira issues"
 
 [lints]
 workspace = true
