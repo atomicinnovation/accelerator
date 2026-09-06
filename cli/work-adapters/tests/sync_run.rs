@@ -326,6 +326,26 @@ fn the_fixtures_classify_as_intended() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_full_sync_advances_every_present_entry_watermark_to_the_run_epoch(
+) -> Result<(), TestError> {
+    let scenario = scenario(2, 1)?;
+    execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "apply must not refuse within the bounds")?;
+
+    let written = scenario
+        .spy
+        .content(BASELINE_PATH)
+        .expect("the run writes the baseline");
+    let occurrences = written.matches("\"local_synced_at\":1700000000").count();
+    assert_eq!(
+        occurrences, 3,
+        "a full sync advances every present entry's watermark together, \
+         exactly as the old global timestamp did"
+    );
+    Ok(())
+}
+
+#[test]
 fn preview_reports_the_plan_without_writing_anything() -> Result<(), TestError>
 {
     let scenario = scenario(2, 1)?;

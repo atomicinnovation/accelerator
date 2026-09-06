@@ -358,21 +358,21 @@ unchanged. Phase 3 narrows both advances to the selection.
 
 #### Automated Verification
 
-- [ ] New unit test — an `Entry` round-trips its `local_synced_at` through
+- [x] New unit test — an `Entry` round-trips its `local_synced_at` through
       `render`/`read`: `cargo test -p work-adapters --lib`
-- [ ] New unit test — an old baseline (entry with no `local_synced_at`) backfills
+- [x] New unit test — an old baseline (entry with no `local_synced_at`) backfills
       each entry's watermark from the document `timestamp` on read, so gating is
       unchanged.
-- [ ] New unit test — a present-but-non-integer `local_synced_at` reads back as
+- [x] New unit test — a present-but-non-integer `local_synced_at` reads back as
       the document `timestamp`, never a raw value, so a corrupt watermark cannot
       bury an edit.
-- [ ] New unit test — a no-entry item falls back to the document `timestamp` for
+- [x] New unit test — a no-entry item falls back to the document `timestamp` for
       its mtime gate.
-- [ ] New lib test — after a full sync, every present entry's `local_synced_at`
+- [x] New lib test — after a full sync, every present entry's `local_synced_at`
       equals the run-start epoch (behaviour parity with the old global advance):
       `cargo test -p work-adapters --test sync_run`
-- [ ] `sync-report.golden` is unchanged; the golden test passes.
-- [ ] Component check passes: `mise run cli:check`
+- [x] `sync-report.golden` is unchanged; the golden test passes.
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification
 

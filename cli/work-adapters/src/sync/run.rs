@@ -685,12 +685,8 @@ fn prepare_run<'a>(
         })
         .collect();
 
-    let plan_inputs = facts.plan_inputs(
-        request.items,
-        &digests,
-        &loaded_baseline,
-        loaded_baseline.timestamp(),
-    );
+    let plan_inputs =
+        facts.plan_inputs(request.items, &digests, &loaded_baseline);
 
     let plan =
         compute_plan(&plan_inputs, request.direction, request.resolutions)
@@ -836,8 +832,12 @@ pub fn run<'a>(
     };
 
     {
-        let mut applier =
-            ItemApplier::new(ports.tracker, ports.writer, baseline);
+        let mut applier = ItemApplier::new(
+            ports.tracker,
+            ports.writer,
+            baseline,
+            run_start_epoch,
+        );
 
         for external_id in &untracked {
             let outcome =

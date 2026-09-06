@@ -106,6 +106,9 @@ impl<'a> BaselineStore<'a> {
                 );
             }
         }
+        for id in baseline.ids() {
+            baseline.advance_watermark(&id, run_start_epoch);
+        }
         baseline.set_timestamp(run_start_epoch);
         self.write_document(&baseline)
     }

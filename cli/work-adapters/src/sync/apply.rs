@@ -159,6 +159,7 @@ pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
     writer: &'ctx dyn AtomicWrite,
     baseline: &'store mut BaselineStore<'ctx>,
+    run_start_epoch: u64,
 }
 
 impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
@@ -166,11 +167,13 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         tracker: &'ctx dyn RemoteTracker,
         writer: &'ctx dyn AtomicWrite,
         baseline: &'store mut BaselineStore<'ctx>,
+        run_start_epoch: u64,
     ) -> Self {
         Self {
             tracker,
             writer,
             baseline,
+            run_start_epoch,
         }
     }
 
@@ -213,6 +216,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     remote_updated_at: remote_updated,
                     remote_hash,
                     local_hash,
+                    local_synced_at: self.run_start_epoch,
                 },
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
@@ -244,6 +248,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     remote_updated_at: request.remote_updated.clone(),
                     remote_hash,
                     local_hash,
+                    local_synced_at: self.run_start_epoch,
                 },
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
@@ -296,6 +301,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     remote_updated_at: issue.updated,
                     remote_hash,
                     local_hash,
+                    local_synced_at: self.run_start_epoch,
                 },
             )
             .map_err(|error| io_error(&authored.id, "baseline-set", error))?;
@@ -476,6 +482,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                     remote_updated_at: remote_updated,
                     remote_hash,
                     local_hash,
+                    local_synced_at: self.run_start_epoch,
                 },
             )
             .map_err(|error| {

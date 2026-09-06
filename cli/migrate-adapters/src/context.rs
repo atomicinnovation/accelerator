@@ -371,6 +371,7 @@ fn realign_one_baseline(
             local_hash: new_hash,
             remote_hash: entry.remote_hash.clone(),
             remote_updated_at: entry.remote_updated_at.clone(),
+            local_synced_at: entry.local_synced_at,
         };
         store
             .set(id, updated)

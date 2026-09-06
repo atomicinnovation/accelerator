@@ -77,7 +77,6 @@ impl GatheredFacts {
         items: &'a [LocalItem],
         digests: &'a [LazyItemDigests<'a>],
         baseline: &'a Baseline,
-        baseline_timestamp: u64,
     ) -> Vec<PlanInput<'a>> {
         items
             .iter()
@@ -88,6 +87,10 @@ impl GatheredFacts {
                     .get(&item.id)
                     .expect("gather populates every item");
                 let baseline_entry = baseline.get(&item.id);
+                let watermark = baseline_entry.map_or_else(
+                    || baseline.timestamp(),
+                    |entry| entry.local_synced_at,
+                );
                 PlanInput {
                     id: item.id.clone(),
                     external_id: item.external_id.as_ref(),
@@ -110,7 +113,7 @@ impl GatheredFacts {
                                 .then_some(entry.local_hash.as_str())
                         }),
                     },
-                    baseline_timestamp,
+                    baseline_timestamp: watermark,
                     digests: item_digests,
                 }
             })
