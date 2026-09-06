@@ -5,7 +5,7 @@ title: "Help Should Show Subcommands Implementation Plan"
 date: "2026-09-05T17:08:36+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0258"
 parent: "work-item:0258"
 derived_from: ["codebase-research:2026-09-05-0258-help-show-subcommands"]
