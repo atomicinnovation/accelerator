@@ -821,30 +821,30 @@ doc prose to describe the Rust render abort.
 
 #### Automated Verification
 
-- [ ] Format, lint, and type-check clean: `mise run cli:check`
-- [ ] The whole jira-client and jira-cli suites pass (not just the ADF tests —
+- [x] Format, lint, and type-check clean: `mise run cli:check`
+- [x] The whole jira-client and jira-cli suites pass (not just the ADF tests —
       this catches the re-homed call sites and any stale consumer, since the
       crates are not surface-pinned):
       `cargo test -p jira-client` and `cargo test -p jira-cli`
-- [ ] The `for_adf` unit test passes:
+- [x] The `for_adf` unit test passes:
       `cargo test -p jira-cli exit_codes`
-- [ ] No `code()` method on `AdfError` and no residual caller:
+- [x] No `code()` method on `AdfError` and no residual caller:
       `grep -rn "fn code" cli/jira-client/src/adf/mod.rs` returns nothing, and
       `grep -rn "\.code()" cli/jira-client/tests` returns nothing
-- [ ] No `bash` in the ADF render-abort fixtures:
+- [x] No `bash` in the ADF render-abort fixtures:
       `grep -rin bash cli/jira-client/tests/fixtures/adf/render-abort-*/expected-error.txt`
       returns nothing
 
 #### Manual Verification
 
-- [ ] `for_adf` produces 40/41/42 for the same variants the removed `code()`
+- [x] `for_adf` produces 40/41/42 for the same variants the removed `code()`
       did, confirmed against the ADF exit codes in `jira-cli/src/exit_codes.rs`
-- [ ] The 40/41/42 contract stays guarded from two independent directions:
+- [x] The 40/41/42 contract stays guarded from two independent directions:
       production `for_adf` by its unit test (change 2) plus `exit_codes_parity`,
       and the crate-vs-oracle render parity by `adf_differential` via the
       test-local `expected_adf_exit` — so neither can drift silently even though
       the two are not cross-checked against each other directly
-- [ ] `for_adf` and the test-local `expected_adf_exit` stay coherent through their
+- [x] `for_adf` and the test-local `expected_adf_exit` stay coherent through their
       shared anchoring to the frozen ADF exit codes (symmetric to the linear
       taxonomy coherence check in Phase 3)
 

@@ -33,22 +33,6 @@ pub enum AdfError {
     BadInput,
 }
 
-impl AdfError {
-    /// The exit code reported for this condition.
-    #[must_use]
-    pub const fn code(&self) -> u16 {
-        match *self {
-            Self::RootNotDoc { .. }
-            | Self::HeadingWithoutLevel
-            | Self::ListWithoutContent { .. } => 40,
-            Self::UnsupportedBlockquote
-            | Self::UnsupportedTable
-            | Self::UnsupportedNestedList => 41,
-            Self::BadInput => 42,
-        }
-    }
-}
-
 impl fmt::Display for AdfError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

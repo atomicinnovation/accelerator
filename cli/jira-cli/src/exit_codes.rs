@@ -152,7 +152,7 @@ pub const fn for_failure(failure: &JiraFailure) -> u8 {
 /// The exit code for a surface-flow failure (`search`/`show`/`comment`/
 /// `transition`/`attach`/`init`/`fields`).
 #[must_use]
-pub fn for_surface(error: &SurfaceError) -> u8 {
+pub const fn for_surface(error: &SurfaceError) -> u8 {
     match error {
         SurfaceError::Client(client) => for_client(client),
         SurfaceError::Adf(adf) => for_adf(adf),
@@ -217,10 +217,17 @@ pub const fn for_cache(error: &CacheError) -> u8 {
     }
 }
 
-/// The exit code for an ADF conversion failure, read from the crate's own
-/// `code()` band (`40`–`42`).
-fn for_adf(error: &AdfError) -> u8 {
-    u8::try_from(error.code()).unwrap_or(ADF_BAD_INPUT)
+/// The exit code for an ADF conversion failure, in the `40`–`42` band.
+const fn for_adf(error: &AdfError) -> u8 {
+    match error {
+        AdfError::RootNotDoc { .. }
+        | AdfError::HeadingWithoutLevel
+        | AdfError::ListWithoutContent { .. } => BAD_JSON,
+        AdfError::UnsupportedBlockquote
+        | AdfError::UnsupportedTable
+        | AdfError::UnsupportedNestedList => ADF_UNSUPPORTED,
+        AdfError::BadInput => ADF_BAD_INPUT,
+    }
 }
 
 const fn exit_code_for_outcome(outcome: Outcome) -> u8 {
@@ -262,5 +269,26 @@ mod tests {
         );
         assert_eq!(exit_code_for_outcome(Outcome::Transport), REQ_CONNECT);
         assert_eq!(exit_code_for_outcome(Outcome::Status(503)), SERVER_ERROR);
+    }
+
+    #[test]
+    fn every_adf_error_maps_to_its_pinned_code() {
+        assert_eq!(
+            for_adf(&AdfError::RootNotDoc {
+                found: String::new()
+            }),
+            BAD_JSON
+        );
+        assert_eq!(for_adf(&AdfError::HeadingWithoutLevel), BAD_JSON);
+        assert_eq!(
+            for_adf(&AdfError::ListWithoutContent {
+                node: String::new()
+            }),
+            BAD_JSON
+        );
+        assert_eq!(for_adf(&AdfError::UnsupportedBlockquote), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::UnsupportedTable), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::UnsupportedNestedList), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);
     }
 }
