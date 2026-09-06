@@ -332,6 +332,6 @@ fn a_non_json_body_is_reported_as_such_rather_than_as_a_transport_failure() {
     assert_eq!(received.status, 200);
     assert!(
         received.json().is_none(),
-        "a 2xx non-JSON body is bash code 16, not a transport failure"
+        "a 2xx non-JSON body is a non-JSON-body outcome, not a transport failure"
     );
 }

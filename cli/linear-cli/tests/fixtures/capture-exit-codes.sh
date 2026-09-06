@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Captures the Linear bash flows' exit-code contract into bash-exit-codes.txt,
+# Captures the Linear flows' exit-code contract into captured-exit-codes.txt,
 # the authoritative name->integer oracle exit_codes_parity.rs pins against.
 #
-# Two sources, mirroring how the bash declares them:
+# Two sources, mirroring how the flows declare them:
 #   - The per-flow argument/outcome codes are `readonly E_*=NN` constants, so
 #     they are grepped straight out of the flow scripts (E_ prefix stripped to
 #     match the Rust const names).
@@ -12,18 +12,19 @@
 #     binary maps them to.
 #
 # Kept for provenance; re-run against the flows at the recorded revision. The
-# search codes stay at their bash values (70-73) here — exit_codes.rs remaps
-# them off the reserved 70-74 band, and the parity allowlist records that.
+# search codes stay at their captured values (70-73) here — exit_codes.rs
+# remaps them off the reserved 70-74 band, and the parity allowlist records
+# that.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 FLOWS="$PLUGIN_ROOT/skills/integrations/linear/scripts"
-OUT="$SCRIPT_DIR/bash-exit-codes.txt"
+OUT="$SCRIPT_DIR/captured-exit-codes.txt"
 
 {
-  echo "# Linear bash exit-code contract, captured by capture-bash-exit-codes.sh."
-  echo "# <rust-const-name>=<bash-integer>. exit_codes_parity.rs pins these."
+  echo "# Linear exit-code contract, captured by capture-exit-codes.sh."
+  echo "# <rust-const-name>=<integer>. exit_codes_parity.rs pins these."
   echo ""
   echo "# Shared transport/auth/common codes (bare-literal in linear-graphql.sh"
   echo "# and linear-auth.sh; the Rust binary reads them structurally)."

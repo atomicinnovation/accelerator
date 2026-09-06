@@ -686,26 +686,26 @@ Same treatment as Phase 2 change 7.
 
 #### Automated Verification
 
-- [ ] Format, lint, and type-check clean: `mise run cli:check`
-- [ ] Linear classify + discriminant + transport suites pass:
+- [x] Format, lint, and type-check clean: `mise run cli:check`
+- [x] Linear classify + discriminant + transport suites pass:
       `cargo test -p linear-client` (run from `cli/`)
-- [ ] The linear-cli parity and map-unit suites pass:
+- [x] The linear-cli parity and map-unit suites pass:
       `cargo test -p linear-cli --test exit_codes_parity` and
       `cargo test -p linear-cli exit_codes::tests`
-- [ ] Every linear-cli test target still compiles (catches a stale consumer of a
+- [x] Every linear-cli test target still compiles (catches a stale consumer of a
       removed symbol; the crate is not surface-pinned):
       `cargo test -p linear-cli --all-targets --no-run`
-- [ ] Behavioural routing unchanged:
+- [x] Behavioural routing unchanged:
       `cargo test -p linear-cli --features test-loopback --test flow_errors`
       (the code-34 create/update divergence is a retry-class 70/71 distinction
       collapsed only in `work-cli`; `linear-cli` emits 34 for both operations, so
       the divergence is pinned by the `classify` `TABLE`, not by `flow_errors`)
-- [ ] No `bash_code`/`classify_bash_code` symbol in linear-client:
+- [x] No `bash_code`/`classify_bash_code` symbol in linear-client:
       `grep -rn "bash_code\|classify_bash_code" cli/linear-client/src` returns
       nothing
-- [ ] No 11–36 literal in the classification files: inspection of
+- [x] No 11–36 literal in the classification files: inspection of
       `cli/linear-client/src/classify.rs` and `failure.rs`
-- [ ] No bash vocabulary in linear-client src, Cargo.toml, swept tests, or the
+- [x] No bash vocabulary in linear-client src, Cargo.toml, swept tests, or the
       linear-cli exit-code source and parity suite:
       `grep -rin bash cli/linear-client/src cli/linear-client/Cargo.toml cli/linear-client/tests/classify.rs cli/linear-client/tests/discriminant.rs cli/linear-client/tests/transport.rs cli/linear-cli/src/exit_codes.rs cli/linear-cli/tests/exit_codes_parity.rs cli/linear-cli/tests/fixtures/captured-exit-codes.txt`
       returns nothing (the renamed capture script is not in this list; its
@@ -713,15 +713,15 @@ Same treatment as Phase 2 change 7.
 
 #### Manual Verification
 
-- [ ] The re-expressed `classify` reproduces the code-34 divergence
+- [x] The re-expressed `classify` reproduces the code-34 divergence
       (retryable-create / terminal-update) and the `{11,35,36}`-retryable-on-both
       verdicts, cross-checked against `bridge-exit-code-tables.txt` linear rows
-- [ ] The two crate-split views of the taxonomy stay coherent: the set of
+- [x] The two crate-split views of the taxonomy stay coherent: the set of
       outcomes `linear-cli::exit_code_for_outcome` maps to `BAD_REQUEST` (34) is
       exactly the set whose `linear-client::classify` verdict flips between
       `Create` and `Update`. These now live in different crates as independent
       matches; confirm no future regroup on one side desyncs from the other
-- [ ] The fixture rename is a rename with byte-identical content
+- [x] The fixture rename is a rename with byte-identical content
 
 ---
 

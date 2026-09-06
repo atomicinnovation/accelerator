@@ -1,5 +1,5 @@
-# Linear bash exit-code contract, captured by capture-bash-exit-codes.sh.
-# <rust-const-name>=<bash-integer>. exit_codes_parity.rs pins these.
+# Linear exit-code contract, captured by capture-exit-codes.sh.
+# <rust-const-name>=<integer>. exit_codes_parity.rs pins these.
 
 # Shared transport/auth/common codes (bare-literal in linear-graphql.sh
 # and linear-auth.sh; the Rust binary reads them structurally).

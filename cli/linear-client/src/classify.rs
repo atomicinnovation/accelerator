@@ -99,7 +99,7 @@ pub fn carries_errors(body: &Value) -> bool {
         .is_some_and(|errors| !errors.is_empty())
 }
 
-/// What the transport observed, in the terms the bash classifies on.
+/// What the transport observed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
     /// A 2xx whose body carries `errors[]`, already classified.
@@ -118,64 +118,39 @@ pub enum Outcome {
     Unexpected,
 }
 
-/// The bash exit code the same outcome produces.
-#[must_use]
-pub const fn bash_code(outcome: Outcome) -> u16 {
-    match outcome {
-        Outcome::SuccessWithErrors(GraphQlError::Auth)
-        | Outcome::Unauthorised
-        | Outcome::BadRequest(GraphQlError::Auth) => 11,
-        Outcome::SuccessWithErrors(GraphQlError::Complexity)
-        | Outcome::BadRequest(GraphQlError::Complexity) => 36,
-        Outcome::BadRequest(GraphQlError::RateLimited) => 35,
-        Outcome::SuccessWithErrors(
-            GraphQlError::RateLimited | GraphQlError::BadRequest,
-        )
-        | Outcome::BadRequest(GraphQlError::BadRequest) => 34,
-        Outcome::NonJsonBody => 16,
-        Outcome::Transport => 21,
-        Outcome::ServerError | Outcome::Unexpected => 20,
-    }
-}
-
 /// Whether a wire outcome proves no mutation happened, for this operation.
 ///
-/// The divergence between the two mutating operations is ported as **two
-/// genuinely different policies** rather than unified: `34` is retryable on
-/// create and terminal on update — documented, because a 200-body error may
-/// mean the mutation applied — while `18, 23, 25, 27, 29` run the other way
-/// with no rationale anywhere. Where a policy and the "provably pre-send" rule
-/// disagree, the table wins.
+/// A body error carried by a 2xx or a 400 is retryable on create but terminal
+/// on update — a 200-body error may mean the update applied. Auth, complexity,
+/// and a 400 rate-limit are provably unapplied on both operations.
 #[must_use]
 pub fn classify(
     outcome: Outcome,
     operation: Operation,
     detail: &str,
 ) -> TrackerError {
-    classify_bash_code(bash_code(outcome), operation, detail)
-}
-
-/// The bridge mappers' own tables.
-///
-/// Driven by the committed fixture at
-/// `cli/tracker-support/tests/fixtures/bridge-exit-code-tables.txt`.
-#[must_use]
-pub fn classify_bash_code(
-    code: u16,
-    operation: Operation,
-    detail: &str,
-) -> TrackerError {
-    let provably_unapplied = match operation {
-        // The pre-send set: no request was sent, or the server rejected it
-        // before executing the mutation.
-        Operation::Create => matches!(code, 11 | 22 | 34 | 35 | 36),
-        Operation::Update => {
-            matches!(code, 11 | 18 | 22 | 23 | 25 | 27 | 29 | 35 | 36)
-                || (110..=114).contains(&code)
+    let provably_unapplied = match outcome {
+        Outcome::SuccessWithErrors(
+            GraphQlError::Auth | GraphQlError::Complexity,
+        )
+        | Outcome::Unauthorised
+        | Outcome::BadRequest(
+            GraphQlError::Auth
+            | GraphQlError::Complexity
+            | GraphQlError::RateLimited,
+        ) => true,
+        Outcome::SuccessWithErrors(
+            GraphQlError::RateLimited | GraphQlError::BadRequest,
+        )
+        | Outcome::BadRequest(GraphQlError::BadRequest) => {
+            matches!(operation, Operation::Create)
         }
-        Operation::Read => true,
+        Outcome::NonJsonBody
+        | Outcome::Transport
+        | Outcome::ServerError
+        | Outcome::Unexpected => false,
     };
-    let detail = format!("linear {} ({code}): {detail}", operation.name());
+    let detail = format!("linear {}: {detail}", operation.name());
     if provably_unapplied || !operation.mutates() {
         TrackerError::Retryable { detail }
     } else {
