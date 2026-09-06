@@ -100,11 +100,13 @@ pub enum Command {
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
     /// read failed or every per-item failure was retryable; 71 any
     /// per-item failure was terminal; 1 an internal error; 2 a usage
-    /// error; 5 refused (would exceed --max-pulls/--max-pushes, zero
-    /// writes); 72 the configured tracker is recognised but has no client
-    /// built yet; 73 work.integration is unset or names an unrecognised
-    /// tracker; 74 the configured tracker is wired but its configuration or
-    /// credentials are missing (nothing was sent). The report on stdout is
+    /// error; 3 a `--target` matched no local id, path, or `external_id`; 5
+    /// refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a
+    /// `--target` path lies outside the work directory; 72 the configured
+    /// tracker is recognised but has no client built yet; 73
+    /// work.integration is unset or names an unrecognised tracker; 74 the
+    /// configured tracker is wired but its configuration or credentials are
+    /// missing (nothing was sent). The report on stdout is
     /// authoritative: check it for `unresolved` lines regardless of exit
     /// code, since a 71 run may also carry conflicts.
     Sync(Box<SyncArgs>),
@@ -280,4 +282,9 @@ pub struct SyncArgs {
     /// issues. 0 refuses every push.
     #[arg(long, default_value_t = 25)]
     pub max_pushes: usize,
+    /// Reconcile only this work item; repeatable. Accepts a local id
+    /// (0257), a remote tracker key / `external_id` (PP-787), or a file
+    /// path. Naming any target suppresses untracked-remote discovery.
+    #[arg(long = "target")]
+    pub targets: Vec<String>,
 }

@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use config_adapters::FileConfigStore;
+use corpus::WorkItemIdScheme;
 use work::resolve::classify_input;
 use work::resolve::resolve as domain_resolve;
 use work::resolve::InputClass;
@@ -56,49 +57,76 @@ pub fn run(
     input: &str,
 ) -> Result<RunOutcome, kernel::Error> {
     let scheme = resolve_scheme(config)?;
+    let work_dir = canonical_work_dir(start, config)?;
+    Ok(resolve_with(&scheme, &work_dir, start, input))
+}
+
+/// Resolves the canonical work directory once, so a caller resolving many
+/// tokens reads config a single time and then resolves each infallibly through
+/// [`resolve_with`].
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when the configuration cannot be read or the work
+/// directory cannot be canonicalised — an environment fault, not a missing
+/// item.
+pub fn canonical_work_dir(
+    start: &Path,
+    config: &dyn ConfigAccess,
+) -> Result<PathBuf, kernel::Error> {
     let root = FileConfigStore::discover_root(start);
     let work_dir = resolve_work_dir(config, &root)?;
-    let work_dir = work_dir.canonicalize().map_err(|error| {
+    work_dir.canonicalize().map_err(|error| {
         kernel::Error::Failed(format!(
             "could not resolve the work directory {}: {error}",
             work_dir.display()
         ))
-    })?;
+    })
+}
 
-    match classify_input(input, &scheme) {
-        InputClass::Path => Ok(resolve_path_class(&work_dir, start, input)),
-        InputClass::Invalid => Ok(RunOutcome::Invalid(format!(
+/// The infallible core: classify `input` and resolve it against the already
+/// resolved `scheme` and canonical `work_dir`. `Resolved` carries a
+/// canonicalised path so a caller can match it against an equally-canonicalised
+/// managed-item set.
+#[must_use]
+pub fn resolve_with(
+    scheme: &WorkItemIdScheme,
+    work_dir: &Path,
+    start: &Path,
+    input: &str,
+) -> RunOutcome {
+    match classify_input(input, scheme) {
+        InputClass::Path => resolve_path_class(work_dir, start, input),
+        InputClass::Invalid => RunOutcome::Invalid(format!(
             "input '{input}' is not a recognised path, full ID, or bare \
              number"
-        ))),
+        )),
         class @ (InputClass::FullId | InputClass::BareNumber) => {
             let search_class = if class == InputClass::FullId {
                 SearchClass::FullId
             } else {
                 SearchClass::BareNumber
             };
-            let lister = FilesystemLister::new(&work_dir);
-            Ok(
-                match domain_resolve(input, search_class, &scheme, &lister) {
-                    ResolveOutcome::Single(filename) => {
-                        RunOutcome::Resolved(work_dir.join(filename))
-                    }
-                    ResolveOutcome::Ambiguous(candidates) => {
-                        RunOutcome::Ambiguous(candidates)
-                    }
-                    ResolveOutcome::NotFound => {
-                        let noun = if search_class == SearchClass::FullId {
-                            "ID"
-                        } else {
-                            "bare number"
-                        };
-                        RunOutcome::NotFound(format!(
-                            "no work item matching {noun} '{input}' in {}",
-                            work_dir.display()
-                        ))
-                    }
-                },
-            )
+            let lister = FilesystemLister::new(work_dir);
+            match domain_resolve(input, search_class, scheme, &lister) {
+                ResolveOutcome::Single(filename) => {
+                    RunOutcome::Resolved(work_dir.join(filename))
+                }
+                ResolveOutcome::Ambiguous(candidates) => {
+                    RunOutcome::Ambiguous(candidates)
+                }
+                ResolveOutcome::NotFound => {
+                    let noun = if search_class == SearchClass::FullId {
+                        "ID"
+                    } else {
+                        "bare number"
+                    };
+                    RunOutcome::NotFound(format!(
+                        "no work item matching {noun} '{input}' in {}",
+                        work_dir.display()
+                    ))
+                }
+            }
         }
     }
 }

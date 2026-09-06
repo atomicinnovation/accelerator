@@ -22,6 +22,7 @@ use work::sync::RemotePresence;
 use crate::sync::baseline::Baseline;
 use crate::sync::digest::LazyItemDigests;
 
+#[derive(Clone, Debug)]
 pub struct LocalItem {
     pub id: String,
     pub path: PathBuf,

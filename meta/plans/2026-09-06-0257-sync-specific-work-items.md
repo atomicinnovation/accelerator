@@ -751,35 +751,35 @@ place and gives the line unit-test coverage without a live tracker.
 
 #### Automated Verification
 
-- [ ] New subprocess test — `--target 9999` (no local or remote match) exits 3
+- [x] New subprocess test — `--target 9999` (no local or remote match) exits 3
       (`RESOLVE_NOT_FOUND`), names `9999` on stderr, and writes nothing under
       `meta/work` **or** the integrations root (baseline byte-unchanged or
       absent): `cargo test -p work-cli --test cli_sync_targets`
-- [ ] New subprocess test — `--target <path outside work dir>` (a real file)
+- [x] New subprocess test — `--target <path outside work dir>` (a real file)
       exits 6 (`RESOLVE_OUTSIDE_WORKDIR`), names the path, zero writes.
-- [ ] New subprocess test — a real `.md` inside the work dir that is not a
+- [x] New subprocess test — a real `.md` inside the work dir that is not a
       discovered work item exits 3 (`Unmanaged`), zero writes.
-- [ ] New subprocess test — an empty `--target ''` token is rejected as a clear
+- [x] New subprocess test — an empty `--target ''` token is rejected as a clear
       usage error (exit 2), not a panic.
-- [ ] New subprocess test — a no-match token and an out-of-dir path together exit
+- [x] New subprocess test — a no-match token and an out-of-dir path together exit
       6 (the highest-precedence code), stderr names both offenders (collect-all).
-- [ ] New subprocess test — a valid `--target` on a credential-less machine
+- [x] New subprocess test — a valid `--target` on a credential-less machine
       reaches the tracker phase (exits 74 for `jira`, not a resolution code),
       proving resolution succeeded before the credential check, and the baseline
       is byte-unchanged.
-- [ ] New unit tests for the resolution closure — every arm of the
+- [x] New unit tests for the resolution closure — every arm of the
       precedence/cascade table: local-id-wins with a suppression note; ambiguous
       local id fails without cascading; `OutsideWorkDir` fails without cascading;
       a remote-id token matches via the index; a dual-shape token records
       suppression; a no-match token fails; two tokens naming one item de-duplicate
       to a single slice entry; collect-all accumulates every failure:
       `cargo test -p work-cli --lib`
-- [ ] New unit test — the suppression-line formatter emits
+- [x] New unit test — the suppression-line formatter emits
       `#\ttarget\tsuppressed\t<token>\tlocal=<id>\tremote=<key>` and collapses a
       tab/newline in `token`/`local_id` via `single_line()`.
-- [ ] `sync --help` names every exit code, now including 3 and 6:
+- [x] `sync --help` names every exit code, now including 3 and 6:
       `cargo test -p work-cli --test cli_sync`
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification
 
