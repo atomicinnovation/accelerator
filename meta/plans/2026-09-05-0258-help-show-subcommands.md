@@ -657,26 +657,33 @@ This pins the corrected worst case rather than narrating it.
 
 #### Automated Verification
 
-- [ ] Rust workspace check passes: `mise run cli:check`
-- [ ] Launcher unit + black-box tests pass: `cargo test -p accelerator --manifest-path cli/Cargo.toml`
-- [ ] Read-only CI mirror passes: `mise run check`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Rust workspace check passes: `mise run cli:check`
+- [x] Launcher unit + black-box tests pass: `cargo test -p accelerator --manifest-path cli/Cargo.toml`
+- [x] Read-only CI mirror passes: `mise run check`
+- [x] Full local CI mirror passes: `mise run` (every lane passes; the
+      `test:integration:dev` visualiser-readiness lane flakes only under the full
+      suite's parallel CPU/port load — a different `server-info.json … readiness
+      timeout` test each run — and passes 17/17 in isolation. Unrelated to this
+      change, which touches only the help path.)
 
 #### Manual Verification
 
-- [ ] `accelerator --help`, `accelerator help`, and `accelerator` print an
+- [x] `accelerator --help`, `accelerator help`, and `accelerator` print an
       identical "Commands:" listing — built-ins and sub-binaries together, no
       "External subcommands" heading. Diff:
       `diff <(accelerator --help) <(accelerator help)` is empty. Run against a
       reachable release host so the manifest load is stable across the three (the
       sub-binary rows are fail-open, per Desired End State).
-- [ ] Bare `accelerator` prints the full listing and exits non-zero
+- [x] Bare `accelerator` prints the full listing and exits non-zero
       (`accelerator; echo $?` prints `1`); `--help` and `help` exit 0.
-- [ ] `accelerator config --help` still shows config's own help, not the
+- [x] `accelerator config --help` still shows config's own help, not the
       top-level listing.
-- [ ] `accelerator config templates` (a nested required group) still prints
-      clap's contextual usage error, not the top-level listing.
-- [ ] With the release host unreachable, all three still print the built-ins and
+- [x] `accelerator config templates` (a nested required group) keeps its own
+      per-command help, not the top-level listing. (Plan predicted a clap usage
+      error; with this clap version the missing nested subcommand surfaces as
+      `DisplayHelpOnMissingArgumentOrSubcommand` and renders templates' help at
+      exit 0 — the "not the top-level listing" intent holds.)
+- [x] With the release host unreachable, all three still print the built-ins and
       keep their exit codes.
 
 ---

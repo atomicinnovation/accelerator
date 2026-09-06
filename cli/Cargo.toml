@@ -52,7 +52,7 @@ publish = false
 [workspace.dependencies]
 # Exact-pinned: external_subcommand capture and --help interception ordering
 # are behaviour-sensitive.
-clap = { version = "=4.6.1", features = ["derive"] }
+clap = { version = "=4.6.1", features = ["derive", "string"] }
 # vergen and vergen-gitcl are a matched pair pinned exactly: vergen 9.1.0's
 # transitive vergen-lib bump breaks the Emitter, and a vergen-gitcl minor/patch
 # can float that same vergen-lib independently, so both are pinned.
