@@ -5,7 +5,7 @@ title: "Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira And
 date: "2026-09-06T15:33:26+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0269"
 parent: "work-item:0269"
 derived_from: ["codebase-research:2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification"]
