@@ -12,13 +12,13 @@ description: >
 argument-hint: "<IDENTIFIER> [--comments N]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
+  - Bash(accelerator config *)
+  - Bash(accelerator linear *)
 ---
 
 # Show Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill show-linear-issue --fail-safe`
+!`accelerator config context --skill show-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > See the
@@ -37,7 +37,7 @@ supplied, ask the user which issue to show.
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear show <IDENTIFIER> [--comments N]
+accelerator linear show <IDENTIFIER> [--comments N]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -60,4 +60,4 @@ Render the issue's fields under `.data.issue`:
   (no ADF conversion).
 - **Comments**: each `.comments.nodes[].body` (Markdown), if any.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions show-linear-issue --fail-safe`
+!`accelerator config instructions show-linear-issue --fail-safe`

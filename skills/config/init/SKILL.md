@@ -5,7 +5,7 @@ description: Prepare a repository with the directories and gitignore entries
 argument-hint: "(no arguments — safe to run repeatedly)"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *) 
+  - Bash(accelerator config *) 
 ---
 
 # Initialise Accelerator
@@ -18,19 +18,19 @@ what was created versus what already existed.
 
 Resolve each output directory using the plugin's path configuration:
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
-**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path prs --fail-safe`
-**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path validations --fail-safe`
-**Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_plans --fail-safe`
-**Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
-**Review work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_work --fail-safe`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
-**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path notes --fail-safe`
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_gaps --fail-safe`
-**Global directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path global --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
+**PRs directory**: !`accelerator config path prs --fail-safe`
+**Validations directory**: !`accelerator config path validations --fail-safe`
+**Review plans directory**: !`accelerator config path review_plans --fail-safe`
+**Review PRs directory**: !`accelerator config path review_prs --fail-safe`
+**Review work items directory**: !`accelerator config path review_work --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
+**Notes directory**: !`accelerator config path notes --fail-safe`
+**Design inventories directory**: !`accelerator config path research_design_inventories --fail-safe`
+**Design gaps directory**: !`accelerator config path research_design_gaps --fail-safe`
+**Global directory**: !`accelerator config path global --fail-safe`
 
 ## Steps
 
@@ -42,7 +42,7 @@ already existed so you can present a summary at the end.
 <!-- DIR_COUNT:13 -->
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator config init
+accelerator config init
 ```
 
 The script creates 13 `meta/` directories with `.gitkeep` files, creates the

@@ -5,14 +5,14 @@ description: List and filter work items from the configured work directory.
   status/kind/priority/parent/tag, or viewing the work item hierarchy.
 argument-hint: "[filter description]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
 ---
 
 # List Work Items
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill list-work-items --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill list-work-items --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,10 +20,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
-**Work item ID pattern**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work id_pattern --fail-safe`
-**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code --fail-safe`
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
+**Work item ID pattern**: !`accelerator config work id_pattern --fail-safe`
+**Default project code**: !`accelerator config work default_project_code --fail-safe`
+**Active integration**: !`accelerator config work integration --fail-safe`
 
 The reads above inform how you parse the filter argument. `accelerator work
 list` owns the sync-status rendering itself: it adds the Sync column only when
@@ -35,11 +35,11 @@ the integration here.
 
 The following template defines the work item schema and field defaults.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+!`accelerator config template work-item --fail-safe`
 
-**Known kind values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints kind`
-**Known status values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints status`
-**Known priority values**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints priority`
+**Known kind values**: !`accelerator work template-hints kind`
+**Known status values**: !`accelerator work template-hints status`
+**Known priority values**: !`accelerator work template-hints priority`
 
 Each line above lists one value per line. Collect these into three sets:
 known kinds, known statuses, and known priorities. These hints inform
@@ -124,7 +124,7 @@ must satisfy all of them.
 Invoke the CLI with the translated flags:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work list \
+accelerator work list \
   [--status <s>] [--kind <k>] [--priority <p>] [--parent <ref>] \
   [--tag <t>]... [--hierarchy] [<title-substring>]
 ```
@@ -200,4 +200,4 @@ emitted. Do not re-echo the filter or re-render the table.
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions list-work-items --fail-safe`
+!`accelerator config instructions list-work-items --fail-safe`

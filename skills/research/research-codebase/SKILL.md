@@ -5,15 +5,15 @@ description: Conduct comprehensive codebase research by spawning parallel
   user needs to deeply understand a codebase area or answer technical questions.
 argument-hint: "[research question]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Research Codebase
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill research-codebase --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill research-codebase --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,9 +21,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
 
 You are tasked with conducting comprehensive research across the codebase to
 answer user questions by spawning parallel sub-agents and synthesising their
@@ -109,7 +109,7 @@ The key is to use these agents intelligently:
 
 ### Step 5: Gather metadata for the research document
 
-- Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to
+- Run `accelerator corpus metadata derive` to
   generate all relevant metadata.
 - Filename: write to the configured research directory (shown above) using
   - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
@@ -126,7 +126,7 @@ The key is to use these agents intelligently:
 - Structure the document with YAML frontmatter followed by content using
   this template:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template codebase-research --fail-safe`
+!`accelerator config template codebase-research --fail-safe`
 
   Before writing the artifact file, **substitute** every field below
   with the indicated value, using the helper output captured in
@@ -164,7 +164,7 @@ The key is to use these agents intelligently:
 validate` over the research document you just wrote:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the research document violates the canonical frontmatter
@@ -230,4 +230,4 @@ completing.
     `git_commit`)
   - Tags should be relevant to the research topic and components studied
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions research-codebase --fail-safe`
+!`accelerator config instructions research-codebase --fail-safe`

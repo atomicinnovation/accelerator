@@ -228,17 +228,32 @@ class TestMissingBinding:
 
 
 class TestOverBroadSkills:
+    def test_a_bare_ancestor_glob_disqualifies_the_skill(
+        self, tmp_path: Path
+    ) -> None:
+        """The over-broad veto: a rule authorising the bare launcher."""
+        _skill(
+            tmp_path,
+            "consumer",
+            rules=(f"{LAUNCHER} *",),
+            commands=(f"{LAUNCHER} {_TOK} start",),
+        )
+        problems = violations(tmp_path, tokens=(_TOK,), exempt=())
+        assert any("skills/consumer/SKILL.md" in p for p in problems)
+
     @pytest.mark.parametrize(
         "rule",
         [
-            f"{LAUNCHER} *",
             f"{PLUGIN_PREFIX}bin/*",
             f"{PLUGIN_PREFIX}*",
         ],
     )
-    def test_an_ancestor_glob_alone_does_not_bind(
+    def test_a_plugin_prefix_glob_does_not_cover_a_bare_command(
         self, tmp_path: Path, rule: str
     ) -> None:
+        """A surviving `${CLAUDE_PLUGIN_ROOT}/…` grant no longer covers the bare
+        launcher, so the token fails to bind for want of a matching rule rather
+        than by the over-broad veto."""
         _skill(
             tmp_path,
             "consumer",
@@ -246,7 +261,7 @@ class TestOverBroadSkills:
             commands=(f"{LAUNCHER} {_TOK} start",),
         )
         problems = violations(tmp_path, tokens=(_TOK,), exempt=())
-        assert any("skills/consumer/SKILL.md" in p for p in problems)
+        assert any("declares no Bash(...) rule" in p for p in problems)
 
     def test_an_ancestor_glob_disqualifies_the_whole_skill(
         self, tmp_path: Path

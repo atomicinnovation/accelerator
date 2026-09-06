@@ -6,16 +6,16 @@ description: Interactively create an architecture decision record (ADR). Use
   analysis, and consequence documentation.
 argument-hint: "[topic or description] [--supersedes ADR-NNNN]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus adr *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Create Architecture Decision Record
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-adr --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill create-adr --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,7 +23,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
 
 You are tasked with guiding the user through creating an architecture decision
 record (ADR) — a concise document capturing a significant architectural
@@ -57,7 +57,7 @@ Then wait for the user's input.
 1. Run the corpus CLI to get the next ADR number:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number
+   accelerator corpus adr next-number
    ```
 
 2. If `--supersedes ADR-NNNN` was specified:
@@ -66,7 +66,7 @@ Then wait for the user's input.
      multiple matches)
    - Read the target ADR's status using the corpus CLI:
      ```
-     ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status <resolved-path>
+     accelerator corpus adr read-status <resolved-path>
      ```
    - Verify the target ADR is in `accepted` status (only accepted ADRs can be
      superseded). This is an early-fail check to avoid wasted effort — the
@@ -121,7 +121,7 @@ Wait for user input before proceeding.
 ### Step 3: Draft the ADR
 
 1. **Gather metadata** by running
-   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`.
+   `accelerator corpus metadata derive`.
 
 2. **Draft the ADR** using the template below and present it to the user for
    review:
@@ -215,7 +215,7 @@ Next steps:
 **Validate the frontmatter**: after writing the ADR, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file {decisions directory}/ADR-NNNN-description.md
+accelerator corpus frontmatter validate --file {decisions directory}/ADR-NNNN-description.md
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -226,7 +226,7 @@ completing.
 
 Use this exact template structure when generating ADRs:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template adr --fail-safe`
+!`accelerator config template adr --fail-safe`
 
 ## Quality Guidelines
 
@@ -268,4 +268,4 @@ When drafting ADRs, follow these principles:
 - Before writing a new ADR file, verify the target path does not already exist
   to prevent accidental overwrites from concurrent invocations
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-adr --fail-safe`
+!`accelerator config instructions create-adr --fail-safe`

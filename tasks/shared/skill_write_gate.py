@@ -29,7 +29,7 @@ _FENCE = re.compile(r"^```", re.MULTILINE)
 def _mutation_offset(text: str, provider: str) -> int | None:
     """Return the offset of the first ``accelerator <provider> <mutation>``."""
     verbs = "|".join(sorted(_MUTATION_VERBS[provider]))
-    pattern = re.compile(rf"/bin/accelerator {provider} (?:{verbs})\b")
+    pattern = re.compile(rf"\baccelerator {provider} (?:{verbs})\b")
     match = pattern.search(text)
     return match.start() if match else None
 

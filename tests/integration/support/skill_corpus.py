@@ -19,15 +19,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tasks.shared.skill_parsing import (
-    PLUGIN_PREFIX,
+    CONFIG_MARKER,
+    INSTRUCTIONS_MARKER,
     frontmatter_name,
     is_plugin_invocation,
     preprocessor_commands,
 )
-
-CONFIG_MARKER = "/bin/accelerator config "
-INSTRUCTIONS_MARKER = "/bin/accelerator config instructions "
-CONTEXT_MARKER = "/bin/accelerator config context --skill "
+from tasks.shared.skill_parsing import (
+    CONTEXT_SKILL_MARKER as CONTEXT_MARKER,
+)
 
 # Shell metacharacters. The corpus is entirely static literals today, so a
 # command carrying one of these means the corpus changed shape — it is declined
@@ -36,7 +36,7 @@ CONTEXT_MARKER = "/bin/accelerator config context --skill "
 METACHARACTERS = ("&&", "||", ";", "|", "$(", "`", "<(", ">(", ">", "<")
 
 # A `!` site whose command names the config surface, on one line.
-_INLINE_SITE = re.compile(r"!`[^`]*/bin/accelerator config ")
+_INLINE_SITE = re.compile(r"!`[^`]*\baccelerator config ")
 
 INSTRUCTIONS_BODY = "FIXTURE-INSTRUCTIONS-{skill}"
 CONTEXT_BODY = "FIXTURE-CONTEXT-{skill}"
@@ -78,10 +78,14 @@ class Command:
     def declined(self) -> bool:
         return any(token in self.raw for token in METACHARACTERS)
 
-    def argv(self, plugin_root: Path) -> list[str]:
-        """Claude Code's own textual substitution, then a shell-free split."""
-        substituted = self.raw.replace(PLUGIN_PREFIX, f"{plugin_root}/", 1)
-        return shlex.split(substituted)
+    def argv(self) -> list[str]:
+        """A shell-free split of the bare invocation.
+
+        No prefix substitution: the bare launcher resolves on PATH, so the
+        binary is located by the bootstrap the corpus runs against — not by
+        rewriting the command text.
+        """
+        return shlex.split(self.raw)
 
 
 def extract(skills_dir: Path) -> list[Command]:

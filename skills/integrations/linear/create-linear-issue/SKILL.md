@@ -18,7 +18,7 @@ allowed-tools:
 
 # Create Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-linear-issue --fail-safe`
+!`accelerator config context --skill create-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > See the
@@ -68,7 +68,7 @@ preview. On anything ambiguous, abort with "Aborted — no Linear write was made
 ## Step 4: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear create <work-item-file>
+accelerator linear create <work-item-file>
 ```
 
 The subcommand prints its outcome as a trailing `<keyword>\t<identifier>` line.
@@ -90,4 +90,4 @@ outcome never writes `external_id` and never invites a blind re-run:
   `external_id`; report the error. The file is unchanged, so it is safe to fix
   and retry.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-linear-issue --fail-safe`
+!`accelerator config instructions create-linear-issue --fail-safe`
