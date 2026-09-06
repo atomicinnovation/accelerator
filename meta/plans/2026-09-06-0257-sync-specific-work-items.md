@@ -844,8 +844,8 @@ Pass both through; do not reinterpret.
 
 #### Automated Verification
 
-- [ ] Skills lint and the full read-only set pass: `mise run check`
-- [ ] The `argument-hint` and body parse cleanly (frontmatter valid).
+- [x] Skills lint and the full read-only set pass: `mise run check`
+- [x] The `argument-hint` and body parse cleanly (frontmatter valid).
 
 #### Manual Verification
 

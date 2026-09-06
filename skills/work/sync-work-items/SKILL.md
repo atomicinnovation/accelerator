@@ -4,7 +4,7 @@ description: Reconcile local work items in meta/work/ with the active remote
   tracker named by work.integration. Use when the user wants to sync, push, or
   pull work items to or from Jira or Linear, preview what a sync would change, or
   reconcile divergent local and remote state.
-argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pushes N] [--resolve id=remote|local|skip]…"
+argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pushes N] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator work *)
@@ -76,9 +76,33 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   its bound refuses with **zero writes** (exit **5**).
 - `--resolve <id>=<remote|local|skip>` — a non-interactive resolution for a
   reported conflict; repeatable. Used by the conflict loop below.
+- `--target <id|external-id|path>` — reconcile only the named work item(s);
+  repeatable. A target may be a local id (`0257`), a remote tracker key /
+  `external_id` (`PP-787`), or a file path. On a token that is both a valid
+  local-id shape and a match for some `external_id`, the **local-id
+  interpretation wins** and the remote match is reported as suppressed. Naming
+  any target **suppresses untracked-remote discovery**, so a targeted pull
+  reaches only items already tracked locally. Per-item behaviour is otherwise
+  identical to a full sync.
+
+  A target that fails to resolve aborts the run before any side effect, naming
+  every offender, with zero writes. The abort exit codes and their recovery:
+
+  - **3** (`RESOLVE_NOT_FOUND`) — a token matched no local id, path, or
+    `external_id`. Offer `/list-work-items` to find the right value.
+  - **6** (`RESOLVE_OUTSIDE_WORKDIR`) — a path outside the work directory. Offer
+    `/list-work-items`.
+  - **2** (`USAGE`) — a malformed token (empty or blank) **or an ambiguous
+    match**. For an ambiguous match, mirror the sibling resolve callers: list
+    the candidates and ask the user to re-run with a full id or a path, rather
+    than treating it as a flat "malformed invocation".
+
+  When several classes coexist the run returns the highest-precedence code (2 >
+  6 > 3), but every offender is still named on stderr.
 
 Example: `/sync-work-items --push-only --preview` previews only the
-local→remote pushes.
+local→remote pushes. `/sync-work-items --target 0257` reconciles only item
+0257.
 
 ## Step 2: Run the sync
 
@@ -110,9 +134,10 @@ team), so it stays bounded on a shared multi-team workspace; a truncated or
 over-budget discovery is a refusal with guidance (exit 5), and an unset or
 unresolvable key is a pre-flight refusal (exit 74), neither a silent flood nor a
 silent skip. The report carries a `#\tdiscovery\t…` line saying whether the
-search **ran** (`found=N`), was **skipped** because the run was push-only, or
-**failed** transiently — so a completed search that found nothing is never
-mistaken for a skip.
+search **ran** (`found=N`), was **skipped** because the run was push-only, was
+**skipped** because the run named explicit `--target`s
+(`#\tdiscovery\tskipped\ttargeted`), or **failed** transiently — so a completed
+search that found nothing is never mistaken for a skip.
 
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
@@ -125,8 +150,11 @@ is response uncertainty — never auto-retried); `72` tracker recognised but no
 client built; `73` `work.integration` unset or unrecognised; `74` wired but a
 run cannot proceed on its config — missing/refused credentials, or a
 non-push-only run whose discovery scope names no valid target (nothing sent;
-set the key or run `--push-only`). Under `--preview` no baseline mutation occurs
-and every planned push carries a locally-validated payload check.
+set the key or run `--push-only`). A `--target` that fails to resolve aborts
+before any side effect with `3` (no match), `6` (path outside the work
+directory), or `2` (malformed or ambiguous token) — see the target-abort codes
+under Step 1. Under `--preview` no baseline mutation occurs and every planned
+push carries a locally-validated payload check.
 
 ## Step 3: Conflict resolution (bidirectional only)
 
@@ -249,6 +277,16 @@ needs-retry:           <ids>
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
+
+When the report carries the targeted discovery line or a suppressed-remote note,
+render them with exact human phrasing so the machine TSV tokens never leak
+verbatim, passing both through unchanged — do not reinterpret:
+
+- Targeted discovery (`#\tdiscovery\tskipped\ttargeted`): "Discovery skipped:
+  targeted run over N item(s)".
+- Suppressed remote match (`#\ttarget\tsuppressed\t<token>\tlocal=<id>\tremote=<key>`):
+  "Suppressed remote match: <token> resolved to local <id>; remote <key>
+  ignored".
 
 Under `--preview`, present the same plan (every push carrying its
 locally-validated payload check) and report every pull instead of writing it;
