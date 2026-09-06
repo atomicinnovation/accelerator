@@ -57,7 +57,7 @@ impl TeamResolver for FixedTeam {
     }
 }
 
-/// Everything the search surface accepts, in the bash's own shape.
+/// Everything the search surface accepts, in its own shape.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub team_id: Option<String>,

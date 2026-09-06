@@ -222,16 +222,16 @@ a description of the projected shape.
 
 #### Automated Verification
 
-- [ ] Both crates format clean and lint clean: `mise run cli:check`
-- [ ] No bash vocabulary in the Phase 1 files:
+- [x] Both crates format clean and lint clean: `mise run cli:check`
+- [x] No bash vocabulary in the Phase 1 files:
       `grep -rin bash cli/jira-client/src/cache.rs cli/jira-client/src/read.rs cli/jira-client/src/custom_fields.rs cli/jira-client/src/principal.rs cli/linear-client/src/client.rs cli/linear-client/src/transport.rs cli/linear-client/src/filter.rs cli/jira-client/Cargo.toml cli/linear-client/Cargo.toml`
       returns nothing
-- [ ] Full client test suites pass unchanged:
+- [x] Full client test suites pass unchanged:
       `cargo test -p jira-client -p linear-client` (run from `cli/`)
 
 #### Manual Verification
 
-- [ ] Each reworded comment still names the invariant or wire contract it
+- [x] Each reworded comment still names the invariant or wire contract it
       documented; none is now a what-comment describing the code
 
 ---

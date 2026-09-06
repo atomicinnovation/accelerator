@@ -61,7 +61,7 @@ const SHOW: &str = "query($id: String!) {
 
 /// The read-side show projection the `show` subcommand renders. The port `show`
 /// projects to a stamp and a Markdown body; this keeps the state, assignee and
-/// comments the bash `show` table shows, over a query distinct from the port's.
+/// comments the detailed `show` renders, over a query distinct from the port's.
 const SHOW_DETAILED: &str = "query($id: String!) {
     issue(id: $id) {
       id identifier title updatedAt
@@ -92,7 +92,7 @@ const SEARCH: &str =
 /// from `SEARCH` — which the sync engine's bulk read (`fetch_all`/`fetch_page`)
 /// spends its complexity budget on — so widening the projection never changes
 /// the port read's request shape. It selects the state and assignee names the
-/// bash search table shows and keeps the title, which the stamps-only port
+/// search surface renders and keeps the title, which the stamps-only port
 /// `search` discards.
 const SEARCH_PROJECTION: &str =
     "query($cursor: String, $filter: IssueFilter, $first: Int) {
@@ -113,7 +113,7 @@ type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
 /// The accumulated result of a detailed search.
 ///
 /// The raw projection nodes in arrival order, and whether the retrieval was cut
-/// short (a cap-hit or deadline, mirroring the bash `.data.issues.truncated`
+/// short (a cap-hit or deadline, surfaced as the `.data.issues.truncated`
 /// flag).
 #[derive(Debug)]
 pub struct DetailedPage {
@@ -235,10 +235,9 @@ impl LinearClient {
         })
     }
 
-    /// Classifies a response body the way the bash classifies it — a 200
-    /// carrying `errors[]` is a failure, and a 400's body decides between auth,
-    /// complexity, rate limiting and a bad request — into the wire [`Outcome`]
-    /// the exit code is read from.
+    /// Classifies a response body — a 200 carrying `errors[]` is a failure, and
+    /// a 400's body decides between auth, complexity, rate limiting and a bad
+    /// request — into the wire [`Outcome`] the exit code is read from.
     fn interpret_outcome(received: &Received) -> Result<Value, Outcome> {
         let Some(body) = received.json() else {
             return Err(if (200..300).contains(&received.status) {
@@ -364,7 +363,7 @@ impl LinearClient {
     /// Pages a search over the richer [`SEARCH_PROJECTION`] to exhaustion,
     /// returning the raw nodes the `search` subcommand renders. Unlike the port
     /// `search`, a wire failure is an error rather than a degraded page — the
-    /// bash search flow propagates the transport code — while a cap-hit or
+    /// search flow propagates the transport failure — while a cap-hit or
     /// expired deadline is a successful, truncated result.
     ///
     /// # Errors
@@ -424,7 +423,7 @@ impl LinearClient {
 
     /// Fetches one issue's full detail for the `show` subcommand, returning the
     /// raw GraphQL body. A `comments` cap keeps only the last N comment nodes,
-    /// reproducing the bash flow's client-side slice.
+    /// applying the client-side slice.
     ///
     /// # Errors
     ///
@@ -565,8 +564,8 @@ fn stamp(value: Option<&Value>) -> RemoteTimestamp {
         })
 }
 
-/// Keeps only the last `limit` comment nodes, reproducing the bash `--comments`
-/// client-side slice.
+/// Keeps only the last `limit` comment nodes — the `--comments` client-side
+/// slice.
 fn slice_comments(body: &mut Value, limit: usize) {
     if let Some(nodes) = body
         .pointer_mut("/data/issue/comments/nodes")

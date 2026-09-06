@@ -1,11 +1,10 @@
 //! The read-side projections the `search` and `show` subcommands render.
 //!
 //! The port `search`/`show` reshape a response into the sync contract — stamps
-//! and a projected body. These keep Jira's own wire envelope the retiring bash
-//! flows emitted verbatim: `search` echoes `{issues, nextPageToken}`, `show`
-//! returns the raw issue the binary renders ADF fields over. The composed JQL
-//! is exposed separately so the binary can print the audit line before the
-//! request, exactly as the bash flow did.
+//! and a projected body. These keep Jira's own wire envelope verbatim: `search`
+//! echoes `{issues, nextPageToken}`, `show` returns the raw issue the binary
+//! renders ADF fields over. The composed JQL is exposed separately so the
+//! binary can print the audit line before the request.
 
 use reqwest::Method;
 use serde_json::json;
@@ -35,7 +34,7 @@ impl JiraClient {
     }
 
     /// Runs one search page and returns Jira's verbatim response envelope
-    /// (`{issues, nextPageToken}`), the shape the bash search flow emitted.
+    /// (`{issues, nextPageToken}`), the shape the search surface emits.
     ///
     /// A single page: `page_token` follows the cursor the caller carries, so
     /// pagination stays the operator's, not the client's.
