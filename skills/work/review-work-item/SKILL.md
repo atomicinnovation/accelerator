@@ -61,6 +61,9 @@ When this command is invoked:
      with a full ID or path.
    - **Exit 3**: no match. Print the resolver's error and offer to run
      `/list-work-items`.
+   - **Exit 6**: the argument names a real file outside the managed work
+     directory. Print the resolver's error and offer to run
+     `/list-work-items`.
    - If optional focus arguments were provided (e.g., "focus on testability"),
      note them for lens selection.
 

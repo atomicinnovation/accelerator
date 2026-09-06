@@ -19,20 +19,31 @@ use work_adapters::filesystem::FilesystemLister;
 use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 
-/// The outcome `main` maps to the bash-documented exit codes: `Resolved` →
-/// 0, `Ambiguous` → 2, `NotFound`/`Invalid` → 3/1 respectively.
+/// The outcome `main` maps to the binary's exit codes: `Resolved` → 0,
+/// `Ambiguous` → 2, `NotFound` → 3, `Invalid` → 1, `OutsideWorkDir` → 6.
 pub enum RunOutcome {
     Resolved(PathBuf),
     Ambiguous(Vec<TaggedCandidate>),
     NotFound(String),
     Invalid(String),
+    OutsideWorkDir(String),
 }
 
-fn resolve_path_class(start: &Path, input: &str) -> RunOutcome {
+fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
     let candidate = start.join(input);
-    match candidate.canonicalize() {
-        Ok(resolved) if resolved.is_file() => RunOutcome::Resolved(resolved),
-        _ => RunOutcome::NotFound(format!("no work item at path '{input}'")),
+    let Ok(resolved) = candidate.canonicalize() else {
+        return RunOutcome::NotFound(format!("no work item at path '{input}'"));
+    };
+    if !resolved.starts_with(root) {
+        return RunOutcome::OutsideWorkDir(format!(
+            "path '{input}' is outside the work directory {}",
+            root.display()
+        ));
+    }
+    if resolved.is_file() {
+        RunOutcome::Resolved(resolved)
+    } else {
+        RunOutcome::NotFound(format!("no work item at path '{input}'"))
     }
 }
 
@@ -45,16 +56,22 @@ pub fn run(
     input: &str,
 ) -> Result<RunOutcome, kernel::Error> {
     let scheme = resolve_scheme(config)?;
+    let root = FileConfigStore::discover_root(start);
+    let work_dir = resolve_work_dir(config, &root)?;
+    let work_dir = work_dir.canonicalize().map_err(|error| {
+        kernel::Error::Failed(format!(
+            "could not resolve the work directory {}: {error}",
+            work_dir.display()
+        ))
+    })?;
 
     match classify_input(input, &scheme) {
-        InputClass::Path => Ok(resolve_path_class(start, input)),
+        InputClass::Path => Ok(resolve_path_class(&work_dir, start, input)),
         InputClass::Invalid => Ok(RunOutcome::Invalid(format!(
             "input '{input}' is not a recognised path, full ID, or bare \
              number"
         ))),
         class @ (InputClass::FullId | InputClass::BareNumber) => {
-            let root = FileConfigStore::discover_root(start);
-            let work_dir = resolve_work_dir(config, &root)?;
             let search_class = if class == InputClass::FullId {
                 SearchClass::FullId
             } else {

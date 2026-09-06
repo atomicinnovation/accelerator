@@ -285,15 +285,15 @@ assuming symmetry.
 
 #### Automated Verification
 
-- [ ] New negative test — a real `.md` outside `meta/work` resolves to exit 6
+- [x] New negative test — a real `.md` outside `meta/work` resolves to exit 6
       with `E_RESOLVE_OUTSIDE_WORKDIR` on stderr:
       `cargo test -p work-cli --test cli_resolve`
-- [ ] New negative test — a traversal path (`meta/work/../secret.md`) pointing
+- [x] New negative test — a traversal path (`meta/work/../secret.md`) pointing
       outside the work dir exits 6.
-- [ ] Existing Path/FullId/BareNumber/Invalid resolve tests still pass
+- [x] Existing Path/FullId/BareNumber/Invalid resolve tests still pass
       unchanged: `cargo test -p work-cli --test cli_resolve`
-- [ ] `cli` component check passes: `mise run cli:check`
-- [ ] Skills lint passes: `mise run check`
+- [x] `cli` component check passes: `mise run cli:check`
+- [x] Skills lint passes: `mise run check`
 
 #### Manual Verification
 

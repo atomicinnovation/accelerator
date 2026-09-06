@@ -59,6 +59,9 @@ The resolver respects `work.id_pattern` and accepts paths, full IDs
   disambiguate by re-running with a full ID or path.
 - **Exit 3**: no match. Print `"No work item matching <argument>."` and
   exit.
+- **Exit 6**: the argument names a real file outside the managed work
+  directory. Print the resolver's error, offer to run
+  `/list-work-items`, and exit.
 - **No argument**: ask the user which work item to update. Accept the
   response and run the resolver against it.
 

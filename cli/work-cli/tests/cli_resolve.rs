@@ -90,3 +90,26 @@ fn bare_number_not_found_exits_three() -> Result<(), TestError> {
     assert!(stderr.contains("E_RESOLVE_NOT_FOUND"));
     Ok(())
 }
+
+#[test]
+fn path_outside_the_work_directory_exits_six() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/secret.md"), "")?;
+    let output = run(repo.path(), &["resolve", "meta/secret.md"])?;
+    assert_eq!(output.status.code(), Some(6));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("E_RESOLVE_OUTSIDE_WORKDIR"));
+    Ok(())
+}
+
+#[test]
+fn traversal_path_escaping_the_work_directory_exits_six(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    fs::write(repo.path().join("meta/secret.md"), "")?;
+    let output = run(repo.path(), &["resolve", "meta/work/../secret.md"])?;
+    assert_eq!(output.status.code(), Some(6));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("E_RESOLVE_OUTSIDE_WORKDIR"));
+    Ok(())
+}
