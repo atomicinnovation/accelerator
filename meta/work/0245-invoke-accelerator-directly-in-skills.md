@@ -11,9 +11,9 @@ priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0106", "work-item:0167", "work-item:0212", "work-item:0107", "work-item:0182"]
 tags: ["skills", "cli"]
-last_updated: "2026-09-05T23:48:43+00:00"
+last_updated: "2026-09-06T20:52:56+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
+last_updated_note: "Recorded the precondition gate's affirmative outcome (bare form resolves on the ! and Bash surfaces in a main session and a subagent, to the same ${CLAUDE_PLUGIN_ROOT}/bin/accelerator binary via the on-PATH plugin bin/), closing the PATH Open Question; noted the lint is built at tasks/lint/bare_invocation.py."
 schema_version: 1
 external_id: "PP-775"
 ---
@@ -91,21 +91,60 @@ the invocation form in skill bodies changes.
   affirmatively before bulk conversion, since the bare form is now
   unconditional and no call site retains the explicit path as a fallback.
 
+  **Resolved affirmatively (2026-09-06).** A throwaway probe skill invoking
+  `!`accelerator config path plans --fail-safe`` resolved and emitted the plans
+  path (`meta/plans`) on both the `!`-preprocessor and Bash-tool surfaces, in a
+  main session and in a subagent, with no permission prompt against the bare
+  `Bash(accelerator config *)` grant. Bare `accelerator` resolves to
+  `${CLAUDE_PLUGIN_ROOT}/bin/accelerator` — the **identical** binary the pathed
+  form named — because Claude Code places the plugin `bin/` on the execution
+  `PATH`. On the developer's machine the plugin `bin/` is present but appended
+  last, and a personal `~/.local/bin/accelerator` symlink (→
+  `${CLAUDE_PLUGIN_DATA}/bin`, which `hooks/launcher-link-refresh.sh` keeps
+  pointing at the current version) resolves earlier; both entries `realpath` to
+  the same file, so which one wins does not change what runs. That personal
+  symlink is a per-developer convenience, not a plugin-shipped guarantee — the
+  general mechanism is the on-`PATH` plugin `bin/`.
+
+  **Not established:** the exact Claude Code version that first adds the plugin
+  `bin/` to the `!`-preprocessor / Bash-tool `PATH`. The gate is empirical on
+  the installed version, not a changelog trace against the declared minimum
+  v2.1.144. If a supported-floor guarantee is required, trace it (as 0182 traced
+  `${CLAUDE_PLUGIN_DATA}` to v2.1.78) before relying on the bare form on older
+  installs.
+
+  **Accepted trade-off / revert path.** The bare form is unconditional and the
+  new lint forbids the pathed form, so there is no per-call-site fallback. A
+  future Claude Code regression that stopped putting the plugin `bin/` on the
+  execution `PATH` would break every injection skill at load; reverting is a
+  coordinated lint change plus a reconversion, accepted here in exchange for one
+  uniform call form. Under a `PATH`-shadowing compromise (an unrelated
+  `accelerator` earlier on `PATH`) the bare grant authorises whatever resolves
+  first, with no re-pin to the explicit path — a low residual risk for a
+  developer-tooling surface, recorded rather than mitigated.
+
 ## Dependencies
 
 - Blocked by: none for the conversion itself (the precedent items 0167 and
   0212 are done).
 - Gated by: the PATH / `CLAUDE_PLUGIN_ROOT` precondition (see Open Questions),
   which must resolve affirmatively before bulk conversion begins.
-- Owns / supersedes: 0107 — this item owns the bare-invocation lint rule;
-  0107's lint-enforcement scope is subsumed here, so coordinate closure of
-  0107 rather than building a duplicate rule.
+- Owns / supersedes: 0107 — this item owns the bare-invocation lint rule, now
+  built as `tasks/lint/bare_invocation.py` and wired into `build-system:check`
+  and `lint:check`. 0107 is closed `done` with a `relates_to` link back here;
+  its coverage half is discharged by the pre-existing
+  `tasks/lint/skill_permissions.py`.
 - Blocks: the epic-0136 single-call-form convergence. An anticipated (not yet
   tracked as a work item) follow-on permissions/allowlist simplification also
   depends on one uniform call form across skills; link its id here once raised.
 - Informed by: 0182 (documents that bare invocation still requires
   `CLAUDE_PLUGIN_ROOT` in the environment — the source of this item's central
   Assumption).
+- External dependency (tracked, alongside 0182's documented behaviours): Claude
+  Code placing the plugin `bin/` on the `!`-preprocessor / Bash-tool `PATH`, so
+  bare `accelerator` resolves to `${CLAUDE_PLUGIN_ROOT}/bin/accelerator`. See the
+  Open Questions resolution for the untraced version floor and the accepted
+  revert path if a Claude Code change removes it.
 - Relates to: 0106 (bash-free path invocation convention), 0167 and 0212
   (config and work clusters already migrated).
 

@@ -553,12 +553,12 @@ this plan.
 
 #### Automated Verification
 
-- [ ] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0107-lint-skill-body-script-invocations.md`
-- [ ] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0245-invoke-accelerator-directly-in-skills.md`
+- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0107-lint-skill-body-script-invocations.md`
+- [x] Frontmatter validates: `accelerator corpus frontmatter validate --file meta/work/0245-invoke-accelerator-directly-in-skills.md`
 
 #### Manual Verification
 
-- [ ] 0107 no longer implies an unbuilt lint; 0245 records the resolved Open Question
+- [x] 0107 no longer implies an unbuilt lint; 0245 records the resolved Open Question
 
 ---
 
