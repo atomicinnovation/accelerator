@@ -1,9 +1,9 @@
-//! Pins `exit_codes.rs` against the captured bash contract.
+//! Pins `exit_codes.rs` against the captured exit-code contract.
 //!
 //! Non-allowlisted names must equal the value the retiring cluster returned.
 //! The only divergence is the search remap off the reserved `70`–`74` dispatch
 //! band: each allowlisted name asserts the *remapped* Rust value while the
-//! fixture keeps the original bash value. The count pin makes a silent
+//! fixture keeps the original captured value. The count pin makes a silent
 //! allowlist addition fail. The oracle is the committed fixture, never the
 //! constants it guards.
 
@@ -15,7 +15,7 @@ use std::path::Path;
 use cli_test_support::parse_u8_consts;
 
 /// `(name, remapped-rust-value)` for the deliberate search divergence. The
-/// fixture keeps the bash value; the binary emits the remapped one.
+/// fixture keeps the captured value; the binary emits the remapped one.
 const ALLOWLIST: &[(&str, u8)] = &[
     ("SEARCH_BAD_PAGE_TOKEN", 75),
     ("SEARCH_BAD_LIMIT", 76),
@@ -33,12 +33,12 @@ fn rust_codes() -> BTreeMap<String, u8> {
     parse_u8_consts(&source).into_iter().collect()
 }
 
-fn bash_codes() -> Vec<(String, u8)> {
+fn captured_codes() -> Vec<(String, u8)> {
     let text = std::fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/bash-exit-codes.txt"),
+            .join("tests/fixtures/captured-exit-codes.txt"),
     )
-    .expect("the bash-exit-codes fixture is committed");
+    .expect("the captured-exit-codes fixture is committed");
     text.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
@@ -53,15 +53,15 @@ fn bash_codes() -> Vec<(String, u8)> {
 #[test]
 fn every_captured_code_matches_or_is_an_allowlisted_divergence() {
     let rust = rust_codes();
-    let bash = bash_codes();
+    let captured = captured_codes();
     assert_eq!(
-        bash.len(),
+        captured.len(),
         EXPECTED_FIXTURE_COUNT,
         "a captured code was added or removed without updating the pin"
     );
 
     let allowlist: BTreeMap<&str, u8> = ALLOWLIST.iter().copied().collect();
-    for (name, bash_value) in &bash {
+    for (name, captured_value) in &captured {
         let rust_value = rust.get(name).unwrap_or_else(|| {
             panic!("exit_codes.rs has no constant named {name}")
         });
@@ -71,13 +71,13 @@ fn every_captured_code_matches_or_is_an_allowlisted_divergence() {
                 "{name} must carry its remapped value"
             );
             assert_ne!(
-                *rust_value, *bash_value,
+                *rust_value, *captured_value,
                 "{name} is allowlisted but did not actually diverge"
             );
         } else {
             assert_eq!(
-                *rust_value, *bash_value,
-                "{name} must equal the bash value it was captured at"
+                *rust_value, *captured_value,
+                "{name} must equal the value it was captured at"
             );
         }
     }

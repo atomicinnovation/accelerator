@@ -453,23 +453,23 @@ mod tests {
 
 #### Automated Verification
 
-- [ ] Format, lint, and type-check clean: `mise run cli:check`
-- [ ] Jira classify + discriminant + timeouts + transport suites pass:
+- [x] Format, lint, and type-check clean: `mise run cli:check`
+- [x] Jira classify + discriminant + timeouts + transport suites pass:
       `cargo test -p jira-client` (run from `cli/`)
-- [ ] The jira-cli parity and map-unit suites pass:
+- [x] The jira-cli parity and map-unit suites pass:
       `cargo test -p jira-cli --test exit_codes_parity` and
       `cargo test -p jira-cli exit_codes::tests`
-- [ ] Every jira-cli test target still compiles (catches a stale consumer of a
+- [x] Every jira-cli test target still compiles (catches a stale consumer of a
       removed symbol, since the crate is not surface-pinned):
       `cargo test -p jira-cli --all-targets --no-run`
-- [ ] Behavioural routing unchanged:
+- [x] Behavioural routing unchanged:
       `cargo test -p jira-cli --features test-loopback --test flow_errors`
-- [ ] No `bash_code`/`classify_bash_code` symbol in jira-client:
+- [x] No `bash_code`/`classify_bash_code` symbol in jira-client:
       `grep -rn "bash_code\|classify_bash_code" cli/jira-client/src` returns
       nothing
-- [ ] No 11–36 literal in the classification files:
+- [x] No 11–36 literal in the classification files:
       inspection of `cli/jira-client/src/classify.rs` and `failure.rs`
-- [ ] No bash vocabulary in jira-client src, Cargo.toml, the swept jira tests,
+- [x] No bash vocabulary in jira-client src, Cargo.toml, the swept jira tests,
       or the jira-cli exit-code source and parity suite:
       `grep -rin bash cli/jira-client/src cli/jira-client/Cargo.toml cli/jira-client/tests/classify.rs cli/jira-client/tests/discriminant.rs cli/jira-client/tests/timeouts.rs cli/jira-client/tests/transport.rs cli/jira-cli/src/exit_codes.rs cli/jira-cli/tests/exit_codes_parity.rs cli/jira-cli/tests/fixtures/captured-exit-codes.txt`
       returns nothing (the renamed capture script is not in this list; its
@@ -477,9 +477,9 @@ mod tests {
 
 #### Manual Verification
 
-- [ ] `git`/`jj` shows the fixture rename as a rename, not a delete-plus-add,
+- [x] `git`/`jj` shows the fixture rename as a rename, not a delete-plus-add,
       and the fixture content (the `NAME=INT` rows) is byte-identical
-- [ ] The jira-cli `for_failure`/`for_surface`/`for_client` matches remain
+- [x] The jira-cli `for_failure`/`for_surface`/`for_client` matches remain
       exhaustive with no wildcard
 
 ---
