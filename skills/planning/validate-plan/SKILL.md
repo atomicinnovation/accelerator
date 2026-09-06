@@ -5,15 +5,15 @@ description: Validate that an implementation plan was correctly executed by
   a plan to verify correctness.
 argument-hint: "[path to plan file]"
 allowed-tools:
-   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-   - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+   - Bash(accelerator config *)
+   - Bash(accelerator corpus metadata derive)
+   - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Validate Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill validate-plan --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill validate-plan --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,8 +21,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path validations --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Validations directory**: !`accelerator config path validations --fail-safe`
 
 ## Plan Validation Template
 
@@ -31,7 +31,7 @@ every plan validation report must carry. Read it now — use it to guide
 what information you record in the validation process and what shape
 you persist in Step 4.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template validation --fail-safe`
+!`accelerator config template validation --fail-safe`
 
 You are tasked with validating that an implementation plan was correctly
 executed, verifying all success criteria and identifying any deviations or
@@ -148,7 +148,7 @@ Before writing the validation file, capture metadata and substitute the
 unified base fields and per-type extras into the template's frontmatter
 block:
 
-1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+1. Invoke `accelerator corpus metadata derive`
    to obtain `Current Date/Time (UTC):`.
 2. **Substitute** every field below with the indicated value:
    - `type:` ← `plan-validation`
@@ -197,7 +197,7 @@ Validation report saved to {validations directory}/{filename}.md
 validate` over the validation report you just wrote:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the report violates the canonical frontmatter
@@ -250,4 +250,4 @@ history to understand what was implemented.
 Remember: Good validation catches issues before they reach production. Be
 constructive but thorough in identifying gaps or improvements.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions validate-plan --fail-safe`
+!`accelerator config instructions validate-plan --fail-safe`

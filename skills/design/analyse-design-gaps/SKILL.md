@@ -8,16 +8,16 @@ description: Compare two design inventories produced by inventory-design and emi
 argument-hint: "[current-source-id] [target-source-id]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator design *)
+  - Bash(accelerator corpus metadata derive *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Analyse Design Gaps
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill analyse-design-gaps --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill analyse-design-gaps --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -25,8 +25,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_gaps --fail-safe`
+**Design inventories directory**: !`accelerator config path research_design_inventories --fail-safe`
+**Design gaps directory**: !`accelerator config path research_design_gaps --fail-safe`
 
 You are tasked with comparing two design inventories and producing a structured
 `design-gap` artifact. The artifact's prose paragraphs must satisfy the
@@ -120,8 +120,7 @@ must contain at least one paragraph meeting the cue-phrase contract.
 
 After generating the gap body, run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design audit-cue-phrases \
-  "<draft-body-path>"
+accelerator design audit-cue-phrases "<draft-body-path>"
 ```
 
 **On exit 2** (usage error — the file could not be read at all): report the
@@ -143,15 +142,14 @@ reused across retries.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive \
-  --filename-timestamp-format date-only
+accelerator corpus metadata derive --filename-timestamp-format date-only
 ```
 
 ### 7. Populate frontmatter and write artifact
 
 Use the `design-gap` template:
 ```
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template design-gap --fail-safe`
+!`accelerator config template design-gap --fail-safe`
 ```
 
 Before writing the artifact file, **substitute** every field below
@@ -204,7 +202,7 @@ The `References` section must record:
 **Validate the frontmatter**: after writing the artifact, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -231,4 +229,4 @@ Suggest next steps:
 - The cue-phrase audit is programmatic enforcement, not a style suggestion. Revise
   failing sections until the audit passes or the three-attempt limit is reached.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions analyse-design-gaps --fail-safe`
+!`accelerator config instructions analyse-design-gaps --fail-safe`

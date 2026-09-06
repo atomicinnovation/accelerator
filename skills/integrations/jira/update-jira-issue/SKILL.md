@@ -18,7 +18,7 @@ allowed-tools:
 
 # Update Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-jira-issue --fail-safe`
+!`accelerator config context --skill update-jira-issue --fail-safe`
 
 Update an existing Jira issue via `PUT /rest/api/3/issue/{key}`. Work through
 the steps below in order. This skill never auto-invokes — it only runs when the
@@ -89,7 +89,7 @@ made."
 ## Step 5: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira update <KEY> [flags from Step 1]
+accelerator jira update <KEY> [flags from Step 1]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -124,4 +124,4 @@ Skill previews "labels: ADD needs-review", confirms, updates.
 User: `/update-jira-issue ENG-42 --assignee ""`
 Skill previews "assignee: (unassigned)", confirms, updates.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-jira-issue --fail-safe`
+!`accelerator config instructions update-jira-issue --fail-safe`

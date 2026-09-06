@@ -8,7 +8,7 @@ guardrail rather than a shell script:
    prefix/glob where ``*`` spans ``/`` (the empirically-verified matcher);
 2. no ``Bash`` rule authorises the launcher without naming a subcommand (an
    ancestor glob would silently pre-authorise every future sub-binary);
-3. every ``bin/accelerator config`` command in a ``!`` block carries
+3. every ``accelerator config`` command in a ``!`` block carries
    ``--fail-safe`` (without it a read failure discards the whole prompt);
 4. no ``!`` command contains a shell metacharacter (the matcher is a literal
    prefix, so a chained command could smuggle an unmatched call past a rule).
@@ -32,6 +32,10 @@ from invoke import Context, Exit, task
 
 from tasks.shared.skill_parsing import (
     BARE_LAUNCHER,
+    CONFIG_MARKER,
+    CONTEXT_ANY_MARKER,
+    CONTEXT_SKILL_MARKER,
+    INSTRUCTIONS_MARKER,
     covered_by,
     frontmatter_bash_rules,
     frontmatter_name,
@@ -47,10 +51,6 @@ from tasks.shared.sources import repo_root
 # genuinely added or removed — the equality is what catches an accidental loss.
 EXPECTED_INJECTION_SKILLS = 42
 
-_CONFIG_MARKER = "/bin/accelerator config "
-_CONTEXT_SKILL = "/bin/accelerator config context --skill "
-_CONTEXT_ANY = "/bin/accelerator config context"
-_INSTRUCTIONS = "/bin/accelerator config instructions "
 _NAME_TOKEN = re.compile(r"([a-z0-9][a-z0-9-]*)")
 
 
@@ -76,24 +76,24 @@ def _command_violations(
         )
 
     found: list[str] = []
-    if _CONFIG_MARKER in command and " --fail-safe" not in command:
+    if CONFIG_MARKER in command and " --fail-safe" not in command:
         found.append(
             f"{rel}: '!`{command}`' is missing --fail-safe — a read failure "
             "would exit non-zero and discard the prompt"
         )
 
-    is_ctx = _CONTEXT_ANY in command
-    if _CONTEXT_SKILL in command:
-        argument = _name_after(command, _CONTEXT_SKILL)
+    is_ctx = CONTEXT_ANY_MARKER in command
+    if CONTEXT_SKILL_MARKER in command:
+        argument = _name_after(command, CONTEXT_SKILL_MARKER)
         if argument != name:
             found.append(
                 f"{rel}: 'config context --skill {argument}' does not name "
                 f"this skill's frontmatter name '{name}'"
             )
 
-    is_instr = _INSTRUCTIONS in command
+    is_instr = INSTRUCTIONS_MARKER in command
     if is_instr:
-        argument = _name_after(command, _INSTRUCTIONS)
+        argument = _name_after(command, INSTRUCTIONS_MARKER)
         if argument != name:
             found.append(
                 f"{rel}: 'config instructions {argument}' does not name this "
@@ -137,7 +137,7 @@ def _check_skill(path: Path, rel: str) -> tuple[list[str], bool, bool]:
     if has_instr:
         plugin_commands = [c for c in commands if is_plugin_invocation(c)]
         last = plugin_commands[-1] if plugin_commands else ""
-        if _INSTRUCTIONS not in last:
+        if INSTRUCTIONS_MARKER not in last:
             found.append(
                 f"{rel}: 'config instructions' is not the last `!` "
                 "preprocessor command"

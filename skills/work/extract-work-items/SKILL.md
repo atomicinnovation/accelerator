@@ -7,16 +7,16 @@ description: Extract work items in batch from existing documents (specs, PRDs,
   work items in meta/work/ — even if they don't say "extract" explicitly.
 argument-hint: "[document paths...] or leave empty to scan all"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Extract Work Items from Meta Documents
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill extract-work-items --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill extract-work-items --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -24,9 +24,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
+**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
 
 ## Work Item Template
 
@@ -35,7 +35,7 @@ work item must contain. Read it now — the valid work item kinds live in the `k
 field (not a hardcoded list elsewhere in this skill), and every written file
 must populate every frontmatter field.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+!`accelerator config template work-item --fail-safe`
 
 You are tasked with identifying requirements, work items, and actionable
 tasks within existing meta documents and helping the user capture them as
@@ -348,9 +348,9 @@ in Step 4 after all approvals — enriched and thin — are collected.
       assignment, as the assignment (not the path) would become the command and escape
       the rule:
 
-      - Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work id_pattern` and use its
+      - Run `accelerator config work id_pattern` and use its
         stdout as `PATTERN`.
-      - Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code` and
+      - Run `accelerator config work default_project_code` and
         use its stdout as `DEFAULT_PROJECT`.
 
       Run the bare path **directly** as an executable;
@@ -365,7 +365,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
       Compute *display-only* projected IDs by calling, per distinct
       project code:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --project <code> --count <count-for-that-project>
+      accelerator work next-number --project <code> --count <count-for-that-project>
       ```
       These calls do not commit numbers; the same call is re-issued after
       every amendment to keep the table accurate.
@@ -433,7 +433,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
    f. **Allocate per distinct project code**, in original presentation
       order:
       ```
-      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --project <code> --count <count>
+      accelerator work next-number --project <code> --count <count>
       ```
       One call per distinct project code; `--project` is omitted when
       the pattern lacks `{project}`. If any allocator call exits
@@ -451,7 +451,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
       fields into the template's frontmatter block:
 
       1. Invoke
-         `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+         `accelerator corpus metadata derive`
          once for the batch to obtain `Current Date/Time (UTC):`,
          `Current Revision:`, and `Repository Name:`.
       2. For each approved draft, **substitute** every field below
@@ -531,7 +531,7 @@ Under the default `{number:04d}` pattern the ID column shows
 item written this batch
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <each written work item path>
+accelerator corpus frontmatter validate --file <each written work item path>
 ```
 
 If any invocation exits non-zero, the document violates the canonical
@@ -618,4 +618,4 @@ before completing.
   prefer Given/When/Then for story/task. Challenge any criterion that
   is not measurable before accepting it into the draft.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions extract-work-items --fail-safe`
+!`accelerator config instructions extract-work-items --fail-safe`

@@ -5,14 +5,14 @@ description: Execute an approved implementation plan from the configured plans
   verification.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Implement Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill implement-plan --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill implement-plan --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,7 +20,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
 
 You are tasked with implementing an approved technical plan from
 the configured plans directory (shown above). These plans contain phases with
@@ -82,7 +82,7 @@ points.
 validate` over the plan file whose checkboxes you just updated:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the plan violates the canonical frontmatter
@@ -111,4 +111,4 @@ If the plan has existing checkmarks:
 Remember: You're implementing a solution, not just checking boxes. Keep the end
 goal in mind and maintain forward momentum.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions implement-plan --fail-safe`
+!`accelerator config instructions implement-plan --fail-safe`

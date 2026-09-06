@@ -11,8 +11,8 @@ from tasks.lint import skill_permissions
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-_RULE = "Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)"
-_ACC = "${CLAUDE_PLUGIN_ROOT}/bin/accelerator config"
+_RULE = "Bash(accelerator config *)"
+_ACC = "accelerator config"
 
 
 def _inject(rest: str) -> str:
@@ -27,9 +27,9 @@ def _skill(root: Path, name: str, rules: str, body: str) -> None:
 
 def _injecting_body(name: str) -> str:
     return (
-        f"!`${{CLAUDE_PLUGIN_ROOT}}/bin/accelerator config context "
+        f"!`accelerator config context "
         f"--skill {name} --fail-safe`\n\n"
-        f"!`${{CLAUDE_PLUGIN_ROOT}}/bin/accelerator config instructions "
+        f"!`accelerator config instructions "
         f"{name} --fail-safe`"
     )
 
@@ -39,7 +39,7 @@ def test_missing_fail_safe_is_flagged(tmp_path: Path) -> None:
         tmp_path,
         "demo",
         _RULE,
-        "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get x`",
+        "!`accelerator config get x`",
     )
     assert any(
         "missing --fail-safe" in v
@@ -52,7 +52,7 @@ def test_uncovered_command_is_flagged(tmp_path: Path) -> None:
         tmp_path,
         "demo",
         "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/other.sh)",
-        "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get x --fail-safe`",
+        "!`accelerator config get x --fail-safe`",
     )
     assert any(
         "not covered" in v for v in skill_permissions.violations(tmp_path)
@@ -72,7 +72,7 @@ def test_metacharacter_is_flagged(tmp_path: Path) -> None:
 
 
 def test_bare_launcher_rule_is_flagged(tmp_path: Path) -> None:
-    _skill(tmp_path, "demo", "Bash(${CLAUDE_PLUGIN_ROOT}/*)", "body")
+    _skill(tmp_path, "demo", "Bash(accelerator *)", "body")
     assert any(
         "without a subcommand" in v
         for v in skill_permissions.violations(tmp_path)
@@ -84,8 +84,7 @@ def test_skill_name_mismatch_is_flagged(tmp_path: Path) -> None:
         tmp_path,
         "demo",
         _RULE,
-        "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context "
-        "--skill wrong-name --fail-safe`",
+        "!`accelerator config context --skill wrong-name --fail-safe`",
     )
     assert any(
         "does not name this skill's frontmatter name" in v

@@ -6,16 +6,16 @@ description: Reconcile local work items in meta/work/ with the active remote
   reconcile divergent local and remote state.
 argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pushes N] [--resolve id=remote|local|skip]…"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Sync Work Items
 
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
-**Default project code**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work default_project_code --fail-safe`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Active integration**: !`accelerator config work integration --fail-safe`
+**Default project code**: !`accelerator config work default_project_code --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 `/sync-work-items` reconciles the local work items under the work directory with
 the remote tracker named by `work.integration`. It is **on-demand** (never
@@ -83,7 +83,7 @@ local→remote pushes.
 ## Step 2: Run the sync
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work sync \
+accelerator work sync \
   [--push-only|--pull-only] [--preview] \
   [--max-pulls N] [--max-pushes N] \
   [--resolve <id>=<remote|local|skip>]…
@@ -200,7 +200,7 @@ After collecting **one choice per work item**, emit **one `--resolve
 id twice:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work sync \
+accelerator work sync \
   --resolve <id1>=<choice1> --resolve <id2>=<choice2>
 ```
 
@@ -261,7 +261,7 @@ rejection surfaces only at apply, as a `71`).
 engine run validate each concrete item it touched (created or written back)
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <each touched item path>
+accelerator corpus frontmatter validate --file <each touched item path>
 ```
 
 If any invocation exits non-zero, that item violates the canonical

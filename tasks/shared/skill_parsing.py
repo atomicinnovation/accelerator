@@ -5,6 +5,12 @@ permissions lint rule and the release-gating dispatch guard now depend on that
 model agreeing with the real one, so a change here changes what the release
 considers an authorised command.
 
+It also owns the shared launcher and config-subcommand vocabulary: the bare
+`LAUNCHER` name and the `config` marker strings derived from it. The permissions
+lint and the integration conformance corpus consume those definitions rather
+than each re-declaring `accelerator config`, so the launcher name lives in one
+place.
+
 This module depends only on `re` and `fnmatch`. Keeping it a leaf is what lets
 `tasks/shared/` consume the parsing without importing `invoke` or `tasks.lint`.
 """
@@ -18,14 +24,24 @@ _FENCED_BLOCK = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
 _BARE_BASH_LINE = re.compile(r"^\s*-?\s*Bash\s*$")
 _NAME_LINE = re.compile(r'^name:\s*"?([^"\n]*?)"?\s*$')
 _METACHARACTERS = ("&&", "||", ";", "|", "$(", "`", "<(", ">(")
-# Public: the conformance suite substitutes this prefix the way Claude Code
-# does, and a second literal copy could desynchronise from this guard.
+# Public: `is_plugin_invocation` still recognises this prefix so the surviving
+# non-accelerator `${CLAUDE_PLUGIN_ROOT}/…` script references stay covered.
 PLUGIN_PREFIX = "${CLAUDE_PLUGIN_ROOT}/"
-LAUNCHER = f"{PLUGIN_PREFIX}bin/accelerator"
+LAUNCHER = "accelerator"
+# The eradicated pathed form, named once so the bare-invocation lint scans for a
+# constant rather than a fresh copy of the string this convention removes.
+FORBIDDEN_LAUNCHER = f"{PLUGIN_PREFIX}bin/accelerator"
 # A launcher command naming no subcommand — any rule matching it is too broad.
 # The sentinel argument is load-bearing: `covered_by` appends `*` to a rule that
 # lacks one, so a bare `{LAUNCHER}` probe matches even a correctly scoped rule.
 BARE_LAUNCHER = f"{LAUNCHER} zz-external-subcommand-zz"
+
+# The config-subcommand vocabulary, derived from LAUNCHER so the launcher name
+# is defined once. Consumed by the permissions lint and the conformance corpus.
+CONFIG_MARKER = f"{LAUNCHER} config "
+CONTEXT_SKILL_MARKER = f"{LAUNCHER} config context --skill "
+CONTEXT_ANY_MARKER = f"{LAUNCHER} config context"
+INSTRUCTIONS_MARKER = f"{LAUNCHER} config instructions "
 
 
 def _frontmatter_lines(text: str) -> list[str]:
@@ -89,8 +105,16 @@ def fenced_block_commands(text: str) -> list[str]:
 
 
 def is_plugin_invocation(command: str) -> bool:
-    """Return whether a command invokes a plugin script or the launcher."""
-    return command.startswith(PLUGIN_PREFIX)
+    """Return whether a command invokes a plugin script or the launcher.
+
+    Recognises the bare launcher (``accelerator``, or ``accelerator `` with
+    arguments) and the surviving ``${CLAUDE_PLUGIN_ROOT}/`` plugin-script
+    prefix. The bare form is anchored to a leading launcher token, so a config
+    marker cannot match mid-argument.
+    """
+    return command == LAUNCHER or command.startswith(
+        (PLUGIN_PREFIX, f"{LAUNCHER} ")
+    )
 
 
 def covered_by(command: str, pattern: str) -> bool:

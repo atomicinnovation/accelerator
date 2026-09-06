@@ -5,15 +5,15 @@ description: Review an implementation plan through multiple quality lenses and
   a plan before implementation.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Review Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-plan --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill review-plan --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,10 +21,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config review plan --fail-safe`
+!`accelerator config review plan --fail-safe`
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Plan reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_plans --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Plan reviews directory**: !`accelerator config path review_plans --fail-safe`
 
 ## Plan Review Template
 
@@ -32,7 +32,7 @@ The template below defines the frontmatter and body structure that every
 plan review must carry. Read it now — use it to guide what information
 you record in Steps 3-4 and what shape you persist in Step 4.8.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template plan-review --fail-safe`
+!`accelerator config template plan-review --fail-safe`
 
 You are tasked with reviewing an implementation plan through multiple quality
 lenses and then collaboratively iterating the plan based on findings.
@@ -271,7 +271,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agent reviewer --fail-safe`"`.
+`subagent_type: "!`accelerator config agent reviewer --fail-safe`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 
@@ -436,7 +436,7 @@ Before writing the plan review file, capture metadata and substitute the
 unified base fields and per-type extras into the template's frontmatter
 block:
 
-1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+1. Invoke `accelerator corpus metadata derive`
    to obtain `Current Date/Time (UTC):`.
 2. **Substitute** every field below with the indicated value:
    - `type:` ← `plan-review`
@@ -497,7 +497,7 @@ analysis for future reference while keeping it human-readable.
 **Validate the frontmatter**: after writing the review, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the review document violates the canonical frontmatter
@@ -701,4 +701,4 @@ The review sits in the plan lifecycle between creation and implementation:
 3. `/implement-plan` — Execute the approved plan
 4. `/validate-plan` — Verify implementation matches the plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-plan --fail-safe`
+!`accelerator config instructions review-plan --fail-safe`

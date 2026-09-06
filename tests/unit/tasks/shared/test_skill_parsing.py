@@ -39,9 +39,14 @@ _MODULE = repo_root() / "tasks/shared/skill_parsing.py"
         # matches the command plus trailing arguments.
         (_VISUALISE, f"{LAUNCHER} visualiser", True),
         (_VISUALISE, f"{LAUNCHER} config *", False),
-        # `*` spans `/`, unlike a shell glob.
-        (_VISUALISE, f"{PLUGIN_PREFIX}*", True),
-        (_VISUALISE, f"{PLUGIN_PREFIX}bin/*", True),
+        # A bare launcher command is disjoint from the plugin-script prefix
+        # globs — the two forms no longer share an ancestor.
+        (_VISUALISE, f"{PLUGIN_PREFIX}*", False),
+        (_VISUALISE, f"{PLUGIN_PREFIX}bin/*", False),
+        # `*` spans `/`, unlike a shell glob — witnessed on a surviving
+        # plugin-script command still addressed through the prefix.
+        (f"{PLUGIN_PREFIX}scripts/thing.sh", f"{PLUGIN_PREFIX}*", True),
+        (f"{PLUGIN_PREFIX}scripts/thing.sh", f"{PLUGIN_PREFIX}bin/*", False),
         # fnmatch's `?`, `[seq]` and `[!seq]` classes are honoured, which is
         # why the dispatch guard cannot rely on `*` alone to spot a wildcard.
         (_VISUALISE, f"{LAUNCHER} ?isualiser *", True),
@@ -68,7 +73,7 @@ def test_covered_by_matcher_contract(
 
 
 def test_bare_launcher_is_covered_by_an_ancestor_glob() -> None:
-    for rule in (f"{PLUGIN_PREFIX}*", f"{PLUGIN_PREFIX}bin/*", f"{LAUNCHER} *"):
+    for rule in (f"{LAUNCHER} *", f"{LAUNCHER}*", LAUNCHER):
         assert covered_by(BARE_LAUNCHER, rule)
 
 
@@ -92,8 +97,8 @@ def test_bare_launcher_is_not_covered_by_a_scoped_rule() -> None:
         (f"{LAUNCHER} ", ""),
         # A sibling binary continuing `accelerator` without a separator must
         # not yield a token spliced out of the middle of its filename.
-        (f"{PLUGIN_PREFIX}bin/accelerator-verify-darwin-arm64 x", ""),
-        (f"{PLUGIN_PREFIX}bin/accelerator-verify *", ""),
+        ("accelerator-verify-darwin-arm64 x", ""),
+        ("accelerator-verify *", ""),
         ("echo hello", ""),
     ],
 )
@@ -187,8 +192,12 @@ def test_fenced_block_commands_finds_none_with_no_fence() -> None:
 
 def test_is_plugin_invocation() -> None:
     assert is_plugin_invocation(_VISUALISE)
+    assert is_plugin_invocation(LAUNCHER)
     assert is_plugin_invocation(f"{PLUGIN_PREFIX}scripts/thing.sh")
     assert not is_plugin_invocation(f"cd . && {_VISUALISE}")
+    # A sibling binary is not the launcher: the char after `accelerator` is
+    # `-`, not a separator.
+    assert not is_plugin_invocation("accelerator-verify-darwin-arm64 x")
 
 
 @pytest.mark.parametrize("metacharacter", _METACHARACTERS)

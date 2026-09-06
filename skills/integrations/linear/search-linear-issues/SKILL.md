@@ -11,13 +11,13 @@ description: >
 argument-hint: "[--state NAME] [--assignee NAME] [--label NAME] [--text STR] [--limit 1..250] [--quiet]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
+  - Bash(accelerator config *)
+  - Bash(accelerator linear *)
 ---
 
 # Search Linear Issues
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill search-linear-issues --fail-safe`
+!`accelerator config context --skill search-linear-issues --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 > The team is fixed at `/init-linear` time (single-team scoping) — there is no
@@ -45,7 +45,7 @@ Read the argument string and note each flag:
 Run the search subcommand, passing the flags through verbatim:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear search [flags]
+accelerator linear search [flags]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -70,4 +70,4 @@ Read each row from `.data.issues.nodes[]`: `.identifier`, `.title`,
 `.state.name`, `.assignee.name` (show `—` for an unassigned issue). Report the
 total count and note if the result was truncated.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions search-linear-issues --fail-safe`
+!`accelerator config instructions search-linear-issues --fail-safe`

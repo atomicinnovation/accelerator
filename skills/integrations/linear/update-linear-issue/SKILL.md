@@ -16,7 +16,7 @@ allowed-tools:
 
 # Update Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-linear-issue --fail-safe`
+!`accelerator config context --skill update-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -57,7 +57,7 @@ ambiguous, abort with "Aborted — no Linear write was made."
 ## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear update <IDENTIFIER> [flags]
+accelerator linear update <IDENTIFIER> [flags]
 ```
 
 The subcommand reports the `updated` keyword on success (the trailing
@@ -66,4 +66,4 @@ renders JSON). Confirm the updated fields and suggest `/show-linear-issue
 <IDENTIFIER>` to verify. On any non-zero exit, report the error — no write was
 made.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-linear-issue --fail-safe`
+!`accelerator config instructions update-linear-issue --fail-safe`

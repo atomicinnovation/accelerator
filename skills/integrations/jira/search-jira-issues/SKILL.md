@@ -12,13 +12,13 @@ description: >
 argument-hint: "[--project KEY] [--status NAME]... [--assignee NAME|@me]... [--type NAME]... [--label NAME]... [--component NAME]... [--reporter NAME] [--parent KEY] [--watching] [--jql 'raw'] [--limit 1..100] [--page-token TOK] [--field NAME]... [--render-adf] [--text STR]... [--quiet]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira *)
+  - Bash(accelerator config *)
+  - Bash(accelerator jira *)
 ---
 
 # Search Jira Issues
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill search-jira-issues --fail-safe`
+!`accelerator config context --skill search-jira-issues --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -63,7 +63,7 @@ explicit JQL, ask them rather than guessing.
 Run the search subcommand, passing the flags through verbatim:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira search [flags]
+accelerator jira search [flags]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -113,7 +113,7 @@ Without `--render-adf`, descriptions are ADF JSON objects. Mention that
 User: "what's assigned to me in ENG?"
 Skill invokes:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira search --project ENG --assignee @me --status '~Done' --limit 50
+accelerator jira search --project ENG --assignee @me --status '~Done' --limit 50
 ```
 Then renders a Markdown table of the results.
 
@@ -121,16 +121,16 @@ Then renders a Markdown table of the results.
 User: "show me all bugs reported by sarah"
 Skill invokes:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira search --type Bug --reporter sarah
+accelerator jira search --type Bug --reporter sarah
 ```
 
 **Example 3 — pagination round-trip**
 User: "show me the next page" (after a prior search returned `nextPageToken: "abc-123"`)
 Skill re-runs the previous flag set with `--page-token` added:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira search --project ENG --assignee @me --status '~Done' --limit 50 --page-token abc-123
+accelerator jira search --project ENG --assignee @me --status '~Done' --limit 50 --page-token abc-123
 ```
 The response either includes a new `nextPageToken` (more pages remain) or
 omits it (last page).
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions search-jira-issues --fail-safe`
+!`accelerator config instructions search-jira-issues --fail-safe`

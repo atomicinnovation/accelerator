@@ -5,14 +5,14 @@ description: Interactively stress-test an implementation plan by grilling the us
   before implementation begins.
 argument-hint: "[path to plan file]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Stress-Test Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill stress-test-plan --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill stress-test-plan --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,7 +20,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
 
 You are tasked with stress-testing an implementation plan by interviewing the
 user relentlessly about every aspect of it. Your goal is to find issues,
@@ -189,7 +189,7 @@ I've updated the plan at `[path]`. Changes made:
 validate` over each file you edited:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the edited document violates the canonical frontmatter
@@ -241,4 +241,4 @@ This skill sits in the plan lifecycle between review and implementation:
   finding logical inconsistencies, missing edge cases, flawed assumptions, and
   gaps that only surface when you trace through scenarios step by step
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions stress-test-plan --fail-safe`
+!`accelerator config instructions stress-test-plan --fail-safe`

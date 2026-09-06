@@ -6,15 +6,15 @@ description: Interactively refine a work item by decomposing it into children,
   drafted and before planning begins.
 argument-hint: "[work item number or path]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Refine Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill refine-work-item --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill refine-work-item --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -22,7 +22,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 ## Work Item Template
 
@@ -30,7 +30,7 @@ The template below defines the sections and frontmatter fields that every
 work item must contain. Read it now — use it to know valid kinds, statuses,
 priorities, and section names without re-reading the file at runtime.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+!`accelerator config template work-item --fail-safe`
 
 You are tasked with refining a work item through one or more of five operations:
 decompose it into child work items, enrich it with codebase context, sharpen
@@ -173,7 +173,7 @@ options. State the allocation count and warn about partial state:
 
 **On approval**:
 
-1. Call `${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number --count N`
+1. Call `accelerator work next-number --count N`
    exactly once to allocate N consecutive numbers.
 
 2. For each child, write `NNNN-kebab-slug.md`, populating every unified
@@ -388,7 +388,7 @@ On approval via Edit: modify only the Dependencies section.
 **Validate the frontmatter**: after editing the work item, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <the refined work item path>
+accelerator corpus frontmatter validate --file <the refined work item path>
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -478,4 +478,4 @@ Do NOT invoke `/review-work-item` automatically — wait for the user's choice.
 5. `/update-work-item` — status/metadata transitions (not this skill's concern)
 6. `/create-plan` — plan implementation from an approved work item
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions refine-work-item --fail-safe`
+!`accelerator config instructions refine-work-item --fail-safe`

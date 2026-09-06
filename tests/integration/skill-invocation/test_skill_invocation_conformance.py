@@ -100,8 +100,8 @@ def invoke(
     )
 
     def _invoke(command: corpus.Command):
-        argv = command.argv(installation.root)
-        assert argv[0] == str(installation.root / "bin/accelerator"), argv
+        argv = command.argv()
+        assert argv[0] == "accelerator", argv
         return run_bootstrap(
             installation.root,
             installation.server,

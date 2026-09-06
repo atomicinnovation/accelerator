@@ -17,7 +17,7 @@ allowed-tools:
 
 # Transition Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill transition-jira-issue --fail-safe`
+!`accelerator config context --skill transition-jira-issue --fail-safe`
 
 Transition a Jira issue through its workflow by state name. Work through the
 steps below in order. This skill never auto-invokes — it only runs when the
@@ -72,7 +72,7 @@ made."
 ## Step 5: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira transition <KEY> "<STATE_NAME>" [flags]
+accelerator jira transition <KEY> "<STATE_NAME>" [flags]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -102,4 +102,4 @@ Skill previews `<KEY>` → "In Progress", waits for `y`, transitions, confirms.
 User: `/transition-jira-issue ENG-42 "Done" --resolution "Fixed"`
 Skill previews the move plus resolution "Fixed", confirms, transitions.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions transition-jira-issue --fail-safe`
+!`accelerator config instructions transition-jira-issue --fail-safe`

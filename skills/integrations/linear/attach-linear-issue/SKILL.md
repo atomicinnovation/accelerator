@@ -17,7 +17,7 @@ allowed-tools:
 
 # Attach to a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill attach-linear-issue --fail-safe`
+!`accelerator config context --skill attach-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -66,7 +66,7 @@ write was made."
 ## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear attach <IDENTIFIER> (--url URL | --file PATH) [--title T]
+accelerator linear attach <IDENTIFIER> (--url URL | --file PATH) [--title T]
 ```
 
 The subcommand emits a JSON envelope with a top-level `outcome` keyword. Binary
@@ -75,4 +75,4 @@ fails (`E_ATTACH_REGISTER_FAILED`), the asset is orphaned in Linear —
 tell the user which step failed and that a blind re-run re-uploads. On
 `attached`, confirm the attachment was added.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions attach-linear-issue --fail-safe`
+!`accelerator config instructions attach-linear-issue --fail-safe`

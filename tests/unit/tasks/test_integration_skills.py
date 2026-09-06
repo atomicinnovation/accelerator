@@ -16,7 +16,7 @@ Ask: Reply **y** to confirm.
 ## Step 3: Send
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear create <file>
+accelerator linear create <file>
 ```
 """
 
@@ -25,7 +25,7 @@ _UNGATED_BODY = """\
 ## Step 2: Send
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear create <file>
+accelerator linear create <file>
 ```
 """
 
@@ -34,7 +34,7 @@ _REVERSED_BODY = """\
 ## Step 2: Send
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear create <file>
+accelerator linear create <file>
 ```
 
 Ask: Reply **y** to confirm.
@@ -80,9 +80,7 @@ class TestWriteGate:
         assert found and "no confirm step precedes" in found[0]
 
     def test_a_read_body_is_out_of_scope(self):
-        read_body = (
-            "```\n${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear show X\n```"
-        )
+        read_body = "```\naccelerator linear show X\n```"
         assert (
             skill_write_gate.body_violations(read_body, "linear", "fix") is None
         )

@@ -16,7 +16,7 @@ allowed-tools:
 
 # Comment on a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill comment-linear-issue --fail-safe`
+!`accelerator config context --skill comment-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -55,11 +55,11 @@ ambiguous, abort with "Aborted — no Linear write was made."
 ## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear comment add <IDENTIFIER> --body "..."
+accelerator linear comment add <IDENTIFIER> --body "..."
 ```
 
 The subcommand emits a JSON envelope with a top-level `outcome` keyword. On
 `added`, confirm the comment was posted. On any non-zero exit, report the error
 and stop.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions comment-linear-issue --fail-safe`
+!`accelerator config instructions comment-linear-issue --fail-safe`

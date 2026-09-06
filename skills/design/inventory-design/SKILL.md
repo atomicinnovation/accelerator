@@ -9,16 +9,16 @@ description: Generate a structured design inventory for a frontend source —
 argument-hint: "[source-id] [location] [--crawler code|runtime|hybrid] [--allow-internal] [--allow-insecure-scheme]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator design *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator design *)
+  - Bash(accelerator corpus metadata derive *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Inventory Design
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill inventory-design --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill inventory-design --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -27,7 +27,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher, accelerator:browser-locator,
 accelerator:browser-analyser.
 
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
+**Design inventories directory**: !`accelerator config path research_design_inventories --fail-safe`
 
 You are tasked with crawling a design source and producing a structured
 `design-inventory` artifact. The artifact captures the design tokens,
@@ -53,7 +53,7 @@ snapshots.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design validate-source \
+accelerator design validate-source \
   "<location>" ${allow_internal_flag} ${allow_insecure_scheme_flag}
 ```
 
@@ -81,7 +81,7 @@ naming the offending characters and stop.
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design resolve-auth
+accelerator design resolve-auth
 ```
 
 Capture the output (`header`, `form`, or `none`). If it exits non-zero, report
@@ -138,7 +138,7 @@ single `executor ping` in Step 5.
 
 Only if provisional mode is `runtime` or `hybrid`, run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor ping
+accelerator design executor ping
 ```
 
 This drives the executor's availability check in order — platform
@@ -155,9 +155,11 @@ and probes it. Interpret the outcome:
 - **Any other error or non-zero exit** → treat as `executor-ping-failed` and
   apply the same hybrid/runtime handling.
 
-**Downgrade notice**: run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator design
-notify-downgrade --from <mode> --to code --reason <enum>` and print its stdout
-**before the crawl starts** (not only in Crawl Notes).
+**Downgrade notice**: run: 
+```
+accelerator design notify-downgrade --from <mode> --to code --reason <enum>
+```
+and print its stdout **before the crawl starts** (not only in Crawl Notes).
 
 ### 6. Finalize Crawler Mode
 
@@ -237,8 +239,7 @@ Compile agent findings into the five inventory categories:
 
 Run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive \
-  --filename-timestamp-format compact-time
+accelerator corpus metadata derive --filename-timestamp-format compact-time
 ```
 
 ### 11. Populate frontmatter and write artifact (atomic)
@@ -252,7 +253,7 @@ Build the inventory under a sibling temporary directory:
 
 Use the `design-inventory` template:
 ```
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template design-inventory --fail-safe`
+!`accelerator config template design-inventory --fail-safe`
 ```
 
 Before writing `inventory.md`, **substitute** every field below with
@@ -295,8 +296,7 @@ the values resolved in earlier steps.
 **Pre-write secret scrubber**: before moving the tmp directory to its final name,
 run:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design scrub-secrets \
-  "<tmp_dir>/inventory.md"
+accelerator design scrub-secrets "<tmp_dir>/inventory.md"
 ```
 If it exits non-zero, delete the tmp directory and report the error. Do not write
 the artifact. Do not print the value of any environment variable in the error
@@ -320,7 +320,8 @@ authoritative (the resolver uses `sequence` as its primary tiebreaker).
 **Validate the frontmatter**: after the inventory is at its final path, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <design_inventories>/YYYY-MM-DD-HHMMSS-{source-id}/inventory.md
+accelerator corpus frontmatter validate \
+  --file <design_inventories>/YYYY-MM-DD-HHMMSS-{source-id}/inventory.md
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -331,7 +332,7 @@ completing.
 
 If a Playwright daemon was started (Steps 4–5 succeeded), stop it:
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator design executor daemon-stop
+accelerator design executor daemon-stop
 ```
 
 This is belt-and-braces — the browser agents also call `accelerator design executor
@@ -365,4 +366,4 @@ Suggest next steps:
 - The `.tmp/` → final directory rename is atomic on POSIX filesystems. Do not
   write directly to the final directory name.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions inventory-design --fail-safe`
+!`accelerator config instructions inventory-design --fail-safe`

@@ -380,20 +380,20 @@ tree.
 
 #### Automated Verification
 
-- [ ] Coupled unit tests pass: `uv run pytest tests/unit/tasks/test_skill_permissions.py tests/unit/tasks/shared/test_skill_parsing.py tests/unit/tasks/shared/test_dispatch_coherence.py tests/unit/tasks/test_integration_skills.py`
-- [ ] Integration conformance suite passes on the converted tree: `mise run test:integration:skill-invocation`
-- [ ] Permissions lint green: `mise run lint:skill-permissions:check`
-- [ ] Write-gate / keyword-parity lint green: `mise run lint:integration-skills:check`
-- [ ] Dispatch guard green: `mise run lint:dispatch-coherence:check`
-- [ ] No prefix remains: `grep -rF '${CLAUDE_PLUGIN_ROOT}/bin/accelerator' skills` returns zero
-- [ ] No path suffix remains: `grep -rF '/bin/accelerator' skills` returns zero
-- [ ] No shell wrapper: `grep -rEn '(^|[^[:alnum:]_])(bash|sh|env) [^`]*accelerator' skills` returns zero (leading-boundary anchor avoids matching `sh` inside `publish`)
-- [ ] Fast lane green (runs lint but not tests): `mise run check`
-- [ ] Build-system component green: `mise run build-system:check`
+- [x] Coupled unit tests pass: `uv run pytest tests/unit/tasks/test_skill_permissions.py tests/unit/tasks/shared/test_skill_parsing.py tests/unit/tasks/shared/test_dispatch_coherence.py tests/unit/tasks/test_integration_skills.py`
+- [x] Integration conformance suite passes on the converted tree: `mise run test:integration:skill-invocation`
+- [x] Permissions lint green: `mise run lint:skill-permissions:check`
+- [x] Write-gate / keyword-parity lint green: `mise run lint:integration-skills:check`
+- [x] Dispatch guard green: `mise run lint:dispatch-coherence:check`
+- [x] No prefix remains: `grep -rF '${CLAUDE_PLUGIN_ROOT}/bin/accelerator' skills` returns zero
+- [x] No path suffix remains: `grep -rF '/bin/accelerator' skills` returns zero
+- [x] No shell wrapper: `grep -rEn '(^|[^[:alnum:]_])(bash|sh|env) [^`]*accelerator' skills` returns zero (leading-boundary anchor avoids matching `sh` inside `publish`)
+- [x] Fast lane green (runs lint but not tests): `mise run check`
+- [x] Build-system component green: `mise run build-system:check`
 
 #### Manual Verification
 
-- [ ] Precondition gate passed in both main session and subagent (see gate section)
+- [x] Precondition gate passed in both main session and subagent (see gate section)
 - [ ] Spot-check a converted skill (`/accelerator:visualise`) loads and runs with no permission prompt
 
 ---

@@ -16,7 +16,7 @@ allowed-tools:
 
 # Attach files to a Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill attach-jira-issue --fail-safe`
+!`accelerator config context --skill attach-jira-issue --fail-safe`
 
 Upload one or more local files as attachments to a Jira issue. Work through
 the steps below in order. This skill never auto-invokes — it only runs when
@@ -53,7 +53,7 @@ write was made."
 ## Step 4: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira attach <KEY> <FILE> [FILE...]
+accelerator jira attach <KEY> <FILE> [FILE...]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -82,4 +82,4 @@ User: `/attach-jira-issue ENG-42 ./screenshot.png`
 Skill previews the upload (`screenshot.png`, e.g. 84.3 KB), waits for `y`,
 uploads, and confirms with the returned id and size.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions attach-jira-issue --fail-safe`
+!`accelerator config instructions attach-jira-issue --fail-safe`
