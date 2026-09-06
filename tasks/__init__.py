@@ -129,6 +129,9 @@ ns_lint.add_collection(
     Collection.from_module(lint.call_site_migration)
 )  # lint.call-site-migration.check
 ns_lint.add_collection(
+    Collection.from_module(lint.bare_invocation)
+)  # lint.bare-invocation.check
+ns_lint.add_collection(
     Collection.from_module(lint.claude_coupling)
 )  # lint.claude-coupling.check
 ns_lint.add_collection(

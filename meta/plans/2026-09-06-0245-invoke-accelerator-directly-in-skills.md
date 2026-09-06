@@ -490,16 +490,16 @@ Then implement the module green.
 
 #### Automated Verification
 
-- [ ] New unit tests pass: `uv run pytest tests/unit/tasks/test_bare_invocation.py`
-- [ ] Gate-wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py` (the new gate is in `_BUILD_SYSTEM_CHECK_GATES`)
-- [ ] Lint green on the converted tree: `mise run lint:bare-invocation:check`
-- [ ] Covered by the fast lane: `mise run check` runs the new lint and passes
-- [ ] Reintroduction fails: adding a prefixed call to a skill makes the lint exit non-zero and name that file
-- [ ] `sh`/`env` wrappers also fail: a scratch skill wrapping the call in `sh`/`env` makes the lint exit non-zero
+- [x] New unit tests pass: `uv run pytest tests/unit/tasks/test_bare_invocation.py`
+- [x] Gate-wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py` (the new gate is in `_BUILD_SYSTEM_CHECK_GATES`)
+- [x] Lint green on the converted tree: `mise run lint:bare-invocation:check`
+- [x] Covered by the fast lane: `mise run check` runs the new lint and passes
+- [x] Reintroduction fails: adding a prefixed call to a skill makes the lint exit non-zero and name that file
+- [x] `sh`/`env` wrappers also fail: a scratch skill wrapping the call in `sh`/`env` makes the lint exit non-zero
 
 #### Manual Verification
 
-- [ ] The failure message reads clearly and points to the exact `file:line`
+- [x] The failure message reads clearly and points to the exact `file:line`
 
 ---
 
