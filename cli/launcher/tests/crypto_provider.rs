@@ -1,8 +1,8 @@
 //! `install_crypto_provider()` is called only inside the production resolver's
-//! `resolve()` (the external-subcommand path) and `help_section()` (top-level
-//! `--help`). A built-in — `version` or any `config` subcommand — is dispatched
-//! in-process and must never call `resolve()`, so it never installs the rustls
-//! crypto provider and never pays for capability it does not use.
+//! `resolve()` (the external-subcommand path) and `load_help_manifest()`
+//! (top-level `--help`). A built-in — `version` or any `config` subcommand — is
+//! dispatched in-process and must never call `resolve()`, so it never installs
+//! the rustls crypto provider and never pays for capability it does not use.
 //!
 //! A black-box subprocess cannot observe the process-global provider, so this
 //! drives the library `dispatch` directly with a spy `ResolveBinary` and asserts

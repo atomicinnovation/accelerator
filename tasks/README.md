@@ -510,7 +510,10 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
    **[release]**
 3. **Add** the crate's `Cargo.toml`: `[[bin]] name = "accelerator-<token>"` (the
    asset name the manifest and signing expect), a mandatory
-   `package.description` (the manifest sources the description from it), and the
+   `package.description` (the manifest sources the description from it, and it is
+   the user-facing help text rendered in the merged `accelerator --help`
+   command listing — write a concise, period-free imperative phrase, not
+   launcher-internal phrasing such as "The … sub-binary."), and the
    inherited `version.workspace`, `edition.workspace`, `rust-version.workspace`,
    `license.workspace` and `publish.workspace`. Inherit the version so the next
    workspace bump cannot desynchronise the member — the version-coherence check

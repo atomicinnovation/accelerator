@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "The design validate-source|resolve-auth|scrub-secrets|notify-downgrade|audit-cue-phrases sub-binary."
+description = "Validate and process design sources"
 
 [lints]
 workspace = true

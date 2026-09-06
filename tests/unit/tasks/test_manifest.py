@@ -23,12 +23,13 @@ from tasks.build import VersionCoherenceError, validate_version_coherence
 from tasks.manifest import (
     BinaryEntry,
     _default_subbinary_manifest,
+    _read_description,
     build_manifest,
     collect_entries,
     emit_manifest,
 )
 from tasks.shared.errors import ManifestError
-from tasks.shared.paths import CLI_DIR, load_toml
+from tasks.shared.paths import CLI_DIR, DISPATCHED_SUBBINARIES, load_toml
 from tasks.shared.targets import TARGETS
 from tasks.signing import generate, sign_file
 from tests.support.artefacts import build_shim
@@ -156,8 +157,21 @@ class TestCollectEntries:
         assert resolved == CLI_DIR / "visualiser/server/Cargo.toml"
         assert resolved.exists()
         description = load_toml(resolved)["package"]["description"]
-        expected = "Launch the interactive meta-directory visualiser"
+        expected = "Serve the meta-directory visualiser"
         assert description == expected
+
+
+# ── descriptions stay user-facing ─────────────────────────────────────
+
+
+class TestDescriptionPhrasing:
+    def test_no_description_carries_launcher_internal_phrasing(self):
+        for name in DISPATCHED_SUBBINARIES:
+            description = _read_description(
+                _default_subbinary_manifest(name), name
+            )
+            assert "sub-binary" not in description, name
+            assert not description.endswith("."), name
 
 
 # ── emit_manifest() round-trip ────────────────────────────────────────

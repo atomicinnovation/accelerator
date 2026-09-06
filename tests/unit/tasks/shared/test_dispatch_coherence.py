@@ -31,7 +31,6 @@ _OTHER = "widgetise"
 
 _GUARD_SOURCE = REPO_ROOT / "tasks/shared/dispatch_coherence.py"
 _CLI_RS = REPO_ROOT / "cli/launcher/src/launch/inbound/cli.rs"
-_MAIN_RS = REPO_ROOT / "cli/launcher/src/main.rs"
 _CORE_RS = REPO_ROOT / "cli/launcher/src/launch/core.rs"
 
 
@@ -624,15 +623,6 @@ class TestCrossLanguagePins:
         assert body
         for attribute in ("name =", "alias =", "visible_alias ="):
             assert attribute not in body.group(1)
-
-    def test_is_root_help_agrees_as_a_secondary_check(self) -> None:
-        match = re.search(
-            r'Some\((\s*"[a-z]+"(?:\s*\|\s*"[a-z]+")*)\)', _MAIN_RS.read_text()
-        )
-        assert match
-        assert set(re.findall(r'"([a-z]+)"', match.group(1))) == set(
-            BUILTIN_SUBCOMMANDS
-        )
 
     @pytest.mark.parametrize(
         ("token", "accepted"),

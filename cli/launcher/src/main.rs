@@ -5,6 +5,7 @@
 //! It is the only module that names `config_adapters`: the `config` port bundle
 //! is composed here and handed to `dispatch` behind `config`-crate traits.
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -19,7 +20,7 @@ use accelerator::launch::core::{
     ExternalCommand, ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
-use accelerator::launch::help::external_subcommands_section;
+use accelerator::launch::help::augment_with_subbinaries;
 use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
@@ -28,6 +29,7 @@ use accelerator::launch::outbound::resolve::cache_root::{
 };
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
+use accelerator::launch::outbound::resolve::manifest::Manifest;
 use accelerator::launch::outbound::resolve::tree::{
     pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
 };
@@ -77,57 +79,130 @@ impl ResolveBinary for LazyProductionResolver {
     }
 }
 
-/// The external-subcommands help section, or `None` on any failure so `--help`
-/// still prints the built-in help. Reads only the manifest, no cache root.
-fn help_section() -> Option<String> {
+/// The signature-verified release manifest, or `None` on any failure so the
+/// help path fails open to the built-in listing. Reads only the manifest, no
+/// cache root, and bounds the fetch to one short attempt via `Fetcher::for_help`
+/// so a slow or unreachable host degrades within the help connect timeout rather
+/// than dispatch's retry budget.
+///
+/// The crypto provider is installed lazily here, so a `version`/`config`/`cache`
+/// built-in never pays for TLS it does not use.
+fn load_help_manifest() -> Option<Manifest> {
     let _ = install_crypto_provider();
     let keys = TrustedKeys::embedded().ok()?;
-    let fetcher = Fetcher::new().ok()?;
+    let fetcher = Fetcher::for_help().ok()?;
     let config = ResolverConfig::production(release_base_url(), PathBuf::new());
     let resolver =
         FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher);
-    let manifest = resolver.load_manifest().ok()?;
-    external_subcommands_section(&manifest)
+    resolver.load_manifest().ok()
 }
 
-fn render_augmented_help() -> ExitCode {
-    let mut command = Cli::command();
-    if let Some(section) = help_section() {
-        command = command.after_help(section);
+/// The command listing: the built-ins, plus the manifest's sub-binaries when one
+/// loaded. Split from the I/O so the augment-vs-built-ins composition is
+/// unit-testable without a signed manifest.
+fn build_listing(
+    command: clap::Command,
+    manifest: Option<&Manifest>,
+) -> clap::Command {
+    match manifest {
+        Some(manifest) => augment_with_subbinaries(command, manifest),
+        None => command,
     }
+}
+
+/// Render the full command listing to stdout and return `exit`. Every root-help
+/// form routes here, so the three entry points converge on one rendering.
+fn render_full_listing(exit: ExitCode) -> ExitCode {
+    let mut command =
+        build_listing(Cli::command(), load_help_manifest().as_ref());
     let _ = command.print_help();
     println!();
-    ExitCode::SUCCESS
+    exit
 }
 
-/// Whether a `DisplayHelp` is the top-level help (which the augmentation lists
-/// external subcommands into), as opposed to a built-in subcommand's own
-/// `--help`, which clap renders unchanged.
-fn is_root_help(error: &clap::Error) -> bool {
-    if error.kind() != ErrorKind::DisplayHelp {
-        return false;
+/// Whether the collected args are a true top-level help form — top-level
+/// `--help`/`-h`, or the bare `help` word — as opposed to a built-in
+/// subcommand's own help (`config --help`, `help config`), which clap renders
+/// unchanged. The leading-token match keeps a stray trailing token
+/// (`--help extra`) on the root form, matching clap's own tolerance; the bare
+/// `help` word is root only as the sole token.
+fn is_root_help_args(args: &[OsString]) -> bool {
+    match args {
+        [first, ..] if first == "--help" || first == "-h" => true,
+        [only] if only == "help" => true,
+        _ => false,
     }
-    !matches!(
-        std::env::args_os()
-            .nth(1)
-            .as_deref()
-            .and_then(std::ffi::OsStr::to_str),
-        Some("version" | "config" | "cache" | "help")
-    )
 }
 
-/// Maps a clap parse outcome to an exit code. clap's own convention exits 2 on a
-/// usage error; the bash config cluster exits 1, and this launcher reserves exit
-/// 2 for a subcommand refusal, so usage errors are re-mapped to 1 here. The
-/// three non-error display kinds print to stdout and exit 0.
-fn handle_parse_error(error: &clap::Error) -> ExitCode {
-    match error.kind() {
-        ErrorKind::DisplayHelp if is_root_help(error) => {
-            render_augmented_help()
+/// Why the full listing renders. The two causes differ only in exit code and
+/// whether the bare-invocation cue prints, so the cause is modelled rather than
+/// carried as loose, independently-settable fields.
+#[derive(Debug, PartialEq, Eq)]
+enum ListingCause {
+    RootHelp,
+    MissingSubcommand,
+}
+
+/// Where a clap parse outcome routes.
+#[derive(Debug, PartialEq, Eq)]
+enum HelpRoute {
+    FullListing(ListingCause),
+    PerCommand,
+    UsageError,
+}
+
+/// Route a clap parse outcome by its kind and the collected root args. Pure, so
+/// the whole truth table is unit-testable.
+///
+/// The derive marks the required root subcommand `arg_required_else_help`, so a
+/// missing root subcommand surfaces as `DisplayHelpOnMissingArgumentOrSubcommand`
+/// (not `MissingSubcommand`) with no args. The empty-args slice is what marks the
+/// bare root invocation; the same kind with non-empty args is a missing nested
+/// subcommand (bare `config`, `config templates`), which keeps its own
+/// per-command help. `MissingSubcommand` is matched alongside defensively — a
+/// clap change that reverted to it for the bare root would still route here.
+fn classify(kind: ErrorKind, args: &[OsString]) -> HelpRoute {
+    match kind {
+        ErrorKind::DisplayHelp if is_root_help_args(args) => {
+            HelpRoute::FullListing(ListingCause::RootHelp)
+        }
+        ErrorKind::MissingSubcommand
+        | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+            if args.is_empty() =>
+        {
+            HelpRoute::FullListing(ListingCause::MissingSubcommand)
         }
         ErrorKind::DisplayHelp
         | ErrorKind::DisplayVersion
         | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+            HelpRoute::PerCommand
+        }
+        _ => HelpRoute::UsageError,
+    }
+}
+
+/// Maps a clap parse outcome to an exit code. clap's own convention exits 2 on a
+/// usage error; the bash config cluster exits 1, and this launcher reserves exit
+/// 2 for a subcommand refusal, so usage errors are re-mapped to 1 here.
+fn handle_parse_error(error: &clap::Error, args: &[OsString]) -> ExitCode {
+    match classify(error.kind(), args) {
+        HelpRoute::FullListing(cause) => {
+            let exit = match cause {
+                ListingCause::RootHelp => ExitCode::SUCCESS,
+                ListingCause::MissingSubcommand => {
+                    // The listing goes to stdout; a bare exit-1 with empty
+                    // stderr would read as success, so the cue on stderr keeps
+                    // bare invocation diagnosable and distinct from `--help`.
+                    eprintln!(
+                        "error: a subcommand is required; \
+                         run 'accelerator --help' to see available commands"
+                    );
+                    ExitCode::from(1)
+                }
+            };
+            render_full_listing(exit)
+        }
+        HelpRoute::PerCommand => {
             // Force stdout for every help/version kind. clap routes
             // `DisplayHelpOnMissingArgumentOrSubcommand` to stderr, which would
             // make a bare `config` print help on a different stream than
@@ -135,7 +210,7 @@ fn handle_parse_error(error: &clap::Error) -> ExitCode {
             print!("{error}");
             ExitCode::SUCCESS
         }
-        _ => {
+        HelpRoute::UsageError => {
             let _ = error.print();
             ExitCode::from(1)
         }
@@ -370,10 +445,12 @@ fn handle_dispatch_error(error: &kernel::Error, command: &Command) -> ExitCode {
 fn main() -> ExitCode {
     // try_parse so the top-level `--help` can be intercepted and augmented, and
     // a usage error re-mapped from clap's exit 2 to 1; a `foo --help` routes to
-    // External and is delegated to the child.
+    // External and is delegated to the child. The root args are collected once
+    // and threaded into the routing so it reads no process global.
+    let root_args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
-        Err(error) => return handle_parse_error(&error),
+        Err(error) => return handle_parse_error(&error, &root_args),
     };
 
     match run(&cli) {
@@ -393,8 +470,115 @@ mod tests {
         ResolveBinary,
     };
     use accelerator::launch::inbound::cli::Command;
+    use clap::error::ErrorKind;
 
-    use super::handle_dispatch_error;
+    use super::{
+        build_listing, classify, handle_dispatch_error, is_root_help_args,
+        HelpRoute, ListingCause,
+    };
+
+    fn args(items: &[&str]) -> Vec<OsString> {
+        items.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn only_the_true_root_forms_are_root_help() {
+        assert!(is_root_help_args(&args(&["--help"])));
+        assert!(is_root_help_args(&args(&["-h"])));
+        assert!(is_root_help_args(&args(&["help"])));
+        assert!(is_root_help_args(&args(&["--help", "extra"])));
+        assert!(!is_root_help_args(&args(&["config", "--help"])));
+        assert!(!is_root_help_args(&args(&["help", "config"])));
+        assert!(!is_root_help_args(&args(&["version", "--help"])));
+        assert!(!is_root_help_args(&args(&[])));
+    }
+
+    #[test]
+    fn classify_routes_each_kind_and_arg_shape() {
+        assert_eq!(
+            classify(ErrorKind::DisplayHelp, &args(&["--help"])),
+            HelpRoute::FullListing(ListingCause::RootHelp)
+        );
+        assert_eq!(
+            classify(ErrorKind::DisplayHelp, &args(&["-h"])),
+            HelpRoute::FullListing(ListingCause::RootHelp)
+        );
+        assert_eq!(
+            classify(ErrorKind::DisplayHelp, &args(&["help"])),
+            HelpRoute::FullListing(ListingCause::RootHelp)
+        );
+        assert_eq!(
+            classify(ErrorKind::DisplayHelp, &args(&["--help", "extra"])),
+            HelpRoute::FullListing(ListingCause::RootHelp)
+        );
+        // Bare `accelerator`: the derive's `arg_required_else_help` makes the
+        // missing root subcommand this display kind with no args.
+        assert_eq!(
+            classify(
+                ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand,
+                &args(&[])
+            ),
+            HelpRoute::FullListing(ListingCause::MissingSubcommand)
+        );
+        // A reverted clap that raised `MissingSubcommand` for the bare root
+        // still routes to the listing.
+        assert_eq!(
+            classify(ErrorKind::MissingSubcommand, &args(&[])),
+            HelpRoute::FullListing(ListingCause::MissingSubcommand)
+        );
+        assert_eq!(
+            classify(ErrorKind::DisplayHelp, &args(&["config", "--help"])),
+            HelpRoute::PerCommand
+        );
+        assert_eq!(
+            classify(ErrorKind::DisplayVersion, &args(&["version", "--help"])),
+            HelpRoute::PerCommand
+        );
+        // Bare `config` keeps its own per-command help.
+        assert_eq!(
+            classify(
+                ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand,
+                &args(&["config"])
+            ),
+            HelpRoute::PerCommand
+        );
+        // A missing nested subcommand (`config templates`) keeps its own help,
+        // never the top-level listing.
+        assert_eq!(
+            classify(
+                ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand,
+                &args(&["config", "templates"])
+            ),
+            HelpRoute::PerCommand
+        );
+        assert_eq!(
+            classify(ErrorKind::InvalidValue, &args(&["config", "get"])),
+            HelpRoute::UsageError
+        );
+    }
+
+    #[test]
+    fn build_listing_augments_only_when_a_manifest_loaded(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use accelerator::launch::inbound::cli::Cli;
+        use accelerator::launch::outbound::resolve::manifest::Manifest;
+        use clap::CommandFactory as _;
+
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
+        let json = format!(
+            "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":\
+             {{\"zzfixture\":{{\"description\":\"Fixture tool\",\
+             \"platforms\":{{}}}}}}}}"
+        );
+        let manifest = Manifest::parse_and_validate(json.as_bytes(), VERSION)?;
+
+        let mut with = build_listing(Cli::command(), Some(&manifest));
+        assert!(with.render_help().to_string().contains("zzfixture"));
+
+        let mut without = build_listing(Cli::command(), None);
+        assert!(!without.render_help().to_string().contains("zzfixture"));
+        Ok(())
+    }
 
     struct FailingResolver<F>(F);
 

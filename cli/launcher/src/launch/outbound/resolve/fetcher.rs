@@ -11,6 +11,10 @@ use sha2::{Digest as _, Sha256};
 
 const MAX_ATTEMPTS: u32 = 3;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+// The help path never needs the manifest, so it gives up fast and fails open to
+// the built-in listing rather than inheriting dispatch's retry-heavy budget.
+const HELP_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const HELP_TOTAL_TIMEOUT: Duration = Duration::from_secs(5);
 // Whole-request deadline per attempt for the buffered small-asset path, sized
 // for a multi-MB release binary over a slow link. On the streaming path it
 // bounds one read rather than the attempt, so `StreamLimits` carries the
@@ -127,6 +131,16 @@ fn redirect_policy() -> Policy {
     })
 }
 
+/// The per-instance bounds a fetcher runs under: the client's connect and
+/// whole-request timeouts, the attempt cap, and the inter-attempt backoff.
+#[derive(Clone, Copy)]
+struct Limits {
+    connect: Duration,
+    total: Duration,
+    max_attempts: u32,
+    backoff: Duration,
+}
+
 /// A configured blocking HTTP client for asset/manifest fetches.
 pub struct Fetcher {
     client: Client,
@@ -142,7 +156,34 @@ impl Fetcher {
     ///
     /// If the underlying client cannot be constructed.
     pub fn new() -> Result<Self, String> {
-        Self::build(Duration::from_millis(250), true)
+        Self::build(
+            Limits {
+                connect: CONNECT_TIMEOUT,
+                total: TOTAL_TIMEOUT,
+                max_attempts: MAX_ATTEMPTS,
+                backoff: Duration::from_millis(250),
+            },
+            true,
+        )
+    }
+
+    /// Build the help-scoped fetcher: a single short attempt (https pinned) so a
+    /// slow or unreachable release host fails open to the built-in listing
+    /// within the help connect timeout rather than dispatch's retry budget.
+    ///
+    /// # Errors
+    ///
+    /// If the underlying client cannot be constructed.
+    pub fn for_help() -> Result<Self, String> {
+        Self::build(
+            Limits {
+                connect: HELP_CONNECT_TIMEOUT,
+                total: HELP_TOTAL_TIMEOUT,
+                max_attempts: 1,
+                backoff: Duration::ZERO,
+            },
+            true,
+        )
     }
 
     /// Build a test fetcher with a caller-chosen backoff, permitting `http` for
@@ -152,10 +193,18 @@ impl Fetcher {
     ///
     /// If the underlying client cannot be constructed.
     pub fn with_backoff(backoff: Duration) -> Result<Self, String> {
-        Self::build(backoff, false)
+        Self::build(
+            Limits {
+                connect: CONNECT_TIMEOUT,
+                total: TOTAL_TIMEOUT,
+                max_attempts: MAX_ATTEMPTS,
+                backoff,
+            },
+            false,
+        )
     }
 
-    fn build(backoff: Duration, require_https: bool) -> Result<Self, String> {
+    fn build(limits: Limits, require_https: bool) -> Result<Self, String> {
         // The ring provider must be installed before building a TLS client
         // (idempotent), keeping the Fetcher self-sufficient in tests.
         let _ = rustls::crypto::ring::default_provider().install_default();
@@ -163,16 +212,16 @@ impl Fetcher {
         // just the initial request the `get()` guard checks. Off for the test
         // fetcher so it can reach a local `http` mock.
         let client = Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .timeout(TOTAL_TIMEOUT)
+            .connect_timeout(limits.connect)
+            .timeout(limits.total)
             .redirect(redirect_policy())
             .https_only(require_https)
             .build()
             .map_err(|error| error.to_string())?;
         Ok(Self {
             client,
-            max_attempts: MAX_ATTEMPTS,
-            backoff,
+            max_attempts: limits.max_attempts,
+            backoff: limits.backoff,
             require_https,
         })
     }
@@ -604,5 +653,23 @@ mod tests {
     fn https_is_required_by_the_production_pin() {
         assert!(is_https("https://github.com/x"));
         assert!(!is_https("http://github.com/x"));
+    }
+
+    #[test]
+    fn the_help_fetcher_gives_up_within_its_connect_bound() {
+        let Ok(fetcher) = Fetcher::for_help() else {
+            return;
+        };
+        // A non-routable address that drops the SYN, so the connect stalls until
+        // its timeout rather than being refused immediately.
+        let started = std::time::Instant::now();
+        let result = fetcher.get("https://10.255.255.1/manifest.json");
+        let elapsed = started.elapsed();
+        assert!(result.is_err(), "expected a fetch failure, got {result:?}");
+        assert!(
+            elapsed < Duration::from_secs(8),
+            "the help fetch inherited a longer budget than one short attempt: \
+             {elapsed:?}"
+        );
     }
 }
