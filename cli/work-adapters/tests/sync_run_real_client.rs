@@ -47,6 +47,7 @@ use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
@@ -241,7 +242,8 @@ fn execute(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
-        items,
+        corpus: items,
+        selection: ItemSelection::All,
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,

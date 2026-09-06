@@ -80,11 +80,19 @@ impl<'a> BaselineStore<'a> {
         self.write_document(&baseline)
     }
 
-    /// Blanks the named items' `local_hash` and advances the timestamp as
-    /// one operation: the ordering is load-bearing, and a two-call API
-    /// could be called in the wrong order or half-called. Both mutations
-    /// reach one in-memory document before the single write, so a failure
-    /// loses neither in isolation.
+    /// Blanks the named items' `local_hash`, advances the reconciled items'
+    /// watermarks, and — for a whole-corpus run — advances the document
+    /// timestamp, as one operation: the ordering is load-bearing, and a
+    /// multi-call API could be called in the wrong order or half-called. Every
+    /// mutation reaches one in-memory document before the single write, so a
+    /// failure loses none in isolation.
+    ///
+    /// `advance` names the items whose watermark moves to `run_start_epoch` —
+    /// exactly those that reached a definitive reconciled outcome, so an
+    /// unreconciled or indeterminate item keeps the watermark of the last run
+    /// that did reconcile it. `advance_document` is the whole-corpus signal:
+    /// only a run over the full corpus advances the document-level fallback
+    /// watermark, so a targeted run leaves it where the last full sync set it.
     ///
     /// # Errors
     ///
@@ -92,7 +100,9 @@ impl<'a> BaselineStore<'a> {
     pub fn finalise_run(
         &mut self,
         blank: &[&str],
+        advance: &[&str],
         run_start_epoch: u64,
+        advance_document: bool,
     ) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         for id in blank {
@@ -106,10 +116,12 @@ impl<'a> BaselineStore<'a> {
                 );
             }
         }
-        for id in baseline.ids() {
-            baseline.advance_watermark(&id, run_start_epoch);
+        for id in advance {
+            baseline.advance_watermark(id, run_start_epoch);
         }
-        baseline.set_timestamp(run_start_epoch);
+        if advance_document {
+            baseline.set_timestamp(run_start_epoch);
+        }
         self.write_document(&baseline)
     }
 }

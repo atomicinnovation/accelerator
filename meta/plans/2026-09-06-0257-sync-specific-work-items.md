@@ -522,42 +522,42 @@ re-rendered bytes match the seed.
 
 #### Automated Verification
 
-- [ ] New lib test — `Targeted([B])` over items `[A, B, C]` reports only `B`;
+- [x] New lib test — `Targeted([B])` over items `[A, B, C]` reports only `B`;
       the spy's write log contains no entry for `A.md`/`C.md`, and the written
       baseline's `A`/`C` entries equal their loaded-then-rendered form (seed
       entries with `local_synced_at` so the additive field does not spuriously
       byte-differ): `cargo test -p work-adapters --test sync_run`
-- [ ] New lib test — `Targeted` bidirectional makes no `search` call
+- [x] New lib test — `Targeted` bidirectional makes no `search` call
       (`tracker.calls()` contains no `Call::Search`) and reports
       `DiscoveryStatus::SkippedTargeted`.
-- [ ] New lib test — `Targeted` + `PushOnly` reports `SkippedTargeted`, not
+- [x] New lib test — `Targeted` + `PushOnly` reports `SkippedTargeted`, not
       `SkippedPushOnly`.
-- [ ] New lib test — `B`'s reconciliation result under `Targeted([B])` equals its
+- [x] New lib test — `B`'s reconciliation result under `Targeted([B])` equals its
       result under `All` over the same fixture. `ReportedItem`/`ItemOutcome`
       derive no `PartialEq` today, so compare through a projection helper
       returning `(id, action, state, rendered outcome)` (or add
       `#[derive(PartialEq, Eq)]` where the wrapped `ApplyError` allows it).
-- [ ] New lib test (the watermark regression) — with **deterministic** epochs and
+- [x] New lib test (the watermark regression) — with **deterministic** epochs and
       mtime (`full_sync_epoch < mtime_A <= targeted_epoch`, set via `filetime`, so
       the short-circuit provably fires in the buggy path and not the fixed one): a
       full sync, then a local edit to non-targeted `A`, then a `Targeted([B])`
       sync, then a full sync — the final sync still classifies `A` as locally
       changed.
-- [ ] New lib test (read-failure watermark) — a run whose remote read fails leaves
+- [x] New lib test (read-failure watermark) — a run whose remote read fails leaves
       `Indeterminate` items' watermark unadvanced, so a later full sync still
       detects a pre-existing local edit to such an item.
-- [ ] New lib test — a `Targeted([B])` run makes no create-from-local `tracker`
+- [x] New lib test — a `Targeted([B])` run makes no create-from-local `tracker`
       call for a non-targeted unsynced draft `A` (`tracker.calls()` has no create
       for `A`), proving `unsynced_creates` narrowed.
-- [ ] New lib test (the double-binding guard, in `sync_create.rs` — it has the
+- [x] New lib test (the double-binding guard, in `sync_create.rs` — it has the
       `RecordingAuthor` and `Created`-marker seeding `sync_run.rs` lacks) — a
       `Targeted([B])` create-from-local for `B` still sees a non-targeted file
       `A`'s matching `external_id` via `corpus_carries`, so it does not
       double-bind.
-- [ ] New render test — `discovery_line(SkippedTargeted)` emits
+- [x] New render test — `discovery_line(SkippedTargeted)` emits
       `#\tdiscovery\tskipped\ttargeted`: `cargo test -p work-cli --lib`
-- [ ] `sync-report.golden` is unchanged (uses `Ran`); the golden test passes.
-- [ ] Component checks pass: `mise run cli:check`, `mise run server:check`
+- [x] `sync-report.golden` is unchanged (uses `Ran`); the golden test passes.
+- [x] Component checks pass: `mise run cli:check`, `mise run server:check`
       (whichever the workspace-wide `cli` check covers).
 
 #### Manual Verification

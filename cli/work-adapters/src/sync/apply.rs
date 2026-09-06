@@ -501,7 +501,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     /// [`ApplyError`] when the underlying store operation fails.
     pub fn finalise(&mut self, run_start_epoch: u64) -> Result<(), ApplyError> {
         self.baseline
-            .finalise_run(&[], run_start_epoch)
+            .finalise_run(&[], &[], run_start_epoch, true)
             .map_err(|error| io_error("<run>", "finalise", error))
     }
 }

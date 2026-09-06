@@ -24,6 +24,7 @@ use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemOutcome;
+use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
@@ -182,6 +183,9 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         }
         DiscoveryStatus::SkippedPushOnly => {
             "#\tdiscovery\tskipped\tpush-only".to_owned()
+        }
+        DiscoveryStatus::SkippedTargeted => {
+            "#\tdiscovery\tskipped\ttargeted".to_owned()
         }
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
@@ -464,7 +468,8 @@ pub fn run_sync(
         filters: Vec::new(),
     };
     let request = SyncRequest {
-        items: &items,
+        corpus: &items,
+        selection: ItemSelection::All,
         direction,
         strategy,
         resolutions: &resolutions,
@@ -714,6 +719,10 @@ mod tests {
         assert!(
             render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
                 .contains("#\tdiscovery\tskipped\tpush-only")
+        );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedTargeted))
+                .contains("#\tdiscovery\tskipped\ttargeted")
         );
         let failed = render_report(&report_with(DiscoveryStatus::Failed {
             detail: "connection refused".to_owned(),

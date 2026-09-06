@@ -18,18 +18,25 @@ use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
+use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use work::sync::Dirtiness;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
+use work::sync::SyncState;
+use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::DiscoveryStatus;
+use work_adapters::sync::run::ItemOutcome;
+use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
+use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
 
@@ -246,7 +253,8 @@ fn scenario(pulls: usize, pushes: usize) -> Result<Scenario, TestError> {
 }
 
 fn request<'a>(
-    items: &'a [LocalItem],
+    corpus: &'a [LocalItem],
+    selection: ItemSelection<'a>,
     resolutions: &'a BTreeMap<String, Resolution>,
     integrations_root: &'a Path,
     max_pulls: usize,
@@ -254,7 +262,8 @@ fn request<'a>(
     mode: RunMode,
 ) -> SyncRequest<'a> {
     SyncRequest {
-        items,
+        corpus,
+        selection,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
@@ -294,6 +303,7 @@ fn execute(
         &mut store,
         &request(
             &scenario.items,
+            ItemSelection::All,
             &resolutions,
             scenario.dir.path(),
             max_pulls,
@@ -301,6 +311,416 @@ fn execute(
             mode,
         ),
     )
+}
+
+fn execute_targeted(
+    scenario: &Scenario,
+    targeted: &[LocalItem],
+    direction: SyncDirection,
+    max_pulls: usize,
+    max_pushes: usize,
+    mode: RunMode,
+) -> Result<work_adapters::sync::run::RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::Targeted(targeted),
+        &resolutions,
+        scenario.dir.path(),
+        max_pulls,
+        max_pushes,
+        mode,
+    );
+    req.direction = direction;
+    run(&ports, &mut store, &req)
+}
+
+/// A per-item projection stable enough to compare a targeted run's outcome
+/// for one item against the same item's outcome in a full sync. `ReportedItem`
+/// derives no `PartialEq`, so this reduces it to comparable fragments.
+fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == id)
+        .map(|item| {
+            let outcome = match &item.outcome {
+                ItemOutcome::Applied => "applied".to_owned(),
+                ItemOutcome::NotApplied => "not-applied".to_owned(),
+                ItemOutcome::Failed(error) => format!("failed:{error:?}"),
+            };
+            (
+                format!("{:?}/{:?}", item.planned.action, item.planned.state),
+                outcome,
+            )
+        })
+}
+
+/// A run at a chosen epoch over a persistent spy, so a sequence of runs shares
+/// one baseline document — the watermark scenarios need "run at E1, then E2,
+/// then E3 against one baseline".
+fn run_with<'a>(
+    spy: &Spy,
+    tracker: &RecordingTracker,
+    dir: &Path,
+    corpus: &'a [LocalItem],
+    selection: ItemSelection<'a>,
+    epoch: u64,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(epoch);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker,
+        status: &status,
+        writer: spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
+    let resolutions = BTreeMap::new();
+    let request = SyncRequest {
+        corpus,
+        selection,
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls: 25,
+        max_pushes: 25,
+        mode: RunMode::Apply,
+        integrations_root: dir,
+        integration: "jira",
+        scope: tracker::SearchScope::default(),
+    };
+    run(&ports, &mut store, &request)
+}
+
+fn mtime_secs(path: &Path) -> Result<u64, TestError> {
+    Ok(path
+        .metadata()?
+        .modified()?
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs())
+}
+
+#[test]
+fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+
+    // A: a synced item — local matches baseline, remote proven unchanged.
+    let a_external = ExternalId::new("ENG-1".to_owned());
+    let a_path = dir.path().join("0001.md");
+    let a_content = item_content(a_external.as_str());
+    std::fs::write(&a_path, &a_content)?;
+    let a_hash = digest::local(&a_content)?;
+    let a_entry = format!(
+        "\"0001\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"h\",\"local_hash\":\"{a_hash}\",\"local_synced_at\":0}}"
+    );
+
+    // B: a pullable item, the middle run's sole target.
+    let (b_item, b_issue, b_entry) = pullable(dir.path(), 2)?;
+
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[a_entry, b_entry]));
+    let tracker = RecordingTracker::holding(vec![
+        (
+            a_external.clone(),
+            RemoteIssue {
+                updated: RemoteTimestamp::Reported(STAMP.to_owned()),
+                body: projected_body().to_owned(),
+            },
+        ),
+        b_issue,
+    ]);
+
+    let corpus = vec![
+        LocalItem {
+            id: "0001".to_owned(),
+            path: a_path.clone(),
+            external_id: Some(a_external),
+        },
+        b_item,
+    ];
+
+    let m0 = mtime_secs(&a_path)?;
+    run_with(
+        &spy,
+        &tracker,
+        dir.path(),
+        &corpus,
+        ItemSelection::All,
+        m0 - 100,
+    )
+    .map_err(|_| "the first full sync must proceed")?;
+
+    // A local edit to the non-targeted A's body, then a targeted sync of B.
+    std::fs::write(
+        &a_path,
+        "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nEdited body\n",
+    )?;
+    let m1 = mtime_secs(&a_path)?;
+    run_with(
+        &spy,
+        &tracker,
+        dir.path(),
+        &corpus,
+        ItemSelection::Targeted(std::slice::from_ref(&corpus[1])),
+        m1 + 100,
+    )
+    .map_err(|_| "the targeted sync must proceed")?;
+
+    let report = run_with(
+        &spy,
+        &tracker,
+        dir.path(),
+        &corpus,
+        ItemSelection::All,
+        m1 + 200,
+    )
+    .map_err(|_| "the final full sync must proceed")?;
+
+    let a = report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == "0001")
+        .expect("A is reconciled by the final full sync");
+    assert_eq!(
+        a.planned.state,
+        SyncState::LocallyModified,
+        "the targeted run must not advance A's watermark past its edit, so \
+         the later full sync still detects the local change"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError>
+{
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-1".to_owned());
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, item_content(external.as_str()))?;
+
+    let entry = "\"0001\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"h\",\"local_hash\":\"stale\",\"local_synced_at\":500}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0001".to_owned(),
+            path,
+            external_id: Some(external.clone()),
+        }],
+        tracker: RecordingTracker::truncating(Vec::new(), vec![external]),
+        spy,
+        dir,
+    };
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply).map_err(|_| {
+        "an indeterminate item is not a write, so bounds cannot refuse it"
+    })?;
+    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+
+    let written = scenario
+        .spy
+        .content(BASELINE_PATH)
+        .expect("the run writes the baseline");
+    let (baseline, _) = Baseline::read(Some(&written));
+    assert_eq!(
+        baseline.get("0001").expect("entry present").local_synced_at,
+        500,
+        "an indeterminate item keeps its watermark, so a later run still \
+         detects a pre-existing local edit"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_run_reconciles_only_the_named_item() -> Result<(), TestError> {
+    let scenario = scenario(3, 0)?;
+    let seed = scenario
+        .spy
+        .content(BASELINE_PATH)
+        .expect("the scenario seeds a baseline");
+    let targeted = std::slice::from_ref(&scenario.items[1]);
+
+    let report = execute_targeted(
+        &scenario,
+        targeted,
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a single targeted pull within bounds must proceed")?;
+
+    assert_eq!(report.reported.len(), 1, "only the named item is reported");
+    assert_eq!(report.reported[0].planned.id, "0002");
+    assert!(
+        scenario.spy.content_of(&scenario.items[0].path).is_none(),
+        "a non-targeted item must not be written"
+    );
+    assert!(
+        scenario.spy.content_of(&scenario.items[2].path).is_none(),
+        "a non-targeted item must not be written"
+    );
+
+    let written = scenario
+        .spy
+        .content(BASELINE_PATH)
+        .expect("the run writes the baseline");
+    let (seed_baseline, _) = Baseline::read(Some(&seed));
+    let (written_baseline, _) = Baseline::read(Some(&written));
+    assert_eq!(
+        written_baseline.get("0001"),
+        seed_baseline.get("0001"),
+        "a non-targeted entry is left exactly as the last run set it"
+    );
+    assert_eq!(
+        written_baseline.get("0003"),
+        seed_baseline.get("0003"),
+        "a non-targeted entry is left exactly as the last run set it"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_run_suppresses_discovery_and_never_searches(
+) -> Result<(), TestError> {
+    let scenario = scenario(2, 0)?;
+    let targeted = std::slice::from_ref(&scenario.items[0]);
+
+    let report = execute_targeted(
+        &scenario,
+        targeted,
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a targeted run within bounds must proceed")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedTargeted);
+    assert!(
+        !scenario
+            .tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Search { .. })),
+        "a targeted run must not search for untracked issues"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_push_only_run_reports_targeted_not_push_only(
+) -> Result<(), TestError> {
+    let scenario = scenario(0, 1)?;
+    let targeted = std::slice::from_ref(&scenario.items[0]);
+
+    let report = execute_targeted(
+        &scenario,
+        targeted,
+        SyncDirection::PushOnly,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a targeted push-only run within bounds must proceed")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::SkippedTargeted,
+        "targeting takes precedence over the push-only skip"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_item_reconciles_exactly_as_it_would_in_a_full_sync(
+) -> Result<(), TestError> {
+    let full_scenario = scenario(2, 1)?;
+    let full = execute(&full_scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "the full sync within bounds must proceed")?;
+
+    let targeted_scenario = scenario(2, 1)?;
+    let targeted = std::slice::from_ref(&targeted_scenario.items[1]);
+    let scoped = execute_targeted(
+        &targeted_scenario,
+        targeted,
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "the targeted sync within bounds must proceed")?;
+
+    assert_eq!(
+        project_item(&scoped, "0002"),
+        project_item(&full, "0002"),
+        "the named item reconciles identically whether targeted or in a \
+         full sync"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_run_does_not_create_a_non_targeted_unsynced_draft(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let draft_path = dir.path().join("0001.md");
+    std::fs::write(&draft_path, "---\nstatus: ready\n---\n\nDraft\n")?;
+    let draft = LocalItem {
+        id: "0001".to_owned(),
+        path: draft_path,
+        external_id: None,
+    };
+    let (pushable_item, issue, entry) = pushable(dir.path(), 100)?;
+
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry]));
+    let scenario = Scenario {
+        items: vec![draft, pushable_item],
+        tracker: RecordingTracker::holding(vec![issue]),
+        spy,
+        dir,
+    };
+    let targeted = std::slice::from_ref(&scenario.items[1]);
+
+    execute_targeted(
+        &scenario,
+        targeted,
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a targeted push within bounds must proceed")?;
+
+    assert!(
+        !scenario
+            .tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Create { .. })),
+        "a targeted run must not issue a non-targeted unsynced draft"
+    );
+    Ok(())
 }
 
 #[test]
@@ -842,6 +1262,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         &mut store,
         &request(
             std::slice::from_ref(&item),
+            ItemSelection::All,
             &resolutions,
             &integrations_root,
             25,
