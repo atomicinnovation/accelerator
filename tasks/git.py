@@ -1,3 +1,5 @@
+import os
+
 from invoke import Context, task
 
 from . import version
@@ -43,13 +45,30 @@ def push(context: Context, target_version: str | None = None) -> None:
     that never reached main and wedging the release. We push the one explicit
     version tag rather than --tags so the result never depends on which tags
     happen to be present in the runner's checkout.
+
+    Under CI the push authenticates with a GitHub App token supplied in
+    RELEASER_TOKEN, minted immediately beforehand. The checkout credential
+    cannot serve here: a GitHub App token lives 60 minutes and the four-target
+    cross-compile in *:prepare routinely outlives it, so by finalise the
+    persisted credential is dead. The token reaches git through the remote URL,
+    left unexpanded in the command so the shell substitutes it at push time and
+    the secret never enters this process's arguments. Local dev has no
+    RELEASER_TOKEN and pushes through the developer's own `origin` credential.
     """
     resolved_version = target_version or version.read(
         context, print_to_stdout=False
     )
-    context.run(
-        f"git push --atomic origin HEAD 'refs/tags/v{resolved_version}'"
-    )
+    tag_ref = f"refs/tags/v{resolved_version}"
+    if os.environ.get("RELEASER_TOKEN"):
+        origin = context.run(
+            "git remote get-url origin", hide=True
+        ).stdout.strip()
+        remote = origin.replace(
+            "https://", "https://x-access-token:${RELEASER_TOKEN}@", 1
+        )
+        context.run(f"git push --atomic {remote} HEAD '{tag_ref}'")
+    else:
+        context.run(f"git push --atomic origin HEAD '{tag_ref}'")
 
 
 @task
