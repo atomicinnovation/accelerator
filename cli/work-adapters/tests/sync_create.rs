@@ -1163,7 +1163,6 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
         external_id: Some(ExternalId::new("ENG-42".to_owned())),
     };
 
-    // Seed a Created marker for the draft, matching its own fingerprint.
     let content = std::fs::read_to_string(&draft.path)?;
     let (frontmatter, body) =
         work_adapters::sync::digest::split_frontmatter_and_body(&content)?;

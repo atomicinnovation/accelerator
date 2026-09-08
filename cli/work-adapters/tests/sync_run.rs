@@ -423,7 +423,6 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
 
-    // A: a synced item — local matches baseline, remote proven unchanged.
     let a_external = ExternalId::new("ENG-1".to_owned());
     let a_path = dir.path().join("0001.md");
     let a_content = item_content(a_external.as_str());
@@ -433,7 +432,6 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
         "\"0001\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"h\",\"local_hash\":\"{a_hash}\",\"local_synced_at\":0}}"
     );
 
-    // B: a pullable item, the middle run's sole target.
     let (b_item, b_issue, b_entry) = pullable(dir.path(), 2)?;
 
     let spy = Spy::default();
@@ -469,7 +467,6 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
     )
     .map_err(|_| "the first full sync must proceed")?;
 
-    // A local edit to the non-targeted A's body, then a targeted sync of B.
     std::fs::write(
         &a_path,
         "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nEdited body\n",

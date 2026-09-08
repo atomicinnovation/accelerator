@@ -283,7 +283,7 @@ pub struct SyncArgs {
     #[arg(long, default_value_t = 25)]
     pub max_pushes: usize,
     /// Reconcile only this work item; repeatable. Accepts a local id
-    /// (0257), a remote tracker key / `external_id` (PP-787), or a file
+    /// (0042), a remote tracker key / `external_id` (PP-787), or a file
     /// path. Naming any target suppresses untracked-remote discovery.
     #[arg(long = "target")]
     pub targets: Vec<String>,

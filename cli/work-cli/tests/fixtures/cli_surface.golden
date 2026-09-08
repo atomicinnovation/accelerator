@@ -196,7 +196,7 @@ Options:
           [default: 25]
 
       --target <TARGETS>
-          Reconcile only this work item; repeatable. Accepts a local id (0257), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
+          Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
 
   -h, --help
           Print help (see a summary with '-h')
