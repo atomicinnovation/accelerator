@@ -1,14 +1,14 @@
-//! The structured discriminant the `*_op` methods surface: the
-//! binary reads the granular bash exit code from it, and the post-create
-//! "created remotely but unwritable" case is a distinct variant, not a wire
-//! outcome — so it never has to be parsed back out of a `TrackerError` string.
+//! The structured discriminant the `*_op` methods surface: the CLI reads an
+//! exit code from it, and the post-create "created remotely but unwritable"
+//! case is a distinct variant, not a wire outcome — so it never has to be
+//! parsed back out of a `TrackerError` string.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
 mod support;
 
 use http_test_support::{MockServer, RequestKey, Route};
-use linear_client::classify::bash_code;
+use linear_client::classify::{GraphQlError, Outcome};
 use linear_client::LinearFailure;
 use support::client::{brief, client_for};
 use tracker::ExternalId;
@@ -36,7 +36,7 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
 
     match failure {
         LinearFailure::Wire { outcome, .. } => {
-            assert_eq!(bash_code(outcome), 11, "401 is E_GQL_UNAUTHORIZED");
+            assert_eq!(outcome, Outcome::Unauthorised, "401 is unauthorised");
         }
         LinearFailure::UnwritableIdentifier { .. } => {
             panic!("a 401 is a wire failure, not the post-create case")
@@ -75,7 +75,11 @@ fn a_show_wire_failure_carries_the_granular_ratelimit_code() {
 
     match failure {
         LinearFailure::Wire { outcome, .. } => {
-            assert_eq!(bash_code(outcome), 35, "a 400 ratelimit is 35");
+            assert_eq!(
+                outcome,
+                Outcome::BadRequest(GraphQlError::RateLimited),
+                "a 400 ratelimit classifies as a rate-limited bad request"
+            );
         }
         LinearFailure::UnwritableIdentifier { .. } => {
             panic!("a ratelimit is a wire failure, not the post-create case")

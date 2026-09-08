@@ -138,7 +138,7 @@ fn coerce_number(token: &str, raw: &str) -> Result<Value, CustomFieldError> {
     })
 }
 
-/// The bash `^-?[0-9]+(\.[0-9]+)?$` shape: an optional sign, digits, and an
+/// The `^-?[0-9]+(\.[0-9]+)?$` shape: an optional sign, digits, and an
 /// optional single fractional run. Rejects the scientific and hex forms a bare
 /// serde parse would otherwise accept.
 fn is_decimal(raw: &str) -> bool {

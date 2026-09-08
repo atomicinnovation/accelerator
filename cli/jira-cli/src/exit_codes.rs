@@ -1,8 +1,8 @@
 //! `accelerator-jira`'s exit-code taxonomy — the document of record.
 //!
-//! Every code equals the value the retiring `jira-*` bash cluster returned for
-//! the same condition, captured pre-deletion into
-//! `tests/fixtures/bash-exit-codes.txt` (from the cluster's `EXIT_CODES.md`
+//! Every code equals the value the retiring `jira-*` cluster returned for the
+//! same condition, captured pre-deletion into
+//! `tests/fixtures/captured-exit-codes.txt` (from the cluster's `EXIT_CODES.md`
 //! namespace and its behavioural reconciliations). `exit_codes_parity.rs` pins
 //! these constants against it; the self-descriptive names plus that fixture
 //! carry the mechanical mapping, so this doc names only the bands, the
@@ -13,8 +13,8 @@
 //! - `0`–`2` — process and usage, emitted by the binary itself.
 //! - `11`–`53` — the shared transport/auth/jql/adf/fields codes `jira-request`,
 //!   `jira-auth`, `jira-jql` and `jira-fields` returned; read structurally from
-//!   the client's `JiraFailure` (`bash_code(outcome)`), a `SurfaceError` or a
-//!   `ClientError`, never parsed from a string.
+//!   the client's `JiraFailure` (its wire outcome discriminant), a
+//!   `SurfaceError` or a `ClientError`, never parsed from a string.
 //! - `60`–`133` — the per-flow argument and outcome codes, one block per flow.
 //!
 //! Safety-critical: the post-create "created remotely but unwritable" case maps
@@ -23,9 +23,9 @@
 //! blindly retry. The binary surfaces the key and steers to reconcile.
 //!
 //! Deliberate divergence: the search flow's `SEARCH_*` codes are remapped from
-//! bash `70`–`73` to `75`–`78`, off the `70`–`74` band the dispatch layer
-//! reserves — a code in that band reaching `accelerator-work` would read as a
-//! dispatch verdict.
+//! the retired `70`–`73` values to `75`–`78`, off the `70`–`74` band the
+//! dispatch layer reserves — a code in that band reaching `accelerator-work`
+//! would read as a dispatch verdict.
 
 // Every code is a declared contract the parity test reads textually; a code no
 // handler yet references is still part of the surface, not dead.
@@ -131,17 +131,17 @@ pub const ATTACH_BAD_FLAG: u8 = 133;
 
 use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
-use jira_client::classify::{bash_code, Outcome};
+use jira_client::classify::Outcome;
 use jira_client::{ClientError, JiraFailure, SurfaceError};
 use tracker_support::CredentialError;
 
 /// The exit code for a structured port-op failure (`create`/`update`). A wire
-/// outcome carries the granular bash code; the post-create unwritable case is
+/// outcome maps to its granular code; the post-create unwritable case is
 /// Jira's `REQ_BAD_RESPONSE` — created remotely, do not blindly retry.
 #[must_use]
-pub fn for_failure(failure: &JiraFailure) -> u8 {
+pub const fn for_failure(failure: &JiraFailure) -> u8 {
     match failure {
-        JiraFailure::Wire { outcome, .. } => code_for_outcome(*outcome),
+        JiraFailure::Wire { outcome, .. } => exit_code_for_outcome(*outcome),
         JiraFailure::UnwritableIdentifier { .. } => REQ_BAD_RESPONSE,
         JiraFailure::UnsafeQueryId { .. } => JQL_UNSAFE_VALUE,
         JiraFailure::ComposeRejected { .. } => JQL_NO_PROJECT,
@@ -152,11 +152,11 @@ pub fn for_failure(failure: &JiraFailure) -> u8 {
 /// The exit code for a surface-flow failure (`search`/`show`/`comment`/
 /// `transition`/`attach`/`init`/`fields`).
 #[must_use]
-pub fn for_surface(error: &SurfaceError) -> u8 {
+pub const fn for_surface(error: &SurfaceError) -> u8 {
     match error {
         SurfaceError::Client(client) => for_client(client),
         SurfaceError::Adf(adf) => for_adf(adf),
-        SurfaceError::Status { status, .. } => code_for_status(*status),
+        SurfaceError::Status { status, .. } => exit_code_for_status(*status),
         SurfaceError::BadResponse { .. } => REQ_BAD_RESPONSE,
         SurfaceError::BadPageSize { .. } => COMMENT_BAD_PAGE_SIZE,
         SurfaceError::TransitionNotFound { .. } => TRANSITION_NOT_FOUND,
@@ -191,7 +191,8 @@ pub const fn for_client(error: &ClientError) -> u8 {
 
 /// The exit code for a credential-resolution failure. Jira surfaces these
 /// directly through `init verify`; a request-path failure flattens them to
-/// `REQ_NO_CREDS` (`22`) at the call site, mirroring the bash `jira-request.sh`.
+/// `REQ_NO_CREDS` (`22`) at the call site, mirroring the retired
+/// `jira-request.sh`.
 #[must_use]
 pub const fn for_credential(error: &CredentialError) -> u8 {
     match error {
@@ -216,16 +217,78 @@ pub const fn for_cache(error: &CacheError) -> u8 {
     }
 }
 
-/// The exit code for an ADF conversion failure, read from the crate's own
-/// `code()` band (`40`–`42`).
-fn for_adf(error: &AdfError) -> u8 {
-    u8::try_from(error.code()).unwrap_or(ADF_BAD_INPUT)
+/// The exit code for an ADF conversion failure, in the `40`–`42` band.
+const fn for_adf(error: &AdfError) -> u8 {
+    match error {
+        AdfError::RootNotDoc { .. }
+        | AdfError::HeadingWithoutLevel
+        | AdfError::ListWithoutContent { .. } => BAD_JSON,
+        AdfError::UnsupportedBlockquote
+        | AdfError::UnsupportedTable
+        | AdfError::UnsupportedNestedList => ADF_UNSUPPORTED,
+        AdfError::BadInput => ADF_BAD_INPUT,
+    }
 }
 
-fn code_for_outcome(outcome: Outcome) -> u8 {
-    u8::try_from(bash_code(outcome)).unwrap_or(ERROR)
+const fn exit_code_for_outcome(outcome: Outcome) -> u8 {
+    match outcome {
+        Outcome::Status(400) => REQ_BAD_REQUEST,
+        Outcome::Status(401) => UNAUTHORIZED,
+        Outcome::Status(403) => FORBIDDEN,
+        Outcome::Status(404) => NOT_FOUND,
+        Outcome::Status(410) => GONE,
+        Outcome::Status(429) => RATELIMITED,
+        Outcome::NonJsonBody => REQ_BAD_RESPONSE,
+        Outcome::Transport => REQ_CONNECT,
+        Outcome::Status(_) => SERVER_ERROR,
+    }
 }
 
-fn code_for_status(status: u16) -> u8 {
-    u8::try_from(bash_code(Outcome::Status(status))).unwrap_or(SERVER_ERROR)
+const fn exit_code_for_status(status: u16) -> u8 {
+    exit_code_for_outcome(Outcome::Status(status))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_outcome_maps_to_its_pinned_code() {
+        assert_eq!(
+            exit_code_for_outcome(Outcome::Status(400)),
+            REQ_BAD_REQUEST
+        );
+        assert_eq!(exit_code_for_outcome(Outcome::Status(401)), UNAUTHORIZED);
+        assert_eq!(exit_code_for_outcome(Outcome::Status(403)), FORBIDDEN);
+        assert_eq!(exit_code_for_outcome(Outcome::Status(404)), NOT_FOUND);
+        assert_eq!(exit_code_for_outcome(Outcome::Status(410)), GONE);
+        assert_eq!(exit_code_for_outcome(Outcome::Status(429)), RATELIMITED);
+        assert_eq!(
+            exit_code_for_outcome(Outcome::NonJsonBody),
+            REQ_BAD_RESPONSE
+        );
+        assert_eq!(exit_code_for_outcome(Outcome::Transport), REQ_CONNECT);
+        assert_eq!(exit_code_for_outcome(Outcome::Status(503)), SERVER_ERROR);
+    }
+
+    #[test]
+    fn every_adf_error_maps_to_its_pinned_code() {
+        assert_eq!(
+            for_adf(&AdfError::RootNotDoc {
+                found: String::new()
+            }),
+            BAD_JSON
+        );
+        assert_eq!(for_adf(&AdfError::HeadingWithoutLevel), BAD_JSON);
+        assert_eq!(
+            for_adf(&AdfError::ListWithoutContent {
+                node: String::new()
+            }),
+            BAD_JSON
+        );
+        assert_eq!(for_adf(&AdfError::UnsupportedBlockquote), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::UnsupportedTable), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::UnsupportedNestedList), ADF_UNSUPPORTED);
+        assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);
+    }
 }

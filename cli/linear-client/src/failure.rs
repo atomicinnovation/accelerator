@@ -1,12 +1,12 @@
 //! The structured failure a fallible port operation surfaces before it
 //! collapses to the port's two-class [`TrackerError`].
 //!
-//! The binary reads the granular bash exit code from this — the classifier's
-//! [`Outcome`], whose `bash_code` is the integer, or the distinct post-create
-//! "created remotely but unwritable" case — rather than parsing it back out of
-//! a `TrackerError` detail string. Every error site of `create`/`update`/`show`
-//! is funnelled through here, so the port impl derives `TrackerError` from one
-//! place and the binary maps the same value straight to an exit code.
+//! It carries the classifier's [`Outcome`] and [`Operation`] discriminant, or
+//! the distinct post-create "created remotely but unwritable" case, so the CLI
+//! derives an exit code from the discriminant rather than parsing it back out
+//! of a `TrackerError` detail string. Every error site of
+//! `create`/`update`/`show` is funnelled through here, so the port impl derives
+//! `TrackerError` from one place.
 
 use tracker::TrackerError;
 
@@ -17,8 +17,9 @@ use crate::classify::Outcome;
 /// A create/update/show failure, carrying the discriminant the binary needs.
 #[derive(Debug, Clone)]
 pub enum LinearFailure {
-    /// A wire outcome the classifier recognises. `bash_code(outcome)` is the
-    /// exit code; `operation` decides the retry class the port derives.
+    /// A wire outcome the classifier recognises. `outcome` is the discriminant
+    /// the CLI reads for an exit code; `operation` decides the retry class the
+    /// port derives.
     Wire {
         outcome: Outcome,
         operation: Operation,

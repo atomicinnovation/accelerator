@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Captures the Jira bash cluster's exit-code contract into bash-exit-codes.txt,
+# Captures the Jira cluster's exit-code contract into captured-exit-codes.txt,
 # the authoritative name->integer oracle exit_codes_parity.rs pins against.
 #
 # Unlike the Linear flows, the Jira scripts emit bare-literal `exit N` rather
 # than `readonly E_*=NN` constants, so the declared contract is the namespace
 # table in scripts/EXIT_CODES.md — the single document every helper draws from.
-# This script parses that table into `<rust-const-name>=<bash-integer>` rows,
+# This script parses that table into `<rust-const-name>=<integer>` rows,
 # plus the unnamed shared HTTP codes the table lists with a `—` name (the Rust
 # binary reads them structurally from the client). Two normalisations:
 #   - `E_ADF_UNSUPPORTED_*` (a wildcard family) -> ADF_UNSUPPORTED.
@@ -17,23 +17,23 @@
 #     omitted.
 #
 # Kept for provenance; re-run against EXIT_CODES.md at the recorded revision.
-# The search codes stay at their bash values (70-73) here — exit_codes.rs remaps
-# them off the reserved 70-74 dispatch band, and the parity allowlist records
-# that.
+# The search codes stay at their captured values (70-73) here — exit_codes.rs
+# remaps them off the reserved 70-74 dispatch band, and the parity allowlist
+# records that.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 TABLE="$PLUGIN_ROOT/skills/integrations/jira/scripts/EXIT_CODES.md"
-OUT="$SCRIPT_DIR/bash-exit-codes.txt"
+OUT="$SCRIPT_DIR/captured-exit-codes.txt"
 
 {
-  echo "# Jira bash exit-code contract, captured by capture-bash-exit-codes.sh"
-  echo "# from scripts/EXIT_CODES.md. <rust-const-name>=<bash-integer>."
+  echo "# Jira exit-code contract, captured by capture-exit-codes.sh"
+  echo "# from scripts/EXIT_CODES.md. <rust-const-name>=<integer>."
   echo "# exit_codes_parity.rs pins these."
   echo ""
   echo "# Unnamed shared HTTP codes (a '—' name in the table; the Rust binary"
-  echo "# reads them structurally from bash_code(outcome))."
+  echo "# reads them structurally from the wire outcome)."
   echo "UNAUTHORIZED=11"
   echo "FORBIDDEN=12"
   echo "NOT_FOUND=13"

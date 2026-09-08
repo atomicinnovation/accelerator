@@ -72,8 +72,8 @@ fn show_fails_within_the_window_at_both_injected_timeouts() {
         );
         assert!(
             error.to_string().contains("E_REQ_CONNECT"),
-            "the failure is the transport class — bash code 21 covers \
-             connect, DNS and timeout as one: {error}"
+            "the failure is the transport class — connect, DNS and timeout \
+             collapse into one: {error}"
         );
     }
 }

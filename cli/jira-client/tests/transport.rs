@@ -131,7 +131,11 @@ fn a_persistent_5xx_is_attempted_exactly_four_times() {
         .expect("an exhausted retry still yields the response");
 
     assert_eq!(received.status, 503);
-    assert_eq!(server.hits(&key), 4, "four attempts, as the bash makes");
+    assert_eq!(
+        server.hits(&key),
+        4,
+        "four attempts: the initial plus three retries"
+    );
     assert_eq!(
         sleeper.slept(),
         vec![

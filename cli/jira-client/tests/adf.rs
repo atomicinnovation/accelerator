@@ -57,31 +57,26 @@ fn both_placeholder_strings_are_verbatim_and_position_dependent() {
 }
 
 #[test]
-fn each_of_the_four_refusals_carries_its_code_and_message() {
-    for (markdown, code, message) in [
+fn each_of_the_four_refusals_carries_its_message() {
+    for (markdown, message) in [
         (
             "> quoted\n",
-            41,
             "E_ADF_UNSUPPORTED_BLOCKQUOTE: blockquote is not supported",
         ),
         (
             "| a | b |\n",
-            41,
             "E_ADF_UNSUPPORTED_TABLE: pipe tables are not supported",
         ),
         (
             "  - nested\n",
-            41,
             "E_ADF_UNSUPPORTED_NESTED_LIST: nested lists are not supported",
         ),
         (
             "bad\u{1f}byte\n",
-            42,
             "E_ADF_BAD_INPUT: input contains control byte \\x1e or \\x1f",
         ),
     ] {
         let error = refusal(markdown);
-        assert_eq!(error.code(), code, "{markdown:?}");
         assert_eq!(error.to_string(), message, "{markdown:?}");
     }
 }

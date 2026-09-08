@@ -32,8 +32,9 @@ const GITIGNORE_RULES: &[&str] = &[
 /// The lock directory name.
 const LOCK_DIR: &str = ".lock";
 
-/// The cache-layout version the binary writes and reads. Bash-era caches carry
-/// no marker and are classified as the implicit version 0 — read unchanged.
+/// The cache-layout version the binary writes and reads. A cache written
+/// before this marker existed carries none and is classified as the implicit
+/// version 0 — read unchanged.
 const CACHE_VERSION: u64 = 1;
 
 /// The marker file recording the cache-layout version.
@@ -139,8 +140,8 @@ impl<'a> JiraCache<'a> {
 
     /// Reads a discovery cache file, failing closed on an unrecognised version
     /// marker or a shape that does not parse. An absent marker is
-    /// the implicit bash-era version and reads unchanged, so no existing install
-    /// must re-initialise.
+    /// the implicit unversioned legacy layout and reads unchanged, so no
+    /// existing install must re-initialise.
     ///
     /// # Errors
     ///
@@ -159,7 +160,7 @@ impl<'a> JiraCache<'a> {
     }
 
     /// Records the current cache-layout version, so a subsequent read is
-    /// versioned rather than treated as bash-era.
+    /// versioned rather than treated as the unversioned legacy layout.
     fn stamp_version(&self) -> Result<(), CacheError> {
         self.write_json(
             VERSION_FILE,
@@ -167,8 +168,9 @@ impl<'a> JiraCache<'a> {
         )
     }
 
-    /// Classifies the version marker: absent is bash-era (permitted), the
-    /// current version is permitted, anything else fails closed.
+    /// Classifies the version marker: absent is the unversioned legacy layout
+    /// (permitted), the current version is permitted, anything else fails
+    /// closed.
     fn assert_version(&self) -> Result<(), CacheError> {
         let Some(text) = self.fs.read(&self.state_dir.join(VERSION_FILE))
         else {

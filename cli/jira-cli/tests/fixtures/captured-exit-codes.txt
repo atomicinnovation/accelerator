@@ -1,9 +1,9 @@
-# Jira bash exit-code contract, captured by capture-bash-exit-codes.sh
-# from scripts/EXIT_CODES.md. <rust-const-name>=<bash-integer>.
+# Jira exit-code contract, captured by capture-exit-codes.sh
+# from scripts/EXIT_CODES.md. <rust-const-name>=<integer>.
 # exit_codes_parity.rs pins these.
 
 # Unnamed shared HTTP codes (a '—' name in the table; the Rust binary
-# reads them structurally from bash_code(outcome)).
+# reads them structurally from the wire outcome).
 UNAUTHORIZED=11
 FORBIDDEN=12
 NOT_FOUND=13
