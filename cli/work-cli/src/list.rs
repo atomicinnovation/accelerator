@@ -199,8 +199,7 @@ pub fn classify(
             LazyItemDigests::new(&item.path, remote_content)
         })
         .collect();
-    let inputs =
-        facts.plan_inputs(items, &digests, baseline, baseline.timestamp());
+    let inputs = facts.plan_inputs(items, &digests, baseline);
     match plan::plan(&inputs, SyncDirection::Bidirectional, &BTreeMap::new()) {
         Ok(computed) => computed
             .actions
@@ -957,6 +956,7 @@ mod tests {
                 remote_updated_at: stamp.clone(),
                 remote_hash: "unused".to_owned(),
                 local_hash: synced_hash,
+                local_synced_at: 0,
             },
         );
         baseline.set(
@@ -965,6 +965,7 @@ mod tests {
                 remote_updated_at: stamp,
                 remote_hash: "unused".to_owned(),
                 local_hash: "a-different-hash".to_owned(),
+                local_synced_at: 0,
             },
         );
 

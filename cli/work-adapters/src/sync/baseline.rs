@@ -9,11 +9,17 @@ use tracker::RemoteTimestamp;
 
 /// One item's baseline record, exactly as persisted: raw strings, with an
 /// empty string meaning absent.
+///
+/// `local_synced_at` is the item's own change-detection watermark — the epoch
+/// the mtime pre-filter gates against. An entry read from a document written
+/// before this field existed backfills it from the document-level `timestamp`,
+/// so gating is unchanged for an old baseline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub remote_updated_at: RemoteTimestamp,
     pub remote_hash: String,
     pub local_hash: String,
+    pub local_synced_at: u64,
 }
 
 /// Whether reading the document had to degrade, and how.
@@ -62,7 +68,20 @@ fn string_field(object: &serde_json::Map<String, Value>, key: &str) -> String {
         .to_owned()
 }
 
-fn parse_entry(value: &Value) -> Option<Entry> {
+/// A missing or non-integer watermark reads as the document `timestamp`, never
+/// a raw untrusted value, so an old baseline gates exactly as before and a
+/// corrupt or future-written value cannot bury an edit.
+fn synced_at_field(
+    object: &serde_json::Map<String, Value>,
+    document_timestamp: u64,
+) -> u64 {
+    object
+        .get("local_synced_at")
+        .and_then(Value::as_u64)
+        .unwrap_or(document_timestamp)
+}
+
+fn parse_entry(value: &Value, document_timestamp: u64) -> Option<Entry> {
     let object = value.as_object()?;
     Some(Entry {
         remote_updated_at: stamp_from_json(&string_field(
@@ -71,6 +90,7 @@ fn parse_entry(value: &Value) -> Option<Entry> {
         )),
         remote_hash: string_field(object, "remote_hash"),
         local_hash: string_field(object, "local_hash"),
+        local_synced_at: synced_at_field(object, document_timestamp),
     })
 }
 
@@ -80,10 +100,12 @@ fn render_string(value: &str) -> String {
 
 fn render_entry(entry: &Entry) -> String {
     format!(
-        "{{\"remote_updated_at\":{},\"remote_hash\":{},\"local_hash\":{}}}",
+        "{{\"remote_updated_at\":{},\"remote_hash\":{},\"local_hash\":{},\
+         \"local_synced_at\":{}}}",
         render_string(stamp_to_json(&entry.remote_updated_at)),
         render_string(&entry.remote_hash),
         render_string(&entry.local_hash),
+        entry.local_synced_at,
     )
 }
 
@@ -127,7 +149,7 @@ impl Baseline {
         if let Some(raw_items) = object.get("items").and_then(Value::as_object)
         {
             for (id, raw_entry) in raw_items {
-                match parse_entry(raw_entry) {
+                match parse_entry(raw_entry, timestamp) {
                     Some(entry) => {
                         items.insert(id.clone(), entry);
                     }
@@ -182,6 +204,19 @@ impl Baseline {
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&Entry> {
         self.items.get(id)
+    }
+
+    #[must_use]
+    pub fn ids(&self) -> Vec<String> {
+        self.items.keys().cloned().collect()
+    }
+
+    /// Advances one entry's change-detection watermark. A no-op for an id with
+    /// no entry: an item is watermarked only once it has a baseline record.
+    pub fn advance_watermark(&mut self, id: &str, epoch: u64) {
+        if let Some(entry) = self.items.get_mut(id) {
+            entry.local_synced_at = epoch;
+        }
     }
 
     #[must_use]
@@ -248,6 +283,52 @@ mod tests {
     }
 
     #[test]
+    fn an_entry_watermark_round_trips_through_render_and_read() {
+        let mut baseline = Baseline::empty();
+        baseline.set_timestamp(1_700_000_000);
+        baseline.set(
+            "0001",
+            Entry {
+                remote_updated_at: RemoteTimestamp::NotRead,
+                remote_hash: String::new(),
+                local_hash: String::new(),
+                local_synced_at: 1_699_500_000,
+            },
+        );
+        let (read_back, _) = Baseline::read(Some(&baseline.render()));
+        assert_eq!(
+            read_back
+                .get("0001")
+                .expect("entry present")
+                .local_synced_at,
+            1_699_500_000
+        );
+    }
+
+    #[test]
+    fn an_entry_without_a_watermark_backfills_from_the_document_timestamp() {
+        let (baseline, degradation) = Baseline::read(Some(
+            r#"{"timestamp":1700000000,"items":{"0001":{"remote_updated_at":"x","remote_hash":"h","local_hash":"h"}}}"#,
+        ));
+        assert_eq!(
+            baseline.get("0001").expect("entry present").local_synced_at,
+            1_700_000_000
+        );
+        assert_eq!(degradation, Degradation::None);
+    }
+
+    #[test]
+    fn a_non_integer_watermark_backfills_from_the_document_timestamp() {
+        let (baseline, _) = Baseline::read(Some(
+            r#"{"timestamp":1700000000,"items":{"0001":{"remote_updated_at":"x","remote_hash":"h","local_hash":"h","local_synced_at":"corrupt"}}}"#,
+        ));
+        assert_eq!(
+            baseline.get("0001").expect("entry present").local_synced_at,
+            1_700_000_000
+        );
+    }
+
+    #[test]
     fn a_missing_field_within_an_entry_reads_as_absent_not_discarded() {
         let (baseline, degradation) = Baseline::read(Some(
             r#"{"timestamp":1,"items":{"0001":{"remote_hash":"h"}}}"#,
@@ -270,6 +351,7 @@ mod tests {
                 ),
                 remote_hash: "rh".to_owned(),
                 local_hash: "lh".to_owned(),
+                local_synced_at: 1_699_000_000,
             },
         );
 
@@ -299,6 +381,7 @@ mod tests {
                 remote_updated_at: RemoteTimestamp::NotReported,
                 remote_hash: String::new(),
                 local_hash: String::new(),
+                local_synced_at: 0,
             },
         );
         let (read_back, _) = Baseline::read(Some(&baseline.render()));
@@ -320,6 +403,7 @@ mod tests {
                 remote_updated_at: RemoteTimestamp::NotRead,
                 remote_hash: String::new(),
                 local_hash: String::new(),
+                local_synced_at: 0,
             },
         );
         let (read_back, _) = Baseline::read(Some(&baseline.render()));

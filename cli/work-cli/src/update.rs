@@ -263,6 +263,7 @@ fn push_update(
                 remote_updated_at: remote_updated,
                 remote_hash,
                 local_hash,
+                local_synced_at: 0,
             },
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;

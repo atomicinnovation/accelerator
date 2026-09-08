@@ -17,6 +17,7 @@ use work::sync::RunClock;
 use work::sync::SyncDirection;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::run::render_dossier;
@@ -24,6 +25,7 @@ use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemOutcome;
+use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
@@ -33,6 +35,7 @@ use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::cli::SyncArgs;
 use crate::exit_codes;
+use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -183,13 +186,16 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::SkippedPushOnly => {
             "#\tdiscovery\tskipped\tpush-only".to_owned()
         }
+        DiscoveryStatus::SkippedTargeted => {
+            "#\tdiscovery\tskipped\ttargeted".to_owned()
+        }
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
         }
     }
 }
 
-fn render_report(report: &RunReport) -> String {
+fn render_report(report: &RunReport, suppressed: &[Suppressed]) -> String {
     let mut lines = Vec::new();
     let mut synced_count = 0usize;
     for item in &report.reported {
@@ -222,6 +228,9 @@ fn render_report(report: &RunReport) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    for note in suppressed {
+        lines.push(suppression_line(note));
+    }
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
@@ -354,6 +363,258 @@ fn persist_conflict_dossiers(
     }
 }
 
+/// A dual-shape target: a token that resolved locally but also keys some
+/// item's `external_id`. The local interpretation wins; the remote match is
+/// reported as suppressed rather than treated as ambiguity.
+#[derive(Debug)]
+struct Suppressed {
+    token: String,
+    local_id: String,
+    remote_id: String,
+}
+
+#[derive(Debug)]
+struct ResolvedTargets {
+    items: Vec<LocalItem>,
+    suppressed: Vec<Suppressed>,
+}
+
+/// Why one `--target` token could not be resolved. Each carries a
+/// user-facing message naming the offender; [`TargetResolutionFailure::exit_code`]
+/// is the single source of the code mapping.
+#[derive(Debug)]
+enum TargetResolutionFailure {
+    Malformed(String),
+    NoMatch(String),
+    Unmanaged(String),
+    OutsideWorkDir(String),
+    AmbiguousLocal(String),
+    AmbiguousExternal(String),
+}
+
+impl TargetResolutionFailure {
+    fn message(&self) -> &str {
+        match self {
+            Self::Malformed(message)
+            | Self::NoMatch(message)
+            | Self::Unmanaged(message)
+            | Self::OutsideWorkDir(message)
+            | Self::AmbiguousLocal(message)
+            | Self::AmbiguousExternal(message) => message,
+        }
+    }
+
+    const fn exit_code(&self) -> u8 {
+        match self {
+            Self::Malformed(_)
+            | Self::AmbiguousLocal(_)
+            | Self::AmbiguousExternal(_) => exit_codes::USAGE,
+            Self::NoMatch(_) | Self::Unmanaged(_) => {
+                exit_codes::RESOLVE_NOT_FOUND
+            }
+            Self::OutsideWorkDir(_) => exit_codes::RESOLVE_OUTSIDE_WORKDIR,
+        }
+    }
+}
+
+fn external_id_index(
+    corpus: &[LocalItem],
+) -> BTreeMap<String, Vec<&LocalItem>> {
+    let mut index: BTreeMap<String, Vec<&LocalItem>> = BTreeMap::new();
+    for item in corpus {
+        if let Some(external) = &item.external_id {
+            index
+                .entry(canonical_external_key(external))
+                .or_default()
+                .push(item);
+        }
+    }
+    index
+}
+
+/// The remote match a dual-shape token names, if the token keys a *different*
+/// item than the local match — the local one wins and this is reported
+/// suppressed.
+fn suppressed_remote(
+    index: &BTreeMap<String, Vec<&LocalItem>>,
+    token: &str,
+    local_match: &LocalItem,
+) -> Option<String> {
+    let key = canonical_external_key(&ExternalId::new(token.to_owned()));
+    let other = index
+        .get(&key)?
+        .iter()
+        .find(|item| item.id != local_match.id)?;
+    other.external_id.as_ref().map(|id| id.as_str().to_owned())
+}
+
+/// Resolves each `--target` token to a local item, accumulating every failure
+/// so one run names all offenders. Local resolution wins over a remote match;
+/// a token that resolves locally to `NotFound`/`Invalid` cascades to the
+/// `external_id` index, while an ambiguous or out-of-directory local outcome
+/// does not.
+fn resolve_targets(
+    corpus: &[LocalItem],
+    targets: &[String],
+    resolver: &dyn Fn(&str) -> RunOutcome,
+) -> Result<ResolvedTargets, Vec<TargetResolutionFailure>> {
+    let index = external_id_index(corpus);
+    let mut matched: Vec<&LocalItem> = Vec::new();
+    let mut suppressed: Vec<Suppressed> = Vec::new();
+    let mut failures: Vec<TargetResolutionFailure> = Vec::new();
+
+    for token in targets {
+        if token.trim().is_empty() {
+            failures.push(TargetResolutionFailure::Malformed(
+                "a --target token is empty or whitespace-only".to_owned(),
+            ));
+            continue;
+        }
+        match resolver(token) {
+            RunOutcome::Resolved(path) => {
+                let local_match = corpus.iter().find(|candidate| {
+                    candidate
+                        .path
+                        .canonicalize()
+                        .map(|resolved| resolved == path)
+                        .unwrap_or(false)
+                });
+                match local_match {
+                    Some(item) => {
+                        if let Some(remote) =
+                            suppressed_remote(&index, token, item)
+                        {
+                            suppressed.push(Suppressed {
+                                token: token.clone(),
+                                local_id: item.id.clone(),
+                                remote_id: remote,
+                            });
+                        }
+                        matched.push(item);
+                    }
+                    None => failures.push(TargetResolutionFailure::Unmanaged(
+                        format!(
+                            "'{token}' resolves to a file that is not a \
+                             managed work item"
+                        ),
+                    )),
+                }
+            }
+            RunOutcome::Ambiguous(_) => {
+                failures.push(TargetResolutionFailure::AmbiguousLocal(
+                    format!(
+                    "'{token}' is an ambiguous local id; re-run with a full \
+                     id or a path"
+                ),
+                ));
+            }
+            RunOutcome::OutsideWorkDir(message) => {
+                failures.push(TargetResolutionFailure::OutsideWorkDir(message));
+            }
+            RunOutcome::NotFound(_) | RunOutcome::Invalid(_) => {
+                let key =
+                    canonical_external_key(&ExternalId::new(token.to_owned()));
+                match index.get(&key).map(Vec::as_slice) {
+                    Some([one]) => matched.push(one),
+                    None | Some([]) => {
+                        failures.push(TargetResolutionFailure::NoMatch(
+                            format!(
+                                "no local item and no remote-tracked match \
+                                 for '{token}'; untracked remote issues are \
+                                 imported only by a full (untargeted) sync"
+                            ),
+                        ));
+                    }
+                    Some(_) => failures.push(
+                        TargetResolutionFailure::AmbiguousExternal(format!(
+                            "'{token}' matches more than one item's \
+                             external_id; re-run with a local id or a path"
+                        )),
+                    ),
+                }
+            }
+        }
+    }
+
+    if !failures.is_empty() {
+        return Err(failures);
+    }
+
+    let mut seen = std::collections::BTreeSet::new();
+    let items = matched
+        .into_iter()
+        .filter(|item| seen.insert(item.id.clone()))
+        .cloned()
+        .collect();
+    Ok(ResolvedTargets { items, suppressed })
+}
+
+enum Scope {
+    All,
+    Targeted,
+}
+
+struct SelectedTargets {
+    scope: Scope,
+    items: Vec<LocalItem>,
+    suppressed: Vec<Suppressed>,
+}
+
+/// A usage or ambiguity error is the most fundamental thing to fix, so it
+/// dominates the summary code: `USAGE` (2) > `RESOLVE_OUTSIDE_WORKDIR` (6) >
+/// `RESOLVE_NOT_FOUND` (3). Every offender is still named on stderr.
+fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
+    let rank = |code: u8| match code {
+        exit_codes::USAGE => 3,
+        exit_codes::RESOLVE_OUTSIDE_WORKDIR => 2,
+        _ => 1,
+    };
+    failures
+        .iter()
+        .map(TargetResolutionFailure::exit_code)
+        .max_by_key(|&code| rank(code))
+        .unwrap_or(exit_codes::USAGE)
+}
+
+/// Builds the reconciliation scope: `All` when no `--target` is given, else the
+/// resolved `Targeted` slice. On failure prints every offender and returns the
+/// highest-precedence exit code.
+fn build_selection(
+    corpus: &[LocalItem],
+    targets: &[String],
+    resolver: &dyn Fn(&str) -> RunOutcome,
+) -> Result<SelectedTargets, ExitCode> {
+    if targets.is_empty() {
+        return Ok(SelectedTargets {
+            scope: Scope::All,
+            items: Vec::new(),
+            suppressed: Vec::new(),
+        });
+    }
+    match resolve_targets(corpus, targets, resolver) {
+        Ok(found) => Ok(SelectedTargets {
+            scope: Scope::Targeted,
+            items: found.items,
+            suppressed: found.suppressed,
+        }),
+        Err(failures) => {
+            for failure in &failures {
+                eprintln!("{}", failure.message());
+            }
+            Err(ExitCode::from(highest_precedence_code(&failures)))
+        }
+    }
+}
+
+fn suppression_line(suppressed: &Suppressed) -> String {
+    format!(
+        "#\ttarget\tsuppressed\t{}\tlocal={}\tremote={}",
+        single_line(&suppressed.token),
+        single_line(&suppressed.local_id),
+        single_line(&suppressed.remote_id),
+    )
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -390,6 +651,51 @@ pub fn run_sync(
             }
         };
 
+    // The directory resolution and target validation run before the tracker's
+    // credential check, so a target-resolution abort is credential-independent.
+    let root = config_adapters::FileConfigStore::discover_root(start);
+    let work_dir = match crate::config::resolve_work_dir(config, &root) {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let integrations_root = match integrations_dir(config, &root) {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+
+    let items = discover_items(&work_dir);
+
+    let scheme = match crate::config::resolve_scheme(config) {
+        Ok(scheme) => scheme,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let canonical_work_dir = match work_dir.canonicalize() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!(
+                "could not resolve the work directory {}: {error}",
+                work_dir.display()
+            );
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let resolver = |token: &str| {
+        crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
+    };
+    let selected = match build_selection(&items, &args.targets, &resolver) {
+        Ok(selected) => selected,
+        Err(code) => return code,
+    };
+
     let tracker = match registry.resolve(&integration) {
         Ok(tracker) => tracker,
         Err(
@@ -409,23 +715,6 @@ pub fn run_sync(
         }
     };
 
-    let root = config_adapters::FileConfigStore::discover_root(start);
-    let work_dir = match crate::config::resolve_work_dir(config, &root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-    let integrations_root = match integrations_dir(config, &root) {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(exit_codes::ERROR);
-        }
-    };
-
-    let items = discover_items(&work_dir);
     let baseline_path = baseline::path(&integrations_root, &integration);
     let file_reader = RealFs;
     let corpus_store = FileCorpusStore::new(
@@ -463,8 +752,13 @@ pub fn run_sync(
         all_projects: false,
         filters: Vec::new(),
     };
+    let selection = match selected.scope {
+        Scope::All => ItemSelection::All,
+        Scope::Targeted => ItemSelection::Targeted(&selected.items),
+    };
     let request = SyncRequest {
-        items: &items,
+        corpus: &items,
+        selection,
         direction,
         strategy,
         resolutions: &resolutions,
@@ -511,7 +805,7 @@ pub fn run_sync(
                      resolve the work-item id scheme ({error})"
                 ),
             }
-            println!("{}", render_report(&report));
+            println!("{}", render_report(&report, &selected.suppressed));
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
@@ -575,10 +869,207 @@ mod tests {
     use work_adapters::sync::run::ReportedItem;
     use work_adapters::sync::run::RunReport;
 
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use tracker::ExternalId;
+    use work_adapters::sync::fetch::LocalItem;
+
+    use super::build_selection;
+    use super::highest_precedence_code;
     use super::render_report;
+    use super::resolve_targets;
+    use super::suppression_line;
+    use super::Scope;
+    use super::TargetResolutionFailure;
+    use crate::exit_codes;
+    use crate::resolve::RunOutcome;
 
     fn scheme() -> WorkItemIdScheme {
         WorkItemIdScheme::numeric()
+    }
+
+    fn target_item(dir: &Path, id: &str, external: Option<&str>) -> LocalItem {
+        let path = dir.join(format!("{id}.md"));
+        std::fs::write(&path, "body").expect("write item");
+        LocalItem {
+            id: id.to_owned(),
+            path,
+            external_id: external.map(|raw| ExternalId::new(raw.to_owned())),
+        }
+    }
+
+    fn canonical(item: &LocalItem) -> PathBuf {
+        item.path.canonicalize().expect("canonicalise item path")
+    }
+
+    #[test]
+    fn a_local_id_wins_and_records_the_remote_match_as_suppressed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let local = target_item(dir.path(), "0001", None);
+        let remote_holder = target_item(dir.path(), "0002", Some("0001"));
+        let corpus = vec![local, remote_holder];
+        let local_path = canonical(&corpus[0]);
+        let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
+
+        let matched = resolve_targets(&corpus, &["0001".to_owned()], &resolver)
+            .expect("the local id resolves");
+
+        assert_eq!(matched.items.len(), 1);
+        assert_eq!(matched.items[0].id, "0001");
+        assert_eq!(matched.suppressed.len(), 1);
+        assert_eq!(matched.suppressed[0].local_id, "0001");
+        assert_eq!(matched.suppressed[0].remote_id, "0001");
+    }
+
+    #[test]
+    fn an_ambiguous_local_id_fails_without_cascading_to_the_remote() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("0001"))];
+        let resolver = |_token: &str| RunOutcome::Ambiguous(Vec::new());
+
+        let failures =
+            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
+                .expect_err("an ambiguous local id must fail");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
+    }
+
+    #[test]
+    fn an_out_of_directory_path_fails_without_cascading() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("0001"))];
+        let resolver =
+            |_token: &str| RunOutcome::OutsideWorkDir("outside".to_owned());
+
+        let failures =
+            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
+                .expect_err("an out-of-directory path must fail");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(
+            failures[0].exit_code(),
+            exit_codes::RESOLVE_OUTSIDE_WORKDIR
+        );
+    }
+
+    #[test]
+    fn a_remote_id_token_matches_through_the_external_id_index() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver =
+            |_token: &str| RunOutcome::Invalid("not local".to_owned());
+
+        let matched =
+            resolve_targets(&corpus, &["PP-787".to_owned()], &resolver)
+                .expect("the remote id resolves through the index");
+
+        assert_eq!(matched.items.len(), 1);
+        assert_eq!(matched.items[0].id, "0002");
+        assert!(matched.suppressed.is_empty());
+    }
+
+    #[test]
+    fn a_no_match_token_fails_with_a_not_found_code() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
+
+        let failures =
+            resolve_targets(&corpus, &["9999".to_owned()], &resolver)
+                .expect_err("an unmatched token must fail");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::RESOLVE_NOT_FOUND);
+    }
+
+    #[test]
+    fn two_tokens_naming_one_item_de_duplicate_to_a_single_entry() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let item_path = canonical(&corpus[0]);
+        let resolver = move |token: &str| {
+            if token == "0002" {
+                RunOutcome::Resolved(item_path.clone())
+            } else {
+                RunOutcome::Invalid("not local".to_owned())
+            }
+        };
+
+        let matched = resolve_targets(
+            &corpus,
+            &["0002".to_owned(), "PP-787".to_owned()],
+            &resolver,
+        )
+        .expect("both tokens resolve to the one item");
+
+        assert_eq!(
+            matched.items.len(),
+            1,
+            "the same item named twice collapses to a single slice entry"
+        );
+        assert_eq!(matched.items[0].id, "0002");
+    }
+
+    #[test]
+    fn every_failure_is_accumulated_with_usage_dominating_the_code() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
+
+        let failures = resolve_targets(
+            &corpus,
+            &["   ".to_owned(), "9999".to_owned()],
+            &resolver,
+        )
+        .expect_err("both tokens fail");
+
+        assert_eq!(failures.len(), 2, "collect-all names every offender");
+        assert_eq!(
+            highest_precedence_code(&failures),
+            exit_codes::USAGE,
+            "a malformed token dominates a no-match"
+        );
+    }
+
+    #[test]
+    fn an_empty_target_token_is_a_usage_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
+
+        let failures = resolve_targets(&corpus, &[String::new()], &resolver)
+            .expect_err("an empty token must fail");
+
+        assert!(matches!(failures[0], TargetResolutionFailure::Malformed(_)));
+        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
+    }
+
+    #[test]
+    fn no_targets_selects_the_whole_corpus() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", None)];
+        let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
+
+        let selected = build_selection(&corpus, &[], &resolver)
+            .expect("no targets is a whole-corpus run");
+
+        assert!(matches!(selected.scope, Scope::All));
+        assert!(selected.items.is_empty());
+    }
+
+    #[test]
+    fn the_suppression_line_collapses_record_breaking_whitespace() {
+        let note = super::Suppressed {
+            token: "00\t01".to_owned(),
+            local_id: "00\n01".to_owned(),
+            remote_id: "PP-787".to_owned(),
+        };
+        assert_eq!(
+            suppression_line(&note),
+            "#\ttarget\tsuppressed\t00 01\tlocal=00 01\tremote=PP-787"
+        );
     }
 
     fn ok_render(section: &SectionDiff) -> String {
@@ -674,7 +1165,7 @@ mod tests {
         ))
         .expect("golden readable");
 
-        assert_eq!(render_report(&report), golden);
+        assert_eq!(render_report(&report, &[]), golden);
     }
 
     #[test]
@@ -689,7 +1180,7 @@ mod tests {
         };
 
         assert_eq!(
-            render_report(&report),
+            render_report(&report, &[]),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
     }
@@ -707,17 +1198,27 @@ mod tests {
 
     #[test]
     fn render_report_emits_each_discovery_status_line() {
-        assert!(
-            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
-                .contains("#\tdiscovery\tran\tfound=3")
+        assert!(render_report(
+            &report_with(DiscoveryStatus::Ran { found: 3 }),
+            &[]
+        )
+        .contains("#\tdiscovery\tran\tfound=3"));
+        assert!(render_report(
+            &report_with(DiscoveryStatus::SkippedPushOnly),
+            &[]
+        )
+        .contains("#\tdiscovery\tskipped\tpush-only"));
+        assert!(render_report(
+            &report_with(DiscoveryStatus::SkippedTargeted),
+            &[]
+        )
+        .contains("#\tdiscovery\tskipped\ttargeted"));
+        let failed = render_report(
+            &report_with(DiscoveryStatus::Failed {
+                detail: "connection refused".to_owned(),
+            }),
+            &[],
         );
-        assert!(
-            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
-                .contains("#\tdiscovery\tskipped\tpush-only")
-        );
-        let failed = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "connection refused".to_owned(),
-        }));
         assert!(
             failed.contains("#\tdiscovery\tfailed\tconnection refused"),
             "{failed}"
@@ -726,9 +1227,12 @@ mod tests {
 
     #[test]
     fn a_failed_discovery_detail_is_flattened_to_one_record() {
-        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
-            detail: "line one\tsplit\nline two\r".to_owned(),
-        }));
+        let rendered = render_report(
+            &report_with(DiscoveryStatus::Failed {
+                detail: "line one\tsplit\nline two\r".to_owned(),
+            }),
+            &[],
+        );
         let discovery = rendered
             .lines()
             .find(|line| line.starts_with("#\tdiscovery\tfailed"))

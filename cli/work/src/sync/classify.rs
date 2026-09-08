@@ -55,6 +55,11 @@ pub struct Subject<'a> {
     pub external_id: Option<&'a ExternalId>,
     pub presence: RemotePresence,
     pub remote_updated: &'a RemoteTimestamp,
+    /// The item's change-detection watermark: the epoch its local file was
+    /// last synced. The mtime pre-filter short-circuits when the file's mtime
+    /// does not exceed this. Sourced per item from the baseline (the entry's
+    /// own watermark, or the document-level timestamp for an item with no
+    /// entry yet).
     pub baseline_timestamp: u64,
 }
 

@@ -88,8 +88,27 @@ pub struct SyncPorts<'a> {
     pub author: &'a dyn LocalAuthor,
 }
 
+/// Which of the discovered corpus a run reconciles.
+///
+/// `All` is payload-free so `SyncRequest::corpus` is the single source of the
+/// reconciled set — a construction site cannot desync the two, and the
+/// invariant `reconciled() ⊆ corpus` holds structurally. `Targeted` also gates
+/// untracked-remote discovery off, so a narrowed set can never re-import the
+/// items it left out.
+pub enum ItemSelection<'a> {
+    All,
+    Targeted(&'a [LocalItem]),
+}
+
 pub struct SyncRequest<'a> {
-    pub items: &'a [LocalItem],
+    /// The full discovered set, always. Whole-corpus reads — the double-binding
+    /// guard and untracked-remote discovery — read this regardless of the
+    /// selection, or a narrowed run would misjudge what the corpus already
+    /// carries.
+    pub corpus: &'a [LocalItem],
+    /// The reconciliation scope. Reconciliation reads go through
+    /// [`SyncRequest::reconciled`].
+    pub selection: ItemSelection<'a>,
     pub direction: SyncDirection,
     pub strategy: RetrievalStrategy,
     pub resolutions: &'a BTreeMap<String, Resolution>,
@@ -104,6 +123,21 @@ pub struct SyncRequest<'a> {
     /// The scope untracked-remote discovery searches. Team/project-scoped by
     /// default so the untracked set stays bounded on a shared workspace.
     pub scope: SearchScope,
+}
+
+impl<'a> SyncRequest<'a> {
+    #[must_use]
+    pub const fn reconciled(&self) -> &'a [LocalItem] {
+        match self.selection {
+            ItemSelection::All => self.corpus,
+            ItemSelection::Targeted(items) => items,
+        }
+    }
+
+    #[must_use]
+    pub const fn discovery_suppressed(&self) -> bool {
+        matches!(self.selection, ItemSelection::Targeted(_))
+    }
 }
 
 pub enum ItemOutcome {
@@ -138,6 +172,9 @@ pub enum DiscoveryStatus {
     Ran { found: usize },
     /// The run was push-only, so discovery was deliberately not run.
     SkippedPushOnly,
+    /// The run named explicit targets, so discovery was deliberately not run:
+    /// a targeted pull reaches only items already tracked locally.
+    SkippedTargeted,
     /// The search failed transiently (network). Maps to `RETRYABLE` (70), the
     /// fate a failed read carries.
     Failed { detail: String },
@@ -167,6 +204,52 @@ impl RunReport {
             )
         })
     }
+}
+
+/// Whether an item was reconciled to a definite, up-to-date state this run, so
+/// its change-detection watermark may advance. An item left for a human
+/// (conflict, skipped-dirty, remote-absent), one whose remote read was
+/// indeterminate, or one whose apply failed keeps the watermark of the last run
+/// that did reconcile it, so a local edit predating this run is not buried.
+/// Writes the run's baseline bookkeeping: blanks each unreconciled conflict's
+/// local hash, advances the reconciled items' watermarks, and — only for a
+/// whole-corpus run — advances the document-level fallback watermark. Returns
+/// whether the write succeeded.
+fn finalise_baseline(
+    baseline: &mut BaselineStore<'_>,
+    reported: &[ReportedItem],
+    blank_local_hash: &[String],
+    run_start_epoch: u64,
+    selection: &ItemSelection<'_>,
+) -> bool {
+    let blank_refs: Vec<&str> =
+        blank_local_hash.iter().map(String::as_str).collect();
+    let advance_ids: Vec<&str> = reported
+        .iter()
+        .filter(|item| definitively_reconciled(item))
+        .map(|item| item.planned.id.as_str())
+        .collect();
+    let advance_document = matches!(selection, ItemSelection::All);
+    baseline
+        .finalise_run(
+            &blank_refs,
+            &advance_ids,
+            run_start_epoch,
+            advance_document,
+        )
+        .is_ok()
+}
+
+const fn definitively_reconciled(item: &ReportedItem) -> bool {
+    !matches!(item.outcome, ItemOutcome::Failed(_))
+        && !matches!(
+            item.planned.action,
+            Action::Prompt | Action::SkipConflict | Action::SkipDirty
+        )
+        && !matches!(
+            item.planned.state,
+            SyncState::RemoteAbsent | SyncState::Indeterminate
+        )
 }
 
 fn local_title_and_body(content: &str) -> (String, String) {
@@ -666,7 +749,7 @@ fn prepare_run<'a>(
         .map_err(|error| RunError::Internal(error.into()))?;
 
     let facts = fetch::gather(
-        request.items,
+        request.reconciled(),
         &loaded_baseline,
         ports.tracker,
         ports.status,
@@ -674,7 +757,7 @@ fn prepare_run<'a>(
     );
 
     let digests: Vec<LazyItemDigests<'_>> = request
-        .items
+        .reconciled()
         .iter()
         .map(|item| {
             let remote_content = facts
@@ -685,12 +768,8 @@ fn prepare_run<'a>(
         })
         .collect();
 
-    let plan_inputs = facts.plan_inputs(
-        request.items,
-        &digests,
-        &loaded_baseline,
-        loaded_baseline.timestamp(),
-    );
+    let plan_inputs =
+        facts.plan_inputs(request.reconciled(), &digests, &loaded_baseline);
 
     let plan =
         compute_plan(&plan_inputs, request.direction, request.resolutions)
@@ -704,36 +783,38 @@ fn prepare_run<'a>(
     // A non-push-only run resolves its scope first: a missing or unresolvable
     // key refuses the whole run here, before the apply/push phase, so nothing
     // is sent.
-    let (untracked, discovery) =
-        if matches!(request.direction, SyncDirection::PushOnly) {
-            (Vec::new(), DiscoveryStatus::SkippedPushOnly)
-        } else {
-            let resolved = ports
+    let (untracked, discovery) = if request.discovery_suppressed() {
+        (Vec::new(), DiscoveryStatus::SkippedTargeted)
+    } else if matches!(request.direction, SyncDirection::PushOnly) {
+        (Vec::new(), DiscoveryStatus::SkippedPushOnly)
+    } else {
+        let resolved =
+            ports
                 .tracker
                 .resolve_scope(&request.scope)
                 .map_err(|error| RunError::DiscoveryUnconfigured {
                     detail: error.detail,
                 })?;
-            match discover_untracked(ports.tracker, &resolved, request.items) {
-                Ok(discovered) if !discovered.complete => {
-                    return Err(RunError::DiscoveryIncomplete {
-                        found: discovered.ids.len(),
-                    });
-                }
-                Ok(discovered) => {
-                    let found = discovered.ids.len();
-                    (discovered.ids, DiscoveryStatus::Ran { found })
-                }
-                Err(error) => (
-                    Vec::new(),
-                    DiscoveryStatus::Failed {
-                        detail: error.into_detail(),
-                    },
-                ),
+        match discover_untracked(ports.tracker, &resolved, request.corpus) {
+            Ok(discovered) if !discovered.complete => {
+                return Err(RunError::DiscoveryIncomplete {
+                    found: discovered.ids.len(),
+                });
             }
-        };
+            Ok(discovered) => {
+                let found = discovered.ids.len();
+                (discovered.ids, DiscoveryStatus::Ran { found })
+            }
+            Err(error) => (
+                Vec::new(),
+                DiscoveryStatus::Failed {
+                    detail: error.into_detail(),
+                },
+            ),
+        }
+    };
     let creates_from_local =
-        unsynced_creates(&plan, request.items, request.direction);
+        unsynced_creates(&plan, request.reconciled(), request.direction);
 
     // A create-from-remote authors a new local file (pull-direction); a
     // create-from-local issues a new remote issue (push-direction). Each folds
@@ -751,7 +832,7 @@ fn prepare_run<'a>(
         });
     }
 
-    let index = ItemIndex::build(request.items);
+    let index = ItemIndex::build(request.reconciled());
     let dossiers = build_dossiers(&plan, &index, &facts);
 
     Ok(PreparedRun {
@@ -780,6 +861,7 @@ fn prepare_run<'a>(
 ///
 /// [`RunError::Internal`] for a clock, baseline-store or planning failure;
 /// [`RunError::Refused`] when the plan would exceed the write bounds.
+#[allow(clippy::too_many_lines)]
 pub fn run<'a>(
     ports: &SyncPorts<'a>,
     baseline: &mut BaselineStore<'a>,
@@ -799,7 +881,8 @@ pub fn run<'a>(
     } = prepare_run(ports, baseline, request)?;
 
     if matches!(request.mode, RunMode::Preview) {
-        let mut reported = validate_pushes(&plan, request.items, ports.tracker);
+        let mut reported =
+            validate_pushes(&plan, request.reconciled(), ports.tracker);
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),
@@ -830,14 +913,18 @@ pub fn run<'a>(
     let mut blank_local_hash: Vec<String> = Vec::new();
     let corpus_carries = |candidate: &ExternalId| {
         request
-            .items
+            .corpus
             .iter()
             .any(|item| item.external_id.as_ref() == Some(candidate))
     };
 
     {
-        let mut applier =
-            ItemApplier::new(ports.tracker, ports.writer, baseline);
+        let mut applier = ItemApplier::new(
+            ports.tracker,
+            ports.writer,
+            baseline,
+            run_start_epoch,
+        );
 
         for external_id in &untracked {
             let outcome =
@@ -874,9 +961,13 @@ pub fn run<'a>(
         }
     }
 
-    let blank_refs: Vec<&str> =
-        blank_local_hash.iter().map(String::as_str).collect();
-    let finalised = baseline.finalise_run(&blank_refs, run_start_epoch).is_ok();
+    let finalised = finalise_baseline(
+        baseline,
+        &reported,
+        &blank_local_hash,
+        run_start_epoch,
+        &request.selection,
+    );
 
     Ok(RunReport {
         reported,

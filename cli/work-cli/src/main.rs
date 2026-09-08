@@ -81,6 +81,10 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("E_RESOLVE_INVALID: {message}");
             ExitCode::FAILURE
         }
+        Ok(RunOutcome::OutsideWorkDir(message)) => {
+            eprintln!("E_RESOLVE_OUTSIDE_WORKDIR: {message}");
+            ExitCode::from(exit_codes::RESOLVE_OUTSIDE_WORKDIR)
+        }
         Err(error) => {
             eprintln!("{error}");
             ExitCode::FAILURE

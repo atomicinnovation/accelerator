@@ -33,6 +33,7 @@ use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
 use work_adapters::sync::run::ItemOutcome;
+use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
@@ -227,7 +228,51 @@ fn run_sync(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
-        items,
+        corpus: items,
+        selection: ItemSelection::All,
+        direction,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls,
+        max_pushes,
+        mode,
+        integrations_root,
+        integration: "jira",
+        scope,
+    };
+    run(&sync_ports, &mut store, &request)
+}
+
+/// A targeted run over `corpus`, reconciling only `targeted`. Separate from
+/// `run_sync` so the double-binding guard can be exercised with a non-targeted
+/// file present in the corpus but outside the reconciliation scope.
+#[allow(clippy::too_many_arguments)]
+fn run_sync_targeted(
+    ports: &Ports<'_>,
+    corpus: &[LocalItem],
+    targeted: &[LocalItem],
+    integrations_root: &Path,
+    direction: SyncDirection,
+    scope: SearchScope,
+    max_pulls: usize,
+    max_pushes: usize,
+    mode: RunMode,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker: ports.tracker,
+        status: &status,
+        writer: ports.spy,
+        clock: &clock,
+        author: ports.author,
+    };
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus,
+        selection: ItemSelection::Targeted(targeted),
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
@@ -961,7 +1006,8 @@ fn create_from_local_writes_the_marker_before_the_create(
     let mut store = BaselineStore::new(baseline_path, &reader, &real);
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
-        items: std::slice::from_ref(&item),
+        corpus: std::slice::from_ref(&item),
+        selection: ItemSelection::All,
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
@@ -1095,6 +1141,96 @@ fn create_from_local_counts_against_max_pushes() -> Result<(), TestError> {
             .iter()
             .any(|call| matches!(call, Call::Create { .. })),
         "a refused run creates no remote issue"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("0002", "Draft B")?;
+
+    // A non-targeted file already carries the id the marker would reuse.
+    let a_path = fixture.dir.path().join("0001.md");
+    std::fs::write(
+        &a_path,
+        "---\nid: \"0001\"\nexternal_id: \"ENG-42\"\n---\n\nBody\n",
+    )?;
+    let non_targeted = LocalItem {
+        id: "0001".to_owned(),
+        path: a_path,
+        external_id: Some(ExternalId::new("ENG-42".to_owned())),
+    };
+
+    let content = std::fs::read_to_string(&draft.path)?;
+    let (frontmatter, body) =
+        work_adapters::sync::digest::split_frontmatter_and_body(&content)?;
+    let title = work::show::read_field_raw(&frontmatter, "title").unwrap();
+    let kind = work::show::read_field_raw(&frontmatter, "kind").unwrap();
+    let digest =
+        work_adapters::sync::pending_push::request_digest(&title, &body, &kind);
+    let marker = work::sync::PendingPush::Created {
+        request: work::sync::RequestFingerprint {
+            title: "Draft B".to_owned(),
+            digest,
+            attempted_at: 1,
+            failure: None,
+        },
+        external_id: ExternalId::new("ENG-42".to_owned()),
+    };
+    let marker_path = work_adapters::sync::pending_push::path(
+        fixture.dir.path(),
+        "jira",
+        "0002",
+    );
+    std::fs::create_dir_all(marker_path.parent().unwrap())?;
+    std::fs::write(
+        &marker_path,
+        work_adapters::sync::pending_push::render(&marker),
+    )?;
+
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-42".to_owned()),
+        issue("Draft B\nBody"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let corpus = vec![non_targeted, draft];
+    let report = run_sync_targeted(
+        &ports,
+        &corpus,
+        std::slice::from_ref(&corpus[1]),
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        SearchScope::default(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a refused double-bind is not a bound breach")?;
+
+    assert!(
+        author.linked.borrow().is_empty(),
+        "the guard must see the non-targeted file's id through the full \
+         corpus and refuse binding a second file to it"
+    );
+    let create = report
+        .reported
+        .iter()
+        .find(|item| {
+            item.planned.id == "0002"
+                && item.planned.action == Action::CreateFromLocal
+        })
+        .expect("the targeted draft's create-from-local is reported");
+    assert!(
+        matches!(create.outcome, ItemOutcome::Failed(_)),
+        "a refused double-bind reports the create as failed"
     );
     Ok(())
 }

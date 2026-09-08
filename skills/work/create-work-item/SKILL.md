@@ -100,6 +100,10 @@ When this command is invoked:
      If that's wrong, abort and re-run with a different argument (or
      /list-work-items to find a valid reference)."` and proceed to
      topic-string handling below.
+   - **Exit 6** (path outside the work directory): the argument names a
+     real file that lies outside the managed work directory, so it is not
+     a topic string. Stop, print the resolver's error, and offer to run
+     `/list-work-items`.
 
    **Frontmatter validation** (only reached after a file was successfully
    resolved). Run:

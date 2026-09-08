@@ -12,6 +12,7 @@ use tracker_test_support::RecordingTracker;
 use work::sync::Dirtiness;
 use work::sync::RemotePresence;
 use work_adapters::sync::baseline::Baseline;
+use work_adapters::sync::digest::LazyItemDigests;
 use work_adapters::sync::fetch;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
@@ -44,6 +45,46 @@ fn item(id: &str, external_id: Option<&str>) -> LocalItem {
 /// — a complete but empty catalogue — rather than indeterminate. A genuine
 /// pre-flight failure has no seam here and is covered by `work-cli`'s
 /// command-level tests.
+#[test]
+fn a_no_entry_item_falls_back_to_the_document_timestamp_for_its_gate() {
+    let tracker = RecordingTracker::holding(Vec::new());
+    let (baseline, _) = Baseline::read(Some(
+        r#"{"timestamp":900,"items":{"0001":{"remote_updated_at":"x","remote_hash":"h","local_hash":"h","local_synced_at":500}}}"#,
+    ));
+    let items = vec![item("0001", Some("ENG-1")), item("0002", Some("ENG-2"))];
+    let facts = fetch::gather(
+        &items,
+        &baseline,
+        &tracker,
+        &AlwaysClean,
+        RetrievalStrategy::Bulk,
+    );
+    let digests: Vec<LazyItemDigests<'_>> = items
+        .iter()
+        .map(|entry| LazyItemDigests::new(&entry.path, None))
+        .collect();
+
+    let inputs = facts.plan_inputs(&items, &digests, &baseline);
+    let watermark = |id: &str| {
+        inputs
+            .iter()
+            .find(|input| input.id == id)
+            .expect("input present")
+            .baseline_timestamp
+    };
+
+    assert_eq!(
+        watermark("0001"),
+        500,
+        "an item with a baseline entry uses that entry's own watermark"
+    );
+    assert_eq!(
+        watermark("0002"),
+        900,
+        "an item with no entry falls back to the document timestamp"
+    );
+}
+
 #[test]
 fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
     let tracker = RecordingTracker::holding(Vec::new());
@@ -86,6 +127,7 @@ fn a_stamp_that_proves_unchanged_costs_no_show() {
             ),
             remote_hash: "h".to_owned(),
             local_hash: "h".to_owned(),
+            local_synced_at: 0,
         },
     );
     let items = vec![item("0001", Some("ENG-1"))];
@@ -128,6 +170,7 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
             ),
             remote_hash: "h".to_owned(),
             local_hash: "h".to_owned(),
+            local_synced_at: 0,
         },
     );
     let items = vec![item("0001", Some("ENG-1"))];
