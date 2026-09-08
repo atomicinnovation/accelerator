@@ -18,7 +18,7 @@ allowed-tools:
 
 # Comment Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill comment-jira-issue --fail-safe`
+!`accelerator config context --skill comment-jira-issue --fail-safe`
 
 Manage comments on a Jira issue. Work through the steps below in order.
 This skill never auto-invokes — it only runs when the user explicitly types
@@ -94,7 +94,7 @@ ambiguous aborts with "Aborted — no Jira write was made."
 **For `add`/`edit`/`delete`**, invoke the matching subcommand:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira comment add <KEY> [flags]
+accelerator jira comment add <KEY> [flags]
 ```
 
 (substitute `edit <KEY> <COMMENT_ID>` or `delete <KEY> <COMMENT_ID>` as
@@ -104,7 +104,7 @@ it with `bash`/`sh`/`env` and never pipe its output.
 **For `list`**, invoke it directly (no confirmation needed):
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira comment list <KEY> [flags]
+accelerator jira comment list <KEY> [flags]
 ```
 
 ## Step 6: Render the response
@@ -137,4 +137,4 @@ Skill previews the resolved intent, waits for `y`, posts, renders the response.
 User: `/comment-jira-issue list ENG-42`
 Skill lists directly (no confirmation) and renders the conversation.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions comment-jira-issue --fail-safe`
+!`accelerator config instructions comment-jira-issue --fail-safe`

@@ -8,22 +8,22 @@ description: Interactively conduct a time-boxed spike — collaboratively reduce
   confidence.
 argument-hint: "[path to spike work item or brief, or work item number]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Conduct Spike
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill conduct-spike --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill conduct-spike --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:web-search-researcher, accelerator:codebase-locator,
 accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 You are tasked with conducting a **spike**: a time-boxed, uncertainty-reducing
 investigation. The spike is mostly conceptual, but a question is often best
@@ -203,7 +203,7 @@ recording it, with two options:
 if it explicitly names another destination — honour additions like feeding an
 ADR or updating a downstream item *as well*).
 
-- Use `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to obtain
+- Use `accelerator corpus metadata derive` to obtain
   the `Current Date/Time (UTC):` value and the resolved author.
 - With the Edit tool, add (or update) outcome sections in the work item body.
   Match the section name the brief asks for — e.g. if the acceptance criteria
@@ -231,7 +231,7 @@ tell the user where it went.
 validate` over the work item you just updated:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the work item violates the canonical frontmatter
@@ -307,4 +307,4 @@ work — get ground truth instead of reasoning in the abstract:
 - **A deferred question is a finding.** If the time-box closes with unknowns
   open, record them explicitly with their risk — don't let them vanish.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions conduct-spike --fail-safe`
+!`accelerator config instructions conduct-spike --fail-safe`

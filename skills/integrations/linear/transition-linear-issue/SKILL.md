@@ -17,7 +17,7 @@ allowed-tools:
 
 # Transition a Linear Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill transition-linear-issue --fail-safe`
+!`accelerator config context --skill transition-linear-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`.
 
@@ -55,7 +55,7 @@ write was made."
 ## Step 4: Send and render
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear transition <IDENTIFIER> "<STATE-NAME>"
+accelerator linear transition <IDENTIFIER> "<STATE-NAME>"
 ```
 
 The subcommand emits a JSON envelope with a top-level `outcome` keyword. On
@@ -65,4 +65,4 @@ The subcommand emits a JSON envelope with a top-level `outcome` keyword. On
 state could not be resolved and no write was made — suggest `/init-linear` to
 refresh, or ask the user to pick an unambiguous state.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions transition-linear-issue --fail-safe`
+!`accelerator config instructions transition-linear-issue --fail-safe`

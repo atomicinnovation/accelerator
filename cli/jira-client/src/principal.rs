@@ -41,7 +41,7 @@ pub fn resolve(
     }
 }
 
-/// The bash `^[A-Za-z0-9:_-]+$` shape — an opaque Jira accountId, never an
+/// The `^[A-Za-z0-9:_-]+$` shape — an opaque Jira accountId, never an
 /// email.
 fn is_account_id(token: &str) -> bool {
     !token.is_empty()

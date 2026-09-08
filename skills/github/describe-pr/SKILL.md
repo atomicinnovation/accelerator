@@ -5,24 +5,24 @@ description: Generate a comprehensive pull request description following the
   PR description.
 argument-hint: "[PR number or URL]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr update-body *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator collaboration pr update-body *)
 ---
 
 # Generate PR Description
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill describe-pr --fail-safe`
+!`accelerator config context --skill describe-pr --fail-safe`
 
-**PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path prs --fail-safe`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
+**PRs directory**: !`accelerator config path prs --fail-safe`
+**Tmp directory**: !`accelerator config path tmp --fail-safe`
 
 **IMPORTANT**: Wherever `{prs directory}` or `{tmp directory}` appears in
 the instructions below, substitute the actual resolved path shown above.
 
 **PR description template**:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-description --fail-safe`
+!`accelerator config template pr-description --fail-safe`
 
 You are tasked with generating a comprehensive pull request description
 following the repository's standard template.
@@ -96,12 +96,12 @@ potential impacts)
   Use the unified pr-description template as the source of the
   frontmatter block:
 
-  !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-description --fail-safe`
+  !`accelerator config template pr-description --fail-safe`
 
   Before writing the artifact file, capture metadata and substitute
   the unified base fields into the template's frontmatter block:
 
-  1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+  1. Invoke `accelerator corpus metadata derive`
      to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
      `Repository Name:`. Also capture PR-specific extras via
      `gh pr view <number> --json url,number,title,mergeCommit` to
@@ -171,7 +171,7 @@ potential impacts)
      (upstream) repository for cross-fork safety and PATCHes via the
      GitHub REST API in-process:
      ```bash
-     ${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr update-body {number} --body-file {tmp directory}/pr-body-{number}.md
+     accelerator collaboration pr update-body {number} --body-file {tmp directory}/pr-body-{number}.md
      ```
      If the command exits non-zero, surface its stderr verbatim to the
      user. Exit codes:
@@ -196,4 +196,4 @@ potential impacts)
 - Always attempt to run verification commands when possible
 - Clearly communicate which verification steps need manual testing
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions describe-pr --fail-safe`
+!`accelerator config instructions describe-pr --fail-safe`

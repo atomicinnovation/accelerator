@@ -312,6 +312,57 @@ def test_publishing_job_checks_out_with_app_token(wf, job_name):
     )
 
 
+# --- Fresh app token at push time --------------------------------------
+#
+# The checkout token is minted at job start, but a GitHub App token expires
+# after 60 minutes and the four-target cross-compile in *:prepare routinely
+# outlives it — so by the time release.py:_publish runs `git push` the checkout
+# credential is dead, and the push fell back to an interactive prompt the
+# headless runner cannot answer ("could not read Username ... Device not
+# configured"). Each finalise step must therefore be immediately preceded by a
+# fresh create-github-app-token step whose output is handed to the push as
+# RELEASER_TOKEN. The checkout must also NOT persist its soon-stale credential,
+# whose host-matched extraheader would otherwise collide with the fresh token.
+
+PUSH_TOKEN_ENV = "RELEASER_TOKEN"
+
+
+@pytest.mark.parametrize("job_name", PUBLISHING_JOBS)
+def test_publishing_checkout_does_not_persist_credentials(wf, job_name):
+    checkout = _checkout_step(wf["jobs"][job_name])
+    with_ = checkout.get("with") or {}
+    assert with_.get("persist-credentials") is False, (
+        f"{job_name} must set persist-credentials: false so the stale checkout "
+        "extraheader cannot collide with the fresh push token"
+    )
+
+
+@pytest.mark.parametrize("job_name", PUBLISHING_JOBS)
+def test_each_finalise_is_preceded_by_a_fresh_push_token(wf, job_name):
+    steps = wf["jobs"][job_name].get("steps") or []
+    finalises = _indices(steps, _named("Finalise"))
+    assert finalises, f"{job_name} has no Finalise step"
+    for index in finalises:
+        minted = steps[index - 1]
+        assert _step_action(minted) == APP_TOKEN_ACTION, (
+            f"{job_name}'s finalise at step {index} must be immediately "
+            "preceded by a fresh app-token step — the checkout token has "
+            "expired by the time *:prepare finishes compiling"
+        )
+        token_id = minted.get("id")
+        assert token_id and token_id != "app-token", (
+            "the push-token refresh step needs its own id, distinct from the "
+            "checkout's app-token step"
+        )
+        env = steps[index].get("env") or {}
+        assert f"steps.{token_id}.outputs.token" in str(
+            env.get(PUSH_TOKEN_ENV, "")
+        ), (
+            f"{job_name}'s finalise must hand the fresh token to the push as "
+            f"{PUSH_TOKEN_ENV}"
+        )
+
+
 # --- Encoded negative tests: each mutation breaks exactly one invariant, so
 #     the guard's own discriminating power is under test and cannot rot. ---
 

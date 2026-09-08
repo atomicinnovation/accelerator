@@ -2,19 +2,19 @@
 //!
 //! Every code equals the value the retiring `linear-*-flow.sh` returned for the
 //! same condition, captured pre-deletion into
-//! `tests/fixtures/bash-exit-codes.txt`, which is the authoritative name→integer
-//! contract. `exit_codes_parity.rs` pins these constants against it; the
-//! self-descriptive names plus that fixture carry the mechanical mapping, so
-//! this doc names only the bands, the safety-critical classes and the one
-//! deliberate divergence rather than re-enumerating every code.
+//! `tests/fixtures/captured-exit-codes.txt`, which is the authoritative
+//! name→integer contract. `exit_codes_parity.rs` pins these constants against
+//! it; the self-descriptive names plus that fixture carry the mechanical
+//! mapping, so this doc names only the bands, the safety-critical classes and
+//! the one deliberate divergence rather than re-enumerating every code.
 //!
 //! Bands:
 //!
 //! - `0`–`2` — process and usage, emitted by the binary itself.
 //! - `11`–`53` — the shared transport/auth codes `linear-graphql.sh` and
 //!   `linear-auth.sh` returned; read structurally from the client's
-//!   `LinearFailure` (`bash_code(outcome)`) or a `SurfaceError`, never parsed
-//!   from a string.
+//!   `LinearFailure` (its wire outcome discriminant) or a `SurfaceError`, never
+//!   parsed from a string.
 //! - `60`–`138` — the per-flow argument and outcome codes, one block per flow.
 //!
 //! Safety-critical: `POST_SEND` (`109`) and `WRITEBACK_FAILED` (`107`) mark the
@@ -22,9 +22,9 @@
 //! surfaces the key and steers the operator to reconcile rather than re-create.
 //!
 //! Deliberate divergence: the search flow's `SEARCH_*` codes are remapped from
-//! bash `70`–`73` to `75`–`78`, off the `70`–`74` band the dispatch layer
-//! reserves — a code in that band reaching `accelerator-work` would read as a
-//! dispatch verdict.
+//! the retired `70`–`73` values to `75`–`78`, off the `70`–`74` band the
+//! dispatch layer reserves — a code in that band reaching `accelerator-work`
+//! would read as a dispatch verdict.
 
 // Every code is a declared contract the parity test reads textually; a code no
 // handler yet references is still part of the surface, not dead.
@@ -101,8 +101,8 @@ pub const ATTACH_REGISTER_FAILED: u8 = 137;
 pub const ATTACH_BAD_FLAG: u8 = 138;
 
 use linear_client::cache::CacheError;
-use linear_client::classify::{bash_code, Outcome};
-use linear_client::{ClientError, LinearFailure, SurfaceError};
+use linear_client::classify::{classify_errors, Outcome};
+use linear_client::{ClientError, GraphQlError, LinearFailure, SurfaceError};
 
 /// The exit code for a discovery-cache write failure. A held lock maps to the
 /// shared refresh-lock code; an IO or serialisation failure is a generic error.
@@ -116,9 +116,9 @@ pub const fn for_cache(error: &CacheError) -> u8 {
 
 /// The exit code for a structured port-op failure (`create`/`update`/`show`).
 #[must_use]
-pub fn for_failure(failure: &LinearFailure) -> u8 {
+pub const fn for_failure(failure: &LinearFailure) -> u8 {
     match failure {
-        LinearFailure::Wire { outcome, .. } => code_for_outcome(*outcome),
+        LinearFailure::Wire { outcome, .. } => exit_code_for_outcome(*outcome),
         // Created remotely but unwritable — the non-retryable orphan case.
         LinearFailure::UnwritableIdentifier { .. } => CREATE_WRITEBACK_FAILED,
     }
@@ -132,14 +132,12 @@ pub fn for_surface(error: &SurfaceError) -> u8 {
     match error {
         SurfaceError::Client(client) => for_client(client),
         SurfaceError::GraphQlErrors { body, .. } => {
-            code_for_outcome(Outcome::SuccessWithErrors(
-                linear_client::classify::classify_errors(
-                    &serde_json::from_str(body).unwrap_or_default(),
-                ),
-            ))
+            exit_code_for_outcome(Outcome::SuccessWithErrors(classify_errors(
+                &serde_json::from_str(body).unwrap_or_default(),
+            )))
         }
         SurfaceError::Status { status, body, .. } => {
-            code_for_status(*status, body)
+            exit_code_for_status(*status, body)
         }
         SurfaceError::BadResponse { .. } => BAD_RESPONSE,
         SurfaceError::UnknownState { .. } => TRANSITION_STATE_NOT_IN_CATALOGUE,
@@ -169,20 +167,91 @@ pub const fn for_client(error: &ClientError) -> u8 {
     }
 }
 
-fn code_for_outcome(outcome: Outcome) -> u8 {
-    // The shared 11-36 codes fit u8; bash_code never exceeds that band.
-    u8::try_from(bash_code(outcome)).unwrap_or(ERROR)
+const fn exit_code_for_outcome(outcome: Outcome) -> u8 {
+    match outcome {
+        Outcome::SuccessWithErrors(GraphQlError::Auth)
+        | Outcome::Unauthorised
+        | Outcome::BadRequest(GraphQlError::Auth) => UNAUTHORIZED,
+        Outcome::SuccessWithErrors(GraphQlError::Complexity)
+        | Outcome::BadRequest(GraphQlError::Complexity) => COMPLEXITY,
+        Outcome::BadRequest(GraphQlError::RateLimited) => RATELIMITED,
+        Outcome::SuccessWithErrors(
+            GraphQlError::RateLimited | GraphQlError::BadRequest,
+        )
+        | Outcome::BadRequest(GraphQlError::BadRequest) => BAD_REQUEST,
+        Outcome::NonJsonBody => BAD_RESPONSE,
+        Outcome::Transport => CONNECT,
+        Outcome::ServerError | Outcome::Unexpected => SERVER_ERROR,
+    }
 }
 
-fn code_for_status(status: u16, body: &str) -> u8 {
+fn exit_code_for_status(status: u16, body: &str) -> u8 {
     let parsed = serde_json::from_str(body).unwrap_or_default();
     let outcome = match status {
         401 => Outcome::Unauthorised,
-        400 => Outcome::BadRequest(linear_client::classify::classify_errors(
-            &parsed,
-        )),
+        400 => Outcome::BadRequest(classify_errors(&parsed)),
         500..=599 => Outcome::ServerError,
         _ => Outcome::Unexpected,
     };
-    code_for_outcome(outcome)
+    exit_code_for_outcome(outcome)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn code_for(graphql: GraphQlError) -> (u8, u8) {
+        (
+            exit_code_for_outcome(Outcome::SuccessWithErrors(graphql)),
+            exit_code_for_outcome(Outcome::BadRequest(graphql)),
+        )
+    }
+
+    #[test]
+    fn every_constructible_outcome_maps_to_its_pinned_code() {
+        assert_eq!(code_for(GraphQlError::Auth), (UNAUTHORIZED, UNAUTHORIZED));
+        assert_eq!(
+            code_for(GraphQlError::Complexity),
+            (COMPLEXITY, COMPLEXITY)
+        );
+        assert_eq!(
+            code_for(GraphQlError::RateLimited),
+            (BAD_REQUEST, RATELIMITED)
+        );
+        assert_eq!(
+            code_for(GraphQlError::BadRequest),
+            (BAD_REQUEST, BAD_REQUEST)
+        );
+        assert_eq!(exit_code_for_outcome(Outcome::Unauthorised), UNAUTHORIZED);
+        assert_eq!(exit_code_for_outcome(Outcome::NonJsonBody), BAD_RESPONSE);
+        assert_eq!(exit_code_for_outcome(Outcome::Transport), CONNECT);
+        assert_eq!(exit_code_for_outcome(Outcome::ServerError), SERVER_ERROR);
+        assert_eq!(exit_code_for_outcome(Outcome::Unexpected), SERVER_ERROR);
+    }
+
+    #[test]
+    fn the_map_never_yields_a_jira_only_code() {
+        let jira_only = [12, 13, 14, 15, 17, 19];
+        let outcomes = [
+            Outcome::SuccessWithErrors(GraphQlError::Auth),
+            Outcome::SuccessWithErrors(GraphQlError::Complexity),
+            Outcome::SuccessWithErrors(GraphQlError::RateLimited),
+            Outcome::SuccessWithErrors(GraphQlError::BadRequest),
+            Outcome::BadRequest(GraphQlError::Auth),
+            Outcome::BadRequest(GraphQlError::Complexity),
+            Outcome::BadRequest(GraphQlError::RateLimited),
+            Outcome::BadRequest(GraphQlError::BadRequest),
+            Outcome::Unauthorised,
+            Outcome::NonJsonBody,
+            Outcome::Transport,
+            Outcome::ServerError,
+            Outcome::Unexpected,
+        ];
+        for outcome in outcomes {
+            assert!(
+                !jira_only.contains(&exit_code_for_outcome(outcome)),
+                "{outcome:?} yields a Jira-only code"
+            );
+        }
+    }
 }

@@ -5,22 +5,22 @@ description: Investigate production issues and bugs through hypothesis-driven
   descriptions and produces a root cause analysis.
 argument-hint: "[issue description, stacktrace, or error message]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Research Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill research-issue --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill research-issue --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
 accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser.
 
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_issues --fail-safe`
+**Research directory**: !`accelerator config path research_issues --fail-safe`
 
 You are tasked with investigating production issues and bugs through
 hypothesis-driven debugging. You accept structured input (stacktraces, logs,
@@ -91,12 +91,12 @@ Then wait for the user's issue description.
 - Construct the causal chain from trigger to failure
 - Propose fix options with risk/effort assessment
 - Gather metadata using
-  `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to obtain
+  `accelerator corpus metadata derive` to obtain
   `Current Date/Time (UTC):`, `Current Revision:`, and `Repository Name:`.
 - Write the RCA document to the configured research directory using this
   template:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template rca --fail-safe`
+!`accelerator config template rca --fail-safe`
 
   Before writing the artifact file, **substitute** every field below
   with the indicated value:
@@ -135,7 +135,7 @@ Then wait for the user's issue description.
 validate` over the RCA document you just wrote:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the RCA document violates the canonical frontmatter
@@ -176,4 +176,4 @@ completing.
   - NEVER write the RCA document with placeholder values
   - NEVER skip the file write — the document IS the output of this skill
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions research-issue --fail-safe`
+!`accelerator config instructions research-issue --fail-safe`

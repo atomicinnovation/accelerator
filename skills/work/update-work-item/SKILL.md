@@ -6,15 +6,15 @@ description: Update fields (status, priority, tags, parent, etc.) of an
   changes are allowed.
 argument-hint: "[work-item-ref] [field-op...]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Update Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill update-work-item --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill update-work-item --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -22,14 +22,14 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 ## Work Item Template
 
 The following template defines the work item schema and field defaults.
 Hint values are extracted at runtime via `work template-hints`.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+!`accelerator config template work-item --fail-safe`
 
 You are tasked with updating frontmatter fields on an existing work item.
 This skill supports status transitions, priority changes, tag management,
@@ -44,7 +44,7 @@ Parse the first argument and resolve via the configured pattern's
 resolver:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
+accelerator work resolve <argument>
 ```
 
 The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -59,6 +59,9 @@ The resolver respects `work.id_pattern` and accepts paths, full IDs
   disambiguate by re-running with a full ID or path.
 - **Exit 3**: no match. Print `"No work item matching <argument>."` and
   exit.
+- **Exit 6**: the argument names a real file outside the managed work
+  directory. Print the resolver's error, offer to run
+  `/list-work-items`, and exit.
 - **No argument**: ask the user which work item to update. Accept the
   response and run the resolver against it.
 
@@ -115,7 +118,7 @@ A known field name as the **last token** with no following value
 triggers hint elicitation. Call `work template-hints`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work template-hints <field>
+accelerator work template-hints <field>
 ```
 
 Present the returned values as examples: "Common statuses: draft,
@@ -155,7 +158,7 @@ with two options:
 **`parent` — canonicalised**: normalise the value via
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work canonicalise-id <input>
+accelerator work canonicalise-id <input>
 ```
 
 before writing. The canonicaliser produces the full ID under the
@@ -247,7 +250,7 @@ addition: `+priority: high`.
    pending operation accumulated in Step 3:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work update <path> \
+   accelerator work update <path> \
      --set <field>=<value> ... \
      --add-tag <value> ... --remove-tag <value> ... \
      --append <field>=<value> ... --remove <field>=<value> ...
@@ -275,7 +278,7 @@ Updated <filename>:
 **Validate the frontmatter**: after writing, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <filename>
+accelerator corpus frontmatter validate --file <filename>
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -318,4 +321,4 @@ completing.
   legacy files) are hard-blocked. Point the user to `jj mv` + manual
   frontmatter edit for renumbering.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions update-work-item --fail-safe`
+!`accelerator config instructions update-work-item --fail-safe`

@@ -18,7 +18,7 @@ allowed-tools:
 
 # Create Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-jira-issue --fail-safe`
+!`accelerator config context --skill create-jira-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -57,7 +57,7 @@ Run the read-only resolver against the work-item file (pass `--project KEY` only
 if the user explicitly overrode it):
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira resolve-fields --file <work-item-file>
+accelerator jira resolve-fields --file <work-item-file>
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -99,7 +99,8 @@ On confirmation, create via the bare-key projection, writing the work item's
 body to a file for `--body-file`:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira create --project <project> --type <issue_type> --summary "<title>" --body-file <body-path> --emit key
+accelerator jira create --project <project> --type <issue_type> \
+  --summary "<title>" --body-file <body-path> --emit key
 ```
 
 `--emit key` prints **only** the bare issue key on success. Branch **fail-closed**:
@@ -108,7 +109,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira create --project <project> --type <is
   item's `external_id` (insert the line if absent):
 
   ```
-  ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work link-external-id <work-item-file> <KEY>
+  accelerator work link-external-id <work-item-file> <KEY>
   ```
 
   Then report `Issue created: <KEY> — the work item's external_id is now <KEY>.`
@@ -177,7 +178,7 @@ made."
 ## Step 6: Send the request
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira create [all flags from Steps 1-2]
+accelerator jira create [all flags from Steps 1-2]
 ```
 
 ## Step 7: Render the response
@@ -210,4 +211,4 @@ Skill previews the resolved intent, waits for `y`, then creates and renders
 User: `/create-jira-issue --project ENG --type Task --summary "Sprint task" --custom sprint=@json:[42]`
 Skill coerces the sprint field as a JSON array literal, previews, confirms.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-jira-issue --fail-safe`
+!`accelerator config instructions create-jira-issue --fail-safe`

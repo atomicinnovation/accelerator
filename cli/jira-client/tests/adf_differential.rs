@@ -48,6 +48,18 @@ const fn class_of(error: &AdfError) -> &'static str {
     }
 }
 
+const fn expected_adf_exit(error: &AdfError) -> u16 {
+    match *error {
+        AdfError::RootNotDoc { .. }
+        | AdfError::HeadingWithoutLevel
+        | AdfError::ListWithoutContent { .. } => 40,
+        AdfError::UnsupportedBlockquote
+        | AdfError::UnsupportedTable
+        | AdfError::UnsupportedNestedList => 41,
+        AdfError::BadInput => 42,
+    }
+}
+
 #[test]
 fn the_render_direction_agrees_with_the_running_jq() {
     let mut compared = 0;
@@ -131,11 +143,11 @@ fn the_assemble_direction_agrees_with_the_running_awk_and_jq() {
                  assembled a document"
             )),
             (status, Err(error)) => {
-                if i32::from(error.code()) != status {
+                if i32::from(expected_adf_exit(&error)) != status {
                     disagreements.push(format!(
                         "{name}: the oracle exited {status}, this crate \
                          reports {}",
-                        error.code()
+                        expected_adf_exit(&error)
                     ));
                 }
                 let fixture = read(&case, "expected-error.txt")

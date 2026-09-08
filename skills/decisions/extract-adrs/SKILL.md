@@ -6,16 +6,16 @@ description: Extract architecture decision records from existing meta documents
   buried in research or planning documents and need to be captured formally.
 argument-hint: "[research doc paths...] or leave empty to scan all"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus adr next-number)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Extract ADRs from Meta Documents
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill extract-adrs --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill extract-adrs --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,9 +23,9 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
+**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
 
 You are tasked with identifying architectural decisions within existing meta
 documents and helping the user capture them as formal ADRs.
@@ -118,7 +118,7 @@ Wait for user selection.
 ### Step 3: Generate ADRs
 
 1. **Gather metadata** by running
-   `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`.
+   `accelerator corpus metadata derive`.
 
 2. **For each selected decision**, generate a draft ADR using the create-adr
    template with:
@@ -144,7 +144,7 @@ Wait for user selection.
 
 4. **Assign final ADR numbers** to approved ADRs only, by running:
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr next-number --count N
+   accelerator corpus adr next-number --count N
    ```
    where N is the number of approved (not skipped) ADRs. Replace placeholder
    numbers with the assigned sequential numbers. This ensures no gaps from
@@ -158,7 +158,7 @@ Wait for user selection.
    file, capture metadata and substitute the unified base fields into
    the template's frontmatter block:
 
-   1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+   1. Invoke `accelerator corpus metadata derive`
       once for the batch to obtain `Current Date/Time (UTC):`.
    2. For each approved ADR, **substitute** every field below with the
       indicated value:
@@ -209,7 +209,7 @@ Wait for user selection.
 **Validate the frontmatter**: after writing each ADR, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file {decisions directory}/ADR-NNNN-description.md
+accelerator corpus frontmatter validate --file {decisions directory}/ADR-NNNN-description.md
 ```
 
 If it exits non-zero, that ADR violates the canonical frontmatter standard;
@@ -220,7 +220,7 @@ report the emitted violation and fix the frontmatter before completing.
 The ADR template is loaded directly via the template loader so the
 shape stays in sync with `create-adr`:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template adr --fail-safe`
+!`accelerator config template adr --fail-safe`
 
 When populating the template from extracted decisions:
 
@@ -247,4 +247,4 @@ When populating the template from extracted decisions:
 - Use sequential numbering: determine the starting number once, then increment
   for batch creation.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions extract-adrs --fail-safe`
+!`accelerator config instructions extract-adrs --fail-safe`

@@ -11,13 +11,13 @@ description: >
 argument-hint: "[--team-id <uuid>]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear *)
+  - Bash(accelerator config *)
+  - Bash(accelerator linear *)
 ---
 
 # Init Linear
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill init-linear --fail-safe`
+!`accelerator config context --skill init-linear --fail-safe`
 
 > **Configuration**: Set `work.integration: linear` in `.accelerator/config.md`
 > to enable auto-scoping. See the
@@ -33,7 +33,7 @@ and cannot be derived from existing configuration.
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init verify
+accelerator linear init verify
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -72,7 +72,7 @@ authentication failure.
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init list-teams
+accelerator linear init list-teams
 ```
 
 This emits a JSON document with `outcome: "listed"` and a `.teams` array of
@@ -85,7 +85,7 @@ and ask which one to scope this project to. If the user passed `--team-id
 Run, substituting the chosen team's UUID:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator linear init discover --team-id <uuid>
+accelerator linear init discover --team-id <uuid>
 ```
 
 On success (`outcome: "discovered"`) the subcommand writes `catalogue.json`
@@ -110,4 +110,4 @@ shared team + state catalogue without re-running `/init-linear`. (`viewer.json`
 is gitignored — each developer runs `/init-linear` to record their own viewer
 identity and resolve their own credentials.)
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions init-linear --fail-safe`
+!`accelerator config instructions init-linear --fail-safe`

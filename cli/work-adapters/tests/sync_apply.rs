@@ -201,7 +201,8 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -245,7 +246,8 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     let result = {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -277,7 +279,8 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     let external_id = ExternalId::new("ENG-1".to_owned());
     {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
@@ -309,7 +312,8 @@ fn pull_writes_the_baseline_strictly_after_the_local_write(
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.pull(&PullRequest {
             id: "0001",
             file_path: Path::new(ITEM_PATH),
@@ -351,7 +355,8 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.pull(&PullRequest {
             id: "0001",
             file_path: Path::new(ITEM_PATH),
@@ -396,7 +401,8 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     };
 
     let first_attempt = {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.pull(&request)
     };
     assert!(first_attempt.is_err(), "the injected failure must surface");
@@ -411,7 +417,8 @@ fn a_crash_between_side_effect_and_baseline_set_is_recoverable_on_re_run(
     );
 
     let second_attempt = {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.pull(&request)
     };
     assert!(second_attempt.is_ok(), "the re-run must succeed");
@@ -426,7 +433,8 @@ fn finalise_advances_the_global_timestamp() -> Result<(), TestError> {
     let mut store =
         BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
     {
-        let mut applier = ItemApplier::new(&fake, &fake, &mut store);
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
         applier.finalise(1_700_000_000)?;
     }
     let (baseline, _) = store.load()?;

@@ -5,15 +5,15 @@ description: Review a pull request through multiple quality lenses and present a
   review.
 argument-hint: "[PR number or URL]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator collaboration pr base-repo *)
 ---
 
 # Review PR
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-pr --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill review-pr --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,10 +21,10 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config review pr --fail-safe`
+!`accelerator config review pr --fail-safe`
 
-**PR reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
+**PR reviews directory**: !`accelerator config path review_prs --fail-safe`
+**Tmp directory**: !`accelerator config path tmp --fail-safe`
 
 **IMPORTANT**: Wherever `{tmp directory}` or `{pr reviews directory}` appears
 in the instructions below, substitute the actual resolved path shown above.
@@ -41,7 +41,7 @@ The template below defines the frontmatter and body structure that every
 PR review must carry. Read it now — use it to guide what information
 you record in Steps 3-4 and what shape you persist in Step 4.10.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template pr-review --fail-safe`
+!`accelerator config template pr-review --fail-safe`
 
 You are tasked with reviewing a pull request through multiple quality lenses
 and then presenting a compiled analysis of the code changes.
@@ -124,7 +124,7 @@ the user's input.
    gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha' > {tmp directory}/pr-review-{number}/head-sha.txt
    ```
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator collaboration pr base-repo {number} > {tmp directory}/pr-review-{number}/repo-info.txt
+   accelerator collaboration pr base-repo {number} > {tmp directory}/pr-review-{number}/repo-info.txt
    ```
 
    Where `{owner}` and `{repo}` are extracted from the PR metadata already
@@ -325,7 +325,7 @@ prose outside the JSON block.
 ```
 
 Spawn all selected agents **in parallel** using the Task tool with
-`subagent_type: "!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agent reviewer --fail-safe`"`.
+`subagent_type: "!`accelerator config agent reviewer --fail-safe`"`.
 
 **IMPORTANT**: Wait for ALL review agents to complete before proceeding.
 
@@ -481,7 +481,7 @@ Before writing the PR review file, capture metadata and substitute the
 unified base fields and per-type extras into the template's frontmatter
 block:
 
-1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+1. Invoke `accelerator corpus metadata derive`
    to obtain `Current Date/Time (UTC):`.
 2. **Substitute** every field below with the indicated value:
    - `type:` ← `pr-review`
@@ -753,4 +753,4 @@ The PR review sits in the development lifecycle alongside other commands:
 5. `/describe-pr` — Generate PR description
 6. `/review-pr` — Review the PR through quality lenses (this command)
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-pr --fail-safe`
+!`accelerator config instructions review-pr --fail-safe`

@@ -4,30 +4,30 @@ description: Open the accelerator meta visualiser. Launches the companion-window
 argument-hint: "[stop | status]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator visualiser *)
+  - Bash(accelerator config *)
+  - Bash(accelerator visualiser *)
 ---
 
 # Visualise Meta Directory
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill visualise --fail-safe`
+!`accelerator config context --skill visualise --fail-safe`
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Research directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_codebase --fail-safe`
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
-**PR descriptions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path prs --fail-safe`
-**Validations directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path validations --fail-safe`
-**Review plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_plans --fail-safe`
-**Review PRs directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_prs --fail-safe`
-**Templates directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path templates --fail-safe`
-**Work directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
-**Work reviews directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path review_work --fail-safe`
-**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path notes --fail-safe`
-**Design gaps directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_gaps --fail-safe`
-**Design inventories directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path research_design_inventories --fail-safe`
-**Tmp directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path tmp --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
+**PR descriptions directory**: !`accelerator config path prs --fail-safe`
+**Validations directory**: !`accelerator config path validations --fail-safe`
+**Review plans directory**: !`accelerator config path review_plans --fail-safe`
+**Review PRs directory**: !`accelerator config path review_prs --fail-safe`
+**Templates directory**: !`accelerator config path templates --fail-safe`
+**Work directory**: !`accelerator config path work --fail-safe`
+**Work reviews directory**: !`accelerator config path review_work --fail-safe`
+**Notes directory**: !`accelerator config path notes --fail-safe`
+**Design gaps directory**: !`accelerator config path research_design_gaps --fail-safe`
+**Design inventories directory**: !`accelerator config path research_design_inventories --fail-safe`
+**Tmp directory**: !`accelerator config path tmp --fail-safe`
 
-**Visualiser**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator visualiser --owner-pid $PPID ${ARGUMENTS:-start}`
+**Visualiser**: !`accelerator visualiser --owner-pid $PPID ${ARGUMENTS:-start}`
 
 ## Server lifecycle
 
@@ -162,4 +162,4 @@ two-hop chain so it survives plugin upgrades — see [Terminal
 Invocation](https://atomicinnovation.github.io/accelerator/internals/#terminal-invocation)
 for the setup steps.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions visualise --fail-safe`
+!`accelerator config instructions visualise --fail-safe`

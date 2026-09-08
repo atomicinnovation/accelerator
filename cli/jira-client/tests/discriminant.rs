@@ -1,14 +1,14 @@
-//! The structured discriminant the `*_op` methods surface: the
-//! binary reads the granular bash exit code from it, and the post-create
-//! "created remotely but unwritable" case is a distinct variant, not a wire
-//! outcome — so it never has to be parsed back out of a `TrackerError` string.
+//! The structured discriminant the `*_op` methods surface: the CLI reads an
+//! exit code from it, and the post-create "created remotely but unwritable"
+//! case is a distinct variant, not a wire outcome — so it never has to be
+//! parsed back out of a `TrackerError` string.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
 mod support;
 
 use http_test_support::{MockServer, RequestKey, Route};
-use jira_client::classify::bash_code;
+use jira_client::classify::Outcome;
 use jira_client::mutation::{CreateFields, FieldEdit, IssueType, UpdateFields};
 use jira_client::JiraFailure;
 use serde_json::{Map, Value};
@@ -86,7 +86,7 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
 
     match failure {
         JiraFailure::Wire { outcome, .. } => {
-            assert_eq!(bash_code(outcome), 11, "401 is unauthorised");
+            assert_eq!(outcome, Outcome::Status(401), "401 is unauthorised");
         }
         other => panic!("a 401 is a wire failure, got {other:?}"),
     }
@@ -127,7 +127,7 @@ fn an_update_wire_failure_carries_the_granular_not_found_code() {
 
     match failure {
         JiraFailure::Wire { outcome, .. } => {
-            assert_eq!(bash_code(outcome), 13, "a 404 is not-found");
+            assert_eq!(outcome, Outcome::Status(404), "a 404 is not-found");
         }
         other => panic!("a 404 is a wire failure, got {other:?}"),
     }
@@ -143,7 +143,7 @@ fn a_show_wire_failure_surfaces_the_granular_code() {
 
     match failure {
         JiraFailure::Wire { outcome, .. } => {
-            assert_eq!(bash_code(outcome), 12, "a 403 is forbidden");
+            assert_eq!(outcome, Outcome::Status(403), "a 403 is forbidden");
         }
         other => panic!("a 403 is a wire failure, got {other:?}"),
     }

@@ -7,15 +7,15 @@ description: Review an architecture decision record for quality and
   review, or when an accepted ADR needs to be deprecated.
 argument-hint: "[path to ADR] [--deprecate reason]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus adr read-status)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Review Architecture Decision Record
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill review-adr --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill review-adr --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -23,7 +23,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Decisions directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path decisions --fail-safe`
+**Decisions directory**: !`accelerator config path decisions --fail-safe`
 
 You are tasked with reviewing ADRs for quality and managing their lifecycle
 status transitions, enforcing the append-only immutability model.
@@ -75,7 +75,7 @@ Wait for user selection.
 Before making ANY changes to an ADR, check its status using:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus adr read-status <adr-path>
+accelerator corpus adr read-status <adr-path>
 ```
 
 Then apply these rules:
@@ -209,7 +209,7 @@ Wait for the user's decision.
 **Validate the frontmatter**: after writing the status transition, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <adr-path>
+accelerator corpus frontmatter validate --file <adr-path>
 ```
 
 If it exits non-zero, the ADR violates the canonical frontmatter standard;
@@ -263,4 +263,4 @@ permitted.
   simpler and sufficient for the intended workflow. If an ADR appears to have
   been modified outside the skills, note this to the user during review.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions review-adr --fail-safe`
+!`accelerator config instructions review-adr --fail-safe`

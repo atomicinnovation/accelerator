@@ -12,13 +12,13 @@ description: >
 argument-hint: "<ISSUE-KEY> [--fields a,b,c] [--expand a,b,c] [--comments N] [--render-adf|--no-render-adf]"
 disable-model-invocation: false
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira *)
+  - Bash(accelerator config *)
+  - Bash(accelerator jira *)
 ---
 
 # Show Jira Issue
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill show-jira-issue --fail-safe`
+!`accelerator config context --skill show-jira-issue --fail-safe`
 
 Fetch and render a single Jira issue by key. Work through the steps below
 in order.
@@ -37,7 +37,7 @@ explicitly asked for raw ADF or JSON.
 Run the show subcommand with the key and any flags supplied:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show <ISSUE-KEY> [flags]
+accelerator jira show <ISSUE-KEY> [flags]
 ```
 
 Run the bare launcher **directly** as an executable; never prefix it with
@@ -69,7 +69,7 @@ only render the fields that are present; do not invent missing ones.
 User: "look up PROJ-1234"
 Skill invokes:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show PROJ-1234
+accelerator jira show PROJ-1234
 ```
 Then renders the issue with description as Markdown.
 
@@ -77,7 +77,7 @@ Then renders the issue with description as Markdown.
 User: "what's the discussion on ENG-42 — show me the last few comments"
 Skill invokes:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show ENG-42 --comments 5
+accelerator jira show ENG-42 --comments 5
 ```
 Then renders the summary + last 5 comments as an inline conversation.
 
@@ -85,8 +85,8 @@ Then renders the summary + last 5 comments as an inline conversation.
 User: "give me the raw JSON for ENG-42 — I'm piping it to jq"
 Skill invokes:
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira show ENG-42 --no-render-adf
+accelerator jira show ENG-42 --no-render-adf
 ```
 Then prints the response with ADF intact.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions show-jira-issue --fail-safe`
+!`accelerator config instructions show-jira-issue --fail-safe`

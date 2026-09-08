@@ -5,7 +5,7 @@ title: "Corpus Update Frontmatter Quote Roundtrip"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-770"
 # 0240: Corpus Update Frontmatter Quote Roundtrip
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

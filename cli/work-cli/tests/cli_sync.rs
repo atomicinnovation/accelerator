@@ -175,11 +175,21 @@ fn sync_help_names_every_exit_code() -> Result<(), TestError> {
         .output()?;
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
-    for code in ["0", "1", "2", "4", "5", "70", "71", "72", "73", "74"] {
+    for code in [
+        "0", "1", "2", "3", "4", "5", "6", "70", "71", "72", "73", "74",
+    ] {
         assert!(
             stdout.contains(code),
             "help text is missing exit code {code}: {stdout}"
         );
     }
+    assert!(
+        stdout.contains("matched no local id"),
+        "help must name the target no-match (exit 3) cause: {stdout}"
+    );
+    assert!(
+        stdout.contains("outside the work directory"),
+        "help must name the out-of-directory (exit 6) cause: {stdout}"
+    );
     Ok(())
 }

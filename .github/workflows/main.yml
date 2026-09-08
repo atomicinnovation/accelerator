@@ -650,6 +650,12 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           token: ${{ steps.app-token.outputs.token }}
+          # The push in Finalise below authenticates with a freshly-minted
+          # token, not this one — the checkout credential is dead by then (see
+          # the Refresh step). Persisting it would leave a host-matched
+          # extraheader that collides with the fresh token on the push, so drop
+          # it; the public repo clones and pulls anonymously regardless.
+          persist-credentials: false
 
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
@@ -702,9 +708,20 @@ jobs:
             dist/release/manifest.json
             dist/release/manifest.minisig
 
+      # A GitHub App token lives 60 minutes; the cross-compile above routinely
+      # outlives it, so the checkout token is dead by now. Mint a fresh one
+      # immediately before the push and hand it to git via RELEASER_TOKEN.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        name: Refresh releaser token for the push
+        id: push-token
+        with:
+          client-id: ${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}
+          private-key: ${{ secrets.ACCELERATOR_RELEASER_SECRET }}
+
       - name: Finalise prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASER_TOKEN: ${{ steps.push-token.outputs.token }}
         run: mise run prerelease:finalise
 
   approve-release:
@@ -775,6 +792,12 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           token: ${{ steps.app-token.outputs.token }}
+          # Each Finalise below authenticates with a freshly-minted token, not
+          # this one — the checkout credential is dead by then (see the Refresh
+          # steps). Persisting it would leave a host-matched extraheader that
+          # collides with the fresh token on the push, so drop it; the public
+          # repo clones and pulls anonymously regardless.
+          persist-credentials: false
 
       - name: Install dependencies
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d
@@ -830,9 +853,19 @@ jobs:
             dist/release/manifest.json
             dist/release/manifest.minisig
 
+      # Fresh token for the push: the checkout token expired during the
+      # cross-compile above (a GitHub App token lives 60 minutes).
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        name: Refresh releaser token for the stable push
+        id: push-token-stable
+        with:
+          client-id: ${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}
+          private-key: ${{ secrets.ACCELERATOR_RELEASER_SECRET }}
+
       - name: Finalise stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASER_TOKEN: ${{ steps.push-token-stable.outputs.token }}
         run: mise run release:finalise
 
       - name: Prepare post-stable prerelease
@@ -854,9 +887,19 @@ jobs:
             dist/release/manifest.json
             dist/release/manifest.minisig
 
+      # The post-stable prepare above cross-compiled again, so mint another
+      # fresh token for this second push (a GitHub App token lives 60 minutes).
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        name: Refresh releaser token for the post-stable push
+        id: push-token-poststable
+        with:
+          client-id: ${{ vars.ACCELERATOR_RELEASER_CLIENT_ID }}
+          private-key: ${{ secrets.ACCELERATOR_RELEASER_SECRET }}
+
       - name: Finalise post-stable prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASER_TOKEN: ${{ steps.push-token-poststable.outputs.token }}
         run: mise run prerelease:finalise
 
   # Build (npm lifecycle scripts included) runs unprivileged; only the

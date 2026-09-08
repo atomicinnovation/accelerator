@@ -5,7 +5,7 @@
 //!
 //! The codes fall into three bands emitted from three distinct sources:
 //!
-//! Process and selection codes (`0`–`5`), emitted directly by the binary:
+//! Process and selection codes (`0`–`6`), emitted directly by the binary:
 //!
 //! - `0` `CLEAN` — success.
 //! - `1` `ERROR` — an internal error.
@@ -15,6 +15,8 @@
 //!   conflicts, skipped-dirty pulls, remote-absent or indeterminate items).
 //! - `5` `REFUSED_BULK_OVERWRITE` — a run refused because it would exceed
 //!   `--max-pulls`/`--max-pushes`; zero writes occurred.
+//! - `6` `RESOLVE_OUTSIDE_WORKDIR` — a path target names a file that exists but
+//!   lies outside the managed work directory.
 //!
 //! Tracker-error codes (`70`/`71`), the two-class [`TrackerError`] split that
 //! [`for_tracker_error`] maps. This distinction is safety-critical — the work
@@ -56,6 +58,7 @@ pub const USAGE: u8 = 2;
 pub const RESOLVE_NOT_FOUND: u8 = 3;
 pub const UNRESOLVED: u8 = 4;
 pub const REFUSED_BULK_OVERWRITE: u8 = 5;
+pub const RESOLVE_OUTSIDE_WORKDIR: u8 = 6;
 
 pub const RETRYABLE: u8 = 70;
 pub const TERMINAL: u8 = 71;

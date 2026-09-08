@@ -6,14 +6,14 @@ description: Interactively stress-test a work item by grilling the user
   implementation is planned.
 argument-hint: "[work item number or path]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Stress-Test Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill stress-test-work-item --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill stress-test-work-item --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 You are tasked with stress-testing a work item by interviewing the user
 relentlessly about every aspect of it. Your goal is to find issues,
@@ -180,7 +180,7 @@ Use the `AskUserQuestion` tool with two options:
 **Validate the frontmatter**: after any edit to the work item, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <the work item path>
+accelerator corpus frontmatter validate --file <the work item path>
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -228,4 +228,4 @@ This skill sits in the work item lifecycle between review and planning:
   finding logical inconsistencies, missing edge cases, flawed assumptions, and
   gaps that only surface when you trace through scenarios step by step
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions stress-test-work-item --fail-safe`
+!`accelerator config instructions stress-test-work-item --fail-safe`

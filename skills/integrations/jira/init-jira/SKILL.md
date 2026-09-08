@@ -10,13 +10,13 @@ description: >
 argument-hint: "[--site <subdomain>] [--email <addr>] [--refresh-fields] [--list-projects] [--list-fields]"
 disable-model-invocation: true
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira *)
+  - Bash(accelerator config *)
+  - Bash(accelerator jira *)
 ---
 
 # Init Jira
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill init-jira --fail-safe`
+!`accelerator config context --skill init-jira --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
 > `work.default_project_code: <KEY>` in `.accelerator/config.md` to
@@ -46,13 +46,13 @@ Read the argument string (if any) and note:
 If `--list-projects` was requested, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init list-projects
+accelerator jira init list-projects
 ```
 
 If `--list-fields` was requested, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init list-fields
+accelerator jira init list-fields
 ```
 
 Both print the cached JSON array; render it as a readable list. If
@@ -61,14 +61,14 @@ Both print the cached JSON array; render it as a readable list. If
 ## Step 1: Resolve site
 
 Use the site from `--site` if provided. Otherwise read it from config:
-`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.site ""`. If still empty,
+`accelerator config get jira.site ""`. If still empty,
 prompt: *"Enter your Jira Cloud subdomain (the part before `.atlassian.net`,
 e.g. `mycompany`):"*
 
 ## Step 2: Resolve email
 
 Use `--email` if provided. Otherwise read it from config:
-`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config get jira.email ""`. If still empty,
+`accelerator config get jira.email ""`. If still empty,
 prompt: *"Enter your Atlassian account email:"*
 
 ## Step 3: Verify and persist site.json
@@ -76,7 +76,7 @@ prompt: *"Enter your Atlassian account email:"*
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init verify
+accelerator jira init verify
 ```
 
 Credential resolution folds into this one call; the token is never printed. On
@@ -107,7 +107,7 @@ Then stop. On any other non-zero exit, show the error and stop.
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init discover
+accelerator jira init discover
 ```
 
 On `outcome: "discovered"` the subcommand writes `projects.json` (project
@@ -117,7 +117,7 @@ are byte-idempotent — re-running against an unchanged tenant produces no diff.
 If `--refresh-fields` was requested, run only:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init refresh-fields
+accelerator jira init refresh-fields
 ```
 
 ## Step 5: Default project key
@@ -125,7 +125,7 @@ ${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init refresh-fields
 Run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator jira init prompt-default
+accelerator jira init prompt-default
 ```
 
 On `default-prompted` the subcommand reports the resolved default project. If
@@ -149,4 +149,4 @@ so teammates pick up the shared cache without running `/init-jira` themselves.
 (`site.json` is gitignored — each developer runs `/init-jira` to configure their
 own credentials.)
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions init-jira --fail-safe`
+!`accelerator config instructions init-jira --fail-safe`

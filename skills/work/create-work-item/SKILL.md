@@ -4,16 +4,16 @@ description: Interactively create a well-formed work item. Use when capturing a
   feature, bug, task, spike, or epic as a structured work item in meta/work/.
 argument-hint: "[topic or existing work item path/number]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator work *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator work *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Create Work Item
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-work-item --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill create-work-item --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -21,8 +21,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
-**Active integration**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config work integration --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
+**Active integration**: !`accelerator config work integration --fail-safe`
 
 The **Active integration** line gates the post-draft push offer (Step 5). The
 `accelerator config work integration` command above prints an **empty line**
@@ -38,7 +38,7 @@ The template below defines the sections and frontmatter fields that every
 work item must contain. Read it now — use it to guide what information you gather
 in Step 1 and what structure you produce in Steps 3–4.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template work-item --fail-safe`
+!`accelerator config template work-item --fail-safe`
 
 You are tasked with guiding the user through creating a well-formed work item —
 a structured document capturing a feature, bug, task, spike, or epic for
@@ -78,7 +78,7 @@ When this command is invoked:
    work item** by invoking the resolver:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work resolve <argument>
+   accelerator work resolve <argument>
    ```
 
    The resolver respects `work.id_pattern` and accepts paths, full IDs
@@ -100,12 +100,16 @@ When this command is invoked:
      If that's wrong, abort and re-run with a different argument (or
      /list-work-items to find a valid reference)."` and proceed to
      topic-string handling below.
+   - **Exit 6** (path outside the work directory): the argument names a
+     real file that lies outside the managed work directory, so it is not
+     a topic string. Stop, print the resolver's error, and offer to run
+     `/list-work-items`.
 
    **Frontmatter validation** (only reached after a file was successfully
    resolved). Run:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <path> --field id
+   accelerator work show <path> --field id
    ```
 
    The own-identity field is `id` on unified-shape files and
@@ -417,7 +421,7 @@ changes before I write it to disk:
    configured pattern:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator work next-number
+accelerator work next-number
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
@@ -461,7 +465,7 @@ concurrently. Please re-run /create-work-item.
    2. Call the dispatcher directly:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work create "<title>" <kind> <priority> \
+   accelerator work create "<title>" <kind> <priority> \
      --status draft \
      --author "<resolved author>" \
      --producer create-work-item \
@@ -496,7 +500,7 @@ concurrently. Please re-run /create-work-item.
       drafted body to a temp file and run:
 
       ```
-      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work create "<title>" <kind> <priority> \
+      accelerator work create "<title>" <kind> <priority> \
         --push --dry-run --body-file <body-tmp>
       ```
 
@@ -539,7 +543,7 @@ concurrently. Please re-run /create-work-item.
       integration** itself):
 
       ```
-      ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work create "<title>" <kind> <priority> \
+      accelerator work create "<title>" <kind> <priority> \
         --status draft --author "<resolved author>" --producer create-work-item \
         --push --body-file <body-tmp> [--parent …] [--tag …]… [linkage flags…]
       ```
@@ -592,7 +596,7 @@ Work item created: `<path>`
    disk via:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/bin/accelerator work show <existing_work_item_path> --field id
+   accelerator work show <existing_work_item_path> --field id
    ```
 
    (This returns the value of `id:` on unified-shape files and falls
@@ -666,7 +670,7 @@ Work item created: `<path>`
 **Validate the frontmatter**: after the work item is written, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <written work item path>
+accelerator corpus frontmatter validate --file <written work item path>
 ```
 
 If it exits non-zero, the document violates the canonical frontmatter
@@ -774,4 +778,4 @@ identity-swap check passes.
 - If `accelerator work next-number` exits non-zero, abort and surface the
   error message verbatim.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-work-item --fail-safe`
+!`accelerator config instructions create-work-item --fail-safe`

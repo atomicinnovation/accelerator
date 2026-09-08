@@ -4,15 +4,15 @@ description: Create detailed implementation plans through interactive, iterative
   collaboration. Use when the user needs to plan a feature, refactoring, or task.
 argument-hint: "[work item reference or description]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Implementation Plan
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-plan --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill create-plan --fail-safe`
+!`accelerator config agents --fail-safe`
 
 If no "Agent Names" section appears above, use these defaults:
 accelerator:reviewer, accelerator:codebase-locator,
@@ -20,8 +20,8 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Plans directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe`
-**Work items directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path work --fail-safe`
+**Plans directory**: !`accelerator config path plans --fail-safe`
+**Work items directory**: !`accelerator config path work --fail-safe`
 
 You are tasked with creating detailed implementation plans through an
 interactive, iterative process. You should be skeptical, thorough, and work
@@ -209,7 +209,7 @@ Once aligned on approach:
 After structure approval:
 
 1. **Write the plan** to
-   `!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path plans --fail-safe``/YYYY-MM-DD-ENG-XXXX-description.md
+   `!`accelerator config path plans --fail-safe``/YYYY-MM-DD-ENG-XXXX-description.md
 
 - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
   - YYYY-MM-DD is today's date
@@ -221,14 +221,14 @@ After structure approval:
 
 2. **Use this template structure**:
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template plan --fail-safe`
+!`accelerator config template plan --fail-safe`
 
 ### Step 5: Populate frontmatter
 
 Before writing the plan file, capture metadata and substitute the
 unified base fields into the template's frontmatter block:
 
-1. Invoke `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive`
+1. Invoke `accelerator corpus metadata derive`
    to obtain `Current Date/Time (UTC):`, `Current Revision:`, and
    `Repository Name:`.
 2. **Substitute** every field below with the indicated value:
@@ -279,7 +279,7 @@ unified base fields into the template's frontmatter block:
 validate` over the plan you just wrote:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <path>
+accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, the plan document violates the canonical frontmatter
@@ -471,4 +471,4 @@ Based on the work item, I understand we need to track parent-child relationships
 [Interactive process continues...]
 ```
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-plan --fail-safe`
+!`accelerator config instructions create-plan --fail-safe`

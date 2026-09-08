@@ -5,24 +5,24 @@ description: Interactively capture a short-form note. Use when jotting down
   meta/notes/ — e.g. "make a note of this", "jot this down", "capture a note".
 argument-hint: "[note topic]"
 allowed-tools:
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator config *)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive)
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate *)
+  - Bash(accelerator config *)
+  - Bash(accelerator corpus metadata derive)
+  - Bash(accelerator corpus frontmatter validate *)
 ---
 
 # Create Note
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config context --skill create-note --fail-safe`
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config agents --fail-safe`
+!`accelerator config context --skill create-note --fail-safe`
+!`accelerator config agents --fail-safe`
 
-**Notes directory**: !`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config path notes --fail-safe`
+**Notes directory**: !`accelerator config path notes --fail-safe`
 
 ## Note Template
 
 The template below defines the frontmatter every note must carry. Read it now —
 use it as the structure you populate in the Write step.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config template note --fail-safe`
+!`accelerator config template note --fail-safe`
 
 You are tasked with capturing a short-form note — an observation, insight, or
 strategy snippet that does not warrant a research document, plan, or ADR. This
@@ -78,7 +78,7 @@ not to the note itself.
 
 ## Step 2: Derive the Filename
 
-1. Run `${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus metadata derive` to
+1. Run `accelerator corpus metadata derive` to
    obtain the current date/time, revision, and repository name.
 2. Build the path `<notes_dir>/YYYY-MM-DD-<topic-slug>.md`, where the date is
    the `Current Date/Time (UTC):` date portion and `<topic-slug>` is a
@@ -145,10 +145,10 @@ Note created: <final-path> (an earlier note on this topic exists at <first-path>
 **Validate the frontmatter**: after writing, run
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator corpus frontmatter validate --file <notes_dir>/YYYY-MM-DD-<slug>.md
+accelerator corpus frontmatter validate --file <notes_dir>/YYYY-MM-DD-<slug>.md
 ```
 
 If it exits non-zero, the note violates the canonical frontmatter standard;
 report the emitted violation and fix the frontmatter before completing.
 
-!`${CLAUDE_PLUGIN_ROOT}/bin/accelerator config instructions create-note --fail-safe`
+!`accelerator config instructions create-note --fail-safe`

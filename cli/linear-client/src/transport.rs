@@ -41,8 +41,8 @@ pub struct Received {
 }
 
 impl Received {
-    /// The body as JSON, or `None` when it is not JSON at all — which is bash
-    /// code 16 rather than a transport failure.
+    /// The body as JSON, or `None` when it is not JSON at all — a non-JSON-body
+    /// outcome rather than a transport failure.
     #[must_use]
     pub fn json(&self) -> Option<Value> {
         serde_json::from_str(&self.body).ok()

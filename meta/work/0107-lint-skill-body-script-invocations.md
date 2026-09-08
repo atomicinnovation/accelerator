@@ -5,15 +5,16 @@ title: "Lint Skill-Body Script Invocations Against allowed-tools Rules"
 date: "2026-06-11T13:10:03+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 blocked_by: ["work-item:0106"]
-relates_to: ["work-item:0098", "work-item:0106"]
+relates_to: ["work-item:0098", "work-item:0106", "work-item:0245"]
 source: "issue-research:2026-06-10-bash-prefix-defeats-skill-allowed-tools-permission"
 tags: ["tooling", "linting", "static-analysis", "ci", "skills", "allowed-tools", "guardrails"]
-last_updated: "2026-06-11T13:10:03+00:00"
+last_updated: "2026-09-06T20:52:56+00:00"
 last_updated_by: "Toby Clemson"
+last_updated_note: "Superseded by 0245: the bare-invocation guard 0107 asked for is built as tasks/lint/bare_invocation.py under 0245's convention flip. Closed done."
 schema_version: 1
 external_id: "PP-129"
 ---
@@ -21,9 +22,31 @@ external_id: "PP-129"
 # 0107: Lint Skill-Body Script Invocations Against allowed-tools Rules
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
+
+## Resolution (superseded by 0245)
+
+Closed **done**: the guardrail this item specified now exists, delivered under
+work item 0245's convergence onto bare `accelerator …`. Two lints together
+discharge 0107's requirements:
+
+- `tasks/lint/skill_permissions.py` covers the invocation-shape-versus-`allowed-tools`
+  relationship — coverage under the matcher's glob semantics, the missing
+  `--fail-safe` case, shell metacharacters, and the ancestor-glob (bare-launcher)
+  rejection. The Open Question here — whether `*` spans `/` — is answered *yes*
+  and pinned in `tests/unit/tasks/shared/test_skill_parsing.py`.
+- `tasks/lint/bare_invocation.py` (new under 0245) owns the wrapper and
+  path-form half: it fails on a `bash`/`sh`/`env` wrapper at the command
+  position and on any `/bin/accelerator` pathed render, naming `file:line`, and
+  runs in both the fast `check` and `lint:check` lanes.
+
+0245's flip to bare invocation removed the `${CLAUDE_PLUGIN_ROOT}/bin/accelerator`
+shape this item's 0167 notes assumed, so the guard 0107 imagined is expressed
+against the bare convention rather than the pathed one. `superseded` is not a
+valid work-item status, so this is recorded as `done` with a `relates_to` link
+to 0245 rather than a status keyword.
 
 ## Summary
 

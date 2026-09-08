@@ -5,7 +5,7 @@ allowed-tools:
   - Read
   - Write
   - Edit
-  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate *)
+  - Bash(accelerator migrate *)
 ---
 
 > **Warning: this skill rewrites files in `meta/` and `.claude/accelerator*.md`.** Recovery is via VCS revert. Before running, ensure your repo is committed and you understand what each pending migration does. The safety guards (clean-tree check, preview) exist to give you a moment to stop — they are not a substitute for understanding the changes.
@@ -89,13 +89,13 @@ Both files are human-readable and constitute the audit trail. Do not edit them m
 Skip a migration to defer it indefinitely:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --skip <migration-id>
+accelerator migrate --skip <migration-id>
 ```
 
 Unskip a previously skipped migration so it becomes pending again:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate --unskip <migration-id>
+accelerator migrate --unskip <migration-id>
 ```
 
 Skipped migrations never run and do not block other pending migrations. The pre-run banner includes a `--skip` hint for each pending migration. `ACCELERATOR_MIGRATE_FORCE=1` bypasses the dirty-tree pre-flight only; skipped migrations remain skipped even with FORCE.
@@ -321,7 +321,7 @@ case); decisions files are consumed per migration.
 Invoke via Bash:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/bin/accelerator migrate
+accelerator migrate
 ```
 
 `accelerator migrate` resolves the project root automatically from the current working directory. Run it from within the consumer repository.

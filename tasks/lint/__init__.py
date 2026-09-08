@@ -1,4 +1,5 @@
 from . import (
+    bare_invocation,
     build_system,
     call_site_migration,
     claude_coupling,
@@ -16,6 +17,7 @@ from . import (
 )
 
 __all__ = [
+    "bare_invocation",
     "build_system",
     "call_site_migration",
     "claude_coupling",
