@@ -161,6 +161,31 @@ fn a_no_match_and_an_out_of_dir_path_exit_six_naming_both(
 }
 
 #[test]
+fn a_local_local_collision_exits_two_naming_both_files() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    // File A carries local id 0001 and no external_id; file B records 0001 as
+    // its external_id, so targeting "0001" is a genuine local/local collision.
+    work_item(repo.path(), "0001", None)?;
+    work_item(repo.path(), "0002", Some("0001"))?;
+    let output = run(repo.path(), &["--target", "0001"])?;
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "a local/local collision is a usage error, decided from the corpus \
+         with no remote call"
+    );
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("0001-title.md"), "names file A: {stderr}");
+    assert!(stderr.contains("0002-title.md"), "names file B: {stderr}");
+    assert!(
+        !baseline_exists(repo.path()),
+        "the abort writes no baseline"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_valid_target_resolves_then_reaches_the_credential_check(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;

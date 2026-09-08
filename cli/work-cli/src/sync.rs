@@ -195,7 +195,7 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
     }
 }
 
-fn render_report(report: &RunReport, suppressed: &[Suppressed]) -> String {
+fn render_report(report: &RunReport) -> String {
     let mut lines = Vec::new();
     let mut synced_count = 0usize;
     for item in &report.reported {
@@ -228,9 +228,6 @@ fn render_report(report: &RunReport, suppressed: &[Suppressed]) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
-    for note in suppressed {
-        lines.push(suppression_line(note));
-    }
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
@@ -363,20 +360,9 @@ fn persist_conflict_dossiers(
     }
 }
 
-/// A dual-shape target: a token that resolved locally but also keys some
-/// item's `external_id`. The local interpretation wins; the remote match is
-/// reported as suppressed rather than treated as ambiguity.
-#[derive(Debug)]
-struct Suppressed {
-    token: String,
-    local_id: String,
-    remote_id: String,
-}
-
 #[derive(Debug)]
 struct ResolvedTargets {
     items: Vec<LocalItem>,
-    suppressed: Vec<Suppressed>,
 }
 
 /// Why one `--target` token could not be resolved. Each carries a
@@ -390,6 +376,7 @@ enum TargetResolutionFailure {
     OutsideWorkDir(String),
     AmbiguousLocal(String),
     AmbiguousExternal(String),
+    LocalCollision(String),
 }
 
 impl TargetResolutionFailure {
@@ -400,7 +387,8 @@ impl TargetResolutionFailure {
             | Self::Unmanaged(message)
             | Self::OutsideWorkDir(message)
             | Self::AmbiguousLocal(message)
-            | Self::AmbiguousExternal(message) => message,
+            | Self::AmbiguousExternal(message)
+            | Self::LocalCollision(message) => message,
         }
     }
 
@@ -408,7 +396,8 @@ impl TargetResolutionFailure {
         match self {
             Self::Malformed(_)
             | Self::AmbiguousLocal(_)
-            | Self::AmbiguousExternal(_) => exit_codes::USAGE,
+            | Self::AmbiguousExternal(_)
+            | Self::LocalCollision(_) => exit_codes::USAGE,
             Self::NoMatch(_) | Self::Unmanaged(_) => {
                 exit_codes::RESOLVE_NOT_FOUND
             }
@@ -432,20 +421,21 @@ fn external_id_index(
     index
 }
 
-/// The remote match a dual-shape token names, if the token keys a *different*
-/// item than the local match — the local one wins and this is reported
-/// suppressed.
-fn suppressed_remote(
-    index: &BTreeMap<String, Vec<&LocalItem>>,
+/// The other local file a dual-shape token collides with: the token is
+/// `local_match`'s local id and simultaneously a *different* file's
+/// `external_id`. A genuine local/local collision, decidable entirely from the
+/// corpus, so the caller can name both files without any remote call.
+fn colliding_file<'a>(
+    index: &BTreeMap<String, Vec<&'a LocalItem>>,
     token: &str,
     local_match: &LocalItem,
-) -> Option<String> {
+) -> Option<&'a LocalItem> {
     let key = canonical_external_key(&ExternalId::new(token.to_owned()));
-    let other = index
+    index
         .get(&key)?
         .iter()
-        .find(|item| item.id != local_match.id)?;
-    other.external_id.as_ref().map(|id| id.as_str().to_owned())
+        .find(|item| item.id != local_match.id)
+        .copied()
 }
 
 /// Resolves each `--target` token to a local item, accumulating every failure
@@ -460,7 +450,6 @@ fn resolve_targets(
 ) -> Result<ResolvedTargets, Vec<TargetResolutionFailure>> {
     let index = external_id_index(corpus);
     let mut matched: Vec<&LocalItem> = Vec::new();
-    let mut suppressed: Vec<Suppressed> = Vec::new();
     let mut failures: Vec<TargetResolutionFailure> = Vec::new();
 
     for token in targets {
@@ -480,18 +469,18 @@ fn resolve_targets(
                         .unwrap_or(false)
                 });
                 match local_match {
-                    Some(item) => {
-                        if let Some(remote) =
-                            suppressed_remote(&index, token, item)
-                        {
-                            suppressed.push(Suppressed {
-                                token: token.clone(),
-                                local_id: item.id.clone(),
-                                remote_id: remote,
-                            });
-                        }
-                        matched.push(item);
-                    }
+                    Some(item) => match colliding_file(&index, token, item) {
+                        Some(other) => failures.push(
+                            TargetResolutionFailure::LocalCollision(format!(
+                                "'{token}' is the local id of {} and also \
+                                 the external_id recorded by {}; re-run with \
+                                 the path of the file you intended",
+                                item.path.display(),
+                                other.path.display()
+                            )),
+                        ),
+                        None => matched.push(item),
+                    },
                     None => failures.push(TargetResolutionFailure::Unmanaged(
                         format!(
                             "'{token}' resolves to a file that is not a \
@@ -546,7 +535,7 @@ fn resolve_targets(
         .filter(|item| seen.insert(item.id.clone()))
         .cloned()
         .collect();
-    Ok(ResolvedTargets { items, suppressed })
+    Ok(ResolvedTargets { items })
 }
 
 enum Scope {
@@ -557,7 +546,6 @@ enum Scope {
 struct SelectedTargets {
     scope: Scope,
     items: Vec<LocalItem>,
-    suppressed: Vec<Suppressed>,
 }
 
 /// A usage or ambiguity error is the most fundamental thing to fix, so it
@@ -588,14 +576,12 @@ fn build_selection(
         return Ok(SelectedTargets {
             scope: Scope::All,
             items: Vec::new(),
-            suppressed: Vec::new(),
         });
     }
     match resolve_targets(corpus, targets, resolver) {
         Ok(found) => Ok(SelectedTargets {
             scope: Scope::Targeted,
             items: found.items,
-            suppressed: found.suppressed,
         }),
         Err(failures) => {
             for failure in &failures {
@@ -604,15 +590,6 @@ fn build_selection(
             Err(ExitCode::from(highest_precedence_code(&failures)))
         }
     }
-}
-
-fn suppression_line(suppressed: &Suppressed) -> String {
-    format!(
-        "#\ttarget\tsuppressed\t{}\tlocal={}\tremote={}",
-        single_line(&suppressed.token),
-        single_line(&suppressed.local_id),
-        single_line(&suppressed.remote_id),
-    )
 }
 
 /// # Errors
@@ -805,7 +782,7 @@ pub fn run_sync(
                      resolve the work-item id scheme ({error})"
                 ),
             }
-            println!("{}", render_report(&report, &selected.suppressed));
+            println!("{}", render_report(&report));
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
@@ -879,7 +856,6 @@ mod tests {
     use super::highest_precedence_code;
     use super::render_report;
     use super::resolve_targets;
-    use super::suppression_line;
     use super::Scope;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
@@ -904,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn a_local_id_wins_and_records_the_remote_match_as_suppressed() {
+    fn a_local_local_collision_is_a_usage_error_naming_both_files() {
         let dir = tempfile::tempdir().expect("tempdir");
         let local = target_item(dir.path(), "0001", None);
         let remote_holder = target_item(dir.path(), "0002", Some("0001"));
@@ -912,14 +888,33 @@ mod tests {
         let local_path = canonical(&corpus[0]);
         let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
 
-        let matched = resolve_targets(&corpus, &["0001".to_owned()], &resolver)
-            .expect("the local id resolves");
+        let failures =
+            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
+                .expect_err("a local/local collision must abort");
+
+        assert_eq!(failures.len(), 1);
+        assert!(matches!(
+            failures[0],
+            TargetResolutionFailure::LocalCollision(_)
+        ));
+        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
+        let message = failures[0].message();
+        assert!(message.contains("0001.md"), "names file A: {message}");
+        assert!(message.contains("0002.md"), "names file B: {message}");
+    }
+
+    #[test]
+    fn an_own_external_id_token_reconciles_with_no_collision() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("0002"))];
+        let local_path = canonical(&corpus[0]);
+        let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
+
+        let matched = resolve_targets(&corpus, &["0002".to_owned()], &resolver)
+            .expect("a token equal to its own file's external_id resolves");
 
         assert_eq!(matched.items.len(), 1);
-        assert_eq!(matched.items[0].id, "0001");
-        assert_eq!(matched.suppressed.len(), 1);
-        assert_eq!(matched.suppressed[0].local_id, "0001");
-        assert_eq!(matched.suppressed[0].remote_id, "0001");
+        assert_eq!(matched.items[0].id, "0002");
     }
 
     #[test]
@@ -967,7 +962,6 @@ mod tests {
 
         assert_eq!(matched.items.len(), 1);
         assert_eq!(matched.items[0].id, "0002");
-        assert!(matched.suppressed.is_empty());
     }
 
     #[test]
@@ -1057,19 +1051,6 @@ mod tests {
 
         assert!(matches!(selected.scope, Scope::All));
         assert!(selected.items.is_empty());
-    }
-
-    #[test]
-    fn the_suppression_line_collapses_record_breaking_whitespace() {
-        let note = super::Suppressed {
-            token: "00\t01".to_owned(),
-            local_id: "00\n01".to_owned(),
-            remote_id: "PP-787".to_owned(),
-        };
-        assert_eq!(
-            suppression_line(&note),
-            "#\ttarget\tsuppressed\t00 01\tlocal=00 01\tremote=PP-787"
-        );
     }
 
     fn ok_render(section: &SectionDiff) -> String {
@@ -1165,7 +1146,7 @@ mod tests {
         ))
         .expect("golden readable");
 
-        assert_eq!(render_report(&report, &[]), golden);
+        assert_eq!(render_report(&report), golden);
     }
 
     #[test]
@@ -1180,7 +1161,7 @@ mod tests {
         };
 
         assert_eq!(
-            render_report(&report, &[]),
+            render_report(&report),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
     }
@@ -1198,27 +1179,21 @@ mod tests {
 
     #[test]
     fn render_report_emits_each_discovery_status_line() {
-        assert!(render_report(
-            &report_with(DiscoveryStatus::Ran { found: 3 }),
-            &[]
-        )
-        .contains("#\tdiscovery\tran\tfound=3"));
-        assert!(render_report(
-            &report_with(DiscoveryStatus::SkippedPushOnly),
-            &[]
-        )
-        .contains("#\tdiscovery\tskipped\tpush-only"));
-        assert!(render_report(
-            &report_with(DiscoveryStatus::SkippedTargeted),
-            &[]
-        )
-        .contains("#\tdiscovery\tskipped\ttargeted"));
-        let failed = render_report(
-            &report_with(DiscoveryStatus::Failed {
-                detail: "connection refused".to_owned(),
-            }),
-            &[],
+        assert!(
+            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
+                .contains("#\tdiscovery\tran\tfound=3")
         );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
+                .contains("#\tdiscovery\tskipped\tpush-only")
+        );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedTargeted))
+                .contains("#\tdiscovery\tskipped\ttargeted")
+        );
+        let failed = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "connection refused".to_owned(),
+        }));
         assert!(
             failed.contains("#\tdiscovery\tfailed\tconnection refused"),
             "{failed}"
@@ -1227,12 +1202,9 @@ mod tests {
 
     #[test]
     fn a_failed_discovery_detail_is_flattened_to_one_record() {
-        let rendered = render_report(
-            &report_with(DiscoveryStatus::Failed {
-                detail: "line one\tsplit\nline two\r".to_owned(),
-            }),
-            &[],
-        );
+        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "line one\tsplit\nline two\r".to_owned(),
+        }));
         let discovery = rendered
             .lines()
             .find(|line| line.starts_with("#\tdiscovery\tfailed"))

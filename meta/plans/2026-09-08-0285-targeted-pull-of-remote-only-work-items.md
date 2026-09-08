@@ -254,17 +254,17 @@ test that demands the change.
 
 #### Automated Verification
 
-- [ ] The rewritten `a_local_id_wins_...` test asserts exit 2 naming both files,
+- [x] The rewritten `a_local_id_wins_...` test asserts exit 2 naming both files,
       zero writes: `cargo test -p work-cli collision`
-- [ ] An own-`external_id` token reconciles with no note: `cargo test -p work-cli`
-- [ ] The suppressed-line test is gone and the suite compiles without
+- [x] An own-`external_id` token reconciles with no note: `cargo test -p work-cli`
+- [x] The suppressed-line test is gone and the suite compiles without
       `Suppressed`: `cargo test -p work-cli`
-- [ ] Workspace lint and format clean: `mise run cli:check`
-- [ ] Read-only aggregate clean: `mise run check`
+- [x] Workspace lint and format clean: `mise run cli:check`
+- [x] Read-only aggregate clean: `mise run check`
 
 #### Manual Verification
 
-- [ ] The `sync-work-items` skill prose reads coherently with no dangling
+- [x] The `sync-work-items` skill prose reads coherently with no dangling
       reference to a suppressed-remote note, and states the own-`external_id`
       reconcile case.
 

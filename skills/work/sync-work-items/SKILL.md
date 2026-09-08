@@ -78,12 +78,14 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   reported conflict; repeatable. Used by the conflict loop below.
 - `--target <id|external-id|path>` — reconcile only the named work item(s);
   repeatable. A target may be a local id (`0257`), a remote tracker key /
-  `external_id` (`PP-787`), or a file path. On a token that is both a valid
-  local-id shape and a match for some `external_id`, the **local-id
-  interpretation wins** and the remote match is reported as suppressed. Naming
-  any target **suppresses untracked-remote discovery**, so a targeted pull
-  reaches only items already tracked locally. Per-item behaviour is otherwise
-  identical to a full sync.
+  `external_id` (`PP-787`), or a file path. A token that resolves to a single
+  local file — by path, by that file's local id, or by that file's own
+  `external_id` (the `id == external_id` case) — reconciles it silently, with
+  **no note**. A token that is one file's local id **and** a *different* file's
+  `external_id` is a genuine local/local collision and is an **exit-2** usage
+  error naming both files, not a silent win. Naming any target **suppresses
+  untracked-remote discovery**, so a targeted pull reaches only items already
+  tracked locally. Per-item behaviour is otherwise identical to a full sync.
 
   A target that fails to resolve aborts the run before any side effect, naming
   every offender, with zero writes. The abort exit codes and their recovery:
@@ -92,10 +94,12 @@ Translate the user's arguments into `accelerator work sync`'s flags:
     `external_id`. Offer `/list-work-items` to find the right value.
   - **6** (`RESOLVE_OUTSIDE_WORKDIR`) — a path outside the work directory. Offer
     `/list-work-items`.
-  - **2** (`USAGE`) — a malformed token (empty or blank) **or an ambiguous
-    match**. For an ambiguous match, mirror the sibling resolve callers: list
-    the candidates and ask the user to re-run with a full id or a path, rather
-    than treating it as a flat "malformed invocation".
+  - **2** (`USAGE`) — a malformed token (empty or blank), an **ambiguous
+    match**, or a **local/local collision** (the token is one file's local id
+    and a *different* file's `external_id`). For an ambiguous match, mirror the
+    sibling resolve callers: list the candidates and ask the user to re-run with
+    a full id or a path. For a collision, the error names both files; re-run
+    with the path of the file you intended.
 
   When several classes coexist the run returns the highest-precedence code (2 >
   6 > 3), but every offender is still named on stderr.
@@ -278,15 +282,12 @@ remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
 
-When the report carries the targeted discovery line or a suppressed-remote note,
-render them with exact human phrasing so the machine TSV tokens never leak
-verbatim, passing both through unchanged — do not reinterpret:
+When the report carries the targeted discovery line, render it with exact human
+phrasing so the machine TSV token never leaks verbatim, passing it through
+unchanged — do not reinterpret:
 
 - Targeted discovery (`#\tdiscovery\tskipped\ttargeted`): "Discovery skipped:
   targeted run over N item(s)".
-- Suppressed remote match (`#\ttarget\tsuppressed\t<token>\tlocal=<id>\tremote=<key>`):
-  "Suppressed remote match: <token> resolved to local <id>; remote <key>
-  ignored".
 
 Under `--preview`, present the same plan (every push carrying its
 locally-validated payload check) and report every pull instead of writing it;
