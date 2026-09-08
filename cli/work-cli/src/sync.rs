@@ -189,6 +189,9 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::SkippedTargeted => {
             "#\tdiscovery\tskipped\ttargeted".to_owned()
         }
+        DiscoveryStatus::TargetedPull { attempted } => {
+            format!("#\tdiscovery\ttargeted-pull\t{attempted}")
+        }
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
         }
@@ -731,7 +734,10 @@ pub fn run_sync(
     };
     let selection = match selected.scope {
         Scope::All => ItemSelection::All,
-        Scope::Targeted => ItemSelection::Targeted(&selected.items),
+        Scope::Targeted => ItemSelection::Targeted {
+            items: &selected.items,
+            pull_ids: &[],
+        },
     };
     let request = SyncRequest {
         corpus: &items,
@@ -1191,6 +1197,10 @@ mod tests {
             render_report(&report_with(DiscoveryStatus::SkippedTargeted))
                 .contains("#\tdiscovery\tskipped\ttargeted")
         );
+        assert!(render_report(&report_with(DiscoveryStatus::TargetedPull {
+            attempted: 2
+        }))
+        .contains("#\tdiscovery\ttargeted-pull\t2"));
         let failed = render_report(&report_with(DiscoveryStatus::Failed {
             detail: "connection refused".to_owned(),
         }));

@@ -368,39 +368,39 @@ the three existing work-adapters test sites (`sync_run.rs:342`, `sync_run.rs:480
 
 #### Automated Verification
 
-- [ ] A non-empty `pull_ids` with a stub `show` creates the file, counts as a
+- [x] A non-empty `pull_ids` with a stub `show` creates the file, counts as a
       pull, and applies it: `cargo test -p work-adapters targeted_pull`
-- [ ] An empty `pull_ids` still emits `SkippedTargeted`, proving the phase's
+- [x] An empty `pull_ids` still emits `SkippedTargeted`, proving the phase's
       output is unchanged for a reconcile-only targeted run: `cargo test -p work-adapters`
-- [ ] Exceeding `--max-pulls` refuses the whole run with zero writes (no partial
+- [x] Exceeding `--max-pulls` refuses the whole run with zero writes (no partial
       creation): `cargo test -p work-adapters`
-- [ ] Preview reports `CreateFromRemote`/`NotApplied` with zero writes: `cargo test -p work-adapters`
-- [ ] A candidate `found` by the gate but whose `show` returns `Retryable`
+- [x] Preview reports `CreateFromRemote`/`NotApplied` with zero writes: `cargo test -p work-adapters`
+- [x] A candidate `found` by the gate but whose `show` returns `Retryable`
       reports a `Failed` create, leaves earlier creates intact with valid
       baselines, and re-runs cleanly: `cargo test -p work-adapters`
-- [ ] A `pull_ids` entry whose canonical key already binds a corpus file is
+- [x] A `pull_ids` entry whose canonical key already binds a corpus file is
       filtered out — no second `author_from_remote` call, no extra write:
       `cargo test -p work-adapters`
-- [ ] A run mixing resolved `items` and a remote-only `pull_id`, over a corpus
+- [x] A run mixing resolved `items` and a remote-only `pull_id`, over a corpus
       that also holds a non-targeted item, writes exactly the two targeted items
       and nothing else (AC7): `cargo test -p work-adapters`
-- [ ] Of two `pull_ids` where one `show` fails, the pull tally and item rows
+- [x] Of two `pull_ids` where one `show` fails, the pull tally and item rows
       report one success, not two: `cargo test -p work-adapters`
-- [ ] A create whose baseline write fails after the file is authored recovers on
+- [x] A create whose baseline write fails after the file is authored recovers on
       re-run via the file's `external_id` with no duplicate pull: `cargo test -p work-adapters`
-- [ ] The same stub issue imported via discovery and via `pull_ids` authors an
+- [x] The same stub issue imported via discovery and via `pull_ids` authors an
       identical id, filename, and baseline entry (AC2 parity): `cargo test -p work-adapters`
-- [ ] `discovery_line` emits `#\tdiscovery\ttargeted-pull\t<N>` for
+- [x] `discovery_line` emits `#\tdiscovery\ttargeted-pull\t<N>` for
       `TargetedPull { attempted: N }` (extend `render_report_emits_each_discovery_status_line`):
       `cargo test -p work-adapters`
-- [ ] A second run with the id now local reconciles via the ordinary arm and the
+- [x] A second run with the id now local reconciles via the ordinary arm and the
       watermark has advanced: `cargo test -p work-adapters`
-- [ ] The `All` path is unchanged (existing full-sync tests pass): `cargo test -p work-adapters`
-- [ ] Workspace lint and format clean: `mise run cli:check`
+- [x] The `All` path is unchanged (existing full-sync tests pass): `cargo test -p work-adapters`
+- [x] Workspace lint and format clean: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] None — this phase is engine-internal and fully covered by tests.
+- [x] None — this phase is engine-internal and fully covered by tests.
 
 ---
 

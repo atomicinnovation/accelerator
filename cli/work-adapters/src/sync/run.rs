@@ -92,12 +92,19 @@ pub struct SyncPorts<'a> {
 ///
 /// `All` is payload-free so `SyncRequest::corpus` is the single source of the
 /// reconciled set — a construction site cannot desync the two, and the
-/// invariant `reconciled() ⊆ corpus` holds structurally. `Targeted` also gates
-/// untracked-remote discovery off, so a narrowed set can never re-import the
-/// items it left out.
+/// invariant `reconciled() ⊆ corpus` holds structurally. `Targeted` gates the
+/// untracked-remote *search* off, so a narrowed set can never re-import the
+/// items it left out, and carries a third set beyond `corpus` and the
+/// reconciled `items`: `pull_ids`, confirmed remote-only ids the run imports
+/// by id in place of a discovery search. An id already bound to a local file
+/// must not appear in `pull_ids`; the engine enforces this at the injection
+/// point (see the discovery branch), so a caller need not pre-filter.
 pub enum ItemSelection<'a> {
     All,
-    Targeted(&'a [LocalItem]),
+    Targeted {
+        items: &'a [LocalItem],
+        pull_ids: &'a [ExternalId],
+    },
 }
 
 pub struct SyncRequest<'a> {
@@ -130,13 +137,16 @@ impl<'a> SyncRequest<'a> {
     pub const fn reconciled(&self) -> &'a [LocalItem] {
         match self.selection {
             ItemSelection::All => self.corpus,
-            ItemSelection::Targeted(items) => items,
+            ItemSelection::Targeted { items, .. } => items,
         }
     }
 
+    /// Whether the untracked-remote *search* is suppressed. A targeted run
+    /// reaches remote-only items by id through `pull_ids`, not through the
+    /// unkeyed discovery search, so the search is always off under `Targeted`.
     #[must_use]
-    pub const fn discovery_suppressed(&self) -> bool {
-        matches!(self.selection, ItemSelection::Targeted(_))
+    pub const fn discovery_search_suppressed(&self) -> bool {
+        matches!(self.selection, ItemSelection::Targeted { .. })
     }
 }
 
@@ -172,9 +182,14 @@ pub enum DiscoveryStatus {
     Ran { found: usize },
     /// The run was push-only, so discovery was deliberately not run.
     SkippedPushOnly,
-    /// The run named explicit targets, so discovery was deliberately not run:
-    /// a targeted pull reaches only items already tracked locally.
+    /// The run named explicit targets, so the untracked-remote search was
+    /// deliberately not run and no remote-only target was pulled by id.
     SkippedTargeted,
+    /// The run named explicit targets and pulled `attempted` confirmed
+    /// remote-only ids by id, in place of an untracked search. `attempted` is
+    /// the count gated into the run, not the count that applied — a per-item
+    /// `CreateFromRemote` failure still counts here.
+    TargetedPull { attempted: usize },
     /// The search failed transiently (network). Maps to `RETRYABLE` (70), the
     /// fate a failed read carries.
     Failed { detail: String },
@@ -492,6 +507,19 @@ struct Discovered {
     complete: bool,
 }
 
+/// Whether any local item in `corpus` already carries `candidate` as its
+/// `external_id`, compared by canonical key so a cosmetic spelling difference
+/// folds equal — the same folding untracked discovery applies. Shared by the
+/// targeted-pull filter (so a `pull_id` already bound locally is never
+/// re-imported) and the create-from-local double-binding guard.
+fn corpus_carries(corpus: &[LocalItem], candidate: &ExternalId) -> bool {
+    let key = canonical_external_key(candidate);
+    corpus
+        .iter()
+        .filter_map(|item| item.external_id.as_ref())
+        .any(|external| canonical_external_key(external) == key)
+}
+
 /// The untracked remote issues: a `search` over `scope` minus the
 /// canonicalised set of local `external_id`s. A stored id differing from a
 /// search result only cosmetically folds equal and is excluded.
@@ -727,6 +755,71 @@ struct PreparedRun<'a> {
     dossiers: Vec<ConflictDossier>,
 }
 
+/// The remote-side ids a run imports and the discovery line that describes how
+/// they were found. A `Targeted` run pulls its confirmed `pull_ids` by id,
+/// dropping any already bound in the corpus; a full run resolves its scope and
+/// searches for untracked issues; a push-only full run does neither.
+///
+/// Computed from reads only, so the combined gate in [`prepare_run`] can bound
+/// every write — planned pulls, planned pushes, and both create paths — before
+/// a single one runs.
+///
+/// # Errors
+///
+/// [`RunError::DiscoveryUnconfigured`] when a full run's scope names no valid
+/// target; [`RunError::DiscoveryIncomplete`] when the untracked search is cut
+/// short.
+fn untracked_to_import(
+    ports: &SyncPorts<'_>,
+    request: &SyncRequest<'_>,
+) -> Result<(Vec<ExternalId>, DiscoveryStatus), RunError> {
+    Ok(match &request.selection {
+        ItemSelection::Targeted { pull_ids, .. } => {
+            let confirmed: Vec<ExternalId> = pull_ids
+                .iter()
+                .filter(|id| !corpus_carries(request.corpus, id))
+                .cloned()
+                .collect();
+            if confirmed.is_empty() {
+                (Vec::new(), DiscoveryStatus::SkippedTargeted)
+            } else {
+                let attempted = confirmed.len();
+                (confirmed, DiscoveryStatus::TargetedPull { attempted })
+            }
+        }
+        ItemSelection::All
+            if matches!(request.direction, SyncDirection::PushOnly) =>
+        {
+            (Vec::new(), DiscoveryStatus::SkippedPushOnly)
+        }
+        ItemSelection::All => {
+            let resolved = ports
+                .tracker
+                .resolve_scope(&request.scope)
+                .map_err(|error| RunError::DiscoveryUnconfigured {
+                    detail: error.detail,
+                })?;
+            match discover_untracked(ports.tracker, &resolved, request.corpus) {
+                Ok(discovered) if !discovered.complete => {
+                    return Err(RunError::DiscoveryIncomplete {
+                        found: discovered.ids.len(),
+                    });
+                }
+                Ok(discovered) => {
+                    let found = discovered.ids.len();
+                    (discovered.ids, DiscoveryStatus::Ran { found })
+                }
+                Err(error) => (
+                    Vec::new(),
+                    DiscoveryStatus::Failed {
+                        detail: error.into_detail(),
+                    },
+                ),
+            }
+        }
+    })
+}
+
 /// Gathers facts, plans, discovers both create sets, and refuses before any
 /// write when the plan's pull or push count exceeds its bound.
 ///
@@ -777,42 +870,7 @@ fn prepare_run<'a>(
 
     let read_failure = facts.read_failure.clone();
 
-    // Untracked-remote discovery and unsynced-local creates are computed from
-    // reads only, so the combined gate below can bound every write — planned
-    // pulls, planned pushes, and both create paths — before a single one runs.
-    // A non-push-only run resolves its scope first: a missing or unresolvable
-    // key refuses the whole run here, before the apply/push phase, so nothing
-    // is sent.
-    let (untracked, discovery) = if request.discovery_suppressed() {
-        (Vec::new(), DiscoveryStatus::SkippedTargeted)
-    } else if matches!(request.direction, SyncDirection::PushOnly) {
-        (Vec::new(), DiscoveryStatus::SkippedPushOnly)
-    } else {
-        let resolved =
-            ports
-                .tracker
-                .resolve_scope(&request.scope)
-                .map_err(|error| RunError::DiscoveryUnconfigured {
-                    detail: error.detail,
-                })?;
-        match discover_untracked(ports.tracker, &resolved, request.corpus) {
-            Ok(discovered) if !discovered.complete => {
-                return Err(RunError::DiscoveryIncomplete {
-                    found: discovered.ids.len(),
-                });
-            }
-            Ok(discovered) => {
-                let found = discovered.ids.len();
-                (discovered.ids, DiscoveryStatus::Ran { found })
-            }
-            Err(error) => (
-                Vec::new(),
-                DiscoveryStatus::Failed {
-                    detail: error.into_detail(),
-                },
-            ),
-        }
-    };
+    let (untracked, discovery) = untracked_to_import(ports, request)?;
     let creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
 
@@ -911,12 +969,8 @@ pub fn run<'a>(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
-    let corpus_carries = |candidate: &ExternalId| {
-        request
-            .corpus
-            .iter()
-            .any(|item| item.external_id.as_ref() == Some(candidate))
-    };
+    let carries =
+        |candidate: &ExternalId| corpus_carries(request.corpus, candidate);
 
     {
         let mut applier = ItemApplier::new(
@@ -955,7 +1009,7 @@ pub fn run<'a>(
                 item,
                 request,
                 ports.author,
-                &corpus_carries,
+                &carries,
                 run_start_epoch,
             ));
         }
