@@ -5,7 +5,7 @@ title: "Sync Specific Work Items"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0257: Sync Specific Work Items
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
