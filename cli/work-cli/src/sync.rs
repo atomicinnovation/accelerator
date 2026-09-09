@@ -810,10 +810,22 @@ pub fn run_sync(
     };
 
     let baseline_path = baseline::path(&integrations_root, &integration);
+    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
+    // The integration's state directory holds the baseline, the conflict
+    // dossiers, and the pending-push markers. On a never-synced integration it
+    // does not exist yet, and the atomic-write containment check canonicalises
+    // this directory as its trusted root, so the first baseline write fails
+    // unless it is present. Create it up-front rather than relying on a later
+    // write to author it.
+    if let Err(error) = std::fs::create_dir_all(baseline_dir) {
+        eprintln!(
+            "could not create the integration state directory {}: {error}",
+            baseline_dir.display()
+        );
+        return ExitCode::from(exit_codes::ERROR);
+    }
     let file_reader = RealFs;
-    let corpus_store = FileCorpusStore::new(
-        baseline_path.parent().unwrap_or(&integrations_root),
-    );
+    let corpus_store = FileCorpusStore::new(baseline_dir);
     let mut baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
     let status = VcsWorkingCopyStatus::probed_from(&root);
@@ -1850,19 +1862,22 @@ mod tests {
         std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
         std::fs::create_dir_all(dir.path().join(".accelerator"))
             .expect("mkdir");
-        // A configured integration's state directory already exists; the
-        // baseline write into it (unchanged by this feature) needs its parent
-        // present, exactly as a full-sync discovery import does.
-        std::fs::create_dir_all(
-            dir.path().join(".accelerator/state/integrations/jira"),
-        )
-        .expect("mkdir integration state");
         std::fs::write(
             dir.path().join(".accelerator/config.md"),
             "---\nwork:\n  integration: jira\n---\n",
         )
         .expect("write config");
         dir
+    }
+
+    /// Whether the run persisted a baseline for the integration — proof the
+    /// create-from-remote sequence completed through its final baseline write,
+    /// not just that a file was authored.
+    fn baseline_written(dir: &Path) -> bool {
+        std::fs::read_to_string(
+            dir.join(".accelerator/state/integrations/jira/last-sync.json"),
+        )
+        .is_ok()
     }
 
     fn work_file(dir: &Path, id: &str, external: Option<&str>) {
@@ -1949,6 +1964,11 @@ mod tests {
             new_work_files(dir.path()).len(),
             1,
             "a remote-only target creates one new local file"
+        );
+        assert!(
+            baseline_written(dir.path()),
+            "the create-from-remote completes through its baseline write, even \
+             on a never-synced integration whose state dir does not yet exist"
         );
         assert!(
             fetch_all_contains(&tracker, "PP-999"),
