@@ -346,16 +346,6 @@ description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fix
 depends = ["deps:install:python"]
 run = "invoke test.integration.deny"
 
-[tasks."test:integration:zero-spawn"]
-description = "Prove the library-backed VCS adapter reads git and jj without spawning them (its own CI job, not the test roll-up)"
-depends = ["deps:install:python"]
-run = "invoke test.integration.zero-spawn"
-
-[tasks."test:integration:zero-spawn:strong"]
-description = "The strong form of the above: shadows the real git/jj with sudo for the duration, so absolute-path access cannot satisfy the adapter (CI only — gated behind ACCELERATOR_ZERO_SPAWN_SHADOW=yes)"
-depends = ["deps:install:python", "build:cli:fixture-size"]
-run = "invoke test.integration.zero-spawn-strong"
-
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test:integration roll-up: a run needs a quiet host, a pinned PATH, network
 # egress and several minutes. Owned by its own non-blocking CI job. See

@@ -588,39 +588,39 @@ as follows:
 
 #### Automated Verification:
 
-- [ ] All four targets gone:
+- [x] All four targets gone:
       `test ! -e cli/corpus-adapters/tests/zero_spawn.rs && test ! -e cli/corpus-adapters/tests/fixtures/corpus_adapters_fixture.rs`
-- [ ] `bash-parity`, `corpus-adapters-fixture`, and `vcs-test-support` are absent
+- [x] `bash-parity`, `corpus-adapters-fixture`, and `vcs-test-support` are absent
       from the manifest:
       `! grep -Eq 'bash-parity|corpus-adapters-fixture|vcs-test-support' cli/corpus-adapters/Cargo.toml`
       (a smoke check only — it does not prove clean section removal; manifest
       well-formedness is proven by the `test:unit:cli` / `check` compile below).
-- [ ] The mise tasks are gone:
+- [x] The mise tasks are gone:
       `! grep -q 'test:integration:zero-spawn' mise.toml`
-- [ ] The CI job and its `needs:` entry are gone:
+- [x] The CI job and its `needs:` entry are gone:
       `! grep -q 'check-zero-spawn' .github/workflows/main.yml`
-- [ ] The guard still runs in the roll-up after the strong-job deletion:
+- [x] The guard still runs in the roll-up after the strong-job deletion:
       `mise run test:integration:fixture-size` passes host-native and
       `build:cli:fixture-size` is still in the resolved graph of `test:integration`.
-- [ ] The mise-topology guard passes after the task deletion:
+- [x] The mise-topology guard passes after the task deletion:
       `mise run test:unit:tasks` (the lane that executes
       `tests/unit/tasks/test_mise.py`; `check` and `build-system:check` do not
-      run it).
-- [ ] The shared vcs-adapters fixtures still build:
+      run it). (2787 passed)
+- [x] The shared vcs-adapters fixtures still build:
       `cargo build --manifest-path cli/Cargo.toml -p vcs-adapters --bin vcs-adapters-fixture --bin vcs-adapters-fixture-stub`
-- [ ] corpus-adapters compiles and tests pass without the feature, under the
+- [x] corpus-adapters compiles and tests pass without the feature, under the
       all-features CI configuration that would surface a lingering `bash-parity`
       reference: `mise run test:unit:cli` (runs `--workspace --all-features
-      --exclude accelerator-visualiser`).
-- [ ] Build-system checks pass (integration.py well-formed after the import prune):
+      --exclude accelerator-visualiser`). (exit 0)
+- [x] Build-system checks pass (integration.py well-formed after the import prune):
       `mise run build-system:check`
-- [ ] Workflow lint passes: `mise run lint:workflows:actionlint`
-- [ ] cargo-pup rules still pass: `mise run pup:check`
-- [ ] The positive parity/golden inventory is unchanged. Capture
+- [x] Workflow lint passes: `mise run lint:workflows:check`
+      (the mise task; `lint:workflows:actionlint` is the underlying invoke name)
+- [x] cargo-pup rules still pass: `mise run pup:check`
+- [x] The positive parity/golden inventory is unchanged. Capture
       `git ls-files 'cli/**/*parity*.rs' 'cli/**/migration_*.rs' 'cli/**/*golden*.rs'`
       at the parent commit and after the change; the listings must be identical.
-      (The `*golden*` glob closes the gap the research flagged — parity- and
-      migration-only globs miss the `*_goldens.rs` files.)
+      (29 files, identical; compared via `jj file list` at `@-` vs `@`.)
 - [ ] Read-only check is green: `mise run check`
 
 #### Manual Verification:
@@ -628,8 +628,8 @@ as follows:
 - [ ] After `check-zero-spawn` is deleted, the `test-integration` CI job still
       runs `test:integration:fixture-size` → `build:cli:fixture-size` on both
       legs (inspect the job log on the PR) — the guard's CI execution survived
-      the removal of its old lane.
-- [ ] The reworded pup.ron comment and the README edits name no deleted path.
+      the removal of its old lane. (deferred: requires the PR CI run)
+- [x] The reworded pup.ron comment and the README edits name no deleted path.
 
 ---
 

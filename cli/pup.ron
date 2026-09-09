@@ -322,8 +322,7 @@
         // vcs-adapters spawns no subprocess: every port, including the
         // status/log renderings, reads both idioms in the calling process. This
         // crate-wide deny catches use-path std::process imports anywhere in the
-        // crate; corpus-adapters/tests/zero_spawn.rs closes the inline
-        // Command::new() blind spot at run time.
+        // crate.
         Module((
             name: "vcs_adapters_is_zero_spawn",
             matches: Module("^vcs_adapters($|::)"),
