@@ -1939,6 +1939,18 @@ mod tests {
         names
     }
 
+    fn only_created_author(dir: &Path) -> String {
+        let files = new_work_files(dir);
+        let name = files.first().expect("one created file");
+        let content = std::fs::read_to_string(dir.join("meta/work").join(name))
+            .expect("read created file");
+        content
+            .lines()
+            .find_map(|line| line.strip_prefix("author: "))
+            .map(|value| value.trim_matches('"').to_owned())
+            .expect("author frontmatter")
+    }
+
     /// Whether any `fetch_all` the run made named `id`. The candidate-
     /// confirmation gate reads the raw `--target` token, so a bare local id
     /// appearing here means the gate ran; the engine's reconcile read only ever
@@ -1969,6 +1981,12 @@ mod tests {
             baseline_written(dir.path()),
             "the create-from-remote completes through its baseline write, even \
              on a never-synced integration whose state dir does not yet exist"
+        );
+        assert_eq!(
+            only_created_author(dir.path()),
+            "Test User",
+            "the imported file is authored with the synced repository's own \
+             identity, not the ambient process identity"
         );
         assert!(
             fetch_all_contains(&tracker, "PP-999"),

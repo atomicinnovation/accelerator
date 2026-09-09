@@ -23,7 +23,7 @@ use tracker::ExternalId;
 use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::TypedLinkage;
-use work_adapters::author::VcsBackedIdentityProbe;
+use work_adapters::author::RepositoryIdentityProbe;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
@@ -121,7 +121,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         )
         .map_err(failed)?;
         let author =
-            resolve_author(None, &VcsBackedIdentityProbe).map_err(failed)?;
+            resolve_author(None, &RepositoryIdentityProbe::new(&self.root))
+                .map_err(failed)?;
 
         let inputs = CreateInputs {
             id: &id,
