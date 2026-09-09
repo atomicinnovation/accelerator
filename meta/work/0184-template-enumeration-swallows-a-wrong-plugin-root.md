@@ -11,9 +11,9 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0182"]
 tags: ["bug", "cli", "config", "templates", "plugin-root"]
-last_updated: "2026-09-09T15:06:15+00:00"
+last_updated: "2026-09-09T21:55:20+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Plan-review (2026-09-09 review-1, pass 2) refinements folded back: the wrong-root refusal uses a dedicated ConfigError::PluginRootNotAnInstallation { path } variant naming the offending root, not a reused PluginRootUnavailable; and every structural wrong-root shape fails closed — templates/ missing, a templates that is a file, or a root that is itself a file — with Io reserved for genuinely unreadable faults (permission, filesystem loop). Revised AC8's trigger to a filesystem-loop fault, added AC13 for the two extra structural shapes, broadened the wrong-root definition, and updated R1/R2/AC3/Decisions to the new variant and classification."
+last_updated_note: "Implementation landed (plan 2026-09-09-0184, three phases). Marked AC1–AC11 and AC13 satisfied — each pinned by a store unit test, a config_read integration test, or the compose contract test, plus manual verification. AC8 needed no wording change: its filesystem-loop trigger and its AC13 cross-reference already matched the implemented Io-vs-refusal split. AC12 left open — every lane green except the pre-existing docs:audit:check on unrelated docs-site npm advisories."
 schema_version: 1
 external_id: "PP-714"
 ---
@@ -135,38 +135,38 @@ Every criterion below operationalises "wrong root" as a root that exists but is
 not an installation — its `templates/` is missing or not a directory, or the root
 is itself a file.
 
-- [ ] **AC1** — `config templates list` exits non-zero with a diagnostic naming
+- [x] **AC1** — `config templates list` exits non-zero with a diagnostic naming
       `ACCELERATOR_PLUGIN_ROOT`, replacing the header-only table at exit 0.
       (Exercises `template_names`.)
-- [ ] **AC2** — `config template <name>`, with no resolving override, exits
+- [x] **AC2** — `config template <name>`, with no resolving override, exits
       non-zero naming `ACCELERATOR_PLUGIN_ROOT`, replacing today's `Ok(None)`
       rendered as a template-name "not found". (Exercises `resolve_template`'s
       plugin-default tier.)
-- [ ] **AC3** — `config templates eject <name>` exits non-zero with a diagnostic
+- [x] **AC3** — `config templates eject <name>` exits non-zero with a diagnostic
       naming `ACCELERATOR_PLUGIN_ROOT` (surfacing
       `ConfigError::PluginRootNotAnInstallation`), not `EjectOutcome::NoDefault` —
       the wrong root is diagnosed rather than reported as "nothing to eject".
       (Exercises `eject` → `plugin_template_path`.)
-- [ ] **AC4** — `config templates eject --all` exits non-zero with a diagnostic
+- [x] **AC4** — `config templates eject --all` exits non-zero with a diagnostic
       naming `ACCELERATOR_PLUGIN_ROOT`, replacing today's "exit 0 having ejected
       nothing". (Exercises `eject_all` → `template_names`, the second consumer.)
-- [ ] **AC5** — `config templates diff <name>` and `config templates reset
+- [x] **AC5** — `config templates diff <name>` and `config templates reset
       <name>` each exit non-zero with a diagnostic naming
       `ACCELERATOR_PLUGIN_ROOT`, replacing today's `Ok(None)` rendered as an
       unknown-template error. (These are the observable surface of
       `plugin_default` → `plugin_template_path`.)
-- [ ] **AC6** — invoking the visualiser server's compose path (`compose.rs`)
+- [x] **AC6** — invoking the visualiser server's compose path (`compose.rs`)
       against a store whose plugin root is a wrong root returns
       `Err(ComposeError)` whose message contains `ACCELERATOR_PLUGIN_ROOT` and
       produces no empty template set — asserted by a test at the compose-path
       boundary.
-- [ ] **AC7** — `config template <name>` against an installation whose
+- [x] **AC7** — `config template <name>` against an installation whose
       `templates/` directory is present but lacks `<name>.md`, with no resolving
       override, exits non-zero with a not-found message naming `<name>` and
       **not** mentioning `ACCELERATOR_PLUGIN_ROOT` — so the genuine
       template-not-found is distinguished from the plugin-root refusal by message
       content, not merely by the two messages differing.
-- [ ] **AC8** — a genuine *unreadable* fault yields a `ConfigError::Io` naming the
+- [x] **AC8** — a genuine *unreadable* fault yields a `ConfigError::Io` naming the
       path, not the structural refusal, and does **not** name
       `ACCELERATOR_PLUGIN_ROOT` — so a fault whose validity is undeterminable stays
       degradable. Trigger it with an environment-independent, root-guard-free
@@ -174,24 +174,27 @@ is itself a file.
       `FilesystemLoop` (neither `NotFound` nor `NotADirectory`). The
       `templates`-is-a-file shape is **not** this case — it is a structural refusal
       under AC13.
-- [ ] **AC9** — the characterisation test
+- [x] **AC9** — the characterisation test
       `a_root_without_a_templates_directory_still_renders_an_empty_table` is
       replaced at the same site by a test asserting the empty-`templates/` root
       now yields a non-zero exit whose diagnostic names `ACCELERATOR_PLUGIN_ROOT`
       (the inverse of AC1), rather than deleted.
-- [ ] **AC10** — given a wrong root and a user override configured for `<name>`,
+- [x] **AC10** — given a wrong root and a user override configured for `<name>`,
       `config template <name>` exits 0 and renders the override's content, not the
       `ACCELERATOR_PLUGIN_ROOT` refusal. This is the wrong-root case, distinct
       from the absent-root property
       `a_user_override_still_resolves_with_no_plugin_root`, and needs its own
       coverage.
-- [ ] **AC11** — a root-independent family command (e.g. `config paths`) against
+- [x] **AC11** — a root-independent family command (e.g. `config paths`) against
       a wrong root exits 0 **and** renders its normal non-empty output (not an
       empty or notice-only degradation), exercising R4: the families that never
       read the plugin root are unaffected by the refusal. Exit 0 alone is
       insufficient because the `config` family carries `--fail-safe`.
-- [ ] **AC12** — `mise run` (bare default task) exits 0 end-to-end.
-- [ ] **AC13** — the two remaining structural shapes each fail closed: a root
+- [ ] **AC12** — `mise run` (bare default task) exits 0 end-to-end. Every lane
+      passes except the pre-existing `docs:audit:check`, which fails on unrelated
+      `docs-site/` npm advisories (js-yaml, sharp, smol-toml, svgo) untouched by
+      this change; blocked on a separate dependency-bump, not on this work.
+- [x] **AC13** — the two remaining structural shapes each fail closed: a root
       whose `templates` entry is a file, and a root that is itself a file, make
       `config templates list` exit non-zero with a diagnostic naming
       `ACCELERATOR_PLUGIN_ROOT` — a structural wrong root is refused, not reported
