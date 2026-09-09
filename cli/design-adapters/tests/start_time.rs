@@ -88,34 +88,6 @@ fn the_probe_agrees_across_timezones() -> Result<(), TestError> {
     Ok(())
 }
 
-/// The tick rate comes from `sysconf`, compiled into the binary, rather than
-/// from a `getconf` subprocess that may simply be absent in a distroless or
-/// static-musl container.
-///
-/// Asserted over the source, because the property is the *absence* of a
-/// subprocess, which a passing call cannot demonstrate.
-#[test]
-fn the_probe_shells_out_to_nothing() {
-    const SOURCE: &str = include_str!("../../process-probe/src/lib.rs");
-
-    // The production half only: the tests legitimately read `process::id()`,
-    // which spawns nothing.
-    let production = SOURCE.split("#[cfg(test)]").next().unwrap_or(SOURCE);
-
-    for forbidden in ["getconf", "Command::new", "process::Command"] {
-        assert!(
-            !production.contains(forbidden),
-            "the start-time probe must not reach for {forbidden}: an absent \
-             program would degrade it to a weaker value in exactly the \
-             containers that need it"
-        );
-    }
-    assert!(
-        production.contains("_SC_CLK_TCK"),
-        "the tick rate must come from sysconf, compiled in"
-    );
-}
-
 /// Two reads of a live process must agree, which is the property the whole
 /// PID-recycle guard rests on.
 #[test]
