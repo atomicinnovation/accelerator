@@ -280,7 +280,7 @@ clause; the crate-wide static `std::process` deny is what now stands alone.
 - [x] work-adapters compiles and tests pass with the feature enabled:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters --features bash-parity`
 - [x] cargo-pup rules still pass: `mise run pup:check`
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
@@ -311,7 +311,7 @@ registration.
 - [x] File is gone: `test ! -e cli/migrate-cli/tests/no_awk.rs`
 - [x] migrate-cli tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate`
       (the crate directory is `migrate-cli`; its package name is `accelerator-migrate`)
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
@@ -347,7 +347,7 @@ it shares no helper with the positive tests.
       `cargo nextest run --manifest-path cli/Cargo.toml -p design-adapters -E 'binary(start_time)'`
       (expect `the_probe_agrees_across_locales`, `the_probe_agrees_across_timezones`,
       `the_probe_is_stable_for_a_live_process`).
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
@@ -447,7 +447,7 @@ def test_fixture_size_guard_runs_in_the_integration_rollup(mise):
       `mise run test:unit:tasks` (the lane that executes
       `tests/unit/tasks/test_mise.py`; `check` and `build-system:check` do not
       run pytest). (2789 passed)
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
@@ -621,7 +621,7 @@ as follows:
       `git ls-files 'cli/**/*parity*.rs' 'cli/**/migration_*.rs' 'cli/**/*golden*.rs'`
       at the parent commit and after the change; the listings must be identical.
       (29 files, identical; compared via `jj file list` at `@-` vs `@`.)
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
@@ -681,7 +681,7 @@ block.
 - [x] The lint aggregate resolves and runs: `mise run lint:check`
 - [x] Build-system checks pass: `mise run build-system:check`
 - [x] The kept guard survives: `mise run lint:bare-invocation:check`
-- [ ] Read-only check is green: `mise run check`
+- [x] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
