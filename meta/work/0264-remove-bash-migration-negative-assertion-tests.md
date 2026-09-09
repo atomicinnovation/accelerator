@@ -5,7 +5,7 @@ title: "Remove Bash-Migration Negative-Assertion Tests"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-794"
 # 0264: Remove Bash-Migration Negative-Assertion Tests
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
