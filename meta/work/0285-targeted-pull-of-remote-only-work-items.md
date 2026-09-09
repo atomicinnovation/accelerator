@@ -5,13 +5,13 @@ title: "Targeted Pull of Remote-Only Work Items and Resolution Normalisation"
 date: "2026-09-08T17:43:59+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
 relates_to: ["work-item:0257", "work-item:0229", "work-item:0255"]
 tags: ["work", "sync", "targeting", "pull"]
-last_updated: "2026-09-08T20:57:03+00:00"
+last_updated: "2026-09-09T11:52:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
