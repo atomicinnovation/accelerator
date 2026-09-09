@@ -2,9 +2,7 @@
 
 Textual-structure assertions (mirroring test_workflows.py's style) that the
 Rust enforcement gates are wired into the aggregate `check` task, so a gate
-cannot be silently unwired from the read-only CI-mirror. Extended per phase as
-each gate lands (cli:check here; deny:check / pup:check in Phases 3-4;
-public-api:check with the tracker crate's surface pin).
+cannot be silently unwired from the read-only CI-mirror.
 """
 
 import tomllib
