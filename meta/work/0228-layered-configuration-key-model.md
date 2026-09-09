@@ -72,7 +72,8 @@ own `jira:` / `linear:` section; the work layer reads the integration-owned key.
 ## Dependencies
 
 - Blocked by: none.
-- Blocks: none.
+- Blocks: 0229 (Per-Tracker Pull Scope Configuration) — 0229's base scope resolves
+  from the canonical key this story introduces.
 
 ## Technical Notes
 

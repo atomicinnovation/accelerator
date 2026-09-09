@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-08-30T14:24:46+00:00"
+last_updated: "2026-09-09T22:33:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -91,8 +91,12 @@ Three structural findings frame the scoping work:
 - **Per-tracker pull scope** — a per-tracker `pull` block: `additional_teams` /
   `additional_projects` (broaden beyond the creation entity), `all_teams` /
   `all_projects` (whole accessible workspace, mutually exclusive with the
-  `additional_*` list), and a generic `filters` bag. Each tracker declares a
-  filter schema so required keys fail at config time rather than at sync time.
+  `additional_*` list), and a generic `filters` bag (with the config-catalogue
+  extension to structured values it requires). Each tracker declares a filter
+  schema validated at config time. The block also carries configurable
+  `max_items` / `max_pages` ceilings (promoting today's silent truncation to a
+  hard error), and the broadened discovery deduplicates and reconciles in stable
+  order. See 0229.
 - **Tracker-owned ID generation** — optionally let a configured tracker mint the
   work-item ID (stub-create remote, adopt its identifier locally so `id ==
   external_id`), and codify the `id`-immutability boundary: immutable once synced,
@@ -224,12 +228,32 @@ Resolved during refinement (2026-08-30):
   reparented here.
 - 0228 — Configuration key model (`work.key` rename + layered
   `<tracker>.<entity>_key` ownership + migration).
-- 0229 — Per-tracker pull scope (`additional_*`, `all_*`, `filters`, config-time
-  schema).
+- 0229 — Per-tracker pull scope (`additional_*`, `all_*`, `filters` + catalogue
+  structured-value extension, config-time schema, `max_items` / `max_pages`
+  ceilings with truncation-to-hard-error, dedup + stable ordering).
 - 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
   boundary).
 - TBD (existing candidates) — status / kind / priority mapping; parent-child
   relationships on sync.
+
+### Future candidates (deferred from 0229 refinement)
+
+Out of scope for the shipping children above; captured here to track potential
+follow-on work.
+
+- **Nested AND/OR filters** — promote the reserved `all` / `any` grouping keys in
+  0229's flat filter model to full boolean nesting (`(A AND B) OR (C AND D)`). 0229
+  reserves the keys so this lands with no config migration.
+- **Raw filter escape hatch** — a per-tracker raw query fragment (JQL / Linear
+  `IssueFilter`) for tracker-specific operators the normalised bag cannot express
+  (Jira `WAS` / `CHANGED`, custom fields; Linear `every`). Deferred to preserve
+  0229's config-time validation guarantee.
+- **Named pull scopes** — multiple named `pull` blocks per tracker selectable at
+  sync time (a narrow daily scope vs a wide release-time sweep), rather than the
+  single block per tracker 0229 ships.
+- **Remote-existence scope validation** — verify configured `additional_*` entities
+  and filter values against the remote, surfacing typos at validation time. 0229
+  validates structure only; this coordinates with 0227's `config validate` command.
 
 ## Drafting Notes
 
@@ -245,6 +269,8 @@ Resolved during refinement (2026-08-30):
 - Linear scope required and taken from the key, with the credential reframed as
   access control — a deliberate departure from defaulting scope to the credentialed
   team.
+- 2026-09-09: captured four future candidates (nested filters, raw escape hatch,
+  named scopes, remote-existence validation) deferred during 0229's refinement.
 
 ## References
 
