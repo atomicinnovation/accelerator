@@ -126,9 +126,6 @@ ns_lint.add_collection(
     Collection.from_module(lint.skill_permissions)
 )  # lint.skill-permissions.check
 ns_lint.add_collection(
-    Collection.from_module(lint.call_site_migration)
-)  # lint.call-site-migration.check
-ns_lint.add_collection(
     Collection.from_module(lint.bare_invocation)
 )  # lint.bare-invocation.check
 ns_lint.add_collection(

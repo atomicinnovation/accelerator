@@ -671,15 +671,16 @@ block.
 
 #### Automated Verification:
 
-- [ ] Both files gone:
+- [x] Both files gone:
       `test ! -e tasks/lint/call_site_migration.py && test ! -e tests/unit/tasks/test_call_site_migration.py`
-- [ ] No `call_site_migration` reference remains in executable wiring:
+- [x] No `call_site_migration` reference remains in executable wiring:
       `! grep -rEq 'call_site_migration|call-site-migration' tasks/ mise.toml`
       (extended-regex `-E`, not BRE `\|` — on the repo's macOS floor BSD grep
-      treats `\|` as a literal and the check would false-pass).
-- [ ] The lint aggregate resolves and runs: `mise run lint:check`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] The kept guard survives: `mise run lint:bare-invocation:check`
+      treats `\|` as a literal and the check would false-pass). Stale
+      `__pycache__` bytecode for the deleted module was also cleared.
+- [x] The lint aggregate resolves and runs: `mise run lint:check`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] The kept guard survives: `mise run lint:bare-invocation:check`
 - [ ] Read-only check is green: `mise run check`
 
 #### Manual Verification:
