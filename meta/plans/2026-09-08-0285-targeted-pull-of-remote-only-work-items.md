@@ -5,7 +5,7 @@ title: "Targeted Pull of Remote-Only Work Items and Resolution Normalisation Imp
 date: "2026-09-08T20:35:43+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0285"
 parent: "work-item:0285"
 derived_from: ["codebase-research:2026-09-08-0285-targeted-pull-of-remote-only-work-items"]
