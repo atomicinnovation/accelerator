@@ -11,9 +11,9 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0182"]
 tags: ["bug", "cli", "config", "templates", "plugin-root"]
-last_updated: "2026-09-09T21:55:20+00:00"
+last_updated: "2026-09-09T23:33:52+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Implementation landed (plan 2026-09-09-0184, three phases). Marked AC1–AC11 and AC13 satisfied — each pinned by a store unit test, a config_read integration test, or the compose contract test, plus manual verification. AC8 needed no wording change: its filesystem-loop trigger and its AC13 cross-reference already matched the implemented Io-vs-refusal split. AC12 left open — every lane green except the pre-existing docs:audit:check on unrelated docs-site npm advisories."
+last_updated_note: "AC12 ticked: after the docs-site dependency rebase resolved docs:audit:check, a full mise run surfaced two further deterministic failures the implementation had to fix — the config public-api fixture (the new PluginRootNotAnInstallation variant) and the shutdown integration tests (their templates-less plugin-root fixture, which compose now correctly refuses). Both fixed; a clean mise run then exited 0 end-to-end, so every acceptance criterion (AC1–AC13) is now satisfied."
 schema_version: 1
 external_id: "PP-714"
 ---
@@ -190,10 +190,7 @@ is itself a file.
       empty or notice-only degradation), exercising R4: the families that never
       read the plugin root are unaffected by the refusal. Exit 0 alone is
       insufficient because the `config` family carries `--fail-safe`.
-- [ ] **AC12** — `mise run` (bare default task) exits 0 end-to-end. Every lane
-      passes except the pre-existing `docs:audit:check`, which fails on unrelated
-      `docs-site/` npm advisories (js-yaml, sharp, smol-toml, svgo) untouched by
-      this change; blocked on a separate dependency-bump, not on this work.
+- [x] **AC12** — `mise run` (bare default task) exits 0 end-to-end.
 - [x] **AC13** — the two remaining structural shapes each fail closed: a root
       whose `templates` entry is a file, and a root that is itself a file, make
       `config templates list` exit non-zero with a diagnostic naming
