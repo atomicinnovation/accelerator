@@ -308,8 +308,9 @@ registration.
 
 #### Automated Verification:
 
-- [ ] File is gone: `test ! -e cli/migrate-cli/tests/no_awk.rs`
-- [ ] migrate-cli tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p migrate-cli`
+- [x] File is gone: `test ! -e cli/migrate-cli/tests/no_awk.rs`
+- [x] migrate-cli tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate`
+      (the crate directory is `migrate-cli`; its package name is `accelerator-migrate`)
 - [ ] Read-only check is green: `mise run check`
 
 #### Manual Verification:
