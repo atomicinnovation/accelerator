@@ -341,9 +341,9 @@ it shares no helper with the positive tests.
 
 #### Automated Verification:
 
-- [ ] The test name no longer appears:
+- [x] The test name no longer appears:
       `! grep -q the_probe_shells_out_to_nothing cli/design-adapters/tests/start_time.rs`
-- [ ] The file's positive tests remain and pass:
+- [x] The file's positive tests remain and pass:
       `cargo nextest run --manifest-path cli/Cargo.toml -p design-adapters -E 'binary(start_time)'`
       (expect `the_probe_agrees_across_locales`, `the_probe_agrees_across_timezones`,
       `the_probe_is_stable_for_a_live_process`).
@@ -438,15 +438,15 @@ def test_fixture_size_guard_runs_in_the_integration_rollup(mise):
 
 #### Automated Verification:
 
-- [ ] The leaf resolves and is a roll-up member: `build:cli:fixture-size` appears
+- [x] The leaf resolves and is a roll-up member: `build:cli:fixture-size` appears
       in the resolved dependency graph of `test:integration` (`mise tasks deps
       test:integration`, or grep the roll-up block for
       `test:integration:fixture-size`), and `mise run test:integration:fixture-size`
-      passes host-native.
-- [ ] The topology guard passes, including both new chain assertions:
+      passes host-native. (ratio 32.60x)
+- [x] The topology guard passes, including both new chain assertions:
       `mise run test:unit:tasks` (the lane that executes
       `tests/unit/tasks/test_mise.py`; `check` and `build-system:check` do not
-      run pytest).
+      run pytest). (2789 passed)
 - [ ] Read-only check is green: `mise run check`
 
 #### Manual Verification:

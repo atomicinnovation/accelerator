@@ -80,6 +80,10 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
+    # A build-linkage guard rehomed into the roll-up, not an integration test:
+    # it depends only on build:cli:fixture-size and reaches no launcher.
+    "test:integration:fixture-size": "depends-only shim for the gix/jj-lib "
+    "link-ratio guard; reaches no launcher",
 }
 
 
@@ -293,3 +297,20 @@ def test_every_integration_task_is_in_the_rollup_or_excluded_with_a_reason(
     rollup = set(_task_depends(mise, "test:integration"))
     assert rollup | set(_NOT_IN_INTEGRATION_ROLLUP) == _integration_tasks(mise)
     assert not rollup & set(_NOT_IN_INTEGRATION_ROLLUP)
+
+
+def test_fixture_size_leaf_reaches_the_guard(mise):
+    # The leaf's entire protective value is one depends edge; pin it so a
+    # future removal fails here rather than passing vacuously green.
+    assert "build:cli:fixture-size" in _transitive_depends(
+        mise, "test:integration:fixture-size"
+    )
+
+
+def test_fixture_size_guard_runs_in_the_integration_rollup(mise):
+    # Pin the roll-up -> guard half of the chain: the roll-up is the guard's
+    # only CI home, so a future exclusion must not silently relocate it out of
+    # CI.
+    assert "build:cli:fixture-size" in _transitive_depends(
+        mise, "test:integration"
+    )

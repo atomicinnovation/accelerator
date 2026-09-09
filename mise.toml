@@ -390,6 +390,14 @@ description = "Run hooks integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
 
+# A depends-only shim: it lets the fixture-size guard join the test:integration
+# roll-up while keeping the roll-up's guarded invariant that every member is a
+# test:integration:* task. It runs no command of its own — do not delete it as
+# redundant; the assertion lives in build:cli:fixture-size.
+[tasks."test:integration:fixture-size"]
+description = "Roll-up entry point for the gix/jj-lib link-ratio floor; see build:cli:fixture-size"
+depends = ["build:cli:fixture-size"]
+
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -401,6 +409,7 @@ depends = [
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
+    "test:integration:fixture-size",
 ]
 
 [tasks."test:e2e:visualiser"]
