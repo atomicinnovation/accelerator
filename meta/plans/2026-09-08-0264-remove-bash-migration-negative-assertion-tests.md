@@ -276,15 +276,15 @@ clause; the crate-wide static `std::process` deny is what now stands alone.
 
 #### Automated Verification:
 
-- [ ] File is gone: `test ! -e cli/work-adapters/tests/zero_spawn.rs`
-- [ ] work-adapters compiles and tests pass with the feature enabled:
+- [x] File is gone: `test ! -e cli/work-adapters/tests/zero_spawn.rs`
+- [x] work-adapters compiles and tests pass with the feature enabled:
       `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters --features bash-parity`
-- [ ] cargo-pup rules still pass: `mise run pup:check`
+- [x] cargo-pup rules still pass: `mise run pup:check`
 - [ ] Read-only check is green: `mise run check`
 
 #### Manual Verification:
 
-- [ ] The reworded pup.ron comment reads correctly and names no deleted file.
+- [x] The reworded pup.ron comment reads correctly and names no deleted file.
 
 ---
 

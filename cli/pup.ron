@@ -282,9 +282,7 @@
         )),
         // work-adapters spawns no subprocess: its section-diff renders
         // in-process and its VCS identity reads through vcs-adapters' library
-        // path. This crate-wide deny catches use-path std::process imports;
-        // work-adapters/tests/zero_spawn.rs closes the inline
-        // Command::new() blind spot at run time.
+        // path. This crate-wide deny catches use-path std::process imports.
         Module((
             name: "work_adapters_is_zero_spawn",
             matches: Module("^work_adapters($|::)"),
