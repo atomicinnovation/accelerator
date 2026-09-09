@@ -4,11 +4,14 @@ use std::time::Duration;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-/// Seed a minimal Model-1 project and return its visualiser state dir.
+/// Seed a minimal Model-1 project and return its visualiser state dir. The
+/// project doubles as the plugin root, so it must carry a `templates/`
+/// directory for compose to accept it as an installation.
 fn seed_project(project: &Path) -> PathBuf {
     std::fs::create_dir_all(project.join(".accelerator")).unwrap();
     std::fs::write(project.join(".accelerator/config.md"), "---\n---\n")
         .unwrap();
+    std::fs::create_dir_all(project.join("templates")).unwrap();
     project.join(".accelerator/tmp/visualiser")
 }
 
