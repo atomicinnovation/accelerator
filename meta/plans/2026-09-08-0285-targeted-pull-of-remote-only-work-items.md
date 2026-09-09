@@ -557,31 +557,36 @@ overstated count.
 
 #### Automated Verification
 
-- [ ] `partition_candidates` returns `found` for an all-found outcome and folds
+- [x] `partition_candidates` returns `found` for an all-found outcome and folds
       `absent`→3 / `indeterminate`→70, with a batch carrying both exiting 3:
-      `cargo test -p work-cli partition_candidates`
-- [ ] Driven through `run_sync` with a stub `TrackerRegistry`, a remote-only
-      `PP-999` (stub `found`) is pulled and reconciled: `cargo test -p work-cli remote_only_target`
-- [ ] A mixed `found`+`absent` batch aborts exit 3 naming the absent token, zero
-      writes, found not pulled: `cargo test -p work-cli mixed_targets`
-- [ ] An all-success batch mixing a local-id target, a path target, and a
+      `cargo test -p accelerator-work partition_candidates`
+- [x] Driven through `run_sync` with a stub `TrackerRegistry`, a remote-only
+      `PP-999` (stub `found`) is pulled and reconciled: `cargo test -p accelerator-work remote_only`
+- [x] A mixed `found`+`absent` batch aborts exit 3 naming the absent token, zero
+      writes, found not pulled: `cargo test -p accelerator-work mixed_found` (zero-write
+      asserted through `run_sync`; the exit-3 chain by `partition_candidates`)
+- [x] An all-success batch mixing a local-id target, a path target, and a
       remote-only `found` id reconciles the local files, creates the remote-only
-      one, and writes no non-targeted item (AC7): `cargo test -p work-cli`
-- [ ] A whole-call `fetch_all` `Err` for an unembeddable id exits 2 (usage), not
-      70: `cargo test -p work-cli`
-- [ ] Two spellings of one remote-only issue (`PP-999`, `pp-999`) yield a single
-      pull, not two files: `cargo test -p work-cli`
-- [ ] `--push-only --target <remote-only>` exits 2 naming the token, with no
-      `fetch_all` call: `cargo test -p work-cli`
-- [ ] A locally-resolvable token makes no remote call, asserted by a recording
-      stub whose `fetch_all` count is zero: `cargo test -p work-cli`
-- [ ] `--preview --target PP-999` shows the would-create, writes nothing, counts
-      against `--max-pulls`: `cargo test -p work-cli`
-- [ ] A bare remote-only token now reaches the credential/tracker phase (the
-      inverted `a_no_match_target_exits_three_before_the_credential_check`):
-      `cargo test -p work-cli`
-- [ ] An untargeted full sync report and write set are unchanged: `cargo test -p work-cli`
-- [ ] Read-only aggregate clean: `mise run check`
+      one, and writes no non-targeted item (AC7): `cargo test -p accelerator-work mixed_local_and_remote`
+- [~] A whole-call `fetch_all` `Err` **maps to exit 70 (retryable)**, not the
+      plan's three-way split — `TrackerError` carries no discriminant to separate
+      an unembeddable-id from a transient fault, and a credential fault is already
+      caught at `registry.resolve` (74). Per an explicit user decision; covered by
+      `a_whole_call_fetch_all_error_folds_to_indeterminate_exit_seventy`.
+- [x] Two spellings of one remote-only issue (`PP-999`, `pp-999`) yield a single
+      pull, not two files: `cargo test -p accelerator-work two_spellings`
+- [x] `--push-only --target <remote-only>` exits 2 naming the token, with no
+      `fetch_all` call: `cargo test -p accelerator-work push_only_remote_only`
+- [x] A locally-resolvable token makes no candidate `fetch_all` call, asserted by
+      a recording stub: `cargo test -p accelerator-work locally_resolvable`
+- [x] `--preview --target PP-999` shows the would-create, writes nothing, and the
+      pull counts against `--max-pulls` (bound covered by the phase-2 preview test):
+      `cargo test -p accelerator-work previewed_remote_only`
+- [x] A bare remote-only token now reaches the credential/tracker phase (the
+      inverted `a_bare_remote_only_target_reaches_the_credential_phase`):
+      `cargo test -p accelerator-work bare_remote_only`
+- [x] An untargeted full sync report and write set are unchanged: `cargo test -p accelerator-work`
+- [x] Read-only aggregate clean: `mise run check`
 
 #### Manual Verification
 
