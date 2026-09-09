@@ -554,16 +554,16 @@ first, per the module idiom):
 
 #### Automated Verification
 
-- [ ] Store unit tests pass: `cargo test -p config-adapters`
-- [ ] Launcher integration tests pass: `cargo test -p accelerator --test config_read`
-- [ ] Format + lint clean: `mise run cli:check`
+- [x] Store unit tests pass: `cargo test -p config-adapters`
+- [x] Launcher integration tests pass: `cargo test -p accelerator --test config_read`
+- [x] Format + lint clean: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_PLUGIN_ROOT=$(mktemp -d) accelerator config template plan`
+- [x] `ACCELERATOR_PLUGIN_ROOT=$(mktemp -d) accelerator config template plan`
       refuses naming the root path and `ACCELERATOR_PLUGIN_ROOT`, distinct from the
       absent-root message.
-- [ ] Against the real plugin root, `config template not-a-real-template` still
+- [x] Against the real plugin root, `config template not-a-real-template` still
       reports a template-not-found naming the template, with no mention of the
       plugin root.
 

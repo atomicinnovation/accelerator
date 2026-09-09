@@ -1532,6 +1532,94 @@ fn a_root_independent_family_still_succeeds_against_a_wrong_root() -> TestResult
     Ok(())
 }
 
+/// AC2: `template <name>` against a wrong root with no override refuses.
+#[test]
+fn template_against_a_wrong_root_refuses() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "template", "demo"],
+    )?;
+    assert_refuses_as_not_an_installation(&output, bare.path());
+    Ok(())
+}
+
+/// AC7: a valid installation missing one template reports a template-not-found
+/// naming the template, not the plugin root.
+#[test]
+fn template_not_found_names_the_template_not_the_plugin_root() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let output =
+        run_with_plugin(&fixture.root, &["config", "template", "nonesuch"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not found"), "{stderr}");
+    assert!(stderr.contains("nonesuch"), "{stderr}");
+    assert!(
+        !stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "the not-found diagnostic named the plugin root: {stderr}"
+    );
+    Ok(())
+}
+
+/// AC3: `templates eject <name>` against a wrong root refuses as
+/// not-an-installation rather than degrading to a `NoDefault` outcome.
+#[test]
+fn eject_against_a_wrong_root_refuses() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "eject", "demo"],
+    )?;
+    assert_refuses_as_not_an_installation(&output, bare.path());
+    Ok(())
+}
+
+/// AC5: `templates diff` and `reset` against a wrong root each refuse as
+/// not-an-installation.
+#[test]
+fn diff_and_reset_against_a_wrong_root_refuse() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    for args in [
+        vec!["config", "templates", "diff", "demo"],
+        vec!["config", "templates", "reset", "demo"],
+    ] {
+        let output = run_with_plugin_root(
+            &fixture.root,
+            bare.path().as_os_str(),
+            &args,
+        )?;
+        assert_refuses_as_not_an_installation(&output, bare.path());
+    }
+    Ok(())
+}
+
+/// AC10: a resolving user override renders at exit 0 under a wrong root, since
+/// the override tiers precede the plugin-default check.
+#[test]
+fn a_user_override_resolves_against_a_wrong_root() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    fs::create_dir_all(fixture.root.join(".accelerator/templates"))?;
+    fs::write(
+        fixture.root.join(".accelerator/templates/demo.md"),
+        "# Mine\n",
+    )?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "template", "demo"],
+    )?;
+    assert_eq!(output.stdout, b"```markdown\n# Mine\n```\n");
+    assert_eq!(code(&output), 0);
+    Ok(())
+}
+
 #[test]
 fn the_root_independent_families_still_succeed_with_no_plugin_root(
 ) -> TestResult {

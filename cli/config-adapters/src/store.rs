@@ -397,8 +397,7 @@ impl ReadTemplate for FileConfigStore {
                 warning,
             )?));
         }
-        let plugin = self.require_plugin_root()?;
-        let default = plugin.join("templates").join(format!("{name}.md"));
+        let default = self.plugin_template_path(name)?;
         if default.is_file() {
             return Ok(Some(self.resolved(
                 TemplateSource::PluginDefault,
@@ -489,10 +488,7 @@ impl FileConfigStore {
     }
 
     fn plugin_template_path(&self, name: &str) -> Result<PathBuf, ConfigError> {
-        Ok(self
-            .require_plugin_root()?
-            .join("templates")
-            .join(format!("{name}.md")))
+        Ok(self.require_templates_dir()?.join(format!("{name}.md")))
     }
 }
 
@@ -825,7 +821,8 @@ mod tests {
 
     use config::{
         ConfigAccess, ConfigError, ConfigService, Key, Level, Node,
-        ReadConfigLevel, ReadContent, ReadTemplate, Scalar, WriteConfigLevel,
+        ReadConfigLevel, ReadContent, ReadTemplate, Scalar, TemplateOverride,
+        TemplateSource, WriteConfigLevel,
     };
     use tempfile::TempDir;
 
@@ -1483,6 +1480,99 @@ mod tests {
         assert!(matches!(
             store.template_names(),
             Err(ConfigError::Io { .. })
+        ));
+        Ok(())
+    }
+
+    /// A plugin root carrying a `templates/` directory with the named default.
+    fn plugin_with_templates(names: &[&str]) -> Result<TempDir, TestError> {
+        let plugin = tempdir()?;
+        let templates = plugin.path().join("templates");
+        fs::create_dir_all(&templates)?;
+        for name in names {
+            fs::write(templates.join(format!("{name}.md")), "# default\n")?;
+        }
+        Ok(plugin)
+    }
+
+    #[test]
+    fn resolve_template_refuses_a_wrong_root_with_no_override(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.resolve_template("demo", None, ".accelerator/templates"),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_template_resolves_a_user_override_against_a_wrong_root(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let overrides = root.path().join(".accelerator/templates");
+        fs::create_dir_all(&overrides)?;
+        fs::write(overrides.join("demo.md"), "# Mine\n")?;
+        let plugin = tempdir()?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        let resolved = store
+            .resolve_template("demo", None, ".accelerator/templates")?
+            .ok_or("expected the user override to resolve")?;
+        assert!(matches!(resolved.source, TemplateSource::UserOverride));
+        assert_eq!(resolved.content, "# Mine\n");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_template_reports_not_found_for_a_missing_default(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = plugin_with_templates(&["demo"])?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(store
+            .resolve_template("nonesuch", None, ".accelerator/templates")?
+            .is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn plugin_default_reports_not_found_for_a_missing_default(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = plugin_with_templates(&["demo"])?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(store.plugin_default("nonesuch")?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn plugin_default_refuses_a_wrong_root() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.plugin_default("demo"),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn eject_refuses_a_wrong_root() -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.eject("demo", ".accelerator/templates", false, false),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
         ));
         Ok(())
     }
