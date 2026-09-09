@@ -201,3 +201,34 @@ fn an_empty_plugin_root_refuses_to_compose() {
         "the error does not name the variable: {error}"
     );
 }
+
+/// A present-but-wrong plugin root — a real directory carrying no `templates/` —
+/// refuses to compose rather than resolving an empty template set, naming the
+/// offending root and its not-an-installation cause.
+#[test]
+fn a_wrong_plugin_root_refuses_to_compose() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_project(tmp.path());
+    let bare = tempfile::tempdir().unwrap();
+    let error = load(Params {
+        cwd: tmp.path().to_path_buf(),
+        plugin_root: bare.path().to_path_buf(),
+        owner_pid: 0,
+        owner_start_time: None,
+        host: "127.0.0.1".to_string(),
+    })
+    .expect_err("a wrong plugin root composed a config");
+    let message = error.to_string();
+    assert!(
+        message.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "the error does not name the variable: {error}"
+    );
+    assert!(
+        message.contains("not an Accelerator installation"),
+        "the error does not name the wrong-root cause: {error}"
+    );
+    assert!(
+        message.contains(&bare.path().display().to_string()),
+        "the error does not name the offending root: {error}"
+    );
+}

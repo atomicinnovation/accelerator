@@ -623,13 +623,15 @@ fn a_wrong_plugin_root_refuses_to_compose() {
 
 #### Automated Verification
 
-- [ ] Compose contract tests pass: `cargo test -p accelerator-visualiser --test compose_contract`
-- [ ] Format + lint clean: `mise run cli:check`
-- [ ] Full local CI mirror is green: `mise run` (AC12)
+- [x] Compose contract tests pass: `cargo test -p accelerator-visualiser --test compose_contract`
+- [x] Format + lint clean: `mise run cli:check`
+- [ ] Full local CI mirror is green: `mise run` (AC12) — every lane green except
+      the pre-existing `docs:audit:check`, which fails on unrelated `docs-site/`
+      npm advisories (js-yaml, sharp, smol-toml, svgo); out of scope here.
 
 #### Manual Verification
 
-- [ ] Building the server against a wrong root fails composition rather than
+- [x] Building the server against a wrong root fails composition rather than
       serving an empty template set (the boundary test is the durable evidence;
       `run_serve` guards the env var before compose, so the running server does
       not reach this diagnostic on the absent-var path).
